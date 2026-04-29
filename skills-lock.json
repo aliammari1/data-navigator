@@ -1,15 +1,153 @@
 {
   "version": 1,
   "skills": {
+    "adversarial-machine-learning": {
+      "source": "gmh5225/awesome-ai-security",
+      "sourceType": "github",
+      "skillPath": ".claude/skills/adversarial-ml/SKILL.md",
+      "computedHash": "e93b0b9d7b8dc04ac331dbaced8eb4c0c6ed3af3f41f47e447888e9f48786c76"
+    },
+    "d3js-visualization": {
+      "source": "bbeierle12/skill-mcp-claude",
+      "sourceType": "github",
+      "skillPath": "skills/d3js-visualization/SKILL.md",
+      "computedHash": "f361ae879461d1e66956a27c74cb76ea0e38c27baab736a3408d908255055620"
+    },
+    "duckdb": {
+      "source": "silvainfm/claude-skills",
+      "sourceType": "github",
+      "skillPath": "duckdb/SKILL.md",
+      "computedHash": "4fe63015c4a44c98f7887f545712b00315e2e9f5e670c61a5b88060b57dfac6b"
+    },
+    "duckdb-sql": {
+      "source": "robdmc/claude_skills",
+      "sourceType": "github",
+      "skillPath": "duckdb_sql/code/duckdb-sql/SKILL.md",
+      "computedHash": "dd826f116b5d7454c27863a9d9b001daff6b00e0e438064800b076a55c509271"
+    },
+    "framer-motion-animator": {
+      "source": "patricio0312rev/skills",
+      "sourceType": "github",
+      "skillPath": "frontend/framer-motion-animator/SKILL.md",
+      "computedHash": "22a8401fab0cdf32d5c153b98aba5e95435a479810896879535dc7ac3710efbe"
+    },
+    "langchain-architecture": {
+      "source": "wshobson/agents",
+      "sourceType": "github",
+      "skillPath": "plugins/llm-application-dev/skills/langchain-architecture/SKILL.md",
+      "computedHash": "55eb886f6590654361b472e19f4364d5be3011253bec8d0baeca4736f06c8c7c"
+    },
+    "langgraph-docs": {
+      "source": "langchain-ai/deepagents",
+      "sourceType": "github",
+      "skillPath": "libs/cli/examples/skills/langgraph-docs/SKILL.md",
+      "computedHash": "bc33fbf2b3d1b0f8a93d2ccc52e1fef3ba193059418bccf9583f0c71780f6985"
+    },
+    "ml-expert": {
+      "source": "personamanagmentlayer/pcl",
+      "sourceType": "github",
+      "skillPath": "stdlib/ai/ml-expert/SKILL.md",
+      "computedHash": "ad0744ae3a6526a31c301c54be65e06de5121d696d4f60cdbafba1041220297f"
+    },
+    "nextjs-framer-motion-animations": {
+      "source": "tristanmanchester/agent-skills",
+      "sourceType": "github",
+      "skillPath": "nextjs-framer-motion-animations/SKILL.md",
+      "computedHash": "46598be01e2c09c32260077a0ced610067f6a8036b2345438b9b0936defa25be"
+    },
+    "nextjs-performance": {
+      "source": "giuseppe-trisciuoglio/developer-kit",
+      "sourceType": "github",
+      "skillPath": "plugins/developer-kit-typescript/skills/nextjs-performance/SKILL.md",
+      "computedHash": "e7aacb7a0f57077fd7494a5c3b633cbc6a351463142acb1101a7f85570e20ace"
+    },
+    "nextjs-shadcn": {
+      "source": "laguagu/claude-code-nextjs-skills",
+      "sourceType": "github",
+      "skillPath": "skills/nextjs-shadcn/SKILL.md",
+      "computedHash": "cb6dc6d6eb1f2b35b2a465cdaa6c90ebe601b263d884d402954f4863ae093ab3"
+    },
+    "optimized-nextjs-typescript": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "optimized-nextjs-typescript/SKILL.md",
+      "computedHash": "d94268ecf8422b888b64b8db78894aad3bda5a3c750f06d540a5398d7b47863d"
+    },
+    "owasp-security": {
+      "source": "hoodini/ai-agents-skills",
+      "sourceType": "github",
+      "skillPath": "skills/owasp-security/SKILL.md",
+      "computedHash": "880d7aa73b001e7e28b9562639defeff11c073d958fe5a253eeea572539439a2"
+    },
+    "owasp-security-check": {
+      "source": "sergiodxa/agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/owasp-security-check/SKILL.md",
+      "computedHash": "94875bfeb111a97687dc4f90b71c23de959ce36bfa9cab65c007116218f7413e"
+    },
     "shadcn": {
       "source": "shadcn/ui",
       "sourceType": "github",
       "computedHash": "77faba608ea949351d1757e29e6cb726f6ec5937f7595be0593038a7d2d76bb9"
     },
+    "tanstack-table": {
+      "source": "tanstack-skills/tanstack-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/tanstack-table/skills/tanstack-table/SKILL.md",
+      "computedHash": "5527e42e541ac26fc1157e49d58c399b95e44eb276ef3caa7576ab138558d593"
+    },
+    "tanstack-virtual": {
+      "source": "tanstack-skills/tanstack-skills",
+      "sourceType": "github",
+      "skillPath": "plugins/tanstack-virtual/skills/tanstack-virtual/SKILL.md",
+      "computedHash": "3696d2db04a03373dfdab1f8d5c2249989c6d8c299bb02c4491b25d2b446e51c"
+    },
+    "transformers": {
+      "source": "tondevrel/scientific-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/transformers/SKILL.md",
+      "computedHash": "68d24d025c1485f71fc3927099261c6de859a12dc96acd6c444bb1ffba090eb7"
+    },
+    "ui-design": {
+      "source": "tencentcloudbase/skills",
+      "sourceType": "github",
+      "skillPath": "skills/ui-design/SKILL.md",
+      "computedHash": "fb0d25602240389a75e3f7b6125b6c189bcdc1b3bc7f731e331a7dd2159ade7b"
+    },
     "ui-ux-pro-max": {
       "source": "nextlevelbuilder/ui-ux-pro-max-skill",
       "sourceType": "github",
       "computedHash": "6337038fe1fe6bbe1b9f252ab678ee575859190bab6f0f246f4061824eb40875"
+    },
+    "user-interface-designer": {
+      "source": "qodex-ai/ai-agent-skills",
+      "sourceType": "github",
+      "skillPath": "skills/user-interface-designer/SKILL.md",
+      "computedHash": "03b924af8143cd323cd7f2773d3d83b51d6e9ea6eb0d9ee1581be0179f98d08b"
+    },
+    "yjs": {
+      "source": "epicenterhq/epicenter",
+      "sourceType": "github",
+      "skillPath": ".agents/skills/yjs/SKILL.md",
+      "computedHash": "7831c7d6b9aac8111bb5c2d9683e63a02b1b0eef9b0f8cbd0512d1881de19665"
+    },
+    "yjs-best-practices": {
+      "source": "liveblocks/skills",
+      "sourceType": "github",
+      "skillPath": "skills/yjs-best-practices/SKILL.md",
+      "computedHash": "1b93ffc4d38cd8fe6fd653b96c854ac53d8f17f1e5566a556f76908a9f2b02ab"
+    },
+    "zustand-5": {
+      "source": "gentleman-programming/gentleman-skills",
+      "sourceType": "github",
+      "skillPath": "curated/zustand-5/SKILL.md",
+      "computedHash": "f1925f7fe9f6890af736d87cb327cd4b2c8331068b96b76850457cd40c1412da"
+    },
+    "zustand-state-management": {
+      "source": "mindrally/skills",
+      "sourceType": "github",
+      "skillPath": "zustand-state-management/SKILL.md",
+      "computedHash": "08b88583afa2e859abf053ffe958f93800b7426ca285d3887b94d5e613cc29d1"
     }
   }
 }

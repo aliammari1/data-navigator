@@ -1,9 +1,9 @@
 "use client";
 import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
+import { cn } from "@/lib/utils";
 
 export function AlertBanner({
   kpi,
@@ -59,12 +59,17 @@ export function AlertBanner({
 
   return (
     <div className="space-y-1.5">
-      {alerts.slice(0, 5).map((a) => (
+      {alerts.slice(0, 5).map((a, idx) => (
         <motion.div
           key={a.msg}
-          initial={{ opacity: 0, x: -6 }}
+          initial={{ opacity: 0, x: -8 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: Math.random() * 0.3 }}
+          transition={{
+            delay: idx * 0.07,
+            type: "spring",
+            stiffness: 350,
+            damping: 28,
+          }}
           className={cn(
             "flex items-center gap-3 px-4 py-2.5 rounded-xl border text-xs font-medium",
             a.level === "critical"
