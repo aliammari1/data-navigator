@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "WebSearch"
+      "WebSearch",
+      "Bash(bun add:*)",
+      "Read(//c/Users/ammar/Downloads/**)",
+      "Bash(node -e \"const lg = require\\('@langchain/langgraph'\\); console.log\\(Object.keys\\(lg\\).slice\\(0,15\\).join\\(','\\)\\)\")",
+      "Bash(node:*)",
+      "Bash(bunx tsc:*)"
     ]
   }
 }
