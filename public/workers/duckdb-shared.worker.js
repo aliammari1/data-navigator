@@ -12690,70 +12690,50 @@ async function getStatusInternal() {
     dbPath: opfsPersistenceActive ? OPFS_DB_PATH : null
   };
 }
-function postResult(port, id, result) {
-  port.postMessage({ id, result });
-}
-function postError(port, id, error) {
-  port.postMessage({ id, error: serializeError(error) });
-}
-function handlePort(port) {
-  port.onmessage = async (event) => {
-    const msg = event.data;
-    try {
-      let result = null;
-      switch (msg.type) {
-        case "init":
-          await enqueue(() => ensureInit());
-          break;
-        case "runQuery":
-          result = await enqueue(() => runQueryInternal(msg.sql));
-          break;
-        case "loadCSV":
-          await enqueue(() => loadCSVInternal(msg.tableName, new Uint8Array(msg.buffer), msg.delimiter, msg.append ?? false));
-          break;
-        case "loadCSVFile":
-          await enqueue(() => loadCSVFileInternal(msg.tableName, msg.file, msg.delimiter, msg.append ?? false));
-          break;
-        case "loadJSON":
-          await enqueue(() => loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)));
-          break;
-        case "listTables":
-          result = await enqueue(() => listTablesInternal());
-          break;
-        case "getTableInfo":
-          result = await enqueue(() => getTableInfoInternal(msg.tableName));
-          break;
-        case "getColumnStats":
-          result = await enqueue(() => getColumnStatsInternal(msg.tableName, msg.columnName));
-          break;
-        case "exportTableToParquet":
-          await enqueue(() => exportTableToParquetInternal(msg.tableName));
-          break;
-        case "loadTableFromParquet":
-          result = await enqueue(() => loadTableFromParquetInternal(msg.tableName));
-          break;
-        case "clearTable":
-          await enqueue(() => clearTableInternal(msg.tableName));
-          break;
-        case "getStatus":
-          result = await getStatusInternal();
-          break;
-        default: {
-          const _exhaustive = msg;
-          throw new Error(`Unsupported SharedWorker message: ${String(_exhaustive.type)}`);
-        }
-      }
-      postResult(port, msg.id, result);
-    } catch (error) {
-      postError(port, msg.id, error);
+self.onmessage = async (event) => {
+  const msg = event.data;
+  try {
+    let result = null;
+    switch (msg.type) {
+      case "init":
+        await enqueue(() => ensureInit());
+        break;
+      case "runQuery":
+        result = await enqueue(() => runQueryInternal(msg.sql));
+        break;
+      case "loadCSV":
+        await enqueue(() => loadCSVInternal(msg.tableName, new Uint8Array(msg.buffer), msg.delimiter, msg.append ?? false));
+        break;
+      case "loadCSVFile":
+        await enqueue(() => loadCSVFileInternal(msg.tableName, msg.file, msg.delimiter, msg.append ?? false));
+        break;
+      case "loadJSON":
+        await enqueue(() => loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)));
+        break;
+      case "listTables":
+        result = await enqueue(() => listTablesInternal());
+        break;
+      case "getTableInfo":
+        result = await enqueue(() => getTableInfoInternal(msg.tableName));
+        break;
+      case "getColumnStats":
+        result = await enqueue(() => getColumnStatsInternal(msg.tableName, msg.columnName));
+        break;
+      case "exportTableToParquet":
+        await enqueue(() => exportTableToParquetInternal(msg.tableName));
+        break;
+      case "loadTableFromParquet":
+        result = await enqueue(() => loadTableFromParquetInternal(msg.tableName));
+        break;
+      case "clearTable":
+        await enqueue(() => clearTableInternal(msg.tableName));
+        break;
+      case "getStatus":
+        result = await getStatusInternal();
+        break;
     }
-  };
-  port.start();
-}
-var sharedWorkerScope = self;
-sharedWorkerScope.onconnect = (event) => {
-  const port = event.ports[0];
-  if (!port)
-    return;
-  handlePort(port);
+    self.postMessage({ id: msg.id, result });
+  } catch (error) {
+    self.postMessage({ id: msg.id, error: serializeError(error) });
+  }
 };

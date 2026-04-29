@@ -1,8 +1,8 @@
 "use client";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
 import type * as Types from "@/features/telecom/types";
+import { cn } from "@/lib/utils";
 
 interface KPICardProps {
   label: string;
@@ -47,7 +47,15 @@ export function KPICard({
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay, duration: 0.35 }}
+      whileHover={{ y: -2, scale: 1.015 }}
+      whileTap={{ scale: 0.97 }}
+      transition={{
+        delay,
+        duration: 0.35,
+        type: "spring",
+        stiffness: 350,
+        damping: 22,
+      }}
       className={cn(
         "rounded-2xl border flex flex-col gap-3 overflow-hidden relative",
         isHero ? "p-5" : "p-4",
@@ -80,6 +88,7 @@ export function KPICard({
               fill="none"
               stroke="currentColor"
               strokeWidth="2"
+              aria-hidden="true"
             >
               <polyline points="1.5,5 4,7.5 8.5,2.5" />
             </svg>
