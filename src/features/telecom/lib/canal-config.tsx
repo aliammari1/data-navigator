@@ -1,0 +1,145 @@
+import {
+  FileText,
+  Layers,
+  Phone,
+  Signal,
+  Smartphone,
+  Tag,
+  Wifi,
+  Zap,
+} from "lucide-react";
+import type { CanalKey, CanalSummary } from "@/features/telecom/types";
+import type { RawCanalRow } from "@/features/telecom/lib/queries";
+
+// ─── Canal visual configuration ───────────────────────────────────────────────
+
+export const CANAL_CONFIG: Record<
+  CanalKey,
+  {
+    label: string;
+    icon: React.ElementType;
+    color: string;
+    bg: string;
+    border: string;
+    shortLabel: string;
+  }
+> = {
+  bill_payment: {
+    label: "Bill Payment",
+    icon: FileText,
+    color: "text-blue-600 dark:text-blue-400",
+    bg: "bg-blue-50 dark:bg-blue-500/10",
+    border: "border-blue-200 dark:border-blue-500/25",
+    shortLabel: "Bill Payment",
+  },
+  voice_fixed_ttcash: {
+    label: "Fixed by TTCASH",
+    icon: Phone,
+    color: "text-emerald-600 dark:text-emerald-400",
+    bg: "bg-emerald-50 dark:bg-emerald-500/10",
+    border: "border-emerald-200 dark:border-emerald-500/25",
+    shortLabel: "Fixed by TTCASH",
+  },
+  voice_fixed_voucher: {
+    label: "Fixed by Voucher",
+    icon: Phone,
+    color: "text-teal-600 dark:text-teal-400",
+    bg: "bg-teal-50 dark:bg-teal-500/10",
+    border: "border-teal-200 dark:border-teal-500/25",
+    shortLabel: "Fixed by Voucher",
+  },
+  voice_mobile_ttcash: {
+    label: "Mobile by TTCASH",
+    icon: Smartphone,
+    color: "text-violet-600 dark:text-violet-400",
+    bg: "bg-violet-50 dark:bg-violet-500/10",
+    border: "border-violet-200 dark:border-violet-500/25",
+    shortLabel: "Mobile by TTCASH",
+  },
+  voice_mobile_voucher: {
+    label: "Mobile by Voucher",
+    icon: Smartphone,
+    color: "text-purple-600 dark:text-purple-400",
+    bg: "bg-purple-50 dark:bg-purple-500/10",
+    border: "border-purple-200 dark:border-purple-500/25",
+    shortLabel: "Mobile by Voucher",
+  },
+  data_sabba: {
+    label: "Internet Sabba",
+    icon: Wifi,
+    color: "text-amber-600 dark:text-amber-400",
+    bg: "bg-amber-50 dark:bg-amber-500/10",
+    border: "border-amber-200 dark:border-amber-500/25",
+    shortLabel: "Internet Sabba",
+  },
+  data_evoucher: {
+    label: "Data by Voucher",
+    icon: Signal,
+    color: "text-rose-600 dark:text-rose-400",
+    bg: "bg-rose-50 dark:bg-rose-500/10",
+    border: "border-rose-200 dark:border-rose-500/25",
+    shortLabel: "Data by Voucher",
+  },
+  voucher_for_payment: {
+    label: "Voucher For Payment",
+    icon: Tag,
+    color: "text-cyan-600 dark:text-cyan-400",
+    bg: "bg-cyan-50 dark:bg-cyan-500/10",
+    border: "border-cyan-200 dark:border-cyan-500/25",
+    shortLabel: "Voucher For Payment",
+  },
+  credit_transfer: {
+    label: "Credit Transfer",
+    icon: Zap,
+    color: "text-orange-600 dark:text-orange-400",
+    bg: "bg-orange-50 dark:bg-orange-500/10",
+    border: "border-orange-200 dark:border-orange-500/25",
+    shortLabel: "Credit Transfer",
+  },
+  voucher_convergent: {
+    label: "Voucher For Recharge Management",
+    icon: Layers,
+    color: "text-lime-600 dark:text-lime-400",
+    bg: "bg-lime-50 dark:bg-lime-500/10",
+    border: "border-lime-200 dark:border-lime-500/25",
+    shortLabel: "Voucher For Recharge",
+  },
+};
+
+// ─── Status and chart colours ─────────────────────────────────────────────────
+
+export const STATUS_COLORS: Record<string, string> = {
+  SUCCESS: "#10b981",
+  DECLINED: "#ef4444",
+  REFUND: "#8b5cf6",
+  INSTANCE: "#f59e0b",
+  SUBMITTED: "#3b82f6",
+  OTHER: "#94a3b8",
+};
+
+export const CHART_PALETTE = [
+  "#89b4fa",
+  "#a6e3a1",
+  "#f38ba8",
+  "#fab387",
+  "#cba6f7",
+  "#94e2d5",
+  "#f9e2af",
+  "#89dceb",
+];
+
+// ─── Canal enrichment ─────────────────────────────────────────────────────────
+
+/** Takes raw canal rows from queries.ts and adds icon/color/bgColor/borderColor from CANAL_CONFIG. */
+export function enrichCanalSummaries(raw: RawCanalRow[]): CanalSummary[] {
+  return raw.map((r) => {
+    const cfg = CANAL_CONFIG[r.key];
+    return {
+      ...r,
+      icon: cfg.icon,
+      color: cfg.color,
+      bgColor: cfg.bg,
+      borderColor: cfg.border,
+    };
+  });
+}

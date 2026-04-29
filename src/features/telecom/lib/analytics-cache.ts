@@ -1,0 +1,291 @@
+/**
+ * F3 — IndexedDB Analytics Cache
+ * Caches DuckDB analytics results keyed by file fingerprint.
+ * On revisit with same file → instant results (<100ms), fresh data in background.
+ * Uses Compression Streams (F21) to shrink entries ~80%.
+ */
+
+import { compress, decompress } from "@/lib/compression";
+import {
+  TELECOM_ANALYTICS_DB,
+  TELECOM_ANALYTICS_DB_VERSION,
+  TELECOM_ANALYTICS_STORE,
+  TELECOM_SOURCE_STORE,
+} from "@/features/telecom/lib/names";
+
+const DB_NAME = TELECOM_ANALYTICS_DB;
+const STORE_NAME = TELECOM_ANALYTICS_STORE;
+const SOURCE_STORE_NAME = TELECOM_SOURCE_STORE;
+const DB_VERSION = TELECOM_ANALYTICS_DB_VERSION;
+const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const MAX_SOURCE_FILES = 5;
+
+export interface CachedAnalytics {
+  key: string;
+  savedAt: number;
+  fileName: string;
+  kpi: unknown;
+  canals: unknown[];
+  hourly: unknown[];
+  statusData: unknown[];
+  errors: unknown[];
+  operators: unknown[];
+  regions: unknown[];
+  rawStatuses: unknown[];
+}
+
+export interface CachedTelecomSourceFile {
+  key: string;
+  savedAt: number;
+  fileName: string;
+  size: number;
+  lastModified: number;
+  type: string;
+  file: File | Blob;
+}
+
+export interface CachedTelecomSourceFileMeta {
+  key: string;
+  savedAt: number;
+  fileName: string;
+  size: number;
+  lastModified: number;
+  type: string;
+}
+
+export function getTelecomFileKey(file: File): string {
+  return `${file.name}|${file.size}|${file.lastModified}`;
+}
+
+function openIDB(): Promise<IDBDatabase> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = (e) => {
+      const db = (e.target as IDBOpenDBRequest).result;
+      if (!db.objectStoreNames.contains(STORE_NAME)) {
+        db.createObjectStore(STORE_NAME, { keyPath: "key" });
+      }
+      if (!db.objectStoreNames.contains(SOURCE_STORE_NAME)) {
+        db.createObjectStore(SOURCE_STORE_NAME, { keyPath: "key" });
+      }
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+
+export async function getCachedAnalytics(
+  file: File,
+): Promise<CachedAnalytics | null> {
+  return getCachedAnalyticsForKey(getTelecomFileKey(file));
+}
+
+export async function getCachedAnalyticsForKey(
+  key: string,
+): Promise<CachedAnalytics | null> {
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readonly");
+      const req = tx.objectStore(STORE_NAME).get(key);
+      req.onsuccess = async () => {
+        const raw = req.result as { key: string; compressed: ArrayBuffer; savedAt: number } | undefined;
+        if (!raw) { resolve(null); return; }
+        if (Date.now() - raw.savedAt > MAX_AGE_MS) {
+          deleteCachedAnalyticsForKey(key).catch(() => {});
+          resolve(null);
+          return;
+        }
+        try {
+          const data = await decompress(raw.compressed) as CachedAnalytics;
+          resolve(data);
+        } catch {
+          resolve(null);
+        }
+      };
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function setCachedAnalytics(
+  file: File,
+  data: Omit<CachedAnalytics, "key" | "savedAt">,
+): Promise<void> {
+  return setCachedAnalyticsForKey(getTelecomFileKey(file), data);
+}
+
+export async function setCachedAnalyticsForKey(
+  key: string,
+  data: Omit<CachedAnalytics, "key" | "savedAt">,
+): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openIDB();
+    const payload: CachedAnalytics = { ...data, key, savedAt: Date.now() };
+    const compressed = await compress(payload);
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const req = tx.objectStore(STORE_NAME).put({ key, compressed, savedAt: Date.now() });
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {
+    // Cache write failures are non-fatal
+  }
+}
+
+export async function deleteCachedAnalytics(file: File): Promise<void> {
+  return deleteCachedAnalyticsForKey(getTelecomFileKey(file));
+}
+
+export async function deleteCachedAnalyticsForKey(key: string): Promise<void> {
+  if (typeof indexedDB === "undefined") return;
+  try {
+    const db = await openIDB();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const req = tx.objectStore(STORE_NAME).delete(key);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch {}
+}
+
+export async function cacheTelecomSourceFile(file: File): Promise<string | null> {
+  if (typeof indexedDB === "undefined") return null;
+  const key = getTelecomFileKey(file);
+  try {
+    const db = await openIDB();
+    const entry: CachedTelecomSourceFile = {
+      key,
+      savedAt: Date.now(),
+      fileName: file.name,
+      size: file.size,
+      lastModified: file.lastModified,
+      type: file.type,
+      file,
+    };
+    await new Promise<void>((resolve, reject) => {
+      const tx = db.transaction(SOURCE_STORE_NAME, "readwrite");
+      const req = tx.objectStore(SOURCE_STORE_NAME).put(entry);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+    pruneTelecomSourceFiles().catch(() => {});
+    return key;
+  } catch {
+    return null;
+  }
+}
+
+export async function getCachedTelecomSourceFiles(): Promise<
+  CachedTelecomSourceFileMeta[]
+> {
+  if (typeof indexedDB === "undefined") return [];
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(SOURCE_STORE_NAME, "readonly");
+      const req = tx.objectStore(SOURCE_STORE_NAME).getAll();
+      req.onsuccess = () => {
+        const entries = (req.result as CachedTelecomSourceFile[])
+          .map(({ key, savedAt, fileName, size, lastModified, type }) => ({
+            key,
+            savedAt,
+            fileName,
+            size,
+            lastModified,
+            type,
+          }))
+          .sort((a, b) => b.savedAt - a.savedAt);
+        resolve(entries);
+      };
+      req.onerror = () => resolve([]);
+    });
+  } catch {
+    return [];
+  }
+}
+
+export async function getCachedTelecomSourceFile(
+  key: string,
+): Promise<File | null> {
+  if (typeof indexedDB === "undefined") return null;
+  try {
+    const db = await openIDB();
+    return new Promise((resolve) => {
+      const tx = db.transaction(SOURCE_STORE_NAME, "readonly");
+      const req = tx.objectStore(SOURCE_STORE_NAME).get(key);
+      req.onsuccess = () => {
+        const entry = req.result as CachedTelecomSourceFile | undefined;
+        if (!entry?.file) {
+          resolve(null);
+          return;
+        }
+        if (entry.file instanceof File) {
+          resolve(entry.file);
+          return;
+        }
+        resolve(
+          new File([entry.file], entry.fileName, {
+            lastModified: entry.lastModified,
+            type: entry.type,
+          }),
+        );
+      };
+      req.onerror = () => resolve(null);
+    });
+  } catch {
+    return null;
+  }
+}
+
+async function pruneTelecomSourceFiles(
+  maxFiles = MAX_SOURCE_FILES,
+): Promise<void> {
+  const entries = await getCachedTelecomSourceFiles();
+  const stale = entries.slice(maxFiles);
+  if (stale.length === 0 || typeof indexedDB === "undefined") return;
+  try {
+    const db = await openIDB();
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(SOURCE_STORE_NAME, "readwrite");
+      const store = tx.objectStore(SOURCE_STORE_NAME);
+      for (const entry of stale) store.delete(entry.key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+      tx.onabort = () => resolve();
+    });
+  } catch {}
+}
+
+export async function purgeStaleCache(): Promise<number> {
+  if (typeof indexedDB === "undefined") return 0;
+  try {
+    const db = await openIDB();
+    const cutoff = Date.now() - MAX_AGE_MS;
+    return new Promise((resolve) => {
+      const tx = db.transaction(STORE_NAME, "readwrite");
+      const store = tx.objectStore(STORE_NAME);
+      const req = store.openCursor();
+      let purged = 0;
+      req.onsuccess = () => {
+        const cursor = req.result as IDBCursorWithValue | null;
+        if (!cursor) { resolve(purged); return; }
+        const entry = cursor.value as { savedAt: number };
+        if (entry.savedAt < cutoff) {
+          cursor.delete();
+          purged++;
+        }
+        cursor.continue();
+      };
+      req.onerror = () => resolve(purged);
+    });
+  } catch {
+    return 0;
+  }
+}
