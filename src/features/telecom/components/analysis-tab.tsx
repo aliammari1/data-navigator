@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -13,17 +12,25 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { motion } from "motion/react";
+import { useEffect, useRef, useState } from "react";
+import {
+  clamp,
+  fmtAmount,
+  fmtDuration,
+  fmtN,
+  fmtPct,
+} from "@/features/telecom/lib/format";
+import type * as Types from "@/features/telecom/types";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
-import { clamp, fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { groupErrorsSemantically, type SemanticErrorGroup } from "@/lib/nlp";
+import { cn } from "@/lib/utils";
 import { AnimCounter } from "./anim-counter";
 import { CanalHeatmap } from "./canal-heatmap";
 import { ErrorFreqChart } from "./error-freq-chart";
 import { HourlyChart } from "./hourly-chart";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
-import type * as Types from "@/features/telecom/types";
 
 // ─── Revenue groups ────────────────────────────────────────────────────────────
 
@@ -86,10 +93,21 @@ export function AnalysisTab({
   m: Types.ColumnMapping;
   fetchOperators: (m: Types.ColumnMapping) => Promise<Types.OperatorRow[]>;
   fetchRegions: (m: Types.ColumnMapping) => Promise<Types.RegionRow[]>;
-  fetchOperatorsForGroup: (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) => Promise<Types.OperatorRow[]>;
-  fetchDestinationsForGroup: (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) => Promise<Types.OperatorRow[]>;
-  fetchRegionsForGroup: (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) => Promise<Types.RegionRow[]>;
-  fetchCanalHourlyMatrix: (m: Types.ColumnMapping) => Promise<Types.CanalHourCell[]>;
+  fetchOperatorsForGroup: (
+    m: Types.ColumnMapping,
+    groupKeys: Types.CanalKey[],
+  ) => Promise<Types.OperatorRow[]>;
+  fetchDestinationsForGroup: (
+    m: Types.ColumnMapping,
+    groupKeys: Types.CanalKey[],
+  ) => Promise<Types.OperatorRow[]>;
+  fetchRegionsForGroup: (
+    m: Types.ColumnMapping,
+    groupKeys: Types.CanalKey[],
+  ) => Promise<Types.RegionRow[]>;
+  fetchCanalHourlyMatrix: (
+    m: Types.ColumnMapping,
+  ) => Promise<Types.CanalHourCell[]>;
 }) {
   // F11 — Lazy-load operators/regions if background task hasn't finished yet
   const {
@@ -119,9 +137,9 @@ export function AnalysisTab({
   }, [errors]);
 
   // Use prop data if available (background task finished), otherwise use lazy result
-  const operators =
+  const _operators =
     operatorsProp.length > 0 ? operatorsProp : (lazyOperators ?? []);
-  const regions = regionsProp.length > 0 ? regionsProp : (lazyRegions ?? []);
+  const _regions = regionsProp.length > 0 ? regionsProp : (lazyRegions ?? []);
 
   // Unified Top 50 state — accounts (source), accounts (destination), regions/agents
   const groupNames = Object.keys(REVENUE_GROUPS) as string[];
@@ -165,7 +183,14 @@ export function AnalysisTab({
     )
       .then(setTop50Rows)
       .finally(() => setTop50Loading(false));
-  }, [top50View, selectedGroup, m]);
+  }, [
+    top50View,
+    selectedGroup,
+    m,
+    fetchRegionsForGroup,
+    fetchOperatorsForGroup,
+    fetchDestinationsForGroup,
+  ]);
 
   const peakRow = hourly.reduce(
     (b, r) => (r.total > b.total ? r : b),
@@ -174,14 +199,11 @@ export function AnalysisTab({
   const quietRow = hourly
     .filter((r) => r.total > 0)
     .reduce((b, r) => (r.total < b.total ? r : b), peakRow);
-  const worstRow = hourly.reduce(
-    (b, r) => {
-      const ar = r.total > 0 ? r.declined / r.total : 0;
-      const ab = b.total > 0 ? b.declined / b.total : 0;
-      return ar > ab ? r : b;
-    },
-    hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 },
-  );
+  const worstRow = hourly.reduce((b, r) => {
+    const ar = r.total > 0 ? r.declined / r.total : 0;
+    const ab = b.total > 0 ? b.declined / b.total : 0;
+    return ar > ab ? r : b;
+  }, hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 });
 
   // suppress unused-variable warnings for lazy loading refs
   void opsLoading;
@@ -220,9 +242,17 @@ export function AnalysisTab({
               color:
                 "border-red-200 bg-red-50 text-red-600 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400",
             },
-          ].map((item) => (
-            <div
+          ].map((item, i) => (
+            <motion.div
               key={item.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{
+                type: "spring",
+                stiffness: 320,
+                damping: 24,
+                delay: i * 0.08,
+              }}
               className={cn(
                 "rounded-xl border p-4",
                 item.color.split(" ").slice(0, 2).join(" "),
@@ -239,7 +269,7 @@ export function AnalysisTab({
               <div className="text-xs text-muted-foreground mt-1">
                 {item.sub}
               </div>
-            </div>
+            </motion.div>
           ))}
         </div>
         <HourlyChart data={hourly} />
@@ -477,7 +507,7 @@ export function AnalysisTab({
                       row.total > 0 ? (row.success / row.total) * 100 : 0;
                     return (
                       <tr
-                        key={row.name + idx}
+                        key={row.name}
                         className="border-b border-border hover:bg-muted/40 transition-colors"
                       >
                         <td className="px-3 py-2.5 text-muted-foreground tabular-nums w-8">

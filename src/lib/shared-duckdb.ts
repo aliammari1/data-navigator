@@ -67,8 +67,7 @@ type PendingRequest = {
 const WORKER_URL = "/workers/duckdb-shared.worker.js";
 const WORKER_NAME = "datanavigator-duckdb";
 
-let port: MessagePort | null = null;
-let worker: SharedWorker | null = null;
+let worker: Worker | null = null;
 let ready = false;
 let failed = false;
 let requestId = 0;
@@ -106,36 +105,35 @@ function markFailed(error: Error): void {
   failed = true;
   ready = false;
   initPromise = null;
-  port = null;
   worker = null;
 
   rejectAllPending(error);
 }
 
-function getPort(): MessagePort {
+function workerSupported(): boolean {
+  return typeof window !== "undefined" && "Worker" in window;
+}
+
+function getWorker(): Worker {
   if (failed) {
-    throw new Error(
-      "Shared DuckDB worker is unavailable. Reload the page to retry.",
-    );
+    throw new Error("DuckDB worker is unavailable. Reload the page to retry.");
   }
 
-  if (port) return port;
+  if (worker) return worker;
 
-  if (!sharedWorkerSupported()) {
+  if (!workerSupported()) {
     throw new Error(
-      "SharedWorker is not available in this browser. DataNavigator requires SharedWorker for the local DuckDB runtime.",
+      "Worker is not available in this browser. DataNavigator requires Web Worker for the local DuckDB runtime.",
     );
   }
 
   try {
-    worker = new SharedWorker(WORKER_URL, {
+    worker = new Worker(WORKER_URL, {
       type: "module",
       name: WORKER_NAME,
     });
 
-    port = worker.port;
-
-    port.onmessage = (event: MessageEvent<WorkerResponse>) => {
+    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
       const message = event.data;
       const request = pending.get(message.id);
 
@@ -151,26 +149,22 @@ function getPort(): MessagePort {
       request.resolve(message.result);
     };
 
-    port.onmessageerror = () => {
-      markFailed(new Error("Shared DuckDB worker sent an unreadable message."));
+    worker.onmessageerror = () => {
+      markFailed(new Error("DuckDB worker sent an unreadable message."));
     };
 
     worker.onerror = (event) => {
       markFailed(
-        new Error(
-          event.message || "Shared DuckDB worker failed to load or crashed.",
-        ),
+        new Error(event.message || "DuckDB worker failed to load or crashed."),
       );
     };
 
-    port.start();
-
-    return port;
+    return worker;
   } catch (error) {
     const normalized =
       error instanceof Error
         ? error
-        : new Error("Failed to create Shared DuckDB worker.");
+        : new Error("Failed to create DuckDB worker.");
 
     markFailed(normalized);
     throw normalized;
@@ -187,7 +181,7 @@ function send<T>(
   message: WorkerRequestWithoutId,
   transfer?: Transferable[],
 ): Promise<T> {
-  const activePort = getPort();
+  const activeWorker = getWorker();
   const id = ++requestId;
 
   return new Promise<T>((resolve, reject) => {
@@ -197,7 +191,7 @@ function send<T>(
     });
 
     try {
-      activePort.postMessage(
+      activeWorker.postMessage(
         {
           ...message,
           id,
@@ -210,7 +204,7 @@ function send<T>(
       reject(
         error instanceof Error
           ? error
-          : new Error("Failed to send message to Shared DuckDB worker."),
+          : new Error("Failed to send message to DuckDB worker."),
       );
     }
   });
@@ -411,10 +405,9 @@ export const sharedDuckDB: SharedDuckDB = {
     failed = false;
     initPromise = null;
 
-    port?.close();
-    port = null;
+    worker?.terminate();
     worker = null;
 
-    rejectAllPending(new Error("Shared DuckDB client was reset."));
+    rejectAllPending(new Error("DuckDB client was reset."));
   },
 };

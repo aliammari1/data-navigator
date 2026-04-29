@@ -682,10 +682,82 @@ function handlePort(port: MessagePort): void {
 
 // ─── SharedWorker entry point ─────────────────────────────────────────────────
 
-const sharedWorkerScope = self as unknown as SharedWorkerGlobalScope;
+self.onmessage = async (event: MessageEvent<IncomingMsg>) => {
+  const msg = event.data;
 
-sharedWorkerScope.onconnect = (event: MessageEvent) => {
-  const port = event.ports[0];
-  if (!port) return;
-  handlePort(port);
+  try {
+    let result: unknown = null;
+
+    switch (msg.type) {
+      case "init":
+        await enqueue(() => ensureInit());
+        break;
+
+      case "runQuery":
+        result = await enqueue(() => runQueryInternal(msg.sql));
+        break;
+
+      case "loadCSV":
+        await enqueue(() =>
+          loadCSVInternal(
+            msg.tableName,
+            new Uint8Array(msg.buffer),
+            msg.delimiter,
+            msg.append ?? false,
+          ),
+        );
+        break;
+
+      case "loadCSVFile":
+        await enqueue(() =>
+          loadCSVFileInternal(
+            msg.tableName,
+            msg.file,
+            msg.delimiter,
+            msg.append ?? false,
+          ),
+        );
+        break;
+
+      case "loadJSON":
+        await enqueue(() =>
+          loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)),
+        );
+        break;
+
+      case "listTables":
+        result = await enqueue(() => listTablesInternal());
+        break;
+
+      case "getTableInfo":
+        result = await enqueue(() => getTableInfoInternal(msg.tableName));
+        break;
+
+      case "getColumnStats":
+        result = await enqueue(() =>
+          getColumnStatsInternal(msg.tableName, msg.columnName),
+        );
+        break;
+
+      case "exportTableToParquet":
+        await enqueue(() => exportTableToParquetInternal(msg.tableName));
+        break;
+
+      case "loadTableFromParquet":
+        result = await enqueue(() => loadTableFromParquetInternal(msg.tableName));
+        break;
+
+      case "clearTable":
+        await enqueue(() => clearTableInternal(msg.tableName));
+        break;
+
+      case "getStatus":
+        result = await getStatusInternal();
+        break;
+    }
+
+    self.postMessage({ id: msg.id, result });
+  } catch (error) {
+    self.postMessage({ id: msg.id, error: serializeError(error) });
+  }
 };
