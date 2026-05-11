@@ -1,34 +1,41 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import {
   Activity,
   AlertCircle,
-  FileText,
+  Database,
   HardDrive,
-  Info,
-  Layers,
-  Phone,
-  Plus,
-  RefreshCw,
-  Search,
+  Radio,
   Settings2,
   Signal,
-  Smartphone,
   Upload,
-  Wifi,
-  X,
 } from "lucide-react";
-import { Command } from "cmdk";
-import { cn } from "@/lib/utils";
-import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
+import BlurText from "@/components/BlurText";
+import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
+import { useActivityStore } from "@/core/stores/activity-store";
+import { useAppContextStore } from "@/core/stores/app-context-store";
+import { useTelecomSessionStore } from "@/core/stores/app-session-store";
+import { useDataStore } from "@/core/stores/data-store";
 import { KPI_FIELDS } from "@/features/telecom/constants";
-import { DEFAULT_MAPPING } from "@/features/telecom/store";
-import type * as Types from "@/features/telecom/types";
+import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
+import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
+import { useTelecomFileLoad } from "@/features/telecom/hooks/use-telecom-file-load";
+import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
 import {
+  type CachedAnalyticsMeta,
+  getCachedAnalyticsEntries,
+  getCachedAnalyticsForKey,
+} from "@/features/telecom/lib/analytics-cache";
+import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import { publishSelection } from "@/features/telecom/lib/lan-collab";
+import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
+import {
+  detectAvailableColumns as _detectAvailableColumns,
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
-  fetchCanalRows as _fetchCanalRows,
   fetchCustomerProfile as _fetchCustomerProfile,
   fetchDailyTrend as _fetchDailyTrend,
   fetchDestinationsForGroup as _fetchDestinationsForGroup,
@@ -38,61 +45,41 @@ import {
   fetchRegions as _fetchRegions,
   fetchRegionsForGroup as _fetchRegionsForGroup,
   fetchServiceCodeRows as _fetchServiceCodeRows,
-  fetchSpecChannelStats as _fetchSpecChannelStats,
   runCustomKPIExpr as _runCustomKPIExpr,
-  detectAvailableColumns as _detectAvailableColumns,
 } from "@/features/telecom/lib/queries";
-import { TELECOM_TABLE_BASE, telecomTableName } from "@/features/telecom/lib/names";
-import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
-import { useTelecomFileLoad } from "@/features/telecom/hooks/use-telecom-file-load";
-import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
+import {
+  getDatasetReportDate,
+  isTelecomDataset,
+} from "@/features/telecom/lib/telecom-dataset";
+import { DEFAULT_MAPPING } from "@/features/telecom/store";
+import type * as Types from "@/features/telecom/types";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
+import { loadTableFromFS } from "@/platform/duckdb/duckdb-fs";
+import { saveAnalyticsSnapshot } from "@/platform/storage/app-db";
 import { AnalysisTab } from "./analysis-tab";
+import { AnalyticsHistoryTab } from "./analytics-history-tab";
 import { CanalTab } from "./canal-tab";
 import { ColumnMapper } from "./column-mapper";
 import { ConfigTab } from "./config-tab";
+import { DayAnalyticsTab } from "./day-analytics-tab";
 import { ExportPanel } from "./export-panel";
-import { FileDropZone } from "./file-drop-zone";
-import { GlobalSearch } from "./global-search";
+import { LanCollabPanel } from "./lan-collab-panel";
 import { OverviewTab } from "./overview-tab";
+import { PeriodStudioTab } from "./period-studio-tab";
 import { RawDataTab } from "./raw-data-tab";
-import { TabBar } from "./tab-bar";
+import { UserManagementPanel } from "./user-management-panel";
 
-// Module-level mutable TABLE_NAME — updated when user switches active file.
-// getTableName() always reads the latest value, avoiding stale closures in callbacks.
-let TABLE_NAME = TELECOM_TABLE_BASE;
-function getTableName() {
-  return TABLE_NAME;
-}
-
-// TABLE_NAME-bound query wrappers
-const detectAvailableColumns = () => _detectAvailableColumns(TABLE_NAME);
-const fetchOperators = (m: Types.ColumnMapping, sm = []) =>
-  _fetchOperators(TABLE_NAME, m, sm as Types.StatusMapping[]);
-const fetchRegions = (m: Types.ColumnMapping, sm = []) =>
-  _fetchRegions(TABLE_NAME, m, sm as Types.StatusMapping[]);
-const fetchOperatorsForGroup = (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-  _fetchOperatorsForGroup(TABLE_NAME, m, groupKeys);
-const fetchRegionsForGroup = (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-  _fetchRegionsForGroup(TABLE_NAME, m, groupKeys);
-const fetchDestinationsForGroup = (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-  _fetchDestinationsForGroup(TABLE_NAME, m, groupKeys);
-const fetchCanalHourlyMatrix = (m: Types.ColumnMapping) =>
-  _fetchCanalHourlyMatrix(TABLE_NAME, m);
-const fetchDailyTrend = (m: Types.ColumnMapping) => _fetchDailyTrend(TABLE_NAME, m);
-const fetchCustomerProfile = (m: Types.ColumnMapping, msisdn: string) =>
-  _fetchCustomerProfile(TABLE_NAME, m, msisdn);
-const fetchFiltered = (
-  m: Types.ColumnMapping,
-  f: Types.FilterState,
-  sm: Types.StatusMapping[],
-  limit: number,
-  offset: number,
-  sortCol: string,
-  sortDir: Types.SortDir,
-) => _fetchFiltered(TABLE_NAME, m, f, sm, limit, offset, sortCol, sortDir);
-const fetchServiceCodeRows = (m: Types.ColumnMapping) =>
-  _fetchServiceCodeRows(TABLE_NAME, m);
-const runCustomKPIExpr = (sqlExpr: string) => _runCustomKPIExpr(TABLE_NAME, sqlExpr);
+const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
+  "assistant",
+  "revenueGroups",
+  "status",
+  "hourly",
+  "canalShare",
+  "canalAmount",
+  "successRate",
+  "canalTable",
+  "dailyTrend",
+];
 
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
@@ -100,31 +87,51 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 export function TelecomDashboard() {
-  // ── Refs for inter-hook communication ──────────────────────────────────────
+  const router = useRouter();
+  const access = useDashboardAccess();
+
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
+  const skippedFastCacheAnalyticsRef = useRef(false);
+  const bridgedDatasetIdRef = useRef<string | null>(null);
 
-  // Local state bridging fileLoad → analytics (setComputing for cache-hit path)
-  const [fileLoadComputing, setFileLoadComputing] = useState(false);
+  const datasets = useDataStore((state) => state.datasets);
+  const activeDatasetId = useDataStore((state) => state.activeDatasetId);
+  const setActiveDataset = useDataStore((state) => state.setActiveDataset);
+  const loadedTableNames = useDataStore((state) => state.loadedTableNames);
+  const markTableLoaded = useDataStore((state) => state.markTableLoaded);
+  const persistedTableName = useTelecomSessionStore((state) => state.tableName);
+  const setTelecomSession = useTelecomSessionStore((state) => state.setSession);
+  const setAppContext = useAppContextStore((state) => state.setContext);
+  const addActivity = useActivityStore((state) => state.addEvent);
 
-  // Pending analytics state from IDB cache hits (populated before analytics runs)
   const [cachedKpi, setCachedKpi] = useState<Types.KPISummary | null>(null);
   const [cachedCanals, setCachedCanals] = useState<Types.CanalSummary[]>([]);
   const [cachedHourly, setCachedHourly] = useState<Types.HourlyRow[]>([]);
-  const [cachedStatusData, setCachedStatusData] = useState<Types.StatusRow[]>([]);
-  const [cachedErrors, setCachedErrors] = useState<Types.ErrorRow[]>([]);
-  const [cachedOperators, setCachedOperators] = useState<Types.OperatorRow[]>([]);
+  const [cachedStatusData, setCachedStatusData] = useState<Types.StatusRow[]>(
+    [],
+  );
+  const [cachedOperators, setCachedOperators] = useState<Types.OperatorRow[]>(
+    [],
+  );
   const [cachedRegions, setCachedRegions] = useState<Types.RegionRow[]>([]);
 
-  // ── UI hook (tabs, mapping, status mapping, install prompt, ⌘K, PWA) ───────
+  const [analyticsHistory, setAnalyticsHistory] = useState<
+    CachedAnalyticsMeta[]
+  >([]);
+  const [restoringCentralTable, setRestoringCentralTable] = useState(false);
+  const [centralRestoreError, setCentralRestoreError] = useState<string | null>(
+    null,
+  );
+
+  const telecomRole = access.role === "owner" ? "admin" : "user";
+
   const {
     mounted,
     activeTab,
     switchTab,
     showMapper,
     setShowMapper,
-    commandOpen,
-    setCommandOpen,
     installPrompt,
     setInstallPrompt,
     mapping,
@@ -134,31 +141,174 @@ export function TelecomDashboard() {
     statusMappingRef,
   } = useTelecomUI({
     defaultMapping: DEFAULT_MAPPING,
-    storeHydrated: false,
     fileNameRef,
   });
 
-  // ── File load hook (loads CSV/xlsx into DuckDB, caching, multi-file) ────────
   const fileLoad = useTelecomFileLoad({
     onTableNameChange: (name) => {
-      TABLE_NAME = name;
+      setTelecomSession({ tableName: name });
     },
     detectAvailableColumns,
     setKpi: setCachedKpi,
     setCanals: setCachedCanals,
     setHourly: setCachedHourly,
     setStatusData: setCachedStatusData,
-    setErrors: setCachedErrors,
     setOperators: setCachedOperators,
     setRegions: setCachedRegions,
-    setComputing: setFileLoadComputing,
   });
 
-  // ── Analytics hook (KPI, canals, hourly, errors, forecast, runAnalytics) ────
+  const {
+    loaded,
+    loadError,
+    csvCols,
+    activeTableName,
+    loadedFiles,
+    cachedBadge,
+    activeCacheKeyRef,
+  } = fileLoad;
+
+  const telecomDatasets = useMemo(
+    () =>
+      datasets
+        .filter(isTelecomDataset)
+        .sort(
+          (a, b) =>
+            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
+        ),
+    [datasets],
+  );
+
+  const activeTelecomDataset = useMemo(() => {
+    const active = datasets.find((dataset) => dataset.id === activeDatasetId);
+
+    if (active && isTelecomDataset(active)) return active;
+
+    return telecomDatasets[0] ?? null;
+  }, [datasets, activeDatasetId, telecomDatasets]);
+
+  const centralTelecomTableLoaded = Boolean(
+    activeTelecomDataset &&
+      loadedTableNames.includes(activeTelecomDataset.tableName),
+  );
+
+  const usingCentralUpload = Boolean(activeTelecomDataset);
+
+  const dashboardLoaded = usingCentralUpload
+    ? centralTelecomTableLoaded
+    : loaded;
+
+  const dashboardFileName = usingCentralUpload
+    ? (activeTelecomDataset?.name ?? "")
+    : fileLoad.fileName;
+
+  const dashboardReportDate = usingCentralUpload
+    ? getDatasetReportDate(activeTelecomDataset)
+    : fileLoad.reportDate;
+
+  const dashboardTableName = usingCentralUpload
+    ? (activeTelecomDataset?.tableName ?? TELECOM_TABLE_BASE)
+    : activeTableName || persistedTableName || TELECOM_TABLE_BASE;
+
+  const tableNameRef = useRef(dashboardTableName);
+
+  useEffect(() => {
+    tableNameRef.current = dashboardTableName;
+  }, [dashboardTableName]);
+
+  const getTableName = useCallback(() => tableNameRef.current, []);
+
+  function detectAvailableColumns(tableName?: string) {
+    return _detectAvailableColumns(tableName ?? tableNameRef.current);
+  }
+
+  const fetchOperators = useCallback(
+    (m: Types.ColumnMapping, sm = []) =>
+      _fetchOperators(tableNameRef.current, m, sm as Types.StatusMapping[]),
+    [],
+  );
+
+  const fetchRegions = useCallback(
+    (m: Types.ColumnMapping, sm = []) =>
+      _fetchRegions(tableNameRef.current, m, sm as Types.StatusMapping[]),
+    [],
+  );
+
+  const fetchOperatorsForGroup = useCallback(
+    (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
+      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys),
+    [],
+  );
+
+  const fetchRegionsForGroup = useCallback(
+    (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
+      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys),
+    [],
+  );
+
+  const fetchDestinationsForGroup = useCallback(
+    (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
+      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys),
+    [],
+  );
+
+  const fetchCanalHourlyMatrix = useCallback(
+    (m: Types.ColumnMapping) =>
+      _fetchCanalHourlyMatrix(tableNameRef.current, m),
+    [],
+  );
+
+  const fetchDailyTrend = useCallback(
+    (m: Types.ColumnMapping) => _fetchDailyTrend(tableNameRef.current, m),
+    [],
+  );
+
+  const fetchCustomerProfile = useCallback(
+    (m: Types.ColumnMapping, msisdn: string) =>
+      _fetchCustomerProfile(tableNameRef.current, m, msisdn),
+    [],
+  );
+
+  const fetchFiltered = useCallback(
+    (
+      m: Types.ColumnMapping,
+      f: Types.FilterState,
+      sm: Types.StatusMapping[],
+      limit: number,
+      offset: number,
+      sortCol: string,
+      sortDir: Types.SortDir,
+    ) =>
+      _fetchFiltered(
+        tableNameRef.current,
+        m,
+        f,
+        sm,
+        limit,
+        offset,
+        sortCol,
+        sortDir,
+      ),
+    [],
+  );
+
+  const fetchServiceCodeRows = useCallback(
+    (m: Types.ColumnMapping) => _fetchServiceCodeRows(tableNameRef.current, m),
+    [],
+  );
+
+  const runCustomKPIExpr = useCallback(
+    (sqlExpr: string) => _runCustomKPIExpr(tableNameRef.current, sqlExpr),
+    [],
+  );
+
+  const dashboardCsvCols = usingCentralUpload
+    ? (activeTelecomDataset?.columns.map((column) => column.name) ?? [])
+    : csvCols;
+
   const analytics = useTelecomAnalytics({
     getTableName,
     mapping,
-    loaded: fileLoad.loaded,
+    loaded: dashboardLoaded,
     statusMappingRef,
     firstLoad,
     fileNameRef,
@@ -167,52 +317,263 @@ export function TelecomDashboard() {
     },
   });
 
-  // Merge: prefer live analytics results, fall back to cached values during initial load
-  const kpi = analytics.kpi ?? cachedKpi;
-  const canals = analytics.canals.length > 0 ? analytics.canals : cachedCanals;
-  const hourly = analytics.hourly.length > 0 ? analytics.hourly : cachedHourly;
-  const statusData = analytics.statusData.length > 0 ? analytics.statusData : cachedStatusData;
-  const errors = analytics.errors.length > 0 ? analytics.errors : cachedErrors;
-  const operators = analytics.operators.length > 0 ? analytics.operators : cachedOperators;
-  const regions = analytics.regions.length > 0 ? analytics.regions : cachedRegions;
-  const computing = analytics.computing || fileLoadComputing;
+  useEffect(() => {
+    if (!activeTelecomDataset) return;
 
-  // ── selectedKpis for ExportPanel ────────────────────────────────────────────
+    const tableName = activeTelecomDataset.tableName;
+
+    if (loadedTableNames.includes(tableName)) {
+      setCentralRestoreError(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    setRestoringCentralTable(true);
+    setCentralRestoreError(null);
+
+    loadTableFromFS(tableName)
+      .then((restored) => {
+        if (cancelled) return;
+        if (restored) {
+          markTableLoaded(tableName);
+          setCentralRestoreError(null);
+        } else {
+          setCentralRestoreError(
+            "Le dataset télécom existe dans le catalogue, mais sa table DuckDB locale est introuvable. Rechargez le fichier depuis Upload.",
+          );
+        }
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCentralRestoreError(
+          "Impossible de restaurer la table DuckDB locale. Rechargez le fichier depuis Upload.",
+        );
+      })
+      .finally(() => {
+        if (!cancelled) setRestoringCentralTable(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [activeTelecomDataset, loadedTableNames, markTableLoaded]);
+
+  // Bridge selected Upload dataset into the telecom session context.
+  useEffect(() => {
+    if (!activeTelecomDataset) return;
+    if (!loadedTableNames.includes(activeTelecomDataset.tableName)) return;
+
+    const alreadyBridged =
+      bridgedDatasetIdRef.current === activeTelecomDataset.id &&
+      tableNameRef.current === activeTelecomDataset.tableName;
+
+    if (alreadyBridged) return;
+
+    fileNameRef.current = activeTelecomDataset.name;
+    firstLoad.current = true;
+    bridgedDatasetIdRef.current = activeTelecomDataset.id;
+    setTelecomSession({
+      tableName: activeTelecomDataset.tableName,
+      fileName: activeTelecomDataset.name,
+      reportDate: getDatasetReportDate(activeTelecomDataset),
+    });
+
+    analytics.setRefreshKey((key) => key + 1);
+  }, [
+    activeTelecomDataset,
+    loadedTableNames,
+    analytics.setRefreshKey,
+    setTelecomSession,
+  ]);
+
+  const kpi = analytics.kpi ?? (usingCentralUpload ? null : cachedKpi);
+
+  const canals =
+    analytics.canals.length > 0
+      ? analytics.canals
+      : usingCentralUpload
+        ? []
+        : cachedCanals;
+
+  const hourly =
+    analytics.hourly.length > 0
+      ? analytics.hourly
+      : usingCentralUpload
+        ? []
+        : cachedHourly;
+
+  const statusData =
+    analytics.statusData.length > 0
+      ? analytics.statusData
+      : usingCentralUpload
+        ? []
+        : cachedStatusData;
+
+  const operators =
+    analytics.operators.length > 0
+      ? analytics.operators
+      : usingCentralUpload
+        ? []
+        : cachedOperators;
+
+  const regions =
+    analytics.regions.length > 0
+      ? analytics.regions
+      : usingCentralUpload
+        ? []
+        : cachedRegions;
+
+  const [persistingSnapshot, setPersistingSnapshot] = useState(false);
+
+  const handlePersistAnalytics = useCallback(async () => {
+    if (!kpi || !dashboardFileName) return;
+    setPersistingSnapshot(true);
+    try {
+      await saveAnalyticsSnapshot({
+        label: dashboardFileName,
+        fileName: dashboardFileName,
+        tableName: dashboardTableName,
+        kpi,
+        canals,
+        hourly,
+        statusData,
+        operators,
+        regions,
+        rawStatuses: analytics.rawStatuses ?? [],
+        totalTransactions: kpi.totalTransactions,
+        successRate: kpi.successRate,
+      });
+      import("sonner").then(({ toast }) =>
+        toast("Analytics sauvegardés", { description: dashboardFileName }),
+      );
+    } catch {
+      toast.error("Échec de la sauvegarde");
+    } finally {
+      setPersistingSnapshot(false);
+    }
+  }, [
+    kpi,
+    dashboardFileName,
+    dashboardTableName,
+    canals,
+    hourly,
+    statusData,
+    operators,
+    regions,
+    analytics.rawStatuses,
+  ]);
+
   const [selectedKpis, setSelectedKpis] = useState<Set<keyof Types.KPISummary>>(
     () => new Set(KPI_FIELDS.map((f) => f.key)),
   );
+
   const toggleKpi = useCallback((key: keyof Types.KPISummary) => {
     setSelectedKpis((prev) => {
       const next = new Set(prev);
+
       if (next.has(key)) next.delete(key);
       else next.add(key);
+
       return next;
     });
   }, []);
 
-  // ── Sync fileNameRef when fileName changes ───────────────────────────────────
-  useEffect(() => {
-    fileNameRef.current = fileLoad.fileName;
-  }, [fileLoad.fileName]);
+  const [selectedOverviewSections, setSelectedOverviewSections] = useState<
+    Set<Types.OverviewExportSectionKey>
+  >(() => new Set(DEFAULT_OVERVIEW_EXPORT_SECTIONS));
 
-  // ── Multi-file switch: update TABLE_NAME when user picks a different file ────
+  const toggleOverviewSection = useCallback(
+    (key: Types.OverviewExportSectionKey) => {
+      setSelectedOverviewSections((prev) => {
+        const next = new Set(prev);
+
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+
+        return next;
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
+    fileNameRef.current = dashboardFileName;
+  }, [dashboardFileName]);
+
+  useEffect(() => {
+    setTelecomSession({
+      tableName: dashboardTableName,
+      fileName: dashboardFileName,
+      reportDate: dashboardReportDate,
+    });
+    setAppContext({
+      activeDomain: "telecom",
+      activeDatasetId: activeTelecomDataset?.id ?? activeDatasetId ?? null,
+      activeTableName: dashboardTableName,
+    });
+  }, [
+    dashboardTableName,
+    dashboardFileName,
+    dashboardReportDate,
+    activeDatasetId,
+    activeTelecomDataset?.id,
+    setAppContext,
+    setTelecomSession,
+  ]);
+
+  useEffect(() => {
+    if (usingCentralUpload) return;
+
     const f = fileLoad.loadedFiles.find((x) => x.id === fileLoad.activeFileIdx);
+
     if (!f) return;
-    if (TABLE_NAME === f.table) return;
-    TABLE_NAME = f.table;
+    if (tableNameRef.current === f.table) return;
+
+    setTelecomSession({
+      tableName: f.table,
+      fileName: f.name,
+      reportDate: f.date,
+    });
     analytics.setRefreshKey((k) => k + 1);
-  }, [fileLoad.activeFileIdx, fileLoad.loadedFiles, analytics]);
+  }, [
+    usingCentralUpload,
+    fileLoad.activeFileIdx,
+    fileLoad.loadedFiles,
+    analytics,
+    setTelecomSession,
+  ]);
 
-  // ── Re-run analytics when loaded/mapping/refreshKey change ──────────────────
-  // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey triggers intentional re-run
+  // biome-ignore lint/correctness/useExhaustiveDependencies: statusMappingRef intentionally supplies the latest mapping without retriggering legacy analytics refreshes.
   useEffect(() => {
-    if (fileLoad.loaded) analytics.runAnalytics(mapping, statusMappingRef.current);
-  }, [fileLoad.loaded, mapping, analytics.refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (
+      !usingCentralUpload &&
+      fileLoad.restoredFromFastCache &&
+      !skippedFastCacheAnalyticsRef.current &&
+      analytics.refreshKey === 0
+    ) {
+      skippedFastCacheAnalyticsRef.current = true;
+      return;
+    }
 
-  // ── IDB cache write: persist fresh analytics results ─────────────────────────
+    if (dashboardLoaded) {
+      analytics.runAnalytics(mapping, statusMappingRef.current);
+    }
+  }, [
+    usingCentralUpload,
+    dashboardLoaded,
+    fileLoad.restoredFromFastCache,
+    mapping,
+    analytics.refreshKey,
+    analytics.runAnalytics,
+  ]);
+
+  // Legacy analytics cache write-back only applies to the old fileLoad path.
   useEffect(() => {
-    const cacheKey = fileLoad.activeCacheKeyRef.current;
+    if (usingCentralUpload) return;
+
+    const cacheKey = activeCacheKeyRef.current;
+
     if (analytics.kpi && cacheKey) {
       import("@/features/telecom/lib/analytics-cache").then(
         ({ setCachedAnalyticsForKey }) => {
@@ -222,7 +583,6 @@ export function TelecomDashboard() {
             canals: analytics.canals,
             hourly: analytics.hourly,
             statusData: analytics.statusData,
-            errors: analytics.errors,
             operators: analytics.operators,
             regions: analytics.regions,
             rawStatuses: analytics.rawStatuses,
@@ -231,87 +591,203 @@ export function TelecomDashboard() {
       );
     }
   }, [
+    usingCentralUpload,
     analytics.kpi,
     analytics.canals,
     analytics.hourly,
     analytics.statusData,
-    analytics.errors,
     analytics.operators,
     analytics.regions,
     analytics.rawStatuses,
-    fileLoad.activeCacheKeyRef,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const {
-    loaded,
-    loadError,
-    loadPhase,
-    fileName,
-    reportDate,
-    csvCols,
-    activeTableName,
-    loadedFiles,
-    activeFileIdx,
-    setActiveFileIdx,
-    cachedBadge,
-    handleFileLoad,
     activeCacheKeyRef,
-  } = fileLoad;
+  ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { forecast, rawStatuses } = analytics;
 
+  const { remoteOverview } = useSharedOverview({
+    enabled: Boolean(dashboardLoaded && kpi),
+    fileName: dashboardFileName,
+    reportDate: dashboardReportDate,
+    kpi,
+    canals,
+    hourly,
+    statusData,
+    forecast,
+  });
+
+  const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
+
+  const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
+
+  const overviewCanals = sharedOverviewMode
+    ? (remoteOverview?.canals ?? [])
+    : canals;
+
+  const overviewHourly = sharedOverviewMode
+    ? (remoteOverview?.hourly ?? [])
+    : hourly;
+
+  const overviewStatusData = sharedOverviewMode
+    ? (remoteOverview?.statusData ?? [])
+    : statusData;
+
+  const overviewForecast = sharedOverviewMode
+    ? (remoteOverview?.forecast ?? [])
+    : forecast;
+
+  useEffect(() => {
+    if (sharedOverviewMode && activeTab !== "overview") switchTab("overview");
+  }, [activeTab, sharedOverviewMode, switchTab]);
+
+  useEffect(() => {
+    publishSelection(`telecom:${activeTab}`);
+  }, [activeTab]);
+
   const tabCounts: Record<string, number> = {
-    overview: kpi?.totalTransactions ?? 0,
-    canals: canals.length,
-    analysis: errors.length,
+    overview: overviewKpi?.totalTransactions ?? 0,
+    canals: overviewCanals.length,
     grid: kpi?.totalTransactions ?? 0,
+    period: kpi?.totalTransactions ?? 0,
+    day: 0,
+    history: analyticsHistory.length,
     config: 0,
   };
 
-  function openFilePicker(onPick: (f: File) => void) {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.accept = ".csv,.txt,.xlsx,.xls";
-    input.onchange = (ev) => {
-      const picked = (ev.target as HTMLInputElement).files?.[0];
-      if (picked) onPick(picked);
-    };
-    input.click();
+  async function refreshAnalyticsHistory() {
+    setAnalyticsHistory(await getCachedAnalyticsEntries());
+  }
+
+  // Keep external telecom sidebar selection behavior aligned with the internal
+  // report sidebar, which refreshes history before opening that tab.
+  useEffect(() => {
+    if (activeTab === "history") void refreshAnalyticsHistory();
+  }, [activeTab]);
+
+  async function loadAnalyticsFromHistory(key: string) {
+    const cached = await getCachedAnalyticsForKey(key);
+
+    if (!cached) return;
+
+    fileLoad.activeCacheKeyRef.current = key;
+
+    analytics.setKpi(cached.kpi as Types.KPISummary);
+    analytics.setCanals(cached.canals as Types.CanalSummary[]);
+    analytics.setHourly(cached.hourly as Types.HourlyRow[]);
+    analytics.setStatusData(cached.statusData as Types.StatusRow[]);
+    analytics.setOperators(cached.operators as Types.OperatorRow[]);
+    analytics.setRegions(cached.regions as Types.RegionRow[]);
+
+    const match = cached.fileName.match(/(\d{8})/);
+    const d = match?.[1];
+
+    fileLoad.setFileName(cached.fileName);
+    fileLoad.setReportDate(
+      d ? `${d.slice(0, 4)}-${d.slice(4, 6)}-${d.slice(6, 8)}` : "",
+    );
+    addActivity({
+      type: "dataset_selected",
+      message: `Loaded cached telecom analytics for ${cached.fileName}`,
+      tableName: dashboardTableName,
+    });
+  }
+
+  async function exportActiveDatabase() {
+    if (!access.permissions.canExport) return;
+
+    const { exportTableSnapshotFile } = await import(
+      "@/platform/duckdb/duckdb-fs"
+    );
+
+    await exportTableSnapshotFile(dashboardTableName || TELECOM_TABLE_BASE);
+  }
+
+  function goToTelecomUpload() {
+    addActivity({
+      type: "telecom_opened",
+      message: "Opened telecom upload flow",
+      tableName: dashboardTableName,
+    });
+    router.push("/dashboard/upload?context=telecom");
   }
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+    <div className="relative flex-1 flex flex-col min-h-0 overflow-hidden">
+      <AnimatedGridPattern
+        numSquares={28}
+        maxOpacity={0.2}
+        duration={5}
+        repeatDelay={1}
+        className="[mask-image:radial-gradient(900px_circle_at_center,white,transparent)] opacity-35"
+      />
       {/* Sticky header */}
       <div className="flex-none sticky top-0 z-30 bg-background/95 backdrop-blur-md border-b border-border px-6 py-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div className="flex items-center gap-3 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-none">
+            <div className="w-9 h-9 rounded-xl bg-linear-to-br from-teal-700 to-emerald-600 flex items-center justify-center flex-none">
               <Signal className="w-5 h-5 text-white" />
             </div>
+
             <div className="min-w-0">
-              <h1 className="text-sm font-bold text-foreground leading-tight truncate">
-                Rapport Journalier des Transactions Télécom
-              </h1>
-              <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
-                {fileName && (
+              <BlurText
+                text="Rapport Journalier des Transactions Télécom"
+                animateBy="letters"
+                delay={18}
+                stepDuration={0.24}
+                className="text-sm font-bold text-foreground leading-tight truncate"
+              />
+
+              <div className="mt-1">
+                <TelecomDatasetPicker
+                  datasets={telecomDatasets}
+                  activeDatasetId={activeTelecomDataset?.id ?? null}
+                  loadedTableNames={loadedTableNames}
+                  onUpload={goToTelecomUpload}
+                  onSelect={(id) => {
+                    setActiveDataset(id);
+
+                    const selected = telecomDatasets.find(
+                      (dataset) => dataset.id === id,
+                    );
+
+                    if (!selected) return;
+
+                    if (loadedTableNames.includes(selected.tableName)) {
+                      fileNameRef.current = selected.name;
+                      firstLoad.current = true;
+                      setTelecomSession({
+                        tableName: selected.tableName,
+                        fileName: selected.name,
+                        reportDate: getDatasetReportDate(selected),
+                      });
+                      analytics.setRefreshKey((key) => key + 1);
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="mt-1 flex items-center gap-1.5 text-[11px] text-muted-foreground flex-wrap">
+                {dashboardFileName && (
                   <span className="font-mono text-muted-foreground truncate max-w-48">
-                    {fileName}
+                    {dashboardFileName}
                   </span>
                 )}
-                {reportDate && (
+
+                {dashboardReportDate && (
                   <>
                     <span>·</span>
-                    <span>{reportDate}</span>
+                    <span>{dashboardReportDate}</span>
                   </>
                 )}
+
                 {kpi && (
                   <>
                     <span>·</span>
-                    <span className="text-indigo-700 dark:text-indigo-300 font-semibold">
+                    <span className="text-teal-700 dark:text-teal-300 font-semibold">
                       {fmtN(kpi.totalTransactions)} tx
                     </span>
                   </>
                 )}
+
                 {kpi && (
                   <>
                     <span>·</span>
@@ -331,42 +807,35 @@ export function TelecomDashboard() {
           </div>
 
           <div className="flex items-center gap-2 flex-wrap">
-            {cachedBadge && (
+            {!usingCentralUpload && cachedBadge && (
               <span className="flex items-center gap-1 px-2 py-1 bg-amber-50 border border-amber-200 text-amber-700 dark:bg-amber-500/15 dark:border-amber-500/25 dark:text-amber-300 rounded-lg text-[10px] font-medium">
                 <HardDrive className="w-3 h-3" /> Cache · Actualisation…
               </span>
             )}
 
-            <button
-              type="button"
-              onClick={() => setCommandOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-accent border border-border text-muted-foreground rounded-xl text-xs font-medium transition-colors"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Rechercher</span>
-              <kbd className="hidden sm:inline-flex items-center gap-0.5 px-1 py-0.5 bg-background border border-border rounded text-[10px] text-muted-foreground/70 font-mono">
-                ⌘K
-              </kbd>
-            </button>
-
-            {loaded && (
-              <GlobalSearch
-                canals={canals}
-                operators={operators}
-                errors={errors}
-                onNavigate={switchTab}
-              />
-            )}
-
-            {mounted && typeof Notification !== "undefined" && Notification.permission === "default" && (
+            {dashboardLoaded && kpi && (
               <button
                 type="button"
-                onClick={() => Notification.requestPermission()}
-                className="flex items-center gap-1.5 px-3 py-2 bg-violet-50 hover:bg-violet-100 border border-violet-200 text-violet-700 dark:bg-violet-500/10 dark:hover:bg-violet-500/20 dark:border-violet-500/20 dark:text-violet-300 rounded-xl text-xs font-medium transition-colors"
+                onClick={handlePersistAnalytics}
+                disabled={persistingSnapshot}
+                className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 dark:bg-teal-500/10 dark:hover:bg-teal-500/20 dark:border-teal-500/20 dark:text-teal-300 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
               >
-                <Activity className="w-3.5 h-3.5" /> Notifications
+                <Database className="w-3.5 h-3.5" />
+                {persistingSnapshot ? "Sauvegarde…" : "Persister"}
               </button>
             )}
+
+            {mounted &&
+              typeof Notification !== "undefined" &&
+              Notification.permission === "default" && (
+                <button
+                  type="button"
+                  onClick={() => Notification.requestPermission()}
+                  className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-200 text-teal-700 dark:bg-teal-500/10 dark:hover:bg-teal-500/20 dark:border-teal-500/20 dark:text-teal-300 rounded-xl text-xs font-medium transition-colors"
+                >
+                  <Activity className="w-3.5 h-3.5" /> Notifications
+                </button>
+              )}
 
             {installPrompt && (
               <button
@@ -375,50 +844,24 @@ export function TelecomDashboard() {
                   (installPrompt as BeforeInstallPromptEvent).prompt?.();
                   setInstallPrompt(null);
                 }}
-                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 dark:border-indigo-500/25 dark:text-indigo-300 rounded-xl text-xs font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2 bg-teal-50 hover:bg-teal-100 border border-teal-300 text-teal-700 dark:bg-teal-600/15 dark:hover:bg-teal-600/25 dark:border-teal-500/25 dark:text-teal-300 rounded-xl text-xs font-medium transition-colors"
               >
                 <HardDrive className="w-3.5 h-3.5" /> Installer
               </button>
             )}
 
-            {loaded && (
+            <button
+              type="button"
+              onClick={goToTelecomUpload}
+              disabled={!access.permissions.canUpload}
+              className="flex items-center gap-1.5 px-3 py-2 bg-teal-700 hover:bg-teal-800 text-white border-transparent rounded-xl text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Upload className="w-3.5 h-3.5" />
+              Importer
+            </button>
+
+            {dashboardLoaded && (
               <>
-                {loadedFiles.length > 0 && (
-                  <div className="flex items-center gap-1.5">
-                    <FileText className="w-3.5 h-3.5 text-muted-foreground flex-none" />
-                    <select
-                      value={activeFileIdx}
-                      onChange={(e) => {
-                        const id = Number(e.target.value);
-                        const f = loadedFiles.find((x) => x.id === id);
-                        if (!f) return;
-                        activeCacheKeyRef.current = f.cacheKey;
-                        setActiveFileIdx(id);
-                      }}
-                      className="h-8 px-2 pr-6 rounded-xl border border-border bg-muted text-xs text-foreground font-medium appearance-none cursor-pointer hover:bg-accent transition-colors focus:outline-none focus:ring-1 focus:ring-ring max-w-48 truncate"
-                      style={{
-                        backgroundImage:
-                          "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")",
-                        backgroundRepeat: "no-repeat",
-                        backgroundPosition: "right 8px center",
-                      }}
-                    >
-                      {loadedFiles.map((f) => (
-                        <option key={f.id} value={f.id}>
-                          {f.name}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      title="Charger un autre fichier"
-                      onClick={() => openFilePicker(handleFileLoad)}
-                      className="flex items-center gap-1 px-2 py-1.5 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg text-xs font-medium transition-colors"
-                    >
-                      <Plus className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
                 <button
                   type="button"
                   onClick={() => setShowMapper(true)}
@@ -426,37 +869,21 @@ export function TelecomDashboard() {
                 >
                   <Settings2 className="w-3.5 h-3.5" /> Colonnes
                 </button>
-                <button
-                  type="button"
-                  onClick={() => analytics.setRefreshKey((k) => k + 1)}
-                  className="flex items-center gap-1.5 px-3 py-2 bg-muted hover:bg-accent border border-border text-muted-foreground rounded-xl text-xs font-medium transition-colors"
-                >
-                  <RefreshCw className={cn("w-3.5 h-3.5", computing && "animate-spin")} />{" "}
-                  Actualiser
-                </button>
+
                 <ExportPanel
                   kpi={kpi}
                   canals={canals}
-                  reportDate={reportDate}
-                  fileName={fileName}
-                  errors={errors}
+                  reportDate={dashboardReportDate}
+                  fileName={dashboardFileName}
                   hourly={hourly}
                   operators={operators}
                   regions={regions}
                   statusData={statusData}
                   selectedKpis={selectedKpis}
+                  selectedOverviewSections={selectedOverviewSections}
+                  fetchDailyTrend={() => fetchDailyTrend(mapping)}
                 />
               </>
-            )}
-
-            {!loaded && (
-              <button
-                type="button"
-                onClick={() => openFilePicker(handleFileLoad)}
-                className="flex items-center gap-1.5 px-3 py-2 bg-indigo-500 hover:bg-indigo-600 text-white border-transparent rounded-xl text-xs font-medium transition-colors"
-              >
-                <Upload className="w-3.5 h-3.5" /> Charger un fichier
-              </button>
             )}
           </div>
         </div>
@@ -464,83 +891,64 @@ export function TelecomDashboard() {
 
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        {/* Upload state */}
-        {!loaded && (
-          <div className="space-y-5">
-            <FileDropZone onLoad={handleFileLoad} />
-            {loadError && (
-              <div className="flex items-start gap-3 p-4 bg-red-500/10 border border-red-500/25 rounded-xl">
-                <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 flex-none mt-0.5" />
-                <div>
-                  <div className="text-sm font-semibold text-red-700 dark:text-red-300 mb-0.5">
-                    Erreur de chargement du fichier
-                  </div>
-                  <div className="text-xs text-red-600/80 dark:text-red-400/80 font-mono">
-                    {loadError}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="rounded-2xl border border-border bg-muted/30 p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <Info className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-                <span className="text-sm font-bold text-foreground">
-                  Format de Fichier Attendu & Classification des Canaux
-                </span>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-5">
-                {[
-                  {
-                    title: "Paiement de Factures",
-                    desc: "CANAL ∈ {BILLPAYMENT, BP, …} OR SERVICE_CODE LIKE 'BP%'",
-                    color: "text-blue-600 dark:text-blue-400",
-                    border: "border-blue-500/20 bg-blue-500/5",
-                    icon: FileText,
-                  },
-                  {
-                    title: "Voix Lignes Fixes",
-                    desc: "TRANSACTION_TYPE ∈ {TTCASH, VOUCHER} AND SUBSCRIBER_TYPE ∈ {FIXED, FIXE}",
-                    color: "text-emerald-600 dark:text-emerald-400",
-                    border: "border-emerald-500/20 bg-emerald-500/5",
-                    icon: Phone,
-                  },
-                  {
-                    title: "Voix Lignes Mobiles",
-                    desc: "TRANSACTION_TYPE ∈ {TTCASH, VOUCHER} AND SUBSCRIBER_TYPE ∈ {MOBILE, GSM}",
-                    color: "text-violet-600 dark:text-violet-400",
-                    border: "border-violet-500/20 bg-violet-500/5",
-                    icon: Smartphone,
-                  },
-                  {
-                    title: "DATA Internet",
-                    desc: "CANAL ∈ {SABBA, EVOUCHER} OR TRANSACTION_TYPE ∈ {SABBA, EVOUCHER}",
-                    color: "text-amber-600 dark:text-amber-400",
-                    border: "border-amber-500/20 bg-amber-500/5",
-                    icon: Wifi,
-                  },
-                ].map((g) => (
-                  <div key={g.title} className={cn("rounded-xl border p-3.5", g.border)}>
-                    <div className={cn("flex items-center gap-2 mb-2 font-semibold text-xs", g.color)}>
-                      <g.icon className="w-3.5 h-3.5" /> {g.title}
-                    </div>
-                    <div className="text-[11px] text-muted-foreground leading-relaxed">{g.desc}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="rounded-xl bg-background border border-border p-3.5">
-                <div className="text-[10px] text-muted-foreground mb-2 font-semibold uppercase tracking-wide">
-                  Exemple de ligne (séparée par des pipes, 51 colonnes)
-                </div>
-                <code className="text-[11px] text-emerald-700 dark:text-emerald-300 font-mono break-all leading-relaxed">
-                  TXN0001|2024-01-15|08:32:15|TTCASH|RECHARGE_MOB|Mobile Recharge|VOUCHER|MOBILE|21600001|5.000|TND|SUCCESS|||OPT_TUN|TUNIS|120|||5.000|0|…
-                </code>
-              </div>
-            </div>
+        {restoringCentralTable && (
+          <div className="rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-3 text-xs text-teal-700 dark:text-teal-300">
+            Restauration de la table DuckDB locale…
           </div>
         )}
 
-        {/* CSV loading spinner */}
-        {loaded && loadPhase === "csv" && !kpi && (
+        {centralRestoreError && (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+            <div>{centralRestoreError}</div>
+
+            <button
+              type="button"
+              onClick={goToTelecomUpload}
+              className="mt-2 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-amber-700"
+            >
+              Recharger depuis Upload
+            </button>
+          </div>
+        )}
+
+        {!dashboardLoaded && !sharedOverviewMode && (
+          <div className="space-y-5">
+            <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600/10 text-teal-700 dark:text-teal-300">
+                <Upload className="h-5 w-5" />
+              </div>
+
+              <h2 className="text-sm font-bold text-foreground">
+                Aucun rapport télécom chargé
+              </h2>
+
+              <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
+                Les fichiers sont maintenant chargés depuis la page Upload
+                centrale. Après import, le rapport sera disponible ici pour
+                analyse.
+              </p>
+
+              <button
+                type="button"
+                onClick={goToTelecomUpload}
+                disabled={!access.permissions.canUpload}
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-xs font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Upload className="h-4 w-4" />
+                Ouvrir Upload
+              </button>
+            </div>
+
+            {activeTelecomDataset && !centralTelecomTableLoaded && (
+              <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-xs text-amber-700 dark:text-amber-300">
+                Le dataset télécom existe dans le catalogue, mais sa table
+                DuckDB n'est pas chargée dans cette session.
+              </div>
+            )}
+          </div>
+        )}
+
+        {!usingCentralUpload && loaded && !kpi && (
           <div className="flex flex-col items-center justify-center py-28 gap-5">
             <div className="relative w-20 h-20">
               <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-pulse" />
@@ -549,140 +957,184 @@ export function TelecomDashboard() {
                 <Signal className="w-7 h-7 text-indigo-500 dark:text-indigo-400" />
               </div>
             </div>
-            <div className="text-sm font-semibold text-muted-foreground">Chargement du fichier…</div>
+            <div className="text-sm font-semibold text-muted-foreground">
+              Chargement du fichier…
+            </div>
             <div className="text-xs text-muted-foreground">
-              Ingestion CSV dans DuckDB — {fileName}
+              Ingestion CSV dans DuckDB — {dashboardFileName}
             </div>
           </div>
         )}
 
-        {/* Progressive dashboard */}
-        {loaded && (loadPhase !== "csv" || kpi) && (
-          <>
-            {computing && (
-              <div className="mb-4">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <div className="relative w-4 h-4">
-                    <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin" />
+        {(dashboardLoaded || sharedOverviewMode) &&
+          (sharedOverviewMode || kpi) && (
+            <>
+              {sharedOverviewMode && remoteOverview && (
+                <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/8 p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-600 text-white">
+                        <Radio className="h-4 w-4" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-foreground">
+                          Vue d&apos;ensemble partagée
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          Analytics agrégées reçues de{" "}
+                          <span className="font-semibold text-foreground">
+                            {remoteOverview.presenterName}
+                          </span>
+                          . Aucun fichier source ni ligne brute n&apos;est
+                          transféré sur cet appareil.
+                        </div>
+                      </div>
+                    </div>
+                    <div className="text-[11px] text-muted-foreground tabular-nums">
+                      {remoteOverview.fileName} · {remoteOverview.reportDate} ·{" "}
+                      {new Date(remoteOverview.updatedAt).toLocaleTimeString()}
+                    </div>
                   </div>
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Analyse en cours — les résultats apparaissent en temps réel…
-                  </span>
                 </div>
-                <div className="h-1 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full bg-indigo-500/60 rounded-full animate-pulse"
-                    style={{ width: kpi ? "60%" : "20%" }}
-                  />
-                </div>
+              )}
+
+              <div className="flex min-h-0 gap-4">
+                <section
+                  id="telecom-report-panel"
+                  aria-label="Contenu du rapport télécom"
+                  className="min-w-0 flex-1"
+                >
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={activeTab}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.18 }}
+                    >
+                      {(activeTab === "overview" || sharedOverviewMode) && (
+                        <OverviewTab
+                          kpi={overviewKpi}
+                          canals={overviewCanals}
+                          hourly={overviewHourly}
+                          statusData={overviewStatusData}
+                          forecast={overviewForecast}
+                          m={mapping}
+                          selectedKpis={selectedKpis}
+                          toggleKpi={toggleKpi}
+                          selectedOverviewSections={selectedOverviewSections}
+                          toggleOverviewSection={toggleOverviewSection}
+                          fetchDailyTrend={
+                            sharedOverviewMode
+                              ? async () => []
+                              : () => fetchDailyTrend(mapping)
+                          }
+                        />
+                      )}
+
+                      {activeTab === "canals" && (
+                        <CanalTab getTableName={getTableName} />
+                      )}
+
+                      {activeTab === "analysis" && kpi && (
+                        <AnalysisTab
+                          operators={operators}
+                          regions={regions}
+                          hourly={hourly}
+                          kpi={kpi}
+                          m={mapping}
+                          fetchOperators={fetchOperators}
+                          fetchRegions={fetchRegions}
+                          fetchOperatorsForGroup={fetchOperatorsForGroup}
+                          fetchDestinationsForGroup={fetchDestinationsForGroup}
+                          fetchRegionsForGroup={fetchRegionsForGroup}
+                          fetchCanalHourlyMatrix={fetchCanalHourlyMatrix}
+                        />
+                      )}
+
+                      {activeTab === "analysis" && !kpi && (
+                        <LoadingPanel label="Chargement de l'analyse…" />
+                      )}
+
+                      {activeTab === "grid" && (
+                        <RawDataTab
+                          m={mapping}
+                          operators={operators}
+                          regions={regions}
+                          statusMapping={statusMapping}
+                          tableName={dashboardTableName}
+                          fetchFiltered={fetchFiltered}
+                          fetchCustomerProfile={fetchCustomerProfile}
+                        />
+                      )}
+
+                      {activeTab === "period" && (
+                        <PeriodStudioTab
+                          table={dashboardTableName}
+                          mapping={mapping}
+                        />
+                      )}
+
+                      {activeTab === "day" && (
+                        <DayAnalyticsTab
+                          table={dashboardTableName}
+                          mapping={mapping}
+                          fileName={dashboardFileName}
+                          loadedFiles={loadedFiles}
+                        />
+                      )}
+
+                      {activeTab === "history" && (
+                        <AnalyticsHistoryTab
+                          entries={analyticsHistory}
+                          onRefresh={refreshAnalyticsHistory}
+                          onLoad={loadAnalyticsFromHistory}
+                          onExportDatabase={exportActiveDatabase}
+                        />
+                      )}
+
+                      {activeTab === "config" && kpi && (
+                        <div className="space-y-4">
+                          <UserManagementPanel
+                            currentRole={telecomRole}
+                            onRoleChange={(role) =>
+                              access.setRole(
+                                role === "admin" ? "owner" : "viewer",
+                              )
+                            }
+                          />
+                          <LanCollabPanel />
+                          <ConfigTab
+                            kpi={kpi}
+                            canals={canals}
+                            hourly={hourly}
+                            statusData={statusData}
+                            m={mapping}
+                            rawStatuses={rawStatuses}
+                            statusMapping={statusMapping}
+                            onStatusMappingChange={(m) => {
+                              setStatusMapping(m);
+                              analytics.setRefreshKey((k) => k + 1);
+                            }}
+                            reportDate={dashboardReportDate}
+                            tableName={dashboardTableName}
+                            fetchServiceCodeRows={fetchServiceCodeRows}
+                            runCustomKPIExpr={runCustomKPIExpr}
+                          />
+                        </div>
+                      )}
+
+                      {activeTab === "config" && !kpi && (
+                        <LoadingPanel label="Chargement de la configuration…" />
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
+                </section>
               </div>
-            )}
+            </>
+          )}
 
-            <TabBar active={activeTab} onChange={switchTab} counts={tabCounts} />
-
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -6 }}
-                transition={{ duration: 0.18 }}
-              >
-                {activeTab === "overview" && (
-                  <OverviewTab
-                    kpi={kpi}
-                    canals={canals}
-                    hourly={hourly}
-                    statusData={statusData}
-                    forecast={forecast}
-                    m={mapping}
-                    selectedKpis={selectedKpis}
-                    toggleKpi={toggleKpi}
-                    fetchDailyTrend={fetchDailyTrend}
-                  />
-                )}
-
-                {activeTab === "canals" && <CanalTab getTableName={getTableName} />}
-
-                {activeTab === "analysis" && kpi && (
-                  <AnalysisTab
-                    errors={errors}
-                    operators={operators}
-                    regions={regions}
-                    hourly={hourly}
-                    kpi={kpi}
-                    canals={canals}
-                    m={mapping}
-                    fetchOperators={fetchOperators}
-                    fetchRegions={fetchRegions}
-                    fetchOperatorsForGroup={fetchOperatorsForGroup}
-                    fetchDestinationsForGroup={fetchDestinationsForGroup}
-                    fetchRegionsForGroup={fetchRegionsForGroup}
-                    fetchCanalHourlyMatrix={fetchCanalHourlyMatrix}
-                  />
-                )}
-                {activeTab === "analysis" && !kpi && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3">
-                    <div className="relative w-12 h-12">
-                      <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      Chargement de l&apos;analyse…
-                    </span>
-                  </div>
-                )}
-
-                {activeTab === "grid" && (
-                  <div className="space-y-6">
-                    <RawDataTab
-                      m={mapping}
-                      operators={operators}
-                      regions={regions}
-                      statusMapping={statusMapping}
-                      tableName={activeTableName}
-                      fetchFiltered={fetchFiltered}
-                      fetchCustomerProfile={fetchCustomerProfile}
-                    />
-                  </div>
-                )}
-
-                {activeTab === "config" && kpi && (
-                  <ConfigTab
-                    kpi={kpi}
-                    canals={canals}
-                    hourly={hourly}
-                    errors={errors}
-                    statusData={statusData}
-                    m={mapping}
-                    rawStatuses={rawStatuses}
-                    statusMapping={statusMapping}
-                    onStatusMappingChange={(m) => {
-                      setStatusMapping(m);
-                      analytics.setRefreshKey((k) => k + 1);
-                    }}
-                    reportDate={reportDate}
-                    tableName={activeTableName}
-                    fetchServiceCodeRows={fetchServiceCodeRows}
-                    runCustomKPIExpr={runCustomKPIExpr}
-                  />
-                )}
-                {activeTab === "config" && !kpi && (
-                  <div className="flex flex-col items-center justify-center py-20 gap-3">
-                    <div className="relative w-12 h-12">
-                      <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin" />
-                    </div>
-                    <span className="text-xs text-muted-foreground">
-                      Chargement de la configuration…
-                    </span>
-                  </div>
-                )}
-              </motion.div>
-            </AnimatePresence>
-          </>
-        )}
-
-        {/* Error banner */}
-        {loadError && loaded && !computing && (
+        {!usingCentralUpload && loadError && loaded && (
           <div className="rounded-2xl border border-red-500/25 bg-red-500/10 p-5">
             <div className="flex items-start gap-3">
               <AlertCircle className="w-5 h-5 text-red-500 dark:text-red-400 flex-none mt-0.5" />
@@ -711,160 +1163,91 @@ export function TelecomDashboard() {
         {showMapper && (
           <ColumnMapper
             mapping={mapping}
-            columns={csvCols}
+            columns={dashboardCsvCols}
             onChange={(m) => {
               setMapping(m);
               analytics.setRefreshKey((k) => k + 1);
-              import("@/lib/collab").then(({ sharedMapping: yMapping, ydoc }) => {
-                ydoc.transact(() => {
-                  for (const [k, v] of Object.entries(m)) yMapping.set(k, v as string);
-                });
-              });
+              import("@/platform/collab/collab").then(
+                ({ sharedMapping: yMapping, ydoc }) => {
+                  ydoc.transact(() => {
+                    for (const [k, v] of Object.entries(m)) {
+                      yMapping.set(k, v as string);
+                    }
+                  });
+                },
+              );
             }}
             onClose={() => setShowMapper(false)}
             defaultMapping={DEFAULT_MAPPING}
           />
         )}
       </AnimatePresence>
+    </div>
+  );
+}
 
-      {/* ⌘K Command Palette */}
-      <Command.Dialog
-        open={commandOpen}
-        onOpenChange={setCommandOpen}
-        label="Palette de commandes"
-        className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm p-0 m-0 border-0 max-w-none max-h-none w-full h-full"
+function LoadingPanel({ label }: { label: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-3">
+      <div className="relative w-12 h-12">
+        <div className="absolute inset-0 rounded-full border-t-2 border-indigo-500 animate-spin" />
+      </div>
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function TelecomDatasetPicker({
+  datasets,
+  activeDatasetId,
+  loadedTableNames,
+  onSelect,
+  onUpload,
+}: {
+  datasets: Array<{
+    id: string;
+    name: string;
+    tableName: string;
+    rowCount: number;
+  }>;
+  activeDatasetId: string | null;
+  loadedTableNames: string[];
+  onSelect: (id: string) => void;
+  onUpload: () => void;
+}) {
+  if (datasets.length === 0) {
+    return (
+      <button
+        type="button"
+        onClick={onUpload}
+        className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
       >
-        <div className="w-full max-w-lg mx-4 bg-background border border-border rounded-2xl shadow-2xl overflow-hidden">
-          <Command className="w-full">
-            <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-              <Search className="w-4 h-4 text-muted-foreground flex-none" />
-              <Command.Input
-                placeholder="Rechercher une action, canal, erreur…"
-                className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground"
-              />
-              <button
-                type="button"
-                onClick={() => setCommandOpen(false)}
-                className="text-muted-foreground hover:text-foreground transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <Command.List className="max-h-72 overflow-y-auto p-2">
-              <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
-                Aucun résultat
-              </Command.Empty>
-              <Command.Group
-                heading="Navigation"
-                className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider px-2 py-1.5"
-              >
-                {(["overview", "canals", "analysis", "grid", "config"] as Types.MainTab[]).map(
-                  (tab) => (
-                    <Command.Item
-                      key={tab}
-                      onSelect={() => {
-                        switchTab(tab);
-                        setCommandOpen(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                    >
-                      <Layers className="w-3.5 h-3.5 text-muted-foreground" />
-                      {
-                        {
-                          overview: "Vue d'ensemble",
-                          canals: "Analyse par Groupe",
-                          analysis: "Analyse Approfondie",
-                          grid: "Données Brutes",
-                          config: "Config & IA",
-                        }[tab] ?? tab
-                      }
-                    </Command.Item>
-                  ),
-                )}
-              </Command.Group>
-              <Command.Group
-                heading="Actions"
-                className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider px-2 py-1.5 mt-1"
-              >
-                <Command.Item
-                  onSelect={() => {
-                    analytics.setRefreshKey((k) => k + 1);
-                    setCommandOpen(false);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                >
-                  <RefreshCw className="w-3.5 h-3.5 text-muted-foreground" /> Relancer l&apos;analyse
-                </Command.Item>
-                <Command.Item
-                  onSelect={() => {
-                    setShowMapper(true);
-                    setCommandOpen(false);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                >
-                  <Settings2 className="w-3.5 h-3.5 text-muted-foreground" /> Mapper les colonnes
-                </Command.Item>
-                <Command.Item
-                  onSelect={() => {
-                    openFilePicker(handleFileLoad);
-                    setCommandOpen(false);
-                  }}
-                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                >
-                  <Upload className="w-3.5 h-3.5 text-muted-foreground" /> Charger un nouveau fichier
-                </Command.Item>
-              </Command.Group>
-              {canals.length > 0 && (
-                <Command.Group
-                  heading="Canaux"
-                  className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider px-2 py-1.5 mt-1"
-                >
-                  {canals.map((c) => (
-                    <Command.Item
-                      key={c.key}
-                      onSelect={() => {
-                        switchTab("canals");
-                        setCommandOpen(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                    >
-                      <Signal className="w-3.5 h-3.5 text-muted-foreground" />
-                      {c.label}
-                      <span className="ml-auto text-xs text-muted-foreground">
-                        {fmtPct(c.successRate)}
-                      </span>
-                    </Command.Item>
-                  ))}
-                </Command.Group>
-              )}
-              {errors.length > 0 && (
-                <Command.Group
-                  heading="Erreurs fréquentes"
-                  className="text-[10px] text-muted-foreground/60 font-semibold uppercase tracking-wider px-2 py-1.5 mt-1"
-                >
-                  {errors.slice(0, 5).map((e) => (
-                    <Command.Item
-                      key={e.error_code}
-                      onSelect={() => {
-                        switchTab("analysis");
-                        setCommandOpen(false);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm cursor-pointer hover:bg-accent text-foreground data-[selected=true]:bg-accent"
-                    >
-                      <AlertCircle className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-                      {e.error_code}
-                      <span className="ml-1 text-muted-foreground text-xs truncate">
-                        {e.error_message}
-                      </span>
-                      <span className="ml-auto text-xs text-muted-foreground">{fmtN(e.count)}</span>
-                    </Command.Item>
-                  ))}
-                </Command.Group>
-              )}
-            </Command.List>
-          </Command>
-        </div>
-      </Command.Dialog>
+        <Upload className="h-4 w-4" />
+        Charger un rapport
+      </button>
+    );
+  }
+
+  return (
+    <div className="flex items-center gap-2">
+      <Database className="h-4 w-4 text-muted-foreground" />
+
+      <select
+        value={activeDatasetId ?? ""}
+        onChange={(event) => onSelect(event.target.value)}
+        className="h-9 max-w-72 rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      >
+        {datasets.map((dataset) => {
+          const loaded = loadedTableNames.includes(dataset.tableName);
+
+          return (
+            <option key={dataset.id} value={dataset.id}>
+              {dataset.name} · {dataset.rowCount.toLocaleString()} rows
+              {loaded ? "" : " · reload required"}
+            </option>
+          );
+        })}
+      </select>
     </div>
   );
 }

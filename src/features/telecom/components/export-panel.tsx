@@ -1,62 +1,160 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
   Download,
   FileSpreadsheet,
   FileText,
+  Presentation,
   XCircle,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
+import type PptxGenJS from "pptxgenjs";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KPI_FIELDS } from "@/features/telecom/constants";
+import { buildCanalCsv, buildKpiCsv } from "@/features/telecom/export/csv";
+import {
+  downloadBlob,
+  downloadTextFile,
+} from "@/features/telecom/export/download";
+import { generateTelecomDeckBrief } from "@/features/telecom/lib/deck-ai";
+import { fmtN } from "@/features/telecom/lib/format";
+import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
-
-/** Pure download helper — no state/props closure, defined outside component */
-function dlFile(content: string, name: string, type = "text/csv") {
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([content], { type }));
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(a.href);
-}
+import { cn } from "@/shared/utils";
 
 export function ExportPanel({
   kpi,
   canals,
   reportDate,
   fileName = "",
-  errors = [],
   hourly = [],
   operators = [],
   regions = [],
   statusData = [],
   selectedKpis,
+  selectedOverviewSections,
+  fetchDailyTrend,
 }: {
   kpi: Types.KPISummary | null;
   canals: Types.CanalSummary[];
   reportDate: string;
   fileName?: string;
-  errors?: Types.ErrorRow[];
   hourly?: Types.HourlyRow[];
   operators?: Types.OperatorRow[];
   regions?: Types.RegionRow[];
   statusData?: Types.StatusRow[];
   selectedKpis: Set<keyof Types.KPISummary>;
+  selectedOverviewSections: Set<Types.OverviewExportSectionKey>;
+  fetchDailyTrend?: () => Promise<Types.DailyTrendRow[]>;
 }) {
   const [open, setOpen] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
+  const [exportingPpt, setExportingPpt] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
   // Section toggles — which datasets to include in the export
   const [inclCanals, setInclCanals] = useState(true);
-  const [inclErrors, setInclErrors] = useState(true);
   const [inclHourly, setInclHourly] = useState(true);
   const [inclOperators, setInclOperators] = useState(true);
   const [inclRegions, setInclRegions] = useState(true);
   const [inclStatus, setInclStatus] = useState(true);
+
+  const hasOverviewSection = useCallback(
+    (key: Types.OverviewExportSectionKey) => selectedOverviewSections.has(key),
+    [selectedOverviewSections],
+  );
+
+  const includeCanalDataset =
+    inclCanals &&
+    (hasOverviewSection("revenueGroups") ||
+      hasOverviewSection("canalShare") ||
+      hasOverviewSection("canalAmount") ||
+      hasOverviewSection("successRate") ||
+      hasOverviewSection("canalTable"));
+  const includeHourlyDataset = inclHourly && hasOverviewSection("hourly");
+  const includeStatusDataset = inclStatus && hasOverviewSection("status");
+  const includeAssistantDataset = hasOverviewSection("assistant");
+  const includeDailyTrendDataset = hasOverviewSection("dailyTrend");
+
+  const insights = useMemo(
+    () =>
+      kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 6) : [],
+    [kpi, canals, hourly, statusData],
+  );
+
+  const revenueGroupRows = useMemo(() => {
+    const groups: Record<string, Types.CanalKey[]> = {
+      "Bill Payment": ["bill_payment"],
+      Recharge: [
+        "voice_fixed_ttcash",
+        "voice_fixed_voucher",
+        "voice_mobile_ttcash",
+        "voice_mobile_voucher",
+        "data_sabba",
+        "data_evoucher",
+      ],
+      "Voucher For Payment": ["voucher_for_payment"],
+      "Credit Transfer": ["credit_transfer"],
+      "Voucher Convergent": ["voucher_convergent"],
+    };
+
+    return Object.entries(groups).map(([group, keys]) => {
+      const matching = canals.filter((c) => keys.includes(c.key));
+      const total = matching.reduce((sum, c) => sum + c.total, 0);
+      const success = matching.reduce((sum, c) => sum + c.success, 0);
+      const amount = matching.reduce((sum, c) => sum + c.amount, 0);
+      return {
+        group,
+        total,
+        success,
+        amount,
+        successRate: total > 0 ? (success / total) * 100 : 0,
+      };
+    });
+  }, [canals]);
+
+  const getDailyTrendRows = useCallback(async () => {
+    if (!(includeDailyTrendDataset && fetchDailyTrend)) return [];
+    try {
+      return await fetchDailyTrend();
+    } catch (err) {
+      console.error("Daily trend export failed:", err);
+      return [];
+    }
+  }, [fetchDailyTrend, includeDailyTrendDataset]);
+
+  /** Filtered KPI rows based on user selection */
+  const kpiRows = useCallback((): [string, string | number][] => {
+    if (!kpi) return [];
+    return KPI_FIELDS.filter((f) => selectedKpis.has(f.key)).map((f) => {
+      const raw = kpi[f.key];
+      return [f.label, f.fmt ? f.fmt(raw as number) : String(raw)];
+    });
+  }, [kpi, selectedKpis]);
+
+  const getDeckBrief = useCallback(async () => {
+    if (!kpi) return null;
+    return generateTelecomDeckBrief({
+      reportDate,
+      fileName,
+      kpi,
+      canals,
+      hourly,
+      statusData,
+      revenueGroups: revenueGroupRows,
+      selectedKpis: kpiRows().map(([label, value]) => ({ label, value })),
+    });
+  }, [
+    kpi,
+    reportDate,
+    fileName,
+    canals,
+    hourly,
+    statusData,
+    revenueGroupRows,
+    kpiRows,
+  ]);
 
   // Close on outside click
   useEffect(() => {
@@ -70,51 +168,42 @@ export function ExportPanel({
     return () => document.removeEventListener("mousedown", handler);
   }, [open]);
 
-  /** Filtered KPI rows based on user selection */
-  const kpiRows = (): [string, string | number][] => {
-    if (!kpi) return [];
-    return KPI_FIELDS.filter((f) => selectedKpis.has(f.key)).map((f) => {
-      const raw = kpi[f.key];
-      return [f.label, f.fmt ? f.fmt(raw as number) : String(raw)];
-    });
-  };
+  const selectedKpiPayload = useMemo(() => {
+    if (!(selectedKpis.size > 0 && kpi)) return null;
+    const filtered: Partial<Types.KPISummary> = {};
+    for (const f of KPI_FIELDS) {
+      if (selectedKpis.has(f.key))
+        (filtered as Record<string, unknown>)[f.key] = kpi[f.key];
+    }
+    return filtered;
+  }, [kpi, selectedKpis]);
 
   const exportKPICSV = useCallback(() => {
     if (!kpi) return;
-    const rows = kpiRows();
-    const body = rows.map(([k, v]) => `"${k}","${v}"`).join("\n");
-    dlFile(`"Métrique","Valeur"\n${body}`, `kpi_${reportDate}.csv`);
+    downloadTextFile(buildKpiCsv(kpiRows()), `kpi_${reportDate}.csv`);
     setOpen(false);
-  }, [kpi, reportDate, selectedKpis]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [kpi, reportDate, kpiRows]);
 
   const exportCanalCSV = useCallback(() => {
-    if (!canals.length) return;
-    const header =
-      "Canal,Total,Réussie,Échec,Instance,Annulation,Confirmé,TauxRéussite%,MontantTotal_TND,MontantMoyen_TND,Part%";
-    const body = canals
-      .map(
-        (c) =>
-          `"${c.label}",${c.total},${c.success},${c.declined},${c.instance},${c.refund},${c.submitted},${c.successRate.toFixed(2)},${c.amount.toFixed(3)},${c.avgAmount.toFixed(3)},${c.share.toFixed(2)}`,
-      )
-      .join("\n");
-    dlFile(`${header}\n${body}`, `canal_summary_${reportDate}.csv`);
+    if (!(includeCanalDataset && canals.length)) return;
+    downloadTextFile(buildCanalCsv(canals), `canal_summary_${reportDate}.csv`);
     setOpen(false);
-  }, [canals, reportDate]);
+  }, [canals, reportDate, includeCanalDataset]);
 
-  const exportJSON = useCallback(() => {
+  const exportJSON = useCallback(async () => {
     const payload: Record<string, unknown> = {
       reportDate,
       fileName,
       generatedAt: new Date().toISOString(),
     };
-    if (selectedKpis.size > 0 && kpi) {
-      const filtered: Partial<Types.KPISummary> = {};
-      for (const f of KPI_FIELDS)
-        if (selectedKpis.has(f.key))
-          (filtered as Record<string, unknown>)[f.key] = kpi[f.key];
-      payload.kpi = filtered;
-    }
-    if (inclCanals)
+    if (selectedKpiPayload) payload.kpi = selectedKpiPayload;
+    const deckBrief = await getDeckBrief();
+    if (deckBrief) payload.narrative = deckBrief;
+    if (includeAssistantDataset && insights.length)
+      payload.assistant = insights;
+    if (hasOverviewSection("revenueGroups") && revenueGroupRows.length)
+      payload.revenueGroups = revenueGroupRows;
+    if (includeCanalDataset)
       payload.canals = canals.map((c) => ({
         canal: c.label,
         total: c.total,
@@ -128,34 +217,39 @@ export function ExportPanel({
         avgAmount: c.avgAmount,
         share: c.share,
       }));
-    if (inclHourly && hourly.length) payload.hourly = hourly;
-    if (inclErrors && errors.length) payload.errors = errors;
+    if (includeHourlyDataset && hourly.length) payload.hourly = hourly;
     if (inclOperators && operators.length) payload.operators = operators;
     if (inclRegions && regions.length) payload.regions = regions;
-    if (inclStatus && statusData.length) payload.statuses = statusData;
-    dlFile(
+    if (includeStatusDataset && statusData.length)
+      payload.statuses = statusData;
+    const dailyTrend = await getDailyTrendRows();
+    if (dailyTrend.length) payload.dailyTrend = dailyTrend;
+    downloadTextFile(
       JSON.stringify(payload, null, 2),
       `telecom_report_${reportDate}.json`,
       "application/json",
     );
     setOpen(false);
   }, [
-    kpi,
     canals,
-    errors,
     hourly,
     operators,
     regions,
     statusData,
     reportDate,
     fileName,
-    selectedKpis,
-    inclCanals,
-    inclErrors,
-    inclHourly,
+    selectedKpiPayload,
+    getDeckBrief,
+    includeAssistantDataset,
+    includeCanalDataset,
+    includeHourlyDataset,
+    includeStatusDataset,
+    insights,
+    revenueGroupRows,
+    hasOverviewSection,
+    getDailyTrendRows,
     inclOperators,
     inclRegions,
-    inclStatus,
   ]);
 
   const exportExcel = useCallback(async () => {
@@ -184,8 +278,86 @@ export function ExportPanel({
       for (const [metric, value] of kpiRows())
         kpiSheet.addRow({ metric, value });
 
+      const deckBrief = await getDeckBrief();
+      if (deckBrief) {
+        const narrativeSheet = wb.addWorksheet("Narrative");
+        narrativeSheet.columns = [
+          { header: "Section", key: "section", width: 22 },
+          { header: "Contenu", key: "content", width: 110 },
+        ];
+        const hdr = narrativeSheet.getRow(1);
+        hdr.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        hdr.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: {
+            argb: deckBrief.source === "ai" ? "FFFF7A1A" : "FF0F766E",
+          },
+        };
+        narrativeSheet.addRow({
+          section: deckBrief.source === "ai" ? "Brief IA" : "Brief local",
+          content: deckBrief.brief.executiveSummary,
+        });
+        for (const finding of deckBrief.brief.keyFindings) {
+          narrativeSheet.addRow({
+            section: `${finding.risk.toUpperCase()} · ${finding.title}`,
+            content: `${finding.summary}\n${finding.bullets.join("\n")}`,
+          });
+        }
+        narrativeSheet.addRow({
+          section: "Actions",
+          content: deckBrief.brief.recommendedActions.join("\n"),
+        });
+        narrativeSheet.addRow({
+          section: "Speaker notes",
+          content: deckBrief.brief.speakerNotes.join("\n"),
+        });
+      }
+
+      if (includeAssistantDataset && insights.length) {
+        const aiSheet = wb.addWorksheet("Assistant");
+        aiSheet.columns = [
+          { header: "Sévérité", key: "severity", width: 16 },
+          { header: "Titre", key: "title", width: 36 },
+          { header: "Contrôle", key: "body", width: 72 },
+          { header: "Métrique", key: "metric", width: 20 },
+        ];
+        const hdr = aiSheet.getRow(1);
+        hdr.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        hdr.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF4F46E5" },
+        };
+        for (const insight of insights) aiSheet.addRow(insight);
+      }
+
+      if (hasOverviewSection("revenueGroups") && revenueGroupRows.length) {
+        const groupSheet = wb.addWorksheet("Groupes");
+        groupSheet.columns = [
+          { header: "Groupe", key: "group", width: 28 },
+          { header: "Total", key: "total", width: 12 },
+          { header: "Réussie", key: "success", width: 12 },
+          { header: "Montant (TND)", key: "amount", width: 16 },
+          { header: "Taux (%)", key: "successRate", width: 12 },
+        ];
+        const hdr = groupSheet.getRow(1);
+        hdr.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        hdr.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF0F766E" },
+        };
+        for (const group of revenueGroupRows)
+          groupSheet.addRow({
+            ...group,
+            amount: Number(group.amount.toFixed(3)),
+            successRate: Number(group.successRate.toFixed(2)),
+          });
+      }
+
       // Sheet 2: Canaux
-      if (inclCanals && canals.length) {
+      if (includeCanalDataset && canals.length) {
         const canalSheet = wb.addWorksheet("Canaux");
         canalSheet.columns = [
           { header: "Canal", key: "label", width: 28 },
@@ -246,7 +418,7 @@ export function ExportPanel({
       }
 
       // Sheet 3: Statuts
-      if (inclStatus && statusData.length) {
+      if (includeStatusDataset && statusData.length) {
         const stSheet = wb.addWorksheet("Statuts");
         stSheet.columns = [
           { header: "Statut", key: "status", width: 20 },
@@ -271,30 +443,6 @@ export function ExportPanel({
           });
       }
 
-      // Sheet 4: Erreurs
-      if (inclErrors && errors.length) {
-        const errSheet = wb.addWorksheet("Erreurs");
-        errSheet.columns = [
-          { header: "Code Erreur", key: "code", width: 20 },
-          { header: "Message", key: "message", width: 44 },
-          { header: "Occurrences", key: "count", width: 14 },
-          { header: "Canal", key: "canal", width: 22 },
-        ];
-        const hdr = errSheet.getRow(1);
-        hdr.font = { bold: true, color: { argb: "FFFFFFFF" } };
-        hdr.fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: "FFDC2626" },
-        };
-        for (const e of errors)
-          errSheet.addRow({
-            code: e.error_code,
-            message: e.error_message,
-            count: e.count,
-            canal: e.canal,
-          });
-      }
 
       // Sheet 5: Comptes / Opérateurs
       if (inclOperators && operators.length) {
@@ -356,7 +504,7 @@ export function ExportPanel({
       }
 
       // Sheet 7: Horaire
-      if (inclHourly && hourly.length) {
+      if (includeHourlyDataset && hourly.length) {
         const hSheet = wb.addWorksheet("Horaire");
         hSheet.columns = [
           { header: "Heure", key: "hour", width: 10 },
@@ -387,16 +535,35 @@ export function ExportPanel({
           });
       }
 
+      const dailyTrend = await getDailyTrendRows();
+      if (dailyTrend.length) {
+        const dtSheet = wb.addWorksheet("Daily Trend");
+        dtSheet.columns = [
+          { header: "Jour", key: "day", width: 16 },
+          { header: "Total", key: "total", width: 12 },
+          { header: "Réussie", key: "success", width: 12 },
+          { header: "Échec", key: "declined", width: 12 },
+          { header: "Montant (TND)", key: "amount", width: 16 },
+        ];
+        const hdr = dtSheet.getRow(1);
+        hdr.font = { bold: true, color: { argb: "FFFFFFFF" } };
+        hdr.fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: "FF7C3AED" },
+        };
+        for (const row of dailyTrend)
+          dtSheet.addRow({
+            ...row,
+            amount: Number(row.amount.toFixed(3)),
+          });
+      }
+
       const buffer = await wb.xlsx.writeBuffer();
       const blob = new Blob([buffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `telecom_report_${reportDate}.xlsx`;
-      a.click();
-      URL.revokeObjectURL(url);
+      downloadBlob(blob, `telecom_report_${reportDate}.xlsx`);
     } catch (err) {
       console.error("Excel export failed:", err);
     } finally {
@@ -405,20 +572,24 @@ export function ExportPanel({
   }, [
     kpi,
     canals,
-    errors,
     hourly,
     operators,
     regions,
     statusData,
     reportDate,
-    selectedKpis,
     exportingXlsx,
-    inclCanals,
-    inclErrors,
-    inclHourly,
+    includeAssistantDataset,
+    includeCanalDataset,
+    includeHourlyDataset,
+    includeStatusDataset,
+    insights,
+    revenueGroupRows,
+    hasOverviewSection,
+    getDailyTrendRows,
+    getDeckBrief,
     inclOperators,
     inclRegions,
-    inclStatus,
+    kpiRows,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const exportPDF = useCallback(async () => {
@@ -487,8 +658,117 @@ export function ExportPanel({
             .lastAutoTable.finalY + 8;
       }
 
+      const deckBrief = await getDeckBrief();
+      if (deckBrief) {
+        if (y > 225) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text(
+          deckBrief.source === "ai"
+            ? "Synthèse exécutive IA"
+            : "Synthèse exécutive locale",
+          margin,
+          y,
+        );
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          head: [["Section", "Analyse"]],
+          body: [
+            ["Résumé", deckBrief.brief.executiveSummary],
+            ...deckBrief.brief.keyFindings
+              .slice(0, 5)
+              .map((finding) => [
+                `${finding.risk.toUpperCase()} · ${finding.title}`,
+                `${finding.summary}\n${finding.bullets.join("\n")}`,
+              ]),
+            ["Actions", deckBrief.brief.recommendedActions.join("\n")],
+          ],
+          headStyles: {
+            fillColor:
+              deckBrief.source === "ai" ? [255, 122, 26] : [15, 118, 110],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 7,
+          },
+          bodyStyles: { fontSize: 7, cellPadding: 2 },
+          alternateRowStyles: { fillColor: [248, 250, 252] },
+          margin: { left: margin, right: margin },
+          columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 138 } },
+        });
+        y =
+          (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 8;
+      }
+
+      if (includeAssistantDataset && insights.length) {
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Assistant métier", margin, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          head: [["Sévérité", "Titre", "Contrôle"]],
+          body: insights.map((insight) => [
+            insight.severity,
+            insight.title,
+            insight.body,
+          ]),
+          headStyles: {
+            fillColor: [79, 70, 229],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 7,
+          },
+          bodyStyles: { fontSize: 7 },
+          alternateRowStyles: { fillColor: [245, 243, 255] },
+          margin: { left: margin, right: margin },
+          columnStyles: { 2: { cellWidth: 86 } },
+        });
+        y =
+          (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 8;
+      }
+
+      if (hasOverviewSection("revenueGroups") && revenueGroupRows.length) {
+        if (y > 240) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Groupes Métier", margin, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          head: [["Groupe", "Total", "Réussies", "Montant TND", "Taux %"]],
+          body: revenueGroupRows.map((group) => [
+            group.group,
+            fmtN(group.total),
+            fmtN(group.success),
+            group.amount.toFixed(3),
+            group.successRate.toFixed(1),
+          ]),
+          headStyles: {
+            fillColor: [15, 118, 110],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 7,
+          },
+          bodyStyles: { fontSize: 7 },
+          alternateRowStyles: { fillColor: [240, 253, 250] },
+          margin: { left: margin, right: margin },
+        });
+        y =
+          (doc as unknown as { lastAutoTable: { finalY: number } })
+            .lastAutoTable.finalY + 8;
+      }
+
       // ── Canaux table ────────────────────────────────────────────────────────
-      if (inclCanals && canals.length) {
+      if (includeCanalDataset && canals.length) {
         if (y > 240) {
           doc.addPage();
           y = 20;
@@ -547,7 +827,7 @@ export function ExportPanel({
       }
 
       // ── Statuts table ───────────────────────────────────────────────────────
-      if (inclStatus && statusData.length) {
+      if (includeStatusDataset && statusData.length) {
         if (y > 240) {
           doc.addPage();
           y = 20;
@@ -575,41 +855,6 @@ export function ExportPanel({
           bodyStyles: { fontSize: 8 },
           alternateRowStyles: { fillColor: [245, 243, 255] },
           margin: { left: margin, right: margin },
-        });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
-      }
-
-      // ── Erreurs table ───────────────────────────────────────────────────────
-      if (inclErrors && errors.length) {
-        if (y > 240) {
-          doc.addPage();
-          y = 20;
-        }
-        doc.setFontSize(10);
-        doc.setFont("helvetica", "bold");
-        doc.text("Codes d'Erreur", margin, y);
-        y += 2;
-        autoTable(doc, {
-          startY: y,
-          head: [["Code", "Message", "Occurrences", "Canal"]],
-          body: errors.map((e) => [
-            e.error_code,
-            e.error_message,
-            fmtN(e.count),
-            e.canal,
-          ]),
-          headStyles: {
-            fillColor: [220, 38, 38],
-            textColor: 255,
-            fontStyle: "bold",
-            fontSize: 7,
-          },
-          bodyStyles: { fontSize: 7 },
-          alternateRowStyles: { fillColor: [254, 242, 242] },
-          margin: { left: margin, right: margin },
-          columnStyles: { 1: { cellWidth: 70 } },
         });
         y =
           (doc as unknown as { lastAutoTable: { finalY: number } })
@@ -690,7 +935,7 @@ export function ExportPanel({
       }
 
       // ── Horaire table ────────────────────────────────────────────────────────
-      if (inclHourly && hourly.length) {
+      if (includeHourlyDataset && hourly.length) {
         if (y > 240) {
           doc.addPage();
           y = 20;
@@ -724,6 +969,38 @@ export function ExportPanel({
         });
       }
 
+      const dailyTrend = await getDailyTrendRows();
+      if (dailyTrend.length) {
+        if (y > 240) {
+          doc.addPage();
+          y = 20;
+        }
+        doc.setFontSize(10);
+        doc.setFont("helvetica", "bold");
+        doc.text("Daily Trend", margin, y);
+        y += 2;
+        autoTable(doc, {
+          startY: y,
+          head: [["Jour", "Total", "Réussies", "Échecs", "Montant TND"]],
+          body: dailyTrend.map((row) => [
+            row.day,
+            fmtN(row.total),
+            fmtN(row.success),
+            fmtN(row.declined),
+            row.amount.toFixed(3),
+          ]),
+          headStyles: {
+            fillColor: [124, 58, 237],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 7,
+          },
+          bodyStyles: { fontSize: 7 },
+          alternateRowStyles: { fillColor: [245, 243, 255] },
+          margin: { left: margin, right: margin },
+        });
+      }
+
       // ── Footer ───────────────────────────────────────────────────────────────
       const pages = doc.getNumberOfPages();
       for (let i = 1; i <= pages; i++) {
@@ -746,26 +1023,586 @@ export function ExportPanel({
   }, [
     kpi,
     canals,
-    errors,
     hourly,
     operators,
     regions,
     statusData,
     reportDate,
     fileName,
-    selectedKpis,
     exportingPdf,
-    inclCanals,
-    inclErrors,
-    inclHourly,
+    includeAssistantDataset,
+    includeCanalDataset,
+    includeHourlyDataset,
+    includeStatusDataset,
+    insights,
+    revenueGroupRows,
+    hasOverviewSection,
+    getDailyTrendRows,
+    getDeckBrief,
     inclOperators,
     inclRegions,
-    inclStatus,
+    kpiRows,
   ]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const exportPowerPoint = useCallback(async () => {
+    if (!kpi || exportingPpt) return;
+    setExportingPpt(true);
+    setOpen(false);
+    try {
+      const { default: PptxGenJS } = await import("pptxgenjs");
+      const deckBrief = await getDeckBrief();
+      const pptx = new PptxGenJS();
+      pptx.layout = "LAYOUT_WIDE";
+      pptx.author = "Data Navigator";
+      pptx.company = "Local telecom dashboard";
+      pptx.subject = "Dashboard des recharges";
+      pptx.title = `Rapport Télécom ${reportDate}`;
+      pptx.theme = {
+        headFontFace: "Aptos Display",
+        bodyFontFace: "Aptos",
+      };
+      pptx.defineSlideMaster({
+        title: "TELECOM_MASTER",
+        background: { color: "0B1220" },
+        objects: [
+          {
+            rect: {
+              x: 0,
+              y: 0,
+              w: 13.33,
+              h: 0.18,
+              fill: { color: "14B8A6" },
+              line: { color: "14B8A6" },
+            },
+          },
+          {
+            text: {
+              text: "Dashboard des recharges · Local-first",
+              options: {
+                x: 0.45,
+                y: 7.05,
+                w: 5.7,
+                h: 0.22,
+                fontSize: 7,
+                color: "94A3B8",
+              },
+            },
+          },
+          {
+            text: {
+              text: "Telemetry: disabled · Offline: supported",
+              options: {
+                x: 9.4,
+                y: 7.05,
+                w: 3.45,
+                h: 0.22,
+                fontSize: 7,
+                color: "94A3B8",
+                align: "right",
+              },
+            },
+          },
+        ],
+      });
+
+      const addTitle = (
+        slide: PptxGenJS.Slide,
+        title: string,
+        subtitle?: string,
+      ) => {
+        slide.addText(title, {
+          x: 0.45,
+          y: 0.34,
+          w: 7.9,
+          h: 0.34,
+          fontSize: 20,
+          bold: true,
+          color: "F8FAFC",
+          margin: 0,
+        });
+        if (subtitle) {
+          slide.addText(subtitle, {
+            x: 0.47,
+            y: 0.78,
+            w: 8.5,
+            h: 0.24,
+            fontSize: 8.5,
+            color: "94A3B8",
+            margin: 0,
+          });
+        }
+      };
+
+      const addMetricCard = (
+        slide: PptxGenJS.Slide,
+        label: string,
+        value: string,
+        x: number,
+        y: number,
+        color = "14B8A6",
+      ) => {
+        slide.addShape(pptx.ShapeType.roundRect, {
+          x,
+          y,
+          w: 2.35,
+          h: 1.1,
+          rectRadius: 0.08,
+          fill: { color: "111827", transparency: 6 },
+          line: { color, transparency: 20 },
+        });
+        slide.addText(label, {
+          x: x + 0.16,
+          y: y + 0.15,
+          w: 2.02,
+          h: 0.22,
+          fontSize: 7.5,
+          color: "94A3B8",
+          margin: 0,
+        });
+        slide.addText(value, {
+          x: x + 0.16,
+          y: y + 0.48,
+          w: 2.02,
+          h: 0.32,
+          fontSize: 18,
+          bold: true,
+          color: "F8FAFC",
+          fit: "shrink",
+          margin: 0,
+        });
+      };
+
+      const addTable = (
+        slide: PptxGenJS.Slide,
+        rows: Array<Array<string | number>>,
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+      ) => {
+        slide.addTable(rows as unknown as PptxGenJS.TableRow[], {
+          x,
+          y,
+          w,
+          h,
+          border: { color: "334155", pt: 0.4 },
+          color: "E2E8F0",
+          fontSize: 7,
+          margin: 0.05,
+          fill: { color: "0F172A", transparency: 4 },
+          valign: "middle",
+        });
+      };
+
+      const titleSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+      titleSlide.background = { color: "08111F" };
+      titleSlide.addText("Rapport Télécom", {
+        x: 0.62,
+        y: 0.82,
+        w: 7.8,
+        h: 0.58,
+        fontSize: 32,
+        bold: true,
+        color: "F8FAFC",
+        margin: 0,
+      });
+      titleSlide.addText("Dashboard des recharges", {
+        x: 0.66,
+        y: 1.45,
+        w: 5.8,
+        h: 0.32,
+        fontSize: 14,
+        color: "5EEAD4",
+        margin: 0,
+      });
+      titleSlide.addText(
+        [
+          `Période: ${reportDate || "non spécifiée"}`,
+          fileName ? `Fichier: ${fileName}` : "",
+          deckBrief?.source === "ai"
+            ? "Narrative: générée par IA"
+            : "Narrative: locale/offline",
+          `Généré: ${new Date().toLocaleString("fr-TN")}`,
+        ]
+          .filter(Boolean)
+          .join("\n"),
+        {
+          x: 0.7,
+          y: 2.15,
+          w: 5.2,
+          h: 0.8,
+          fontSize: 9,
+          color: "CBD5E1",
+          breakLine: false,
+          margin: 0,
+        },
+      );
+      addMetricCard(
+        titleSlide,
+        "Transactions",
+        fmtN(kpi.totalTransactions),
+        0.72,
+        3.55,
+      );
+      addMetricCard(
+        titleSlide,
+        "Réussite",
+        `${kpi.successRate.toFixed(1)}%`,
+        3.28,
+        3.55,
+        "22C55E",
+      );
+      addMetricCard(
+        titleSlide,
+        "Montant réussi",
+        `${kpi.totalAmount.toFixed(3)} DT`,
+        5.84,
+        3.55,
+        "F59E0B",
+      );
+      titleSlide.addShape(pptx.ShapeType.arc, {
+        x: 9.15,
+        y: 0.9,
+        w: 3.2,
+        h: 3.2,
+        line: { color: "14B8A6", transparency: 35, pt: 3 },
+      });
+
+      const kpiSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+      addTitle(
+        kpiSlide,
+        "Indicateurs sélectionnés",
+        "Les métriques suivent les checkboxes de la vue d'ensemble.",
+      );
+      const selectedRows = kpiRows().map(([metric, value]) => [
+        metric,
+        String(value),
+      ]);
+      addTable(
+        kpiSlide,
+        [["Métrique", "Valeur"], ...selectedRows],
+        0.6,
+        1.35,
+        5.3,
+        4.9,
+      );
+      if (deckBrief) {
+        kpiSlide.addText(
+          deckBrief.source === "ai" ? "Brief IA" : "Brief local",
+          {
+            x: 6.35,
+            y: 1.35,
+            w: 2.4,
+            h: 0.26,
+            fontSize: 11,
+            bold: true,
+            color: "F8FAFC",
+            margin: 0,
+          },
+        );
+        kpiSlide.addText(deckBrief.brief.executiveSummary, {
+          x: 6.35,
+          y: 1.78,
+          w: 5.95,
+          h: 1.15,
+          fontSize: 8,
+          color: "CBD5E1",
+          fit: "shrink",
+          margin: 0,
+        });
+        deckBrief.brief.keyFindings.slice(0, 3).forEach((finding, index) => {
+          kpiSlide.addShape(pptx.ShapeType.roundRect, {
+            x: 6.35,
+            y: 3.12 + index * 0.82,
+            w: 5.95,
+            h: 0.64,
+            rectRadius: 0.06,
+            fill: { color: "111827", transparency: 3 },
+            line: { color: "334155", transparency: 20 },
+          });
+          kpiSlide.addText(finding.title, {
+            x: 6.52,
+            y: 3.23 + index * 0.82,
+            w: 5.55,
+            h: 0.2,
+            fontSize: 8,
+            bold: true,
+            color:
+              finding.risk === "high"
+                ? "F87171"
+                : finding.risk === "medium"
+                  ? "FBBF24"
+                  : "34D399",
+            margin: 0,
+          });
+          kpiSlide.addText(finding.summary, {
+            x: 6.52,
+            y: 3.47 + index * 0.82,
+            w: 5.55,
+            h: 0.25,
+            fontSize: 6.5,
+            color: "CBD5E1",
+            fit: "shrink",
+            margin: 0,
+          });
+        });
+      }
+
+      if (hasOverviewSection("revenueGroups") && revenueGroupRows.length) {
+        const groupSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+        addTitle(
+          groupSlide,
+          "Performance par groupe métier",
+          "Montants calculés sur transactions réussies selon la spécification.",
+        );
+        addTable(
+          groupSlide,
+          [
+            ["Groupe", "Total", "Réussies", "Montant DT", "Taux"],
+            ...revenueGroupRows.map((group) => [
+              group.group,
+              fmtN(group.total),
+              fmtN(group.success),
+              group.amount.toFixed(3),
+              `${group.successRate.toFixed(1)}%`,
+            ]),
+          ],
+          0.6,
+          1.28,
+          6.2,
+          4.2,
+        );
+        const maxAmount = Math.max(
+          1,
+          ...revenueGroupRows.map((group) => group.amount),
+        );
+        revenueGroupRows.forEach((group, index) => {
+          const width = (group.amount / maxAmount) * 4.6;
+          const y = 1.42 + index * 0.62;
+          groupSlide.addText(group.group, {
+            x: 7.25,
+            y,
+            w: 2.05,
+            h: 0.18,
+            fontSize: 7,
+            color: "CBD5E1",
+            margin: 0,
+          });
+          groupSlide.addShape(pptx.ShapeType.rect, {
+            x: 9.3,
+            y: y + 0.02,
+            w: 4.6,
+            h: 0.18,
+            fill: { color: "1E293B" },
+            line: { color: "1E293B" },
+          });
+          groupSlide.addShape(pptx.ShapeType.rect, {
+            x: 9.3,
+            y: y + 0.02,
+            w: width,
+            h: 0.18,
+            fill: { color: "14B8A6" },
+            line: { color: "14B8A6" },
+          });
+        });
+      }
+
+      if (includeStatusDataset && statusData.length) {
+        const statusSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+        addTitle(statusSlide, "Répartition des statuts");
+        addTable(
+          statusSlide,
+          [
+            ["Statut", "Occurrences", "Montant DT"],
+            ...statusData.map((row) => [
+              row.status,
+              fmtN(row.count),
+              row.amount.toFixed(3),
+            ]),
+          ],
+          0.7,
+          1.3,
+          5.2,
+          4.4,
+        );
+        const totalStatus = Math.max(
+          1,
+          statusData.reduce((sum, row) => sum + row.count, 0),
+        );
+        statusData.slice(0, 6).forEach((row, index) => {
+          const pct = row.count / totalStatus;
+          const y = 1.45 + index * 0.58;
+          statusSlide.addText(row.status, {
+            x: 6.65,
+            y,
+            w: 1.25,
+            h: 0.18,
+            fontSize: 7,
+            color: "CBD5E1",
+            margin: 0,
+          });
+          statusSlide.addShape(pptx.ShapeType.rect, {
+            x: 8.0,
+            y: y + 0.03,
+            w: pct * 4.2,
+            h: 0.2,
+            fill: { color: row.status === "Réussie" ? "22C55E" : "14B8A6" },
+            line: { color: "0B1220", transparency: 100 },
+          });
+          statusSlide.addText(`${(pct * 100).toFixed(1)}%`, {
+            x: 12.35,
+            y,
+            w: 0.58,
+            h: 0.18,
+            fontSize: 7,
+            color: "94A3B8",
+            align: "right",
+            margin: 0,
+          });
+        });
+      }
+
+      if (includeCanalDataset && canals.length) {
+        const canalSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+        addTitle(canalSlide, "Canaux et produits", "Top canaux par volume.");
+        addTable(
+          canalSlide,
+          [
+            ["Canal", "Total", "Réussies", "Taux", "Montant DT"],
+            ...canals
+              .slice(0, 12)
+              .map((canal) => [
+                canal.label,
+                fmtN(canal.total),
+                fmtN(canal.success),
+                `${canal.successRate.toFixed(1)}%`,
+                canal.amount.toFixed(3),
+              ]),
+          ],
+          0.55,
+          1.2,
+          12.2,
+          5.45,
+        );
+      }
+
+      if (includeHourlyDataset && hourly.length) {
+        const hourlySlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+        addTitle(
+          hourlySlide,
+          "Distribution horaire",
+          "Volume et réussite par heure de transaction.",
+        );
+        const maxTotal = Math.max(1, ...hourly.map((row) => row.total));
+        hourly.forEach((row, index) => {
+          const x = 0.7 + index * 0.5;
+          const h = (row.total / maxTotal) * 3.6;
+          hourlySlide.addShape(pptx.ShapeType.rect, {
+            x,
+            y: 5.65 - h,
+            w: 0.28,
+            h,
+            fill: { color: "14B8A6" },
+            line: { color: "14B8A6" },
+          });
+          if (index % 3 === 0) {
+            hourlySlide.addText(String(row.hour).padStart(2, "0"), {
+              x: x - 0.05,
+              y: 5.82,
+              w: 0.42,
+              h: 0.16,
+              fontSize: 5.8,
+              color: "94A3B8",
+              align: "center",
+              margin: 0,
+            });
+          }
+        });
+      }
+
+      const dailyTrend = await getDailyTrendRows();
+      if (dailyTrend.length) {
+        const trendSlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+        addTitle(trendSlide, "Daily Trend", "Évolution journalière exportée.");
+        addTable(
+          trendSlide,
+          [
+            ["Jour", "Total", "Réussies", "Échecs", "Montant DT"],
+            ...dailyTrend
+              .slice(-14)
+              .map((row) => [
+                row.day,
+                fmtN(row.total),
+                fmtN(row.success),
+                fmtN(row.declined),
+                row.amount.toFixed(3),
+              ]),
+          ],
+          0.7,
+          1.3,
+          11.8,
+          4.9,
+        );
+      }
+
+      const privacySlide = pptx.addSlide({ masterName: "TELECOM_MASTER" });
+      addTitle(
+        privacySlide,
+        "Mode offline & confidentialité",
+        "Cette présentation est générée localement depuis les données sélectionnées.",
+      );
+      addTable(
+        privacySlide,
+        [
+          ["Point", "Statut"],
+          ["Génération PowerPoint", "Locale dans le navigateur"],
+          ["Données sources", "Stockées localement: IndexedDB"],
+          ["Télémétrie externe", "Désactivée / aucune transmission cloud"],
+          ["IA du rapport", "Règles métier locales sur KPIs sélectionnés"],
+          ["Utilisation hors ligne", "Supportée après cache de l'application"],
+        ],
+        0.9,
+        1.45,
+        10.9,
+        3.7,
+      );
+      if (deckBrief?.brief.speakerNotes.length) {
+        privacySlide.addNotes(deckBrief.brief.speakerNotes.join("\n"));
+      }
+
+      await pptx.writeFile({
+        fileName: `telecom_ai_deck_${reportDate || "rapport"}.pptx`,
+        compression: true,
+      });
+    } catch (err) {
+      console.error("PowerPoint export failed:", err);
+    } finally {
+      setExportingPpt(false);
+    }
+  }, [
+    kpi,
+    exportingPpt,
+    reportDate,
+    fileName,
+    kpiRows,
+    includeAssistantDataset,
+    insights,
+    hasOverviewSection,
+    revenueGroupRows,
+    includeStatusDataset,
+    statusData,
+    includeCanalDataset,
+    canals,
+    includeHourlyDataset,
+    hourly,
+    getDailyTrendRows,
+    getDeckBrief,
+  ]);
 
   const selectedKpiCount = KPI_FIELDS.filter((f) =>
     selectedKpis.has(f.key),
   ).length;
+  const selectedOverviewCount = selectedOverviewSections.size;
 
   return (
     <div className="relative" ref={panelRef}>
@@ -810,8 +1647,24 @@ export function ExportPanel({
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
                 Cochez / décochez les cartes KPI dans la vue{" "}
-                <strong>Vue d&apos;ensemble</strong> pour sélectionner les métriques
-                à exporter.
+                <strong>Vue d&apos;ensemble</strong> pour sélectionner les
+                métriques à exporter.
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-foreground">
+                  Widgets Vue d&apos;ensemble
+                </span>
+                <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
+                  {selectedOverviewCount} / 9
+                </span>
+              </div>
+              <p className="text-[10px] text-muted-foreground leading-relaxed">
+                Les checkboxes sur les widgets de la vue d&apos;ensemble
+                contrôlent les sections incluses dans JSON, Excel, PDF et CSV
+                Canaux.
               </p>
             </div>
 
@@ -833,12 +1686,6 @@ export function ExportPanel({
                     count: statusData.length,
                     val: inclStatus,
                     set: setInclStatus,
-                  },
-                  {
-                    label: "Erreurs",
-                    count: errors.length,
-                    val: inclErrors,
-                    set: setInclErrors,
                   },
                   {
                     label: "Opérateurs",
@@ -882,6 +1729,7 @@ export function ExportPanel({
                     >
                       {val && count > 0 && (
                         <svg
+                          aria-hidden="true"
                           viewBox="0 0 10 10"
                           className="w-2.5 h-2.5 text-white"
                           fill="none"
@@ -910,7 +1758,7 @@ export function ExportPanel({
                 <button
                   type="button"
                   onClick={exportCanalCSV}
-                  disabled={!canals.length}
+                  disabled={!(includeCanalDataset && canals.length)}
                   className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 text-emerald-700 dark:bg-emerald-600/15 dark:hover:bg-emerald-600/25 dark:border-emerald-500/25 dark:text-emerald-300 rounded-xl text-xs font-medium transition-colors disabled:opacity-40"
                 >
                   <Download className="w-3.5 h-3.5" /> CSV Canaux
@@ -944,10 +1792,19 @@ export function ExportPanel({
                   type="button"
                   onClick={exportPDF}
                   disabled={!kpi || exportingPdf}
-                  className="col-span-2 flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 dark:bg-rose-600/15 dark:hover:bg-rose-600/25 dark:border-rose-500/25 dark:text-rose-300 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-rose-50 hover:bg-rose-100 border border-rose-300 text-rose-700 dark:bg-rose-600/15 dark:hover:bg-rose-600/25 dark:border-rose-500/25 dark:text-rose-300 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
                 >
                   <FileText className="w-3.5 h-3.5" />
-                  {exportingPdf ? "Génération PDF…" : "Exporter en PDF"}
+                  {exportingPdf ? "PDF…" : "PDF"}
+                </button>
+                <button
+                  type="button"
+                  onClick={exportPowerPoint}
+                  disabled={!kpi || exportingPpt || selectedKpiCount === 0}
+                  className="flex items-center justify-center gap-1.5 px-3 py-2 bg-orange-50 hover:bg-orange-100 border border-orange-300 text-orange-700 dark:bg-orange-600/15 dark:hover:bg-orange-600/25 dark:border-orange-500/25 dark:text-orange-300 rounded-xl text-xs font-medium transition-colors disabled:opacity-50"
+                >
+                  <Presentation className="w-3.5 h-3.5" />
+                  {exportingPpt ? "PPT…" : "PowerPoint IA"}
                 </button>
               </div>
             </div>

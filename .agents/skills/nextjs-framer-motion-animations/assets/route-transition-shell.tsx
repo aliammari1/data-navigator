@@ -1,7 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { AnimatePresence, LazyMotion, MotionConfig, domAnimation } from "motion/react";
+import {
+  AnimatePresence,
+  LazyMotion,
+  MotionConfig,
+  domAnimation,
+} from "motion/react";
 import * as m from "motion/react-m";
 import { usePathname } from "next/navigation";
 

@@ -1,12 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  Database,
+  FlaskConical,
+  ListFilter,
+  Sparkles,
+  Tag,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { Database, FlaskConical, ListFilter, Sparkles, Tag } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useMemo, useState } from "react";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
 import type { ServiceCodeRow } from "@/features/telecom/types";
+import { cn } from "@/shared/utils";
 import { CanalDetectorPanel } from "./canal-detector-panel";
 import { CustomKPIBuilder } from "./custom-kpi-builder";
 import { DeepAnalysisPanel } from "./deep-analysis-panel";
@@ -20,7 +26,6 @@ export function ConfigTab({
   kpi,
   canals,
   hourly,
-  errors,
   statusData,
   m,
   rawStatuses,
@@ -34,7 +39,6 @@ export function ConfigTab({
   kpi: Types.KPISummary;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
-  errors: Types.ErrorRow[];
   statusData: Types.StatusRow[];
   m: Types.ColumnMapping;
   rawStatuses: Types.RawStatusRow[];
@@ -49,10 +53,10 @@ export function ConfigTab({
 
   const criticalCount = useMemo(
     () =>
-      computeAIInsights(kpi, canals, hourly, errors, statusData).filter(
+      computeAIInsights(kpi, canals, hourly, statusData).filter(
         (i) => i.severity === "critical",
       ).length,
-    [kpi, canals, hourly, errors, statusData],
+    [kpi, canals, hourly, statusData],
   );
 
   const sections: Array<{
@@ -64,7 +68,7 @@ export function ConfigTab({
   }> = [
     {
       key: "insights",
-      label: "Aperçus IA",
+      label: "Assistant métier",
       icon: Sparkles,
       badge: criticalCount > 0 ? String(criticalCount) : undefined,
       activeClass:
@@ -146,7 +150,6 @@ export function ConfigTab({
               kpi={kpi}
               canals={canals}
               hourly={hourly}
-              errors={errors}
               statusData={statusData}
               reportDate={reportDate}
             />
@@ -169,7 +172,10 @@ export function ConfigTab({
               title="Détecteur de Classification Canal"
               icon={<ListFilter className="w-4 h-4" />}
             >
-              <CanalDetectorPanel m={m} fetchServiceCodeRows={fetchServiceCodeRows} />
+              <CanalDetectorPanel
+                m={m}
+                fetchServiceCodeRows={fetchServiceCodeRows}
+              />
             </Section>
           )}
           {section === "kpis" && (

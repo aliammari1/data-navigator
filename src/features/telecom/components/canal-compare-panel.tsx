@@ -1,100 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { BarChart2, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
+import { useEffect, useState } from "react";
+import { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
 import { buildCanalCompareBarOption } from "@/features/telecom/lib/chart-options";
-import {
-  BILL_PAYMENT_CHANNELS,
-  CREDIT_TRANSFER,
-  EVOUCHER_ON_DEMAND_GENERATION,
-  RECHARGE_DATA_EVOUCHER,
-  RECHARGE_DATA_SABBA,
-  RECHARGE_VOICE_FIXED_TTCASH,
-  RECHARGE_VOICE_FIXED_VOUCHER,
-  RECHARGE_VOICE_MOBILE_TTCASH,
-  RECHARGE_VOICE_MOBILE_VOUCHER,
-  VOUCHER_CONVERGENT_CARTE_ACTIVATION,
-  VOUCHER_CONVERGENT_CARTE_GENERATION,
-  VOUCHER_FOR_PAYMENT,
-  type ChannelDef,
-} from "@/features/telecom/lib/report-engine";
+import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { cn } from "@/shared/utils";
 
-const VOUCHER_FOR_PAYMENT_GENERATION = [VOUCHER_FOR_PAYMENT[0]];
-const VOUCHER_FOR_PAYMENT_REDEMPTION = VOUCHER_FOR_PAYMENT.slice(1);
-
-interface ChannelGroup {
-  label: string;
-  channels: ChannelDef[];
-  color?: string;
-}
-
-export const COMPARE_GROUPS: ChannelGroup[] = [
-  {
-    label: "Bill Payment",
-    channels: BILL_PAYMENT_CHANNELS,
-    color: "#89b4fa",
-  },
-  {
-    label: "Fixed by TTCASH",
-    channels: RECHARGE_VOICE_FIXED_TTCASH,
-    color: "#cba6f7",
-  },
-  {
-    label: "Fixed by Voucher",
-    channels: RECHARGE_VOICE_FIXED_VOUCHER,
-    color: "#a6e3a1",
-  },
-  {
-    label: "Mobile by TTCASH",
-    channels: RECHARGE_VOICE_MOBILE_TTCASH,
-    color: "#f38ba8",
-  },
-  {
-    label: "Mobile by Voucher",
-    channels: RECHARGE_VOICE_MOBILE_VOUCHER,
-    color: "#fab387",
-  },
-  {
-    label: "Internet Sabba",
-    channels: RECHARGE_DATA_SABBA,
-    color: "#89dceb",
-  },
-  {
-    label: "Data by Voucher",
-    channels: RECHARGE_DATA_EVOUCHER,
-    color: "#f9e2af",
-  },
-  {
-    label: "Voucher For Payment — Generation",
-    channels: VOUCHER_FOR_PAYMENT_GENERATION,
-    color: "#b4befe",
-  },
-  {
-    label: "Voucher For Payment — Redemption",
-    channels: VOUCHER_FOR_PAYMENT_REDEMPTION,
-    color: "#eba0ac",
-  },
-  { label: "Credit Transfer", channels: CREDIT_TRANSFER, color: "#94e2d5" },
-  {
-    label: "Evoucher on Demand — Generation",
-    channels: EVOUCHER_ON_DEMAND_GENERATION,
-    color: "#a6e3a1",
-  },
-  {
-    label: "Voucher For Recharge — Carte Generation",
-    channels: VOUCHER_CONVERGENT_CARTE_GENERATION,
-    color: "#cba6f7",
-  },
-  {
-    label: "Voucher For Recharge — Carte Activation",
-    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION,
-    color: "#f9e2af",
-  },
-];
+export { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
 
 export function CanalComparePanel({
   dateFrom,
@@ -158,7 +74,7 @@ export function CanalComparePanel({
     return () => {
       cancelled = true;
     };
-  }, [selected, dateFrom, dateTo]);
+  }, [selected, dateFrom, dateTo, fetchSpecChannelStats]);
 
   const maxNombre = Math.max(...(results?.map((r) => r.nombre) ?? [1]), 1);
   const maxMontant = Math.max(...(results?.map((r) => r.montant) ?? [1]), 1);

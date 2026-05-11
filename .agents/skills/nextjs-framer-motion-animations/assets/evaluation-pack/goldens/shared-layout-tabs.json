@@ -4,7 +4,5 @@
   "recommendedImportPath": "motion/react",
   "recommendedBoundary": "already-client",
   "recommendedPattern": "shared-layout",
-  "likelyFilesToChange": [
-    "components/settings-tabs.tsx"
-  ]
+  "likelyFilesToChange": ["components/settings-tabs.tsx"]
 }

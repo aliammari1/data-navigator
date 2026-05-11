@@ -1,5 +1,5 @@
 "use client";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { useRef, useState } from "react";
 import { motion } from "motion/react";
 import { PlusCircle, Trash2, Upload } from "lucide-react";
@@ -84,7 +84,8 @@ export const FileUpload = ({
             </>
           ) : (
             <p className="relative z-20 font-sans text-sm font-medium text-muted-foreground">
-              {files.length} fichier{files.length > 1 ? "s" : ""} sélectionné{files.length > 1 ? "s" : ""}
+              {files.length} fichier{files.length > 1 ? "s" : ""} sélectionné
+              {files.length > 1 ? "s" : ""}
             </p>
           )}
           <div className="relative mx-auto mt-10 w-full max-w-xl">
@@ -155,8 +156,7 @@ export const FileUpload = ({
                       animate={{ opacity: 1 }}
                       layout
                     >
-                      modifié{" "}
-                      {new Date(file.lastModified).toLocaleDateString()}
+                      modifié {new Date(file.lastModified).toLocaleDateString()}
                     </motion.p>
                   </div>
                 </motion.div>

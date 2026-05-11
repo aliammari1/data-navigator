@@ -1,4 +1,4 @@
-import { SettingsDrawer } from "@/components/settings-drawer"
+import { SettingsDrawer } from "@/components/settings-drawer";
 
 export default function SettingsPage() {
   return (
@@ -6,5 +6,5 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-semibold">Settings</h1>
       <SettingsDrawer initialOpen={false} />
     </main>
-  )
+  );
 }

@@ -9,9 +9,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo } from "react";
-import { cn } from "@/lib/utils";
-import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
+import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   computeAIInsights,
   computeCanalRiskScore,
@@ -19,31 +18,30 @@ import {
   linearRegression,
 } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
-import { Section } from "./section";
-import { NarrativeReport } from "./narrative-report";
+import { cn } from "@/shared/utils";
 import { AIInsightsPanel } from "./ai-insights-panel";
 import { AnomalyTimelineChart } from "./anomaly-timeline-chart";
+import { NarrativeReport } from "./narrative-report";
 import { RiskScoreChart } from "./risk-score-chart";
+import { Section } from "./section";
 
 export function DeepAnalysisPanel({
   kpi,
   canals,
   hourly,
-  errors,
   statusData,
   reportDate,
 }: {
   kpi: Types.KPISummary;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
-  errors: Types.ErrorRow[];
   statusData: Types.StatusRow[];
   reportDate: string;
 }) {
   const anomalies = useMemo(() => detectHourlyAnomalies(hourly), [hourly]);
   const insights = useMemo(
-    () => computeAIInsights(kpi, canals, hourly, errors, statusData),
-    [kpi, canals, hourly, errors, statusData],
+    () => computeAIInsights(kpi, canals, hourly, statusData),
+    [kpi, canals, hourly, statusData],
   );
 
   const trend = useMemo(() => {
@@ -78,11 +76,11 @@ export function DeepAnalysisPanel({
       </Section>
 
       <Section
-        title="Analyses Générées par IA"
+        title="Assistant métier du rapport"
         icon={
           <Sparkles className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
         }
-        badge={`${insights.length} analyses`}
+        badge={`${insights.length} contrôles`}
       >
         <AIInsightsPanel insights={insights} loading={false} />
       </Section>

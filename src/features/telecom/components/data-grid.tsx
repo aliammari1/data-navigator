@@ -20,7 +20,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { fmtN } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { StatusBadge } from "./status-badge";
 
 const PAGE_SIZE = 50;

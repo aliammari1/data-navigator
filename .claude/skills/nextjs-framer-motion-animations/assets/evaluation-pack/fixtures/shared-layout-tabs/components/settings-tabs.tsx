@@ -1,14 +1,14 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 
 export function SettingsTabs({ id, items }: { id: string; items: string[] }) {
-  const [active, setActive] = useState(items[0])
+  const [active, setActive] = useState(items[0]);
 
   return (
     <div className="flex gap-2 rounded-full border p-1">
       {items.map((item) => {
-        const selected = item === active
+        const selected = item === active;
 
         return (
           <button
@@ -18,10 +18,12 @@ export function SettingsTabs({ id, items }: { id: string; items: string[] }) {
             onClick={() => setActive(item)}
           >
             <span>{item}</span>
-            {selected ? <span className="absolute inset-x-2 -bottom-px h-0.5 bg-current" /> : null}
+            {selected ? (
+              <span className="absolute inset-x-2 -bottom-px h-0.5 bg-current" />
+            ) : null}
           </button>
-        )
+        );
       })}
     </div>
-  )
+  );
 }

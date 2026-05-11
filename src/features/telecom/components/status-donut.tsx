@@ -1,8 +1,8 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import type * as Types from "@/features/telecom/types";
 import { buildStatusDonutOption } from "@/features/telecom/lib/chart-options";
+import type * as Types from "@/features/telecom/types";
 
 export function StatusDonut({
   data,
@@ -19,3 +19,4 @@ export function StatusDonut({
     />
   );
 }
+

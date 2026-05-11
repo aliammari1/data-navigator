@@ -62,7 +62,9 @@ function parseArgs(argv) {
   }
 
   if (!["motion", "framer-motion"].includes(args.packageName)) {
-    throw new Error(`--package must be "motion" or "framer-motion". Received: ${args.packageName}`);
+    throw new Error(
+      `--package must be "motion" or "framer-motion". Received: ${args.packageName}`,
+    );
   }
 
   return args;
@@ -99,7 +101,11 @@ function main() {
   const targetDir = path.resolve(args.target);
   const availableAssets = listAssets();
   const selected = args.include
-    ? availableAssets.filter((file) => args.include.includes(path.basename(file, path.extname(file))) || args.include.includes(file))
+    ? availableAssets.filter(
+        (file) =>
+          args.include.includes(path.basename(file, path.extname(file))) ||
+          args.include.includes(file),
+      )
     : availableAssets;
 
   if (selected.length === 0) {
@@ -123,7 +129,10 @@ function main() {
 
     const raw = fs.readFileSync(source, "utf8");
 
-    if (args.packageName === "framer-motion" && (raw.includes("motion/react-client") || raw.includes("motion/react-mini"))) {
+    if (
+      args.packageName === "framer-motion" &&
+      (raw.includes("motion/react-client") || raw.includes("motion/react-mini"))
+    ) {
       incompatible.push(destination);
       continue;
     }
@@ -148,7 +157,9 @@ function main() {
 try {
   main();
 } catch (error) {
-  process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `Error: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.stderr.write(`${HELP}\n`);
   process.exit(1);
 }

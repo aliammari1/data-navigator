@@ -120,7 +120,10 @@ function lineNumberFor(text, matchIndex) {
   return text.slice(0, matchIndex).split(/\r?\n/).length;
 }
 
-function addIssue(issues, { ruleId, severity, path: filePath, message, line = null }) {
+function addIssue(
+  issues,
+  { ruleId, severity, path: filePath, message, line = null },
+) {
   issues.push({ ruleId, severity, path: filePath, line, message });
 }
 
@@ -148,7 +151,9 @@ function main() {
   let reducedMotionSignals = 0;
 
   for (const absolutePath of files) {
-    const relativePath = path.relative(root, absolutePath).replaceAll(path.sep, "/");
+    const relativePath = path
+      .relative(root, absolutePath)
+      .replaceAll(path.sep, "/");
     const text = readText(absolutePath);
     if (!text) continue;
 
@@ -178,12 +183,14 @@ function main() {
         severity: "error",
         path: relativePath,
         line: 1,
-        message: "App Router server file imports motion/react or framer-motion directly. Move the animated part into a client leaf or use motion/react-client for passive cases.",
+        message:
+          "App Router server file imports motion/react or framer-motion directly. Move the animated part into a client leaf or use motion/react-client for passive cases.",
       });
     }
 
     if (
-      (relativePath === "app/layout.tsx" || relativePath === "src/app/layout.tsx") &&
+      (relativePath === "app/layout.tsx" ||
+        relativePath === "src/app/layout.tsx") &&
       clientComponent
     ) {
       addIssue(issues, {
@@ -191,7 +198,8 @@ function main() {
         severity: "warning",
         path: relativePath,
         line: 1,
-        message: "Root App Router layout is a Client Component. Avoid widening this boundary unless the route truly needs a global client shell.",
+        message:
+          "Root App Router layout is a Client Component. Avoid widening this boundary unless the route truly needs a global client shell.",
       });
     }
 
@@ -206,17 +214,22 @@ function main() {
         severity: "warning",
         path: relativePath,
         line: 1,
-        message: "motion/react-client is intended for passive server-friendly components. This file is client-driven or interactive, so motion/react is the safer fit.",
+        message:
+          "motion/react-client is intended for passive server-friendly components. This file is client-driven or interactive, so motion/react is the safer fit.",
       });
     }
 
-    if (text.includes("AnimatePresence") && /\bkey=\{(?:index|idx|i)\}/.test(text)) {
+    if (
+      text.includes("AnimatePresence") &&
+      /\bkey=\{(?:index|idx|i)\}/.test(text)
+    ) {
       addIssue(issues, {
         ruleId: "animatepresence-index-key",
         severity: "error",
         path: relativePath,
         line: lineNumberFor(text, text.search(/\bkey=\{(?:index|idx|i)\}/)),
-        message: "AnimatePresence child appears to use an index-based key. Use a stable item identifier instead.",
+        message:
+          "AnimatePresence child appears to use an index-based key. Use a stable item identifier instead.",
       });
     }
 
@@ -226,19 +239,26 @@ function main() {
         severity: "warning",
         path: relativePath,
         line: lineNumberFor(text, text.indexOf("AnimatePresence")),
-        message: "AnimatePresence detected without an obvious key. Verify the direct child uses a stable key when presence depends on switching children.",
+        message:
+          "AnimatePresence detected without an obvious key. Verify the direct child uses a stable key when presence depends on switching children.",
       });
     }
 
     if (
-      /(?:animate|initial|exit)\s*=\s*\{\{[\s\S]{0,200}\b(?:top|left|right|bottom)\b[\s\S]{0,200}\}\}/m.test(text)
+      /(?:animate|initial|exit)\s*=\s*\{\{[\s\S]{0,200}\b(?:top|left|right|bottom)\b[\s\S]{0,200}\}\}/m.test(
+        text,
+      )
     ) {
       addIssue(issues, {
         ruleId: "top-left-animation",
         severity: "warning",
         path: relativePath,
-        line: lineNumberFor(text, text.search(/(?:animate|initial|exit)\s*=\s*\{\{/m)),
-        message: "Detected top/left/right/bottom animation. Prefer transform-based x/y motion for better performance.",
+        line: lineNumberFor(
+          text,
+          text.search(/(?:animate|initial|exit)\s*=\s*\{\{/m),
+        ),
+        message:
+          "Detected top/left/right/bottom animation. Prefer transform-based x/y motion for better performance.",
       });
     }
 
@@ -252,7 +272,8 @@ function main() {
         severity: "warning",
         path: relativePath,
         line: lineNumberFor(text, text.indexOf("layoutId")),
-        message: "layoutId appears inside a repeated context without a LayoutGroup id namespace. Repeated widgets can collide.",
+        message:
+          "layoutId appears inside a repeated context without a LayoutGroup id namespace. Repeated widgets can collide.",
       });
     }
 
@@ -261,8 +282,12 @@ function main() {
         ruleId: "motion-create-in-render",
         severity: "warning",
         path: relativePath,
-        line: lineNumberFor(text, text.search(/^\s{2,}(?:const|let|var)\s+\w+\s*=\s*motion\.create\(/m)),
-        message: "motion.create() appears inside an indented block, which usually means inside render. Hoist it to module scope.",
+        line: lineNumberFor(
+          text,
+          text.search(/^\s{2,}(?:const|let|var)\s+\w+\s*=\s*motion\.create\(/m),
+        ),
+        message:
+          "motion.create() appears inside an indented block, which usually means inside render. Hoist it to module scope.",
       });
     }
 
@@ -272,32 +297,40 @@ function main() {
         severity: "error",
         path: relativePath,
         line: lineNumberFor(text, text.indexOf("Reorder.Item")),
-        message: "Reorder.Item detected without Reorder.Group in the same file. Verify the item sits inside a matching group.",
+        message:
+          "Reorder.Item detected without Reorder.Group in the same file. Verify the item sits inside a matching group.",
       });
     }
   }
 
   if (
     importSummary["framer-motion"] > 0 &&
-    (importSummary["motion/react"] > 0 || importSummary["motion/react-client"] > 0 || importSummary["motion/react-m"] > 0)
+    (importSummary["motion/react"] > 0 ||
+      importSummary["motion/react-client"] > 0 ||
+      importSummary["motion/react-m"] > 0)
   ) {
     addIssue(issues, {
       ruleId: "mixed-import-packages",
       severity: "error",
       path: "(repo)",
       line: null,
-      message: "Both framer-motion and motion import styles were detected. Preserve one package strategy per edited scope unless doing an explicit migration.",
+      message:
+        "Both framer-motion and motion import styles were detected. Preserve one package strategy per edited scope unless doing an explicit migration.",
     });
   }
 
-  const motionImportCount = Object.values(importSummary).reduce((sum, value) => sum + value, 0);
+  const motionImportCount = Object.values(importSummary).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
   if (motionImportCount > 0 && reducedMotionSignals === 0) {
     addIssue(issues, {
       ruleId: "reduced-motion-missing",
       severity: "warning",
       path: "(repo)",
       line: null,
-      message: "Motion imports were found but no useReducedMotion or MotionConfig reduced-motion handling was detected.",
+      message:
+        "Motion imports were found but no useReducedMotion or MotionConfig reduced-motion handling was detected.",
     });
   }
 
@@ -315,7 +348,9 @@ function main() {
 try {
   main();
 } catch (error) {
-  process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `Error: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.stderr.write(`${HELP}\n`);
   process.exit(1);
 }

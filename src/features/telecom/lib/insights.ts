@@ -1,13 +1,12 @@
 import { mean, standardDeviation, zScore } from "simple-statistics";
+import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type {
   AIInsight,
   CanalSummary,
-  ErrorRow,
   HourlyRow,
   KPISummary,
   StatusRow,
 } from "@/features/telecom/types";
-import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
 
 // ─── Hourly anomaly detection ─────────────────────────────────────────────────
 
@@ -140,7 +139,6 @@ export function computeAIInsights(
   kpi: KPISummary,
   canals: CanalSummary[],
   hourly: HourlyRow[],
-  errors: ErrorRow[],
   statusData: StatusRow[],
 ): AIInsight[] {
   const list: AIInsight[] = [];
@@ -156,6 +154,27 @@ export function computeAIInsights(
       title: "Désynchronisation Détectée entre KPIs et Statuts",
       body: `Les statuts totalisent ${fmtN(statusTotal)} transactions alors que le KPI global affiche ${fmtN(t)}. Vérifiez le mapping des codes statut avant d'exporter ou de partager ce rapport.`,
       metric: `${fmtN(statusGap)} tx d'écart`,
+    });
+  }
+
+  const classifiedSuccess = canals.reduce((sum, c) => sum + c.success, 0);
+  const unclassifiedSuccess = Math.max(0, kpi.successCount - classifiedSuccess);
+  if (kpi.successCount > 0 && classifiedSuccess === 0) {
+    list.push({
+      id: "no_spec_channel_match",
+      severity: "critical",
+      title:
+        "Aucune transaction réussie classée dans les canaux du cahier des charges",
+      body: `${fmtN(kpi.successCount)} transactions sont en statut Réussie, mais aucune ne correspond aux règles Brand_D, ACCOUNT_LAYER_ID, ACCOUNT_GROUP_ID ou ACCOUNT_MSISDN. Vérifiez le fichier chargé et le mappage des colonnes avant toute analyse canal.`,
+      metric: "0 canal actif",
+    });
+  } else if (unclassifiedSuccess > Math.max(20, kpi.successCount * 0.02)) {
+    list.push({
+      id: "unclassified_success",
+      severity: "warning",
+      title: "Transactions réussies hors règles de canaux",
+      body: `${fmtN(unclassifiedSuccess)} transactions réussies ne sont pas couvertes par les canaux définis dans le document. Cela peut indiquer un nouveau Brand_D, un canal oublié ou une colonne mal importée.`,
+      metric: `${fmtPct((unclassifiedSuccess / kpi.successCount) * 100)} non classé`,
     });
   }
 
@@ -226,22 +245,6 @@ export function computeAIInsights(
     }
   }
 
-  // 3 — Best canal celebration
-  if (significantCanals.length > 1) {
-    const best = significantCanals.reduce((b, c) =>
-      c.successRate > b.successRate ? c : b,
-    );
-    if (best.successRate >= 99) {
-      list.push({
-        id: "canal_best",
-        severity: "positive",
-        title: `${best.label} — Performance Quasi-Parfaite`,
-        body: `${fmtPct(best.successRate)} taux de réussite sur ${fmtN(best.total)} transactions. Ce canal est une référence en matière d'excellence opérationnelle.`,
-        metric: fmtPct(best.successRate),
-      });
-    }
-  }
-
   // 4 — Peak hour traffic concentration
   const sortedByTotal = [...hourly].sort((a, b) => b.total - a.total);
   const peak = sortedByTotal[0];
@@ -256,35 +259,6 @@ export function computeAIInsights(
         title: `Risque de Goulot de Trafic à ${peak.hour.toString().padStart(2, "0")}:00`,
         body: `${fmtPct(share)} du trafic journalier total (${fmtN(peak.total)} tx) concentré en une heure. Taux d'échec au pic : ${fmtPct(peakFailRate)}. Revue de planification de capacité recommandée.`,
         metric: `${peak.hour.toString().padStart(2, "0")}:00 — ${fmtPct(share)} du trafic`,
-      });
-    }
-  }
-
-  // 5 — Overnight dead zone
-  const nightHours = hourly.filter(
-    (r) => r.hour >= 1 && r.hour <= 5 && r.total === 0,
-  ).length;
-  if (nightHours >= 3) {
-    list.push({
-      id: "night_window",
-      severity: "info",
-      title: `${nightHours}-Heures de Fenêtre de Service Identifiées (01:00–05:00)`,
-      body: `Aucune transaction enregistrée pendant ${nightHours} heures de nuit consécutives. Cette fenêtre calme prévisible peut être utilisée pour les opérations de maintenance et le traitement par lots.`,
-      metric: `${nightHours}h fenêtre de service`,
-    });
-  }
-
-  // 6 — Dominant error pattern
-  if (errors.length > 0 && kpi.declinedCount > 0) {
-    const topErr = errors[0];
-    const errShare = (topErr.count / kpi.declinedCount) * 100;
-    if (errShare > 40) {
-      list.push({
-        id: "top_error",
-        severity: errShare > 70 ? "critical" : "warning",
-        title: `Un Seul Code d'Erreur Domine ${fmtPct(errShare)} des Échecs`,
-        body: `Le code d'erreur "${topErr.error_code || "INCONNU"}" apparaît ${fmtN(topErr.count)} fois, représentant ${fmtPct(errShare)} de tous les échecs. Canal principalement affecté : ${topErr.canal || "Inconnu"}. Une correction ciblée améliorerait significativement le taux global.`,
-        metric: `${fmtN(topErr.count)} occurrences`,
       });
     }
   }
@@ -314,47 +288,6 @@ export function computeAIInsights(
         body: `${fmtN(kpi.instanceCount)} transactions (${fmtPct(pendShare)}) restent en état INSTANCE. Si elles ne sont pas résolues, elles pourraient se transformer en échecs ou nécessiter une intervention manuelle.`,
         metric: fmtN(kpi.instanceCount),
       });
-    }
-  }
-
-  // 9 — Revenue concentration
-  const totalRevenue = canals.reduce((s, c) => s + c.amount, 0);
-  if (totalRevenue > 0 && canals.length >= 3) {
-    const top = [...canals].sort((a, b) => b.amount - a.amount)[0];
-    const topShare = (top.amount / totalRevenue) * 100;
-    if (topShare > 55) {
-      list.push({
-        id: "rev_concentration",
-        severity: "info",
-        title: "Revenus Fortement Concentrés sur un Seul Canal",
-        body: `${top.label} génère ${fmtPct(topShare)} du revenu total (${fmtAmount(top.amount)} TND). Une forte dépendance à un seul canal crée un risque pour la plateforme — envisagez une stratégie de diversification.`,
-        metric: fmtPct(topShare),
-      });
-    }
-
-    const avgCandidates = canals
-      .filter((c) => c.total >= 50 && c.avgAmount > 0)
-      .sort((a, b) => a.avgAmount - b.avgAmount);
-    if (avgCandidates.length >= 3) {
-      const medianAvg =
-        avgCandidates[Math.floor(avgCandidates.length / 2)]?.avgAmount ?? 0;
-      const outlier = [...avgCandidates]
-        .reverse()
-        .find(
-          (c) =>
-            medianAvg > 0 &&
-            c.avgAmount >= medianAvg * 3 &&
-            c.amount >= totalRevenue * 0.05,
-        );
-      if (outlier) {
-        list.push({
-          id: "amount_mix_outlier",
-          severity: "info",
-          title: `${outlier.label} a un ticket moyen atypique`,
-          body: `Ticket moyen ${fmtAmount(outlier.avgAmount)} TND contre une médiane canal d'environ ${fmtAmount(medianAvg)} TND. Vérifiez si ce mix est attendu ou s'il cache un changement de produits.`,
-          metric: `${fmtAmount(outlier.avgAmount)} TND moy.`,
-        });
-      }
     }
   }
 

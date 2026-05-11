@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import ReactECharts from "echarts-for-react";
 import { AlertTriangle, BarChart2, Loader2, Sparkles } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { useEffect, useState } from "react";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { cn } from "@/shared/utils";
 
 export function SpecChannelTable({
   channels,
@@ -34,16 +34,31 @@ export function SpecChannelTable({
   // biome-ignore lint/correctness/useExhaustiveDependencies: channels is a stable module-level constant
   useEffect(() => {
     let cancelled = false;
+    const label = channels.map((c) => c.name).join(", ");
+
+    console.time(`[SpecChannelTable] ${label}`);
+    console.log("[SpecChannelTable] start", {
+      channels: channels.length,
+      dateFrom,
+      dateTo,
+    });
+
     setLoading(true);
     setData(null);
+
     fetchSpecChannelStats(channels, dateFrom, dateTo)
       .then((d) => {
+        console.log("[SpecChannelTable] done", label, d);
         if (!cancelled) setData(d);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("[SpecChannelTable] failed", label, err);
+      })
       .finally(() => {
+        console.timeEnd(`[SpecChannelTable] ${label}`);
         if (!cancelled) setLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
@@ -277,7 +292,7 @@ export function SpecChannelTable({
                   <td className="px-2 py-2 hidden sm:table-cell">
                     <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
                       <div
-                        className="h-full rounded-full bg-gradient-to-r from-indigo-500/80 to-blue-400/80 transition-all duration-500"
+                        className="h-full rounded-full bg-linear-to-r from-indigo-500/80 to-blue-400/80 transition-all duration-500"
                         style={{ width: `${pct}%` }}
                       />
                     </div>

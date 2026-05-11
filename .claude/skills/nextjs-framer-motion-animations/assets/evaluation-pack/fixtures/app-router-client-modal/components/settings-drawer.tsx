@@ -1,9 +1,13 @@
-"use client"
+"use client";
 
-import { useState } from "react"
+import { useState } from "react";
 
-export function SettingsDrawer({ initialOpen = false }: { initialOpen?: boolean }) {
-  const [open, setOpen] = useState(initialOpen)
+export function SettingsDrawer({
+  initialOpen = false,
+}: {
+  initialOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(initialOpen);
 
   return (
     <section className="mt-6">
@@ -24,5 +28,5 @@ export function SettingsDrawer({ initialOpen = false }: { initialOpen?: boolean 
         </aside>
       ) : null}
     </section>
-  )
+  );
 }

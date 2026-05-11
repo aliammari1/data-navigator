@@ -1,10 +1,10 @@
-"use client"
+"use client";
 
-import * as motion from "motion/react-client"
-import { useState } from "react"
+import * as motion from "motion/react-client";
+import { useState } from "react";
 
 export function BadPassive() {
-  const [open, setOpen] = useState(false)
+  const [open, setOpen] = useState(false);
 
   return (
     <motion.div animate={{ opacity: open ? 1 : 0.6 }}>
@@ -12,5 +12,5 @@ export function BadPassive() {
         Toggle
       </button>
     </motion.div>
-  )
+  );
 }

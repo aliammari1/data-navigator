@@ -1,7 +1,7 @@
 "use client";
 import { AlertCircle, ListFilter, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
 import type * as Types from "@/features/telecom/types";
@@ -13,7 +13,9 @@ export function CanalDetectorPanel({
   fetchServiceCodeRows,
 }: {
   m: Types.ColumnMapping;
-  fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<Types.ServiceCodeRow[]>;
+  fetchServiceCodeRows: (
+    m: Types.ColumnMapping,
+  ) => Promise<Types.ServiceCodeRow[]>;
 }) {
   const [rows, setRows] = useState<Types.ServiceCodeRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -208,8 +210,8 @@ export function CanalDetectorPanel({
 
           {rows.length === 0 && (
             <div className="text-center py-8 text-xs text-muted-foreground">
-              Aucune donnée de code de service disponible. Chargez d&apos;abord un
-              fichier.
+              Aucune donnée de code de service disponible. Chargez d&apos;abord
+              un fichier.
             </div>
           )}
         </div>

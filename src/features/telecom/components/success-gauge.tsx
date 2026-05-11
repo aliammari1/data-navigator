@@ -1,6 +1,12 @@
 "use client";
 
-export function SuccessGauge({ rate, size = 80 }: { rate: number; size?: number }) {
+export function SuccessGauge({
+  rate,
+  size = 80,
+}: {
+  rate: number;
+  size?: number;
+}) {
   const r = size * 0.35;
   const circ = 2 * Math.PI * r;
   const dash = (rate / 100) * circ * 0.75;

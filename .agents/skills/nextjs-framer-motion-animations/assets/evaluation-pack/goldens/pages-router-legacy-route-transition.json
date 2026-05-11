@@ -4,7 +4,5 @@
   "recommendedImportPath": "framer-motion",
   "recommendedBoundary": "pages-app-presence-wrapper",
   "recommendedPattern": "pages-router-route-transition",
-  "likelyFilesToChange": [
-    "pages/_app.tsx"
-  ]
+  "likelyFilesToChange": ["pages/_app.tsx"]
 }

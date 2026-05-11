@@ -1,8 +1,8 @@
 type ProductCardProps = {
-  title: string
-  price: string
-  description: string
-}
+  title: string;
+  price: string;
+  description: string;
+};
 
 export function ProductCard({ title, price, description }: ProductCardProps) {
   return (
@@ -11,5 +11,5 @@ export function ProductCard({ title, price, description }: ProductCardProps) {
       <h2 className="text-lg font-semibold">{title}</h2>
       <p className="mt-2 text-sm text-black/70">{description}</p>
     </article>
-  )
+  );
 }

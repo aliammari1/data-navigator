@@ -2,13 +2,21 @@ import type {
   CanalHourCell,
   CanalSummary,
   DailyTrendRow,
-  ErrorRow,
   HourlyRow,
   StatusRow,
 } from "@/features/telecom/types";
-import type { ForecastPoint } from "@/lib/forecast-onnx";
-import { fmtAmount, fmtCompact, fmtN, fmtPct, movingAverage } from "@/features/telecom/lib/format";
-import { CANAL_CONFIG, STATUS_COLORS } from "@/features/telecom/lib/canal-config";
+import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
+import {
+  fmtAmount,
+  fmtCompact,
+  fmtN,
+  fmtPct,
+  movingAverage,
+} from "@/features/telecom/lib/format";
+import {
+  CANAL_CONFIG,
+  STATUS_COLORS,
+} from "@/features/telecom/lib/canal-config";
 import { computeCanalRiskScore } from "@/features/telecom/lib/insights";
 
 // ─── Shared tooltip/theme constants ──────────────────────────────────────────
@@ -33,7 +41,9 @@ export function buildHourlyChartOption(
   const byForecastHour: Record<number, ForecastPoint> = {};
   for (const f of forecast) byForecastHour[f.hour] = f;
 
-  const forecastOnlyHours = forecast.map((f) => f.hour).filter((h) => byHour[h] === undefined);
+  const forecastOnlyHours = forecast
+    .map((f) => f.hour)
+    .filter((h) => byHour[h] === undefined);
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const allHours = [...hours, ...forecastOnlyHours];
   const allLabels = allHours.map((h) => `${h}`.padStart(2, "0"));
@@ -48,7 +58,9 @@ export function buildHourlyChartOption(
       backgroundColor: TOOLTIP_BG,
       borderColor: TOOLTIP_BORDER,
       textStyle: TOOLTIP_TEXT,
-      formatter: (ps: { name: string; value: number; seriesName: string }[]) => {
+      formatter: (
+        ps: { name: string; value: number; seriesName: string }[],
+      ) => {
         const h = Number(ps[0]?.name);
         const row = byHour[h];
         const fRow = byForecastHour[h];
@@ -61,7 +73,8 @@ export function buildHourlyChartOption(
           ].join("<br/>");
         }
         if (!row) return `${h}:00`;
-        const rate = row.total > 0 ? fmtPct((row.success / row.total) * 100) : "—";
+        const rate =
+          row.total > 0 ? fmtPct((row.success / row.total) * 100) : "—";
         const forecastLine = fRow
           ? `<br/>Prévision: <span style="color:#a78bfa">${fmtN(fRow.predictedTotal)}</span>`
           : "";
@@ -118,7 +131,9 @@ export function buildHourlyChartOption(
         data: allHours.map((h) =>
           Math.max(
             0,
-            (byHour[h]?.total ?? 0) - (byHour[h]?.success ?? 0) - (byHour[h]?.declined ?? 0),
+            (byHour[h]?.total ?? 0) -
+              (byHour[h]?.success ?? 0) -
+              (byHour[h]?.declined ?? 0),
           ),
         ),
         itemStyle: { color: "#f59e0b", borderRadius: [3, 3, 0, 0] },
@@ -131,9 +146,15 @@ export function buildHourlyChartOption(
               type: "bar",
               stack: "total",
               data: allHours.map((h) =>
-                byForecastHour[h] && !byHour[h] ? byForecastHour[h].predictedTotal : null,
+                byForecastHour[h] && !byHour[h]
+                  ? byForecastHour[h].predictedTotal
+                  : null,
               ),
-              itemStyle: { color: "#a78bfa", opacity: 0.55, borderRadius: [3, 3, 0, 0] },
+              itemStyle: {
+                color: "#a78bfa",
+                opacity: 0.55,
+                borderRadius: [3, 3, 0, 0],
+              },
               barMaxWidth: 20,
             },
             {
@@ -144,7 +165,9 @@ export function buildHourlyChartOption(
               symbolSize: 7,
               lineStyle: { type: "dashed", color: "#a78bfa", width: 2 },
               itemStyle: { color: "#a78bfa" },
-              data: allHours.map((h) => (byForecastHour[h] ? byForecastHour[h].predictedTotal : null)),
+              data: allHours.map((h) =>
+                byForecastHour[h] ? byForecastHour[h].predictedTotal : null,
+              ),
               tooltip: { show: false },
               legend: { show: false },
             },
@@ -185,7 +208,9 @@ export function buildStatusDonutOption(data: StatusRow[]): object {
         })),
         label: { show: false },
         itemStyle: { borderColor: "#0f1117", borderWidth: 3 },
-        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,0.4)" } },
+        emphasis: {
+          itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,0.4)" },
+        },
       },
     ],
   };
@@ -218,17 +243,49 @@ export function buildCanalShareOption(canals: CanalSummary[]): object {
       axisLabel: AXIS_LABEL_FG,
     },
     series: [
-      { name: "Réussie", type: "bar", stack: "s", data: sorted.map((c) => c.success), itemStyle: { color: "#10b981" }, barMaxWidth: 22 },
-      { name: "Échec", type: "bar", stack: "s", data: sorted.map((c) => c.declined), itemStyle: { color: "#ef4444" }, barMaxWidth: 22 },
-      { name: "Instance", type: "bar", stack: "s", data: sorted.map((c) => c.instance), itemStyle: { color: "#f59e0b" }, barMaxWidth: 22 },
-      { name: "Remboursement", type: "bar", stack: "s", data: sorted.map((c) => c.refund), itemStyle: { color: "#8b5cf6", borderRadius: [0, 3, 3, 0] }, barMaxWidth: 22 },
+      {
+        name: "Réussie",
+        type: "bar",
+        stack: "s",
+        data: sorted.map((c) => c.success),
+        itemStyle: { color: "#10b981" },
+        barMaxWidth: 22,
+      },
+      {
+        name: "Échec",
+        type: "bar",
+        stack: "s",
+        data: sorted.map((c) => c.declined),
+        itemStyle: { color: "#ef4444" },
+        barMaxWidth: 22,
+      },
+      {
+        name: "Instance",
+        type: "bar",
+        stack: "s",
+        data: sorted.map((c) => c.instance),
+        itemStyle: { color: "#f59e0b" },
+        barMaxWidth: 22,
+      },
+      {
+        name: "Remboursement",
+        type: "bar",
+        stack: "s",
+        data: sorted.map((c) => c.refund),
+        itemStyle: { color: "#8b5cf6", borderRadius: [0, 3, 3, 0] },
+        barMaxWidth: 22,
+      },
     ],
   };
 }
 
 // ─── Revenue pie ──────────────────────────────────────────────────────────────
 
-interface RevenueGroup { name: string; value: number; color: string; }
+interface RevenueGroup {
+  name: string;
+  value: number;
+  color: string;
+}
 
 export function buildRevenuePieOption(grouped: RevenueGroup[]): object {
   return {
@@ -245,43 +302,13 @@ export function buildRevenuePieOption(grouped: RevenueGroup[]): object {
       {
         type: "pie",
         radius: ["32%", "62%"],
-        data: grouped.map((g) => ({ name: g.name, value: g.value, itemStyle: { color: g.color } })),
+        data: grouped.map((g) => ({
+          name: g.name,
+          value: g.value,
+          itemStyle: { color: g.color },
+        })),
         label: { color: "#6c7086", fontSize: 9 },
         itemStyle: { borderColor: "#0f1117", borderWidth: 2 },
-      },
-    ],
-  };
-}
-
-// ─── Error frequency horizontal bar ──────────────────────────────────────────
-
-export function buildErrorFreqOption(errors: ErrorRow[]): object {
-  const top = errors.slice(0, 10);
-  return {
-    backgroundColor: "transparent",
-    tooltip: {
-      trigger: "axis",
-      axisPointer: { type: "shadow" },
-      backgroundColor: TOOLTIP_BG,
-      borderColor: TOOLTIP_BORDER,
-      textStyle: TOOLTIP_TEXT,
-      formatter: (ps: { name: string; value: number }[]) => {
-        const e = top.find((r) => r.error_code === ps[0]?.name);
-        return `<b>${ps[0]?.name}</b><br/>${e?.error_message ?? ""}<br/>Nombre: <b>${fmtN(ps[0]?.value ?? 0)}</b>`;
-      },
-    },
-    grid: { top: 8, right: 20, bottom: 8, left: 8, containLabel: true },
-    xAxis: { type: "value", axisLabel: AXIS_LABEL_DIM, splitLine: SPLIT_LINE },
-    yAxis: { type: "category", data: top.map((e) => e.error_code), axisLabel: AXIS_LABEL_FG },
-    series: [
-      {
-        type: "bar",
-        data: top.map((e) => e.count),
-        itemStyle: {
-          color: { type: "linear", x: 1, y: 0, x2: 0, y2: 0, colorStops: [{ offset: 0, color: "#ef4444" }, { offset: 1, color: "#dc2626aa" }] },
-          borderRadius: [0, 4, 4, 0],
-        },
-        barMaxWidth: 18,
       },
     ],
   };
@@ -307,17 +334,30 @@ export function buildSuccessRateTrendOption(canals: CanalSummary[]): object {
       type: "value",
       min: 0,
       max: 100,
-      axisLabel: { color: "#6c7086", fontSize: 9, formatter: (v: number) => `${v}%` },
+      axisLabel: {
+        color: "#6c7086",
+        fontSize: 9,
+        formatter: (v: number) => `${v}%`,
+      },
       splitLine: SPLIT_LINE,
     },
-    yAxis: { type: "category", data: sorted.map((c) => CANAL_CONFIG[c.key].shortLabel), axisLabel: AXIS_LABEL_FG },
+    yAxis: {
+      type: "category",
+      data: sorted.map((c) => CANAL_CONFIG[c.key].shortLabel),
+      axisLabel: AXIS_LABEL_FG,
+    },
     series: [
       {
         type: "bar",
         data: sorted.map((c) => ({
           value: c.successRate,
           itemStyle: {
-            color: c.successRate >= 95 ? "#10b981" : c.successRate >= 80 ? "#f59e0b" : "#ef4444",
+            color:
+              c.successRate >= 95
+                ? "#10b981"
+                : c.successRate >= 80
+                  ? "#f59e0b"
+                  : "#ef4444",
             borderRadius: [0, 4, 4, 0],
           },
         })),
@@ -358,7 +398,10 @@ export function buildAnomalyTimelineOption(
         const h = Number(ps[0]?.name);
         const row = byHour[h];
         const anom = anomalySet.get(h);
-        const parts = [`<b>${h.toString().padStart(2, "0")}:00</b>`, `Total: <b>${fmtN(row?.total ?? 0)}</b>`];
+        const parts = [
+          `<b>${h.toString().padStart(2, "0")}:00</b>`,
+          `Total: <b>${fmtN(row?.total ?? 0)}</b>`,
+        ];
         if (anom)
           parts.push(
             `<span style="color:${anom.type === "spike" ? "#f59e0b" : "#8b5cf6"}">⚠ Anomalie (z=${anom.zScore.toFixed(2)})</span>`,
@@ -382,7 +425,17 @@ export function buildAnomalyTimelineOption(
         data: hours.map((h) => {
           const v = byHour[h]?.total ?? 0;
           const a = anomalySet.get(h);
-          return { value: v, itemStyle: { color: a ? (a.type === "spike" ? "#f59e0b" : "#8b5cf6") : "#89b4fa", borderRadius: [3, 3, 0, 0] } };
+          return {
+            value: v,
+            itemStyle: {
+              color: a
+                ? a.type === "spike"
+                  ? "#f59e0b"
+                  : "#8b5cf6"
+                : "#89b4fa",
+              borderRadius: [3, 3, 0, 0],
+            },
+          };
         }),
         barMaxWidth: 20,
       },
@@ -395,7 +448,17 @@ export function buildAnomalyTimelineOption(
         symbol: "none",
         smooth: true,
         areaStyle: {
-          color: { type: "linear", x: 0, y: 0, x2: 0, y2: 1, colorStops: [{ offset: 0, color: "#ef444430" }, { offset: 1, color: "#ef444400" }] },
+          color: {
+            type: "linear",
+            x: 0,
+            y: 0,
+            x2: 0,
+            y2: 1,
+            colorStops: [
+              { offset: 0, color: "#ef444430" },
+              { offset: 1, color: "#ef444400" },
+            ],
+          },
         },
       },
     ],
@@ -405,7 +468,9 @@ export function buildAnomalyTimelineOption(
 // ─── Risk score per-canal horizontal bar ─────────────────────────────────────
 
 export function buildRiskScoreOption(canals: CanalSummary[]): object {
-  const scored = canals.map((c) => ({ ...c, risk: computeCanalRiskScore(c) })).sort((a, b) => b.risk - a.risk);
+  const scored = canals
+    .map((c) => ({ ...c, risk: computeCanalRiskScore(c) }))
+    .sort((a, b) => b.risk - a.risk);
   return {
     backgroundColor: "transparent",
     tooltip: {
@@ -418,17 +483,37 @@ export function buildRiskScoreOption(canals: CanalSummary[]): object {
         `${ps[0]?.name}<br/>Score de Risque: <b>${ps[0]?.value}/100</b>`,
     },
     grid: { top: 8, right: 60, bottom: 8, left: 8, containLabel: true },
-    xAxis: { type: "value", min: 0, max: 100, axisLabel: AXIS_LABEL_DIM, splitLine: SPLIT_LINE },
-    yAxis: { type: "category", data: scored.map((c) => CANAL_CONFIG[c.key].shortLabel), axisLabel: AXIS_LABEL_FG },
+    xAxis: {
+      type: "value",
+      min: 0,
+      max: 100,
+      axisLabel: AXIS_LABEL_DIM,
+      splitLine: SPLIT_LINE,
+    },
+    yAxis: {
+      type: "category",
+      data: scored.map((c) => CANAL_CONFIG[c.key].shortLabel),
+      axisLabel: AXIS_LABEL_FG,
+    },
     series: [
       {
         type: "bar",
         barMaxWidth: 18,
         data: scored.map((c) => ({
           value: c.risk,
-          itemStyle: { color: c.risk >= 40 ? "#ef4444" : c.risk >= 20 ? "#f59e0b" : "#10b981", borderRadius: [0, 4, 4, 0] },
+          itemStyle: {
+            color:
+              c.risk >= 40 ? "#ef4444" : c.risk >= 20 ? "#f59e0b" : "#10b981",
+            borderRadius: [0, 4, 4, 0],
+          },
         })),
-        label: { show: true, position: "right", color: "#6c7086", fontSize: 10, formatter: (p: { value: number }) => `${p.value}` },
+        label: {
+          show: true,
+          position: "right",
+          color: "#6c7086",
+          fontSize: 10,
+          formatter: (p: { value: number }) => `${p.value}`,
+        },
       },
     ],
   };
@@ -436,7 +521,12 @@ export function buildRiskScoreOption(canals: CanalSummary[]): object {
 
 // ─── Group summary donut ──────────────────────────────────────────────────────
 
-interface GroupItem { label: string; nombre: number; montant: number; color: string; }
+interface GroupItem {
+  label: string;
+  nombre: number;
+  montant: number;
+  color: string;
+}
 
 export function buildGroupSummaryDonutOption(data: GroupItem[]): object {
   return {
@@ -467,8 +557,16 @@ export function buildGroupSummaryDonutOption(data: GroupItem[]): object {
         avoidLabelOverlap: true,
         label: { show: false },
         labelLine: { show: false },
-        emphasis: { itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,0.4)" }, scale: true, scaleSize: 6 },
-        data: data.map((d) => ({ name: d.label, value: d.nombre, itemStyle: { color: d.color } })),
+        emphasis: {
+          itemStyle: { shadowBlur: 8, shadowColor: "rgba(0,0,0,0.4)" },
+          scale: true,
+          scaleSize: 6,
+        },
+        data: data.map((d) => ({
+          name: d.label,
+          value: d.nombre,
+          itemStyle: { color: d.color },
+        })),
       },
     ],
   };
@@ -485,20 +583,41 @@ export function buildGroupSummaryHbarOption(data: GroupItem[]): object {
       axisPointer: { type: "shadow" },
     },
     grid: { left: 140, right: 60, top: 6, bottom: 6, containLabel: false },
-    xAxis: { type: "value", axisLabel: AXIS_LABEL_DIM, splitLine: SPLIT_LINE, axisLine: { show: false }, axisTick: { show: false } },
+    xAxis: {
+      type: "value",
+      axisLabel: AXIS_LABEL_DIM,
+      splitLine: SPLIT_LINE,
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
     yAxis: {
       type: "category",
       data: data.map((d) => d.label),
-      axisLabel: { color: "#cdd6f4", fontSize: 10, width: 130, overflow: "truncate" },
+      axisLabel: {
+        color: "#cdd6f4",
+        fontSize: 10,
+        width: 130,
+        overflow: "truncate",
+      },
       axisTick: { show: false },
       axisLine: { show: false },
     },
     series: [
       {
         type: "bar",
-        data: data.map((d) => ({ value: d.nombre, itemStyle: { color: d.color, borderRadius: [0, 4, 4, 0] } })),
+        data: data.map((d) => ({
+          value: d.nombre,
+          itemStyle: { color: d.color, borderRadius: [0, 4, 4, 0] },
+        })),
         barMaxWidth: 18,
-        label: { show: true, position: "right", color: "#a6adc8", fontSize: 9, formatter: (p: { value: number }) => p.value > 0 ? fmtN(p.value) : "" },
+        label: {
+          show: true,
+          position: "right",
+          color: "#a6adc8",
+          fontSize: 9,
+          formatter: (p: { value: number }) =>
+            p.value > 0 ? fmtN(p.value) : "",
+        },
       },
     ],
   };
@@ -506,7 +625,12 @@ export function buildGroupSummaryHbarOption(data: GroupItem[]): object {
 
 // ─── Canal comparison grouped bar ─────────────────────────────────────────────
 
-interface CompareResult { label: string; nombre: number; montant: number; color: string; }
+interface CompareResult {
+  label: string;
+  nombre: number;
+  montant: number;
+  color: string;
+}
 
 export function buildCanalCompareBarOption(results: CompareResult[]): object {
   return {
@@ -527,7 +651,13 @@ export function buildCanalCompareBarOption(results: CompareResult[]): object {
     xAxis: {
       type: "category",
       data: results.map((r) => r.label),
-      axisLabel: { color: "#6c7086", fontSize: 9, rotate: 20, overflow: "truncate", width: 90 },
+      axisLabel: {
+        color: "#6c7086",
+        fontSize: 9,
+        rotate: 20,
+        overflow: "truncate",
+        width: 90,
+      },
       axisTick: { show: false },
       axisLine: { lineStyle: { color: "#ffffff20" } },
     },
@@ -536,9 +666,18 @@ export function buildCanalCompareBarOption(results: CompareResult[]): object {
       {
         name: "Transactions réussies",
         type: "bar",
-        data: results.map((r) => ({ value: r.nombre, itemStyle: { color: r.color, borderRadius: [4, 4, 0, 0] } })),
+        data: results.map((r) => ({
+          value: r.nombre,
+          itemStyle: { color: r.color, borderRadius: [4, 4, 0, 0] },
+        })),
         barMaxWidth: 40,
-        label: { show: true, position: "top", color: "#a6adc8", fontSize: 9, formatter: (p: { value: number }) => fmtCompact(p.value) },
+        label: {
+          show: true,
+          position: "top",
+          color: "#a6adc8",
+          fontSize: 9,
+          formatter: (p: { value: number }) => fmtCompact(p.value),
+        },
       },
     ],
   };
@@ -551,8 +690,14 @@ export function buildCanalHeatmapOption(
   viewMode: "volume" | "rate",
 ): object {
   const canalTotals = new Map<string, number>();
-  for (const cell of data) canalTotals.set(cell.canal, (canalTotals.get(cell.canal) ?? 0) + cell.total);
-  const canals = [...canalTotals.entries()].sort((a, b) => b[1] - a[1]).map(([name]) => name);
+  for (const cell of data)
+    canalTotals.set(
+      cell.canal,
+      (canalTotals.get(cell.canal) ?? 0) + cell.total,
+    );
+  const canals = [...canalTotals.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .map(([name]) => name);
   const hours = Array.from({ length: 24 }, (_, i) => i);
   const cellMap = new Map<string, CanalHourCell>();
   for (const cell of data) cellMap.set(`${cell.canal}:${cell.hour}`, cell);
@@ -564,7 +709,10 @@ export function buildCanalHeatmapOption(
       if (viewMode === "volume") {
         heatData.push([h, yi, cell?.total ?? 0]);
       } else {
-        const rate = cell && cell.total > 0 ? Math.round((cell.success / cell.total) * 100) : -1;
+        const rate =
+          cell && cell.total > 0
+            ? Math.round((cell.success / cell.total) * 100)
+            : -1;
         heatData.push([h, yi, rate]);
       }
     }
@@ -582,8 +730,10 @@ export function buildCanalHeatmapOption(
         const [h, yi] = p.data;
         const canal = canals[yi];
         const cell = cellMap.get(`${canal}:${h}`);
-        if (!cell || cell.total === 0) return `${canal}<br/>${h}:00 — aucune transaction`;
-        const rate = cell.total > 0 ? ((cell.success / cell.total) * 100).toFixed(1) : "—";
+        if (!cell || cell.total === 0)
+          return `${canal}<br/>${h}:00 — aucune transaction`;
+        const rate =
+          cell.total > 0 ? ((cell.success / cell.total) * 100).toFixed(1) : "—";
         return `<b>${canal}</b><br/>${h}:00–${h + 1}:00<br/>Transactions: <b>${fmtN(cell.total)}</b><br/>Succès: <b>${rate}%</b>`;
       },
     },
@@ -598,14 +748,38 @@ export function buildCanalHeatmapOption(
     yAxis: {
       type: "category",
       data: canals,
-      axisLabel: { color: "#cdd6f4", fontSize: 9, width: 155, overflow: "truncate" },
+      axisLabel: {
+        color: "#cdd6f4",
+        fontSize: 9,
+        width: 155,
+        overflow: "truncate",
+      },
       axisTick: { show: false },
       axisLine: { show: false },
     },
     visualMap:
       viewMode === "volume"
-        ? { min: 0, max: maxVal, calculable: true, orient: "horizontal", right: 0, top: "middle", textStyle: { color: "#6c7086", fontSize: 9 }, inRange: { color: ["#1e1e2e", "#313244", "#89b4fa", "#b4befe"] } }
-        : { min: 0, max: 100, calculable: true, orient: "horizontal", right: 0, top: "middle", textStyle: { color: "#6c7086", fontSize: 9 }, inRange: { color: ["#f38ba8", "#f9e2af", "#a6e3a1"] }, text: ["100%", "0%"] },
+        ? {
+            min: 0,
+            max: maxVal,
+            calculable: true,
+            orient: "horizontal",
+            right: 0,
+            top: "middle",
+            textStyle: { color: "#6c7086", fontSize: 9 },
+            inRange: { color: ["#1e1e2e", "#313244", "#89b4fa", "#b4befe"] },
+          }
+        : {
+            min: 0,
+            max: 100,
+            calculable: true,
+            orient: "horizontal",
+            right: 0,
+            top: "middle",
+            textStyle: { color: "#6c7086", fontSize: 9 },
+            inRange: { color: ["#f38ba8", "#f9e2af", "#a6e3a1"] },
+            text: ["100%", "0%"],
+          },
     series: [
       {
         type: "heatmap",
@@ -616,10 +790,16 @@ export function buildCanalHeatmapOption(
           fontSize: 8,
           formatter: (p: { data: [number, number, number] }) =>
             viewMode === "volume"
-              ? p.data[2] > 0 ? fmtCompact(p.data[2]) : ""
-              : p.data[2] >= 0 ? `${p.data[2]}%` : "",
+              ? p.data[2] > 0
+                ? fmtCompact(p.data[2])
+                : ""
+              : p.data[2] >= 0
+                ? `${p.data[2]}%`
+                : "",
         },
-        emphasis: { itemStyle: { shadowBlur: 6, shadowColor: "rgba(0,0,0,0.5)" } },
+        emphasis: {
+          itemStyle: { shadowBlur: 6, shadowColor: "rgba(0,0,0,0.5)" },
+        },
       },
     ],
   };
@@ -653,16 +833,82 @@ export function buildDailyTrendOption(
       axisLine: { lineStyle: { color: "#ffffff20" } },
     },
     yAxis: [
-      { type: "value", name: "Transactions", nameTextStyle: { color: "#6c7086", fontSize: 9 }, axisLabel: AXIS_LABEL_DIM, splitLine: SPLIT_LINE },
-      { type: "value", name: "Taux %", min: 0, max: 100, nameTextStyle: { color: "#6c7086", fontSize: 9 }, axisLabel: { color: "#6c7086", fontSize: 9, formatter: "{value}%" }, splitLine: { show: false } },
+      {
+        type: "value",
+        name: "Transactions",
+        nameTextStyle: { color: "#6c7086", fontSize: 9 },
+        axisLabel: AXIS_LABEL_DIM,
+        splitLine: SPLIT_LINE,
+      },
+      {
+        type: "value",
+        name: "Taux %",
+        min: 0,
+        max: 100,
+        nameTextStyle: { color: "#6c7086", fontSize: 9 },
+        axisLabel: { color: "#6c7086", fontSize: 9, formatter: "{value}%" },
+        splitLine: { show: false },
+      },
     ],
     series: [
-      { name: "Total", type: "bar", data: data.map((r) => ({ value: r.total, itemStyle: { color: "#313244", borderRadius: [2, 2, 0, 0] } })), barMaxWidth: 32, stack: "tx" },
-      { name: "Succès", type: "bar", data: data.map((r) => ({ value: r.success, itemStyle: { color: "#a6e3a1", borderRadius: [2, 2, 0, 0] } })), barMaxWidth: 32, stack: "tx" },
-      { name: "Échecs", type: "bar", data: data.map((r) => ({ value: r.declined, itemStyle: { color: "#f38ba8", borderRadius: [2, 2, 0, 0] } })), barMaxWidth: 32, stack: "tx" },
-      { name: "Taux succès", type: "line", yAxisIndex: 1, data: rates, smooth: true, lineStyle: { color: "#89b4fa", width: 2 }, itemStyle: { color: "#89b4fa" }, symbol: "circle", symbolSize: 5, areaStyle: { color: "rgba(137,180,250,0.06)" } },
+      {
+        name: "Total",
+        type: "bar",
+        data: data.map((r) => ({
+          value: r.total,
+          itemStyle: { color: "#313244", borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 32,
+        stack: "tx",
+      },
+      {
+        name: "Succès",
+        type: "bar",
+        data: data.map((r) => ({
+          value: r.success,
+          itemStyle: { color: "#a6e3a1", borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 32,
+        stack: "tx",
+      },
+      {
+        name: "Échecs",
+        type: "bar",
+        data: data.map((r) => ({
+          value: r.declined,
+          itemStyle: { color: "#f38ba8", borderRadius: [2, 2, 0, 0] },
+        })),
+        barMaxWidth: 32,
+        stack: "tx",
+      },
+      {
+        name: "Taux succès",
+        type: "line",
+        yAxisIndex: 1,
+        data: rates,
+        smooth: true,
+        lineStyle: { color: "#89b4fa", width: 2 },
+        itemStyle: { color: "#89b4fa" },
+        symbol: "circle",
+        symbolSize: 5,
+        areaStyle: { color: "rgba(137,180,250,0.06)" },
+      },
       ...(maValues.length > 0
-        ? [{ name: "Moy. mobile 3j", type: "line", data: maSeries, smooth: true, lineStyle: { color: "#f9e2af", width: 1.5, type: "dashed" }, itemStyle: { color: "#f9e2af" }, symbol: "none", tooltip: { valueFormatter: (v: number | null) => v != null ? fmtN(Math.round(v)) : "—" } }]
+        ? [
+            {
+              name: "Moy. mobile 3j",
+              type: "line",
+              data: maSeries,
+              smooth: true,
+              lineStyle: { color: "#f9e2af", width: 1.5, type: "dashed" },
+              itemStyle: { color: "#f9e2af" },
+              symbol: "none",
+              tooltip: {
+                valueFormatter: (v: number | null) =>
+                  v != null ? fmtN(Math.round(v)) : "—",
+              },
+            },
+          ]
         : []),
     ],
   };
@@ -670,7 +916,10 @@ export function buildDailyTrendOption(
 
 // ─── Customer profile hourly bar ──────────────────────────────────────────────
 
-interface CustomerHourlyEntry { hour: number; total: number; }
+interface CustomerHourlyEntry {
+  hour: number;
+  total: number;
+}
 
 export function buildCustomerHourlyOption(
   hourly: CustomerHourlyEntry[],
@@ -678,7 +927,12 @@ export function buildCustomerHourlyOption(
 ): object {
   return {
     backgroundColor: "transparent",
-    tooltip: { trigger: "axis", backgroundColor: TOOLTIP_BG, borderColor: TOOLTIP_BORDER_12, textStyle: { color: "#cdd6f4", fontSize: 10 } },
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: TOOLTIP_BG,
+      borderColor: TOOLTIP_BORDER_12,
+      textStyle: { color: "#cdd6f4", fontSize: 10 },
+    },
     grid: { left: 8, right: 8, top: 4, bottom: 16, containLabel: true },
     xAxis: {
       type: "category",
@@ -693,7 +947,13 @@ export function buildCustomerHourlyOption(
         type: "bar",
         data: Array.from({ length: 24 }, (_, h) => {
           const r = hourly.find((x) => x.hour === h);
-          return { value: r?.total ?? 0, itemStyle: { color: h === peakHour ? "#cba6f7" : "#89b4fa", borderRadius: [2, 2, 0, 0] } };
+          return {
+            value: r?.total ?? 0,
+            itemStyle: {
+              color: h === peakHour ? "#cba6f7" : "#89b4fa",
+              borderRadius: [2, 2, 0, 0],
+            },
+          };
         }),
         barMaxWidth: 12,
       },

@@ -56,19 +56,27 @@ function isClientComponent(text) {
 }
 
 function detectRouterContext(relativePath) {
-  const value = relativePath.replaceAll('\\', '/').toLowerCase();
-  if (value.startsWith('app/') || value.includes('/app/') || value.startsWith('src/app/')) {
-    return 'app-router';
+  const value = relativePath.replaceAll("\\", "/").toLowerCase();
+  if (
+    value.startsWith("app/") ||
+    value.includes("/app/") ||
+    value.startsWith("src/app/")
+  ) {
+    return "app-router";
   }
-  if (value.startsWith('pages/') || value.includes('/pages/') || value.startsWith('src/pages/')) {
-    return 'pages-router';
+  if (
+    value.startsWith("pages/") ||
+    value.includes("/pages/") ||
+    value.startsWith("src/pages/")
+  ) {
+    return "pages-router";
   }
-  return 'shared';
+  return "shared";
 }
 
 function relativeOrAbsolute(root, target) {
-  const relative = path.relative(root, target).replaceAll(path.sep, '/');
-  return relative.startsWith('..') ? target : relative;
+  const relative = path.relative(root, target).replaceAll(path.sep, "/");
+  return relative.startsWith("..") ? target : relative;
 }
 
 function main() {
@@ -97,113 +105,174 @@ function main() {
   const clientComponent = isClientComponent(text);
 
   const imports = {
-    'motion/react': /from\s+["']motion\/react["']/.test(text),
-    'motion/react-client': /from\s+["']motion\/react-client["']/.test(text),
-    'motion/react-m': /from\s+["']motion\/react-m["']/.test(text),
-    'framer-motion': /from\s+["']framer-motion["']/.test(text),
+    "motion/react": /from\s+["']motion\/react["']/.test(text),
+    "motion/react-client": /from\s+["']motion\/react-client["']/.test(text),
+    "motion/react-m": /from\s+["']motion\/react-m["']/.test(text),
+    "framer-motion": /from\s+["']framer-motion["']/.test(text),
   };
 
   const hooks = [
-    'useReducedMotion',
-    'useAnimate',
-    'useInView',
-    'useScroll',
-    'useMotionValue',
-    'useTransform',
-    'useSpring',
-    'useVelocity',
-    'usePathname',
-    'useSelectedLayoutSegment',
-    'useSelectedLayoutSegments',
+    "useReducedMotion",
+    "useAnimate",
+    "useInView",
+    "useScroll",
+    "useMotionValue",
+    "useTransform",
+    "useSpring",
+    "useVelocity",
+    "usePathname",
+    "useSelectedLayoutSegment",
+    "useSelectedLayoutSegments",
   ];
 
   const hookHits = hooks.filter((name) => text.includes(name));
 
   const interactionSignals = [
-    'useState(',
-    'useReducer(',
-    'useEffect(',
-    'useLayoutEffect(',
-    'useRef(',
-    'onClick=',
-    'onPointerDown=',
-    'onMouseEnter=',
-    'onKeyDown=',
+    "useState(",
+    "useReducer(",
+    "useEffect(",
+    "useLayoutEffect(",
+    "useRef(",
+    "onClick=",
+    "onPointerDown=",
+    "onMouseEnter=",
+    "onKeyDown=",
   ];
 
   const interaction = interactionSignals.some((token) => text.includes(token));
 
   const patternHints = {
-    presence: ['AnimatePresence', 'exit=', 'modal', 'dialog', 'drawer', 'dropdown', 'toast'].some((token) => text.includes(token)),
-    stagger: ['variants', 'staggerChildren', 'delayChildren', '.map('].some((token) => text.includes(token)),
-    'scroll-reveal': ['whileInView', 'useInView', 'viewport={{'].some((token) => text.includes(token)),
-    'scroll-linked': ['useScroll', 'scrollYProgress', 'scrollXProgress'].some((token) => text.includes(token)),
-    layout: ['layout', 'layoutId', 'LayoutGroup', 'accordion', 'tabs'].some((token) => text.includes(token)),
-    reorder: ['Reorder.', 'onReorder', 'useDragControls'].some((token) => text.includes(token)),
-    microinteraction: ['whileHover', 'whileTap', 'whileFocus', '<button', '<a ', 'next/link'].some((token) => text.includes(token)),
+    presence: [
+      "AnimatePresence",
+      "exit=",
+      "modal",
+      "dialog",
+      "drawer",
+      "dropdown",
+      "toast",
+    ].some((token) => text.includes(token)),
+    stagger: ["variants", "staggerChildren", "delayChildren", ".map("].some(
+      (token) => text.includes(token),
+    ),
+    "scroll-reveal": ["whileInView", "useInView", "viewport={{"].some((token) =>
+      text.includes(token),
+    ),
+    "scroll-linked": ["useScroll", "scrollYProgress", "scrollXProgress"].some(
+      (token) => text.includes(token),
+    ),
+    layout: ["layout", "layoutId", "LayoutGroup", "accordion", "tabs"].some(
+      (token) => text.includes(token),
+    ),
+    reorder: ["Reorder.", "onReorder", "useDragControls"].some((token) =>
+      text.includes(token),
+    ),
+    microinteraction: [
+      "whileHover",
+      "whileTap",
+      "whileFocus",
+      "<button",
+      "<a ",
+      "next/link",
+    ].some((token) => text.includes(token)),
   };
 
   const warnings = [];
   const recommendations = [];
 
-  if (routerContext === 'app-router' && !clientComponent && imports['framer-motion']) {
-    warnings.push('App Router server-friendly file imports framer-motion directly. Prefer a tiny client leaf unless the file is already client-side.');
+  if (
+    routerContext === "app-router" &&
+    !clientComponent &&
+    imports["framer-motion"]
+  ) {
+    warnings.push(
+      "App Router server-friendly file imports framer-motion directly. Prefer a tiny client leaf unless the file is already client-side.",
+    );
   }
-  if (text.includes('<Image') && (!text.includes(' width=') && !text.includes(' fill'))) {
-    warnings.push('next/image usage detected. Check that layout space is still preserved when animating.');
+  if (
+    text.includes("<Image") &&
+    !text.includes(" width=") &&
+    !text.includes(" fill")
+  ) {
+    warnings.push(
+      "next/image usage detected. Check that layout space is still preserved when animating.",
+    );
   }
-  if (text.includes('AnimatePresence') && !text.includes('key=')) {
-    warnings.push('AnimatePresence detected but no obvious key was found. Verify direct-child stable keys manually.');
+  if (text.includes("AnimatePresence") && !text.includes("key=")) {
+    warnings.push(
+      "AnimatePresence detected but no obvious key was found. Verify direct-child stable keys manually.",
+    );
   }
-  if (text.includes('layoutId') && !text.includes('LayoutGroup')) {
-    recommendations.push('If this shared element appears in repeated widgets, consider LayoutGroup id to isolate layoutId scope.');
+  if (text.includes("layoutId") && !text.includes("LayoutGroup")) {
+    recommendations.push(
+      "If this shared element appears in repeated widgets, consider LayoutGroup id to isolate layoutId scope.",
+    );
   }
 
   if (interaction || hookHits.length > 0 || clientComponent) {
-    recommendations.push('This file is already interactive or hook-driven. A small client-component Motion pattern is the most natural fit.');
-  } else if (routerContext === 'app-router') {
-    recommendations.push('This App Router file might be a candidate for motion/react-client if the requested effect is passive and hook-free.');
+    recommendations.push(
+      "This file is already interactive or hook-driven. A small client-component Motion pattern is the most natural fit.",
+    );
+  } else if (routerContext === "app-router") {
+    recommendations.push(
+      "This App Router file might be a candidate for motion/react-client if the requested effect is passive and hook-free.",
+    );
   } else {
-    recommendations.push('This file can usually take direct motion/react or framer-motion usage without extra boundary work.');
+    recommendations.push(
+      "This file can usually take direct motion/react or framer-motion usage without extra boundary work.",
+    );
   }
 
   if (patternHints.microinteraction) {
-    recommendations.push('Microinteraction signals detected. Prefer whileHover plus whileTap plus whileFocus with restrained values.');
+    recommendations.push(
+      "Microinteraction signals detected. Prefer whileHover plus whileTap plus whileFocus with restrained values.",
+    );
   }
   if (patternHints.stagger) {
-    recommendations.push('List or variant signals detected. Prefer parent-controlled stagger rather than bespoke timing on every child.');
+    recommendations.push(
+      "List or variant signals detected. Prefer parent-controlled stagger rather than bespoke timing on every child.",
+    );
   }
   if (patternHints.presence) {
-    recommendations.push('Presence signals detected. Use AnimatePresence with direct children and stable keys.');
+    recommendations.push(
+      "Presence signals detected. Use AnimatePresence with direct children and stable keys.",
+    );
   }
   if (patternHints.layout) {
-    recommendations.push('Layout signals detected. Start with layout before manual size choreography.');
+    recommendations.push(
+      "Layout signals detected. Start with layout before manual size choreography.",
+    );
   }
-  if (patternHints['scroll-linked']) {
-    recommendations.push('Scroll-linked signals detected. Keep useScroll only if the motion genuinely needs to track scroll continuously.');
+  if (patternHints["scroll-linked"]) {
+    recommendations.push(
+      "Scroll-linked signals detected. Keep useScroll only if the motion genuinely needs to track scroll continuously.",
+    );
   }
 
-  let recommendedBoundary = 'local-motion-edit';
+  let recommendedBoundary = "local-motion-edit";
   if (clientComponent) {
-    recommendedBoundary = 'already-client';
+    recommendedBoundary = "already-client";
   } else if (
-    routerContext === 'app-router' &&
+    routerContext === "app-router" &&
     hookHits.length === 0 &&
     !interaction &&
     !patternHints.presence &&
     !patternHints.reorder &&
-    !patternHints['scroll-linked']
+    !patternHints["scroll-linked"]
   ) {
-    recommendedBoundary = 'server-friendly-motion-react-client-candidate';
-  } else if (routerContext === 'app-router') {
-    recommendedBoundary = 'small-client-leaf';
+    recommendedBoundary = "server-friendly-motion-react-client-candidate";
+  } else if (routerContext === "app-router") {
+    recommendedBoundary = "small-client-leaf";
   }
 
-  let preferredImportPath = 'inherit-from-repo';
-  if (imports['framer-motion']) {
-    preferredImportPath = 'framer-motion';
-  } else if (imports['motion/react'] || imports['motion/react-client'] || imports['motion/react-m']) {
-    preferredImportPath = 'motion/react';
+  let preferredImportPath = "inherit-from-repo";
+  if (imports["framer-motion"]) {
+    preferredImportPath = "framer-motion";
+  } else if (
+    imports["motion/react"] ||
+    imports["motion/react-client"] ||
+    imports["motion/react-m"]
+  ) {
+    preferredImportPath = "motion/react";
   }
 
   const result = {

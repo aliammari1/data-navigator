@@ -1,8 +1,8 @@
-"use client"
+"use client";
 
-import { AnimatePresence, Reorder, motion } from "framer-motion"
+import { AnimatePresence, Reorder, motion } from "framer-motion";
 
-const items = ["alpha", "beta", "gamma"]
+const items = ["alpha", "beta", "gamma"];
 
 export function BadList() {
   return (
@@ -13,5 +13,5 @@ export function BadList() {
         </Reorder.Item>
       ))}
     </AnimatePresence>
-  )
+  );
 }

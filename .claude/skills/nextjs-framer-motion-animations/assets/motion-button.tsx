@@ -3,9 +3,7 @@
 import * as React from "react";
 import { motion } from "motion/react";
 
-export function MotionButton(
-  props: React.ComponentPropsWithoutRef<"button">,
-) {
+export function MotionButton(props: React.ComponentPropsWithoutRef<"button">) {
   return (
     <motion.button
       {...props}

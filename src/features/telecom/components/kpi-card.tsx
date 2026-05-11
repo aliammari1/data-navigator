@@ -2,7 +2,7 @@
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
 import type * as Types from "@/features/telecom/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 interface KPICardProps {
   label: string;

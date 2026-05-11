@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { buildCanalHeatmapOption } from "@/features/telecom/lib/chart-options";
 import type * as Types from "@/features/telecom/types";
 

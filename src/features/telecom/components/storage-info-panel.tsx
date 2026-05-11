@@ -2,36 +2,34 @@
 import { Database } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+import { clearFSDatabase } from "@/platform/duckdb/duckdb-fs";
+import {
+  getStorageInfo,
+  requestPersistence,
+  type StorageInfo,
+} from "@/platform/storage/storage-info";
+import { cn } from "@/shared/utils";
 import { Section } from "./section";
 
 export function StorageInfoPanel({ tableName }: { tableName: string }) {
-  const [info, setInfo] = useState<
-    import("@/lib/storage-info").StorageInfo | null
-  >(null);
+  const [info, setInfo] = useState<StorageInfo | null>(null);
   const [requesting, setRequesting] = useState(false);
 
   useEffect(() => {
-    import("@/lib/storage-info").then(({ getStorageInfo }) =>
-      getStorageInfo().then(setInfo),
-    );
+    getStorageInfo().then(setInfo);
   }, []);
 
   async function handlePersist() {
     setRequesting(true);
-    const { requestPersistence, getStorageInfo } =
-      await import("@/lib/storage-info");
     await requestPersistence();
     setInfo(await getStorageInfo());
     setRequesting(false);
   }
 
-  async function handleClearOPFS() {
-    const { clearOPFSDatabase } = await import("@/lib/duckdb-opfs");
-    await clearOPFSDatabase(tableName);
-    const { getStorageInfo } = await import("@/lib/storage-info");
+  async function handleClearFS() {
+    await clearFSDatabase(tableName);
     setInfo(await getStorageInfo());
-    toast.success("Cache OPFS vidé");
+    toast.success("Cache vidé");
   }
 
   if (!info) return null;
@@ -103,7 +101,7 @@ export function StorageInfoPanel({ tableName }: { tableName: string }) {
         <div className="flex items-center justify-between pt-2 border-t border-border">
           <div>
             <div className="text-xs font-semibold text-foreground">
-              Cache OPFS
+              Cache DuckDB
             </div>
             <div className="text-[11px] text-muted-foreground mt-0.5">
               Fichiers Parquet + base DuckDB persistée
@@ -111,7 +109,7 @@ export function StorageInfoPanel({ tableName }: { tableName: string }) {
           </div>
           <button
             type="button"
-            onClick={handleClearOPFS}
+            onClick={handleClearFS}
             className="text-[10px] px-2.5 py-1.5 rounded-lg bg-red-50 border border-red-200 text-red-600 hover:bg-red-100 dark:bg-red-500/10 dark:border-red-500/25 dark:text-red-400 dark:hover:bg-red-500/20 transition-colors"
           >
             Effacer le cache

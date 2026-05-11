@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { clamp, fmtPct } from "@/features/telecom/lib/format";
 
 export function ProgressBar({

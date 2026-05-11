@@ -1,4 +1,4 @@
-import { auth, authReady } from "@/lib/auth";
+import { auth, authReady } from "@/platform/auth/auth";
 import { toNextJsHandler } from "better-auth/next-js";
 
 export const runtime = "nodejs";

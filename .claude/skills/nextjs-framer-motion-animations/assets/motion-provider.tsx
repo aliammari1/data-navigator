@@ -8,11 +8,7 @@ const defaultTransition = {
   ease: [0.22, 1, 0.36, 1] as const,
 };
 
-export function MotionProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function MotionProvider({ children }: { children: React.ReactNode }) {
   return (
     <MotionConfig reducedMotion="user" transition={defaultTransition}>
       {children}

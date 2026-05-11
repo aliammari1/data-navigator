@@ -3,11 +3,7 @@
 import * as React from "react";
 import { Reorder } from "motion/react";
 
-export function ReorderList({
-  initialItems,
-}: {
-  initialItems: string[];
-}) {
+export function ReorderList({ initialItems }: { initialItems: string[] }) {
   const [items, setItems] = React.useState(initialItems);
 
   return (

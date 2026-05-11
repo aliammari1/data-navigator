@@ -1,7 +1,7 @@
-import { useRouter } from "next/router"
+import { useRouter } from "next/router";
 
 export default function BlogPostPage() {
-  const router = useRouter()
+  const router = useRouter();
 
   return (
     <main className="p-8">
@@ -10,5 +10,5 @@ export default function BlogPostPage() {
         Blog content lives here and navigates between dynamic slugs.
       </p>
     </main>
-  )
+  );
 }

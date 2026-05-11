@@ -12,7 +12,12 @@ export type BroadcastMsg =
   | { type: "FILTER_CHANGE"; filter: FilterState }
   | { type: "FILE_LOADED"; fileName: string; reportDate: string }
   | { type: "MAPPING_CHANGE"; mapping: ColumnMapping }
-  | { type: "ANALYTICS_READY"; fileName: string; successRate: number; totalTx: number };
+  | {
+      type: "ANALYTICS_READY";
+      fileName: string;
+      successRate: number;
+      totalTx: number;
+    };
 
 let _bc: BroadcastChannel | null = null;
 
@@ -26,9 +31,7 @@ export function broadcast(msg: BroadcastMsg): void {
   getBC()?.postMessage(msg);
 }
 
-export function onBroadcast(
-  handler: (msg: BroadcastMsg) => void,
-): () => void {
+export function onBroadcast(handler: (msg: BroadcastMsg) => void): () => void {
   const bc = getBC();
   if (!bc) return () => {};
   const listener = (e: MessageEvent) => handler(e.data as BroadcastMsg);

@@ -1,5 +1,25 @@
-import type { ColumnMapping, StatusMapping, StatusSemantic, CanalKey } from "../types";
-import { DEFAULT_STATUS_MAPPINGS } from "../constants";
+import {
+  BUILTIN_STATUS_CODES,
+  type ClassifiedStatusSemantic,
+  DEFAULT_STATUS_MAPPINGS,
+  SEMANTIC_TO_CATEGORY,
+} from "@/features/telecom/lib/status-definitions";
+import type { CanalKey, ColumnMapping, StatusMapping } from "../types";
+import {
+  BILL_PAYMENT_CHANNELS,
+  type ChannelDef,
+  CREDIT_TRANSFER,
+  RECHARGE_DATA_EVOUCHER,
+  RECHARGE_DATA_SABBA,
+  RECHARGE_VOICE_FIXED_TTCASH,
+  RECHARGE_VOICE_FIXED_VOUCHER,
+  RECHARGE_VOICE_MOBILE_TTCASH,
+  RECHARGE_VOICE_MOBILE_VOUCHER,
+  VOUCHER_CONVERGENT,
+  VOUCHER_FOR_PAYMENT,
+} from "./report-engine";
+
+export { BUILTIN_STATUS_CODES, SEMANTIC_TO_CATEGORY };
 
 // ─── Identifier / literal quoting ─────────────────────────────────────────────
 
@@ -18,39 +38,6 @@ export function sqlLiteral(value: string): string {
 
 // ─── Status normalisation ─────────────────────────────────────────────────────
 
-export const SEMANTIC_TO_CATEGORY: Record<
-  Exclude<StatusSemantic, "other">,
-  string
-> = {
-  success: "SUCCESS",
-  declined: "DECLINED",
-  refund: "REFUND",
-  instance: "INSTANCE",
-  submitted: "SUBMITTED",
-};
-
-export const BUILTIN_STATUS_CODES: Record<
-  Exclude<StatusSemantic, "other">,
-  string[]
-> = {
-  success: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
-  declined: [
-    "DCL", "DCT", "DCA", "DCR", "DCB",
-    "RDCL", "RDCT", "RDCA", "RDCR",
-    "SDL1", "SDL2", "SDL3", "SDL4", "SDL7",
-    "PDL", "PDL1", "REJ", "CAN", "FLD", "ERR",
-  ],
-  refund: ["RFD", "RFD3", "RFD4", "RVS"],
-  instance: [
-    "HLD", "TPP", "TTO", "PRF", "RHL",
-    "RTO", "STO", "STP", "SRV", "SRV1", "SRTO",
-    "RHD", "RHD3", "RHD4",
-    "DBT", "DBA", "RDBT", "RDBA", "SDT", "SRDT",
-    "PND", "EXP",
-  ],
-  submitted: ["SBM"],
-};
-
 export function normalizeStatusCode(
   status: string,
   mapping: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
@@ -64,7 +51,7 @@ export function normalizeStatusCode(
       : (SEMANTIC_TO_CATEGORY[configured.semantic] ?? "OTHER");
   }
   for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES) as Array<
-    [Exclude<StatusSemantic, "other">, string[]]
+    [ClassifiedStatusSemantic, string[]]
   >) {
     if (codes.includes(code)) return SEMANTIC_TO_CATEGORY[semantic];
   }
@@ -77,7 +64,9 @@ export function statusNorm(
 ): string {
   const s = qc(m.status);
   const v = `UPPER(TRIM(CAST(${s} AS VARCHAR)))`;
-  const configuredCodes = new Set(sm.map((e) => e.rawCode.trim().toUpperCase()));
+  const configuredCodes = new Set(
+    sm.map((e) => e.rawCode.trim().toUpperCase()),
+  );
   const whenClauses = sm
     .filter((e) => e.rawCode.trim())
     .map((e) => {
@@ -90,7 +79,7 @@ export function statusNorm(
     });
 
   for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES) as Array<
-    [Exclude<StatusSemantic, "other">, string[]]
+    [ClassifiedStatusSemantic, string[]]
   >) {
     const missingCodes = codes.filter((code) => !configuredCodes.has(code));
     if (missingCodes.length === 0) continue;
@@ -122,72 +111,32 @@ export function hourExpr(m: ColumnMapping): string {
 
 // ─── Canal classification ─────────────────────────────────────────────────────
 
+function anyChannel(channels: ChannelDef[]): string {
+  return `(${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`;
+}
+
 export function canalWhere(m: ColumnMapping): Record<CanalKey, string> {
-  const svc = qc(m.serviceCode);       // SERVICE_CLASS_NAME
-  const cat = qc(m.transactionType);   // BRAND_CATEGORY_NAME
-  const ch  = qc(m.canal);             // CHANNEL
-
-  const S  = `UPPER(CAST(${svc} AS VARCHAR))`;
-  const C  = `UPPER(CAST(${cat} AS VARCHAR))`;
-  const H  = `UPPER(CAST(${ch}  AS VARCHAR))`;
-  const BD = `TRY_CAST("BRAND_D" AS INT)`;
-
+  void m;
   return {
-    bill_payment: `(
-      ${S} LIKE '%BILL%' OR ${S} LIKE '%FACTURE%' OR ${S} LIKE '%PAYMENT%' OR ${S} LIKE '%PAIEMENT%'
-      OR ${C} LIKE '%BILL%' OR ${C} LIKE '%FACTURE%' OR ${C} LIKE '%PAYMENT%'
-    )`,
-    voice_fixed_ttcash: `(
-      (${S} LIKE '%TTCASH%' OR ${S} LIKE '%TT_CASH%')
-      AND (${S} LIKE '%FIXE%' OR ${S} LIKE '%FIXED%' OR ${S} LIKE '%FIX%')
-    )`,
-    voice_fixed_voucher: `(
-      (${S} LIKE '%VOUCHER%' OR ${S} LIKE '%EVOUCHER%')
-      AND (${S} LIKE '%FIXE%' OR ${S} LIKE '%FIXED%' OR ${S} LIKE '%FIX%')
-    )`,
-    voice_mobile_ttcash: `(
-      ${S} IN ('TTCASH_MOBILE','DIGITAL_TTCASH_MOBILE')
-      OR (${S} LIKE '%TTCASH%MOBILE%' OR ${S} LIKE '%TTCASH%MOB%')
-      OR (${C} = 'TOPUP' AND ${H} = 'GPT')
-    )`,
-    voice_mobile_voucher: `(
-      ${S} LIKE '%EVOUCHER%REDEMPTION%MOBILE%'
-      OR ${S} LIKE '%EVOUCHER%RECHARGE%REDEMPTION%'
-      OR ${S} = 'DIGITAL_EVOUCHER_RECHARGE_REDEMPTION_MOBILE'
-      OR ${S} IN ('EVOUCHER_RECHARGE_GENERATION','DIGITAL_EVOUCHER_RECHARGE_GENERATION','EVOUCHER_RECHARGE_MM_GENERATION')
-      OR (${C} = 'EVOUCHER' AND ${S} LIKE '%GENERATION%' AND ${S} NOT LIKE '%DATA%')
-      OR (${C} = 'TOPUP' AND ${H} = 'USD' AND ${S} NOT LIKE '%DATA%')
-    )`,
-    data_sabba: `(
-      ${S} IN ('ETOPUP_DATA','DIGITAL_ETOPUP_DATA','DIGITAL_TTCASH_DATA','TTCASH_DATA','BONUS_VOIX_ACHAT_DATA')
-      OR ${S} LIKE '%ETOPUP%DATA%'
-      OR ${C} = 'ETOPUP_DATA_GROUP'
-      OR (${C} = 'PROMOTION' AND ${S} LIKE '%DATA%')
-    )`,
-    data_evoucher: `(
-      ${S} LIKE '%EVOUCHER%DATA%'
-      OR ${S} = 'EVOUCHER_DATA_GENERATION'
-      OR (${C} = 'EVOUCHER' AND ${S} LIKE '%DATA%')
-    )`,
-    voucher_for_payment: `(
-      ${BD} IN (98, 99, 100)
-    )`,
-    credit_transfer: `(
-      ${BD} IN (88, 89, 111, 159)
-    )`,
-    voucher_convergent: `(
-      ${BD} IN (163, 166, 167, 119, 120, 133, 134, 150, 151, 160, 107, 115)
-    )`,
+    bill_payment: anyChannel(BILL_PAYMENT_CHANNELS),
+    voice_fixed_ttcash: anyChannel(RECHARGE_VOICE_FIXED_TTCASH),
+    voice_fixed_voucher: anyChannel(RECHARGE_VOICE_FIXED_VOUCHER),
+    voice_mobile_ttcash: anyChannel(RECHARGE_VOICE_MOBILE_TTCASH),
+    voice_mobile_voucher: anyChannel(RECHARGE_VOICE_MOBILE_VOUCHER),
+    data_sabba: anyChannel(RECHARGE_DATA_SABBA),
+    data_evoucher: anyChannel(RECHARGE_DATA_EVOUCHER),
+    voucher_for_payment: anyChannel(VOUCHER_FOR_PAYMENT),
+    credit_transfer: anyChannel(CREDIT_TRANSFER),
+    voucher_convergent: anyChannel(VOUCHER_CONVERGENT),
   };
 }
 
 export function canalCaseExpr(m: ColumnMapping): string {
   const w = canalWhere(m);
-  // data_evoucher evaluated before data_sabba to avoid data-specific EVouchers falling into ETOPUP bucket
   return `CASE
     WHEN ${w.voucher_for_payment}  THEN 'Voucher For Payment'
     WHEN ${w.credit_transfer}      THEN 'Credit Transfer'
-    WHEN ${w.voucher_convergent}   THEN 'Voucher For Recharge Management'
+    WHEN ${w.voucher_convergent}   THEN 'Voucher Convergent Management'
     WHEN ${w.bill_payment}         THEN 'Bill Payment'
     WHEN ${w.voice_fixed_ttcash}   THEN 'Fixed by TTCASH'
     WHEN ${w.voice_fixed_voucher}  THEN 'Fixed by Voucher'

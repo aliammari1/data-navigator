@@ -17,29 +17,29 @@ Examples:
 `;
 
 const IGNORE_DIRS = new Set([
-  '.git',
-  '.next',
-  '.turbo',
-  'node_modules',
-  'dist',
-  'build',
-  'coverage',
-  'out',
-  '.cache',
+  ".git",
+  ".next",
+  ".turbo",
+  "node_modules",
+  "dist",
+  "build",
+  "coverage",
+  "out",
+  ".cache",
 ]);
 
 const SOURCE_DIRS = [
-  'app',
-  'src/app',
-  'pages',
-  'src/pages',
-  'components',
-  'src/components',
-  'ui',
-  'src/ui',
+  "app",
+  "src/app",
+  "pages",
+  "src/pages",
+  "components",
+  "src/components",
+  "ui",
+  "src/ui",
 ];
 
-const SOURCE_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mdx']);
+const SOURCE_EXTS = new Set([".ts", ".tsx", ".js", ".jsx", ".mdx"]);
 
 const KEYWORDS = {
   hero: 4,
@@ -64,35 +64,35 @@ const KEYWORDS = {
 };
 
 const HOOK_IMPORTS = [
-  'useReducedMotion',
-  'useAnimate',
-  'useInView',
-  'useScroll',
-  'useMotionValue',
-  'useTransform',
-  'useSpring',
-  'useVelocity',
-  'usePathname',
-  'useSelectedLayoutSegment',
-  'useSelectedLayoutSegments',
+  "useReducedMotion",
+  "useAnimate",
+  "useInView",
+  "useScroll",
+  "useMotionValue",
+  "useTransform",
+  "useSpring",
+  "useVelocity",
+  "usePathname",
+  "useSelectedLayoutSegment",
+  "useSelectedLayoutSegments",
 ];
 
 const MOTION_APIS = [
-  'AnimatePresence',
-  'LayoutGroup',
-  'MotionConfig',
-  'Reorder',
-  'LazyMotion',
-  'whileInView',
-  'whileHover',
-  'whileTap',
-  'whileFocus',
-  'layoutId',
-  'layout',
-  'useReducedMotion',
-  'useAnimate',
-  'useInView',
-  'useScroll',
+  "AnimatePresence",
+  "LayoutGroup",
+  "MotionConfig",
+  "Reorder",
+  "LazyMotion",
+  "whileInView",
+  "whileHover",
+  "whileTap",
+  "whileFocus",
+  "layoutId",
+  "layout",
+  "useReducedMotion",
+  "useAnimate",
+  "useInView",
+  "useScroll",
 ];
 
 function parseArgs(argv) {
@@ -100,12 +100,12 @@ function parseArgs(argv) {
 
   for (let index = 0; index < argv.length; index += 1) {
     const token = argv[index];
-    if (token === '--help' || token === '-h') {
+    if (token === "--help" || token === "-h") {
       args.help = true;
-    } else if (token === '--root') {
+    } else if (token === "--root") {
       args.root = argv[index + 1];
       index += 1;
-    } else if (token === '--limit') {
+    } else if (token === "--limit") {
       args.limit = Number.parseInt(argv[index + 1], 10);
       index += 1;
     } else {
@@ -114,7 +114,7 @@ function parseArgs(argv) {
   }
 
   if (!Number.isFinite(args.limit) || args.limit <= 0) {
-    throw new Error('--limit must be a positive integer.');
+    throw new Error("--limit must be a positive integer.");
   }
 
   return args;
@@ -122,15 +122,15 @@ function parseArgs(argv) {
 
 function readText(filePath) {
   try {
-    return fs.readFileSync(filePath, 'utf8');
+    return fs.readFileSync(filePath, "utf8");
   } catch {
-    return '';
+    return "";
   }
 }
 
 function readJson(filePath) {
   try {
-    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    return JSON.parse(fs.readFileSync(filePath, "utf8"));
   } catch {
     return null;
   }
@@ -157,23 +157,29 @@ function findFirstExisting(root, candidates) {
 }
 
 function detectRouter(root) {
-  const hasApp = exists(path.join(root, 'app')) || exists(path.join(root, 'src/app'));
-  const hasPages = exists(path.join(root, 'pages')) || exists(path.join(root, 'src/pages'));
-  if (hasApp && hasPages) return 'mixed';
-  if (hasApp) return 'app-router';
-  if (hasPages) return 'pages-router';
-  return 'unknown';
+  const hasApp =
+    exists(path.join(root, "app")) || exists(path.join(root, "src/app"));
+  const hasPages =
+    exists(path.join(root, "pages")) || exists(path.join(root, "src/pages"));
+  if (hasApp && hasPages) return "mixed";
+  if (hasApp) return "app-router";
+  if (hasPages) return "pages-router";
+  return "unknown";
 }
 
 function flattenDependencies(pkg) {
   const output = {};
-  if (!pkg || typeof pkg !== 'object') return output;
+  if (!pkg || typeof pkg !== "object") return output;
 
-  for (const section of ['dependencies', 'devDependencies', 'peerDependencies']) {
+  for (const section of [
+    "dependencies",
+    "devDependencies",
+    "peerDependencies",
+  ]) {
     const value = pkg[section];
-    if (!value || typeof value !== 'object') continue;
+    if (!value || typeof value !== "object") continue;
     for (const [name, version] of Object.entries(value)) {
-      if (typeof version === 'string') output[name] = version;
+      if (typeof version === "string") output[name] = version;
     }
   }
 
@@ -184,11 +190,15 @@ function detectStylingHints(root, deps) {
   const hints = {
     tailwind: false,
     cssModules: false,
-    styledComponents: Boolean(deps['styled-components']),
-    emotion: Boolean(deps['@emotion/react'] || deps['@emotion/styled']),
+    styledComponents: Boolean(deps["styled-components"]),
+    emotion: Boolean(deps["@emotion/react"] || deps["@emotion/styled"]),
   };
 
-  if (['tailwind.config.js', 'tailwind.config.ts', 'tailwind.config.mjs'].some((name) => exists(path.join(root, name)))) {
+  if (
+    ["tailwind.config.js", "tailwind.config.ts", "tailwind.config.mjs"].some(
+      (name) => exists(path.join(root, name)),
+    )
+  ) {
     hints.tailwind = true;
   }
 
@@ -207,7 +217,10 @@ function detectStylingHints(root, deps) {
         walk(absolute);
         continue;
       }
-      if (entry.name.endsWith('.module.css') || entry.name.endsWith('.module.scss')) {
+      if (
+        entry.name.endsWith(".module.css") ||
+        entry.name.endsWith(".module.scss")
+      ) {
         hints.cssModules = true;
       }
       if (hints.cssModules && hints.tailwind) return;
@@ -252,25 +265,40 @@ function iterSourceFiles(root) {
 
 function analyseFile(root, absolutePath) {
   const text = readText(absolutePath);
-  const relative = path.relative(root, absolutePath).replaceAll(path.sep, '/');
+  const relative = path.relative(root, absolutePath).replaceAll(path.sep, "/");
   const lowerRelative = relative.toLowerCase();
 
   const imports = {
-    'motion/react': /from\s+["']motion\/react["']/.test(text),
-    'motion/react-client': /from\s+["']motion\/react-client["']/.test(text),
-    'motion/react-m': /from\s+["']motion\/react-m["']/.test(text),
-    'framer-motion': /from\s+["']framer-motion["']/.test(text),
+    "motion/react": /from\s+["']motion\/react["']/.test(text),
+    "motion/react-client": /from\s+["']motion\/react-client["']/.test(text),
+    "motion/react-m": /from\s+["']motion\/react-m["']/.test(text),
+    "framer-motion": /from\s+["']framer-motion["']/.test(text),
   };
 
   const signals = {
     clientComponent: isClientComponent(text),
-    hasInteractionLogic: ['useState(', 'useReducer(', 'useEffect(', 'useLayoutEffect(', 'useRef(', 'onClick=', 'onPointerDown=', 'onMouseEnter=', 'onMouseLeave=', 'onKeyDown='].some((token) => text.includes(token)),
-    importsNextImage: text.includes('from "next/image"') || text.includes("from 'next/image'"),
-    importsNextDynamic: text.includes('from "next/dynamic"') || text.includes("from 'next/dynamic'"),
-    hasListMap: text.includes('.map('),
-    hasConditionalRender: text.includes(' ? ') || text.includes('&& <') || text.includes('&& ('),
-    hasImageComponent: text.includes('<Image'),
-    hasSerializationRisk: text.includes('onClick') && !isClientComponent(text),
+    hasInteractionLogic: [
+      "useState(",
+      "useReducer(",
+      "useEffect(",
+      "useLayoutEffect(",
+      "useRef(",
+      "onClick=",
+      "onPointerDown=",
+      "onMouseEnter=",
+      "onMouseLeave=",
+      "onKeyDown=",
+    ].some((token) => text.includes(token)),
+    importsNextImage:
+      text.includes('from "next/image"') || text.includes("from 'next/image'"),
+    importsNextDynamic:
+      text.includes('from "next/dynamic"') ||
+      text.includes("from 'next/dynamic'"),
+    hasListMap: text.includes(".map("),
+    hasConditionalRender:
+      text.includes(" ? ") || text.includes("&& <") || text.includes("&& ("),
+    hasImageComponent: text.includes("<Image"),
+    hasSerializationRisk: text.includes("onClick") && !isClientComponent(text),
   };
 
   const hookHits = HOOK_IMPORTS.filter((name) => text.includes(name));
@@ -281,15 +309,20 @@ function analyseFile(root, absolutePath) {
 
   if (/\/page\.(t|j)sx?$/.test(lowerRelative)) {
     score += 4;
-    reasons.push('page component');
+    reasons.push("page component");
   }
   if (/\/layout\.(t|j)sx?$/.test(lowerRelative)) {
     score += 2;
-    reasons.push('layout component');
+    reasons.push("layout component");
   }
-  if (lowerRelative.startsWith('components/') || lowerRelative.includes('/components/') || lowerRelative.startsWith('ui/') || lowerRelative.includes('/ui/')) {
+  if (
+    lowerRelative.startsWith("components/") ||
+    lowerRelative.includes("/components/") ||
+    lowerRelative.startsWith("ui/") ||
+    lowerRelative.includes("/ui/")
+  ) {
     score += 1;
-    reasons.push('component directory');
+    reasons.push("component directory");
   }
   for (const [word, weight] of Object.entries(KEYWORDS)) {
     if (lowerRelative.includes(word)) {
@@ -299,35 +332,41 @@ function analyseFile(root, absolutePath) {
   }
   if (signals.clientComponent) {
     score += 3;
-    reasons.push('already client');
+    reasons.push("already client");
   }
   if (Object.values(imports).some(Boolean)) {
     score += 3;
-    reasons.push('already uses Motion');
+    reasons.push("already uses Motion");
   }
   if (signals.hasInteractionLogic) {
     score += 2;
-    reasons.push('interactive logic');
+    reasons.push("interactive logic");
   }
   if (signals.hasListMap) {
     score += 1;
-    reasons.push('maps list');
+    reasons.push("maps list");
   }
   if (signals.hasConditionalRender) {
     score += 1;
-    reasons.push('conditional UI');
+    reasons.push("conditional UI");
   }
   if (signals.importsNextImage) {
-    reasons.push('next/image present');
+    reasons.push("next/image present");
   }
 
-  let recommendedStrategy = 'unknown';
-  if (imports['motion/react-client']) {
-    recommendedStrategy = 'keep server-friendly motion/react-client pattern';
-  } else if (signals.clientComponent || signals.hasInteractionLogic || hookHits.length > 0) {
-    recommendedStrategy = 'small client leaf using motion/react or existing framer-motion';
+  let recommendedStrategy = "unknown";
+  if (imports["motion/react-client"]) {
+    recommendedStrategy = "keep server-friendly motion/react-client pattern";
+  } else if (
+    signals.clientComponent ||
+    signals.hasInteractionLogic ||
+    hookHits.length > 0
+  ) {
+    recommendedStrategy =
+      "small client leaf using motion/react or existing framer-motion";
   } else {
-    recommendedStrategy = 'candidate for passive motion/react-client or tiny client leaf';
+    recommendedStrategy =
+      "candidate for passive motion/react-client or tiny client leaf";
   }
 
   return {
@@ -343,30 +382,41 @@ function analyseFile(root, absolutePath) {
 }
 
 function chooseLibrary(deps, importCounter) {
-  if (deps['framer-motion'] || importCounter['framer-motion'] > 0) {
+  if (deps["framer-motion"] || importCounter["framer-motion"] > 0) {
     return {
-      choice: 'framer-motion',
-      reason: 'Repository already uses framer-motion. Preserve the import path unless the user explicitly asks to migrate.',
+      choice: "framer-motion",
+      reason:
+        "Repository already uses framer-motion. Preserve the import path unless the user explicitly asks to migrate.",
     };
   }
-  if (deps.motion || importCounter['motion/react'] > 0 || importCounter['motion/react-client'] > 0) {
+  if (
+    deps.motion ||
+    importCounter["motion/react"] > 0 ||
+    importCounter["motion/react-client"] > 0
+  ) {
     return {
-      choice: 'motion/react',
-      reason: 'Repository already uses Motion or depends on the motion package.',
+      choice: "motion/react",
+      reason:
+        "Repository already uses Motion or depends on the motion package.",
     };
   }
   return {
-    choice: 'motion/react',
-    reason: 'No existing Motion dependency found. Prefer motion for a new install.',
+    choice: "motion/react",
+    reason:
+      "No existing Motion dependency found. Prefer motion for a new install.",
   };
 }
 
 function detectPackageManager(root) {
-  if (exists(path.join(root, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (exists(path.join(root, 'package-lock.json'))) return 'npm';
-  if (exists(path.join(root, 'yarn.lock'))) return 'yarn';
-  if (exists(path.join(root, 'bun.lock')) || exists(path.join(root, 'bun.lockb'))) return 'bun';
-  return 'unknown';
+  if (exists(path.join(root, "pnpm-lock.yaml"))) return "pnpm";
+  if (exists(path.join(root, "package-lock.json"))) return "npm";
+  if (exists(path.join(root, "yarn.lock"))) return "yarn";
+  if (
+    exists(path.join(root, "bun.lock")) ||
+    exists(path.join(root, "bun.lockb"))
+  )
+    return "bun";
+  return "unknown";
 }
 
 function main() {
@@ -382,18 +432,20 @@ function main() {
     throw new Error(`Root does not exist: ${root}`);
   }
 
-  const pkgPath = path.join(root, 'package.json');
+  const pkgPath = path.join(root, "package.json");
   const pkg = readJson(pkgPath) || {};
   const deps = flattenDependencies(pkg);
   const router = detectRouter(root);
   const stylingHints = detectStylingHints(root, deps);
-  const fileAnalyses = iterSourceFiles(root).map((filePath) => analyseFile(root, filePath));
+  const fileAnalyses = iterSourceFiles(root).map((filePath) =>
+    analyseFile(root, filePath),
+  );
 
   const importCounter = {
-    'motion/react': 0,
-    'motion/react-client': 0,
-    'motion/react-m': 0,
-    'framer-motion': 0,
+    "motion/react": 0,
+    "motion/react-client": 0,
+    "motion/react-m": 0,
+    "framer-motion": 0,
   };
   const motionUsageSummary = {};
   const warnings = [];
@@ -409,28 +461,50 @@ function main() {
 
   const libraryRecommendation = chooseLibrary(deps, importCounter);
 
-  if (importCounter['framer-motion'] && (importCounter['motion/react'] || importCounter['motion/react-client'])) {
-    warnings.push('Mixed framer-motion and motion imports detected. Preserve consistency in the edited scope or migrate intentionally.');
+  if (
+    importCounter["framer-motion"] &&
+    (importCounter["motion/react"] || importCounter["motion/react-client"])
+  ) {
+    warnings.push(
+      "Mixed framer-motion and motion imports detected. Preserve consistency in the edited scope or migrate intentionally.",
+    );
   }
-  if (router === 'app-router') {
+  if (router === "app-router") {
     for (const item of fileAnalyses) {
-      if (item.path.endsWith('app/layout.tsx') || item.path.endsWith('src/app/layout.tsx')) {
+      if (
+        item.path.endsWith("app/layout.tsx") ||
+        item.path.endsWith("src/app/layout.tsx")
+      ) {
         if (item.signals.clientComponent) {
-          warnings.push('Root App Router layout is a client component. Be careful not to widen the client boundary further.');
+          warnings.push(
+            "Root App Router layout is a client component. Be careful not to widen the client boundary further.",
+          );
         }
       }
     }
   }
-  if ((importCounter['motion/react'] || importCounter['framer-motion']) && !motionUsageSummary.useReducedMotion && !motionUsageSummary.MotionConfig) {
-    warnings.push('Motion is present but reduced-motion handling was not detected. Consider whether the edited UI should add it.');
+  if (
+    (importCounter["motion/react"] || importCounter["framer-motion"]) &&
+    !motionUsageSummary.useReducedMotion &&
+    !motionUsageSummary.MotionConfig
+  ) {
+    warnings.push(
+      "Motion is present but reduced-motion handling was not detected. Consider whether the edited UI should add it.",
+    );
   }
-  if (libraryRecommendation.choice === 'motion/react' && importCounter['motion/react-client'] === 0 && router === 'app-router') {
-    warnings.push('App Router project detected. Consider motion/react-client for passive cases if the repo already uses the motion package.');
+  if (
+    libraryRecommendation.choice === "motion/react" &&
+    importCounter["motion/react-client"] === 0 &&
+    router === "app-router"
+  ) {
+    warnings.push(
+      "App Router project detected. Consider motion/react-client for passive cases if the repo already uses the motion package.",
+    );
   }
 
   const candidateFiles = fileAnalyses
     .filter((item) => item.score > 0)
-    .sort((a, b) => (b.score - a.score) || a.path.localeCompare(b.path))
+    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
     .slice(0, args.limit);
 
   const result = {
@@ -439,17 +513,58 @@ function main() {
     packageJsonFound: exists(pkgPath),
     packageManager: detectPackageManager(root),
     dependencies: Object.fromEntries(
-      Object.entries(deps).filter(([name]) => ['next', 'react', 'react-dom', 'motion', 'framer-motion', 'tailwindcss', 'styled-components', '@emotion/react', '@emotion/styled'].includes(name))
+      Object.entries(deps).filter(([name]) =>
+        [
+          "next",
+          "react",
+          "react-dom",
+          "motion",
+          "framer-motion",
+          "tailwindcss",
+          "styled-components",
+          "@emotion/react",
+          "@emotion/styled",
+        ].includes(name),
+      ),
     ),
     stylingHints,
     libraryRecommendation,
     boundaries: {
-      appLayout: findFirstExisting(root, ['app/layout.tsx', 'app/layout.jsx', 'app/layout.js', 'app/layout.mjs', 'src/app/layout.tsx', 'src/app/layout.jsx', 'src/app/layout.js', 'src/app/layout.mjs']),
-      appTemplate: findFirstExisting(root, ['app/template.tsx', 'app/template.jsx', 'app/template.js', 'app/template.mjs', 'src/app/template.tsx', 'src/app/template.jsx', 'src/app/template.js', 'src/app/template.mjs']),
-      pagesApp: findFirstExisting(root, ['pages/_app.tsx', 'pages/_app.jsx', 'pages/_app.js', 'pages/_app.mjs', 'src/pages/_app.tsx', 'src/pages/_app.jsx', 'src/pages/_app.js', 'src/pages/_app.mjs']),
+      appLayout: findFirstExisting(root, [
+        "app/layout.tsx",
+        "app/layout.jsx",
+        "app/layout.js",
+        "app/layout.mjs",
+        "src/app/layout.tsx",
+        "src/app/layout.jsx",
+        "src/app/layout.js",
+        "src/app/layout.mjs",
+      ]),
+      appTemplate: findFirstExisting(root, [
+        "app/template.tsx",
+        "app/template.jsx",
+        "app/template.js",
+        "app/template.mjs",
+        "src/app/template.tsx",
+        "src/app/template.jsx",
+        "src/app/template.js",
+        "src/app/template.mjs",
+      ]),
+      pagesApp: findFirstExisting(root, [
+        "pages/_app.tsx",
+        "pages/_app.jsx",
+        "pages/_app.js",
+        "pages/_app.mjs",
+        "src/pages/_app.tsx",
+        "src/pages/_app.jsx",
+        "src/pages/_app.js",
+        "src/pages/_app.mjs",
+      ]),
     },
     importStyleSummary: importCounter,
-    motionUsageSummary: Object.fromEntries(Object.entries(motionUsageSummary).sort(([a], [b]) => a.localeCompare(b))),
+    motionUsageSummary: Object.fromEntries(
+      Object.entries(motionUsageSummary).sort(([a], [b]) => a.localeCompare(b)),
+    ),
     candidateFiles,
     warnings,
   };

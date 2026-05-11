@@ -1,9 +1,9 @@
 "use client";
 
-import * as React from "react";
 import { Popover as PopoverPrimitive } from "@base-ui/react/popover";
+import type * as React from "react";
 
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 function Popover({ ...props }: PopoverPrimitive.Root.Props) {
   return <PopoverPrimitive.Root data-slot="popover" {...props} />;
@@ -61,7 +61,7 @@ function PopoverTitle({ className, ...props }: PopoverPrimitive.Title.Props) {
   return (
     <PopoverPrimitive.Title
       data-slot="popover-title"
-      className={cn("font-heading text-base font-medium", className)}
+      className={cn("text-base font-medium", className)}
       {...props}
     />
   );

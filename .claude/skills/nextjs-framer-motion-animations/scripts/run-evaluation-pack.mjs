@@ -55,7 +55,9 @@ function runJson(scriptPath, args) {
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
-    throw new Error(`Could not parse JSON from ${scriptPath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Could not parse JSON from ${scriptPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -69,28 +71,68 @@ function includesAll(actualList, expectedList) {
 
 function evaluateScenario(entry, golden, paths) {
   const root = path.join(paths.packRoot, entry.fixtureRoot);
-  const planner = runJson(paths.planScript, ["--root", root, "--target", entry.targetFile, "--task", entry.task]);
+  const planner = runJson(paths.planScript, [
+    "--root",
+    root,
+    "--target",
+    entry.targetFile,
+    "--task",
+    entry.task,
+  ]);
   const anti = runJson(paths.antiScript, ["--root", root]);
   const checks = [];
 
-  pushCheck(checks, "repo router", golden.repoRouter, planner.repo.router, planner.repo.router === golden.repoRouter);
-  pushCheck(checks, "package strategy", golden.packageStrategy, planner.decision.packageStrategy, planner.decision.packageStrategy === golden.packageStrategy);
-  pushCheck(checks, "recommended import path", golden.recommendedImportPath, planner.decision.recommendedImportPath, planner.decision.recommendedImportPath === golden.recommendedImportPath);
-  pushCheck(checks, "recommended boundary", golden.recommendedBoundary, planner.decision.recommendedBoundary, planner.decision.recommendedBoundary === golden.recommendedBoundary);
-  pushCheck(checks, "recommended pattern", golden.recommendedPattern, planner.decision.recommendedPattern, planner.decision.recommendedPattern === golden.recommendedPattern);
+  pushCheck(
+    checks,
+    "repo router",
+    golden.repoRouter,
+    planner.repo.router,
+    planner.repo.router === golden.repoRouter,
+  );
+  pushCheck(
+    checks,
+    "package strategy",
+    golden.packageStrategy,
+    planner.decision.packageStrategy,
+    planner.decision.packageStrategy === golden.packageStrategy,
+  );
+  pushCheck(
+    checks,
+    "recommended import path",
+    golden.recommendedImportPath,
+    planner.decision.recommendedImportPath,
+    planner.decision.recommendedImportPath === golden.recommendedImportPath,
+  );
+  pushCheck(
+    checks,
+    "recommended boundary",
+    golden.recommendedBoundary,
+    planner.decision.recommendedBoundary,
+    planner.decision.recommendedBoundary === golden.recommendedBoundary,
+  );
+  pushCheck(
+    checks,
+    "recommended pattern",
+    golden.recommendedPattern,
+    planner.decision.recommendedPattern,
+    planner.decision.recommendedPattern === golden.recommendedPattern,
+  );
   pushCheck(
     checks,
     "likely files to change",
     golden.likelyFilesToChange,
     planner.decision.likelyFilesToChange,
-    includesAll(planner.decision.likelyFilesToChange || [], golden.likelyFilesToChange || [])
+    includesAll(
+      planner.decision.likelyFilesToChange || [],
+      golden.likelyFilesToChange || [],
+    ),
   );
   pushCheck(
     checks,
     "anti-pattern errors",
     0,
     anti.summary.errors,
-    anti.summary.errors === 0
+    anti.summary.errors === 0,
   );
 
   const pass = checks.every((check) => check.pass);
@@ -111,11 +153,23 @@ function evaluateAntiPattern(entry, golden, paths) {
   const checks = [];
 
   for (const ruleId of golden.expectedRuleIds || []) {
-    pushCheck(checks, `expected rule ${ruleId}`, true, ruleIds.includes(ruleId), ruleIds.includes(ruleId));
+    pushCheck(
+      checks,
+      `expected rule ${ruleId}`,
+      true,
+      ruleIds.includes(ruleId),
+      ruleIds.includes(ruleId),
+    );
   }
 
   if (typeof golden.minimumErrorCount === "number") {
-    pushCheck(checks, "minimum error count", golden.minimumErrorCount, anti.summary.errors, anti.summary.errors >= golden.minimumErrorCount);
+    pushCheck(
+      checks,
+      "minimum error count",
+      golden.minimumErrorCount,
+      anti.summary.errors,
+      anti.summary.errors >= golden.minimumErrorCount,
+    );
   }
 
   const pass = checks.every((check) => check.pass);
@@ -143,11 +197,15 @@ function main() {
   const cases = manifest.scenarios || [];
 
   if (args.list) {
-    process.stdout.write(`${JSON.stringify({ cases: cases.map((entry) => ({ id: entry.id, type: entry.type })) }, null, 2)}\n`);
+    process.stdout.write(
+      `${JSON.stringify({ cases: cases.map((entry) => ({ id: entry.id, type: entry.type })) }, null, 2)}\n`,
+    );
     return;
   }
 
-  const selected = args.caseId ? cases.filter((entry) => entry.id === args.caseId) : cases;
+  const selected = args.caseId
+    ? cases.filter((entry) => entry.id === args.caseId)
+    : cases;
   if (args.caseId && selected.length === 0) {
     throw new Error(`Unknown case id: ${args.caseId}`);
   }
@@ -187,7 +245,9 @@ function main() {
 try {
   main();
 } catch (error) {
-  process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `Error: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.stderr.write(`${HELP}\n`);
   process.exit(1);
 }

@@ -17,11 +17,7 @@ const item = {
   show: { opacity: 1, y: 0 },
 };
 
-export function StaggerList({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function StaggerList({ children }: { children: React.ReactNode }) {
   return (
     <motion.ul variants={container} initial="hidden" animate="show">
       {children}
@@ -29,10 +25,6 @@ export function StaggerList({
   );
 }
 
-export function StaggerItem({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function StaggerItem({ children }: { children: React.ReactNode }) {
   return <motion.li variants={item}>{children}</motion.li>;
 }

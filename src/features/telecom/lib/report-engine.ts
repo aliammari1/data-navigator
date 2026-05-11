@@ -4,11 +4,15 @@
  * All processing done offline via DuckDB WASM — zero network calls.
  */
 
-import {
-  loadDelimitedCSVToDuckDB,
-  runQuery,
-} from "@/lib/duckdb";
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
+import {
+  REPORT_DOUBT_STATUS_CODES,
+  REPORT_HOLD_STATUS_CODES,
+  REPORT_INSTANCE_STATUS_CODES,
+  SPEC_STATUS_CODES,
+  sqlStatusInList,
+} from "@/features/telecom/lib/status-definitions";
+import { loadDelimitedCSVToDuckDB, runQuery } from "@/platform/duckdb/duckdb";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -73,61 +77,32 @@ export const TRANSACTION_COLUMNS = [
 export const STATUS_MAP = {
   HOLD: {
     label: "Instance",
-    subStatuses: [
-      "HLD",
-      "TPP",
-      "TTO",
-      "PRF",
-      "RHL",
-      "RTO",
-      "STO",
-      "STP",
-      "SRV",
-      "SRV1",
-      "SRTO",
-      "RHD",
-      "RHD3",
-      "RHD4",
-    ],
+    subStatuses: REPORT_HOLD_STATUS_CODES,
   },
   DOUBT: {
     label: "Instance",
-    subStatuses: ["DBT", "DBA", "RDBT", "RDBA", "SDT", "SRDT"],
+    subStatuses: REPORT_DOUBT_STATUS_CODES,
   },
   SUCCESS: {
     label: "Réussie",
-    subStatuses: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
+    subStatuses: SPEC_STATUS_CODES.success,
   },
-  REFUND: { label: "Annulation", subStatuses: ["RFD", "RFD3", "RFD4"] },
+  REFUND: {
+    label: "Annulation",
+    subStatuses: SPEC_STATUS_CODES.refund,
+  },
   DECLINED: {
     label: "Echec",
-    subStatuses: [
-      "DCL",
-      "DCT",
-      "DCA",
-      "DCR",
-      "DCB",
-      "RDCL",
-      "RDCT",
-      "RDCA",
-      "RDCR",
-      "SDL1",
-      "SDL2",
-      "SDL3",
-      "SDL4",
-      "SDL7",
-      "PDL",
-      "PDL1",
-    ],
+    subStatuses: SPEC_STATUS_CODES.declined,
   },
-  SUBMITTED: { label: "Confirmé", subStatuses: ["SBM"] },
+  SUBMITTED: {
+    label: "Confirmé",
+    subStatuses: SPEC_STATUS_CODES.submitted,
+  },
 } as const;
 
 const SUCCESS_STATUSES = STATUS_MAP.SUCCESS.subStatuses;
-const INSTANCE_STATUSES = [
-  ...STATUS_MAP.HOLD.subStatuses,
-  ...STATUS_MAP.DOUBT.subStatuses,
-];
+const INSTANCE_STATUSES = REPORT_INSTANCE_STATUS_CODES;
 const REFUND_STATUSES = STATUS_MAP.REFUND.subStatuses;
 const DECLINED_STATUSES = STATUS_MAP.DECLINED.subStatuses;
 
@@ -142,27 +117,27 @@ export const BILL_PAYMENT_CHANNELS: ChannelDef[] = [
   {
     name: "IZIPAY",
     condition:
-      "CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619444555'",
+      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619444555'",
   },
   {
     name: "SMT",
     condition:
-      "CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619777888'",
+      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619777888'",
   },
   {
     name: "ENDATAO",
     condition:
-      "CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692507919'",
+      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692507919'",
   },
   {
     name: "ATB",
     condition:
-      "CAST(BRAND_D AS INT) = 35 AND CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND CAST(ACCOUNT_GROUP_ID AS INT) = 152",
+      "TRY_CAST(BRAND_D AS INT) = 35 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
   },
   {
     name: "KASHY",
     condition:
-      "CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160000111222'",
+      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160000111222'",
   },
 ];
 
@@ -170,66 +145,66 @@ export const RECHARGE_VOICE_FIXED_TTCASH: ChannelDef[] = [
   {
     name: "Espaces TT",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
   },
   {
     name: "USSD 136",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   {
     name: "ATB",
     condition:
-      "CAST(BRAND_D AS INT) = 9 AND CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND CAST(ACCOUNT_GROUP_ID AS INT) = 152",
+      "TRY_CAST(BRAND_D AS INT) = 9 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
   },
   {
     name: "STB",
     condition:
-      "CAST(BRAND_D AS INT) = 9 AND CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND CAST(ACCOUNT_GROUP_ID AS INT) = 162",
+      "TRY_CAST(BRAND_D AS INT) = 9 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 162",
   },
   {
     name: "SMT",
     condition:
-      "CAST(BRAND_D AS INT) = 9 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
+      "TRY_CAST(BRAND_D AS INT) = 9 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
   },
   {
     name: "IZIPAY",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
   },
   {
     name: "ENDATAO",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
   },
   {
     name: "RUNPAY",
     condition:
-      "CAST(BRAND_D AS INT) IN (61, 147) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+      "TRY_CAST(BRAND_D AS INT) IN (61, 147) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
   },
   {
     name: "EDC",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
   },
   {
     name: "PAYPOS",
     condition:
-      "CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
+      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
   },
-  { name: "MyTT", condition: "CAST(BRAND_D AS INT) = 118" },
-  { name: "PORTAILTT", condition: "CAST(BRAND_D AS INT) = 132" },
-  { name: "PO9", condition: "CAST(BRAND_D AS INT) = 149" },
-  { name: "Eshop", condition: "CAST(BRAND_D AS INT) = 156" },
+  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 118" },
+  { name: "PORTAILTT", condition: "TRY_CAST(BRAND_D AS INT) = 132" },
+  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 149" },
+  { name: "Eshop", condition: "TRY_CAST(BRAND_D AS INT) = 156" },
   {
     name: "Callcenter/XV",
     condition:
-      "CAST(BRAND_D AS INT) = 38 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
+      "TRY_CAST(BRAND_D AS INT) = 38 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
   },
 ];
 
@@ -237,87 +212,97 @@ export const RECHARGE_VOICE_FIXED_VOUCHER: ChannelDef[] = [
   {
     name: "USSD 123",
     condition:
-      "CAST(BRAND_D AS INT) = 108 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
+      "TRY_CAST(BRAND_D AS INT) = 108 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) = 108 AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) = 108 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
-  { name: "MyTT", condition: "CAST(BRAND_D AS INT) = 122" },
-  { name: "PortailTT", condition: "CAST(BRAND_D AS INT) = 136" },
-  { name: "CallCenter/XV", condition: "CAST(BRAND_D AS INT) = 162" },
-  { name: "PO9", condition: "CAST(BRAND_D AS INT) = 153" },
+  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 122" },
+  { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 136" },
+  { name: "CallCenter/XV", condition: "TRY_CAST(BRAND_D AS INT) = 162" },
+  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 153" },
 ];
 
 export const RECHARGE_VOICE_MOBILE_TTCASH: ChannelDef[] = [
   {
     name: "Espaces TT",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
   },
   {
     name: "USSD 136",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   {
     name: "ATB",
     condition:
-      "CAST(BRAND_D AS INT) IN (8, 31) AND CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND CAST(ACCOUNT_GROUP_ID AS INT) = 152",
+      "TRY_CAST(BRAND_D AS INT) IN (8, 31) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
   },
   {
     name: "STB",
     condition:
-      "CAST(BRAND_D AS INT) IN (8, 31) AND CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND CAST(ACCOUNT_GROUP_ID AS INT) = 162",
+      "TRY_CAST(BRAND_D AS INT) IN (8, 31) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 162",
   },
   {
     name: "SMT",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
   },
   {
     name: "IZIPAY",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
   },
   {
     name: "ENDATAO",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
   },
   {
     name: "RUNPAY",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59, 146) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59, 146) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
   },
   {
     name: "EDC",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
   },
   {
     name: "PAYPOS",
     condition:
-      "CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
+      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
   },
-  { name: "MyTT", condition: "CAST(BRAND_D AS INT) = 117" },
-  { name: "PORTAILTT", condition: "CAST(BRAND_D AS INT) = 131" },
-  { name: "PO9", condition: "CAST(BRAND_D AS INT) = 148" },
-  { name: "Eshop", condition: "CAST(BRAND_D AS INT) = 155" },
+  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 117" },
+  { name: "PORTAILTT", condition: "TRY_CAST(BRAND_D AS INT) = 131" },
+  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 148" },
+  { name: "Eshop", condition: "TRY_CAST(BRAND_D AS INT) = 155" },
   {
     name: "Callcenter/XV",
     condition:
-      "CAST(BRAND_D AS INT) IN (7, 37) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
+      "TRY_CAST(BRAND_D AS INT) IN (7, 37) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
   },
   {
     name: "DTOne",
-    condition: "CAST(BRAND_D AS INT) IN (42, 43, 44, 45, 46, 47)",
+    condition: "TRY_CAST(BRAND_D AS INT) IN (42, 43, 44, 45, 46, 47)",
+  },
+  {
+    name: "Bonus DTone",
+    condition:
+      "TRY_CAST(BRAND_D AS INT) = 48 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885410'",
+  },
+  {
+    name: "Bonus suite recharge DATA",
+    condition:
+      "TRY_CAST(BRAND_D AS INT) = 96 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885467'",
   },
 ];
 
@@ -325,149 +310,155 @@ export const RECHARGE_VOICE_MOBILE_VOUCHER: ChannelDef[] = [
   {
     name: "USSD 123",
     condition:
-      "CAST(BRAND_D AS INT) = 109 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
+      "TRY_CAST(BRAND_D AS INT) = 109 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) = 109 AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) = 109 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
-  { name: "MyTT", condition: "CAST(BRAND_D AS INT) = 121" },
-  { name: "PortailTT", condition: "CAST(BRAND_D AS INT) = 135" },
-  { name: "CallCenter/XV", condition: "CAST(BRAND_D AS INT) = 161" },
-  { name: "PO9", condition: "CAST(BRAND_D AS INT) = 152" },
+  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 121" },
+  { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 135" },
+  { name: "CallCenter/XV", condition: "TRY_CAST(BRAND_D AS INT) = 161" },
+  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 152" },
 ];
 
 export const RECHARGE_DATA_SABBA: ChannelDef[] = [
   {
     name: "USSD 236",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   {
     name: "ESPACES TT",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
   },
-  { name: "PORTAIL TT", condition: "CAST(BRAND_D AS INT) = 137" },
-  { name: "MYTT", condition: "CAST(BRAND_D AS INT) = 123" },
+  { name: "PORTAIL TT", condition: "TRY_CAST(BRAND_D AS INT) = 137" },
+  { name: "MYTT", condition: "TRY_CAST(BRAND_D AS INT) = 123" },
   {
     name: "RUNPAY",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
   },
   {
-    name: "PAYPOS",
+    name: "PAYSPOS",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
   },
   {
     name: "EDC",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
   },
   {
     name: "ENDATAO",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
   },
   {
     name: "IZIPAY",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
   },
   {
     name: "TOPNET",
     condition:
-      "CAST(BRAND_D AS INT) = 95 AND CAST(ACCOUNT_LAYER_ID AS INT) = 5",
+      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 5",
   },
 ];
 
 export const RECHARGE_DATA_EVOUCHER: ChannelDef[] = [
-  { name: "USSD 227", condition: "CAST(BRAND_D AS INT) = 158" },
+  { name: "USSD 227", condition: "TRY_CAST(BRAND_D AS INT) = 158" },
 ];
 
 export const VOUCHER_FOR_PAYMENT: ChannelDef[] = [
   {
     name: "Voucher For Payment GENERATION",
-    condition: "CAST(BRAND_D AS INT) = 98",
+    condition: "TRY_CAST(BRAND_D AS INT) = 98",
   },
   {
     name: "Voucher For Payment REDEMPTION",
-    condition: "CAST(BRAND_D AS INT) = 99",
+    condition: "TRY_CAST(BRAND_D AS INT) = 99",
   },
   {
     name: "REFUND OF VOUCHER REDEEMED",
-    condition: "CAST(BRAND_D AS INT) = 100",
+    condition: "TRY_CAST(BRAND_D AS INT) = 100",
   },
 ];
 
 export const CREDIT_TRANSFER: ChannelDef[] = [
-  { name: "Credit Transfer", condition: "CAST(BRAND_D AS INT) = 88" },
-  { name: "Credit Transfer Bonus", condition: "CAST(BRAND_D AS INT) = 89" },
-  { name: "CreditTransfer_CashOut", condition: "CAST(BRAND_D AS INT) = 111" },
-  { name: "Credit_Elec_Personnel_TT", condition: "CAST(BRAND_D AS INT) = 159" },
+  { name: "Credit Transfer", condition: "TRY_CAST(BRAND_D AS INT) = 88" },
+  { name: "Credit Transfer Bonus", condition: "TRY_CAST(BRAND_D AS INT) = 89" },
+  {
+    name: "CreditTransfer_CashOut",
+    condition: "TRY_CAST(BRAND_D AS INT) = 111",
+  },
+  {
+    name: "Credit_Elec_Personnel_TT",
+    condition: "TRY_CAST(BRAND_D AS INT) = 159",
+  },
 ];
 
 export const EVOUCHER_ON_DEMAND_GENERATION: ChannelDef[] = [
   {
     name: "MyTT",
-    condition: "CAST(BRAND_D AS INT) IN (119, 120)",
+    condition: "TRY_CAST(BRAND_D AS INT) IN (119, 120)",
   },
   {
     name: "PortailTT",
-    condition: "CAST(BRAND_D AS INT) IN (133, 134)",
+    condition: "TRY_CAST(BRAND_D AS INT) IN (133, 134)",
   },
   {
     name: "PO9",
-    condition: "CAST(BRAND_D AS INT) IN (150, 151)",
+    condition: "TRY_CAST(BRAND_D AS INT) IN (150, 151)",
   },
   {
     name: "AZIZA",
-    condition: "CAST(BRAND_D AS INT) = 160",
+    condition: "TRY_CAST(BRAND_D AS INT) = 160",
   },
   {
     name: "RUNPAY",
     condition:
-      "CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
   },
   {
     name: "EDC",
     condition:
-      "CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
+      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
   },
   {
     name: "PAYPOS",
     condition:
-      "CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
+      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
   },
   {
     name: "USSD 170",
     condition:
-      "CAST(BRAND_D AS INT) IN (107, 115) AND CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
 ];
 
 export const VOUCHER_CONVERGENT_CARTE_GENERATION: ChannelDef[] = [
   {
     name: "TBT_Carte_Convergante_Batch_Generation",
-    condition: "CAST(BRAND_D AS INT) = 166",
+    condition: "TRY_CAST(BRAND_D AS INT) = 166",
   },
 ];
 
 export const VOUCHER_CONVERGENT_CARTE_ACTIVATION: ChannelDef[] = [
   {
     name: "Activation des cartes de recharge convergente",
-    condition: "CAST(BRAND_D AS INT) = 163",
+    condition: "TRY_CAST(BRAND_D AS INT) = 163",
   },
   {
     name: "Annulation de l'activation des cartes de recharge",
-    condition: "CAST(BRAND_D AS INT) = 167",
+    condition: "TRY_CAST(BRAND_D AS INT) = 167",
   },
 ];
 
@@ -539,22 +530,22 @@ export const REPORT_SECTIONS: ReportSection[] = [
   },
   {
     id: "voucher-convergent-carte-generation",
-    title: "VI. Voucher Convergent — Carte & Ticket — Génération",
+    title: "VI. Voucher Convergent — Génération",
     channels: VOUCHER_CONVERGENT_CARTE_GENERATION,
   },
   {
     id: "voucher-convergent-carte-activation",
-    title: "VI. Voucher Convergent — Carte & Ticket — Activation",
+    title: "VI. Voucher Convergent — Activation",
     channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION,
   },
 ];
 
 // ─── Query builders ───────────────────────────────────────────────────────────
 
-const successFilter = `TRIM(TRANSACTION_STATUS) IN (${SUCCESS_STATUSES.map((s) => `'${s}'`).join(",")})`;
-const instanceFilter = `TRIM(TRANSACTION_STATUS) IN (${INSTANCE_STATUSES.map((s) => `'${s}'`).join(",")})`;
-const refundFilter = `TRIM(TRANSACTION_STATUS) IN (${REFUND_STATUSES.map((s) => `'${s}'`).join(",")})`;
-const declinedFilter = `TRIM(TRANSACTION_STATUS) IN (${DECLINED_STATUSES.map((s) => `'${s}'`).join(",")})`;
+const successFilter = `TRIM(TRANSACTION_STATUS) IN (${sqlStatusInList(SUCCESS_STATUSES)})`;
+const instanceFilter = `TRIM(TRANSACTION_STATUS) IN (${sqlStatusInList(INSTANCE_STATUSES)})`;
+const refundFilter = `TRIM(TRANSACTION_STATUS) IN (${sqlStatusInList(REFUND_STATUSES)})`;
+const declinedFilter = `TRIM(TRANSACTION_STATUS) IN (${sqlStatusInList(DECLINED_STATUSES)})`;
 
 export interface StatusSummary {
   reussie: number;

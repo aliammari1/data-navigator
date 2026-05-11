@@ -23,11 +23,9 @@ import {
 } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
-import { groupErrorsSemantically, type SemanticErrorGroup } from "@/lib/nlp";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { AnimCounter } from "./anim-counter";
 import { CanalHeatmap } from "./canal-heatmap";
-import { ErrorFreqChart } from "./error-freq-chart";
 import { HourlyChart } from "./hourly-chart";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
@@ -61,7 +59,7 @@ const REVENUE_GROUPS: Record<
     keys: ["credit_transfer"],
     color: "#fab387",
   },
-  "Voucher For Recharge": {
+  "Voucher Convergent": {
     keys: ["voucher_convergent"],
     color: "#cba6f7",
   },
@@ -70,12 +68,10 @@ const REVENUE_GROUPS: Record<
 // ─── AnalysisTab ──────────────────────────────────────────────────────────────
 
 export function AnalysisTab({
-  errors,
   operators: operatorsProp,
   regions: regionsProp,
   hourly,
   kpi,
-  canals,
   m,
   fetchOperators,
   fetchRegions,
@@ -84,12 +80,10 @@ export function AnalysisTab({
   fetchRegionsForGroup,
   fetchCanalHourlyMatrix,
 }: {
-  errors: Types.ErrorRow[];
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
   hourly: Types.HourlyRow[];
   kpi: Types.KPISummary;
-  canals: Types.CanalSummary[];
   m: Types.ColumnMapping;
   fetchOperators: (m: Types.ColumnMapping) => Promise<Types.OperatorRow[]>;
   fetchRegions: (m: Types.ColumnMapping) => Promise<Types.RegionRow[]>;
@@ -120,21 +114,6 @@ export function AnalysisTab({
     loading: regsLoading,
     ref: regsRef,
   } = useLazyQuery(() => fetchRegions(m), [m]);
-
-  const [semanticGroups, setSemanticGroups] = useState<SemanticErrorGroup[]>(
-    [],
-  );
-  const [nlpLoading, setNlpLoading] = useState(false);
-  const [nlpProgress, setNlpProgress] = useState(0);
-  const nlpRan = useRef(false);
-  useEffect(() => {
-    if (errors.length === 0 || nlpRan.current) return;
-    nlpRan.current = true;
-    setNlpLoading(true);
-    groupErrorsSemantically(errors, (f) => setNlpProgress(f))
-      .then(setSemanticGroups)
-      .finally(() => setNlpLoading(false));
-  }, [errors]);
 
   // Use prop data if available (background task finished), otherwise use lazy result
   const _operators =
@@ -274,130 +253,6 @@ export function AnalysisTab({
         </div>
         <HourlyChart data={hourly} />
       </Section>
-
-      {/* Error analysis */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <Section
-          title="Fréquence des Codes d'Erreur"
-          icon={<AlertCircle className="w-4 h-4" />}
-          badge={`${errors.length} codes`}
-        >
-          {errors.length > 0 ? (
-            <ErrorFreqChart errors={errors} />
-          ) : (
-            <div className="py-10 text-center text-xs text-muted-foreground">
-              Aucune donnée d&apos;erreur · toutes les transactions ont
-              peut-être réussi.
-            </div>
-          )}
-        </Section>
-        <Section
-          title="Détails des Codes d'Erreur"
-          icon={<XCircle className="w-4 h-4" />}
-        >
-          <div className="overflow-x-auto rounded-xl border border-border">
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="bg-muted/50 border-b border-border">
-                  {["Code", "Description", "Nombre", "Canal"].map((h) => (
-                    <th
-                      key={h}
-                      className="px-3 py-2 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
-                    >
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {errors.slice(0, 12).map((e) => (
-                  <tr
-                    key={e.error_code}
-                    className="border-b border-border hover:bg-muted/40 transition-colors"
-                  >
-                    <td className="px-3 py-2">
-                      <span className="px-1.5 py-0.5 rounded bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300 font-mono text-[10px]">
-                        {e.error_code}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground max-w-52 truncate">
-                      {e.error_message || "—"}
-                    </td>
-                    <td className="px-3 py-2 text-foreground font-semibold tabular-nums">
-                      {fmtN(e.count)}
-                    </td>
-                    <td className="px-3 py-2 text-muted-foreground text-[11px]">
-                      {e.canal}
-                    </td>
-                  </tr>
-                ))}
-                {errors.length === 0 && (
-                  <tr>
-                    <td
-                      colSpan={4}
-                      className="py-6 text-center text-muted-foreground text-xs"
-                    >
-                      No errors recorded.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </Section>
-
-        {/* F20 — HuggingFace NLP: semantic error categories */}
-        <Section
-          title="Catégories d'erreurs sémantiques"
-          icon={<Brain className="w-4 h-4" />}
-          badge={
-            <span className="px-1.5 py-0.5 rounded text-[9px] font-semibold bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-500/15 dark:text-violet-400 dark:border-violet-500/20 uppercase tracking-wide">
-              IA locale
-            </span>
-          }
-        >
-          {nlpLoading ? (
-            <div className="flex items-center gap-3 py-4 text-xs text-muted-foreground">
-              <Loader2 className="w-4 h-4 animate-spin flex-none" />
-              <span>
-                Classification sémantique… {Math.round(nlpProgress * 100)}%
-              </span>
-              <div className="flex-1 h-1 rounded-full bg-muted overflow-hidden">
-                <div
-                  className="h-full bg-violet-500 transition-all duration-300"
-                  style={{ width: `${nlpProgress * 100}%` }}
-                />
-              </div>
-            </div>
-          ) : semanticGroups.length === 0 ? (
-            <p className="py-4 text-center text-xs text-muted-foreground">
-              {errors.length === 0
-                ? "Aucune erreur."
-                : "Classification en attente…"}
-            </p>
-          ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {semanticGroups.map((g) => (
-                <div
-                  key={g.category}
-                  className="rounded-xl border border-border bg-card p-3 space-y-1"
-                >
-                  <div className="text-[11px] font-semibold text-foreground truncate">
-                    {g.label}
-                  </div>
-                  <div className="text-lg font-bold tabular-nums text-violet-600 dark:text-violet-400">
-                    {fmtN(g.count)}
-                  </div>
-                  <div className="text-[10px] text-muted-foreground truncate">
-                    {g.codes.slice(0, 3).join(", ")}
-                    {g.codes.length > 3 && ` +${g.codes.length - 3}`}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Section>
-      </div>
 
       {/* Unified Top 50 — source / destination / regions */}
       <div ref={opsRef}>

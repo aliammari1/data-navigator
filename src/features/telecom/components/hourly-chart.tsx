@@ -3,7 +3,7 @@
 import ReactECharts from "echarts-for-react";
 import type * as Types from "@/features/telecom/types";
 import { buildHourlyChartOption } from "@/features/telecom/lib/chart-options";
-import type { ForecastPoint } from "@/lib/forecast-onnx";
+import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 
 export function HourlyChart({
   data,

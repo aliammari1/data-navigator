@@ -1,13 +1,19 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { ChevronDown, Clock, Loader2, Users, X } from "lucide-react";
 import ReactECharts from "echarts-for-react";
-import { cn } from "@/lib/utils";
-import { fmtAmount, fmtN, fmtPct, safeNum } from "@/features/telecom/lib/format";
+import { ChevronDown, Clock, Loader2, Users, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useEffect, useState } from "react";
 import { buildCustomerHourlyOption } from "@/features/telecom/lib/chart-options";
+import {
+  fmtAmount,
+  fmtN,
+  fmtPct,
+  safeNum,
+} from "@/features/telecom/lib/format";
+import { BUILTIN_STATUS_CODES } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
+import { cn } from "@/shared/utils";
 
 export function CustomerProfilePanel({
   msisdn,
@@ -18,9 +24,14 @@ export function CustomerProfilePanel({
   msisdn: string;
   m: Types.ColumnMapping;
   onClose: () => void;
-  fetchCustomerProfile: (m: Types.ColumnMapping, msisdn: string) => Promise<Types.CustomerProfileData | null>;
+  fetchCustomerProfile: (
+    m: Types.ColumnMapping,
+    msisdn: string,
+  ) => Promise<Types.CustomerProfileData | null>;
 }) {
-  const [profile, setProfile] = useState<Types.CustomerProfileData | null>(null);
+  const [profile, setProfile] = useState<Types.CustomerProfileData | null>(
+    null,
+  );
   const [loading, setLoading] = useState(true);
   const [txPage, setTxPage] = useState(0);
   const TX_PAGE = 10;
@@ -242,7 +253,10 @@ export function CustomerProfilePanel({
                       <Clock className="w-3 h-3" /> Activité horaire
                     </div>
                     <ReactECharts
-                      option={buildCustomerHourlyOption(profile.hourly, profile.peakHour)}
+                      option={buildCustomerHourlyOption(
+                        profile.hourly,
+                        profile.peakHour,
+                      )}
                       style={{ height: "100px" }}
                       opts={{ renderer: "canvas" }}
                     />
@@ -294,14 +308,10 @@ export function CustomerProfilePanel({
                       <tbody>
                         {pageTx.map((row) => {
                           const st = String(row[m.status] ?? "");
-                          const isSuccess = [
-                            "PST",
-                            "PST1",
-                            "PST2",
-                            "PST7",
-                            "PST8",
-                            "PST9",
-                          ].includes(st.toUpperCase().trim());
+                          const isSuccess =
+                            BUILTIN_STATUS_CODES.success.includes(
+                              st.toUpperCase().trim(),
+                            );
                           const isDeclined =
                             st.toUpperCase().startsWith("DC") ||
                             st.toUpperCase().startsWith("SDL");

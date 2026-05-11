@@ -1,8 +1,8 @@
-import { motion } from "motion/react"
-import { BadList } from "@/components/bad-list"
-import { BadTabs } from "@/components/bad-tabs"
-import { BadPassive } from "@/components/bad-passive"
-import { BadFactory } from "@/components/bad-factory"
+import { motion } from "motion/react";
+import { BadList } from "@/components/bad-list";
+import { BadTabs } from "@/components/bad-tabs";
+import { BadPassive } from "@/components/bad-passive";
+import { BadFactory } from "@/components/bad-factory";
 
 export default function Page() {
   return (
@@ -18,5 +18,5 @@ export default function Page() {
       <BadPassive />
       <BadFactory />
     </main>
-  )
+  );
 }

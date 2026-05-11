@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /** Level-3 collapsible — type / method */
 export function CL3({

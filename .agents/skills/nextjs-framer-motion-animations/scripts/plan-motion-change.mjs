@@ -62,7 +62,9 @@ function runJson(scriptPath, args) {
   try {
     return JSON.parse(result.stdout);
   } catch (error) {
-    throw new Error(`Could not parse JSON from ${scriptPath}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(
+      `Could not parse JSON from ${scriptPath}: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
 
@@ -73,20 +75,164 @@ function hasAny(text, patterns) {
 function inferTaskIntents(task) {
   const value = task.toLowerCase();
   const checks = [
-    { intent: "migration", patterns: [/\bmigrat(e|ion|ing)\b/, /\bswitch\b.*\bframer[- ]motion\b/, /\bswap imports\b/] },
-    { intent: "route-transition", patterns: [/\broute transitions?\b/, /\bpage transitions?\b/, /\broute-content transition\b/, /\bbetween routes\b/, /\bbetween pages\b/, /\btransition\b.*\bbetween\b.*\bpages?\b/, /\bnavigation\b/, /\bpathname\b/] },
-    { intent: "presence", patterns: [/\bmodal\b/, /\bdrawer\b/, /\bdialog\b/, /\bdropdown\b/, /\bpopover\b/, /\btoast\b/, /\bexit animations?\b/, /\bopen(?:\/| )close\b/] },
-    { intent: "shared-layout", patterns: [/\bshared element\b/, /\bshared layout\b/, /\blayoutid\b/, /\btab underline\b/, /\bunderline\b/, /\bselected pill\b/] },
-    { intent: "layout", patterns: [/\baccordion\b/, /\bexpand\b/, /\bcollapse\b/, /\blayout animation\b/, /\breflow\b/] },
-    { intent: "reorder", patterns: [/\breorder\b/, /\bsortable\b/, /\bdrag to reorder\b/, /\bdrag-and-drop\b/, /\bdrag and drop\b/] },
-    { intent: "scroll-linked", patterns: [/\bparallax\b/, /\bscroll-linked\b/, /\bscroll linked\b/, /\bscroll progress\b/, /\bprogress bar\b/] },
-    { intent: "scroll-reveal", patterns: [/\bon scroll\b/, /\bin view\b/, /\binto view\b/, /\bwhileinview\b/, /\bviewport\b/, /\bscroll reveal\b/] },
-    { intent: "design-system", patterns: [/\bdesign system\b/, /\bdesign-system\b/, /\bforwardref\b/, /\bforward ref\b/, /\bwrapper div\b/, /\bwrapper element\b/, /\bmotion\.create\b/] },
-    { intent: "microinteraction", patterns: [/\bhover\b/, /\btap\b/, /\bfocus\b/, /\bbutton\b/, /\blink\b/, /\bcard\b/, /\bfeel better\b/, /\bsnappier\b/, /\bmicro-?interaction\b/, /\bcta\b/] },
-    { intent: "mount-reveal", patterns: [/\bfirst render\b/, /\bon load\b/, /\bmount\b/, /\bfade in\b/, /\bfade-in\b/, /\breveal\b/, /\bentrance\b/] },
-    { intent: "performance", patterns: [/\bbundle\b/, /\bjank\b/, /\bperformance\b/, /\bperf\b/, /\blazymotion\b/, /\bdomanimation\b/, /\bdommax\b/] },
-    { intent: "debugging", patterns: [/\bbroken\b/, /\bnot working\b/, /\bbug\b/, /\bdebug\b/, /\bhydration\b/, /\bmismatch\b/, /\bwhy\b.*\bexit\b/, /\bfix\b/] },
-    { intent: "accessibility", patterns: [/\breduced motion\b/, /\baccessibility\b/, /\bprefers-reduced-motion\b/] },
+    {
+      intent: "migration",
+      patterns: [
+        /\bmigrat(e|ion|ing)\b/,
+        /\bswitch\b.*\bframer[- ]motion\b/,
+        /\bswap imports\b/,
+      ],
+    },
+    {
+      intent: "route-transition",
+      patterns: [
+        /\broute transitions?\b/,
+        /\bpage transitions?\b/,
+        /\broute-content transition\b/,
+        /\bbetween routes\b/,
+        /\bbetween pages\b/,
+        /\btransition\b.*\bbetween\b.*\bpages?\b/,
+        /\bnavigation\b/,
+        /\bpathname\b/,
+      ],
+    },
+    {
+      intent: "presence",
+      patterns: [
+        /\bmodal\b/,
+        /\bdrawer\b/,
+        /\bdialog\b/,
+        /\bdropdown\b/,
+        /\bpopover\b/,
+        /\btoast\b/,
+        /\bexit animations?\b/,
+        /\bopen(?:\/| )close\b/,
+      ],
+    },
+    {
+      intent: "shared-layout",
+      patterns: [
+        /\bshared element\b/,
+        /\bshared layout\b/,
+        /\blayoutid\b/,
+        /\btab underline\b/,
+        /\bunderline\b/,
+        /\bselected pill\b/,
+      ],
+    },
+    {
+      intent: "layout",
+      patterns: [
+        /\baccordion\b/,
+        /\bexpand\b/,
+        /\bcollapse\b/,
+        /\blayout animation\b/,
+        /\breflow\b/,
+      ],
+    },
+    {
+      intent: "reorder",
+      patterns: [
+        /\breorder\b/,
+        /\bsortable\b/,
+        /\bdrag to reorder\b/,
+        /\bdrag-and-drop\b/,
+        /\bdrag and drop\b/,
+      ],
+    },
+    {
+      intent: "scroll-linked",
+      patterns: [
+        /\bparallax\b/,
+        /\bscroll-linked\b/,
+        /\bscroll linked\b/,
+        /\bscroll progress\b/,
+        /\bprogress bar\b/,
+      ],
+    },
+    {
+      intent: "scroll-reveal",
+      patterns: [
+        /\bon scroll\b/,
+        /\bin view\b/,
+        /\binto view\b/,
+        /\bwhileinview\b/,
+        /\bviewport\b/,
+        /\bscroll reveal\b/,
+      ],
+    },
+    {
+      intent: "design-system",
+      patterns: [
+        /\bdesign system\b/,
+        /\bdesign-system\b/,
+        /\bforwardref\b/,
+        /\bforward ref\b/,
+        /\bwrapper div\b/,
+        /\bwrapper element\b/,
+        /\bmotion\.create\b/,
+      ],
+    },
+    {
+      intent: "microinteraction",
+      patterns: [
+        /\bhover\b/,
+        /\btap\b/,
+        /\bfocus\b/,
+        /\bbutton\b/,
+        /\blink\b/,
+        /\bcard\b/,
+        /\bfeel better\b/,
+        /\bsnappier\b/,
+        /\bmicro-?interaction\b/,
+        /\bcta\b/,
+      ],
+    },
+    {
+      intent: "mount-reveal",
+      patterns: [
+        /\bfirst render\b/,
+        /\bon load\b/,
+        /\bmount\b/,
+        /\bfade in\b/,
+        /\bfade-in\b/,
+        /\breveal\b/,
+        /\bentrance\b/,
+      ],
+    },
+    {
+      intent: "performance",
+      patterns: [
+        /\bbundle\b/,
+        /\bjank\b/,
+        /\bperformance\b/,
+        /\bperf\b/,
+        /\blazymotion\b/,
+        /\bdomanimation\b/,
+        /\bdommax\b/,
+      ],
+    },
+    {
+      intent: "debugging",
+      patterns: [
+        /\bbroken\b/,
+        /\bnot working\b/,
+        /\bbug\b/,
+        /\bdebug\b/,
+        /\bhydration\b/,
+        /\bmismatch\b/,
+        /\bwhy\b.*\bexit\b/,
+        /\bfix\b/,
+      ],
+    },
+    {
+      intent: "accessibility",
+      patterns: [
+        /\breduced motion\b/,
+        /\baccessibility\b/,
+        /\bprefers-reduced-motion\b/,
+      ],
+    },
   ];
 
   const intents = checks
@@ -100,7 +246,12 @@ function inferTaskIntents(task) {
 function choosePackageStrategy(audit, intents) {
   const deps = audit.dependencies || {};
   const imports = audit.importStyleSummary || {};
-  const hasMotion = Boolean(deps.motion || imports["motion/react"] || imports["motion/react-client"] || imports["motion/react-m"]);
+  const hasMotion = Boolean(
+    deps.motion ||
+      imports["motion/react"] ||
+      imports["motion/react-client"] ||
+      imports["motion/react-m"],
+  );
   const hasFramer = Boolean(deps["framer-motion"] || imports["framer-motion"]);
 
   if (intents.includes("migration")) return "explicit-migration";
@@ -123,7 +274,9 @@ function fallbackPatternFromTarget(target) {
 function choosePattern(intents, target, audit) {
   if (intents.includes("migration")) return "migration";
   if (intents.includes("route-transition")) {
-    return audit.router === "pages-router" ? "pages-router-route-transition" : "route-transition-shell";
+    return audit.router === "pages-router"
+      ? "pages-router-route-transition"
+      : "route-transition-shell";
   }
   if (intents.includes("presence")) return "presence";
   if (intents.includes("shared-layout")) return "shared-layout";
@@ -138,20 +291,24 @@ function choosePattern(intents, target, audit) {
 }
 
 function chooseBoundary(pattern, target, audit, packageStrategy) {
-  if (pattern === "route-transition-shell") return "persistent-route-shell-under-layout";
-  if (pattern === "pages-router-route-transition") return "pages-app-presence-wrapper";
+  if (pattern === "route-transition-shell")
+    return "persistent-route-shell-under-layout";
+  if (pattern === "pages-router-route-transition")
+    return "pages-app-presence-wrapper";
   if (pattern === "migration") return "explicit-migration-scope";
   if (target.clientComponent) return "already-client";
 
   if (audit.router === "app-router") {
-    if ([
-      "presence",
-      "shared-layout",
-      "layout",
-      "reorder",
-      "scroll-linked",
-      "design-system-motion-create",
-    ].includes(pattern)) {
+    if (
+      [
+        "presence",
+        "shared-layout",
+        "layout",
+        "reorder",
+        "scroll-linked",
+        "design-system-motion-create",
+      ].includes(pattern)
+    ) {
       return "small-client-leaf";
     }
 
@@ -172,9 +329,11 @@ function chooseBoundary(pattern, target, audit, packageStrategy) {
 
 function chooseImportPath(packageStrategy, boundary) {
   if (packageStrategy === "keep-framer-motion") return "framer-motion";
-  if (packageStrategy === "mixed-repo-preserve-scope") return "inherit-from-edited-scope";
+  if (packageStrategy === "mixed-repo-preserve-scope")
+    return "inherit-from-edited-scope";
   if (packageStrategy === "explicit-migration") return "motion/react";
-  if (boundary === "server-friendly-motion-react-client-candidate") return "motion/react-client";
+  if (boundary === "server-friendly-motion-react-client-candidate")
+    return "motion/react-client";
   return "motion/react";
 }
 
@@ -182,16 +341,22 @@ function chooseReducedMotionPlan(pattern) {
   if (pattern === "scroll-linked") {
     return "Disable parallax-style travel for reduced-motion users and fall back to static or opacity-only state.";
   }
-  if (pattern === "route-transition-shell" || pattern === "pages-router-route-transition") {
+  if (
+    pattern === "route-transition-shell" ||
+    pattern === "pages-router-route-transition"
+  ) {
     return "Keep route transitions to opacity plus very small travel, or disable travel entirely for reduced-motion users.";
   }
-  if (pattern === "microinteraction" || pattern === "design-system-motion-create") {
+  if (
+    pattern === "microinteraction" ||
+    pattern === "design-system-motion-create"
+  ) {
     return "Retain feedback for reduced-motion users, but prefer opacity or colour changes over noticeable movement.";
   }
   if (pattern === "shared-layout") {
     return "Keep state indication clear even when movement is reduced; the active indicator can fade rather than travel dramatically.";
   }
-  return "Use MotionConfig reducedMotion=\"user\" or useReducedMotion(), and switch large travel to opacity-only where appropriate.";
+  return 'Use MotionConfig reducedMotion="user" or useReducedMotion(), and switch large travel to opacity-only where appropriate.';
 }
 
 function choosePerformancePlan(pattern, boundary) {
@@ -272,7 +437,7 @@ function chooseFirstSteps(pattern, target, audit, importPath) {
     case "layout":
       return [
         `Edit ${target.path} and start with layout before manual size choreography.`,
-        "If content distorts, add layout to affected children or try layout=\"position\".",
+        'If content distorts, add layout to affected children or try layout="position".',
         "Use a spring for stateful layout movement rather than stacking reveal effects on top.",
       ];
     case "migration":
@@ -302,7 +467,9 @@ function chooseValidation(pattern, boundary) {
     checks.push("The root App Router layout remains server-side");
   }
   if (boundary === "pages-app-presence-wrapper") {
-    checks.push("pages/_app.tsx keys routed children by a value that actually changes");
+    checks.push(
+      "pages/_app.tsx keys routed children by a value that actually changes",
+    );
   }
   if (pattern === "presence") {
     checks.push("Exit animations use direct children and stable keys");
@@ -357,11 +524,27 @@ function main() {
   const taskIntents = inferTaskIntents(task);
   const packageStrategy = choosePackageStrategy(audit, taskIntents);
   const recommendedPattern = choosePattern(taskIntents, inspect, audit);
-  const recommendedBoundary = chooseBoundary(recommendedPattern, inspect, audit, packageStrategy);
-  const recommendedImportPath = chooseImportPath(packageStrategy, recommendedBoundary);
+  const recommendedBoundary = chooseBoundary(
+    recommendedPattern,
+    inspect,
+    audit,
+    packageStrategy,
+  );
+  const recommendedImportPath = chooseImportPath(
+    packageStrategy,
+    recommendedBoundary,
+  );
   const reducedMotionPlan = chooseReducedMotionPlan(recommendedPattern);
-  const performancePlan = choosePerformancePlan(recommendedPattern, recommendedBoundary);
-  const firstSteps = chooseFirstSteps(recommendedPattern, inspect, audit, recommendedImportPath);
+  const performancePlan = choosePerformancePlan(
+    recommendedPattern,
+    recommendedBoundary,
+  );
+  const firstSteps = chooseFirstSteps(
+    recommendedPattern,
+    inspect,
+    audit,
+    recommendedImportPath,
+  );
   const validation = chooseValidation(recommendedPattern, recommendedBoundary);
   const warnings = [...(audit.warnings || []), ...(inspect.warnings || [])];
 
@@ -385,7 +568,11 @@ function main() {
       recommendedPattern,
       reducedMotionPlan,
       performancePlan,
-      likelyFilesToChange: likelyFilesToChange(recommendedPattern, inspect, audit),
+      likelyFilesToChange: likelyFilesToChange(
+        recommendedPattern,
+        inspect,
+        audit,
+      ),
       firstSteps,
       validation,
     },
@@ -398,7 +585,9 @@ function main() {
 try {
   main();
 } catch (error) {
-  process.stderr.write(`Error: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `Error: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.stderr.write(`${HELP}\n`);
   process.exit(1);
 }

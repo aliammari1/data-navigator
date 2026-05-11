@@ -2,42 +2,16 @@
 /* eslint-disable no-restricted-globals */
 
 /**
- * F25 — SharedWorker: One DuckDB Instance for All Tabs
+ * DuckDB Worker — Electron / local-filesystem edition.
  *
- * A single DuckDB WASM instance is shared across all currently open tabs.
- * The database is opened against an OPFS-backed file so data survives
- * tab closes and page reloads (as long as the origin's OPFS quota is intact).
+ * Runs DuckDB WASM in-memory. Persistence is handled at the caller level:
+ * the renderer exports Parquet bytes from this worker and writes them to the
+ * local filesystem via Electron IPC. On startup the caller reads the file and
+ * passes the bytes back here to restore tables.
  *
- * Guarantees:
- * - Tab A loads a file → Tab B can query it immediately (SharedWorker alive).
- * - Data survives page reload (OPFS primary persistence).
- * - Data survives closing all tabs and reopening (OPFS).
- * - All DuckDB operations are serialized through one connection.
- *
- * Non-guarantees:
- * - Data does not survive clearing site data / DevTools "Clear storage".
- * - OPFS availability varies: Chromium 86+, Firefox 111+, Safari 15.2+.
- *   On unsupported browsers the worker falls back to in-memory mode
- *   and logs a warning — queries still work, but data is not persisted.
- *
- * Build note:
- * Next.js does not automatically bundle SharedWorker entry files.
- * Compile separately:
- *
- *   bun build src/workers/duckdb-shared.worker.ts \
- *     --outfile public/workers/duckdb-shared.worker.js \
- *     --target browser --bundle
+ * All DuckDB operations are serialized through a single connection to prevent
+ * concurrent-query races when multiple components issue queries in parallel.
  */
-
-// ─── OPFS database path ───────────────────────────────────────────────────────
-
-import { DUCKDB_OPFS_PATH } from "@/lib/storage-constants";
-
-/**
- * Primary OPFS database file — sourced from the central storage-constants module
- * so this path stays consistent across worker and client code.
- */
-const OPFS_DB_PATH = DUCKDB_OPFS_PATH;
 
 // ─── Singleton state ──────────────────────────────────────────────────────────
 
@@ -46,17 +20,6 @@ let conn: import("@duckdb/duckdb-wasm").AsyncDuckDBConnection | null = null;
 let duckdbWorker: Worker | null = null;
 let initPromise: Promise<void> | null = null;
 
-/**
- * Whether the database was successfully opened against OPFS.
- * False if the browser does not support OPFS or if the open failed —
- * in that case the database operates in-memory.
- */
-let opfsPersistenceActive = false;
-
-/**
- * Serializes all DuckDB operations through the single shared connection.
- * Prevents concurrent queries/loads from multiple tabs from racing.
- */
 let operationQueue: Promise<unknown> = Promise.resolve();
 
 function enqueue<T>(operation: () => Promise<T>): Promise<T> {
@@ -108,23 +71,6 @@ async function dropRegisteredFile(fileName: string): Promise<void> {
   }
 }
 
-// ─── OPFS availability check ──────────────────────────────────────────────────
-
-function opfsAvailable(): boolean {
-  try {
-    return (
-      typeof globalThis !== "undefined" &&
-      "navigator" in globalThis &&
-      "storage" in
-        (globalThis as unknown as { navigator: Navigator }).navigator &&
-      typeof (globalThis as unknown as { navigator: Navigator }).navigator
-        .storage.getDirectory === "function"
-    );
-  } catch {
-    return false;
-  }
-}
-
 // ─── DuckDB singleton init ────────────────────────────────────────────────────
 
 async function ensureInit(): Promise<void> {
@@ -150,33 +96,9 @@ async function ensureInit(): Promise<void> {
         URL.revokeObjectURL(workerUrl);
       }
 
-      // ── OPFS primary persistence ───────────────────────────────────────────
-      // Open the database against an OPFS-backed file so all tables survive
-      // page reloads and tab closes. Falls back to in-memory if OPFS is absent.
-      if (opfsAvailable()) {
-        try {
-          await db.open({
-            path: OPFS_DB_PATH,
-            accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
-            opfs: { fileHandling: "auto" },
-          });
-          opfsPersistenceActive = true;
-          console.info("[duckdb-worker] OPFS persistence active:", OPFS_DB_PATH);
-        } catch (opfsErr) {
-          // OPFS open failed (e.g. quota, permission, unsupported browser).
-          // Fall through to in-memory mode — queries still work.
-          console.warn(
-            "[duckdb-worker] OPFS open failed, falling back to in-memory mode:",
-            opfsErr,
-          );
-          opfsPersistenceActive = false;
-        }
-      } else {
-        console.warn(
-          "[duckdb-worker] OPFS not available in this browser — operating in in-memory mode.",
-        );
-        opfsPersistenceActive = false;
-      }
+      // In-memory mode — no OPFS. Persistence is managed by the caller via
+      // exportTableToParquet / loadTableFromParquet using local filesystem IPC.
+      await db.open({ path: ":memory:" });
 
       conn = await db.connect();
     } catch (error) {
@@ -184,7 +106,6 @@ async function ensureInit(): Promise<void> {
       conn = null;
       duckdbWorker = null;
       initPromise = null;
-      opfsPersistenceActive = false;
       throw error;
     }
   })();
@@ -224,6 +145,7 @@ async function loadCSVInternal(
   buffer: Uint8Array,
   delimiter: string,
   append = false,
+  hasHeader = true,
 ): Promise<void> {
   await ensureInit();
   if (!db || !conn) throw new Error("DuckDB not initialized");
@@ -237,7 +159,7 @@ async function loadCSVInternal(
     const readExpr = `
       read_csv_auto(
         ${quoteSqlString(fileName)},
-        header = true,
+        header = ${hasHeader ? "true" : "false"},
         delim = ${quoteSqlString(delimiter)},
         quote = '"',
         escape = '"',
@@ -261,39 +183,18 @@ async function loadCSVInternal(
   }
 }
 
-/**
- * Load a CSV from a File object using DuckDB's BROWSER_FILEREADER protocol.
- *
- * File is structured-cloneable (extends Blob) so it survives postMessage from
- * the main thread to this SharedWorker. DuckDB's internal worker then reads
- * the file in chunks via Blob.slice().arrayBuffer() — no full copy in WASM heap.
- *
- * This is the preferred path for user-uploaded files: it preserves the original
- * streaming behaviour and avoids materialising the entire file as an ArrayBuffer
- * in the calling context before sending it here.
- *
- * Protocol notes (verified from duckdb-browser.cjs source):
- *   AsyncDuckDB.registerFileHandle(name, file, BROWSER_FILEREADER, true)
- *   → postTask(["REGISTER_FILE_HANDLE", [name, file, proto, directIO]], [])
- *   → DuckDB internal worker stores the File handle
- *   → read_csv_auto calls file.slice(offset, end).arrayBuffer() in chunks
- *
- * Empty transfer list [] means the File is structured-cloned (not transferred),
- * which is correct — File is not Transferable.
- */
 async function loadCSVFileInternal(
   tableName: string,
   file: File,
   delimiter: string,
   append = false,
+  hasHeader = true,
 ): Promise<void> {
   await ensureInit();
   if (!db || !conn) throw new Error("DuckDB not initialized");
 
   validateDelimiter(delimiter);
 
-  // Use the original filename as the virtual handle name so DuckDB's
-  // type-inference heuristics see the real extension (.csv / .tsv).
   const suffix = `_${Date.now()}`;
   const fileName = `${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}${suffix}`;
 
@@ -302,14 +203,14 @@ async function loadCSVFileInternal(
     fileName,
     file,
     duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
-    true, // directIO
+    true,
   );
 
   try {
     const readExpr = `
       read_csv_auto(
         ${quoteSqlString(fileName)},
-        header = true,
+        header = ${hasHeader ? "true" : "false"},
         delim = ${quoteSqlString(delimiter)},
         quote = '"',
         escape = '"',
@@ -347,6 +248,37 @@ async function loadJSONInternal(
     await conn.query(
       `CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
        SELECT * FROM read_json_auto(${quoteSqlString(fileName)})`,
+    );
+  } finally {
+    await dropRegisteredFile(fileName);
+  }
+}
+
+async function loadJSONFileInternal(
+  tableName: string,
+  file: File,
+): Promise<void> {
+  await ensureInit();
+  if (!db || !conn) throw new Error("DuckDB not initialized");
+
+  const suffix = `_${Date.now()}`;
+  const fileName = `${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}${suffix}`;
+
+  const duckdb = await import("@duckdb/duckdb-wasm");
+  await db.registerFileHandle(
+    fileName,
+    file,
+    duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+    true,
+  );
+
+  try {
+    await conn.query(
+      `CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+       SELECT * FROM read_json_auto(
+         ${quoteSqlString(fileName)},
+         ignore_errors = true
+       )`,
     );
   } finally {
     await dropRegisteredFile(fileName);
@@ -472,43 +404,64 @@ async function getColumnStatsInternal(
 }
 
 /**
- * Export a table to a Parquet snapshot in OPFS.
- * This is an optional snapshot/export operation — not the primary
- * persistence path (which is the OPFS-backed .duckdb file itself).
- * Useful for sharing a snapshot or for external tooling.
+ * Export a table to Parquet and return the raw bytes.
+ * The caller (renderer) is responsible for writing them to the local filesystem
+ * via Electron IPC.
  */
-async function exportTableToParquetInternal(tableName: string): Promise<void> {
+async function exportTableToParquetInternal(
+  tableName: string,
+): Promise<ArrayBuffer> {
   await ensureInit();
-  if (!conn) throw new Error("DuckDB connection not initialized");
+  if (!db || !conn) throw new Error("DuckDB not initialized");
 
   const check = await conn.query(
     `SELECT 1 FROM information_schema.tables
      WHERE table_name = ${quoteSqlString(tableName)} LIMIT 1`,
   );
-  if (check.numRows === 0) return;
+  if (check.numRows === 0)
+    throw new Error(`Table "${tableName}" does not exist`);
 
+  const fileName = `${tableName}_${Date.now()}.parquet`;
   await conn.query(
-    `COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(`${tableName}.parquet`)} (FORMAT PARQUET, COMPRESSION ZSTD)`,
+    `COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(fileName)} (FORMAT PARQUET, COMPRESSION ZSTD)`,
   );
-}
-
-async function loadTableFromParquetInternal(
-  tableName: string,
-): Promise<boolean> {
-  await ensureInit();
-  if (!conn) throw new Error("DuckDB connection not initialized");
 
   try {
-    // Check the Parquet file exists in OPFS before querying it.
-    const nav = (globalThis as unknown as { navigator: Navigator }).navigator;
-    const root = await nav.storage.getDirectory();
-    await root.getFileHandle(`${tableName}.parquet`, { create: false });
+    const bytes = await db.copyFileToBuffer(fileName);
+    // Detach the underlying ArrayBuffer for zero-copy transfer via postMessage.
+    return bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    ) as ArrayBuffer;
+  } finally {
+    await dropRegisteredFile(fileName);
+  }
+}
 
-    await conn.query(
-      `CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
-       SELECT * FROM read_parquet(${quoteSqlString(`${tableName}.parquet`)})`,
-    );
-    return true;
+/**
+ * Load a table from Parquet bytes supplied by the caller.
+ * The caller reads the bytes from the local filesystem via Electron IPC and
+ * passes them here.
+ */
+async function loadTableFromParquetInternal(
+  tableName: string,
+  buffer: ArrayBuffer,
+): Promise<boolean> {
+  await ensureInit();
+  if (!db || !conn) throw new Error("DuckDB not initialized");
+
+  try {
+    const fileName = `${tableName}_restore_${Date.now()}.parquet`;
+    await db.registerFileBuffer(fileName, new Uint8Array(buffer));
+    try {
+      await conn.query(
+        `CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+         SELECT * FROM read_parquet(${quoteSqlString(fileName)})`,
+      );
+      return true;
+    } finally {
+      await dropRegisteredFile(fileName);
+    }
   } catch {
     return false;
   }
@@ -517,27 +470,15 @@ async function loadTableFromParquetInternal(
 async function clearTableInternal(tableName: string): Promise<void> {
   await ensureInit();
   if (!conn) throw new Error("DuckDB connection not initialized");
-
   await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)}`);
-
-  // Best-effort: remove any parquet snapshot from OPFS.
-  try {
-    const nav = (globalThis as unknown as { navigator: Navigator }).navigator;
-    const root = await nav.storage.getDirectory();
-    await root.removeEntry(`${tableName}.parquet`).catch(() => {});
-  } catch {
-    // OPFS not available or file already gone — non-fatal.
-  }
 }
 
 async function getStatusInternal(): Promise<{
   opfsPersistenceActive: boolean;
   dbPath: string | null;
 }> {
-  return {
-    opfsPersistenceActive,
-    dbPath: opfsPersistenceActive ? OPFS_DB_PATH : null,
-  };
+  // OPFS is not used — persistence is via local filesystem (Electron IPC).
+  return { opfsPersistenceActive: false, dbPath: null };
 }
 
 // ─── Message protocol ─────────────────────────────────────────────────────────
@@ -552,6 +493,7 @@ type IncomingMsg =
       buffer: ArrayBuffer;
       delimiter: string;
       append?: boolean;
+      hasHeader?: boolean;
     }
   | {
       id: number;
@@ -560,8 +502,10 @@ type IncomingMsg =
       file: File;
       delimiter: string;
       append?: boolean;
+      hasHeader?: boolean;
     }
   | { id: number; type: "loadJSON"; tableName: string; buffer: ArrayBuffer }
+  | { id: number; type: "loadJSONFile"; tableName: string; file: File }
   | { id: number; type: "listTables" }
   | { id: number; type: "getTableInfo"; tableName: string }
   | {
@@ -571,7 +515,12 @@ type IncomingMsg =
       columnName: string;
     }
   | { id: number; type: "exportTableToParquet"; tableName: string }
-  | { id: number; type: "loadTableFromParquet"; tableName: string }
+  | {
+      id: number;
+      type: "loadTableFromParquet";
+      tableName: string;
+      buffer: ArrayBuffer;
+    }
   | { id: number; type: "clearTable"; tableName: string }
   | { id: number; type: "getStatus" };
 
@@ -579,123 +528,44 @@ type OutgoingMsg =
   | { id: number; result: unknown }
   | { id: number; error: { message: string; stack?: string } };
 
-function postResult(port: MessagePort, id: number, result: unknown): void {
-  port.postMessage({ id, result } satisfies OutgoingMsg);
+function postResult(
+  port: MessagePort | DedicatedWorkerGlobalScope,
+  id: number,
+  result: unknown,
+  transfer?: Transferable[],
+): void {
+  (port as MessagePort).postMessage(
+    { id, result } satisfies OutgoingMsg,
+    transfer ?? [],
+  );
 }
 
-function postError(port: MessagePort, id: number, error: unknown): void {
-  port.postMessage({ id, error: serializeError(error) } satisfies OutgoingMsg);
+function postError(
+  port: MessagePort | DedicatedWorkerGlobalScope,
+  id: number,
+  error: unknown,
+): void {
+  (port as MessagePort).postMessage(
+    { id, error: serializeError(error) } satisfies OutgoingMsg,
+  );
 }
 
-function handlePort(port: MessagePort): void {
-  port.onmessage = async (event: MessageEvent<IncomingMsg>) => {
-    const msg = event.data;
-
-    try {
-      let result: unknown = null;
-
-      switch (msg.type) {
-        case "init":
-          await enqueue(() => ensureInit());
-          break;
-
-        case "runQuery":
-          result = await enqueue(() => runQueryInternal(msg.sql));
-          break;
-
-        case "loadCSV":
-          await enqueue(() =>
-            loadCSVInternal(
-              msg.tableName,
-              new Uint8Array(msg.buffer),
-              msg.delimiter,
-              msg.append ?? false,
-            ),
-          );
-          break;
-
-        case "loadCSVFile":
-          await enqueue(() =>
-            loadCSVFileInternal(
-              msg.tableName,
-              msg.file,
-              msg.delimiter,
-              msg.append ?? false,
-            ),
-          );
-          break;
-
-        case "loadJSON":
-          await enqueue(() =>
-            loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)),
-          );
-          break;
-
-        case "listTables":
-          result = await enqueue(() => listTablesInternal());
-          break;
-
-        case "getTableInfo":
-          result = await enqueue(() => getTableInfoInternal(msg.tableName));
-          break;
-
-        case "getColumnStats":
-          result = await enqueue(() =>
-            getColumnStatsInternal(msg.tableName, msg.columnName),
-          );
-          break;
-
-        case "exportTableToParquet":
-          await enqueue(() => exportTableToParquetInternal(msg.tableName));
-          break;
-
-        case "loadTableFromParquet":
-          result = await enqueue(() =>
-            loadTableFromParquetInternal(msg.tableName),
-          );
-          break;
-
-        case "clearTable":
-          await enqueue(() => clearTableInternal(msg.tableName));
-          break;
-
-        case "getStatus":
-          result = await getStatusInternal();
-          break;
-
-        default: {
-          const _exhaustive: never = msg;
-          throw new Error(
-            `Unsupported SharedWorker message: ${String((_exhaustive as IncomingMsg).type)}`,
-          );
-        }
-      }
-
-      postResult(port, msg.id, result);
-    } catch (error) {
-      postError(port, msg.id, error);
-    }
-  };
-
-  port.start();
-}
-
-// ─── SharedWorker entry point ─────────────────────────────────────────────────
-
-self.onmessage = async (event: MessageEvent<IncomingMsg>) => {
-  const msg = event.data;
-
+async function dispatch(
+  msg: IncomingMsg,
+  port: MessagePort | DedicatedWorkerGlobalScope,
+): Promise<void> {
   try {
-    let result: unknown = null;
-
     switch (msg.type) {
       case "init":
         await enqueue(() => ensureInit());
+        postResult(port, msg.id, null);
         break;
 
-      case "runQuery":
-        result = await enqueue(() => runQueryInternal(msg.sql));
+      case "runQuery": {
+        const result = await enqueue(() => runQueryInternal(msg.sql));
+        postResult(port, msg.id, result);
         break;
+      }
 
       case "loadCSV":
         await enqueue(() =>
@@ -704,8 +574,10 @@ self.onmessage = async (event: MessageEvent<IncomingMsg>) => {
             new Uint8Array(msg.buffer),
             msg.delimiter,
             msg.append ?? false,
+            msg.hasHeader ?? true,
           ),
         );
+        postResult(port, msg.id, null);
         break;
 
       case "loadCSVFile":
@@ -715,49 +587,105 @@ self.onmessage = async (event: MessageEvent<IncomingMsg>) => {
             msg.file,
             msg.delimiter,
             msg.append ?? false,
+            msg.hasHeader ?? true,
           ),
         );
+        postResult(port, msg.id, null);
         break;
 
       case "loadJSON":
         await enqueue(() =>
           loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)),
         );
+        postResult(port, msg.id, null);
         break;
 
-      case "listTables":
-        result = await enqueue(() => listTablesInternal());
+      case "loadJSONFile":
+        await enqueue(() => loadJSONFileInternal(msg.tableName, msg.file));
+        postResult(port, msg.id, null);
         break;
 
-      case "getTableInfo":
-        result = await enqueue(() => getTableInfoInternal(msg.tableName));
+      case "listTables": {
+        const result = await enqueue(() => listTablesInternal());
+        postResult(port, msg.id, result);
         break;
+      }
 
-      case "getColumnStats":
-        result = await enqueue(() =>
+      case "getTableInfo": {
+        const result = await enqueue(() => getTableInfoInternal(msg.tableName));
+        postResult(port, msg.id, result);
+        break;
+      }
+
+      case "getColumnStats": {
+        const result = await enqueue(() =>
           getColumnStatsInternal(msg.tableName, msg.columnName),
         );
+        postResult(port, msg.id, result);
         break;
+      }
 
-      case "exportTableToParquet":
-        await enqueue(() => exportTableToParquetInternal(msg.tableName));
+      case "exportTableToParquet": {
+        const buf = await enqueue(() =>
+          exportTableToParquetInternal(msg.tableName),
+        );
+        // Transfer the ArrayBuffer zero-copy back to the caller.
+        postResult(port, msg.id, buf, [buf]);
         break;
+      }
 
-      case "loadTableFromParquet":
-        result = await enqueue(() => loadTableFromParquetInternal(msg.tableName));
+      case "loadTableFromParquet": {
+        const result = await enqueue(() =>
+          loadTableFromParquetInternal(msg.tableName, msg.buffer),
+        );
+        postResult(port, msg.id, result);
         break;
+      }
 
       case "clearTable":
         await enqueue(() => clearTableInternal(msg.tableName));
+        postResult(port, msg.id, null);
         break;
 
-      case "getStatus":
-        result = await getStatusInternal();
+      case "getStatus": {
+        const result = await getStatusInternal();
+        postResult(port, msg.id, result);
         break;
+      }
+
+      default: {
+        const _exhaustive: never = msg;
+        throw new Error(
+          `Unsupported message type: ${String((_exhaustive as IncomingMsg).type)}`,
+        );
+      }
     }
-
-    self.postMessage({ id: msg.id, result });
   } catch (error) {
-    self.postMessage({ id: msg.id, error: serializeError(error) });
+    postError(port, msg.id, error);
   }
-};
+}
+
+// ─── SharedWorker entry point ─────────────────────────────────────────────────
+
+type DuckDBWorkerScope =
+  | (SharedWorkerGlobalScope & typeof globalThis)
+  | (DedicatedWorkerGlobalScope & typeof globalThis);
+
+const workerScope = globalThis as DuckDBWorkerScope;
+
+if ("onconnect" in workerScope) {
+  const sharedScope = workerScope as SharedWorkerGlobalScope;
+
+  sharedScope.onconnect = (event: MessageEvent) => {
+    const port = (event as MessageEvent & { ports: MessagePort[] }).ports[0];
+    port.onmessage = (e: MessageEvent<IncomingMsg>) => dispatch(e.data, port);
+    port.start();
+  };
+} else {
+  const dedicatedScope = workerScope as DedicatedWorkerGlobalScope;
+
+  dedicatedScope.onmessage = (event: MessageEvent<IncomingMsg>) =>
+    dispatch(event.data, dedicatedScope);
+}
+
+export {};
