@@ -1,12 +1,27 @@
-import { runQuery } from "@/lib/duckdb";
-import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/constants";
+import { safeNum } from "@/features/telecom/lib/format";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import {
+  canalCaseExpr,
+  canalWhere,
+  colExpr,
+  hourExpr,
+  qc,
+  sqlLiteral,
+  statusNorm,
+} from "@/features/telecom/lib/sql";
+import {
+  DEFAULT_STATUS_MAPPINGS,
+  SPEC_DECLINED_FILTER,
+  SPEC_INSTANCE_FILTER,
+  SPEC_REFUND_FILTER,
+  SPEC_SUCCESS_FILTER,
+} from "@/features/telecom/lib/status-definitions";
 import type {
   CanalHourCell,
   CanalKey,
   ColumnMapping,
   CustomerProfileData,
   DailyTrendRow,
-  ErrorRow,
   FilterState,
   HourlyRow,
   KPISummary,
@@ -19,17 +34,7 @@ import type {
   StatusMapping,
   StatusRow,
 } from "@/features/telecom/types";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import {
-  canalCaseExpr,
-  canalWhere,
-  colExpr,
-  hourExpr,
-  qc,
-  sqlLiteral,
-  statusNorm,
-} from "@/features/telecom/lib/sql";
-import { safeNum } from "@/features/telecom/lib/format";
+import { runQuery } from "@/platform/duckdb/duckdb";
 
 // ─── Canal label map (must stay in sync with canalCaseExpr THEN clauses) ────────
 
@@ -43,7 +48,7 @@ export const CANAL_KEY_TO_LABEL: Record<CanalKey, string> = {
   data_evoucher: "Data by Voucher",
   voucher_for_payment: "Voucher For Payment",
   credit_transfer: "Credit Transfer",
-  voucher_convergent: "Voucher For Recharge Management",
+  voucher_convergent: "Voucher Convergent Management",
 };
 
 // ─── Raw canal row (no React.ElementType — enrichment happens in page.tsx) ───────
@@ -71,15 +76,64 @@ export interface SpecChRow {
   montant: number;
 }
 
-export const SPEC_SUCCESS_FILTER = `UPPER(TRIM(CAST(TRANSACTION_STATUS AS VARCHAR))) IN ('PST','PST1','PST2','PST7','PST8','PST9')`;
+export {
+  SPEC_DECLINED_FILTER,
+  SPEC_INSTANCE_FILTER,
+  SPEC_REFUND_FILTER,
+  SPEC_SUCCESS_FILTER,
+};
 
-export function buildSpecDateFilter(dateFrom: string, dateTo: string): string {
+export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
+  const c = qc(dateColumn);
+
+  return `COALESCE(
+    TRY_STRPTIME(CAST(${c} AS VARCHAR), '%d/%m/%Y %H:%M:%S'),
+    TRY_STRPTIME(SPLIT_PART(CAST(${c} AS VARCHAR), ' ', 1), '%d/%m/%Y'),
+    TRY_STRPTIME(CAST(${c} AS VARCHAR), '%Y-%m-%d %H:%M:%S'),
+    TRY_STRPTIME(SPLIT_PART(CAST(${c} AS VARCHAR), ' ', 1), '%Y-%m-%d'),
+    TRY_CAST(${c} AS TIMESTAMP),
+    TRY_CAST(CAST(${c} AS VARCHAR) AS TIMESTAMP)
+  )`;
+}
+
+export function transactionDayExpr(dateColumn = "TRANSACTION_DATE"): string {
+  return `DATE_TRUNC('day', ${transactionDateExpr(dateColumn)})`;
+}
+
+export function transactionHourExpr(dateColumn = "TRANSACTION_DATE"): string {
+  return `EXTRACT(HOUR FROM ${transactionDateExpr(dateColumn)})`;
+}
+
+function dateParamExpr(value: string): string {
+  const v = sqlLiteral(value);
+
+  return `COALESCE(
+    TRY_STRPTIME(${v}, '%Y-%m-%d'),
+    TRY_STRPTIME(${v}, '%m/%d/%Y'),
+    TRY_STRPTIME(${v}, '%d/%m/%Y')
+  )`;
+}
+
+export function buildSpecDateFilter(
+  dateFrom: string,
+  dateTo: string,
+  dateColumn = "TRANSACTION_DATE",
+): string {
   if (!dateFrom && !dateTo) return "";
-  const e = `TRY_STRPTIME(SPLIT_PART(CAST(TRANSACTION_DATE AS VARCHAR),' ',1),'%d/%m/%Y')`;
-  if (dateFrom && dateTo)
-    return ` AND ${e} BETWEEN STRPTIME(${sqlLiteral(dateFrom)},'%Y-%m-%d') AND STRPTIME(${sqlLiteral(dateTo)},'%Y-%m-%d')`;
-  if (dateFrom) return ` AND ${e} >= STRPTIME(${sqlLiteral(dateFrom)},'%Y-%m-%d')`;
-  return ` AND ${e} <= STRPTIME(${sqlLiteral(dateTo)},'%Y-%m-%d')`;
+
+  const e = transactionDateExpr(dateColumn);
+
+  if (dateFrom && dateTo) {
+    return ` AND CAST(${e} AS DATE) BETWEEN CAST(${dateParamExpr(
+      dateFrom,
+    )} AS DATE) AND CAST(${dateParamExpr(dateTo)} AS DATE)`;
+  }
+
+  if (dateFrom) {
+    return ` AND CAST(${e} AS DATE) >= CAST(${dateParamExpr(dateFrom)} AS DATE)`;
+  }
+
+  return ` AND CAST(${e} AS DATE) <= CAST(${dateParamExpr(dateTo)} AS DATE)`;
 }
 
 // ─── Query functions ──────────────────────────────────────────────────────────
@@ -163,7 +217,7 @@ export async function fetchRawCanalSummaries(
     "Data by Voucher": "data_evoucher",
     "Voucher For Payment": "voucher_for_payment",
     "Credit Transfer": "credit_transfer",
-    "Voucher For Recharge Management": "voucher_convergent",
+    "Voucher Convergent Management": "voucher_convergent",
   };
   try {
     const rows = await runQuery(`
@@ -263,40 +317,6 @@ export async function fetchStatusBreakdown(
   }
 }
 
-export async function fetchErrors(
-  tableName: string,
-  m: ColumnMapping,
-  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  limit = 20,
-): Promise<ErrorRow[]> {
-  const sn = statusNorm(m, sm);
-  const ec = qc(m.errorCode);
-  const em = qc(m.errorMessage);
-  const canal = canalCaseExpr(m);
-  try {
-    const rows = await runQuery(`
-      SELECT
-        COALESCE(CAST(${ec} AS VARCHAR),'UNKNOWN')    AS error_code,
-        FIRST(CAST(${em} AS VARCHAR))                 AS error_message,
-        COUNT(*)                                       AS count,
-        MODE(${canal})                                 AS canal
-      FROM ${qc(tableName)}
-      WHERE ${sn}='DECLINED'
-        AND ${ec} IS NOT NULL
-        AND CAST(${ec} AS VARCHAR) NOT IN ('','NULL','null')
-      GROUP BY 1 ORDER BY 3 DESC LIMIT ${limit}
-    `);
-    return rows.map((r) => ({
-      error_code: String(r.error_code ?? ""),
-      error_message: String(r.error_message ?? ""),
-      count: safeNum(r.count),
-      canal: String(r.canal ?? ""),
-    }));
-  } catch {
-    return [];
-  }
-}
-
 export async function fetchOperators(
   tableName: string,
   m: ColumnMapping,
@@ -363,7 +383,9 @@ export async function fetchOperatorsForGroup(
   const amt = qc(m.amount);
   const op = qc(m.operator);
   const canal = canalCaseExpr(m);
-  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
+  const labels = groupKeys
+    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
+    .join(", ");
   try {
     const rows = await runQuery(`
       SELECT
@@ -402,7 +424,9 @@ export async function fetchRegionsForGroup(
   const amt = qc(m.amount);
   const reg = qc(m.region);
   const canal = canalCaseExpr(m);
-  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
+  const labels = groupKeys
+    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
+    .join(", ");
   try {
     const rows = await runQuery(`
       SELECT
@@ -436,7 +460,9 @@ export async function fetchDestinationsForGroup(
   const amt = qc(m.amount);
   const dst = qc("GENERATION_ACCOUNT_NAME");
   const canal = canalCaseExpr(m);
-  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
+  const labels = groupKeys
+    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
+    .join(", ");
   try {
     const rows = await runQuery(`
       SELECT
@@ -567,8 +593,8 @@ export async function fetchDailyTrend(
 ): Promise<DailyTrendRow[]> {
   const sn = statusNorm(m);
   const amt = qc(m.amount);
-  const d = qc(m.transactionDate);
-  const dayExpr = `DATE_TRUNC('day', TRY_STRPTIME(SPLIT_PART(CAST(${d} AS VARCHAR),' ',1),'%d/%m/%Y'))`;
+  const dayExpr = transactionDayExpr(m.transactionDate);
+
   try {
     const rows = await runQuery(`
       SELECT
@@ -576,13 +602,15 @@ export async function fetchDailyTrend(
         COUNT(*) AS total,
         SUM(CASE WHEN ${sn}='SUCCESS'  THEN 1 ELSE 0 END) AS success,
         SUM(CASE WHEN ${sn}='DECLINED' THEN 1 ELSE 0 END) AS declined,
-        ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)          AS amount
+        ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3) AS amount
       FROM ${qc(tableName)}
       WHERE ${dayExpr} IS NOT NULL
       GROUP BY 1
       ORDER BY 1
     `);
+
     if (rows.length < 2) return [];
+
     return rows.map((r) => ({
       day: String(r.day ?? "").slice(0, 10),
       total: safeNum(r.total),
@@ -703,14 +731,20 @@ export async function fetchFiltered(
   const conds: string[] = [];
   if (f.status) conds.push(`${sn} = ${sqlLiteral(f.status)}`);
   if (f.region)
-    conds.push(`UPPER(CAST(${reg} AS VARCHAR)) = ${sqlLiteral(f.region.toUpperCase())}`);
+    conds.push(
+      `UPPER(CAST(${reg} AS VARCHAR)) = ${sqlLiteral(f.region.toUpperCase())}`,
+    );
   if (f.operator)
-    conds.push(`UPPER(CAST(${op} AS VARCHAR)) = ${sqlLiteral(f.operator.toUpperCase())}`);
+    conds.push(
+      `UPPER(CAST(${op} AS VARCHAR)) = ${sqlLiteral(f.operator.toUpperCase())}`,
+    );
   if (f.minAmount) conds.push(`TRY_CAST(${amt} AS DOUBLE) >= ${f.minAmount}`);
   if (f.maxAmount) conds.push(`TRY_CAST(${amt} AS DOUBLE) <= ${f.maxAmount}`);
   if (f.search) {
     const s = sqlLiteral(`%${f.search}%`);
-    conds.push(`(CAST(${ms} AS VARCHAR) LIKE ${s} OR CAST(${sn2} AS VARCHAR) LIKE ${s})`);
+    conds.push(
+      `(CAST(${ms} AS VARCHAR) LIKE ${s} OR CAST(${sn2} AS VARCHAR) LIKE ${s})`,
+    );
   }
   const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
   const orderBy = sortCol
@@ -719,7 +753,9 @@ export async function fetchFiltered(
   try {
     const [cnt, data] = await Promise.all([
       runQuery(`SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`),
-      runQuery(`SELECT * FROM ${qc(tableName)} ${where} ${orderBy} LIMIT ${limit} OFFSET ${offset}`),
+      runQuery(
+        `SELECT * FROM ${qc(tableName)} ${where} ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
+      ),
     ]);
     return { rows: data, total: safeNum(cnt[0]?.cnt) };
   } catch {
@@ -727,7 +763,9 @@ export async function fetchFiltered(
   }
 }
 
-export async function detectAvailableColumns(tableName: string): Promise<string[]> {
+export async function detectAvailableColumns(
+  tableName: string,
+): Promise<string[]> {
   try {
     const rows = await runQuery(`DESCRIBE ${qc(tableName)}`);
     return rows.map((r) => String(r.column_name ?? ""));
@@ -791,6 +829,81 @@ export async function fetchSpecChannelStats(
   return {
     rows,
     total: { canal: "TOTAL (tous canaux)", nombre: tn, montant: tm },
+  };
+}
+
+export async function fetchSpecStatusStats(
+  tableName: string,
+  channels: ChannelDef[],
+  dateFrom: string,
+  dateTo: string,
+): Promise<{
+  rows: Array<{ status: string; nombre: number }>;
+  total: { status: string; nombre: number };
+}> {
+  const df = buildSpecDateFilter(dateFrom, dateTo);
+  const scope =
+    channels.length > 0
+      ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
+      : "";
+  const statusCases = [
+    ["Réussie", SPEC_SUCCESS_FILTER],
+    ["Annulation", SPEC_REFUND_FILTER],
+    ["Instance (Hold + Doubt)", SPEC_INSTANCE_FILTER],
+    ["Échec", SPEC_DECLINED_FILTER],
+  ] as const;
+
+  const rows: Array<{ status: string; nombre: number }> = [];
+  let total = 0;
+  for (const [status, filter] of statusCases) {
+    const res = await runQuery(`
+      SELECT COUNT(*) AS n
+      FROM ${qc(tableName)}
+      WHERE ${filter} ${scope}${df}
+    `);
+    const n = safeNum(res[0]?.n);
+    rows.push({ status, nombre: n });
+    total += n;
+  }
+  return { rows, total: { status: "TOTAL (tous Status)", nombre: total } };
+}
+
+export async function fetchSpecUnitAmountStats(
+  tableName: string,
+  channels: ChannelDef[],
+  dateFrom: string,
+  dateTo: string,
+): Promise<{
+  rows: Array<{ unitAmount: string; nombre: number; montant: number }>;
+  total: { unitAmount: string; nombre: number; montant: number };
+}> {
+  const df = buildSpecDateFilter(dateFrom, dateTo);
+  const scope =
+    channels.length > 0
+      ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
+      : "";
+  const rows = await runQuery(`
+    SELECT
+      CAST(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) AS VARCHAR) AS unit_amount,
+      COUNT(*) AS n,
+      COALESCE(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)), 0) AS m
+    FROM ${qc(tableName)}
+    WHERE ${SPEC_SUCCESS_FILTER} ${scope}${df}
+    GROUP BY 1
+    ORDER BY TRY_CAST(unit_amount AS DOUBLE)
+  `);
+  const mapped = rows.map((r) => ({
+    unitAmount: String(r.unit_amount ?? "0"),
+    nombre: safeNum(r.n),
+    montant: safeNum(r.m),
+  }));
+  return {
+    rows: mapped,
+    total: {
+      unitAmount: "TOTAL",
+      nombre: mapped.reduce((sum, row) => sum + row.nombre, 0),
+      montant: mapped.reduce((sum, row) => sum + row.montant, 0),
+    },
   };
 }
 

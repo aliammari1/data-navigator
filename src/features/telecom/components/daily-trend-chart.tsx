@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { buildDailyTrendOption } from "@/features/telecom/lib/chart-options";
 import { fmtN, fmtPct, movingAverage } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
@@ -54,7 +54,10 @@ export function DailyTrendChart({
   const totals = data.map((r) => r.total);
   const maWindow = Math.min(3, totals.length);
   const maValues = maWindow >= 2 ? movingAverage(totals, maWindow) : [];
-  const maSeries: (number | null)[] = [...Array(maWindow - 1).fill(null), ...maValues];
+  const maSeries: (number | null)[] = [
+    ...Array(maWindow - 1).fill(null),
+    ...maValues,
+  ];
 
   const totalTx = data.reduce((a, r) => a + r.total, 0);
   const avgRate =
@@ -97,7 +100,13 @@ export function DailyTrendChart({
       </div>
       <div className="rounded-xl border border-border/50 bg-muted/10 overflow-hidden">
         <ReactECharts
-          option={buildDailyTrendOption(data, labels, rates, maSeries, maValues)}
+          option={buildDailyTrendOption(
+            data,
+            labels,
+            rates,
+            maSeries,
+            maValues,
+          )}
           style={{ height: "220px" }}
           opts={{ renderer: "canvas" }}
         />

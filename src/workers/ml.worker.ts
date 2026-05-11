@@ -77,10 +77,7 @@ function validateMatrix(
     }
 
     for (let colIndex = 0; colIndex < nCols; colIndex++) {
-      assertFiniteNumber(
-        row[colIndex],
-        `${label}[${rowIndex}][${colIndex}]`,
-      );
+      assertFiniteNumber(row[colIndex], `${label}[${rowIndex}][${colIndex}]`);
     }
   }
 
@@ -119,7 +116,9 @@ export async function kMeansClustering(
   assertPositiveInteger(iters, "iters");
 
   if (k > nRows) {
-    throw new Error(`k cannot be greater than row count; received k=${k}, rows=${nRows}`);
+    throw new Error(
+      `k cannot be greater than row count; received k=${k}, rows=${nRows}`,
+    );
   }
 
   const tensor = tf.tensor2d(data, [nRows, nCols], "float32");
@@ -128,7 +127,9 @@ export async function kMeansClustering(
     Math.floor((index * nRows) / k),
   );
 
-  let centroids = tf.tidy(() => tf.gather(tensor, initialIndices)) as tf.Tensor2D;
+  let centroids = tf.tidy(() =>
+    tf.gather(tensor, initialIndices),
+  ) as tf.Tensor2D;
   let labels = new Int32Array(nRows).fill(-1);
 
   try {
@@ -143,7 +144,9 @@ export async function kMeansClustering(
         return Array.from(distances.argMin(1).dataSync());
       });
 
-      const sameLabels = newLabels.every((label, index) => label === labels[index]);
+      const sameLabels = newLabels.every(
+        (label, index) => label === labels[index],
+      );
       labels = Int32Array.from(newLabels);
 
       if (sameLabels && iter > 0) break;
@@ -289,7 +292,10 @@ export async function computeCorrelationMatrix(
   const tensor = tf.tensor2d(data, [nRows, nCols], "float32");
   const mean = tensor.mean(0);
   const centered = tensor.sub(mean);
-  const covariance = centered.transpose().matMul(centered).div(nRows - 1);
+  const covariance = centered
+    .transpose()
+    .matMul(centered)
+    .div(nRows - 1);
 
   try {
     const covarianceMatrix = covariance.arraySync() as number[][];
@@ -348,8 +354,7 @@ export async function forecastTimeSeries(
   smoothed[0] = values[0];
 
   for (let index = 1; index < n; index++) {
-    smoothed[index] =
-      alpha * values[index] + (1 - alpha) * smoothed[index - 1];
+    smoothed[index] = alpha * values[index] + (1 - alpha) * smoothed[index - 1];
   }
 
   const last = smoothed[n - 1];
@@ -393,7 +398,10 @@ export async function computePCA(
   const tensor = tf.tensor2d(data, [nRows, nCols], "float32");
   const mean = tensor.mean(0);
   const centered = tensor.sub(mean);
-  const covariance = centered.transpose().matMul(centered).div(nRows - 1);
+  const covariance = centered
+    .transpose()
+    .matMul(centered)
+    .div(nRows - 1);
 
   try {
     const covarianceMatrix = covariance.arraySync() as number[][];
@@ -482,7 +490,11 @@ export async function computePCA(
 // Handles typed postMessage envelopes for forecastNextHours so the main thread
 // doesn't block on ONNX session init or linear-regression computation.
 
-import { forecastNextHours, type ForecastPoint, type HourlyRow as ForecastHourlyRow } from "@/lib/forecast-onnx";
+import {
+  forecastNextHours,
+  type ForecastPoint,
+  type HourlyRow as ForecastHourlyRow,
+} from "@/platform/browser/forecast-onnx";
 
 export interface MLForecastRequest {
   id: string;
@@ -501,11 +513,22 @@ self.addEventListener("message", async (e: MessageEvent) => {
   if (e.data?.type !== "FORECAST") return;
   const req = e.data as MLForecastRequest;
   try {
-    const result = await forecastNextHours(req.payload.hourly, req.payload.horizon ?? 4);
-    const response: MLForecastResponse = { id: req.id, type: "FORECAST_RESULT", result };
+    const result = await forecastNextHours(
+      req.payload.hourly,
+      req.payload.horizon ?? 4,
+    );
+    const response: MLForecastResponse = {
+      id: req.id,
+      type: "FORECAST_RESULT",
+      result,
+    };
     self.postMessage(response);
   } catch (err) {
-    const response: MLForecastResponse = { id: req.id, type: "FORECAST_RESULT", error: String(err) };
+    const response: MLForecastResponse = {
+      id: req.id,
+      type: "FORECAST_RESULT",
+      error: String(err),
+    };
     self.postMessage(response);
   }
 });

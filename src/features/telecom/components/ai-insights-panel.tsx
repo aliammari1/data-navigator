@@ -7,7 +7,7 @@ import {
   Info,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import type * as Types from "@/features/telecom/types";
 
 export function AIInsightsPanel({

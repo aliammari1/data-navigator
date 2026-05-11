@@ -1,0 +1,45 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Start Electron Dev",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bun run electron:dev",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Attach Electron Renderer",
+      "type": "chrome",
+      "request": "attach",
+      "address": "localhost",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack://_N_E/./*": "${webRoot}/*",
+        "webpack://_N_E/*": "${webRoot}/*",
+        "webpack://*/./*": "${webRoot}/*",
+        "webpack://*/*": "${webRoot}/*",
+        "webpack:///./*": "${webRoot}/*",
+        "webpack://_N_E/../../*": "${workspaceFolder}/*"
+      },
+      "trace": true,
+      "timeout": 60000
+    },
+    {
+      "name": "Start Electron Dev Debug",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "bun run electron:dev:debug",
+      "cwd": "${workspaceFolder}"
+    }
+  ],
+  "compounds": [
+    {
+      "name": "Run + Debug Electron Renderer",
+      "configurations": ["Start Electron Dev", "Attach Electron Renderer"],
+      "stopAll": true
+    }
+  ]
+}

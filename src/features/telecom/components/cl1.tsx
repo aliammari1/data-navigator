@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 
@@ -11,7 +11,10 @@ type FetchSpecChannelStats = (
   channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
-) => Promise<{ rows: { canal: string; nombre: number; montant: number }[]; total: { canal: string; nombre: number; montant: number } }>;
+) => Promise<{
+  rows: { canal: string; nombre: number; montant: number }[];
+  total: { canal: string; nombre: number; montant: number };
+}>;
 
 /** Level-1 collapsible — main spec section with accent glow when open */
 export function CL1({
@@ -82,14 +85,16 @@ export function CL1({
             className="overflow-hidden"
           >
             <div className="px-5 py-4 space-y-3 border-t border-border/60">
-              {summaryGroups && summaryGroups.length > 1 && fetchSpecChannelStats && (
-                <GroupSummaryChart
-                  groups={summaryGroups}
-                  dateFrom={dateFrom ?? ""}
-                  dateTo={dateTo ?? ""}
-                  fetchSpecChannelStats={fetchSpecChannelStats}
-                />
-              )}
+              {summaryGroups &&
+                summaryGroups.length > 1 &&
+                fetchSpecChannelStats && (
+                  <GroupSummaryChart
+                    groups={summaryGroups}
+                    dateFrom={dateFrom ?? ""}
+                    dateTo={dateTo ?? ""}
+                    fetchSpecChannelStats={fetchSpecChannelStats}
+                  />
+                )}
               {children}
             </div>
           </motion.div>

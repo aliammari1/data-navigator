@@ -3,7 +3,7 @@ import { AlertCircle, AlertTriangle, Info } from "lucide-react";
 import { motion } from "motion/react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 export function AlertBanner({
   kpi,

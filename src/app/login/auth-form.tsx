@@ -29,7 +29,7 @@ import {
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { authClient, useSession } from "@/lib/auth-client";
+import { authClient, useSession } from "@/platform/auth/auth-client";
 
 type AuthMode = "signin" | "signup";
 
@@ -166,7 +166,10 @@ export function AuthForm() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Tabs value={mode} onValueChange={(value) => setMode(value as AuthMode)}>
+            <Tabs
+              value={mode}
+              onValueChange={(value) => setMode(value as AuthMode)}
+            >
               <TabsList className="mb-6 w-full rounded-xl">
                 <TabsTrigger value="signin">Sign in</TabsTrigger>
                 <TabsTrigger value="signup">Sign up</TabsTrigger>
@@ -222,7 +225,9 @@ export function AuthForm() {
                         value={password}
                         onChange={(event) => setPassword(event.target.value)}
                         autoComplete={
-                          mode === "signin" ? "current-password" : "new-password"
+                          mode === "signin"
+                            ? "current-password"
+                            : "new-password"
                         }
                         className="pl-9"
                         placeholder="8+ characters"

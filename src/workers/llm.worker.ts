@@ -1,101 +1,171 @@
 /// <reference lib="webworker" />
-/**
- * Phase 5 — LLM Worker: runs Claude API inference off the main thread.
- * Accepts typed request envelopes and streams token chunks back to the caller.
- *
- * Message protocol (postMessage):
- *   Request  → { id, type: "INFER", payload: { prompt, systemPrompt?, apiKey, model? } }
- *   Response → { id, type: "INFER_CHUNK",  chunk: string }      (zero or more)
- *            → { id, type: "INFER_DONE" }                        (terminal)
- *            → { id, type: "INFER_ERROR", error: string }        (terminal on failure)
- */
+import { env, pipeline, TextStreamer } from "@huggingface/transformers";
+import type { TextGenerationPipeline } from "@huggingface/transformers";
+
+// Always offline — models are cached in the browser after first download
+env.allowLocalModels = false;
+env.useBrowserCache = true;
+
+// ── Message types ─────────────────────────────────────────────────────────────
+
+export interface LLMLoadRequest {
+  type: "LOAD_MODEL";
+  model: string;
+}
 
 export interface LLMInferRequest {
   id: string;
   type: "INFER";
   payload: {
+    systemPrompt: string;
     prompt: string;
-    systemPrompt?: string;
-    apiKey: string;
-    model?: string;
     maxTokens?: number;
   };
 }
 
+export interface LLMAbortRequest {
+  id: string;
+  type: "ABORT";
+}
+
+export type LLMWorkerIncoming =
+  | LLMLoadRequest
+  | LLMInferRequest
+  | LLMAbortRequest;
+
 export type LLMWorkerMessage =
+  | { type: "LOAD_PROGRESS"; progress: number; status: string }
+  | { type: "MODEL_READY"; model: string }
+  | { type: "MODEL_ERROR"; error: string }
   | { id: string; type: "INFER_CHUNK"; chunk: string }
   | { id: string; type: "INFER_DONE" }
   | { id: string; type: "INFER_ERROR"; error: string };
 
-const DEFAULT_MODEL = "claude-sonnet-4-6";
-const DEFAULT_MAX_TOKENS = 1024;
+// ── State ─────────────────────────────────────────────────────────────────────
 
-self.onmessage = async (e: MessageEvent<LLMInferRequest>) => {
-  const { id, type, payload } = e.data;
-  if (type !== "INFER") return;
+let pipe: TextGenerationPipeline | null = null;
+let loadedModel = "";
+let isLoading = false;
 
-  const { prompt, systemPrompt, apiKey, model = DEFAULT_MODEL, maxTokens = DEFAULT_MAX_TOKENS } = payload;
+// ── Loader ────────────────────────────────────────────────────────────────────
 
-  try {
-    const body = JSON.stringify({
-      model,
-      max_tokens: maxTokens,
-      stream: true,
-      ...(systemPrompt ? { system: systemPrompt } : {}),
-      messages: [{ role: "user", content: prompt }],
-    });
+async function loadModel(model: string) {
+  if (isLoading) return;
+  if (pipe && loadedModel === model) {
+    self.postMessage({ type: "MODEL_READY", model } satisfies LLMWorkerMessage);
+    return;
+  }
 
-    const res = await fetch("https://api.anthropic.com/v1/messages", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
-        "anthropic-dangerous-direct-browser-access": "true",
-      },
-      body,
-    });
+  isLoading = true;
 
-    if (!res.ok) {
-      const errText = await res.text();
-      self.postMessage({ id, type: "INFER_ERROR", error: `HTTP ${res.status}: ${errText}` } satisfies LLMWorkerMessage);
+  const progressCb = (info: { status: string; progress?: number }) => {
+    const pct =
+      info.progress !== undefined ? Math.round(info.progress * 100) : 0;
+    self.postMessage({
+      type: "LOAD_PROGRESS",
+      progress: pct,
+      status: info.status,
+    } satisfies LLMWorkerMessage);
+  };
+
+  // Try WebGPU first (fast), fall back to WASM (always available)
+  for (const device of ["webgpu", "wasm"] as const) {
+    try {
+      pipe = (await pipeline("text-generation", model, {
+        dtype: "q4f16",
+        device,
+        progress_callback: progressCb,
+      })) as TextGenerationPipeline;
+      loadedModel = model;
+      isLoading = false;
+      self.postMessage({
+        type: "MODEL_READY",
+        model,
+      } satisfies LLMWorkerMessage);
       return;
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) {
-      self.postMessage({ id, type: "INFER_ERROR", error: "No response body" } satisfies LLMWorkerMessage);
-      return;
-    }
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.startsWith("data: ")) continue;
-        const data = line.slice(6).trim();
-        if (data === "[DONE]") break;
-        try {
-          const parsed = JSON.parse(data) as { type: string; delta?: { type: string; text?: string } };
-          if (parsed.type === "content_block_delta" && parsed.delta?.type === "text_delta" && parsed.delta.text) {
-            self.postMessage({ id, type: "INFER_CHUNK", chunk: parsed.delta.text } satisfies LLMWorkerMessage);
-          }
-        } catch {
-          // Malformed SSE line — skip
-        }
+    } catch {
+      if (device === "wasm") {
+        isLoading = false;
+        self.postMessage({
+          type: "MODEL_ERROR",
+          error: `Failed to load ${model} on both WebGPU and WASM.`,
+        } satisfies LLMWorkerMessage);
       }
     }
+  }
+}
+
+// ── Inference ─────────────────────────────────────────────────────────────────
+
+async function infer(
+  id: string,
+  systemPrompt: string,
+  prompt: string,
+  maxTokens = 512,
+) {
+  if (!pipe) {
+    self.postMessage({
+      id,
+      type: "INFER_ERROR",
+      error: "Model not loaded",
+    } satisfies LLMWorkerMessage);
+    return;
+  }
+
+  try {
+    const messages: Array<{
+      role: "system" | "user" | "assistant";
+      content: string;
+    }> = [
+      { role: "system", content: systemPrompt },
+      { role: "user", content: prompt },
+    ];
+
+    const streamer = new TextStreamer((pipe as any).tokenizer, {
+      skip_prompt: true,
+      skip_special_tokens: true,
+      callback_function: (text: string) => {
+        self.postMessage({
+          id,
+          type: "INFER_CHUNK",
+          chunk: text,
+        } satisfies LLMWorkerMessage);
+      },
+    });
+
+    await (pipe as any)(messages, {
+      max_new_tokens: maxTokens,
+      do_sample: false,
+      streamer,
+    });
 
     self.postMessage({ id, type: "INFER_DONE" } satisfies LLMWorkerMessage);
   } catch (err) {
-    self.postMessage({ id, type: "INFER_ERROR", error: String(err) } satisfies LLMWorkerMessage);
+    self.postMessage({
+      id,
+      type: "INFER_ERROR",
+      error: String(err),
+    } satisfies LLMWorkerMessage);
+  }
+}
+
+// ── Message router ────────────────────────────────────────────────────────────
+
+self.onmessage = (e: MessageEvent<LLMWorkerIncoming>) => {
+  const msg = e.data;
+
+  if (msg.type === "LOAD_MODEL") {
+    loadModel(msg.model);
+    return;
+  }
+
+  if (msg.type === "INFER") {
+    infer(
+      msg.id,
+      msg.payload.systemPrompt,
+      msg.payload.prompt,
+      msg.payload.maxTokens,
+    );
+    return;
   }
 };

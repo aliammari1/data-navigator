@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
-import { DashboardClientShell } from "@/components/dashboard/dashboard-client-shell";
-import { auth, authReady } from "@/lib/auth";
+import { DashboardClientShell } from "@/features/dashboard-shell/components/dashboard-client-shell";
+import { auth, authReady } from "@/platform/auth/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

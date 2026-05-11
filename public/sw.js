@@ -18,11 +18,7 @@ const SHELL_CACHE = `${VERSION}-shell`;
 const STATIC_CACHE = `${VERSION}-static`;
 const DUCKDB_CACHE = `${VERSION}-duckdb`;
 
-const APP_SHELL_URLS = [
-  "/",
-  "/dashboard",
-  "/dashboard/telecom-report",
-];
+const APP_SHELL_URLS = ["/", "/dashboard", "/dashboard/telecom-report"];
 
 const DUCKDB_PATTERNS = [
   /duckdb.*\.wasm$/i,
@@ -54,10 +50,7 @@ function isApiOrAuthRequest(request) {
 function isNextStaticAsset(request) {
   const url = new URL(request.url);
 
-  return (
-    isSameOrigin(request) &&
-    url.pathname.startsWith("/_next/static/")
-  );
+  return isSameOrigin(request) && url.pathname.startsWith("/_next/static/");
 }
 
 function isNextRouterOrRscRequest(request) {

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import type * as Types from "@/features/telecom/types";
 import { CustomerProfilePanel } from "./customer-profile-panel";
-import { CustomSQLEditor } from "./custom-sql-editor";
 import { DataGrid } from "./data-grid";
 import { FilterBar } from "./filter-bar";
 
@@ -71,8 +70,6 @@ export function RawDataTab({
           fetchCustomerProfile={fetchCustomerProfile}
         />
       )}
-      {/* F28 — Custom SQL editor with wa-sqlite history */}
-      <CustomSQLEditor tableName={tableName} />
     </div>
   );
 }

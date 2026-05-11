@@ -10,8 +10,13 @@ import {
   Zap,
 } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
-import { fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
+import { cn } from "@/shared/utils";
+import {
+  fmtAmount,
+  fmtDuration,
+  fmtN,
+  fmtPct,
+} from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
 import { KPICard } from "./kpi-card";
 
