@@ -38,7 +38,14 @@ export function FilterBar({
         {
           key: "status" as const,
           label: "Tous les Statuts",
-          opts: ["SUCCESS", "DECLINED", "INSTANCE", "REFUND", "SUBMITTED", "OTHER"],
+          opts: [
+            "SUCCESS",
+            "DECLINED",
+            "INSTANCE",
+            "REFUND",
+            "SUBMITTED",
+            "OTHER",
+          ],
         },
       ].map(({ key, label, opts }) => (
         <select

@@ -1,8 +1,8 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import type * as Types from "@/features/telecom/types";
 import { buildRevenuePieOption } from "@/features/telecom/lib/chart-options";
+import type * as Types from "@/features/telecom/types";
 
 // Group canals into 5 high-level categories for revenue display
 const REVENUE_GROUPS: Record<
@@ -32,7 +32,7 @@ const REVENUE_GROUPS: Record<
     keys: ["credit_transfer"],
     color: "#fab387",
   },
-  "Voucher For Recharge": {
+  "Voucher Convergent": {
     keys: ["voucher_convergent"],
     color: "#cba6f7",
   },
@@ -42,7 +42,9 @@ export function AmountPieChart({ canals }: { canals: Types.CanalSummary[] }) {
   const grouped = Object.entries(REVENUE_GROUPS)
     .map(([name, { keys, color }]) => ({
       name,
-      value: canals.filter((c) => keys.includes(c.key)).reduce((s, c) => s + c.amount, 0),
+      value: canals
+        .filter((c) => keys.includes(c.key))
+        .reduce((s, c) => s + c.amount, 0),
       color,
     }))
     .filter((g) => g.value > 0)

@@ -1,15 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import { ChevronDown } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
+import { cn } from "@/shared/utils";
 
 export function Section({
   title,
   icon,
   children,
   badge,
+  action,
   collapsible = false,
   defaultOpen = true,
 }: {
@@ -17,6 +18,7 @@ export function Section({
   icon: React.ReactNode;
   children: React.ReactNode;
   badge?: React.ReactNode;
+  action?: React.ReactNode;
   collapsible?: boolean;
   defaultOpen?: boolean;
 }) {
@@ -42,14 +44,17 @@ export function Section({
             </span>
           )}
         </div>
-        {collapsible && (
-          <ChevronDown
-            className={cn(
-              "w-4 h-4 text-muted-foreground transition-transform duration-200",
-              !open && "-rotate-90",
-            )}
-          />
-        )}
+        <div className="flex items-center gap-2">
+          {action}
+          {collapsible && (
+            <ChevronDown
+              className={cn(
+                "w-4 h-4 text-muted-foreground transition-transform duration-200",
+                !open && "-rotate-90",
+              )}
+            />
+          )}
+        </div>
       </div>
       <AnimatePresence initial={false}>
         {(!collapsible || open) && (

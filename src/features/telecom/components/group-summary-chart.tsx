@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Loader2 } from "lucide-react";
 import ReactECharts from "echarts-for-react";
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
 import { CHART_PALETTE } from "@/features/telecom/lib/canal-config";
+import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 import {
   buildGroupSummaryDonutOption,
   buildGroupSummaryHbarOption,
@@ -11,18 +12,16 @@ import {
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 
-// Typed group: a named collection of channels with an optional chart colour
-export interface ChannelGroup {
-  label: string;
-  channels: ChannelDef[];
-  color?: string;
-}
+export type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 
 type FetchSpecChannelStats = (
   channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
-) => Promise<{ rows: { canal: string; nombre: number; montant: number }[]; total: { canal: string; nombre: number; montant: number } }>;
+) => Promise<{
+  rows: { canal: string; nombre: number; montant: number }[];
+  total: { canal: string; nombre: number; montant: number };
+}>;
 
 export function GroupSummaryChart({
   groups,

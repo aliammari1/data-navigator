@@ -1,3 +1,280 @@
 {
-  "typescript.autoClosingTags": false
+  // ─────────────────────────────────────────────
+  // Visual feel / animations
+  // ─────────────────────────────────────────────
+
+  "editor.cursorBlinking": "smooth",
+  "editor.cursorSmoothCaretAnimation": "on",
+  "editor.cursorStyle": "line",
+  "editor.cursorWidth": 2,
+  "editor.smoothScrolling": true,
+  "workbench.list.smoothScrolling": true,
+  "terminal.integrated.smoothScrolling": true,
+  "editor.mouseWheelScrollSensitivity": 1.25,
+  "editor.fastScrollSensitivity": 5,
+  "editor.scrollBeyondLastLine": false,
+  "editor.scrollBeyondLastColumn": 3,
+  "editor.cursorSurroundingLines": 6,
+  "editor.cursorSurroundingLinesStyle": "all",
+
+  // ─────────────────────────────────────────────
+  // Editor readability
+  // ─────────────────────────────────────────────
+
+  "editor.fontFamily": "JetBrains Mono, Cascadia Code, Fira Code, Consolas, 'Courier New', monospace",
+  "editor.fontLigatures": true,
+  "editor.fontSize": 14.5,
+  "editor.lineHeight": 1.65,
+  "editor.letterSpacing": 0.2,
+  "editor.fontWeight": "450",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "editor.wordWrap": "on",
+  "editor.wordWrapColumn": 110,
+  "editor.rulers": [100, 120],
+  "editor.renderWhitespace": "selection",
+  "editor.renderControlCharacters": false,
+  "editor.guides.indentation": true,
+  "editor.guides.bracketPairs": true,
+  "editor.bracketPairColorization.enabled": true,
+  "editor.linkedEditing": true,
+  "editor.matchBrackets": "always",
+  "editor.occurrencesHighlight": "singleFile",
+  "editor.selectionHighlight": true,
+  "editor.codeLens": true,
+  "editor.colorDecorators": true,
+
+  // ─────────────────────────────────────────────
+  // Sticky context / navigation
+  // ─────────────────────────────────────────────
+
+  "editor.stickyScroll.enabled": true,
+  "editor.stickyScroll.maxLineCount": 8,
+  "editor.stickyScroll.scrollWithEditor": true,
+  "breadcrumbs.enabled": true,
+  "breadcrumbs.filePath": "on",
+  "breadcrumbs.symbolPath": "on",
+  "outline.icons": true,
+  "workbench.editor.showTabs": "multiple",
+  "workbench.editor.pinnedTabsOnSeparateRow": true,
+  "workbench.editor.tabSizing": "fit",
+  "workbench.editor.wrapTabs": false,
+  "workbench.editor.labelFormat": "medium",
+
+  // ─────────────────────────────────────────────
+  // Minimap: useful but not noisy
+  // ─────────────────────────────────────────────
+
+  "editor.minimap.enabled": true,
+  "editor.minimap.side": "right",
+  "editor.minimap.renderCharacters": false,
+  "editor.minimap.scale": 1,
+  "editor.minimap.maxColumn": 90,
+  "editor.minimap.showSlider": "mouseover",
+  "editor.hideCursorInOverviewRuler": true,
+  "editor.overviewRulerBorder": false,
+
+  // ─────────────────────────────────────────────
+  // Suggestions / IntelliSense feel
+  // ─────────────────────────────────────────────
+
+  "editor.inlineSuggest.enabled": true,
+  "editor.suggestSelection": "first",
+  "editor.suggest.preview": true,
+  "editor.suggest.insertMode": "replace",
+  "editor.acceptSuggestionOnCommitCharacter": true,
+  "editor.acceptSuggestionOnEnter": "smart",
+  "editor.quickSuggestions": {
+    "other": "on",
+    "comments": "off",
+    "strings": "on"
+  },
+  "editor.parameterHints.enabled": true,
+  "editor.inlayHints.enabled": "offUnlessPressed",
+  "ts.inlayHints.parameterNames.enabled": "literals",
+  "ts.inlayHints.parameterTypes.enabled": false,
+  "ts.inlayHints.variableTypes.enabled": false,
+  "ts.inlayHints.propertyDeclarationTypes.enabled": false,
+  "ts.inlayHints.functionLikeReturnTypes.enabled": false,
+  "ts.inlayHints.enumMemberValues.enabled": true,
+  "js.inlayHints.parameterNames.enabled": "literals",
+  "js.inlayHints.parameterTypes.enabled": false,
+  "js.inlayHints.variableTypes.enabled": false,
+  "js.inlayHints.functionLikeReturnTypes.enabled": false,
+
+  // ─────────────────────────────────────────────
+  // Format / save behavior
+  // ─────────────────────────────────────────────
+
+  "files.autoSave": "afterDelay",
+  "files.autoSaveDelay": 700,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "files.trimFinalNewlines": true,
+  "editor.formatOnSave": true,
+  "editor.formatOnPaste": false,
+  "editor.formatOnType": false,
+  "editor.codeActionsOnSave": {
+    "source.fixAll.biome": "explicit"
+  },
+  "editor.defaultFormatter": "biomejs.biome",
+
+  "[javascript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[javascriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescript]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[typescriptreact]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[json]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+  "[jsonc]": {
+    "editor.defaultFormatter": "biomejs.biome"
+  },
+
+  // ─────────────────────────────────────────────
+  // TypeScript / Next / Bun project behavior
+  // ─────────────────────────────────────────────
+
+  "ts.tsdk": "node_modules/typescript/lib",
+  "ts.enablePromptUseWorkspaceTsdk": true,
+  "ts.preferences.importModuleSpecifier": "non-relative",
+  "ts.preferences.includePackageJsonAutoImports": "on",
+  "ts.updateImportsOnFileMove.enabled": "always",
+  "npm.packageManager": "bun",
+
+  // ─────────────────────────────────────────────
+  // Tailwind / React class helpers
+  // ─────────────────────────────────────────────
+
+  "tailwindCSS.includeLanguages": {
+    "typescript": "javascript",
+    "typescriptreact": "javascript"
+  },
+  "tailwindCSS.classAttributes": [
+    "class",
+    "className",
+    "ngClass",
+    ".*ClassName",
+    ".*Classes"
+  ],
+  "tailwindCSS.experimental.classRegex": [
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["clsx\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["tv\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+
+  // ─────────────────────────────────────────────
+  // Terminal polish
+  // ─────────────────────────────────────────────
+
+  "terminal.integrated.defaultProfile.windows": "PowerShell",
+  "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font, Cascadia Code, Consolas, monospace",
+  "terminal.integrated.fontSize": 13.5,
+  "terminal.integrated.lineHeight": 1.25,
+  "terminal.integrated.cursorBlinking": true,
+  "terminal.integrated.cursorStyle": "line",
+  "terminal.integrated.tabs.enabled": true,
+  "terminal.integrated.confirmOnExit": "hasChildProcesses",
+  "terminal.integrated.persistentSessionReviveProcess": "never",
+  "terminal.integrated.scrollback": 20000,
+
+  // ─────────────────────────────────────────────
+  // Workbench / UI polish
+  // ─────────────────────────────────────────────
+
+  "workbench.colorTheme": "Dark 2026",
+  "workbench.iconTheme": "vscode-icons",
+  "workbench.productIconTheme": "Default",
+  "workbench.startupEditor": "none",
+  "workbench.commandCenter": true,
+  "workbench.layoutControl.enabled": true,
+  "workbench.sideBar.location": "left",
+  "workbench.activityBar.location": "default",
+  "workbench.tree.indent": 14,
+  "workbench.tree.renderIndentGuides": "always",
+  "workbench.editor.highlightModifiedTabs": true,
+  "window.commandCenter": true,
+  "window.titleBarStyle": "custom",
+  "window.zoomLevel": 0,
+  "window.density.editorTabHeight": "default",
+  "window.density.windowControlsStyle": "default",
+  "window.restoreWindows": "all",
+
+  // ─────────────────────────────────────────────
+  // Explorer / search performance
+  // ─────────────────────────────────────────────
+
+  "explorer.compactFolders": false,
+  "explorer.confirmDelete": false,
+  "explorer.confirmDragAndDrop": false,
+  "search.smartCase": true,
+  "search.useIgnoreFiles": true,
+  "search.followSymlinks": false,
+  "search.exclude": {
+    ".next": true,
+    "dist": true,
+    "out": true,
+    "node_modules": true,
+    "public/workers/*.js": true,
+    "**/*.map": true
+  },
+  "files.watcherExclude": {
+    "**/.next/**": true,
+    "**/dist/**": true,
+    "**/out/**": true,
+    "**/node_modules/**": true,
+    "**/public/workers/*.js": true
+  },
+
+  // ─────────────────────────────────────────────
+  // Git / diff experience
+  // ─────────────────────────────────────────────
+
+  "git.autofetch": true,
+  "git.confirmSync": false,
+  "git.enableSmartCommit": true,
+  "git.decorations.enabled": true,
+  "scm.diffDecorations": "all",
+  "diffEditor.renderSideBySide": true,
+  "diffEditor.ignoreTrimWhitespace": false,
+  "diffEditor.wordWrap": "on",
+  "mergeEditor.enabled": true,
+
+  // ─────────────────────────────────────────────
+  // Security / noise reduction
+  // ─────────────────────────────────────────────
+
+  "security.workspace.trust.untrustedFiles": "open",
+  "telemetry.telemetryLevel": "off",
+  "update.showReleaseNotes": false,
+  "extensions.ignoreRecommendations": false,
+
+  // ─────────────────────────────────────────────
+  // Copilot / AI ergonomics
+  // ─────────────────────────────────────────────
+
+  "github.copilot.enable": {
+    "*": true,
+    "plaintext": false,
+    "markdown": true,
+    "scminput": false
+  },
+
+  // ─────────────────────────────────────────────
+  // File associations
+  // ─────────────────────────────────────────────
+
+  "files.associations": {
+    "*.css": "tailwindcss",
+    "*.worker.ts": "typescript",
+    "*.env.*": "dotenv"
+  }
 }

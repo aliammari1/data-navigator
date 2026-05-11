@@ -1,0 +1,323 @@
+import type {
+  CachedAnalyticsMeta,
+  CachedTelecomSourceFileMeta,
+} from "@/features/telecom/lib/analytics-cache";
+import type { DailyStat } from "@/features/telecom/lib/daily-stats-cache";
+import type {
+  Dataset,
+  DataTransform,
+  SavedChart,
+} from "@/core/stores/data-store";
+import type { ColumnLineage, LEdge, LNode } from "./types";
+function nodeId(prefix: string, value: string): string {
+  return `${prefix}_${value.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 80)}`;
+}
+
+function timeAgo(value: string | number): string {
+  const ts = typeof value === "number" ? value : new Date(value).getTime();
+  if (!Number.isFinite(ts)) return "unknown";
+  const diff = Math.max(0, Date.now() - ts);
+  const minutes = Math.floor(diff / 60000);
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+export function columnLineageKey(cl: ColumnLineage): string {
+  return `${cl.sourceNode}:${cl.sourceCol}->${cl.targetNode}:${cl.targetCol}:${cl.transform ?? "pass"}`;
+}
+
+function datasetStatus(
+  ds: Dataset,
+  loadedTableNames: string[],
+): LNode["status"] {
+  if (loadedTableNames.includes(ds.tableName)) return "active";
+  return Date.now() - new Date(ds.updatedAt).getTime() > 7 * 24 * 60 * 60 * 1000
+    ? "stale"
+    : "pending";
+}
+
+export function buildRealLineage({
+  datasets,
+  transforms,
+  savedCharts,
+  telecomSources,
+  telecomAnalytics,
+  dailyStats,
+  loadedTableNames,
+}: {
+  datasets: Dataset[];
+  transforms: DataTransform[];
+  savedCharts: SavedChart[];
+  telecomSources: CachedTelecomSourceFileMeta[];
+  telecomAnalytics: CachedAnalyticsMeta[];
+  dailyStats: DailyStat[];
+  loadedTableNames: string[];
+}): {
+  nodes: LNode[];
+  edges: LEdge[];
+  columnLineage: ColumnLineage[];
+} {
+  const nodes = new Map<string, LNode>();
+  const edges = new Map<string, LEdge>();
+  const columnLineage: ColumnLineage[] = [];
+
+  const addNode = (node: LNode) => nodes.set(node.id, node);
+  const addEdge = (edge: LEdge) => {
+    edges.set(edge.id, edge);
+  };
+
+  for (const ds of datasets) {
+    const id = nodeId("dataset", ds.id);
+    const upstreams: string[] = [];
+    const downstreams: string[] = [];
+
+    if (ds.parentId) upstreams.push(nodeId("dataset", ds.parentId));
+
+    addNode({
+      id,
+      name: ds.name,
+      type: ds.source === "transform" || ds.parentId ? "transform" : "source",
+      subtype: `${ds.source.toUpperCase()} ${ds.format.toUpperCase()}`,
+      status: datasetStatus(ds, loadedTableNames),
+      rowCount: ds.rowCount,
+      colCount: ds.colCount,
+      owner: "workspace",
+      description: ds.description || `DuckDB table ${ds.tableName}`,
+      quality: ds.qualityScore / 100,
+      tags: ds.tags.length > 0 ? ds.tags : [ds.format, ds.source],
+      lastUpdated: timeAgo(ds.updatedAt),
+      duration: ds.transformSql ? "SQL transform" : undefined,
+      upstreams,
+      downstreams,
+    });
+
+    if (ds.parentId) {
+      addEdge({
+        id: `edge_${ds.parentId}_${ds.id}`,
+        source: nodeId("dataset", ds.parentId),
+        target: id,
+        label: "transform",
+        type: "full",
+        transformType: "SQL",
+        rowsTransferred: ds.rowCount,
+      });
+
+      const parent = datasets.find((item) => item.id === ds.parentId);
+      for (const col of ds.columns.slice(0, 40)) {
+        columnLineage.push({
+          sourceNode: nodeId("dataset", ds.parentId),
+          sourceCol:
+            parent?.columns.find((candidate) => candidate.name === col.name)
+              ?.name ?? "*",
+          targetNode: id,
+          targetCol: col.name,
+          transform: ds.transformSql ? "SQL projection" : undefined,
+        });
+      }
+    }
+  }
+
+  for (const transform of transforms) {
+    const input = nodeId("dataset", transform.inputDatasetId);
+    const output = nodeId("dataset", transform.outputDatasetId);
+    addEdge({
+      id: nodeId("transform_edge", transform.id),
+      source: input,
+      target: output,
+      label: transform.type,
+      type: transform.type === "sample" ? "partial" : "full",
+      transformType: transform.type,
+    });
+  }
+
+  for (const chart of savedCharts) {
+    const id = nodeId("chart", chart.id);
+    const source = nodeId("dataset", chart.datasetId);
+    addNode({
+      id,
+      name: chart.title,
+      type: "output",
+      subtype: `${chart.type} chart`,
+      status: "active",
+      rowCount: 0,
+      colCount: 0,
+      owner: "workspace",
+      description: "Saved visualization generated from a dataset.",
+      quality: 1,
+      tags: ["chart", chart.type],
+      lastUpdated: timeAgo(chart.createdAt),
+      upstreams: [source],
+      downstreams: [],
+    });
+    addEdge({
+      id: nodeId("chart_edge", chart.id),
+      source,
+      target: id,
+      label: "visualizes",
+      type: "partial",
+    });
+  }
+
+  for (const source of telecomSources) {
+    const id = nodeId("telecom_source", source.key);
+    addNode({
+      id,
+      name: source.fileName,
+      type: "source",
+      subtype: "Telecom source file",
+      status: "active",
+      rowCount: 0,
+      colCount: 0,
+      owner: "telecom",
+      description: `${(source.size / 1024 / 1024).toFixed(2)} MB cached source file in IndexedDB.`,
+      quality: 1,
+      tags: ["telecom", "source", source.type || "file"],
+      lastUpdated: timeAgo(source.savedAt),
+      upstreams: [],
+      downstreams: [],
+    });
+  }
+
+  for (const entry of telecomAnalytics) {
+    const id = nodeId("telecom_analytics", entry.key);
+    const source = nodeId("telecom_source", entry.key);
+    addNode({
+      id,
+      name: `Analytics · ${entry.fileName}`,
+      type: "model",
+      subtype: "Telecom KPI rollup",
+      status: "active",
+      rowCount: entry.totalTransactions,
+      colCount: 0,
+      owner: "telecom",
+      description:
+        "Cached KPI, channel, hourly, status, error, operator and region analytics.",
+      quality: Math.max(0, Math.min(1, entry.successRate / 100)),
+      tags: ["telecom", "analytics", "kpi"],
+      lastUpdated: timeAgo(entry.savedAt),
+      upstreams: telecomSources.some(
+        (sourceMeta) => sourceMeta.key === entry.key,
+      )
+        ? [source]
+        : [],
+      downstreams: [],
+    });
+    if (telecomSources.some((sourceMeta) => sourceMeta.key === entry.key)) {
+      addEdge({
+        id: nodeId("telecom_analytics_edge", entry.key),
+        source,
+        target: id,
+        label: "aggregates",
+        type: "full",
+        rowsTransferred: entry.totalTransactions,
+      });
+    }
+  }
+
+  for (const stat of dailyStats) {
+    const id = nodeId("telecom_day", stat.day);
+    const upstreams = stat.lineage.map((lineage) =>
+      nodeId("telecom_source", lineage.fileKey),
+    );
+    addNode({
+      id,
+      name: `Telecom daily snapshot · ${stat.day}`,
+      type: "output",
+      subtype: "Daily snapshot",
+      status: "active",
+      rowCount: stat.total,
+      colCount: 0,
+      owner: "telecom",
+      description: `${stat.lineage.length} source file(s), ${stat.successRate.toFixed(1)}% success rate.`,
+      quality: Math.max(0, Math.min(1, stat.successRate / 100)),
+      tags: ["telecom", "daily", "snapshot"],
+      lastUpdated: timeAgo(stat.computedAt),
+      upstreams,
+      downstreams: [],
+    });
+    for (const lineage of stat.lineage) {
+      const source = nodeId("telecom_source", lineage.fileKey);
+      addEdge({
+        id: nodeId("telecom_day_edge", `${lineage.fileKey}_${stat.day}`),
+        source,
+        target: id,
+        label: "contributes",
+        type: "partial",
+        rowsTransferred: lineage.rows,
+      });
+    }
+  }
+
+  const nodeList = [...nodes.values()];
+  for (const node of nodeList) {
+    node.upstreams = [...new Set(node.upstreams.filter((id) => nodes.has(id)))];
+    node.downstreams = [
+      ...new Set(
+        [...edges.values()]
+          .filter((edge) => edge.source === node.id && nodes.has(edge.target))
+          .map((edge) => edge.target),
+      ),
+    ];
+  }
+
+  return {
+    nodes: nodeList,
+    edges: [...edges.values()].filter(
+      (edge) => nodes.has(edge.source) && nodes.has(edge.target),
+    ),
+    columnLineage,
+  };
+}
+
+// ─── Layout helpers ─────────────────────────────────────────────────────────
+
+export function computeLayout(
+  nodes: LNode[],
+): Record<string, { x: number; y: number }> {
+  // Multi-pass topological sort → assign columns
+  const cols: Record<string, number> = {};
+  const inDegree: Record<string, number> = {};
+  for (const n of nodes) inDegree[n.id] = n.upstreams.length;
+  const queue = nodes.filter((n) => n.upstreams.length === 0).map((n) => n.id);
+  let col = 0;
+  while (queue.length > 0) {
+    const next: string[] = [];
+    for (const id of queue) {
+      cols[id] = cols[id] !== undefined ? Math.max(cols[id], col) : col;
+      const node = nodes.find((n) => n.id === id);
+      if (!node) continue;
+      for (const ds of node.downstreams) {
+        inDegree[ds]--;
+        if (inDegree[ds] === 0) next.push(ds);
+        const dsNode = nodes.find((n) => n.id === ds);
+        if (dsNode) cols[ds] = Math.max(cols[ds] ?? 0, cols[id] + 1);
+      }
+    }
+    col++;
+    queue.splice(0, queue.length, ...next);
+  }
+
+  // Assign y positions within each column
+  const colGroups: Record<number, string[]> = {};
+  for (const [id, c] of Object.entries(cols)) {
+    colGroups[c] = colGroups[c] ?? [];
+    colGroups[c].push(id);
+  }
+  const positions: Record<string, { x: number; y: number }> = {};
+  const nodeW = 220,
+    nodeH = 100,
+    padX = 80,
+    padY = 30;
+  for (const [col, ids] of Object.entries(colGroups)) {
+    const x = Number(col) * (nodeW + padX) + 40;
+    ids.forEach((id, i) => {
+      const y = i * (nodeH + padY) + 40;
+      positions[id] = { x, y };
+    });
+  }
+  return positions;
+}

@@ -5,7 +5,6 @@ import {
   BarChart2,
   CheckCircle2,
   Clock,
-  GripVertical,
   Layers,
   RefreshCw,
   Sparkles,
@@ -14,15 +13,8 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import GridLayout, {
-  type Layout,
-  type LayoutItem,
-  useContainerWidth,
-} from "react-grid-layout";
-import "react-grid-layout/css/styles.css";
-import "react-resizable/css/styles.css";
 import dynamic from "next/dynamic";
+import { useMemo, useState } from "react";
 import {
   CANAL_CONFIG,
   STATUS_COLORS,
@@ -35,10 +27,14 @@ import {
 } from "@/features/telecom/lib/format";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
-import type { ForecastPoint } from "@/lib/forecast-onnx";
-import { cn } from "@/lib/utils";
+import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
+import { cn } from "@/shared/utils";
 import { AlertBanner } from "./alert-banner";
 import { AnimCounter } from "./anim-counter";
+import {
+  type DashboardCardItem,
+  DraggableAutoGrid,
+} from "./draggable-auto-grid";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
 
@@ -51,24 +47,29 @@ const AmountPieChart = dynamic(
     import("./amount-pie-chart").then((m) => ({ default: m.AmountPieChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
+
 const CanalShareChart = dynamic(
   () =>
     import("./canal-share-chart").then((m) => ({ default: m.CanalShareChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
+
 const DailyTrendChart = dynamic(
   () =>
     import("./daily-trend-chart").then((m) => ({ default: m.DailyTrendChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
+
 const HourlyChart = dynamic(
   () => import("./hourly-chart").then((m) => ({ default: m.HourlyChart })),
   { ssr: false, loading: () => <ChartSkeleton h="h-56" /> },
 );
+
 const StatusDonut = dynamic(
   () => import("./status-donut").then((m) => ({ default: m.StatusDonut })),
   { ssr: false, loading: () => <ChartSkeleton h="h-32" /> },
 );
+
 const SuccessRateTrendChart = dynamic(
   () =>
     import("./success-rate-trend-chart").then((m) => ({
@@ -77,7 +78,7 @@ const SuccessRateTrendChart = dynamic(
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
-const OVERVIEW_LAYOUT_STORAGE_KEY = "telecom-overview-layout-v2";
+const OVERVIEW_CARD_ORDER_KEY = "telecom-overview-card-order-v1";
 
 const REVENUE_GROUPS: Record<
   string,
@@ -97,44 +98,87 @@ const REVENUE_GROUPS: Record<
   },
   "Voucher For Payment": { keys: ["voucher_for_payment"], color: "#94e2d5" },
   "Credit Transfer": { keys: ["credit_transfer"], color: "#fab387" },
-  "Voucher For Recharge": { keys: ["voucher_convergent"], color: "#cba6f7" },
+  "Voucher Convergent": { keys: ["voucher_convergent"], color: "#cba6f7" },
 };
 
-function clamp(v: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, v));
+function sortCardsBySavedOrder(
+  cards: DashboardCardItem[],
+  savedOrder: string[],
+): DashboardCardItem[] {
+  const byId = new Map(cards.map((card) => [card.id, card]));
+
+  const ordered = savedOrder
+    .map((id) => byId.get(id))
+    .filter(Boolean) as DashboardCardItem[];
+
+  const missing = cards.filter((card) => !savedOrder.includes(card.id));
+
+  return [...ordered, ...missing];
 }
-function safeNum(v: unknown): number {
-  const n = Number(v);
-  return Number.isFinite(n) ? n : 0;
+
+function readSavedCardOrder(): string[] {
+  if (typeof localStorage === "undefined") return [];
+
+  try {
+    const saved = localStorage.getItem(OVERVIEW_CARD_ORDER_KEY);
+    return saved ? (JSON.parse(saved) as string[]) : [];
+  } catch {
+    return [];
+  }
 }
 
-const OVERVIEW_DEFAULT_LAYOUT: LayoutItem[] = [
-  { i: "status", x: 0, y: 0, w: 4, h: 10 },
-  { i: "hourly", x: 4, y: 0, w: 8, h: 10 },
-  { i: "canal-share", x: 0, y: 10, w: 6, h: 9 },
-  { i: "canal-amount", x: 6, y: 10, w: 6, h: 9 },
-  { i: "success-rate", x: 0, y: 19, w: 12, h: 9 },
-  { i: "canal-table", x: 0, y: 28, w: 12, h: 11 },
-  { i: "daily-trend", x: 0, y: 39, w: 12, h: 9 },
-];
+function saveCardOrder(order: string[]) {
+  try {
+    localStorage.setItem(OVERVIEW_CARD_ORDER_KEY, JSON.stringify(order));
+  } catch {}
+}
 
-const defaultIds = new Set(OVERVIEW_DEFAULT_LAYOUT.map((item) => item.i));
-
-function normalizeLayout(layout: LayoutItem[]): LayoutItem[] {
-  const byId = new Map(layout.map((item) => [item.i, item]));
-  return OVERVIEW_DEFAULT_LAYOUT.map((fallback) => {
-    const saved = byId.get(fallback.i);
-    if (!saved) return fallback;
-    const x = clamp(safeNum(saved.x), 0, 11);
-    return {
-      ...fallback,
-      ...saved,
-      x,
-      y: Math.max(0, safeNum(saved.y)),
-      w: clamp(safeNum(saved.w), 1, 12 - x),
-      h: Math.max(4, safeNum(saved.h)),
-    };
-  }).filter((item) => defaultIds.has(item.i));
+function ExportToggle({
+  checked,
+  onToggle,
+  label = "Exporter",
+}: {
+  checked: boolean;
+  onToggle: () => void;
+  label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        onToggle();
+      }}
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors",
+        checked
+          ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
+          : "border-border bg-background text-muted-foreground hover:bg-muted",
+      )}
+      aria-pressed={checked}
+    >
+      <span
+        className={cn(
+          "flex h-3.5 w-3.5 items-center justify-center rounded border",
+          checked ? "border-indigo-500 bg-indigo-500" : "border-border",
+        )}
+      >
+        {checked && (
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 10 10"
+            className="h-2.5 w-2.5 text-white"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <polyline points="1.5,5 4,7.5 8.5,2.5" />
+          </svg>
+        )}
+      </span>
+      {label}
+    </button>
+  );
 }
 
 export function OverviewTab({
@@ -146,6 +190,8 @@ export function OverviewTab({
   m,
   selectedKpis,
   toggleKpi,
+  selectedOverviewSections,
+  toggleOverviewSection,
   fetchDailyTrend,
 }: {
   kpi: Types.KPISummary | null;
@@ -156,89 +202,333 @@ export function OverviewTab({
   m: Types.ColumnMapping;
   selectedKpis: Set<keyof Types.KPISummary>;
   toggleKpi: (key: keyof Types.KPISummary) => void;
+  selectedOverviewSections: Set<Types.OverviewExportSectionKey>;
+  toggleOverviewSection: (key: Types.OverviewExportSectionKey) => void;
   fetchDailyTrend: (m: Types.ColumnMapping) => Promise<Types.DailyTrendRow[]>;
 }) {
+  const [cardOrder, setCardOrder] = useState<string[]>(readSavedCardOrder);
+
   const insights = useMemo(
     () =>
       kpi
-        ? computeAIInsights(kpi, canals, hourly, [], statusData).slice(0, 3)
+        ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 3)
         : [],
     [kpi, canals, hourly, statusData],
   );
 
-  const {
-    width: gridWidth,
-    mounted: gridMeasured,
-    containerRef: gridContainerRef,
-  } = useContainerWidth({ measureBeforeMount: true, initialWidth: 1200 });
+  const defaultCards = useMemo<DashboardCardItem[]>(
+    () => [
+      {
+        id: "status",
+        size: "sm",
+        node: (
+          <Section
+            title="Répartition des Statuts"
+            icon={<Activity className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("status")}
+                onToggle={() => toggleOverviewSection("status")}
+              />
+            }
+          >
+            <StatusDonut
+              data={statusData}
+              total={kpi?.totalTransactions ?? 0}
+            />
 
-  const [gridLayout, setGridLayout] = useState<LayoutItem[]>(() => {
-    if (typeof localStorage === "undefined") return OVERVIEW_DEFAULT_LAYOUT;
-    try {
-      const saved = localStorage.getItem(OVERVIEW_LAYOUT_STORAGE_KEY);
-      return saved
-        ? normalizeLayout(JSON.parse(saved) as LayoutItem[])
-        : OVERVIEW_DEFAULT_LAYOUT;
-    } catch {
-      return OVERVIEW_DEFAULT_LAYOUT;
-    }
-  });
+            <div className="mt-3 space-y-1.5">
+              {statusData.map((s) => (
+                <div
+                  key={s.status}
+                  className="flex items-center justify-between"
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="w-2.5 h-2.5 rounded-full flex-none"
+                      style={{
+                        background: STATUS_COLORS[s.status] ?? "#6b7280",
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {s.status}
+                    </span>
+                  </div>
 
-  const [layoutLocked, setLayoutLocked] = useState(false);
-  const layoutSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const compactGrid = gridMeasured && gridWidth < 900;
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className="text-muted-foreground tabular-nums">
+                      {fmtN(s.count)}
+                    </span>
+                    <span className="text-muted-foreground tabular-nums w-12 text-right">
+                      {fmtPct((s.count / (kpi?.totalTransactions || 1)) * 100)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+        ),
+      },
+      {
+        id: "hourly",
+        size: "lg",
+        node: (
+          <Section
+            title="Distribution Horaire des Transactions"
+            icon={<Clock className="w-4 h-4" />}
+            badge={
+              forecast.length > 0 ? (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30">
+                  IA
+                </span>
+              ) : null
+            }
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("hourly")}
+                onToggle={() => toggleOverviewSection("hourly")}
+              />
+            }
+          >
+            <HourlyChart data={hourly} forecast={forecast} />
+          </Section>
+        ),
+      },
+      {
+        id: "canal-share",
+        size: "md",
+        node: (
+          <Section
+            title="Part des Transactions par Groupe"
+            icon={<Layers className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("canalShare")}
+                onToggle={() => toggleOverviewSection("canalShare")}
+              />
+            }
+          >
+            <CanalShareChart canals={canals} />
+          </Section>
+        ),
+      },
+      {
+        id: "canal-amount",
+        size: "md",
+        node: (
+          <Section
+            title="Revenue per Group"
+            icon={<TrendingUp className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("canalAmount")}
+                onToggle={() => toggleOverviewSection("canalAmount")}
+              />
+            }
+          >
+            <AmountPieChart canals={canals} />
+          </Section>
+        ),
+      },
+      {
+        id: "success-rate",
+        size: "full",
+        node: (
+          <Section
+            title="Taux de Réussite par Groupe"
+            icon={<CheckCircle2 className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("successRate")}
+                onToggle={() => toggleOverviewSection("successRate")}
+              />
+            }
+          >
+            <SuccessRateTrendChart canals={canals} />
+          </Section>
+        ),
+      },
+      {
+        id: "canal-table",
+        size: "full",
+        node: (
+          <Section
+            title="KPI Summary by Product"
+            icon={<BarChart2 className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("canalTable")}
+                onToggle={() => toggleOverviewSection("canalTable")}
+              />
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border">
+                    {[
+                      "Product",
+                      "Total",
+                      "Réussie",
+                      "Échec",
+                      "Instance",
+                      "Annulation",
+                      "Confirmé",
+                      "Taux",
+                      "Montant (TND)",
+                      "Moy (TND)",
+                      "Part",
+                    ].map((h) => (
+                      <th
+                        key={h}
+                        className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold whitespace-nowrap"
+                      >
+                        {h}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
 
-  let compactY = 0;
-  const renderedLayout = compactGrid
-    ? OVERVIEW_DEFAULT_LAYOUT.map((item) => {
-        const next = { ...item, x: 0, y: compactY, w: 1 };
-        compactY += item.h;
-        return next;
-      })
-    : gridLayout;
+                <tbody>
+                  {canals.map((c) => {
+                    const cfg = CANAL_CONFIG[c.key];
+                    const Icon = cfg.icon;
 
-  useEffect(() => {
-    return () => {
-      if (layoutSaveTimerRef.current) clearTimeout(layoutSaveTimerRef.current);
-    };
-  }, []);
+                    return (
+                      <tr
+                        key={c.key}
+                        className="border-b border-border hover:bg-muted/40 transition-colors"
+                      >
+                        <td className="px-3 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              className={cn("w-3.5 h-3.5 flex-none", cfg.color)}
+                            />
+                            <span className="text-foreground font-medium whitespace-nowrap">
+                              {cfg.shortLabel}
+                            </span>
+                          </div>
+                        </td>
 
-  function handleLayoutChange(newLayout: Layout) {
-    if (compactGrid) return;
-    const next = normalizeLayout([...newLayout]);
-    setGridLayout(next);
-    if (layoutSaveTimerRef.current) clearTimeout(layoutSaveTimerRef.current);
-    layoutSaveTimerRef.current = setTimeout(() => {
-      try {
-        localStorage.setItem(OVERVIEW_LAYOUT_STORAGE_KEY, JSON.stringify(next));
-      } catch {}
-    }, 250);
-  }
+                        <td className="px-3 py-2.5 text-foreground font-semibold tabular-nums">
+                          {fmtN(c.total)}
+                        </td>
 
-  function resetOverviewLayout() {
-    setGridLayout(OVERVIEW_DEFAULT_LAYOUT);
-    try {
-      localStorage.removeItem(OVERVIEW_LAYOUT_STORAGE_KEY);
-    } catch {}
-  }
+                        <td className="px-3 py-2.5 text-emerald-600 dark:text-emerald-400 tabular-nums">
+                          {fmtN(c.success)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-red-600 dark:text-red-400 tabular-nums">
+                          {fmtN(c.declined)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-amber-600 dark:text-amber-400 tabular-nums">
+                          {fmtN(c.instance)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-violet-600 dark:text-violet-400 tabular-nums">
+                          {fmtN(c.refund)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-blue-600 dark:text-blue-400 tabular-nums">
+                          {fmtN(c.submitted)}
+                        </td>
+
+                        <td className="px-3 py-2.5">
+                          <span
+                            className={cn(
+                              "font-bold tabular-nums",
+                              c.successRate >= 95
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : c.successRate >= 80
+                                  ? "text-amber-600 dark:text-amber-400"
+                                  : "text-red-600 dark:text-red-400",
+                            )}
+                          >
+                            {fmtPct(c.successRate)}
+                          </span>
+                        </td>
+
+                        <td className="px-3 py-2.5 text-foreground tabular-nums">
+                          {fmtAmount(c.amount)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-muted-foreground tabular-nums">
+                          {fmtAmount(c.avgAmount)}
+                        </td>
+
+                        <td className="px-3 py-2.5 text-muted-foreground tabular-nums">
+                          {fmtPct(c.share)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </Section>
+        ),
+      },
+      {
+        id: "daily-trend",
+        size: "full",
+        node: (
+          <Section
+            title="Daily Trend"
+            icon={<TrendingUp className="w-4 h-4" />}
+            action={
+              <ExportToggle
+                checked={selectedOverviewSections.has("dailyTrend")}
+                onToggle={() => toggleOverviewSection("dailyTrend")}
+              />
+            }
+          >
+            <DailyTrendChart fetchDailyTrend={fetchDailyTrend} m={m} />
+          </Section>
+        ),
+      },
+    ],
+    [
+      statusData,
+      kpi,
+      selectedOverviewSections,
+      toggleOverviewSection,
+      forecast,
+      hourly,
+      canals,
+      fetchDailyTrend,
+      m,
+    ],
+  );
+
+  const cards = useMemo(
+    () => sortCardsBySavedOrder(defaultCards, cardOrder),
+    [defaultCards, cardOrder],
+  );
 
   return (
     <div className="space-y-6">
       {kpi && <AlertBanner kpi={kpi} canals={canals} />}
 
-      {/* AI insight strip */}
       {insights.length > 0 && (
         <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
-              Analyses IA
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              · {insights.length} résultats — voir l&apos;onglet Config &amp; IA
-              pour l&apos;analyse complète
-            </span>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+                Assistant métier
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                · {insights.length} contrôles — voir l&apos;onglet Config &amp;
+                IA pour l&apos;analyse complète
+              </span>
+            </div>
+            <ExportToggle
+              checked={selectedOverviewSections.has("assistant")}
+              onToggle={() => toggleOverviewSection("assistant")}
+            />
           </div>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
             {insights.map((ins) => {
               const sevColor =
@@ -249,6 +539,7 @@ export function OverviewTab({
                     : ins.severity === "positive"
                       ? "text-emerald-700 border-emerald-200 bg-emerald-50 dark:text-emerald-300 dark:border-emerald-500/20 dark:bg-emerald-500/8"
                       : "text-blue-700 border-blue-200 bg-blue-50 dark:text-blue-300 dark:border-blue-500/20 dark:bg-blue-500/8";
+
               return (
                 <div
                   key={ins.id}
@@ -270,7 +561,6 @@ export function OverviewTab({
         </div>
       )}
 
-      {/* Primary KPIs */}
       {kpi ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <KPICard
@@ -287,6 +577,7 @@ export function OverviewTab({
             selected={selectedKpis.has("totalTransactions")}
             onToggle={() => toggleKpi("totalTransactions")}
           />
+
           <KPICard
             label="Réussies"
             delay={0.06}
@@ -303,14 +594,14 @@ export function OverviewTab({
             selected={selectedKpis.has("successCount")}
             onToggle={() => toggleKpi("successCount")}
           />
+
           <KPICard
             label="Échec (Refusé)"
             delay={0.12}
             value={<AnimCounter value={kpi.declinedCount} />}
-            sub={
-              fmtPct((kpi.declinedCount / kpi.totalTransactions) * 100) +
-              " du total"
-            }
+            sub={`${fmtPct(
+              (kpi.declinedCount / kpi.totalTransactions) * 100,
+            )} du total`}
             trendValue={fmtPct(
               (kpi.declinedCount / kpi.totalTransactions) * 100,
             )}
@@ -343,7 +634,6 @@ export function OverviewTab({
         </div>
       )}
 
-      {/* Secondary KPIs */}
       {kpi ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           <KPICard
@@ -359,6 +649,7 @@ export function OverviewTab({
             selected={selectedKpis.has("instanceCount")}
             onToggle={() => toggleKpi("instanceCount")}
           />
+
           <KPICard
             label="Annulation (Remboursement)"
             delay={0.26}
@@ -372,6 +663,7 @@ export function OverviewTab({
             selected={selectedKpis.has("refundCount")}
             onToggle={() => toggleKpi("refundCount")}
           />
+
           <KPICard
             label="Confirmé"
             delay={0.3}
@@ -385,6 +677,7 @@ export function OverviewTab({
             selected={selectedKpis.has("submittedCount")}
             onToggle={() => toggleKpi("submittedCount")}
           />
+
           <KPICard
             label="Abonnés uniques"
             delay={0.34}
@@ -398,6 +691,7 @@ export function OverviewTab({
             selected={selectedKpis.has("uniqueCustomers")}
             onToggle={() => toggleKpi("uniqueCustomers")}
           />
+
           <KPICard
             label="Traitement moy."
             delay={0.38}
@@ -430,7 +724,6 @@ export function OverviewTab({
         </div>
       )}
 
-      {/* 5-Category Overview */}
       {canals.length > 0 && (
         <motion.div
           className="grid grid-cols-2 lg:grid-cols-5 gap-3"
@@ -449,6 +742,7 @@ export function OverviewTab({
             const success = matching.reduce((s, c) => s + c.success, 0);
             const amount = matching.reduce((s, c) => s + c.amount, 0);
             const rate = total > 0 ? (success / total) * 100 : 0;
+
             return (
               <motion.div
                 key={name}
@@ -468,14 +762,23 @@ export function OverviewTab({
                   <span className="text-xs font-semibold text-foreground truncate leading-tight">
                     {name}
                   </span>
-                  <span
-                    className="w-3 h-3 rounded-full flex-none shadow-sm ring-2 ring-border"
-                    style={{ background: color }}
-                  />
+                  <div className="flex items-center gap-2">
+                    <ExportToggle
+                      checked={selectedOverviewSections.has("revenueGroups")}
+                      onToggle={() => toggleOverviewSection("revenueGroups")}
+                      label=""
+                    />
+                    <span
+                      className="w-3 h-3 rounded-full flex-none shadow-sm ring-2 ring-border"
+                      style={{ background: color }}
+                    />
+                  </div>
                 </div>
+
                 <div className="text-2xl font-black text-foreground tabular-nums leading-none">
                   {fmtN(total)}
                 </div>
+
                 <div className="space-y-1.5 mt-auto">
                   <div className="flex items-center justify-between text-[10px]">
                     <span className="text-muted-foreground">
@@ -494,6 +797,7 @@ export function OverviewTab({
                       {fmtPct(rate)}
                     </span>
                   </div>
+
                   <div className="h-1 rounded-full bg-muted overflow-hidden">
                     <div
                       className={cn(
@@ -514,350 +818,14 @@ export function OverviewTab({
         </motion.div>
       )}
 
-      {/* Grid layout controls */}
-      <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          className={cn(
-            "text-[10px] px-2.5 py-1 rounded-lg border transition-colors",
-            layoutLocked
-              ? "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-300"
-              : "border-border bg-muted/40 text-muted-foreground hover:text-foreground",
-          )}
-          onClick={() => setLayoutLocked((v) => !v)}
-        >
-          {layoutLocked
-            ? "Mise en page verrouillée"
-            : "Verrouiller mise en page"}
-        </button>
-        <button
-          type="button"
-          className="text-[10px] px-2.5 py-1 rounded-lg border border-border bg-muted/40 text-muted-foreground hover:text-foreground transition-colors"
-          onClick={resetOverviewLayout}
-        >
-          Réinitialiser
-        </button>
-      </div>
-
-      {/* Draggable chart grid */}
-      <div ref={gridContainerRef} className="min-w-0">
-        {gridMeasured && gridWidth > 0 && (
-          <GridLayout
-            layout={renderedLayout}
-            gridConfig={{
-              cols: compactGrid ? 1 : 12,
-              rowHeight: 44,
-              margin: compactGrid ? ([0, 16] as const) : ([16, 16] as const),
-              containerPadding: [0, 0] as const,
-            }}
-            dragConfig={{
-              bounded: true,
-              cancel: "button,a,input,textarea,select,[data-no-drag]",
-              enabled: !layoutLocked && !compactGrid,
-              handle: ".drag-handle",
-              threshold: 8,
-            }}
-            resizeConfig={{
-              enabled: !layoutLocked && !compactGrid,
-              handles: ["se"],
-            }}
-            width={Math.max(320, Math.floor(gridWidth))}
-            onLayoutChange={handleLayoutChange}
-            className="relative"
-          >
-            <div key="status" className="overflow-hidden">
-              <Section
-                title="Répartition des Statuts"
-                icon={<Activity className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-              >
-                <StatusDonut
-                  data={statusData}
-                  total={kpi?.totalTransactions ?? 0}
-                />
-                <div className="mt-3 space-y-1.5">
-                  {statusData.map((s) => (
-                    <div
-                      key={s.status}
-                      className="flex items-center justify-between"
-                    >
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="w-2.5 h-2.5 rounded-full flex-none"
-                          style={{
-                            background: STATUS_COLORS[s.status] ?? "#6b7280",
-                          }}
-                        />
-                        <span className="text-xs text-muted-foreground">
-                          {s.status}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs">
-                        <span className="text-muted-foreground tabular-nums">
-                          {fmtN(s.count)}
-                        </span>
-                        <span className="text-muted-foreground tabular-nums w-12 text-right">
-                          {fmtPct(
-                            (s.count / (kpi?.totalTransactions || 1)) * 100,
-                          )}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </Section>
-            </div>
-
-            <div key="hourly" className="overflow-hidden">
-              <Section
-                title="Distribution Horaire des Transactions"
-                icon={<Clock className="w-4 h-4" />}
-                badge={
-                  <span className="flex items-center gap-1.5">
-                    {forecast.length > 0 && (
-                      <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30">
-                        IA
-                      </span>
-                    )}
-                    <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                      <GripVertical
-                        className="w-3.5 h-3.5"
-                        aria-hidden="true"
-                      />
-                    </span>
-                  </span>
-                }
-              >
-                <HourlyChart data={hourly} forecast={forecast} />
-              </Section>
-            </div>
-
-            <div key="canal-share" className="overflow-hidden">
-              <Section
-                title="Part des Transactions par Groupe"
-                icon={<Layers className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-              >
-                <CanalShareChart canals={canals} />
-              </Section>
-            </div>
-
-            <div key="success-rate" className="overflow-hidden">
-              <Section
-                title="Taux de Réussite par Groupe"
-                icon={<CheckCircle2 className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-              >
-                <SuccessRateTrendChart canals={canals} />
-              </Section>
-            </div>
-
-            <div key="canal-amount" className="overflow-hidden">
-              <Section
-                title="Revenue per Group"
-                icon={<TrendingUp className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-              >
-                <AmountPieChart canals={canals} />
-              </Section>
-            </div>
-
-            <div key="canal-table" className="overflow-hidden">
-              <Section
-                title="KPI Summary by Product"
-                icon={<BarChart2 className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-              >
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs">
-                    <thead>
-                      <tr className="border-b border-border">
-                        {[
-                          "Product",
-                          "Total",
-                          "Réussie",
-                          "Échec",
-                          "Instance",
-                          "Annulation",
-                          "Confirmé",
-                          "Taux",
-                          "Montant (TND)",
-                          "Moy (TND)",
-                          "Part",
-                        ].map((h) => (
-                          <th
-                            key={h}
-                            className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold whitespace-nowrap"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {canals.map((c) => {
-                        const cfg = CANAL_CONFIG[c.key];
-                        const Icon = cfg.icon;
-                        return (
-                          <tr
-                            key={c.key}
-                            className="border-b border-border hover:bg-muted/40 transition-colors"
-                          >
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <Icon
-                                  className={cn(
-                                    "w-3.5 h-3.5 flex-none",
-                                    cfg.color,
-                                  )}
-                                />
-                                <span className="text-foreground font-medium whitespace-nowrap">
-                                  {cfg.shortLabel}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-3 py-2.5 text-foreground font-semibold tabular-nums">
-                              {fmtN(c.total)}
-                            </td>
-                            <td className="px-3 py-2.5 text-emerald-600 dark:text-emerald-400 tabular-nums">
-                              {fmtN(c.success)}
-                            </td>
-                            <td className="px-3 py-2.5 text-red-600 dark:text-red-400 tabular-nums">
-                              {fmtN(c.declined)}
-                            </td>
-                            <td className="px-3 py-2.5 text-amber-600 dark:text-amber-400 tabular-nums">
-                              {fmtN(c.instance)}
-                            </td>
-                            <td className="px-3 py-2.5 text-violet-600 dark:text-violet-400 tabular-nums">
-                              {fmtN(c.refund)}
-                            </td>
-                            <td className="px-3 py-2.5 text-blue-600 dark:text-blue-400 tabular-nums">
-                              {fmtN(c.submitted)}
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <span
-                                className={cn(
-                                  "font-bold tabular-nums",
-                                  c.successRate >= 95
-                                    ? "text-emerald-600 dark:text-emerald-400"
-                                    : c.successRate >= 80
-                                      ? "text-amber-600 dark:text-amber-400"
-                                      : "text-red-600 dark:text-red-400",
-                                )}
-                              >
-                                {fmtPct(c.successRate)}
-                              </span>
-                            </td>
-                            <td className="px-3 py-2.5 text-muted-foreground tabular-nums font-mono">
-                              {fmtAmount(c.amount)}
-                            </td>
-                            <td className="px-3 py-2.5 text-muted-foreground tabular-nums font-mono">
-                              {fmtAmount(c.avgAmount)}
-                            </td>
-                            <td className="px-3 py-2.5">
-                              <div className="flex items-center gap-2">
-                                <div className="w-12 h-1.5 bg-muted rounded-full overflow-hidden">
-                                  <div
-                                    className={cn(
-                                      "h-full rounded-full",
-                                      cfg.bg.replace("/10", "/60"),
-                                    )}
-                                    style={{
-                                      width: `${clamp(c.share, 0, 100)}%`,
-                                      transition: "width 0.7s",
-                                    }}
-                                  />
-                                </div>
-                                <span className="text-[10px] text-muted-foreground tabular-nums">
-                                  {fmtPct(c.share)}
-                                </span>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                    <tfoot>
-                      <tr className="border-t-2 border-border bg-muted/40 font-bold">
-                        <td className="px-3 py-3 text-xs text-foreground">
-                          TOTAL
-                        </td>
-                        <td className="px-3 py-3 text-foreground tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.total, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-emerald-600 dark:text-emerald-400 tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.success, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-red-600 dark:text-red-400 tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.declined, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-amber-600 dark:text-amber-400 tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.instance, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-violet-600 dark:text-violet-400 tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.refund, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-blue-600 dark:text-blue-400 tabular-nums">
-                          {fmtN(canals.reduce((a, c) => a + c.submitted, 0))}
-                        </td>
-                        <td className="px-3 py-3 text-foreground tabular-nums">
-                          {fmtPct(
-                            (canals.reduce((a, c) => a + c.success, 0) /
-                              Math.max(
-                                1,
-                                canals.reduce((a, c) => a + c.total, 0),
-                              )) *
-                              100,
-                          )}
-                        </td>
-                        <td className="px-3 py-3 text-foreground font-mono tabular-nums">
-                          {fmtAmount(canals.reduce((a, c) => a + c.amount, 0))}
-                        </td>
-                        <td colSpan={2} />
-                      </tr>
-                    </tfoot>
-                  </table>
-                </div>
-              </Section>
-            </div>
-
-            <div key="daily-trend" className="overflow-hidden">
-              <Section
-                title="Tendance Multi-Jours"
-                icon={<TrendingUp className="w-4 h-4" />}
-                badge={
-                  <span className="drag-handle cursor-grab touch-none active:cursor-grabbing text-muted-foreground/40 hover:text-muted-foreground px-1">
-                    <GripVertical className="w-3.5 h-3.5" aria-hidden="true" />
-                  </span>
-                }
-                collapsible
-              >
-                <DailyTrendChart m={m} fetchDailyTrend={fetchDailyTrend} />
-              </Section>
-            </div>
-          </GridLayout>
-        )}
-      </div>
+      <DraggableAutoGrid
+        items={cards}
+        onChange={(nextCards) => {
+          const nextOrder = nextCards.map((card) => card.id);
+          setCardOrder(nextOrder);
+          saveCardOrder(nextOrder);
+        }}
+      />
     </div>
   );
 }

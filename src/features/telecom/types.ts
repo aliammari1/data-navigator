@@ -11,7 +11,25 @@ export type CanalKey =
   | "voucher_convergent";
 
 export type SortDir = "asc" | "desc";
-export type MainTab = "overview" | "canals" | "analysis" | "grid" | "config";
+export type MainTab =
+  | "overview"
+  | "canals"
+  | "analysis"
+  | "grid"
+  | "history"
+  | "period"
+  | "day"
+  | "config";
+export type OverviewExportSectionKey =
+  | "assistant"
+  | "revenueGroups"
+  | "status"
+  | "hourly"
+  | "canalShare"
+  | "canalAmount"
+  | "successRate"
+  | "canalTable"
+  | "dailyTrend";
 
 export interface ColumnMapping {
   transactionId: string;
@@ -85,11 +103,14 @@ export interface StatusRow {
   amount: number;
 }
 
-export interface ErrorRow {
-  error_code: string;
-  error_message: string;
-  count: number;
-  canal: string;
+export interface SpecStatusResult {
+  rows: Array<{ status: string; nombre: number }>;
+  total: { status: string; nombre: number };
+}
+
+export interface SpecUnitAmountResult {
+  rows: Array<{ unitAmount: string; nombre: number; montant: number }>;
+  total: { unitAmount: string; nombre: number; montant: number };
 }
 
 export interface OperatorRow {

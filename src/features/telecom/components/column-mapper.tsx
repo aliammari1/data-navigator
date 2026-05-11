@@ -28,12 +28,12 @@ export function ColumnMapper({
   }> = [
     { key: "transactionId", label: "ID Transaction", required: true },
     { key: "transactionDate", label: "Date Transaction", required: true },
-    { key: "transactionTime", label: "Heure Transaction", required: true },
+    { key: "transactionTime", label: "Heure Transaction" },
     { key: "canal", label: "Canal", required: true },
     { key: "serviceCode", label: "Code Service", required: true },
     { key: "serviceName", label: "Nom du Service" },
     { key: "transactionType", label: "Type de Transaction", required: true },
-    { key: "subscriberType", label: "Type d'Abonné", required: true },
+    { key: "subscriberType", label: "Type d'Abonné" },
     { key: "msisdn", label: "MSISDN / Téléphone" },
     { key: "amount", label: "Montant", required: true },
     { key: "status", label: "Statut", required: true },
@@ -47,7 +47,9 @@ export function ColumnMapper({
     { key: "totalAmount", label: "Montant Total" },
     { key: "retryCount", label: "Nombre de Tentatives" },
   ];
-
+  const missingRequired = fields.filter(
+    (field) => field.required && !local[field.key],
+  );
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -87,7 +89,9 @@ export function ColumnMapper({
               >
                 {label}
                 {required && (
-                  <span className="text-red-600 dark:text-red-400 ml-0.5">*</span>
+                  <span className="text-red-600 dark:text-red-400 ml-0.5">
+                    *
+                  </span>
                 )}
               </label>
               <select
@@ -124,11 +128,20 @@ export function ColumnMapper({
             </button>
             <button
               type="button"
+              disabled={missingRequired.length > 0}
+              title={
+                missingRequired.length > 0
+                  ? `Champs obligatoires manquants: ${missingRequired
+                      .map((field) => field.label)
+                      .join(", ")}`
+                  : "Appliquer le mapping"
+              }
               onClick={() => {
+                if (missingRequired.length > 0) return;
                 onChange(local);
                 onClose();
               }}
-              className="px-4 py-2 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl transition-colors"
+              className="px-4 py-2 text-xs font-semibold text-primary-foreground bg-primary hover:bg-primary/90 rounded-xl transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
             >
               Appliquer le Mapping
             </button>

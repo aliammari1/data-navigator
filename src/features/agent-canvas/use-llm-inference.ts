@@ -4,7 +4,6 @@ import { useCallback, useRef, useState } from "react";
 import type { LLMInferRequest, LLMWorkerMessage } from "@/workers/llm.worker";
 
 export interface UseLLMInferenceOptions {
-  apiKey: string;
   model?: string;
   maxTokens?: number;
   systemPrompt?: string;
@@ -27,7 +26,9 @@ function getWorker(): Worker {
   return _worker;
 }
 
-export function useLLMInference(opts: UseLLMInferenceOptions): UseLLMInferenceReturn {
+export function useLLMInference(
+  opts: UseLLMInferenceOptions,
+): UseLLMInferenceReturn {
   const [output, setOutput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -49,11 +50,14 @@ export function useLLMInference(opts: UseLLMInferenceOptions): UseLLMInferenceRe
       const worker = getWorker();
 
       const handler = (e: MessageEvent<LLMWorkerMessage>) => {
-        if (e.data.id !== id) return;
+        const msg = e.data as LLMWorkerMessage & { id?: string };
+        if (msg.id !== id) return;
 
         if (e.data.type === "INFER_CHUNK") {
           if (activeIdRef.current === id) {
-            const chunk = (e.data as Extract<LLMWorkerMessage, { type: "INFER_CHUNK" }>).chunk;
+            const chunk = (
+              e.data as Extract<LLMWorkerMessage, { type: "INFER_CHUNK" }>
+            ).chunk;
             setOutput((prev) => prev + chunk);
           }
         } else if (e.data.type === "INFER_DONE") {
@@ -62,7 +66,10 @@ export function useLLMInference(opts: UseLLMInferenceOptions): UseLLMInferenceRe
         } else if (e.data.type === "INFER_ERROR") {
           worker.removeEventListener("message", handler);
           if (activeIdRef.current === id) {
-            setError(e.data.error);
+            setError(
+              (e.data as Extract<LLMWorkerMessage, { type: "INFER_ERROR" }>)
+                .error,
+            );
             setLoading(false);
           }
         }
@@ -75,15 +82,13 @@ export function useLLMInference(opts: UseLLMInferenceOptions): UseLLMInferenceRe
         type: "INFER",
         payload: {
           prompt,
-          systemPrompt: opts.systemPrompt,
-          apiKey: opts.apiKey,
-          model: opts.model,
+          systemPrompt: opts.systemPrompt ?? "",
           maxTokens: opts.maxTokens,
         },
       };
       worker.postMessage(request);
     },
-    [opts.apiKey, opts.model, opts.maxTokens, opts.systemPrompt],
+    [opts.maxTokens, opts.systemPrompt],
   );
 
   return { output, loading, error, infer, cancel };

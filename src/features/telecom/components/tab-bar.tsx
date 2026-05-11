@@ -1,10 +1,19 @@
 "use client";
 
-import { BarChart2, Brain, Layers, Sparkles, Table2 } from "lucide-react";
+import {
+  BarChart2,
+  Brain,
+  Calendar,
+  FolderClock,
+  Layers,
+  Scale,
+  Sparkles,
+  Table2,
+} from "lucide-react";
 import { LayoutGroup, motion } from "motion/react";
 import { fmtCompact } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 export function TabBar({
   active,
@@ -47,6 +56,25 @@ export function TabBar({
       label: "Données Brutes",
       icon: Table2,
       activeBg: "bg-amber-600 dark:bg-amber-500 shadow-lg shadow-amber-500/30",
+    },
+    {
+      key: "period",
+      label: "Période Studio",
+      icon: Scale,
+      activeBg:
+        "bg-fuchsia-600 dark:bg-fuchsia-500 shadow-lg shadow-fuchsia-500/30",
+    },
+    {
+      key: "day",
+      label: "Analyse par Jour",
+      icon: Calendar,
+      activeBg: "bg-teal-600 dark:bg-teal-500 shadow-lg shadow-teal-500/30",
+    },
+    {
+      key: "history",
+      label: "Analytics sauvegardées",
+      icon: FolderClock,
+      activeBg: "bg-cyan-600 dark:bg-cyan-500 shadow-lg shadow-cyan-500/30",
     },
     {
       key: "config",

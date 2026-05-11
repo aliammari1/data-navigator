@@ -8,8 +8,8 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
-import type { CanalKey, CanalSummary } from "@/features/telecom/types";
 import type { RawCanalRow } from "@/features/telecom/lib/queries";
+import type { CanalKey, CanalSummary } from "@/features/telecom/types";
 
 // ─── Canal visual configuration ───────────────────────────────────────────────
 
@@ -97,12 +97,12 @@ export const CANAL_CONFIG: Record<
     shortLabel: "Credit Transfer",
   },
   voucher_convergent: {
-    label: "Voucher For Recharge Management",
+    label: "Voucher Convergent Management",
     icon: Layers,
     color: "text-lime-600 dark:text-lime-400",
     bg: "bg-lime-50 dark:bg-lime-500/10",
     border: "border-lime-200 dark:border-lime-500/25",
-    shortLabel: "Voucher For Recharge",
+    shortLabel: "Voucher Convergent",
   },
 };
 

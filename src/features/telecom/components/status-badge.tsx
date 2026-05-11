@@ -9,7 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 import type * as Types from "@/features/telecom/types";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { normalizeStatusCode } from "@/features/telecom/lib/sql";
 
 export function StatusBadge({

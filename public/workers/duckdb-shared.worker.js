@@ -10037,8 +10037,8 @@ class RecordBatchReaderImpl {
     return new VectorLoader(body, header.nodes, header.buffers, this.dictionaries, this.schema.metadataVersion).visitMany(types);
   }
 }
-function shouldAutoDestroy(self2, options) {
-  return options && typeof options["autoDestroy"] === "boolean" ? options["autoDestroy"] : self2["autoDestroy"];
+function shouldAutoDestroy(self, options) {
+  return options && typeof options["autoDestroy"] === "boolean" ? options["autoDestroy"] : self["autoDestroy"];
 }
 function* readAllSync(source) {
   const reader = RecordBatchReader.from(source);
@@ -12356,16 +12356,11 @@ var init_duckdb_browser = __esm(() => {
   Y = Z(q());
 });
 
-// src/lib/storage-constants.ts
-var DUCKDB_OPFS_PATH = "opfs://data-navigator.duckdb";
-
 // src/workers/duckdb-shared.worker.ts
-var OPFS_DB_PATH = DUCKDB_OPFS_PATH;
 var db = null;
 var conn = null;
 var duckdbWorker = null;
 var initPromise = null;
-var opfsPersistenceActive = false;
 var operationQueue = Promise.resolve();
 function enqueue(operation) {
   const run = operationQueue.then(operation, operation);
@@ -12405,13 +12400,6 @@ async function dropRegisteredFile(fileName) {
     await maybeDb.dropFile?.(fileName);
   } catch {}
 }
-function opfsAvailable() {
-  try {
-    return typeof globalThis !== "undefined" && "navigator" in globalThis && "storage" in globalThis.navigator && typeof globalThis.navigator.storage.getDirectory === "function";
-  } catch {
-    return false;
-  }
-}
 async function ensureInit() {
   if (db && conn)
     return;
@@ -12431,30 +12419,13 @@ async function ensureInit() {
       } finally {
         URL.revokeObjectURL(workerUrl);
       }
-      if (opfsAvailable()) {
-        try {
-          await db.open({
-            path: OPFS_DB_PATH,
-            accessMode: duckdb.DuckDBAccessMode.READ_WRITE,
-            opfs: { fileHandling: "auto" }
-          });
-          opfsPersistenceActive = true;
-          console.info("[duckdb-worker] OPFS persistence active:", OPFS_DB_PATH);
-        } catch (opfsErr) {
-          console.warn("[duckdb-worker] OPFS open failed, falling back to in-memory mode:", opfsErr);
-          opfsPersistenceActive = false;
-        }
-      } else {
-        console.warn("[duckdb-worker] OPFS not available in this browser — operating in in-memory mode.");
-        opfsPersistenceActive = false;
-      }
+      await db.open({ path: ":memory:" });
       conn = await db.connect();
     } catch (error) {
       db = null;
       conn = null;
       duckdbWorker = null;
       initPromise = null;
-      opfsPersistenceActive = false;
       throw error;
     }
   })();
@@ -12480,7 +12451,7 @@ async function runQueryInternal(sql) {
   }
   return rows;
 }
-async function loadCSVInternal(tableName, buffer, delimiter, append = false) {
+async function loadCSVInternal(tableName, buffer, delimiter, append = false, hasHeader = true) {
   await ensureInit();
   if (!db || !conn)
     throw new Error("DuckDB not initialized");
@@ -12491,7 +12462,7 @@ async function loadCSVInternal(tableName, buffer, delimiter, append = false) {
     const readExpr = `
       read_csv_auto(
         ${quoteSqlString(fileName)},
-        header = true,
+        header = ${hasHeader ? "true" : "false"},
         delim = ${quoteSqlString(delimiter)},
         quote = '"',
         escape = '"',
@@ -12512,7 +12483,7 @@ async function loadCSVInternal(tableName, buffer, delimiter, append = false) {
     await dropRegisteredFile(fileName);
   }
 }
-async function loadCSVFileInternal(tableName, file, delimiter, append = false) {
+async function loadCSVFileInternal(tableName, file, delimiter, append = false, hasHeader = true) {
   await ensureInit();
   if (!db || !conn)
     throw new Error("DuckDB not initialized");
@@ -12525,7 +12496,7 @@ async function loadCSVFileInternal(tableName, file, delimiter, append = false) {
     const readExpr = `
       read_csv_auto(
         ${quoteSqlString(fileName)},
-        header = true,
+        header = ${hasHeader ? "true" : "false"},
         delim = ${quoteSqlString(delimiter)},
         quote = '"',
         escape = '"',
@@ -12555,6 +12526,24 @@ async function loadJSONInternal(tableName, buffer) {
   try {
     await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
        SELECT * FROM read_json_auto(${quoteSqlString(fileName)})`);
+  } finally {
+    await dropRegisteredFile(fileName);
+  }
+}
+async function loadJSONFileInternal(tableName, file) {
+  await ensureInit();
+  if (!db || !conn)
+    throw new Error("DuckDB not initialized");
+  const suffix = `_${Date.now()}`;
+  const fileName = `${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}${suffix}`;
+  const duckdb = await Promise.resolve().then(() => (init_duckdb_browser(), exports_duckdb_browser));
+  await db.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+  try {
+    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+       SELECT * FROM read_json_auto(
+         ${quoteSqlString(fileName)},
+         ignore_errors = true
+       )`);
   } finally {
     await dropRegisteredFile(fileName);
   }
@@ -12650,25 +12639,35 @@ async function getColumnStatsInternal(tableName, columnName) {
 }
 async function exportTableToParquetInternal(tableName) {
   await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
+  if (!db || !conn)
+    throw new Error("DuckDB not initialized");
   const check = await conn.query(`SELECT 1 FROM information_schema.tables
      WHERE table_name = ${quoteSqlString(tableName)} LIMIT 1`);
   if (check.numRows === 0)
-    return;
-  await conn.query(`COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(`${tableName}.parquet`)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
-}
-async function loadTableFromParquetInternal(tableName) {
-  await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
+    throw new Error(`Table "${tableName}" does not exist`);
+  const fileName = `${tableName}_${Date.now()}.parquet`;
+  await conn.query(`COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(fileName)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
   try {
-    const nav = globalThis.navigator;
-    const root = await nav.storage.getDirectory();
-    await root.getFileHandle(`${tableName}.parquet`, { create: false });
-    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
-       SELECT * FROM read_parquet(${quoteSqlString(`${tableName}.parquet`)})`);
-    return true;
+    const bytes = await db.copyFileToBuffer(fileName);
+    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+  } finally {
+    await dropRegisteredFile(fileName);
+  }
+}
+async function loadTableFromParquetInternal(tableName, buffer) {
+  await ensureInit();
+  if (!db || !conn)
+    throw new Error("DuckDB not initialized");
+  try {
+    const fileName = `${tableName}_restore_${Date.now()}.parquet`;
+    await db.registerFileBuffer(fileName, new Uint8Array(buffer));
+    try {
+      await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+         SELECT * FROM read_parquet(${quoteSqlString(fileName)})`);
+      return true;
+    } finally {
+      await dropRegisteredFile(fileName);
+    }
   } catch {
     return false;
   }
@@ -12678,62 +12677,96 @@ async function clearTableInternal(tableName) {
   if (!conn)
     throw new Error("DuckDB connection not initialized");
   await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)}`);
-  try {
-    const nav = globalThis.navigator;
-    const root = await nav.storage.getDirectory();
-    await root.removeEntry(`${tableName}.parquet`).catch(() => {});
-  } catch {}
 }
 async function getStatusInternal() {
-  return {
-    opfsPersistenceActive,
-    dbPath: opfsPersistenceActive ? OPFS_DB_PATH : null
-  };
+  return { opfsPersistenceActive: false, dbPath: null };
 }
-self.onmessage = async (event) => {
-  const msg = event.data;
+function postResult(port, id, result, transfer) {
+  port.postMessage({ id, result }, transfer ?? []);
+}
+function postError(port, id, error) {
+  port.postMessage({ id, error: serializeError(error) });
+}
+async function dispatch(msg, port) {
   try {
-    let result = null;
     switch (msg.type) {
       case "init":
         await enqueue(() => ensureInit());
+        postResult(port, msg.id, null);
         break;
-      case "runQuery":
-        result = await enqueue(() => runQueryInternal(msg.sql));
+      case "runQuery": {
+        const result = await enqueue(() => runQueryInternal(msg.sql));
+        postResult(port, msg.id, result);
         break;
+      }
       case "loadCSV":
-        await enqueue(() => loadCSVInternal(msg.tableName, new Uint8Array(msg.buffer), msg.delimiter, msg.append ?? false));
+        await enqueue(() => loadCSVInternal(msg.tableName, new Uint8Array(msg.buffer), msg.delimiter, msg.append ?? false, msg.hasHeader ?? true));
+        postResult(port, msg.id, null);
         break;
       case "loadCSVFile":
-        await enqueue(() => loadCSVFileInternal(msg.tableName, msg.file, msg.delimiter, msg.append ?? false));
+        await enqueue(() => loadCSVFileInternal(msg.tableName, msg.file, msg.delimiter, msg.append ?? false, msg.hasHeader ?? true));
+        postResult(port, msg.id, null);
         break;
       case "loadJSON":
         await enqueue(() => loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)));
+        postResult(port, msg.id, null);
         break;
-      case "listTables":
-        result = await enqueue(() => listTablesInternal());
+      case "loadJSONFile":
+        await enqueue(() => loadJSONFileInternal(msg.tableName, msg.file));
+        postResult(port, msg.id, null);
         break;
-      case "getTableInfo":
-        result = await enqueue(() => getTableInfoInternal(msg.tableName));
+      case "listTables": {
+        const result = await enqueue(() => listTablesInternal());
+        postResult(port, msg.id, result);
         break;
-      case "getColumnStats":
-        result = await enqueue(() => getColumnStatsInternal(msg.tableName, msg.columnName));
+      }
+      case "getTableInfo": {
+        const result = await enqueue(() => getTableInfoInternal(msg.tableName));
+        postResult(port, msg.id, result);
         break;
-      case "exportTableToParquet":
-        await enqueue(() => exportTableToParquetInternal(msg.tableName));
+      }
+      case "getColumnStats": {
+        const result = await enqueue(() => getColumnStatsInternal(msg.tableName, msg.columnName));
+        postResult(port, msg.id, result);
         break;
-      case "loadTableFromParquet":
-        result = await enqueue(() => loadTableFromParquetInternal(msg.tableName));
+      }
+      case "exportTableToParquet": {
+        const buf = await enqueue(() => exportTableToParquetInternal(msg.tableName));
+        postResult(port, msg.id, buf, [buf]);
         break;
+      }
+      case "loadTableFromParquet": {
+        const result = await enqueue(() => loadTableFromParquetInternal(msg.tableName, msg.buffer));
+        postResult(port, msg.id, result);
+        break;
+      }
       case "clearTable":
         await enqueue(() => clearTableInternal(msg.tableName));
+        postResult(port, msg.id, null);
         break;
-      case "getStatus":
-        result = await getStatusInternal();
+      case "getStatus": {
+        const result = await getStatusInternal();
+        postResult(port, msg.id, result);
         break;
+      }
+      default: {
+        const _exhaustive = msg;
+        throw new Error(`Unsupported message type: ${String(_exhaustive.type)}`);
+      }
     }
-    self.postMessage({ id: msg.id, result });
   } catch (error) {
-    self.postMessage({ id: msg.id, error: serializeError(error) });
+    postError(port, msg.id, error);
   }
-};
+}
+var workerScope = globalThis;
+if ("onconnect" in workerScope) {
+  const sharedScope = workerScope;
+  sharedScope.onconnect = (event) => {
+    const port = event.ports[0];
+    port.onmessage = (e) => dispatch(e.data, port);
+    port.start();
+  };
+} else {
+  const dedicatedScope = workerScope;
+  dedicatedScope.onmessage = (event) => dispatch(event.data, dedicatedScope);
+}

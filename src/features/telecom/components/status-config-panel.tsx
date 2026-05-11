@@ -1,58 +1,13 @@
 "use client";
 import { Brain, Tag, X } from "lucide-react";
 import { useState } from "react";
-import { cn } from "@/lib/utils";
 import { clamp, fmtN, fmtPct } from "@/features/telecom/lib/format";
+import {
+  SEMANTIC_STATUS_OPTIONS,
+  STATUS_AUTO_SEMANTIC_BY_CODE,
+} from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
-
-const SEMANTIC_OPTIONS: Array<{
-  value: Types.StatusSemantic;
-  label: string;
-  badgeClass: string;
-  color: string;
-}> = [
-  {
-    value: "success",
-    label: "Réussie",
-    badgeClass:
-      "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
-    color: "#10b981",
-  },
-  {
-    value: "declined",
-    label: "Échec",
-    badgeClass:
-      "bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
-    color: "#ef4444",
-  },
-  {
-    value: "instance",
-    label: "Instance",
-    badgeClass:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
-    color: "#f59e0b",
-  },
-  {
-    value: "refund",
-    label: "Annulation",
-    badgeClass:
-      "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
-    color: "#8b5cf6",
-  },
-  {
-    value: "submitted",
-    label: "Confirmé",
-    badgeClass:
-      "bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-500/30",
-    color: "#3b82f6",
-  },
-  {
-    value: "other",
-    label: "Other",
-    badgeClass: "bg-muted/30 text-muted-foreground border-border",
-    color: "#94a3b8",
-  },
-];
+import { cn } from "@/shared/utils";
 
 export function StatusConfigPanel({
   rawStatuses,
@@ -77,36 +32,13 @@ export function StatusConfigPanel({
   const unmapped = rawStatuses.filter((r) => !getMapping(r.rawCode));
 
   const handleAutoMap = () => {
-    const patterns: Record<string, Types.StatusSemantic> = {
-      PST: "success",
-      POSTED: "success",
-      OK: "success",
-      SUCCESS: "success",
-      SUCC: "success",
-      REJ: "declined",
-      FAILED: "declined",
-      FAIL: "declined",
-      ERR: "declined",
-      FLD: "declined",
-      CAN: "declined",
-      REJECT: "declined",
-      PND: "instance",
-      PENDING: "instance",
-      WAIT: "instance",
-      RVS: "refund",
-      REVERSED: "refund",
-      REVERSAL: "refund",
-      EXP: "instance",
-      EXPIRED: "instance",
-      TIMEOUT: "instance",
-    };
     const newMap = [...mapping];
     for (const rs of rawStatuses) {
       if (getMapping(rs.rawCode)) continue;
-      const sem = patterns[rs.rawCode] ?? "other";
+      const sem = STATUS_AUTO_SEMANTIC_BY_CODE[rs.rawCode] ?? "other";
       const opt =
-        SEMANTIC_OPTIONS.find((o) => o.value === sem) ??
-        SEMANTIC_OPTIONS[SEMANTIC_OPTIONS.length - 1];
+        SEMANTIC_STATUS_OPTIONS.find((o) => o.value === sem) ??
+        SEMANTIC_STATUS_OPTIONS[SEMANTIC_STATUS_OPTIONS.length - 1];
       newMap.push({
         rawCode: rs.rawCode,
         label: opt.label,
@@ -128,8 +60,8 @@ export function StatusConfigPanel({
   const saveEdit = () => {
     if (!editCode) return;
     const opt =
-      SEMANTIC_OPTIONS.find((o) => o.value === editSemantic) ??
-      SEMANTIC_OPTIONS[SEMANTIC_OPTIONS.length - 1];
+      SEMANTIC_STATUS_OPTIONS.find((o) => o.value === editSemantic) ??
+      SEMANTIC_STATUS_OPTIONS[SEMANTIC_STATUS_OPTIONS.length - 1];
     const updated = mapping.filter((m) => m.rawCode !== editCode);
     updated.push({
       rawCode: editCode,
@@ -146,8 +78,8 @@ export function StatusConfigPanel({
     if (!newCode.trim()) return;
     const code = newCode.trim().toUpperCase();
     const opt =
-      SEMANTIC_OPTIONS.find((o) => o.value === newSemantic) ??
-      SEMANTIC_OPTIONS[SEMANTIC_OPTIONS.length - 1];
+      SEMANTIC_STATUS_OPTIONS.find((o) => o.value === newSemantic) ??
+      SEMANTIC_STATUS_OPTIONS[SEMANTIC_STATUS_OPTIONS.length - 1];
     const updated = mapping.filter((m) => m.rawCode !== code);
     updated.push({
       rawCode: code,
@@ -275,7 +207,7 @@ export function StatusConfigPanel({
                     }
                     className="w-full bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"
                   >
-                    {SEMANTIC_OPTIONS.map((o) => (
+                    {SEMANTIC_STATUS_OPTIONS.map((o) => (
                       <option key={o.value} value={o.value}>
                         {o.label}
                       </option>
@@ -289,8 +221,9 @@ export function StatusConfigPanel({
                   <span
                     className={cn(
                       "px-2 py-0.5 rounded-full border text-[10px] font-semibold",
-                      SEMANTIC_OPTIONS.find((o) => o.value === editSemantic)
-                        ?.badgeClass,
+                      SEMANTIC_STATUS_OPTIONS.find(
+                        (o) => o.value === editSemantic,
+                      )?.badgeClass,
                     )}
                   >
                     {editLabel || rs.rawCode}
@@ -421,7 +354,7 @@ export function StatusConfigPanel({
             }
             className="bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"
           >
-            {SEMANTIC_OPTIONS.map((o) => (
+            {SEMANTIC_STATUS_OPTIONS.map((o) => (
               <option key={o.value} value={o.value}>
                 {o.label}
               </option>
