@@ -1,6 +1,7 @@
 /// <reference lib="webworker" />
-import { env, pipeline, TextStreamer } from "@huggingface/transformers";
+
 import type { TextGenerationPipeline } from "@huggingface/transformers";
+import { env, pipeline, TextStreamer } from "@huggingface/transformers";
 
 // Always offline — models are cached in the browser after first download
 env.allowLocalModels = false;
@@ -60,7 +61,7 @@ async function loadModel(model: string) {
 
   const progressCb = (info: { status: string; progress?: number }) => {
     const pct =
-      info.progress !== undefined ? Math.round(info.progress * 100) : 0;
+      info.progress === undefined ? 0 : Math.round(info.progress * 100);
     self.postMessage({
       type: "LOAD_PROGRESS",
       progress: pct,
@@ -71,11 +72,11 @@ async function loadModel(model: string) {
   // Try WebGPU first (fast), fall back to WASM (always available)
   for (const device of ["webgpu", "wasm"] as const) {
     try {
-      pipe = (await pipeline("text-generation", model, {
+      pipe = await pipeline("text-generation", model, {
         dtype: "q4f16",
         device,
         progress_callback: progressCb,
-      })) as TextGenerationPipeline;
+      });
       loadedModel = model;
       isLoading = false;
       self.postMessage({
@@ -121,7 +122,7 @@ async function infer(
       { role: "user", content: prompt },
     ];
 
-    const streamer = new TextStreamer((pipe as any).tokenizer, {
+    const streamer = new TextStreamer(pipe.tokenizer, {
       skip_prompt: true,
       skip_special_tokens: true,
       callback_function: (text: string) => {
@@ -133,7 +134,7 @@ async function infer(
       },
     });
 
-    await (pipe as any)(messages, {
+    await pipe(messages, {
       max_new_tokens: maxTokens,
       do_sample: false,
       streamer,
@@ -151,7 +152,7 @@ async function infer(
 
 // ── Message router ────────────────────────────────────────────────────────────
 
-self.onmessage = (e: MessageEvent<LLMWorkerIncoming>) => {
+globalThis.onmessage = (e: MessageEvent<LLMWorkerIncoming>) => {
   const msg = e.data;
 
   if (msg.type === "LOAD_MODEL") {
@@ -166,6 +167,5 @@ self.onmessage = (e: MessageEvent<LLMWorkerIncoming>) => {
       msg.payload.prompt,
       msg.payload.maxTokens,
     );
-    return;
   }
 };

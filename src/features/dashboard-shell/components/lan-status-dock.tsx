@@ -47,9 +47,15 @@ export function LanStatusDock() {
         <span className="font-medium">LAN</span>
         <span className="inline-flex w-18 items-center gap-1 text-muted-foreground">
           {connected ? (
-            <><Wifi className="h-3 w-3 text-emerald-500" /><span className="text-emerald-600">online</span></>
+            <>
+              <Wifi className="h-3 w-3 text-emerald-500" />
+              <span className="text-emerald-600">online</span>
+            </>
           ) : (
-            <><WifiOff className="h-3 w-3" /><span>offline</span></>
+            <>
+              <WifiOff className="h-3 w-3" />
+              <span>offline</span>
+            </>
           )}
         </span>
         {connected && (

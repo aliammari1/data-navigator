@@ -59,7 +59,7 @@ import { useDataStore } from "@/core/stores/data-store";
 import type { CatalogFolder } from "@/core/stores/folders-store";
 import { useFoldersStore } from "@/core/stores/folders-store";
 import { useSettingsStore } from "@/core/stores/settings-store";
-import { useTelecomStore } from "@/features/telecom/store";
+
 import { authClient } from "@/platform/auth/auth-client";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { cn } from "@/shared/utils";
@@ -548,24 +548,12 @@ function AppSidebar({
   const { pinnedItems } = useSettingsStore();
   const pathname = usePathname();
   const router = useRouter();
-  const activeTab = useTelecomStore((s) => s.activeTab);
-
   function handleTelecomTab(key: TelecomDashboardTab) {
-    if (pathname?.startsWith("/dashboard/telecom-report")) {
-      window.dispatchEvent(
-        new CustomEvent("telecom:select-tab", { detail: { tab: key } }),
-      );
-      return;
-    }
-
-    useTelecomStore.getState().setActiveTab(key);
-    router.push("/dashboard/telecom-report");
+    router.push(`/dashboard/telecom-report/${key}`);
   }
 
   function isTelecomTabActive(key: TelecomDashboardTab): boolean {
-    return (
-      activeTab === key && !!pathname?.startsWith("/dashboard/telecom-report")
-    );
+    return pathname === `/dashboard/telecom-report/${key}`;
   }
   const pinnedNavItems = ALL_ITEMS.filter((item) =>
     pinnedItems.includes(item.href),

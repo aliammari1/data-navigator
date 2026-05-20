@@ -1,6 +1,7 @@
 import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
+import http from "node:http";
 import path from "node:path";
 import {
   app,
@@ -10,8 +11,8 @@ import {
   type OpenDialogOptions,
   type SaveDialogOptions,
 } from "electron";
-
 import squirrelStartup from "electron-squirrel-startup";
+import * as duckdbService from "./duckdb-service";
 
 if (squirrelStartup) {
   app.quit();
@@ -19,14 +20,44 @@ if (squirrelStartup) {
 
 const isDev = !app.isPackaged;
 
+async function installReactDevTools(): Promise<void> {
+  if (!isDev) return;
+
+  try {
+    const { installExtension, REACT_DEVELOPER_TOOLS } = await import(
+      "@tomjs/electron-devtools-installer"
+    );
+    const extension = await installExtension(REACT_DEVELOPER_TOOLS);
+    console.log(`Installed ${extension.name}`);
+  } catch (err) {
+    console.warn("React DevTools install failed:", err);
+  }
+}
+
+// ─── GPU / WebGPU Configuration ─────────────────────────────────────────────
+// Enable WebGPU for @huggingface/transformers in renderer + workers.
+// Required for GPU-accelerated Whisper STT and LLM inference.
+app.commandLine.appendSwitch("enable-unsafe-webgpu");
+
+// Linux requires Vulkan backend for WebGPU adapter discovery.
+if (process.platform === "linux") {
+  app.commandLine.appendSwitch("enable-features", "Vulkan");
+}
+
+// Optional: allow GPUs that Chromium normally blocklists (older/integrated).
+app.commandLine.appendSwitch("ignore-gpu-blocklist");
+
 function getAppRoot(): string {
   return app.getAppPath();
 }
 
 function getPreloadPath(): string {
   const candidates = [
-    path.join(__dirname, "preload.js"),
+    // Production (inside the packaged app directory)
+    path.join(getAppRoot(), "dist-electron", "preload.js"),
+    // Dev (running from repo root with `electron dist-electron/main.js`)
     path.join(process.cwd(), "dist-electron", "preload.js"),
+    // Legacy / fallback paths
     path.join(getAppRoot(), "preload.js"),
     path.join(getAppRoot(), "out", "electron", "preload.js"),
     path.join(process.cwd(), "out", "electron", "preload.js"),
@@ -118,6 +149,135 @@ ipcMain.handle("fs:saveDialog", async (_event, options: SaveDialogOptions) => {
   return { canceled: result.canceled, filePath: result.filePath };
 });
 
+// ─── IPC: DuckDB service ──────────────────────────────────────────────────────
+
+ipcMain.handle("duckdb:init", async () => {
+  await duckdbService.init();
+  return { success: true };
+});
+
+ipcMain.handle("duckdb:runQuery", async (_event, sql: string) => {
+  return duckdbService.runQuery(sql);
+});
+
+ipcMain.handle("duckdb:runBatch", async (_event, sqls: string[]) => {
+  return duckdbService.runBatch(sqls);
+});
+
+ipcMain.handle("duckdb:prepare", async (_event, sql: string) => {
+  return duckdbService.prepare(sql);
+});
+
+ipcMain.handle(
+  "duckdb:execute",
+  async (_event, stmtId: string, params: unknown[]) => {
+    return duckdbService.execute(stmtId, params);
+  },
+);
+
+ipcMain.handle("duckdb:disposePrepared", async (_event, stmtId: string) => {
+  return duckdbService.disposePrepared(stmtId);
+});
+
+ipcMain.handle("duckdb:listTables", async () => {
+  return duckdbService.listTables();
+});
+
+ipcMain.handle("duckdb:getTableInfo", async (_event, tableName: string) => {
+  return duckdbService.getTableInfo(tableName);
+});
+
+ipcMain.handle(
+  "duckdb:getColumnStats",
+  async (_event, tableName: string, columnName: string) => {
+    return duckdbService.getColumnStats(tableName, columnName);
+  },
+);
+
+ipcMain.handle(
+  "duckdb:loadCSVPath",
+  async (
+    _event,
+    tableName: string,
+    filePath: string,
+    delimiter: string,
+    append: boolean,
+    hasHeader: boolean,
+  ) => {
+    return duckdbService.loadCSVPath(
+      tableName,
+      filePath,
+      delimiter,
+      append,
+      hasHeader,
+    );
+  },
+);
+
+ipcMain.handle(
+  "duckdb:loadJSONPath",
+  async (_event, tableName: string, filePath: string) => {
+    return duckdbService.loadJSONPath(tableName, filePath);
+  },
+);
+
+ipcMain.handle(
+  "duckdb:loadCSVBuffer",
+  async (
+    _event,
+    tableName: string,
+    buffer: ArrayBuffer,
+    delimiter: string,
+    append: boolean,
+    hasHeader: boolean,
+  ) => {
+    return duckdbService.loadCSVBuffer(
+      tableName,
+      buffer,
+      delimiter,
+      append,
+      hasHeader,
+    );
+  },
+);
+
+ipcMain.handle(
+  "duckdb:loadJSONBuffer",
+  async (_event, tableName: string, buffer: ArrayBuffer) => {
+    return duckdbService.loadJSONBuffer(tableName, buffer);
+  },
+);
+
+ipcMain.handle(
+  "duckdb:exportTableToParquet",
+  async (_event, tableName: string, filePath: string) => {
+    return duckdbService.exportTableToParquet(tableName, filePath);
+  },
+);
+
+ipcMain.handle(
+  "duckdb:loadTableFromParquet",
+  async (_event, tableName: string, filePath: string) => {
+    return duckdbService.loadTableFromParquet(tableName, filePath);
+  },
+);
+
+ipcMain.handle("duckdb:clearTable", async (_event, tableName: string) => {
+  return duckdbService.clearTable(tableName);
+});
+
+ipcMain.handle("duckdb:getStatus", async () => {
+  return duckdbService.getStatus();
+});
+
+ipcMain.handle("duckdb:getQueryMetrics", async () => {
+  return duckdbService.getQueryMetrics();
+});
+
+ipcMain.handle("duckdb:clearQueryMetrics", async () => {
+  return duckdbService.clearQueryMetrics();
+});
+
 // ─── Window ───────────────────────────────────────────────────────────────────
 
 let mainWindow: BrowserWindow | null = null;
@@ -138,6 +298,7 @@ async function createWindow(): Promise<void> {
   });
 
   if (isDev) {
+    await installReactDevTools();
     await mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
@@ -169,8 +330,14 @@ function startNextServer(): void {
   }
 
   nextServer = spawn(process.execPath, [serverScript], {
-    env: { ...process.env, PORT: "3001", HOSTNAME: "127.0.0.1" },
+    env: {
+      ...process.env,
+      ELECTRON_RUN_AS_NODE: "1",
+      PORT: "3001",
+      HOSTNAME: "127.0.0.1",
+    },
     stdio: "inherit",
+    windowsHide: true,
   });
 
   nextServer.on("error", (err) =>
@@ -180,11 +347,44 @@ function startNextServer(): void {
 
 // ─── App lifecycle ────────────────────────────────────────────────────────────
 
+function waitForServer(url: string, timeoutMs = 30000): Promise<void> {
+  const start = Date.now();
+  return new Promise((resolve, reject) => {
+    const tryConnect = () => {
+      const req = http.get(url, (res) => {
+        if (res.statusCode && res.statusCode < 500) {
+          resolve();
+        } else {
+          retry();
+        }
+      });
+      req.on("error", retry);
+      req.setTimeout(1000, () => {
+        req.destroy();
+        retry();
+      });
+    };
+
+    const retry = () => {
+      if (Date.now() - start > timeoutMs) {
+        reject(new Error(`Server at ${url} did not become ready within ${timeoutMs}ms`));
+        return;
+      }
+      setTimeout(tryConnect, 300);
+    };
+
+    tryConnect();
+  });
+}
+
 app.whenReady().then(async () => {
   if (!isDev) {
     startNextServer();
-    // Brief pause for server startup
-    await new Promise<void>((r) => setTimeout(r, 2000));
+    try {
+      await waitForServer("http://127.0.0.1:3001", 15000);
+    } catch (err) {
+      console.error("[electron] Server did not become ready:", err);
+    }
   }
   await createWindow();
 });

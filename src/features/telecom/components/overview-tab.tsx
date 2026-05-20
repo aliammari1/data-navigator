@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import {
   CANAL_CONFIG,
   STATUS_COLORS,
@@ -37,6 +37,14 @@ import {
 } from "./draggable-auto-grid";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
+import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
+import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
+import { buildOption } from "@/features/data-formulator/core/chart-options";
+
+const ReactEChartsWidget = dynamic(
+  () => import("echarts-for-react").then((m) => ({ default: m.default })),
+  { ssr: false },
+);
 
 const ChartSkeleton = ({ h = "h-48" }: { h?: string }) => (
   <div className={`${h} rounded-xl bg-muted/40 animate-pulse`} />
@@ -79,27 +87,6 @@ const SuccessRateTrendChart = dynamic(
 );
 
 const OVERVIEW_CARD_ORDER_KEY = "telecom-overview-card-order-v1";
-
-const REVENUE_GROUPS: Record<
-  string,
-  { keys: Types.CanalKey[]; color: string }
-> = {
-  "Bill Payment": { keys: ["bill_payment"], color: "#89b4fa" },
-  Recharge: {
-    keys: [
-      "voice_fixed_ttcash",
-      "voice_fixed_voucher",
-      "voice_mobile_ttcash",
-      "voice_mobile_voucher",
-      "data_sabba",
-      "data_evoucher",
-    ],
-    color: "#a6e3a1",
-  },
-  "Voucher For Payment": { keys: ["voucher_for_payment"], color: "#94e2d5" },
-  "Credit Transfer": { keys: ["credit_transfer"], color: "#fab387" },
-  "Voucher Convergent": { keys: ["voucher_convergent"], color: "#cba6f7" },
-};
 
 function sortCardsBySavedOrder(
   cards: DashboardCardItem[],
@@ -181,7 +168,7 @@ function ExportToggle({
   );
 }
 
-export function OverviewTab({
+export const OverviewTab = memo(function OverviewTab({
   kpi,
   canals,
   hourly,
@@ -210,11 +197,20 @@ export function OverviewTab({
 
   const insights = useMemo(
     () =>
-      kpi
-        ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 3)
-        : [],
+      kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 3) : [],
     [kpi, canals, hourly, statusData],
   );
+
+  const revenueGroupData = useMemo(() => {
+    return Object.entries(REVENUE_GROUPS).map(([name, { keys, color }]) => {
+      const matching = canals.filter((c) => keys.includes(c.key));
+      const total = matching.reduce((s, c) => s + c.total, 0);
+      const success = matching.reduce((s, c) => s + c.success, 0);
+      const amount = matching.reduce((s, c) => s + c.amount, 0);
+      const rate = total > 0 ? (success / total) * 100 : 0;
+      return { name, color, total, success, amount, rate };
+    });
+  }, [canals]);
 
   const defaultCards = useMemo<DashboardCardItem[]>(
     () => [
@@ -501,9 +497,34 @@ export function OverviewTab({
     ],
   );
 
+  const { getWidgetsForPage } = useWidgetRegistry();
+  const widgets = getWidgetsForPage("telecom-overview");
+
+  const widgetCards: DashboardCardItem[] = useMemo(() => {
+    return widgets.map((w) => ({
+      id: w.id,
+      size: w.size,
+      node: (
+        <Section title={w.title} icon={<BarChart2 className="w-4 h-4" />}>
+          {w.result && w.result.data.length > 0 ? (
+            <ReactEChartsWidget
+              option={buildOption(w.chartSpec, w.result.data) ?? {}}
+              style={{ height: 240 }}
+              opts={{ renderer: "canvas" }}
+            />
+          ) : (
+            <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
+              No data available
+            </div>
+          )}
+        </Section>
+      ),
+    }));
+  }, [widgets]);
+
   const cards = useMemo(
-    () => sortCardsBySavedOrder(defaultCards, cardOrder),
-    [defaultCards, cardOrder],
+    () => sortCardsBySavedOrder([...defaultCards, ...widgetCards], cardOrder),
+    [defaultCards, widgetCards, cardOrder],
   );
 
   return (
@@ -620,7 +641,7 @@ export function OverviewTab({
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[0, 1, 2, 3].map((i) => (
             <div
-              key={i}
+              key={`overview-skeleton-${i}`}
               className="rounded-2xl border border-muted p-4 space-y-3 animate-pulse"
             >
               <div className="flex items-center justify-between">
@@ -711,7 +732,7 @@ export function OverviewTab({
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[0, 1, 2, 3, 4].map((i) => (
             <div
-              key={i}
+              key={`kpi-skeleton-${i}`}
               className="rounded-2xl border border-muted p-4 space-y-2 animate-pulse"
             >
               <div className="flex items-center justify-between">
@@ -736,85 +757,77 @@ export function OverviewTab({
             },
           }}
         >
-          {Object.entries(REVENUE_GROUPS).map(([name, { keys, color }]) => {
-            const matching = canals.filter((c) => keys.includes(c.key));
-            const total = matching.reduce((s, c) => s + c.total, 0);
-            const success = matching.reduce((s, c) => s + c.success, 0);
-            const amount = matching.reduce((s, c) => s + c.amount, 0);
-            const rate = total > 0 ? (success / total) * 100 : 0;
+          {revenueGroupData.map(({ name, color, total, amount, rate }) => (
+            <motion.div
+              key={name}
+              variants={{
+                hidden: { opacity: 0, y: 14 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  transition: { type: "spring", stiffness: 320, damping: 24 },
+                },
+              }}
+              whileHover={{ y: -2, scale: 1.02 }}
+              transition={{ type: "spring", stiffness: 400, damping: 22 }}
+              className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow"
+            >
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-semibold text-foreground truncate leading-tight">
+                  {name}
+                </span>
+                <div className="flex items-center gap-2">
+                  <ExportToggle
+                    checked={selectedOverviewSections.has("revenueGroups")}
+                    onToggle={() => toggleOverviewSection("revenueGroups")}
+                    label=""
+                  />
+                  <span
+                    className="w-3 h-3 rounded-full flex-none shadow-sm ring-2 ring-border"
+                    style={{ background: color }}
+                  />
+                </div>
+              </div>
 
-            return (
-              <motion.div
-                key={name}
-                variants={{
-                  hidden: { opacity: 0, y: 14 },
-                  visible: {
-                    opacity: 1,
-                    y: 0,
-                    transition: { type: "spring", stiffness: 320, damping: 24 },
-                  },
-                }}
-                whileHover={{ y: -2, scale: 1.02 }}
-                transition={{ type: "spring", stiffness: 400, damping: 22 }}
-                className="rounded-2xl border border-border bg-card p-4 flex flex-col gap-3 hover:shadow-md transition-shadow"
-              >
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-xs font-semibold text-foreground truncate leading-tight">
-                    {name}
+              <div className="text-2xl font-black text-foreground tabular-nums leading-none">
+                {fmtN(total)}
+              </div>
+
+              <div className="space-y-1.5 mt-auto">
+                <div className="flex items-center justify-between text-[10px]">
+                  <span className="text-muted-foreground">
+                    {fmtAmount(amount)} TND
                   </span>
-                  <div className="flex items-center gap-2">
-                    <ExportToggle
-                      checked={selectedOverviewSections.has("revenueGroups")}
-                      onToggle={() => toggleOverviewSection("revenueGroups")}
-                      label=""
-                    />
-                    <span
-                      className="w-3 h-3 rounded-full flex-none shadow-sm ring-2 ring-border"
-                      style={{ background: color }}
-                    />
-                  </div>
+                  <span
+                    className={cn(
+                      "font-semibold",
+                      rate >= 90
+                        ? "text-emerald-600 dark:text-emerald-400"
+                        : rate >= 70
+                          ? "text-amber-600 dark:text-amber-400"
+                          : "text-red-600 dark:text-red-400",
+                    )}
+                  >
+                    {fmtPct(rate)}
+                  </span>
                 </div>
 
-                <div className="text-2xl font-black text-foreground tabular-nums leading-none">
-                  {fmtN(total)}
+                <div className="h-1 rounded-full bg-muted overflow-hidden">
+                  <div
+                    className={cn(
+                      "h-full rounded-full transition-all duration-700",
+                      rate >= 90
+                        ? "bg-emerald-500"
+                        : rate >= 70
+                          ? "bg-amber-500"
+                          : "bg-red-500",
+                    )}
+                    style={{ width: `${Math.min(rate, 100)}%` }}
+                  />
                 </div>
-
-                <div className="space-y-1.5 mt-auto">
-                  <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-muted-foreground">
-                      {fmtAmount(amount)} TND
-                    </span>
-                    <span
-                      className={cn(
-                        "font-semibold",
-                        rate >= 90
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : rate >= 70
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-red-600 dark:text-red-400",
-                      )}
-                    >
-                      {fmtPct(rate)}
-                    </span>
-                  </div>
-
-                  <div className="h-1 rounded-full bg-muted overflow-hidden">
-                    <div
-                      className={cn(
-                        "h-full rounded-full transition-all duration-700",
-                        rate >= 90
-                          ? "bg-emerald-500"
-                          : rate >= 70
-                            ? "bg-amber-500"
-                            : "bg-red-500",
-                      )}
-                      style={{ width: `${Math.min(rate, 100)}%` }}
-                    />
-                  </div>
-                </div>
-              </motion.div>
-            );
-          })}
+              </div>
+            </motion.div>
+          ))}
         </motion.div>
       )}
 
@@ -828,4 +841,4 @@ export function OverviewTab({
       />
     </div>
   );
-}
+});

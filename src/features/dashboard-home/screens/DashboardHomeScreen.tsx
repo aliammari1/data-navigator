@@ -112,7 +112,7 @@ export default function DashboardHomeScreen() {
     getTableName,
     mapping: DEFAULT_MAPPING,
     loaded: tableReady,
-    statusMappingRef,
+    statusMapping,
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
@@ -211,7 +211,7 @@ export default function DashboardHomeScreen() {
     if (!tableReady) return;
 
     analytics.runAnalytics(DEFAULT_MAPPING, statusMappingRef.current);
-  }, [tableReady, activeTableName, analytics.refreshKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tableReady, activeTableName, analytics.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reportDate = getDatasetReportDate(activeTelecomDataset);
 
@@ -274,7 +274,6 @@ export default function DashboardHomeScreen() {
               loadedTableNames={loadedTableNames}
               onSelect={(id) => {
                 setActiveDataset(id);
-                analytics.setRefreshKey((key) => key + 1);
               }}
             />
 
@@ -282,7 +281,7 @@ export default function DashboardHomeScreen() {
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => analytics.setRefreshKey((key) => key + 1)}
+              onClick={() => analytics.refresh()}
               disabled={!tableReady || restoring}
               className="h-9 rounded-xl text-xs"
             >

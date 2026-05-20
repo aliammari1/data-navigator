@@ -8,7 +8,7 @@ import {
   Tag,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useMemo, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
 import type { ServiceCodeRow } from "@/features/telecom/types";
@@ -22,7 +22,7 @@ import { StorageInfoPanel } from "./storage-info-panel";
 
 type ConfigSection = "insights" | "status" | "canals" | "kpis" | "storage";
 
-export function ConfigTab({
+export const ConfigTab = memo(function ConfigTab({
   kpi,
   canals,
   hourly,
@@ -191,4 +191,4 @@ export function ConfigTab({
       </AnimatePresence>
     </div>
   );
-}
+});

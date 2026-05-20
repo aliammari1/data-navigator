@@ -4,16 +4,13 @@ import {
   Activity,
   AlertCircle,
   BarChart2,
-  Brain,
   Clock,
-  Loader2,
   Signal,
   TrendingUp,
-  XCircle,
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   clamp,
   fmtAmount,
@@ -21,6 +18,7 @@ import {
   fmtN,
   fmtPct,
 } from "@/features/telecom/lib/format";
+import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import type * as Types from "@/features/telecom/types";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
 import { cn } from "@/shared/utils";
@@ -30,44 +28,9 @@ import { HourlyChart } from "./hourly-chart";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
 
-// ─── Revenue groups ────────────────────────────────────────────────────────────
-
-const REVENUE_GROUPS: Record<
-  string,
-  { keys: Types.CanalKey[]; color: string }
-> = {
-  "Bill Payment": {
-    keys: ["bill_payment"],
-    color: "#89b4fa",
-  },
-  Recharge: {
-    keys: [
-      "voice_fixed_ttcash",
-      "voice_fixed_voucher",
-      "voice_mobile_ttcash",
-      "voice_mobile_voucher",
-      "data_sabba",
-      "data_evoucher",
-    ],
-    color: "#a6e3a1",
-  },
-  "Voucher For Payment": {
-    keys: ["voucher_for_payment"],
-    color: "#94e2d5",
-  },
-  "Credit Transfer": {
-    keys: ["credit_transfer"],
-    color: "#fab387",
-  },
-  "Voucher Convergent": {
-    keys: ["voucher_convergent"],
-    color: "#cba6f7",
-  },
-};
-
 // ─── AnalysisTab ──────────────────────────────────────────────────────────────
 
-export function AnalysisTab({
+export const AnalysisTab = memo(function AnalysisTab({
   operators: operatorsProp,
   regions: regionsProp,
   hourly,
@@ -171,22 +134,55 @@ export function AnalysisTab({
     fetchDestinationsForGroup,
   ]);
 
-  const peakRow = hourly.reduce(
-    (b, r) => (r.total > b.total ? r : b),
-    hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 },
-  );
-  const quietRow = hourly
-    .filter((r) => r.total > 0)
-    .reduce((b, r) => (r.total < b.total ? r : b), peakRow);
-  const worstRow = hourly.reduce((b, r) => {
-    const ar = r.total > 0 ? r.declined / r.total : 0;
-    const ab = b.total > 0 ? b.declined / b.total : 0;
-    return ar > ab ? r : b;
-  }, hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 });
+  const { peakRow, quietRow, worstRow } = useMemo(() => {
+    const peak = hourly.reduce(
+      (b, r) => (r.total > b.total ? r : b),
+      hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 },
+    );
+    const quiet = hourly
+      .filter((r) => r.total > 0)
+      .reduce((b, r) => (r.total < b.total ? r : b), peak);
+    const worst = hourly.reduce((b, r) => {
+      const ar = r.total > 0 ? r.declined / r.total : 0;
+      const ab = b.total > 0 ? b.declined / b.total : 0;
+      return ar > ab ? r : b;
+    }, hourly[0] ?? { hour: 0, total: 0, success: 0, declined: 0, amount: 0 });
+    return { peakRow: peak, quietRow: quiet, worstRow: worst };
+  }, [hourly]);
 
   // suppress unused-variable warnings for lazy loading refs
   void opsLoading;
   void regsLoading;
+
+  const hourlyStats = useMemo(
+    () => [
+      {
+        label: "Heure de Pointe",
+        val: `${peakRow.hour.toString().padStart(2, "0")}:00`,
+        sub: `${fmtN(peakRow.total)} tx · ${fmtPct((peakRow.total / Math.max(1, kpi.totalTransactions)) * 100)} du quotidien`,
+        color:
+          "border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/5 dark:text-indigo-400",
+      },
+      {
+        label: "Heure Calme",
+        val: `${quietRow.hour.toString().padStart(2, "0")}:00`,
+        sub: `${fmtN(quietRow.total)} tx`,
+        color:
+          "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-400",
+      },
+      {
+        label: "Pire Heure d'Échec",
+        val: `${worstRow.hour.toString().padStart(2, "0")}:00`,
+        sub:
+          worstRow.total > 0
+            ? `${fmtPct((worstRow.declined / worstRow.total) * 100)} taux d'échec`
+            : "—",
+        color:
+          "border-red-200 bg-red-50 text-red-600 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400",
+      },
+    ],
+    [peakRow, quietRow, worstRow, kpi.totalTransactions],
+  );
 
   return (
     <div className="space-y-6">
@@ -196,32 +192,7 @@ export function AnalysisTab({
         icon={<Clock className="w-4 h-4" />}
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
-          {[
-            {
-              label: "Heure de Pointe",
-              val: `${peakRow.hour.toString().padStart(2, "0")}:00`,
-              sub: `${fmtN(peakRow.total)} tx · ${fmtPct((peakRow.total / Math.max(1, kpi.totalTransactions)) * 100)} du quotidien`,
-              color:
-                "border-indigo-200 bg-indigo-50 text-indigo-600 dark:border-indigo-500/20 dark:bg-indigo-500/5 dark:text-indigo-400",
-            },
-            {
-              label: "Heure Calme",
-              val: `${quietRow.hour.toString().padStart(2, "0")}:00`,
-              sub: `${fmtN(quietRow.total)} tx`,
-              color:
-                "border-emerald-200 bg-emerald-50 text-emerald-600 dark:border-emerald-500/20 dark:bg-emerald-500/5 dark:text-emerald-400",
-            },
-            {
-              label: "Pire Heure d'Échec",
-              val: `${worstRow.hour.toString().padStart(2, "0")}:00`,
-              sub:
-                worstRow.total > 0
-                  ? `${fmtPct((worstRow.declined / worstRow.total) * 100)} taux d'échec`
-                  : "—",
-              color:
-                "border-red-200 bg-red-50 text-red-600 dark:border-red-500/20 dark:bg-red-500/5 dark:text-red-400",
-            },
-          ].map((item, i) => (
+          {hourlyStats.map((item, i) => (
             <motion.div
               key={item.label}
               initial={{ opacity: 0, y: 10 }}
@@ -482,4 +453,4 @@ export function AnalysisTab({
       </Section>
     </div>
   );
-}
+});

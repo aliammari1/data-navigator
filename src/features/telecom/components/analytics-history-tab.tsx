@@ -1,10 +1,11 @@
 "use client";
 
+import { memo } from "react";
 import { Database, FolderClock } from "lucide-react";
 import type { CachedAnalyticsMeta } from "@/features/telecom/lib/analytics-cache";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 
-export function AnalyticsHistoryTab({
+export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   entries,
   onRefresh,
   onLoad,
@@ -89,4 +90,4 @@ export function AnalyticsHistoryTab({
       )}
     </div>
   );
-}
+});

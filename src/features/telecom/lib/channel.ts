@@ -3,12 +3,11 @@
  * Native browser API — same user, multiple tabs.
  */
 
-import type { MainTab, ColumnMapping, FilterState } from "../types";
+import type { ColumnMapping, FilterState } from "../types";
 
-const CHANNEL_NAME = "telecom-dashboard-v1";
+const CHANNEL_NAME = "telecom-report-v1";
 
 export type BroadcastMsg =
-  | { type: "TAB_ACTIVE"; tab: MainTab }
   | { type: "FILTER_CHANGE"; filter: FilterState }
   | { type: "FILE_LOADED"; fileName: string; reportDate: string }
   | { type: "MAPPING_CHANGE"; mapping: ColumnMapping }

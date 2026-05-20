@@ -80,7 +80,11 @@ export function DataGrid({
         setRows(r);
         setTotal(t);
       })
-      .catch(() => {})
+      .catch((err) => {
+        console.error("[DataGrid] Failed to fetch data:", err);
+        setRows([]);
+        setTotal(0);
+      })
       .finally(() => setLoading(false));
   }, [m, filters, page, sortCol, sortDir, statusMapping, fetchFiltered]);
 

@@ -94,17 +94,14 @@ export async function segment(
   if (num.length < 2) return null;
 
   const sel = num
-    .map((c) => `TRY_CAST(${quote(c.name)} AS DOUBLE) AS ${quote(c.name)}`)
+    .map(
+      (c) =>
+        `(TRY_CAST(${quote(c.name)} AS DOUBLE) - AVG(TRY_CAST(${quote(c.name)} AS DOUBLE)) OVER ()) / NULLIF(STDDEV_POP(TRY_CAST(${quote(c.name)} AS DOUBLE)) OVER (), 0) AS ${quote(c.name)}`,
+    )
     .join(", ");
-  const sql = `SELECT ${sel} FROM ${quote(tableName)} USING SAMPLE ${SAMPLE}`;
-  let rows: Record<string, unknown>[];
-  try {
-    rows = await runQuery(sql);
-  } catch {
-    rows = await runQuery(
-      `SELECT ${sel} FROM ${quote(tableName)} LIMIT ${SAMPLE}`,
-    );
-  }
+  const rows = await runQuery(
+    `SELECT ${sel} FROM ${quote(tableName)} USING SAMPLE ${SAMPLE}`,
+  );
   const features = num.map((c) => c.name);
   const points: number[][] = [];
   for (const r of rows) {
@@ -122,18 +119,6 @@ export async function segment(
   }
   if (points.length < 50) return null;
 
-  // z-score normalise
-  const meanV = features.map(
-    (_, f) => points.reduce((a, p) => a + p[f], 0) / points.length,
-  );
-  const stdV = features.map(
-    (_, f) =>
-      Math.sqrt(
-        points.reduce((a, p) => a + (p[f] - meanV[f]) ** 2, 0) / points.length,
-      ) || 1,
-  );
-  const Z = points.map((p) => p.map((v, f) => (v - meanV[f]) / stdV[f]));
-
   // Elbow over k=2..MAX_K
   let bestK = 2;
   let prevSSE = Infinity;
@@ -144,7 +129,7 @@ export async function segment(
   } | null = null;
   let prevDelta = Infinity;
   for (let k = 2; k <= MAX_K; k++) {
-    const result = kmeans(Z, k);
+    const result = kmeans(points, k);
     const delta = prevSSE - result.sse;
     if (k === 2 || delta > prevDelta * 0.4) {
       bestK = k;
@@ -155,17 +140,13 @@ export async function segment(
   }
   if (!bestResult) return null;
 
-  // Denormalise centroids
-  const centroidsRaw = bestResult.centroids.map((c) =>
-    c.map((v, f) => v * stdV[f] + meanV[f]),
-  );
   const sizePerCluster = new Array(bestK).fill(0);
   for (const lab of bestResult.labels) sizePerCluster[lab]++;
 
   return {
     k: bestK,
     labels: bestResult.labels,
-    centroids: centroidsRaw,
+    centroids: bestResult.centroids,
     features,
     sizePerCluster,
     sse: bestResult.sse,

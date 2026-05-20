@@ -78,10 +78,6 @@ export async function exportTableSnapshotFile(
     throw new Error("exportTableSnapshotFile requires Electron.");
   }
 
-  // Export parquet bytes from DuckDB
-  const { sharedDuckDB } = await import("./shared-duckdb");
-  const buf = await sharedDuckDB.exportTableToParquet(tableName);
-
   // Ask user where to save
   const { saveFileDialog } = await import("@/platform/electron/electron-fs");
   const savePath = await saveFileDialog({
@@ -92,8 +88,9 @@ export async function exportTableSnapshotFile(
 
   if (!savePath) return;
 
-  const { writeLocalFile } = await import("@/platform/electron/electron-fs");
-  await writeLocalFile(savePath, buf);
+  // Export directly to the chosen path via Node API
+  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
+  await duckdbBridge().exportTableToParquet(tableName, savePath);
 }
 
 /**

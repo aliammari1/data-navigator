@@ -39,8 +39,12 @@ export default function Page() {
   });
 
   useEffect(() => {
-    _fetchOperators(TABLE_NAME, mapping, statusMapping).then(setOperators).catch(() => {});
-    _fetchRegions(TABLE_NAME, mapping, statusMapping).then(setRegions).catch(() => {});
+    _fetchOperators(TABLE_NAME, mapping, statusMapping)
+      .then(setOperators)
+      .catch(() => {});
+    _fetchRegions(TABLE_NAME, mapping, statusMapping)
+      .then(setRegions)
+      .catch(() => {});
   }, [mapping, statusMapping]);
 
   return (

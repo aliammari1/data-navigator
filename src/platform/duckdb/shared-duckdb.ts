@@ -1,180 +1,60 @@
 "use client";
 
 /**
- * DuckDB Worker Client — Electron / local-filesystem edition.
+ * DuckDB Electron IPC Client — replaces the WASM worker with direct IPC
+ * to the DuckDB Node API service running in the Electron main process.
  *
- * Connects to the DuckDB worker (regular Worker, not SharedWorker) and
- * serialises all message calls through a pending-request map.
- *
- * Persistence is NOT managed here. Callers that need to persist a table should:
- *   1. Call exportTableToParquet(tableName) → get raw Parquet bytes.
- *   2. Write bytes to the local filesystem via Electron IPC (electron-fs.ts).
- *   3. On next launch, read the bytes and call loadTableFromParquet(tableName, buffer).
+ * Public API signatures are preserved for backward compatibility.
  */
 
-// ─── Request / Response Protocol ─────────────────────────────────────────────
+import { duckdbBridge } from "@/platform/electron/electron-fs";
 
-type WorkerRequest =
-  | { id: number; type: "init" }
-  | { id: number; type: "runQuery"; sql: string }
-  | {
-      id: number;
-      type: "loadCSV";
-      tableName: string;
-      buffer: ArrayBuffer;
-      delimiter: string;
-      append: boolean;
-      hasHeader: boolean;
-    }
-  | {
-      id: number;
-      type: "loadCSVFile";
-      tableName: string;
-      file: File;
-      delimiter: string;
-      append: boolean;
-      hasHeader: boolean;
-    }
-  | { id: number; type: "loadJSON"; tableName: string; buffer: ArrayBuffer }
-  | { id: number; type: "loadJSONFile"; tableName: string; file: File }
-  | { id: number; type: "listTables" }
-  | { id: number; type: "getTableInfo"; tableName: string }
-  | {
-      id: number;
-      type: "getColumnStats";
-      tableName: string;
-      columnName: string;
-    }
-  | { id: number; type: "exportTableToParquet"; tableName: string }
-  | {
-      id: number;
-      type: "loadTableFromParquet";
-      tableName: string;
-      buffer: ArrayBuffer;
-    }
-  | { id: number; type: "clearTable"; tableName: string }
-  | { id: number; type: "getStatus" };
+// ─── Timeout helpers ──────────────────────────────────────────────────────────
 
-type WorkerError = string | { message: string; stack?: string };
-
-type WorkerResponse =
-  | { id: number; result: unknown }
-  | { id: number; error: WorkerError };
-
-type PendingRequest = {
-  resolve: (value: unknown) => void;
-  reject: (error: Error) => void;
-};
-
-const WORKER_URL = "/workers/duckdb-shared.worker.js";
-const WORKER_NAME = "datanavigator-duckdb";
-
-let worker: Worker | null = null;
-let ready = false;
-let failed = false;
-let requestId = 0;
-let initPromise: Promise<void> | null = null;
-
-const pending = new Map<number, PendingRequest>();
-
-function normalizeWorkerError(error: WorkerError): Error {
-  if (typeof error === "string") return new Error(error);
-  const e = new Error(error.message);
-  if (error.stack) e.stack = error.stack;
-  return e;
+function withTimeout<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(message)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
 }
 
-function rejectAllPending(error: Error): void {
-  for (const [, request] of pending) request.reject(error);
-  pending.clear();
+// ─── IPC wrapper ──────────────────────────────────────────────────────────────
+
+let ready = false;
+let failed = false;
+let initPromise: Promise<void> | null = null;
+
+async function ipc<T>(
+  operation: () => Promise<T>,
+  timeoutMs = 30000,
+  timeoutMessage = "DuckDB operation timed out",
+): Promise<T> {
+  if (failed) {
+    throw new Error("DuckDB is unavailable. Reload the page to retry.");
+  }
+  return withTimeout(operation(), timeoutMs, timeoutMessage);
 }
 
 function markFailed(error: Error): void {
   failed = true;
   ready = false;
   initPromise = null;
-  worker = null;
-  rejectAllPending(error);
 }
 
-function getWorker(): Worker {
-  if (failed)
-    throw new Error("DuckDB worker is unavailable. Reload the page to retry.");
-  if (worker) return worker;
-
-  if (typeof window === "undefined" || !("Worker" in window)) {
-    throw new Error(
-      "Worker is not available. DataNavigator requires Web Worker for the local DuckDB runtime.",
-    );
-  }
-
-  try {
-    worker = new Worker(WORKER_URL, { type: "module", name: WORKER_NAME });
-
-    worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-      const message = event.data;
-      const request = pending.get(message.id);
-      if (!request) return;
-      pending.delete(message.id);
-      if ("error" in message) {
-        request.reject(normalizeWorkerError(message.error));
-        return;
-      }
-      request.resolve(message.result);
-    };
-
-    worker.onmessageerror = () =>
-      markFailed(new Error("DuckDB worker sent an unreadable message."));
-
-    worker.onerror = (event) =>
-      markFailed(
-        new Error(event.message || "DuckDB worker failed to load or crashed."),
-      );
-
-    return worker;
-  } catch (error) {
-    const normalized =
-      error instanceof Error
-        ? error
-        : new Error("Failed to create DuckDB worker.");
-    markFailed(normalized);
-    throw normalized;
-  }
-}
-
-type WorkerRequestWithoutId = WorkerRequest extends infer R
-  ? R extends unknown
-    ? Omit<R, "id">
-    : never
-  : never;
-
-function send<T>(
-  message: WorkerRequestWithoutId,
-  transfer?: Transferable[],
-): Promise<T> {
-  const activeWorker = getWorker();
-  const id = ++requestId;
-
-  return new Promise<T>((resolve, reject) => {
-    pending.set(id, {
-      resolve: resolve as (value: unknown) => void,
-      reject,
-    });
-
-    try {
-      activeWorker.postMessage({ ...message, id }, transfer ?? []);
-    } catch (error) {
-      pending.delete(id);
-      reject(
-        error instanceof Error
-          ? error
-          : new Error("Failed to send message to DuckDB worker."),
-      );
-    }
-  });
-}
-
-// ─── Public API ───────────────────────────────────────────────────────────────
+// ─── Public API types ─────────────────────────────────────────────────────────
 
 export interface TableInfo {
   columns: Array<{ name: string; type: string; nullable: boolean }>;
@@ -191,11 +71,107 @@ export interface ColumnStats {
 }
 
 export interface WorkerStatus {
-  /** Always false — OPFS is not used in the Electron build. */
   opfsPersistenceActive: boolean;
-  /** Always null — persistence is via local filesystem, managed by the caller. */
   dbPath: string | null;
 }
+
+export interface QueryMetrics {
+  sql: string;
+  durationMs: number;
+  timestamp: number;
+  rowCount: number;
+  explainPlan?: string;
+}
+
+// ─── Query Performance Metrics ────────────────────────────────────────────────
+
+const MAX_METRICS = 200;
+const queryMetrics: QueryMetrics[] = [];
+
+function truncateSql(sql: string, maxLen = 200): string {
+  return sql.length > maxLen ? `${sql.slice(0, maxLen)}...` : sql;
+}
+
+function pushMetric(metric: QueryMetrics): void {
+  queryMetrics.unshift(metric);
+  if (queryMetrics.length > MAX_METRICS) {
+    queryMetrics.pop();
+  }
+}
+
+// ─── LRU Query Cache ──────────────────────────────────────────────────────────
+
+interface CacheEntry {
+  result: Record<string, unknown>[];
+  timestamp: number;
+  sql: string;
+}
+
+class LRUCache<K, V> {
+  private maxSize: number;
+  private cache: Map<K, V>;
+
+  constructor(maxSize: number) {
+    this.maxSize = maxSize;
+    this.cache = new Map();
+  }
+
+  get(key: K): V | undefined {
+    const value = this.cache.get(key);
+    if (value !== undefined) {
+      this.cache.delete(key);
+      this.cache.set(key, value);
+    }
+    return value;
+  }
+
+  set(key: K, value: V): void {
+    if (this.cache.has(key)) {
+      this.cache.delete(key);
+    } else if (this.cache.size >= this.maxSize) {
+      const firstKey = this.cache.keys().next().value;
+      if (firstKey !== undefined) {
+        this.cache.delete(firstKey);
+      }
+    }
+    this.cache.set(key, value);
+  }
+
+  clear(): void {
+    this.cache.clear();
+  }
+}
+
+const MAX_CACHE_SIZE = 100;
+const METADATA_TTL = 30000;
+const DATA_TTL = 10000;
+let tableVersion = 0;
+const queryCache = new LRUCache<string, CacheEntry>(MAX_CACHE_SIZE);
+
+function isMetadataQuery(sql: string): boolean {
+  const upper = sql.trim().toUpperCase();
+  return (
+    upper.startsWith("SHOW") ||
+    upper.startsWith("DESCRIBE") ||
+    upper.startsWith("PRAGMA")
+  );
+}
+
+function isDdlQuery(sql: string): boolean {
+  const upper = sql.trim().toUpperCase();
+  return (
+    upper.startsWith("CREATE") ||
+    upper.startsWith("DROP") ||
+    upper.startsWith("ALTER") ||
+    upper.startsWith("INSERT") ||
+    upper.startsWith("UPDATE") ||
+    upper.startsWith("DELETE")
+  );
+}
+
+const isDev = process.env.NODE_ENV === "development";
+
+// ─── SharedDuckDB interface ───────────────────────────────────────────────────
 
 export interface SharedDuckDB {
   readonly available: boolean;
@@ -203,7 +179,21 @@ export interface SharedDuckDB {
   readonly failed: boolean;
 
   init(): Promise<void>;
-  runQuery(sql: string): Promise<Record<string, unknown>[]>;
+  runQuery(
+    sql: string,
+    options?: { cache?: boolean; priority?: string },
+  ): Promise<Record<string, unknown>[]>;
+  runBatch(sqls: string[]): Promise<Record<string, unknown>[][]>;
+  warmCache(sql: string): Promise<Record<string, unknown>[]>;
+  getQueryMetrics(): QueryMetrics[];
+  clearQueryMetrics(): void;
+
+  prepare(sql: string): Promise<string>;
+  execute(
+    stmtId: string,
+    params: unknown[],
+  ): Promise<Record<string, unknown>[]>;
+  disposePrepared(stmtId: string): Promise<void>;
 
   loadCSV(
     tableName: string,
@@ -236,7 +226,10 @@ export interface SharedDuckDB {
   /**
    * Load a table from Parquet bytes previously read from the local filesystem.
    */
-  loadTableFromParquet(tableName: string, buffer: ArrayBuffer): Promise<boolean>;
+  loadTableFromParquet(
+    tableName: string,
+    buffer: ArrayBuffer,
+  ): Promise<boolean>;
 
   clearTable(tableName: string): Promise<void>;
   getStatus(): Promise<WorkerStatus>;
@@ -245,7 +238,9 @@ export interface SharedDuckDB {
 
 export const sharedDuckDB: SharedDuckDB = {
   get available() {
-    return typeof window !== "undefined" && "Worker" in window && !failed;
+    return (
+      typeof window !== "undefined" && "electronDuckDB" in window && !failed
+    );
   },
   get ready() {
     return ready;
@@ -258,7 +253,11 @@ export const sharedDuckDB: SharedDuckDB = {
     if (ready) return;
     if (initPromise) return initPromise;
 
-    initPromise = send<void>({ type: "init" })
+    initPromise = ipc(
+      () => duckdbBridge().init(),
+      60000,
+      "DuckDB init timed out",
+    )
       .then(() => {
         ready = true;
       })
@@ -273,87 +272,277 @@ export const sharedDuckDB: SharedDuckDB = {
     return initPromise;
   },
 
-  async runQuery(sql) {
+  async runQuery(sql, options) {
     if (!ready) await sharedDuckDB.init();
-    return send<Record<string, unknown>[]>({ type: "runQuery", sql });
+
+    const useCache = options?.cache !== false;
+    const cacheKey = `${sql}:${tableVersion}`;
+
+    if (useCache) {
+      const cached = queryCache.get(cacheKey);
+      if (cached) {
+        const ttl = isMetadataQuery(sql) ? METADATA_TTL : DATA_TTL;
+        if (Date.now() - cached.timestamp < ttl) {
+          return cached.result;
+        }
+      }
+    }
+
+    if (isDdlQuery(sql)) {
+      tableVersion++;
+      queryCache.clear();
+    }
+
+    const start = performance.now();
+    const result = await ipc(
+      () => duckdbBridge().runQuery(sql),
+      30000,
+      "Query timed out after 30s — possible table not loaded or query too complex",
+    );
+    const durationMs = Math.round(performance.now() - start);
+
+    const metric: QueryMetrics = {
+      sql: truncateSql(sql),
+      durationMs,
+      timestamp: Date.now(),
+      rowCount: result.length,
+    };
+    pushMetric(metric);
+
+    if (useCache) {
+      queryCache.set(cacheKey, { result, timestamp: Date.now(), sql });
+    }
+
+    return result;
   },
 
-  async loadCSV(tableName, buffer, delimiter = "|", append = false, hasHeader = true) {
+  async runBatch(sqls) {
     if (!ready) await sharedDuckDB.init();
-    await send<void>(
-      { type: "loadCSV", tableName, buffer, delimiter, append, hasHeader },
-      [buffer],
+    return ipc(
+      () => duckdbBridge().runBatch(sqls),
+      30000,
+      "Batch query timed out after 30s",
     );
+  },
+
+  async loadCSV(
+    tableName,
+    buffer,
+    delimiter = "|",
+    append = false,
+    hasHeader = true,
+  ) {
+    if (!ready) await sharedDuckDB.init();
+    await ipc(
+      () =>
+        duckdbBridge().loadCSVBuffer(
+          tableName,
+          buffer,
+          delimiter,
+          append,
+          hasHeader,
+        ),
+      60000,
+      "CSV load timed out after 60s",
+    );
+    tableVersion++;
+    queryCache.clear();
   },
 
   async loadJSON(tableName, data) {
     if (!ready) await sharedDuckDB.init();
     const buffer = new TextEncoder().encode(JSON.stringify(data))
       .buffer as ArrayBuffer;
-    await send<void>({ type: "loadJSON", tableName, buffer }, [buffer]);
+    await ipc(
+      () => duckdbBridge().loadJSONBuffer(tableName, buffer),
+      60000,
+      "JSON load timed out after 60s",
+    );
+    tableVersion++;
+    queryCache.clear();
   },
 
   async loadJSONFile(tableName, file) {
     if (!ready) await sharedDuckDB.init();
-    await send<void>({ type: "loadJSONFile", tableName, file });
+    const buffer = await file.arrayBuffer();
+    await ipc(
+      () => duckdbBridge().loadJSONBuffer(tableName, buffer),
+      60000,
+      "JSON file load timed out after 60s",
+    );
+    tableVersion++;
+    queryCache.clear();
   },
 
   async listTables() {
     if (!ready) await sharedDuckDB.init();
-    return send<string[]>({ type: "listTables" });
+    return ipc(
+      () => duckdbBridge().listTables(),
+      30000,
+      "List tables timed out",
+    );
   },
 
   async getTableInfo(tableName) {
     if (!ready) await sharedDuckDB.init();
-    return send<TableInfo>({ type: "getTableInfo", tableName });
+    return ipc(
+      () => duckdbBridge().getTableInfo(tableName),
+      30000,
+      "Get table info timed out",
+    );
   },
 
   async getColumnStats(tableName, columnName) {
     if (!ready) await sharedDuckDB.init();
-    return send<ColumnStats>({ type: "getColumnStats", tableName, columnName });
+    return ipc(
+      () => duckdbBridge().getColumnStats(tableName, columnName),
+      30000,
+      "Get column stats timed out",
+    );
   },
 
   async exportTableToParquet(tableName) {
     if (!ready) await sharedDuckDB.init();
-    return send<ArrayBuffer>({ type: "exportTableToParquet", tableName });
+    // NOTE: Node API writes directly to filesystem, not returning bytes.
+    // For backward compatibility, we read the file back as bytes.
+    const { getDataDir, readLocalFile } = await import(
+      "@/platform/electron/electron-fs"
+    );
+    const dir = await getDataDir();
+    const filePath = `${dir}/${tableName}.parquet`;
+    await ipc(
+      () => duckdbBridge().exportTableToParquet(tableName, filePath),
+      60000,
+      "Parquet export timed out after 60s",
+    );
+    return readLocalFile(filePath);
   },
 
   async loadTableFromParquet(tableName, buffer) {
     if (!ready) await sharedDuckDB.init();
-    return send<boolean>(
-      { type: "loadTableFromParquet", tableName, buffer },
-      [buffer],
+    // NOTE: For backward compatibility, we write bytes to a temp file then load.
+    const { getDataDir, writeLocalFile } = await import(
+      "@/platform/electron/electron-fs"
     );
+    const dir = await getDataDir();
+    const filePath = `${dir}/${tableName}.parquet`;
+    await writeLocalFile(filePath, buffer);
+    await ipc(
+      () => duckdbBridge().loadTableFromParquet(tableName, filePath),
+      60000,
+      "Parquet load timed out after 60s",
+    );
+    tableVersion++;
+    queryCache.clear();
+    return true;
   },
 
   async clearTable(tableName) {
     if (!ready) await sharedDuckDB.init();
-    await send<void>({ type: "clearTable", tableName });
+    await ipc(
+      () => duckdbBridge().clearTable(tableName),
+      30000,
+      "Clear table timed out",
+    );
+    tableVersion++;
+    queryCache.clear();
   },
 
-  async loadCSVFile(tableName, file, delimiter = ",", append = false, hasHeader = true) {
+  async loadCSVFile(
+    tableName,
+    file,
+    delimiter = ",",
+    append = false,
+    hasHeader = true,
+  ) {
     if (!ready) await sharedDuckDB.init();
-    await send<void>({
-      type: "loadCSVFile",
-      tableName,
-      file,
-      delimiter,
-      append,
-      hasHeader,
-    });
+    const buffer = await file.arrayBuffer();
+    await ipc(
+      () =>
+        duckdbBridge().loadCSVBuffer(
+          tableName,
+          buffer,
+          delimiter,
+          append,
+          hasHeader,
+        ),
+      60000,
+      "CSV file load timed out after 60s",
+    );
+    tableVersion++;
+    queryCache.clear();
   },
 
   async getStatus() {
     if (!ready) await sharedDuckDB.init();
-    return send<WorkerStatus>({ type: "getStatus" });
+    return ipc(() => duckdbBridge().getStatus(), 30000, "Get status timed out");
+  },
+
+  async prepare(sql) {
+    if (!ready) await sharedDuckDB.init();
+    return ipc(
+      () => duckdbBridge().prepare(sql),
+      30000,
+      "Prepare statement timed out",
+    );
+  },
+
+  async execute(stmtId, params) {
+    if (!ready) await sharedDuckDB.init();
+    return ipc(
+      () => duckdbBridge().execute(stmtId, params),
+      30000,
+      "Execute statement timed out",
+    );
+  },
+
+  async disposePrepared(stmtId) {
+    if (!ready) await sharedDuckDB.init();
+    await ipc(
+      () => duckdbBridge().disposePrepared(stmtId),
+      30000,
+      "Dispose prepared statement timed out",
+    );
+  },
+
+  async warmCache(sql) {
+    if (!ready) await sharedDuckDB.init();
+    const cacheKey = `${sql}:${tableVersion}`;
+    const cached = queryCache.get(cacheKey);
+    if (cached) {
+      const ttl = isMetadataQuery(sql) ? METADATA_TTL : DATA_TTL;
+      if (Date.now() - cached.timestamp < ttl) {
+        return cached.result;
+      }
+    }
+    const result = await ipc(
+      () => duckdbBridge().runQuery(sql),
+      30000,
+      "Warm cache query timed out",
+    );
+    queryCache.set(cacheKey, { result, timestamp: Date.now(), sql });
+    return result;
+  },
+
+  getQueryMetrics() {
+    return queryMetrics.slice();
+  },
+
+  clearQueryMetrics() {
+    queryMetrics.length = 0;
   },
 
   reset() {
     ready = false;
     failed = false;
     initPromise = null;
-    worker?.terminate();
-    worker = null;
-    rejectAllPending(new Error("DuckDB client was reset."));
   },
 };
+
+// Expose metrics in dev mode for debugging
+if (isDev && typeof window !== "undefined") {
+  (window as unknown as Record<string, unknown>).__duckdbMetrics = {
+    get: () => sharedDuckDB.getQueryMetrics(),
+    clear: () => sharedDuckDB.clearQueryMetrics(),
+  };
+}

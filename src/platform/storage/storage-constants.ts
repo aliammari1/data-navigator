@@ -28,7 +28,6 @@ export const DUCKDB_PARQUET_SUFFIX = ".parquet";
  */
 export const ANALYTICS_CACHE_DB = "data-navigator-analytics-cache";
 
-
 // ─── Auth database (server-side only) ────────────────────────────────────────
 
 /**

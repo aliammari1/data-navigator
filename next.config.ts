@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  // Electron renderer needs these headers for SharedArrayBuffer (DuckDB WASM)
+  serverExternalPackages: ["@duckdb/node-api", "@duckdb/node-bindings"],
   async headers() {
     return [
       {

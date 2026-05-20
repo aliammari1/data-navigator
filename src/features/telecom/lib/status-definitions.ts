@@ -289,6 +289,14 @@ export function buildRawStatusFilter(codes: string[]): string {
   return `${RAW_TRANSACTION_STATUS_EXPR} IN (${sqlStatusInList(codes)})`;
 }
 
+/** Build a raw-status filter for an arbitrary column expression (e.g. mapped column). */
+export function buildRawStatusFilterForColumn(
+  columnExpr: string,
+  codes: string[],
+): string {
+  return `UPPER(TRIM(CAST(${columnExpr} AS VARCHAR))) IN (${sqlStatusInList(codes)})`;
+}
+
 export const SPEC_SUCCESS_FILTER = buildRawStatusFilter(
   SPEC_STATUS_CODES.success,
 );

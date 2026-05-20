@@ -2,6 +2,9 @@
  * Telecom Daily Report Engine
  * Processes DailyTransactions CSV files with pipe-delimited format.
  * All processing done offline via DuckDB WASM — zero network calls.
+ *
+ * NOTE: Status codes are centralized in @/features/telecom/lib/status-definitions
+ * All status-related constants are imported from there.
  */
 
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
@@ -13,6 +16,7 @@ import {
   sqlStatusInList,
 } from "@/features/telecom/lib/status-definitions";
 import { loadDelimitedCSVToDuckDB, runQuery } from "@/platform/duckdb/duckdb";
+import { createTelecomEnrichedView } from "@/features/telecom/lib/queries";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -633,12 +637,21 @@ export async function getChannelStats(
 
 export async function loadReportCSV(
   csvContent: string,
+  mapping?: import("@/features/telecom/types").ColumnMapping,
 ): Promise<{ rowCount: number; columns: string[] }> {
   await loadDelimitedCSVToDuckDB(REPORT_TABLE, csvContent, "|");
   const info = await runQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`);
   const cols = await runQuery(
     `SELECT column_name FROM information_schema.columns WHERE table_name = '${REPORT_TABLE}'`,
   );
+  // Build enriched view for faster downstream queries
+  if (mapping) {
+    try {
+      await createTelecomEnrichedView(REPORT_TABLE, mapping);
+    } catch (e) {
+      console.warn("[loadReportCSV] Failed to create enriched view:", e);
+    }
+  }
   return {
     rowCount: Number(info[0]?.cnt ?? 0),
     columns: cols.map((c) => String(c.column_name)),

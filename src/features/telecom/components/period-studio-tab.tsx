@@ -15,7 +15,7 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import {
   fmtAmount,
   fmtCompact,
@@ -72,7 +72,7 @@ function KCard({
   );
 }
 
-export function PeriodStudioTab({
+export const PeriodStudioTab = memo(function PeriodStudioTab({
   table,
   mapping,
   initialPeriod,
@@ -497,4 +497,4 @@ export function PeriodStudioTab({
       )}
     </div>
   );
-}
+});

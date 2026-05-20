@@ -14,7 +14,6 @@ import {
   Zap,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
-import type { LoadedFile } from "@/features/telecom/hooks/use-telecom-file-load";
 import { getCachedTelecomSourceFiles } from "@/features/telecom/lib/analytics-cache";
 import {
   type DailyLineageEntry,
@@ -30,7 +29,7 @@ import {
   fetchPeriodKPI,
   fetchRowCountForDay,
 } from "@/features/telecom/lib/period-queries";
-import type { ColumnMapping } from "@/features/telecom/types";
+import type { ColumnMapping, LoadedFile } from "@/features/telecom/types";
 import { DataLineagePanel } from "./data-lineage-panel";
 import { SubStatusPanel } from "./sub-status-panel";
 import { TopAccountsLeaderboard } from "./top-accounts-leaderboard";

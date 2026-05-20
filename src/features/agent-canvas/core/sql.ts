@@ -13,12 +13,47 @@ function qc(col: string) {
   return `"${col.replace(/"/g, '""')}"`;
 }
 
+function isNumericColumn(colName: string, schema: DataSchema): boolean {
+  const col = schema.columns.find((c) => c.name === colName);
+  if (!col) return false;
+  return (
+    col.semantic === "numeric" ||
+    /^(INTEGER|BIGINT|SMALLINT|TINYINT|DECIMAL|NUMERIC|REAL|FLOAT|DOUBLE|INT|INT8|INT4|INT2|INT1)/i.test(
+      col.duckType,
+    )
+  );
+}
+
 function safeAgg(
   metric: string,
   func: "SUM" | "AVG" | "MIN" | "MAX" | "COUNT",
+  schema?: DataSchema,
 ) {
   if (!metric) return `${func}(*)`;
+  if (schema && isNumericColumn(metric, schema)) {
+    return `${func}(${qc(metric)})`;
+  }
   return `${func}(TRY_CAST(${qc(metric)} AS DOUBLE))`;
+}
+
+/** Append LIMIT if not already present. */
+export function addLimit(sql: string, limit = 100): string {
+  const trimmed = sql.trim();
+  const withoutSemi = trimmed.endsWith(";") ? trimmed.slice(0, -1) : trimmed;
+  if (/\bLIMIT\s+\d+\s*$/i.test(withoutSemi)) {
+    return sql;
+  }
+  if (trimmed.endsWith(";")) {
+    return `${withoutSemi} LIMIT ${limit};`;
+  }
+  return `${trimmed} LIMIT ${limit}`;
+}
+
+/** Replace SELECT * with explicit column list (for chart queries). */
+export function explicitColumns(sql: string, schema: DataSchema): string {
+  if (!/SELECT\s+\*/i.test(sql)) return sql;
+  const colList = schema.columns.map((c) => qc(c.name)).join(", ");
+  return sql.replace(/SELECT\s+\*/i, `SELECT ${colList}`);
 }
 
 // ─── Heuristic SQL Templates ──────────────────────────────────────────────────
@@ -35,10 +70,10 @@ function heuristicSQL(spec: WidgetSpec, schema: DataSchema): string {
       const parts: string[] = [`COUNT(*) AS total_records`];
       for (const m of mets) {
         const label = m.toLowerCase();
-        parts.push(`ROUND(${safeAgg(m, "SUM")},2) AS total_${label}`);
-        parts.push(`ROUND(${safeAgg(m, "AVG")},2) AS avg_${label}`);
-        parts.push(`ROUND(${safeAgg(m, "MIN")},2) AS min_${label}`);
-        parts.push(`ROUND(${safeAgg(m, "MAX")},2) AS max_${label}`);
+        parts.push(`ROUND(${safeAgg(m, "SUM", schema)},2) AS total_${label}`);
+        parts.push(`ROUND(${safeAgg(m, "AVG", schema)},2) AS avg_${label}`);
+        parts.push(`ROUND(${safeAgg(m, "MIN", schema)},2) AS min_${label}`);
+        parts.push(`ROUND(${safeAgg(m, "MAX", schema)},2) AS max_${label}`);
       }
       return `SELECT ${parts.join(",\n  ")} FROM ${tbl}`;
     }
@@ -47,7 +82,7 @@ function heuristicSQL(spec: WidgetSpec, schema: DataSchema): string {
     case "horizontal-bar": {
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 20`;
       const agg = met
-        ? `ROUND(${safeAgg(met, "SUM")},2) AS value`
+        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
         : `COUNT(*) AS count`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category, ${agg}
 FROM ${tbl}
@@ -60,7 +95,7 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20`;
       if (!dim || !dim2)
         return heuristicSQL({ ...spec, chartType: "bar" }, schema);
       const agg = met
-        ? `ROUND(${safeAgg(met, "SUM")},2) AS value`
+        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
         : `COUNT(*) AS value`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category,
   CAST(${qc(dim2)} AS VARCHAR) AS series, ${agg}
@@ -75,7 +110,7 @@ GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 120`;
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 30`;
       const isTime = schema.timeDims.includes(dim);
       const agg = met
-        ? `ROUND(${safeAgg(met, "SUM")},2) AS value`
+        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
         : `COUNT(*) AS value`;
       const cast = isTime
         ? `DATE_TRUNC('day', TRY_CAST(${qc(dim)} AS TIMESTAMP)) AS period`
@@ -92,7 +127,7 @@ GROUP BY 1 ORDER BY 1 LIMIT 60`;
     case "funnel": {
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 10`;
       const agg = met
-        ? `ROUND(${safeAgg(met, "SUM")},2) AS value`
+        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
         : `COUNT(*) AS value`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS name, ${agg}
 FROM ${tbl}
@@ -110,8 +145,16 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 12`;
       const y = spec.metrics[1] ?? schema.metrics[1] ?? x;
       const label = dim ?? schema.dimensions[0] ?? "";
       const labelSql = label ? `, CAST(${qc(label)} AS VARCHAR) AS label` : "";
-      return `SELECT ROUND(TRY_CAST(${qc(x)} AS DOUBLE),3) AS x,
-  ROUND(TRY_CAST(${qc(y)} AS DOUBLE),3) AS y${labelSql}
+      const xExpr =
+        x && isNumericColumn(x, schema)
+          ? qc(x)
+          : `TRY_CAST(${qc(x)} AS DOUBLE)`;
+      const yExpr =
+        y && isNumericColumn(y, schema)
+          ? qc(y)
+          : `TRY_CAST(${qc(y)} AS DOUBLE)`;
+      return `SELECT ROUND(${xExpr},3) AS x,
+  ROUND(${yExpr},3) AS y${labelSql}
 FROM ${tbl}
 WHERE ${qc(x)} IS NOT NULL AND ${qc(y)} IS NOT NULL
 LIMIT 400`;
@@ -121,7 +164,7 @@ LIMIT 400`;
       if (!dim || !dim2 || !met) return `SELECT * FROM ${tbl} LIMIT 20`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS row_val,
   CAST(${qc(dim2)} AS VARCHAR) AS col_val,
-  ROUND(${safeAgg(met, "AVG")},2) AS value
+  ROUND(${safeAgg(met, "AVG", schema)},2) AS value
 FROM ${tbl}
 WHERE ${qc(dim)} IS NOT NULL AND ${qc(dim2)} IS NOT NULL
 GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 200`;
@@ -131,7 +174,7 @@ GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 200`;
       if (!dim || mets.length < 2) return `SELECT * FROM ${tbl} LIMIT 10`;
       const aggParts = mets.map(
         (m) =>
-          `ROUND(${safeAgg(m, "AVG")},2) AS ${m.toLowerCase().replace(/\W+/g, "_")}`,
+          `ROUND(${safeAgg(m, "AVG", schema)},2) AS ${m.toLowerCase().replace(/\W+/g, "_")}`,
       );
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category,
   ${aggParts.join(",\n  ")}
@@ -145,8 +188,8 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 8`;
       if (!m) return `SELECT 50 AS value`;
       return `SELECT ROUND(
   COALESCE(
-    ${safeAgg(m, "AVG")} /
-    NULLIF(${safeAgg(m, "MAX")}, 0) * 100,
+    ${safeAgg(m, "AVG", schema)} /
+    NULLIF(${safeAgg(m, "MAX", schema)}, 0) * 100,
     0
   ), 1) AS value
 FROM ${tbl}`;
@@ -201,37 +244,46 @@ export async function generateSQL(
   schema: DataSchema,
   emit: (text: string) => void,
 ): Promise<string> {
+  let sql: string;
+
   if (!isLoaded()) {
-    const sql = heuristicSQL(spec, schema);
+    sql = heuristicSQL(spec, schema);
     emit(`Rule-based SQL for "${spec.title}"`);
-    return sql;
-  }
+  } else {
+    emit(`LLM generating SQL for "${spec.title}" (${spec.chartType})…`);
 
-  emit(`LLM generating SQL for "${spec.title}" (${spec.chartType})…`);
+    try {
+      const raw = await chat(SQL_SYSTEM, buildSQLPrompt(spec, schema), {
+        maxTokens: 400,
+        temperature: 0,
+      });
 
-  try {
-    const raw = await chat(SQL_SYSTEM, buildSQLPrompt(spec, schema), {
-      maxTokens: 400,
-      temperature: 0,
-    });
+      // Extract SQL — strip any markdown, whitespace, explanatory text
+      sql = raw.trim();
+      const fence = sql.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+      if (fence) sql = fence[1].trim();
 
-    // Extract SQL — strip any markdown, whitespace, explanatory text
-    let sql = raw.trim();
-    const fence = sql.match(/```(?:sql)?\s*([\s\S]*?)```/i);
-    if (fence) sql = fence[1].trim();
-
-    // Basic safety: must start with SELECT (or WITH)
-    if (!/^\s*(SELECT|WITH)/i.test(sql)) {
-      emit(`LLM SQL invalid, using heuristic fallback`);
-      return heuristicSQL(spec, schema);
+      // Basic safety: must start with SELECT (or WITH)
+      if (!/^\s*(SELECT|WITH)/i.test(sql)) {
+        emit(`LLM SQL invalid, using heuristic fallback`);
+        sql = heuristicSQL(spec, schema);
+      } else {
+        emit(`SQL ready (${sql.split("\n").length} lines)`);
+      }
+    } catch (err) {
+      emit(`SQL generation failed: ${String(err)} — using heuristic`);
+      sql = heuristicSQL(spec, schema);
     }
-
-    emit(`SQL ready (${sql.split("\n").length} lines)`);
-    return sql;
-  } catch (err) {
-    emit(`SQL generation failed: ${String(err)} — using heuristic`);
-    return heuristicSQL(spec, schema);
   }
+
+  // Post-processing: ensure LIMIT and replace SELECT * for charts
+  const defaultLimit = spec.chartType === "data-table" ? 100 : 50;
+  sql = addLimit(sql, defaultLimit);
+  if (spec.chartType !== "data-table") {
+    sql = explicitColumns(sql, schema);
+  }
+
+  return sql;
 }
 
 // ─── Insight Generation ───────────────────────────────────────────────────────
