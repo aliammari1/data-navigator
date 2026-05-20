@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { memo, useCallback, useState } from "react";
 import {
   DATA_SUMMARY_GROUPS,
   RECHARGE_SUMMARY_GROUPS,
@@ -44,6 +44,7 @@ import {
   VOUCHER_CONVERGENT_CARTE_GENERATION,
   VOUCHER_FOR_PAYMENT,
 } from "@/features/telecom/lib/report-engine";
+import type { ColumnMapping } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 import { CanalComparePanel } from "./canal-compare-panel";
 import { CL1 } from "./cl1";
@@ -62,27 +63,36 @@ function isoDaysAgo(days: number) {
 
 // ─── CanalTab ─────────────────────────────────────────────────────────────────
 
-export function CanalTab({ getTableName }: { getTableName: () => string }) {
+export const CanalTab = memo(function CanalTab({
+  getTableName,
+  mapping,
+}: {
+  getTableName: () => string;
+  mapping: ColumnMapping;
+}) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
 
-  const fetchSpecChannelStats = (
-    channels: ChannelDef[],
-    df: string,
-    dt: string,
-  ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> =>
-    _fetchSpecChannelStats(getTableName(), channels, df, dt);
-  const fetchSpecStatusStats = (
-    channels: ChannelDef[],
-    df: string,
-    dt: string,
-  ) => _fetchSpecStatusStats(getTableName(), channels, df, dt);
-  const fetchSpecUnitAmountStats = (
-    channels: ChannelDef[],
-    df: string,
-    dt: string,
-  ) => _fetchSpecUnitAmountStats(getTableName(), channels, df, dt);
+  const fetchSpecChannelStats = useCallback(
+    (
+      channels: ChannelDef[],
+      df: string,
+      dt: string,
+    ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> =>
+      _fetchSpecChannelStats(getTableName(), channels, df, dt, mapping),
+    [getTableName, mapping],
+  );
+  const fetchSpecStatusStats = useCallback(
+    (channels: ChannelDef[], df: string, dt: string) =>
+      _fetchSpecStatusStats(getTableName(), channels, df, dt, mapping),
+    [getTableName, mapping],
+  );
+  const fetchSpecUnitAmountStats = useCallback(
+    (channels: ChannelDef[], df: string, dt: string) =>
+      _fetchSpecUnitAmountStats(getTableName(), channels, df, dt, mapping),
+    [getTableName, mapping],
+  );
 
   return (
     <div className="space-y-3 pb-10">
@@ -459,4 +469,4 @@ export function CanalTab({ getTableName }: { getTableName: () => string }) {
       </CL1>
     </div>
   );
-}
+});

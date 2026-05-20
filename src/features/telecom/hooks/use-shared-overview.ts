@@ -64,11 +64,11 @@ export function useSharedOverview({
   const presenter = useMemo(() => readLANSettings().peer, []);
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
+    const cleanups: (() => void)[] = [];
 
-    import("@/platform/collab/collab").then(
-      ({ sharedOverview, startCollabSync, ydoc }) => {
-        cleanup = startCollabSync();
+    import("@/platform/collab/collab")
+      .then(({ sharedOverview, startCollabSync, ydoc }) => {
+        cleanups.push(startCollabSync());
 
         const observe = () => {
           const snapshot = parseSnapshot(sharedOverview.get("snapshot"));
@@ -77,15 +77,8 @@ export function useSharedOverview({
         };
 
         sharedOverview.observe(observe);
+        cleanups.push(() => sharedOverview.unobserve(observe));
         observe();
-
-        cleanup = (() => {
-          const original = cleanup;
-          return () => {
-            original?.();
-            sharedOverview.unobserve(observe);
-          };
-        })();
 
         if (!enabled || !kpi) return;
 
@@ -106,10 +99,16 @@ export function useSharedOverview({
         ydoc.transact(() => {
           sharedOverview.set("snapshot", JSON.stringify(snapshot));
         });
-      },
-    );
+      })
+      .catch(() => {
+        // Import failed — cleanups array stays empty, nothing to do
+      });
 
-    return () => cleanup?.();
+    return () => {
+      cleanups.forEach((fn) => {
+        fn();
+      });
+    };
   }, [
     enabled,
     fileName,

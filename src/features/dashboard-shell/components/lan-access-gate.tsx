@@ -24,9 +24,7 @@ export function LanAccessGate({
   children: React.ReactNode;
   isAdmin: boolean;
 }) {
-  const [stableConnected, setStableConnected] = useState(
-    getLANStatus() === "connected",
-  );
+  const [stableConnected, setStableConnected] = useState<boolean | null>(null);
   const [connecting, setConnecting] = useState(false);
   const [settings, setSettings] = useState(() => readLANSettings());
   const [mode, setMode] = useState<"user" | "admin">("user");
@@ -54,7 +52,13 @@ export function LanAccessGate({
     [],
   );
 
-  if (isAdmin || stableConnected) return <>{children}</>;
+  if (isAdmin) return <>{children}</>;
+
+  if (stableConnected === null) {
+    return <>{children}</>;
+  }
+
+  if (stableConnected) return <>{children}</>;
 
   if (connecting) {
     return (
@@ -71,7 +75,11 @@ export function LanAccessGate({
           </div>
           <button
             type="button"
-            onClick={() => { disconnectLAN(); setConnecting(false); setError(""); }}
+            onClick={() => {
+              disconnectLAN();
+              setConnecting(false);
+              setError("");
+            }}
             className="rounded-lg border border-border px-4 py-2 text-sm text-muted-foreground hover:bg-muted"
           >
             Cancel

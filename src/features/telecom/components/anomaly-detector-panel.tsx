@@ -1,7 +1,7 @@
 "use client";
 
 import { AlertOctagon, Bell, RefreshCw } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchAnomalies,
@@ -23,17 +23,17 @@ export function AnomalyDetectorPanel({
   const [rows, setRows] = useState<RowAnomaly[]>([]);
   const [loading, setLoading] = useState(false);
 
-  const refresh = () => {
+  const refresh = useCallback(() => {
     setLoading(true);
     fetchAnomalies(table, mapping, dateFrom, dateTo)
       .then(setRows)
+      .catch(() => setRows([]))
       .finally(() => setLoading(false));
-  };
+  }, [table, mapping, dateFrom, dateTo]);
 
   useEffect(() => {
     refresh();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [table, mapping, dateFrom, dateTo]);
+  }, [refresh]);
 
   const sevColor = (z: number) =>
     z >= 4
@@ -70,9 +70,9 @@ export function AnomalyDetectorPanel({
             Aucune anomalie sur la période. Tout va bien.
           </div>
         )}
-        {rows.map((r, i) => (
+        {rows.map((r) => (
           <div
-            key={`${r.canal}-${r.hour}-${i}`}
+            key={`${r.canal}-${r.hour}`}
             className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/30"
           >
             <span

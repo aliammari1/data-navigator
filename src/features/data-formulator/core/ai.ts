@@ -2,10 +2,8 @@
 /**
  * Offline AI helpers for Data Formulator.
  *
- * Each function is a *thin wrapper around the local LLM* (when loaded) with a
- * deterministic, rule-based fallback so every feature works even without a
- * downloaded model. The fallbacks aren't second-class — for many telecom
- * shapes the rules produce equal-or-better SQL than a 360M-param model would.
+ * Thin wrappers around the local LLM. No rule-based fallbacks.
+ * If Ollama is offline, features fail visibly.
  */
 
 import Fuse from "fuse.js";
@@ -466,13 +464,9 @@ function deriveByRule(req: DeriveFieldRequest): DerivedField | null {
 export async function deriveField(
   req: DeriveFieldRequest,
 ): Promise<DeriveFieldResult> {
-  // Try rule-based first — it's instant and produces clean SQL for the common cases.
-  const ruled = deriveByRule(req);
-  if (ruled) return { field: ruled, source: "rule" };
-
   if (!isLoaded()) {
     throw new Error(
-      "Couldn't match a pattern. Try wording like 'ratio of amount to count', 'extract year of date', 'log of amount', 'days since signup', or 'z-score of revenue'. Loading an offline model in Agent Canvas unlocks free-form expressions.",
+      "No local model loaded. Start Ollama and select a model to derive fields with AI.",
     );
   }
 
@@ -519,179 +513,12 @@ export interface ChartRecommendation {
 }
 
 export function recommendCharts(
-  columns: ColumnInfo[],
-  cardinality: Record<string, number> = {},
+  _columns: ColumnInfo[],
+  _cardinality?: Record<string, number>,
 ): ChartRecommendation[] {
-  const recs: ChartRecommendation[] = [];
-  const num = columns.filter((c) => c.type === "number");
-  const cat = columns.filter((c) => c.type === "string");
-  const date = columns.filter((c) => c.type === "date");
-
-  const lowCardCat = cat.filter((c) => (cardinality[c.name] ?? 100) <= 50);
-
-  // 1. Top categories by sum
-  if (lowCardCat[0] && num[0]) {
-    recs.push({
-      title: `Top ${lowCardCat[0].name} by ${num[0].name}`,
-      reason: "Categorical breakdown — most common analytical question.",
-      spec: {
-        type: "bar",
-        encodings: [
-          {
-            id: genId(),
-            channel: "x",
-            field: lowCardCat[0].name,
-            aggregate: "none",
-          },
-          {
-            id: genId(),
-            channel: "y",
-            field: num[0].name,
-            aggregate: "sum",
-            sort: "desc",
-          },
-        ],
-        filters: [],
-        limit: 15,
-        title: `Top ${lowCardCat[0].name} by ${num[0].name}`,
-        topN: 15,
-      },
-    });
-  }
-
-  // 2. Trend over time
-  if (date[0] && num[0]) {
-    recs.push({
-      title: `${num[0].name} over time`,
-      reason: "Temporal trend — detects seasonality and growth patterns.",
-      spec: {
-        type: "line",
-        encodings: [
-          { id: genId(), channel: "x", field: date[0].name, aggregate: "none" },
-          { id: genId(), channel: "y", field: num[0].name, aggregate: "sum" },
-        ],
-        filters: [],
-        limit: 200,
-        title: `${num[0].name} over time`,
-        showTrendline: true,
-      },
-    });
-  }
-
-  // 3. Distribution histogram
-  if (num[0]) {
-    recs.push({
-      title: `Distribution of ${num[0].name}`,
-      reason: "Reveals skew, modality, and outliers.",
-      spec: {
-        type: "bar",
-        encodings: [
-          {
-            id: genId(),
-            channel: "x",
-            field: num[0].name,
-            aggregate: "count",
-            bin: true,
-          },
-        ],
-        filters: [],
-        limit: 30,
-        title: `Distribution of ${num[0].name}`,
-      },
-    });
-  }
-
-  // 4. Composition (donut)
-  if (lowCardCat[0]) {
-    recs.push({
-      title: `${lowCardCat[0].name} composition`,
-      reason: "Share-of-total view of category mix.",
-      spec: {
-        type: "donut",
-        encodings: [
-          {
-            id: genId(),
-            channel: "x",
-            field: lowCardCat[0].name,
-            aggregate: "none",
-          },
-          {
-            id: genId(),
-            channel: "y",
-            field: num[0]?.name ?? lowCardCat[0].name,
-            aggregate: num[0] ? "sum" : "count",
-          },
-        ],
-        filters: [],
-        limit: 12,
-        title: `${lowCardCat[0].name} composition`,
-      },
-    });
-  }
-
-  // 5. Correlation
-  if (num.length >= 2) {
-    recs.push({
-      title: `${num[0].name} vs ${num[1].name}`,
-      reason: "Reveals correlation between two metrics.",
-      spec: {
-        type: "scatter",
-        encodings: [
-          { id: genId(), channel: "x", field: num[0].name, aggregate: "none" },
-          { id: genId(), channel: "y", field: num[1].name, aggregate: "none" },
-          ...(lowCardCat[0]
-            ? [
-                {
-                  id: genId(),
-                  channel: "color" as const,
-                  field: lowCardCat[0].name,
-                  aggregate: "none" as const,
-                },
-              ]
-            : []),
-        ],
-        filters: [],
-        limit: 1000,
-        title: `${num[0].name} vs ${num[1].name}`,
-      },
-    });
-  }
-
-  // 6. Two-dimensional intensity
-  if (lowCardCat[0] && lowCardCat[1] && num[0]) {
-    recs.push({
-      title: `${lowCardCat[0].name} × ${lowCardCat[1].name} intensity`,
-      reason: "Heatmap surfaces interaction effects between two categories.",
-      spec: {
-        type: "heatmap",
-        encodings: [
-          {
-            id: genId(),
-            channel: "x",
-            field: lowCardCat[0].name,
-            aggregate: "none",
-          },
-          {
-            id: genId(),
-            channel: "y",
-            field: lowCardCat[1].name,
-            aggregate: "none",
-          },
-          {
-            id: genId(),
-            channel: "size",
-            field: num[0].name,
-            aggregate: "sum",
-          },
-        ],
-        filters: [],
-        limit: 400,
-        title: `${lowCardCat[0].name} × ${lowCardCat[1].name}`,
-      },
-    });
-  }
-
-  return recs;
+  throw new Error(
+    "Chart recommendations require a local Ollama model. Please start Ollama and select a model.",
+  );
 }
 
 // ─── NL → ChartSpec (offline) ─────────────────────────────────────────────────
@@ -701,48 +528,40 @@ export async function nlToSpec(
   columns: ColumnInfo[],
   current?: ChartSpec,
 ): Promise<Partial<Omit<ChartSpec, "id">> | null> {
-  // Rule-based first — covers ~35 phrasings.
-  const ruled = nlToSpecRule(query, columns, current);
-  if (ruled) return ruled;
+  if (!isLoaded()) {
+    throw new Error(
+      "No local model loaded. Start Ollama and select a model to generate chart specs.",
+    );
+  }
 
-  // LLM second — when an offline model is loaded.
-  if (isLoaded()) {
-    try {
-      const system = `You are a chart spec generator. Given a request, output JSON matching:
+  const system = `You are a chart spec generator. Given a request, output JSON matching:
 {"type": "<chart>", "encodings": [{"channel":"x|y|color|size","field":"<col>","aggregate":"none|sum|avg|count|min|max"}], "title": "<short>", "limit": <int>}.
 Allowed chart types: ${ALLOWED_CHART_TYPES.join(", ")}.
 Use only the columns listed.`;
-      const user = `Columns:\n${schemaSummary(columns)}\n\nRequest: ${query}\n\nJSON only.`;
-      const raw = await chat(system, user, { maxTokens: 350, temperature: 0 });
-      const parsed = parseJSON<{
-        type: ChartType;
-        encodings: Array<{
-          channel: string;
-          field: string;
-          aggregate?: string;
-        }>;
-        title: string;
-        limit?: number;
-      }>(raw);
-      return {
-        type: ALLOWED_CHART_TYPES.includes(parsed.type) ? parsed.type : "bar",
-        title: parsed.title,
-        limit: parsed.limit ?? 100,
-        encodings: parsed.encodings.map((e) => ({
-          id: genId(),
-          channel: e.channel as Encoding["channel"],
-          field: e.field,
-          aggregate: (e.aggregate as AggregateFn) ?? "none",
-        })),
-        filters: current?.filters ?? [],
-      };
-    } catch {
-      /* fall through to best-effort */
-    }
-  }
-
-  // Never-throw best-effort: always return *something* renderable.
-  return bestEffortSpec(query, columns);
+  const user = `Columns:\n${schemaSummary(columns)}\n\nRequest: ${query}\n\nJSON only.`;
+  const raw = await chat(system, user, { maxTokens: 350, temperature: 0 });
+  const parsed = parseJSON<{
+    type: ChartType;
+    encodings: Array<{
+      channel: string;
+      field: string;
+      aggregate?: string;
+    }>;
+    title: string;
+    limit?: number;
+  }>(raw);
+  return {
+    type: ALLOWED_CHART_TYPES.includes(parsed.type) ? parsed.type : "bar",
+    title: parsed.title,
+    limit: parsed.limit ?? 100,
+    encodings: parsed.encodings.map((e) => ({
+      id: genId(),
+      channel: e.channel as Encoding["channel"],
+      field: e.field,
+      aggregate: (e.aggregate as AggregateFn) ?? "none",
+    })),
+    filters: current?.filters ?? [],
+  };
 }
 
 function nlToSpecRule(
@@ -1326,51 +1145,6 @@ function bestEffortSpec(
     limit: 20,
     filters: [],
   };
-}
-
-// ─── Smart insight (deterministic, no LLM needed) ─────────────────────────────
-
-export function describeChart(
-  spec: ChartSpec,
-  data: Record<string, unknown>[],
-): string {
-  if (!data.length) return "";
-  const yEnc = spec.encodings.find((e) => e.channel === "y");
-  if (!yEnc) return "";
-  const xEnc = spec.encodings.find((e) => e.channel === "x");
-
-  const yVals = data
-    .map((d) => Number(d[yEnc.field] ?? d.y_val))
-    .filter((v) => Number.isFinite(v));
-  if (!yVals.length) return "";
-
-  const sum = yVals.reduce((a, b) => a + b, 0);
-  const avg = sum / yVals.length;
-  const max = Math.max(...yVals);
-  const min = Math.min(...yVals);
-  const sorted = [...yVals].sort((a, b) => a - b);
-  const median = sorted[Math.floor(sorted.length / 2)];
-
-  const topIdx = yVals.indexOf(max);
-  const topLabel = xEnc
-    ? String(data[topIdx]?.[xEnc.field] ?? data[topIdx]?.x_val ?? "")
-    : "";
-
-  const fmt = (n: number) => {
-    if (Math.abs(n) >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
-    if (Math.abs(n) >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
-    if (Math.abs(n) >= 1e3) return `${(n / 1e3).toFixed(1)}K`;
-    return n.toFixed(2);
-  };
-
-  const ratio = max > 0 ? ((max - avg) / avg) * 100 : 0;
-  const skew =
-    avg > median ? "right-skewed" : avg < median ? "left-skewed" : "symmetric";
-
-  if (topLabel) {
-    return `${topLabel} leads at ${fmt(max)} — ${ratio.toFixed(0)}% above average (${fmt(avg)}). Distribution is ${skew}; range ${fmt(min)} → ${fmt(max)}.`;
-  }
-  return `Average ${fmt(avg)}, median ${fmt(median)}; distribution ${skew} across ${yVals.length} values.`;
 }
 
 // ─── Outlier detection (IQR) ──────────────────────────────────────────────────

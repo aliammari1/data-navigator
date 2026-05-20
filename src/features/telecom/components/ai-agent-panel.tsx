@@ -34,13 +34,13 @@ export function AiAgentPanel({
   dateFrom,
   dateTo,
   onIntent,
-}: {
+}: Readonly<{
   table: string;
   mapping: ColumnMapping;
   dateFrom: string;
   dateTo: string;
   onIntent?: (intent: AgentIntent) => void;
-}) {
+}>) {
   const [ctx, setCtx] = useState<AgentContext | null>(null);
   const [insights, setInsights] = useState<AgentInsight[]>([]);
   const [narrative, setNarrative] = useState<string>("");
@@ -123,7 +123,7 @@ export function AiAgentPanel({
     setBusy(false);
   };
 
-  const submitQuestion = async (e: React.FormEvent) => {
+  const submitQuestion = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!q.trim()) return;
     let c = ctx;

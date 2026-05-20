@@ -118,6 +118,31 @@ function bestDimension(cols: ColMeta[], hint?: string): string | null {
   return first ? `"${first.name}"` : null;
 }
 
+/** Append LIMIT if not already present. */
+function addLimit(sql: string, limit = 100): string {
+  const trimmed = sql.trim();
+  const withoutSemi = trimmed.endsWith(";") ? trimmed.slice(0, -1) : trimmed;
+  if (/\bLIMIT\s+\d+\s*$/i.test(withoutSemi)) {
+    return sql;
+  }
+  if (trimmed.endsWith(";")) {
+    return `${withoutSemi} LIMIT ${limit};`;
+  }
+  return `${trimmed} LIMIT ${limit}`;
+}
+
+/** Replace SELECT * with explicit column list. */
+function explicitColumns(sql: string, columns: ColMeta[]): string {
+  if (!/SELECT\s+\*/i.test(sql)) return sql;
+  const colList = columns.map((c) => `"${c.name}"`).join(", ");
+  return sql.replace(/SELECT\s+\*/i, `SELECT ${colList}`);
+}
+
+/** Wrap SQL in EXPLAIN for syntax validation. */
+export function explainSQL(sql: string): string {
+  return `EXPLAIN ${sql}`;
+}
+
 function bestDateCol(cols: ColMeta[]): string | null {
   const priorities = [
     "date",
@@ -214,6 +239,27 @@ const PATTERNS: Pattern[] = [
     },
   },
 
+  // CONDITIONAL BREAKDOWN using FILTER
+  {
+    regex:
+      /(?:filtered|conditional)?\s*(?:distribution|breakdown)\s+(?:of\s+)?(\w+)\s+(?:where|with|having)\s+(\w+)\s*(>=|<=|>|<|=)\s*(\d+(?:\.\d+)?)/i,
+    build: (m, { tableName, columns }) => {
+      const dimHint = m[1] ?? "";
+      const metricHint = m[2] ?? "";
+      const operator = m[3] ?? "=";
+      const value = m[4] ?? "0";
+      const dim = bestDimension(columns, dimHint);
+      const metric = bestMetric(columns, metricHint);
+      if (!dim) return null;
+      return {
+        sql: `SELECT ${dim}, COUNT(*) FILTER (WHERE ${metric} ${operator} ${value}) AS filtered_count, COUNT(*) AS total, ROUND(COUNT(*) FILTER (WHERE ${metric} ${operator} ${value}) * 100.0 / COUNT(*), 1) AS pct FROM "${tableName}" GROUP BY ${dim} ORDER BY filtered_count DESC`,
+        explanation: `Conditional breakdown of ${dimHint} where ${metricHint} ${operator} ${value}.`,
+        confidence: "high",
+        chartSuggestion: "bar",
+      };
+    },
+  },
+
   // DISTRIBUTION / BREAKDOWN of column
   {
     regex: /distribution|breakdown|(?:group|split)\s+by\s+(\w+)/i,
@@ -282,7 +328,7 @@ const PATTERNS: Pattern[] = [
       const checks = columns
         .map(
           (c) =>
-            `SUM(CASE WHEN "${c.name}" IS NULL THEN 1 ELSE 0 END) AS "${c.name}_nulls"`,
+            `COUNT(*) FILTER (WHERE "${c.name}" IS NULL) AS "${c.name}_nulls"`,
         )
         .join(", ");
       return {
@@ -421,8 +467,9 @@ export function translateNLQ(question: string, ctx: NLQContext): NLQResult {
 
   // First check if it looks like raw SQL already
   if (/^\s*(?:SELECT|WITH|INSERT|UPDATE|DELETE|CREATE|DROP|ALTER)\s/i.test(q)) {
+    const sql = addLimit(q, 1000);
     return {
-      sql: q,
+      sql,
       explanation: "Executed as raw SQL.",
       confidence: "high",
       chartSuggestion: "table",
@@ -434,7 +481,14 @@ export function translateNLQ(question: string, ctx: NLQContext): NLQResult {
     const match = q.match(pattern.regex);
     if (match) {
       const result = pattern.build(match, ctx);
-      if (result) return result;
+      if (result) {
+        // Post-process: ensure LIMIT and replace SELECT * for charts
+        let sql = addLimit(result.sql, 100);
+        if (result.chartSuggestion && result.chartSuggestion !== "table") {
+          sql = explicitColumns(sql, ctx.columns);
+        }
+        return { ...result, sql };
+      }
     }
   }
 
@@ -442,9 +496,12 @@ export function translateNLQ(question: string, ctx: NLQContext): NLQResult {
   const metric = bestMetric(ctx.columns);
   const dim = bestDimension(ctx.columns);
 
+  let sql: string;
   if (dim) {
+    sql = `SELECT ${dim}, SUM(${metric}) AS total, COUNT(*) AS count FROM "${ctx.tableName}" GROUP BY ${dim} ORDER BY total DESC LIMIT 20`;
+    sql = addLimit(sql, 100);
     return {
-      sql: `SELECT ${dim}, SUM(${metric}) AS total, COUNT(*) AS count FROM "${ctx.tableName}" GROUP BY ${dim} ORDER BY total DESC LIMIT 20`,
+      sql,
       explanation:
         "Could not fully parse your question — showing a grouped summary of the data.",
       confidence: "low",
@@ -452,8 +509,10 @@ export function translateNLQ(question: string, ctx: NLQContext): NLQResult {
     };
   }
 
+  sql = `SELECT * FROM "${ctx.tableName}" LIMIT 100`;
+  sql = addLimit(sql, 100);
   return {
-    sql: `SELECT * FROM "${ctx.tableName}" LIMIT 100`,
+    sql,
     explanation: "Could not parse your question — showing first 100 rows.",
     confidence: "low",
     chartSuggestion: "table",

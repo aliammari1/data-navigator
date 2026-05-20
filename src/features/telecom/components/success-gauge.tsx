@@ -1,6 +1,8 @@
 "use client";
 
-export function SuccessGauge({
+import { memo } from "react";
+
+export const SuccessGauge = memo(function SuccessGauge({
   rate,
   size = 80,
 }: {
@@ -65,4 +67,4 @@ export function SuccessGauge({
       </text>
     </svg>
   );
-}
+});

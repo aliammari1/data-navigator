@@ -9,7 +9,13 @@ import {
   Zap,
 } from "lucide-react";
 import type { RawCanalRow } from "@/features/telecom/lib/queries";
+import { STATUS_PRESENTATION } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, CanalSummary } from "@/features/telecom/types";
+
+/**
+ * SINGLE SOURCE OF TRUTH for canal and status visual configuration.
+ * All canal styling comes from CANAL_CONFIG, all status colors from status-definitions.ts.
+ */
 
 // ─── Canal visual configuration ───────────────────────────────────────────────
 
@@ -108,13 +114,14 @@ export const CANAL_CONFIG: Record<
 
 // ─── Status and chart colours ─────────────────────────────────────────────────
 
+// DERIVED from STATUS_PRESENTATION in status-definitions.ts (single source of truth)
 export const STATUS_COLORS: Record<string, string> = {
-  SUCCESS: "#10b981",
-  DECLINED: "#ef4444",
-  REFUND: "#8b5cf6",
-  INSTANCE: "#f59e0b",
-  SUBMITTED: "#3b82f6",
-  OTHER: "#94a3b8",
+  SUCCESS: STATUS_PRESENTATION.success.color,
+  DECLINED: STATUS_PRESENTATION.declined.color,
+  REFUND: STATUS_PRESENTATION.refund.color,
+  INSTANCE: STATUS_PRESENTATION.instance.color,
+  SUBMITTED: STATUS_PRESENTATION.submitted.color,
+  OTHER: STATUS_PRESENTATION.other.color,
 };
 
 export const CHART_PALETTE = [

@@ -1,11 +1,11 @@
 import "server-only";
 
-import Database from "better-sqlite3";
-import { betterAuth, type BetterAuthOptions } from "better-auth";
-import { getMigrations } from "better-auth/db/migration";
-import { nextCookies } from "better-auth/next-js";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { type BetterAuthOptions, betterAuth } from "better-auth";
+import { getMigrations } from "better-auth/db/migration";
+import { nextCookies } from "better-auth/next-js";
+import Database from "better-sqlite3";
 import { AUTH_DB_FILE } from "@/platform/storage/storage-constants";
 
 const dataDir = path.join(process.cwd(), ".data");

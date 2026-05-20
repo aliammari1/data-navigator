@@ -1,16 +1,5 @@
-"use client";
-
-import { useEffect } from "react";
-import { useAppContextStore } from "@/core/stores/app-context-store";
-import { TelecomDashboard } from "@/features/telecom/components/telecom-dashboard";
-import { useTelecomStore } from "@/features/telecom/store";
+import { redirect } from "next/navigation";
 
 export default function Page() {
-  const setContext = useAppContextStore((s) => s.setContext);
-  useEffect(() => {
-    useTelecomStore.getState().setActiveTab("overview");
-    setContext({ activeDomain: "telecom" });
-  }, [setContext]);
-
-  return <TelecomDashboard />;
+  redirect("/dashboard/telecom-report");
 }

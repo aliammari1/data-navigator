@@ -30,8 +30,44 @@ async function parquetPath(tableName: string): Promise<string> {
 
 export async function runQuery(
   sql: string,
+  options?: { cache?: boolean; priority?: string },
 ): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.runQuery(sql);
+  return sharedDuckDB.runQuery(sql, options);
+}
+
+export async function runBatch(
+  sqls: string[],
+): Promise<Record<string, unknown>[][]> {
+  return sharedDuckDB.runBatch(sqls);
+}
+
+export async function warmCache(
+  sql: string,
+): Promise<Record<string, unknown>[]> {
+  return sharedDuckDB.warmCache(sql);
+}
+
+export function getQueryMetrics() {
+  return sharedDuckDB.getQueryMetrics();
+}
+
+export function clearQueryMetrics() {
+  return sharedDuckDB.clearQueryMetrics();
+}
+
+export async function prepareStatement(sql: string): Promise<string> {
+  return sharedDuckDB.prepare(sql);
+}
+
+export async function executeStatement(
+  stmtId: string,
+  params: unknown[],
+): Promise<Record<string, unknown>[]> {
+  return sharedDuckDB.execute(stmtId, params);
+}
+
+export async function disposeStatement(stmtId: string): Promise<void> {
+  return sharedDuckDB.disposePrepared(stmtId);
 }
 
 export async function listTables(): Promise<string[]> {
@@ -68,7 +104,13 @@ export async function loadDelimitedCSVFromFile(
   append = false,
   hasHeader = true,
 ): Promise<void> {
-  return sharedDuckDB.loadCSVFile(tableName, file, delimiter, append, hasHeader);
+  return sharedDuckDB.loadCSVFile(
+    tableName,
+    file,
+    delimiter,
+    append,
+    hasHeader,
+  );
 }
 
 export async function loadDelimitedCSVToDuckDB(
@@ -103,6 +145,33 @@ export async function loadJSONFileToDuckDB(
   return sharedDuckDB.loadJSONFile(tableName, file);
 }
 
+// ─── Path-based CSV / JSON loaders (preferred for Electron) ───────────────────
+
+export async function loadCSVPathToDuckDB(
+  tableName: string,
+  filePath: string,
+  delimiter = ",",
+  append = false,
+  hasHeader = true,
+): Promise<void> {
+  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
+  return duckdbBridge().loadCSVPath(
+    tableName,
+    filePath,
+    delimiter,
+    append,
+    hasHeader,
+  );
+}
+
+export async function loadJSONPathToDuckDB(
+  tableName: string,
+  filePath: string,
+): Promise<void> {
+  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
+  return duckdbBridge().loadJSONPath(tableName, filePath);
+}
+
 // ─── Local filesystem persistence ────────────────────────────────────────────
 
 /**
@@ -115,8 +184,9 @@ export async function exportTableToParquet(tableName: string): Promise<void> {
       "exportTableToParquet requires Electron — local filesystem not available in browser.",
     );
   }
-  const buf = await sharedDuckDB.exportTableToParquet(tableName);
-  await writeLocalFile(await parquetPath(tableName), buf);
+  const filePath = await parquetPath(tableName);
+  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
+  await duckdbBridge().exportTableToParquet(tableName, filePath);
 }
 
 /**
@@ -130,8 +200,9 @@ export async function loadTableFromParquet(
   const filePath = await parquetPath(tableName);
   const exists = await localFileExists(filePath);
   if (!exists) return false;
-  const buf = await readLocalFile(filePath);
-  return sharedDuckDB.loadTableFromParquet(tableName, buf);
+  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
+  await duckdbBridge().loadTableFromParquet(tableName, filePath);
+  return true;
 }
 
 /**

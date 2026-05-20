@@ -46,12 +46,24 @@ export function SpecChannelTable({
     setLoading(true);
     setData(null);
 
+    // Add timeout to prevent infinite hanging
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) {
+        console.error(
+          "[SpecChannelTable] TIMEOUT - table may not exist or query is too slow",
+        );
+        setLoading(false);
+      }
+    }, 30000); // 10 second timeout
+
     fetchSpecChannelStats(channels, dateFrom, dateTo)
       .then((d) => {
+        clearTimeout(timeoutId);
         console.log("[SpecChannelTable] done", label, d);
         if (!cancelled) setData(d);
       })
       .catch((err) => {
+        clearTimeout(timeoutId);
         console.error("[SpecChannelTable] failed", label, err);
       })
       .finally(() => {
@@ -61,8 +73,9 @@ export function SpecChannelTable({
 
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
-  }, [dateFrom, dateTo]);
+  }, [dateFrom, dateTo, fetchSpecChannelStats]);
 
   if (loading) {
     return (
@@ -271,15 +284,12 @@ export function SpecChannelTable({
             </tr>
           </thead>
           <tbody>
-            {sorted.map((row, i) => {
+            {sorted.map((row) => {
               const pct = (row.nombre / maxNombre) * 100;
               return (
                 <tr
-                  key={`${row.canal}-${i}`}
-                  className={cn(
-                    "border-b border-border/30 last:border-0 transition-colors hover:bg-muted/20",
-                    i % 2 !== 0 && "bg-muted/10",
-                  )}
+                  key={row.canal}
+                  className="border-b border-border/30 last:border-0 transition-colors hover:bg-muted/20 even:bg-muted/10"
                 >
                   <td className="px-3 py-2 text-foreground">{row.canal}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">

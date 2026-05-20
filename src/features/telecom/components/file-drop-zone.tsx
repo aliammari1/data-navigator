@@ -2,7 +2,7 @@
 import { Loader2, Play } from "lucide-react";
 import { useState } from "react";
 import { FileUpload } from "@/components/ui/file-upload";
-import type { TelecomIngestionMode } from "@/features/telecom/hooks/use-telecom-file-load";
+import type { TelecomIngestionMode } from "../types";
 
 export function FileDropZone({
   onLoad,

@@ -155,7 +155,7 @@ import {
   XCircle,
   Loader2,
 } from "lucide-react";
-  
+
 // Lazy load Monaco Editor
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -197,7 +197,7 @@ export default function DataBrowserScreen({
     m: Types.ColumnMapping,
     f: Types.FilterState,
     sm: Types.StatusMapping[],
-    limit: number,  
+    limit: number,
     offset: number,
     sortCol: string,
     sortDir: Types.SortDir,

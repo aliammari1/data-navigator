@@ -164,9 +164,13 @@ export async function loadUploadFileToDuckDB(
   }
 
   const info = await getTableInfo(tableName);
-  const previewRows = await runQuery(
-    `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${options.previewLimit ?? 100}`,
-  );
+  const previewLimit = options.previewLimit ?? 100;
+  // For large tables, use reservoir sampling for much faster preview
+  const previewSql =
+    info.rowCount > 10000
+      ? `SELECT * FROM ${quoteIdentifier(tableName)} USING SAMPLE ${previewLimit} ROWS (Reservoir)`
+      : `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${previewLimit}`;
+  const previewRows = await runQuery(previewSql);
   const columnNames = info.columns.map((column) => column.name);
 
   return {

@@ -57,7 +57,7 @@ export function AIInsightsPanel({
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {[0, 1, 2, 3].map((i) => (
           <div
-            key={i}
+            key={`insight-skeleton-${i}`}
             className="rounded-xl border border-border bg-muted/40 p-4 animate-pulse space-y-2"
           >
             <div className="h-3 bg-accent rounded w-3/4" />

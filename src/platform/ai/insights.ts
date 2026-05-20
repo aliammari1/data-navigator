@@ -284,111 +284,13 @@ export interface Insight {
 }
 
 export function generateInsights(
-  cols: ColMeta[],
-  rowCount: number,
-  numericData?: Record<string, number[]>,
+  _cols: ColMeta[],
+  _rowCount: number,
+  _numericData?: Record<string, number[]>,
 ): Insight[] {
-  const insights: Insight[] = [];
-
-  // 1. Data quality
-  for (const col of cols) {
-    const pctNull = col.nullCount / Math.max(1, rowCount);
-    if (pctNull > 0.3) {
-      insights.push({
-        type: "quality",
-        severity: pctNull > 0.5 ? "critical" : "warning",
-        title: `High missing rate in "${col.name}"`,
-        description: `${(pctNull * 100).toFixed(1)}% of values are null — consider imputation or removal.`,
-        value: `${(pctNull * 100).toFixed(1)}%`,
-        columnName: col.name,
-      });
-    }
-    if (col.distinctCount === 1) {
-      insights.push({
-        type: "quality",
-        severity: "warning",
-        title: `Constant column: "${col.name}"`,
-        description:
-          "All non-null values are identical — this column provides no information.",
-        columnName: col.name,
-      });
-    }
-  }
-
-  if (!numericData) return insights;
-
-  // 2. Anomalies in numeric columns
-  for (const [colName, values] of Object.entries(numericData)) {
-    const anomalies = detectAnomalies(values, colName);
-    if (anomalies.length > 0) {
-      insights.push({
-        type: "anomaly",
-        severity: anomalies[0].severity === "high" ? "critical" : "warning",
-        title: `${anomalies.length} anomaly${anomalies.length > 1 ? "s" : ""} in "${colName}"`,
-        description: `Extreme value detected: ${anomalies[0].value.toLocaleString()} (z-score: ${anomalies[0].zScore.toFixed(1)}).`,
-        value: anomalies[0].value,
-        columnName: colName,
-      });
-    }
-  }
-
-  // 3. Strong correlations
-  const numColNames = Object.keys(numericData);
-  for (let i = 0; i < numColNames.length - 1; i++) {
-    for (let j = i + 1; j < numColNames.length; j++) {
-      const a = numColNames[i];
-      const b = numColNames[j];
-      const r = pearsonCorr(numericData[a], numericData[b]);
-      if (Math.abs(r) > 0.8) {
-        insights.push({
-          type: "correlation",
-          severity: "info",
-          title: `Strong ${r > 0 ? "positive" : "negative"} correlation`,
-          description: `"${a}" and "${b}" have r=${r.toFixed(2)} — ${Math.abs(r) > 0.9 ? "very strong" : "strong"} ${r > 0 ? "positive" : "negative"} relationship.`,
-          value: r.toFixed(2),
-        });
-      }
-    }
-  }
-
-  // 4. Skewed distributions (powered by simple-statistics)
-  for (const [colName, values] of Object.entries(numericData)) {
-    if (values.length < 10) continue;
-    const skew = ss.sampleSkewness(values);
-    if (Math.abs(skew) > 1) {
-      insights.push({
-        type: "distribution",
-        severity: "info",
-        title: `Skewed distribution in "${colName}"`,
-        description: `${Math.abs(skew) > 2 ? "Highly" : "Moderately"} ${skew > 0 ? "right" : "left"}-skewed (skewness: ${skew.toFixed(2)}). Consider log transform.`,
-        value: skew.toFixed(2),
-        columnName: colName,
-      });
-    }
-  }
-
-  // 5. Coefficient of variation analysis
-  for (const [colName, values] of Object.entries(numericData)) {
-    if (values.length < 5) continue;
-    const m = ss.mean(values);
-    if (m !== 0) {
-      const cv = ss.sampleStandardDeviation(values) / Math.abs(m);
-      if (cv > 1.5) {
-        insights.push({
-          type: "distribution",
-          severity: "warning",
-          title: `Extreme variability in "${colName}"`,
-          description: `Coefficient of variation is ${cv.toFixed(2)} — data is highly dispersed relative to its mean.`,
-          value: cv.toFixed(2),
-          columnName: colName,
-        });
-      }
-    }
-  }
-
-  return insights.slice(0, 15);
+  // Disabled per Moudir AI plan: insights must come from Ollama, not deterministic rules.
+  return [];
 }
-
 // ─── Chart type recommender ───────────────────────────────────────────────────
 
 export interface ChartRecommendation {
@@ -402,77 +304,9 @@ export interface ChartRecommendation {
 }
 
 export function recommendCharts(
-  cols: ColMeta[],
-  rowCount: number,
+  _cols: ColMeta[],
+  _rowCount: number,
 ): ChartRecommendation[] {
-  const recs: ChartRecommendation[] = [];
-  const nums = cols.filter((c) => c.type === "number");
-  const strs = cols.filter((c) => c.type === "string");
-  const dates = cols.filter((c) => c.type === "date");
-
-  if (dates.length > 0 && nums.length > 0) {
-    recs.push({
-      type: "line",
-      title: `${nums[0].name} over time`,
-      reason: "Date column detected — line chart shows trends effectively.",
-      xCol: dates[0].name,
-      yCol: nums[0].name,
-      confidence: 0.95,
-    });
-  }
-
-  if (strs.length > 0 && nums.length > 0) {
-    const col = strs.find((c) => c.distinctCount <= 20) ?? strs[0];
-    recs.push({
-      type: "bar",
-      title: `${nums[0].name} by ${col.name}`,
-      reason:
-        "Categorical column with numeric metric — bar chart compares groups.",
-      xCol: col.name,
-      yCol: nums[0].name,
-      confidence: 0.9,
-    });
-
-    if (col.distinctCount <= 8) {
-      recs.push({
-        type: "pie",
-        title: `Distribution of ${col.name}`,
-        reason: "Low-cardinality category — pie shows proportion clearly.",
-        xCol: col.name,
-        confidence: 0.75,
-      });
-    }
-  }
-
-  if (nums.length >= 2) {
-    recs.push({
-      type: "scatter",
-      title: `${nums[0].name} vs ${nums[1].name}`,
-      reason:
-        "Two numeric columns — scatter reveals relationship / correlation.",
-      xCol: nums[0].name,
-      yCol: nums[1].name,
-      colorCol: strs[0]?.name,
-      confidence: 0.8,
-    });
-
-    recs.push({
-      type: "histogram",
-      title: `Distribution of ${nums[0].name}`,
-      reason: "Histogram shows the value distribution of a numeric column.",
-      xCol: nums[0].name,
-      confidence: 0.7,
-    });
-  }
-
-  if (nums.length >= 3 && rowCount > 50) {
-    recs.push({
-      type: "heatmap",
-      title: "Correlation heatmap",
-      reason: `${nums.length} numeric columns — heatmap reveals all pairwise correlations.`,
-      confidence: 0.65,
-    });
-  }
-
-  return recs.sort((a, b) => b.confidence - a.confidence).slice(0, 5);
+  // Disabled per Moudir AI plan: no rule-based chart generation.
+  return [];
 }

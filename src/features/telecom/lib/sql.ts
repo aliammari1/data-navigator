@@ -23,7 +23,17 @@ export { BUILTIN_STATUS_CODES, SEMANTIC_TO_CATEGORY };
 
 // ─── Identifier / literal quoting ─────────────────────────────────────────────
 
+/** Safe SQL identifier quoting. Rejects identifiers containing dangerous characters. */
 export function qc(col: string): string {
+  if (!col || typeof col !== "string") {
+    throw new TypeError(
+      "Invalid column identifier: must be a non-empty string",
+    );
+  }
+  // Reject identifiers that could be used for SQL injection
+  if (/[;\\]|--|\/\*|\*\//.test(col)) {
+    throw new Error(`Unsafe column identifier rejected: ${col}`);
+  }
   return `"${col.replace(/"/g, '""')}"`;
 }
 

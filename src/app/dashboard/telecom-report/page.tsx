@@ -1,7 +1,5 @@
-"use client";
-
-import { TelecomDashboard } from "@/features/telecom/components/telecom-dashboard";
+import { redirect } from "next/navigation";
 
 export default function TelecomReportPage() {
-  return <TelecomDashboard />;
+  redirect("/dashboard/telecom-report/overview");
 }

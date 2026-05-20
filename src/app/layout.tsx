@@ -1,16 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { QueryProvider } from "@/components/query-provider";
 import { SWRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/shared/utils";
 import "./globals.css";
 import "@/design/tokens.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-});
+import { ReactScan } from "./_debug/ReactScan";
 
 export const metadata: Metadata = {
   title: "DataNavigator — Offline-first data analytics",
@@ -30,18 +26,21 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="fr"
+      lang="en"
       suppressHydrationWarning
-      className={cn("h-full antialiased", inter.className)}
+      className={cn("h-full antialiased")}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
+        <ReactScan />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"
           enableSystem
           disableTransitionOnChange
         >
-          <TooltipProvider>{children}</TooltipProvider>
+          <QueryProvider>
+            <TooltipProvider>{children}</TooltipProvider>
+          </QueryProvider>
         </ThemeProvider>
 
         {/* F2 — PWA Service Worker */}

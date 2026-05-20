@@ -26,7 +26,9 @@ import * as map from "lib0/map";
 const HOST = process.env.HOST ?? "0.0.0.0";
 const REQUESTED_PORT = Number(process.env.PORT ?? 1234);
 const PORT_SCAN_LIMIT = Number(process.env.PORT_SCAN_LIMIT ?? 24);
-const PAIRING_CODE = process.env.PAIRING_CODE ?? String(Math.floor(100000 + Math.random() * 900000));
+const PAIRING_CODE =
+  process.env.PAIRING_CODE ??
+  String(Math.floor(100000 + Math.random() * 900000));
 const SESSION_NAME = process.env.SESSION_NAME ?? "Data Navigator LAN";
 const ALLOW_GUESTS = process.env.ALLOW_GUESTS !== "0";
 const MAX_FILE_BYTES = Number(process.env.MAX_FILE_BYTES ?? 512 * 1024 * 1024);
@@ -59,11 +61,13 @@ function addAudit(event, detail = {}) {
 }
 
 function safeFileName(name) {
-  return String(name || "upload.bin")
-    .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 180) || "upload.bin";
+  return (
+    String(name || "upload.bin")
+      .replace(/[<>:"/\\|?*\x00-\x1f]/g, "_")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 180) || "upload.bin"
+  );
 }
 
 class Room {
@@ -277,12 +281,16 @@ function roomSummaries() {
 let activePort = REQUESTED_PORT;
 
 const server = http.createServer((req, res) => {
-  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
+  const url = new URL(
+    req.url ?? "/",
+    `http://${req.headers.host ?? "localhost"}`,
+  );
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "access-control-allow-origin": "*",
       "access-control-allow-methods": "GET,POST,OPTIONS",
-      "access-control-allow-headers": "content-type,x-file-name,x-peer-id,x-peer-name,x-room,x-pairing-code",
+      "access-control-allow-headers":
+        "content-type,x-file-name,x-peer-id,x-peer-name,x-room,x-pairing-code",
     });
     res.end();
     return;
@@ -306,18 +314,33 @@ const server = http.createServer((req, res) => {
       inboxDir: INBOX_DIR,
       startedAt,
     };
-    res.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" });
+    res.writeHead(200, {
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+    });
     res.end(JSON.stringify(payload, null, 2));
     return;
   }
   if (url.pathname === "/lan/audit") {
-    res.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" });
+    res.writeHead(200, {
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+    });
     res.end(JSON.stringify({ audit }, null, 2));
     return;
   }
   if (url.pathname === "/lan/files" && req.method === "GET") {
-    res.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" });
-    res.end(JSON.stringify({ files, maxFileBytes: MAX_FILE_BYTES, inboxDir: INBOX_DIR }, null, 2));
+    res.writeHead(200, {
+      "content-type": "application/json",
+      "access-control-allow-origin": "*",
+    });
+    res.end(
+      JSON.stringify(
+        { files, maxFileBytes: MAX_FILE_BYTES, inboxDir: INBOX_DIR },
+        null,
+        2,
+      ),
+    );
     return;
   }
   if (url.pathname === "/lan/files" && req.method === "POST") {
@@ -327,13 +350,18 @@ const server = http.createServer((req, res) => {
         peerId: req.headers["x-peer-id"],
         peerName: req.headers["x-peer-name"],
       });
-      res.writeHead(401, { "content-type": "application/json", "access-control-allow-origin": "*" });
+      res.writeHead(401, {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+      });
       res.end(JSON.stringify({ ok: false, error: "Pairing code required" }));
       return;
     }
 
     fs.mkdirSync(INBOX_DIR, { recursive: true });
-    const originalName = safeFileName(req.headers["x-file-name"] ?? "upload.bin");
+    const originalName = safeFileName(
+      req.headers["x-file-name"] ?? "upload.bin",
+    );
     const storedName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${originalName}`;
     const target = path.join(INBOX_DIR, storedName);
     const out = fs.createWriteStream(target, { flags: "wx" });
@@ -366,7 +394,10 @@ const server = http.createServer((req, res) => {
       files.unshift(entry);
       if (files.length > 100) files.length = 100;
       addAudit("file.uploaded", entry);
-      res.writeHead(200, { "content-type": "application/json", "access-control-allow-origin": "*" });
+      res.writeHead(200, {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+      });
       res.end(JSON.stringify({ ok: true, file: entry }));
     });
     req.on("error", (err) => {
@@ -426,7 +457,7 @@ function printReady() {
     console.log(`  paste in dashboard "URL serveur (LAN)":`);
     for (const ip of lans) console.log(`    ws://${ip}:${activePort}`);
     console.log(`  discovery:`);
-    for (const ip of lans) console.log(`    http://${ip}:${activePort}/lan/status`);
+    for (const ip of lans) console.log(`http://${ip}:${activePort}/lan/status`);
   } else {
     console.log(`  (no LAN IPv4 detected — try ws://localhost:${activePort})`);
   }

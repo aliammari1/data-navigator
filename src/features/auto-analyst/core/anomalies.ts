@@ -34,10 +34,6 @@ export async function detectAnomalies(
   for (const p of numeric) {
     const rows = await runQuery(
       `SELECT TRY_CAST(${quote(p.name)} AS DOUBLE) AS v FROM ${quote(tableName)} WHERE ${quote(p.name)} IS NOT NULL USING SAMPLE ${SAMPLE}`,
-    ).catch(() =>
-      runQuery(
-        `SELECT TRY_CAST(${quote(p.name)} AS DOUBLE) AS v FROM ${quote(tableName)} WHERE ${quote(p.name)} IS NOT NULL LIMIT ${SAMPLE}`,
-      ),
     );
     const values = rows
       .map((r) => Number(r.v))
