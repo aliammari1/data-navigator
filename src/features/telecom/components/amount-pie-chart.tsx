@@ -1,59 +1,39 @@
 "use client";
 
+import { memo, useMemo } from "react";
 import ReactECharts from "echarts-for-react";
 import { buildRevenuePieOption } from "@/features/telecom/lib/chart-options";
 import type * as Types from "@/features/telecom/types";
 
-// Group canals into 5 high-level categories for revenue display
-const REVENUE_GROUPS: Record<
-  string,
-  { keys: Types.CanalKey[]; color: string }
-> = {
-  "Bill Payment": {
-    keys: ["bill_payment"],
-    color: "#89b4fa",
-  },
-  Recharge: {
-    keys: [
-      "voice_fixed_ttcash",
-      "voice_fixed_voucher",
-      "voice_mobile_ttcash",
-      "voice_mobile_voucher",
-      "data_sabba",
-      "data_evoucher",
-    ],
-    color: "#a6e3a1",
-  },
-  "Voucher For Payment": {
-    keys: ["voucher_for_payment"],
-    color: "#94e2d5",
-  },
-  "Credit Transfer": {
-    keys: ["credit_transfer"],
-    color: "#fab387",
-  },
-  "Voucher Convergent": {
-    keys: ["voucher_convergent"],
-    color: "#cba6f7",
-  },
-};
+import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 
-export function AmountPieChart({ canals }: { canals: Types.CanalSummary[] }) {
-  const grouped = Object.entries(REVENUE_GROUPS)
-    .map(([name, { keys, color }]) => ({
-      name,
-      value: canals
-        .filter((c) => keys.includes(c.key))
-        .reduce((s, c) => s + c.amount, 0),
-      color,
-    }))
-    .filter((g) => g.value > 0)
-    .sort((a, b) => b.value - a.value);
+export const AmountPieChart = memo(function AmountPieChart({
+  canals,
+}: {
+  canals: Types.CanalSummary[];
+}) {
+  const grouped = useMemo(
+    () =>
+      Object.entries(REVENUE_GROUPS)
+        .map(([name, { keys, color }]) => ({
+          name,
+          value: canals
+            .filter((c) => keys.includes(c.key))
+            .reduce((s, c) => s + c.amount, 0),
+          color,
+        }))
+        .filter((g) => g.value > 0)
+        .sort((a, b) => b.value - a.value),
+    [canals],
+  );
+
+  const option = useMemo(() => buildRevenuePieOption(grouped), [grouped]);
+
   return (
     <ReactECharts
-      option={buildRevenuePieOption(grouped)}
+      option={option}
       style={{ height: 220 }}
       opts={{ renderer: "canvas" }}
     />
   );
-}
+});

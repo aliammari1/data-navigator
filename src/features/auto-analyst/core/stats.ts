@@ -34,8 +34,6 @@ async function fetchSample(
   const sel = cols.map(quote).join(", ");
   return runQuery(
     `SELECT ${sel} FROM ${quote(tableName)} USING SAMPLE ${limit}`,
-  ).catch(() =>
-    runQuery(`SELECT ${sel} FROM ${quote(tableName)} LIMIT ${limit}`),
   );
 }
 

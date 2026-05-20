@@ -1,14 +1,15 @@
 /**
- * F8 — Zustand Telecom Analytics Store
- * UI state (tab, mapping, statusMapping) persists across refreshes via localStorage.
- * Analytics data (kpi, canals, etc.) is NOT persisted — too large, recomputed on load.
+ * Telecom column mapping helpers.
+ *
+ * Runtime analytics state lives in TanStack Query. UI persistence is handled in
+ * use-telecom-ui without subscribing the report provider to an external store.
  */
 
 import { create } from "zustand";
 import { persist, subscribeWithSelector } from "zustand/middleware";
-import type { ColumnMapping, CustomKPI, MainTab, StatusMapping } from "./types";
+import type { ColumnMapping, CustomKPI, StatusMapping } from "./types";
 
-export type { ColumnMapping, CustomKPI, MainTab, StatusMapping };
+export type { ColumnMapping, CustomKPI, StatusMapping };
 
 export const DEFAULT_MAPPING: ColumnMapping = {
   transactionId: "TRANSACTION_ID",
@@ -71,16 +72,12 @@ export function normalizeColumnMapping(
 }
 
 interface TelecomStore {
-  activeTab: MainTab;
   columnMapping: ColumnMapping;
   statusMapping: StatusMapping[];
   customKPIs: CustomKPI[];
   fileName: string;
   reportDate: string;
   commandOpen: boolean;
-  globalSearchOpen: boolean;
-
-  setActiveTab: (tab: MainTab) => void;
   setColumnMapping: (m: ColumnMapping) => void;
   setStatusMapping: (sm: StatusMapping[]) => void;
   addCustomKPI: (kpi: CustomKPI) => void;
@@ -99,16 +96,12 @@ type PersistedTelecomStore = Partial<TelecomStore> & {
 export const useTelecomStore = create<TelecomStore>()(
   persist(
     subscribeWithSelector((set) => ({
-      activeTab: "overview",
       columnMapping: DEFAULT_MAPPING,
       statusMapping: [],
       customKPIs: [],
       fileName: "",
       reportDate: "",
       commandOpen: false,
-      globalSearchOpen: false,
-
-      setActiveTab: (tab) => set({ activeTab: tab }),
 
       setColumnMapping: (columnMapping) =>
         set({
@@ -142,7 +135,6 @@ export const useTelecomStore = create<TelecomStore>()(
         set({
           fileName: "",
           reportDate: "",
-          activeTab: "overview",
           columnMapping: DEFAULT_MAPPING,
           statusMapping: [],
           customKPIs: [],
@@ -152,7 +144,6 @@ export const useTelecomStore = create<TelecomStore>()(
       name: "telecom-session-v1",
 
       partialize: (s) => ({
-        activeTab: s.activeTab,
         columnMapping: normalizeColumnMapping(s.columnMapping),
         statusMapping: s.statusMapping,
         customKPIs: s.customKPIs,
@@ -168,7 +159,6 @@ export const useTelecomStore = create<TelecomStore>()(
           ...(persisted ?? {}),
           columnMapping: normalizeColumnMapping(persisted?.columnMapping),
           commandOpen: false,
-          globalSearchOpen: false,
         };
       },
     },

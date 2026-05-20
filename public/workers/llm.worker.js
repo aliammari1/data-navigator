@@ -5001,7 +5001,7 @@ class Tensor {
 // node_modules/onnxruntime-common/dist/esm/tensor.js
 var Tensor2 = Tensor;
 // node_modules/@huggingface/transformers/dist/transformers.web.js
-var __dirname = "C:\\Users\\ammar\\OneDrive\\Desktop\\data-navigator\\node_modules\\@huggingface\\transformers\\dist";
+var __dirname = "D:\\data-navigator\\node_modules\\@huggingface\\transformers\\dist";
 var __defProp2 = Object.defineProperty;
 var __export2 = (target, all) => {
   for (var name in all)
@@ -10313,7 +10313,7 @@ function getFetchHeaders(urlOrPath) {
         headers.set("Authorization", `Bearer ${token}`);
       }
     }
-  } else {}
+  }
   return headers;
 }
 function buildResourcePaths(path_or_repo_id, filename, options = {}, cache2 = null) {
@@ -14119,7 +14119,7 @@ var WhisperTokenizer = class extends PreTrainedTokenizer {
               chunk2 = new_chunk();
             }
             last_language = chunk2.language = language;
-          } else {}
+          }
         } else if (token >= timestamp_begin && token <= timestamp_end) {
           const time = (token - timestamp_begin) * time_precision + time_offset;
           const rounded_time = round(time, 2);
@@ -21208,7 +21208,7 @@ function decoder_prepare_inputs_for_generation(self2, input_ids, model_inputs, g
     const { input_ids: input_ids2, attention_mask } = model_inputs;
     if (attention_mask && attention_mask.dims[1] > input_ids2.dims[1]) {} else if (past_length < input_ids2.dims[1]) {
       model_inputs.input_ids = input_ids2.slice(null, [past_length, null]);
-    } else {}
+    }
   }
   return model_inputs;
 }
@@ -27508,7 +27508,7 @@ async function loadModel(model) {
   }
   isLoading = true;
   const progressCb = (info) => {
-    const pct = info.progress !== undefined ? Math.round(info.progress * 100) : 0;
+    const pct = info.progress === undefined ? 0 : Math.round(info.progress * 100);
     self.postMessage({
       type: "LOAD_PROGRESS",
       progress: pct,
@@ -27579,7 +27579,7 @@ async function infer(id, systemPrompt, prompt, maxTokens = 512) {
     });
   }
 }
-self.onmessage = (e) => {
+globalThis.onmessage = (e) => {
   const msg = e.data;
   if (msg.type === "LOAD_MODEL") {
     loadModel(msg.model);
@@ -27587,6 +27587,5 @@ self.onmessage = (e) => {
   }
   if (msg.type === "INFER") {
     infer(msg.id, msg.payload.systemPrompt, msg.payload.prompt, msg.payload.maxTokens);
-    return;
   }
 };

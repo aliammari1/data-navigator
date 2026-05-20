@@ -11,15 +11,6 @@ export type CanalKey =
   | "voucher_convergent";
 
 export type SortDir = "asc" | "desc";
-export type MainTab =
-  | "overview"
-  | "canals"
-  | "analysis"
-  | "grid"
-  | "history"
-  | "period"
-  | "day"
-  | "config";
 export type OverviewExportSectionKey =
   | "assistant"
   | "revenueGroups"
@@ -224,3 +215,16 @@ export interface AIInsight {
   body: string;
   metric: string;
 }
+
+export interface LoadedFile {
+  id: number;
+  name: string;
+  table: string;
+  date: string;
+  cacheKey: string;
+  size: number;
+  lastModified: number;
+  sourceKeys: string[];
+}
+
+export type TelecomIngestionMode = "replace" | "append" | "replace-active";

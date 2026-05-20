@@ -443,7 +443,6 @@ export function ExportPanel({
           });
       }
 
-
       // Sheet 5: Comptes / Opérateurs
       if (inclOperators && operators.length) {
         const opSheet = wb.addWorksheet("Comptes");
@@ -1042,7 +1041,7 @@ export function ExportPanel({
     inclOperators,
     inclRegions,
     kpiRows,
-  ]); // eslint-disable-line react-hooks/exhaustive-deps
+  ]); // includeAssistantDataset and insights used by exportPdf callback — intentionally in deps
 
   const exportPowerPoint = useCallback(async () => {
     if (!kpi || exportingPpt) return;
@@ -1585,8 +1584,6 @@ export function ExportPanel({
     reportDate,
     fileName,
     kpiRows,
-    includeAssistantDataset,
-    insights,
     hasOverviewSection,
     revenueGroupRows,
     includeStatusDataset,

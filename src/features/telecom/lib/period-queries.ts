@@ -6,6 +6,7 @@
 import { safeNum } from "@/features/telecom/lib/format";
 import {
   buildSpecDateFilter,
+  ensureTelecomEnrichedView,
   SPEC_DECLINED_FILTER,
   SPEC_INSTANCE_FILTER,
   SPEC_REFUND_FILTER,
@@ -80,28 +81,10 @@ export async function fetchPeriodKPI(
   dateTo: string,
 ): Promise<PeriodKPI | null> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
+  const enriched = `${table}_enriched`;
+  const hasEnriched = await ensureTelecomEnrichedView(table, m);
 
-  try {
-    const rows = await runQuery(`
-      SELECT
-        COUNT(*) AS total,
-        SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${SPEC_DECLINED_FILTER} THEN 1 ELSE 0 END) AS declined,
-        SUM(CASE WHEN ${SPEC_REFUND_FILTER} THEN 1 ELSE 0 END) AS refund,
-        SUM(CASE WHEN ${SPEC_INSTANCE_FILTER} THEN 1 ELSE 0 END) AS instance,
-        SUM(CASE WHEN ${SPEC_SUBMITTED_FILTER} THEN 1 ELSE 0 END) AS submitted,
-        ROUND(SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) ELSE 0 END), 3) AS amount,
-        ROUND(AVG(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) END), 3) AS avg_amount,
-        COUNT(DISTINCT CAST(CUSTOMER_MSISDN AS VARCHAR)) AS unique_customers,
-        COUNT(DISTINCT CAST(ACCOUNT_ID AS VARCHAR)) AS unique_accounts,
-        COUNT(DISTINCT CAST(BRAND_D AS VARCHAR)) AS unique_brands
-      FROM ${qc(table)}
-      WHERE 1=1 ${df}
-    `);
-
-    if (!rows[0]) return null;
-
-    const r = rows[0];
+  const mapPeriodKpi = (r: Record<string, unknown>): PeriodKPI => {
     const total = safeNum(r.total);
     const success = safeNum(r.success);
 
@@ -119,6 +102,54 @@ export async function fetchPeriodKPI(
       uniqueBrands: safeNum(r.unique_brands),
       successRate: total > 0 ? (success / total) * 100 : 0,
     };
+  };
+
+  if (hasEnriched) {
+    try {
+      const rows = await runQuery(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE _status_norm = 'SUCCESS') AS success,
+          COUNT(*) FILTER (WHERE _status_norm = 'DECLINED') AS declined,
+          COUNT(*) FILTER (WHERE _status_norm = 'REFUND') AS refund,
+          COUNT(*) FILTER (WHERE _status_norm = 'INSTANCE') AS instance,
+          COUNT(*) FILTER (WHERE _status_norm = 'SUBMITTED') AS submitted,
+          ROUND(SUM(_amount) FILTER (WHERE _status_norm = 'SUCCESS'), 3) AS amount,
+          ROUND(AVG(_amount) FILTER (WHERE _status_norm = 'SUCCESS'), 3) AS avg_amount,
+          APPROX_COUNT_DISTINCT(_customer_id) AS unique_customers,
+          APPROX_COUNT_DISTINCT(CAST(ACCOUNT_ID AS VARCHAR)) AS unique_accounts,
+          APPROX_COUNT_DISTINCT(CAST(BRAND_D AS VARCHAR)) AS unique_brands
+        FROM ${qc(enriched)}
+        WHERE 1=1 ${df}
+      `);
+
+      if (!rows[0]) return null;
+
+      return mapPeriodKpi(rows[0]);
+    } catch {
+      // Fall back to the raw table below.
+    }
+  }
+
+  try {
+    const rows = await runQuery(`
+        SELECT
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
+          COUNT(*) FILTER (WHERE ${SPEC_DECLINED_FILTER}) AS declined,
+          COUNT(*) FILTER (WHERE ${SPEC_REFUND_FILTER}) AS refund,
+          COUNT(*) FILTER (WHERE ${SPEC_INSTANCE_FILTER}) AS instance,
+          COUNT(*) FILTER (WHERE ${SPEC_SUBMITTED_FILTER}) AS submitted,
+          ROUND(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)) FILTER (WHERE ${SPEC_SUCCESS_FILTER}), 3) AS amount,
+          ROUND(AVG(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)) FILTER (WHERE ${SPEC_SUCCESS_FILTER}), 3) AS avg_amount,
+          APPROX_COUNT_DISTINCT(CAST(CUSTOMER_MSISDN AS VARCHAR)) AS unique_customers,
+          APPROX_COUNT_DISTINCT(CAST(ACCOUNT_ID AS VARCHAR)) AS unique_accounts,
+          APPROX_COUNT_DISTINCT(CAST(BRAND_D AS VARCHAR)) AS unique_brands
+        FROM ${qc(table)}
+        WHERE 1=1 ${df}
+      `);
+
+    return rows[0] ? mapPeriodKpi(rows[0]) : null;
   } catch {
     return null;
   }
@@ -210,8 +241,8 @@ export async function fetchTopAccounts(
         CAST(${ms} AS VARCHAR) AS msisdn,
         FIRST(CAST(${nm} AS VARCHAR)) AS name,
         COUNT(*) AS total,
-        SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN 1 ELSE 0 END) AS success,
-        ROUND(SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) ELSE 0 END), 3) AS amount,
+        COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
+        ROUND(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)) FILTER (WHERE ${SPEC_SUCCESS_FILTER}), 3) AS amount,
         MODE(${canal}) AS fav_canal
       FROM ${qc(table)}
       WHERE ${ms} IS NOT NULL AND CAST(${ms} AS VARCHAR) <> ''
@@ -262,9 +293,9 @@ export async function fetchDayBuckets(
       SELECT
         CAST(${dayExpr} AS VARCHAR) AS day,
         COUNT(*) AS total,
-        SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${SPEC_DECLINED_FILTER} THEN 1 ELSE 0 END) AS declined,
-        ROUND(SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) ELSE 0 END), 3) AS amount
+        COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
+        COUNT(*) FILTER (WHERE ${SPEC_DECLINED_FILTER}) AS declined,
+        ROUND(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)) FILTER (WHERE ${SPEC_SUCCESS_FILTER}), 3) AS amount
       FROM ${qc(table)}
       WHERE ${dayExpr} IS NOT NULL ${df}
       GROUP BY 1
@@ -329,8 +360,8 @@ export async function fetchCanalHourPeriod(
         ${canal} AS canal,
         ${hr} AS hour,
         COUNT(*) AS total,
-        SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${SPEC_DECLINED_FILTER} THEN 1 ELSE 0 END) AS declined
+        COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
+        COUNT(*) FILTER (WHERE ${SPEC_DECLINED_FILTER}) AS declined
       FROM ${qc(table)}
       WHERE ${hr} BETWEEN 0 AND 23 AND ${canal} != 'Other' ${df}
       GROUP BY 1, 2
@@ -373,8 +404,8 @@ export async function fetchBrandBreakdown(
         TRY_CAST(BRAND_D AS INTEGER) AS brand_id,
         FIRST(CAST(BRAND_NAME AS VARCHAR)) AS brand_name,
         COUNT(*) AS total,
-        SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN 1 ELSE 0 END) AS success,
-        ROUND(SUM(CASE WHEN ${SPEC_SUCCESS_FILTER} THEN TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) ELSE 0 END), 3) AS amount
+        COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
+        ROUND(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)) FILTER (WHERE ${SPEC_SUCCESS_FILTER}), 3) AS amount
       FROM ${qc(table)}
       WHERE BRAND_D IS NOT NULL ${df}
       GROUP BY 1
@@ -420,48 +451,53 @@ export async function fetchAnomalies(
   dateFrom: string,
   dateTo: string,
 ): Promise<RowAnomaly[]> {
-  const cells = await fetchCanalHourPeriod(table, m, dateFrom, dateTo);
-  const byCanal = new Map<string, CanalHourMatrix[]>();
-  for (const c of cells) {
-    const arr = byCanal.get(c.canal) ?? [];
-    arr.push(c);
-    byCanal.set(c.canal, arr);
-  }
-  const anomalies: RowAnomaly[] = [];
-  for (const [canal, list] of byCanal) {
-    if (list.length < 3) continue;
-    const rates = list.map((c) =>
-      c.total > 0 ? (c.success / c.total) * 100 : 0,
-    );
-    const totals = list.map((c) => c.total);
-    const meanR = avg(rates);
-    const sdR = stddev(rates, meanR);
-    const meanT = avg(totals);
-    const sdT = stddev(totals, meanT);
-    for (let i = 0; i < list.length; i++) {
-      const cell = list[i];
-      const r = rates[i];
-      const zRate = sdR > 0 ? (r - meanR) / sdR : 0;
-      const zVol = sdT > 0 ? (cell.total - meanT) / sdT : 0;
-      const reasons: string[] = [];
-      if (zRate <= -2)
-        reasons.push(`Taux réussite chute (z=${zRate.toFixed(2)})`);
-      if (zVol >= 2.5) reasons.push(`Pic de volume (z=${zVol.toFixed(2)})`);
-      if (zVol <= -2.5) reasons.push(`Volume anormalement bas`);
-      if (reasons.length > 0) {
-        anomalies.push({
-          canal,
-          hour: cell.hour,
-          total: cell.total,
-          success: cell.success,
-          successRate: r,
-          z: Math.max(Math.abs(zRate), Math.abs(zVol)),
-          reason: reasons.join(" · "),
-        });
+  try {
+    const cells = await fetchCanalHourPeriod(table, m, dateFrom, dateTo);
+    const byCanal = new Map<string, CanalHourMatrix[]>();
+    for (const c of cells) {
+      const arr = byCanal.get(c.canal) ?? [];
+      arr.push(c);
+      byCanal.set(c.canal, arr);
+    }
+    const anomalies: RowAnomaly[] = [];
+    for (const [canal, list] of byCanal) {
+      if (list.length < 3) continue;
+      const rates = list.map((c) =>
+        c.total > 0 ? (c.success / c.total) * 100 : 0,
+      );
+      const totals = list.map((c) => c.total);
+      const meanR = avg(rates);
+      const sdR = stddev(rates, meanR);
+      const meanT = avg(totals);
+      const sdT = stddev(totals, meanT);
+      for (let i = 0; i < list.length; i++) {
+        const cell = list[i];
+        const r = rates[i];
+        const zRate = sdR > 0 ? (r - meanR) / sdR : 0;
+        const zVol = sdT > 0 ? (cell.total - meanT) / sdT : 0;
+        const reasons: string[] = [];
+        if (zRate <= -2)
+          reasons.push(`Taux réussite chute (z=${zRate.toFixed(2)})`);
+        if (zVol >= 2.5) reasons.push(`Pic de volume (z=${zVol.toFixed(2)})`);
+        if (zVol <= -2.5) reasons.push(`Volume anormalement bas`);
+        if (reasons.length > 0) {
+          anomalies.push({
+            canal,
+            hour: cell.hour,
+            total: cell.total,
+            success: cell.success,
+            successRate: r,
+            z: Math.max(Math.abs(zRate), Math.abs(zVol)),
+            reason: reasons.join(" · "),
+          });
+        }
       }
     }
+    return anomalies.sort((a, b) => b.z - a.z).slice(0, 50);
+  } catch (err) {
+    console.error("[fetchAnomalies] Error:", err);
+    return [];
   }
-  return anomalies.sort((a, b) => b.z - a.z).slice(0, 50);
 }
 
 function avg(xs: number[]): number {

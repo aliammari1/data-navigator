@@ -1,14 +1,19 @@
-import type { ChartSpec, DerivedField, FilterDef } from "./types";
+import type { ChartSpec, FilterDef } from "./types";
 
-function quote(field: string, derivedMap: Map<string, DerivedField>): string {
+type DerivedExpression = {
+  name: string;
+  sql?: string;
+};
+
+function quote(field: string, derivedMap: Map<string, DerivedExpression>): string {
   const d = derivedMap.get(field);
-  if (d) return `(${d.sql})`;
+  if (d?.sql) return `(${d.sql})`;
   return `"${field}"`;
 }
 
 function buildWhereClause(
   filters: FilterDef[],
-  derivedMap: Map<string, DerivedField>,
+  derivedMap: Map<string, DerivedExpression>,
 ): string {
   if (!filters.length) return "";
   const parts = filters.map((f) => {
@@ -38,7 +43,7 @@ function buildWhereClause(
 function buildAgg(
   agg: string | undefined,
   field: string,
-  derivedMap: Map<string, DerivedField>,
+  derivedMap: Map<string, DerivedExpression>,
 ): string {
   const expr = quote(field, derivedMap);
   if (!agg || agg === "none") return `TRY_CAST(${expr} AS DOUBLE)`;
@@ -51,7 +56,7 @@ function buildAgg(
 export function buildSQL(
   spec: ChartSpec,
   tableName: string,
-  derived: DerivedField[] = [],
+  derived: DerivedExpression[] = [],
 ): string {
   const derivedMap = new Map(derived.map((d) => [d.name, d]));
 

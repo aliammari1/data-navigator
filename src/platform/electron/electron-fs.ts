@@ -33,6 +33,66 @@ interface ElectronFSBridge {
   ): Promise<{ canceled: boolean; filePath?: string }>;
 }
 
+export interface ElectronDuckDBBridge {
+  init(): Promise<{ success: boolean }>;
+  runQuery(sql: string): Promise<Record<string, unknown>[]>;
+  runBatch(sqls: string[]): Promise<Record<string, unknown>[][]>;
+  prepare(sql: string): Promise<string>;
+  execute(
+    stmtId: string,
+    params: unknown[],
+  ): Promise<Record<string, unknown>[]>;
+  disposePrepared(stmtId: string): Promise<void>;
+  listTables(): Promise<string[]>;
+  getTableInfo(tableName: string): Promise<{
+    columns: Array<{ name: string; type: string; nullable: boolean }>;
+    rowCount: number;
+  }>;
+  getColumnStats(
+    tableName: string,
+    columnName: string,
+  ): Promise<{
+    min: unknown;
+    max: unknown;
+    avg: unknown;
+    nullCount: number;
+    distinctCount: number;
+    histogram: Array<{ bucket: string; count: number }>;
+  }>;
+  loadCSVPath(
+    tableName: string,
+    filePath: string,
+    delimiter?: string,
+    append?: boolean,
+    hasHeader?: boolean,
+  ): Promise<void>;
+  loadJSONPath(tableName: string, filePath: string): Promise<void>;
+  loadCSVBuffer(
+    tableName: string,
+    buffer: ArrayBuffer,
+    delimiter?: string,
+    append?: boolean,
+    hasHeader?: boolean,
+  ): Promise<void>;
+  loadJSONBuffer(tableName: string, buffer: ArrayBuffer): Promise<void>;
+  exportTableToParquet(tableName: string, filePath: string): Promise<void>;
+  loadTableFromParquet(tableName: string, filePath: string): Promise<void>;
+  clearTable(tableName: string): Promise<void>;
+  getStatus(): Promise<{
+    opfsPersistenceActive: boolean;
+    dbPath: string | null;
+  }>;
+  getQueryMetrics(): Promise<
+    Array<{
+      sql: string;
+      durationMs: number;
+      timestamp: number;
+      rowCount: number;
+    }>
+  >;
+  clearQueryMetrics(): Promise<void>;
+}
+
 function bridge(): ElectronFSBridge {
   if (typeof window === "undefined" || !("electronFS" in window)) {
     throw new Error(
@@ -44,6 +104,16 @@ function bridge(): ElectronFSBridge {
 
 export function isElectron(): boolean {
   return typeof window !== "undefined" && "electronFS" in window;
+}
+
+export function duckdbBridge(): ElectronDuckDBBridge {
+  if (typeof window === "undefined" || !("electronDuckDB" in window)) {
+    throw new Error(
+      "electronDuckDB not available — ensure the app is running inside Electron",
+    );
+  }
+  return (window as Window & { electronDuckDB: ElectronDuckDBBridge })
+    .electronDuckDB;
 }
 
 export function getDataDir(): Promise<string> {

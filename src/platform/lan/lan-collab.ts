@@ -61,7 +61,12 @@ export interface LANDiscovery {
   rooms: Array<{
     name: string;
     connections: number;
-    peers: Array<{ id: string; name: string; role: LANRole; lastSeenAt: number }>;
+    peers: Array<{
+      id: string;
+      name: string;
+      role: LANRole;
+      lastSeenAt: number;
+    }>;
   }>;
   audit: LANAuditEntry[];
   files?: LANSharedFile[];
@@ -383,7 +388,10 @@ export function publishSelection(selection: string) {
   });
 }
 
-export function publishFileDrop(file: File, mode: "metadata" | "request" = "metadata") {
+export function publishFileDrop(
+  file: File,
+  mode: "metadata" | "request" = "metadata",
+) {
   const settings = activeSettings ?? readLANSettings();
   sharedLanRoom.set(
     "fileDrop",
@@ -400,17 +408,15 @@ export function publishFileDrop(file: File, mode: "metadata" | "request" = "meta
   appendAudit("file.drop", `${file.name} (${file.size} bytes)`);
 }
 
-export function readSharedFileDrop():
-  | {
-      id: string;
-      by: LANPeer;
-      mode: "metadata" | "request";
-      name: string;
-      size: number;
-      type: string;
-      at: number;
-    }
-  | null {
+export function readSharedFileDrop(): {
+  id: string;
+  by: LANPeer;
+  mode: "metadata" | "request";
+  name: string;
+  size: number;
+  type: string;
+  at: number;
+} | null {
   const raw = sharedLanRoom.get("fileDrop");
   if (!raw) return null;
   try {
@@ -497,19 +503,26 @@ export async function scanLANSubnet({
 export async function uploadLANFile(file: File): Promise<LANSharedFile> {
   const settings = activeSettings ?? readLANSettings();
   if (!settings.url) throw new Error("LAN URL is required before upload.");
-  const res = await fetch(`${httpFromWs(settings.url).replace(/\/$/, "")}/lan/files`, {
-    method: "POST",
-    headers: {
-      "content-type": file.type || "application/octet-stream",
-      "x-file-name": file.name,
-      "x-peer-id": settings.peer.id,
-      "x-peer-name": settings.peer.name,
-      "x-room": settings.room,
-      "x-pairing-code": settings.pairingCode,
+  const res = await fetch(
+    `${httpFromWs(settings.url).replace(/\/$/, "")}/lan/files`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": file.type || "application/octet-stream",
+        "x-file-name": file.name,
+        "x-peer-id": settings.peer.id,
+        "x-peer-name": settings.peer.name,
+        "x-room": settings.room,
+        "x-pairing-code": settings.pairingCode,
+      },
+      body: file,
     },
-    body: file,
-  });
-  const body = (await res.json()) as { ok: boolean; file?: LANSharedFile; error?: string };
+  );
+  const body = (await res.json()) as {
+    ok: boolean;
+    file?: LANSharedFile;
+    error?: string;
+  };
   if (!res.ok || !body.ok || !body.file) {
     throw new Error(body.error ?? `LAN file upload failed: ${res.status}`);
   }

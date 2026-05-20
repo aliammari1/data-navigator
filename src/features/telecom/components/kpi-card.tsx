@@ -1,6 +1,7 @@
 "use client";
 import { ArrowDownRight, ArrowUpRight } from "lucide-react";
 import { motion } from "motion/react";
+import { memo } from "react";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 
@@ -19,7 +20,7 @@ interface KPICardProps {
   onToggle?: () => void;
 }
 
-export function KPICard({
+export const KPICard = memo(function KPICard({
   label,
   value,
   sub,
@@ -156,4 +157,4 @@ export function KPICard({
       )}
     </motion.div>
   );
-}
+});

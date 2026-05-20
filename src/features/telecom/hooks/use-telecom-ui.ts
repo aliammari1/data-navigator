@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { flushSync } from "react-dom";
+import { useEffect, useState } from "react";
+
 import { onBroadcast } from "@/features/telecom/lib/channel";
 import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import {
@@ -10,11 +10,41 @@ import {
 } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 
+const TELECOM_UI_STORAGE_KEY = "telecom-session-v1";
+
+interface PersistedTelecomUiState {
+  columnMapping?: Partial<Types.ColumnMapping>;
+  statusMapping?: Types.StatusMapping[];
+}
+
+function readPersistedUiState(): PersistedTelecomUiState {
+  if (typeof localStorage === "undefined") return {};
+
+  try {
+    const raw = localStorage.getItem(TELECOM_UI_STORAGE_KEY);
+    if (!raw) return {};
+
+    const parsed = JSON.parse(raw) as { state?: PersistedTelecomUiState };
+    return parsed.state ?? {};
+  } catch {
+    return {};
+  }
+}
+
+function writePersistedUiState(next: PersistedTelecomUiState) {
+  if (typeof localStorage === "undefined") return;
+
+  try {
+    const current = readPersistedUiState();
+    localStorage.setItem(
+      TELECOM_UI_STORAGE_KEY,
+      JSON.stringify({ state: { ...current, ...next }, version: 0 }),
+    );
+  } catch {}
+}
+
 export interface UseTelecomUIReturn {
   mounted: boolean;
-  activeTab: Types.MainTab;
-  setActiveTab: (t: Types.MainTab) => void;
-  switchTab: (t: Types.MainTab) => void;
   showMapper: boolean;
   setShowMapper: (v: boolean) => void;
   commandOpen: boolean;
@@ -25,7 +55,6 @@ export interface UseTelecomUIReturn {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
-  statusMappingRef: React.RefObject<Types.StatusMapping[]>;
 }
 
 interface UseTelecomUIParams {
@@ -37,14 +66,7 @@ export function useTelecomUI({
   defaultMapping,
   fileNameRef,
 }: UseTelecomUIParams): UseTelecomUIReturn {
-  const storeSetActiveTab = useTelecomStore((s) => s.setActiveTab);
-  const storeSetMapping = useTelecomStore((s) => s.setColumnMapping);
-  const storeSetStatusMapping = useTelecomStore((s) => s.setStatusMapping);
-
   const [mounted, setMounted] = useState(false);
-  const [activeTab, setActiveTab] = useState<Types.MainTab>(
-    () => useTelecomStore.getState().activeTab || "overview",
-  );
   const [showMapper, setShowMapper] = useState(false);
   const [commandOpen, setCommandOpen] = useState(false);
   const [installPrompt, setInstallPrompt] = useState<Event | null>(null);
@@ -64,38 +86,30 @@ export function useTelecomUI({
     ...DEFAULT_STATUS_MAPPINGS,
   ]);
 
-  // Ref always mirrors statusMapping so analytics callback can read latest value
-  const statusMappingRef: React.RefObject<Types.StatusMapping[]> = {
-    current: statusMapping,
-  };
-  statusMappingRef.current = statusMapping;
-
   // Mount + store hydration
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate persisted UI state once after client mount
   useEffect(() => {
     setMounted(true);
-    const s = useTelecomStore.getState();
-    if (s.activeTab && s.activeTab !== "overview")
-      setActiveTab(s.activeTab as Types.MainTab);
-    setMapping(normalizeColumnMapping(s.columnMapping ?? defaultMapping));
-    if (s.statusMapping?.length)
-      setStatusMapping(s.statusMapping as Types.StatusMapping[]);
+    const persisted = readPersistedUiState();
+    setMapping(
+      normalizeColumnMapping(persisted.columnMapping ?? defaultMapping),
+    );
+    if (persisted.statusMapping?.length) {
+      setStatusMapping(persisted.statusMapping);
+    }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Sync writes back to Zustand store
+  // Sync writes back to localStorage without subscribing this provider to a store.
   useEffect(() => {
-    storeSetActiveTab(activeTab);
-  }, [activeTab, storeSetActiveTab]);
+    const next = normalizeColumnMapping(mapping);
+    writePersistedUiState({ columnMapping: next });
+    useTelecomStore.getState().setColumnMapping(next);
+  }, [mapping]);
 
   useEffect(() => {
-    storeSetMapping(normalizeColumnMapping(mapping));
-  }, [mapping, storeSetMapping]);
-
-  useEffect(() => {
-    storeSetStatusMapping(
-      statusMapping as Parameters<typeof storeSetStatusMapping>[0],
-    );
-  }, [statusMapping, storeSetStatusMapping]);
+    writePersistedUiState({ statusMapping });
+    useTelecomStore.getState().setStatusMapping(statusMapping);
+  }, [statusMapping]);
 
   // F2 — PWA install prompt
   useEffect(() => {
@@ -121,23 +135,13 @@ export function useTelecomUI({
     return unsub;
   }, [fileNameRef]);
 
-  // F4 — Yjs cross-tab CRDT sync (filter + tab + mapping)
+  // F4 — Yjs cross-tab CRDT sync (filter + mapping)
   // biome-ignore lint/correctness/useExhaustiveDependencies: subscribe to the singleton Yjs maps once
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     import("@/platform/collab/collab").then(
-      ({
-        startCollabSync: start,
-        sharedTab: yTab,
-        sharedMapping: yMapping,
-      }) => {
+      ({ startCollabSync: start, sharedMapping: yMapping }) => {
         cleanup = start();
-
-        const tabObs = () => {
-          const t = yTab.get("active") as Types.MainTab | undefined;
-          if (t === "overview") setActiveTab(t);
-        };
-        yTab.observe(tabObs);
 
         const mappingObs = () => {
           setMapping((prev) => {
@@ -156,7 +160,6 @@ export function useTelecomUI({
         const originalCleanup = cleanup;
         cleanup = () => {
           originalCleanup?.();
-          yTab.unobserve(tabObs);
           yMapping.unobserve(mappingObs);
         };
       },
@@ -176,60 +179,8 @@ export function useTelecomUI({
     return () => document.removeEventListener("keydown", handler);
   }, []);
 
-  const switchTab = useCallback((next: Types.MainTab) => {
-    if (next === "overview") {
-      import("@/platform/collab/collab").then(({ sharedTab: yTab, ydoc }) => {
-        ydoc.transact(() => yTab.set("active", next));
-      });
-    }
-    if (typeof document !== "undefined" && "startViewTransition" in document) {
-      (
-        document as Document & { startViewTransition(cb: () => void): void }
-      ).startViewTransition(() => flushSync(() => setActiveTab(next)));
-    } else {
-      setActiveTab(next);
-    }
-  }, []);
-
-  // Same-page shell sidebar clicks should follow the same path as the telecom
-  // page's internal sidebar.
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const tab = (event as CustomEvent<{ tab?: Types.MainTab }>).detail?.tab;
-      if (tab) switchTab(tab);
-    };
-
-    window.addEventListener("telecom:select-tab", handler);
-    return () => window.removeEventListener("telecom:select-tab", handler);
-  }, [switchTab]);
-
-  // Sync external store changes (e.g. cross-route nav-sidebar clicks) to local state
-  useEffect(() => {
-    const unsub = useTelecomStore.subscribe(
-      (s) => s.activeTab,
-      (tab) => {
-        if (
-          typeof document !== "undefined" &&
-          "startViewTransition" in document
-        ) {
-          (
-            document as Document & { startViewTransition(cb: () => void): void }
-          ).startViewTransition(() =>
-            flushSync(() => setActiveTab(tab as Types.MainTab)),
-          );
-        } else {
-          setActiveTab(tab as Types.MainTab);
-        }
-      },
-    );
-    return unsub;
-  }, []);
-
   return {
     mounted,
-    activeTab,
-    setActiveTab,
-    switchTab,
     showMapper,
     setShowMapper,
     commandOpen,
@@ -240,6 +191,5 @@ export function useTelecomUI({
     setMapping,
     statusMapping,
     setStatusMapping,
-    statusMappingRef,
   };
 }

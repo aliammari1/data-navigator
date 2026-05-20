@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { memo, useMemo, useState } from "react";
 import type * as Types from "@/features/telecom/types";
 import { CustomerProfilePanel } from "./customer-profile-panel";
 import { DataGrid } from "./data-grid";
 import { FilterBar } from "./filter-bar";
 
-export function RawDataTab({
+export const RawDataTab = memo(function RawDataTab({
   m,
   operators,
   regions,
@@ -47,13 +47,22 @@ export function RawDataTab({
   });
   const [selectedMsisdn, setSelectedMsisdn] = useState<string | null>(null);
 
+  const operatorOptions = useMemo(
+    () => [...new Set(operators.map((o) => o.operator))],
+    [operators],
+  );
+  const regionOptions = useMemo(
+    () => [...new Set(regions.map((r) => r.region))],
+    [regions],
+  );
+
   return (
     <div className="space-y-4">
       <FilterBar
         filters={filters}
         onChange={setFilters}
-        operators={[...new Set(operators.map((o) => o.operator))]}
-        regions={[...new Set(regions.map((r) => r.region))]}
+        operators={operatorOptions}
+        regions={regionOptions}
       />
       <DataGrid
         m={m}
@@ -72,4 +81,4 @@ export function RawDataTab({
       )}
     </div>
   );
-}
+});

@@ -32,16 +32,16 @@ export interface AnalyticsSnapshot {
 }
 
 export interface TableParquet {
-  key: string;           // tableName
+  key: string; // tableName
   savedAt: number;
   tableName: string;
-  bytes: ArrayBuffer;    // raw Parquet bytes
+  bytes: ArrayBuffer; // raw Parquet bytes
   rowCount: number;
   fileSizeBytes: number;
 }
 
 export interface SessionState {
-  key: string;           // singleton "current"
+  key: string; // singleton "current"
   updatedAt: number;
   activeTableName: string;
   fileName: string;

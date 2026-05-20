@@ -58,14 +58,21 @@ export function LanControlCenter() {
   const joinUrl = settings.url ? getLANJoinUrl(settings) : "";
 
   useEffect(() => {
-    if (!joinUrl) { setQrDataUrl(""); return; }
+    if (!joinUrl) {
+      setQrDataUrl("");
+      return;
+    }
     QRCode.toDataURL(joinUrl, { width: 180, margin: 1 })
       .then(setQrDataUrl)
       .catch(() => setQrDataUrl(""));
   }, [joinUrl]);
 
   const persist = (patch: Partial<typeof settings>) => {
-    const next = { ...settings, ...patch, peer: { ...settings.peer, ...(patch.peer ?? {}) } };
+    const next = {
+      ...settings,
+      ...patch,
+      peer: { ...settings.peer, ...(patch.peer ?? {}) },
+    };
     setSettings(next);
     saveLANSettings(next);
   };
@@ -73,9 +80,13 @@ export function LanControlCenter() {
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
     setError("");
-    try { await fn(); }
-    catch (err) { setError(String((err as Error).message ?? err)); }
-    finally { setBusy(false); }
+    try {
+      await fn();
+    } catch (err) {
+      setError(String((err as Error).message ?? err));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const copyText = async (text: string) => {
@@ -105,10 +116,17 @@ export function LanControlCenter() {
         <Radio className="h-4 w-4 text-cyan-500" />
         <span className="text-sm font-semibold">Share with nearby devices</span>
         <span className="ml-auto flex items-center gap-1.5 text-[11px]">
-          {connected
-            ? <><Wifi className="h-3.5 w-3.5 text-emerald-500" /><span className="text-emerald-600 font-medium">Connected</span></>
-            : <><WifiOff className="h-3.5 w-3.5 text-muted-foreground" /><span className="text-muted-foreground">Offline</span></>
-          }
+          {connected ? (
+            <>
+              <Wifi className="h-3.5 w-3.5 text-emerald-500" />
+              <span className="text-emerald-600 font-medium">Connected</span>
+            </>
+          ) : (
+            <>
+              <WifiOff className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-muted-foreground">Offline</span>
+            </>
+          )}
         </span>
       </div>
 
@@ -136,16 +154,30 @@ export function LanControlCenter() {
             {!connected && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">1</span>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">
+                    1
+                  </span>
                   Start the server on this computer
                 </div>
                 <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
-                  <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">{serverCommand}</code>
-                  <button type="button" onClick={() => copyText(serverCommand)} className="shrink-0 text-muted-foreground hover:text-foreground">
-                    {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-500" /> : <Copy className="h-3.5 w-3.5" />}
+                  <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
+                    {serverCommand}
+                  </code>
+                  <button
+                    type="button"
+                    onClick={() => copyText(serverCommand)}
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                  >
+                    {copied ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-emerald-500" />
+                    ) : (
+                      <Copy className="h-3.5 w-3.5" />
+                    )}
                   </button>
                 </div>
-                <p className="text-[10px] text-muted-foreground">Open a terminal and run this command, then come back here.</p>
+                <p className="text-[10px] text-muted-foreground">
+                  Open a terminal and run this command, then come back here.
+                </p>
               </div>
             )}
 
@@ -153,12 +185,16 @@ export function LanControlCenter() {
             {!connected && (
               <div className="space-y-1.5">
                 <div className="flex items-center gap-1.5 text-xs font-semibold">
-                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">2</span>
+                  <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">
+                    2
+                  </span>
                   Configure your session
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">Server address</span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">
+                      Server address
+                    </span>
                     <input
                       value={settings.url}
                       onChange={(e) => persist({ url: e.target.value })}
@@ -167,7 +203,9 @@ export function LanControlCenter() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">Room name</span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">
+                      Room name
+                    </span>
                     <input
                       value={settings.room}
                       onChange={(e) => persist({ room: e.target.value })}
@@ -175,11 +213,15 @@ export function LanControlCenter() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">Access code</span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">
+                      Access code
+                    </span>
                     <div className="flex gap-1">
                       <input
                         value={settings.pairingCode}
-                        onChange={(e) => persist({ pairingCode: e.target.value })}
+                        onChange={(e) =>
+                          persist({ pairingCode: e.target.value })
+                        }
                         className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-mono text-xs"
                       />
                       <button
@@ -193,10 +235,16 @@ export function LanControlCenter() {
                     </div>
                   </label>
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">Your name</span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">
+                      Your name
+                    </span>
                     <input
                       value={settings.peer.name}
-                      onChange={(e) => persist({ peer: { ...settings.peer, name: e.target.value } })}
+                      onChange={(e) =>
+                        persist({
+                          peer: { ...settings.peer, name: e.target.value },
+                        })
+                      }
                       className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
                     />
                   </label>
@@ -209,32 +257,51 @@ export function LanControlCenter() {
               <div className="space-y-1.5">
                 {!connected && (
                   <div className="flex items-center gap-1.5 text-xs font-semibold">
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">3</span>
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-cyan-100 text-[10px] font-bold text-cyan-700">
+                      3
+                    </span>
                     Share this QR — others scan to join
                   </div>
                 )}
                 {connected && (
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-                    <CheckCircle className="h-3.5 w-3.5" /> Session active — share QR to invite
+                    <CheckCircle className="h-3.5 w-3.5" /> Session active —
+                    share QR to invite
                   </div>
                 )}
                 <div className="flex gap-4 items-start">
-                  <Image src={qrDataUrl} alt="Join QR" width={180} height={180} className="rounded-lg border border-border" />
+                  <Image
+                    src={qrDataUrl}
+                    alt="Join QR"
+                    width={180}
+                    height={180}
+                    className="rounded-lg border border-border"
+                  />
                   <div className="flex-1 space-y-2 pt-1">
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">Room</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Room
+                      </div>
                       <div className="text-xs font-medium">{settings.room}</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">Access code</div>
-                      <div className="font-mono text-sm font-bold tracking-widest">{settings.pairingCode}</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Access code
+                      </div>
+                      <div className="font-mono text-sm font-bold tracking-widest">
+                        {settings.pairingCode}
+                      </div>
                     </div>
                     <button
                       type="button"
                       onClick={() => copyText(joinUrl)}
                       className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-xs hover:bg-muted"
                     >
-                      {copied ? <CheckCircle className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                      {copied ? (
+                        <CheckCircle className="h-3 w-3 text-emerald-500" />
+                      ) : (
+                        <Copy className="h-3 w-3" />
+                      )}
                       Copy link
                     </button>
                   </div>
@@ -250,10 +317,18 @@ export function LanControlCenter() {
                 </div>
                 <div className="flex flex-wrap gap-1.5">
                   {peers.map((peer) => (
-                    <span key={peer.id} className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px]">
-                      <span className="h-2 w-2 rounded-full" style={{ background: peer.color }} />
+                    <span
+                      key={peer.id}
+                      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px]"
+                    >
+                      <span
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: peer.color }}
+                      />
                       {peer.name}
-                      <span className="text-muted-foreground">· {peer.role}</span>
+                      <span className="text-muted-foreground">
+                        · {peer.role}
+                      </span>
                     </span>
                   ))}
                 </div>
@@ -278,7 +353,11 @@ export function LanControlCenter() {
                   disabled={!settings.url || !settings.pairingCode || busy}
                   className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg bg-cyan-600 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <KeyRound className="h-4 w-4" />
+                  )}
                   Start & connect
                 </button>
               )}
@@ -290,9 +369,14 @@ export function LanControlCenter() {
         {mode === "join" && !connected && (
           <>
             <div className="space-y-3">
-              <p className="text-xs text-muted-foreground">Ask the host for the QR code or the join link, then fill in below.</p>
+              <p className="text-xs text-muted-foreground">
+                Ask the host for the QR code or the join link, then fill in
+                below.
+              </p>
               <label className="block">
-                <span className="mb-1 block text-[10px] text-muted-foreground">Server address (from host)</span>
+                <span className="mb-1 block text-[10px] text-muted-foreground">
+                  Server address (from host)
+                </span>
                 <div className="flex gap-1">
                   <input
                     value={settings.url}
@@ -307,7 +391,11 @@ export function LanControlCenter() {
                     title="Auto-find host on network"
                     className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-2 text-xs hover:bg-muted disabled:opacity-50"
                   >
-                    {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <Wifi className="h-3 w-3" />}
+                    {busy ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <Wifi className="h-3 w-3" />
+                    )}
                     Find
                   </button>
                 </div>
@@ -328,7 +416,9 @@ export function LanControlCenter() {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">Room name</span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">
+                    Room name
+                  </span>
                   <input
                     value={settings.room}
                     onChange={(e) => persist({ room: e.target.value })}
@@ -336,7 +426,9 @@ export function LanControlCenter() {
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">Access code</span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">
+                    Access code
+                  </span>
                   <input
                     value={settings.pairingCode}
                     onChange={(e) => persist({ pairingCode: e.target.value })}
@@ -345,18 +437,33 @@ export function LanControlCenter() {
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">Your name</span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">
+                    Your name
+                  </span>
                   <input
                     value={settings.peer.name}
-                    onChange={(e) => persist({ peer: { ...settings.peer, name: e.target.value } })}
+                    onChange={(e) =>
+                      persist({
+                        peer: { ...settings.peer, name: e.target.value },
+                      })
+                    }
                     className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">Join as</span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">
+                    Join as
+                  </span>
                   <select
                     value={settings.peer.role}
-                    onChange={(e) => persist({ peer: { ...settings.peer, role: e.target.value as LANRole } })}
+                    onChange={(e) =>
+                      persist({
+                        peer: {
+                          ...settings.peer,
+                          role: e.target.value as LANRole,
+                        },
+                      })
+                    }
                     className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
                   >
                     <option value="editor">Editor — can make changes</option>
@@ -372,13 +479,21 @@ export function LanControlCenter() {
               disabled={!settings.url || !settings.pairingCode || busy}
               className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600 text-sm font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
             >
-              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <KeyRound className="h-4 w-4" />}
+              {busy ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <KeyRound className="h-4 w-4" />
+              )}
               Join session
             </button>
           </>
         )}
 
-        {error && <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>}
+        {error && (
+          <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
+            {error}
+          </div>
+        )}
 
         {/* Advanced toggle (host mode only, not connected) */}
         {mode === "host" && !connected && (
@@ -387,17 +502,25 @@ export function LanControlCenter() {
             onClick={() => setShowAdvanced((v) => !v)}
             className="flex w-full items-center gap-1 text-[10px] text-muted-foreground hover:text-foreground"
           >
-            <ChevronDown className={`h-3 w-3 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+            <ChevronDown
+              className={`h-3 w-3 transition-transform ${showAdvanced ? "rotate-180" : ""}`}
+            />
             Advanced
           </button>
         )}
         {showAdvanced && mode === "host" && !connected && (
           <div className="space-y-1">
             <label>
-              <span className="mb-1 block text-[10px] text-muted-foreground">Role</span>
+              <span className="mb-1 block text-[10px] text-muted-foreground">
+                Role
+              </span>
               <select
                 value={settings.peer.role}
-                onChange={(e) => persist({ peer: { ...settings.peer, role: e.target.value as LANRole } })}
+                onChange={(e) =>
+                  persist({
+                    peer: { ...settings.peer, role: e.target.value as LANRole },
+                  })
+                }
                 className="h-8 w-full rounded-md border border-border bg-background px-2 text-xs"
               >
                 <option value="host">Host — full control</option>

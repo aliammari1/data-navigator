@@ -12,12 +12,9 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import type {
-  LoadedFile,
-  TelecomIngestionMode,
-} from "@/features/telecom/hooks/use-telecom-file-load";
 import type { CachedAnalyticsMeta } from "@/features/telecom/lib/analytics-cache";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import type { LoadedFile, TelecomIngestionMode } from "../types";
 
 export function FileManagementModal({
   open,
@@ -32,7 +29,7 @@ export function FileManagementModal({
   onRenameFile,
   canMutate = true,
   canExport = true,
-}: {
+}: Readonly<{
   open: boolean;
   analyticsHistory: CachedAnalyticsMeta[];
   loadedFiles: LoadedFile[];
@@ -45,7 +42,7 @@ export function FileManagementModal({
   onRenameFile: (id: number, name: string) => void;
   canMutate?: boolean;
   canExport?: boolean;
-}) {
+}>) {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [draftName, setDraftName] = useState("");
 

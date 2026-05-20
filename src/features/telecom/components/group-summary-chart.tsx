@@ -2,7 +2,7 @@
 
 import ReactECharts from "echarts-for-react";
 import { Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import { CHART_PALETTE } from "@/features/telecom/lib/canal-config";
 import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 import {
@@ -14,6 +14,37 @@ import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 
 export type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 
+// Memoized inner chart components to prevent option rebuilds
+const MemoDonutChart = memo(function MemoDonutChart({
+  data,
+}: {
+  data: Array<{ label: string; nombre: number; montant: number; color: string }>;
+}) {
+  const option = useMemo(() => buildGroupSummaryDonutOption(data), [data]);
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: "170px" }}
+      opts={{ renderer: "canvas" }}
+    />
+  );
+});
+
+const MemoHbarChart = memo(function MemoHbarChart({
+  data,
+}: {
+  data: Array<{ label: string; nombre: number; montant: number; color: string }>;
+}) {
+  const option = useMemo(() => buildGroupSummaryHbarOption(data), [data]);
+  return (
+    <ReactECharts
+      option={option}
+      style={{ height: `${data.length * 28 + 20}px` }}
+      opts={{ renderer: "canvas" }}
+    />
+  );
+});
+
 type FetchSpecChannelStats = (
   channels: ChannelDef[],
   dateFrom: string,
@@ -23,17 +54,17 @@ type FetchSpecChannelStats = (
   total: { canal: string; nombre: number; montant: number };
 }>;
 
-export function GroupSummaryChart({
+export const GroupSummaryChart = memo(function GroupSummaryChart({
   groups,
   dateFrom,
   dateTo,
   fetchSpecChannelStats,
-}: {
+}: Readonly<{
   groups: ChannelGroup[];
   dateFrom: string;
   dateTo: string;
   fetchSpecChannelStats: FetchSpecChannelStats;
-}) {
+}>) {
   const [data, setData] = useState<Array<{
     label: string;
     nombre: number;
@@ -46,6 +77,12 @@ export function GroupSummaryChart({
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
+
+    // Timeout: stop loading after 12s if query hangs (table not loaded, etc.)
+    const timeoutId = setTimeout(() => {
+      if (!cancelled) setLoading(false);
+    }, 12000);
+
     Promise.all(
       groups.map(async (g, i) => {
         const res = await fetchSpecChannelStats(g.channels, dateFrom, dateTo);
@@ -53,7 +90,7 @@ export function GroupSummaryChart({
           label: g.label,
           nombre: res.total.nombre,
           montant: res.total.montant,
-          color: g.color ?? (CHART_PALETTE[i % CHART_PALETTE.length] as string),
+          color: g.color ?? CHART_PALETTE[i % CHART_PALETTE.length],
         };
       }),
     )
@@ -62,10 +99,12 @@ export function GroupSummaryChart({
       })
       .catch(() => {})
       .finally(() => {
+        clearTimeout(timeoutId);
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+      clearTimeout(timeoutId);
     };
   }, [dateFrom, dateTo]);
 
@@ -126,17 +165,9 @@ export function GroupSummaryChart({
         {/* Donut or hbar */}
         <div>
           {useDonut ? (
-            <ReactECharts
-              option={buildGroupSummaryDonutOption(data)}
-              style={{ height: "170px" }}
-              opts={{ renderer: "canvas" }}
-            />
+            <MemoDonutChart data={data} />
           ) : (
-            <ReactECharts
-              option={buildGroupSummaryHbarOption(data)}
-              style={{ height: `${data.length * 28 + 20}px` }}
-              opts={{ renderer: "canvas" }}
-            />
+            <MemoHbarChart data={data} />
           )}
         </div>
 
@@ -185,4 +216,4 @@ export function GroupSummaryChart({
       </div>
     </div>
   );
-}
+});

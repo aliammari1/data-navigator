@@ -10,7 +10,14 @@ interface AppContextState {
   setActiveDomain: (activeDomain: AppDomain) => void;
   setActiveDatasetId: (activeDatasetId: string | null) => void;
   setActiveTableName: (activeTableName: string | null) => void;
-  setContext: (next: Partial<Pick<AppContextState, "activeDomain" | "activeDatasetId" | "activeTableName">>) => void;
+  setContext: (
+    next: Partial<
+      Pick<
+        AppContextState,
+        "activeDomain" | "activeDatasetId" | "activeTableName"
+      >
+    >,
+  ) => void;
 }
 
 export const useAppContextStore = create<AppContextState>()(

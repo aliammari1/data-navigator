@@ -10,10 +10,12 @@ import {
   statusNorm,
 } from "@/features/telecom/lib/sql";
 import {
+  buildRawStatusFilterForColumn,
   DEFAULT_STATUS_MAPPINGS,
   SPEC_DECLINED_FILTER,
   SPEC_INSTANCE_FILTER,
   SPEC_REFUND_FILTER,
+  SPEC_STATUS_CODES,
   SPEC_SUCCESS_FILTER,
 } from "@/features/telecom/lib/status-definitions";
 import type {
@@ -83,16 +85,23 @@ export {
   SPEC_SUCCESS_FILTER,
 };
 
+const enrichmentKeys = new Map<string, string>();
+const enrichmentInFlight = new Map<string, Promise<boolean>>();
+
+function enrichmentKey(m: ColumnMapping, sm: StatusMapping[]): string {
+  return JSON.stringify({ mapping: m, statuses: sm });
+}
+
 export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
   const c = qc(dateColumn);
 
   return `COALESCE(
-    TRY_STRPTIME(CAST(${c} AS VARCHAR), '%d/%m/%Y %H:%M:%S'),
-    TRY_STRPTIME(SPLIT_PART(CAST(${c} AS VARCHAR), ' ', 1), '%d/%m/%Y'),
+    TRY_CAST(${c} AS TIMESTAMP),
+    TRY_CAST(CAST(${c} AS VARCHAR) AS TIMESTAMP),
     TRY_STRPTIME(CAST(${c} AS VARCHAR), '%Y-%m-%d %H:%M:%S'),
     TRY_STRPTIME(SPLIT_PART(CAST(${c} AS VARCHAR), ' ', 1), '%Y-%m-%d'),
-    TRY_CAST(${c} AS TIMESTAMP),
-    TRY_CAST(CAST(${c} AS VARCHAR) AS TIMESTAMP)
+    TRY_STRPTIME(CAST(${c} AS VARCHAR), '%d/%m/%Y %H:%M:%S'),
+    TRY_STRPTIME(SPLIT_PART(CAST(${c} AS VARCHAR), ' ', 1), '%d/%m/%Y')
   )`;
 }
 
@@ -101,7 +110,10 @@ export function transactionDayExpr(dateColumn = "TRANSACTION_DATE"): string {
 }
 
 export function transactionHourExpr(dateColumn = "TRANSACTION_DATE"): string {
-  return `EXTRACT(HOUR FROM ${transactionDateExpr(dateColumn)})`;
+  const c = qc(dateColumn);
+  // Direct string extraction - much faster than EXTRACT(HOUR FROM transactionDateExpr())
+  // Assumes format "DD/MM/YYYY HH:MM:SS" or "YYYY-MM-DD HH:MM:SS"
+  return `TRY_CAST(SPLIT_PART(SPLIT_PART(CAST(${c} AS VARCHAR),' ',2),':',1) AS INTEGER)`;
 }
 
 function dateParamExpr(value: string): string {
@@ -143,6 +155,53 @@ export async function fetchKPI(
   m: ColumnMapping,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
 ): Promise<KPISummary | null> {
+  // Use enriched view if available, otherwise fall back to base table
+  const viewName = enrichedViewName(tableName);
+  const source = qc(viewName); // enriched view has pre-computed columns
+  const hasEnriched = await ensureTelecomEnrichedView(tableName, m, sm);
+
+  const mapKpiRow = (r: Record<string, unknown>): KPISummary => ({
+    totalTransactions: safeNum(r.total),
+    successCount: safeNum(r.success_count),
+    declinedCount: safeNum(r.declined_count),
+    refundCount: safeNum(r.refund_count),
+    instanceCount: safeNum(r.instance_count),
+    submittedCount: safeNum(r.submitted_count),
+    successRate: safeNum(r.success_rate),
+    totalAmount: safeNum(r.total_amount),
+    avgAmount: safeNum(r.avg_amount),
+    avgProcessingMs: safeNum(r.avg_proc_ms),
+    uniqueCustomers: safeNum(r.unique_customers),
+    peakHour: safeNum(r.peak_hour),
+    topErrorCode: String(r.top_error ?? "N/A"),
+  });
+
+  if (hasEnriched) {
+    try {
+      const rows = await runQuery(`
+        SELECT
+          COUNT(*)                                                                        AS total,
+          COUNT(*) FILTER (WHERE _status_norm='SUCCESS') AS success_count,
+          COUNT(*) FILTER (WHERE _status_norm='DECLINED') AS declined_count,
+          COUNT(*) FILTER (WHERE _status_norm='REFUND') AS refund_count,
+          COUNT(*) FILTER (WHERE _status_norm='INSTANCE') AS instance_count,
+          COUNT(*) FILTER (WHERE _status_norm='SUBMITTED') AS submitted_count,
+          ROUND(COUNT(*) FILTER (WHERE _status_norm='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
+          ROUND(SUM(_amount),3)                                                           AS total_amount,
+          ROUND(AVG(_amount),3)                                                           AS avg_amount,
+          ROUND(AVG(_proc_ms),0)                                                          AS avg_proc_ms,
+          APPROX_COUNT_DISTINCT(_customer_id)                                             AS unique_customers,
+          MODE(_txn_hour)                                                                 AS peak_hour,
+          MODE(_error_code)                                                               AS top_error
+        FROM ${source}
+      `);
+      if (!rows[0]) return null;
+      return mapKpiRow(rows[0]);
+    } catch {
+      // Fall back to the raw table below.
+    }
+  }
+
   const sn = statusNorm(m, sm);
   const amt = colExpr(m.amount);
   const pms = colExpr(m.processingTimeMs);
@@ -150,49 +209,33 @@ export async function fetchKPI(
   const ec = colExpr(m.errorCode);
   try {
     const rows = await runQuery(`
-      WITH base AS (
+        WITH base AS (
+          SELECT
+            ${sn}                          AS _status,
+            TRY_CAST(${amt} AS DOUBLE)     AS _amt,
+            TRY_CAST(${pms} AS DOUBLE)     AS _pms,
+            CAST(${id} AS VARCHAR)         AS _id,
+            CAST(${ec} AS VARCHAR)         AS _ec,
+            ${hourExpr(m)}                 AS _hr
+          FROM ${qc(tableName)}
+        )
         SELECT
-          ${sn}                          AS _status,
-          TRY_CAST(${amt} AS DOUBLE)     AS _amt,
-          TRY_CAST(${pms} AS DOUBLE)     AS _pms,
-          CAST(${id} AS VARCHAR)         AS _id,
-          CAST(${ec} AS VARCHAR)         AS _ec,
-          ${hourExpr(m)}                 AS _hr
-        FROM ${qc(tableName)}
-      )
-      SELECT
-        COUNT(*)                                                                        AS total,
-        SUM(CASE WHEN _status='SUCCESS'   THEN 1 ELSE 0 END)                           AS success_count,
-        SUM(CASE WHEN _status='DECLINED'  THEN 1 ELSE 0 END)                           AS declined_count,
-        SUM(CASE WHEN _status='REFUND'    THEN 1 ELSE 0 END)                           AS refund_count,
-        SUM(CASE WHEN _status='INSTANCE'  THEN 1 ELSE 0 END)                           AS instance_count,
-        SUM(CASE WHEN _status='SUBMITTED' THEN 1 ELSE 0 END)                           AS submitted_count,
-        ROUND(SUM(CASE WHEN _status='SUCCESS' THEN 1 ELSE 0 END)*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
-        ROUND(SUM(_amt),3)                                                              AS total_amount,
-        ROUND(AVG(_amt),3)                                                              AS avg_amount,
-        ROUND(AVG(_pms),0)                                                              AS avg_proc_ms,
-        COUNT(DISTINCT _id)                                                             AS unique_customers,
-        MODE(_hr)                                                                       AS peak_hour,
-        MODE(_ec)                                                                       AS top_error
-      FROM base
-    `);
-    if (!rows[0]) return null;
-    const r = rows[0];
-    return {
-      totalTransactions: safeNum(r.total),
-      successCount: safeNum(r.success_count),
-      declinedCount: safeNum(r.declined_count),
-      refundCount: safeNum(r.refund_count),
-      instanceCount: safeNum(r.instance_count),
-      submittedCount: safeNum(r.submitted_count),
-      successRate: safeNum(r.success_rate),
-      totalAmount: safeNum(r.total_amount),
-      avgAmount: safeNum(r.avg_amount),
-      avgProcessingMs: safeNum(r.avg_proc_ms),
-      uniqueCustomers: safeNum(r.unique_customers),
-      peakHour: safeNum(r.peak_hour),
-      topErrorCode: String(r.top_error ?? "N/A"),
-    };
+          COUNT(*) AS total,
+          COUNT(*) FILTER (WHERE _status='SUCCESS') AS success_count,
+          COUNT(*) FILTER (WHERE _status='DECLINED') AS declined_count,
+          COUNT(*) FILTER (WHERE _status='REFUND') AS refund_count,
+          COUNT(*) FILTER (WHERE _status='INSTANCE') AS instance_count,
+          COUNT(*) FILTER (WHERE _status='SUBMITTED') AS submitted_count,
+          ROUND(COUNT(*) FILTER (WHERE _status='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
+          ROUND(SUM(_amt),3) AS total_amount,
+          ROUND(AVG(_amt),3) AS avg_amount,
+          ROUND(AVG(_pms),0) AS avg_proc_ms,
+          APPROX_COUNT_DISTINCT(_id) AS unique_customers,
+          MODE(_hr) AS peak_hour,
+          MODE(_ec) AS top_error
+        FROM base
+      `);
+    return rows[0] ? mapKpiRow(rows[0]) : null;
   } catch {
     return null;
   }
@@ -224,11 +267,11 @@ export async function fetchRawCanalSummaries(
       SELECT
         ${canal}                                                                    AS canal_group,
         COUNT(*)                                                                    AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS'   THEN 1 ELSE 0 END)                         AS success,
-        SUM(CASE WHEN ${sn}='DECLINED'  THEN 1 ELSE 0 END)                         AS declined,
-        SUM(CASE WHEN ${sn}='REFUND'    THEN 1 ELSE 0 END)                         AS refund,
-        SUM(CASE WHEN ${sn}='INSTANCE'  THEN 1 ELSE 0 END)                         AS instance,
-        SUM(CASE WHEN ${sn}='SUBMITTED' THEN 1 ELSE 0 END)                         AS submitted,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
+        COUNT(*) FILTER (WHERE ${sn}='DECLINED') AS declined,
+        COUNT(*) FILTER (WHERE ${sn}='REFUND') AS refund,
+        COUNT(*) FILTER (WHERE ${sn}='INSTANCE') AS instance,
+        COUNT(*) FILTER (WHERE ${sn}='SUBMITTED') AS submitted,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)                                    AS amount,
         ROUND(AVG(TRY_CAST(${amt} AS DOUBLE)),3)                                    AS avg_amount
       FROM ${qc(tableName)}
@@ -274,8 +317,8 @@ export async function fetchHourly(
       SELECT
         ${hr}                                             AS hour,
         COUNT(*)                                          AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS'  THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${sn}='DECLINED' THEN 1 ELSE 0 END) AS declined,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
+        COUNT(*) FILTER (WHERE ${sn}='DECLINED') AS declined,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)          AS amount
       FROM ${qc(tableName)}
       WHERE ${hr} BETWEEN 0 AND 23
@@ -305,7 +348,7 @@ export async function fetchStatusBreakdown(
       SELECT ${sn} AS status,
              COUNT(*) AS count,
              ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3) AS amount
-      FROM ${qc(tableName)} GROUP BY 1 ORDER BY 2 DESC
+      FROM ${qc(tableName)} GROUP BY 1 ORDER BY 2 DESC LIMIT 500
     `);
     return rows.map((r) => ({
       status: String(r.status ?? "UNKNOWN"),
@@ -345,7 +388,7 @@ export async function fetchOperators(
       SELECT
         COALESCE(CAST(${op} AS VARCHAR),'Inconnu')    AS operator,
         COUNT(*)                                       AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)       AS amount
       FROM ${qc(tableName)}
       WHERE ${op} IS NOT NULL AND CAST(${op} AS VARCHAR) <> ''
@@ -358,7 +401,7 @@ export async function fetchOperators(
         SELECT
           COALESCE(CAST(${dstCol} AS VARCHAR),'Inconnu') AS operator,
           COUNT(*)                                        AS total,
-          SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+          COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
           ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)        AS amount
         FROM ${qc(tableName)}
         WHERE ${dstCol} IS NOT NULL AND CAST(${dstCol} AS VARCHAR) <> ''
@@ -391,7 +434,7 @@ export async function fetchOperatorsForGroup(
       SELECT
         COALESCE(CAST(${op} AS VARCHAR), 'Inconnu') AS operator,
         COUNT(*)                                    AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)  AS amount
       FROM ${qc(tableName)}
       WHERE (${canal}) IN (${labels})
@@ -432,7 +475,7 @@ export async function fetchRegionsForGroup(
       SELECT
         COALESCE(CAST(${reg} AS VARCHAR), 'Inconnu') AS region,
         COUNT(*)                                     AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)   AS amount
       FROM ${qc(tableName)}
       WHERE (${canal}) IN (${labels})
@@ -468,7 +511,7 @@ export async function fetchDestinationsForGroup(
       SELECT
         COALESCE(CAST(${dst} AS VARCHAR), 'Inconnu') AS operator,
         COUNT(*)                                     AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)   AS amount
       FROM ${qc(tableName)}
       WHERE (${canal}) IN (${labels})
@@ -504,7 +547,7 @@ export async function fetchRegions(
       SELECT
         COALESCE(CAST(${reg} AS VARCHAR),'Inconnu') AS region,
         COUNT(*)                                     AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)     AS amount
       FROM ${qc(tableName)}
       WHERE ${reg} IS NOT NULL AND CAST(${reg} AS VARCHAR) NOT IN ('','NULL')
@@ -536,8 +579,8 @@ export async function fetchCanalHourly(
       SELECT
         ${hr}                                             AS hour,
         COUNT(*)                                          AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS'  THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${sn}='DECLINED' THEN 1 ELSE 0 END) AS declined,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
+        COUNT(*) FILTER (WHERE ${sn}='DECLINED') AS declined,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)          AS amount
       FROM ${qc(tableName)}
       WHERE ${where[key]}
@@ -569,7 +612,7 @@ export async function fetchCanalHourlyMatrix(
         ${canal}  AS canal,
         ${hr}     AS hour,
         COUNT(*)  AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS' THEN 1 ELSE 0 END) AS success
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success
       FROM ${qc(tableName)}
       WHERE ${hr} BETWEEN 0 AND 23
         AND ${canal} != 'Other'
@@ -600,8 +643,8 @@ export async function fetchDailyTrend(
       SELECT
         CAST(${dayExpr} AS VARCHAR) AS day,
         COUNT(*) AS total,
-        SUM(CASE WHEN ${sn}='SUCCESS'  THEN 1 ELSE 0 END) AS success,
-        SUM(CASE WHEN ${sn}='DECLINED' THEN 1 ELSE 0 END) AS declined,
+        COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
+        COUNT(*) FILTER (WHERE ${sn}='DECLINED') AS declined,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3) AS amount
       FROM ${qc(tableName)}
       WHERE ${dayExpr} IS NOT NULL
@@ -643,8 +686,8 @@ export async function fetchCustomerProfile(
           CAST(${ms} AS VARCHAR)                                           AS msisdn,
           COALESCE(CAST(${cname} AS VARCHAR), CAST(${ms} AS VARCHAR))     AS name,
           COUNT(*)                                                         AS total,
-          SUM(CASE WHEN ${sn}='SUCCESS'  THEN 1 ELSE 0 END)              AS success,
-          SUM(CASE WHEN ${sn}='DECLINED' THEN 1 ELSE 0 END)              AS declined,
+          COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
+          COUNT(*) FILTER (WHERE ${sn}='DECLINED') AS declined,
           ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)                       AS total_amount,
           ROUND(AVG(TRY_CAST(${amt} AS DOUBLE)), 3)                       AS avg_amount,
           MODE(${canal})                                                   AS fav_canal,
@@ -788,7 +831,7 @@ export async function fetchDistinctStatuses(
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)        AS amount
       FROM ${qc(tableName)}
       WHERE ${s} IS NOT NULL AND TRIM(CAST(${s} AS VARCHAR)) <> ''
-      GROUP BY 1 ORDER BY 2 DESC
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 500
     `);
     return rows.map((r) => ({
       rawCode: String(r.raw_code ?? ""),
@@ -805,27 +848,35 @@ export async function fetchSpecChannelStats(
   channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
+  m?: ColumnMapping,
 ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> {
-  const df = buildSpecDateFilter(dateFrom, dateTo);
-  const rows: SpecChRow[] = [];
-  let tn = 0;
-  let tm = 0;
-  for (const ch of channels) {
-    try {
-      const res = await runQuery(`
-        SELECT COUNT(*) AS n, COALESCE(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)),0) AS m
-        FROM ${qc(tableName)}
-        WHERE ${SPEC_SUCCESS_FILTER} AND (${ch.condition})${df}
-      `);
-      const n = safeNum(res[0]?.n);
-      const m = safeNum(res[0]?.m);
-      rows.push({ canal: ch.name, nombre: n, montant: m });
-      tn += n;
-      tm += m;
-    } catch {
-      rows.push({ canal: ch.name, nombre: 0, montant: 0 });
-    }
-  }
+  const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
+  const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
+  const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
+  const successFilter = buildRawStatusFilterForColumn(
+    statusExpr,
+    SPEC_STATUS_CODES.success,
+  );
+  const rows = await Promise.all(
+    channels.map(async (ch) => {
+      try {
+        const res = await runQuery(`
+          SELECT COUNT(*) AS n, COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)),0) AS m
+          FROM ${qc(tableName)}
+          WHERE ${successFilter} AND (${ch.condition})${df}
+        `);
+        return {
+          canal: ch.name,
+          nombre: safeNum(res[0]?.n),
+          montant: safeNum(res[0]?.m),
+        };
+      } catch {
+        return { canal: ch.name, nombre: 0, montant: 0 };
+      }
+    }),
+  );
+  const tn = rows.reduce((s, r) => s + r.nombre, 0);
+  const tm = rows.reduce((s, r) => s + r.montant, 0);
   return {
     rows,
     total: { canal: "TOTAL (tous canaux)", nombre: tn, montant: tm },
@@ -837,35 +888,56 @@ export async function fetchSpecStatusStats(
   channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
+  m?: ColumnMapping,
 ): Promise<{
   rows: Array<{ status: string; nombre: number }>;
   total: { status: string; nombre: number };
 }> {
-  const df = buildSpecDateFilter(dateFrom, dateTo);
+  const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const scope =
     channels.length > 0
       ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
       : "";
+  const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const statusCases = [
-    ["Réussie", SPEC_SUCCESS_FILTER],
-    ["Annulation", SPEC_REFUND_FILTER],
-    ["Instance (Hold + Doubt)", SPEC_INSTANCE_FILTER],
-    ["Échec", SPEC_DECLINED_FILTER],
+    [
+      "Réussie",
+      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success),
+    ],
+    [
+      "Annulation",
+      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.refund),
+    ],
+    [
+      "Instance (Hold + Doubt)",
+      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.instance),
+    ],
+    [
+      "Échec",
+      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.declined),
+    ],
   ] as const;
 
-  const rows: Array<{ status: string; nombre: number }> = [];
-  let total = 0;
-  for (const [status, filter] of statusCases) {
-    const res = await runQuery(`
-      SELECT COUNT(*) AS n
-      FROM ${qc(tableName)}
-      WHERE ${filter} ${scope}${df}
-    `);
-    const n = safeNum(res[0]?.n);
-    rows.push({ status, nombre: n });
-    total += n;
+  try {
+    const results = await Promise.all(
+      statusCases.map(async ([status, filter]) => {
+        const res = await runQuery(`
+          SELECT COUNT(*) AS n
+          FROM ${qc(tableName)}
+          WHERE ${filter} ${scope}${df}
+        `);
+        return { status, nombre: safeNum(res[0]?.n) };
+      }),
+    );
+    const total = results.reduce((s, r) => s + r.nombre, 0);
+    return {
+      rows: results,
+      total: { status: "TOTAL (tous Status)", nombre: total },
+    };
+  } catch (err) {
+    console.error("[fetchSpecStatusStats] Error:", err);
+    return { rows: [], total: { status: "TOTAL (tous Status)", nombre: 0 } };
   }
-  return { rows, total: { status: "TOTAL (tous Status)", nombre: total } };
 }
 
 export async function fetchSpecUnitAmountStats(
@@ -873,38 +945,53 @@ export async function fetchSpecUnitAmountStats(
   channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
+  m?: ColumnMapping,
 ): Promise<{
   rows: Array<{ unitAmount: string; nombre: number; montant: number }>;
   total: { unitAmount: string; nombre: number; montant: number };
 }> {
-  const df = buildSpecDateFilter(dateFrom, dateTo);
+  const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const scope =
     channels.length > 0
       ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
       : "";
-  const rows = await runQuery(`
-    SELECT
-      CAST(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE) AS VARCHAR) AS unit_amount,
-      COUNT(*) AS n,
-      COALESCE(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)), 0) AS m
-    FROM ${qc(tableName)}
-    WHERE ${SPEC_SUCCESS_FILTER} ${scope}${df}
-    GROUP BY 1
-    ORDER BY TRY_CAST(unit_amount AS DOUBLE)
-  `);
-  const mapped = rows.map((r) => ({
-    unitAmount: String(r.unit_amount ?? "0"),
-    nombre: safeNum(r.n),
-    montant: safeNum(r.m),
-  }));
-  return {
-    rows: mapped,
-    total: {
-      unitAmount: "TOTAL",
-      nombre: mapped.reduce((sum, row) => sum + row.nombre, 0),
-      montant: mapped.reduce((sum, row) => sum + row.montant, 0),
-    },
-  };
+  const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
+  const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
+  const successFilter = buildRawStatusFilterForColumn(
+    statusExpr,
+    SPEC_STATUS_CODES.success,
+  );
+  try {
+    const rows = await runQuery(`
+      SELECT
+        CAST(TRY_CAST(${amountExpr} AS DOUBLE) AS VARCHAR) AS unit_amount,
+        COUNT(*) AS n,
+        COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)), 0) AS m
+      FROM ${qc(tableName)}
+      WHERE ${successFilter} ${scope}${df}
+      GROUP BY 1
+      ORDER BY TRY_CAST(unit_amount AS DOUBLE)
+    `);
+    const mapped = rows.map((r) => ({
+      unitAmount: String(r.unit_amount ?? "0"),
+      nombre: safeNum(r.n),
+      montant: safeNum(r.m),
+    }));
+    return {
+      rows: mapped,
+      total: {
+        unitAmount: "TOTAL",
+        nombre: mapped.reduce((sum, row) => sum + row.nombre, 0),
+        montant: mapped.reduce((sum, row) => sum + row.montant, 0),
+      },
+    };
+  } catch (err) {
+    console.error("[fetchSpecUnitAmountStats] Error:", err);
+    return {
+      rows: [],
+      total: { unitAmount: "TOTAL", nombre: 0, montant: 0 },
+    };
+  }
 }
 
 export async function fetchServiceCodeRows(
@@ -942,8 +1029,111 @@ export async function runCustomKPIExpr(
   tableName: string,
   sqlExpr: string,
 ): Promise<number> {
-  const rows = await runQuery(
-    `SELECT (${sqlExpr}) AS val FROM ${qc(tableName)} LIMIT 1`,
-  );
-  return safeNum(rows[0]?.val);
+  try {
+    const rows = await runQuery(
+      `SELECT (${sqlExpr}) AS val FROM ${qc(tableName)} LIMIT 1`,
+    );
+    return safeNum(rows[0]?.val);
+  } catch (err) {
+    console.error("[runCustomKPIExpr] Error:", err);
+    throw err;
+  }
+}
+
+// ─── Enrichment helpers ───────────────────────────────────────────────────────
+
+/** Returns the enriched view name for a given base table. */
+export function enrichedViewName(tableName: string): string {
+  return `${tableName}_enriched`;
+}
+
+/** Returns the daily pre-aggregated table name. */
+export function dailyAggTableName(tableName: string): string {
+  return `${tableName}_daily`;
+}
+
+/**
+ * Create (or replace) an enriched view with pre-computed status, canal,
+ * date/hour/day, and amount columns. Downstream queries reference this view
+ * instead of rebuilding CASE expressions every time.
+ */
+export async function createTelecomEnrichedView(
+  tableName: string,
+  m: ColumnMapping,
+  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+): Promise<void> {
+  const viewName = enrichedViewName(tableName);
+  const sn = statusNorm(m, sm);
+  const amt = colExpr(m.amount);
+  const pms = colExpr(m.processingTimeMs);
+  const id = colExpr(m.msisdn);
+  const ec = colExpr(m.errorCode);
+
+  const cn = canalCaseExpr(m);
+
+  await runQuery(`
+    CREATE OR REPLACE VIEW ${qc(viewName)} AS
+    SELECT
+      *,
+      ${sn}                              AS _status_norm,
+      ${cn}                              AS _canal,
+      ${transactionDateExpr(m.transactionDate)} AS _txn_date,
+      ${transactionHourExpr(m.transactionDate)} AS _txn_hour,
+      DATE_TRUNC('day', ${transactionDateExpr(m.transactionDate)}) AS _txn_day,
+      TRY_CAST(${amt} AS DOUBLE)         AS _amount,
+      TRY_CAST(${pms} AS DOUBLE)         AS _proc_ms,
+      CAST(${id} AS VARCHAR)             AS _customer_id,
+      CAST(${ec} AS VARCHAR)             AS _error_code
+    FROM ${qc(tableName)}
+  `);
+}
+
+export async function ensureTelecomEnrichedView(
+  tableName: string,
+  m: ColumnMapping,
+  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+): Promise<boolean> {
+  const viewName = enrichedViewName(tableName);
+  const key = enrichmentKey(m, sm);
+  if (enrichmentKeys.get(viewName) === key) return true;
+
+  const inFlightKey = `${viewName}:${key}`;
+  const existing = enrichmentInFlight.get(inFlightKey);
+  if (existing) return existing;
+
+  const pending = createTelecomEnrichedView(tableName, m, sm)
+    .then(() => {
+      enrichmentKeys.set(viewName, key);
+      return true;
+    })
+    .catch(() => false)
+    .finally(() => {
+      enrichmentInFlight.delete(inFlightKey);
+    });
+
+  enrichmentInFlight.set(inFlightKey, pending);
+  return pending;
+}
+
+/**
+ * Create (or replace) a pre-aggregated daily summary table.
+ * KPI queries can hit this tiny table instead of the full dataset.
+ */
+export async function createTelecomDailyAgg(tableName: string): Promise<void> {
+  const viewName = enrichedViewName(tableName);
+  const aggTable = dailyAggTableName(tableName);
+
+  await runQuery(`
+    CREATE OR REPLACE TABLE ${qc(aggTable)} AS
+    SELECT
+      _txn_day                                       AS day,
+      _canal                                         AS canal,
+      _status_norm                                   AS status,
+      COUNT(*)                                       AS cnt,
+      SUM(_amount)                                   AS amount,
+      AVG(_proc_ms)                                  AS avg_proc_ms,
+      APPROX_COUNT_DISTINCT(_customer_id)            AS unique_customers
+    FROM ${qc(viewName)}
+    GROUP BY _txn_day, _canal, _status_norm
+  `);
 }

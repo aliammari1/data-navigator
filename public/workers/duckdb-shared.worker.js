@@ -9,10 +9,10 @@ var __export = (target, all) => {
       get: all[name],
       enumerable: true,
       configurable: true,
-      set: __exportSetter.bind(all, name)
+      set: __exportSetter.bind(all, name),
     });
 };
-var __esm = (fn, res) => () => (fn && (res = fn(fn = 0)), res);
+var __esm = (fn, res) => () => (fn && (res = fn((fn = 0))), res);
 
 // node_modules/tslib/tslib.es6.mjs
 function __rest(s, e) {
@@ -21,19 +21,24 @@ function __rest(s, e) {
     if (Object.prototype.hasOwnProperty.call(s, p) && e.indexOf(p) < 0)
       t[p] = s[p];
   if (s != null && typeof Object.getOwnPropertySymbols === "function")
-    for (var i = 0, p = Object.getOwnPropertySymbols(s);i < p.length; i++) {
-      if (e.indexOf(p[i]) < 0 && Object.prototype.propertyIsEnumerable.call(s, p[i]))
+    for (var i = 0, p = Object.getOwnPropertySymbols(s); i < p.length; i++) {
+      if (
+        e.indexOf(p[i]) < 0 &&
+        Object.prototype.propertyIsEnumerable.call(s, p[i])
+      )
         t[p[i]] = s[p[i]];
     }
   return t;
 }
 function __awaiter(thisArg, _arguments, P, generator) {
   function adopt(value) {
-    return value instanceof P ? value : new P(function(resolve) {
-      resolve(value);
-    });
+    return value instanceof P
+      ? value
+      : new P(function (resolve) {
+          resolve(value);
+        });
   }
-  return new (P || (P = Promise))(function(resolve, reject) {
+  return new (P || (P = Promise))(function (resolve, reject) {
     function fulfilled(value) {
       try {
         step(generator.next(value));
@@ -49,49 +54,63 @@ function __awaiter(thisArg, _arguments, P, generator) {
       }
     }
     function step(result) {
-      result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected);
+      result.done
+        ? resolve(result.value)
+        : adopt(result.value).then(fulfilled, rejected);
     }
     step((generator = generator.apply(thisArg, _arguments || [])).next());
   });
 }
 function __values(o) {
-  var s = typeof Symbol === "function" && Symbol.iterator, m = s && o[s], i = 0;
-  if (m)
-    return m.call(o);
+  var s = typeof Symbol === "function" && Symbol.iterator,
+    m = s && o[s],
+    i = 0;
+  if (m) return m.call(o);
   if (o && typeof o.length === "number")
     return {
-      next: function() {
-        if (o && i >= o.length)
-          o = undefined;
+      next: function () {
+        if (o && i >= o.length) o = undefined;
         return { value: o && o[i++], done: !o };
-      }
+      },
     };
-  throw new TypeError(s ? "Object is not iterable." : "Symbol.iterator is not defined.");
+  throw new TypeError(
+    s ? "Object is not iterable." : "Symbol.iterator is not defined.",
+  );
 }
 function __await(v) {
-  return this instanceof __await ? (this.v = v, this) : new __await(v);
+  return this instanceof __await ? ((this.v = v), this) : new __await(v);
 }
 function __asyncGenerator(thisArg, _arguments, generator) {
   if (!Symbol.asyncIterator)
     throw new TypeError("Symbol.asyncIterator is not defined.");
-  var g = generator.apply(thisArg, _arguments || []), i, q = [];
-  return i = Object.create((typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype), verb("next"), verb("throw"), verb("return", awaitReturn), i[Symbol.asyncIterator] = function() {
-    return this;
-  }, i;
+  var g = generator.apply(thisArg, _arguments || []),
+    i,
+    q = [];
+  return (
+    (i = Object.create(
+      (typeof AsyncIterator === "function" ? AsyncIterator : Object).prototype,
+    )),
+    verb("next"),
+    verb("throw"),
+    verb("return", awaitReturn),
+    (i[Symbol.asyncIterator] = function () {
+      return this;
+    }),
+    i
+  );
   function awaitReturn(f) {
-    return function(v) {
+    return function (v) {
       return Promise.resolve(v).then(f, reject);
     };
   }
   function verb(n, f) {
     if (g[n]) {
-      i[n] = function(v) {
-        return new Promise(function(a, b) {
+      i[n] = function (v) {
+        return new Promise(function (a, b) {
           q.push([n, v, a, b]) > 1 || resume(n, v);
         });
       };
-      if (f)
-        i[n] = f(i[n]);
+      if (f) i[n] = f(i[n]);
     }
   }
   function resume(n, v) {
@@ -102,7 +121,9 @@ function __asyncGenerator(thisArg, _arguments, generator) {
     }
   }
   function step(r) {
-    r.value instanceof __await ? Promise.resolve(r.value.v).then(fulfill, reject) : settle(q[0][2], r);
+    r.value instanceof __await
+      ? Promise.resolve(r.value.v).then(fulfill, reject)
+      : settle(q[0][2], r);
   }
   function fulfill(value) {
     resume("next", value);
@@ -111,39 +132,63 @@ function __asyncGenerator(thisArg, _arguments, generator) {
     resume("throw", value);
   }
   function settle(f, v) {
-    if (f(v), q.shift(), q.length)
-      resume(q[0][0], q[0][1]);
+    if ((f(v), q.shift(), q.length)) resume(q[0][0], q[0][1]);
   }
 }
 function __asyncDelegator(o) {
   var i, p;
-  return i = {}, verb("next"), verb("throw", function(e) {
-    throw e;
-  }), verb("return"), i[Symbol.iterator] = function() {
-    return this;
-  }, i;
+  return (
+    (i = {}),
+    verb("next"),
+    verb("throw", function (e) {
+      throw e;
+    }),
+    verb("return"),
+    (i[Symbol.iterator] = function () {
+      return this;
+    }),
+    i
+  );
   function verb(n, f) {
-    i[n] = o[n] ? function(v) {
-      return (p = !p) ? { value: __await(o[n](v)), done: false } : f ? f(v) : v;
-    } : f;
+    i[n] = o[n]
+      ? function (v) {
+          return (p = !p)
+            ? { value: __await(o[n](v)), done: false }
+            : f
+              ? f(v)
+              : v;
+        }
+      : f;
   }
 }
 function __asyncValues(o) {
   if (!Symbol.asyncIterator)
     throw new TypeError("Symbol.asyncIterator is not defined.");
-  var m = o[Symbol.asyncIterator], i;
-  return m ? m.call(o) : (o = typeof __values === "function" ? __values(o) : o[Symbol.iterator](), i = {}, verb("next"), verb("throw"), verb("return"), i[Symbol.asyncIterator] = function() {
-    return this;
-  }, i);
+  var m = o[Symbol.asyncIterator],
+    i;
+  return m
+    ? m.call(o)
+    : ((o =
+        typeof __values === "function" ? __values(o) : o[Symbol.iterator]()),
+      (i = {}),
+      verb("next"),
+      verb("throw"),
+      verb("return"),
+      (i[Symbol.asyncIterator] = function () {
+        return this;
+      }),
+      i);
   function verb(n) {
-    i[n] = o[n] && function(v) {
-      return new Promise(function(resolve, reject) {
-        v = o[n](v), settle(resolve, reject, v.done, v.value);
-      });
-    };
+    i[n] =
+      o[n] &&
+      function (v) {
+        return new Promise(function (resolve, reject) {
+          (v = o[n](v)), settle(resolve, reject, v.done, v.value);
+        });
+      };
   }
   function settle(resolve, reject, d, v) {
-    Promise.resolve(v).then(function(v2) {
+    Promise.resolve(v).then(function (v2) {
       resolve({ value: v2, done: d });
     }, reject);
   }
@@ -151,38 +196,88 @@ function __asyncValues(o) {
 var init_tslib_es6 = () => {};
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/utf8.mjs
-var decoder, decodeUtf8 = (buffer) => decoder.decode(buffer), encoder, encodeUtf8 = (value) => encoder.encode(value);
+var decoder,
+  decodeUtf8 = (buffer) => decoder.decode(buffer),
+  encoder,
+  encodeUtf8 = (value) => encoder.encode(value);
 var init_utf8 = __esm(() => {
   decoder = new TextDecoder("utf-8");
-  encoder = new TextEncoder;
+  encoder = new TextEncoder();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/compat.mjs
-var isNumber = (x) => typeof x === "number", isBoolean = (x) => typeof x === "boolean", isFunction = (x) => typeof x === "function", isObject = (x) => x != null && Object(x) === x, isPromise = (x) => {
-  return isObject(x) && isFunction(x.then);
-}, isIterable = (x) => {
-  return isObject(x) && isFunction(x[Symbol.iterator]);
-}, isAsyncIterable = (x) => {
-  return isObject(x) && isFunction(x[Symbol.asyncIterator]);
-}, isArrowJSON = (x) => {
-  return isObject(x) && isObject(x["schema"]);
-}, isIteratorResult = (x) => {
-  return isObject(x) && "done" in x && "value" in x;
-}, isFileHandle = (x) => {
-  return isObject(x) && isFunction(x["stat"]) && isNumber(x["fd"]);
-}, isFetchResponse = (x) => {
-  return isObject(x) && isReadableDOMStream(x["body"]);
-}, isReadableInterop = (x) => ("_getDOMStream" in x) && ("_getNodeStream" in x), isWritableDOMStream = (x) => {
-  return isObject(x) && isFunction(x["abort"]) && isFunction(x["getWriter"]) && !isReadableInterop(x);
-}, isReadableDOMStream = (x) => {
-  return isObject(x) && isFunction(x["cancel"]) && isFunction(x["getReader"]) && !isReadableInterop(x);
-}, isWritableNodeStream = (x) => {
-  return isObject(x) && isFunction(x["end"]) && isFunction(x["write"]) && isBoolean(x["writable"]) && !isReadableInterop(x);
-}, isReadableNodeStream = (x) => {
-  return isObject(x) && isFunction(x["read"]) && isFunction(x["pipe"]) && isBoolean(x["readable"]) && !isReadableInterop(x);
-}, isFlatbuffersByteBuffer = (x) => {
-  return isObject(x) && isFunction(x["clear"]) && isFunction(x["bytes"]) && isFunction(x["position"]) && isFunction(x["setPosition"]) && isFunction(x["capacity"]) && isFunction(x["getBufferIdentifier"]) && isFunction(x["createLong"]);
-};
+var isNumber = (x) => typeof x === "number",
+  isBoolean = (x) => typeof x === "boolean",
+  isFunction = (x) => typeof x === "function",
+  isObject = (x) => x != null && Object(x) === x,
+  isPromise = (x) => {
+    return isObject(x) && isFunction(x.then);
+  },
+  isIterable = (x) => {
+    return isObject(x) && isFunction(x[Symbol.iterator]);
+  },
+  isAsyncIterable = (x) => {
+    return isObject(x) && isFunction(x[Symbol.asyncIterator]);
+  },
+  isArrowJSON = (x) => {
+    return isObject(x) && isObject(x["schema"]);
+  },
+  isIteratorResult = (x) => {
+    return isObject(x) && "done" in x && "value" in x;
+  },
+  isFileHandle = (x) => {
+    return isObject(x) && isFunction(x["stat"]) && isNumber(x["fd"]);
+  },
+  isFetchResponse = (x) => {
+    return isObject(x) && isReadableDOMStream(x["body"]);
+  },
+  isReadableInterop = (x) => "_getDOMStream" in x && "_getNodeStream" in x,
+  isWritableDOMStream = (x) => {
+    return (
+      isObject(x) &&
+      isFunction(x["abort"]) &&
+      isFunction(x["getWriter"]) &&
+      !isReadableInterop(x)
+    );
+  },
+  isReadableDOMStream = (x) => {
+    return (
+      isObject(x) &&
+      isFunction(x["cancel"]) &&
+      isFunction(x["getReader"]) &&
+      !isReadableInterop(x)
+    );
+  },
+  isWritableNodeStream = (x) => {
+    return (
+      isObject(x) &&
+      isFunction(x["end"]) &&
+      isFunction(x["write"]) &&
+      isBoolean(x["writable"]) &&
+      !isReadableInterop(x)
+    );
+  },
+  isReadableNodeStream = (x) => {
+    return (
+      isObject(x) &&
+      isFunction(x["read"]) &&
+      isFunction(x["pipe"]) &&
+      isBoolean(x["readable"]) &&
+      !isReadableInterop(x)
+    );
+  },
+  isFlatbuffersByteBuffer = (x) => {
+    return (
+      isObject(x) &&
+      isFunction(x["clear"]) &&
+      isFunction(x["bytes"]) &&
+      isFunction(x["position"]) &&
+      isFunction(x["setPosition"]) &&
+      isFunction(x["capacity"]) &&
+      isFunction(x["getBufferIdentifier"]) &&
+      isFunction(x["createLong"])
+    );
+  };
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/buffer.mjs
 var exports_buffer = {};
@@ -222,12 +317,12 @@ __export(exports_buffer, {
   rebaseValueOffsets: () => rebaseValueOffsets,
   memcpy: () => memcpy,
   joinUint8Arrays: () => joinUint8Arrays,
-  compareArrayLike: () => compareArrayLike
+  compareArrayLike: () => compareArrayLike,
 });
 function collapseContiguousByteRanges(chunks) {
   const result = chunks[0] ? [chunks[0]] : [];
   let xOffset, yOffset, xLen, yLen;
-  for (let x, y, i = 0, j = 0, n = chunks.length;++i < n; ) {
+  for (let x, y, i = 0, j = 0, n = chunks.length; ++i < n; ) {
     x = result[j];
     y = chunks[i];
     if (!x || !y || x.buffer !== y.buffer || y.byteOffset < x.byteOffset) {
@@ -244,10 +339,23 @@ function collapseContiguousByteRanges(chunks) {
   }
   return result;
 }
-function memcpy(target, source, targetByteOffset = 0, sourceByteLength = source.byteLength) {
+function memcpy(
+  target,
+  source,
+  targetByteOffset = 0,
+  sourceByteLength = source.byteLength,
+) {
   const targetByteLength = target.byteLength;
-  const dst = new Uint8Array(target.buffer, target.byteOffset, targetByteLength);
-  const src = new Uint8Array(source.buffer, source.byteOffset, Math.min(sourceByteLength, targetByteLength));
+  const dst = new Uint8Array(
+    target.buffer,
+    target.byteOffset,
+    targetByteLength,
+  );
+  const src = new Uint8Array(
+    source.buffer,
+    source.byteOffset,
+    Math.min(sourceByteLength, targetByteLength),
+  );
   dst.set(src, targetByteOffset);
   return target;
 }
@@ -255,9 +363,10 @@ function joinUint8Arrays(chunks, size) {
   const result = collapseContiguousByteRanges(chunks);
   const byteLength = result.reduce((x, b) => x + b.byteLength, 0);
   let source, sliced, buffer;
-  let offset = 0, index = -1;
+  let offset = 0,
+    index = -1;
   const length = Math.min(size || Number.POSITIVE_INFINITY, byteLength);
-  for (const n = result.length;++index < n; ) {
+  for (const n = result.length; ++index < n; ) {
     source = result[index];
     sliced = source.subarray(0, Math.min(source.length, length - offset));
     if (length <= offset + sliced.length) {
@@ -266,19 +375,27 @@ function joinUint8Arrays(chunks, size) {
       } else if (sliced.length === source.length) {
         index++;
       }
-      buffer ? memcpy(buffer, sliced, offset) : buffer = sliced;
+      buffer ? memcpy(buffer, sliced, offset) : (buffer = sliced);
       break;
     }
     memcpy(buffer || (buffer = new Uint8Array(length)), sliced, offset);
     offset += sliced.length;
   }
-  return [buffer || new Uint8Array(0), result.slice(index), byteLength - (buffer ? buffer.byteLength : 0)];
+  return [
+    buffer || new Uint8Array(0),
+    result.slice(index),
+    byteLength - (buffer ? buffer.byteLength : 0),
+  ];
 }
 function toArrayBufferView(ArrayBufferViewCtor, input) {
   let value = isIteratorResult(input) ? input.value : input;
   if (value instanceof ArrayBufferViewCtor) {
     if (ArrayBufferViewCtor === Uint8Array) {
-      return new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength);
+      return new ArrayBufferViewCtor(
+        value.buffer,
+        value.byteOffset,
+        value.byteLength,
+      );
     }
     return value;
   }
@@ -297,57 +414,130 @@ function toArrayBufferView(ArrayBufferViewCtor, input) {
   if (isFlatbuffersByteBuffer(value)) {
     return toArrayBufferView(ArrayBufferViewCtor, value.bytes());
   }
-  return !ArrayBuffer.isView(value) ? ArrayBufferViewCtor.from(value) : value.byteLength <= 0 ? new ArrayBufferViewCtor(0) : new ArrayBufferViewCtor(value.buffer, value.byteOffset, value.byteLength / ArrayBufferViewCtor.BYTES_PER_ELEMENT);
+  return !ArrayBuffer.isView(value)
+    ? ArrayBufferViewCtor.from(value)
+    : value.byteLength <= 0
+      ? new ArrayBufferViewCtor(0)
+      : new ArrayBufferViewCtor(
+          value.buffer,
+          value.byteOffset,
+          value.byteLength / ArrayBufferViewCtor.BYTES_PER_ELEMENT,
+        );
 }
 function* toArrayBufferViewIterator(ArrayCtor, source) {
   const wrap = function* (x) {
     yield x;
   };
-  const buffers = typeof source === "string" ? wrap(source) : ArrayBuffer.isView(source) ? wrap(source) : source instanceof ArrayBuffer ? wrap(source) : source instanceof SharedArrayBuf ? wrap(source) : !isIterable(source) ? wrap(source) : source;
-  yield* pump(function* (it) {
-    let r = null;
-    do {
-      r = it.next(yield toArrayBufferView(ArrayCtor, r));
-    } while (!r.done);
-  }(buffers[Symbol.iterator]()));
-  return new ArrayCtor;
+  const buffers =
+    typeof source === "string"
+      ? wrap(source)
+      : ArrayBuffer.isView(source)
+        ? wrap(source)
+        : source instanceof ArrayBuffer
+          ? wrap(source)
+          : source instanceof SharedArrayBuf
+            ? wrap(source)
+            : !isIterable(source)
+              ? wrap(source)
+              : source;
+  yield* pump(
+    (function* (it) {
+      let r = null;
+      do {
+        r = it.next(yield toArrayBufferView(ArrayCtor, r));
+      } while (!r.done);
+    })(buffers[Symbol.iterator]()),
+  );
+  return new ArrayCtor();
 }
 function toArrayBufferViewAsyncIterator(ArrayCtor, source) {
-  return __asyncGenerator(this, arguments, function* toArrayBufferViewAsyncIterator_1() {
-    if (isPromise(source)) {
-      return yield __await(yield __await(yield* __asyncDelegator(__asyncValues(toArrayBufferViewAsyncIterator(ArrayCtor, yield __await(source))))));
-    }
-    const wrap = function(x) {
-      return __asyncGenerator(this, arguments, function* () {
-        yield yield __await(yield __await(x));
-      });
-    };
-    const emit = function(source2) {
-      return __asyncGenerator(this, arguments, function* () {
-        yield __await(yield* __asyncDelegator(__asyncValues(pump(function* (it) {
-          let r = null;
-          do {
-            r = it.next(yield r === null || r === undefined ? undefined : r.value);
-          } while (!r.done);
-        }(source2[Symbol.iterator]())))));
-      });
-    };
-    const buffers = typeof source === "string" ? wrap(source) : ArrayBuffer.isView(source) ? wrap(source) : source instanceof ArrayBuffer ? wrap(source) : source instanceof SharedArrayBuf ? wrap(source) : isIterable(source) ? emit(source) : !isAsyncIterable(source) ? wrap(source) : source;
-    yield __await(yield* __asyncDelegator(__asyncValues(pump(function(it) {
-      return __asyncGenerator(this, arguments, function* () {
-        let r = null;
-        do {
-          r = yield __await(it.next(yield yield __await(toArrayBufferView(ArrayCtor, r))));
-        } while (!r.done);
-      });
-    }(buffers[Symbol.asyncIterator]())))));
-    return yield __await(new ArrayCtor);
-  });
+  return __asyncGenerator(
+    this,
+    arguments,
+    function* toArrayBufferViewAsyncIterator_1() {
+      if (isPromise(source)) {
+        return yield __await(
+          yield __await(
+            yield* __asyncDelegator(
+              __asyncValues(
+                toArrayBufferViewAsyncIterator(
+                  ArrayCtor,
+                  yield __await(source),
+                ),
+              ),
+            ),
+          ),
+        );
+      }
+      const wrap = function (x) {
+        return __asyncGenerator(this, arguments, function* () {
+          yield yield __await(yield __await(x));
+        });
+      };
+      const emit = function (source2) {
+        return __asyncGenerator(this, arguments, function* () {
+          yield __await(
+            yield* __asyncDelegator(
+              __asyncValues(
+                pump(
+                  (function* (it) {
+                    let r = null;
+                    do {
+                      r = it.next(
+                        yield r === null || r === undefined
+                          ? undefined
+                          : r.value,
+                      );
+                    } while (!r.done);
+                  })(source2[Symbol.iterator]()),
+                ),
+              ),
+            ),
+          );
+        });
+      };
+      const buffers =
+        typeof source === "string"
+          ? wrap(source)
+          : ArrayBuffer.isView(source)
+            ? wrap(source)
+            : source instanceof ArrayBuffer
+              ? wrap(source)
+              : source instanceof SharedArrayBuf
+                ? wrap(source)
+                : isIterable(source)
+                  ? emit(source)
+                  : !isAsyncIterable(source)
+                    ? wrap(source)
+                    : source;
+      yield __await(
+        yield* __asyncDelegator(
+          __asyncValues(
+            pump(
+              (function (it) {
+                return __asyncGenerator(this, arguments, function* () {
+                  let r = null;
+                  do {
+                    r = yield __await(
+                      it.next(
+                        yield yield __await(toArrayBufferView(ArrayCtor, r)),
+                      ),
+                    );
+                  } while (!r.done);
+                });
+              })(buffers[Symbol.asyncIterator]()),
+            ),
+          ),
+        ),
+      );
+      return yield __await(new ArrayCtor());
+    },
+  );
 }
 function rebaseValueOffsets(offset, length, valueOffsets) {
   if (offset !== 0) {
     valueOffsets = valueOffsets.slice(0, length);
-    for (let i = -1, n = valueOffsets.length;++i < n; ) {
+    for (let i = -1, n = valueOffsets.length; ++i < n; ) {
       valueOffsets[i] += offset;
     }
   }
@@ -368,21 +558,73 @@ function compareArrayLike(a, b) {
   }
   return true;
 }
-var SharedArrayBuf, toInt8Array = (input) => toArrayBufferView(Int8Array, input), toInt16Array = (input) => toArrayBufferView(Int16Array, input), toInt32Array = (input) => toArrayBufferView(Int32Array, input), toBigInt64Array = (input) => toArrayBufferView(BigInt64Array, input), toUint8Array = (input) => toArrayBufferView(Uint8Array, input), toUint16Array = (input) => toArrayBufferView(Uint16Array, input), toUint32Array = (input) => toArrayBufferView(Uint32Array, input), toBigUint64Array = (input) => toArrayBufferView(BigUint64Array, input), toFloat32Array = (input) => toArrayBufferView(Float32Array, input), toFloat64Array = (input) => toArrayBufferView(Float64Array, input), toUint8ClampedArray = (input) => toArrayBufferView(Uint8ClampedArray, input), pump = (iterator) => {
-  iterator.next();
-  return iterator;
-}, toInt8ArrayIterator = (input) => toArrayBufferViewIterator(Int8Array, input), toInt16ArrayIterator = (input) => toArrayBufferViewIterator(Int16Array, input), toInt32ArrayIterator = (input) => toArrayBufferViewIterator(Int32Array, input), toUint8ArrayIterator = (input) => toArrayBufferViewIterator(Uint8Array, input), toUint16ArrayIterator = (input) => toArrayBufferViewIterator(Uint16Array, input), toUint32ArrayIterator = (input) => toArrayBufferViewIterator(Uint32Array, input), toFloat32ArrayIterator = (input) => toArrayBufferViewIterator(Float32Array, input), toFloat64ArrayIterator = (input) => toArrayBufferViewIterator(Float64Array, input), toUint8ClampedArrayIterator = (input) => toArrayBufferViewIterator(Uint8ClampedArray, input), toInt8ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Int8Array, input), toInt16ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Int16Array, input), toInt32ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Int32Array, input), toUint8ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Uint8Array, input), toUint16ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Uint16Array, input), toUint32ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Uint32Array, input), toFloat32ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Float32Array, input), toFloat64ArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Float64Array, input), toUint8ClampedArrayAsyncIterator = (input) => toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
+var SharedArrayBuf,
+  toInt8Array = (input) => toArrayBufferView(Int8Array, input),
+  toInt16Array = (input) => toArrayBufferView(Int16Array, input),
+  toInt32Array = (input) => toArrayBufferView(Int32Array, input),
+  toBigInt64Array = (input) => toArrayBufferView(BigInt64Array, input),
+  toUint8Array = (input) => toArrayBufferView(Uint8Array, input),
+  toUint16Array = (input) => toArrayBufferView(Uint16Array, input),
+  toUint32Array = (input) => toArrayBufferView(Uint32Array, input),
+  toBigUint64Array = (input) => toArrayBufferView(BigUint64Array, input),
+  toFloat32Array = (input) => toArrayBufferView(Float32Array, input),
+  toFloat64Array = (input) => toArrayBufferView(Float64Array, input),
+  toUint8ClampedArray = (input) => toArrayBufferView(Uint8ClampedArray, input),
+  pump = (iterator) => {
+    iterator.next();
+    return iterator;
+  },
+  toInt8ArrayIterator = (input) => toArrayBufferViewIterator(Int8Array, input),
+  toInt16ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Int16Array, input),
+  toInt32ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Int32Array, input),
+  toUint8ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Uint8Array, input),
+  toUint16ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Uint16Array, input),
+  toUint32ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Uint32Array, input),
+  toFloat32ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Float32Array, input),
+  toFloat64ArrayIterator = (input) =>
+    toArrayBufferViewIterator(Float64Array, input),
+  toUint8ClampedArrayIterator = (input) =>
+    toArrayBufferViewIterator(Uint8ClampedArray, input),
+  toInt8ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Int8Array, input),
+  toInt16ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Int16Array, input),
+  toInt32ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Int32Array, input),
+  toUint8ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Uint8Array, input),
+  toUint16ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Uint16Array, input),
+  toUint32ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Uint32Array, input),
+  toFloat32ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Float32Array, input),
+  toFloat64ArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Float64Array, input),
+  toUint8ClampedArrayAsyncIterator = (input) =>
+    toArrayBufferViewAsyncIterator(Uint8ClampedArray, input);
 var init_buffer = __esm(() => {
   init_tslib_es6();
   init_utf8();
-  SharedArrayBuf = typeof SharedArrayBuffer !== "undefined" ? SharedArrayBuffer : ArrayBuffer;
+  SharedArrayBuf =
+    typeof SharedArrayBuffer !== "undefined" ? SharedArrayBuffer : ArrayBuffer;
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/io/adapters.mjs
 function* fromIterable(source) {
-  let done, threw = false;
-  let buffers = [], buffer;
-  let cmd, size, bufferLength = 0;
+  let done,
+    threw = false;
+  let buffers = [],
+    buffer;
+  let cmd,
+    size,
+    bufferLength = 0;
   function byteRange() {
     if (cmd === "peek") {
       return joinUint8Arrays(buffers, size)[0];
@@ -394,7 +636,9 @@ function* fromIterable(source) {
   const it = toUint8ArrayIterator(source)[Symbol.iterator]();
   try {
     do {
-      ({ done, value: buffer } = Number.isNaN(size - bufferLength) ? it.next() : it.next(size - bufferLength));
+      ({ done, value: buffer } = Number.isNaN(size - bufferLength)
+        ? it.next()
+        : it.next(size - bufferLength));
       if (!done && buffer.byteLength > 0) {
         buffers.push(buffer);
         bufferLength += buffer.byteLength;
@@ -414,9 +658,13 @@ function* fromIterable(source) {
 }
 function fromAsyncIterable(source) {
   return __asyncGenerator(this, arguments, function* fromAsyncIterable_1() {
-    let done, threw = false;
-    let buffers = [], buffer;
-    let cmd, size, bufferLength = 0;
+    let done,
+      threw = false;
+    let buffers = [],
+      buffer;
+    let cmd,
+      size,
+      bufferLength = 0;
     function byteRange() {
       if (cmd === "peek") {
         return joinUint8Arrays(buffers, size)[0];
@@ -424,11 +672,16 @@ function fromAsyncIterable(source) {
       [buffer, buffers, bufferLength] = joinUint8Arrays(buffers, size);
       return buffer;
     }
-    ({ cmd, size } = (yield yield __await((() => null)())) || { cmd: "read", size: 0 });
+    ({ cmd, size } = (yield yield __await((() => null)())) || {
+      cmd: "read",
+      size: 0,
+    });
     const it = toUint8ArrayAsyncIterator(source)[Symbol.asyncIterator]();
     try {
       do {
-        ({ done, value: buffer } = Number.isNaN(size - bufferLength) ? yield __await(it.next()) : yield __await(it.next(size - bufferLength)));
+        ({ done, value: buffer } = Number.isNaN(size - bufferLength)
+          ? yield __await(it.next())
+          : yield __await(it.next(size - bufferLength)));
         if (!done && buffer.byteLength > 0) {
           buffers.push(buffer);
           bufferLength += buffer.byteLength;
@@ -440,18 +693,26 @@ function fromAsyncIterable(source) {
         }
       } while (!done);
     } catch (e) {
-      (threw = true) && typeof it.throw === "function" && (yield __await(it.throw(e)));
+      (threw = true) &&
+        typeof it.throw === "function" &&
+        (yield __await(it.throw(e)));
     } finally {
-      threw === false && typeof it.return === "function" && (yield __await(it.return(new Uint8Array(0))));
+      threw === false &&
+        typeof it.return === "function" &&
+        (yield __await(it.return(new Uint8Array(0))));
     }
     return yield __await(null);
   });
 }
 function fromDOMStream(source) {
   return __asyncGenerator(this, arguments, function* fromDOMStream_1() {
-    let done = false, threw = false;
-    let buffers = [], buffer;
-    let cmd, size, bufferLength = 0;
+    let done = false,
+      threw = false;
+    let buffers = [],
+      buffer;
+    let cmd,
+      size,
+      bufferLength = 0;
     function byteRange() {
       if (cmd === "peek") {
         return joinUint8Arrays(buffers, size)[0];
@@ -459,11 +720,16 @@ function fromDOMStream(source) {
       [buffer, buffers, bufferLength] = joinUint8Arrays(buffers, size);
       return buffer;
     }
-    ({ cmd, size } = (yield yield __await((() => null)())) || { cmd: "read", size: 0 });
+    ({ cmd, size } = (yield yield __await((() => null)())) || {
+      cmd: "read",
+      size: 0,
+    });
     const it = new AdaptiveByteReader(source);
     try {
       do {
-        ({ done, value: buffer } = Number.isNaN(size - bufferLength) ? yield __await(it["read"]()) : yield __await(it["read"](size - bufferLength)));
+        ({ done, value: buffer } = Number.isNaN(size - bufferLength)
+          ? yield __await(it["read"]())
+          : yield __await(it["read"](size - bufferLength)));
         if (!done && buffer.byteLength > 0) {
           buffers.push(toUint8Array(buffer));
           bufferLength += buffer.byteLength;
@@ -477,7 +743,9 @@ function fromDOMStream(source) {
     } catch (e) {
       (threw = true) && (yield __await(it["cancel"](e)));
     } finally {
-      threw === false ? yield __await(it["cancel"]()) : source["locked"] && it.releaseLock();
+      threw === false
+        ? yield __await(it["cancel"]())
+        : source["locked"] && it.releaseLock();
     }
     return yield __await(null);
   });
@@ -491,7 +759,9 @@ class AdaptiveByteReader {
     this.reader["closed"].catch(() => {});
   }
   get closed() {
-    return this.reader ? this.reader["closed"].catch(() => {}) : Promise.resolve();
+    return this.reader
+      ? this.reader["closed"].catch(() => {})
+      : Promise.resolve();
   }
   releaseLock() {
     if (this.reader) {
@@ -503,7 +773,7 @@ class AdaptiveByteReader {
     return __awaiter(this, undefined, undefined, function* () {
       const { reader, source } = this;
       reader && (yield reader["cancel"](reason).catch(() => {}));
-      source && (source["locked"] && this.releaseLock());
+      source && source["locked"] && this.releaseLock();
     });
   }
   read(size) {
@@ -521,9 +791,13 @@ function fromNodeStream(stream) {
   return __asyncGenerator(this, arguments, function* fromNodeStream_1() {
     const events = [];
     let event = "error";
-    let done = false, err = null;
-    let cmd, size, bufferLength = 0;
-    let buffers = [], buffer;
+    let done = false,
+      err = null;
+    let cmd,
+      size,
+      bufferLength = 0;
+    let buffers = [],
+      buffer;
     function byteRange() {
       if (cmd === "peek") {
         return joinUint8Arrays(buffers, size)[0];
@@ -531,7 +805,10 @@ function fromNodeStream(stream) {
       [buffer, buffers, bufferLength] = joinUint8Arrays(buffers, size);
       return buffer;
     }
-    ({ cmd, size } = (yield yield __await((() => null)())) || { cmd: "read", size: 0 });
+    ({ cmd, size } = (yield yield __await((() => null)())) || {
+      cmd: "read",
+      size: 0,
+    });
     if (stream["isTTY"]) {
       yield yield __await(new Uint8Array(0));
       return yield __await(null);
@@ -588,14 +865,20 @@ function fromNodeStream(stream) {
     }
   });
 }
-var adapters_default, pump2 = (iterator) => {
-  iterator.next();
-  return iterator;
-}, onEvent = (stream, event) => {
-  const handler = (_) => resolve([event, _]);
-  let resolve;
-  return [event, handler, new Promise((r) => (resolve = r) && stream["once"](event, handler))];
-};
+var adapters_default,
+  pump2 = (iterator) => {
+    iterator.next();
+    return iterator;
+  },
+  onEvent = (stream, event) => {
+    const handler = (_) => resolve([event, _]);
+    let resolve;
+    return [
+      event,
+      handler,
+      new Promise((r) => (resolve = r) && stream["once"](event, handler)),
+    ];
+  };
 var init_adapters = __esm(() => {
   init_tslib_es6();
   init_buffer();
@@ -617,73 +900,76 @@ var init_adapters = __esm(() => {
     },
     toNodeStream(source, options) {
       throw new Error(`"toNodeStream" not available in this environment`);
-    }
+    },
   };
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/metadata-version.mjs
 var MetadataVersion;
 var init_metadata_version = __esm(() => {
-  (function(MetadataVersion2) {
-    MetadataVersion2[MetadataVersion2["V1"] = 0] = "V1";
-    MetadataVersion2[MetadataVersion2["V2"] = 1] = "V2";
-    MetadataVersion2[MetadataVersion2["V3"] = 2] = "V3";
-    MetadataVersion2[MetadataVersion2["V4"] = 3] = "V4";
-    MetadataVersion2[MetadataVersion2["V5"] = 4] = "V5";
+  (function (MetadataVersion2) {
+    MetadataVersion2[(MetadataVersion2["V1"] = 0)] = "V1";
+    MetadataVersion2[(MetadataVersion2["V2"] = 1)] = "V2";
+    MetadataVersion2[(MetadataVersion2["V3"] = 2)] = "V3";
+    MetadataVersion2[(MetadataVersion2["V4"] = 3)] = "V4";
+    MetadataVersion2[(MetadataVersion2["V5"] = 4)] = "V5";
   })(MetadataVersion || (MetadataVersion = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/union-mode.mjs
 var UnionMode;
 var init_union_mode = __esm(() => {
-  (function(UnionMode2) {
-    UnionMode2[UnionMode2["Sparse"] = 0] = "Sparse";
-    UnionMode2[UnionMode2["Dense"] = 1] = "Dense";
+  (function (UnionMode2) {
+    UnionMode2[(UnionMode2["Sparse"] = 0)] = "Sparse";
+    UnionMode2[(UnionMode2["Dense"] = 1)] = "Dense";
   })(UnionMode || (UnionMode = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/precision.mjs
 var Precision;
 var init_precision = __esm(() => {
-  (function(Precision2) {
-    Precision2[Precision2["HALF"] = 0] = "HALF";
-    Precision2[Precision2["SINGLE"] = 1] = "SINGLE";
-    Precision2[Precision2["DOUBLE"] = 2] = "DOUBLE";
+  (function (Precision2) {
+    Precision2[(Precision2["HALF"] = 0)] = "HALF";
+    Precision2[(Precision2["SINGLE"] = 1)] = "SINGLE";
+    Precision2[(Precision2["DOUBLE"] = 2)] = "DOUBLE";
   })(Precision || (Precision = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/date-unit.mjs
 var DateUnit;
 var init_date_unit = __esm(() => {
-  (function(DateUnit2) {
-    DateUnit2[DateUnit2["DAY"] = 0] = "DAY";
-    DateUnit2[DateUnit2["MILLISECOND"] = 1] = "MILLISECOND";
+  (function (DateUnit2) {
+    DateUnit2[(DateUnit2["DAY"] = 0)] = "DAY";
+    DateUnit2[(DateUnit2["MILLISECOND"] = 1)] = "MILLISECOND";
   })(DateUnit || (DateUnit = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/time-unit.mjs
 var TimeUnit;
 var init_time_unit = __esm(() => {
-  (function(TimeUnit2) {
-    TimeUnit2[TimeUnit2["SECOND"] = 0] = "SECOND";
-    TimeUnit2[TimeUnit2["MILLISECOND"] = 1] = "MILLISECOND";
-    TimeUnit2[TimeUnit2["MICROSECOND"] = 2] = "MICROSECOND";
-    TimeUnit2[TimeUnit2["NANOSECOND"] = 3] = "NANOSECOND";
+  (function (TimeUnit2) {
+    TimeUnit2[(TimeUnit2["SECOND"] = 0)] = "SECOND";
+    TimeUnit2[(TimeUnit2["MILLISECOND"] = 1)] = "MILLISECOND";
+    TimeUnit2[(TimeUnit2["MICROSECOND"] = 2)] = "MICROSECOND";
+    TimeUnit2[(TimeUnit2["NANOSECOND"] = 3)] = "NANOSECOND";
   })(TimeUnit || (TimeUnit = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/interval-unit.mjs
 var IntervalUnit;
 var init_interval_unit = __esm(() => {
-  (function(IntervalUnit2) {
-    IntervalUnit2[IntervalUnit2["YEAR_MONTH"] = 0] = "YEAR_MONTH";
-    IntervalUnit2[IntervalUnit2["DAY_TIME"] = 1] = "DAY_TIME";
-    IntervalUnit2[IntervalUnit2["MONTH_DAY_NANO"] = 2] = "MONTH_DAY_NANO";
+  (function (IntervalUnit2) {
+    IntervalUnit2[(IntervalUnit2["YEAR_MONTH"] = 0)] = "YEAR_MONTH";
+    IntervalUnit2[(IntervalUnit2["DAY_TIME"] = 1)] = "DAY_TIME";
+    IntervalUnit2[(IntervalUnit2["MONTH_DAY_NANO"] = 2)] = "MONTH_DAY_NANO";
   })(IntervalUnit || (IntervalUnit = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/node_modules/flatbuffers/mjs/constants.js
-var SIZEOF_SHORT = 2, SIZEOF_INT = 4, FILE_IDENTIFIER_LENGTH = 4, SIZE_PREFIX_LENGTH = 4;
+var SIZEOF_SHORT = 2,
+  SIZEOF_INT = 4,
+  FILE_IDENTIFIER_LENGTH = 4,
+  SIZE_PREFIX_LENGTH = 4;
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/node_modules/flatbuffers/mjs/utils.js
 var int32, float32, float64, isLittleEndian;
@@ -697,9 +983,9 @@ var init_utils = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/node_modules/flatbuffers/mjs/encoding.js
 var Encoding;
 var init_encoding = __esm(() => {
-  (function(Encoding2) {
-    Encoding2[Encoding2["UTF8_BYTES"] = 1] = "UTF8_BYTES";
-    Encoding2[Encoding2["UTF16_STRING"] = 2] = "UTF16_STRING";
+  (function (Encoding2) {
+    Encoding2[(Encoding2["UTF8_BYTES"] = 1)] = "UTF8_BYTES";
+    Encoding2[(Encoding2["UTF16_STRING"] = 2)] = "UTF16_STRING";
   })(Encoding || (Encoding = {}));
 });
 
@@ -708,7 +994,7 @@ class ByteBuffer {
   constructor(bytes_) {
     this.bytes_ = bytes_;
     this.position_ = 0;
-    this.text_decoder_ = new TextDecoder;
+    this.text_decoder_ = new TextDecoder();
   }
   static allocate(byte_size) {
     return new ByteBuffer(new Uint8Array(byte_size));
@@ -729,28 +1015,41 @@ class ByteBuffer {
     return this.bytes_.length;
   }
   readInt8(offset) {
-    return this.readUint8(offset) << 24 >> 24;
+    return (this.readUint8(offset) << 24) >> 24;
   }
   readUint8(offset) {
     return this.bytes_[offset];
   }
   readInt16(offset) {
-    return this.readUint16(offset) << 16 >> 16;
+    return (this.readUint16(offset) << 16) >> 16;
   }
   readUint16(offset) {
-    return this.bytes_[offset] | this.bytes_[offset + 1] << 8;
+    return this.bytes_[offset] | (this.bytes_[offset + 1] << 8);
   }
   readInt32(offset) {
-    return this.bytes_[offset] | this.bytes_[offset + 1] << 8 | this.bytes_[offset + 2] << 16 | this.bytes_[offset + 3] << 24;
+    return (
+      this.bytes_[offset] |
+      (this.bytes_[offset + 1] << 8) |
+      (this.bytes_[offset + 2] << 16) |
+      (this.bytes_[offset + 3] << 24)
+    );
   }
   readUint32(offset) {
     return this.readInt32(offset) >>> 0;
   }
   readInt64(offset) {
-    return BigInt.asIntN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    return BigInt.asIntN(
+      64,
+      BigInt(this.readUint32(offset)) +
+        (BigInt(this.readUint32(offset + 4)) << BigInt(32)),
+    );
   }
   readUint64(offset) {
-    return BigInt.asUintN(64, BigInt(this.readUint32(offset)) + (BigInt(this.readUint32(offset + 4)) << BigInt(32)));
+    return BigInt.asUintN(
+      64,
+      BigInt(this.readUint32(offset)) +
+        (BigInt(this.readUint32(offset + 4)) << BigInt(32)),
+    );
   }
   readFloat32(offset) {
     int32[0] = this.readInt32(offset);
@@ -793,7 +1092,10 @@ class ByteBuffer {
   }
   writeUint64(offset, value) {
     this.writeUint32(offset, Number(BigInt.asUintN(32, value)));
-    this.writeUint32(offset + 4, Number(BigInt.asUintN(32, value >> BigInt(32))));
+    this.writeUint32(
+      offset + 4,
+      Number(BigInt.asUintN(32, value >> BigInt(32))),
+    );
   }
   writeFloat32(offset, value) {
     float32[0] = value;
@@ -805,18 +1107,27 @@ class ByteBuffer {
     this.writeInt32(offset + 4, int32[isLittleEndian ? 1 : 0]);
   }
   getBufferIdentifier() {
-    if (this.bytes_.length < this.position_ + SIZEOF_INT + FILE_IDENTIFIER_LENGTH) {
-      throw new Error("FlatBuffers: ByteBuffer is too short to contain an identifier.");
+    if (
+      this.bytes_.length <
+      this.position_ + SIZEOF_INT + FILE_IDENTIFIER_LENGTH
+    ) {
+      throw new Error(
+        "FlatBuffers: ByteBuffer is too short to contain an identifier.",
+      );
     }
     let result = "";
-    for (let i = 0;i < FILE_IDENTIFIER_LENGTH; i++) {
-      result += String.fromCharCode(this.readInt8(this.position_ + SIZEOF_INT + i));
+    for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+      result += String.fromCharCode(
+        this.readInt8(this.position_ + SIZEOF_INT + i),
+      );
     }
     return result;
   }
   __offset(bb_pos, vtable_offset) {
     const vtable = bb_pos - this.readInt32(bb_pos);
-    return vtable_offset < this.readInt16(vtable) ? this.readInt16(vtable + vtable_offset) : 0;
+    return vtable_offset < this.readInt16(vtable)
+      ? this.readInt16(vtable + vtable_offset)
+      : 0;
   }
   __union(t, offset) {
     t.bb_pos = offset + this.readInt32(offset);
@@ -828,10 +1139,8 @@ class ByteBuffer {
     const length = this.readInt32(offset);
     offset += SIZEOF_INT;
     const utf8bytes = this.bytes_.subarray(offset, offset + length);
-    if (opt_encoding === Encoding.UTF8_BYTES)
-      return utf8bytes;
-    else
-      return this.text_decoder_.decode(utf8bytes);
+    if (opt_encoding === Encoding.UTF8_BYTES) return utf8bytes;
+    else return this.text_decoder_.decode(utf8bytes);
   }
   __union_with_string(o, offset) {
     if (typeof o === "string") {
@@ -850,10 +1159,14 @@ class ByteBuffer {
   }
   __has_identifier(ident) {
     if (ident.length != FILE_IDENTIFIER_LENGTH) {
-      throw new Error("FlatBuffers: file identifier must be length " + FILE_IDENTIFIER_LENGTH);
+      throw new Error(
+        "FlatBuffers: file identifier must be length " + FILE_IDENTIFIER_LENGTH,
+      );
     }
-    for (let i = 0;i < FILE_IDENTIFIER_LENGTH; i++) {
-      if (ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)) {
+    for (let i = 0; i < FILE_IDENTIFIER_LENGTH; i++) {
+      if (
+        ident.charCodeAt(i) != this.readInt8(this.position() + SIZEOF_INT + i)
+      ) {
         return false;
       }
     }
@@ -861,7 +1174,7 @@ class ByteBuffer {
   }
   createScalarList(listAccessor, listLength) {
     const ret = [];
-    for (let i = 0;i < listLength; ++i) {
+    for (let i = 0; i < listLength; ++i) {
       const val = listAccessor(i);
       if (val !== null) {
         ret.push(val);
@@ -871,7 +1184,7 @@ class ByteBuffer {
   }
   createObjList(listAccessor, listLength) {
     const ret = [];
-    for (let i = 0;i < listLength; ++i) {
+    for (let i = 0; i < listLength; ++i) {
       const val = listAccessor(i);
       if (val !== null) {
         ret.push(val.unpack());
@@ -897,7 +1210,7 @@ class Builder {
     this.vector_num_elems = 0;
     this.force_defaults = false;
     this.string_maps = null;
-    this.text_encoder = new TextEncoder;
+    this.text_encoder = new TextEncoder();
     let initial_size;
     if (!opt_initial_size) {
       initial_size = 1024;
@@ -927,13 +1240,16 @@ class Builder {
     return this.bb;
   }
   asUint8Array() {
-    return this.bb.bytes().subarray(this.bb.position(), this.bb.position() + this.offset());
+    return this.bb
+      .bytes()
+      .subarray(this.bb.position(), this.bb.position() + this.offset());
   }
   prep(size, additional_bytes) {
     if (size > this.minalign) {
       this.minalign = size;
     }
-    const align_size = ~(this.bb.capacity() - this.space + additional_bytes) + 1 & size - 1;
+    const align_size =
+      (~(this.bb.capacity() - this.space + additional_bytes) + 1) & (size - 1);
     while (this.space < align_size + size + additional_bytes) {
       const old_buf_size = this.bb.capacity();
       this.bb = Builder.growByteBuffer(this.bb);
@@ -942,27 +1258,27 @@ class Builder {
     this.pad(align_size);
   }
   pad(byte_size) {
-    for (let i = 0;i < byte_size; i++) {
+    for (let i = 0; i < byte_size; i++) {
       this.bb.writeInt8(--this.space, 0);
     }
   }
   writeInt8(value) {
-    this.bb.writeInt8(this.space -= 1, value);
+    this.bb.writeInt8((this.space -= 1), value);
   }
   writeInt16(value) {
-    this.bb.writeInt16(this.space -= 2, value);
+    this.bb.writeInt16((this.space -= 2), value);
   }
   writeInt32(value) {
-    this.bb.writeInt32(this.space -= 4, value);
+    this.bb.writeInt32((this.space -= 4), value);
   }
   writeInt64(value) {
-    this.bb.writeInt64(this.space -= 8, value);
+    this.bb.writeInt64((this.space -= 8), value);
   }
   writeFloat32(value) {
-    this.bb.writeFloat32(this.space -= 4, value);
+    this.bb.writeFloat32((this.space -= 4), value);
   }
   writeFloat64(value) {
-    this.bb.writeFloat64(this.space -= 8, value);
+    this.bb.writeFloat64((this.space -= 8), value);
   }
   addInt8(value) {
     this.prep(1, 0);
@@ -1043,12 +1359,13 @@ class Builder {
   }
   notNested() {
     if (this.isNested) {
-      throw new TypeError("FlatBuffers: object serialization must not be nested.");
+      throw new TypeError(
+        "FlatBuffers: object serialization must not be nested.",
+      );
     }
   }
   slot(voffset) {
-    if (this.vtable !== null)
-      this.vtable[voffset] = this.offset();
+    if (this.vtable !== null) this.vtable[voffset] = this.offset();
   }
   offset() {
     return this.bb.capacity() - this.space;
@@ -1074,7 +1391,7 @@ class Builder {
       this.vtable = [];
     }
     this.vtable_in_use = numfields;
-    for (let i = 0;i < numfields; i++) {
+    for (let i = 0; i < numfields; i++) {
       this.vtable[i] = 0;
     }
     this.isNested = true;
@@ -1087,9 +1404,9 @@ class Builder {
     this.addInt32(0);
     const vtableloc = this.offset();
     let i = this.vtable_in_use - 1;
-    for (;i >= 0 && this.vtable[i] == 0; i--) {}
+    for (; i >= 0 && this.vtable[i] == 0; i--) {}
     const trimmed_size = i + 1;
-    for (;i >= 0; i--) {
+    for (; i >= 0; i--) {
       this.addInt16(this.vtable[i] != 0 ? vtableloc - this.vtable[i] : 0);
     }
     const standard_fields = 2;
@@ -1098,25 +1415,27 @@ class Builder {
     this.addInt16(len);
     let existing_vtable = 0;
     const vt1 = this.space;
-    outer_loop:
-      for (i = 0;i < this.vtables.length; i++) {
-        const vt2 = this.bb.capacity() - this.vtables[i];
-        if (len == this.bb.readInt16(vt2)) {
-          for (let j = SIZEOF_SHORT;j < len; j += SIZEOF_SHORT) {
-            if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
-              continue outer_loop;
-            }
+    outer_loop: for (i = 0; i < this.vtables.length; i++) {
+      const vt2 = this.bb.capacity() - this.vtables[i];
+      if (len == this.bb.readInt16(vt2)) {
+        for (let j = SIZEOF_SHORT; j < len; j += SIZEOF_SHORT) {
+          if (this.bb.readInt16(vt1 + j) != this.bb.readInt16(vt2 + j)) {
+            continue outer_loop;
           }
-          existing_vtable = this.vtables[i];
-          break;
         }
+        existing_vtable = this.vtables[i];
+        break;
       }
+    }
     if (existing_vtable) {
       this.space = this.bb.capacity() - vtableloc;
       this.bb.writeInt32(this.space, existing_vtable - vtableloc);
     } else {
       this.vtables.push(this.offset());
-      this.bb.writeInt32(this.bb.capacity() - vtableloc, this.offset() - vtableloc);
+      this.bb.writeInt32(
+        this.bb.capacity() - vtableloc,
+        this.offset() - vtableloc,
+      );
     }
     this.isNested = false;
     return vtableloc;
@@ -1125,11 +1444,17 @@ class Builder {
     const size_prefix = opt_size_prefix ? SIZE_PREFIX_LENGTH : 0;
     if (opt_file_identifier) {
       const file_identifier = opt_file_identifier;
-      this.prep(this.minalign, SIZEOF_INT + FILE_IDENTIFIER_LENGTH + size_prefix);
+      this.prep(
+        this.minalign,
+        SIZEOF_INT + FILE_IDENTIFIER_LENGTH + size_prefix,
+      );
       if (file_identifier.length != FILE_IDENTIFIER_LENGTH) {
-        throw new TypeError("FlatBuffers: file identifier must be length " + FILE_IDENTIFIER_LENGTH);
+        throw new TypeError(
+          "FlatBuffers: file identifier must be length " +
+            FILE_IDENTIFIER_LENGTH,
+        );
       }
-      for (let i = FILE_IDENTIFIER_LENGTH - 1;i >= 0; i--) {
+      for (let i = FILE_IDENTIFIER_LENGTH - 1; i >= 0; i--) {
         this.writeInt8(file_identifier.charCodeAt(i));
       }
     }
@@ -1146,7 +1471,9 @@ class Builder {
   requiredField(table, field) {
     const table_start = this.bb.capacity() - table;
     const vtable_start = table_start - this.bb.readInt32(table_start);
-    const ok = field < this.bb.readInt16(vtable_start) && this.bb.readInt16(vtable_start + field) != 0;
+    const ok =
+      field < this.bb.readInt16(vtable_start) &&
+      this.bb.readInt16(vtable_start + field) != 0;
     if (!ok) {
       throw new TypeError("FlatBuffers: field " + field + " must be set");
     }
@@ -1166,7 +1493,7 @@ class Builder {
       return 0;
     }
     if (!this.string_maps) {
-      this.string_maps = new Map;
+      this.string_maps = new Map();
     }
     if (this.string_maps.has(s)) {
       return this.string_maps.get(s);
@@ -1187,7 +1514,7 @@ class Builder {
     }
     this.addInt8(0);
     this.startVector(1, utf8.length, 1);
-    this.bb.setPosition(this.space -= utf8.length);
+    this.bb.setPosition((this.space -= utf8.length));
     this.bb.bytes().set(utf8, this.space);
     return this.endVector();
   }
@@ -1196,7 +1523,7 @@ class Builder {
       return 0;
     }
     this.startVector(1, v.length, 1);
-    this.bb.setPosition(this.space -= v.length);
+    this.bb.setPosition((this.space -= v.length));
     this.bb.bytes().set(v, this.space);
     return this.endVector();
   }
@@ -1212,12 +1539,14 @@ class Builder {
   }
   createObjectOffsetList(list) {
     const ret = [];
-    for (let i = 0;i < list.length; ++i) {
+    for (let i = 0; i < list.length; ++i) {
       const val = list[i];
       if (val !== null) {
         ret.push(this.createObjectOffset(val));
       } else {
-        throw new TypeError("FlatBuffers: Argument for createObjectOffsetList cannot contain null.");
+        throw new TypeError(
+          "FlatBuffers: Argument for createObjectOffsetList cannot contain null.",
+        );
       }
     }
     return ret;
@@ -1243,17 +1572,17 @@ var init_flatbuffers = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/body-compression-method.mjs
 var BodyCompressionMethod;
 var init_body_compression_method = __esm(() => {
-  (function(BodyCompressionMethod2) {
-    BodyCompressionMethod2[BodyCompressionMethod2["BUFFER"] = 0] = "BUFFER";
+  (function (BodyCompressionMethod2) {
+    BodyCompressionMethod2[(BodyCompressionMethod2["BUFFER"] = 0)] = "BUFFER";
   })(BodyCompressionMethod || (BodyCompressionMethod = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/compression-type.mjs
 var CompressionType;
 var init_compression_type = __esm(() => {
-  (function(CompressionType2) {
-    CompressionType2[CompressionType2["LZ4_FRAME"] = 0] = "LZ4_FRAME";
-    CompressionType2[CompressionType2["ZSTD"] = 1] = "ZSTD";
+  (function (CompressionType2) {
+    CompressionType2[(CompressionType2["LZ4_FRAME"] = 0)] = "LZ4_FRAME";
+    CompressionType2[(CompressionType2["ZSTD"] = 1)] = "ZSTD";
   })(CompressionType || (CompressionType = {}));
 });
 
@@ -1269,19 +1598,29 @@ class BodyCompression {
     return this;
   }
   static getRootAsBodyCompression(bb, obj) {
-    return (obj || new BodyCompression).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new BodyCompression()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsBodyCompression(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new BodyCompression).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new BodyCompression()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   codec() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt8(this.bb_pos + offset) : CompressionType.LZ4_FRAME;
+    return offset
+      ? this.bb.readInt8(this.bb_pos + offset)
+      : CompressionType.LZ4_FRAME;
   }
   method() {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? this.bb.readInt8(this.bb_pos + offset) : BodyCompressionMethod.BUFFER;
+    return offset
+      ? this.bb.readInt8(this.bb_pos + offset)
+      : BodyCompressionMethod.BUFFER;
   }
   static startBodyCompression(builder) {
     builder.startObject(2);
@@ -1331,8 +1670,12 @@ class Buffer {
   }
   static createBuffer(builder, offset, length) {
     builder.prep(8, 16);
-    builder.writeInt64(BigInt(length !== null && length !== undefined ? length : 0));
-    builder.writeInt64(BigInt(offset !== null && offset !== undefined ? offset : 0));
+    builder.writeInt64(
+      BigInt(length !== null && length !== undefined ? length : 0),
+    );
+    builder.writeInt64(
+      BigInt(offset !== null && offset !== undefined ? offset : 0),
+    );
     return builder.offset();
   }
 }
@@ -1359,8 +1702,12 @@ class FieldNode {
   }
   static createFieldNode(builder, length, null_count) {
     builder.prep(8, 16);
-    builder.writeInt64(BigInt(null_count !== null && null_count !== undefined ? null_count : 0));
-    builder.writeInt64(BigInt(length !== null && length !== undefined ? length : 0));
+    builder.writeInt64(
+      BigInt(null_count !== null && null_count !== undefined ? null_count : 0),
+    );
+    builder.writeInt64(
+      BigInt(length !== null && length !== undefined ? length : 0),
+    );
     return builder.offset();
   }
 }
@@ -1377,11 +1724,17 @@ class RecordBatch {
     return this;
   }
   static getRootAsRecordBatch(bb, obj) {
-    return (obj || new RecordBatch).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new RecordBatch()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsRecordBatch(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new RecordBatch).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new RecordBatch()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   length() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1389,7 +1742,12 @@ class RecordBatch {
   }
   nodes(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? (obj || new FieldNode).__init(this.bb.__vector(this.bb_pos + offset) + index * 16, this.bb) : null;
+    return offset
+      ? (obj || new FieldNode()).__init(
+          this.bb.__vector(this.bb_pos + offset) + index * 16,
+          this.bb,
+        )
+      : null;
   }
   nodesLength() {
     const offset = this.bb.__offset(this.bb_pos, 6);
@@ -1397,7 +1755,12 @@ class RecordBatch {
   }
   buffers(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 8);
-    return offset ? (obj || new Buffer).__init(this.bb.__vector(this.bb_pos + offset) + index * 16, this.bb) : null;
+    return offset
+      ? (obj || new Buffer()).__init(
+          this.bb.__vector(this.bb_pos + offset) + index * 16,
+          this.bb,
+        )
+      : null;
   }
   buffersLength() {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -1405,7 +1768,12 @@ class RecordBatch {
   }
   compression(obj) {
     const offset = this.bb.__offset(this.bb_pos, 10);
-    return offset ? (obj || new BodyCompression).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    return offset
+      ? (obj || new BodyCompression()).__init(
+          this.bb.__indirect(this.bb_pos + offset),
+          this.bb,
+        )
+      : null;
   }
   static startRecordBatch(builder) {
     builder.startObject(4);
@@ -1450,11 +1818,17 @@ class DictionaryBatch {
     return this;
   }
   static getRootAsDictionaryBatch(bb, obj) {
-    return (obj || new DictionaryBatch).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new DictionaryBatch()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsDictionaryBatch(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new DictionaryBatch).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new DictionaryBatch()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   id() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1462,7 +1836,12 @@ class DictionaryBatch {
   }
   data(obj) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? (obj || new RecordBatch).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    return offset
+      ? (obj || new RecordBatch()).__init(
+          this.bb.__indirect(this.bb_pos + offset),
+          this.bb,
+        )
+      : null;
   }
   isDelta() {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -1493,17 +1872,17 @@ var init_dictionary_batch = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/endianness.mjs
 var Endianness;
 var init_endianness = __esm(() => {
-  (function(Endianness2) {
-    Endianness2[Endianness2["Little"] = 0] = "Little";
-    Endianness2[Endianness2["Big"] = 1] = "Big";
+  (function (Endianness2) {
+    Endianness2[(Endianness2["Little"] = 0)] = "Little";
+    Endianness2[(Endianness2["Big"] = 1)] = "Big";
   })(Endianness || (Endianness = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/dictionary-kind.mjs
 var DictionaryKind;
 var init_dictionary_kind = __esm(() => {
-  (function(DictionaryKind2) {
-    DictionaryKind2[DictionaryKind2["DenseArray"] = 0] = "DenseArray";
+  (function (DictionaryKind2) {
+    DictionaryKind2[(DictionaryKind2["DenseArray"] = 0)] = "DenseArray";
   })(DictionaryKind || (DictionaryKind = {}));
 });
 
@@ -1519,11 +1898,17 @@ class Int {
     return this;
   }
   static getRootAsInt(bb, obj) {
-    return (obj || new Int).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Int()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsInt(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Int).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Int()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   bitWidth() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1569,11 +1954,17 @@ class DictionaryEncoding {
     return this;
   }
   static getRootAsDictionaryEncoding(bb, obj) {
-    return (obj || new DictionaryEncoding).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new DictionaryEncoding()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsDictionaryEncoding(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new DictionaryEncoding).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new DictionaryEncoding()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   id() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1581,7 +1972,12 @@ class DictionaryEncoding {
   }
   indexType(obj) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? (obj || new Int).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    return offset
+      ? (obj || new Int()).__init(
+          this.bb.__indirect(this.bb_pos + offset),
+          this.bb,
+        )
+      : null;
   }
   isOrdered() {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -1589,7 +1985,9 @@ class DictionaryEncoding {
   }
   dictionaryKind() {
     const offset = this.bb.__offset(this.bb_pos, 10);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : DictionaryKind.DenseArray;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : DictionaryKind.DenseArray;
   }
   static startDictionaryEncoding(builder) {
     builder.startObject(4);
@@ -1629,19 +2027,29 @@ class KeyValue {
     return this;
   }
   static getRootAsKeyValue(bb, obj) {
-    return (obj || new KeyValue).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new KeyValue()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsKeyValue(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new KeyValue).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new KeyValue()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   key(optionalEncoding) {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    return offset
+      ? this.bb.__string(this.bb_pos + offset, optionalEncoding)
+      : null;
   }
   value(optionalEncoding) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    return offset
+      ? this.bb.__string(this.bb_pos + offset, optionalEncoding)
+      : null;
   }
   static startKeyValue(builder) {
     builder.startObject(2);
@@ -1679,11 +2087,17 @@ class Binary {
     return this;
   }
   static getRootAsBinary(bb, obj) {
-    return (obj || new Binary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Binary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsBinary(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Binary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Binary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startBinary(builder) {
     builder.startObject(0);
@@ -1713,11 +2127,17 @@ class Bool {
     return this;
   }
   static getRootAsBool(bb, obj) {
-    return (obj || new Bool).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Bool()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsBool(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Bool).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Bool()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startBool(builder) {
     builder.startObject(0);
@@ -1747,15 +2167,23 @@ class Date2 {
     return this;
   }
   static getRootAsDate(bb, obj) {
-    return (obj || new Date2).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Date2()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsDate(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Date2).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Date2()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   unit() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : DateUnit.MILLISECOND;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : DateUnit.MILLISECOND;
   }
   static startDate(builder) {
     builder.startObject(1);
@@ -1790,11 +2218,17 @@ class Decimal {
     return this;
   }
   static getRootAsDecimal(bb, obj) {
-    return (obj || new Decimal).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Decimal()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsDecimal(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Decimal).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Decimal()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   precision() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1848,15 +2282,23 @@ class Duration {
     return this;
   }
   static getRootAsDuration(bb, obj) {
-    return (obj || new Duration).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Duration()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsDuration(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Duration).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Duration()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   unit() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : TimeUnit.MILLISECOND;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : TimeUnit.MILLISECOND;
   }
   static startDuration(builder) {
     builder.startObject(1);
@@ -1891,11 +2333,17 @@ class FixedSizeBinary {
     return this;
   }
   static getRootAsFixedSizeBinary(bb, obj) {
-    return (obj || new FixedSizeBinary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FixedSizeBinary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsFixedSizeBinary(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new FixedSizeBinary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FixedSizeBinary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   byteWidth() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1933,11 +2381,17 @@ class FixedSizeList {
     return this;
   }
   static getRootAsFixedSizeList(bb, obj) {
-    return (obj || new FixedSizeList).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FixedSizeList()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsFixedSizeList(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new FixedSizeList).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FixedSizeList()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   listSize() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -1975,11 +2429,17 @@ class FloatingPoint {
     return this;
   }
   static getRootAsFloatingPoint(bb, obj) {
-    return (obj || new FloatingPoint).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FloatingPoint()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsFloatingPoint(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new FloatingPoint).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new FloatingPoint()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   precision() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -2018,15 +2478,23 @@ class Interval {
     return this;
   }
   static getRootAsInterval(bb, obj) {
-    return (obj || new Interval).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Interval()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsInterval(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Interval).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Interval()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   unit() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : IntervalUnit.YEAR_MONTH;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : IntervalUnit.YEAR_MONTH;
   }
   static startInterval(builder) {
     builder.startObject(1);
@@ -2061,11 +2529,17 @@ class LargeBinary {
     return this;
   }
   static getRootAsLargeBinary(bb, obj) {
-    return (obj || new LargeBinary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new LargeBinary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsLargeBinary(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new LargeBinary).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new LargeBinary()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startLargeBinary(builder) {
     builder.startObject(0);
@@ -2095,11 +2569,17 @@ class LargeUtf8 {
     return this;
   }
   static getRootAsLargeUtf8(bb, obj) {
-    return (obj || new LargeUtf8).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new LargeUtf8()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsLargeUtf8(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new LargeUtf8).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new LargeUtf8()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startLargeUtf8(builder) {
     builder.startObject(0);
@@ -2129,11 +2609,17 @@ class List {
     return this;
   }
   static getRootAsList(bb, obj) {
-    return (obj || new List).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new List()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsList(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new List).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new List()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startList(builder) {
     builder.startObject(0);
@@ -2163,11 +2649,17 @@ class Map2 {
     return this;
   }
   static getRootAsMap(bb, obj) {
-    return (obj || new Map2).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Map2()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsMap(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Map2).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Map2()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   keysSorted() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -2205,11 +2697,17 @@ class Null {
     return this;
   }
   static getRootAsNull(bb, obj) {
-    return (obj || new Null).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Null()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsNull(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Null).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Null()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startNull(builder) {
     builder.startObject(0);
@@ -2239,11 +2737,17 @@ class Struct_ {
     return this;
   }
   static getRootAsStruct_(bb, obj) {
-    return (obj || new Struct_).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Struct_()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsStruct_(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Struct_).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Struct_()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startStruct_(builder) {
     builder.startObject(0);
@@ -2273,15 +2777,23 @@ class Time {
     return this;
   }
   static getRootAsTime(bb, obj) {
-    return (obj || new Time).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Time()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsTime(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Time).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Time()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   unit() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : TimeUnit.MILLISECOND;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : TimeUnit.MILLISECOND;
   }
   bitWidth() {
     const offset = this.bb.__offset(this.bb_pos, 6);
@@ -2324,11 +2836,17 @@ class Timestamp {
     return this;
   }
   static getRootAsTimestamp(bb, obj) {
-    return (obj || new Timestamp).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Timestamp()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsTimestamp(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Timestamp).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Timestamp()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   unit() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -2336,7 +2854,9 @@ class Timestamp {
   }
   timezone(optionalEncoding) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    return offset
+      ? this.bb.__string(this.bb_pos + offset, optionalEncoding)
+      : null;
   }
   static startTimestamp(builder) {
     builder.startObject(2);
@@ -2375,11 +2895,17 @@ class Union {
     return this;
   }
   static getRootAsUnion(bb, obj) {
-    return (obj || new Union).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Union()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsUnion(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Union).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Union()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   mode() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -2387,7 +2913,9 @@ class Union {
   }
   typeIds(index) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4) : 0;
+    return offset
+      ? this.bb.readInt32(this.bb.__vector(this.bb_pos + offset) + index * 4)
+      : 0;
   }
   typeIdsLength() {
     const offset = this.bb.__offset(this.bb_pos, 6);
@@ -2395,7 +2923,13 @@ class Union {
   }
   typeIdsArray() {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? new Int32Array(this.bb.bytes().buffer, this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset), this.bb.__vector_len(this.bb_pos + offset)) : null;
+    return offset
+      ? new Int32Array(
+          this.bb.bytes().buffer,
+          this.bb.bytes().byteOffset + this.bb.__vector(this.bb_pos + offset),
+          this.bb.__vector_len(this.bb_pos + offset),
+        )
+      : null;
   }
   static startUnion(builder) {
     builder.startObject(2);
@@ -2408,7 +2942,7 @@ class Union {
   }
   static createTypeIdsVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addInt32(data[i]);
     }
     return builder.endVector();
@@ -2444,11 +2978,17 @@ class Utf8 {
     return this;
   }
   static getRootAsUtf8(bb, obj) {
-    return (obj || new Utf8).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Utf8()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsUtf8(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Utf8).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Utf8()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static startUtf8(builder) {
     builder.startObject(0);
@@ -2469,30 +3009,30 @@ var init_utf82 = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/type.mjs
 var Type;
 var init_type = __esm(() => {
-  (function(Type2) {
-    Type2[Type2["NONE"] = 0] = "NONE";
-    Type2[Type2["Null"] = 1] = "Null";
-    Type2[Type2["Int"] = 2] = "Int";
-    Type2[Type2["FloatingPoint"] = 3] = "FloatingPoint";
-    Type2[Type2["Binary"] = 4] = "Binary";
-    Type2[Type2["Utf8"] = 5] = "Utf8";
-    Type2[Type2["Bool"] = 6] = "Bool";
-    Type2[Type2["Decimal"] = 7] = "Decimal";
-    Type2[Type2["Date"] = 8] = "Date";
-    Type2[Type2["Time"] = 9] = "Time";
-    Type2[Type2["Timestamp"] = 10] = "Timestamp";
-    Type2[Type2["Interval"] = 11] = "Interval";
-    Type2[Type2["List"] = 12] = "List";
-    Type2[Type2["Struct_"] = 13] = "Struct_";
-    Type2[Type2["Union"] = 14] = "Union";
-    Type2[Type2["FixedSizeBinary"] = 15] = "FixedSizeBinary";
-    Type2[Type2["FixedSizeList"] = 16] = "FixedSizeList";
-    Type2[Type2["Map"] = 17] = "Map";
-    Type2[Type2["Duration"] = 18] = "Duration";
-    Type2[Type2["LargeBinary"] = 19] = "LargeBinary";
-    Type2[Type2["LargeUtf8"] = 20] = "LargeUtf8";
-    Type2[Type2["LargeList"] = 21] = "LargeList";
-    Type2[Type2["RunEndEncoded"] = 22] = "RunEndEncoded";
+  (function (Type2) {
+    Type2[(Type2["NONE"] = 0)] = "NONE";
+    Type2[(Type2["Null"] = 1)] = "Null";
+    Type2[(Type2["Int"] = 2)] = "Int";
+    Type2[(Type2["FloatingPoint"] = 3)] = "FloatingPoint";
+    Type2[(Type2["Binary"] = 4)] = "Binary";
+    Type2[(Type2["Utf8"] = 5)] = "Utf8";
+    Type2[(Type2["Bool"] = 6)] = "Bool";
+    Type2[(Type2["Decimal"] = 7)] = "Decimal";
+    Type2[(Type2["Date"] = 8)] = "Date";
+    Type2[(Type2["Time"] = 9)] = "Time";
+    Type2[(Type2["Timestamp"] = 10)] = "Timestamp";
+    Type2[(Type2["Interval"] = 11)] = "Interval";
+    Type2[(Type2["List"] = 12)] = "List";
+    Type2[(Type2["Struct_"] = 13)] = "Struct_";
+    Type2[(Type2["Union"] = 14)] = "Union";
+    Type2[(Type2["FixedSizeBinary"] = 15)] = "FixedSizeBinary";
+    Type2[(Type2["FixedSizeList"] = 16)] = "FixedSizeList";
+    Type2[(Type2["Map"] = 17)] = "Map";
+    Type2[(Type2["Duration"] = 18)] = "Duration";
+    Type2[(Type2["LargeBinary"] = 19)] = "LargeBinary";
+    Type2[(Type2["LargeUtf8"] = 20)] = "LargeUtf8";
+    Type2[(Type2["LargeList"] = 21)] = "LargeList";
+    Type2[(Type2["RunEndEncoded"] = 22)] = "RunEndEncoded";
   })(Type || (Type = {}));
 });
 
@@ -2508,15 +3048,23 @@ class Field {
     return this;
   }
   static getRootAsField(bb, obj) {
-    return (obj || new Field).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Field()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsField(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Field).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Field()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   name(optionalEncoding) {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.__string(this.bb_pos + offset, optionalEncoding) : null;
+    return offset
+      ? this.bb.__string(this.bb_pos + offset, optionalEncoding)
+      : null;
   }
   nullable() {
     const offset = this.bb.__offset(this.bb_pos, 6);
@@ -2532,11 +3080,23 @@ class Field {
   }
   dictionary(obj) {
     const offset = this.bb.__offset(this.bb_pos, 12);
-    return offset ? (obj || new DictionaryEncoding).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    return offset
+      ? (obj || new DictionaryEncoding()).__init(
+          this.bb.__indirect(this.bb_pos + offset),
+          this.bb,
+        )
+      : null;
   }
   children(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 14);
-    return offset ? (obj || new Field).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new Field()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   childrenLength() {
     const offset = this.bb.__offset(this.bb_pos, 14);
@@ -2544,7 +3104,14 @@ class Field {
   }
   customMetadata(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 16);
-    return offset ? (obj || new KeyValue).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new KeyValue()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   customMetadataLength() {
     const offset = this.bb.__offset(this.bb_pos, 16);
@@ -2573,7 +3140,7 @@ class Field {
   }
   static createChildrenVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -2586,7 +3153,7 @@ class Field {
   }
   static createCustomMetadataVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -2618,11 +3185,17 @@ class Schema {
     return this;
   }
   static getRootAsSchema(bb, obj) {
-    return (obj || new Schema).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Schema()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsSchema(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Schema).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Schema()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   endianness() {
     const offset = this.bb.__offset(this.bb_pos, 4);
@@ -2630,7 +3203,14 @@ class Schema {
   }
   fields(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? (obj || new Field).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new Field()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   fieldsLength() {
     const offset = this.bb.__offset(this.bb_pos, 6);
@@ -2638,7 +3218,14 @@ class Schema {
   }
   customMetadata(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 8);
-    return offset ? (obj || new KeyValue).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new KeyValue()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   customMetadataLength() {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -2646,7 +3233,9 @@ class Schema {
   }
   features(index) {
     const offset = this.bb.__offset(this.bb_pos, 10);
-    return offset ? this.bb.readInt64(this.bb.__vector(this.bb_pos + offset) + index * 8) : BigInt(0);
+    return offset
+      ? this.bb.readInt64(this.bb.__vector(this.bb_pos + offset) + index * 8)
+      : BigInt(0);
   }
   featuresLength() {
     const offset = this.bb.__offset(this.bb_pos, 10);
@@ -2663,7 +3252,7 @@ class Schema {
   }
   static createFieldsVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -2676,7 +3265,7 @@ class Schema {
   }
   static createCustomMetadataVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -2689,7 +3278,7 @@ class Schema {
   }
   static createFeaturesVector(builder, data) {
     builder.startVector(8, data.length, 8);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addInt64(data[i]);
     }
     return builder.endVector();
@@ -2707,7 +3296,13 @@ class Schema {
   static finishSizePrefixedSchemaBuffer(builder, offset) {
     builder.finish(offset, undefined, true);
   }
-  static createSchema(builder, endianness, fieldsOffset, customMetadataOffset, featuresOffset) {
+  static createSchema(
+    builder,
+    endianness,
+    fieldsOffset,
+    customMetadataOffset,
+    featuresOffset,
+  ) {
     Schema.startSchema(builder);
     Schema.addEndianness(builder, endianness);
     Schema.addFields(builder, fieldsOffset);
@@ -2726,13 +3321,13 @@ var init_schema = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/fb/message-header.mjs
 var MessageHeader;
 var init_message_header = __esm(() => {
-  (function(MessageHeader2) {
-    MessageHeader2[MessageHeader2["NONE"] = 0] = "NONE";
-    MessageHeader2[MessageHeader2["Schema"] = 1] = "Schema";
-    MessageHeader2[MessageHeader2["DictionaryBatch"] = 2] = "DictionaryBatch";
-    MessageHeader2[MessageHeader2["RecordBatch"] = 3] = "RecordBatch";
-    MessageHeader2[MessageHeader2["Tensor"] = 4] = "Tensor";
-    MessageHeader2[MessageHeader2["SparseTensor"] = 5] = "SparseTensor";
+  (function (MessageHeader2) {
+    MessageHeader2[(MessageHeader2["NONE"] = 0)] = "NONE";
+    MessageHeader2[(MessageHeader2["Schema"] = 1)] = "Schema";
+    MessageHeader2[(MessageHeader2["DictionaryBatch"] = 2)] = "DictionaryBatch";
+    MessageHeader2[(MessageHeader2["RecordBatch"] = 3)] = "RecordBatch";
+    MessageHeader2[(MessageHeader2["Tensor"] = 4)] = "Tensor";
+    MessageHeader2[(MessageHeader2["SparseTensor"] = 5)] = "SparseTensor";
   })(MessageHeader || (MessageHeader = {}));
 });
 
@@ -2746,71 +3341,71 @@ var init_enum = __esm(() => {
   init_time_unit();
   init_interval_unit();
   init_message_header();
-  (function(Type3) {
-    Type3[Type3["NONE"] = 0] = "NONE";
-    Type3[Type3["Null"] = 1] = "Null";
-    Type3[Type3["Int"] = 2] = "Int";
-    Type3[Type3["Float"] = 3] = "Float";
-    Type3[Type3["Binary"] = 4] = "Binary";
-    Type3[Type3["Utf8"] = 5] = "Utf8";
-    Type3[Type3["Bool"] = 6] = "Bool";
-    Type3[Type3["Decimal"] = 7] = "Decimal";
-    Type3[Type3["Date"] = 8] = "Date";
-    Type3[Type3["Time"] = 9] = "Time";
-    Type3[Type3["Timestamp"] = 10] = "Timestamp";
-    Type3[Type3["Interval"] = 11] = "Interval";
-    Type3[Type3["List"] = 12] = "List";
-    Type3[Type3["Struct"] = 13] = "Struct";
-    Type3[Type3["Union"] = 14] = "Union";
-    Type3[Type3["FixedSizeBinary"] = 15] = "FixedSizeBinary";
-    Type3[Type3["FixedSizeList"] = 16] = "FixedSizeList";
-    Type3[Type3["Map"] = 17] = "Map";
-    Type3[Type3["Duration"] = 18] = "Duration";
-    Type3[Type3["LargeBinary"] = 19] = "LargeBinary";
-    Type3[Type3["LargeUtf8"] = 20] = "LargeUtf8";
-    Type3[Type3["Dictionary"] = -1] = "Dictionary";
-    Type3[Type3["Int8"] = -2] = "Int8";
-    Type3[Type3["Int16"] = -3] = "Int16";
-    Type3[Type3["Int32"] = -4] = "Int32";
-    Type3[Type3["Int64"] = -5] = "Int64";
-    Type3[Type3["Uint8"] = -6] = "Uint8";
-    Type3[Type3["Uint16"] = -7] = "Uint16";
-    Type3[Type3["Uint32"] = -8] = "Uint32";
-    Type3[Type3["Uint64"] = -9] = "Uint64";
-    Type3[Type3["Float16"] = -10] = "Float16";
-    Type3[Type3["Float32"] = -11] = "Float32";
-    Type3[Type3["Float64"] = -12] = "Float64";
-    Type3[Type3["DateDay"] = -13] = "DateDay";
-    Type3[Type3["DateMillisecond"] = -14] = "DateMillisecond";
-    Type3[Type3["TimestampSecond"] = -15] = "TimestampSecond";
-    Type3[Type3["TimestampMillisecond"] = -16] = "TimestampMillisecond";
-    Type3[Type3["TimestampMicrosecond"] = -17] = "TimestampMicrosecond";
-    Type3[Type3["TimestampNanosecond"] = -18] = "TimestampNanosecond";
-    Type3[Type3["TimeSecond"] = -19] = "TimeSecond";
-    Type3[Type3["TimeMillisecond"] = -20] = "TimeMillisecond";
-    Type3[Type3["TimeMicrosecond"] = -21] = "TimeMicrosecond";
-    Type3[Type3["TimeNanosecond"] = -22] = "TimeNanosecond";
-    Type3[Type3["DenseUnion"] = -23] = "DenseUnion";
-    Type3[Type3["SparseUnion"] = -24] = "SparseUnion";
-    Type3[Type3["IntervalDayTime"] = -25] = "IntervalDayTime";
-    Type3[Type3["IntervalYearMonth"] = -26] = "IntervalYearMonth";
-    Type3[Type3["DurationSecond"] = -27] = "DurationSecond";
-    Type3[Type3["DurationMillisecond"] = -28] = "DurationMillisecond";
-    Type3[Type3["DurationMicrosecond"] = -29] = "DurationMicrosecond";
-    Type3[Type3["DurationNanosecond"] = -30] = "DurationNanosecond";
+  (function (Type3) {
+    Type3[(Type3["NONE"] = 0)] = "NONE";
+    Type3[(Type3["Null"] = 1)] = "Null";
+    Type3[(Type3["Int"] = 2)] = "Int";
+    Type3[(Type3["Float"] = 3)] = "Float";
+    Type3[(Type3["Binary"] = 4)] = "Binary";
+    Type3[(Type3["Utf8"] = 5)] = "Utf8";
+    Type3[(Type3["Bool"] = 6)] = "Bool";
+    Type3[(Type3["Decimal"] = 7)] = "Decimal";
+    Type3[(Type3["Date"] = 8)] = "Date";
+    Type3[(Type3["Time"] = 9)] = "Time";
+    Type3[(Type3["Timestamp"] = 10)] = "Timestamp";
+    Type3[(Type3["Interval"] = 11)] = "Interval";
+    Type3[(Type3["List"] = 12)] = "List";
+    Type3[(Type3["Struct"] = 13)] = "Struct";
+    Type3[(Type3["Union"] = 14)] = "Union";
+    Type3[(Type3["FixedSizeBinary"] = 15)] = "FixedSizeBinary";
+    Type3[(Type3["FixedSizeList"] = 16)] = "FixedSizeList";
+    Type3[(Type3["Map"] = 17)] = "Map";
+    Type3[(Type3["Duration"] = 18)] = "Duration";
+    Type3[(Type3["LargeBinary"] = 19)] = "LargeBinary";
+    Type3[(Type3["LargeUtf8"] = 20)] = "LargeUtf8";
+    Type3[(Type3["Dictionary"] = -1)] = "Dictionary";
+    Type3[(Type3["Int8"] = -2)] = "Int8";
+    Type3[(Type3["Int16"] = -3)] = "Int16";
+    Type3[(Type3["Int32"] = -4)] = "Int32";
+    Type3[(Type3["Int64"] = -5)] = "Int64";
+    Type3[(Type3["Uint8"] = -6)] = "Uint8";
+    Type3[(Type3["Uint16"] = -7)] = "Uint16";
+    Type3[(Type3["Uint32"] = -8)] = "Uint32";
+    Type3[(Type3["Uint64"] = -9)] = "Uint64";
+    Type3[(Type3["Float16"] = -10)] = "Float16";
+    Type3[(Type3["Float32"] = -11)] = "Float32";
+    Type3[(Type3["Float64"] = -12)] = "Float64";
+    Type3[(Type3["DateDay"] = -13)] = "DateDay";
+    Type3[(Type3["DateMillisecond"] = -14)] = "DateMillisecond";
+    Type3[(Type3["TimestampSecond"] = -15)] = "TimestampSecond";
+    Type3[(Type3["TimestampMillisecond"] = -16)] = "TimestampMillisecond";
+    Type3[(Type3["TimestampMicrosecond"] = -17)] = "TimestampMicrosecond";
+    Type3[(Type3["TimestampNanosecond"] = -18)] = "TimestampNanosecond";
+    Type3[(Type3["TimeSecond"] = -19)] = "TimeSecond";
+    Type3[(Type3["TimeMillisecond"] = -20)] = "TimeMillisecond";
+    Type3[(Type3["TimeMicrosecond"] = -21)] = "TimeMicrosecond";
+    Type3[(Type3["TimeNanosecond"] = -22)] = "TimeNanosecond";
+    Type3[(Type3["DenseUnion"] = -23)] = "DenseUnion";
+    Type3[(Type3["SparseUnion"] = -24)] = "SparseUnion";
+    Type3[(Type3["IntervalDayTime"] = -25)] = "IntervalDayTime";
+    Type3[(Type3["IntervalYearMonth"] = -26)] = "IntervalYearMonth";
+    Type3[(Type3["DurationSecond"] = -27)] = "DurationSecond";
+    Type3[(Type3["DurationMillisecond"] = -28)] = "DurationMillisecond";
+    Type3[(Type3["DurationMicrosecond"] = -29)] = "DurationMicrosecond";
+    Type3[(Type3["DurationNanosecond"] = -30)] = "DurationNanosecond";
   })(Type2 || (Type2 = {}));
-  (function(BufferType2) {
-    BufferType2[BufferType2["OFFSET"] = 0] = "OFFSET";
-    BufferType2[BufferType2["DATA"] = 1] = "DATA";
-    BufferType2[BufferType2["VALIDITY"] = 2] = "VALIDITY";
-    BufferType2[BufferType2["TYPE"] = 3] = "TYPE";
+  (function (BufferType2) {
+    BufferType2[(BufferType2["OFFSET"] = 0)] = "OFFSET";
+    BufferType2[(BufferType2["DATA"] = 1)] = "DATA";
+    BufferType2[(BufferType2["VALIDITY"] = 2)] = "VALIDITY";
+    BufferType2[(BufferType2["TYPE"] = 3)] = "TYPE";
   })(BufferType || (BufferType = {}));
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/pretty.mjs
 var exports_pretty = {};
 __export(exports_pretty, {
-  valueToString: () => valueToString
+  valueToString: () => valueToString,
 });
 function valueToString(x) {
   if (x === null) {
@@ -2836,19 +3431,27 @@ function valueToString(x) {
     }
     return `[${x}]`;
   }
-  return ArrayBuffer.isView(x) ? `[${x}]` : JSON.stringify(x, (_, y) => typeof y === "bigint" ? `${y}` : y);
+  return ArrayBuffer.isView(x)
+    ? `[${x}]`
+    : JSON.stringify(x, (_, y) => (typeof y === "bigint" ? `${y}` : y));
 }
 var undf = undefined;
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/bigint.mjs
 function bigIntToNumber(number) {
-  if (typeof number === "bigint" && (number < Number.MIN_SAFE_INTEGER || number > Number.MAX_SAFE_INTEGER)) {
+  if (
+    typeof number === "bigint" &&
+    (number < Number.MIN_SAFE_INTEGER || number > Number.MAX_SAFE_INTEGER)
+  ) {
     throw new TypeError(`${number} is not safe to convert to a number.`);
   }
   return Number(number);
 }
 function divideBigInts(number, divisor) {
-  return bigIntToNumber(number / divisor) + bigIntToNumber(number % divisor) / bigIntToNumber(divisor);
+  return (
+    bigIntToNumber(number / divisor) +
+    bigIntToNumber(number % divisor) / bigIntToNumber(divisor)
+  );
 }
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/bn.mjs
@@ -2858,13 +3461,19 @@ __export(exports_bn, {
   bigNumToString: () => bigNumToString,
   bigNumToNumber: () => bigNumToNumber,
   bigNumToBigInt: () => bigNumToBigInt,
-  BN: () => BN
+  BN: () => BN,
 });
 function BigNum(x, ...xs) {
   if (xs.length === 0) {
-    return Object.setPrototypeOf(toArrayBufferView(this["TypedArray"], x), this.constructor.prototype);
+    return Object.setPrototypeOf(
+      toArrayBufferView(this["TypedArray"], x),
+      this.constructor.prototype,
+    );
   }
-  return Object.setPrototypeOf(new this["TypedArray"](x, ...xs), this.constructor.prototype);
+  return Object.setPrototypeOf(
+    new this["TypedArray"](x, ...xs),
+    this.constructor.prototype,
+  );
 }
 function SignedBigNum(...args) {
   return BigNum.apply(this, args);
@@ -2878,12 +3487,13 @@ function DecimalBigNum(...args) {
 function bigNumToNumber(bn, scale) {
   const { buffer, byteOffset, byteLength, signed } = bn;
   const words = new BigUint64Array(buffer, byteOffset, byteLength / 8);
-  const negative = signed && words.at(-1) & BigInt(1) << BigInt(63);
+  const negative = signed && words.at(-1) & (BigInt(1) << BigInt(63));
   let number = BigInt(0);
   let i = 0;
   if (negative) {
     for (const word of words) {
-      number |= (word ^ TWO_TO_THE_64_MINUS_1) * (BigInt(1) << BigInt(64 * i++));
+      number |=
+        (word ^ TWO_TO_THE_64_MINUS_1) * (BigInt(1) << BigInt(64 * i++));
     }
     number *= BigInt(-1);
     number -= BigInt(1);
@@ -2896,7 +3506,10 @@ function bigNumToNumber(bn, scale) {
     const denominator = BigInt(Math.pow(10, scale));
     const quotient = number / denominator;
     const remainder = number % denominator;
-    return bigIntToNumber(quotient) + bigIntToNumber(remainder) / bigIntToNumber(denominator);
+    return (
+      bigIntToNumber(quotient) +
+      bigIntToNumber(remainder) / bigIntToNumber(denominator)
+    );
   }
   return bigIntToNumber(number);
 }
@@ -2915,7 +3528,7 @@ function bigNumToString(a) {
   }
   array = array.slice();
   let carry = 1;
-  for (let i = 0;i < array.length; i++) {
+  for (let i = 0; i < array.length; i++) {
     const elem = array[i];
     const updated = ~elem + carry;
     array[i] = updated;
@@ -2936,13 +3549,15 @@ function unsignedBigNumToString(a) {
   let digits = "";
   const base64 = new Uint32Array(2);
   let base32 = new Uint16Array(a.buffer, a.byteOffset, a.byteLength / 2);
-  const checks = new Uint32Array((base32 = new Uint16Array(base32).reverse()).buffer);
+  const checks = new Uint32Array(
+    (base32 = new Uint16Array(base32).reverse()).buffer,
+  );
   let i = -1;
   const n = base32.length - 1;
   do {
-    for (base64[0] = base32[i = 0];i < n; ) {
+    for (base64[0] = base32[(i = 0)]; i < n; ) {
       base32[i++] = base64[1] = base64[0] / 10;
-      base64[0] = (base64[0] - base64[1] * 10 << 16) + base32[i];
+      base64[0] = ((base64[0] - base64[1] * 10) << 16) + base32[i];
     }
     base32[i] = base64[1] = base64[0] / 10;
     base64[0] = base64[0] - base64[1] * 10;
@@ -2989,16 +3604,16 @@ var init_bn = __esm(() => {
   init_buffer();
   isArrowBigNumSymbol = Symbol.for("isArrowBigNum");
   BigNum.prototype[isArrowBigNumSymbol] = true;
-  BigNum.prototype.toJSON = function() {
+  BigNum.prototype.toJSON = function () {
     return `"${bigNumToString(this)}"`;
   };
-  BigNum.prototype.valueOf = function(scale) {
+  BigNum.prototype.valueOf = function (scale) {
     return bigNumToNumber(this, scale);
   };
-  BigNum.prototype.toString = function() {
+  BigNum.prototype.toString = function () {
     return bigNumToString(this);
   };
-  BigNum.prototype[Symbol.toPrimitive] = function(hint = "default") {
+  BigNum.prototype[Symbol.toPrimitive] = function (hint = "default") {
     switch (hint) {
       case "number":
         return bigNumToNumber(this);
@@ -3009,12 +3624,36 @@ var init_bn = __esm(() => {
     }
     return bigNumToString(this);
   };
-  Object.setPrototypeOf(SignedBigNum.prototype, Object.create(Int32Array.prototype));
-  Object.setPrototypeOf(UnsignedBigNum.prototype, Object.create(Uint32Array.prototype));
-  Object.setPrototypeOf(DecimalBigNum.prototype, Object.create(Uint32Array.prototype));
-  Object.assign(SignedBigNum.prototype, BigNum.prototype, { constructor: SignedBigNum, signed: true, TypedArray: Int32Array, BigIntArray: BigInt64Array });
-  Object.assign(UnsignedBigNum.prototype, BigNum.prototype, { constructor: UnsignedBigNum, signed: false, TypedArray: Uint32Array, BigIntArray: BigUint64Array });
-  Object.assign(DecimalBigNum.prototype, BigNum.prototype, { constructor: DecimalBigNum, signed: true, TypedArray: Uint32Array, BigIntArray: BigUint64Array });
+  Object.setPrototypeOf(
+    SignedBigNum.prototype,
+    Object.create(Int32Array.prototype),
+  );
+  Object.setPrototypeOf(
+    UnsignedBigNum.prototype,
+    Object.create(Uint32Array.prototype),
+  );
+  Object.setPrototypeOf(
+    DecimalBigNum.prototype,
+    Object.create(Uint32Array.prototype),
+  );
+  Object.assign(SignedBigNum.prototype, BigNum.prototype, {
+    constructor: SignedBigNum,
+    signed: true,
+    TypedArray: Int32Array,
+    BigIntArray: BigInt64Array,
+  });
+  Object.assign(UnsignedBigNum.prototype, BigNum.prototype, {
+    constructor: UnsignedBigNum,
+    signed: false,
+    TypedArray: Uint32Array,
+    BigIntArray: BigUint64Array,
+  });
+  Object.assign(DecimalBigNum.prototype, BigNum.prototype, {
+    constructor: DecimalBigNum,
+    signed: true,
+    TypedArray: Uint32Array,
+    BigIntArray: BigUint64Array,
+  });
   TWO_TO_THE_64 = BigInt(4294967296) * BigInt(4294967296);
   TWO_TO_THE_64_MINUS_1 = TWO_TO_THE_64 - BigInt(1);
 });
@@ -3022,67 +3661,109 @@ var init_bn = __esm(() => {
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/type.mjs
 class DataType {
   static isNull(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Null;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Null
+    );
   }
   static isInt(x) {
     return (x === null || x === undefined ? undefined : x.typeId) === Type2.Int;
   }
   static isFloat(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Float;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Float
+    );
   }
   static isBinary(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Binary;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Binary
+    );
   }
   static isLargeBinary(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.LargeBinary;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) ===
+      Type2.LargeBinary
+    );
   }
   static isUtf8(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Utf8;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Utf8
+    );
   }
   static isLargeUtf8(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.LargeUtf8;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.LargeUtf8
+    );
   }
   static isBool(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Bool;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Bool
+    );
   }
   static isDecimal(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Decimal;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Decimal
+    );
   }
   static isDate(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Date;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Date
+    );
   }
   static isTime(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Time;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Time
+    );
   }
   static isTimestamp(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Timestamp;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Timestamp
+    );
   }
   static isInterval(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Interval;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Interval
+    );
   }
   static isDuration(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Duration;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Duration
+    );
   }
   static isList(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.List;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.List
+    );
   }
   static isStruct(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Struct;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Struct
+    );
   }
   static isUnion(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Union;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) === Type2.Union
+    );
   }
   static isFixedSizeBinary(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.FixedSizeBinary;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) ===
+      Type2.FixedSizeBinary
+    );
   }
   static isFixedSizeList(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.FixedSizeList;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) ===
+      Type2.FixedSizeList
+    );
   }
   static isMap(x) {
     return (x === null || x === undefined ? undefined : x.typeId) === Type2.Map;
   }
   static isDictionary(x) {
-    return (x === null || x === undefined ? undefined : x.typeId) === Type2.Dictionary;
+    return (
+      (x === null || x === undefined ? undefined : x.typeId) ===
+      Type2.Dictionary
+    );
   }
   static isDenseUnion(x) {
     return DataType.isUnion(x) && x.mode === UnionMode.Dense;
@@ -3109,7 +3790,61 @@ function strideForType(type) {
       return 1;
   }
 }
-var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q, _r, _s, _t, _u, _v, _w, _x, Null2, Int_, Int8, Int16, Int32, Int64, Uint8, Uint16, Uint32, Uint64, Float, Float16, Float32, Float64, Binary2, LargeBinary2, Utf82, LargeUtf82, Bool2, Decimal2, Date_, Time_, Timestamp_, Interval_, Duration2, List2, Struct, Union_, FixedSizeBinary2, FixedSizeList2, Map_, getId, Dictionary;
+var _a,
+  _b,
+  _c,
+  _d,
+  _e,
+  _f,
+  _g,
+  _h,
+  _j,
+  _k,
+  _l,
+  _m,
+  _o,
+  _p,
+  _q,
+  _r,
+  _s,
+  _t,
+  _u,
+  _v,
+  _w,
+  _x,
+  Null2,
+  Int_,
+  Int8,
+  Int16,
+  Int32,
+  Int64,
+  Uint8,
+  Uint16,
+  Uint32,
+  Uint64,
+  Float,
+  Float16,
+  Float32,
+  Float64,
+  Binary2,
+  LargeBinary2,
+  Utf82,
+  LargeUtf82,
+  Bool2,
+  Decimal2,
+  Date_,
+  Time_,
+  Timestamp_,
+  Interval_,
+  Duration2,
+  List2,
+  Struct,
+  Union_,
+  FixedSizeBinary2,
+  FixedSizeList2,
+  Map_,
+  getId,
+  Dictionary;
 var init_type2 = __esm(() => {
   init_enum();
   _a = Symbol.toStringTag;
@@ -3117,7 +3852,7 @@ var init_type2 = __esm(() => {
     proto.children = null;
     proto.ArrayType = Array;
     proto.OffsetArrayType = Int32Array;
-    return proto[Symbol.toStringTag] = "DataType";
+    return (proto[Symbol.toStringTag] = "DataType");
   })(DataType.prototype);
   Null2 = class Null2 extends DataType {
     constructor() {
@@ -3128,7 +3863,9 @@ var init_type2 = __esm(() => {
     }
   };
   _b = Symbol.toStringTag;
-  Null2[_b] = ((proto) => proto[Symbol.toStringTag] = "Null")(Null2.prototype);
+  Null2[_b] = ((proto) => (proto[Symbol.toStringTag] = "Null"))(
+    Null2.prototype,
+  );
   Int_ = class Int_ extends DataType {
     constructor(isSigned, bitWidth) {
       super(Type2.Int);
@@ -3156,7 +3893,7 @@ var init_type2 = __esm(() => {
   Int_[_c] = ((proto) => {
     proto.isSigned = null;
     proto.bitWidth = null;
-    return proto[Symbol.toStringTag] = "Int";
+    return (proto[Symbol.toStringTag] = "Int");
   })(Int_.prototype);
   Int8 = class Int8 extends Int_ {
     constructor() {
@@ -3229,7 +3966,9 @@ var init_type2 = __esm(() => {
   Object.defineProperty(Uint8.prototype, "ArrayType", { value: Uint8Array });
   Object.defineProperty(Uint16.prototype, "ArrayType", { value: Uint16Array });
   Object.defineProperty(Uint32.prototype, "ArrayType", { value: Uint32Array });
-  Object.defineProperty(Uint64.prototype, "ArrayType", { value: BigUint64Array });
+  Object.defineProperty(Uint64.prototype, "ArrayType", {
+    value: BigUint64Array,
+  });
   Float = class Float extends DataType {
     constructor(precision) {
       super(Type2.Float);
@@ -3253,7 +3992,7 @@ var init_type2 = __esm(() => {
   _d = Symbol.toStringTag;
   Float[_d] = ((proto) => {
     proto.precision = null;
-    return proto[Symbol.toStringTag] = "Float";
+    return (proto[Symbol.toStringTag] = "Float");
   })(Float.prototype);
   Float16 = class Float16 extends Float {
     constructor() {
@@ -3271,8 +4010,12 @@ var init_type2 = __esm(() => {
     }
   };
   Object.defineProperty(Float16.prototype, "ArrayType", { value: Uint16Array });
-  Object.defineProperty(Float32.prototype, "ArrayType", { value: Float32Array });
-  Object.defineProperty(Float64.prototype, "ArrayType", { value: Float64Array });
+  Object.defineProperty(Float32.prototype, "ArrayType", {
+    value: Float32Array,
+  });
+  Object.defineProperty(Float64.prototype, "ArrayType", {
+    value: Float64Array,
+  });
   Binary2 = class Binary2 extends DataType {
     constructor() {
       super(Type2.Binary);
@@ -3284,7 +4027,7 @@ var init_type2 = __esm(() => {
   _e = Symbol.toStringTag;
   Binary2[_e] = ((proto) => {
     proto.ArrayType = Uint8Array;
-    return proto[Symbol.toStringTag] = "Binary";
+    return (proto[Symbol.toStringTag] = "Binary");
   })(Binary2.prototype);
   LargeBinary2 = class LargeBinary2 extends DataType {
     constructor() {
@@ -3298,7 +4041,7 @@ var init_type2 = __esm(() => {
   LargeBinary2[_f] = ((proto) => {
     proto.ArrayType = Uint8Array;
     proto.OffsetArrayType = BigInt64Array;
-    return proto[Symbol.toStringTag] = "LargeBinary";
+    return (proto[Symbol.toStringTag] = "LargeBinary");
   })(LargeBinary2.prototype);
   Utf82 = class Utf82 extends DataType {
     constructor() {
@@ -3311,7 +4054,7 @@ var init_type2 = __esm(() => {
   _g = Symbol.toStringTag;
   Utf82[_g] = ((proto) => {
     proto.ArrayType = Uint8Array;
-    return proto[Symbol.toStringTag] = "Utf8";
+    return (proto[Symbol.toStringTag] = "Utf8");
   })(Utf82.prototype);
   LargeUtf82 = class LargeUtf82 extends DataType {
     constructor() {
@@ -3325,7 +4068,7 @@ var init_type2 = __esm(() => {
   LargeUtf82[_h] = ((proto) => {
     proto.ArrayType = Uint8Array;
     proto.OffsetArrayType = BigInt64Array;
-    return proto[Symbol.toStringTag] = "LargeUtf8";
+    return (proto[Symbol.toStringTag] = "LargeUtf8");
   })(LargeUtf82.prototype);
   Bool2 = class Bool2 extends DataType {
     constructor() {
@@ -3338,7 +4081,7 @@ var init_type2 = __esm(() => {
   _j = Symbol.toStringTag;
   Bool2[_j] = ((proto) => {
     proto.ArrayType = Uint8Array;
-    return proto[Symbol.toStringTag] = "Bool";
+    return (proto[Symbol.toStringTag] = "Bool");
   })(Bool2.prototype);
   Decimal2 = class Decimal2 extends DataType {
     constructor(scale, precision, bitWidth = 128) {
@@ -3356,7 +4099,7 @@ var init_type2 = __esm(() => {
     proto.scale = null;
     proto.precision = null;
     proto.ArrayType = Uint32Array;
-    return proto[Symbol.toStringTag] = "Decimal";
+    return (proto[Symbol.toStringTag] = "Decimal");
   })(Decimal2.prototype);
   Date_ = class Date_ extends DataType {
     constructor(unit) {
@@ -3373,7 +4116,7 @@ var init_type2 = __esm(() => {
   _l = Symbol.toStringTag;
   Date_[_l] = ((proto) => {
     proto.unit = null;
-    return proto[Symbol.toStringTag] = "Date";
+    return (proto[Symbol.toStringTag] = "Date");
   })(Date_.prototype);
   Time_ = class Time_ extends DataType {
     constructor(unit, bitWidth) {
@@ -3398,7 +4141,7 @@ var init_type2 = __esm(() => {
   Time_[_m] = ((proto) => {
     proto.unit = null;
     proto.bitWidth = null;
-    return proto[Symbol.toStringTag] = "Time";
+    return (proto[Symbol.toStringTag] = "Time");
   })(Time_.prototype);
   Timestamp_ = class Timestamp_ extends DataType {
     constructor(unit, timezone) {
@@ -3415,7 +4158,7 @@ var init_type2 = __esm(() => {
     proto.unit = null;
     proto.timezone = null;
     proto.ArrayType = BigInt64Array;
-    return proto[Symbol.toStringTag] = "Timestamp";
+    return (proto[Symbol.toStringTag] = "Timestamp");
   })(Timestamp_.prototype);
   Interval_ = class Interval_ extends DataType {
     constructor(unit) {
@@ -3430,7 +4173,7 @@ var init_type2 = __esm(() => {
   Interval_[_p] = ((proto) => {
     proto.unit = null;
     proto.ArrayType = Int32Array;
-    return proto[Symbol.toStringTag] = "Interval";
+    return (proto[Symbol.toStringTag] = "Interval");
   })(Interval_.prototype);
   Duration2 = class Duration2 extends DataType {
     constructor(unit) {
@@ -3445,7 +4188,7 @@ var init_type2 = __esm(() => {
   Duration2[_q] = ((proto) => {
     proto.unit = null;
     proto.ArrayType = BigInt64Array;
-    return proto[Symbol.toStringTag] = "Duration";
+    return (proto[Symbol.toStringTag] = "Duration");
   })(Duration2.prototype);
   List2 = class List2 extends DataType {
     constructor(child) {
@@ -3468,7 +4211,7 @@ var init_type2 = __esm(() => {
   _r = Symbol.toStringTag;
   List2[_r] = ((proto) => {
     proto.children = null;
-    return proto[Symbol.toStringTag] = "List";
+    return (proto[Symbol.toStringTag] = "List");
   })(List2.prototype);
   Struct = class Struct extends DataType {
     constructor(children) {
@@ -3482,7 +4225,7 @@ var init_type2 = __esm(() => {
   _s = Symbol.toStringTag;
   Struct[_s] = ((proto) => {
     proto.children = null;
-    return proto[Symbol.toStringTag] = "Struct";
+    return (proto[Symbol.toStringTag] = "Struct");
   })(Struct.prototype);
   Union_ = class Union_ extends DataType {
     constructor(mode, typeIds, children) {
@@ -3490,7 +4233,12 @@ var init_type2 = __esm(() => {
       this.mode = mode;
       this.children = children;
       this.typeIds = typeIds = Int32Array.from(typeIds);
-      this.typeIdToChildIndex = typeIds.reduce((typeIdToChildIndex, typeId, idx) => (typeIdToChildIndex[typeId] = idx) && typeIdToChildIndex || typeIdToChildIndex, Object.create(null));
+      this.typeIdToChildIndex = typeIds.reduce(
+        (typeIdToChildIndex, typeId, idx) =>
+          ((typeIdToChildIndex[typeId] = idx) && typeIdToChildIndex) ||
+          typeIdToChildIndex,
+        Object.create(null),
+      );
     }
     toString() {
       return `${this[Symbol.toStringTag]}<${this.children.map((x) => `${x.type}`).join(` | `)}>`;
@@ -3503,7 +4251,7 @@ var init_type2 = __esm(() => {
     proto.children = null;
     proto.typeIdToChildIndex = null;
     proto.ArrayType = Int8Array;
-    return proto[Symbol.toStringTag] = "Union";
+    return (proto[Symbol.toStringTag] = "Union");
   })(Union_.prototype);
   FixedSizeBinary2 = class FixedSizeBinary2 extends DataType {
     constructor(byteWidth) {
@@ -3518,7 +4266,7 @@ var init_type2 = __esm(() => {
   FixedSizeBinary2[_u] = ((proto) => {
     proto.byteWidth = null;
     proto.ArrayType = Uint8Array;
-    return proto[Symbol.toStringTag] = "FixedSizeBinary";
+    return (proto[Symbol.toStringTag] = "FixedSizeBinary");
   })(FixedSizeBinary2.prototype);
   FixedSizeList2 = class FixedSizeList2 extends DataType {
     constructor(listSize, child) {
@@ -3543,7 +4291,7 @@ var init_type2 = __esm(() => {
   FixedSizeList2[_v] = ((proto) => {
     proto.children = null;
     proto.listSize = null;
-    return proto[Symbol.toStringTag] = "FixedSizeList";
+    return (proto[Symbol.toStringTag] = "FixedSizeList");
   })(FixedSizeList2.prototype);
   Map_ = class Map_ extends DataType {
     constructor(entries, keysSorted = false) {
@@ -3553,12 +4301,31 @@ var init_type2 = __esm(() => {
       this.keysSorted = keysSorted;
       if (entries) {
         entries["name"] = "entries";
-        if ((_y = entries === null || entries === undefined ? undefined : entries.type) === null || _y === undefined ? undefined : _y.children) {
-          const key = (_z = entries === null || entries === undefined ? undefined : entries.type) === null || _z === undefined ? undefined : _z.children[0];
+        if (
+          (_y =
+            entries === null || entries === undefined
+              ? undefined
+              : entries.type) === null || _y === undefined
+            ? undefined
+            : _y.children
+        ) {
+          const key =
+            (_z =
+              entries === null || entries === undefined
+                ? undefined
+                : entries.type) === null || _z === undefined
+              ? undefined
+              : _z.children[0];
           if (key) {
             key["name"] = "key";
           }
-          const val = (_0 = entries === null || entries === undefined ? undefined : entries.type) === null || _0 === undefined ? undefined : _0.children[1];
+          const val =
+            (_0 =
+              entries === null || entries === undefined
+                ? undefined
+                : entries.type) === null || _0 === undefined
+              ? undefined
+              : _0.children[1];
           if (val) {
             val["name"] = "value";
           }
@@ -3582,9 +4349,12 @@ var init_type2 = __esm(() => {
   Map_[_w] = ((proto) => {
     proto.children = null;
     proto.keysSorted = null;
-    return proto[Symbol.toStringTag] = "Map_";
+    return (proto[Symbol.toStringTag] = "Map_");
   })(Map_.prototype);
-  getId = ((atomicDictionaryId) => () => ++atomicDictionaryId)(-1);
+  getId = (
+    (atomicDictionaryId) => () =>
+      ++atomicDictionaryId
+  )(-1);
   Dictionary = class Dictionary extends DataType {
     constructor(dictionary, indices, id, isOrdered) {
       super(Type2.Dictionary);
@@ -3612,7 +4382,7 @@ var init_type2 = __esm(() => {
     proto.indices = null;
     proto.isOrdered = null;
     proto.dictionary = null;
-    return proto[Symbol.toStringTag] = "Dictionary";
+    return (proto[Symbol.toStringTag] = "Dictionary");
   })(Dictionary.prototype);
 });
 
@@ -3704,7 +4474,10 @@ function getVisitFn(visitor, node, throwIfNotFound = true) {
   if (node && node instanceof DataType) {
     return getVisitFnByTypeId(visitor, inferDType(node), throwIfNotFound);
   }
-  if ((node === null || node === undefined ? undefined : node.type) && node.type instanceof DataType) {
+  if (
+    (node === null || node === undefined ? undefined : node.type) &&
+    node.type instanceof DataType
+  ) {
     return getVisitFnByTypeId(visitor, inferDType(node.type), throwIfNotFound);
   }
   return getVisitFnByTypeId(visitor, Type2.NONE, throwIfNotFound);
@@ -3863,10 +4636,8 @@ function getVisitFnByTypeId(visitor, dtype, throwIfNotFound = true) {
       fn = visitor.visitMap;
       break;
   }
-  if (typeof fn === "function")
-    return fn;
-  if (!throwIfNotFound)
-    return () => null;
+  if (typeof fn === "function") return fn;
+  if (!throwIfNotFound) return () => null;
   throw new Error(`Unrecognized type '${Type2[dtype]}'`);
 }
 function inferDType(type) {
@@ -4023,7 +4794,7 @@ var init_visitor = __esm(() => {
 var exports_math = {};
 __export(exports_math, {
   uint16ToFloat64: () => uint16ToFloat64,
-  float64ToUint16: () => float64ToUint16
+  float64ToUint16: () => float64ToUint16,
 });
 function uint16ToFloat64(h) {
   const expo = (h & 31744) >> 10;
@@ -4042,8 +4813,9 @@ function float64ToUint16(d) {
     return 32256;
   }
   f64[0] = d;
-  const sign = (u32[1] & 2147483648) >> 16 & 65535;
-  let expo = u32[1] & 2146435072, sigf = 0;
+  const sign = ((u32[1] & 2147483648) >> 16) & 65535;
+  let expo = u32[1] & 2146435072,
+    sigf = 0;
   if (expo >= 1089470464) {
     if (u32[0] > 0) {
       expo = 31744;
@@ -4053,13 +4825,13 @@ function float64ToUint16(d) {
     }
   } else if (expo <= 1056964608) {
     sigf = 1048576 + (u32[1] & 1048575);
-    sigf = 1048576 + (sigf << (expo >> 20) - 998) >> 21;
+    sigf = (1048576 + (sigf << ((expo >> 20) - 998))) >> 21;
     expo = 0;
   } else {
-    expo = expo - 1056964608 >> 10;
-    sigf = (u32[1] & 1048575) + 512 >> 10;
+    expo = (expo - 1056964608) >> 10;
+    sigf = ((u32[1] & 1048575) + 512) >> 10;
   }
-  return sign | expo | sigf & 65535;
+  return sign | expo | (sigf & 65535);
 }
 var f64, u32;
 var init_math = __esm(() => {
@@ -4075,167 +4847,241 @@ function wrapSet(fn) {
     }
   };
 }
-var SetVisitor, setEpochMsToDays = (data, index, epochMs) => {
-  data[index] = Math.floor(epochMs / 86400000);
-}, setVariableWidthBytes = (values, valueOffsets, index, value) => {
-  if (index + 1 < valueOffsets.length) {
-    const x = bigIntToNumber(valueOffsets[index]);
-    const y = bigIntToNumber(valueOffsets[index + 1]);
-    values.set(value.subarray(0, y - x), x);
-  }
-}, setBool = ({ offset, values }, index, val) => {
-  const idx = offset + index;
-  val ? values[idx >> 3] |= 1 << idx % 8 : values[idx >> 3] &= ~(1 << idx % 8);
-}, setInt = ({ values }, index, value) => {
-  values[index] = value;
-}, setFloat = ({ values }, index, value) => {
-  values[index] = value;
-}, setFloat16 = ({ values }, index, value) => {
-  values[index] = float64ToUint16(value);
-}, setAnyFloat = (data, index, value) => {
-  switch (data.type.precision) {
-    case Precision.HALF:
-      return setFloat16(data, index, value);
-    case Precision.SINGLE:
-    case Precision.DOUBLE:
-      return setFloat(data, index, value);
-  }
-}, setDateDay = ({ values }, index, value) => {
-  setEpochMsToDays(values, index, value.valueOf());
-}, setDateMillisecond = ({ values }, index, value) => {
-  values[index] = BigInt(value);
-}, setFixedSizeBinary = ({ stride, values }, index, value) => {
-  values.set(value.subarray(0, stride), stride * index);
-}, setBinary = ({ values, valueOffsets }, index, value) => setVariableWidthBytes(values, valueOffsets, index, value), setUtf8 = ({ values, valueOffsets }, index, value) => setVariableWidthBytes(values, valueOffsets, index, encodeUtf8(value)), setDate = (data, index, value) => {
-  data.type.unit === DateUnit.DAY ? setDateDay(data, index, value) : setDateMillisecond(data, index, value);
-}, setTimestampSecond = ({ values }, index, value) => {
-  values[index] = BigInt(value / 1000);
-}, setTimestampMillisecond = ({ values }, index, value) => {
-  values[index] = BigInt(value);
-}, setTimestampMicrosecond = ({ values }, index, value) => {
-  values[index] = BigInt(value * 1000);
-}, setTimestampNanosecond = ({ values }, index, value) => {
-  values[index] = BigInt(value * 1e6);
-}, setTimestamp = (data, index, value) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return setTimestampSecond(data, index, value);
-    case TimeUnit.MILLISECOND:
-      return setTimestampMillisecond(data, index, value);
-    case TimeUnit.MICROSECOND:
-      return setTimestampMicrosecond(data, index, value);
-    case TimeUnit.NANOSECOND:
-      return setTimestampNanosecond(data, index, value);
-  }
-}, setTimeSecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setTimeMillisecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setTimeMicrosecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setTimeNanosecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setTime = (data, index, value) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return setTimeSecond(data, index, value);
-    case TimeUnit.MILLISECOND:
-      return setTimeMillisecond(data, index, value);
-    case TimeUnit.MICROSECOND:
-      return setTimeMicrosecond(data, index, value);
-    case TimeUnit.NANOSECOND:
-      return setTimeNanosecond(data, index, value);
-  }
-}, setDecimal = ({ values, stride }, index, value) => {
-  values.set(value.subarray(0, stride), stride * index);
-}, setList = (data, index, value) => {
-  const values = data.children[0];
-  const valueOffsets = data.valueOffsets;
-  const set = instance.getVisitFn(values);
-  if (Array.isArray(value)) {
-    for (let idx = -1, itr = valueOffsets[index], end = valueOffsets[index + 1];itr < end; ) {
-      set(values, itr++, value[++idx]);
+var SetVisitor,
+  setEpochMsToDays = (data, index, epochMs) => {
+    data[index] = Math.floor(epochMs / 86400000);
+  },
+  setVariableWidthBytes = (values, valueOffsets, index, value) => {
+    if (index + 1 < valueOffsets.length) {
+      const x = bigIntToNumber(valueOffsets[index]);
+      const y = bigIntToNumber(valueOffsets[index + 1]);
+      values.set(value.subarray(0, y - x), x);
     }
-  } else {
-    for (let idx = -1, itr = valueOffsets[index], end = valueOffsets[index + 1];itr < end; ) {
-      set(values, itr++, value.get(++idx));
+  },
+  setBool = ({ offset, values }, index, val) => {
+    const idx = offset + index;
+    val
+      ? (values[idx >> 3] |= 1 << (idx % 8))
+      : (values[idx >> 3] &= ~(1 << (idx % 8)));
+  },
+  setInt = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setFloat = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setFloat16 = ({ values }, index, value) => {
+    values[index] = float64ToUint16(value);
+  },
+  setAnyFloat = (data, index, value) => {
+    switch (data.type.precision) {
+      case Precision.HALF:
+        return setFloat16(data, index, value);
+      case Precision.SINGLE:
+      case Precision.DOUBLE:
+        return setFloat(data, index, value);
     }
-  }
-}, setMap = (data, index, value) => {
-  const values = data.children[0];
-  const { valueOffsets } = data;
-  const set = instance.getVisitFn(values);
-  let { [index]: idx, [index + 1]: end } = valueOffsets;
-  const entries = value instanceof Map ? value.entries() : Object.entries(value);
-  for (const val of entries) {
-    set(values, idx, val);
-    if (++idx >= end)
-      break;
-  }
-}, _setStructArrayValue = (o, v) => (set, c, _, i) => c && set(c, o, v[i]), _setStructVectorValue = (o, v) => (set, c, _, i) => c && set(c, o, v.get(i)), _setStructMapValue = (o, v) => (set, c, f, _) => c && set(c, o, v.get(f.name)), _setStructObjectValue = (o, v) => (set, c, f, _) => c && set(c, o, v[f.name]), setStruct = (data, index, value) => {
-  const childSetters = data.type.children.map((f) => instance.getVisitFn(f.type));
-  const set = value instanceof Map ? _setStructMapValue(index, value) : value instanceof Vector ? _setStructVectorValue(index, value) : Array.isArray(value) ? _setStructArrayValue(index, value) : _setStructObjectValue(index, value);
-  data.type.children.forEach((f, i) => set(childSetters[i], data.children[i], f, i));
-}, setUnion = (data, index, value) => {
-  data.type.mode === UnionMode.Dense ? setDenseUnion(data, index, value) : setSparseUnion(data, index, value);
-}, setDenseUnion = (data, index, value) => {
-  const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
-  const child = data.children[childIndex];
-  instance.visit(child, data.valueOffsets[index], value);
-}, setSparseUnion = (data, index, value) => {
-  const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
-  const child = data.children[childIndex];
-  instance.visit(child, index, value);
-}, setDictionary = (data, index, value) => {
-  var _a2;
-  (_a2 = data.dictionary) === null || _a2 === undefined || _a2.set(data.values[index], value);
-}, setIntervalValue = (data, index, value) => {
-  data.type.unit === IntervalUnit.DAY_TIME ? setIntervalDayTime(data, index, value) : setIntervalYearMonth(data, index, value);
-}, setIntervalDayTime = ({ values }, index, value) => {
-  values.set(value.subarray(0, 2), 2 * index);
-}, setIntervalYearMonth = ({ values }, index, value) => {
-  values[index] = value[0] * 12 + value[1] % 12;
-}, setDurationSecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setDurationMillisecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setDurationMicrosecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setDurationNanosecond = ({ values }, index, value) => {
-  values[index] = value;
-}, setDuration = (data, index, value) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return setDurationSecond(data, index, value);
-    case TimeUnit.MILLISECOND:
-      return setDurationMillisecond(data, index, value);
-    case TimeUnit.MICROSECOND:
-      return setDurationMicrosecond(data, index, value);
-    case TimeUnit.NANOSECOND:
-      return setDurationNanosecond(data, index, value);
-  }
-}, setFixedSizeList = (data, index, value) => {
-  const { stride } = data;
-  const child = data.children[0];
-  const set = instance.getVisitFn(child);
-  if (Array.isArray(value)) {
-    for (let idx = -1, offset = index * stride;++idx < stride; ) {
-      set(child, offset + idx, value[idx]);
+  },
+  setDateDay = ({ values }, index, value) => {
+    setEpochMsToDays(values, index, value.valueOf());
+  },
+  setDateMillisecond = ({ values }, index, value) => {
+    values[index] = BigInt(value);
+  },
+  setFixedSizeBinary = ({ stride, values }, index, value) => {
+    values.set(value.subarray(0, stride), stride * index);
+  },
+  setBinary = ({ values, valueOffsets }, index, value) =>
+    setVariableWidthBytes(values, valueOffsets, index, value),
+  setUtf8 = ({ values, valueOffsets }, index, value) =>
+    setVariableWidthBytes(values, valueOffsets, index, encodeUtf8(value)),
+  setDate = (data, index, value) => {
+    data.type.unit === DateUnit.DAY
+      ? setDateDay(data, index, value)
+      : setDateMillisecond(data, index, value);
+  },
+  setTimestampSecond = ({ values }, index, value) => {
+    values[index] = BigInt(value / 1000);
+  },
+  setTimestampMillisecond = ({ values }, index, value) => {
+    values[index] = BigInt(value);
+  },
+  setTimestampMicrosecond = ({ values }, index, value) => {
+    values[index] = BigInt(value * 1000);
+  },
+  setTimestampNanosecond = ({ values }, index, value) => {
+    values[index] = BigInt(value * 1e6);
+  },
+  setTimestamp = (data, index, value) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return setTimestampSecond(data, index, value);
+      case TimeUnit.MILLISECOND:
+        return setTimestampMillisecond(data, index, value);
+      case TimeUnit.MICROSECOND:
+        return setTimestampMicrosecond(data, index, value);
+      case TimeUnit.NANOSECOND:
+        return setTimestampNanosecond(data, index, value);
     }
-  } else {
-    for (let idx = -1, offset = index * stride;++idx < stride; ) {
-      set(child, offset + idx, value.get(idx));
+  },
+  setTimeSecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setTimeMillisecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setTimeMicrosecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setTimeNanosecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setTime = (data, index, value) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return setTimeSecond(data, index, value);
+      case TimeUnit.MILLISECOND:
+        return setTimeMillisecond(data, index, value);
+      case TimeUnit.MICROSECOND:
+        return setTimeMicrosecond(data, index, value);
+      case TimeUnit.NANOSECOND:
+        return setTimeNanosecond(data, index, value);
     }
-  }
-}, instance;
+  },
+  setDecimal = ({ values, stride }, index, value) => {
+    values.set(value.subarray(0, stride), stride * index);
+  },
+  setList = (data, index, value) => {
+    const values = data.children[0];
+    const valueOffsets = data.valueOffsets;
+    const set = instance.getVisitFn(values);
+    if (Array.isArray(value)) {
+      for (
+        let idx = -1, itr = valueOffsets[index], end = valueOffsets[index + 1];
+        itr < end;
+      ) {
+        set(values, itr++, value[++idx]);
+      }
+    } else {
+      for (
+        let idx = -1, itr = valueOffsets[index], end = valueOffsets[index + 1];
+        itr < end;
+      ) {
+        set(values, itr++, value.get(++idx));
+      }
+    }
+  },
+  setMap = (data, index, value) => {
+    const values = data.children[0];
+    const { valueOffsets } = data;
+    const set = instance.getVisitFn(values);
+    let { [index]: idx, [index + 1]: end } = valueOffsets;
+    const entries =
+      value instanceof Map ? value.entries() : Object.entries(value);
+    for (const val of entries) {
+      set(values, idx, val);
+      if (++idx >= end) break;
+    }
+  },
+  _setStructArrayValue = (o, v) => (set, c, _, i) => c && set(c, o, v[i]),
+  _setStructVectorValue = (o, v) => (set, c, _, i) => c && set(c, o, v.get(i)),
+  _setStructMapValue = (o, v) => (set, c, f, _) =>
+    c && set(c, o, v.get(f.name)),
+  _setStructObjectValue = (o, v) => (set, c, f, _) => c && set(c, o, v[f.name]),
+  setStruct = (data, index, value) => {
+    const childSetters = data.type.children.map((f) =>
+      instance.getVisitFn(f.type),
+    );
+    const set =
+      value instanceof Map
+        ? _setStructMapValue(index, value)
+        : value instanceof Vector
+          ? _setStructVectorValue(index, value)
+          : Array.isArray(value)
+            ? _setStructArrayValue(index, value)
+            : _setStructObjectValue(index, value);
+    data.type.children.forEach((f, i) =>
+      set(childSetters[i], data.children[i], f, i),
+    );
+  },
+  setUnion = (data, index, value) => {
+    data.type.mode === UnionMode.Dense
+      ? setDenseUnion(data, index, value)
+      : setSparseUnion(data, index, value);
+  },
+  setDenseUnion = (data, index, value) => {
+    const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
+    const child = data.children[childIndex];
+    instance.visit(child, data.valueOffsets[index], value);
+  },
+  setSparseUnion = (data, index, value) => {
+    const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
+    const child = data.children[childIndex];
+    instance.visit(child, index, value);
+  },
+  setDictionary = (data, index, value) => {
+    var _a2;
+    (_a2 = data.dictionary) === null ||
+      _a2 === undefined ||
+      _a2.set(data.values[index], value);
+  },
+  setIntervalValue = (data, index, value) => {
+    data.type.unit === IntervalUnit.DAY_TIME
+      ? setIntervalDayTime(data, index, value)
+      : setIntervalYearMonth(data, index, value);
+  },
+  setIntervalDayTime = ({ values }, index, value) => {
+    values.set(value.subarray(0, 2), 2 * index);
+  },
+  setIntervalYearMonth = ({ values }, index, value) => {
+    values[index] = value[0] * 12 + (value[1] % 12);
+  },
+  setDurationSecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setDurationMillisecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setDurationMicrosecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setDurationNanosecond = ({ values }, index, value) => {
+    values[index] = value;
+  },
+  setDuration = (data, index, value) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return setDurationSecond(data, index, value);
+      case TimeUnit.MILLISECOND:
+        return setDurationMillisecond(data, index, value);
+      case TimeUnit.MICROSECOND:
+        return setDurationMicrosecond(data, index, value);
+      case TimeUnit.NANOSECOND:
+        return setDurationNanosecond(data, index, value);
+    }
+  },
+  setFixedSizeList = (data, index, value) => {
+    const { stride } = data;
+    const child = data.children[0];
+    const set = instance.getVisitFn(child);
+    if (Array.isArray(value)) {
+      for (let idx = -1, offset = index * stride; ++idx < stride; ) {
+        set(child, offset + idx, value[idx]);
+      }
+    } else {
+      for (let idx = -1, offset = index * stride; ++idx < stride; ) {
+        set(child, offset + idx, value.get(idx));
+      }
+    }
+  },
+  instance;
 var init_set = __esm(() => {
   init_vector2();
   init_visitor();
   init_utf8();
   init_math();
   init_enum();
-  SetVisitor = class SetVisitor extends Visitor {
-  };
+  SetVisitor = class SetVisitor extends Visitor {};
   SetVisitor.prototype.visitBool = wrapSet(setBool);
   SetVisitor.prototype.visitInt = wrapSet(setInt);
   SetVisitor.prototype.visitInt8 = wrapSet(setInt);
@@ -4260,9 +5106,15 @@ var init_set = __esm(() => {
   SetVisitor.prototype.visitDateMillisecond = wrapSet(setDateMillisecond);
   SetVisitor.prototype.visitTimestamp = wrapSet(setTimestamp);
   SetVisitor.prototype.visitTimestampSecond = wrapSet(setTimestampSecond);
-  SetVisitor.prototype.visitTimestampMillisecond = wrapSet(setTimestampMillisecond);
-  SetVisitor.prototype.visitTimestampMicrosecond = wrapSet(setTimestampMicrosecond);
-  SetVisitor.prototype.visitTimestampNanosecond = wrapSet(setTimestampNanosecond);
+  SetVisitor.prototype.visitTimestampMillisecond = wrapSet(
+    setTimestampMillisecond,
+  );
+  SetVisitor.prototype.visitTimestampMicrosecond = wrapSet(
+    setTimestampMicrosecond,
+  );
+  SetVisitor.prototype.visitTimestampNanosecond = wrapSet(
+    setTimestampNanosecond,
+  );
   SetVisitor.prototype.visitTime = wrapSet(setTime);
   SetVisitor.prototype.visitTimeSecond = wrapSet(setTimeSecond);
   SetVisitor.prototype.visitTimeMillisecond = wrapSet(setTimeMillisecond);
@@ -4280,12 +5132,16 @@ var init_set = __esm(() => {
   SetVisitor.prototype.visitIntervalYearMonth = wrapSet(setIntervalYearMonth);
   SetVisitor.prototype.visitDuration = wrapSet(setDuration);
   SetVisitor.prototype.visitDurationSecond = wrapSet(setDurationSecond);
-  SetVisitor.prototype.visitDurationMillisecond = wrapSet(setDurationMillisecond);
-  SetVisitor.prototype.visitDurationMicrosecond = wrapSet(setDurationMicrosecond);
+  SetVisitor.prototype.visitDurationMillisecond = wrapSet(
+    setDurationMillisecond,
+  );
+  SetVisitor.prototype.visitDurationMicrosecond = wrapSet(
+    setDurationMicrosecond,
+  );
   SetVisitor.prototype.visitDurationNanosecond = wrapSet(setDurationNanosecond);
   SetVisitor.prototype.visitFixedSizeList = wrapSet(setFixedSizeList);
   SetVisitor.prototype.visitMap = wrapSet(setMap);
-  instance = new SetVisitor;
+  instance = new SetVisitor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/row/struct.mjs
@@ -4343,7 +5199,7 @@ var init_struct = __esm(() => {
     constructor(parent, rowIndex) {
       this[kParent] = parent;
       this[kRowIndex] = rowIndex;
-      return new Proxy(this, new StructRowProxyHandler);
+      return new Proxy(this, new StructRowProxyHandler());
     }
     toArray() {
       return Object.values(this.toJSON());
@@ -4353,7 +5209,7 @@ var init_struct = __esm(() => {
       const parent = this[kParent];
       const keys = parent.type.children;
       const json = {};
-      for (let j = -1, n = keys.length;++j < n; ) {
+      for (let j = -1, n = keys.length; ++j < n; ) {
         json[keys[j].name] = instance2.visit(parent.children[j], i);
       }
       return json;
@@ -4387,109 +5243,188 @@ var init_struct = __esm(() => {
           done: false,
           value: [
             this.childFields[i].name,
-            instance2.visit(this.children[i], this.rowIndex)
-          ]
+            instance2.visit(this.children[i], this.rowIndex),
+          ],
         };
       }
       return { done: true, value: null };
     }
   };
   Object.defineProperties(StructRow.prototype, {
-    [Symbol.toStringTag]: { enumerable: false, configurable: false, value: "Row" },
-    [kParent]: { writable: true, enumerable: false, configurable: false, value: null },
-    [kRowIndex]: { writable: true, enumerable: false, configurable: false, value: -1 }
+    [Symbol.toStringTag]: {
+      enumerable: false,
+      configurable: false,
+      value: "Row",
+    },
+    [kParent]: {
+      writable: true,
+      enumerable: false,
+      configurable: false,
+      value: null,
+    },
+    [kRowIndex]: {
+      writable: true,
+      enumerable: false,
+      configurable: false,
+      value: -1,
+    },
   });
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/visitor/get.mjs
 function wrapGet(fn) {
-  return (data, _1) => data.getValid(_1) ? fn(data, _1) : null;
+  return (data, _1) => (data.getValid(_1) ? fn(data, _1) : null);
 }
-var GetVisitor, epochDaysToMs = (data, index) => 86400000 * data[index], getNull = (_data, _index) => null, getVariableWidthBytes = (values, valueOffsets, index) => {
-  if (index + 1 >= valueOffsets.length) {
-    return null;
-  }
-  const x = bigIntToNumber(valueOffsets[index]);
-  const y = bigIntToNumber(valueOffsets[index + 1]);
-  return values.subarray(x, y);
-}, getBool = ({ offset, values }, index) => {
-  const idx = offset + index;
-  const byte = values[idx >> 3];
-  return (byte & 1 << idx % 8) !== 0;
-}, getDateDay = ({ values }, index) => epochDaysToMs(values, index), getDateMillisecond = ({ values }, index) => bigIntToNumber(values[index]), getNumeric = ({ stride, values }, index) => values[stride * index], getFloat16 = ({ stride, values }, index) => uint16ToFloat64(values[stride * index]), getBigInts = ({ values }, index) => values[index], getFixedSizeBinary = ({ stride, values }, index) => values.subarray(stride * index, stride * (index + 1)), getBinary = ({ values, valueOffsets }, index) => getVariableWidthBytes(values, valueOffsets, index), getUtf8 = ({ values, valueOffsets }, index) => {
-  const bytes = getVariableWidthBytes(values, valueOffsets, index);
-  return bytes !== null ? decodeUtf8(bytes) : null;
-}, getInt = ({ values }, index) => values[index], getFloat = ({ type, values }, index) => type.precision !== Precision.HALF ? values[index] : uint16ToFloat64(values[index]), getDate = (data, index) => data.type.unit === DateUnit.DAY ? getDateDay(data, index) : getDateMillisecond(data, index), getTimestampSecond = ({ values }, index) => 1000 * bigIntToNumber(values[index]), getTimestampMillisecond = ({ values }, index) => bigIntToNumber(values[index]), getTimestampMicrosecond = ({ values }, index) => divideBigInts(values[index], BigInt(1000)), getTimestampNanosecond = ({ values }, index) => divideBigInts(values[index], BigInt(1e6)), getTimestamp = (data, index) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return getTimestampSecond(data, index);
-    case TimeUnit.MILLISECOND:
-      return getTimestampMillisecond(data, index);
-    case TimeUnit.MICROSECOND:
-      return getTimestampMicrosecond(data, index);
-    case TimeUnit.NANOSECOND:
-      return getTimestampNanosecond(data, index);
-  }
-}, getTimeSecond = ({ values }, index) => values[index], getTimeMillisecond = ({ values }, index) => values[index], getTimeMicrosecond = ({ values }, index) => values[index], getTimeNanosecond = ({ values }, index) => values[index], getTime = (data, index) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return getTimeSecond(data, index);
-    case TimeUnit.MILLISECOND:
-      return getTimeMillisecond(data, index);
-    case TimeUnit.MICROSECOND:
-      return getTimeMicrosecond(data, index);
-    case TimeUnit.NANOSECOND:
-      return getTimeNanosecond(data, index);
-  }
-}, getDecimal = ({ values, stride }, index) => BN.decimal(values.subarray(stride * index, stride * (index + 1))), getList = (data, index) => {
-  const { valueOffsets, stride, children } = data;
-  const { [index * stride]: begin, [index * stride + 1]: end } = valueOffsets;
-  const child = children[0];
-  const slice = child.slice(begin, end - begin);
-  return new Vector([slice]);
-}, getMap = (data, index) => {
-  const { valueOffsets, children } = data;
-  const { [index]: begin, [index + 1]: end } = valueOffsets;
-  const child = children[0];
-  return new MapRow(child.slice(begin, end - begin));
-}, getStruct = (data, index) => {
-  return new StructRow(data, index);
-}, getUnion = (data, index) => {
-  return data.type.mode === UnionMode.Dense ? getDenseUnion(data, index) : getSparseUnion(data, index);
-}, getDenseUnion = (data, index) => {
-  const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
-  const child = data.children[childIndex];
-  return instance2.visit(child, data.valueOffsets[index]);
-}, getSparseUnion = (data, index) => {
-  const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
-  const child = data.children[childIndex];
-  return instance2.visit(child, index);
-}, getDictionary = (data, index) => {
-  var _a2;
-  return (_a2 = data.dictionary) === null || _a2 === undefined ? undefined : _a2.get(data.values[index]);
-}, getInterval = (data, index) => data.type.unit === IntervalUnit.DAY_TIME ? getIntervalDayTime(data, index) : getIntervalYearMonth(data, index), getIntervalDayTime = ({ values }, index) => values.subarray(2 * index, 2 * (index + 1)), getIntervalYearMonth = ({ values }, index) => {
-  const interval = values[index];
-  const int32s = new Int32Array(2);
-  int32s[0] = Math.trunc(interval / 12);
-  int32s[1] = Math.trunc(interval % 12);
-  return int32s;
-}, getDurationSecond = ({ values }, index) => values[index], getDurationMillisecond = ({ values }, index) => values[index], getDurationMicrosecond = ({ values }, index) => values[index], getDurationNanosecond = ({ values }, index) => values[index], getDuration = (data, index) => {
-  switch (data.type.unit) {
-    case TimeUnit.SECOND:
-      return getDurationSecond(data, index);
-    case TimeUnit.MILLISECOND:
-      return getDurationMillisecond(data, index);
-    case TimeUnit.MICROSECOND:
-      return getDurationMicrosecond(data, index);
-    case TimeUnit.NANOSECOND:
-      return getDurationNanosecond(data, index);
-  }
-}, getFixedSizeList = (data, index) => {
-  const { stride, children } = data;
-  const child = children[0];
-  const slice = child.slice(index * stride, stride);
-  return new Vector([slice]);
-}, instance2;
+var GetVisitor,
+  epochDaysToMs = (data, index) => 86400000 * data[index],
+  getNull = (_data, _index) => null,
+  getVariableWidthBytes = (values, valueOffsets, index) => {
+    if (index + 1 >= valueOffsets.length) {
+      return null;
+    }
+    const x = bigIntToNumber(valueOffsets[index]);
+    const y = bigIntToNumber(valueOffsets[index + 1]);
+    return values.subarray(x, y);
+  },
+  getBool = ({ offset, values }, index) => {
+    const idx = offset + index;
+    const byte = values[idx >> 3];
+    return (byte & (1 << (idx % 8))) !== 0;
+  },
+  getDateDay = ({ values }, index) => epochDaysToMs(values, index),
+  getDateMillisecond = ({ values }, index) => bigIntToNumber(values[index]),
+  getNumeric = ({ stride, values }, index) => values[stride * index],
+  getFloat16 = ({ stride, values }, index) =>
+    uint16ToFloat64(values[stride * index]),
+  getBigInts = ({ values }, index) => values[index],
+  getFixedSizeBinary = ({ stride, values }, index) =>
+    values.subarray(stride * index, stride * (index + 1)),
+  getBinary = ({ values, valueOffsets }, index) =>
+    getVariableWidthBytes(values, valueOffsets, index),
+  getUtf8 = ({ values, valueOffsets }, index) => {
+    const bytes = getVariableWidthBytes(values, valueOffsets, index);
+    return bytes !== null ? decodeUtf8(bytes) : null;
+  },
+  getInt = ({ values }, index) => values[index],
+  getFloat = ({ type, values }, index) =>
+    type.precision !== Precision.HALF
+      ? values[index]
+      : uint16ToFloat64(values[index]),
+  getDate = (data, index) =>
+    data.type.unit === DateUnit.DAY
+      ? getDateDay(data, index)
+      : getDateMillisecond(data, index),
+  getTimestampSecond = ({ values }, index) =>
+    1000 * bigIntToNumber(values[index]),
+  getTimestampMillisecond = ({ values }, index) =>
+    bigIntToNumber(values[index]),
+  getTimestampMicrosecond = ({ values }, index) =>
+    divideBigInts(values[index], BigInt(1000)),
+  getTimestampNanosecond = ({ values }, index) =>
+    divideBigInts(values[index], BigInt(1e6)),
+  getTimestamp = (data, index) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return getTimestampSecond(data, index);
+      case TimeUnit.MILLISECOND:
+        return getTimestampMillisecond(data, index);
+      case TimeUnit.MICROSECOND:
+        return getTimestampMicrosecond(data, index);
+      case TimeUnit.NANOSECOND:
+        return getTimestampNanosecond(data, index);
+    }
+  },
+  getTimeSecond = ({ values }, index) => values[index],
+  getTimeMillisecond = ({ values }, index) => values[index],
+  getTimeMicrosecond = ({ values }, index) => values[index],
+  getTimeNanosecond = ({ values }, index) => values[index],
+  getTime = (data, index) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return getTimeSecond(data, index);
+      case TimeUnit.MILLISECOND:
+        return getTimeMillisecond(data, index);
+      case TimeUnit.MICROSECOND:
+        return getTimeMicrosecond(data, index);
+      case TimeUnit.NANOSECOND:
+        return getTimeNanosecond(data, index);
+    }
+  },
+  getDecimal = ({ values, stride }, index) =>
+    BN.decimal(values.subarray(stride * index, stride * (index + 1))),
+  getList = (data, index) => {
+    const { valueOffsets, stride, children } = data;
+    const { [index * stride]: begin, [index * stride + 1]: end } = valueOffsets;
+    const child = children[0];
+    const slice = child.slice(begin, end - begin);
+    return new Vector([slice]);
+  },
+  getMap = (data, index) => {
+    const { valueOffsets, children } = data;
+    const { [index]: begin, [index + 1]: end } = valueOffsets;
+    const child = children[0];
+    return new MapRow(child.slice(begin, end - begin));
+  },
+  getStruct = (data, index) => {
+    return new StructRow(data, index);
+  },
+  getUnion = (data, index) => {
+    return data.type.mode === UnionMode.Dense
+      ? getDenseUnion(data, index)
+      : getSparseUnion(data, index);
+  },
+  getDenseUnion = (data, index) => {
+    const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
+    const child = data.children[childIndex];
+    return instance2.visit(child, data.valueOffsets[index]);
+  },
+  getSparseUnion = (data, index) => {
+    const childIndex = data.type.typeIdToChildIndex[data.typeIds[index]];
+    const child = data.children[childIndex];
+    return instance2.visit(child, index);
+  },
+  getDictionary = (data, index) => {
+    var _a2;
+    return (_a2 = data.dictionary) === null || _a2 === undefined
+      ? undefined
+      : _a2.get(data.values[index]);
+  },
+  getInterval = (data, index) =>
+    data.type.unit === IntervalUnit.DAY_TIME
+      ? getIntervalDayTime(data, index)
+      : getIntervalYearMonth(data, index),
+  getIntervalDayTime = ({ values }, index) =>
+    values.subarray(2 * index, 2 * (index + 1)),
+  getIntervalYearMonth = ({ values }, index) => {
+    const interval = values[index];
+    const int32s = new Int32Array(2);
+    int32s[0] = Math.trunc(interval / 12);
+    int32s[1] = Math.trunc(interval % 12);
+    return int32s;
+  },
+  getDurationSecond = ({ values }, index) => values[index],
+  getDurationMillisecond = ({ values }, index) => values[index],
+  getDurationMicrosecond = ({ values }, index) => values[index],
+  getDurationNanosecond = ({ values }, index) => values[index],
+  getDuration = (data, index) => {
+    switch (data.type.unit) {
+      case TimeUnit.SECOND:
+        return getDurationSecond(data, index);
+      case TimeUnit.MILLISECOND:
+        return getDurationMillisecond(data, index);
+      case TimeUnit.MICROSECOND:
+        return getDurationMicrosecond(data, index);
+      case TimeUnit.NANOSECOND:
+        return getDurationNanosecond(data, index);
+    }
+  },
+  getFixedSizeList = (data, index) => {
+    const { stride, children } = data;
+    const child = children[0];
+    const slice = child.slice(index * stride, stride);
+    return new Vector([slice]);
+  },
+  instance2;
 var init_get = __esm(() => {
   init_bn();
   init_vector2();
@@ -4499,8 +5434,7 @@ var init_get = __esm(() => {
   init_utf8();
   init_math();
   init_enum();
-  GetVisitor = class GetVisitor extends Visitor {
-  };
+  GetVisitor = class GetVisitor extends Visitor {};
   GetVisitor.prototype.visitNull = wrapGet(getNull);
   GetVisitor.prototype.visitBool = wrapGet(getBool);
   GetVisitor.prototype.visitInt = wrapGet(getInt);
@@ -4526,9 +5460,15 @@ var init_get = __esm(() => {
   GetVisitor.prototype.visitDateMillisecond = wrapGet(getDateMillisecond);
   GetVisitor.prototype.visitTimestamp = wrapGet(getTimestamp);
   GetVisitor.prototype.visitTimestampSecond = wrapGet(getTimestampSecond);
-  GetVisitor.prototype.visitTimestampMillisecond = wrapGet(getTimestampMillisecond);
-  GetVisitor.prototype.visitTimestampMicrosecond = wrapGet(getTimestampMicrosecond);
-  GetVisitor.prototype.visitTimestampNanosecond = wrapGet(getTimestampNanosecond);
+  GetVisitor.prototype.visitTimestampMillisecond = wrapGet(
+    getTimestampMillisecond,
+  );
+  GetVisitor.prototype.visitTimestampMicrosecond = wrapGet(
+    getTimestampMicrosecond,
+  );
+  GetVisitor.prototype.visitTimestampNanosecond = wrapGet(
+    getTimestampNanosecond,
+  );
   GetVisitor.prototype.visitTime = wrapGet(getTime);
   GetVisitor.prototype.visitTimeSecond = wrapGet(getTimeSecond);
   GetVisitor.prototype.visitTimeMillisecond = wrapGet(getTimeMillisecond);
@@ -4546,12 +5486,16 @@ var init_get = __esm(() => {
   GetVisitor.prototype.visitIntervalYearMonth = wrapGet(getIntervalYearMonth);
   GetVisitor.prototype.visitDuration = wrapGet(getDuration);
   GetVisitor.prototype.visitDurationSecond = wrapGet(getDurationSecond);
-  GetVisitor.prototype.visitDurationMillisecond = wrapGet(getDurationMillisecond);
-  GetVisitor.prototype.visitDurationMicrosecond = wrapGet(getDurationMicrosecond);
+  GetVisitor.prototype.visitDurationMillisecond = wrapGet(
+    getDurationMillisecond,
+  );
+  GetVisitor.prototype.visitDurationMicrosecond = wrapGet(
+    getDurationMicrosecond,
+  );
   GetVisitor.prototype.visitDurationNanosecond = wrapGet(getDurationNanosecond);
   GetVisitor.prototype.visitFixedSizeList = wrapGet(getFixedSizeList);
   GetVisitor.prototype.visitMap = wrapGet(getMap);
-  instance2 = new GetVisitor;
+  instance2 = new GetVisitor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/row/map.mjs
@@ -4613,10 +5557,13 @@ var init_map2 = __esm(() => {
     constructor(slice) {
       this[kKeys] = new Vector([slice.children[0]]).memoize();
       this[kVals] = slice.children[1];
-      return new Proxy(this, new MapRowProxyHandler);
+      return new Proxy(this, new MapRowProxyHandler());
     }
     get [kKeysAsStrings]() {
-      return this[_kKeysAsStrings] || (this[_kKeysAsStrings] = Array.from(this[kKeys].toArray(), String));
+      return (
+        this[_kKeysAsStrings] ||
+        (this[_kKeysAsStrings] = Array.from(this[kKeys].toArray(), String))
+      );
     }
     [Symbol.iterator]() {
       return new MapRowIterator(this[kKeys], this[kVals]);
@@ -4631,7 +5578,7 @@ var init_map2 = __esm(() => {
       const keys = this[kKeys];
       const vals = this[kVals];
       const json = {};
-      for (let i = -1, n = keys.length;++i < n; ) {
+      for (let i = -1, n = keys.length; ++i < n; ) {
         json[keys.get(i)] = instance2.visit(vals, i);
       }
       return json;
@@ -4661,18 +5608,34 @@ var init_map2 = __esm(() => {
       this.keyIndex++;
       return {
         done: false,
-        value: [
-          this.keys.get(i),
-          instance2.visit(this.vals, i)
-        ]
+        value: [this.keys.get(i), instance2.visit(this.vals, i)],
       };
     }
   };
   Object.defineProperties(MapRow.prototype, {
-    [Symbol.toStringTag]: { enumerable: false, configurable: false, value: "Row" },
-    [kKeys]: { writable: true, enumerable: false, configurable: false, value: null },
-    [kVals]: { writable: true, enumerable: false, configurable: false, value: null },
-    [_kKeysAsStrings]: { writable: true, enumerable: false, configurable: false, value: null }
+    [Symbol.toStringTag]: {
+      enumerable: false,
+      configurable: false,
+      value: "Row",
+    },
+    [kKeys]: {
+      writable: true,
+      enumerable: false,
+      configurable: false,
+      value: null,
+    },
+    [kVals]: {
+      writable: true,
+      enumerable: false,
+      configurable: false,
+      value: null,
+    },
+    [_kKeysAsStrings]: {
+      writable: true,
+      enumerable: false,
+      configurable: false,
+      value: null,
+    },
   });
 });
 
@@ -4681,15 +5644,15 @@ var exports_vector = {};
 __export(exports_vector, {
   wrapIndex: () => wrapIndex,
   createElementComparator: () => createElementComparator,
-  clampRange: () => clampRange
+  clampRange: () => clampRange,
 });
 function clampRange(source, begin, end, then) {
   const { length: len = 0 } = source;
   let lhs = typeof begin !== "number" ? 0 : begin;
   let rhs = typeof end !== "number" ? len : end;
-  lhs < 0 && (lhs = (lhs % len + len) % len);
-  rhs < 0 && (rhs = (rhs % len + len) % len);
-  rhs < lhs && (tmp = lhs, lhs = rhs, rhs = tmp);
+  lhs < 0 && (lhs = ((lhs % len) + len) % len);
+  rhs < 0 && (rhs = ((rhs % len) + len) % len);
+  rhs < lhs && ((tmp = lhs), (lhs = rhs), (rhs = tmp));
   rhs > len && (rhs = len);
   return then ? then(source, lhs, rhs) : [lhs, rhs];
 }
@@ -4703,10 +5666,11 @@ function createElementComparator(search) {
   }
   if (search instanceof Date) {
     const valueOfSearch = search.valueOf();
-    return (value) => value instanceof Date ? value.valueOf() === valueOfSearch : false;
+    return (value) =>
+      value instanceof Date ? value.valueOf() === valueOfSearch : false;
   }
   if (ArrayBuffer.isView(search)) {
-    return (value) => value ? compareArrayLike(search, value) : false;
+    return (value) => (value ? compareArrayLike(search, value) : false);
   }
   if (search instanceof Map) {
     return createMapComparator(search);
@@ -4721,7 +5685,7 @@ function createElementComparator(search) {
 }
 function createArrayLikeComparator(lhs) {
   const comparators = [];
-  for (let i = -1, n = lhs.length;++i < n; ) {
+  for (let i = -1, n = lhs.length; ++i < n; ) {
     comparators[i] = createElementComparator(lhs[i]);
   }
   return createSubElementsComparator(comparators);
@@ -4729,13 +5693,12 @@ function createArrayLikeComparator(lhs) {
 function createMapComparator(lhs) {
   let i = -1;
   const comparators = [];
-  for (const v of lhs.values())
-    comparators[++i] = createElementComparator(v);
+  for (const v of lhs.values()) comparators[++i] = createElementComparator(v);
   return createSubElementsComparator(comparators);
 }
 function createVectorComparator(lhs) {
   const comparators = [];
-  for (let i = -1, n = lhs.length;++i < n; ) {
+  for (let i = -1, n = lhs.length; ++i < n; ) {
     comparators[i] = createElementComparator(lhs.get(i));
   }
   return createSubElementsComparator(comparators);
@@ -4746,7 +5709,7 @@ function createObjectComparator(lhs, allowEmpty = false) {
     return () => false;
   }
   const comparators = [];
-  for (let i = -1, n = keys.length;++i < n; ) {
+  for (let i = -1, n = keys.length; ++i < n; ) {
     comparators[i] = createElementComparator(lhs[keys[i]]);
   }
   return createSubElementsComparator(comparators, keys);
@@ -4775,7 +5738,7 @@ function compareArray(comparators, arr) {
   if (arr.length !== n) {
     return false;
   }
-  for (let i = -1;++i < n; ) {
+  for (let i = -1; ++i < n; ) {
     if (!comparators[i](arr[i])) {
       return false;
     }
@@ -4787,7 +5750,7 @@ function compareVector(comparators, vec) {
   if (vec.length !== n) {
     return false;
   }
-  for (let i = -1;++i < n; ) {
+  for (let i = -1; ++i < n; ) {
     if (!comparators[i](vec.get(i))) {
       return false;
     }
@@ -4796,14 +5759,20 @@ function compareVector(comparators, vec) {
 }
 function compareObject(comparators, obj, keys) {
   const lKeyItr = keys[Symbol.iterator]();
-  const rKeyItr = obj instanceof Map ? obj.keys() : Object.keys(obj)[Symbol.iterator]();
-  const rValItr = obj instanceof Map ? obj.values() : Object.values(obj)[Symbol.iterator]();
+  const rKeyItr =
+    obj instanceof Map ? obj.keys() : Object.keys(obj)[Symbol.iterator]();
+  const rValItr =
+    obj instanceof Map ? obj.values() : Object.values(obj)[Symbol.iterator]();
   let i = 0;
   const n = comparators.length;
   let rVal = rValItr.next();
   let lKey = lKeyItr.next();
   let rKey = rKeyItr.next();
-  for (;i < n && !lKey.done && !rKey.done && !rVal.done; ++i, lKey = lKeyItr.next(), rKey = rKeyItr.next(), rVal = rValItr.next()) {
+  for (
+    ;
+    i < n && !lKey.done && !rKey.done && !rVal.done;
+    ++i, lKey = lKeyItr.next(), rKey = rKeyItr.next(), rVal = rValItr.next()
+  ) {
     if (lKey.value !== rKey.value || !comparators[i](rVal.value)) {
       break;
     }
@@ -4816,7 +5785,9 @@ function compareObject(comparators, obj, keys) {
   rValItr.return && rValItr.return();
   return false;
 }
-var tmp, wrapIndex = (index, len) => index < 0 ? len + index : index, isNaNFast = (value) => value !== value;
+var tmp,
+  wrapIndex = (index, len) => (index < 0 ? len + index : index),
+  isNaNFast = (value) => value !== value;
 var init_vector = __esm(() => {
   init_vector2();
   init_map2();
@@ -4835,29 +5806,39 @@ __export(exports_bit, {
   packBools: () => packBools,
   getBool: () => getBool2,
   getBit: () => getBit,
-  BitIterator: () => BitIterator
+  BitIterator: () => BitIterator,
 });
 function getBool2(_data, _index, byte, bit) {
-  return (byte & 1 << bit) !== 0;
+  return (byte & (1 << bit)) !== 0;
 }
 function getBit(_data, _index, byte, bit) {
-  return (byte & 1 << bit) >> bit;
+  return (byte & (1 << bit)) >> bit;
 }
 function setBool2(bytes, index, value) {
-  return value ? !!(bytes[index >> 3] |= 1 << index % 8) || true : !(bytes[index >> 3] &= ~(1 << index % 8)) && false;
+  return value
+    ? !!(bytes[index >> 3] |= 1 << (index % 8)) || true
+    : !(bytes[index >> 3] &= ~(1 << (index % 8))) && false;
 }
 function truncateBitmap(offset, length, bitmap) {
-  const alignedSize = bitmap.byteLength + 7 & ~7;
+  const alignedSize = (bitmap.byteLength + 7) & ~7;
   if (offset > 0 || bitmap.byteLength < alignedSize) {
     const bytes = new Uint8Array(alignedSize);
-    bytes.set(offset % 8 === 0 ? bitmap.subarray(offset >> 3) : packBools(new BitIterator(bitmap, offset, length, null, getBool2)).subarray(0, alignedSize));
+    bytes.set(
+      offset % 8 === 0
+        ? bitmap.subarray(offset >> 3)
+        : packBools(
+            new BitIterator(bitmap, offset, length, null, getBool2),
+          ).subarray(0, alignedSize),
+    );
     return bytes;
   }
   return bitmap;
 }
 function packBools(values) {
   const xs = [];
-  let i = 0, bit = 0, byte = 0;
+  let i = 0,
+    bit = 0,
+    byte = 0;
   for (const value of values) {
     value && (byte |= 1 << bit);
     if (++bit === 8) {
@@ -4868,7 +5849,7 @@ function packBools(values) {
   if (i === 0 || bit > 0) {
     xs[i++] = byte;
   }
-  const b = new Uint8Array(xs.length + 7 & ~7);
+  const b = new Uint8Array((xs.length + 7) & ~7);
   b.set(xs);
   return b;
 }
@@ -4883,12 +5864,17 @@ function popcnt_bit_range(data, lhs, rhs) {
     }
     return sum;
   }
-  const rhsInside = rhs >> 3 << 3;
-  const lhsInside = lhs + (lhs % 8 === 0 ? 0 : 8 - lhs % 8);
-  return popcnt_bit_range(data, lhs, lhsInside) + popcnt_bit_range(data, rhsInside, rhs) + popcnt_array(data, lhsInside >> 3, rhsInside - lhsInside >> 3);
+  const rhsInside = (rhs >> 3) << 3;
+  const lhsInside = lhs + (lhs % 8 === 0 ? 0 : 8 - (lhs % 8));
+  return (
+    popcnt_bit_range(data, lhs, lhsInside) +
+    popcnt_bit_range(data, rhsInside, rhs) +
+    popcnt_array(data, lhsInside >> 3, (rhsInside - lhsInside) >> 3)
+  );
 }
 function popcnt_array(arr, byteOffset, byteLength) {
-  let cnt = 0, pos = Math.trunc(byteOffset);
+  let cnt = 0,
+    pos = Math.trunc(byteOffset);
   const view = new DataView(arr.buffer, arr.byteOffset, arr.byteLength);
   const len = byteLength === undefined ? arr.byteLength : pos + byteLength;
   while (len - pos >= 4) {
@@ -4907,9 +5893,9 @@ function popcnt_array(arr, byteOffset, byteLength) {
 }
 function popcnt_uint32(uint32) {
   let i = Math.trunc(uint32);
-  i = i - (i >>> 1 & 1431655765);
-  i = (i & 858993459) + (i >>> 2 & 858993459);
-  return (i + (i >>> 4) & 252645135) * 16843009 >>> 24;
+  i = i - ((i >>> 1) & 1431655765);
+  i = (i & 858993459) + ((i >>> 2) & 858993459);
+  return (((i + (i >>> 4)) & 252645135) * 16843009) >>> 24;
 }
 var BitIterator;
 var init_bit = __esm(() => {
@@ -4931,7 +5917,7 @@ var init_bit = __esm(() => {
           this.byte = this.bytes[this.byteIndex++];
         }
         return {
-          value: this.get(this.context, this.index++, this.byte, this.bit++)
+          value: this.get(this.context, this.index++, this.byte, this.bit++),
         };
       }
       return { done: true, value: null };
@@ -4972,20 +5958,42 @@ class Data {
     values && (byteLength += values.byteLength);
     nullBitmap && (byteLength += nullBitmap.byteLength);
     typeIds && (byteLength += typeIds.byteLength);
-    return this.children.reduce((byteLength2, child) => byteLength2 + child.byteLength, byteLength);
+    return this.children.reduce(
+      (byteLength2, child) => byteLength2 + child.byteLength,
+      byteLength,
+    );
   }
   get nullCount() {
     if (DataType.isUnion(this.type)) {
-      return this.children.reduce((nullCount2, child) => nullCount2 + child.nullCount, 0);
+      return this.children.reduce(
+        (nullCount2, child) => nullCount2 + child.nullCount,
+        0,
+      );
     }
     let nullCount = this._nullCount;
     let nullBitmap;
     if (nullCount <= kUnknownNullCount && (nullBitmap = this.nullBitmap)) {
-      this._nullCount = nullCount = nullBitmap.length === 0 ? 0 : this.length - popcnt_bit_range(nullBitmap, this.offset, this.offset + this.length);
+      this._nullCount = nullCount =
+        nullBitmap.length === 0
+          ? 0
+          : this.length -
+            popcnt_bit_range(
+              nullBitmap,
+              this.offset,
+              this.offset + this.length,
+            );
     }
     return nullCount;
   }
-  constructor(type, offset, length, nullCount, buffers, children = [], dictionary) {
+  constructor(
+    type,
+    offset,
+    length,
+    nullCount,
+    buffers,
+    children = [],
+    dictionary,
+  ) {
     this.type = type;
     this.children = children;
     this.dictionary = dictionary;
@@ -5013,14 +6021,16 @@ class Data {
     const { type } = this;
     if (DataType.isUnion(type)) {
       const union = type;
-      const child = this.children[union.typeIdToChildIndex[this.typeIds[index]]];
-      const indexInChild = union.mode === UnionMode.Dense ? this.valueOffsets[index] : index;
+      const child =
+        this.children[union.typeIdToChildIndex[this.typeIds[index]]];
+      const indexInChild =
+        union.mode === UnionMode.Dense ? this.valueOffsets[index] : index;
       return child.getValid(indexInChild);
     }
     if (this.nullable && this.nullCount > 0) {
       const pos = this.offset + index;
       const val = this.nullBitmap[pos >> 3];
-      return (val & 1 << pos % 8) !== 0;
+      return (val & (1 << (pos % 8))) !== 0;
     }
     return true;
   }
@@ -5029,18 +6039,22 @@ class Data {
     const { type } = this;
     if (DataType.isUnion(type)) {
       const union = type;
-      const child = this.children[union.typeIdToChildIndex[this.typeIds[index]]];
-      const indexInChild = union.mode === UnionMode.Dense ? this.valueOffsets[index] : index;
+      const child =
+        this.children[union.typeIdToChildIndex[this.typeIds[index]]];
+      const indexInChild =
+        union.mode === UnionMode.Dense ? this.valueOffsets[index] : index;
       prev = child.getValid(indexInChild);
       child.setValid(indexInChild, value);
     } else {
       let { nullBitmap } = this;
       const { offset, length } = this;
       const idx = offset + index;
-      const mask = 1 << idx % 8;
+      const mask = 1 << (idx % 8);
       const byteOffset = idx >> 3;
       if (!nullBitmap || nullBitmap.byteLength <= byteOffset) {
-        nullBitmap = new Uint8Array((offset + length + 63 & ~63) >> 3).fill(255);
+        nullBitmap = new Uint8Array(((offset + length + 63) & ~63) >> 3).fill(
+          255,
+        );
         if (this.nullCount > 0) {
           nullBitmap.set(truncateBitmap(offset, length, this.nullBitmap), 0);
           Object.assign(this, { nullBitmap });
@@ -5057,35 +6071,83 @@ class Data {
     }
     return value;
   }
-  clone(type = this.type, offset = this.offset, length = this.length, nullCount = this._nullCount, buffers = this, children = this.children) {
-    return new Data(type, offset, length, nullCount, buffers, children, this.dictionary);
+  clone(
+    type = this.type,
+    offset = this.offset,
+    length = this.length,
+    nullCount = this._nullCount,
+    buffers = this,
+    children = this.children,
+  ) {
+    return new Data(
+      type,
+      offset,
+      length,
+      nullCount,
+      buffers,
+      children,
+      this.dictionary,
+    );
   }
   slice(offset, length) {
     const { stride, typeId, children } = this;
     const nullCount = +(this._nullCount === 0) - 1;
     const childStride = typeId === 16 ? stride : 1;
     const buffers = this._sliceBuffers(offset, length, stride, typeId);
-    return this.clone(this.type, this.offset + offset, length, nullCount, buffers, children.length === 0 || this.valueOffsets ? children : this._sliceChildren(children, childStride * offset, childStride * length));
+    return this.clone(
+      this.type,
+      this.offset + offset,
+      length,
+      nullCount,
+      buffers,
+      children.length === 0 || this.valueOffsets
+        ? children
+        : this._sliceChildren(
+            children,
+            childStride * offset,
+            childStride * length,
+          ),
+    );
   }
   _changeLengthAndBackfillNullBitmap(newLength) {
     if (this.typeId === Type2.Null) {
       return this.clone(this.type, 0, newLength, 0);
     }
     const { length, nullCount } = this;
-    const bitmap = new Uint8Array((newLength + 63 & ~63) >> 3).fill(255, 0, length >> 3);
-    bitmap[length >> 3] = (1 << length - (length & ~7)) - 1;
+    const bitmap = new Uint8Array(((newLength + 63) & ~63) >> 3).fill(
+      255,
+      0,
+      length >> 3,
+    );
+    bitmap[length >> 3] = (1 << (length - (length & ~7))) - 1;
     if (nullCount > 0) {
       bitmap.set(truncateBitmap(this.offset, length, this.nullBitmap), 0);
     }
     const buffers = this.buffers;
     buffers[BufferType.VALIDITY] = bitmap;
-    return this.clone(this.type, 0, newLength, nullCount + (newLength - length), buffers);
+    return this.clone(
+      this.type,
+      0,
+      newLength,
+      nullCount + (newLength - length),
+      buffers,
+    );
   }
   _sliceBuffers(offset, length, stride, typeId) {
     let arr;
     const { buffers } = this;
-    (arr = buffers[BufferType.TYPE]) && (buffers[BufferType.TYPE] = arr.subarray(offset, offset + length));
-    (arr = buffers[BufferType.OFFSET]) && (buffers[BufferType.OFFSET] = arr.subarray(offset, offset + length + 1)) || (arr = buffers[BufferType.DATA]) && (buffers[BufferType.DATA] = typeId === 6 ? arr : arr.subarray(stride * offset, stride * (offset + length)));
+    (arr = buffers[BufferType.TYPE]) &&
+      (buffers[BufferType.TYPE] = arr.subarray(offset, offset + length));
+    ((arr = buffers[BufferType.OFFSET]) &&
+      (buffers[BufferType.OFFSET] = arr.subarray(
+        offset,
+        offset + length + 1,
+      ))) ||
+      ((arr = buffers[BufferType.DATA]) &&
+        (buffers[BufferType.DATA] =
+          typeId === 6
+            ? arr
+            : arr.subarray(stride * offset, stride * (offset + length))));
     return buffers;
   }
   _sliceChildren(children, offset, length) {
@@ -5095,7 +6157,9 @@ class Data {
 function makeData(props) {
   return makeDataVisitor.visit(props);
 }
-var kUnknownNullCount = -1, MakeDataVisitor, makeDataVisitor;
+var kUnknownNullCount = -1,
+  MakeDataVisitor,
+  makeDataVisitor;
 var init_data = __esm(() => {
   init_vector2();
   init_enum();
@@ -5109,157 +6173,358 @@ var init_data = __esm(() => {
       return this.getVisitFn(props["type"]).call(this, props);
     }
     visitNull(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["length"]: length = 0 } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["length"]: length = 0,
+      } = props;
       return new Data(type, offset, length, length);
     }
     visitBool(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length >> 3, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length >> 3,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitInt(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitFloat(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitUtf8(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const data = toUint8Array(props["data"]);
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toInt32Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, data, nullBitmap]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        valueOffsets,
+        data,
+        nullBitmap,
+      ]);
     }
     visitLargeUtf8(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const data = toUint8Array(props["data"]);
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toBigInt64Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, data, nullBitmap]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        valueOffsets,
+        data,
+        nullBitmap,
+      ]);
     }
     visitBinary(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const data = toUint8Array(props["data"]);
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toInt32Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, data, nullBitmap]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        valueOffsets,
+        data,
+        nullBitmap,
+      ]);
     }
     visitLargeBinary(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const data = toUint8Array(props["data"]);
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toBigInt64Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, data, nullBitmap]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        valueOffsets,
+        data,
+        nullBitmap,
+      ]);
     }
     visitFixedSizeBinary(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitDate(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitTimestamp(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitTime(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitDecimal(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitList(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["child"]: child } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["child"]: child,
+      } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toInt32Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, undefined, nullBitmap], [child]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [valueOffsets, undefined, nullBitmap],
+        [child],
+      );
     }
     visitStruct(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["children"]: children = [] } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["children"]: children = [],
+      } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
-      const { length = children.reduce((len, { length: length2 }) => Math.max(len, length2), 0), nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, undefined, nullBitmap], children);
+      const {
+        length = children.reduce(
+          (len, { length: length2 }) => Math.max(len, length2),
+          0,
+        ),
+        nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [undefined, undefined, nullBitmap],
+        children,
+      );
     }
     visitUnion(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["children"]: children = [] } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["children"]: children = [],
+      } = props;
       const typeIds = toArrayBufferView(type.ArrayType, props["typeIds"]);
-      const { ["length"]: length = typeIds.length, ["nullCount"]: nullCount = -1 } = props;
+      const {
+        ["length"]: length = typeIds.length,
+        ["nullCount"]: nullCount = -1,
+      } = props;
       if (DataType.isSparseUnion(type)) {
-        return new Data(type, offset, length, nullCount, [undefined, undefined, undefined, typeIds], children);
+        return new Data(
+          type,
+          offset,
+          length,
+          nullCount,
+          [undefined, undefined, undefined, typeIds],
+          children,
+        );
       }
       const valueOffsets = toInt32Array(props["valueOffsets"]);
-      return new Data(type, offset, length, nullCount, [valueOffsets, undefined, undefined, typeIds], children);
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [valueOffsets, undefined, undefined, typeIds],
+        children,
+      );
     }
     visitDictionary(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.indices.ArrayType, props["data"]);
-      const { ["dictionary"]: dictionary = new Vector([new MakeDataVisitor().visit({ type: type.dictionary })]) } = props;
-      const { ["length"]: length = data.length, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap], [], dictionary);
+      const {
+        ["dictionary"]: dictionary = new Vector([
+          new MakeDataVisitor().visit({ type: type.dictionary }),
+        ]),
+      } = props;
+      const {
+        ["length"]: length = data.length,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [undefined, data, nullBitmap],
+        [],
+        dictionary,
+      );
     }
     visitInterval(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitDuration(props) {
       const { ["type"]: type, ["offset"]: offset = 0 } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const data = toArrayBufferView(type.ArrayType, props["data"]);
-      const { ["length"]: length = data.length, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, data, nullBitmap]);
+      const {
+        ["length"]: length = data.length,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(type, offset, length, nullCount, [
+        undefined,
+        data,
+        nullBitmap,
+      ]);
     }
     visitFixedSizeList(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["child"]: child = new MakeDataVisitor().visit({ type: type.valueType }) } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["child"]: child = new MakeDataVisitor().visit({
+          type: type.valueType,
+        }),
+      } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
-      const { ["length"]: length = child.length / strideForType(type), ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [undefined, undefined, nullBitmap], [child]);
+      const {
+        ["length"]: length = child.length / strideForType(type),
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [undefined, undefined, nullBitmap],
+        [child],
+      );
     }
     visitMap(props) {
-      const { ["type"]: type, ["offset"]: offset = 0, ["child"]: child = new MakeDataVisitor().visit({ type: type.childType }) } = props;
+      const {
+        ["type"]: type,
+        ["offset"]: offset = 0,
+        ["child"]: child = new MakeDataVisitor().visit({
+          type: type.childType,
+        }),
+      } = props;
       const nullBitmap = toUint8Array(props["nullBitmap"]);
       const valueOffsets = toInt32Array(props["valueOffsets"]);
-      const { ["length"]: length = valueOffsets.length - 1, ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0 } = props;
-      return new Data(type, offset, length, nullCount, [valueOffsets, undefined, nullBitmap], [child]);
+      const {
+        ["length"]: length = valueOffsets.length - 1,
+        ["nullCount"]: nullCount = props["nullBitmap"] ? -1 : 0,
+      } = props;
+      return new Data(
+        type,
+        offset,
+        length,
+        nullCount,
+        [valueOffsets, undefined, nullBitmap],
+        [child],
+      );
     }
   };
-  makeDataVisitor = new MakeDataVisitor;
+  makeDataVisitor = new MakeDataVisitor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/chunk.mjs
@@ -5270,14 +6535,17 @@ function computeChunkNullCounts(chunks) {
   return chunks.reduce((nullCount, chunk) => nullCount + chunk.nullCount, 0);
 }
 function computeChunkOffsets(chunks) {
-  return chunks.reduce((offsets, chunk, index) => {
-    offsets[index + 1] = offsets[index] + chunk.length;
-    return offsets;
-  }, new Uint32Array(chunks.length + 1));
+  return chunks.reduce(
+    (offsets, chunk, index) => {
+      offsets[index + 1] = offsets[index] + chunk.length;
+      return offsets;
+    },
+    new Uint32Array(chunks.length + 1),
+  );
 }
 function sliceChunks(chunks, offsets, begin, end) {
   const slices = [];
-  for (let i = -1, n = chunks.length;++i < n; ) {
+  for (let i = -1, n = chunks.length; ++i < n; ) {
     const chunk = chunks[i];
     const offset = offsets[i];
     const { length } = chunk;
@@ -5301,13 +6569,15 @@ function sliceChunks(chunks, offsets, begin, end) {
   return slices;
 }
 function binarySearch(chunks, offsets, idx, fn) {
-  let lhs = 0, mid = 0, rhs = offsets.length - 1;
+  let lhs = 0,
+    mid = 0,
+    rhs = offsets.length - 1;
   do {
     if (lhs >= rhs - 1) {
       return idx < offsets[rhs] ? fn(chunks, lhs, idx - offsets[lhs]) : null;
     }
     mid = lhs + Math.trunc((rhs - lhs) * 0.5);
-    idx < offsets[mid] ? rhs = mid : lhs = mid;
+    idx < offsets[mid] ? (rhs = mid) : (lhs = mid);
   } while (lhs < rhs);
 }
 function isChunkedValid(data, index) {
@@ -5317,7 +6587,7 @@ function wrapChunkedCall1(fn) {
   function chunkedFn(chunks, i, j) {
     return fn(chunks[i], j);
   }
-  return function(index) {
+  return function (index) {
     const data = this.data;
     return binarySearch(data, this._offsets, index, chunkedFn);
   };
@@ -5327,7 +6597,7 @@ function wrapChunkedCall2(fn) {
   function chunkedFn(chunks, i, j) {
     return fn(chunks[i], j, _2);
   }
-  return function(index, value) {
+  return function (index, value) {
     const data = this.data;
     _2 = value;
     const result = binarySearch(data, this._offsets, index, chunkedFn);
@@ -5338,8 +6608,10 @@ function wrapChunkedCall2(fn) {
 function wrapChunkedIndexOf(indexOf) {
   let _1;
   function chunkedIndexOf(data, chunkIndex, fromIndex) {
-    let begin = fromIndex, index = 0, total = 0;
-    for (let i = chunkIndex - 1, n = data.length;++i < n; ) {
+    let begin = fromIndex,
+      index = 0,
+      total = 0;
+    for (let i = chunkIndex - 1, n = data.length; ++i < n; ) {
       const chunk = data[i];
       if (~(index = indexOf(chunk, _1, begin))) {
         return total + index;
@@ -5349,10 +6621,13 @@ function wrapChunkedIndexOf(indexOf) {
     }
     return -1;
   }
-  return function(element, offset) {
+  return function (element, offset) {
     _1 = element;
     const data = this.data;
-    const result = typeof offset !== "number" ? chunkedIndexOf(data, 0, 0) : binarySearch(data, this._offsets, offset, chunkedIndexOf);
+    const result =
+      typeof offset !== "number"
+        ? chunkedIndexOf(data, 0, 0)
+        : binarySearch(data, this._offsets, offset, chunkedIndexOf);
     _1 = undefined;
     return result;
   };
@@ -5394,7 +6669,13 @@ function indexOfNull(data, fromIndex) {
     return -1;
   }
   let i = 0;
-  for (const isValid of new BitIterator(nullBitmap, data.offset + (fromIndex || 0), data.length, nullBitmap, getBool2)) {
+  for (const isValid of new BitIterator(
+    nullBitmap,
+    data.offset + (fromIndex || 0),
+    data.length,
+    nullBitmap,
+    getBool2,
+  )) {
     if (!isValid) {
       return i;
     }
@@ -5418,7 +6699,7 @@ function indexOfValue(data, searchElement, fromIndex) {
   }
   const get = instance2.getVisitFn(data);
   const compare = createElementComparator(searchElement);
-  for (let i = (fromIndex || 0) - 1, n = data.length;++i < n; ) {
+  for (let i = (fromIndex || 0) - 1, n = data.length; ++i < n; ) {
     if (compare(get(data, i))) {
       return i;
     }
@@ -5428,7 +6709,7 @@ function indexOfValue(data, searchElement, fromIndex) {
 function indexOfUnion(data, searchElement, fromIndex) {
   const get = instance2.getVisitFn(data);
   const compare = createElementComparator(searchElement);
-  for (let i = (fromIndex || 0) - 1, n = data.length;++i < n; ) {
+  for (let i = (fromIndex || 0) - 1, n = data.length; ++i < n; ) {
     if (compare(get(data, i))) {
       return i;
     }
@@ -5442,8 +6723,7 @@ var init_indexof = __esm(() => {
   init_get();
   init_bit();
   init_vector();
-  IndexOfVisitor = class IndexOfVisitor extends Visitor {
-  };
+  IndexOfVisitor = class IndexOfVisitor extends Visitor {};
   IndexOfVisitor.prototype.visitNull = nullIndexOf;
   IndexOfVisitor.prototype.visitBool = indexOfValue;
   IndexOfVisitor.prototype.visitInt = indexOfValue;
@@ -5494,13 +6774,19 @@ var init_indexof = __esm(() => {
   IndexOfVisitor.prototype.visitDurationNanosecond = indexOfValue;
   IndexOfVisitor.prototype.visitFixedSizeList = indexOfValue;
   IndexOfVisitor.prototype.visitMap = indexOfValue;
-  instance3 = new IndexOfVisitor;
+  instance3 = new IndexOfVisitor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/visitor/iterator.mjs
 function vectorIterator(vector) {
   const { type } = vector;
-  if (vector.nullCount === 0 && vector.stride === 1 && (DataType.isInt(type) && type.bitWidth !== 64 || DataType.isTime(type) && type.bitWidth !== 64 || DataType.isFloat(type) && type.precision !== Precision.HALF)) {
+  if (
+    vector.nullCount === 0 &&
+    vector.stride === 1 &&
+    ((DataType.isInt(type) && type.bitWidth !== 64) ||
+      (DataType.isTime(type) && type.bitWidth !== 64) ||
+      (DataType.isFloat(type) && type.precision !== Precision.HALF))
+  ) {
     return new ChunkedIterator(vector.data.length, (chunkIndex) => {
       const data = vector.data[chunkIndex];
       return data.values.subarray(0, data.length)[Symbol.iterator]();
@@ -5521,8 +6807,7 @@ var init_iterator = __esm(() => {
   init_enum();
   init_type2();
   init_chunk();
-  IteratorVisitor = class IteratorVisitor extends Visitor {
-  };
+  IteratorVisitor = class IteratorVisitor extends Visitor {};
   VectorIterator = class VectorIterator {
     constructor(vector) {
       this.vector = vector;
@@ -5531,7 +6816,7 @@ var init_iterator = __esm(() => {
     next() {
       if (this.index < this.vector.length) {
         return {
-          value: this.vector.get(this.index++)
+          value: this.vector.get(this.index++),
         };
       }
       return { done: true, value: null };
@@ -5590,7 +6875,7 @@ var init_iterator = __esm(() => {
   IteratorVisitor.prototype.visitDurationNanosecond = vectorIterator;
   IteratorVisitor.prototype.visitFixedSizeList = vectorIterator;
   IteratorVisitor.prototype.visitMap = vectorIterator;
-  instance4 = new IteratorVisitor;
+  instance4 = new IteratorVisitor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/vector.mjs
@@ -5610,11 +6895,15 @@ var init_vector2 = __esm(() => {
   Vector = class Vector {
     constructor(input) {
       var _b2, _c2, _d2;
-      const data = input[0] instanceof Vector ? input.flatMap((x) => x.data) : input;
+      const data =
+        input[0] instanceof Vector ? input.flatMap((x) => x.data) : input;
       if (data.length === 0 || data.some((x) => !(x instanceof Data))) {
-        throw new TypeError("Vector constructor expects an Array of Data instances.");
+        throw new TypeError(
+          "Vector constructor expects an Array of Data instances.",
+        );
       }
-      const type = (_b2 = data[0]) === null || _b2 === undefined ? undefined : _b2.type;
+      const type =
+        (_b2 = data[0]) === null || _b2 === undefined ? undefined : _b2.type;
       switch (data.length) {
         case 0:
           this._offsets = [0];
@@ -5637,11 +6926,20 @@ var init_vector2 = __esm(() => {
       this.data = data;
       this.type = type;
       this.stride = strideForType(type);
-      this.numChildren = (_d2 = (_c2 = type.children) === null || _c2 === undefined ? undefined : _c2.length) !== null && _d2 !== undefined ? _d2 : 0;
+      this.numChildren =
+        (_d2 =
+          (_c2 = type.children) === null || _c2 === undefined
+            ? undefined
+            : _c2.length) !== null && _d2 !== undefined
+          ? _d2
+          : 0;
       this.length = this._offsets.at(-1);
     }
     get byteLength() {
-      return this.data.reduce((byteLength, data) => byteLength + data.byteLength, 0);
+      return this.data.reduce(
+        (byteLength, data) => byteLength + data.byteLength,
+        0,
+      );
     }
     get nullable() {
       return computeChunkNullable(this.data);
@@ -5680,10 +6978,18 @@ var init_vector2 = __esm(() => {
       return instance4.visit(this);
     }
     concat(...others) {
-      return new Vector(this.data.concat(others.flatMap((x) => x.data).flat(Number.POSITIVE_INFINITY)));
+      return new Vector(
+        this.data.concat(
+          others.flatMap((x) => x.data).flat(Number.POSITIVE_INFINITY),
+        ),
+      );
     }
     slice(begin, end) {
-      return new Vector(clampRange(this, begin, end, ({ data, _offsets }, begin2, end2) => sliceChunks(data, _offsets, begin2, end2)));
+      return new Vector(
+        clampRange(this, begin, end, ({ data, _offsets }, begin2, end2) =>
+          sliceChunks(data, _offsets, begin2, end2),
+        ),
+      );
     }
     toJSON() {
       return [...this];
@@ -5698,15 +7004,21 @@ var init_vector2 = __esm(() => {
         case Type2.Timestamp:
           switch (data.length) {
             case 0:
-              return new ArrayType;
+              return new ArrayType();
             case 1:
               return data[0].values.subarray(0, length * stride);
             default:
-              return data.reduce((memo, { values, length: chunk_length }) => {
-                memo.array.set(values.subarray(0, chunk_length * stride), memo.offset);
-                memo.offset += chunk_length * stride;
-                return memo;
-              }, { array: new ArrayType(length * stride), offset: 0 }).array;
+              return data.reduce(
+                (memo, { values, length: chunk_length }) => {
+                  memo.array.set(
+                    values.subarray(0, chunk_length * stride),
+                    memo.offset,
+                  );
+                  memo.offset += chunk_length * stride;
+                  return memo;
+                },
+                { array: new ArrayType(length * stride), offset: 0 },
+              ).array;
           }
       }
       return [...this];
@@ -5716,7 +7028,11 @@ var init_vector2 = __esm(() => {
     }
     getChild(name) {
       var _b2;
-      return this.getChildAt((_b2 = this.type.children) === null || _b2 === undefined ? undefined : _b2.findIndex((f) => f.name === name));
+      return this.getChildAt(
+        (_b2 = this.type.children) === null || _b2 === undefined
+          ? undefined
+          : _b2.findIndex((f) => f.name === name),
+      );
     }
     getChildAt(index) {
       if (index > -1 && index < this.numChildren) {
@@ -5764,7 +7080,9 @@ var init_vector2 = __esm(() => {
     proto.numChildren = 0;
     proto._offsets = new Uint32Array([0]);
     proto[Symbol.isConcatSpreadable] = true;
-    const typeIds = Object.keys(Type2).map((T) => Type2[T]).filter((T) => typeof T === "number" && T !== Type2.NONE);
+    const typeIds = Object.keys(Type2)
+      .map((T) => Type2[T])
+      .filter((T) => typeof T === "number" && T !== Type2.NONE);
     for (const typeId of typeIds) {
       const get = instance2.getVisitFnByTypeId(typeId);
       const set = instance.getVisitFnByTypeId(typeId);
@@ -5772,9 +7090,15 @@ var init_vector2 = __esm(() => {
       visitorsByTypeId[typeId] = { get, set, indexOf };
       vectorPrototypesByTypeId[typeId] = Object.create(proto, {
         ["isValid"]: { value: wrapChunkedCall1(isChunkedValid) },
-        ["get"]: { value: wrapChunkedCall1(instance2.getVisitFnByTypeId(typeId)) },
-        ["set"]: { value: wrapChunkedCall2(instance.getVisitFnByTypeId(typeId)) },
-        ["indexOf"]: { value: wrapChunkedIndexOf(instance3.getVisitFnByTypeId(typeId)) }
+        ["get"]: {
+          value: wrapChunkedCall1(instance2.getVisitFnByTypeId(typeId)),
+        },
+        ["set"]: {
+          value: wrapChunkedCall2(instance.getVisitFnByTypeId(typeId)),
+        },
+        ["indexOf"]: {
+          value: wrapChunkedIndexOf(instance3.getVisitFnByTypeId(typeId)),
+        },
       });
     }
     return "Vector";
@@ -5795,23 +7119,23 @@ var init_vector2 = __esm(() => {
           const value = get.call(this, index);
           cache[index] = value;
           return value;
-        }
+        },
       });
       Object.defineProperty(this, "set", {
         value(index, value) {
           set.call(this, index, value);
           cache[index] = value;
-        }
+        },
       });
       Object.defineProperty(this, "slice", {
-        value: (begin, end) => new MemoizedVector(slice.call(this, begin, end))
+        value: (begin, end) => new MemoizedVector(slice.call(this, begin, end)),
       });
       Object.defineProperty(this, "isMemoized", { value: true });
       Object.defineProperty(this, "unmemoize", {
-        value: () => new Vector(this.data)
+        value: () => new Vector(this.data),
       });
       Object.defineProperty(this, "memoize", {
-        value: () => this
+        value: () => this,
       });
     }
   };
@@ -5828,8 +7152,12 @@ function createIsValidFunction(nullValues) {
   const noNaNs = nullValues.filter((x) => x === x);
   if (noNaNs.length > 0) {
     fnBody = `
-    switch (x) {${noNaNs.map((x) => `
-        case ${valueToCase(x)}:`).join("")}
+    switch (x) {${noNaNs
+      .map(
+        (x) => `
+        case ${valueToCase(x)}:`,
+      )
+      .join("")}
             return false;
     }`;
   }
@@ -5837,8 +7165,11 @@ function createIsValidFunction(nullValues) {
     fnBody = `if (x !== x) return false;
 ${fnBody}`;
   }
-  return new Function(`x`, `${fnBody}
-return true;`);
+  return new Function(
+    `x`,
+    `${fnBody}
+return true;`,
+  );
 }
 function valueToCase(x) {
   if (typeof x !== "bigint") {
@@ -5851,10 +7182,12 @@ var init_valid = () => {};
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/buffer.mjs
 function roundLengthUpToNearest64Bytes(len, BPE) {
   const bytesMinus1 = Math.ceil(len) * BPE - 1;
-  return (bytesMinus1 - bytesMinus1 % 64 + 64 || 64) / BPE;
+  return (bytesMinus1 - (bytesMinus1 % 64) + 64 || 64) / BPE;
 }
 function resizeArray(arr, len = 0) {
-  return arr.length >= len ? arr.subarray(0, len) : memcpy(new arr.constructor(len), arr, 0);
+  return arr.length >= len
+    ? arr.subarray(0, len)
+    : memcpy(new arr.constructor(len), arr, 0);
 }
 
 class BufferBuilder {
@@ -5887,24 +7220,31 @@ class BufferBuilder {
       const length = this.length * stride;
       const reserved = this.buffer.length;
       if (length >= reserved) {
-        this._resize(reserved === 0 ? roundLengthUpToNearest64Bytes(length * 1, this.BYTES_PER_ELEMENT) : roundLengthUpToNearest64Bytes(length * 2, this.BYTES_PER_ELEMENT));
+        this._resize(
+          reserved === 0
+            ? roundLengthUpToNearest64Bytes(length * 1, this.BYTES_PER_ELEMENT)
+            : roundLengthUpToNearest64Bytes(length * 2, this.BYTES_PER_ELEMENT),
+        );
       }
     }
     return this;
   }
   flush(length = this.length) {
-    length = roundLengthUpToNearest64Bytes(length * this.stride, this.BYTES_PER_ELEMENT);
+    length = roundLengthUpToNearest64Bytes(
+      length * this.stride,
+      this.BYTES_PER_ELEMENT,
+    );
     const array = resizeArray(this.buffer, length);
     this.clear();
     return array;
   }
   clear() {
     this.length = 0;
-    this.buffer = new this.ArrayType;
+    this.buffer = new this.ArrayType();
     return this;
   }
   _resize(newLength) {
-    return this.buffer = resizeArray(this.buffer, newLength);
+    return (this.buffer = resizeArray(this.buffer, newLength));
   }
 }
 var DataBufferBuilder, BitmapBufferBuilder, OffsetsBufferBuilder;
@@ -5932,12 +7272,16 @@ var init_buffer2 = __esm(() => {
       return this.length - this.numValid;
     }
     get(idx) {
-      return this.buffer[idx >> 3] >> idx % 8 & 1;
+      return (this.buffer[idx >> 3] >> (idx % 8)) & 1;
     }
     set(idx, val) {
       const { buffer } = this.reserve(idx - this.length + 1);
-      const byte = idx >> 3, bit = idx % 8, cur = buffer[byte] >> bit & 1;
-      val ? cur === 0 && (buffer[byte] |= 1 << bit, ++this.numValid) : cur === 1 && (buffer[byte] &= ~(1 << bit), --this.numValid);
+      const byte = idx >> 3,
+        bit = idx % 8,
+        cur = (buffer[byte] >> bit) & 1;
+      val
+        ? cur === 0 && ((buffer[byte] |= 1 << bit), ++this.numValid)
+        : cur === 1 && ((buffer[byte] &= ~(1 << bit)), --this.numValid);
       return this;
     }
     clear() {
@@ -5985,7 +7329,7 @@ class Builder2 {
     this.children = [];
     this.nullValues = nulls;
     this.stride = strideForType(type);
-    this._nulls = new BitmapBufferBuilder;
+    this._nulls = new BitmapBufferBuilder();
     if (nulls && nulls.length > 0) {
       this._isValid = createIsValidFunction(nulls);
     }
@@ -6020,7 +7364,10 @@ class Builder2 {
     this._values && (size += this._values.reservedByteLength);
     this._nulls && (size += this._nulls.reservedByteLength);
     this._typeIds && (size += this._typeIds.reservedByteLength);
-    return this.children.reduce((size2, child) => size2 + child.reservedByteLength, size);
+    return this.children.reduce(
+      (size2, child) => size2 + child.reservedByteLength,
+      size,
+    );
   }
   get valueOffsets() {
     return this._offsets ? this._offsets.buffer : null;
@@ -6064,16 +7411,39 @@ class Builder2 {
     let typeIds;
     let nullBitmap;
     let valueOffsets;
-    const { type, length, nullCount, _typeIds, _offsets, _values, _nulls } = this;
-    if (typeIds = _typeIds === null || _typeIds === undefined ? undefined : _typeIds.flush(length)) {
-      valueOffsets = _offsets === null || _offsets === undefined ? undefined : _offsets.flush(length);
-    } else if (valueOffsets = _offsets === null || _offsets === undefined ? undefined : _offsets.flush(length)) {
-      data = _values === null || _values === undefined ? undefined : _values.flush(_offsets.last());
+    const { type, length, nullCount, _typeIds, _offsets, _values, _nulls } =
+      this;
+    if (
+      (typeIds =
+        _typeIds === null || _typeIds === undefined
+          ? undefined
+          : _typeIds.flush(length))
+    ) {
+      valueOffsets =
+        _offsets === null || _offsets === undefined
+          ? undefined
+          : _offsets.flush(length);
+    } else if (
+      (valueOffsets =
+        _offsets === null || _offsets === undefined
+          ? undefined
+          : _offsets.flush(length))
+    ) {
+      data =
+        _values === null || _values === undefined
+          ? undefined
+          : _values.flush(_offsets.last());
     } else {
-      data = _values === null || _values === undefined ? undefined : _values.flush(length);
+      data =
+        _values === null || _values === undefined
+          ? undefined
+          : _values.flush(length);
     }
     if (nullCount > 0) {
-      nullBitmap = _nulls === null || _nulls === undefined ? undefined : _nulls.flush(length);
+      nullBitmap =
+        _nulls === null || _nulls === undefined
+          ? undefined
+          : _nulls.flush(length);
     }
     const children = this.children.map((child) => child.flush());
     this.clear();
@@ -6086,13 +7456,12 @@ class Builder2 {
       data,
       typeIds,
       nullBitmap,
-      valueOffsets
+      valueOffsets,
     });
   }
   finish() {
     this.finished = true;
-    for (const child of this.children)
-      child.finish();
+    for (const child of this.children) child.finish();
     return this;
   }
   clear() {
@@ -6102,8 +7471,7 @@ class Builder2 {
     (_b2 = this._values) === null || _b2 === undefined || _b2.clear();
     (_c2 = this._offsets) === null || _c2 === undefined || _c2.clear();
     (_d2 = this._typeIds) === null || _d2 === undefined || _d2.clear();
-    for (const child of this.children)
-      child.clear();
+    for (const child of this.children) child.clear();
     return this;
   }
 }
@@ -6139,15 +7507,16 @@ var init_builder2 = __esm(() => {
       this._offsets = new OffsetsBufferBuilder(opts.type);
     }
     setValue(index, value) {
-      const pending = this._pending || (this._pending = new Map);
+      const pending = this._pending || (this._pending = new Map());
       const current = pending.get(index);
       current && (this._pendingLength -= current.length);
-      this._pendingLength += value instanceof MapRow ? value[kKeys].length : value.length;
+      this._pendingLength +=
+        value instanceof MapRow ? value[kKeys].length : value.length;
       pending.set(index, value);
     }
     setValid(index, isValid) {
       if (!super.setValid(index, isValid)) {
-        (this._pending || (this._pending = new Map)).set(index, undefined);
+        (this._pending || (this._pending = new Map())).set(index, undefined);
         return false;
       }
       return true;
@@ -6203,10 +7572,14 @@ class Block {
   }
   static createBlock(builder, offset, metaDataLength, bodyLength) {
     builder.prep(8, 24);
-    builder.writeInt64(BigInt(bodyLength !== null && bodyLength !== undefined ? bodyLength : 0));
+    builder.writeInt64(
+      BigInt(bodyLength !== null && bodyLength !== undefined ? bodyLength : 0),
+    );
     builder.pad(4);
     builder.writeInt32(metaDataLength);
-    builder.writeInt64(BigInt(offset !== null && offset !== undefined ? offset : 0));
+    builder.writeInt64(
+      BigInt(offset !== null && offset !== undefined ? offset : 0),
+    );
     return builder.offset();
   }
 }
@@ -6223,23 +7596,41 @@ class Footer {
     return this;
   }
   static getRootAsFooter(bb, obj) {
-    return (obj || new Footer).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Footer()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsFooter(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Footer).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Footer()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   version() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : MetadataVersion.V1;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : MetadataVersion.V1;
   }
   schema(obj) {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? (obj || new Schema).__init(this.bb.__indirect(this.bb_pos + offset), this.bb) : null;
+    return offset
+      ? (obj || new Schema()).__init(
+          this.bb.__indirect(this.bb_pos + offset),
+          this.bb,
+        )
+      : null;
   }
   dictionaries(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 8);
-    return offset ? (obj || new Block).__init(this.bb.__vector(this.bb_pos + offset) + index * 24, this.bb) : null;
+    return offset
+      ? (obj || new Block()).__init(
+          this.bb.__vector(this.bb_pos + offset) + index * 24,
+          this.bb,
+        )
+      : null;
   }
   dictionariesLength() {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -6247,7 +7638,12 @@ class Footer {
   }
   recordBatches(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 10);
-    return offset ? (obj || new Block).__init(this.bb.__vector(this.bb_pos + offset) + index * 24, this.bb) : null;
+    return offset
+      ? (obj || new Block()).__init(
+          this.bb.__vector(this.bb_pos + offset) + index * 24,
+          this.bb,
+        )
+      : null;
   }
   recordBatchesLength() {
     const offset = this.bb.__offset(this.bb_pos, 10);
@@ -6255,7 +7651,14 @@ class Footer {
   }
   customMetadata(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 12);
-    return offset ? (obj || new KeyValue).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new KeyValue()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   customMetadataLength() {
     const offset = this.bb.__offset(this.bb_pos, 12);
@@ -6287,7 +7690,7 @@ class Footer {
   }
   static createCustomMetadataVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -6315,17 +7718,19 @@ var init_footer = __esm(() => {
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/schema.mjs
 function mergeMaps(m1, m2) {
-  return new Map([...m1 || new Map, ...m2 || new Map]);
+  return new Map([...(m1 || new Map()), ...(m2 || new Map())]);
 }
-function generateDictionaryMap(fields, dictionaries = new Map) {
-  for (let i = -1, n = fields.length;++i < n; ) {
+function generateDictionaryMap(fields, dictionaries = new Map()) {
+  for (let i = -1, n = fields.length; ++i < n; ) {
     const field = fields[i];
     const type = field.type;
     if (DataType.isDictionary(type)) {
       if (!dictionaries.has(type.id)) {
         dictionaries.set(type.id, type.dictionary);
       } else if (dictionaries.get(type.id) !== type.dictionary) {
-        throw new Error(`Cannot create Schema containing two different dictionaries with the same Id`);
+        throw new Error(
+          `Cannot create Schema containing two different dictionaries with the same Id`,
+        );
       }
     }
     if (type.children && type.children.length > 0) {
@@ -6339,9 +7744,14 @@ var init_schema2 = __esm(() => {
   init_enum();
   init_type2();
   Schema2 = class Schema2 {
-    constructor(fields = [], metadata, dictionaries, metadataVersion = MetadataVersion.V5) {
+    constructor(
+      fields = [],
+      metadata,
+      dictionaries,
+      metadataVersion = MetadataVersion.V5,
+    ) {
       this.fields = fields || [];
-      this.metadata = metadata || new Map;
+      this.metadata = metadata || new Map();
       if (!dictionaries) {
         dictionaries = generateDictionaryMap(this.fields);
       }
@@ -6367,17 +7777,34 @@ var init_schema2 = __esm(() => {
       return new Schema2(fields, this.metadata);
     }
     assign(...args) {
-      const other = args[0] instanceof Schema2 ? args[0] : Array.isArray(args[0]) ? new Schema2(args[0]) : new Schema2(args);
+      const other =
+        args[0] instanceof Schema2
+          ? args[0]
+          : Array.isArray(args[0])
+            ? new Schema2(args[0])
+            : new Schema2(args);
       const curFields = [...this.fields];
-      const metadata = mergeMaps(mergeMaps(new Map, this.metadata), other.metadata);
+      const metadata = mergeMaps(
+        mergeMaps(new Map(), this.metadata),
+        other.metadata,
+      );
       const newFields = other.fields.filter((f2) => {
         const i = curFields.findIndex((f) => f.name === f2.name);
-        return ~i ? (curFields[i] = f2.clone({
-          metadata: mergeMaps(mergeMaps(new Map, curFields[i].metadata), f2.metadata)
-        })) && false : true;
+        return ~i
+          ? (curFields[i] = f2.clone({
+              metadata: mergeMaps(
+                mergeMaps(new Map(), curFields[i].metadata),
+                f2.metadata,
+              ),
+            })) && false
+          : true;
       });
-      const newDictionaries = generateDictionaryMap(newFields, new Map);
-      return new Schema2([...curFields, ...newFields], metadata, new Map([...this.dictionaries, ...newDictionaries]));
+      const newDictionaries = generateDictionaryMap(newFields, new Map());
+      return new Schema2(
+        [...curFields, ...newFields],
+        metadata,
+        new Map([...this.dictionaries, ...newDictionaries]),
+      );
     }
   };
   Schema2.prototype.fields = null;
@@ -6398,7 +7825,7 @@ var init_schema2 = __esm(() => {
       this.name = name;
       this.type = type;
       this.nullable = nullable;
-      this.metadata = metadata || new Map;
+      this.metadata = metadata || new Map();
     }
     get typeId() {
       return this.type.typeId;
@@ -6411,7 +7838,19 @@ var init_schema2 = __esm(() => {
     }
     clone(...args) {
       let [name, type, nullable, metadata] = args;
-      !args[0] || typeof args[0] !== "object" ? [name = this.name, type = this.type, nullable = this.nullable, metadata = this.metadata] = args : { name = this.name, type = this.type, nullable = this.nullable, metadata = this.metadata } = args[0];
+      !args[0] || typeof args[0] !== "object"
+        ? ([
+            name = this.name,
+            type = this.type,
+            nullable = this.nullable,
+            metadata = this.metadata,
+          ] = args)
+        : ({
+            name = this.name,
+            type = this.type,
+            nullable = this.nullable,
+            metadata = this.metadata,
+          } = args[0]);
       return Field2.new(name, type, nullable, metadata);
     }
   };
@@ -6426,11 +7865,11 @@ class Footer_ {
   static decode(buf) {
     buf = new ByteBuffer2(toUint8Array(buf));
     const footer = Footer.getRootAsFooter(buf);
-    const schema = Schema2.decode(footer.schema(), new Map, footer.version());
+    const schema = Schema2.decode(footer.schema(), new Map(), footer.version());
     return new OffHeapFooter(schema, footer);
   }
   static encode(footer) {
-    const b = new Builder3;
+    const b = new Builder3();
     const schemaOffset = Schema2.encode(b, footer.schema);
     Footer.startRecordBatchesVector(b, footer.numRecordBatches);
     for (const rb of [...footer.recordBatches()].slice().reverse()) {
@@ -6456,37 +7895,56 @@ class Footer_ {
   get numDictionaries() {
     return this._dictionaryBatches.length;
   }
-  constructor(schema, version = MetadataVersion.V5, recordBatches, dictionaryBatches) {
+  constructor(
+    schema,
+    version = MetadataVersion.V5,
+    recordBatches,
+    dictionaryBatches,
+  ) {
     this.schema = schema;
     this.version = version;
     recordBatches && (this._recordBatches = recordBatches);
     dictionaryBatches && (this._dictionaryBatches = dictionaryBatches);
   }
   *recordBatches() {
-    for (let block, i = -1, n = this.numRecordBatches;++i < n; ) {
-      if (block = this.getRecordBatch(i)) {
+    for (let block, i = -1, n = this.numRecordBatches; ++i < n; ) {
+      if ((block = this.getRecordBatch(i))) {
         yield block;
       }
     }
   }
   *dictionaryBatches() {
-    for (let block, i = -1, n = this.numDictionaries;++i < n; ) {
-      if (block = this.getDictionaryBatch(i)) {
+    for (let block, i = -1, n = this.numDictionaries; ++i < n; ) {
+      if ((block = this.getDictionaryBatch(i))) {
         yield block;
       }
     }
   }
   getRecordBatch(index) {
-    return index >= 0 && index < this.numRecordBatches && this._recordBatches[index] || null;
+    return (
+      (index >= 0 &&
+        index < this.numRecordBatches &&
+        this._recordBatches[index]) ||
+      null
+    );
   }
   getDictionaryBatch(index) {
-    return index >= 0 && index < this.numDictionaries && this._dictionaryBatches[index] || null;
+    return (
+      (index >= 0 &&
+        index < this.numDictionaries &&
+        this._dictionaryBatches[index]) ||
+      null
+    );
   }
 }
 
 class FileBlock {
   static decode(block) {
-    return new FileBlock(block.metaDataLength(), block.bodyLength(), block.offset());
+    return new FileBlock(
+      block.metaDataLength(),
+      block.bodyLength(),
+      block.offset(),
+    );
   }
   static encode(b, fileBlock) {
     const { metaDataLength } = fileBlock;
@@ -6587,7 +8045,9 @@ var init_interfaces = __esm(() => {
       super();
       this._values = [];
       this.resolvers = [];
-      this._closedPromise = new Promise((r) => this._closedPromiseResolve = r);
+      this._closedPromise = new Promise(
+        (r) => (this._closedPromiseResolve = r),
+      );
     }
     get closed() {
       return this._closedPromise;
@@ -6599,12 +8059,16 @@ var init_interfaces = __esm(() => {
     }
     write(value) {
       if (this._ensureOpen()) {
-        this.resolvers.length <= 0 ? this._values.push(value) : this.resolvers.shift().resolve({ done: false, value });
+        this.resolvers.length <= 0
+          ? this._values.push(value)
+          : this.resolvers.shift().resolve({ done: false, value });
       }
     }
     abort(value) {
       if (this._closedPromiseResolve) {
-        this.resolvers.length <= 0 ? this._error = { error: value } : this.resolvers.shift().reject({ done: true, value });
+        this.resolvers.length <= 0
+          ? (this._error = { error: value })
+          : this.resolvers.shift().reject({ done: true, value });
       }
     }
     close() {
@@ -6621,10 +8085,16 @@ var init_interfaces = __esm(() => {
       return this;
     }
     toDOMStream(options) {
-      return adapters_default.toDOMStream(this._closedPromiseResolve || this._error ? this : this._values, options);
+      return adapters_default.toDOMStream(
+        this._closedPromiseResolve || this._error ? this : this._values,
+        options,
+      );
     }
     toNodeStream(options) {
-      return adapters_default.toNodeStream(this._closedPromiseResolve || this._error ? this : this._values, options);
+      return adapters_default.toNodeStream(
+        this._closedPromiseResolve || this._error ? this : this._values,
+        options,
+      );
     }
     throw(_) {
       return __awaiter(this, undefined, undefined, function* () {
@@ -6688,17 +8158,21 @@ class ByteStreamSource {
     return this.source.next({ cmd, size });
   }
   throw(value) {
-    return Object.create(this.source.throw && this.source.throw(value) || ITERATOR_DONE);
+    return Object.create(
+      (this.source.throw && this.source.throw(value)) || ITERATOR_DONE,
+    );
   }
   return(value) {
-    return Object.create(this.source.return && this.source.return(value) || ITERATOR_DONE);
+    return Object.create(
+      (this.source.return && this.source.return(value)) || ITERATOR_DONE,
+    );
   }
 }
 
 class AsyncByteStreamSource {
   constructor(source) {
     this.source = source;
-    this._closedPromise = new Promise((r) => this._closedPromiseResolve = r);
+    this._closedPromise = new Promise((r) => (this._closedPromiseResolve = r));
   }
   cancel(reason) {
     return __awaiter(this, undefined, undefined, function* () {
@@ -6719,13 +8193,20 @@ class AsyncByteStreamSource {
     });
   }
   next(size_1) {
-    return __awaiter(this, arguments, undefined, function* (size, cmd = "read") {
-      return yield this.source.next({ cmd, size });
-    });
+    return __awaiter(
+      this,
+      arguments,
+      undefined,
+      function* (size, cmd = "read") {
+        return yield this.source.next({ cmd, size });
+      },
+    );
   }
   throw(value) {
     return __awaiter(this, undefined, undefined, function* () {
-      const result = this.source.throw && (yield this.source.throw(value)) || ITERATOR_DONE;
+      const result =
+        (this.source.throw && (yield this.source.throw(value))) ||
+        ITERATOR_DONE;
       this._closedPromiseResolve && this._closedPromiseResolve();
       this._closedPromiseResolve = undefined;
       return Object.create(result);
@@ -6733,7 +8214,9 @@ class AsyncByteStreamSource {
   }
   return(value) {
     return __awaiter(this, undefined, undefined, function* () {
-      const result = this.source.return && (yield this.source.return(value)) || ITERATOR_DONE;
+      const result =
+        (this.source.return && (yield this.source.return(value))) ||
+        ITERATOR_DONE;
       this._closedPromiseResolve && this._closedPromiseResolve();
       this._closedPromiseResolve = undefined;
       return Object.create(result);
@@ -6754,40 +8237,49 @@ var init_stream = __esm(() => {
       }
     }
     toString(sync = false) {
-      return sync ? decodeUtf8(this.toUint8Array(true)) : this.toUint8Array(false).then(decodeUtf8);
+      return sync
+        ? decodeUtf8(this.toUint8Array(true))
+        : this.toUint8Array(false).then(decodeUtf8);
     }
     toUint8Array(sync = false) {
-      return sync ? joinUint8Arrays(this._values)[0] : (() => __awaiter(this, undefined, undefined, function* () {
-        var _a3, e_1, _b2, _c2;
-        const buffers = [];
-        let byteLength = 0;
-        try {
-          for (var _d2 = true, _e2 = __asyncValues(this), _f2;_f2 = yield _e2.next(), _a3 = _f2.done, !_a3; _d2 = true) {
-            _c2 = _f2.value;
-            _d2 = false;
-            const chunk = _c2;
-            buffers.push(chunk);
-            byteLength += chunk.byteLength;
-          }
-        } catch (e_1_1) {
-          e_1 = { error: e_1_1 };
-        } finally {
-          try {
-            if (!_d2 && !_a3 && (_b2 = _e2.return))
-              yield _b2.call(_e2);
-          } finally {
-            if (e_1)
-              throw e_1.error;
-          }
-        }
-        return joinUint8Arrays(buffers, byteLength)[0];
-      }))();
+      return sync
+        ? joinUint8Arrays(this._values)[0]
+        : (() =>
+            __awaiter(this, undefined, undefined, function* () {
+              var _a3, e_1, _b2, _c2;
+              const buffers = [];
+              let byteLength = 0;
+              try {
+                for (
+                  var _d2 = true, _e2 = __asyncValues(this), _f2;
+                  (_f2 = yield _e2.next()), (_a3 = _f2.done), !_a3;
+                  _d2 = true
+                ) {
+                  _c2 = _f2.value;
+                  _d2 = false;
+                  const chunk = _c2;
+                  buffers.push(chunk);
+                  byteLength += chunk.byteLength;
+                }
+              } catch (e_1_1) {
+                e_1 = { error: e_1_1 };
+              } finally {
+                try {
+                  if (!_d2 && !_a3 && (_b2 = _e2.return)) yield _b2.call(_e2);
+                } finally {
+                  if (e_1) throw e_1.error;
+                }
+              }
+              return joinUint8Arrays(buffers, byteLength)[0];
+            }))();
     }
   };
   ByteStream = class ByteStream {
     constructor(source) {
       if (source) {
-        this.source = new ByteStreamSource(adapters_default.fromIterable(source));
+        this.source = new ByteStreamSource(
+          adapters_default.fromIterable(source),
+        );
       }
     }
     [Symbol.iterator]() {
@@ -6814,19 +8306,33 @@ var init_stream = __esm(() => {
       if (source instanceof AsyncByteStream) {
         this.source = source.source;
       } else if (source instanceof AsyncByteQueue) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromAsyncIterable(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromAsyncIterable(source),
+        );
       } else if (isReadableNodeStream(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromNodeStream(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromNodeStream(source),
+        );
       } else if (isReadableDOMStream(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromDOMStream(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromDOMStream(source),
+        );
       } else if (isFetchResponse(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromDOMStream(source.body));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromDOMStream(source.body),
+        );
       } else if (isIterable(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromIterable(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromIterable(source),
+        );
       } else if (isPromise(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromAsyncIterable(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromAsyncIterable(source),
+        );
       } else if (isAsyncIterable(source)) {
-        this.source = new AsyncByteStreamSource(adapters_default.fromAsyncIterable(source));
+        this.source = new AsyncByteStreamSource(
+          adapters_default.fromAsyncIterable(source),
+        );
       }
     }
     [Symbol.asyncIterator]() {
@@ -6867,7 +8373,8 @@ var init_file2 = __esm(() => {
       super();
       this.position = 0;
       this.buffer = toUint8Array(buffer);
-      this.size = byteLength === undefined ? this.buffer.byteLength : byteLength;
+      this.size =
+        byteLength === undefined ? this.buffer.byteLength : byteLength;
     }
     readInt32(position) {
       const { buffer, byteOffset } = this.readAt(position, 4);
@@ -6883,7 +8390,10 @@ var init_file2 = __esm(() => {
         if (typeof nBytes !== "number") {
           nBytes = Number.POSITIVE_INFINITY;
         }
-        this.position = Math.min(size, position + Math.min(size - position, nBytes));
+        this.position = Math.min(
+          size,
+          position + Math.min(size - position, nBytes),
+        );
         return buffer.subarray(position, this.position);
       }
       return null;
@@ -6913,10 +8423,11 @@ var init_file2 = __esm(() => {
       if (typeof byteLength === "number") {
         this.size = byteLength;
       } else {
-        this._pending = (() => __awaiter(this, undefined, undefined, function* () {
-          this.size = (yield file.stat()).size;
-          delete this._pending;
-        }))();
+        this._pending = (() =>
+          __awaiter(this, undefined, undefined, function* () {
+            this.size = (yield file.stat()).size;
+            delete this._pending;
+          }))();
       }
     }
     readInt32(position) {
@@ -6940,11 +8451,23 @@ var init_file2 = __esm(() => {
           if (typeof nBytes !== "number") {
             nBytes = Number.POSITIVE_INFINITY;
           }
-          let pos = position, offset = 0, bytesRead = 0;
+          let pos = position,
+            offset = 0,
+            bytesRead = 0;
           const end = Math.min(size, pos + Math.min(size - pos, nBytes));
-          const buffer = new Uint8Array(Math.max(0, (this.position = end) - pos));
-          while ((pos += bytesRead) < end && (offset += bytesRead) < buffer.byteLength) {
-            ({ bytesRead } = yield file.read(buffer, offset, buffer.byteLength - offset, pos));
+          const buffer = new Uint8Array(
+            Math.max(0, (this.position = end) - pos),
+          );
+          while (
+            (pos += bytesRead) < end &&
+            (offset += bytesRead) < buffer.byteLength
+          ) {
+            ({ bytesRead } = yield file.read(
+              buffer,
+              offset,
+              buffer.byteLength - offset,
+              pos,
+            ));
           }
           return buffer;
         }
@@ -6991,7 +8514,7 @@ __export(exports_int, {
   Uint64: () => Uint642,
   Int64: () => Int642,
   Int128: () => Int128,
-  BaseInt64: () => BaseInt64
+  BaseInt64: () => BaseInt64,
 });
 function intAsHex(value) {
   if (value < 0) {
@@ -7015,30 +8538,31 @@ class BaseInt64 {
       this.buffer[1] >>> 16,
       this.buffer[1] & 65535,
       this.buffer[0] >>> 16,
-      this.buffer[0] & 65535
+      this.buffer[0] & 65535,
     ]);
     const R = new Uint32Array([
       other.buffer[1] >>> 16,
       other.buffer[1] & 65535,
       other.buffer[0] >>> 16,
-      other.buffer[0] & 65535
+      other.buffer[0] & 65535,
     ]);
     let product = L[3] * R[3];
     this.buffer[0] = product & 65535;
     let sum = product >>> 16;
     product = L[2] * R[3];
     sum += product;
-    product = L[3] * R[2] >>> 0;
+    product = (L[3] * R[2]) >>> 0;
     sum += product;
     this.buffer[0] += sum << 16;
     this.buffer[1] = sum >>> 0 < product ? carryBit16 : 0;
     this.buffer[1] += sum >>> 16;
     this.buffer[1] += L[1] * R[3] + L[2] * R[2] + L[3] * R[1];
-    this.buffer[1] += L[0] * R[3] + L[1] * R[2] + L[2] * R[1] + L[3] * R[0] << 16;
+    this.buffer[1] +=
+      (L[0] * R[3] + L[1] * R[2] + L[2] * R[1] + L[3] * R[0]) << 16;
     return this;
   }
   _plus(other) {
-    const sum = this.buffer[0] + other.buffer[0] >>> 0;
+    const sum = (this.buffer[0] + other.buffer[0]) >>> 0;
     this.buffer[1] += other.buffer[1];
     if (sum < this.buffer[0] >>> 0) {
       ++this.buffer[1];
@@ -7046,10 +8570,15 @@ class BaseInt64 {
     this.buffer[0] = sum;
   }
   lessThan(other) {
-    return this.buffer[1] < other.buffer[1] || this.buffer[1] === other.buffer[1] && this.buffer[0] < other.buffer[0];
+    return (
+      this.buffer[1] < other.buffer[1] ||
+      (this.buffer[1] === other.buffer[1] && this.buffer[0] < other.buffer[0])
+    );
   }
   equals(other) {
-    return this.buffer[1] === other.buffer[1] && this.buffer[0] == other.buffer[0];
+    return (
+      this.buffer[1] === other.buffer[1] && this.buffer[0] == other.buffer[0]
+    );
   }
   greaterThan(other) {
     return other.lessThan(this);
@@ -7064,10 +8593,14 @@ class Int128 {
     this.buffer = buffer;
   }
   high() {
-    return new Int642(new Uint32Array(this.buffer.buffer, this.buffer.byteOffset + 8, 2));
+    return new Int642(
+      new Uint32Array(this.buffer.buffer, this.buffer.byteOffset + 8, 2),
+    );
   }
   low() {
-    return new Int642(new Uint32Array(this.buffer.buffer, this.buffer.byteOffset, 2));
+    return new Int642(
+      new Uint32Array(this.buffer.buffer, this.buffer.byteOffset, 2),
+    );
   }
   negate() {
     this.buffer[0] = ~this.buffer[0] + 1;
@@ -7104,17 +8637,26 @@ class Int128 {
     this.buffer[1] = sum.low();
     this.buffer[3] = sum.lessThan(product) ? 1 : 0;
     this.buffer[2] = sum.high();
-    const high = new Uint642(new Uint32Array(this.buffer.buffer, this.buffer.byteOffset + 8, 2));
-    high.plus(Uint642.multiply(L1, R3)).plus(Uint642.multiply(L2, R2)).plus(Uint642.multiply(L3, R1));
-    this.buffer[3] += Uint642.multiply(L0, R3).plus(Uint642.multiply(L1, R2)).plus(Uint642.multiply(L2, R1)).plus(Uint642.multiply(L3, R0)).low();
+    const high = new Uint642(
+      new Uint32Array(this.buffer.buffer, this.buffer.byteOffset + 8, 2),
+    );
+    high
+      .plus(Uint642.multiply(L1, R3))
+      .plus(Uint642.multiply(L2, R2))
+      .plus(Uint642.multiply(L3, R1));
+    this.buffer[3] += Uint642.multiply(L0, R3)
+      .plus(Uint642.multiply(L1, R2))
+      .plus(Uint642.multiply(L2, R1))
+      .plus(Uint642.multiply(L3, R0))
+      .low();
     return this;
   }
   plus(other) {
     const sums = new Uint32Array(4);
-    sums[3] = this.buffer[3] + other.buffer[3] >>> 0;
-    sums[2] = this.buffer[2] + other.buffer[2] >>> 0;
-    sums[1] = this.buffer[1] + other.buffer[1] >>> 0;
-    sums[0] = this.buffer[0] + other.buffer[0] >>> 0;
+    sums[3] = (this.buffer[3] + other.buffer[3]) >>> 0;
+    sums[2] = (this.buffer[2] + other.buffer[2]) >>> 0;
+    sums[1] = (this.buffer[1] + other.buffer[1]) >>> 0;
+    sums[0] = (this.buffer[0] + other.buffer[0]) >>> 0;
     if (sums[0] < this.buffer[0] >>> 0) {
       ++sums[1];
     }
@@ -7142,7 +8684,10 @@ class Int128 {
     return rtrn.plus(right);
   }
   static from(val, out_buffer = new Uint32Array(4)) {
-    return Int128.fromString(typeof val === "string" ? val : val.toString(), out_buffer);
+    return Int128.fromString(
+      typeof val === "string" ? val : val.toString(),
+      out_buffer,
+    );
   }
   static fromNumber(num, out_buffer = new Uint32Array(4)) {
     return Int128.fromString(num.toString(), out_buffer);
@@ -7151,10 +8696,22 @@ class Int128 {
     const negate = str.startsWith("-");
     const length = str.length;
     const out = new Int128(out_buffer);
-    for (let posn = negate ? 1 : 0;posn < length; ) {
-      const group = kInt32DecimalDigits < length - posn ? kInt32DecimalDigits : length - posn;
-      const chunk = new Int128(new Uint32Array([Number.parseInt(str.slice(posn, posn + group), 10), 0, 0, 0]));
-      const multiple = new Int128(new Uint32Array([kPowersOfTen[group], 0, 0, 0]));
+    for (let posn = negate ? 1 : 0; posn < length; ) {
+      const group =
+        kInt32DecimalDigits < length - posn
+          ? kInt32DecimalDigits
+          : length - posn;
+      const chunk = new Int128(
+        new Uint32Array([
+          Number.parseInt(str.slice(posn, posn + group), 10),
+          0,
+          0,
+          0,
+        ]),
+      );
+      const multiple = new Int128(
+        new Uint32Array([kPowersOfTen[group], 0, 0, 0]),
+      );
       out.times(multiple);
       out.plus(chunk);
       posn += group;
@@ -7163,26 +8720,23 @@ class Int128 {
   }
   static convertArray(values) {
     const data = new Uint32Array(values.length * 4);
-    for (let i = -1, n = values.length;++i < n; ) {
-      Int128.from(values[i], new Uint32Array(data.buffer, data.byteOffset + 4 * 4 * i, 4));
+    for (let i = -1, n = values.length; ++i < n; ) {
+      Int128.from(
+        values[i],
+        new Uint32Array(data.buffer, data.byteOffset + 4 * 4 * i, 4),
+      );
     }
     return data;
   }
 }
-var carryBit16, kInt32DecimalDigits = 8, kPowersOfTen, Uint642, Int642;
+var carryBit16,
+  kInt32DecimalDigits = 8,
+  kPowersOfTen,
+  Uint642,
+  Int642;
 var init_int2 = __esm(() => {
   carryBit16 = 1 << 16;
-  kPowersOfTen = [
-    1,
-    10,
-    100,
-    1000,
-    1e4,
-    1e5,
-    1e6,
-    1e7,
-    1e8
-  ];
+  kPowersOfTen = [1, 10, 100, 1000, 1e4, 1e5, 1e6, 1e7, 1e8];
   Uint642 = class Uint642 extends BaseInt64 {
     times(other) {
       this._times(other);
@@ -7193,7 +8747,10 @@ var init_int2 = __esm(() => {
       return this;
     }
     static from(val, out_buffer = new Uint32Array(2)) {
-      return Uint642.fromString(typeof val === "string" ? val : val.toString(), out_buffer);
+      return Uint642.fromString(
+        typeof val === "string" ? val : val.toString(),
+        out_buffer,
+      );
     }
     static fromNumber(num, out_buffer = new Uint32Array(2)) {
       return Uint642.fromString(num.toString(), out_buffer);
@@ -7201,9 +8758,17 @@ var init_int2 = __esm(() => {
     static fromString(str, out_buffer = new Uint32Array(2)) {
       const length = str.length;
       const out = new Uint642(out_buffer);
-      for (let posn = 0;posn < length; ) {
-        const group = kInt32DecimalDigits < length - posn ? kInt32DecimalDigits : length - posn;
-        const chunk = new Uint642(new Uint32Array([Number.parseInt(str.slice(posn, posn + group), 10), 0]));
+      for (let posn = 0; posn < length; ) {
+        const group =
+          kInt32DecimalDigits < length - posn
+            ? kInt32DecimalDigits
+            : length - posn;
+        const chunk = new Uint642(
+          new Uint32Array([
+            Number.parseInt(str.slice(posn, posn + group), 10),
+            0,
+          ]),
+        );
         const multiple = new Uint642(new Uint32Array([kPowersOfTen[group], 0]));
         out.times(multiple);
         out.plus(chunk);
@@ -7213,8 +8778,11 @@ var init_int2 = __esm(() => {
     }
     static convertArray(values) {
       const data = new Uint32Array(values.length * 2);
-      for (let i = -1, n = values.length;++i < n; ) {
-        Uint642.from(values[i], new Uint32Array(data.buffer, data.byteOffset + 2 * i * 4, 2));
+      for (let i = -1, n = values.length; ++i < n; ) {
+        Uint642.from(
+          values[i],
+          new Uint32Array(data.buffer, data.byteOffset + 2 * i * 4, 2),
+        );
       }
       return data;
     }
@@ -7247,10 +8815,16 @@ var init_int2 = __esm(() => {
     lessThan(other) {
       const this_high = this.buffer[1] << 0;
       const other_high = other.buffer[1] << 0;
-      return this_high < other_high || this_high === other_high && this.buffer[0] < other.buffer[0];
+      return (
+        this_high < other_high ||
+        (this_high === other_high && this.buffer[0] < other.buffer[0])
+      );
     }
     static from(val, out_buffer = new Uint32Array(2)) {
-      return Int642.fromString(typeof val === "string" ? val : val.toString(), out_buffer);
+      return Int642.fromString(
+        typeof val === "string" ? val : val.toString(),
+        out_buffer,
+      );
     }
     static fromNumber(num, out_buffer = new Uint32Array(2)) {
       return Int642.fromString(num.toString(), out_buffer);
@@ -7259,9 +8833,17 @@ var init_int2 = __esm(() => {
       const negate = str.startsWith("-");
       const length = str.length;
       const out = new Int642(out_buffer);
-      for (let posn = negate ? 1 : 0;posn < length; ) {
-        const group = kInt32DecimalDigits < length - posn ? kInt32DecimalDigits : length - posn;
-        const chunk = new Int642(new Uint32Array([Number.parseInt(str.slice(posn, posn + group), 10), 0]));
+      for (let posn = negate ? 1 : 0; posn < length; ) {
+        const group =
+          kInt32DecimalDigits < length - posn
+            ? kInt32DecimalDigits
+            : length - posn;
+        const chunk = new Int642(
+          new Uint32Array([
+            Number.parseInt(str.slice(posn, posn + group), 10),
+            0,
+          ]),
+        );
         const multiple = new Int642(new Uint32Array([kPowersOfTen[group], 0]));
         out.times(multiple);
         out.plus(chunk);
@@ -7271,8 +8853,11 @@ var init_int2 = __esm(() => {
     }
     static convertArray(values) {
       const data = new Uint32Array(values.length * 2);
-      for (let i = -1, n = values.length;++i < n; ) {
-        Int642.from(values[i], new Uint32Array(data.buffer, data.byteOffset + 2 * i * 4, 2));
+      for (let i = -1, n = values.length; ++i < n; ) {
+        Int642.from(
+          values[i],
+          new Uint32Array(data.buffer, data.byteOffset + 2 * i * 4, 2),
+        );
       }
       return data;
     }
@@ -7291,7 +8876,7 @@ var init_int2 = __esm(() => {
 function binaryDataFromJSON(values) {
   const joined = values.join("");
   const data = new Uint8Array(joined.length / 2);
-  for (let i = 0;i < joined.length; i += 2) {
+  for (let i = 0; i < joined.length; i += 2) {
     data[i >> 1] = Number.parseInt(joined.slice(i, i + 2), 16);
   }
   return data;
@@ -7308,7 +8893,13 @@ var init_vectorloader = __esm(() => {
   init_enum();
   init_buffer();
   VectorLoader = class VectorLoader extends Visitor {
-    constructor(bytes, nodes, buffers, dictionaries, metadataVersion = MetadataVersion.V5) {
+    constructor(
+      bytes,
+      nodes,
+      buffers,
+      dictionaries,
+      metadataVersion = MetadataVersion.V5,
+    ) {
       super();
       this.nodesIndex = -1;
       this.buffersIndex = -1;
@@ -7325,73 +8916,209 @@ var init_vectorloader = __esm(() => {
       return makeData({ type, length });
     }
     visitBool(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitInt(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitFloat(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitUtf8(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        data: this.readData(type),
+      });
     }
     visitLargeUtf8(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        data: this.readData(type),
+      });
     }
     visitBinary(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        data: this.readData(type),
+      });
     }
     visitLargeBinary(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        data: this.readData(type),
+      });
     }
     visitFixedSizeBinary(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitDate(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitTimestamp(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitTime(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitDecimal(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitList(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), child: this.visit(type.children[0]) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        child: this.visit(type.children[0]),
+      });
     }
     visitStruct(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), children: this.visitMany(type.children) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        children: this.visitMany(type.children),
+      });
     }
     visitUnion(type, { length, nullCount } = this.nextFieldNode()) {
       if (this.metadataVersion < MetadataVersion.V5) {
         this.readNullBitmap(type, nullCount);
       }
-      return type.mode === UnionMode.Sparse ? this.visitSparseUnion(type, { length, nullCount }) : this.visitDenseUnion(type, { length, nullCount });
+      return type.mode === UnionMode.Sparse
+        ? this.visitSparseUnion(type, { length, nullCount })
+        : this.visitDenseUnion(type, { length, nullCount });
     }
     visitDenseUnion(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, typeIds: this.readTypeIds(type), valueOffsets: this.readOffsets(type), children: this.visitMany(type.children) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        typeIds: this.readTypeIds(type),
+        valueOffsets: this.readOffsets(type),
+        children: this.visitMany(type.children),
+      });
     }
     visitSparseUnion(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, typeIds: this.readTypeIds(type), children: this.visitMany(type.children) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        typeIds: this.readTypeIds(type),
+        children: this.visitMany(type.children),
+      });
     }
     visitDictionary(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type.indices), dictionary: this.readDictionary(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type.indices),
+        dictionary: this.readDictionary(type),
+      });
     }
     visitInterval(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitDuration(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), data: this.readData(type) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        data: this.readData(type),
+      });
     }
     visitFixedSizeList(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), child: this.visit(type.children[0]) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        child: this.visit(type.children[0]),
+      });
     }
     visitMap(type, { length, nullCount } = this.nextFieldNode()) {
-      return makeData({ type, length, nullCount, nullBitmap: this.readNullBitmap(type, nullCount), valueOffsets: this.readOffsets(type), child: this.visit(type.children[0]) });
+      return makeData({
+        type,
+        length,
+        nullCount,
+        nullBitmap: this.readNullBitmap(type, nullCount),
+        valueOffsets: this.readOffsets(type),
+        child: this.visit(type.children[0]),
+      });
     }
     nextFieldNode() {
       return this.nodes[++this.nodesIndex];
@@ -7400,7 +9127,9 @@ var init_vectorloader = __esm(() => {
       return this.buffers[++this.buffersIndex];
     }
     readNullBitmap(type, nullCount, buffer = this.nextBufferRange()) {
-      return nullCount > 0 && this.readData(type, buffer) || new Uint8Array(0);
+      return (
+        (nullCount > 0 && this.readData(type, buffer)) || new Uint8Array(0)
+      );
     }
     readOffsets(type, buffer) {
       return this.readData(type, buffer);
@@ -7421,32 +9150,66 @@ var init_vectorloader = __esm(() => {
       this.sources = sources;
     }
     readNullBitmap(_type, nullCount, { offset } = this.nextBufferRange()) {
-      return nullCount <= 0 ? new Uint8Array(0) : packBools(this.sources[offset]);
+      return nullCount <= 0
+        ? new Uint8Array(0)
+        : packBools(this.sources[offset]);
     }
     readOffsets(_type, { offset } = this.nextBufferRange()) {
-      return toArrayBufferView(Uint8Array, toArrayBufferView(_type.OffsetArrayType, this.sources[offset]));
+      return toArrayBufferView(
+        Uint8Array,
+        toArrayBufferView(_type.OffsetArrayType, this.sources[offset]),
+      );
     }
     readTypeIds(type, { offset } = this.nextBufferRange()) {
-      return toArrayBufferView(Uint8Array, toArrayBufferView(type.ArrayType, this.sources[offset]));
+      return toArrayBufferView(
+        Uint8Array,
+        toArrayBufferView(type.ArrayType, this.sources[offset]),
+      );
     }
     readData(type, { offset } = this.nextBufferRange()) {
       const { sources } = this;
       if (DataType.isTimestamp(type)) {
-        return toArrayBufferView(Uint8Array, Int642.convertArray(sources[offset]));
-      } else if ((DataType.isInt(type) || DataType.isTime(type)) && type.bitWidth === 64 || DataType.isDuration(type)) {
-        return toArrayBufferView(Uint8Array, Int642.convertArray(sources[offset]));
+        return toArrayBufferView(
+          Uint8Array,
+          Int642.convertArray(sources[offset]),
+        );
+      } else if (
+        ((DataType.isInt(type) || DataType.isTime(type)) &&
+          type.bitWidth === 64) ||
+        DataType.isDuration(type)
+      ) {
+        return toArrayBufferView(
+          Uint8Array,
+          Int642.convertArray(sources[offset]),
+        );
       } else if (DataType.isDate(type) && type.unit === DateUnit.MILLISECOND) {
-        return toArrayBufferView(Uint8Array, Int642.convertArray(sources[offset]));
+        return toArrayBufferView(
+          Uint8Array,
+          Int642.convertArray(sources[offset]),
+        );
       } else if (DataType.isDecimal(type)) {
-        return toArrayBufferView(Uint8Array, Int128.convertArray(sources[offset]));
-      } else if (DataType.isBinary(type) || DataType.isLargeBinary(type) || DataType.isFixedSizeBinary(type)) {
+        return toArrayBufferView(
+          Uint8Array,
+          Int128.convertArray(sources[offset]),
+        );
+      } else if (
+        DataType.isBinary(type) ||
+        DataType.isLargeBinary(type) ||
+        DataType.isFixedSizeBinary(type)
+      ) {
         return binaryDataFromJSON(sources[offset]);
       } else if (DataType.isBool(type)) {
         return packBools(sources[offset]);
       } else if (DataType.isUtf8(type) || DataType.isLargeUtf8(type)) {
         return encodeUtf8(sources[offset].join(""));
       }
-      return toArrayBufferView(Uint8Array, toArrayBufferView(type.ArrayType, sources[offset].map((x) => +x)));
+      return toArrayBufferView(
+        Uint8Array,
+        toArrayBufferView(
+          type.ArrayType,
+          sources[offset].map((x) => +x),
+        ),
+      );
     }
   };
 });
@@ -7537,7 +9300,7 @@ var init_bool2 = __esm(() => {
   BoolBuilder = class BoolBuilder extends Builder2 {
     constructor(options) {
       super(options);
-      this._values = new BitmapBufferBuilder;
+      this._values = new BitmapBufferBuilder();
     }
     setValue(index, value) {
       this._values.set(index, +value);
@@ -7550,14 +9313,11 @@ var DateBuilder, DateDayBuilder, DateMillisecondBuilder;
 var init_date2 = __esm(() => {
   init_builder2();
   init_set();
-  DateBuilder = class DateBuilder extends FixedWidthBuilder {
-  };
+  DateBuilder = class DateBuilder extends FixedWidthBuilder {};
   DateBuilder.prototype._setValue = setDate;
-  DateDayBuilder = class DateDayBuilder extends DateBuilder {
-  };
+  DateDayBuilder = class DateDayBuilder extends DateBuilder {};
   DateDayBuilder.prototype._setValue = setDateDay;
-  DateMillisecondBuilder = class DateMillisecondBuilder extends DateBuilder {
-  };
+  DateMillisecondBuilder = class DateMillisecondBuilder extends DateBuilder {};
   DateMillisecondBuilder.prototype._setValue = setDateMillisecond;
 });
 
@@ -7566,8 +9326,7 @@ var DecimalBuilder;
 var init_decimal2 = __esm(() => {
   init_builder2();
   init_set();
-  DecimalBuilder = class DecimalBuilder extends FixedWidthBuilder {
-  };
+  DecimalBuilder = class DecimalBuilder extends FixedWidthBuilder {};
   DecimalBuilder.prototype._setValue = setDecimal;
 });
 
@@ -7579,12 +9338,25 @@ var init_dictionary = __esm(() => {
   init_factories();
   DictionaryBuilder = class DictionaryBuilder extends Builder2 {
     constructor({ type, nullValues: nulls, dictionaryHashFunction: hashFn }) {
-      super({ type: new Dictionary(type.dictionary, type.indices, type.id, type.isOrdered) });
+      super({
+        type: new Dictionary(
+          type.dictionary,
+          type.indices,
+          type.id,
+          type.isOrdered,
+        ),
+      });
       this._nulls = null;
       this._dictionaryOffset = 0;
       this._keysToIndices = Object.create(null);
-      this.indices = makeBuilder({ type: this.type.indices, nullValues: nulls });
-      this.dictionary = makeBuilder({ type: this.type.dictionary, nullValues: null });
+      this.indices = makeBuilder({
+        type: this.type.indices,
+        nullValues: nulls,
+      });
+      this.dictionary = makeBuilder({
+        type: this.type.dictionary,
+        nullValues: null,
+      });
       if (typeof hashFn === "function") {
         this.valueToKey = hashFn;
       }
@@ -7605,7 +9377,9 @@ var init_dictionary = __esm(() => {
       return this.indices.reservedLength + this.dictionary.reservedLength;
     }
     get reservedByteLength() {
-      return this.indices.reservedByteLength + this.dictionary.reservedByteLength;
+      return (
+        this.indices.reservedByteLength + this.dictionary.reservedByteLength
+      );
     }
     isValid(value) {
       return this.indices.isValid(value);
@@ -7621,7 +9395,8 @@ var init_dictionary = __esm(() => {
       const key = this.valueToKey(value);
       let idx = keysToIndices[key];
       if (idx === undefined) {
-        keysToIndices[key] = idx = this._dictionaryOffset + this.dictionary.append(value).length - 1;
+        keysToIndices[key] = idx =
+          this._dictionaryOffset + this.dictionary.append(value).length - 1;
       }
       return this.indices.setValue(index, idx);
     }
@@ -7659,8 +9434,9 @@ var FixedSizeBinaryBuilder;
 var init_fixedsizebinary = __esm(() => {
   init_builder2();
   init_set();
-  FixedSizeBinaryBuilder = class FixedSizeBinaryBuilder extends FixedWidthBuilder {
-  };
+  FixedSizeBinaryBuilder = class FixedSizeBinaryBuilder extends (
+    FixedWidthBuilder
+  ) {};
   FixedSizeBinaryBuilder.prototype._setValue = setFixedSizeBinary;
 });
 
@@ -7674,7 +9450,7 @@ var init_fixedsizelist = __esm(() => {
     setValue(index, value) {
       const [child] = this.children;
       const start = index * this.stride;
-      for (let i = -1, n = value.length;++i < n; ) {
+      for (let i = -1, n = value.length; ++i < n; ) {
         child.set(start + i, value[i]);
       }
     }
@@ -7683,7 +9459,10 @@ var init_fixedsizelist = __esm(() => {
         throw new Error("FixedSizeListBuilder can only have one child.");
       }
       const childIndex = this.children.push(child);
-      this.type = new FixedSizeList2(this.type.listSize, new Field2(name, child.type, true));
+      this.type = new FixedSizeList2(
+        this.type.listSize,
+        new Field2(name, child.type, true),
+      );
       return childIndex;
     }
   };
@@ -7704,10 +9483,8 @@ var init_float = __esm(() => {
       super.setValue(index, float64ToUint16(value));
     }
   };
-  Float32Builder = class Float32Builder extends FloatBuilder {
-  };
-  Float64Builder = class Float64Builder extends FloatBuilder {
-  };
+  Float32Builder = class Float32Builder extends FloatBuilder {};
+  Float64Builder = class Float64Builder extends FloatBuilder {};
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/interval.mjs
@@ -7715,41 +9492,57 @@ var IntervalBuilder, IntervalDayTimeBuilder, IntervalYearMonthBuilder;
 var init_interval2 = __esm(() => {
   init_builder2();
   init_set();
-  IntervalBuilder = class IntervalBuilder extends FixedWidthBuilder {
-  };
+  IntervalBuilder = class IntervalBuilder extends FixedWidthBuilder {};
   IntervalBuilder.prototype._setValue = setIntervalValue;
-  IntervalDayTimeBuilder = class IntervalDayTimeBuilder extends IntervalBuilder {
-  };
+  IntervalDayTimeBuilder = class IntervalDayTimeBuilder extends (
+    IntervalBuilder
+  ) {};
   IntervalDayTimeBuilder.prototype._setValue = setIntervalDayTime;
-  IntervalYearMonthBuilder = class IntervalYearMonthBuilder extends IntervalBuilder {
-  };
+  IntervalYearMonthBuilder = class IntervalYearMonthBuilder extends (
+    IntervalBuilder
+  ) {};
   IntervalYearMonthBuilder.prototype._setValue = setIntervalYearMonth;
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/duration.mjs
-var DurationBuilder, DurationSecondBuilder, DurationMillisecondBuilder, DurationMicrosecondBuilder, DurationNanosecondBuilder;
+var DurationBuilder,
+  DurationSecondBuilder,
+  DurationMillisecondBuilder,
+  DurationMicrosecondBuilder,
+  DurationNanosecondBuilder;
 var init_duration2 = __esm(() => {
   init_builder2();
   init_set();
-  DurationBuilder = class DurationBuilder extends FixedWidthBuilder {
-  };
+  DurationBuilder = class DurationBuilder extends FixedWidthBuilder {};
   DurationBuilder.prototype._setValue = setDuration;
-  DurationSecondBuilder = class DurationSecondBuilder extends DurationBuilder {
-  };
+  DurationSecondBuilder = class DurationSecondBuilder extends (
+    DurationBuilder
+  ) {};
   DurationSecondBuilder.prototype._setValue = setDurationSecond;
-  DurationMillisecondBuilder = class DurationMillisecondBuilder extends DurationBuilder {
-  };
+  DurationMillisecondBuilder = class DurationMillisecondBuilder extends (
+    DurationBuilder
+  ) {};
   DurationMillisecondBuilder.prototype._setValue = setDurationMillisecond;
-  DurationMicrosecondBuilder = class DurationMicrosecondBuilder extends DurationBuilder {
-  };
+  DurationMicrosecondBuilder = class DurationMicrosecondBuilder extends (
+    DurationBuilder
+  ) {};
   DurationMicrosecondBuilder.prototype._setValue = setDurationMicrosecond;
-  DurationNanosecondBuilder = class DurationNanosecondBuilder extends DurationBuilder {
-  };
+  DurationNanosecondBuilder = class DurationNanosecondBuilder extends (
+    DurationBuilder
+  ) {};
   DurationNanosecondBuilder.prototype._setValue = setDurationNanosecond;
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/int.mjs
-var IntBuilder, Int8Builder, Int16Builder, Int32Builder, Int64Builder, Uint8Builder, Uint16Builder, Uint32Builder, Uint64Builder;
+var IntBuilder,
+  Int8Builder,
+  Int16Builder,
+  Int32Builder,
+  Int64Builder,
+  Uint8Builder,
+  Uint16Builder,
+  Uint32Builder,
+  Uint64Builder;
 var init_int3 = __esm(() => {
   init_builder2();
   IntBuilder = class IntBuilder extends FixedWidthBuilder {
@@ -7757,22 +9550,14 @@ var init_int3 = __esm(() => {
       this._values.set(index, value);
     }
   };
-  Int8Builder = class Int8Builder extends IntBuilder {
-  };
-  Int16Builder = class Int16Builder extends IntBuilder {
-  };
-  Int32Builder = class Int32Builder extends IntBuilder {
-  };
-  Int64Builder = class Int64Builder extends IntBuilder {
-  };
-  Uint8Builder = class Uint8Builder extends IntBuilder {
-  };
-  Uint16Builder = class Uint16Builder extends IntBuilder {
-  };
-  Uint32Builder = class Uint32Builder extends IntBuilder {
-  };
-  Uint64Builder = class Uint64Builder extends IntBuilder {
-  };
+  Int8Builder = class Int8Builder extends IntBuilder {};
+  Int16Builder = class Int16Builder extends IntBuilder {};
+  Int32Builder = class Int32Builder extends IntBuilder {};
+  Int64Builder = class Int64Builder extends IntBuilder {};
+  Uint8Builder = class Uint8Builder extends IntBuilder {};
+  Uint16Builder = class Uint16Builder extends IntBuilder {};
+  Uint32Builder = class Uint32Builder extends IntBuilder {};
+  Uint64Builder = class Uint64Builder extends IntBuilder {};
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/list.mjs
@@ -7805,7 +9590,7 @@ var init_list2 = __esm(() => {
           const v = value;
           const n = v.length;
           const start = offsets.set(index, n).buffer[index];
-          for (let i = -1;++i < n; ) {
+          for (let i = -1; ++i < n; ) {
             child.set(start + i, v[i]);
           }
         }
@@ -7826,7 +9611,7 @@ var init_map3 = __esm(() => {
     }
     setValue(index, value) {
       const row = value instanceof Map ? value : new Map(Object.entries(value));
-      const pending = this._pending || (this._pending = new Map);
+      const pending = this._pending || (this._pending = new Map());
       const current = pending.get(index);
       current && (this._pendingLength -= current.size);
       this._pendingLength += row.size;
@@ -7837,7 +9622,10 @@ var init_map3 = __esm(() => {
         throw new Error("ListBuilder can only have one child.");
       }
       this.children[this.numChildren] = child;
-      this.type = new Map_(new Field2(name, child.type, true), this.type.keysSorted);
+      this.type = new Map_(
+        new Field2(name, child.type, true),
+        this.type.keysSorted,
+      );
       return this.numChildren - 1;
     }
     _flushPending(pending) {
@@ -7847,11 +9635,13 @@ var init_map3 = __esm(() => {
         if (value === undefined) {
           offsets.set(index, 0);
         } else {
-          let { [index]: idx, [index + 1]: end } = offsets.set(index, value.size).buffer;
+          let { [index]: idx, [index + 1]: end } = offsets.set(
+            index,
+            value.size,
+          ).buffer;
           for (const val of value.entries()) {
             child.set(idx, val);
-            if (++idx >= end)
-              break;
+            if (++idx >= end) break;
           }
         }
       }
@@ -7883,11 +9673,17 @@ var init_struct2 = __esm(() => {
       const { children, type } = this;
       switch (Array.isArray(value) || value.constructor) {
         case true:
-          return type.children.forEach((_, i) => children[i].set(index, value[i]));
+          return type.children.forEach((_, i) =>
+            children[i].set(index, value[i]),
+          );
         case Map:
-          return type.children.forEach((f, i) => children[i].set(index, value.get(f.name)));
+          return type.children.forEach((f, i) =>
+            children[i].set(index, value.get(f.name)),
+          );
         default:
-          return type.children.forEach((f, i) => children[i].set(index, value[f.name]));
+          return type.children.forEach((f, i) =>
+            children[i].set(index, value[f.name]),
+          );
       }
     }
     setValid(index, valid) {
@@ -7898,53 +9694,62 @@ var init_struct2 = __esm(() => {
     }
     addChild(child, name = `${this.numChildren}`) {
       const childIndex = this.children.push(child);
-      this.type = new Struct([...this.type.children, new Field2(name, child.type, true)]);
+      this.type = new Struct([
+        ...this.type.children,
+        new Field2(name, child.type, true),
+      ]);
       return childIndex;
     }
   };
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/timestamp.mjs
-var TimestampBuilder, TimestampSecondBuilder, TimestampMillisecondBuilder, TimestampMicrosecondBuilder, TimestampNanosecondBuilder;
+var TimestampBuilder,
+  TimestampSecondBuilder,
+  TimestampMillisecondBuilder,
+  TimestampMicrosecondBuilder,
+  TimestampNanosecondBuilder;
 var init_timestamp2 = __esm(() => {
   init_builder2();
   init_set();
-  TimestampBuilder = class TimestampBuilder extends FixedWidthBuilder {
-  };
+  TimestampBuilder = class TimestampBuilder extends FixedWidthBuilder {};
   TimestampBuilder.prototype._setValue = setTimestamp;
-  TimestampSecondBuilder = class TimestampSecondBuilder extends TimestampBuilder {
-  };
+  TimestampSecondBuilder = class TimestampSecondBuilder extends (
+    TimestampBuilder
+  ) {};
   TimestampSecondBuilder.prototype._setValue = setTimestampSecond;
-  TimestampMillisecondBuilder = class TimestampMillisecondBuilder extends TimestampBuilder {
-  };
+  TimestampMillisecondBuilder = class TimestampMillisecondBuilder extends (
+    TimestampBuilder
+  ) {};
   TimestampMillisecondBuilder.prototype._setValue = setTimestampMillisecond;
-  TimestampMicrosecondBuilder = class TimestampMicrosecondBuilder extends TimestampBuilder {
-  };
+  TimestampMicrosecondBuilder = class TimestampMicrosecondBuilder extends (
+    TimestampBuilder
+  ) {};
   TimestampMicrosecondBuilder.prototype._setValue = setTimestampMicrosecond;
-  TimestampNanosecondBuilder = class TimestampNanosecondBuilder extends TimestampBuilder {
-  };
+  TimestampNanosecondBuilder = class TimestampNanosecondBuilder extends (
+    TimestampBuilder
+  ) {};
   TimestampNanosecondBuilder.prototype._setValue = setTimestampNanosecond;
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/builder/time.mjs
-var TimeBuilder, TimeSecondBuilder, TimeMillisecondBuilder, TimeMicrosecondBuilder, TimeNanosecondBuilder;
+var TimeBuilder,
+  TimeSecondBuilder,
+  TimeMillisecondBuilder,
+  TimeMicrosecondBuilder,
+  TimeNanosecondBuilder;
 var init_time2 = __esm(() => {
   init_builder2();
   init_set();
-  TimeBuilder = class TimeBuilder extends FixedWidthBuilder {
-  };
+  TimeBuilder = class TimeBuilder extends FixedWidthBuilder {};
   TimeBuilder.prototype._setValue = setTime;
-  TimeSecondBuilder = class TimeSecondBuilder extends TimeBuilder {
-  };
+  TimeSecondBuilder = class TimeSecondBuilder extends TimeBuilder {};
   TimeSecondBuilder.prototype._setValue = setTimeSecond;
-  TimeMillisecondBuilder = class TimeMillisecondBuilder extends TimeBuilder {
-  };
+  TimeMillisecondBuilder = class TimeMillisecondBuilder extends TimeBuilder {};
   TimeMillisecondBuilder.prototype._setValue = setTimeMillisecond;
-  TimeMicrosecondBuilder = class TimeMicrosecondBuilder extends TimeBuilder {
-  };
+  TimeMicrosecondBuilder = class TimeMicrosecondBuilder extends TimeBuilder {};
   TimeMicrosecondBuilder.prototype._setValue = setTimeMicrosecond;
-  TimeNanosecondBuilder = class TimeNanosecondBuilder extends TimeBuilder {
-  };
+  TimeNanosecondBuilder = class TimeNanosecondBuilder extends TimeBuilder {};
   TimeNanosecondBuilder.prototype._setValue = setTimeNanosecond;
 });
 
@@ -7984,17 +9789,20 @@ var init_union2 = __esm(() => {
     }
     addChild(child, name = `${this.children.length}`) {
       const childTypeId = this.children.push(child);
-      const { type: { children, mode, typeIds } } = this;
+      const {
+        type: { children, mode, typeIds },
+      } = this;
       const fields = [...children, new Field2(name, child.type)];
       this.type = new Union_(mode, [...typeIds, childTypeId], fields);
       return childTypeId;
     }
     _valueToChildTypeId(builder, value, offset) {
-      throw new Error(`Cannot map UnionBuilder value to child typeId. Pass the \`childTypeId\` as the second argument to unionBuilder.append(), or supply a \`valueToChildTypeId\` function as part of the UnionBuilder constructor options.`);
+      throw new Error(
+        `Cannot map UnionBuilder value to child typeId. Pass the \`childTypeId\` as the second argument to unionBuilder.append(), or supply a \`valueToChildTypeId\` function as part of the UnionBuilder constructor options.`,
+      );
     }
   };
-  SparseUnionBuilder = class SparseUnionBuilder extends UnionBuilder {
-  };
+  SparseUnionBuilder = class SparseUnionBuilder extends UnionBuilder {};
   DenseUnionBuilder = class DenseUnionBuilder extends UnionBuilder {
     constructor(options) {
       super(options);
@@ -8060,7 +9868,8 @@ var init_largeutf8 = __esm(() => {
     }
     _flushPending(pending, pendingLength) {}
   };
-  LargeUtf8Builder.prototype._flushPending = LargeBinaryBuilder.prototype._flushPending;
+  LargeUtf8Builder.prototype._flushPending =
+    LargeBinaryBuilder.prototype._flushPending;
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/visitor/builderctor.mjs
@@ -8240,7 +10049,7 @@ var init_builderctor = __esm(() => {
       return MapBuilder;
     }
   };
-  instance5 = new GetBuilderCtor;
+  instance5 = new GetBuilderCtor();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/visitor/typecomparator.mjs
@@ -8251,46 +10060,111 @@ function compareAny(type, other) {
   return type === other || compareConstructor(type, other);
 }
 function compareInt(type, other) {
-  return type === other || compareConstructor(type, other) && type.bitWidth === other.bitWidth && type.isSigned === other.isSigned;
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.bitWidth === other.bitWidth &&
+      type.isSigned === other.isSigned)
+  );
 }
 function compareFloat(type, other) {
-  return type === other || compareConstructor(type, other) && type.precision === other.precision;
+  return (
+    type === other ||
+    (compareConstructor(type, other) && type.precision === other.precision)
+  );
 }
 function compareFixedSizeBinary(type, other) {
-  return type === other || compareConstructor(type, other) && type.byteWidth === other.byteWidth;
+  return (
+    type === other ||
+    (compareConstructor(type, other) && type.byteWidth === other.byteWidth)
+  );
 }
 function compareDate(type, other) {
-  return type === other || compareConstructor(type, other) && type.unit === other.unit;
+  return (
+    type === other ||
+    (compareConstructor(type, other) && type.unit === other.unit)
+  );
 }
 function compareTimestamp(type, other) {
-  return type === other || compareConstructor(type, other) && type.unit === other.unit && type.timezone === other.timezone;
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.unit === other.unit &&
+      type.timezone === other.timezone)
+  );
 }
 function compareTime(type, other) {
-  return type === other || compareConstructor(type, other) && type.unit === other.unit && type.bitWidth === other.bitWidth;
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.unit === other.unit &&
+      type.bitWidth === other.bitWidth)
+  );
 }
 function compareList(type, other) {
-  return type === other || compareConstructor(type, other) && type.children.length === other.children.length && instance6.compareManyFields(type.children, other.children);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.children.length === other.children.length &&
+      instance6.compareManyFields(type.children, other.children))
+  );
 }
 function compareStruct(type, other) {
-  return type === other || compareConstructor(type, other) && type.children.length === other.children.length && instance6.compareManyFields(type.children, other.children);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.children.length === other.children.length &&
+      instance6.compareManyFields(type.children, other.children))
+  );
 }
 function compareUnion(type, other) {
-  return type === other || compareConstructor(type, other) && type.mode === other.mode && type.typeIds.every((x, i) => x === other.typeIds[i]) && instance6.compareManyFields(type.children, other.children);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.mode === other.mode &&
+      type.typeIds.every((x, i) => x === other.typeIds[i]) &&
+      instance6.compareManyFields(type.children, other.children))
+  );
 }
 function compareDictionary(type, other) {
-  return type === other || compareConstructor(type, other) && type.id === other.id && type.isOrdered === other.isOrdered && instance6.visit(type.indices, other.indices) && instance6.visit(type.dictionary, other.dictionary);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.id === other.id &&
+      type.isOrdered === other.isOrdered &&
+      instance6.visit(type.indices, other.indices) &&
+      instance6.visit(type.dictionary, other.dictionary))
+  );
 }
 function compareInterval(type, other) {
-  return type === other || compareConstructor(type, other) && type.unit === other.unit;
+  return (
+    type === other ||
+    (compareConstructor(type, other) && type.unit === other.unit)
+  );
 }
 function compareDuration(type, other) {
-  return type === other || compareConstructor(type, other) && type.unit === other.unit;
+  return (
+    type === other ||
+    (compareConstructor(type, other) && type.unit === other.unit)
+  );
 }
 function compareFixedSizeList(type, other) {
-  return type === other || compareConstructor(type, other) && type.listSize === other.listSize && type.children.length === other.children.length && instance6.compareManyFields(type.children, other.children);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.listSize === other.listSize &&
+      type.children.length === other.children.length &&
+      instance6.compareManyFields(type.children, other.children))
+  );
 }
 function compareMap(type, other) {
-  return type === other || compareConstructor(type, other) && type.keysSorted === other.keysSorted && type.children.length === other.children.length && instance6.compareManyFields(type.children, other.children);
+  return (
+    type === other ||
+    (compareConstructor(type, other) &&
+      type.keysSorted === other.keysSorted &&
+      type.children.length === other.children.length &&
+      instance6.compareManyFields(type.children, other.children))
+  );
 }
 function compareSchemas(schema, other) {
   return instance6.compareSchemas(schema, other);
@@ -8306,13 +10180,29 @@ var init_typecomparator = __esm(() => {
   init_visitor();
   TypeComparator = class TypeComparator extends Visitor {
     compareSchemas(schema, other) {
-      return schema === other || other instanceof schema.constructor && this.compareManyFields(schema.fields, other.fields);
+      return (
+        schema === other ||
+        (other instanceof schema.constructor &&
+          this.compareManyFields(schema.fields, other.fields))
+      );
     }
     compareManyFields(fields, others) {
-      return fields === others || Array.isArray(fields) && Array.isArray(others) && fields.length === others.length && fields.every((f, i) => this.compareFields(f, others[i]));
+      return (
+        fields === others ||
+        (Array.isArray(fields) &&
+          Array.isArray(others) &&
+          fields.length === others.length &&
+          fields.every((f, i) => this.compareFields(f, others[i])))
+      );
     }
     compareFields(field, other) {
-      return field === other || other instanceof field.constructor && field.name === other.name && field.nullable === other.nullable && this.visit(field.type, other.type);
+      return (
+        field === other ||
+        (other instanceof field.constructor &&
+          field.name === other.name &&
+          field.nullable === other.nullable &&
+          this.visit(field.type, other.type))
+      );
     }
   };
   TypeComparator.prototype.visitNull = compareAny;
@@ -8365,7 +10255,7 @@ var init_typecomparator = __esm(() => {
   TypeComparator.prototype.visitDurationNanosecond = compareDuration;
   TypeComparator.prototype.visitFixedSizeList = compareFixedSizeList;
   TypeComparator.prototype.visitMap = compareMap;
-  instance6 = new TypeComparator;
+  instance6 = new TypeComparator();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/factories.mjs
@@ -8375,11 +10265,15 @@ function makeBuilder(options) {
   if (type.children && type.children.length > 0) {
     const children = options["children"] || [];
     const defaultOptions = { nullValues: options["nullValues"] };
-    const getChildOptions = Array.isArray(children) ? (_, i) => children[i] || defaultOptions : ({ name }) => children[name] || defaultOptions;
+    const getChildOptions = Array.isArray(children)
+      ? (_, i) => children[i] || defaultOptions
+      : ({ name }) => children[name] || defaultOptions;
     for (const [index, field] of type.children.entries()) {
       const { type: type2 } = field;
       const opts = getChildOptions(field, index);
-      builder.children.push(makeBuilder(Object.assign(Object.assign({}, opts), { type: type2 })));
+      builder.children.push(
+        makeBuilder(Object.assign(Object.assign({}, opts), { type: type2 })),
+      );
     }
   }
   return builder;
@@ -8390,18 +10284,23 @@ var init_factories = __esm(() => {
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/util/recordbatch.mjs
 function distributeVectorsIntoRecordBatches(schema, vecs) {
-  return uniformlyDistributeChunksAcrossRecordBatches(schema, vecs.map((v) => v.data.concat()));
+  return uniformlyDistributeChunksAcrossRecordBatches(
+    schema,
+    vecs.map((v) => v.data.concat()),
+  );
 }
 function uniformlyDistributeChunksAcrossRecordBatches(schema, cols) {
   const fields = [...schema.fields];
   const batches = [];
   const memo = { numBatches: cols.reduce((n, c) => Math.max(n, c.length), 0) };
-  let numBatches = 0, batchLength = 0;
+  let numBatches = 0,
+    batchLength = 0;
   let i = -1;
   const numColumns = cols.length;
-  let child, children = [];
+  let child,
+    children = [];
   while (memo.numBatches-- > 0) {
-    for (batchLength = Number.POSITIVE_INFINITY, i = -1;++i < numColumns; ) {
+    for (batchLength = Number.POSITIVE_INFINITY, i = -1; ++i < numColumns; ) {
       children[i] = child = cols[i].shift();
       batchLength = Math.min(batchLength, child ? child.length : batchLength);
     }
@@ -8412,38 +10311,49 @@ function uniformlyDistributeChunksAcrossRecordBatches(schema, cols) {
           type: new Struct(fields),
           length: batchLength,
           nullCount: 0,
-          children: children.slice()
+          children: children.slice(),
         });
       }
     }
   }
   return [
-    schema = schema.assign(fields),
-    batches.map((data) => new RecordBatch2(schema, data))
+    (schema = schema.assign(fields)),
+    batches.map((data) => new RecordBatch2(schema, data)),
   ];
 }
 function distributeChildren(fields, batchLength, children, columns, memo) {
   var _a3;
-  const nullBitmapSize = (batchLength + 63 & ~63) >> 3;
-  for (let i = -1, n = columns.length;++i < n; ) {
+  const nullBitmapSize = ((batchLength + 63) & ~63) >> 3;
+  for (let i = -1, n = columns.length; ++i < n; ) {
     const child = children[i];
-    const length = child === null || child === undefined ? undefined : child.length;
+    const length =
+      child === null || child === undefined ? undefined : child.length;
     if (length >= batchLength) {
       if (length === batchLength) {
         children[i] = child;
       } else {
         children[i] = child.slice(0, batchLength);
-        memo.numBatches = Math.max(memo.numBatches, columns[i].unshift(child.slice(batchLength, length - batchLength)));
+        memo.numBatches = Math.max(
+          memo.numBatches,
+          columns[i].unshift(child.slice(batchLength, length - batchLength)),
+        );
       }
     } else {
       const field = fields[i];
       fields[i] = field.clone({ nullable: true });
-      children[i] = (_a3 = child === null || child === undefined ? undefined : child._changeLengthAndBackfillNullBitmap(batchLength)) !== null && _a3 !== undefined ? _a3 : makeData({
-        type: field.type,
-        length: batchLength,
-        nullCount: batchLength,
-        nullBitmap: new Uint8Array(nullBitmapSize)
-      });
+      children[i] =
+        (_a3 =
+          child === null || child === undefined
+            ? undefined
+            : child._changeLengthAndBackfillNullBitmap(batchLength)) !== null &&
+        _a3 !== undefined
+          ? _a3
+          : makeData({
+              type: field.type,
+              length: batchLength,
+              nullCount: batchLength,
+              nullBitmap: new Uint8Array(nullBitmapSize),
+            });
     }
   }
   return children;
@@ -8505,29 +10415,57 @@ var init_table = __esm(() => {
           } else if (typeof x === "object") {
             const keys = Object.keys(x);
             const vecs = keys.map((k) => new Vector([x[k]]));
-            const batchSchema = schema !== null && schema !== undefined ? schema : new Schema2(keys.map((k, i) => new Field2(String(k), vecs[i].type, vecs[i].nullable)));
-            const [, batches2] = distributeVectorsIntoRecordBatches(batchSchema, vecs);
+            const batchSchema =
+              schema !== null && schema !== undefined
+                ? schema
+                : new Schema2(
+                    keys.map(
+                      (k, i) =>
+                        new Field2(String(k), vecs[i].type, vecs[i].nullable),
+                    ),
+                  );
+            const [, batches2] = distributeVectorsIntoRecordBatches(
+              batchSchema,
+              vecs,
+            );
             return batches2.length === 0 ? [new RecordBatch2(x)] : batches2;
           }
         }
         return [];
       };
       const batches = args.flatMap((v) => unwrap(v));
-      schema = (_c2 = schema !== null && schema !== undefined ? schema : (_b2 = batches[0]) === null || _b2 === undefined ? undefined : _b2.schema) !== null && _c2 !== undefined ? _c2 : new Schema2([]);
+      schema =
+        (_c2 =
+          schema !== null && schema !== undefined
+            ? schema
+            : (_b2 = batches[0]) === null || _b2 === undefined
+              ? undefined
+              : _b2.schema) !== null && _c2 !== undefined
+          ? _c2
+          : new Schema2([]);
       if (!(schema instanceof Schema2)) {
-        throw new TypeError("Table constructor expects a [Schema, RecordBatch[]] pair.");
+        throw new TypeError(
+          "Table constructor expects a [Schema, RecordBatch[]] pair.",
+        );
       }
       for (const batch of batches) {
         if (!(batch instanceof RecordBatch2)) {
-          throw new TypeError("Table constructor expects a [Schema, RecordBatch[]] pair.");
+          throw new TypeError(
+            "Table constructor expects a [Schema, RecordBatch[]] pair.",
+          );
         }
         if (!compareSchemas(schema, batch.schema)) {
-          throw new TypeError("Table and inner RecordBatch schemas must be equivalent.");
+          throw new TypeError(
+            "Table and inner RecordBatch schemas must be equivalent.",
+          );
         }
       }
       this.schema = schema;
       this.batches = batches;
-      this._offsets = offsets !== null && offsets !== undefined ? offsets : computeChunkOffsets(this.data);
+      this._offsets =
+        offsets !== null && offsets !== undefined
+          ? offsets
+          : computeChunkOffsets(this.data);
     }
     get data() {
       return this.batches.map(({ data }) => data);
@@ -8577,16 +10515,24 @@ var init_table = __esm(() => {
     concat(...others) {
       const schema = this.schema;
       const data = this.data.concat(others.flatMap(({ data: data2 }) => data2));
-      return new Table(schema, data.map((data2) => new RecordBatch2(schema, data2)));
+      return new Table(
+        schema,
+        data.map((data2) => new RecordBatch2(schema, data2)),
+      );
     }
     slice(begin, end) {
       const schema = this.schema;
       [begin, end] = clampRange({ length: this.numRows }, begin, end);
       const data = sliceChunks(this.data, this._offsets, begin, end);
-      return new Table(schema, data.map((chunk) => new RecordBatch2(schema, chunk)));
+      return new Table(
+        schema,
+        data.map((chunk) => new RecordBatch2(schema, chunk)),
+      );
     }
     getChild(name) {
-      return this.getChildAt(this.schema.fields.findIndex((f) => f.name === name));
+      return this.getChildAt(
+        this.schema.fields.findIndex((f) => f.name === name),
+      );
     }
     getChildAt(index) {
       if (index > -1 && index < this.schema.fields.length) {
@@ -8602,26 +10548,43 @@ var init_table = __esm(() => {
     }
     setChild(name, child) {
       var _b2;
-      return this.setChildAt((_b2 = this.schema.fields) === null || _b2 === undefined ? undefined : _b2.findIndex((f) => f.name === name), child);
+      return this.setChildAt(
+        (_b2 = this.schema.fields) === null || _b2 === undefined
+          ? undefined
+          : _b2.findIndex((f) => f.name === name),
+        child,
+      );
     }
     setChildAt(index, child) {
       let schema = this.schema;
       let batches = [...this.batches];
       if (index > -1 && index < this.numCols) {
         if (!child) {
-          child = new Vector([makeData({ type: new Null2, length: this.numRows })]);
+          child = new Vector([
+            makeData({ type: new Null2(), length: this.numRows }),
+          ]);
         }
         const fields = schema.fields.slice();
         const field = fields[index].clone({ type: child.type });
         const children = this.schema.fields.map((_, i) => this.getChildAt(i));
         [fields[index], children[index]] = [field, child];
-        [schema, batches] = distributeVectorsIntoRecordBatches(schema, children);
+        [schema, batches] = distributeVectorsIntoRecordBatches(
+          schema,
+          children,
+        );
       }
       return new Table(schema, batches);
     }
     select(columnNames) {
-      const nameToIndex = this.schema.fields.reduce((m, f, i) => m.set(f.name, i), new Map);
-      return this.selectAt(columnNames.map((columnName) => nameToIndex.get(columnName)).filter((x) => x > -1));
+      const nameToIndex = this.schema.fields.reduce(
+        (m, f, i) => m.set(f.name, i),
+        new Map(),
+      );
+      return this.selectAt(
+        columnNames
+          .map((columnName) => nameToIndex.get(columnName))
+          .filter((x) => x > -1),
+      );
     }
     selectAt(columnIndices) {
       const schema = this.schema.selectAt(columnIndices);
@@ -8630,16 +10593,23 @@ var init_table = __esm(() => {
     }
     assign(other) {
       const fields = this.schema.fields;
-      const [indices, oldToNew] = other.schema.fields.reduce((memo, f2, newIdx) => {
-        const [indices2, oldToNew2] = memo;
-        const i = fields.findIndex((f) => f.name === f2.name);
-        ~i ? oldToNew2[i] = newIdx : indices2.push(newIdx);
-        return memo;
-      }, [[], []]);
+      const [indices, oldToNew] = other.schema.fields.reduce(
+        (memo, f2, newIdx) => {
+          const [indices2, oldToNew2] = memo;
+          const i = fields.findIndex((f) => f.name === f2.name);
+          ~i ? (oldToNew2[i] = newIdx) : indices2.push(newIdx);
+          return memo;
+        },
+        [[], []],
+      );
       const schema = this.schema.assign(other.schema);
       const columns = [
-        ...fields.map((_, i) => [i, oldToNew[i]]).map(([i, j]) => j === undefined ? this.getChildAt(i) : other.getChildAt(j)),
-        ...indices.map((i) => other.getChildAt(i))
+        ...fields
+          .map((_, i) => [i, oldToNew[i]])
+          .map(([i, j]) =>
+            j === undefined ? this.getChildAt(i) : other.getChildAt(j),
+          ),
+        ...indices.map((i) => other.getChildAt(i)),
       ].filter(Boolean);
       return new Table(...distributeVectorsIntoRecordBatches(schema, columns));
     }
@@ -8660,45 +10630,81 @@ var init_table = __esm(() => {
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/recordbatch.mjs
-function ensureSameLengthData(schema, chunks, maxLength = chunks.reduce((max, col) => Math.max(max, col.length), 0)) {
+function ensureSameLengthData(
+  schema,
+  chunks,
+  maxLength = chunks.reduce((max, col) => Math.max(max, col.length), 0),
+) {
   var _b2;
   const fields = [...schema.fields];
   const children = [...chunks];
-  const nullBitmapSize = (maxLength + 63 & ~63) >> 3;
+  const nullBitmapSize = ((maxLength + 63) & ~63) >> 3;
   for (const [idx, field] of schema.fields.entries()) {
     const chunk = chunks[idx];
     if (!chunk || chunk.length !== maxLength) {
       fields[idx] = field.clone({ nullable: true });
-      children[idx] = (_b2 = chunk === null || chunk === undefined ? undefined : chunk._changeLengthAndBackfillNullBitmap(maxLength)) !== null && _b2 !== undefined ? _b2 : makeData({
-        type: field.type,
-        length: maxLength,
-        nullCount: maxLength,
-        nullBitmap: new Uint8Array(nullBitmapSize)
-      });
+      children[idx] =
+        (_b2 =
+          chunk === null || chunk === undefined
+            ? undefined
+            : chunk._changeLengthAndBackfillNullBitmap(maxLength)) !== null &&
+        _b2 !== undefined
+          ? _b2
+          : makeData({
+              type: field.type,
+              length: maxLength,
+              nullCount: maxLength,
+              nullBitmap: new Uint8Array(nullBitmapSize),
+            });
     }
   }
   return [
     schema.assign(fields),
-    makeData({ type: new Struct(fields), length: maxLength, children })
+    makeData({ type: new Struct(fields), length: maxLength, children }),
   ];
 }
-function collectDictionaries(fields, children, dictionaries = new Map) {
+function collectDictionaries(fields, children, dictionaries = new Map()) {
   var _b2, _c2;
-  if (((_b2 = fields === null || fields === undefined ? undefined : fields.length) !== null && _b2 !== undefined ? _b2 : 0) > 0 && (fields === null || fields === undefined ? undefined : fields.length) === (children === null || children === undefined ? undefined : children.length)) {
-    for (let i = -1, n = fields.length;++i < n; ) {
+  if (
+    ((_b2 =
+      fields === null || fields === undefined ? undefined : fields.length) !==
+      null && _b2 !== undefined
+      ? _b2
+      : 0) > 0 &&
+    (fields === null || fields === undefined ? undefined : fields.length) ===
+      (children === null || children === undefined
+        ? undefined
+        : children.length)
+  ) {
+    for (let i = -1, n = fields.length; ++i < n; ) {
       const { type } = fields[i];
       const data = children[i];
-      for (const next of [data, ...((_c2 = data === null || data === undefined ? undefined : data.dictionary) === null || _c2 === undefined ? undefined : _c2.data) || []]) {
-        collectDictionaries(type.children, next === null || next === undefined ? undefined : next.children, dictionaries);
+      for (const next of [
+        data,
+        ...(((_c2 =
+          data === null || data === undefined ? undefined : data.dictionary) ===
+          null || _c2 === undefined
+          ? undefined
+          : _c2.data) || []),
+      ]) {
+        collectDictionaries(
+          type.children,
+          next === null || next === undefined ? undefined : next.children,
+          dictionaries,
+        );
       }
       if (DataType.isDictionary(type)) {
         const { id } = type;
         if (!dictionaries.has(id)) {
-          if (data === null || data === undefined ? undefined : data.dictionary) {
+          if (
+            data === null || data === undefined ? undefined : data.dictionary
+          ) {
             dictionaries.set(id, data.dictionary);
           }
         } else if (dictionaries.get(id) !== data.dictionary) {
-          throw new Error(`Cannot create Schema containing two different dictionaries with the same Id`);
+          throw new Error(
+            `Cannot create Schema containing two different dictionaries with the same Id`,
+          );
         }
       }
     }
@@ -8723,45 +10729,78 @@ var init_recordbatch2 = __esm(() => {
         case 2: {
           [this.schema] = args;
           if (!(this.schema instanceof Schema2)) {
-            throw new TypeError("RecordBatch constructor expects a [Schema, Data] pair.");
+            throw new TypeError(
+              "RecordBatch constructor expects a [Schema, Data] pair.",
+            );
           }
           [
             ,
             this.data = makeData({
               nullCount: 0,
               type: new Struct(this.schema.fields),
-              children: this.schema.fields.map((f) => makeData({ type: f.type, nullCount: 0 }))
-            })
+              children: this.schema.fields.map((f) =>
+                makeData({ type: f.type, nullCount: 0 }),
+              ),
+            }),
           ] = args;
           if (!(this.data instanceof Data)) {
-            throw new TypeError("RecordBatch constructor expects a [Schema, Data] pair.");
+            throw new TypeError(
+              "RecordBatch constructor expects a [Schema, Data] pair.",
+            );
           }
-          [this.schema, this.data] = ensureSameLengthData(this.schema, this.data.children);
+          [this.schema, this.data] = ensureSameLengthData(
+            this.schema,
+            this.data.children,
+          );
           break;
         }
         case 1: {
           const [obj] = args;
-          const { fields, children, length } = Object.keys(obj).reduce((memo, name, i) => {
-            memo.children[i] = obj[name];
-            memo.length = Math.max(memo.length, obj[name].length);
-            memo.fields[i] = Field2.new({ name, type: obj[name].type, nullable: true });
-            return memo;
-          }, {
-            length: 0,
-            fields: new Array,
-            children: new Array
-          });
+          const { fields, children, length } = Object.keys(obj).reduce(
+            (memo, name, i) => {
+              memo.children[i] = obj[name];
+              memo.length = Math.max(memo.length, obj[name].length);
+              memo.fields[i] = Field2.new({
+                name,
+                type: obj[name].type,
+                nullable: true,
+              });
+              return memo;
+            },
+            {
+              length: 0,
+              fields: new Array(),
+              children: new Array(),
+            },
+          );
           const schema = new Schema2(fields);
-          const data = makeData({ type: new Struct(fields), length, children, nullCount: 0 });
-          [this.schema, this.data] = ensureSameLengthData(schema, data.children, length);
+          const data = makeData({
+            type: new Struct(fields),
+            length,
+            children,
+            nullCount: 0,
+          });
+          [this.schema, this.data] = ensureSameLengthData(
+            schema,
+            data.children,
+            length,
+          );
           break;
         }
         default:
-          throw new TypeError("RecordBatch constructor expects an Object mapping names to child Data, or a [Schema, Data] pair.");
+          throw new TypeError(
+            "RecordBatch constructor expects an Object mapping names to child Data, or a [Schema, Data] pair.",
+          );
       }
     }
     get dictionaries() {
-      return this._dictionaries || (this._dictionaries = collectDictionaries(this.schema.fields, this.data.children));
+      return (
+        this._dictionaries ||
+        (this._dictionaries = collectDictionaries(
+          this.schema.fields,
+          this.data.children,
+        ))
+      );
     }
     get numCols() {
       return this.schema.fields.length;
@@ -8802,7 +10841,11 @@ var init_recordbatch2 = __esm(() => {
     }
     getChild(name) {
       var _b2;
-      return this.getChildAt((_b2 = this.schema.fields) === null || _b2 === undefined ? undefined : _b2.findIndex((f) => f.name === name));
+      return this.getChildAt(
+        (_b2 = this.schema.fields) === null || _b2 === undefined
+          ? undefined
+          : _b2.findIndex((f) => f.name === name),
+      );
     }
     getChildAt(index) {
       if (index > -1 && index < this.schema.fields.length) {
@@ -8812,14 +10855,21 @@ var init_recordbatch2 = __esm(() => {
     }
     setChild(name, child) {
       var _b2;
-      return this.setChildAt((_b2 = this.schema.fields) === null || _b2 === undefined ? undefined : _b2.findIndex((f) => f.name === name), child);
+      return this.setChildAt(
+        (_b2 = this.schema.fields) === null || _b2 === undefined
+          ? undefined
+          : _b2.findIndex((f) => f.name === name),
+        child,
+      );
     }
     setChildAt(index, child) {
       let schema = this.schema;
       let data = this.data;
       if (index > -1 && index < this.numCols) {
         if (!child) {
-          child = new Vector([makeData({ type: new Null2, length: this.numRows })]);
+          child = new Vector([
+            makeData({ type: new Null2(), length: this.numRows }),
+          ]);
         }
         const fields = schema.fields.slice();
         const children = data.children.slice();
@@ -8840,12 +10890,21 @@ var init_recordbatch2 = __esm(() => {
           children[index] = this.data.children[index];
         }
       }
-      return new RecordBatch2(schema, makeData({ type, length: this.numRows, children }));
+      return new RecordBatch2(
+        schema,
+        makeData({ type, length: this.numRows, children }),
+      );
     }
     selectAt(columnIndices) {
       const schema = this.schema.selectAt(columnIndices);
-      const children = columnIndices.map((i) => this.data.children[i]).filter(Boolean);
-      const subset = makeData({ type: new Struct(schema.fields), length: this.numRows, children });
+      const children = columnIndices
+        .map((i) => this.data.children[i])
+        .filter(Boolean);
+      const subset = makeData({
+        type: new Struct(schema.fields),
+        length: this.numRows,
+        children,
+      });
       return new RecordBatch2(schema, subset);
     }
   };
@@ -8855,10 +10914,16 @@ var init_recordbatch2 = __esm(() => {
     proto[Symbol.isConcatSpreadable] = true;
     return "RecordBatch";
   })(RecordBatch2.prototype);
-  _InternalEmptyPlaceholderRecordBatch = class _InternalEmptyPlaceholderRecordBatch extends RecordBatch2 {
+  _InternalEmptyPlaceholderRecordBatch = class _InternalEmptyPlaceholderRecordBatch extends (
+    RecordBatch2
+  ) {
     constructor(schema) {
       const children = schema.fields.map((f) => makeData({ type: f.type }));
-      const data = makeData({ type: new Struct(schema.fields), nullCount: 0, children });
+      const data = makeData({
+        type: new Struct(schema.fields),
+        nullCount: 0,
+        children,
+      });
       super(schema, data);
     }
   };
@@ -8876,19 +10941,29 @@ class Message {
     return this;
   }
   static getRootAsMessage(bb, obj) {
-    return (obj || new Message).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Message()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   static getSizePrefixedRootAsMessage(bb, obj) {
     bb.setPosition(bb.position() + SIZE_PREFIX_LENGTH);
-    return (obj || new Message).__init(bb.readInt32(bb.position()) + bb.position(), bb);
+    return (obj || new Message()).__init(
+      bb.readInt32(bb.position()) + bb.position(),
+      bb,
+    );
   }
   version() {
     const offset = this.bb.__offset(this.bb_pos, 4);
-    return offset ? this.bb.readInt16(this.bb_pos + offset) : MetadataVersion.V1;
+    return offset
+      ? this.bb.readInt16(this.bb_pos + offset)
+      : MetadataVersion.V1;
   }
   headerType() {
     const offset = this.bb.__offset(this.bb_pos, 6);
-    return offset ? this.bb.readUint8(this.bb_pos + offset) : MessageHeader.NONE;
+    return offset
+      ? this.bb.readUint8(this.bb_pos + offset)
+      : MessageHeader.NONE;
   }
   header(obj) {
     const offset = this.bb.__offset(this.bb_pos, 8);
@@ -8900,7 +10975,14 @@ class Message {
   }
   customMetadata(index, obj) {
     const offset = this.bb.__offset(this.bb_pos, 12);
-    return offset ? (obj || new KeyValue).__init(this.bb.__indirect(this.bb.__vector(this.bb_pos + offset) + index * 4), this.bb) : null;
+    return offset
+      ? (obj || new KeyValue()).__init(
+          this.bb.__indirect(
+            this.bb.__vector(this.bb_pos + offset) + index * 4,
+          ),
+          this.bb,
+        )
+      : null;
   }
   customMetadataLength() {
     const offset = this.bb.__offset(this.bb_pos, 12);
@@ -8926,7 +11008,7 @@ class Message {
   }
   static createCustomMetadataVector(builder, data) {
     builder.startVector(4, data.length, 4);
-    for (let i = data.length - 1;i >= 0; i--) {
+    for (let i = data.length - 1; i >= 0; i--) {
       builder.addOffset(data[i]);
     }
     return builder.endVector();
@@ -8944,7 +11026,14 @@ class Message {
   static finishSizePrefixedMessageBuffer(builder, offset) {
     builder.finish(offset, undefined, true);
   }
-  static createMessage(builder, version, headerType, headerOffset, bodyLength, customMetadataOffset) {
+  static createMessage(
+    builder,
+    version,
+    headerType,
+    headerOffset,
+    bodyLength,
+    customMetadataOffset,
+  ) {
     Message.startMessage(builder);
     Message.addVersion(builder, version);
     Message.addHeaderType(builder, headerType);
@@ -8988,7 +11077,9 @@ var init_typeassembler = __esm(() => {
   init_map();
   TypeAssembler = class TypeAssembler extends Visitor {
     visit(node, builder) {
-      return node == null || builder == null ? undefined : super.visit(node, builder);
+      return node == null || builder == null
+        ? undefined
+        : super.visit(node, builder);
     }
     visitNull(_node, b) {
       Null.startNull(b);
@@ -9044,7 +11135,8 @@ var init_typeassembler = __esm(() => {
       return Time.endTime(b);
     }
     visitTimestamp(node, b) {
-      const timezone = node.timezone && b.createString(node.timezone) || undefined;
+      const timezone =
+        (node.timezone && b.createString(node.timezone)) || undefined;
       Timestamp.startTimestamp(b);
       Timestamp.addUnit(b, node.unit);
       if (timezone !== undefined) {
@@ -9104,39 +11196,62 @@ var init_typeassembler = __esm(() => {
       return Map2.endMap(b);
     }
   };
-  instance7 = new TypeAssembler;
+  instance7 = new TypeAssembler();
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/ipc/metadata/json.mjs
-function schemaFromJSON(_schema, dictionaries = new Map) {
-  return new Schema2(schemaFieldsFromJSON(_schema, dictionaries), customMetadataFromJSON(_schema["metadata"]), dictionaries);
+function schemaFromJSON(_schema, dictionaries = new Map()) {
+  return new Schema2(
+    schemaFieldsFromJSON(_schema, dictionaries),
+    customMetadataFromJSON(_schema["metadata"]),
+    dictionaries,
+  );
 }
 function recordBatchFromJSON(b) {
-  return new RecordBatch3(b["count"], fieldNodesFromJSON(b["columns"]), buffersFromJSON(b["columns"]));
+  return new RecordBatch3(
+    b["count"],
+    fieldNodesFromJSON(b["columns"]),
+    buffersFromJSON(b["columns"]),
+  );
 }
 function dictionaryBatchFromJSON(b) {
-  return new DictionaryBatch2(recordBatchFromJSON(b["data"]), b["id"], b["isDelta"]);
+  return new DictionaryBatch2(
+    recordBatchFromJSON(b["data"]),
+    b["id"],
+    b["isDelta"],
+  );
 }
 function schemaFieldsFromJSON(_schema, dictionaries) {
-  return (_schema["fields"] || []).filter(Boolean).map((f) => Field2.fromJSON(f, dictionaries));
+  return (_schema["fields"] || [])
+    .filter(Boolean)
+    .map((f) => Field2.fromJSON(f, dictionaries));
 }
 function fieldChildrenFromJSON(_field, dictionaries) {
-  return (_field["children"] || []).filter(Boolean).map((f) => Field2.fromJSON(f, dictionaries));
+  return (_field["children"] || [])
+    .filter(Boolean)
+    .map((f) => Field2.fromJSON(f, dictionaries));
 }
 function fieldNodesFromJSON(xs) {
-  return (xs || []).reduce((fieldNodes, column) => [
-    ...fieldNodes,
-    new FieldNode2(column["count"], nullCountFromJSON(column["VALIDITY"])),
-    ...fieldNodesFromJSON(column["children"])
-  ], []);
+  return (xs || []).reduce(
+    (fieldNodes, column) => [
+      ...fieldNodes,
+      new FieldNode2(column["count"], nullCountFromJSON(column["VALIDITY"])),
+      ...fieldNodesFromJSON(column["children"]),
+    ],
+    [],
+  );
 }
 function buffersFromJSON(xs, buffers = []) {
-  for (let i = -1, n = (xs || []).length;++i < n; ) {
+  for (let i = -1, n = (xs || []).length; ++i < n; ) {
     const column = xs[i];
-    column["VALIDITY"] && buffers.push(new BufferRegion(buffers.length, column["VALIDITY"].length));
-    column["TYPE_ID"] && buffers.push(new BufferRegion(buffers.length, column["TYPE_ID"].length));
-    column["OFFSET"] && buffers.push(new BufferRegion(buffers.length, column["OFFSET"].length));
-    column["DATA"] && buffers.push(new BufferRegion(buffers.length, column["DATA"].length));
+    column["VALIDITY"] &&
+      buffers.push(new BufferRegion(buffers.length, column["VALIDITY"].length));
+    column["TYPE_ID"] &&
+      buffers.push(new BufferRegion(buffers.length, column["TYPE_ID"].length));
+    column["OFFSET"] &&
+      buffers.push(new BufferRegion(buffers.length, column["OFFSET"].length));
+    column["DATA"] &&
+      buffers.push(new BufferRegion(buffers.length, column["DATA"].length));
     buffers = buffersFromJSON(column["children"], buffers);
   }
   return buffers;
@@ -9153,16 +11268,46 @@ function fieldFromJSON(_field, dictionaries) {
   let dictType;
   if (!dictionaries || !(dictMeta = _field["dictionary"])) {
     type = typeFromJSON(_field, fieldChildrenFromJSON(_field, dictionaries));
-    field = new Field2(_field["name"], type, _field["nullable"], customMetadataFromJSON(_field["metadata"]));
-  } else if (!dictionaries.has(id = dictMeta["id"])) {
-    keys = (keys = dictMeta["indexType"]) ? indexTypeFromJSON(keys) : new Int32;
-    dictionaries.set(id, type = typeFromJSON(_field, fieldChildrenFromJSON(_field, dictionaries)));
+    field = new Field2(
+      _field["name"],
+      type,
+      _field["nullable"],
+      customMetadataFromJSON(_field["metadata"]),
+    );
+  } else if (!dictionaries.has((id = dictMeta["id"]))) {
+    keys = (keys = dictMeta["indexType"])
+      ? indexTypeFromJSON(keys)
+      : new Int32();
+    dictionaries.set(
+      id,
+      (type = typeFromJSON(
+        _field,
+        fieldChildrenFromJSON(_field, dictionaries),
+      )),
+    );
     dictType = new Dictionary(type, keys, id, dictMeta["isOrdered"]);
-    field = new Field2(_field["name"], dictType, _field["nullable"], customMetadataFromJSON(_field["metadata"]));
+    field = new Field2(
+      _field["name"],
+      dictType,
+      _field["nullable"],
+      customMetadataFromJSON(_field["metadata"]),
+    );
   } else {
-    keys = (keys = dictMeta["indexType"]) ? indexTypeFromJSON(keys) : new Int32;
-    dictType = new Dictionary(dictionaries.get(id), keys, id, dictMeta["isOrdered"]);
-    field = new Field2(_field["name"], dictType, _field["nullable"], customMetadataFromJSON(_field["metadata"]));
+    keys = (keys = dictMeta["indexType"])
+      ? indexTypeFromJSON(keys)
+      : new Int32();
+    dictType = new Dictionary(
+      dictionaries.get(id),
+      keys,
+      id,
+      dictMeta["isOrdered"],
+    );
+    field = new Field2(
+      _field["name"],
+      dictType,
+      _field["nullable"],
+      customMetadataFromJSON(_field["metadata"]),
+    );
   }
   return field || null;
 }
@@ -9176,19 +11321,19 @@ function typeFromJSON(f, children) {
   const typeId = f["type"]["name"];
   switch (typeId) {
     case "NONE":
-      return new Null2;
+      return new Null2();
     case "null":
-      return new Null2;
+      return new Null2();
     case "binary":
-      return new Binary2;
+      return new Binary2();
     case "largebinary":
-      return new LargeBinary2;
+      return new LargeBinary2();
     case "utf8":
-      return new Utf82;
+      return new Utf82();
     case "largeutf8":
-      return new LargeUtf82;
+      return new LargeUtf82();
     case "bool":
-      return new Bool2;
+      return new Bool2();
     case "list":
       return new List2((children || [])[0]);
     case "struct":
@@ -9275,7 +11420,7 @@ class Message2 {
     return message;
   }
   static encode(message) {
-    const b = new Builder4;
+    const b = new Builder4();
     let headerOffset = -1;
     if (message.isSchema()) {
       headerOffset = Schema2.encode(b, message.header());
@@ -9297,10 +11442,20 @@ class Message2 {
       return new Message2(0, MetadataVersion.V5, MessageHeader.Schema, header);
     }
     if (header instanceof RecordBatch3) {
-      return new Message2(bodyLength, MetadataVersion.V5, MessageHeader.RecordBatch, header);
+      return new Message2(
+        bodyLength,
+        MetadataVersion.V5,
+        MessageHeader.RecordBatch,
+        header,
+      );
     }
     if (header instanceof DictionaryBatch2) {
-      return new Message2(bodyLength, MetadataVersion.V5, MessageHeader.DictionaryBatch, header);
+      return new Message2(
+        bodyLength,
+        MetadataVersion.V5,
+        MessageHeader.DictionaryBatch,
+        header,
+      );
     }
     throw new Error(`Unrecognized Message header: ${header}`);
   }
@@ -9403,34 +11558,65 @@ function messageHeaderFromJSON(message, type) {
       case MessageHeader.DictionaryBatch:
         return DictionaryBatch2.fromJSON(message);
     }
-    throw new Error(`Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`);
+    throw new Error(
+      `Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`,
+    );
   };
 }
 function decodeMessageHeader(message, type) {
   return () => {
     switch (type) {
       case MessageHeader.Schema:
-        return Schema2.decode(message.header(new Schema), new Map, message.version());
+        return Schema2.decode(
+          message.header(new Schema()),
+          new Map(),
+          message.version(),
+        );
       case MessageHeader.RecordBatch:
-        return RecordBatch3.decode(message.header(new RecordBatch), message.version());
+        return RecordBatch3.decode(
+          message.header(new RecordBatch()),
+          message.version(),
+        );
       case MessageHeader.DictionaryBatch:
-        return DictionaryBatch2.decode(message.header(new DictionaryBatch), message.version());
+        return DictionaryBatch2.decode(
+          message.header(new DictionaryBatch()),
+          message.version(),
+        );
     }
-    throw new Error(`Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`);
+    throw new Error(
+      `Unrecognized Message type: { name: ${MessageHeader[type]}, type: ${type} }`,
+    );
   };
 }
-function decodeSchema(_schema, dictionaries = new Map, version = MetadataVersion.V5) {
+function decodeSchema(
+  _schema,
+  dictionaries = new Map(),
+  version = MetadataVersion.V5,
+) {
   const fields = decodeSchemaFields(_schema, dictionaries);
-  return new Schema2(fields, decodeCustomMetadata(_schema), dictionaries, version);
+  return new Schema2(
+    fields,
+    decodeCustomMetadata(_schema),
+    dictionaries,
+    version,
+  );
 }
 function decodeRecordBatch(batch, version = MetadataVersion.V5) {
   if (batch.compression() !== null) {
     throw new Error("Record batch compression not implemented");
   }
-  return new RecordBatch3(batch.length(), decodeFieldNodes(batch), decodeBuffers(batch, version));
+  return new RecordBatch3(
+    batch.length(),
+    decodeFieldNodes(batch),
+    decodeBuffers(batch, version),
+  );
 }
 function decodeDictionaryBatch(batch, version = MetadataVersion.V5) {
-  return new DictionaryBatch2(RecordBatch3.decode(batch.data(), version), batch.id(), batch.isDelta());
+  return new DictionaryBatch2(
+    RecordBatch3.decode(batch.data(), version),
+    batch.id(),
+    batch.isDelta(),
+  );
 }
 function decodeBufferRegion(b) {
   return new BufferRegion(b.offset(), b.length());
@@ -9440,8 +11626,8 @@ function decodeFieldNode(f) {
 }
 function decodeFieldNodes(batch) {
   const nodes = [];
-  for (let f, i = -1, j = -1, n = batch.nodesLength();++i < n; ) {
-    if (f = batch.nodes(i)) {
+  for (let f, i = -1, j = -1, n = batch.nodesLength(); ++i < n; ) {
+    if ((f = batch.nodes(i))) {
       nodes[++j] = FieldNode2.decode(f);
     }
   }
@@ -9449,8 +11635,8 @@ function decodeFieldNodes(batch) {
 }
 function decodeBuffers(batch, version) {
   const bufferRegions = [];
-  for (let b, i = -1, j = -1, n = batch.buffersLength();++i < n; ) {
-    if (b = batch.buffers(i)) {
+  for (let b, i = -1, j = -1, n = batch.buffersLength(); ++i < n; ) {
+    if ((b = batch.buffers(i))) {
       if (version < MetadataVersion.V4) {
         b.bb_pos += 8 * (i + 1);
       }
@@ -9461,8 +11647,8 @@ function decodeBuffers(batch, version) {
 }
 function decodeSchemaFields(schema, dictionaries) {
   const fields = [];
-  for (let f, i = -1, j = -1, n = schema.fieldsLength();++i < n; ) {
-    if (f = schema.fields(i)) {
+  for (let f, i = -1, j = -1, n = schema.fieldsLength(); ++i < n; ) {
+    if ((f = schema.fields(i))) {
       fields[++j] = Field2.decode(f, dictionaries);
     }
   }
@@ -9470,8 +11656,8 @@ function decodeSchemaFields(schema, dictionaries) {
 }
 function decodeFieldChildren(field, dictionaries) {
   const children = [];
-  for (let f, i = -1, j = -1, n = field.childrenLength();++i < n; ) {
-    if (f = field.children(i)) {
+  for (let f, i = -1, j = -1, n = field.childrenLength(); ++i < n; ) {
+    if ((f = field.children(i))) {
       children[++j] = Field2.decode(f, dictionaries);
     }
   }
@@ -9487,22 +11673,43 @@ function decodeField(f, dictionaries) {
   if (!dictionaries || !(dictMeta = f.dictionary())) {
     type = decodeFieldType(f, decodeFieldChildren(f, dictionaries));
     field = new Field2(f.name(), type, f.nullable(), decodeCustomMetadata(f));
-  } else if (!dictionaries.has(id = bigIntToNumber(dictMeta.id()))) {
-    keys = (keys = dictMeta.indexType()) ? decodeIndexType(keys) : new Int32;
-    dictionaries.set(id, type = decodeFieldType(f, decodeFieldChildren(f, dictionaries)));
+  } else if (!dictionaries.has((id = bigIntToNumber(dictMeta.id())))) {
+    keys = (keys = dictMeta.indexType()) ? decodeIndexType(keys) : new Int32();
+    dictionaries.set(
+      id,
+      (type = decodeFieldType(f, decodeFieldChildren(f, dictionaries))),
+    );
     dictType = new Dictionary(type, keys, id, dictMeta.isOrdered());
-    field = new Field2(f.name(), dictType, f.nullable(), decodeCustomMetadata(f));
+    field = new Field2(
+      f.name(),
+      dictType,
+      f.nullable(),
+      decodeCustomMetadata(f),
+    );
   } else {
-    keys = (keys = dictMeta.indexType()) ? decodeIndexType(keys) : new Int32;
-    dictType = new Dictionary(dictionaries.get(id), keys, id, dictMeta.isOrdered());
-    field = new Field2(f.name(), dictType, f.nullable(), decodeCustomMetadata(f));
+    keys = (keys = dictMeta.indexType()) ? decodeIndexType(keys) : new Int32();
+    dictType = new Dictionary(
+      dictionaries.get(id),
+      keys,
+      id,
+      dictMeta.isOrdered(),
+    );
+    field = new Field2(
+      f.name(),
+      dictType,
+      f.nullable(),
+      decodeCustomMetadata(f),
+    );
   }
   return field || null;
 }
 function decodeCustomMetadata(parent) {
-  const data = new Map;
+  const data = new Map();
   if (parent) {
-    for (let entry, key, i = -1, n = Math.trunc(parent.customMetadataLength());++i < n; ) {
+    for (
+      let entry, key, i = -1, n = Math.trunc(parent.customMetadataLength());
+      ++i < n;
+    ) {
       if ((entry = parent.customMetadata(i)) && (key = entry.key()) != null) {
         data.set(key, entry.value());
       }
@@ -9517,19 +11724,19 @@ function decodeFieldType(f, children) {
   const typeId = f.typeType();
   switch (typeId) {
     case Type["NONE"]:
-      return new Null2;
+      return new Null2();
     case Type["Null"]:
-      return new Null2;
+      return new Null2();
     case Type["Binary"]:
-      return new Binary2;
+      return new Binary2();
     case Type["LargeBinary"]:
-      return new LargeBinary2;
+      return new LargeBinary2();
     case Type["Utf8"]:
-      return new Utf82;
+      return new Utf82();
     case Type["LargeUtf8"]:
-      return new LargeUtf82;
+      return new LargeUtf82();
     case Type["Bool"]:
-      return new Bool2;
+      return new Bool2();
     case Type["List"]:
       return new List2((children || [])[0]);
     case Type["Struct_"]:
@@ -9537,51 +11744,51 @@ function decodeFieldType(f, children) {
   }
   switch (typeId) {
     case Type["Int"]: {
-      const t = f.type(new Int);
+      const t = f.type(new Int());
       return new Int_(t.isSigned(), t.bitWidth());
     }
     case Type["FloatingPoint"]: {
-      const t = f.type(new FloatingPoint);
+      const t = f.type(new FloatingPoint());
       return new Float(t.precision());
     }
     case Type["Decimal"]: {
-      const t = f.type(new Decimal);
+      const t = f.type(new Decimal());
       return new Decimal2(t.scale(), t.precision(), t.bitWidth());
     }
     case Type["Date"]: {
-      const t = f.type(new Date2);
+      const t = f.type(new Date2());
       return new Date_(t.unit());
     }
     case Type["Time"]: {
-      const t = f.type(new Time);
+      const t = f.type(new Time());
       return new Time_(t.unit(), t.bitWidth());
     }
     case Type["Timestamp"]: {
-      const t = f.type(new Timestamp);
+      const t = f.type(new Timestamp());
       return new Timestamp_(t.unit(), t.timezone());
     }
     case Type["Interval"]: {
-      const t = f.type(new Interval);
+      const t = f.type(new Interval());
       return new Interval_(t.unit());
     }
     case Type["Duration"]: {
-      const t = f.type(new Duration);
+      const t = f.type(new Duration());
       return new Duration2(t.unit());
     }
     case Type["Union"]: {
-      const t = f.type(new Union);
+      const t = f.type(new Union());
       return new Union_(t.mode(), t.typeIdsArray() || [], children || []);
     }
     case Type["FixedSizeBinary"]: {
-      const t = f.type(new FixedSizeBinary);
+      const t = f.type(new FixedSizeBinary());
       return new FixedSizeBinary2(t.byteWidth());
     }
     case Type["FixedSizeList"]: {
-      const t = f.type(new FixedSizeList);
+      const t = f.type(new FixedSizeList());
       return new FixedSizeList2(t.listSize(), (children || [])[0]);
     }
     case Type["Map"]: {
-      const t = f.type(new Map2);
+      const t = f.type(new Map2());
       return new Map_((children || [])[0], t.keysSorted());
     }
   }
@@ -9591,17 +11798,25 @@ function encodeSchema(b, schema) {
   const fieldOffsets = schema.fields.map((f) => Field2.encode(b, f));
   Schema.startFieldsVector(b, fieldOffsets.length);
   const fieldsVectorOffset = Schema.createFieldsVector(b, fieldOffsets);
-  const metadataOffset = !(schema.metadata && schema.metadata.size > 0) ? -1 : Schema.createCustomMetadataVector(b, [...schema.metadata].map(([k, v]) => {
-    const key = b.createString(`${k}`);
-    const val = b.createString(`${v}`);
-    KeyValue.startKeyValue(b);
-    KeyValue.addKey(b, key);
-    KeyValue.addValue(b, val);
-    return KeyValue.endKeyValue(b);
-  }));
+  const metadataOffset = !(schema.metadata && schema.metadata.size > 0)
+    ? -1
+    : Schema.createCustomMetadataVector(
+        b,
+        [...schema.metadata].map(([k, v]) => {
+          const key = b.createString(`${k}`);
+          const val = b.createString(`${v}`);
+          KeyValue.startKeyValue(b);
+          KeyValue.addKey(b, key);
+          KeyValue.addValue(b, val);
+          return KeyValue.endKeyValue(b);
+        }),
+      );
   Schema.startSchema(b);
   Schema.addFields(b, fieldsVectorOffset);
-  Schema.addEndianness(b, platformIsLittleEndian ? Endianness.Little : Endianness.Big);
+  Schema.addEndianness(
+    b,
+    platformIsLittleEndian ? Endianness.Little : Endianness.Big,
+  );
   if (metadataOffset !== -1) {
     Schema.addCustomMetadata(b, metadataOffset);
   }
@@ -9622,14 +11837,19 @@ function encodeField(b, field) {
   }
   const childOffsets = (type.children || []).map((f) => Field2.encode(b, f));
   const childrenVectorOffset = Field.createChildrenVector(b, childOffsets);
-  const metadataOffset = !(field.metadata && field.metadata.size > 0) ? -1 : Field.createCustomMetadataVector(b, [...field.metadata].map(([k, v]) => {
-    const key = b.createString(`${k}`);
-    const val = b.createString(`${v}`);
-    KeyValue.startKeyValue(b);
-    KeyValue.addKey(b, key);
-    KeyValue.addValue(b, val);
-    return KeyValue.endKeyValue(b);
-  }));
+  const metadataOffset = !(field.metadata && field.metadata.size > 0)
+    ? -1
+    : Field.createCustomMetadataVector(
+        b,
+        [...field.metadata].map(([k, v]) => {
+          const key = b.createString(`${k}`);
+          const val = b.createString(`${v}`);
+          KeyValue.startKeyValue(b);
+          KeyValue.addKey(b, key);
+          KeyValue.addValue(b, val);
+          return KeyValue.endKeyValue(b);
+        }),
+      );
   if (field.name) {
     nameOffset = b.createString(field.name);
   }
@@ -9653,12 +11873,10 @@ function encodeRecordBatch(b, recordBatch) {
   const nodes = recordBatch.nodes || [];
   const buffers = recordBatch.buffers || [];
   RecordBatch.startNodesVector(b, nodes.length);
-  for (const n of nodes.slice().reverse())
-    FieldNode2.encode(b, n);
+  for (const n of nodes.slice().reverse()) FieldNode2.encode(b, n);
   const nodesVectorOffset = b.endVector();
   RecordBatch.startBuffersVector(b, buffers.length);
-  for (const b_ of buffers.slice().reverse())
-    BufferRegion.encode(b, b_);
+  for (const b_ of buffers.slice().reverse()) BufferRegion.encode(b, b_);
   const buffersVectorOffset = b.endVector();
   RecordBatch.startRecordBatch(b);
   RecordBatch.addLength(b, BigInt(recordBatch.length));
@@ -9675,7 +11893,11 @@ function encodeDictionaryBatch(b, dictionaryBatch) {
   return DictionaryBatch.endDictionaryBatch(b);
 }
 function encodeFieldNode(b, node) {
-  return FieldNode.createFieldNode(b, BigInt(node.length), BigInt(node.nullCount));
+  return FieldNode.createFieldNode(
+    b,
+    BigInt(node.length),
+    BigInt(node.nullCount),
+  );
 }
 function encodeBufferRegion(b, node) {
   return Buffer.createBuffer(b, BigInt(node.offset), BigInt(node.length));
@@ -9736,14 +11958,30 @@ var init_message2 = __esm(() => {
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/ipc/message.mjs
 function checkForMagicArrowString(buffer, index = 0) {
-  for (let i = -1, n = MAGIC.length;++i < n; ) {
+  for (let i = -1, n = MAGIC.length; ++i < n; ) {
     if (MAGIC[i] !== buffer[index + i]) {
       return false;
     }
   }
   return true;
 }
-var invalidMessageType = (type) => `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`, nullMessage = (type) => `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`, invalidMessageMetadata = (expected, actual) => `Expected to read ${expected} metadata bytes, but only read ${actual}.`, invalidMessageBodyLength = (expected, actual) => `Expected to read ${expected} bytes for message body, but only read ${actual}.`, MessageReader, AsyncMessageReader, JSONMessageReader, PADDING = 4, MAGIC_STR = "ARROW1", MAGIC, magicLength, magicAndPadding, magicX2AndPadding;
+var invalidMessageType = (type) =>
+    `Expected ${MessageHeader[type]} Message in stream, but was null or length 0.`,
+  nullMessage = (type) =>
+    `Header pointer of flatbuffer-encoded ${MessageHeader[type]} Message is null or length 0.`,
+  invalidMessageMetadata = (expected, actual) =>
+    `Expected to read ${expected} metadata bytes, but only read ${actual}.`,
+  invalidMessageBodyLength = (expected, actual) =>
+    `Expected to read ${expected} bytes for message body, but only read ${actual}.`,
+  MessageReader,
+  AsyncMessageReader,
+  JSONMessageReader,
+  PADDING = 4,
+  MAGIC_STR = "ARROW1",
+  MAGIC,
+  magicLength,
+  magicAndPadding,
+  magicX2AndPadding;
 var init_message3 = __esm(() => {
   init_tslib_es6();
   init_enum();
@@ -9755,7 +11993,8 @@ var init_message3 = __esm(() => {
   init_interfaces();
   MessageReader = class MessageReader {
     constructor(source) {
-      this.source = source instanceof ByteStream ? source : new ByteStream(source);
+      this.source =
+        source instanceof ByteStream ? source : new ByteStream(source);
     }
     [Symbol.iterator]() {
       return this;
@@ -9797,12 +12036,18 @@ var init_message3 = __esm(() => {
       if (buf.byteLength < bodyLength) {
         throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
       }
-      return buf.byteOffset % 8 === 0 && buf.byteOffset + buf.byteLength <= buf.buffer.byteLength ? buf : buf.slice();
+      return buf.byteOffset % 8 === 0 &&
+        buf.byteOffset + buf.byteLength <= buf.buffer.byteLength
+        ? buf
+        : buf.slice();
     }
     readSchema(throwIfNull = false) {
       const type = MessageHeader.Schema;
       const message = this.readMessage(type);
-      const schema = message === null || message === undefined ? undefined : message.header();
+      const schema =
+        message === null || message === undefined
+          ? undefined
+          : message.header();
       if (throwIfNull && !schema) {
         throw new Error(nullMessage(type));
       }
@@ -9811,7 +12056,8 @@ var init_message3 = __esm(() => {
     readMetadataLength() {
       const buf = this.source.read(PADDING);
       const bb = buf && new ByteBuffer(buf);
-      const len = (bb === null || bb === undefined ? undefined : bb.readInt32(0)) || 0;
+      const len =
+        (bb === null || bb === undefined ? undefined : bb.readInt32(0)) || 0;
       return { done: len === 0, value: len };
     }
     readMetadata(metadataLength) {
@@ -9827,7 +12073,12 @@ var init_message3 = __esm(() => {
   };
   AsyncMessageReader = class AsyncMessageReader {
     constructor(source, byteLength) {
-      this.source = source instanceof AsyncByteStream ? source : isFileHandle(source) ? new AsyncRandomAccessFile(source, byteLength) : new AsyncByteStream(source);
+      this.source =
+        source instanceof AsyncByteStream
+          ? source
+          : isFileHandle(source)
+            ? new AsyncRandomAccessFile(source, byteLength)
+            : new AsyncByteStream(source);
     }
     [Symbol.asyncIterator]() {
       return this;
@@ -9878,25 +12129,37 @@ var init_message3 = __esm(() => {
         if (buf.byteLength < bodyLength) {
           throw new Error(invalidMessageBodyLength(bodyLength, buf.byteLength));
         }
-        return buf.byteOffset % 8 === 0 && buf.byteOffset + buf.byteLength <= buf.buffer.byteLength ? buf : buf.slice();
+        return buf.byteOffset % 8 === 0 &&
+          buf.byteOffset + buf.byteLength <= buf.buffer.byteLength
+          ? buf
+          : buf.slice();
       });
     }
     readSchema() {
-      return __awaiter(this, arguments, undefined, function* (throwIfNull = false) {
-        const type = MessageHeader.Schema;
-        const message = yield this.readMessage(type);
-        const schema = message === null || message === undefined ? undefined : message.header();
-        if (throwIfNull && !schema) {
-          throw new Error(nullMessage(type));
-        }
-        return schema;
-      });
+      return __awaiter(
+        this,
+        arguments,
+        undefined,
+        function* (throwIfNull = false) {
+          const type = MessageHeader.Schema;
+          const message = yield this.readMessage(type);
+          const schema =
+            message === null || message === undefined
+              ? undefined
+              : message.header();
+          if (throwIfNull && !schema) {
+            throw new Error(nullMessage(type));
+          }
+          return schema;
+        },
+      );
     }
     readMetadataLength() {
       return __awaiter(this, undefined, undefined, function* () {
         const buf = yield this.source.read(PADDING);
         const bb = buf && new ByteBuffer(buf);
-        const len = (bb === null || bb === undefined ? undefined : bb.readInt32(0)) || 0;
+        const len =
+          (bb === null || bb === undefined ? undefined : bb.readInt32(0)) || 0;
         return { done: len === 0, value: len };
       });
     }
@@ -9907,7 +12170,9 @@ var init_message3 = __esm(() => {
           return ITERATOR_DONE;
         }
         if (buf.byteLength < metadataLength) {
-          throw new Error(invalidMessageMetadata(metadataLength, buf.byteLength));
+          throw new Error(
+            invalidMessageMetadata(metadataLength, buf.byteLength),
+          );
         }
         return { done: false, value: Message2.decode(buf) };
       });
@@ -9947,14 +12212,17 @@ var init_message3 = __esm(() => {
     readMessageBody(_bodyLength) {
       return flattenDataSources(this._body);
       function flattenDataSources(xs) {
-        return (xs || []).reduce((buffers, column) => [
-          ...buffers,
-          ...column["VALIDITY"] && [column["VALIDITY"]] || [],
-          ...column["TYPE_ID"] && [column["TYPE_ID"]] || [],
-          ...column["OFFSET"] && [column["OFFSET"]] || [],
-          ...column["DATA"] && [column["DATA"]] || [],
-          ...flattenDataSources(column["children"])
-        ], []);
+        return (xs || []).reduce(
+          (buffers, column) => [
+            ...buffers,
+            ...((column["VALIDITY"] && [column["VALIDITY"]]) || []),
+            ...((column["TYPE_ID"] && [column["TYPE_ID"]]) || []),
+            ...((column["OFFSET"] && [column["OFFSET"]]) || []),
+            ...((column["DATA"] && [column["DATA"]]) || []),
+            ...flattenDataSources(column["children"]),
+          ],
+          [],
+        );
       }
     }
     readMessage(type) {
@@ -9970,7 +12238,10 @@ var init_message3 = __esm(() => {
     readSchema() {
       const type = MessageHeader.Schema;
       const message = this.readMessage(type);
-      const schema = message === null || message === undefined ? undefined : message.header();
+      const schema =
+        message === null || message === undefined
+          ? undefined
+          : message.header();
       if (!message || !schema) {
         throw new Error(nullMessage(type));
       }
@@ -9978,7 +12249,7 @@ var init_message3 = __esm(() => {
     }
   };
   MAGIC = new Uint8Array(MAGIC_STR.length);
-  for (let i = 0;i < MAGIC_STR.length; i += 1) {
+  for (let i = 0; i < MAGIC_STR.length; i += 1) {
     MAGIC[i] = MAGIC_STR.codePointAt(i);
   }
   magicLength = MAGIC.length;
@@ -9994,7 +12265,7 @@ class RecordBatchReaderImpl {
   get numRecordBatches() {
     return this._recordBatchIndex;
   }
-  constructor(dictionaries = new Map) {
+  constructor(dictionaries = new Map()) {
     this.closed = false;
     this.autoDestroy = true;
     this._dictionaryIndex = 0;
@@ -10017,12 +12288,16 @@ class RecordBatchReaderImpl {
     this._dictionaryIndex = 0;
     this._recordBatchIndex = 0;
     this.schema = schema;
-    this.dictionaries = new Map;
+    this.dictionaries = new Map();
     return this;
   }
   _loadRecordBatch(header, body) {
     const children = this._loadVectors(header, body, this.schema.fields);
-    const data = makeData({ type: new Struct(this.schema.fields), length: header.length, children });
+    const data = makeData({
+      type: new Struct(this.schema.fields),
+      length: header.length,
+      children,
+    });
     return new RecordBatch2(this.schema, data);
   }
   _loadDictionaryBatch(header, body) {
@@ -10031,14 +12306,26 @@ class RecordBatchReaderImpl {
     const dictionary = dictionaries.get(id);
     const type = schema.dictionaries.get(id);
     const data = this._loadVectors(header.data, body, [type]);
-    return (dictionary && isDelta ? dictionary.concat(new Vector(data)) : new Vector(data)).memoize();
+    return (
+      dictionary && isDelta
+        ? dictionary.concat(new Vector(data))
+        : new Vector(data)
+    ).memoize();
   }
   _loadVectors(header, body, types) {
-    return new VectorLoader(body, header.nodes, header.buffers, this.dictionaries, this.schema.metadataVersion).visitMany(types);
+    return new VectorLoader(
+      body,
+      header.nodes,
+      header.buffers,
+      this.dictionaries,
+      this.schema.metadataVersion,
+    ).visitMany(types);
   }
 }
 function shouldAutoDestroy(self, options) {
-  return options && typeof options["autoDestroy"] === "boolean" ? options["autoDestroy"] : self["autoDestroy"];
+  return options && typeof options["autoDestroy"] === "boolean"
+    ? options["autoDestroy"]
+    : self["autoDestroy"];
 }
 function* readAllSync(source) {
   const reader = RecordBatchReader.from(source);
@@ -10070,28 +12357,62 @@ function fromArrowJSON(source) {
   return new RecordBatchStreamReader(new RecordBatchJSONReaderImpl(source));
 }
 function fromByteStream(source) {
-  const bytes = source.peek(magicLength + 7 & ~7);
-  return bytes && bytes.byteLength >= 4 ? !checkForMagicArrowString(bytes) ? new RecordBatchStreamReader(new RecordBatchStreamReaderImpl(source)) : new RecordBatchFileReader(new RecordBatchFileReaderImpl(source.read())) : new RecordBatchStreamReader(new RecordBatchStreamReaderImpl(function* () {}()));
+  const bytes = source.peek((magicLength + 7) & ~7);
+  return bytes && bytes.byteLength >= 4
+    ? !checkForMagicArrowString(bytes)
+      ? new RecordBatchStreamReader(new RecordBatchStreamReaderImpl(source))
+      : new RecordBatchFileReader(new RecordBatchFileReaderImpl(source.read()))
+    : new RecordBatchStreamReader(
+        new RecordBatchStreamReaderImpl((function* () {})()),
+      );
 }
 function fromAsyncByteStream(source) {
   return __awaiter(this, undefined, undefined, function* () {
-    const bytes = yield source.peek(magicLength + 7 & ~7);
-    return bytes && bytes.byteLength >= 4 ? !checkForMagicArrowString(bytes) ? new AsyncRecordBatchStreamReader(new AsyncRecordBatchStreamReaderImpl(source)) : new RecordBatchFileReader(new RecordBatchFileReaderImpl(yield source.read())) : new AsyncRecordBatchStreamReader(new AsyncRecordBatchStreamReaderImpl(function() {
-      return __asyncGenerator(this, arguments, function* () {});
-    }()));
+    const bytes = yield source.peek((magicLength + 7) & ~7);
+    return bytes && bytes.byteLength >= 4
+      ? !checkForMagicArrowString(bytes)
+        ? new AsyncRecordBatchStreamReader(
+            new AsyncRecordBatchStreamReaderImpl(source),
+          )
+        : new RecordBatchFileReader(
+            new RecordBatchFileReaderImpl(yield source.read()),
+          )
+      : new AsyncRecordBatchStreamReader(
+          new AsyncRecordBatchStreamReaderImpl(
+            (function () {
+              return __asyncGenerator(this, arguments, function* () {});
+            })(),
+          ),
+        );
   });
 }
 function fromFileHandle(source) {
   return __awaiter(this, undefined, undefined, function* () {
     const { size } = yield source.stat();
     const file = new AsyncRandomAccessFile(source, size);
-    if (size >= magicX2AndPadding && checkForMagicArrowString(yield file.readAt(0, magicLength + 7 & ~7))) {
-      return new AsyncRecordBatchFileReader(new AsyncRecordBatchFileReaderImpl(file));
+    if (
+      size >= magicX2AndPadding &&
+      checkForMagicArrowString(yield file.readAt(0, (magicLength + 7) & ~7))
+    ) {
+      return new AsyncRecordBatchFileReader(
+        new AsyncRecordBatchFileReaderImpl(file),
+      );
     }
-    return new AsyncRecordBatchStreamReader(new AsyncRecordBatchStreamReaderImpl(file));
+    return new AsyncRecordBatchStreamReader(
+      new AsyncRecordBatchStreamReaderImpl(file),
+    );
   });
 }
-var RecordBatchReader, RecordBatchStreamReader, AsyncRecordBatchStreamReader, RecordBatchFileReader, AsyncRecordBatchFileReader, RecordBatchStreamReaderImpl, AsyncRecordBatchStreamReaderImpl, RecordBatchFileReaderImpl, AsyncRecordBatchFileReaderImpl, RecordBatchJSONReaderImpl;
+var RecordBatchReader,
+  RecordBatchStreamReader,
+  AsyncRecordBatchStreamReader,
+  RecordBatchFileReader,
+  AsyncRecordBatchFileReader,
+  RecordBatchStreamReaderImpl,
+  AsyncRecordBatchStreamReaderImpl,
+  RecordBatchFileReaderImpl,
+  AsyncRecordBatchFileReaderImpl,
+  RecordBatchJSONReaderImpl;
 var init_reader = __esm(() => {
   init_tslib_es6();
   init_data();
@@ -10176,10 +12497,19 @@ var init_reader = __esm(() => {
       return this._impl[Symbol.asyncIterator]();
     }
     toDOMStream() {
-      return adapters_default.toDOMStream(this.isSync() ? { [Symbol.iterator]: () => this } : { [Symbol.asyncIterator]: () => this });
+      return adapters_default.toDOMStream(
+        this.isSync()
+          ? { [Symbol.iterator]: () => this }
+          : { [Symbol.asyncIterator]: () => this },
+      );
     }
     toNodeStream() {
-      return adapters_default.toNodeStream(this.isSync() ? { [Symbol.iterator]: () => this } : { [Symbol.asyncIterator]: () => this }, { objectMode: true });
+      return adapters_default.toNodeStream(
+        this.isSync()
+          ? { [Symbol.iterator]: () => this }
+          : { [Symbol.asyncIterator]: () => this },
+        { objectMode: true },
+      );
     }
     static throughNode(options) {
       throw new Error(`"throughNode" not available in this environment`);
@@ -10195,10 +12525,16 @@ var init_reader = __esm(() => {
       } else if (isFileHandle(source)) {
         return fromFileHandle(source);
       } else if (isPromise(source)) {
-        return (() => __awaiter(this, undefined, undefined, function* () {
-          return yield RecordBatchReader.from(yield source);
-        }))();
-      } else if (isFetchResponse(source) || isReadableDOMStream(source) || isReadableNodeStream(source) || isAsyncIterable(source)) {
+        return (() =>
+          __awaiter(this, undefined, undefined, function* () {
+            return yield RecordBatchReader.from(yield source);
+          }))();
+      } else if (
+        isFetchResponse(source) ||
+        isReadableDOMStream(source) ||
+        isReadableNodeStream(source) ||
+        isAsyncIterable(source)
+      ) {
         return fromAsyncByteStream(new AsyncByteStream(source));
       }
       return fromByteStream(new ByteStream(source));
@@ -10206,13 +12542,20 @@ var init_reader = __esm(() => {
     static readAll(source) {
       if (source instanceof RecordBatchReader) {
         return source.isSync() ? readAllSync(source) : readAllAsync(source);
-      } else if (isArrowJSON(source) || ArrayBuffer.isView(source) || isIterable(source) || isIteratorResult(source)) {
+      } else if (
+        isArrowJSON(source) ||
+        ArrayBuffer.isView(source) ||
+        isIterable(source) ||
+        isIteratorResult(source)
+      ) {
         return readAllSync(source);
       }
       return readAllAsync(source);
     }
   };
-  RecordBatchStreamReader = class RecordBatchStreamReader extends RecordBatchReader {
+  RecordBatchStreamReader = class RecordBatchStreamReader extends (
+    RecordBatchReader
+  ) {
     constructor(_impl) {
       super(_impl);
       this._impl = _impl;
@@ -10225,11 +12568,15 @@ var init_reader = __esm(() => {
     }
     [Symbol.asyncIterator]() {
       return __asyncGenerator(this, arguments, function* _a5() {
-        yield __await(yield* __asyncDelegator(__asyncValues(this[Symbol.iterator]())));
+        yield __await(
+          yield* __asyncDelegator(__asyncValues(this[Symbol.iterator]())),
+        );
       });
     }
   };
-  AsyncRecordBatchStreamReader = class AsyncRecordBatchStreamReader extends RecordBatchReader {
+  AsyncRecordBatchStreamReader = class AsyncRecordBatchStreamReader extends (
+    RecordBatchReader
+  ) {
     constructor(_impl) {
       super(_impl);
       this._impl = _impl;
@@ -10237,9 +12584,13 @@ var init_reader = __esm(() => {
     readAll() {
       return __awaiter(this, undefined, undefined, function* () {
         var _a5, e_1, _b2, _c2;
-        const batches = new Array;
+        const batches = new Array();
         try {
-          for (var _d2 = true, _e2 = __asyncValues(this), _f2;_f2 = yield _e2.next(), _a5 = _f2.done, !_a5; _d2 = true) {
+          for (
+            var _d2 = true, _e2 = __asyncValues(this), _f2;
+            (_f2 = yield _e2.next()), (_a5 = _f2.done), !_a5;
+            _d2 = true
+          ) {
             _c2 = _f2.value;
             _d2 = false;
             const batch = _c2;
@@ -10249,11 +12600,9 @@ var init_reader = __esm(() => {
           e_1 = { error: e_1_1 };
         } finally {
           try {
-            if (!_d2 && !_a5 && (_b2 = _e2.return))
-              yield _b2.call(_e2);
+            if (!_d2 && !_a5 && (_b2 = _e2.return)) yield _b2.call(_e2);
           } finally {
-            if (e_1)
-              throw e_1.error;
+            if (e_1) throw e_1.error;
           }
         }
         return batches;
@@ -10266,22 +12615,30 @@ var init_reader = __esm(() => {
       return this._impl[Symbol.asyncIterator]();
     }
   };
-  RecordBatchFileReader = class RecordBatchFileReader extends RecordBatchStreamReader {
+  RecordBatchFileReader = class RecordBatchFileReader extends (
+    RecordBatchStreamReader
+  ) {
     constructor(_impl) {
       super(_impl);
       this._impl = _impl;
     }
   };
-  AsyncRecordBatchFileReader = class AsyncRecordBatchFileReader extends AsyncRecordBatchStreamReader {
+  AsyncRecordBatchFileReader = class AsyncRecordBatchFileReader extends (
+    AsyncRecordBatchStreamReader
+  ) {
     constructor(_impl) {
       super(_impl);
       this._impl = _impl;
     }
   };
-  RecordBatchStreamReaderImpl = class RecordBatchStreamReaderImpl extends RecordBatchReaderImpl {
+  RecordBatchStreamReaderImpl = class RecordBatchStreamReaderImpl extends (
+    RecordBatchReaderImpl
+  ) {
     constructor(source, dictionaries) {
       super(dictionaries);
-      this._reader = !isArrowJSON(source) ? new MessageReader(this._handle = source) : new JSONMessageReader(this._handle = source);
+      this._reader = !isArrowJSON(source)
+        ? new MessageReader((this._handle = source))
+        : new JSONMessageReader((this._handle = source));
     }
     isSync() {
       return true;
@@ -10326,7 +12683,7 @@ var init_reader = __esm(() => {
       }
       let message;
       const { _reader: reader } = this;
-      while (message = this._readNextMessageAndValidate()) {
+      while ((message = this._readNextMessageAndValidate())) {
         if (message.isSchema()) {
           this.reset(message.header());
         } else if (message.isRecordBatch()) {
@@ -10345,7 +12702,10 @@ var init_reader = __esm(() => {
       }
       if (this.schema && this._recordBatchIndex === 0) {
         this._recordBatchIndex++;
-        return { done: false, value: new _InternalEmptyPlaceholderRecordBatch(this.schema) };
+        return {
+          done: false,
+          value: new _InternalEmptyPlaceholderRecordBatch(this.schema),
+        };
       }
       return this.return();
     }
@@ -10353,10 +12713,12 @@ var init_reader = __esm(() => {
       return this._reader.readMessage(type);
     }
   };
-  AsyncRecordBatchStreamReaderImpl = class AsyncRecordBatchStreamReaderImpl extends RecordBatchReaderImpl {
+  AsyncRecordBatchStreamReaderImpl = class AsyncRecordBatchStreamReaderImpl extends (
+    RecordBatchReaderImpl
+  ) {
     constructor(source, dictionaries) {
       super(dictionaries);
-      this._reader = new AsyncMessageReader(this._handle = source);
+      this._reader = new AsyncMessageReader((this._handle = source));
     }
     isAsync() {
       return true;
@@ -10380,7 +12742,9 @@ var init_reader = __esm(() => {
       return __awaiter(this, undefined, undefined, function* () {
         if (!this.closed) {
           this.autoDestroy = shouldAutoDestroy(this, options);
-          if (!(this.schema || (this.schema = yield this._reader.readSchema()))) {
+          if (
+            !(this.schema || (this.schema = yield this._reader.readSchema()))
+          ) {
             yield this.cancel();
           }
         }
@@ -10410,7 +12774,7 @@ var init_reader = __esm(() => {
         }
         let message;
         const { _reader: reader } = this;
-        while (message = yield this._readNextMessageAndValidate()) {
+        while ((message = yield this._readNextMessageAndValidate())) {
           if (message.isSchema()) {
             yield this.reset(message.header());
           } else if (message.isRecordBatch()) {
@@ -10429,7 +12793,10 @@ var init_reader = __esm(() => {
         }
         if (this.schema && this._recordBatchIndex === 0) {
           this._recordBatchIndex++;
-          return { done: false, value: new _InternalEmptyPlaceholderRecordBatch(this.schema) };
+          return {
+            done: false,
+            value: new _InternalEmptyPlaceholderRecordBatch(this.schema),
+          };
         }
         return yield this.return();
       });
@@ -10440,7 +12807,9 @@ var init_reader = __esm(() => {
       });
     }
   };
-  RecordBatchFileReaderImpl = class RecordBatchFileReaderImpl extends RecordBatchStreamReaderImpl {
+  RecordBatchFileReaderImpl = class RecordBatchFileReaderImpl extends (
+    RecordBatchStreamReaderImpl
+  ) {
     get footer() {
       return this._footer;
     }
@@ -10451,7 +12820,12 @@ var init_reader = __esm(() => {
       return this._footer ? this._footer.numRecordBatches : 0;
     }
     constructor(source, dictionaries) {
-      super(source instanceof RandomAccessFile ? source : new RandomAccessFile(source), dictionaries);
+      super(
+        source instanceof RandomAccessFile
+          ? source
+          : new RandomAccessFile(source),
+        dictionaries,
+      );
     }
     isSync() {
       return true;
@@ -10476,10 +12850,17 @@ var init_reader = __esm(() => {
       if (!this._footer) {
         this.open();
       }
-      const block = (_a5 = this._footer) === null || _a5 === undefined ? undefined : _a5.getRecordBatch(index);
+      const block =
+        (_a5 = this._footer) === null || _a5 === undefined
+          ? undefined
+          : _a5.getRecordBatch(index);
       if (block && this._handle.seek(block.offset)) {
         const message = this._reader.readMessage(MessageHeader.RecordBatch);
-        if (message === null || message === undefined ? undefined : message.isRecordBatch()) {
+        if (
+          message === null || message === undefined
+            ? undefined
+            : message.isRecordBatch()
+        ) {
           const header = message.header();
           const buffer = this._reader.readMessageBody(message.bodyLength);
           const recordBatch = this._loadRecordBatch(header, buffer);
@@ -10490,10 +12871,17 @@ var init_reader = __esm(() => {
     }
     _readDictionaryBatch(index) {
       var _a5;
-      const block = (_a5 = this._footer) === null || _a5 === undefined ? undefined : _a5.getDictionaryBatch(index);
+      const block =
+        (_a5 = this._footer) === null || _a5 === undefined
+          ? undefined
+          : _a5.getDictionaryBatch(index);
       if (block && this._handle.seek(block.offset)) {
         const message = this._reader.readMessage(MessageHeader.DictionaryBatch);
-        if (message === null || message === undefined ? undefined : message.isDictionaryBatch()) {
+        if (
+          message === null || message === undefined
+            ? undefined
+            : message.isDictionaryBatch()
+        ) {
           const header = message.header();
           const buffer = this._reader.readMessageBody(message.bodyLength);
           const vector = this._loadDictionaryBatch(header, buffer);
@@ -10514,7 +12902,10 @@ var init_reader = __esm(() => {
         this.open();
       }
       if (this._footer && this._recordBatchIndex < this.numRecordBatches) {
-        const block = (_a5 = this._footer) === null || _a5 === undefined ? undefined : _a5.getRecordBatch(this._recordBatchIndex);
+        const block =
+          (_a5 = this._footer) === null || _a5 === undefined
+            ? undefined
+            : _a5.getRecordBatch(this._recordBatchIndex);
         if (block && this._handle.seek(block.offset)) {
           return this._reader.readMessage(type);
         }
@@ -10522,7 +12913,9 @@ var init_reader = __esm(() => {
       return null;
     }
   };
-  AsyncRecordBatchFileReaderImpl = class AsyncRecordBatchFileReaderImpl extends AsyncRecordBatchStreamReaderImpl {
+  AsyncRecordBatchFileReaderImpl = class AsyncRecordBatchFileReaderImpl extends (
+    AsyncRecordBatchStreamReaderImpl
+  ) {
     get footer() {
       return this._footer;
     }
@@ -10535,7 +12928,12 @@ var init_reader = __esm(() => {
     constructor(source, ...rest) {
       const byteLength = typeof rest[0] !== "number" ? rest.shift() : undefined;
       const dictionaries = rest[0] instanceof Map ? rest.shift() : undefined;
-      super(source instanceof AsyncRandomAccessFile ? source : new AsyncRandomAccessFile(source, byteLength), dictionaries);
+      super(
+        source instanceof AsyncRandomAccessFile
+          ? source
+          : new AsyncRandomAccessFile(source, byteLength),
+        dictionaries,
+      );
     }
     isFile() {
       return true;
@@ -10545,7 +12943,7 @@ var init_reader = __esm(() => {
     }
     open(options) {
       const _super = Object.create(null, {
-        open: { get: () => super.open }
+        open: { get: () => super.open },
       });
       return __awaiter(this, undefined, undefined, function* () {
         if (!this.closed && !this._footer) {
@@ -10566,12 +12964,23 @@ var init_reader = __esm(() => {
         if (!this._footer) {
           yield this.open();
         }
-        const block = (_a5 = this._footer) === null || _a5 === undefined ? undefined : _a5.getRecordBatch(index);
+        const block =
+          (_a5 = this._footer) === null || _a5 === undefined
+            ? undefined
+            : _a5.getRecordBatch(index);
         if (block && (yield this._handle.seek(block.offset))) {
-          const message = yield this._reader.readMessage(MessageHeader.RecordBatch);
-          if (message === null || message === undefined ? undefined : message.isRecordBatch()) {
+          const message = yield this._reader.readMessage(
+            MessageHeader.RecordBatch,
+          );
+          if (
+            message === null || message === undefined
+              ? undefined
+              : message.isRecordBatch()
+          ) {
             const header = message.header();
-            const buffer = yield this._reader.readMessageBody(message.bodyLength);
+            const buffer = yield this._reader.readMessageBody(
+              message.bodyLength,
+            );
             const recordBatch = this._loadRecordBatch(header, buffer);
             return recordBatch;
           }
@@ -10582,12 +12991,23 @@ var init_reader = __esm(() => {
     _readDictionaryBatch(index) {
       return __awaiter(this, undefined, undefined, function* () {
         var _a5;
-        const block = (_a5 = this._footer) === null || _a5 === undefined ? undefined : _a5.getDictionaryBatch(index);
+        const block =
+          (_a5 = this._footer) === null || _a5 === undefined
+            ? undefined
+            : _a5.getDictionaryBatch(index);
         if (block && (yield this._handle.seek(block.offset))) {
-          const message = yield this._reader.readMessage(MessageHeader.DictionaryBatch);
-          if (message === null || message === undefined ? undefined : message.isDictionaryBatch()) {
+          const message = yield this._reader.readMessage(
+            MessageHeader.DictionaryBatch,
+          );
+          if (
+            message === null || message === undefined
+              ? undefined
+              : message.isDictionaryBatch()
+          ) {
             const header = message.header();
-            const buffer = yield this._reader.readMessageBody(message.bodyLength);
+            const buffer = yield this._reader.readMessageBody(
+              message.bodyLength,
+            );
             const vector = this._loadDictionaryBatch(header, buffer);
             this.dictionaries.set(header.id, vector);
           }
@@ -10619,19 +13039,27 @@ var init_reader = __esm(() => {
       });
     }
   };
-  RecordBatchJSONReaderImpl = class RecordBatchJSONReaderImpl extends RecordBatchStreamReaderImpl {
+  RecordBatchJSONReaderImpl = class RecordBatchJSONReaderImpl extends (
+    RecordBatchStreamReaderImpl
+  ) {
     constructor(source, dictionaries) {
       super(source, dictionaries);
     }
     _loadVectors(header, body, types) {
-      return new JSONVectorLoader(body, header.nodes, header.buffers, this.dictionaries, this.schema.metadataVersion).visitMany(types);
+      return new JSONVectorLoader(
+        body,
+        header.nodes,
+        header.buffers,
+        this.dictionaries,
+        this.schema.metadataVersion,
+      ).visitMany(types);
     }
   };
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/visitor/vectorassembler.mjs
 function addBuffer(values) {
-  const byteLength = values.byteLength + 7 & ~7;
+  const byteLength = (values.byteLength + 7) & ~7;
   this.buffers.push(values);
   this.bufferRegions.push(new BufferRegion(this._byteLength, byteLength));
   this._byteLength += byteLength;
@@ -10651,7 +13079,7 @@ function assembleUnion(data) {
       const shiftedOffsets = new Int32Array(length);
       const childOffsets = Object.create(null);
       const childLengths = Object.create(null);
-      for (let typeId, shift, index = -1;++index < length; ) {
+      for (let typeId, shift, index = -1; ++index < length; ) {
         if ((typeId = typeIds[index]) === undefined) {
           continue;
         }
@@ -10659,15 +13087,20 @@ function assembleUnion(data) {
           shift = childOffsets[typeId] = valueOffsets[index];
         }
         shiftedOffsets[index] = valueOffsets[index] - shift;
-        childLengths[typeId] = ((_a5 = childLengths[typeId]) !== null && _a5 !== undefined ? _a5 : 0) + 1;
+        childLengths[typeId] =
+          ((_a5 = childLengths[typeId]) !== null && _a5 !== undefined
+            ? _a5
+            : 0) + 1;
       }
       addBuffer.call(this, shiftedOffsets);
-      this.visitMany(data.children.map((child, childIndex) => {
-        const typeId = type.typeIds[childIndex];
-        const childOffset = childOffsets[typeId];
-        const childLength = childLengths[typeId];
-        return child.slice(childOffset, Math.min(length, childLength));
-      }));
+      this.visitMany(
+        data.children.map((child, childIndex) => {
+          const typeId = type.typeIds[childIndex];
+          const childOffset = childOffsets[typeId];
+          const childLength = childLengths[typeId];
+          return child.slice(childOffset, Math.min(length, childLength));
+        }),
+      );
     }
   }
   return this;
@@ -10677,12 +13110,18 @@ function assembleBoolVector(data) {
   if (data.nullCount >= data.length) {
     return addBuffer.call(this, new Uint8Array(0));
   } else if ((values = data.values) instanceof Uint8Array) {
-    return addBuffer.call(this, truncateBitmap(data.offset, data.length, values));
+    return addBuffer.call(
+      this,
+      truncateBitmap(data.offset, data.length, values),
+    );
   }
   return addBuffer.call(this, packBools(data.values));
 }
 function assembleFlatVector(data) {
-  return addBuffer.call(this, data.values.subarray(0, data.length * data.stride));
+  return addBuffer.call(
+    this,
+    data.values.subarray(0, data.length * data.stride),
+  );
 }
 function assembleFlatListVector(data) {
   const { length, values, valueOffsets } = data;
@@ -10703,7 +13142,9 @@ function assembleListVector(data) {
   return this.visit(data.children[0]);
 }
 function assembleNestedVector(data) {
-  return this.visitMany(data.type.children.map((_, i) => data.children[i]).filter(Boolean))[0];
+  return this.visitMany(
+    data.type.children.map((_, i) => data.children[i]).filter(Boolean),
+  )[0];
 }
 var VectorAssembler;
 var init_vectorassembler = __esm(() => {
@@ -10717,8 +13158,15 @@ var init_vectorassembler = __esm(() => {
   init_type2();
   VectorAssembler = class VectorAssembler extends Visitor {
     static assemble(...args) {
-      const unwrap = (nodes) => nodes.flatMap((node) => Array.isArray(node) ? unwrap(node) : node instanceof RecordBatch2 ? node.data.children : node.data);
-      const assembler = new VectorAssembler;
+      const unwrap = (nodes) =>
+        nodes.flatMap((node) =>
+          Array.isArray(node)
+            ? unwrap(node)
+            : node instanceof RecordBatch2
+              ? node.data.children
+              : node.data,
+        );
+      const assembler = new VectorAssembler();
       assembler.visitMany(unwrap(args));
       return assembler;
     }
@@ -10738,14 +13186,21 @@ var init_vectorassembler = __esm(() => {
       if (!DataType.isDictionary(type)) {
         const { length } = data;
         if (length > 2147483647) {
-          throw new RangeError("Cannot write arrays larger than 2^31 - 1 in length");
+          throw new RangeError(
+            "Cannot write arrays larger than 2^31 - 1 in length",
+          );
         }
         if (DataType.isUnion(type)) {
           this.nodes.push(new FieldNode2(length, 0));
         } else {
           const { nullCount } = data;
           if (!DataType.isNull(type)) {
-            addBuffer.call(this, nullCount <= 0 ? new Uint8Array(0) : truncateBitmap(data.offset, length, data.nullBitmap));
+            addBuffer.call(
+              this,
+              nullCount <= 0
+                ? new Uint8Array(0)
+                : truncateBitmap(data.offset, length, data.nullBitmap),
+            );
           }
           this.nodes.push(new FieldNode2(length, nullCount));
         }
@@ -10809,7 +13264,11 @@ function writeAllAsync(writer, batches) {
     var _a5, batches_1, batches_1_1;
     var _b2, e_1, _c2, _d2;
     try {
-      for (_a5 = true, batches_1 = __asyncValues(batches);batches_1_1 = yield batches_1.next(), _b2 = batches_1_1.done, !_b2; _a5 = true) {
+      for (
+        _a5 = true, batches_1 = __asyncValues(batches);
+        (batches_1_1 = yield batches_1.next()), (_b2 = batches_1_1.done), !_b2;
+        _a5 = true
+      ) {
         _d2 = batches_1_1.value;
         _a5 = false;
         const batch = _d2;
@@ -10819,11 +13278,9 @@ function writeAllAsync(writer, batches) {
       e_1 = { error: e_1_1 };
     } finally {
       try {
-        if (!_a5 && !_b2 && (_c2 = batches_1.return))
-          yield _c2.call(batches_1);
+        if (!_a5 && !_b2 && (_c2 = batches_1.return)) yield _c2.call(batches_1);
       } finally {
-        if (e_1)
-          throw e_1.error;
+        if (e_1) throw e_1.error;
       }
     }
     return writer.finish();
@@ -10856,15 +13313,20 @@ var init_writer = __esm(() => {
       super();
       this._position = 0;
       this._started = false;
-      this._sink = new AsyncByteQueue;
+      this._sink = new AsyncByteQueue();
       this._schema = null;
       this._dictionaryBlocks = [];
       this._recordBatchBlocks = [];
-      this._seenDictionaries = new Map;
-      this._dictionaryDeltaOffsets = new Map;
-      isObject(options) || (options = { autoDestroy: true, writeLegacyIpcFormat: false });
-      this._autoDestroy = typeof options.autoDestroy === "boolean" ? options.autoDestroy : true;
-      this._writeLegacyIpcFormat = typeof options.writeLegacyIpcFormat === "boolean" ? options.writeLegacyIpcFormat : false;
+      this._seenDictionaries = new Map();
+      this._dictionaryDeltaOffsets = new Map();
+      isObject(options) ||
+        (options = { autoDestroy: true, writeLegacyIpcFormat: false });
+      this._autoDestroy =
+        typeof options.autoDestroy === "boolean" ? options.autoDestroy : true;
+      this._writeLegacyIpcFormat =
+        typeof options.writeLegacyIpcFormat === "boolean"
+          ? options.writeLegacyIpcFormat
+          : false;
     }
     toString(sync = false) {
       return this._sink.toString(sync);
@@ -10906,7 +13368,7 @@ var init_writer = __esm(() => {
       if (sink === this._sink || sink instanceof AsyncByteQueue) {
         this._sink = sink;
       } else {
-        this._sink = new AsyncByteQueue;
+        this._sink = new AsyncByteQueue();
         if (sink && isWritableDOMStream(sink)) {
           this.toDOMStream({ type: "bytes" }).pipeTo(sink);
         } else if (sink && isWritableNodeStream(sink)) {
@@ -10919,8 +13381,8 @@ var init_writer = __esm(() => {
       this._started = false;
       this._dictionaryBlocks = [];
       this._recordBatchBlocks = [];
-      this._seenDictionaries = new Map;
-      this._dictionaryDeltaOffsets = new Map;
+      this._seenDictionaries = new Map();
+      this._dictionaryDeltaOffsets = new Map();
       if (!schema || !compareSchemas(schema, this._schema)) {
         if (schema == null) {
           this._position = 0;
@@ -10941,7 +13403,10 @@ var init_writer = __esm(() => {
         return this.finish() && undefined;
       } else if (payload instanceof Table && !(schema = payload.schema)) {
         return this.finish() && undefined;
-      } else if (payload instanceof RecordBatch2 && !(schema = payload.schema)) {
+      } else if (
+        payload instanceof RecordBatch2 &&
+        !(schema = payload.schema)
+      ) {
         return this.finish() && undefined;
       }
       if (schema && !compareSchemas(schema, this._schema)) {
@@ -10965,12 +13430,16 @@ var init_writer = __esm(() => {
       const buffer = Message2.encode(message);
       const flatbufferSize = buffer.byteLength;
       const prefixSize = !this._writeLegacyIpcFormat ? 8 : 4;
-      const alignedSize = flatbufferSize + prefixSize + a & ~a;
+      const alignedSize = (flatbufferSize + prefixSize + a) & ~a;
       const nPaddingBytes = alignedSize - flatbufferSize - prefixSize;
       if (message.headerType === MessageHeader.RecordBatch) {
-        this._recordBatchBlocks.push(new FileBlock(alignedSize, message.bodyLength, this._position));
+        this._recordBatchBlocks.push(
+          new FileBlock(alignedSize, message.bodyLength, this._position),
+        );
       } else if (message.headerType === MessageHeader.DictionaryBatch) {
-        this._dictionaryBlocks.push(new FileBlock(alignedSize, message.bodyLength, this._position));
+        this._dictionaryBlocks.push(
+          new FileBlock(alignedSize, message.bodyLength, this._position),
+        );
       }
       if (!this._writeLegacyIpcFormat) {
         this._write(Int32Array.of(-1));
@@ -10995,7 +13464,9 @@ var init_writer = __esm(() => {
       return this._writeMessage(Message2.from(schema));
     }
     _writeFooter(schema) {
-      return this._writeLegacyIpcFormat ? this._write(Int32Array.of(0)) : this._write(Int32Array.of(-1, 0));
+      return this._writeLegacyIpcFormat
+        ? this._write(Int32Array.of(0))
+        : this._write(Int32Array.of(-1, 0));
     }
     _writeMagic() {
       return this._write(MAGIC);
@@ -11004,14 +13475,22 @@ var init_writer = __esm(() => {
       return nBytes > 0 ? this._write(new Uint8Array(nBytes)) : this;
     }
     _writeRecordBatch(batch) {
-      const { byteLength, nodes, bufferRegions, buffers } = VectorAssembler.assemble(batch);
+      const { byteLength, nodes, bufferRegions, buffers } =
+        VectorAssembler.assemble(batch);
       const recordBatch = new RecordBatch3(batch.numRows, nodes, bufferRegions);
       const message = Message2.from(recordBatch, byteLength);
-      return this._writeDictionaries(batch)._writeMessage(message)._writeBodyBuffers(buffers);
+      return this._writeDictionaries(batch)
+        ._writeMessage(message)
+        ._writeBodyBuffers(buffers);
     }
     _writeDictionaryBatch(dictionary, id, isDelta = false) {
-      const { byteLength, nodes, bufferRegions, buffers } = VectorAssembler.assemble(new Vector([dictionary]));
-      const recordBatch = new RecordBatch3(dictionary.length, nodes, bufferRegions);
+      const { byteLength, nodes, bufferRegions, buffers } =
+        VectorAssembler.assemble(new Vector([dictionary]));
+      const recordBatch = new RecordBatch3(
+        dictionary.length,
+        nodes,
+        bufferRegions,
+      );
       const dictionaryBatch = new DictionaryBatch2(recordBatch, id, isDelta);
       const message = Message2.from(dictionaryBatch, byteLength);
       return this._writeMessage(message)._writeBodyBuffers(buffers);
@@ -11019,10 +13498,10 @@ var init_writer = __esm(() => {
     _writeBodyBuffers(buffers) {
       let buffer;
       let size, padding;
-      for (let i = -1, n = buffers.length;++i < n; ) {
+      for (let i = -1, n = buffers.length; ++i < n; ) {
         if ((buffer = buffers[i]) && (size = buffer.byteLength) > 0) {
           this._write(buffer);
-          if ((padding = (size + 7 & ~7) - size) > 0) {
+          if ((padding = ((size + 7) & ~7) - size) > 0) {
             this._writePadding(padding);
           }
         }
@@ -11032,9 +13511,19 @@ var init_writer = __esm(() => {
     _writeDictionaries(batch) {
       var _a5, _b2;
       for (const [id, dictionary] of batch.dictionaries) {
-        const chunks = (_a5 = dictionary === null || dictionary === undefined ? undefined : dictionary.data) !== null && _a5 !== undefined ? _a5 : [];
+        const chunks =
+          (_a5 =
+            dictionary === null || dictionary === undefined
+              ? undefined
+              : dictionary.data) !== null && _a5 !== undefined
+            ? _a5
+            : [];
         const prevDictionary = this._seenDictionaries.get(id);
-        const offset = (_b2 = this._dictionaryDeltaOffsets.get(id)) !== null && _b2 !== undefined ? _b2 : 0;
+        const offset =
+          (_b2 = this._dictionaryDeltaOffsets.get(id)) !== null &&
+          _b2 !== undefined
+            ? _b2
+            : 0;
         if (!prevDictionary || prevDictionary.data[0] !== chunks[0]) {
           for (const [index, chunk] of chunks.entries())
             this._writeDictionaryBatch(chunk, id, index > 0);
@@ -11048,7 +13537,9 @@ var init_writer = __esm(() => {
       return this;
     }
   };
-  RecordBatchStreamWriter = class RecordBatchStreamWriter extends RecordBatchWriter {
+  RecordBatchStreamWriter = class RecordBatchStreamWriter extends (
+    RecordBatchWriter
+  ) {
     static writeAll(input, options) {
       const writer = new RecordBatchStreamWriter(options);
       if (isPromise(input)) {
@@ -11059,9 +13550,11 @@ var init_writer = __esm(() => {
       return writeAll(writer, input);
     }
   };
-  RecordBatchFileWriter = class RecordBatchFileWriter extends RecordBatchWriter {
+  RecordBatchFileWriter = class RecordBatchFileWriter extends (
+    RecordBatchWriter
+  ) {
     static writeAll(input) {
-      const writer = new RecordBatchFileWriter;
+      const writer = new RecordBatchFileWriter();
       if (isPromise(input)) {
         return input.then((x) => writer.writeAll(x));
       } else if (isAsyncIterable(input)) {
@@ -11078,13 +13571,26 @@ var init_writer = __esm(() => {
     }
     _writeDictionaryBatch(dictionary, id, isDelta = false) {
       if (!isDelta && this._seenDictionaries.has(id)) {
-        throw new Error("The Arrow File format does not support replacement dictionaries. ");
+        throw new Error(
+          "The Arrow File format does not support replacement dictionaries. ",
+        );
       }
       return super._writeDictionaryBatch(dictionary, id, isDelta);
     }
     _writeFooter(schema) {
-      const buffer = Footer_.encode(new Footer_(schema, MetadataVersion.V5, this._recordBatchBlocks, this._dictionaryBlocks));
-      return super._writeFooter(schema)._write(buffer)._write(Int32Array.of(buffer.byteLength))._writeMagic();
+      const buffer = Footer_.encode(
+        new Footer_(
+          schema,
+          MetadataVersion.V5,
+          this._recordBatchBlocks,
+          this._dictionaryBlocks,
+        ),
+      );
+      return super
+        ._writeFooter(schema)
+        ._write(buffer)
+        ._write(Int32Array.of(buffer.byteLength))
+        ._writeMagic();
     }
   };
 });
@@ -11097,23 +13603,36 @@ function toDOMStream(source, options) {
   if (isIterable(source)) {
     return iterableAsReadableDOMStream(source, options);
   }
-  throw new Error(`toDOMStream() must be called with an Iterable or AsyncIterable`);
+  throw new Error(
+    `toDOMStream() must be called with an Iterable or AsyncIterable`,
+  );
 }
 function iterableAsReadableDOMStream(source, options) {
   let it = null;
-  const bm = (options === null || options === undefined ? undefined : options.type) === "bytes" || false;
-  const hwm = (options === null || options === undefined ? undefined : options.highWaterMark) || Math.pow(2, 24);
-  return new ReadableStream(Object.assign(Object.assign({}, options), {
-    start(controller) {
-      next(controller, it || (it = source[Symbol.iterator]()));
-    },
-    pull(controller) {
-      it ? next(controller, it) : controller.close();
-    },
-    cancel() {
-      ((it === null || it === undefined ? undefined : it.return) && it.return() || true) && (it = null);
-    }
-  }), Object.assign({ highWaterMark: bm ? hwm : undefined }, options));
+  const bm =
+    (options === null || options === undefined ? undefined : options.type) ===
+      "bytes" || false;
+  const hwm =
+    (options === null || options === undefined
+      ? undefined
+      : options.highWaterMark) || Math.pow(2, 24);
+  return new ReadableStream(
+    Object.assign(Object.assign({}, options), {
+      start(controller) {
+        next(controller, it || (it = source[Symbol.iterator]()));
+      },
+      pull(controller) {
+        it ? next(controller, it) : controller.close();
+      },
+      cancel() {
+        (((it === null || it === undefined ? undefined : it.return) &&
+          it.return()) ||
+          true) &&
+          (it = null);
+      },
+    }),
+    Object.assign({ highWaterMark: bm ? hwm : undefined }, options),
+  );
   function next(controller, it2) {
     let buf;
     let r = null;
@@ -11133,25 +13652,36 @@ function iterableAsReadableDOMStream(source, options) {
 }
 function asyncIterableAsReadableDOMStream(source, options) {
   let it = null;
-  const bm = (options === null || options === undefined ? undefined : options.type) === "bytes" || false;
-  const hwm = (options === null || options === undefined ? undefined : options.highWaterMark) || Math.pow(2, 24);
-  return new ReadableStream(Object.assign(Object.assign({}, options), {
-    start(controller) {
-      return __awaiter(this, undefined, undefined, function* () {
-        yield next(controller, it || (it = source[Symbol.asyncIterator]()));
-      });
-    },
-    pull(controller) {
-      return __awaiter(this, undefined, undefined, function* () {
-        it ? yield next(controller, it) : controller.close();
-      });
-    },
-    cancel() {
-      return __awaiter(this, undefined, undefined, function* () {
-        ((it === null || it === undefined ? undefined : it.return) && (yield it.return()) || true) && (it = null);
-      });
-    }
-  }), Object.assign({ highWaterMark: bm ? hwm : undefined }, options));
+  const bm =
+    (options === null || options === undefined ? undefined : options.type) ===
+      "bytes" || false;
+  const hwm =
+    (options === null || options === undefined
+      ? undefined
+      : options.highWaterMark) || Math.pow(2, 24);
+  return new ReadableStream(
+    Object.assign(Object.assign({}, options), {
+      start(controller) {
+        return __awaiter(this, undefined, undefined, function* () {
+          yield next(controller, it || (it = source[Symbol.asyncIterator]()));
+        });
+      },
+      pull(controller) {
+        return __awaiter(this, undefined, undefined, function* () {
+          it ? yield next(controller, it) : controller.close();
+        });
+      },
+      cancel() {
+        return __awaiter(this, undefined, undefined, function* () {
+          (((it === null || it === undefined ? undefined : it.return) &&
+            (yield it.return())) ||
+            true) &&
+            (it = null);
+        });
+      },
+    }),
+    Object.assign({ highWaterMark: bm ? hwm : undefined }, options),
+  );
   function next(controller, it2) {
     return __awaiter(this, undefined, undefined, function* () {
       let buf;
@@ -11186,40 +13716,64 @@ class BuilderTransform {
     this._numChunks = 0;
     this._finished = false;
     this._bufferedSize = 0;
-    const { ["readableStrategy"]: readableStrategy, ["writableStrategy"]: writableStrategy, ["queueingStrategy"]: queueingStrategy = "count" } = options, builderOptions = __rest(options, ["readableStrategy", "writableStrategy", "queueingStrategy"]);
+    const {
+        ["readableStrategy"]: readableStrategy,
+        ["writableStrategy"]: writableStrategy,
+        ["queueingStrategy"]: queueingStrategy = "count",
+      } = options,
+      builderOptions = __rest(options, [
+        "readableStrategy",
+        "writableStrategy",
+        "queueingStrategy",
+      ]);
     this._controller = null;
     this._builder = makeBuilder(builderOptions);
-    this._getSize = queueingStrategy !== "bytes" ? chunkLength : chunkByteLength;
-    const { ["highWaterMark"]: readableHighWaterMark = queueingStrategy === "bytes" ? Math.pow(2, 14) : 1000 } = Object.assign({}, readableStrategy);
-    const { ["highWaterMark"]: writableHighWaterMark = queueingStrategy === "bytes" ? Math.pow(2, 14) : 1000 } = Object.assign({}, writableStrategy);
-    this["readable"] = new ReadableStream({
-      ["cancel"]: () => {
-        this._builder.clear();
+    this._getSize =
+      queueingStrategy !== "bytes" ? chunkLength : chunkByteLength;
+    const {
+      ["highWaterMark"]: readableHighWaterMark = queueingStrategy === "bytes"
+        ? Math.pow(2, 14)
+        : 1000,
+    } = Object.assign({}, readableStrategy);
+    const {
+      ["highWaterMark"]: writableHighWaterMark = queueingStrategy === "bytes"
+        ? Math.pow(2, 14)
+        : 1000,
+    } = Object.assign({}, writableStrategy);
+    this["readable"] = new ReadableStream(
+      {
+        ["cancel"]: () => {
+          this._builder.clear();
+        },
+        ["pull"]: (c) => {
+          this._maybeFlush(this._builder, (this._controller = c));
+        },
+        ["start"]: (c) => {
+          this._maybeFlush(this._builder, (this._controller = c));
+        },
       },
-      ["pull"]: (c) => {
-        this._maybeFlush(this._builder, this._controller = c);
+      {
+        highWaterMark: readableHighWaterMark,
+        size: queueingStrategy !== "bytes" ? chunkLength : chunkByteLength,
       },
-      ["start"]: (c) => {
-        this._maybeFlush(this._builder, this._controller = c);
-      }
-    }, {
-      highWaterMark: readableHighWaterMark,
-      size: queueingStrategy !== "bytes" ? chunkLength : chunkByteLength
-    });
-    this["writable"] = new WritableStream({
-      ["abort"]: () => {
-        this._builder.clear();
+    );
+    this["writable"] = new WritableStream(
+      {
+        ["abort"]: () => {
+          this._builder.clear();
+        },
+        ["write"]: () => {
+          this._maybeFlush(this._builder, this._controller);
+        },
+        ["close"]: () => {
+          this._maybeFlush(this._builder.finish(), this._controller);
+        },
       },
-      ["write"]: () => {
-        this._maybeFlush(this._builder, this._controller);
+      {
+        highWaterMark: writableHighWaterMark,
+        size: (value) => this._writeValueAndReturnChunkSize(value),
       },
-      ["close"]: () => {
-        this._maybeFlush(this._builder.finish(), this._controller);
-      }
-    }, {
-      highWaterMark: writableHighWaterMark,
-      size: (value) => this._writeValueAndReturnChunkSize(value)
-    });
+    );
   }
   _writeValueAndReturnChunkSize(value) {
     const bufferedSize = this._bufferedSize;
@@ -11249,12 +13803,21 @@ class BuilderTransform {
   }
 }
 var chunkLength = (chunk) => {
-  var _a5;
-  return (_a5 = chunk === null || chunk === undefined ? undefined : chunk.length) !== null && _a5 !== undefined ? _a5 : 0;
-}, chunkByteLength = (chunk) => {
-  var _a5;
-  return (_a5 = chunk === null || chunk === undefined ? undefined : chunk.byteLength) !== null && _a5 !== undefined ? _a5 : 0;
-};
+    var _a5;
+    return (_a5 =
+      chunk === null || chunk === undefined ? undefined : chunk.length) !==
+      null && _a5 !== undefined
+      ? _a5
+      : 0;
+  },
+  chunkByteLength = (chunk) => {
+    var _a5;
+    return (_a5 =
+      chunk === null || chunk === undefined ? undefined : chunk.byteLength) !==
+      null && _a5 !== undefined
+      ? _a5
+      : 0;
+  };
 var init_builder3 = __esm(() => {
   init_tslib_es6();
   init_factories();
@@ -11262,7 +13825,7 @@ var init_builder3 = __esm(() => {
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/io/whatwg/reader.mjs
 function recordBatchReaderThroughDOMStream(writableStrategy, readableStrategy) {
-  const queue = new AsyncByteQueue;
+  const queue = new AsyncByteQueue();
   let reader = null;
   const readable = new ReadableStream({
     cancel() {
@@ -11279,9 +13842,15 @@ function recordBatchReaderThroughDOMStream(writableStrategy, readableStrategy) {
       return __awaiter(this, undefined, undefined, function* () {
         reader ? yield next(controller, reader) : controller.close();
       });
-    }
+    },
   });
-  return { writable: new WritableStream(queue, Object.assign({ highWaterMark: Math.pow(2, 14) }, writableStrategy)), readable };
+  return {
+    writable: new WritableStream(
+      queue,
+      Object.assign({ highWaterMark: Math.pow(2, 14) }, writableStrategy),
+    ),
+    readable,
+  };
   function open() {
     return __awaiter(this, undefined, undefined, function* () {
       return yield (yield RecordBatchReader.from(queue)).open(readableStrategy);
@@ -11311,29 +13880,32 @@ var init_reader2 = __esm(() => {
 function recordBatchWriterThroughDOMStream(writableStrategy, readableStrategy) {
   const writer = new this(writableStrategy);
   const reader = new AsyncByteStream(writer);
-  const readable = new ReadableStream({
-    cancel() {
-      return __awaiter(this, undefined, undefined, function* () {
-        yield reader.cancel();
-      });
+  const readable = new ReadableStream(
+    {
+      cancel() {
+        return __awaiter(this, undefined, undefined, function* () {
+          yield reader.cancel();
+        });
+      },
+      pull(controller) {
+        return __awaiter(this, undefined, undefined, function* () {
+          yield next(controller);
+        });
+      },
+      start(controller) {
+        return __awaiter(this, undefined, undefined, function* () {
+          yield next(controller);
+        });
+      },
     },
-    pull(controller) {
-      return __awaiter(this, undefined, undefined, function* () {
-        yield next(controller);
-      });
-    },
-    start(controller) {
-      return __awaiter(this, undefined, undefined, function* () {
-        yield next(controller);
-      });
-    }
-  }, Object.assign({ highWaterMark: Math.pow(2, 14) }, readableStrategy));
+    Object.assign({ highWaterMark: Math.pow(2, 14) }, readableStrategy),
+  );
   return { writable: new WritableStream(writer, writableStrategy), readable };
   function next(controller) {
     return __awaiter(this, undefined, undefined, function* () {
       let buf = null;
       let size = controller.desiredSize;
-      while (buf = yield reader.read(size || null)) {
+      while ((buf = yield reader.read(size || null))) {
         controller.enqueue(buf);
         if (size != null && (size -= buf.byteLength) <= 0) {
           return;
@@ -11350,7 +13922,9 @@ var init_writer2 = __esm(() => {
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/ipc/serialization.mjs
 function tableToIPC(table, type = "stream") {
-  return (type === "stream" ? RecordBatchStreamWriter : RecordBatchFileWriter).writeAll(table).toUint8Array(true);
+  return (type === "stream" ? RecordBatchStreamWriter : RecordBatchFileWriter)
+    .writeAll(table)
+    .toUint8Array(true);
 }
 var init_serialization = __esm(() => {
   init_writer();
@@ -11370,11 +13944,29 @@ var init_Arrow = __esm(() => {
   init_buffer();
   init_vector();
   init_typecomparator();
-  util = Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign(Object.assign({}, exports_bn), exports_int), exports_bit), exports_math), exports_buffer), exports_vector), exports_pretty), {
-    compareSchemas,
-    compareFields,
-    compareTypes
-  });
+  util = Object.assign(
+    Object.assign(
+      Object.assign(
+        Object.assign(
+          Object.assign(
+            Object.assign(
+              Object.assign(Object.assign({}, exports_bn), exports_int),
+              exports_bit,
+            ),
+            exports_math,
+          ),
+          exports_buffer,
+        ),
+        exports_vector,
+      ),
+      exports_pretty,
+    ),
+    {
+      compareSchemas,
+      compareFields,
+      compareTypes,
+    },
+  );
 });
 
 // node_modules/@duckdb/duckdb-wasm/node_modules/apache-arrow/Arrow.dom.mjs
@@ -11436,7 +14028,7 @@ __export(exports_duckdb_browser, {
   AsyncPreparedStatement: () => b,
   AsyncDuckDBDispatcher: () => C,
   AsyncDuckDBConnection: () => E,
-  AsyncDuckDB: () => f
+  AsyncDuckDB: () => f,
 });
 function Te(s) {
   switch (s) {
@@ -11563,10 +14155,17 @@ function _(s) {
     case Type2.Utf8:
       return { sqlType: "utf8" };
     case Type2.Struct:
-      return { sqlType: "struct", fields: s.children.map((r) => R(r.name, r.type)) };
+      return {
+        sqlType: "struct",
+        fields: s.children.map((r) => R(r.name, r.type)),
+      };
     case Type2.Map: {
       let e = s;
-      return { sqlType: "map", keyType: _(e.keyType), valueType: _(e.valueType) };
+      return {
+        sqlType: "map",
+        keyType: _(e.keyType),
+        valueType: _(e.valueType),
+      };
     }
     case Type2.Time:
       return { sqlType: "time[s]" };
@@ -11593,7 +14192,7 @@ function _(s) {
 }
 function R(s, e) {
   let r = _(e);
-  return r.name = s, r;
+  return (r.name = s), r;
 }
 function L(s) {
   return s.search(de) > -1;
@@ -11602,703 +14201,1128 @@ function F(s) {
   return [...s.matchAll(ae)].map((e) => e[1]);
 }
 function le() {
-  let s = new TextDecoder;
-  return (e) => (typeof SharedArrayBuffer < "u" && e.buffer instanceof SharedArrayBuffer && (e = new Uint8Array(e)), s.decode(e));
+  let s = new TextDecoder();
+  return (e) => (
+    typeof SharedArrayBuffer < "u" &&
+      e.buffer instanceof SharedArrayBuffer &&
+      (e = new Uint8Array(e)),
+    s.decode(e)
+  );
 }
 function Je() {
   let s = "https://cdn.jsdelivr.net/npm/".concat(M, "@").concat(G, "/dist/");
-  return { mvp: { mainModule: "".concat(s, "duckdb-mvp.wasm"), mainWorker: "".concat(s, "duckdb-browser-mvp.worker.js") }, eh: { mainModule: "".concat(s, "duckdb-eh.wasm"), mainWorker: "".concat(s, "duckdb-browser-eh.worker.js") } };
+  return {
+    mvp: {
+      mainModule: "".concat(s, "duckdb-mvp.wasm"),
+      mainWorker: "".concat(s, "duckdb-browser-mvp.worker.js"),
+    },
+    eh: {
+      mainModule: "".concat(s, "duckdb-eh.wasm"),
+      mainWorker: "".concat(s, "duckdb-browser-eh.worker.js"),
+    },
+  };
 }
 async function pe() {
-  return k == null && (k = typeof BigInt64Array < "u"), y == null && (y = await W()), g == null && (g = await B()), S == null && (S = await v()), h == null && (h = await U()), { bigInt64Array: k, crossOriginIsolated: x() || globalThis.crossOriginIsolated || false, wasmExceptions: y, wasmSIMD: S, wasmThreads: g, wasmBulkMemory: h };
+  return (
+    k == null && (k = typeof BigInt64Array < "u"),
+    y == null && (y = await W()),
+    g == null && (g = await B()),
+    S == null && (S = await v()),
+    h == null && (h = await U()),
+    {
+      bigInt64Array: k,
+      crossOriginIsolated: x() || globalThis.crossOriginIsolated || false,
+      wasmExceptions: y,
+      wasmSIMD: S,
+      wasmThreads: g,
+      wasmBulkMemory: h,
+    }
+  );
 }
 async function Xe(s) {
   let e = await pe();
   if (e.wasmExceptions) {
     if (e.wasmSIMD && e.wasmThreads && e.crossOriginIsolated && s.coi)
-      return { mainModule: s.coi.mainModule, mainWorker: s.coi.mainWorker, pthreadWorker: s.coi.pthreadWorker };
+      return {
+        mainModule: s.coi.mainModule,
+        mainWorker: s.coi.mainWorker,
+        pthreadWorker: s.coi.pthreadWorker,
+      };
     if (s.eh)
-      return { mainModule: s.eh.mainModule, mainWorker: s.eh.mainWorker, pthreadWorker: null };
+      return {
+        mainModule: s.eh.mainModule,
+        mainWorker: s.eh.mainWorker,
+        pthreadWorker: null,
+      };
   }
-  return { mainModule: s.mvp.mainModule, mainWorker: s.mvp.mainWorker, pthreadWorker: null };
+  return {
+    mainModule: s.mvp.mainModule,
+    mainWorker: s.mvp.mainWorker,
+    pthreadWorker: null,
+  };
 }
 async function er(s) {
-  let e = new Request(s), r = await fetch(e), t = URL.createObjectURL(await r.blob());
+  let e = new Request(s),
+    r = await fetch(e),
+    t = URL.createObjectURL(await r.blob());
   return new Y.default(t);
 }
-var j, P, K, V, z, J, X = (s, e) => () => (e || s((e = { exports: {} }).exports, e), e.exports), $ = (s, e, r, t) => {
-  if (e && typeof e == "object" || typeof e == "function")
-    for (let o of V(e))
-      !J.call(s, o) && o !== r && P(s, o, { get: () => e[o], enumerable: !(t = K(e, o)) || t.enumerable });
-  return s;
-}, Z = (s, e, r) => (r = s != null ? j(z(s)) : {}, $(e || !s || !s.__esModule ? P(r, "default", { value: s, enumerable: true }) : r, s)), q, ee, re, te, se, ne, oe, N = class {
-  log(e) {}
-}, A = class {
-  constructor(e = 2) {
-    this.level = e;
-  }
-  log(e) {
-    e.level >= this.level && console.log(e);
-  }
-}, ie, E = class {
-  constructor(e, r) {
-    this._bindings = e, this._conn = r;
-  }
-  get bindings() {
-    return this._bindings;
-  }
-  async close() {
-    return this._bindings.disconnect(this._conn);
-  }
-  useUnsafe(e) {
-    return e(this._bindings, this._conn);
-  }
-  async query(e) {
-    this._bindings.logger.log({ timestamp: new Date, level: 2, origin: 4, topic: 4, event: 4, value: e });
-    let r = await this._bindings.runQuery(this._conn, e), t = RecordBatchReader.from(r);
-    return console.assert(t.isSync(), "Reader is not sync"), console.assert(t.isFile(), "Reader is not file"), new Table(t);
-  }
-  async send(e, r = false) {
-    this._bindings.logger.log({ timestamp: new Date, level: 2, origin: 4, topic: 4, event: 4, value: e });
-    let t = await this._bindings.startPendingQuery(this._conn, e, r);
-    for (;t == null; ) {
-      if (this._bindings.isDetached()) {
-        console.error("cannot send a message since the worker is not set!");
+var j,
+  P,
+  K,
+  V,
+  z,
+  J,
+  X = (s, e) => () => (e || s((e = { exports: {} }).exports, e), e.exports),
+  $ = (s, e, r, t) => {
+    if ((e && typeof e == "object") || typeof e == "function")
+      for (let o of V(e))
+        !J.call(s, o) &&
+          o !== r &&
+          P(s, o, {
+            get: () => e[o],
+            enumerable: !(t = K(e, o)) || t.enumerable,
+          });
+    return s;
+  },
+  Z = (s, e, r) => (
+    (r = s != null ? j(z(s)) : {}),
+    $(
+      e || !s || !s.__esModule
+        ? P(r, "default", { value: s, enumerable: true })
+        : r,
+      s,
+    )
+  ),
+  q,
+  ee,
+  re,
+  te,
+  se,
+  ne,
+  oe,
+  N = class {
+    log(e) {}
+  },
+  A = class {
+    constructor(e = 2) {
+      this.level = e;
+    }
+    log(e) {
+      e.level >= this.level && console.log(e);
+    }
+  },
+  ie,
+  E = class {
+    constructor(e, r) {
+      (this._bindings = e), (this._conn = r);
+    }
+    get bindings() {
+      return this._bindings;
+    }
+    async close() {
+      return this._bindings.disconnect(this._conn);
+    }
+    useUnsafe(e) {
+      return e(this._bindings, this._conn);
+    }
+    async query(e) {
+      this._bindings.logger.log({
+        timestamp: new Date(),
+        level: 2,
+        origin: 4,
+        topic: 4,
+        event: 4,
+        value: e,
+      });
+      let r = await this._bindings.runQuery(this._conn, e),
+        t = RecordBatchReader.from(r);
+      return (
+        console.assert(t.isSync(), "Reader is not sync"),
+        console.assert(t.isFile(), "Reader is not file"),
+        new Table(t)
+      );
+    }
+    async send(e, r = false) {
+      this._bindings.logger.log({
+        timestamp: new Date(),
+        level: 2,
+        origin: 4,
+        topic: 4,
+        event: 4,
+        value: e,
+      });
+      let t = await this._bindings.startPendingQuery(this._conn, e, r);
+      for (; t == null; ) {
+        if (this._bindings.isDetached()) {
+          console.error("cannot send a message since the worker is not set!");
+          return;
+        }
+        t = await this._bindings.pollPendingQuery(this._conn);
+      }
+      let o = new p(this._bindings, this._conn, t),
+        i = await RecordBatchReader.from(o);
+      return console.assert(i.isAsync()), console.assert(i.isStream()), i;
+    }
+    async cancelSent() {
+      return await this._bindings.cancelPendingQuery(this._conn);
+    }
+    async getTableNames(e) {
+      return await this._bindings.getTableNames(this._conn, e);
+    }
+    async prepare(e) {
+      let r = await this._bindings.createPrepared(this._conn, e);
+      return new b(this._bindings, this._conn, r);
+    }
+    async insertArrowTable(e, r) {
+      let t = tableToIPC(e, "stream");
+      await this.insertArrowFromIPCStream(t, r);
+    }
+    async insertArrowFromIPCStream(e, r) {
+      await this._bindings.insertArrowFromIPCStream(this._conn, e, r);
+    }
+    async insertCSVFromPath(e, r) {
+      await this._bindings.insertCSVFromPath(this._conn, e, r);
+    }
+    async insertJSONFromPath(e, r) {
+      await this._bindings.insertJSONFromPath(this._conn, e, r);
+    }
+  },
+  p,
+  b = class {
+    constructor(e, r, t) {
+      (this.bindings = e), (this.connectionId = r), (this.statementId = t);
+    }
+    async close() {
+      await this.bindings.closePrepared(this.connectionId, this.statementId);
+    }
+    async query(...e) {
+      let r = await this.bindings.runPrepared(
+          this.connectionId,
+          this.statementId,
+          e,
+        ),
+        t = RecordBatchReader.from(r);
+      return (
+        console.assert(t.isSync()), console.assert(t.isFile()), new Table(t)
+      );
+    }
+    async send(...e) {
+      let r = await this.bindings.sendPrepared(
+          this.connectionId,
+          this.statementId,
+          e,
+        ),
+        t = new p(this.bindings, this.connectionId, r),
+        o = await RecordBatchReader.from(t);
+      return console.assert(o.isAsync()), console.assert(o.isStream()), o;
+    }
+  },
+  D,
+  O,
+  a = class {
+    constructor(e, r) {
+      this.promiseResolver = () => {};
+      this.promiseRejecter = () => {};
+      (this.type = e),
+        (this.data = r),
+        (this.promise = new Promise((t, o) => {
+          (this.promiseResolver = t), (this.promiseRejecter = o);
+        }));
+    }
+  },
+  ae,
+  de,
+  ce,
+  f = class {
+    constructor(e, r = null) {
+      this._onInstantiationProgress = [];
+      this._onExecutionProgress = [];
+      this._worker = null;
+      this._workerShutdownPromise = null;
+      this._workerShutdownResolver = () => {};
+      this._nextMessageId = 0;
+      this._pendingRequests = new Map();
+      this._config = {};
+      (this._logger = e),
+        (this._onMessageHandler = this.onMessage.bind(this)),
+        (this._onErrorHandler = this.onError.bind(this)),
+        (this._onCloseHandler = this.onClose.bind(this)),
+        r != null && this.attach(r);
+    }
+    get logger() {
+      return this._logger;
+    }
+    get config() {
+      return this._config;
+    }
+    attach(e) {
+      (this._worker = e),
+        this._worker.addEventListener("message", this._onMessageHandler),
+        this._worker.addEventListener("error", this._onErrorHandler),
+        this._worker.addEventListener("close", this._onCloseHandler),
+        (this._workerShutdownPromise = new Promise((r, t) => {
+          this._workerShutdownResolver = r;
+        }));
+    }
+    detach() {
+      this._worker &&
+        (this._worker.removeEventListener("message", this._onMessageHandler),
+        this._worker.removeEventListener("error", this._onErrorHandler),
+        this._worker.removeEventListener("close", this._onCloseHandler),
+        (this._worker = null),
+        this._workerShutdownResolver(null),
+        (this._workerShutdownPromise = null),
+        (this._workerShutdownResolver = () => {}));
+    }
+    async terminate() {
+      this._worker &&
+        (this._worker.terminate(),
+        (this._worker = null),
+        (this._workerShutdownPromise = null),
+        (this._workerShutdownResolver = () => {}));
+    }
+    async postTask(e, r = []) {
+      if (!this._worker) {
+        console.error(
+          "cannot send a message since the worker is not set!:" +
+            e.type +
+            "," +
+            e.data,
+        );
         return;
       }
-      t = await this._bindings.pollPendingQuery(this._conn);
+      let t = this._nextMessageId++;
+      return (
+        this._pendingRequests.set(t, e),
+        this._worker.postMessage(
+          { messageId: t, type: e.type, data: e.data },
+          r,
+        ),
+        await e.promise
+      );
     }
-    let o = new p(this._bindings, this._conn, t), i = await RecordBatchReader.from(o);
-    return console.assert(i.isAsync()), console.assert(i.isStream()), i;
-  }
-  async cancelSent() {
-    return await this._bindings.cancelPendingQuery(this._conn);
-  }
-  async getTableNames(e) {
-    return await this._bindings.getTableNames(this._conn, e);
-  }
-  async prepare(e) {
-    let r = await this._bindings.createPrepared(this._conn, e);
-    return new b(this._bindings, this._conn, r);
-  }
-  async insertArrowTable(e, r) {
-    let t = tableToIPC(e, "stream");
-    await this.insertArrowFromIPCStream(t, r);
-  }
-  async insertArrowFromIPCStream(e, r) {
-    await this._bindings.insertArrowFromIPCStream(this._conn, e, r);
-  }
-  async insertCSVFromPath(e, r) {
-    await this._bindings.insertCSVFromPath(this._conn, e, r);
-  }
-  async insertJSONFromPath(e, r) {
-    await this._bindings.insertJSONFromPath(this._conn, e, r);
-  }
-}, p, b = class {
-  constructor(e, r, t) {
-    this.bindings = e, this.connectionId = r, this.statementId = t;
-  }
-  async close() {
-    await this.bindings.closePrepared(this.connectionId, this.statementId);
-  }
-  async query(...e) {
-    let r = await this.bindings.runPrepared(this.connectionId, this.statementId, e), t = RecordBatchReader.from(r);
-    return console.assert(t.isSync()), console.assert(t.isFile()), new Table(t);
-  }
-  async send(...e) {
-    let r = await this.bindings.sendPrepared(this.connectionId, this.statementId, e), t = new p(this.bindings, this.connectionId, r), o = await RecordBatchReader.from(t);
-    return console.assert(o.isAsync()), console.assert(o.isStream()), o;
-  }
-}, D, O, a = class {
-  constructor(e, r) {
-    this.promiseResolver = () => {};
-    this.promiseRejecter = () => {};
-    this.type = e, this.data = r, this.promise = new Promise((t, o) => {
-      this.promiseResolver = t, this.promiseRejecter = o;
-    });
-  }
-}, ae, de, ce, f = class {
-  constructor(e, r = null) {
-    this._onInstantiationProgress = [];
-    this._onExecutionProgress = [];
-    this._worker = null;
-    this._workerShutdownPromise = null;
-    this._workerShutdownResolver = () => {};
-    this._nextMessageId = 0;
-    this._pendingRequests = new Map;
-    this._config = {};
-    this._logger = e, this._onMessageHandler = this.onMessage.bind(this), this._onErrorHandler = this.onError.bind(this), this._onCloseHandler = this.onClose.bind(this), r != null && this.attach(r);
-  }
-  get logger() {
-    return this._logger;
-  }
-  get config() {
-    return this._config;
-  }
-  attach(e) {
-    this._worker = e, this._worker.addEventListener("message", this._onMessageHandler), this._worker.addEventListener("error", this._onErrorHandler), this._worker.addEventListener("close", this._onCloseHandler), this._workerShutdownPromise = new Promise((r, t) => {
-      this._workerShutdownResolver = r;
-    });
-  }
-  detach() {
-    this._worker && (this._worker.removeEventListener("message", this._onMessageHandler), this._worker.removeEventListener("error", this._onErrorHandler), this._worker.removeEventListener("close", this._onCloseHandler), this._worker = null, this._workerShutdownResolver(null), this._workerShutdownPromise = null, this._workerShutdownResolver = () => {});
-  }
-  async terminate() {
-    this._worker && (this._worker.terminate(), this._worker = null, this._workerShutdownPromise = null, this._workerShutdownResolver = () => {});
-  }
-  async postTask(e, r = []) {
-    if (!this._worker) {
-      console.error("cannot send a message since the worker is not set!:" + e.type + "," + e.data);
-      return;
-    }
-    let t = this._nextMessageId++;
-    return this._pendingRequests.set(t, e), this._worker.postMessage({ messageId: t, type: e.type, data: e.data }, r), await e.promise;
-  }
-  onMessage(e) {
-    var o;
-    let r = e.data;
-    switch (r.type) {
-      case "PROGRESS_UPDATE": {
-        for (let i of this._onExecutionProgress)
-          i(r.data);
+    onMessage(e) {
+      var o;
+      let r = e.data;
+      switch (r.type) {
+        case "PROGRESS_UPDATE": {
+          for (let i of this._onExecutionProgress) i(r.data);
+          return;
+        }
+        case "LOG": {
+          this._logger.log(r.data);
+          return;
+        }
+        case "INSTANTIATE_PROGRESS": {
+          for (let i of this._onInstantiationProgress) i(r.data);
+          return;
+        }
+      }
+      let t = this._pendingRequests.get(r.requestId);
+      if (!t) {
+        console.warn(
+          "unassociated response: ["
+            .concat(r.requestId, ", ")
+            .concat(r.type.toString(), "]"),
+        );
         return;
       }
-      case "LOG": {
-        this._logger.log(r.data);
+      if ((this._pendingRequests.delete(r.requestId), r.type == "ERROR")) {
+        let i = new Error(r.data.message);
+        (i.name = r.data.name),
+          (o = Object.getOwnPropertyDescriptor(i, "stack")) != null &&
+            o.writable &&
+            (i.stack = r.data.stack),
+          t.promiseRejecter(i);
         return;
       }
-      case "INSTANTIATE_PROGRESS": {
-        for (let i of this._onInstantiationProgress)
-          i(r.data);
-        return;
-      }
-    }
-    let t = this._pendingRequests.get(r.requestId);
-    if (!t) {
-      console.warn("unassociated response: [".concat(r.requestId, ", ").concat(r.type.toString(), "]"));
-      return;
-    }
-    if (this._pendingRequests.delete(r.requestId), r.type == "ERROR") {
-      let i = new Error(r.data.message);
-      i.name = r.data.name, (o = Object.getOwnPropertyDescriptor(i, "stack")) != null && o.writable && (i.stack = r.data.stack), t.promiseRejecter(i);
-      return;
-    }
-    switch (t.type) {
-      case "CLOSE_PREPARED":
-      case "COLLECT_FILE_STATISTICS":
-      case "REGISTER_OPFS_FILE_NAME":
-      case "COPY_FILE_TO_PATH":
-      case "DISCONNECT":
-      case "DROP_FILE":
-      case "DROP_FILES":
-      case "FLUSH_FILES":
-      case "INSERT_ARROW_FROM_IPC_STREAM":
-      case "IMPORT_CSV_FROM_PATH":
-      case "IMPORT_JSON_FROM_PATH":
-      case "OPEN":
-      case "PING":
-      case "REGISTER_FILE_BUFFER":
-      case "REGISTER_FILE_HANDLE":
-      case "REGISTER_FILE_URL":
-      case "RESET":
-        if (r.type == "OK") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "INSTANTIATE":
-        if (this._onInstantiationProgress = [], r.type == "OK") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "GLOB_FILE_INFOS":
-        if (r.type == "FILE_INFOS") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "GET_VERSION":
-        if (r.type == "VERSION_STRING") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "GET_FEATURE_FLAGS":
-        if (r.type == "FEATURE_FLAGS") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "GET_TABLE_NAMES":
-        if (r.type == "TABLE_NAMES") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "TOKENIZE":
-        if (r.type == "SCRIPT_TOKENS") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "COPY_FILE_TO_BUFFER":
-        if (r.type == "FILE_BUFFER") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "EXPORT_FILE_STATISTICS":
-        if (r.type == "FILE_STATISTICS") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "CONNECT":
-        if (r.type == "CONNECTION_INFO") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "RUN_PREPARED":
-      case "RUN_QUERY":
-        if (r.type == "QUERY_RESULT") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "SEND_PREPARED":
-        if (r.type == "QUERY_RESULT_HEADER") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "START_PENDING_QUERY":
-        if (r.type == "QUERY_RESULT_HEADER_OR_NULL") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "POLL_PENDING_QUERY":
-        if (r.type == "QUERY_RESULT_HEADER_OR_NULL") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "CANCEL_PENDING_QUERY":
-        if (this._onInstantiationProgress = [], r.type == "SUCCESS") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "FETCH_QUERY_RESULTS":
-        if (r.type == "QUERY_RESULT_CHUNK") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-      case "CREATE_PREPARED":
-        if (r.type == "PREPARED_STATEMENT_ID") {
-          t.promiseResolver(r.data);
-          return;
-        }
-        break;
-    }
-    t.promiseRejecter(new Error("unexpected response type: ".concat(r.type.toString())));
-  }
-  onError(e) {
-    console.error(e), console.error("error in duckdb worker: ".concat(e.message)), this._pendingRequests.clear();
-  }
-  onClose() {
-    if (this._workerShutdownResolver(null), this._pendingRequests.size != 0) {
-      console.warn("worker terminated with ".concat(this._pendingRequests.size, " pending requests"));
-      return;
-    }
-    this._pendingRequests.clear();
-  }
-  isDetached() {
-    return !this._worker;
-  }
-  async reset() {
-    let e = new a("RESET", null);
-    return await this.postTask(e);
-  }
-  async ping() {
-    let e = new a("PING", null);
-    await this.postTask(e);
-  }
-  async dropFile(e) {
-    let r = new a("DROP_FILE", e);
-    return await this.postTask(r);
-  }
-  async dropFiles(e) {
-    let r = new a("DROP_FILES", e);
-    return await this.postTask(r);
-  }
-  async flushFiles() {
-    let e = new a("FLUSH_FILES", null);
-    return await this.postTask(e);
-  }
-  async instantiate(e, r = null, t = (o) => {}) {
-    this._onInstantiationProgress.push(t);
-    let o = new a("INSTANTIATE", [e, r]);
-    return await this.postTask(o);
-  }
-  async getVersion() {
-    let e = new a("GET_VERSION", null);
-    return await this.postTask(e);
-  }
-  async getFeatureFlags() {
-    let e = new a("GET_FEATURE_FLAGS", null);
-    return await this.postTask(e);
-  }
-  async open(e) {
-    this._config = e;
-    let r = new a("OPEN", e);
-    await this.postTask(r);
-  }
-  async tokenize(e) {
-    let r = new a("TOKENIZE", e);
-    return await this.postTask(r);
-  }
-  async connectInternal() {
-    let e = new a("CONNECT", null);
-    return await this.postTask(e);
-  }
-  async connect() {
-    let e = await this.connectInternal();
-    return new E(this, e);
-  }
-  async disconnect(e) {
-    let r = new a("DISCONNECT", e);
-    await this.postTask(r);
-  }
-  async runQuery(e, r) {
-    if (this.shouldOPFSFileHandling()) {
-      let t = await this.registerOPFSFileFromSQL(r);
-      try {
-        return await this._runQueryAsync(e, r);
-      } finally {
-        t.length > 0 && await this.dropFiles(t);
-      }
-    } else
-      return await this._runQueryAsync(e, r);
-  }
-  async _runQueryAsync(e, r) {
-    let t = new a("RUN_QUERY", [e, r]);
-    return await this.postTask(t);
-  }
-  async startPendingQuery(e, r, t = false) {
-    if (this.shouldOPFSFileHandling()) {
-      let o = await this.registerOPFSFileFromSQL(r);
-      try {
-        return await this._startPendingQueryAsync(e, r, t);
-      } finally {
-        o.length > 0 && await this.dropFiles(o);
-      }
-    } else
-      return await this._startPendingQueryAsync(e, r, t);
-  }
-  async _startPendingQueryAsync(e, r, t = false) {
-    let o = new a("START_PENDING_QUERY", [e, r, t]);
-    return await this.postTask(o);
-  }
-  async pollPendingQuery(e) {
-    let r = new a("POLL_PENDING_QUERY", e);
-    return await this.postTask(r);
-  }
-  async cancelPendingQuery(e) {
-    let r = new a("CANCEL_PENDING_QUERY", e);
-    return await this.postTask(r);
-  }
-  async fetchQueryResults(e) {
-    let r = new a("FETCH_QUERY_RESULTS", e);
-    return await this.postTask(r);
-  }
-  async getTableNames(e, r) {
-    let t = new a("GET_TABLE_NAMES", [e, r]);
-    return await this.postTask(t);
-  }
-  async createPrepared(e, r) {
-    let t = new a("CREATE_PREPARED", [e, r]);
-    return await this.postTask(t);
-  }
-  async closePrepared(e, r) {
-    let t = new a("CLOSE_PREPARED", [e, r]);
-    await this.postTask(t);
-  }
-  async runPrepared(e, r, t) {
-    let o = new a("RUN_PREPARED", [e, r, t]);
-    return await this.postTask(o);
-  }
-  async sendPrepared(e, r, t) {
-    let o = new a("SEND_PREPARED", [e, r, t]);
-    return await this.postTask(o);
-  }
-  async globFiles(e) {
-    let r = new a("GLOB_FILE_INFOS", e);
-    return await this.postTask(r);
-  }
-  async registerFileText(e, r) {
-    let t = ce.encode(r);
-    await this.registerFileBuffer(e, t);
-  }
-  async registerFileURL(e, r, t, o) {
-    r === undefined && (r = e);
-    let i = new a("REGISTER_FILE_URL", [e, r, t, o]);
-    await this.postTask(i);
-  }
-  async registerEmptyFileBuffer(e) {}
-  async registerFileBuffer(e, r) {
-    let t = new a("REGISTER_FILE_BUFFER", [e, r]);
-    await this.postTask(t, [r.buffer]);
-  }
-  async registerFileHandle(e, r, t, o) {
-    let i = new a("REGISTER_FILE_HANDLE", [e, r, t, o]);
-    await this.postTask(i, []);
-  }
-  async registerOPFSFileName(e) {
-    let r = new a("REGISTER_OPFS_FILE_NAME", [e]);
-    await this.postTask(r, []);
-  }
-  async collectFileStatistics(e, r) {
-    let t = new a("COLLECT_FILE_STATISTICS", [e, r]);
-    await this.postTask(t, []);
-  }
-  async exportFileStatistics(e) {
-    let r = new a("EXPORT_FILE_STATISTICS", e);
-    return await this.postTask(r, []);
-  }
-  async copyFileToBuffer(e) {
-    let r = new a("COPY_FILE_TO_BUFFER", e);
-    return await this.postTask(r);
-  }
-  async copyFileToPath(e, r) {
-    let t = new a("COPY_FILE_TO_PATH", [e, r]);
-    await this.postTask(t);
-  }
-  async insertArrowFromIPCStream(e, r, t) {
-    if (r.length == 0)
-      return;
-    let o = new a("INSERT_ARROW_FROM_IPC_STREAM", [e, r, t]);
-    await this.postTask(o, [r.buffer]);
-  }
-  async insertCSVFromPath(e, r, t) {
-    if (t.columns !== undefined) {
-      let i = [];
-      for (let n in t.columns) {
-        let T = t.columns[n];
-        i.push(R(n, T));
-      }
-      t.columnsFlat = i, delete t.columns;
-    }
-    let o = new a("IMPORT_CSV_FROM_PATH", [e, r, t]);
-    await this.postTask(o);
-  }
-  async insertJSONFromPath(e, r, t) {
-    if (t.columns !== undefined) {
-      let i = [];
-      for (let n in t.columns) {
-        let T = t.columns[n];
-        i.push(R(n, T));
-      }
-      t.columnsFlat = i, delete t.columns;
-    }
-    let o = new a("IMPORT_JSON_FROM_PATH", [e, r, t]);
-    await this.postTask(o);
-  }
-  shouldOPFSFileHandling() {
-    var e, r;
-    return L((e = this.config.path) != null ? e : "") ? ((r = this.config.opfs) == null ? undefined : r.fileHandling) == "auto" : false;
-  }
-  async registerOPFSFileFromSQL(e) {
-    let r = F(e), t = [];
-    for (let o of r)
-      try {
-        await this.registerOPFSFileName(o), t.push(o);
-      } catch (i) {
-        throw console.error(i), new Error("File Not found:" + o);
-      }
-    return t;
-  }
-}, Be, w, C = class {
-  constructor() {
-    this._bindings = null;
-    this._nextMessageId = 0;
-  }
-  log(e) {
-    this.postMessage({ messageId: this._nextMessageId++, requestId: 0, type: "LOG", data: e }, []);
-  }
-  sendOK(e) {
-    this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "OK", data: null }, []);
-  }
-  failWith(e, r) {
-    let t = { name: r.name, message: r.message, stack: r.stack || undefined };
-    this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "ERROR", data: t }, []);
-  }
-  async onMessage(e) {
-    switch (e.type) {
-      case "PING":
-        this.sendOK(e);
-        return;
-      case "INSTANTIATE":
-        this._bindings != null && this.failWith(e, new Error("duckdb already initialized"));
-        try {
-          this._bindings = await this.instantiate(e.data[0], e.data[1], (r) => {
-            this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "INSTANTIATE_PROGRESS", data: r }, []);
-          }), this.sendOK(e);
-        } catch (r) {
-          console.log(r), this._bindings = null, this.failWith(e, r);
-        }
-        return;
-      default:
-        break;
-    }
-    if (!this._bindings)
-      return this.failWith(e, new Error("duckdb is not initialized"));
-    try {
-      switch (e.type) {
+      switch (t.type) {
+        case "CLOSE_PREPARED":
+        case "COLLECT_FILE_STATISTICS":
+        case "REGISTER_OPFS_FILE_NAME":
+        case "COPY_FILE_TO_PATH":
+        case "DISCONNECT":
+        case "DROP_FILE":
+        case "DROP_FILES":
+        case "FLUSH_FILES":
+        case "INSERT_ARROW_FROM_IPC_STREAM":
+        case "IMPORT_CSV_FROM_PATH":
+        case "IMPORT_JSON_FROM_PATH":
+        case "OPEN":
+        case "PING":
+        case "REGISTER_FILE_BUFFER":
+        case "REGISTER_FILE_HANDLE":
+        case "REGISTER_FILE_URL":
+        case "RESET":
+          if (r.type == "OK") {
+            t.promiseResolver(r.data);
+            return;
+          }
+          break;
+        case "INSTANTIATE":
+          if (((this._onInstantiationProgress = []), r.type == "OK")) {
+            t.promiseResolver(r.data);
+            return;
+          }
+          break;
+        case "GLOB_FILE_INFOS":
+          if (r.type == "FILE_INFOS") {
+            t.promiseResolver(r.data);
+            return;
+          }
+          break;
         case "GET_VERSION":
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "VERSION_STRING", data: this._bindings.getVersion() }, []);
+          if (r.type == "VERSION_STRING") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
         case "GET_FEATURE_FLAGS":
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "FEATURE_FLAGS", data: this._bindings.getFeatureFlags() }, []);
+          if (r.type == "FEATURE_FLAGS") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "RESET":
-          this._bindings.reset(), this.sendOK(e);
+        case "GET_TABLE_NAMES":
+          if (r.type == "TABLE_NAMES") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "OPEN": {
-          let r = e.data.path;
-          r != null && r.startsWith("opfs://") && (await this._bindings.prepareDBFileHandle(r, 3), e.data.useDirectIO = true), this._bindings.open(e.data), this.sendOK(e);
+        case "TOKENIZE":
+          if (r.type == "SCRIPT_TOKENS") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "DROP_FILE":
-          this._bindings.dropFile(e.data), this.sendOK(e);
+        case "COPY_FILE_TO_BUFFER":
+          if (r.type == "FILE_BUFFER") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "DROP_FILES":
-          this._bindings.dropFiles(e.data), this.sendOK(e);
+        case "EXPORT_FILE_STATISTICS":
+          if (r.type == "FILE_STATISTICS") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "FLUSH_FILES":
-          this._bindings.flushFiles(), this.sendOK(e);
+        case "CONNECT":
+          if (r.type == "CONNECTION_INFO") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "CONNECT": {
-          let r = this._bindings.connect();
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "CONNECTION_INFO", data: r.useUnsafe((t, o) => o) }, []);
+        case "RUN_PREPARED":
+        case "RUN_QUERY":
+          if (r.type == "QUERY_RESULT") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "DISCONNECT":
-          this._bindings.disconnect(e.data), this.sendOK(e);
+        case "SEND_PREPARED":
+          if (r.type == "QUERY_RESULT_HEADER") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        case "CREATE_PREPARED": {
-          let r = this._bindings.createPrepared(e.data[0], e.data[1]);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "PREPARED_STATEMENT_ID", data: r }, []);
+        case "START_PENDING_QUERY":
+          if (r.type == "QUERY_RESULT_HEADER_OR_NULL") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "CLOSE_PREPARED": {
-          this._bindings.closePrepared(e.data[0], e.data[1]), this.sendOK(e);
+        case "POLL_PENDING_QUERY":
+          if (r.type == "QUERY_RESULT_HEADER_OR_NULL") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "RUN_PREPARED": {
-          let r = this._bindings.runPrepared(e.data[0], e.data[1], e.data[2]);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT", data: r }, [r.buffer]);
+        case "CANCEL_PENDING_QUERY":
+          if (((this._onInstantiationProgress = []), r.type == "SUCCESS")) {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "RUN_QUERY": {
-          let r = this._bindings.runQuery(e.data[0], e.data[1]);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT", data: r }, [r.buffer]);
+        case "FETCH_QUERY_RESULTS":
+          if (r.type == "QUERY_RESULT_CHUNK") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "SEND_PREPARED": {
-          let r = this._bindings.sendPrepared(e.data[0], e.data[1], e.data[2]);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT_HEADER", data: r }, [r.buffer]);
+        case "CREATE_PREPARED":
+          if (r.type == "PREPARED_STATEMENT_ID") {
+            t.promiseResolver(r.data);
+            return;
+          }
           break;
-        }
-        case "START_PENDING_QUERY": {
-          let r = this._bindings.startPendingQuery(e.data[0], e.data[1], e.data[2]), t = [];
-          r && t.push(r.buffer), this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT_HEADER_OR_NULL", data: r }, t);
-          break;
-        }
-        case "POLL_PENDING_QUERY": {
-          let r = this._bindings.pollPendingQuery(e.data), t = [];
-          r && t.push(r.buffer), this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT_HEADER_OR_NULL", data: r }, t);
-          break;
-        }
-        case "CANCEL_PENDING_QUERY": {
-          let r = this._bindings.cancelPendingQuery(e.data);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "SUCCESS", data: r }, []);
-          break;
-        }
-        case "FETCH_QUERY_RESULTS": {
-          let r = this._bindings.fetchQueryResults(e.data), t = r ? [r.buffer] : [];
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "QUERY_RESULT_CHUNK", data: r }, t);
-          break;
-        }
-        case "GET_TABLE_NAMES": {
-          let r = this._bindings.getTableNames(e.data[0], e.data[1]);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "TABLE_NAMES", data: r }, []);
-          break;
-        }
-        case "GLOB_FILE_INFOS": {
-          let r = this._bindings.globFiles(e.data);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "FILE_INFOS", data: r }, []);
-          break;
-        }
-        case "REGISTER_FILE_URL":
-          this._bindings.registerFileURL(e.data[0], e.data[1], e.data[2], e.data[3]), this.sendOK(e);
-          break;
-        case "REGISTER_FILE_BUFFER":
-          this._bindings.registerFileBuffer(e.data[0], e.data[1]), this.sendOK(e);
-          break;
-        case "REGISTER_FILE_HANDLE":
-          await this._bindings.registerFileHandleAsync(e.data[0], e.data[1], e.data[2], e.data[3]), this.sendOK(e);
-          break;
-        case "COPY_FILE_TO_PATH":
-          this._bindings.copyFileToPath(e.data[0], e.data[1]), this.sendOK(e);
-          break;
-        case "COPY_FILE_TO_BUFFER": {
-          let r = this._bindings.copyFileToBuffer(e.data);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "FILE_BUFFER", data: r }, []);
-          break;
-        }
-        case "COLLECT_FILE_STATISTICS":
-          this._bindings.collectFileStatistics(e.data[0], e.data[1]), this.sendOK(e);
-          break;
-        case "REGISTER_OPFS_FILE_NAME":
-          await this._bindings.registerOPFSFileName(e.data[0]), this.sendOK(e);
-          break;
-        case "EXPORT_FILE_STATISTICS": {
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "FILE_STATISTICS", data: this._bindings.exportFileStatistics(e.data) }, []);
-          break;
-        }
-        case "INSERT_ARROW_FROM_IPC_STREAM": {
-          this._bindings.insertArrowFromIPCStream(e.data[0], e.data[1], e.data[2]), this.sendOK(e);
-          break;
-        }
-        case "IMPORT_CSV_FROM_PATH": {
-          this._bindings.insertCSVFromPath(e.data[0], e.data[1], e.data[2]), this.sendOK(e);
-          break;
-        }
-        case "IMPORT_JSON_FROM_PATH": {
-          this._bindings.insertJSONFromPath(e.data[0], e.data[1], e.data[2]), this.sendOK(e);
-          break;
-        }
-        case "TOKENIZE": {
-          let r = this._bindings.tokenize(e.data);
-          this.postMessage({ messageId: this._nextMessageId++, requestId: e.messageId, type: "SCRIPT_TOKENS", data: r }, []);
-          break;
-        }
       }
-    } catch (r) {
-      return console.log(r), this.failWith(e, r);
+      t.promiseRejecter(
+        new Error("unexpected response type: ".concat(r.type.toString())),
+      );
     }
-  }
-}, U = async () => WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 5, 3, 1, 0, 1, 10, 14, 1, 12, 0, 65, 0, 65, 0, 65, 0, 252, 10, 0, 0, 11])), W = async () => WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 10, 8, 1, 6, 0, 6, 64, 25, 11, 11])), v = async () => WebAssembly.validate(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10, 1, 8, 0, 65, 0, 253, 15, 253, 98, 11])), B = () => (async (s) => {
-  try {
-    return typeof MessageChannel < "u" && new MessageChannel().port1.postMessage(new SharedArrayBuffer(1)), WebAssembly.validate(s);
-  } catch (e) {
-    return false;
-  }
-})(new Uint8Array([0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 5, 4, 1, 3, 1, 1, 10, 11, 1, 9, 0, 65, 0, 254, 16, 2, 0, 26, 11])), m, M, G, I, He, qe, Ye, x = () => typeof navigator > "u", Q = () => x() ? "node" : navigator.userAgent, Ve = () => Q().includes("Firefox"), ze = () => /^((?!chrome|android).)*safari/i.test(Q()), k = null, y = null, g = null, S = null, h = null, Y;
+    onError(e) {
+      console.error(e),
+        console.error("error in duckdb worker: ".concat(e.message)),
+        this._pendingRequests.clear();
+    }
+    onClose() {
+      if (
+        (this._workerShutdownResolver(null), this._pendingRequests.size != 0)
+      ) {
+        console.warn(
+          "worker terminated with ".concat(
+            this._pendingRequests.size,
+            " pending requests",
+          ),
+        );
+        return;
+      }
+      this._pendingRequests.clear();
+    }
+    isDetached() {
+      return !this._worker;
+    }
+    async reset() {
+      let e = new a("RESET", null);
+      return await this.postTask(e);
+    }
+    async ping() {
+      let e = new a("PING", null);
+      await this.postTask(e);
+    }
+    async dropFile(e) {
+      let r = new a("DROP_FILE", e);
+      return await this.postTask(r);
+    }
+    async dropFiles(e) {
+      let r = new a("DROP_FILES", e);
+      return await this.postTask(r);
+    }
+    async flushFiles() {
+      let e = new a("FLUSH_FILES", null);
+      return await this.postTask(e);
+    }
+    async instantiate(e, r = null, t = (o) => {}) {
+      this._onInstantiationProgress.push(t);
+      let o = new a("INSTANTIATE", [e, r]);
+      return await this.postTask(o);
+    }
+    async getVersion() {
+      let e = new a("GET_VERSION", null);
+      return await this.postTask(e);
+    }
+    async getFeatureFlags() {
+      let e = new a("GET_FEATURE_FLAGS", null);
+      return await this.postTask(e);
+    }
+    async open(e) {
+      this._config = e;
+      let r = new a("OPEN", e);
+      await this.postTask(r);
+    }
+    async tokenize(e) {
+      let r = new a("TOKENIZE", e);
+      return await this.postTask(r);
+    }
+    async connectInternal() {
+      let e = new a("CONNECT", null);
+      return await this.postTask(e);
+    }
+    async connect() {
+      let e = await this.connectInternal();
+      return new E(this, e);
+    }
+    async disconnect(e) {
+      let r = new a("DISCONNECT", e);
+      await this.postTask(r);
+    }
+    async runQuery(e, r) {
+      if (this.shouldOPFSFileHandling()) {
+        let t = await this.registerOPFSFileFromSQL(r);
+        try {
+          return await this._runQueryAsync(e, r);
+        } finally {
+          t.length > 0 && (await this.dropFiles(t));
+        }
+      } else return await this._runQueryAsync(e, r);
+    }
+    async _runQueryAsync(e, r) {
+      let t = new a("RUN_QUERY", [e, r]);
+      return await this.postTask(t);
+    }
+    async startPendingQuery(e, r, t = false) {
+      if (this.shouldOPFSFileHandling()) {
+        let o = await this.registerOPFSFileFromSQL(r);
+        try {
+          return await this._startPendingQueryAsync(e, r, t);
+        } finally {
+          o.length > 0 && (await this.dropFiles(o));
+        }
+      } else return await this._startPendingQueryAsync(e, r, t);
+    }
+    async _startPendingQueryAsync(e, r, t = false) {
+      let o = new a("START_PENDING_QUERY", [e, r, t]);
+      return await this.postTask(o);
+    }
+    async pollPendingQuery(e) {
+      let r = new a("POLL_PENDING_QUERY", e);
+      return await this.postTask(r);
+    }
+    async cancelPendingQuery(e) {
+      let r = new a("CANCEL_PENDING_QUERY", e);
+      return await this.postTask(r);
+    }
+    async fetchQueryResults(e) {
+      let r = new a("FETCH_QUERY_RESULTS", e);
+      return await this.postTask(r);
+    }
+    async getTableNames(e, r) {
+      let t = new a("GET_TABLE_NAMES", [e, r]);
+      return await this.postTask(t);
+    }
+    async createPrepared(e, r) {
+      let t = new a("CREATE_PREPARED", [e, r]);
+      return await this.postTask(t);
+    }
+    async closePrepared(e, r) {
+      let t = new a("CLOSE_PREPARED", [e, r]);
+      await this.postTask(t);
+    }
+    async runPrepared(e, r, t) {
+      let o = new a("RUN_PREPARED", [e, r, t]);
+      return await this.postTask(o);
+    }
+    async sendPrepared(e, r, t) {
+      let o = new a("SEND_PREPARED", [e, r, t]);
+      return await this.postTask(o);
+    }
+    async globFiles(e) {
+      let r = new a("GLOB_FILE_INFOS", e);
+      return await this.postTask(r);
+    }
+    async registerFileText(e, r) {
+      let t = ce.encode(r);
+      await this.registerFileBuffer(e, t);
+    }
+    async registerFileURL(e, r, t, o) {
+      r === undefined && (r = e);
+      let i = new a("REGISTER_FILE_URL", [e, r, t, o]);
+      await this.postTask(i);
+    }
+    async registerEmptyFileBuffer(e) {}
+    async registerFileBuffer(e, r) {
+      let t = new a("REGISTER_FILE_BUFFER", [e, r]);
+      await this.postTask(t, [r.buffer]);
+    }
+    async registerFileHandle(e, r, t, o) {
+      let i = new a("REGISTER_FILE_HANDLE", [e, r, t, o]);
+      await this.postTask(i, []);
+    }
+    async registerOPFSFileName(e) {
+      let r = new a("REGISTER_OPFS_FILE_NAME", [e]);
+      await this.postTask(r, []);
+    }
+    async collectFileStatistics(e, r) {
+      let t = new a("COLLECT_FILE_STATISTICS", [e, r]);
+      await this.postTask(t, []);
+    }
+    async exportFileStatistics(e) {
+      let r = new a("EXPORT_FILE_STATISTICS", e);
+      return await this.postTask(r, []);
+    }
+    async copyFileToBuffer(e) {
+      let r = new a("COPY_FILE_TO_BUFFER", e);
+      return await this.postTask(r);
+    }
+    async copyFileToPath(e, r) {
+      let t = new a("COPY_FILE_TO_PATH", [e, r]);
+      await this.postTask(t);
+    }
+    async insertArrowFromIPCStream(e, r, t) {
+      if (r.length == 0) return;
+      let o = new a("INSERT_ARROW_FROM_IPC_STREAM", [e, r, t]);
+      await this.postTask(o, [r.buffer]);
+    }
+    async insertCSVFromPath(e, r, t) {
+      if (t.columns !== undefined) {
+        let i = [];
+        for (let n in t.columns) {
+          let T = t.columns[n];
+          i.push(R(n, T));
+        }
+        (t.columnsFlat = i), delete t.columns;
+      }
+      let o = new a("IMPORT_CSV_FROM_PATH", [e, r, t]);
+      await this.postTask(o);
+    }
+    async insertJSONFromPath(e, r, t) {
+      if (t.columns !== undefined) {
+        let i = [];
+        for (let n in t.columns) {
+          let T = t.columns[n];
+          i.push(R(n, T));
+        }
+        (t.columnsFlat = i), delete t.columns;
+      }
+      let o = new a("IMPORT_JSON_FROM_PATH", [e, r, t]);
+      await this.postTask(o);
+    }
+    shouldOPFSFileHandling() {
+      var e, r;
+      return L((e = this.config.path) != null ? e : "")
+        ? ((r = this.config.opfs) == null ? undefined : r.fileHandling) ==
+            "auto"
+        : false;
+    }
+    async registerOPFSFileFromSQL(e) {
+      let r = F(e),
+        t = [];
+      for (let o of r)
+        try {
+          await this.registerOPFSFileName(o), t.push(o);
+        } catch (i) {
+          throw (console.error(i), new Error("File Not found:" + o));
+        }
+      return t;
+    }
+  },
+  Be,
+  w,
+  C = class {
+    constructor() {
+      this._bindings = null;
+      this._nextMessageId = 0;
+    }
+    log(e) {
+      this.postMessage(
+        {
+          messageId: this._nextMessageId++,
+          requestId: 0,
+          type: "LOG",
+          data: e,
+        },
+        [],
+      );
+    }
+    sendOK(e) {
+      this.postMessage(
+        {
+          messageId: this._nextMessageId++,
+          requestId: e.messageId,
+          type: "OK",
+          data: null,
+        },
+        [],
+      );
+    }
+    failWith(e, r) {
+      let t = { name: r.name, message: r.message, stack: r.stack || undefined };
+      this.postMessage(
+        {
+          messageId: this._nextMessageId++,
+          requestId: e.messageId,
+          type: "ERROR",
+          data: t,
+        },
+        [],
+      );
+    }
+    async onMessage(e) {
+      switch (e.type) {
+        case "PING":
+          this.sendOK(e);
+          return;
+        case "INSTANTIATE":
+          this._bindings != null &&
+            this.failWith(e, new Error("duckdb already initialized"));
+          try {
+            (this._bindings = await this.instantiate(
+              e.data[0],
+              e.data[1],
+              (r) => {
+                this.postMessage(
+                  {
+                    messageId: this._nextMessageId++,
+                    requestId: e.messageId,
+                    type: "INSTANTIATE_PROGRESS",
+                    data: r,
+                  },
+                  [],
+                );
+              },
+            )),
+              this.sendOK(e);
+          } catch (r) {
+            console.log(r), (this._bindings = null), this.failWith(e, r);
+          }
+          return;
+        default:
+          break;
+      }
+      if (!this._bindings)
+        return this.failWith(e, new Error("duckdb is not initialized"));
+      try {
+        switch (e.type) {
+          case "GET_VERSION":
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "VERSION_STRING",
+                data: this._bindings.getVersion(),
+              },
+              [],
+            );
+            break;
+          case "GET_FEATURE_FLAGS":
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "FEATURE_FLAGS",
+                data: this._bindings.getFeatureFlags(),
+              },
+              [],
+            );
+            break;
+          case "RESET":
+            this._bindings.reset(), this.sendOK(e);
+            break;
+          case "OPEN": {
+            let r = e.data.path;
+            r != null &&
+              r.startsWith("opfs://") &&
+              (await this._bindings.prepareDBFileHandle(r, 3),
+              (e.data.useDirectIO = true)),
+              this._bindings.open(e.data),
+              this.sendOK(e);
+            break;
+          }
+          case "DROP_FILE":
+            this._bindings.dropFile(e.data), this.sendOK(e);
+            break;
+          case "DROP_FILES":
+            this._bindings.dropFiles(e.data), this.sendOK(e);
+            break;
+          case "FLUSH_FILES":
+            this._bindings.flushFiles(), this.sendOK(e);
+            break;
+          case "CONNECT": {
+            let r = this._bindings.connect();
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "CONNECTION_INFO",
+                data: r.useUnsafe((t, o) => o),
+              },
+              [],
+            );
+            break;
+          }
+          case "DISCONNECT":
+            this._bindings.disconnect(e.data), this.sendOK(e);
+            break;
+          case "CREATE_PREPARED": {
+            let r = this._bindings.createPrepared(e.data[0], e.data[1]);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "PREPARED_STATEMENT_ID",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+          case "CLOSE_PREPARED": {
+            this._bindings.closePrepared(e.data[0], e.data[1]), this.sendOK(e);
+            break;
+          }
+          case "RUN_PREPARED": {
+            let r = this._bindings.runPrepared(e.data[0], e.data[1], e.data[2]);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "QUERY_RESULT",
+                data: r,
+              },
+              [r.buffer],
+            );
+            break;
+          }
+          case "RUN_QUERY": {
+            let r = this._bindings.runQuery(e.data[0], e.data[1]);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "QUERY_RESULT",
+                data: r,
+              },
+              [r.buffer],
+            );
+            break;
+          }
+          case "SEND_PREPARED": {
+            let r = this._bindings.sendPrepared(
+              e.data[0],
+              e.data[1],
+              e.data[2],
+            );
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "QUERY_RESULT_HEADER",
+                data: r,
+              },
+              [r.buffer],
+            );
+            break;
+          }
+          case "START_PENDING_QUERY": {
+            let r = this._bindings.startPendingQuery(
+                e.data[0],
+                e.data[1],
+                e.data[2],
+              ),
+              t = [];
+            r && t.push(r.buffer),
+              this.postMessage(
+                {
+                  messageId: this._nextMessageId++,
+                  requestId: e.messageId,
+                  type: "QUERY_RESULT_HEADER_OR_NULL",
+                  data: r,
+                },
+                t,
+              );
+            break;
+          }
+          case "POLL_PENDING_QUERY": {
+            let r = this._bindings.pollPendingQuery(e.data),
+              t = [];
+            r && t.push(r.buffer),
+              this.postMessage(
+                {
+                  messageId: this._nextMessageId++,
+                  requestId: e.messageId,
+                  type: "QUERY_RESULT_HEADER_OR_NULL",
+                  data: r,
+                },
+                t,
+              );
+            break;
+          }
+          case "CANCEL_PENDING_QUERY": {
+            let r = this._bindings.cancelPendingQuery(e.data);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "SUCCESS",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+          case "FETCH_QUERY_RESULTS": {
+            let r = this._bindings.fetchQueryResults(e.data),
+              t = r ? [r.buffer] : [];
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "QUERY_RESULT_CHUNK",
+                data: r,
+              },
+              t,
+            );
+            break;
+          }
+          case "GET_TABLE_NAMES": {
+            let r = this._bindings.getTableNames(e.data[0], e.data[1]);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "TABLE_NAMES",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+          case "GLOB_FILE_INFOS": {
+            let r = this._bindings.globFiles(e.data);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "FILE_INFOS",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+          case "REGISTER_FILE_URL":
+            this._bindings.registerFileURL(
+              e.data[0],
+              e.data[1],
+              e.data[2],
+              e.data[3],
+            ),
+              this.sendOK(e);
+            break;
+          case "REGISTER_FILE_BUFFER":
+            this._bindings.registerFileBuffer(e.data[0], e.data[1]),
+              this.sendOK(e);
+            break;
+          case "REGISTER_FILE_HANDLE":
+            await this._bindings.registerFileHandleAsync(
+              e.data[0],
+              e.data[1],
+              e.data[2],
+              e.data[3],
+            ),
+              this.sendOK(e);
+            break;
+          case "COPY_FILE_TO_PATH":
+            this._bindings.copyFileToPath(e.data[0], e.data[1]), this.sendOK(e);
+            break;
+          case "COPY_FILE_TO_BUFFER": {
+            let r = this._bindings.copyFileToBuffer(e.data);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "FILE_BUFFER",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+          case "COLLECT_FILE_STATISTICS":
+            this._bindings.collectFileStatistics(e.data[0], e.data[1]),
+              this.sendOK(e);
+            break;
+          case "REGISTER_OPFS_FILE_NAME":
+            await this._bindings.registerOPFSFileName(e.data[0]),
+              this.sendOK(e);
+            break;
+          case "EXPORT_FILE_STATISTICS": {
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "FILE_STATISTICS",
+                data: this._bindings.exportFileStatistics(e.data),
+              },
+              [],
+            );
+            break;
+          }
+          case "INSERT_ARROW_FROM_IPC_STREAM": {
+            this._bindings.insertArrowFromIPCStream(
+              e.data[0],
+              e.data[1],
+              e.data[2],
+            ),
+              this.sendOK(e);
+            break;
+          }
+          case "IMPORT_CSV_FROM_PATH": {
+            this._bindings.insertCSVFromPath(e.data[0], e.data[1], e.data[2]),
+              this.sendOK(e);
+            break;
+          }
+          case "IMPORT_JSON_FROM_PATH": {
+            this._bindings.insertJSONFromPath(e.data[0], e.data[1], e.data[2]),
+              this.sendOK(e);
+            break;
+          }
+          case "TOKENIZE": {
+            let r = this._bindings.tokenize(e.data);
+            this.postMessage(
+              {
+                messageId: this._nextMessageId++,
+                requestId: e.messageId,
+                type: "SCRIPT_TOKENS",
+                data: r,
+              },
+              [],
+            );
+            break;
+          }
+        }
+      } catch (r) {
+        return console.log(r), this.failWith(e, r);
+      }
+    }
+  },
+  U = async () =>
+    WebAssembly.validate(
+      new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 5, 3, 1, 0,
+        1, 10, 14, 1, 12, 0, 65, 0, 65, 0, 65, 0, 252, 10, 0, 0, 11,
+      ]),
+    ),
+  W = async () =>
+    WebAssembly.validate(
+      new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 10, 8, 1, 6,
+        0, 6, 64, 25, 11, 11,
+      ]),
+    ),
+  v = async () =>
+    WebAssembly.validate(
+      new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0, 1, 5, 1, 96, 0, 1, 123, 3, 2, 1, 0, 10, 10,
+        1, 8, 0, 65, 0, 253, 15, 253, 98, 11,
+      ]),
+    ),
+  B = () =>
+    (async (s) => {
+      try {
+        return (
+          typeof MessageChannel < "u" &&
+            new MessageChannel().port1.postMessage(new SharedArrayBuffer(1)),
+          WebAssembly.validate(s)
+        );
+      } catch (e) {
+        return false;
+      }
+    })(
+      new Uint8Array([
+        0, 97, 115, 109, 1, 0, 0, 0, 1, 4, 1, 96, 0, 0, 3, 2, 1, 0, 5, 4, 1, 3,
+        1, 1, 10, 11, 1, 9, 0, 65, 0, 254, 16, 2, 0, 26, 11,
+      ]),
+    ),
+  m,
+  M,
+  G,
+  I,
+  He,
+  qe,
+  Ye,
+  x = () => typeof navigator > "u",
+  Q = () => (x() ? "node" : navigator.userAgent),
+  Ve = () => Q().includes("Firefox"),
+  ze = () => /^((?!chrome|android).)*safari/i.test(Q()),
+  k = null,
+  y = null,
+  g = null,
+  S = null,
+  h = null,
+  Y;
 var init_duckdb_browser = __esm(() => {
   init_Arrow_dom();
   init_Arrow_dom();
@@ -12311,42 +15335,314 @@ var init_duckdb_browser = __esm(() => {
   q = X((Ze, H) => {
     H.exports = Worker;
   });
-  ee = ((o) => (o[o.UNDEFINED = 0] = "UNDEFINED", o[o.AUTOMATIC = 1] = "AUTOMATIC", o[o.READ_ONLY = 2] = "READ_ONLY", o[o.READ_WRITE = 3] = "READ_WRITE", o))(ee || {});
-  re = ((n) => (n[n.IDENTIFIER = 0] = "IDENTIFIER", n[n.NUMERIC_CONSTANT = 1] = "NUMERIC_CONSTANT", n[n.STRING_CONSTANT = 2] = "STRING_CONSTANT", n[n.OPERATOR = 3] = "OPERATOR", n[n.KEYWORD = 4] = "KEYWORD", n[n.COMMENT = 5] = "COMMENT", n))(re || {});
-  te = ((i) => (i[i.NONE = 0] = "NONE", i[i.DEBUG = 1] = "DEBUG", i[i.INFO = 2] = "INFO", i[i.WARNING = 3] = "WARNING", i[i.ERROR = 4] = "ERROR", i))(te || {});
-  se = ((n) => (n[n.NONE = 0] = "NONE", n[n.CONNECT = 1] = "CONNECT", n[n.DISCONNECT = 2] = "DISCONNECT", n[n.OPEN = 3] = "OPEN", n[n.QUERY = 4] = "QUERY", n[n.INSTANTIATE = 5] = "INSTANTIATE", n))(se || {});
-  ne = ((n) => (n[n.NONE = 0] = "NONE", n[n.OK = 1] = "OK", n[n.ERROR = 2] = "ERROR", n[n.START = 3] = "START", n[n.RUN = 4] = "RUN", n[n.CAPTURE = 5] = "CAPTURE", n))(ne || {});
-  oe = ((i) => (i[i.NONE = 0] = "NONE", i[i.WEB_WORKER = 1] = "WEB_WORKER", i[i.NODE_WORKER = 2] = "NODE_WORKER", i[i.BINDINGS = 3] = "BINDINGS", i[i.ASYNC_DUCKDB = 4] = "ASYNC_DUCKDB", i))(oe || {});
-  ie = ((t) => (t[t.SUCCESS = 0] = "SUCCESS", t[t.MAX_ARROW_ERROR = 255] = "MAX_ARROW_ERROR", t[t.DUCKDB_WASM_RETRY = 256] = "DUCKDB_WASM_RETRY", t))(ie || {});
+  ee = ((o) => (
+    (o[(o.UNDEFINED = 0)] = "UNDEFINED"),
+    (o[(o.AUTOMATIC = 1)] = "AUTOMATIC"),
+    (o[(o.READ_ONLY = 2)] = "READ_ONLY"),
+    (o[(o.READ_WRITE = 3)] = "READ_WRITE"),
+    o
+  ))(ee || {});
+  re = ((n) => (
+    (n[(n.IDENTIFIER = 0)] = "IDENTIFIER"),
+    (n[(n.NUMERIC_CONSTANT = 1)] = "NUMERIC_CONSTANT"),
+    (n[(n.STRING_CONSTANT = 2)] = "STRING_CONSTANT"),
+    (n[(n.OPERATOR = 3)] = "OPERATOR"),
+    (n[(n.KEYWORD = 4)] = "KEYWORD"),
+    (n[(n.COMMENT = 5)] = "COMMENT"),
+    n
+  ))(re || {});
+  te = ((i) => (
+    (i[(i.NONE = 0)] = "NONE"),
+    (i[(i.DEBUG = 1)] = "DEBUG"),
+    (i[(i.INFO = 2)] = "INFO"),
+    (i[(i.WARNING = 3)] = "WARNING"),
+    (i[(i.ERROR = 4)] = "ERROR"),
+    i
+  ))(te || {});
+  se = ((n) => (
+    (n[(n.NONE = 0)] = "NONE"),
+    (n[(n.CONNECT = 1)] = "CONNECT"),
+    (n[(n.DISCONNECT = 2)] = "DISCONNECT"),
+    (n[(n.OPEN = 3)] = "OPEN"),
+    (n[(n.QUERY = 4)] = "QUERY"),
+    (n[(n.INSTANTIATE = 5)] = "INSTANTIATE"),
+    n
+  ))(se || {});
+  ne = ((n) => (
+    (n[(n.NONE = 0)] = "NONE"),
+    (n[(n.OK = 1)] = "OK"),
+    (n[(n.ERROR = 2)] = "ERROR"),
+    (n[(n.START = 3)] = "START"),
+    (n[(n.RUN = 4)] = "RUN"),
+    (n[(n.CAPTURE = 5)] = "CAPTURE"),
+    n
+  ))(ne || {});
+  oe = ((i) => (
+    (i[(i.NONE = 0)] = "NONE"),
+    (i[(i.WEB_WORKER = 1)] = "WEB_WORKER"),
+    (i[(i.NODE_WORKER = 2)] = "NODE_WORKER"),
+    (i[(i.BINDINGS = 3)] = "BINDINGS"),
+    (i[(i.ASYNC_DUCKDB = 4)] = "ASYNC_DUCKDB"),
+    i
+  ))(oe || {});
+  ie = ((t) => (
+    (t[(t.SUCCESS = 0)] = "SUCCESS"),
+    (t[(t.MAX_ARROW_ERROR = 255)] = "MAX_ARROW_ERROR"),
+    (t[(t.DUCKDB_WASM_RETRY = 256)] = "DUCKDB_WASM_RETRY"),
+    t
+  ))(ie || {});
   p = class {
     constructor(e, r, t) {
       this.db = e;
       this.conn = r;
       this.header = t;
-      this._first = true, this._depleted = false, this._inFlight = null;
+      (this._first = true), (this._depleted = false), (this._inFlight = null);
     }
     async next() {
       if (this._first)
-        return this._first = false, { done: false, value: this.header };
-      if (this._depleted)
-        return { done: true, value: null };
+        return (this._first = false), { done: false, value: this.header };
+      if (this._depleted) return { done: true, value: null };
       let e = null;
-      for (this._inFlight != null && (e = await this._inFlight, this._inFlight = null);e == null; )
+      for (
+        this._inFlight != null &&
+        ((e = await this._inFlight), (this._inFlight = null));
+        e == null;
+      )
         e = await this.db.fetchQueryResults(this.conn);
-      return this._depleted = e.length == 0, this._depleted || (this._inFlight = this.db.fetchQueryResults(this.conn)), { done: this._depleted, value: e };
+      return (
+        (this._depleted = e.length == 0),
+        this._depleted ||
+          (this._inFlight = this.db.fetchQueryResults(this.conn)),
+        { done: this._depleted, value: e }
+      );
     }
     [Symbol.asyncIterator]() {
       return this;
     }
   };
-  D = ((c) => (c.CANCEL_PENDING_QUERY = "CANCEL_PENDING_QUERY", c.CLOSE_PREPARED = "CLOSE_PREPARED", c.COLLECT_FILE_STATISTICS = "COLLECT_FILE_STATISTICS", c.REGISTER_OPFS_FILE_NAME = "REGISTER_OPFS_FILE_NAME", c.CONNECT = "CONNECT", c.COPY_FILE_TO_BUFFER = "COPY_FILE_TO_BUFFER", c.COPY_FILE_TO_PATH = "COPY_FILE_TO_PATH", c.CREATE_PREPARED = "CREATE_PREPARED", c.DISCONNECT = "DISCONNECT", c.DROP_FILE = "DROP_FILE", c.DROP_FILES = "DROP_FILES", c.EXPORT_FILE_STATISTICS = "EXPORT_FILE_STATISTICS", c.FETCH_QUERY_RESULTS = "FETCH_QUERY_RESULTS", c.FLUSH_FILES = "FLUSH_FILES", c.GET_FEATURE_FLAGS = "GET_FEATURE_FLAGS", c.GET_TABLE_NAMES = "GET_TABLE_NAMES", c.GET_VERSION = "GET_VERSION", c.GLOB_FILE_INFOS = "GLOB_FILE_INFOS", c.INSERT_ARROW_FROM_IPC_STREAM = "INSERT_ARROW_FROM_IPC_STREAM", c.INSERT_CSV_FROM_PATH = "IMPORT_CSV_FROM_PATH", c.INSERT_JSON_FROM_PATH = "IMPORT_JSON_FROM_PATH", c.INSTANTIATE = "INSTANTIATE", c.OPEN = "OPEN", c.PING = "PING", c.POLL_PENDING_QUERY = "POLL_PENDING_QUERY", c.REGISTER_FILE_BUFFER = "REGISTER_FILE_BUFFER", c.REGISTER_FILE_HANDLE = "REGISTER_FILE_HANDLE", c.REGISTER_FILE_URL = "REGISTER_FILE_URL", c.RESET = "RESET", c.RUN_PREPARED = "RUN_PREPARED", c.RUN_QUERY = "RUN_QUERY", c.SEND_PREPARED = "SEND_PREPARED", c.START_PENDING_QUERY = "START_PENDING_QUERY", c.TOKENIZE = "TOKENIZE", c))(D || {});
-  O = ((l) => (l.CONNECTION_INFO = "CONNECTION_INFO", l.ERROR = "ERROR", l.FEATURE_FLAGS = "FEATURE_FLAGS", l.FILE_BUFFER = "FILE_BUFFER", l.FILE_INFOS = "FILE_INFOS", l.FILE_SIZE = "FILE_SIZE", l.FILE_STATISTICS = "FILE_STATISTICS", l.INSTANTIATE_PROGRESS = "INSTANTIATE_PROGRESS", l.LOG = "LOG", l.PROGRESS_UPDATE = "PROGRESS_UPDATE", l.OK = "OK", l.PREPARED_STATEMENT_ID = "PREPARED_STATEMENT_ID", l.QUERY_PLAN = "QUERY_PLAN", l.QUERY_RESULT = "QUERY_RESULT", l.QUERY_RESULT_CHUNK = "QUERY_RESULT_CHUNK", l.QUERY_RESULT_HEADER = "QUERY_RESULT_HEADER", l.QUERY_RESULT_HEADER_OR_NULL = "QUERY_RESULT_HEADER_OR_NULL", l.REGISTERED_FILE = "REGISTERED_FILE", l.SCRIPT_TOKENS = "SCRIPT_TOKENS", l.SUCCESS = "SUCCESS", l.TABLE_NAMES = "TABLE_NAMES", l.VERSION_STRING = "VERSION_STRING", l))(O || {});
+  D = ((c) => (
+    (c.CANCEL_PENDING_QUERY = "CANCEL_PENDING_QUERY"),
+    (c.CLOSE_PREPARED = "CLOSE_PREPARED"),
+    (c.COLLECT_FILE_STATISTICS = "COLLECT_FILE_STATISTICS"),
+    (c.REGISTER_OPFS_FILE_NAME = "REGISTER_OPFS_FILE_NAME"),
+    (c.CONNECT = "CONNECT"),
+    (c.COPY_FILE_TO_BUFFER = "COPY_FILE_TO_BUFFER"),
+    (c.COPY_FILE_TO_PATH = "COPY_FILE_TO_PATH"),
+    (c.CREATE_PREPARED = "CREATE_PREPARED"),
+    (c.DISCONNECT = "DISCONNECT"),
+    (c.DROP_FILE = "DROP_FILE"),
+    (c.DROP_FILES = "DROP_FILES"),
+    (c.EXPORT_FILE_STATISTICS = "EXPORT_FILE_STATISTICS"),
+    (c.FETCH_QUERY_RESULTS = "FETCH_QUERY_RESULTS"),
+    (c.FLUSH_FILES = "FLUSH_FILES"),
+    (c.GET_FEATURE_FLAGS = "GET_FEATURE_FLAGS"),
+    (c.GET_TABLE_NAMES = "GET_TABLE_NAMES"),
+    (c.GET_VERSION = "GET_VERSION"),
+    (c.GLOB_FILE_INFOS = "GLOB_FILE_INFOS"),
+    (c.INSERT_ARROW_FROM_IPC_STREAM = "INSERT_ARROW_FROM_IPC_STREAM"),
+    (c.INSERT_CSV_FROM_PATH = "IMPORT_CSV_FROM_PATH"),
+    (c.INSERT_JSON_FROM_PATH = "IMPORT_JSON_FROM_PATH"),
+    (c.INSTANTIATE = "INSTANTIATE"),
+    (c.OPEN = "OPEN"),
+    (c.PING = "PING"),
+    (c.POLL_PENDING_QUERY = "POLL_PENDING_QUERY"),
+    (c.REGISTER_FILE_BUFFER = "REGISTER_FILE_BUFFER"),
+    (c.REGISTER_FILE_HANDLE = "REGISTER_FILE_HANDLE"),
+    (c.REGISTER_FILE_URL = "REGISTER_FILE_URL"),
+    (c.RESET = "RESET"),
+    (c.RUN_PREPARED = "RUN_PREPARED"),
+    (c.RUN_QUERY = "RUN_QUERY"),
+    (c.SEND_PREPARED = "SEND_PREPARED"),
+    (c.START_PENDING_QUERY = "START_PENDING_QUERY"),
+    (c.TOKENIZE = "TOKENIZE"),
+    c
+  ))(D || {});
+  O = ((l) => (
+    (l.CONNECTION_INFO = "CONNECTION_INFO"),
+    (l.ERROR = "ERROR"),
+    (l.FEATURE_FLAGS = "FEATURE_FLAGS"),
+    (l.FILE_BUFFER = "FILE_BUFFER"),
+    (l.FILE_INFOS = "FILE_INFOS"),
+    (l.FILE_SIZE = "FILE_SIZE"),
+    (l.FILE_STATISTICS = "FILE_STATISTICS"),
+    (l.INSTANTIATE_PROGRESS = "INSTANTIATE_PROGRESS"),
+    (l.LOG = "LOG"),
+    (l.PROGRESS_UPDATE = "PROGRESS_UPDATE"),
+    (l.OK = "OK"),
+    (l.PREPARED_STATEMENT_ID = "PREPARED_STATEMENT_ID"),
+    (l.QUERY_PLAN = "QUERY_PLAN"),
+    (l.QUERY_RESULT = "QUERY_RESULT"),
+    (l.QUERY_RESULT_CHUNK = "QUERY_RESULT_CHUNK"),
+    (l.QUERY_RESULT_HEADER = "QUERY_RESULT_HEADER"),
+    (l.QUERY_RESULT_HEADER_OR_NULL = "QUERY_RESULT_HEADER_OR_NULL"),
+    (l.REGISTERED_FILE = "REGISTERED_FILE"),
+    (l.SCRIPT_TOKENS = "SCRIPT_TOKENS"),
+    (l.SUCCESS = "SUCCESS"),
+    (l.TABLE_NAMES = "TABLE_NAMES"),
+    (l.VERSION_STRING = "VERSION_STRING"),
+    l
+  ))(O || {});
   ae = /'(opfs:\/\/\S*?)'/g;
   de = /(opfs:\/\/\S*?)/g;
-  ce = new TextEncoder;
+  ce = new TextEncoder();
   Be = le();
-  w = ((n) => (n[n.BUFFER = 0] = "BUFFER", n[n.NODE_FS = 1] = "NODE_FS", n[n.BROWSER_FILEREADER = 2] = "BROWSER_FILEREADER", n[n.BROWSER_FSACCESS = 3] = "BROWSER_FSACCESS", n[n.HTTP = 4] = "HTTP", n[n.S3 = 5] = "S3", n))(w || {});
-  m = { name: "@duckdb/duckdb-wasm", version: "1.33.1-dev45.0", description: "DuckDB powered by WebAssembly", license: "MIT", repository: { type: "git", url: "https://github.com/duckdb/duckdb-wasm.git" }, keywords: ["sql", "duckdb", "relational", "database", "data", "query", "wasm", "analytics", "olap", "arrow", "parquet", "json", "csv"], dependencies: { "apache-arrow": "^17.0.0", qs: "^6.14.1" }, devDependencies: { "@types/emscripten": "^1.39.10", "@types/jasmine": "^5.1.13", "@typescript-eslint/eslint-plugin": "^6.21.0", "@typescript-eslint/parser": "^6.21.0", esbuild: "^0.20.2", eslint: "^8.57.0", "eslint-plugin-jasmine": "^4.1.3", "eslint-plugin-react": "^7.37.5", "fast-glob": "^3.3.2", jasmine: "^5.13.0", "jasmine-core": "^5.1.2", "jasmine-spec-reporter": "^7.0.0", "js-sha256": "^0.11.1", karma: "^6.4.2", "karma-chrome-launcher": "^3.2.0", "karma-coverage": "^2.2.1", "karma-firefox-launcher": "^2.1.3", "karma-jasmine": "^5.1.0", "karma-jasmine-html-reporter": "^2.1.0", "karma-sourcemap-loader": "^0.4.0", "karma-spec-reporter": "^0.0.36", "make-dir": "^4.0.0", nyc: "^15.1.0", prettier: "^3.2.5", puppeteer: "^22.8.0", rimraf: "^5.0.5", s3rver: "^3.7.1", typedoc: "^0.28.15", typescript: "^5.3.3", "wasm-feature-detect": "^1.6.1", "web-worker": "^1.2.0" }, scripts: { "build:debug": "node bundle.mjs debug && tsc --emitDeclarationOnly", "build:release": "node bundle.mjs release && tsc --emitDeclarationOnly", docs: "typedoc", format: 'prettier --write "**/*.+(js|ts)"', report: "node ./coverage.mjs", "test:node": "node --enable-source-maps ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs", "test:node:debug": "node --inspect-brk --enable-source-maps ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs", "test:node:coverage": "nyc -r json --report-dir ./coverage/node node ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs", "test:firefox": "karma start ./karma/tests-firefox.cjs", "test:chrome": "karma start ./karma/tests-chrome.cjs", "test:chrome:eh": "karma start ./karma/tests-chrome-eh.cjs", "test:chrome:coverage": "karma start ./karma/tests-chrome-coverage.cjs", "test:browser": "karma start ./karma/tests-all.cjs", "test:browser:debug": "karma start ./karma/tests-debug.cjs", test: "npm run test:chrome && npm run test:node", "test:coverage": "npm run test:chrome:coverage && npm run test:node:coverage && npm run report", lint: "eslint src test" }, files: ["dist", "!dist/tests-*", "!dist/duckdb-browser-mvp.worker.js.map", "!dist/types/test"], main: "dist/duckdb-browser.cjs", module: "dist/duckdb-browser.mjs", types: "dist/duckdb-browser.d.ts", jsdelivr: "dist/duckdb-browser.cjs", unpkg: "dist/duckdb-browser.mjs", sideEffects: false, browser: { fs: false, path: false, perf_hooks: false, os: false, worker_threads: false }, exports: { "./dist/duckdb-mvp.wasm": "./dist/duckdb-mvp.wasm", "./dist/duckdb-eh.wasm": "./dist/duckdb-eh.wasm", "./dist/duckdb-coi.wasm": "./dist/duckdb-coi.wasm", "./dist/duckdb-browser": "./dist/duckdb-browser.mjs", "./dist/duckdb-browser.cjs": "./dist/duckdb-browser.cjs", "./dist/duckdb-browser.mjs": "./dist/duckdb-browser.mjs", "./dist/duckdb-browser-coi.pthread.worker.js": "./dist/duckdb-browser-coi.pthread.worker.js", "./dist/duckdb-browser-coi.worker.js": "./dist/duckdb-browser-coi.worker.js", "./dist/duckdb-browser-eh.worker.js": "./dist/duckdb-browser-eh.worker.js", "./dist/duckdb-browser-mvp.worker.js": "./dist/duckdb-browser-mvp.worker.js", "./dist/duckdb-node": "./dist/duckdb-node.cjs", "./dist/duckdb-node.cjs": "./dist/duckdb-node.cjs", "./dist/duckdb-node-blocking": "./dist/duckdb-node-blocking.cjs", "./dist/duckdb-node-blocking.cjs": "./dist/duckdb-node-blocking.cjs", "./dist/duckdb-node-eh.worker.cjs": "./dist/duckdb-node-eh.worker.cjs", "./dist/duckdb-node-mvp.worker.cjs": "./dist/duckdb-node-mvp.worker.cjs", "./blocking": { node: { types: "./dist/duckdb-node-blocking.d.ts", require: "./dist/duckdb-node-blocking.cjs", import: "./dist/duckdb-node-blocking.cjs" }, types: "./dist/duckdb-node-blocking.d.ts", import: "./dist/duckdb-node-blocking.mjs", require: "./dist/duckdb-node-blocking.cjs" }, ".": { browser: { types: "./dist/duckdb-browser.d.ts", import: "./dist/duckdb-browser.mjs", require: "./dist/duckdb-browser.cjs" }, node: { types: "./dist/duckdb-node.d.ts", import: "./dist/duckdb-node.cjs", require: "./dist/duckdb-node.cjs" }, types: "./dist/duckdb-browser.d.ts", import: "./dist/duckdb-browser.mjs", require: "./dist/duckdb-browser.cjs" } } };
+  w = ((n) => (
+    (n[(n.BUFFER = 0)] = "BUFFER"),
+    (n[(n.NODE_FS = 1)] = "NODE_FS"),
+    (n[(n.BROWSER_FILEREADER = 2)] = "BROWSER_FILEREADER"),
+    (n[(n.BROWSER_FSACCESS = 3)] = "BROWSER_FSACCESS"),
+    (n[(n.HTTP = 4)] = "HTTP"),
+    (n[(n.S3 = 5)] = "S3"),
+    n
+  ))(w || {});
+  m = {
+    name: "@duckdb/duckdb-wasm",
+    version: "1.33.1-dev45.0",
+    description: "DuckDB powered by WebAssembly",
+    license: "MIT",
+    repository: {
+      type: "git",
+      url: "https://github.com/duckdb/duckdb-wasm.git",
+    },
+    keywords: [
+      "sql",
+      "duckdb",
+      "relational",
+      "database",
+      "data",
+      "query",
+      "wasm",
+      "analytics",
+      "olap",
+      "arrow",
+      "parquet",
+      "json",
+      "csv",
+    ],
+    dependencies: { "apache-arrow": "^17.0.0", qs: "^6.14.1" },
+    devDependencies: {
+      "@types/emscripten": "^1.39.10",
+      "@types/jasmine": "^5.1.13",
+      "@typescript-eslint/eslint-plugin": "^6.21.0",
+      "@typescript-eslint/parser": "^6.21.0",
+      esbuild: "^0.20.2",
+      eslint: "^8.57.0",
+      "eslint-plugin-jasmine": "^4.1.3",
+      "eslint-plugin-react": "^7.37.5",
+      "fast-glob": "^3.3.2",
+      jasmine: "^5.13.0",
+      "jasmine-core": "^5.1.2",
+      "jasmine-spec-reporter": "^7.0.0",
+      "js-sha256": "^0.11.1",
+      karma: "^6.4.2",
+      "karma-chrome-launcher": "^3.2.0",
+      "karma-coverage": "^2.2.1",
+      "karma-firefox-launcher": "^2.1.3",
+      "karma-jasmine": "^5.1.0",
+      "karma-jasmine-html-reporter": "^2.1.0",
+      "karma-sourcemap-loader": "^0.4.0",
+      "karma-spec-reporter": "^0.0.36",
+      "make-dir": "^4.0.0",
+      nyc: "^15.1.0",
+      prettier: "^3.2.5",
+      puppeteer: "^22.8.0",
+      rimraf: "^5.0.5",
+      s3rver: "^3.7.1",
+      typedoc: "^0.28.15",
+      typescript: "^5.3.3",
+      "wasm-feature-detect": "^1.6.1",
+      "web-worker": "^1.2.0",
+    },
+    scripts: {
+      "build:debug": "node bundle.mjs debug && tsc --emitDeclarationOnly",
+      "build:release": "node bundle.mjs release && tsc --emitDeclarationOnly",
+      docs: "typedoc",
+      format: 'prettier --write "**/*.+(js|ts)"',
+      report: "node ./coverage.mjs",
+      "test:node":
+        "node --enable-source-maps ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs",
+      "test:node:debug":
+        "node --inspect-brk --enable-source-maps ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs",
+      "test:node:coverage":
+        "nyc -r json --report-dir ./coverage/node node ../../node_modules/jasmine/bin/jasmine ./dist/tests-node.cjs",
+      "test:firefox": "karma start ./karma/tests-firefox.cjs",
+      "test:chrome": "karma start ./karma/tests-chrome.cjs",
+      "test:chrome:eh": "karma start ./karma/tests-chrome-eh.cjs",
+      "test:chrome:coverage": "karma start ./karma/tests-chrome-coverage.cjs",
+      "test:browser": "karma start ./karma/tests-all.cjs",
+      "test:browser:debug": "karma start ./karma/tests-debug.cjs",
+      test: "npm run test:chrome && npm run test:node",
+      "test:coverage":
+        "npm run test:chrome:coverage && npm run test:node:coverage && npm run report",
+      lint: "eslint src test",
+    },
+    files: [
+      "dist",
+      "!dist/tests-*",
+      "!dist/duckdb-browser-mvp.worker.js.map",
+      "!dist/types/test",
+    ],
+    main: "dist/duckdb-browser.cjs",
+    module: "dist/duckdb-browser.mjs",
+    types: "dist/duckdb-browser.d.ts",
+    jsdelivr: "dist/duckdb-browser.cjs",
+    unpkg: "dist/duckdb-browser.mjs",
+    sideEffects: false,
+    browser: {
+      fs: false,
+      path: false,
+      perf_hooks: false,
+      os: false,
+      worker_threads: false,
+    },
+    exports: {
+      "./dist/duckdb-mvp.wasm": "./dist/duckdb-mvp.wasm",
+      "./dist/duckdb-eh.wasm": "./dist/duckdb-eh.wasm",
+      "./dist/duckdb-coi.wasm": "./dist/duckdb-coi.wasm",
+      "./dist/duckdb-browser": "./dist/duckdb-browser.mjs",
+      "./dist/duckdb-browser.cjs": "./dist/duckdb-browser.cjs",
+      "./dist/duckdb-browser.mjs": "./dist/duckdb-browser.mjs",
+      "./dist/duckdb-browser-coi.pthread.worker.js":
+        "./dist/duckdb-browser-coi.pthread.worker.js",
+      "./dist/duckdb-browser-coi.worker.js":
+        "./dist/duckdb-browser-coi.worker.js",
+      "./dist/duckdb-browser-eh.worker.js":
+        "./dist/duckdb-browser-eh.worker.js",
+      "./dist/duckdb-browser-mvp.worker.js":
+        "./dist/duckdb-browser-mvp.worker.js",
+      "./dist/duckdb-node": "./dist/duckdb-node.cjs",
+      "./dist/duckdb-node.cjs": "./dist/duckdb-node.cjs",
+      "./dist/duckdb-node-blocking": "./dist/duckdb-node-blocking.cjs",
+      "./dist/duckdb-node-blocking.cjs": "./dist/duckdb-node-blocking.cjs",
+      "./dist/duckdb-node-eh.worker.cjs": "./dist/duckdb-node-eh.worker.cjs",
+      "./dist/duckdb-node-mvp.worker.cjs": "./dist/duckdb-node-mvp.worker.cjs",
+      "./blocking": {
+        node: {
+          types: "./dist/duckdb-node-blocking.d.ts",
+          require: "./dist/duckdb-node-blocking.cjs",
+          import: "./dist/duckdb-node-blocking.cjs",
+        },
+        types: "./dist/duckdb-node-blocking.d.ts",
+        import: "./dist/duckdb-node-blocking.mjs",
+        require: "./dist/duckdb-node-blocking.cjs",
+      },
+      ".": {
+        browser: {
+          types: "./dist/duckdb-browser.d.ts",
+          import: "./dist/duckdb-browser.mjs",
+          require: "./dist/duckdb-browser.cjs",
+        },
+        node: {
+          types: "./dist/duckdb-node.d.ts",
+          import: "./dist/duckdb-node.cjs",
+          require: "./dist/duckdb-node.cjs",
+        },
+        types: "./dist/duckdb-browser.d.ts",
+        import: "./dist/duckdb-browser.mjs",
+        require: "./dist/duckdb-browser.cjs",
+      },
+    },
+  };
   M = m.name;
   G = m.version;
   I = m.version.split(".");
@@ -12358,16 +15654,38 @@ var init_duckdb_browser = __esm(() => {
 
 // src/workers/duckdb-shared.worker.ts
 var db = null;
-var conn = null;
+var writeConn = null;
+var readConns = [];
 var duckdbWorker = null;
 var initPromise = null;
-var operationQueue = Promise.resolve();
-function enqueue(operation) {
-  const run = operationQueue.then(operation, operation);
-  operationQueue = run.catch(() => {
+var writeQueue = Promise.resolve();
+function enqueueWrite(operation) {
+  const run = writeQueue.then(operation, operation);
+  writeQueue = run.catch(() => {
     return;
   });
   return run;
+}
+var readConnIndex = 0;
+var READ_CONN_COUNT = 3;
+function getReadConnection() {
+  if (readConns.length === 0) {
+    if (!writeConn) throw new Error("DuckDB connection not initialized");
+    return writeConn;
+  }
+  const conn = readConns[readConnIndex % readConns.length];
+  readConnIndex++;
+  return conn;
+}
+function isReadOnlyQuery(sql) {
+  const trimmed = sql.trim().toUpperCase();
+  return (
+    trimmed.startsWith("SELECT") ||
+    trimmed.startsWith("SHOW") ||
+    trimmed.startsWith("DESCRIBE") ||
+    trimmed.startsWith("EXPLAIN") ||
+    trimmed.startsWith("PRAGMA")
+  );
 }
 function quoteSqlString(value) {
   return `'${value.replace(/'/g, "''")}'`;
@@ -12376,12 +15694,13 @@ function quoteIdentifier(value) {
   return `"${value.replace(/"/g, '""')}"`;
 }
 function createVirtualFileName(ext) {
-  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}_${Math.random().toString(36).slice(2)}`;
+  const random =
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}_${Math.random().toString(36).slice(2)}`;
   return `upload_${random}.${ext}`;
 }
 function validateDelimiter(delimiter) {
-  if (!delimiter)
-    throw new Error("CSV delimiter cannot be empty");
+  if (!delimiter) throw new Error("CSV delimiter cannot be empty");
   if (delimiter.length > 4)
     throw new Error("CSV delimiter is unexpectedly long");
   if (delimiter.includes("\x00"))
@@ -12393,37 +15712,62 @@ function serializeError(error) {
   return { message: String(error) };
 }
 async function dropRegisteredFile(fileName) {
-  if (!db)
-    return;
+  if (!db) return;
   const maybeDb = db;
   try {
     await maybeDb.dropFile?.(fileName);
   } catch {}
 }
 async function ensureInit() {
-  if (db && conn)
-    return;
-  if (initPromise)
-    return initPromise;
+  if (db && writeConn) return;
+  if (initPromise) return initPromise;
   initPromise = (async () => {
     try {
-      const duckdb = await Promise.resolve().then(() => (init_duckdb_browser(), exports_duckdb_browser));
-      const bundle = await duckdb.selectBundle(duckdb.getJsDelivrBundles());
-      const workerUrl = URL.createObjectURL(new Blob([`importScripts(${JSON.stringify(bundle.mainWorker)});`], {
-        type: "text/javascript"
-      }));
+      const duckdb = await Promise.resolve().then(
+        () => (init_duckdb_browser(), exports_duckdb_browser),
+      );
+      const bundles = duckdb.getJsDelivrBundles();
+      const bundle = await duckdb.selectBundle(bundles);
+      const hasThreadedRuntime = Boolean(
+        bundle.pthreadWorker && globalThis.crossOriginIsolated,
+      );
+      const workerUrl = URL.createObjectURL(
+        new Blob([`importScripts(${JSON.stringify(bundle.mainWorker)});`], {
+          type: "text/javascript",
+        }),
+      );
       try {
         duckdbWorker = new Worker(workerUrl);
-        db = new duckdb.AsyncDuckDB(new duckdb.ConsoleLogger, duckdbWorker);
-        await db.instantiate(bundle.mainModule, bundle.pthreadWorker);
+        db = new duckdb.AsyncDuckDB(new duckdb.VoidLogger(), duckdbWorker);
+        await db.instantiate(
+          bundle.mainModule,
+          hasThreadedRuntime ? bundle.pthreadWorker : undefined,
+        );
       } finally {
         URL.revokeObjectURL(workerUrl);
       }
-      await db.open({ path: ":memory:" });
-      conn = await db.connect();
+      const threads = hasThreadedRuntime
+        ? Math.max(1, navigator.hardwareConcurrency || 4)
+        : 1;
+      await db.open({ path: ":memory:", maximumThreads: threads });
+      writeConn = await db.connect();
+      readConns = [];
+      for (let i = 0; i < READ_CONN_COUNT; i++) {
+        readConns.push(await db.connect());
+      }
+      const pragmas = [
+        ...(hasThreadedRuntime ? [`PRAGMA threads = ${threads}`] : []),
+        `PRAGMA enable_progress_bar = false`,
+        `PRAGMA memory_limit = '2GB'`,
+      ];
+      for (const pragma of pragmas) {
+        await writeConn.query(pragma);
+        for (const rc of readConns) await rc.query(pragma);
+      }
     } catch (error) {
       db = null;
-      conn = null;
+      writeConn = null;
+      readConns = [];
       duckdbWorker = null;
       initPromise = null;
       throw error;
@@ -12431,30 +15775,78 @@ async function ensureInit() {
   })();
   return initPromise;
 }
-async function runQueryInternal(sql) {
-  await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
-  const result = await conn.query(sql);
+function convertArrowResult(result) {
   const fields = result.schema.fields;
   const columnNames = fields.map((field) => field.name);
   const rows = [];
   for (const batch of result.batches) {
     const columns = columnNames.map((_2, index) => batch.getChildAt(index));
-    for (let rowIndex = 0;rowIndex < batch.numRows; rowIndex++) {
+    const columnArrays = columns.map((col) => col?.toArray() ?? []);
+    const numRows = batch.numRows;
+    for (let rowIndex = 0; rowIndex < numRows; rowIndex++) {
       const row = {};
-      for (let colIdx = 0;colIdx < columnNames.length; colIdx++) {
-        row[columnNames[colIdx]] = columns[colIdx]?.get(rowIndex) ?? null;
+      for (let colIdx = 0; colIdx < columnNames.length; colIdx++) {
+        row[columnNames[colIdx]] = columnArrays[colIdx][rowIndex] ?? null;
       }
       rows.push(row);
     }
   }
   return rows;
 }
-async function loadCSVInternal(tableName, buffer, delimiter, append = false, hasHeader = true) {
+async function runQueryInternal(sql) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
+  const conn = isReadOnlyQuery(sql) ? getReadConnection() : writeConn;
+  if (!conn) throw new Error("DuckDB connection not initialized");
+  const result = await conn.query(sql);
+  return convertArrowResult(result);
+}
+var MAX_PREPARED_STATEMENTS = 50;
+var preparedStatements = new Map();
+function generateStmtId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `${Date.now()}_${Math.random().toString(36).slice(2)}`
+  );
+}
+async function prepareInternal(sql) {
+  await ensureInit();
+  if (!writeConn) throw new Error("DuckDB connection not initialized");
+  if (preparedStatements.size >= MAX_PREPARED_STATEMENTS) {
+    const firstKey = preparedStatements.keys().next().value;
+    const stmt2 = preparedStatements.get(firstKey);
+    preparedStatements.delete(firstKey);
+    try {
+      await stmt2?.close();
+    } catch {}
+  }
+  const stmt = await writeConn.prepare(sql);
+  const id = generateStmtId();
+  preparedStatements.set(id, stmt);
+  return id;
+}
+async function runPreparedInternal(stmtId, params) {
+  const stmt = preparedStatements.get(stmtId);
+  if (!stmt) throw new Error(`Prepared statement "${stmtId}" not found`);
+  preparedStatements.delete(stmtId);
+  preparedStatements.set(stmtId, stmt);
+  const result = await stmt.query(...params);
+  return convertArrowResult(result);
+}
+async function disposePreparedInternal(stmtId) {
+  const stmt = preparedStatements.get(stmtId);
+  if (!stmt) return;
+  preparedStatements.delete(stmtId);
+  await stmt.close();
+}
+async function loadCSVInternal(
+  tableName,
+  buffer,
+  delimiter,
+  append = false,
+  hasHeader = true,
+) {
+  await ensureInit();
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
   validateDelimiter(delimiter);
   const fileName = createVirtualFileName("csv");
   await db.registerFileBuffer(fileName, buffer);
@@ -12475,23 +15867,39 @@ async function loadCSVInternal(tableName, buffer, delimiter, append = false, has
     `;
     const quotedName = quoteIdentifier(tableName);
     if (append) {
-      await conn.query(`INSERT INTO ${quotedName} SELECT * FROM ${readExpr}`);
+      await writeConn.query(
+        `INSERT INTO ${quotedName} SELECT * FROM ${readExpr}`,
+      );
     } else {
-      await conn.query(`CREATE OR REPLACE TABLE ${quotedName} AS SELECT * FROM ${readExpr}`);
+      await writeConn.query(
+        `CREATE OR REPLACE TABLE ${quotedName} AS SELECT * FROM ${readExpr}`,
+      );
     }
   } finally {
     await dropRegisteredFile(fileName);
   }
 }
-async function loadCSVFileInternal(tableName, file, delimiter, append = false, hasHeader = true) {
+async function loadCSVFileInternal(
+  tableName,
+  file,
+  delimiter,
+  append = false,
+  hasHeader = true,
+) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
   validateDelimiter(delimiter);
   const suffix = `_${Date.now()}`;
   const fileName = `${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}${suffix}`;
-  const duckdb = await Promise.resolve().then(() => (init_duckdb_browser(), exports_duckdb_browser));
-  await db.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+  const duckdb = await Promise.resolve().then(
+    () => (init_duckdb_browser(), exports_duckdb_browser),
+  );
+  await db.registerFileHandle(
+    fileName,
+    file,
+    duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+    true,
+  );
   try {
     const readExpr = `
       read_csv_auto(
@@ -12509,9 +15917,13 @@ async function loadCSVFileInternal(tableName, file, delimiter, append = false, h
     `;
     const quotedName = quoteIdentifier(tableName);
     if (append) {
-      await conn.query(`INSERT INTO ${quotedName} SELECT * FROM ${readExpr}`);
+      await writeConn.query(
+        `INSERT INTO ${quotedName} SELECT * FROM ${readExpr}`,
+      );
     } else {
-      await conn.query(`CREATE OR REPLACE TABLE ${quotedName} AS SELECT * FROM ${readExpr}`);
+      await writeConn.query(
+        `CREATE OR REPLACE TABLE ${quotedName} AS SELECT * FROM ${readExpr}`,
+      );
     }
   } finally {
     await dropRegisteredFile(fileName);
@@ -12519,30 +15931,40 @@ async function loadCSVFileInternal(tableName, file, delimiter, append = false, h
 }
 async function loadJSONInternal(tableName, buffer) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
   const fileName = createVirtualFileName("json");
   await db.registerFileBuffer(fileName, buffer);
   try {
-    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
-       SELECT * FROM read_json_auto(${quoteSqlString(fileName)})`);
+    await writeConn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+       SELECT * FROM read_json_auto(
+         ${quoteSqlString(fileName)},
+         ignore_errors = true,
+         parallel = true
+       )`);
   } finally {
     await dropRegisteredFile(fileName);
   }
 }
 async function loadJSONFileInternal(tableName, file) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
   const suffix = `_${Date.now()}`;
   const fileName = `${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}${suffix}`;
-  const duckdb = await Promise.resolve().then(() => (init_duckdb_browser(), exports_duckdb_browser));
-  await db.registerFileHandle(fileName, file, duckdb.DuckDBDataProtocol.BROWSER_FILEREADER, true);
+  const duckdb = await Promise.resolve().then(
+    () => (init_duckdb_browser(), exports_duckdb_browser),
+  );
+  await db.registerFileHandle(
+    fileName,
+    file,
+    duckdb.DuckDBDataProtocol.BROWSER_FILEREADER,
+    true,
+  );
   try {
-    await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+    await writeConn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
        SELECT * FROM read_json_auto(
          ${quoteSqlString(fileName)},
-         ignore_errors = true
+         ignore_errors = true,
+         parallel = true
        )`);
   } finally {
     await dropRegisteredFile(fileName);
@@ -12550,82 +15972,104 @@ async function loadJSONFileInternal(tableName, file) {
 }
 async function listTablesInternal() {
   const rows = await runQueryInternal("SHOW TABLES");
-  return rows.map((row) => Object.values(row)[0]).filter((value) => typeof value === "string");
+  return rows
+    .map((row) => Object.values(row)[0])
+    .filter((value) => typeof value === "string");
 }
 async function getTableInfoInternal(tableName) {
   await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
+  const conn = getReadConnection();
+  if (!conn) throw new Error("DuckDB connection not initialized");
   const colResult = await conn.query(`DESCRIBE ${quoteIdentifier(tableName)}`);
   const colSchema = colResult.schema.fields;
   const nCols = colSchema.length;
   const colNames = colSchema.map((f2) => f2.name);
   const columns = [];
   for (const batch of colResult.batches) {
-    const batchCols = Array.from({ length: nCols }, (_2, j2) => batch.getChildAt(j2));
-    for (let i = 0;i < batch.numRows; i++) {
+    const batchCols = Array.from({ length: nCols }, (_2, j2) =>
+      batch.getChildAt(j2),
+    );
+    for (let i = 0; i < batch.numRows; i++) {
       const row = {};
-      for (let j2 = 0;j2 < nCols; j2++) {
+      for (let j2 = 0; j2 < nCols; j2++) {
         row[colNames[j2]] = batchCols[j2]?.get(i) ?? null;
       }
       columns.push({
         name: String(row.column_name ?? ""),
         type: String(row.column_type ?? ""),
-        nullable: String(row.null ?? "").toUpperCase() === "YES"
+        nullable: String(row.null ?? "").toUpperCase() === "YES",
       });
     }
   }
-  const countResult = await conn.query(`SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`);
+  const countResult = await conn.query(
+    `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`,
+  );
   let rowCount = 0;
   for (const batch of countResult.batches) {
     const col = batch.getChildAt(0);
-    if (col && batch.numRows > 0)
-      rowCount = Number(col.get(0)) || 0;
+    if (col && batch.numRows > 0) rowCount = Number(col.get(0)) || 0;
   }
   return { columns, rowCount };
 }
 async function getColumnStatsInternal(tableName, columnName) {
   await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
-  const statsResult = await conn.query(`
-    SELECT
-      MIN(${quoteIdentifier(columnName)})                              AS min_val,
-      MAX(${quoteIdentifier(columnName)})                              AS max_val,
-      AVG(TRY_CAST(${quoteIdentifier(columnName)} AS DOUBLE))         AS avg_val,
-      COUNT(*) - COUNT(${quoteIdentifier(columnName)})                AS null_count,
-      COUNT(DISTINCT ${quoteIdentifier(columnName)})                  AS distinct_count
-    FROM ${quoteIdentifier(tableName)}
+  const conn = getReadConnection();
+  if (!conn) throw new Error("DuckDB connection not initialized");
+  const result = await conn.query(`
+    WITH
+      scalar_stats AS (
+        SELECT
+          MIN(${quoteIdentifier(columnName)})                              AS min_val,
+          MAX(${quoteIdentifier(columnName)})                              AS max_val,
+          AVG(TRY_CAST(${quoteIdentifier(columnName)} AS DOUBLE))         AS avg_val,
+          COUNT(*) - COUNT(${quoteIdentifier(columnName)})                AS null_count,
+          COUNT(DISTINCT ${quoteIdentifier(columnName)})                  AS distinct_count
+        FROM ${quoteIdentifier(tableName)}
+      ),
+      hist_rows AS (
+        SELECT CAST(${quoteIdentifier(columnName)} AS VARCHAR) AS bucket,
+               COUNT(*) AS count
+        FROM ${quoteIdentifier(tableName)}
+        WHERE ${quoteIdentifier(columnName)} IS NOT NULL
+        GROUP BY 1 ORDER BY 2 DESC LIMIT 10
+      ),
+      histogram_agg AS (
+        SELECT LIST(STRUCT_PACK(bucket := bucket, count := count)) AS hist
+        FROM hist_rows
+      )
+    SELECT * FROM scalar_stats, histogram_agg
   `);
   const stats = {
     min_val: null,
     max_val: null,
     avg_val: null,
     null_count: 0,
-    distinct_count: 0
+    distinct_count: 0,
+    hist: [],
   };
-  for (const batch of statsResult.batches) {
+  for (const batch of result.batches) {
     if (batch.numRows > 0) {
-      const sf = statsResult.schema.fields;
-      for (let j2 = 0;j2 < sf.length; j2++) {
+      const sf = result.schema.fields;
+      for (let j2 = 0; j2 < sf.length; j2++) {
         stats[sf[j2].name] = batch.getChildAt(j2)?.get(0) ?? null;
       }
     }
   }
-  const histResult = await conn.query(`
-    SELECT CAST(${quoteIdentifier(columnName)} AS VARCHAR) AS bucket,
-           COUNT(*) AS count
-    FROM ${quoteIdentifier(tableName)}
-    WHERE ${quoteIdentifier(columnName)} IS NOT NULL
-    GROUP BY 1 ORDER BY 2 DESC LIMIT 10
-  `);
   const histogram = [];
-  for (const batch of histResult.batches) {
-    for (let i = 0;i < batch.numRows; i++) {
-      histogram.push({
-        bucket: String(batch.getChildAt(0)?.get(i) ?? ""),
-        count: Number(batch.getChildAt(1)?.get(i) ?? 0)
-      });
+  const rawHist = stats.hist;
+  if (Array.isArray(rawHist)) {
+    for (const entry of rawHist) {
+      if (
+        entry &&
+        typeof entry === "object" &&
+        "bucket" in entry &&
+        "count" in entry
+      ) {
+        histogram.push({
+          bucket: String(entry.bucket ?? ""),
+          count: Number(entry.count ?? 0),
+        });
+      }
     }
   }
   return {
@@ -12634,35 +16078,38 @@ async function getColumnStatsInternal(tableName, columnName) {
     avg: stats.avg_val,
     nullCount: Number(stats.null_count),
     distinctCount: Number(stats.distinct_count),
-    histogram
+    histogram,
   };
 }
 async function exportTableToParquetInternal(tableName) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
-  const check = await conn.query(`SELECT 1 FROM information_schema.tables
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
+  const check = await writeConn.query(`SELECT 1 FROM information_schema.tables
      WHERE table_name = ${quoteSqlString(tableName)} LIMIT 1`);
   if (check.numRows === 0)
     throw new Error(`Table "${tableName}" does not exist`);
   const fileName = `${tableName}_${Date.now()}.parquet`;
-  await conn.query(`COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(fileName)} (FORMAT PARQUET, COMPRESSION ZSTD)`);
+  await writeConn.query(
+    `COPY ${quoteIdentifier(tableName)} TO ${quoteSqlString(fileName)} (FORMAT PARQUET, COMPRESSION ZSTD)`,
+  );
   try {
     const bytes = await db.copyFileToBuffer(fileName);
-    return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
+    return bytes.buffer.slice(
+      bytes.byteOffset,
+      bytes.byteOffset + bytes.byteLength,
+    );
   } finally {
     await dropRegisteredFile(fileName);
   }
 }
 async function loadTableFromParquetInternal(tableName, buffer) {
   await ensureInit();
-  if (!db || !conn)
-    throw new Error("DuckDB not initialized");
+  if (!db || !writeConn) throw new Error("DuckDB not initialized");
   try {
     const fileName = `${tableName}_restore_${Date.now()}.parquet`;
     await db.registerFileBuffer(fileName, new Uint8Array(buffer));
     try {
-      await conn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
+      await writeConn.query(`CREATE OR REPLACE TABLE ${quoteIdentifier(tableName)} AS
          SELECT * FROM read_parquet(${quoteSqlString(fileName)})`);
       return true;
     } finally {
@@ -12674,9 +16121,8 @@ async function loadTableFromParquetInternal(tableName, buffer) {
 }
 async function clearTableInternal(tableName) {
   await ensureInit();
-  if (!conn)
-    throw new Error("DuckDB connection not initialized");
-  await conn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)}`);
+  if (!writeConn) throw new Error("DuckDB connection not initialized");
+  await writeConn.query(`DROP TABLE IF EXISTS ${quoteIdentifier(tableName)}`);
 }
 async function getStatusInternal() {
   return { opfsPersistenceActive: false, dbPath: null };
@@ -12685,63 +16131,115 @@ function postResult(port, id, result, transfer) {
   port.postMessage({ id, result }, transfer ?? []);
 }
 function postError(port, id, error) {
-  port.postMessage({ id, error: serializeError(error) });
+  port.postMessage({
+    id,
+    error: serializeError(error),
+  });
 }
 async function dispatch(msg, port) {
   try {
     switch (msg.type) {
       case "init":
-        await enqueue(() => ensureInit());
+        await ensureInit();
         postResult(port, msg.id, null);
         break;
       case "runQuery": {
-        const result = await enqueue(() => runQueryInternal(msg.sql));
+        const result = await runQueryInternal(msg.sql);
         postResult(port, msg.id, result);
         break;
       }
+      case "runBatch": {
+        const hasWrite = msg.sqls.some((sql) => !isReadOnlyQuery(sql));
+        if (hasWrite) {
+          const results = await enqueueWrite(async () => {
+            await ensureInit();
+            const batchResults = [];
+            for (const sql of msg.sqls) {
+              if (!writeConn)
+                throw new Error("DuckDB connection not initialized");
+              const result = await writeConn.query(sql);
+              batchResults.push(convertArrowResult(result));
+            }
+            return batchResults;
+          });
+          postResult(port, msg.id, results);
+        } else {
+          const batchResults = [];
+          for (const sql of msg.sqls) {
+            batchResults.push(await runQueryInternal(sql));
+          }
+          postResult(port, msg.id, batchResults);
+        }
+        break;
+      }
       case "loadCSV":
-        await enqueue(() => loadCSVInternal(msg.tableName, new Uint8Array(msg.buffer), msg.delimiter, msg.append ?? false, msg.hasHeader ?? true));
+        await enqueueWrite(() =>
+          loadCSVInternal(
+            msg.tableName,
+            new Uint8Array(msg.buffer),
+            msg.delimiter,
+            msg.append ?? false,
+            msg.hasHeader ?? true,
+          ),
+        );
         postResult(port, msg.id, null);
         break;
       case "loadCSVFile":
-        await enqueue(() => loadCSVFileInternal(msg.tableName, msg.file, msg.delimiter, msg.append ?? false, msg.hasHeader ?? true));
+        await enqueueWrite(() =>
+          loadCSVFileInternal(
+            msg.tableName,
+            msg.file,
+            msg.delimiter,
+            msg.append ?? false,
+            msg.hasHeader ?? true,
+          ),
+        );
         postResult(port, msg.id, null);
         break;
       case "loadJSON":
-        await enqueue(() => loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)));
+        await enqueueWrite(() =>
+          loadJSONInternal(msg.tableName, new Uint8Array(msg.buffer)),
+        );
         postResult(port, msg.id, null);
         break;
       case "loadJSONFile":
-        await enqueue(() => loadJSONFileInternal(msg.tableName, msg.file));
+        await enqueueWrite(() => loadJSONFileInternal(msg.tableName, msg.file));
         postResult(port, msg.id, null);
         break;
       case "listTables": {
-        const result = await enqueue(() => listTablesInternal());
+        const result = await listTablesInternal();
         postResult(port, msg.id, result);
         break;
       }
       case "getTableInfo": {
-        const result = await enqueue(() => getTableInfoInternal(msg.tableName));
+        const result = await getTableInfoInternal(msg.tableName);
         postResult(port, msg.id, result);
         break;
       }
       case "getColumnStats": {
-        const result = await enqueue(() => getColumnStatsInternal(msg.tableName, msg.columnName));
+        const result = await getColumnStatsInternal(
+          msg.tableName,
+          msg.columnName,
+        );
         postResult(port, msg.id, result);
         break;
       }
       case "exportTableToParquet": {
-        const buf = await enqueue(() => exportTableToParquetInternal(msg.tableName));
+        const buf = await enqueueWrite(() =>
+          exportTableToParquetInternal(msg.tableName),
+        );
         postResult(port, msg.id, buf, [buf]);
         break;
       }
       case "loadTableFromParquet": {
-        const result = await enqueue(() => loadTableFromParquetInternal(msg.tableName, msg.buffer));
+        const result = await enqueueWrite(() =>
+          loadTableFromParquetInternal(msg.tableName, msg.buffer),
+        );
         postResult(port, msg.id, result);
         break;
       }
       case "clearTable":
-        await enqueue(() => clearTableInternal(msg.tableName));
+        await enqueueWrite(() => clearTableInternal(msg.tableName));
         postResult(port, msg.id, null);
         break;
       case "getStatus": {
@@ -12749,9 +16247,26 @@ async function dispatch(msg, port) {
         postResult(port, msg.id, result);
         break;
       }
+      case "prepare": {
+        const stmtId = await enqueueWrite(() => prepareInternal(msg.sql));
+        postResult(port, msg.id, stmtId);
+        break;
+      }
+      case "runPrepared": {
+        const result = await runPreparedInternal(msg.stmtId, msg.params);
+        postResult(port, msg.id, result);
+        break;
+      }
+      case "disposePrepared": {
+        await enqueueWrite(() => disposePreparedInternal(msg.stmtId));
+        postResult(port, msg.id, null);
+        break;
+      }
       default: {
         const _exhaustive = msg;
-        throw new Error(`Unsupported message type: ${String(_exhaustive.type)}`);
+        throw new Error(
+          `Unsupported message type: ${String(_exhaustive.type)}`,
+        );
       }
     }
   } catch (error) {
