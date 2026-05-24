@@ -10,10 +10,10 @@
  * writes queries, and generates insights in one shot.
  */
 
-import { AgentGraph, type AgentTrace } from "./agent-graph";
-import type { ChartSpec, ColumnInfo, QueryResult } from "./types";
-import { buildSQL } from "./sql";
 import { runQuery } from "@/platform/duckdb/duckdb";
+import { AgentGraph, type AgentTrace } from "./agent-graph";
+import { buildSQL } from "./sql";
+import type { ChartSpec, ColumnInfo, QueryResult } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -24,9 +24,17 @@ export interface DashboardWidget {
   position: { x: number; y: number; w: number; h: number };
   chartSpec?: ChartSpec;
   queryResult?: QueryResult;
-  kpiValue?: { value: number; label: string; delta?: number; deltaLabel?: string };
+  kpiValue?: {
+    value: number;
+    label: string;
+    delta?: number;
+    deltaLabel?: string;
+  };
   textContent?: string;
-  filterConfig?: { field: string; type: "dropdown" | "range" | "date" | "search" };
+  filterConfig?: {
+    field: string;
+    type: "dropdown" | "range" | "date" | "search";
+  };
   // Cross-filtering: when this widget is filtered, these fields emit filter events
   filterSourceFields?: string[];
   // This widget listens to these fields for incoming filter events
@@ -62,11 +70,20 @@ export async function generateDashboard(
   request: DashboardGenerationRequest,
   onTraceUpdate?: (trace: AgentTrace) => void,
 ): Promise<DashboardSpec> {
-  const { prompt, tableName, columns, schema, rowSample, model, host, threadId } = request;
+  const {
+    prompt,
+    tableName,
+    columns,
+    schema,
+    rowSample,
+    model,
+    host,
+    threadId,
+  } = request;
 
   // Step 1: Run the auto-dashboard agent graph. This feature is intentionally
-  // AI-gated: if Ollama or the selected model is unavailable, the caller should
-  // show a setup/error state instead of silently producing synthetic output.
+  // AI-gated: if the edge runtime or selected model is unavailable, the caller
+  // should show a setup/error state instead of silently producing synthetic output.
   const graph = AgentGraph.createAutoDashboardGraph();
   const { AgentOrchestrator } = await import("./agent-graph");
   const orchestrator = new AgentOrchestrator({
@@ -93,8 +110,8 @@ export async function generateDashboard(
   if (trace.status !== "completed" || failedNode) {
     throw new Error(
       failedNode?.error
-        ? `Ollama dashboard planning failed in ${failedNode.role}: ${failedNode.error}`
-        : "Ollama dashboard planning did not complete.",
+        ? `Edge AI dashboard planning failed in ${failedNode.role}: ${failedNode.error}`
+        : "Edge AI dashboard planning did not complete.",
     );
   }
 
@@ -105,7 +122,10 @@ export async function generateDashboard(
   // Extract chart specs from chartArchitect output
   const chartNode = trace.nodes.find((n) => n.role === "chartArchitect");
   const chartStructured = chartNode?.output?.structured as
-    | { charts?: Array<Record<string, unknown>>; dashboardLayout?: { suggestedGrid?: string; priorityOrder?: string[] } }
+    | {
+        charts?: Array<Record<string, unknown>>;
+        dashboardLayout?: { suggestedGrid?: string; priorityOrder?: string[] };
+      }
     | undefined;
   const knownFields = new Set(columns.map((column) => column.name));
 
@@ -167,7 +187,14 @@ export async function generateDashboard(
   // from prose; KPI values must come from validated SQL-backed outputs.
   const insightNode = trace.nodes.find((n) => n.role === "insightEngineer");
   const insightStructured = insightNode?.output?.structured as
-    | { insights?: Array<{ title?: string; description?: string; severity?: string }>; narrative?: string }
+    | {
+        insights?: Array<{
+          title?: string;
+          description?: string;
+          severity?: string;
+        }>;
+        narrative?: string;
+      }
     | undefined;
 
   if (insightStructured?.insights) {
@@ -196,13 +223,13 @@ export async function generateDashboard(
 
   if (widgets.length === 0) {
     throw new Error(
-      "Ollama completed the dashboard run but returned no dashboard widgets.",
+      "Edge AI completed the dashboard run but returned no dashboard widgets.",
     );
   }
 
   if (widgets.every((widget) => widget.type !== "chart")) {
     throw new Error(
-      "Ollama returned dashboard notes but no usable chart widget. Try a more specific dashboard goal.",
+      "Edge AI returned dashboard notes but no usable chart widget. Try a more specific dashboard goal.",
     );
   }
 
@@ -287,7 +314,9 @@ function computeBentoLayout(widgets: DashboardWidget[]): DashboardWidget[] {
     }
 
     // First chart gets hero size (2x2 already), but if it's the first chart we can make it bigger
-    const isFirstChart = placed.filter((p) => p.type === "chart").length === 0 && widget.type === "chart";
+    const isFirstChart =
+      placed.filter((p) => p.type === "chart").length === 0 &&
+      widget.type === "chart";
     if (isFirstChart) {
       w = 2;
       h = 2;
@@ -302,7 +331,10 @@ function computeBentoLayout(widgets: DashboardWidget[]): DashboardWidget[] {
       const fallback = findSpot(1, 1);
       if (fallback) {
         occupy(fallback.y, fallback.x, 1, 1);
-        placed.push({ ...widget, position: { x: fallback.x, y: fallback.y, w: 1, h: 1 } });
+        placed.push({
+          ...widget,
+          position: { x: fallback.x, y: fallback.y, w: 1, h: 1 },
+        });
       }
     }
   }
@@ -326,7 +358,7 @@ export class CrossFilterEngine {
     if (!this.listeners.has(field)) {
       this.listeners.set(field, new Set());
     }
-    this.listeners.get(field)!.add(handler);
+    this.listeners.get(field)?.add(handler);
     return () => this.listeners.get(field)?.delete(handler);
   }
 
@@ -353,20 +385,17 @@ export function useAutoDashboard() {
   const [generating, setGenerating] = useState(false);
   const [trace, setTrace] = useState<AgentTrace | null>(null);
 
-  const generate = useCallback(
-    async (request: DashboardGenerationRequest) => {
-      setGenerating(true);
-      setTrace(null);
-      try {
-        const spec = await generateDashboard(request, (t) => setTrace({ ...t }));
-        setDashboard(spec);
-        return spec;
-      } finally {
-        setGenerating(false);
-      }
-    },
-    [],
-  );
+  const generate = useCallback(async (request: DashboardGenerationRequest) => {
+    setGenerating(true);
+    setTrace(null);
+    try {
+      const spec = await generateDashboard(request, (t) => setTrace({ ...t }));
+      setDashboard(spec);
+      return spec;
+    } finally {
+      setGenerating(false);
+    }
+  }, []);
 
   return { dashboard, generating, trace, generate };
 }

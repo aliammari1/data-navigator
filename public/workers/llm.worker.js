@@ -33124,6 +33124,7 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
   var pipe = null;
   var loadedModel = "";
   var isLoading = false;
+  var abortedRequests = /* @__PURE__ */ new Set();
   async function loadModel(model) {
     if (isLoading) return;
     if (pipe && loadedModel === model) {
@@ -33142,7 +33143,7 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
     for (const device of ["webgpu", "wasm"]) {
       try {
         pipe = await pipeline2("text-generation", model, {
-          dtype: "q4f16",
+          dtype: device === "webgpu" ? "q4f16" : "q4",
           device,
           progress_callback: progressCb
         });
@@ -33182,6 +33183,7 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
         skip_prompt: true,
         skip_special_tokens: true,
         callback_function: (text) => {
+          if (abortedRequests.has(id)) return;
           self.postMessage({
             id,
             type: "INFER_CHUNK",
@@ -33194,8 +33196,12 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
         do_sample: false,
         streamer
       });
-      self.postMessage({ id, type: "INFER_DONE" });
+      if (!abortedRequests.has(id)) {
+        self.postMessage({ id, type: "INFER_DONE" });
+      }
+      abortedRequests.delete(id);
     } catch (err) {
+      abortedRequests.delete(id);
       self.postMessage({
         id,
         type: "INFER_ERROR",
@@ -33216,6 +33222,10 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
         msg.payload.prompt,
         msg.payload.maxTokens
       );
+      return;
+    }
+    if (msg.type === "ABORT") {
+      abortedRequests.add(msg.id);
     }
   };
 })();

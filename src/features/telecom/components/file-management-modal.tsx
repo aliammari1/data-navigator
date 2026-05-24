@@ -12,8 +12,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-import type { CachedAnalyticsMeta } from "@/features/telecom/lib/analytics-cache";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import type { AnalyticsSnapshotMeta } from "@/platform/storage/app-db";
 import type { LoadedFile, TelecomIngestionMode } from "../types";
 
 export function FileManagementModal({
@@ -31,7 +31,7 @@ export function FileManagementModal({
   canExport = true,
 }: Readonly<{
   open: boolean;
-  analyticsHistory: CachedAnalyticsMeta[];
+  analyticsHistory: AnalyticsSnapshotMeta[];
   loadedFiles: LoadedFile[];
   activeFileIdx: number;
   onClose: () => void;

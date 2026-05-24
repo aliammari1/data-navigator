@@ -7,13 +7,13 @@
  */
 
 import { runAgentLoop } from "./agent-loop";
-import { generateWithOllamaStructured } from "./ollama-provider";
+import type { AiError } from "./ai-errors";
+import { aiErrorFromUnknown, createAiError } from "./ai-errors";
 import { InvestigationPlanJsonSchema, validateSchema } from "./ai-schemas";
 import { safeJsonStringify } from "./json";
-import type { ColumnInfo } from "./types";
+import { generateWithOllamaStructured } from "./ollama-provider";
 import type { ToolContext } from "./tool-registry";
-import type { AiError } from "./ai-errors";
-import { createAiError, aiErrorFromUnknown } from "./ai-errors";
+import type { ColumnInfo } from "./types";
 
 export interface InvestigationRequest {
   prompt: string;
@@ -43,10 +43,18 @@ export interface InvestigationResult {
 export async function runInvestigation(
   request: InvestigationRequest,
 ): Promise<InvestigationResult> {
-  const { prompt, normalizedPrompt, tableName, columns, rowSample, model, host } = request;
+  const {
+    prompt,
+    normalizedPrompt,
+    tableName,
+    columns,
+    rowSample,
+    model,
+    host,
+  } = request;
 
   try {
-    // Step 1: Get investigation plan from Ollama
+    // Step 1: Get investigation plan from edge AI
     const columnPreview = columns
       .slice(0, 40)
       .map((c) => `${c.name}:${c.dbType ?? c.type}`)
@@ -56,7 +64,11 @@ export async function runInvestigation(
       targetMetric: string;
       currentPeriod: { start: string; end: string };
       baselinePeriod: { start: string; end: string };
-      segmentationSteps: Array<{ dimension: string; reason: string; sql: string }>;
+      segmentationSteps: Array<{
+        dimension: string;
+        reason: string;
+        sql: string;
+      }>;
       hypothesis: string;
       confidence: "high" | "medium" | "low";
     }>(
@@ -78,10 +90,14 @@ export async function runInvestigation(
       { host, temperature: 0 },
     );
 
-    const validated = validateSchema<typeof plan>(
-      plan,
-      ["targetMetric", "currentPeriod", "baselinePeriod", "segmentationSteps", "hypothesis", "confidence"],
-    );
+    const validated = validateSchema<typeof plan>(plan, [
+      "targetMetric",
+      "currentPeriod",
+      "baselinePeriod",
+      "segmentationSteps",
+      "hypothesis",
+      "confidence",
+    ]);
 
     if (!validated.valid) {
       return {
@@ -117,7 +133,9 @@ export async function runInvestigation(
           dimension: step.dimension,
           reason: step.reason,
           sql: step.sql,
-          result: result.success ? (result.steps[0]?.result?.data as Record<string, unknown>[]) : undefined,
+          result: result.success
+            ? (result.steps[0]?.result?.data as Record<string, unknown>[])
+            : undefined,
         });
       } catch {
         executedSteps.push({

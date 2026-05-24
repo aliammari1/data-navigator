@@ -1,55 +1,54 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
-import { Bot, ChevronDown, RefreshCw, Server, Wifi, WifiOff } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
+import { Bot, Check, ChevronDown, Cpu, RefreshCw } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useState } from "react";
 import { cn } from "@/shared/utils";
+import {
+  discoverOllamaModels,
+  EDGE_AI_HOST,
+  type LLMModel,
+  type LLMProvider,
+} from "../core/ollama-provider";
 import { useFormulatorStore } from "../store";
-import { discoverOllamaModels, checkOllamaAvailable } from "../core/ollama-provider";
-import type { LLMModel, LLMProvider } from "../core/ollama-provider";
 
 export function ModelSelector() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [localModels, setLocalModels] = useState<LLMModel[]>([]);
-  const [isOllamaAvailable, setIsOllamaAvailable] = useState(false);
+  const [edgeModels, setEdgeModels] = useState<LLMModel[]>([]);
+  const [executionMode, setExecutionMode] = useState<"webgpu" | "wasm-cpu">(
+    "wasm-cpu",
+  );
 
-  const { providers, selectedProviderId, selectedModel, selectModel, setProviders } = useFormulatorStore();
+  const { selectedModel, selectModel, setProviders } = useFormulatorStore();
 
   const refreshModels = useCallback(async () => {
     setLoading(true);
     try {
-      const host = useFormulatorStore.getState().settings.ollamaHost;
-      const available = await checkOllamaAvailable(host);
-      setIsOllamaAvailable(available);
+      const models = await discoverOllamaModels();
+      setEdgeModels(models);
+      setExecutionMode(
+        typeof navigator !== "undefined" && "gpu" in navigator
+          ? "webgpu"
+          : "wasm-cpu",
+      );
 
-      if (available) {
-        const models = await discoverOllamaModels(host);
-        setLocalModels(models);
+      const edgeProvider: LLMProvider = {
+        id: "edge",
+        name: "Edge AI",
+        type: "edge",
+        baseURL: EDGE_AI_HOST,
+        models,
+        isAvailable: typeof Worker !== "undefined",
+      };
+      setProviders([edgeProvider]);
 
-        const ollamaProvider: LLMProvider = {
-          id: "ollama",
-          name: "Ollama (Local)",
-          type: "ollama",
-          baseURL: host,
-          models,
-          isAvailable: true,
-        };
-
-        setProviders([ollamaProvider]);
-
-        const selectedModelInstalled = models.some(
-          (model) => model.name === selectedModel,
-        );
-
-        if (models.length > 0 && (!selectedModel || !selectedModelInstalled)) {
-          selectModel(models[0].name);
-        }
-      } else {
-        setProviders([]);
+      const selectedModelSupported = models.some(
+        (model) => model.name === selectedModel,
+      );
+      if (models.length > 0 && (!selectedModel || !selectedModelSupported)) {
+        selectModel(models[0].name);
       }
-    } catch {
-      setIsOllamaAvailable(false);
     } finally {
       setLoading(false);
     }
@@ -59,8 +58,9 @@ export function ModelSelector() {
     refreshModels();
   }, [refreshModels]);
 
-  const selectedProvider = providers.find((p) => p.id === selectedProviderId);
-  const selectedModelInfo = localModels.find((m) => m.name === selectedModel);
+  const selectedModelInfo = edgeModels.find(
+    (model) => model.name === selectedModel,
+  );
 
   return (
     <div className="relative">
@@ -68,17 +68,19 @@ export function ModelSelector() {
         type="button"
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-medium transition-all",
-          "bg-card border border-border hover:border-primary/50",
+          "flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium transition-all",
+          "border border-border bg-card hover:border-primary/50",
           open && "border-primary ring-1 ring-primary/20",
         )}
       >
-        <div className={cn("w-2 h-2 rounded-full", isOllamaAvailable ? "bg-emerald-400" : "bg-red-400")} />
-        <Bot className="w-3.5 h-3.5 text-muted-foreground" />
-        <span className="max-w-[120px] truncate">
-          {selectedModelInfo?.name ?? selectedModel ?? "Select model"}
+        <div className="h-2 w-2 rounded-full bg-emerald-400" />
+        <Cpu className="h-3.5 w-3.5 text-muted-foreground" />
+        <span className="max-w-[140px] truncate">
+          {selectedModelInfo?.name ?? selectedModel ?? "Edge model"}
         </span>
-        <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
+        <ChevronDown
+          className={cn("h-3 w-3 transition-transform", open && "rotate-180")}
+        />
       </button>
 
       <AnimatePresence>
@@ -87,53 +89,44 @@ export function ModelSelector() {
             initial={{ opacity: 0, y: 4, scale: 0.98 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 4, scale: 0.98 }}
-            className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 top-full z-50 mt-2 w-80 overflow-hidden rounded-2xl border border-border bg-card shadow-2xl"
           >
-            {/* Header */}
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+            <div className="flex items-center justify-between border-b border-border px-4 py-3">
               <div className="flex items-center gap-2">
-                <Server className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-semibold">AI Models</span>
+                <Cpu className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-semibold">Edge AI Models</span>
               </div>
               <button
                 type="button"
-                onClick={(e) => { e.stopPropagation(); refreshModels(); }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  refreshModels();
+                }}
                 disabled={loading}
-                className="p-1.5 rounded-lg hover:bg-foreground/5 text-muted-foreground disabled:opacity-50"
+                className="rounded-lg p-1.5 text-muted-foreground hover:bg-foreground/5 disabled:opacity-50"
               >
-                <RefreshCw className={cn("w-3.5 h-3.5", loading && "animate-spin")} />
+                <RefreshCw
+                  className={cn("h-3.5 w-3.5", loading && "animate-spin")}
+                />
               </button>
             </div>
 
-            {/* Provider Status */}
-            <div className="px-4 py-2 border-b border-border bg-muted/30">
+            <div className="border-b border-border bg-muted/30 px-4 py-2">
               <div className="flex items-center gap-2 text-[11px]">
-                {isOllamaAvailable ? (
-                  <>
-                    <Wifi className="w-3 h-3 text-emerald-400" />
-                    <span className="text-emerald-400">Ollama connected</span>
-                    <span className="text-muted-foreground ml-auto">{localModels.length} models</span>
-                  </>
-                ) : (
-                  <>
-                    <WifiOff className="w-3 h-3 text-red-400" />
-                    <span className="text-red-400">Ollama not available</span>
-                    <span className="text-muted-foreground ml-auto">Run `ollama serve`</span>
-                  </>
-                )}
+                <Check className="h-3 w-3 text-emerald-400" />
+                <span className="text-emerald-400">
+                  {executionMode === "webgpu"
+                    ? "WebGPU available"
+                    : "CPU/WASM mode"}
+                </span>
+                <span className="ml-auto text-muted-foreground">
+                  {edgeModels.length} models
+                </span>
               </div>
             </div>
 
-            {/* Model List */}
             <div className="max-h-64 overflow-y-auto py-1">
-              {localModels.length === 0 && !loading && (
-                <div className="px-4 py-6 text-center text-xs text-muted-foreground">
-                  No models found. Pull one with:<br />
-                  <code className="text-primary mt-1 inline-block">ollama pull &lt;model-name&gt;</code>
-                </div>
-              )}
-
-              {localModels.map((model) => (
+              {edgeModels.map((model) => (
                 <button
                   key={model.name}
                   type="button"
@@ -142,28 +135,36 @@ export function ModelSelector() {
                     setOpen(false);
                   }}
                   className={cn(
-                    "w-full px-4 py-2.5 flex items-center gap-3 hover:bg-foreground/5 transition-colors text-left",
+                    "flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors hover:bg-foreground/5",
                     selectedModel === model.name && "bg-primary/10",
                   )}
                 >
-                  <Bot className={cn(
-                    "w-4 h-4 flex-none",
-                    selectedModel === model.name ? "text-primary" : "text-muted-foreground",
-                  )} />
-                  <div className="flex-1 min-w-0">
-                    <div className={cn(
-                      "text-xs font-medium truncate",
-                      selectedModel === model.name ? "text-primary" : "text-foreground",
-                    )}>
+                  <Bot
+                    className={cn(
+                      "h-4 w-4 flex-none",
+                      selectedModel === model.name
+                        ? "text-primary"
+                        : "text-muted-foreground",
+                    )}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div
+                      className={cn(
+                        "truncate text-xs font-medium",
+                        selectedModel === model.name
+                          ? "text-primary"
+                          : "text-foreground",
+                      )}
+                    >
                       {model.name}
                     </div>
-                    <div className="text-[10px] text-muted-foreground truncate">
-                      {model.details?.parameter_size ?? "Unknown size"}
-                      {model.details?.quantization_level ? ` · ${model.details.quantization_level}` : ""}
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {model.details?.parameter_size ?? "Small edge model"} ·{" "}
+                      {model.details?.quantization_level ?? "quantized"}
                     </div>
                   </div>
                   {selectedModel === model.name && (
-                    <div className="w-1.5 h-1.5 rounded-full bg-primary flex-none" />
+                    <div className="h-1.5 w-1.5 flex-none rounded-full bg-primary" />
                   )}
                 </button>
               ))}

@@ -2,14 +2,19 @@
 
 /**
  * Agent Loop
- * Bounded tool-calling loop with Ollama structured outputs.
+ * Bounded tool-calling loop with edge AI structured outputs.
  * Max 5 steps. Never suppresses errors. Always validates JSON.
  */
 
-import { generateWithOllamaStructured } from "./ollama-provider";
-import { ToolCallJsonSchema, validateSchema } from "./ai-schemas";
-import { executeTool, getToolDefinitions, type ToolContext, type ToolResult } from "./tool-registry";
+import { validateSchema } from "./ai-schemas";
 import { safeJsonStringify } from "./json";
+import { generateWithOllamaStructured } from "./ollama-provider";
+import {
+  executeTool,
+  getToolDefinitions,
+  type ToolContext,
+  type ToolResult,
+} from "./tool-registry";
 
 export interface AgentLoopStep {
   step: number;
@@ -119,8 +124,6 @@ export async function runAgentLoop(
       onStep?.(step);
 
       if (!toolResult.success) {
-        // Tool failed — let AI decide next step or we stop
-        continue;
       }
     } catch (err) {
       const errorStep: AgentLoopStep = {

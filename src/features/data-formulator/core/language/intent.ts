@@ -100,7 +100,7 @@ export function classifyManagerIntent(prompt: string): ManagerIntent {
     return "scenario";
   }
 
-  if (/\b(ollama|model|setup|install|voice|tts|stt)\b/.test(text)) {
+  if (/\b(edge ai|model|setup|install|voice|tts|stt)\b/.test(text)) {
     return "setup";
   }
 
