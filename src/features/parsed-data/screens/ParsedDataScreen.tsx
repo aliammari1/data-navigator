@@ -1,47 +1,53 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
-import dynamic from "next/dynamic";
-import { motion, AnimatePresence } from "motion/react";
 import {
-  Database,
-  Search,
-  Download,
-  RefreshCw,
-  Filter,
-  Eye,
-  ChevronRight,
-  ChevronDown,
-  BarChart3,
-  Hash,
-  Type,
-  Calendar,
-  ToggleLeft,
-  AlertTriangle,
-  CheckCircle2,
   AlertCircle,
-  Layers,
-  Zap,
-  Copy,
+  AlertTriangle,
   ArrowUpDown,
-  TrendingUp,
-  Shield,
-  Fingerprint,
-  Info,
-  X,
-  Star,
+  BarChart3,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
   ChevronUp,
-  SlidersHorizontal,
-  Table2,
-  Grid3x3,
+  Copy,
+  Database,
+  Download,
+  Eye,
   FileSearch,
-  Sigma,
+  Filter,
+  Fingerprint,
+  Grid3x3,
+  Hash,
+  Info,
+  Layers,
   Percent,
+  RefreshCw,
+  Search,
+  Shield,
+  Sigma,
+  SlidersHorizontal,
+  Star,
+  Table2,
+  ToggleLeft,
+  TrendingUp,
+  Type,
+  X,
+  Zap,
 } from "lucide-react";
-import { runQuery, loadJSONToDuckDB } from "@/platform/duckdb/duckdb";
+import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useDataStore } from "@/core/stores/data-store";
+import { getTableInfo, runQuery } from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
+import {
+  ColCard,
+  QualityRing,
+  StatGrid,
+} from "@/features/parsed-data/components/profile-cards";
 import {
   qualityColor,
   qualityLabel,
@@ -52,14 +58,38 @@ import type {
   ColProfile,
   QualityDimension,
 } from "@/features/parsed-data/model/types";
-import {
-  ColCard,
-  QualityRing,
-  StatGrid,
-} from "@/features/parsed-data/components/profile-cards";
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
+
+function tableNameFromShowTables(row: Record<string, unknown>): string {
+  return String(row.name ?? row.table_name ?? Object.values(row)[0] ?? "");
+}
+
+function toProfileType(sqlType: string): ColProfile["type"] {
+  const type = sqlType.toUpperCase();
+  if (
+    /TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT/.test(
+      type,
+    )
+  ) {
+    return "integer";
+  }
+  if (/DECIMAL|DOUBLE|FLOAT|REAL|NUMERIC/.test(type)) return "float";
+  if (/BOOL/.test(type)) return "boolean";
+  if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(type)) return "date";
+  if (/VARCHAR|TEXT|CHAR|STRING|UUID|BLOB/.test(type)) return "string";
+  return "unknown";
+}
+
 // ─── Main Component ────────────────────────────────────────────────────────
 
 export default function ParsedDataScreen() {
+  const { datasets, activeDatasetId, loadedTableNames } = useDataStore();
+  const activeDataset =
+    datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
+
   const [profiles, setProfiles] = useState<ColProfile[]>([]);
   const [selectedCol, setSelectedCol] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -79,274 +109,298 @@ export default function ParsedDataScreen() {
   const [qualityDimensions, setQualityDimensions] = useState<
     QualityDimension[]
   >([]);
-  const initRef = useRef(false);
+  const [activeTableName, setActiveTableName] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const computeProfiles = useCallback(
+    async (
+      tableName: string,
+      columnDefs: Array<{
+        index: number;
+        name: string;
+        type: ColProfile["type"];
+        sqlType: string;
+      }>,
+      cancelled: boolean,
+    ) => {
+      setLoading(true);
+
+      setColCount(columnDefs.length);
+      const profileResults: ColProfile[] = [];
+      const quotedTable = quoteIdentifier(tableName);
+
+      for (let ci = 0; ci < columnDefs.length; ci++) {
+        if (cancelled) break;
+        const col = columnDefs[ci];
+        const quotedColumn = quoteIdentifier(col.name);
+        setLoadingStage(
+          `Profiling column ${ci + 1}/${columnDefs.length}: ${col.name}...`,
+        );
+
+        try {
+          const baseRes = await runQuery(`
+          SELECT
+            COUNT(*) as total,
+            COUNT(${quotedColumn}) as non_null,
+            COUNT(DISTINCT ${quotedColumn}) as distinct_count
+          FROM ${quotedTable}
+        `);
+          const base = baseRes[0] as Record<string, number>;
+          const total = Number(base.total);
+          const nonNull = Number(base.non_null);
+          const nullCount = total - nonNull;
+          const nullRate = total > 0 ? nullCount / total : 0;
+          const distinctCount = Number(base.distinct_count);
+
+          // Top values
+          const topRes = await runQuery(`
+          SELECT CAST(${quotedColumn} AS VARCHAR) as val, COUNT(*) as cnt
+          FROM ${quotedTable}
+          WHERE ${quotedColumn} IS NOT NULL
+          GROUP BY val
+          ORDER BY cnt DESC
+          LIMIT 10
+        `);
+          const topValues = topRes.map((r) => {
+            const row = r as Record<string, unknown>;
+            return {
+              value: String(row.val ?? ""),
+              count: Number(row.cnt),
+              pct: total > 0 ? Number(row.cnt) / total : 0,
+            };
+          });
+
+          const profile: ColProfile = {
+            name: col.name,
+            index: col.index,
+            type: col.type,
+            sqlType: col.sqlType,
+            rowCount: total,
+            nullCount,
+            nullRate,
+            distinctCount,
+            uniquenessRate: total > 0 ? distinctCount / total : 0,
+            topValues,
+            completeness: 1 - nullRate,
+            uniqueness: Math.min(1, distinctCount / Math.max(total * 0.5, 1)),
+            validity: col.type !== "unknown" ? 0.95 : 0.5,
+          };
+
+          // Numeric stats
+          if (col.type === "integer" || col.type === "float") {
+            const numRes = await runQuery(`
+            SELECT
+              MIN(${quotedColumn}) as min_val,
+              MAX(${quotedColumn}) as max_val,
+              AVG(${quotedColumn}) as avg_val,
+              STDDEV_SAMP(${quotedColumn}) as std_val,
+              MEDIAN(${quotedColumn}) as median_val,
+              PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${quotedColumn}) as p25,
+              PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${quotedColumn}) as p75,
+              SUM(${quotedColumn}) as sum_val
+            FROM ${quotedTable}
+            WHERE ${quotedColumn} IS NOT NULL
+          `);
+            const nr = numRes[0] as Record<string, number>;
+            profile.min = Number(nr.min_val);
+            profile.max = Number(nr.max_val);
+            profile.avg = Number(nr.avg_val);
+            profile.stddev = Number(nr.std_val);
+            profile.median = Number(nr.median_val);
+            profile.p25 = Number(nr.p25);
+            profile.p75 = Number(nr.p75);
+            profile.sum = Number(nr.sum_val);
+
+            // Histogram
+            const binCount = 20;
+            const range = profile.max - profile.min;
+            if (range > 0) {
+              const binWidth = range / binCount;
+              const histRes = await runQuery(`
+              SELECT
+                FLOOR((${quotedColumn} - ${profile.min}) / ${binWidth}) as bin,
+                COUNT(*) as cnt
+              FROM ${quotedTable}
+              WHERE ${quotedColumn} IS NOT NULL
+              GROUP BY bin
+              ORDER BY bin
+            `);
+              const minVal = profile.min ?? 0;
+              const bins: { lo: number; hi: number; count: number }[] =
+                Array.from({ length: binCount }, (_, i) => ({
+                  lo: minVal + i * binWidth,
+                  hi: minVal + (i + 1) * binWidth,
+                  count: 0,
+                }));
+              for (const r of histRes) {
+                const row = r as Record<string, number>;
+                const idx = Math.min(
+                  Math.max(0, Number(row.bin)),
+                  binCount - 1,
+                );
+                bins[idx].count = Number(row.cnt);
+              }
+              profile.histogram = bins;
+            }
+          }
+
+          // String stats
+          if (col.type === "string") {
+            const strRes = await runQuery(`
+            SELECT
+              MIN(LENGTH(${quotedColumn})) as min_len,
+              MAX(LENGTH(${quotedColumn})) as max_len,
+              AVG(LENGTH(${quotedColumn})) as avg_len
+            FROM ${quotedTable}
+            WHERE ${quotedColumn} IS NOT NULL
+          `);
+            const sr = strRes[0] as Record<string, number>;
+            profile.minLen = Number(sr.min_len);
+            profile.maxLen = Number(sr.max_len);
+            profile.avgLen = Number(sr.avg_len);
+          }
+
+          profileResults.push(profile);
+        } catch (e) {
+          console.error(`Error profiling ${col.name}:`, e);
+          profileResults.push({
+            name: col.name,
+            index: col.index,
+            type: col.type,
+            sqlType: col.sqlType,
+            rowCount: 0,
+            nullCount: 0,
+            nullRate: 0,
+            distinctCount: 0,
+            uniquenessRate: 0,
+            topValues: [],
+            completeness: 0,
+            uniqueness: 0,
+            validity: 0,
+          });
+        }
+      }
+
+      if (!cancelled) {
+        setProfiles(profileResults);
+        if (profileResults.length > 0) setSelectedCol(profileResults[0].name);
+
+        // Compute quality dimensions
+        const profileCount = Math.max(profileResults.length, 1);
+        const avgComp =
+          profileResults.reduce((s, p) => s + p.completeness, 0) / profileCount;
+        const avgUniq =
+          profileResults.reduce((s, p) => s + p.uniquenessRate, 0) /
+          profileCount;
+        const avgValid =
+          profileResults.reduce((s, p) => s + p.validity, 0) / profileCount;
+        const lowCompCols = profileResults
+          .filter((p) => p.completeness < 0.95)
+          .map((p) => p.name);
+        const lowUniqCols = profileResults
+          .filter((p) => p.uniquenessRate < 0.1)
+          .map((p) => p.name);
+        const lowValidCols = profileResults
+          .filter((p) => p.validity < 0.8)
+          .map((p) => p.name);
+        const consistency =
+          profileResults.filter((p) => p.nullRate < 0.01).length / profileCount;
+
+        setQualityDimensions([
+          {
+            name: "Completeness",
+            score: avgComp,
+            description: "Proportion of non-null values across all columns",
+            affected: lowCompCols,
+          },
+          {
+            name: "Uniqueness",
+            score: Math.min(1, avgUniq * 2),
+            description: "How unique values are relative to total rows",
+            affected: lowUniqCols,
+          },
+          {
+            name: "Validity",
+            score: avgValid,
+            description: "Values conform to expected type and format",
+            affected: lowValidCols,
+          },
+          {
+            name: "Consistency",
+            score: consistency,
+            description: "Columns with <1% null rate across dataset",
+            affected: [],
+          },
+        ]);
+
+        setLoading(false);
+      }
+    },
+    [],
+  );
 
   // ─── Init data ────────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false;
+
     async function init() {
-      if (initRef.current) return;
-      initRef.current = true;
       setLoading(true);
       setLoadingStage("Checking for loaded data...");
+
       try {
-        const tables = await runQuery("SHOW TABLES").catch(() => []);
-        if (tables.length > 0) {
-          const tableName = String(Object.values(tables[0])[0]);
-          const countRes = await runQuery(
-            `SELECT COUNT(*) as cnt FROM "${tableName}"`,
-          );
-          if (!cancelled) {
-            setRowCount(Number(countRes[0]?.cnt ?? 0));
-            await computeProfiles(cancelled);
-          }
+        let tableName = activeDataset?.tableName ?? loadedTableNames[0] ?? "";
+        let info = tableName
+          ? await getTableInfo(tableName).catch(() => null)
+          : null;
+
+        if (!info) {
+          const tables = await runQuery("SHOW TABLES").catch(() => []);
+          tableName = tables.map(tableNameFromShowTables).find(Boolean) ?? "";
+          info = tableName
+            ? await getTableInfo(tableName).catch(() => null)
+            : null;
         }
+
+        if (!info || !tableName) {
+          if (!cancelled) {
+            setActiveTableName(null);
+            setProfiles([]);
+            setSelectedCol(null);
+            setRowCount(0);
+            setColCount(0);
+            setQualityDimensions([]);
+            setLoadingStage("No loaded DuckDB table found.");
+            setLoading(false);
+          }
+          return;
+        }
+
+        const columnDefs = info.columns.map((column, index) => ({
+          name: column.name,
+          index,
+          type: toProfileType(column.type),
+          sqlType: column.type,
+        }));
+
+        if (!cancelled) {
+          setActiveTableName(tableName);
+          setRowCount(info.rowCount);
+        }
+        await computeProfiles(tableName, columnDefs, cancelled);
       } catch (e) {
         console.error("Init error:", e);
+        if (!cancelled) setLoadingStage("Could not profile the active table.");
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
+
     init();
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const computeProfiles = useCallback(async (cancelled: boolean) => {
-    setLoading(true);
-
-    const columnDefs: Array<{
-      name: string;
-      type: ColProfile["type"];
-      sqlType: string;
-    }> = [
-      { name: "id", type: "integer", sqlType: "INTEGER" },
-      { name: "first_name", type: "string", sqlType: "VARCHAR" },
-      { name: "last_name", type: "string", sqlType: "VARCHAR" },
-      { name: "email", type: "string", sqlType: "VARCHAR" },
-      { name: "department", type: "string", sqlType: "VARCHAR" },
-      { name: "country", type: "string", sqlType: "VARCHAR" },
-      { name: "status", type: "string", sqlType: "VARCHAR" },
-      { name: "product", type: "string", sqlType: "VARCHAR" },
-      { name: "revenue", type: "float", sqlType: "DOUBLE" },
-      { name: "units_sold", type: "integer", sqlType: "INTEGER" },
-      { name: "profit_margin", type: "float", sqlType: "DOUBLE" },
-      { name: "satisfaction_score", type: "float", sqlType: "DOUBLE" },
-      { name: "age", type: "integer", sqlType: "INTEGER" },
-      { name: "is_premium", type: "boolean", sqlType: "BOOLEAN" },
-    ];
-
-    setColCount(columnDefs.length);
-    const profileResults: ColProfile[] = [];
-
-    for (let ci = 0; ci < columnDefs.length; ci++) {
-      if (cancelled) break;
-      const col = columnDefs[ci];
-      setLoadingStage(
-        `Profiling column ${ci + 1}/${columnDefs.length}: ${col.name}...`,
-      );
-
-      try {
-        const baseRes = await runQuery(`
-          SELECT
-            COUNT(*) as total,
-            COUNT(${col.name}) as non_null,
-            COUNT(DISTINCT ${col.name}) as distinct_count
-          FROM parsed_demo
-        `);
-        const base = baseRes[0] as Record<string, number>;
-        const total = Number(base.total);
-        const nonNull = Number(base.non_null);
-        const nullCount = total - nonNull;
-        const nullRate = nullCount / total;
-        const distinctCount = Number(base.distinct_count);
-
-        // Top values
-        const topRes = await runQuery(`
-          SELECT CAST(${col.name} AS VARCHAR) as val, COUNT(*) as cnt
-          FROM parsed_demo
-          WHERE ${col.name} IS NOT NULL
-          GROUP BY val
-          ORDER BY cnt DESC
-          LIMIT 10
-        `);
-        const topValues = topRes.map((r) => {
-          const row = r as Record<string, unknown>;
-          return {
-            value: String(row.val ?? ""),
-            count: Number(row.cnt),
-            pct: Number(row.cnt) / total,
-          };
-        });
-
-        const profile: ColProfile = {
-          name: col.name,
-          index: ci,
-          type: col.type,
-          sqlType: col.sqlType,
-          rowCount: total,
-          nullCount,
-          nullRate,
-          distinctCount,
-          uniquenessRate: total > 0 ? distinctCount / total : 0,
-          topValues,
-          completeness: 1 - nullRate,
-          uniqueness: Math.min(1, distinctCount / Math.max(total * 0.5, 1)),
-          validity: col.type !== "unknown" ? 0.95 : 0.5,
-        };
-
-        // Numeric stats
-        if (col.type === "integer" || col.type === "float") {
-          const numRes = await runQuery(`
-            SELECT
-              MIN(${col.name}) as min_val,
-              MAX(${col.name}) as max_val,
-              AVG(${col.name}) as avg_val,
-              STDDEV_SAMP(${col.name}) as std_val,
-              MEDIAN(${col.name}) as median_val,
-              PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${col.name}) as p25,
-              PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${col.name}) as p75,
-              SUM(${col.name}) as sum_val
-            FROM parsed_demo
-            WHERE ${col.name} IS NOT NULL
-          `);
-          const nr = numRes[0] as Record<string, number>;
-          profile.min = Number(nr.min_val);
-          profile.max = Number(nr.max_val);
-          profile.avg = Number(nr.avg_val);
-          profile.stddev = Number(nr.std_val);
-          profile.median = Number(nr.median_val);
-          profile.p25 = Number(nr.p25);
-          profile.p75 = Number(nr.p75);
-          profile.sum = Number(nr.sum_val);
-
-          // Histogram
-          const binCount = 20;
-          const range = profile.max - profile.min;
-          if (range > 0) {
-            const binWidth = range / binCount;
-            const histRes = await runQuery(`
-              SELECT
-                FLOOR((${col.name} - ${profile.min}) / ${binWidth}) as bin,
-                COUNT(*) as cnt
-              FROM parsed_demo
-              WHERE ${col.name} IS NOT NULL
-              GROUP BY bin
-              ORDER BY bin
-            `);
-            const minVal = profile.min ?? 0;
-            const bins: { lo: number; hi: number; count: number }[] =
-              Array.from({ length: binCount }, (_, i) => ({
-                lo: minVal + i * binWidth,
-                hi: minVal + (i + 1) * binWidth,
-                count: 0,
-              }));
-            for (const r of histRes) {
-              const row = r as Record<string, number>;
-              const idx = Math.min(Math.max(0, Number(row.bin)), binCount - 1);
-              bins[idx].count = Number(row.cnt);
-            }
-            profile.histogram = bins;
-          }
-        }
-
-        // String stats
-        if (col.type === "string") {
-          const strRes = await runQuery(`
-            SELECT
-              MIN(LENGTH(${col.name})) as min_len,
-              MAX(LENGTH(${col.name})) as max_len,
-              AVG(LENGTH(${col.name})) as avg_len
-            FROM parsed_demo
-            WHERE ${col.name} IS NOT NULL
-          `);
-          const sr = strRes[0] as Record<string, number>;
-          profile.minLen = Number(sr.min_len);
-          profile.maxLen = Number(sr.max_len);
-          profile.avgLen = Number(sr.avg_len);
-        }
-
-        profileResults.push(profile);
-      } catch (e) {
-        console.error(`Error profiling ${col.name}:`, e);
-        profileResults.push({
-          name: col.name,
-          index: ci,
-          type: col.type,
-          sqlType: col.sqlType,
-          rowCount: 0,
-          nullCount: 0,
-          nullRate: 0,
-          distinctCount: 0,
-          uniquenessRate: 0,
-          topValues: [],
-          completeness: 0,
-          uniqueness: 0,
-          validity: 0,
-        });
-      }
-    }
-
-    if (!cancelled) {
-      setProfiles(profileResults);
-      if (profileResults.length > 0) setSelectedCol(profileResults[0].name);
-
-      // Compute quality dimensions
-      const avgComp =
-        profileResults.reduce((s, p) => s + p.completeness, 0) /
-        profileResults.length;
-      const avgUniq =
-        profileResults.reduce((s, p) => s + p.uniquenessRate, 0) /
-        profileResults.length;
-      const avgValid =
-        profileResults.reduce((s, p) => s + p.validity, 0) /
-        profileResults.length;
-      const lowCompCols = profileResults
-        .filter((p) => p.completeness < 0.95)
-        .map((p) => p.name);
-      const lowUniqCols = profileResults
-        .filter((p) => p.uniquenessRate < 0.1)
-        .map((p) => p.name);
-      const lowValidCols = profileResults
-        .filter((p) => p.validity < 0.8)
-        .map((p) => p.name);
-      const consistency =
-        profileResults.filter((p) => p.nullRate < 0.01).length /
-        profileResults.length;
-
-      setQualityDimensions([
-        {
-          name: "Completeness",
-          score: avgComp,
-          description: "Proportion of non-null values across all columns",
-          affected: lowCompCols,
-        },
-        {
-          name: "Uniqueness",
-          score: Math.min(1, avgUniq * 2),
-          description: "How unique values are relative to total rows",
-          affected: lowUniqCols,
-        },
-        {
-          name: "Validity",
-          score: avgValid,
-          description: "Values conform to expected type and format",
-          affected: lowValidCols,
-        },
-        {
-          name: "Consistency",
-          score: consistency,
-          description: "Columns with <1% null rate across dataset",
-          affected: [],
-        },
-      ]);
-
-      setLoading(false);
-    }
-  }, []);
+  }, [activeDataset?.tableName, loadedTableNames, refreshKey, computeProfiles]);
 
   // ─── Derived ──────────────────────────────────────────────────────────
 
@@ -686,12 +740,12 @@ export default function ParsedDataScreen() {
   // ─── Render ───────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-violet-950 flex flex-col">
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-violet-950 flex flex-col">
       {/* Header */}
       <div className="border-b border-border p-4 md:p-6">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-violet-600 to-purple-600 rounded-xl">
+            <div className="p-2 bg-linear-to-br from-violet-600 to-purple-600 rounded-xl">
               <FileSearch className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
@@ -701,6 +755,7 @@ export default function ParsedDataScreen() {
               <p className="text-sm text-muted-foreground">
                 Deep column analysis · {colCount} columns ·{" "}
                 {rowCount.toLocaleString()} rows
+                {activeTableName ? ` · ${activeTableName}` : ""}
               </p>
             </div>
           </div>
@@ -722,9 +777,8 @@ export default function ParsedDataScreen() {
             <button
               type="button"
               onClick={() => {
-                initRef.current = false;
                 setProfiles([]);
-                computeProfiles(false);
+                setRefreshKey((key) => key + 1);
               }}
               disabled={loading}
               className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg text-sm text-primary-foreground transition-colors"

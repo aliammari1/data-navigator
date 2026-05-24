@@ -1,13 +1,13 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCallback } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
 import {
-  useDataStore,
   type Dataset,
+  type DataTransform,
   type QueryHistoryItem,
   type SavedChart,
-  type DataTransform,
+  useDataStore,
 } from "@/core/stores/data-store";
 import { queryKeys } from "./keys";
 
@@ -19,25 +19,28 @@ import { queryKeys } from "./keys";
  */
 export function useDatasets(filters?: { source?: string; format?: string }) {
   const datasets = useDataStore((s) => s.datasets);
+  const result = useMemo(() => {
+    let next = datasets;
+    if (filters?.source) {
+      next = next.filter((d) => d.source === filters.source);
+    }
+    if (filters?.format) {
+      next = next.filter((d) => d.format === filters.format);
+    }
+    return next;
+  }, [datasets, filters?.format, filters?.source]);
 
-  return useQuery({
+  const query = useQuery({
     queryKey: queryKeys.datasets.list(filters),
-    queryFn: () => {
-      let result = datasets;
-      if (filters?.source) {
-        result = result.filter((d) => d.source === filters.source);
-      }
-      if (filters?.format) {
-        result = result.filter((d) => d.format === filters.format);
-      }
-      return result;
-    },
+    queryFn: () => result,
     // Data is always fresh since it comes from local Zustand store
     staleTime: Infinity,
     // No need to refetch — Zustand is the source of truth
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
+
+  return { ...query, data: result };
 }
 
 /**
@@ -48,7 +51,7 @@ export function useDataset(id: string | null) {
 
   return useQuery({
     queryKey: id ? queryKeys.datasets.detail(id) : ["datasets", "null"],
-    queryFn: () => (id ? getDatasetById(id) ?? null : null),
+    queryFn: () => (id ? (getDatasetById(id) ?? null) : null),
     enabled: !!id,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -66,7 +69,7 @@ export function useDatasetByTable(tableName: string | null) {
     queryKey: tableName
       ? queryKeys.datasets.byTable(tableName)
       : ["datasets", "null-table"],
-    queryFn: () => (tableName ? getDatasetByTable(tableName) ?? null : null),
+    queryFn: () => (tableName ? (getDatasetByTable(tableName) ?? null) : null),
     enabled: !!tableName,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -80,16 +83,19 @@ export function useDatasetByTable(tableName: string | null) {
 export function useActiveDataset() {
   const getActiveDataset = useDataStore((s) => s.getActiveDataset);
   const activeDatasetId = useDataStore((s) => s.activeDatasetId);
+  const activeDataset = getActiveDataset() ?? null;
 
-  return useQuery({
+  const query = useQuery({
     queryKey: activeDatasetId
       ? queryKeys.datasets.detail(activeDatasetId)
       : ["datasets", "active", "null"],
-    queryFn: () => getActiveDataset() ?? null,
+    queryFn: () => activeDataset,
     staleTime: Infinity,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
   });
+
+  return { ...query, data: activeDataset };
 }
 
 // ─── Mutations ───────────────────────────────────────────────────────────────
@@ -109,10 +115,7 @@ export function useAddDataset() {
     onSuccess: (dataset) => {
       // Invalidate dataset lists and set the new dataset detail
       queryClient.invalidateQueries({ queryKey: queryKeys.datasets.lists() });
-      queryClient.setQueryData(
-        queryKeys.datasets.detail(dataset.id),
-        dataset,
-      );
+      queryClient.setQueryData(queryKeys.datasets.detail(dataset.id), dataset);
       queryClient.setQueryData(
         queryKeys.datasets.byTable(dataset.tableName),
         dataset,

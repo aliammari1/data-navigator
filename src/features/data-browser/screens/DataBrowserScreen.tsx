@@ -1,29 +1,129 @@
 "use client";
 
-import {
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-  useMemo,
-  useTransition,
-} from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import dynamic from "next/dynamic";
-import { motion, AnimatePresence } from "motion/react";
 import Fuse from "fuse.js";
 import { produce } from "immer";
-import { cn } from "@/shared/utils";
+// Icons
 import {
-  runQuery,
-  getTableInfo,
-  getColumnStats,
-} from "@/platform/duckdb/duckdb";
-import { loadUploadFileToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
+  Activity,
+  AlertCircle,
+  ArrowDown,
+  ArrowUp,
+  ArrowUpDown,
+  BarChart2,
+  Bookmark,
+  BookmarkCheck,
+  Calendar,
+  CheckCircle2,
+  CheckSquare,
+  ChevronDown,
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+  ChevronUp,
+  CircleDot,
+  Code2,
+  Columns3,
+  Command,
+  Copy,
+  Database,
+  Download,
+  ExternalLink,
+  Eye,
+  EyeOff,
+  FileJson,
+  FileSpreadsheet,
+  FileText,
+  Filter,
+  Grid3X3,
+  Hash,
+  Info,
+  Keyboard,
+  LayoutGrid,
+  Loader2,
+  Maximize2,
+  Minimize2,
+  Minus,
+  MoreHorizontal,
+  PieChart,
+  Pin,
+  PinOff,
+  Plus,
+  RefreshCw,
+  Search,
+  Settings,
+  Share2,
+  SlidersHorizontal,
+  Sparkles,
+  Square,
+  Star,
+  StarOff,
+  Table2,
+  ToggleLeft,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+  Type,
+  Upload,
+  X,
+  XCircle,
+  Zap,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
+import { Badge } from "@/components/ui/badge";
+// UI components
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   OPERATOR_LABELS,
   PAGE_SIZES,
-  TABLE_NAME,
   TYPE_COLORS,
   TYPE_ICON,
 } from "@/features/data-browser/model/constants";
@@ -44,117 +144,14 @@ import type {
   SortConfig,
   ViewMode,
 } from "@/features/data-browser/model/types";
-
-// UI components
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
-  DropdownMenuLabel,
-} from "@/components/ui/dropdown-menu";
-import { Slider } from "@/components/ui/slider";
-import { Switch } from "@/components/ui/switch";
-import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import type * as Types from "@/features/telecom/types";
-
-// Icons
 import {
-  Search,
-  Filter,
-  Download,
-  RefreshCw,
-  Database,
-  Settings,
-  ChevronLeft,
-  ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
-  ArrowUp,
-  ArrowDown,
-  ArrowUpDown,
-  MoreHorizontal,
-  Copy,
-  Trash2,
-  Star,
-  StarOff,
-  ExternalLink,
-  Eye,
-  EyeOff,
-  Pin,
-  PinOff,
-  Table2,
-  Grid3X3,
-  BarChart2,
-  Code2,
-  X,
-  Plus,
-  Minus,
-  CheckSquare,
-  Square,
-  Hash,
-  Type,
-  Calendar,
-  ToggleLeft,
-  AlertCircle,
-  TrendingUp,
-  TrendingDown,
-  Zap,
-  Maximize2,
-  Minimize2,
-  Columns3,
-  SlidersHorizontal,
-  Share2,
-  Bookmark,
-  BookmarkCheck,
-  ChevronDown,
-  ChevronUp,
-  Command,
-  Keyboard,
-  Sparkles,
-  Activity,
-  LayoutGrid,
-  FileJson,
-  FileText,
-  FileSpreadsheet,
-  Info,
-  PieChart,
-  CircleDot,
-  Upload,
-  CheckCircle2,
-  XCircle,
-  Loader2,
-} from "lucide-react";
+  getColumnStats,
+  getTableInfo,
+  runQuery,
+} from "@/platform/duckdb/duckdb";
+import { loadUploadFileToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
+import { cn } from "@/shared/utils";
 
 // Lazy load Monaco Editor
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -177,6 +174,11 @@ import {
   DBStatusBadge,
   LoadingOverlay,
 } from "@/features/data-browser/components/table-widgets";
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DataBrowserScreen({
@@ -216,7 +218,7 @@ export default function DataBrowserScreen({
   const [queryLoading, setQueryLoading] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
   const [queryTime, setQueryTime] = useState<number | null>(null);
-  const [activeTable, setActiveTable] = useState<string>(TABLE_NAME);
+  const [activeTable, setActiveTable] = useState<string>(tableName);
   const [availableTables, setAvailableTables] = useState<string[]>([]);
   const [uploadPanelOpen, setUploadPanelOpen] = useState(false);
   const [uploadDragging, setUploadDragging] = useState(false);
@@ -256,14 +258,14 @@ export default function DataBrowserScreen({
 
   // Views
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [sqlQuery, setSqlQuery] = useState(
-    `SELECT *\nFROM "demo_data"\nLIMIT 100`,
-  );
   const [customQueryResult, setCustomQueryResult] = useState<
     Record<string, unknown>[] | null
   >(null);
   const [customQueryCols, setCustomQueryCols] = useState<string[]>([]);
   const [customQueryTime, setCustomQueryTime] = useState<number | null>(null);
+  const [sqlQuery, setSqlQuery] = useState(
+    `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100`,
+  );
 
   // Column UI
   const [colPanelOpen, setColPanelOpen] = useState(false);
@@ -288,26 +290,7 @@ export default function DataBrowserScreen({
   const [compactMode, setCompactMode] = useState(false);
   const [showRowNumbers, setShowRowNumbers] = useState(true);
   const [zebraStripes, setZebraStripes] = useState(true);
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([
-    {
-      id: "sq1",
-      name: "Top Revenue by Dept",
-      sql: `SELECT department, SUM(revenue) as total_revenue, AVG(profit_margin) as avg_margin\nFROM "demo_data"\nGROUP BY department\nORDER BY total_revenue DESC`,
-      createdAt: new Date(),
-    },
-    {
-      id: "sq2",
-      name: "Active Premium Users",
-      sql: `SELECT first_name, last_name, email, revenue\nFROM "demo_data"\nWHERE status = 'Active' AND is_premium = true\nORDER BY revenue DESC\nLIMIT 50`,
-      createdAt: new Date(),
-    },
-    {
-      id: "sq3",
-      name: "Revenue by Country",
-      sql: `SELECT country, COUNT(*) as users, SUM(revenue) as total, AVG(satisfaction_score) as avg_satisfaction\nFROM "demo_data"\nGROUP BY country\nORDER BY total DESC`,
-      createdAt: new Date(),
-    },
-  ]);
+  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
 
   const [analyticsTab, setAnalyticsTab] = useState("overview");
   const [analyticsData, setAnalyticsData] = useState<Record<string, unknown>[]>(
@@ -326,7 +309,7 @@ export default function DataBrowserScreen({
         setDbLoading(true);
 
         // Check for tables already loaded into DuckDB from upload page
-        let tableToUse = TABLE_NAME;
+        let tableToUse = tableName;
         let usingUploadedData = false;
 
         try {
@@ -341,7 +324,7 @@ export default function DataBrowserScreen({
             usingUploadedData = true;
           }
         } catch {
-          // SHOW TABLES failed, fall through to demo data
+          // SHOW TABLES failed, fall through to the provided table name.
         }
 
         if (!usingUploadedData) {
@@ -362,7 +345,7 @@ export default function DataBrowserScreen({
         let sampleRow: Record<string, unknown> = {};
         try {
           const sample = await runQuery(
-            `SELECT * FROM "${tableToUse}" LIMIT 1`,
+            `SELECT * FROM ${quoteIdentifier(tableToUse)} LIMIT 1`,
           );
           sampleRow = sample[0] ?? {};
         } catch {
@@ -387,7 +370,7 @@ export default function DataBrowserScreen({
         setDbReady(true);
         setDbLoading(false);
 
-        setSqlQuery(`SELECT *\nFROM "${tableToUse}"\nLIMIT 100`);
+        setSqlQuery(`SELECT * FROM ${quoteIdentifier(tableToUse)} LIMIT 100`);
       } catch (err) {
         console.error(err);
         if (!cancelled) setDbLoading(false);
@@ -404,12 +387,7 @@ export default function DataBrowserScreen({
 
     try {
       const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      if (ext === "xlsx" || ext === "xls") {
-        throw new Error(
-          "Excel import is available from the main Upload page. Use CSV/TSV/JSON here for large files.",
-        );
-      }
-      if (!["csv", "tsv", "txt", "json", "ndjson", "jsonl"].includes(ext)) {
+      if (ext !== "csv") {
         throw new Error(`Unsupported file type: .${ext}`);
       }
 
@@ -417,7 +395,10 @@ export default function DataBrowserScreen({
         (p) => p && { ...p, progress: 70, status: "loading_db" },
       );
 
-      const loaded = await loadUploadFileToDuckDB(file, { previewLimit: 1 });
+      const loaded = await loadUploadFileToDuckDB(file, {
+        previewLimit: 1,
+        fileExtension: ext,
+      });
       const tableName = loaded.tableName;
 
       setUploadingFile((p) => p && { ...p, progress: 100, status: "done" });
@@ -432,7 +413,9 @@ export default function DataBrowserScreen({
       const info = await getTableInfo(tableName);
       let sampleRow: Record<string, unknown> = {};
       try {
-        const sample = await runQuery(`SELECT * FROM "${tableName}" LIMIT 1`);
+        const sample = await runQuery(
+          `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 1`,
+        );
         sampleRow = sample[0] ?? {};
       } catch {
         /* ignore */
@@ -460,7 +443,7 @@ export default function DataBrowserScreen({
           d.rules = [];
         }),
       );
-      setSqlQuery(`SELECT *\nFROM "${tableName}"\nLIMIT 100`);
+      setSqlQuery(`SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100`);
 
       setTimeout(() => {
         setUploadingFile(null);
@@ -485,7 +468,7 @@ export default function DataBrowserScreen({
 
       // Count query
       const whereClause = buildWhereClause(filterGroup);
-      const countSql = `SELECT COUNT(*) as cnt FROM "${activeTable}"${whereClause ? ` WHERE ${whereClause}` : ""}`;
+      const countSql = `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(activeTable)}${whereClause ? ` WHERE ${whereClause}` : ""}`;
       const countResult = await runQuery(countSql);
       const newTotal = Number(countResult[0]?.cnt ?? 0);
       setTotalRows(newTotal);
@@ -523,26 +506,50 @@ export default function DataBrowserScreen({
     if (!dbReady || viewMode !== "analytics") return;
 
     async function fetchAnalytics() {
+      const dimension =
+        columns.find((column) =>
+          ["string", "email", "url", "date"].includes(column.type),
+        ) ?? columns[0];
+      const numericColumns = columns.filter(
+        (column) => column.type === "number",
+      );
+      const sumMetric = numericColumns[0];
+      const avgMetric = numericColumns[1] ?? sumMetric;
+      const secondaryMetric = numericColumns[2] ?? avgMetric;
+
+      if (!dimension || !sumMetric) {
+        setAnalyticsData([]);
+        return;
+      }
+
+      const dimensionSql = quoteIdentifier(dimension.id);
+      const sumMetricSql = quoteIdentifier(sumMetric.id);
+      const avgMetricSql = quoteIdentifier(avgMetric.id);
+      const secondaryMetricSql = quoteIdentifier(secondaryMetric.id);
+
       try {
         const data = await runQuery(`
-          SELECT department,
-            ROUND(SUM(revenue), 2) as total_revenue,
-            ROUND(AVG(profit_margin), 2) as avg_margin,
+          SELECT CAST(${dimensionSql} AS VARCHAR) as department,
+            ROUND(SUM(TRY_CAST(${sumMetricSql} AS DOUBLE)), 2) as total_revenue,
+            ROUND(AVG(TRY_CAST(${avgMetricSql} AS DOUBLE)), 2) as avg_margin,
             COUNT(*) as user_count,
-            ROUND(AVG(satisfaction_score), 2) as avg_satisfaction,
-            SUM(units_sold) as total_units
-          FROM "${activeTable}"
-          GROUP BY department
+            ROUND(AVG(TRY_CAST(${secondaryMetricSql} AS DOUBLE)), 2) as avg_satisfaction,
+            ROUND(SUM(TRY_CAST(${sumMetricSql} AS DOUBLE)), 2) as total_units
+          FROM ${quoteIdentifier(activeTable)}
+          WHERE ${sumMetricSql} IS NOT NULL
+          GROUP BY 1
           ORDER BY total_revenue DESC
+          LIMIT 20
         `);
         setAnalyticsData(data);
       } catch (e) {
         console.error(e);
+        setAnalyticsData([]);
       }
     }
 
     fetchAnalytics();
-  }, [dbReady, viewMode, activeTable]);
+  }, [activeTable, columns, dbReady, viewMode]);
 
   // ── Column Stats ──
   const loadColumnStats = useCallback(
@@ -564,7 +571,7 @@ export default function DataBrowserScreen({
       );
 
       try {
-        const stats = await getColumnStats(TABLE_NAME, colName);
+        const stats = await getColumnStats(activeTable, colName);
         setColumnStats((prev) =>
           produce(prev, (draft) => {
             draft[colName] = { ...stats, loading: false };
@@ -574,7 +581,7 @@ export default function DataBrowserScreen({
         console.error(e);
       }
     },
-    [dbReady, columnStats],
+    [activeTable, dbReady, columnStats],
   );
 
   useEffect(() => {
@@ -678,45 +685,33 @@ export default function DataBrowserScreen({
 
   // ── Export ──
   const exportData = useCallback(
-    (format: "csv" | "json" | "tsv") => {
+    (format: "csv") => {
       const data =
         selectedRows.size > 0 ? [...selectedRows].map((i) => rows[i]) : rows;
 
-      if (format === "json") {
-        const blob = new Blob([JSON.stringify(data, null, 2)], {
-          type: "application/json",
-        });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "export.json";
-        a.click();
-        URL.revokeObjectURL(url);
-      } else {
-        const sep = format === "tsv" ? "\t" : ",";
-        const headers = Object.keys(data[0] || {});
-        const csvRows = [
-          headers.join(sep),
-          ...data.map((r) =>
-            headers
-              .map((h) => {
-                const v = r[h];
-                const s = v == null ? "" : String(v);
-                return format === "csv" && (s.includes(",") || s.includes('"'))
-                  ? `"${s.replace(/"/g, '""')}"`
-                  : s;
-              })
-              .join(sep),
-          ),
-        ];
-        const blob = new Blob([csvRows.join("\n")], { type: "text/plain" });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `export.${format}`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
+      const sep = ",";
+      const headers = Object.keys(data[0] || {});
+      const csvRows = [
+        headers.join(sep),
+        ...data.map((r) =>
+          headers
+            .map((h) => {
+              const v = r[h];
+              const s = v == null ? "" : String(v);
+              return format === "csv" && (s.includes(",") || s.includes('"'))
+                ? `"${s.replaceAll('"', '""')}"`
+                : s;
+            })
+            .join(sep),
+        ),
+      ];
+      const blob = new Blob([csvRows.join("\n")], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `export.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
     },
     [rows, selectedRows],
   );
@@ -1039,7 +1034,7 @@ export default function DataBrowserScreen({
                     d.rules = [];
                   }),
                 );
-                setSqlQuery(`SELECT *\nFROM "${v}"\nLIMIT 100`);
+                setSqlQuery(`SELECT * FROM ${quoteIdentifier(v)} LIMIT 100`);
               }}
             >
               <SelectTrigger className="h-8 w-44 text-xs bg-zinc-900 border-zinc-800">
@@ -1187,20 +1182,6 @@ export default function DataBrowserScreen({
               >
                 <FileText className="h-3.5 w-3.5 text-zinc-500" />
                 CSV (.csv)
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => exportData("tsv")}
-                className="text-sm gap-2 text-zinc-300 focus:bg-zinc-800"
-              >
-                <FileSpreadsheet className="h-3.5 w-3.5 text-zinc-500" />
-                TSV (.tsv)
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => exportData("json")}
-                className="text-sm gap-2 text-zinc-300 focus:bg-zinc-800"
-              >
-                <FileJson className="h-3.5 w-3.5 text-zinc-500" />
-                JSON (.json)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1446,28 +1427,25 @@ export default function DataBrowserScreen({
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {[
-                        { ext: "CSV", color: "emerald" },
-                        { ext: "TSV", color: "emerald" },
-                        { ext: "JSON", color: "blue" },
-                        { ext: "XLSX", color: "green" },
-                      ].map(({ ext, color }) => (
-                        <Badge
-                          key={ext}
-                          variant="outline"
-                          className={cn(
-                            "text-[11px]",
-                            color === "emerald" &&
-                              "border-emerald-500/30 text-emerald-400",
-                            color === "blue" &&
-                              "border-blue-500/30 text-blue-400",
-                            color === "green" &&
-                              "border-green-500/30 text-green-400",
-                          )}
-                        >
-                          .{ext}
-                        </Badge>
-                      ))}
+                      {[{ ext: "CSV", color: "emerald" }].map(
+                        ({ ext, color }) => (
+                          <Badge
+                            key={ext}
+                            variant="outline"
+                            className={cn(
+                              "text-[11px]",
+                              color === "emerald" &&
+                                "border-emerald-500/30 text-emerald-400",
+                              color === "blue" &&
+                                "border-blue-500/30 text-blue-400",
+                              color === "green" &&
+                                "border-green-500/30 text-green-400",
+                            )}
+                          >
+                            .{ext}
+                          </Badge>
+                        ),
+                      )}
                     </div>
                   </div>
                 ) : (
@@ -2345,7 +2323,7 @@ export default function DataBrowserScreen({
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
+                        <div className="h-8 w-8 rounded-full bg-linear-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
                           {
                             String(
                               row.first_name ?? row[Object.keys(row)[1]] ?? "?",
@@ -2890,8 +2868,8 @@ export default function DataBrowserScreen({
                     </p>
                     <p className="text-xs text-zinc-600 mt-1">
                       Table:{" "}
-                      <code className="text-emerald-500/70">demo_data</code> (
-                      {totalRows.toLocaleString()} rows)
+                      <code className="text-emerald-500/70">{activeTable}</code>{" "}
+                      ({totalRows.toLocaleString()} rows)
                     </p>
                   </div>
                 </div>
@@ -3051,7 +3029,7 @@ export default function DataBrowserScreen({
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-zinc-800">
                 <div className="flex items-center gap-2">
-                  <div className="h-7 w-7 rounded-full bg-gradient-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
+                  <div className="h-7 w-7 rounded-full bg-linear-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
                     {
                       String(
                         rowDetailRow.first_name ??

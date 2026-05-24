@@ -8,7 +8,8 @@ export type UploadStatus =
   | "loading_db"
   | "done"
   | "error";
-export type FileType = "csv" | "json" | "xlsx" | "tsv" | "parquet" | "unknown";
+
+export type FileType = "csv";
 
 export interface ColumnInfo {
   name: string;
@@ -44,7 +45,6 @@ export interface ParsedFileInfo {
   dbTableName: string | null;
   error?: string;
   uploadedAt: Date;
-  delimiter: string;
   hasHeader: boolean;
   encoding: string;
   skipEmptyLines: boolean;
@@ -55,7 +55,6 @@ export interface ParsedFileInfo {
 }
 
 export interface UploadSettings {
-  delimiter: "auto" | "," | ";" | "\t" | "|";
   hasHeader: boolean;
   encoding: "UTF-8" | "ISO-8859-1" | "UTF-16";
   skipEmptyLines: boolean;

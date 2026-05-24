@@ -1,7 +1,5 @@
-import { type ChildProcess, spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import fs from "node:fs/promises";
-import http from "node:http";
 import path from "node:path";
 import {
   app,
@@ -10,11 +8,13 @@ import {
   ipcMain,
   type OpenDialogOptions,
   type SaveDialogOptions,
+  session,
 } from "electron";
-import squirrelStartup from "electron-squirrel-startup";
+import { getPort } from "get-port-please";
+import { startServer } from "next/dist/server/lib/start-server";
 import * as duckdbService from "./duckdb-service";
 
-if (squirrelStartup) {
+if (require("electron-squirrel-startup")) {
   app.quit();
 }
 
@@ -46,29 +46,6 @@ if (process.platform === "linux") {
 
 // Optional: allow GPUs that Chromium normally blocklists (older/integrated).
 app.commandLine.appendSwitch("ignore-gpu-blocklist");
-
-function getAppRoot(): string {
-  return app.getAppPath();
-}
-
-function getPreloadPath(): string {
-  const candidates = [
-    // Production (inside the packaged app directory)
-    path.join(getAppRoot(), "dist-electron", "preload.js"),
-    // Dev (running from repo root with `electron dist-electron/main.js`)
-    path.join(process.cwd(), "dist-electron", "preload.js"),
-    // Legacy / fallback paths
-    path.join(getAppRoot(), "preload.js"),
-    path.join(getAppRoot(), "out", "electron", "preload.js"),
-    path.join(process.cwd(), "out", "electron", "preload.js"),
-  ];
-
-  const preloadPath = candidates.find((candidate) => existsSync(candidate));
-  if (preloadPath) return preloadPath;
-
-  console.warn("[electron] preload script not found. Tried:", candidates);
-  return candidates[0];
-}
 
 // Local data directory for DuckDB exports and app data
 const DATA_DIR = path.join(app.getPath("userData"), "data-navigator");
@@ -200,24 +177,10 @@ ipcMain.handle(
     _event,
     tableName: string,
     filePath: string,
-    delimiter: string,
     append: boolean,
     hasHeader: boolean,
   ) => {
-    return duckdbService.loadCSVPath(
-      tableName,
-      filePath,
-      delimiter,
-      append,
-      hasHeader,
-    );
-  },
-);
-
-ipcMain.handle(
-  "duckdb:loadJSONPath",
-  async (_event, tableName: string, filePath: string) => {
-    return duckdbService.loadJSONPath(tableName, filePath);
+    return duckdbService.loadCSVPath(tableName, filePath, append, hasHeader);
   },
 );
 
@@ -227,24 +190,10 @@ ipcMain.handle(
     _event,
     tableName: string,
     buffer: ArrayBuffer,
-    delimiter: string,
     append: boolean,
     hasHeader: boolean,
   ) => {
-    return duckdbService.loadCSVBuffer(
-      tableName,
-      buffer,
-      delimiter,
-      append,
-      hasHeader,
-    );
-  },
-);
-
-ipcMain.handle(
-  "duckdb:loadJSONBuffer",
-  async (_event, tableName: string, buffer: ArrayBuffer) => {
-    return duckdbService.loadJSONBuffer(tableName, buffer);
+    return duckdbService.loadCSVBuffer(tableName, buffer, append, hasHeader);
   },
 );
 
@@ -289,111 +238,100 @@ async function createWindow(): Promise<void> {
     width: 1400,
     height: 900,
     webPreferences: {
-      preload: getPreloadPath(),
-      contextIsolation: true,
-      nodeIntegration: false,
-      // Required for SharedArrayBuffer (DuckDB WASM needs cross-origin isolation)
-      additionalArguments: ["--enable-features=SharedArrayBuffer"],
+      preload: path.join(__dirname, "preload.js"),
+      nodeIntegration: true,
     },
   });
 
   if (isDev) {
     await installReactDevTools();
-    await mainWindow.loadURL("http://localhost:3000");
+    mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
-    await mainWindow.loadURL("http://localhost:3001");
+    try {
+      const port = await startNextJSServer();
+      console.log("Next.js server started on port:", port);
+      mainWindow.loadURL(`http://localhost:${port}`);
+    } catch (error) {
+      console.error("Error starting Next.js server:", error);
+    }
   }
+
+  // ── Retry on load failure ─────────────────────────────────────────────
+  // When the Next.js server is slow to start or temporarily unreachable,
+  // Chromium shows chrome-error://chromewebdata/ and any subsequent reload
+  // is blocked by origin mismatch. By catching did-fail-load and retrying
+  // with loadURL (not reload), we bypass the error-page origin issue.
+  let loadRetries = 0;
+  const MAX_LOAD_RETRIES = 5;
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL) => {
+      if (loadRetries >= MAX_LOAD_RETRIES) {
+        console.error(
+          `[electron] Failed to load ${validatedURL} after ${MAX_LOAD_RETRIES} retries: ${errorDescription} (code ${errorCode})`,
+        );
+        return;
+      }
+      loadRetries++;
+      const delay = Math.min(1000 * loadRetries, 5000);
+      console.warn(
+        `[electron] Load failed (${errorDescription}), retrying in ${delay}ms (attempt ${loadRetries}/${MAX_LOAD_RETRIES})...`,
+      );
+      setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.loadURL(validatedURL);
+        }
+      }, delay);
+    },
+  );
 
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
 }
 
-// ─── Next.js standalone server (production) ───────────────────────────────────
+const startNextJSServer = async () => {
+  try {
+    const nextJSPort = await getPort({ portRange: [30_011, 50_000] });
+    const webDir = path.join(app.getAppPath(), "app");
+    const serverUrl = `http://localhost:${nextJSPort}`;
 
-let nextServer: ChildProcess | null = null;
+    process.env.BETTER_AUTH_URL = serverUrl;
 
-function startNextServer(): void {
-  const serverScript = path.join(
-    getAppRoot(),
-    ".next",
-    "standalone",
-    "server.js",
-  );
-  if (!existsSync(serverScript)) {
-    console.warn(
-      "[electron] Next.js standalone server not found:",
-      serverScript,
-    );
-    return;
+    await startServer({
+      dir: webDir,
+      isDev: false,
+      hostname: "localhost",
+      port: nextJSPort,
+      customServer: true,
+      allowRetry: false,
+      keepAliveTimeout: 5000,
+      minimalMode: true,
+    });
+
+    return nextJSPort;
+  } catch (error) {
+    console.error("Error starting Next.js server:", error);
+    throw error;
   }
-
-  nextServer = spawn(process.execPath, [serverScript], {
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: "1",
-      PORT: "3001",
-      HOSTNAME: "127.0.0.1",
-    },
-    stdio: "inherit",
-    windowsHide: true,
-  });
-
-  nextServer.on("error", (err) =>
-    console.error("[electron] Next.js server error:", err),
-  );
-}
-
-// ─── App lifecycle ────────────────────────────────────────────────────────────
-
-function waitForServer(url: string, timeoutMs = 30000): Promise<void> {
-  const start = Date.now();
-  return new Promise((resolve, reject) => {
-    const tryConnect = () => {
-      const req = http.get(url, (res) => {
-        if (res.statusCode && res.statusCode < 500) {
-          resolve();
-        } else {
-          retry();
-        }
-      });
-      req.on("error", retry);
-      req.setTimeout(1000, () => {
-        req.destroy();
-        retry();
-      });
-    };
-
-    const retry = () => {
-      if (Date.now() - start > timeoutMs) {
-        reject(new Error(`Server at ${url} did not become ready within ${timeoutMs}ms`));
-        return;
-      }
-      setTimeout(tryConnect, 300);
-    };
-
-    tryConnect();
-  });
-}
+};
 
 app.whenReady().then(async () => {
-  if (!isDev) {
-    startNextServer();
-    try {
-      await waitForServer("http://127.0.0.1:3001", 15000);
-    } catch (err) {
-      console.error("[electron] Server did not become ready:", err);
-    }
-  }
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    callback({ responseHeaders: headers });
+  });
+
   await createWindow();
+
+  app.on("activate", async () => {
+    if (BrowserWindow.getAllWindows().length === 0) {
+      await createWindow();
+    }
+  });
 });
 
 app.on("window-all-closed", () => {
-  nextServer?.kill();
   if (process.platform !== "darwin") app.quit();
-});
-
-app.on("activate", async () => {
-  if (mainWindow === null) await createWindow();
 });

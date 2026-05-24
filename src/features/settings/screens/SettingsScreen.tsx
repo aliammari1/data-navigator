@@ -392,22 +392,6 @@ export default function SettingsScreen() {
               {activeTab === "data" && (
                 <>
                   <Section title="Import & Parsing" icon={Database}>
-                    <SettingRow label="Default CSV delimiter">
-                      <SettingSelect<string>
-                        value={store.data.csvDelimiter}
-                        onChange={(v) =>
-                          store.setData({
-                            csvDelimiter: v as typeof store.data.csvDelimiter,
-                          })
-                        }
-                        options={[
-                          { value: ",", label: "Comma (,)" },
-                          { value: ";", label: "Semicolon (;)" },
-                          { value: "\t", label: "Tab (\\t)" },
-                          { value: "|", label: "Pipe (|)" },
-                        ]}
-                      />
-                    </SettingRow>
                     <SettingRow label="Max rows to load">
                       <div className="flex items-center gap-2">
                         <input

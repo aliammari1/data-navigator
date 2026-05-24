@@ -34,22 +34,22 @@ export function AtlasSection({
       transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
     >
       <AtlasCard variant="surface" pad="none">
-        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[var(--atlas-border)]">
+        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-(--atlas-border)">
           <div className="flex items-start gap-2.5 min-w-0">
             {icon && (
-              <div className="mt-0.5 text-[var(--atlas-accent-fg)] [&>svg]:w-4 [&>svg]:h-4">
+              <div className="mt-0.5 text-(--atlas-accent-fg) [&>svg]:w-4 [&>svg]:h-4">
                 {icon}
               </div>
             )}
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <h3 className="text-[var(--atlas-text)] text-sm font-semibold truncate">
+                <h3 className="text-(--atlas-text) text-sm font-semibold truncate">
                   {title}
                 </h3>
                 {badge}
               </div>
               {description && (
-                <p className="text-[var(--atlas-text-subtle)] text-xs mt-0.5 leading-snug">
+                <p className="text-(--atlas-text-subtle) text-xs mt-0.5 leading-snug">
                   {description}
                 </p>
               )}

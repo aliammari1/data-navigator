@@ -1,8 +1,5 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import Papa from "papaparse";
 import {
   AlertTriangle,
   Check,
@@ -27,16 +24,19 @@ import {
   X,
   XCircle,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import Papa from "papaparse";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { cn } from "@/shared/utils";
+import { toast } from "sonner";
+import type { ColMeta, Dataset } from "@/core/stores/data-store";
+import { useDataStore } from "@/core/stores/data-store";
 import {
   getTableInfo,
   loadDelimitedCSVFromFile,
   loadJSONToDuckDB,
 } from "@/platform/duckdb/duckdb";
-import { useDataStore } from "@/core/stores/data-store";
-import type { ColMeta, Dataset } from "@/core/stores/data-store";
-import { toast } from "sonner";
+import { cn } from "@/shared/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -60,14 +60,7 @@ interface ParsedResult {
 
 // ─── Delimiter options ────────────────────────────────────────────────────────
 
-const DELIMITERS = [
-  { label: "Auto-detect", value: "" },
-  { label: "Pipe  |", value: "|" },
-  { label: "Comma  ,", value: "," },
-  { label: "Semicolon  ;", value: ";" },
-  { label: "Tab  \\t", value: "\t" },
-  { label: "Space", value: " " },
-];
+const DELIMITERS = [{ label: "Pipe  |", value: "|" }];
 
 // ─── Type badge ───────────────────────────────────────────────────────────────
 
@@ -177,7 +170,7 @@ function rowsToCSV(rows: Record<string, unknown>[], headers: string[]): string {
         .map((h) => {
           const v = String(row[h] ?? "");
           return v.includes(",") || v.includes('"')
-            ? `"${v.replace(/"/g, '""')}"`
+            ? `"${v.replace('"', '""')}"`
             : v;
         })
         .join(","),
@@ -221,22 +214,20 @@ export default function CsvParserScreen() {
     async (files: File[]) => {
       const file = files[0];
       if (!file) return;
-      const directDelimiter = file.name.endsWith(".tsv") ? "\t" : ",";
-      if (file.name.endsWith(".tsv")) setDelimiter("\t");
-      else if (file.name.endsWith(".csv")) setDelimiter(",");
+      if (file.name.endsWith(".csv")) setDelimiter(",");
 
       if (file.size >= LARGE_FILE_DIRECT_LOAD_BYTES) {
         const safeName =
           file.name
             .replace(/\.[^.]+$/, "")
-            .replace(/[^a-zA-Z0-9_]/g, "_")
+            .replace(/\W/g, "_")
             .replace(/_+/g, "_")
             .replace(/^_|_$/g, "")
             .toLowerCase() || "parsed_data";
 
         setLoadingDB(true);
         try {
-          await loadDelimitedCSVFromFile(safeName, file, directDelimiter);
+          await loadDelimitedCSVFromFile(safeName, file);
           const info = await getTableInfo(safeName);
           markTableLoaded(safeName);
           const dsId = `ds_csv_${Date.now()}`;
@@ -349,7 +340,7 @@ export default function CsvParserScreen() {
     const activeCols = colConfigs.filter((c) => c.include);
     const headers = activeCols.map((c) => c.alias);
 
-    let rows = parsed.rows
+    const rows = parsed.rows
       .filter((row) => applyFilter(row, filterExpr))
       .slice(0, previewLimit)
       .map((row) =>

@@ -26,7 +26,7 @@ export function StepLineage({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs text-[var(--atlas-text-subtle)]">
+        <span className="text-xs text-(--atlas-text-subtle)">
           {entries.length} events
         </span>
         <AtlasButton variant="outline" size="sm" onClick={exportJSON}>
@@ -35,31 +35,31 @@ export function StepLineage({
       </div>
       <div className="space-y-1.5">
         {entries.length === 0 && (
-          <p className="text-sm text-[var(--atlas-text-subtle)]">
+          <p className="text-sm text-(--atlas-text-subtle)">
             Nothing logged yet.
           </p>
         )}
         {entries.map((e) => (
           <div
             key={e.id}
-            className="rounded-[var(--atlas-radius-2)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] px-3 py-2"
+            className="rounded-(--atlas-radius-2) border border-(--atlas-border) bg-(--atlas-surface) px-3 py-2"
           >
             <div className="flex items-center gap-2 mb-0.5">
               <AtlasChip severity="accent" size="sm">
                 {e.step}
               </AtlasChip>
-              <span className="text-[10px] text-[var(--atlas-text-subtle)] tabular-nums">
+              <span className="text-[10px] text-(--atlas-text-subtle) tabular-nums">
                 {new Date(e.ts).toLocaleTimeString()}
               </span>
               {e.durationMs && (
-                <span className="ml-auto text-[10px] text-[var(--atlas-success-fg)] tabular-nums">
+                <span className="ml-auto text-[10px] text-(--atlas-success-fg) tabular-nums">
                   {e.durationMs}ms
                 </span>
               )}
             </div>
-            <div className="text-xs text-[var(--atlas-text)]">{e.message}</div>
+            <div className="text-xs text-(--atlas-text)">{e.message}</div>
             {e.detail && (
-              <div className="text-[10px] text-[var(--atlas-text-subtle)] font-mono mt-0.5 truncate">
+              <div className="text-[10px] text-(--atlas-text-subtle) font-mono mt-0.5 truncate">
                 {e.detail}
               </div>
             )}

@@ -322,13 +322,13 @@ export default function AutoAnalystScreen() {
   if (!tables.length) {
     return (
       <div className="flex flex-col items-center justify-center h-full py-20 px-6 text-center">
-        <div className="w-16 h-16 rounded-[var(--atlas-radius-4)] bg-[var(--atlas-accent-soft)] border border-[var(--atlas-accent-border)] flex items-center justify-center mb-5">
-          <Bot className="w-7 h-7 text-[var(--atlas-accent-fg)]" />
+        <div className="w-16 h-16 rounded-(--atlas-radius-4) bg-(--atlas-accent-soft) border border-(--atlas-accent-border) flex items-center justify-center mb-5">
+          <Bot className="w-7 h-7 text-(--atlas-accent-fg)" />
         </div>
-        <h1 className="text-2xl font-bold text-[var(--atlas-text)] mb-2">
+        <h1 className="text-2xl font-bold text-(--atlas-text) mb-2">
           AI Auto-Analyst
         </h1>
-        <p className="text-sm text-[var(--atlas-text-subtle)] max-w-lg leading-relaxed mb-6">
+        <p className="text-sm text-(--atlas-text-subtle) max-w-lg leading-relaxed mb-6">
           Replaces a junior data analyst — profile, quality, hypotheses,
           statistics, anomalies, segmentation, forecasting, narrative and
           recommendations, all running offline in your browser. Upload a dataset
@@ -353,15 +353,15 @@ export default function AutoAnalystScreen() {
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* Header */}
-      <header className="flex-none px-5 py-3 border-b border-[var(--atlas-border)] flex items-center gap-3 flex-wrap bg-[var(--atlas-bg-subtle)]">
-        <Bot className="w-5 h-5 text-[var(--atlas-accent-fg)]" />
-        <h1 className="text-base font-bold text-[var(--atlas-text)]">
+      <header className="flex-none px-5 py-3 border-b border-(--atlas-border) flex items-center gap-3 flex-wrap bg-(--atlas-bg-subtle)">
+        <Bot className="w-5 h-5 text-(--atlas-accent-fg)" />
+        <h1 className="text-base font-bold text-(--atlas-text)">
           Auto-Analyst
         </h1>
         <select
           value={active}
           onChange={(e) => onSelectTable(e.target.value)}
-          className="bg-[var(--atlas-surface)] border border-[var(--atlas-border)] rounded-lg px-3 py-1.5 text-xs text-[var(--atlas-text)] outline-none focus:border-[var(--atlas-accent-border)]"
+          className="bg-(--atlas-surface) border border-(--atlas-border) rounded-lg px-3 py-1.5 text-xs text-(--atlas-text) outline-none focus:border-(--atlas-accent-border)"
         >
           {tables.map((t) => (
             <option key={t} value={t}>
@@ -420,20 +420,20 @@ export default function AutoAnalystScreen() {
 
       {/* Top error */}
       {topErr && (
-        <div className="px-5 py-2 bg-[var(--atlas-danger-soft)] border-b border-[var(--atlas-danger-border)] text-[var(--atlas-danger-fg)] text-xs">
+        <div className="px-5 py-2 bg-(--atlas-danger-soft) border-b border-(--atlas-danger-border) text-(--atlas-danger-fg) text-xs">
           {topErr}
         </div>
       )}
 
       <div className="flex-1 overflow-hidden flex">
         {/* Left rail */}
-        <aside className="w-60 flex-none border-r border-[var(--atlas-border)] bg-[var(--atlas-bg-subtle)] overflow-y-auto px-2.5 py-3">
+        <aside className="w-60 flex-none border-r border-(--atlas-border) bg-(--atlas-bg-subtle) overflow-y-auto px-2.5 py-3">
           <div className="px-1.5 mb-2 flex items-center gap-2">
-            <span className="text-[10px] uppercase tracking-wide font-bold text-[var(--atlas-text-subtle)]">
+            <span className="text-[10px] uppercase tracking-wide font-bold text-(--atlas-text-subtle)">
               Pipeline
             </span>
             {running && (
-              <Loader2 className="w-3 h-3 animate-spin text-[var(--atlas-accent-fg)]" />
+              <Loader2 className="w-3 h-3 animate-spin text-(--atlas-accent-fg)" />
             )}
           </div>
           <AtlasStepper

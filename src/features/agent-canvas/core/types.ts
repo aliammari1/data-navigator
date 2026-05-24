@@ -1,5 +1,7 @@
 // ─── Chart & Widget Types ─────────────────────────────────────────────────────
 
+import type { NonEmptyArray } from "@/shared/types";
+
 export type ChartType =
   | "bar"
   | "horizontal-bar"
@@ -34,7 +36,7 @@ export interface LLMModelDef {
   badge?: string;
 }
 
-export const MODEL_CATALOG: LLMModelDef[] = [
+export const MODEL_CATALOG: NonEmptyArray<LLMModelDef> = [
   {
     id: "HuggingFaceTB/SmolLM2-360M-Instruct",
     label: "SmolLM2 360M",

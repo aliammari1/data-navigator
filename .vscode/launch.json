@@ -5,7 +5,7 @@
       "name": "Start Electron Dev",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bun run electron:dev",
+      "command": "npm run electron:dev",
       "cwd": "${workspaceFolder}"
     },
     {
@@ -31,7 +31,7 @@
       "name": "Start Electron Dev Debug",
       "type": "node-terminal",
       "request": "launch",
-      "command": "bun run electron:dev:debug",
+      "command": "npm run electron:dev:debug",
       "cwd": "${workspaceFolder}"
     }
   ],

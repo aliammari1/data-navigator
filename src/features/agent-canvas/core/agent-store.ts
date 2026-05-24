@@ -6,13 +6,13 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
+import type { TraceNode } from "@/features/agent-canvas/core/event-bus";
 import type {
-  WidgetState,
   AgentPhase,
   AgentThought,
   DashboardPlan,
+  WidgetState,
 } from "@/features/agent-canvas/core/types";
-import type { TraceNode } from "@/features/agent-canvas/core/event-bus";
 
 // ─── SQL IDE state ────────────────────────────────────────────────────────────
 
@@ -135,10 +135,19 @@ export interface AgentStoreState {
   incTools: () => void;
 }
 
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
+
+export function defaultSQLForTable(tableName?: string): string {
+  if (!tableName) return "SHOW TABLES;";
+  return `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100;`;
+}
+
 const DEFAULT_SQL_TAB: SQLTab = {
   id: "tab-1",
   label: "Query 1",
-  sql: "-- Write SQL here\nSELECT * FROM data LIMIT 100;",
+  sql: defaultSQLForTable(),
   results: [],
   running: false,
 };
@@ -208,6 +217,12 @@ export const useAgentStore = create<AgentStoreState>()(
       set((s) => {
         s.tableName = table;
         s.fileName = file;
+        if (
+          s.sqlTabs.length === 1 &&
+          s.sqlTabs[0]?.sql === DEFAULT_SQL_TAB.sql
+        ) {
+          s.sqlTabs[0].sql = defaultSQLForTable(table);
+        }
       }),
     setThreadId: (id) =>
       set((s) => {

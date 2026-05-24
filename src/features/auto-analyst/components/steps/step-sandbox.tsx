@@ -103,37 +103,37 @@ print(df.describe(include='all').T)
   }, []);
 
   return (
-    <div className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] overflow-hidden">
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--atlas-border)]">
-        <Terminal className="w-4 h-4 text-[var(--atlas-success-fg)]" />
-        <span className="text-sm font-semibold text-[var(--atlas-text)]">
+    <div className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) overflow-hidden">
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-(--atlas-border)">
+        <Terminal className="w-4 h-4 text-(--atlas-success-fg)" />
+        <span className="text-sm font-semibold text-(--atlas-text)">
           Python Sandbox · Pyodide
         </span>
         {ready ? (
-          <span className="text-[10px] text-[var(--atlas-success-fg)]">
+          <span className="text-[10px] text-(--atlas-success-fg)">
             ● ready
           </span>
         ) : progress ? (
-          <span className="text-[10px] text-[var(--atlas-warning-fg)]">
+          <span className="text-[10px] text-(--atlas-warning-fg)">
             {progress}
           </span>
         ) : null}
-        <span className="ml-auto text-[10px] text-[var(--atlas-text-subtle)]">
+        <span className="ml-auto text-[10px] text-(--atlas-text-subtle)">
           {tableName} · {rows.length} rows
         </span>
         <AtlasButton variant="ghost" size="xs" onClick={reset}>
           <RefreshCw className="w-3 h-3" /> Reset
         </AtlasButton>
       </div>
-      <div className="grid lg:grid-cols-2 gap-px bg-[var(--atlas-border)]">
-        <div className="bg-[var(--atlas-surface)] flex flex-col min-h-[300px]">
+      <div className="grid lg:grid-cols-2 gap-px bg-(--atlas-border)">
+        <div className="bg-(--atlas-surface) flex flex-col min-h-[300px]">
           <textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
-            className="atlas-focus-ring flex-1 bg-transparent p-3 text-xs font-mono text-[var(--atlas-text)] outline-none resize-none"
+            className="atlas-focus-ring flex-1 bg-transparent p-3 text-xs font-mono text-(--atlas-text) outline-none resize-none"
           />
-          <div className="px-3 py-2 border-t border-[var(--atlas-border)] flex items-center gap-2">
+          <div className="px-3 py-2 border-t border-(--atlas-border) flex items-center gap-2">
             <AtlasButton
               variant="solid"
               size="sm"
@@ -158,15 +158,15 @@ print(df.describe(include='all').T)
             </AtlasButton>
           </div>
         </div>
-        <div className="bg-[var(--atlas-bg-subtle)] min-h-[300px] flex flex-col">
-          <div className="px-3 py-1.5 border-b border-[var(--atlas-border)] text-[10px] uppercase tracking-wide text-[var(--atlas-text-subtle)] font-bold">
+        <div className="bg-(--atlas-bg-subtle) min-h-[300px] flex flex-col">
+          <div className="px-3 py-1.5 border-b border-(--atlas-border) text-[10px] uppercase tracking-wide text-(--atlas-text-subtle) font-bold">
             Output
           </div>
-          <pre className="flex-1 overflow-auto p-3 text-xs font-mono text-[var(--atlas-text)] whitespace-pre-wrap">
+          <pre className="flex-1 overflow-auto p-3 text-xs font-mono text-(--atlas-text) whitespace-pre-wrap">
             {output ||
               "Press Run. The current dataset is bound to `df` (pandas DataFrame)."}
             {error && (
-              <span className="text-[var(--atlas-danger-fg)]">
+              <span className="text-(--atlas-danger-fg)">
                 {"\n"}
                 {error}
               </span>

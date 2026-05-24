@@ -6,7 +6,7 @@ import type { NarrativeBullet } from "@/features/auto-analyst/core/types";
 export function StepNarrative({ bullets }: { bullets: NarrativeBullet[] }) {
   if (!bullets.length)
     return (
-      <p className="text-sm text-[var(--atlas-text-subtle)]">
+      <p className="text-sm text-(--atlas-text-subtle)">
         Run the analysis steps first — narrative will summarise the findings.
       </p>
     );

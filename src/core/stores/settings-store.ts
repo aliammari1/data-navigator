@@ -25,7 +25,6 @@ interface DataSettings {
   defaultDateFormat: string;
   numberLocale: string;
   decimalSeparator: "." | ",";
-  csvDelimiter: "," | ";" | "\t" | "|";
   nullDisplay: string;
   enableQueryHistory: boolean;
 }
@@ -91,7 +90,6 @@ const DEFAULT_DATA: DataSettings = {
   defaultDateFormat: "MMM d, yyyy",
   numberLocale: "en-US",
   decimalSeparator: ".",
-  csvDelimiter: ",",
   nullDisplay: "—",
   enableQueryHistory: true,
 };

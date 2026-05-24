@@ -18,9 +18,12 @@ export interface KpiValidationResult {
   warnings: string[];
 }
 
-const FORBIDDEN_PATTERN = /\b(DROP|DELETE|TRUNCATE|INSERT|UPDATE|ALTER|CREATE|ATTACH|DETACH|COPY|EXECUTE|PRAGMA|VACUUM|LOAD|INSTALL)\b/i;
+const FORBIDDEN_PATTERN =
+  /\b(DROP|DELETE|TRUNCATE|INSERT|UPDATE|ALTER|CREATE|ATTACH|DETACH|COPY|EXECUTE|PRAGMA|VACUUM|LOAD|INSTALL)\b/i;
 
-export function isSafeKpiSql(sql: string): { safe: true } | { safe: false; reason: string } {
+export function isSafeKpiSql(
+  sql: string,
+): { safe: true } | { safe: false; reason: string } {
   if (!sql.trim()) {
     return { safe: false, reason: "SQL is empty" };
   }
@@ -78,7 +81,9 @@ export async function validateKpiSql(
     const durationMs = Math.round(performance.now() - start);
 
     if (!Array.isArray(data) || data.length === 0) {
-      warnings.push("Query returned no rows — check filters or data availability");
+      warnings.push(
+        "Query returned no rows — check filters or data availability",
+      );
     }
 
     return {
@@ -105,20 +110,34 @@ export function validateSqlDatasetScope(
   sql: string,
   tableName: string,
   columns: Array<{ name: string }>,
-): { valid: true; fieldsDetected: string[] } | { valid: false; reason: string; fieldsDetected: string[] } {
+):
+  | { valid: true; fieldsDetected: string[] }
+  | { valid: false; reason: string; fieldsDetected: string[] } {
   const sqlWithoutLiterals = sql.replace(/'([^']|'')*'/g, "''");
   const fieldsDetected = columns
     .filter((col) => {
-      const quoted = new RegExp(`"${escapeRegExp(col.name.replace(/"/g, '""'))}"`, "i");
+      const quoted = new RegExp(
+        `"${escapeRegExp(col.name.replace('"', '""'))}"`,
+        "i",
+      );
       const bare = new RegExp(`\\b${escapeRegExp(col.name)}\\b`, "i");
       return quoted.test(sqlWithoutLiterals) || bare.test(sqlWithoutLiterals);
     })
     .map((col) => col.name);
 
-  const escapedTable = tableName.replace(/"/g, '""');
-  const quotedTable = new RegExp(`\\bfrom\\s+"${escapeRegExp(escapedTable)}"(?:\\s|$|,)`, "i");
-  const bareTable = new RegExp(`\\bfrom\\s+${escapeRegExp(tableName)}(?:\\s|$|,)`, "i");
-  if (!quotedTable.test(sqlWithoutLiterals) && !bareTable.test(sqlWithoutLiterals)) {
+  const escapedTable = tableName.replace('"', '""');
+  const quotedTable = new RegExp(
+    `\\bfrom\\s+"${escapeRegExp(escapedTable)}"(?:\\s|$|,)`,
+    "i",
+  );
+  const bareTable = new RegExp(
+    `\\bfrom\\s+${escapeRegExp(tableName)}(?:\\s|$|,)`,
+    "i",
+  );
+  if (
+    !quotedTable.test(sqlWithoutLiterals) &&
+    !bareTable.test(sqlWithoutLiterals)
+  ) {
     return {
       valid: false,
       reason: `SQL must read from the active table "${tableName}"`,
@@ -130,7 +149,8 @@ export function validateSqlDatasetScope(
   if (fieldsDetected.length === 0 && !countAll) {
     return {
       valid: false,
-      reason: "SQL must reference at least one known column or an explicit COUNT(*)",
+      reason:
+        "SQL must reference at least one known column or an explicit COUNT(*)",
       fieldsDetected,
     };
   }

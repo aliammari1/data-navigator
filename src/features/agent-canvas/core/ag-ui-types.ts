@@ -173,10 +173,5 @@ export function makeEvent<
     timestamp: Date.now(),
     threadId: ctx.threadId,
     runId: ctx.runId,
-  } as T & {
-    messageId: string;
-    timestamp: number;
-    threadId: string;
-    runId: string;
   };
 }

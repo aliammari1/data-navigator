@@ -90,18 +90,18 @@ function ForecastPanel({ series }: { series: ForecastSeries }) {
   const pct = lastY === 0 ? 0 : ((nextY - lastY) / Math.abs(lastY)) * 100;
 
   return (
-    <div className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-3">
+    <div className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-3">
       <div className="flex items-baseline justify-between mb-2">
-        <h4 className="text-sm font-semibold text-[var(--atlas-text)]">
+        <h4 className="text-sm font-semibold text-(--atlas-text)">
           {series.column}
         </h4>
         <span
           className={`text-xs font-semibold tabular-nums ${
             pct > 0
-              ? "text-[var(--atlas-success-fg)]"
+              ? "text-(--atlas-success-fg)"
               : pct < 0
-                ? "text-[var(--atlas-danger-fg)]"
-                : "text-[var(--atlas-text-muted)]"
+                ? "text-(--atlas-danger-fg)"
+                : "text-(--atlas-text-muted)"
           }`}
         >
           {pct >= 0 ? "+" : ""}
@@ -120,7 +120,7 @@ function ForecastPanel({ series }: { series: ForecastSeries }) {
 export function StepForecast({ series }: { series: ForecastSeries[] }) {
   if (!series.length)
     return (
-      <p className="text-sm text-[var(--atlas-text-subtle)]">
+      <p className="text-sm text-(--atlas-text-subtle)">
         No time-series detected. Need a datetime column + numeric metric.
       </p>
     );

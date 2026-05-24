@@ -12,7 +12,7 @@ const MAX_K = 6;
 const MAX_ITER = 50;
 
 function quote(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace('"', '""')}"`;
 }
 
 function dist2(a: number[], b: number[]): number {

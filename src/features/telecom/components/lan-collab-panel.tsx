@@ -552,6 +552,7 @@ export function LanCollabPanel() {
                 <span className="text-xs">Click to choose a file</span>
                 <input
                   type="file"
+                  accept=".csv"
                   className="sr-only"
                   onChange={(e) => {
                     const file = e.target.files?.[0];

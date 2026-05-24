@@ -20,7 +20,7 @@ function classifyDuckType(t: string): SemanticType {
 }
 
 function quote(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace('"', '""')}"`;
 }
 
 async function fetchHistogram(

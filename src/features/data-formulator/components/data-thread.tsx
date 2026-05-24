@@ -107,7 +107,7 @@ function ThreadStepCard({ step, onFork }: ThreadStepProps) {
               <div className="px-3 pb-3 space-y-2">
                 {/* Reasoning */}
                 {step.reasoning && (
-                  <div className="rounded-lg bg-white/[0.03] border border-white/5 p-2">
+                  <div className="rounded-lg bg-white/3 border border-white/5 p-2">
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide mb-1">
                       Reasoning
                     </p>
@@ -117,7 +117,7 @@ function ThreadStepCard({ step, onFork }: ThreadStepProps) {
 
                 {/* SQL */}
                 {step.sql && (
-                  <div className="rounded-lg bg-white/[0.03] border border-white/5 p-2">
+                  <div className="rounded-lg bg-white/3 border border-white/5 p-2">
                     <div className="flex items-center justify-between mb-1">
                       <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide">
                         SQL
@@ -138,7 +138,7 @@ function ThreadStepCard({ step, onFork }: ThreadStepProps) {
 
                 {/* Agent plan */}
                 {step.agentPlan && step.agentPlan.length > 0 && (
-                  <div className="rounded-lg bg-white/[0.03] border border-white/5 p-2">
+                  <div className="rounded-lg bg-white/3 border border-white/5 p-2">
                     <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wide mb-1">
                       Plan
                     </p>

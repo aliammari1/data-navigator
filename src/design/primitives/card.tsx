@@ -8,14 +8,14 @@ const card = tv({
   variants: {
     variant: {
       surface:
-        "bg-[var(--atlas-surface)] border border-[var(--atlas-border)] rounded-[var(--atlas-radius-3)]",
+        "bg-(--atlas-surface) border border-(--atlas-border) rounded-(--atlas-radius-3)",
       elevated:
-        "bg-[var(--atlas-surface-raised)] border border-[var(--atlas-border)] rounded-[var(--atlas-radius-3)] shadow-[var(--atlas-shadow-3)]",
+        "bg-(--atlas-surface-raised) border border-(--atlas-border) rounded-(--atlas-radius-3) shadow-(--atlas-shadow-3)",
       outlined:
-        "bg-transparent border border-[var(--atlas-border)] rounded-[var(--atlas-radius-3)]",
+        "bg-transparent border border-(--atlas-border) rounded-(--atlas-radius-3)",
       interactive:
-        "bg-[var(--atlas-surface)] border border-[var(--atlas-border)] rounded-[var(--atlas-radius-3)] hover:border-[var(--atlas-accent-border)] hover:shadow-[var(--atlas-shadow-2)] transition-[border-color,box-shadow,transform] cursor-pointer",
-      glow: "bg-[var(--atlas-surface)] border border-[var(--atlas-accent-border)] rounded-[var(--atlas-radius-3)] shadow-[var(--atlas-glow-accent)]",
+        "bg-(--atlas-surface) border border-(--atlas-border) rounded-(--atlas-radius-3) hover:border-(--atlas-accent-border) hover:shadow-(--atlas-shadow-2) transition-[border-color,box-shadow,transform] cursor-pointer",
+      glow: "bg-(--atlas-surface) border border-(--atlas-accent-border) rounded-(--atlas-radius-3) shadow-(--atlas-glow-accent)",
     },
     pad: {
       none: "",

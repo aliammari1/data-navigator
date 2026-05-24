@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import { tv, type VariantProps } from "tailwind-variants";
 
 const input = tv({
-  base: "atlas-focus-ring w-full bg-[var(--atlas-surface)] border border-[var(--atlas-border)] text-[var(--atlas-text)] placeholder:text-[var(--atlas-text-subtle)] outline-none transition-colors hover:border-[var(--atlas-border-strong)] focus:border-[var(--atlas-accent-border)]",
+  base: "atlas-focus-ring w-full bg-(--atlas-surface) border border-(--atlas-border) text-(--atlas-text) placeholder:text-(--atlas-text-subtle) outline-none transition-colors hover:border-(--atlas-border-strong) focus:border-(--atlas-accent-border)",
   variants: {
     size: {
       sm: "h-7 px-2 text-xs rounded-md",
@@ -12,7 +12,7 @@ const input = tv({
       lg: "h-11 px-4 text-sm rounded-xl",
     },
     invalid: {
-      true: "border-[var(--atlas-danger-border)] focus:border-[var(--atlas-danger)]",
+      true: "border-(--atlas-danger-border) focus:border-(--atlas-danger)",
     },
   },
   defaultVariants: { size: "md" },
@@ -39,7 +39,7 @@ export const AtlasTextarea = forwardRef<
 >(({ className, ...props }, ref) => (
   <textarea
     ref={ref}
-    className={`atlas-focus-ring w-full bg-[var(--atlas-surface)] border border-[var(--atlas-border)] text-[var(--atlas-text)] placeholder:text-[var(--atlas-text-subtle)] outline-none rounded-lg px-3 py-2 text-sm hover:border-[var(--atlas-border-strong)] focus:border-[var(--atlas-accent-border)] resize-y ${className ?? ""}`}
+    className={`atlas-focus-ring w-full bg-(--atlas-surface) border border-(--atlas-border) text-(--atlas-text) placeholder:text-(--atlas-text-subtle) outline-none rounded-lg px-3 py-2 text-sm hover:border-(--atlas-border-strong) focus:border-(--atlas-accent-border) resize-y ${className ?? ""}`}
     {...props}
   />
 ));

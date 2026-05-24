@@ -24,28 +24,12 @@ export function detectFileType(name: string): FileType {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
   const map: Record<string, FileType> = {
     csv: "csv",
-    tsv: "tsv",
-    txt: "csv",
-    json: "json",
-    xlsx: "xlsx",
-    xls: "xlsx",
-    parquet: "parquet",
   };
   return map[ext] ?? "unknown";
 }
 
 export function getFileIcon(type: FileType) {
-  switch (type) {
-    case "csv":
-    case "tsv":
-      return <FileText className="h-5 w-5 text-emerald-400" />;
-    case "json":
-      return <FileJson className="h-5 w-5 text-blue-400" />;
-    case "xlsx":
-      return <FileSpreadsheet className="h-5 w-5 text-green-400" />;
-    default:
-      return <File className="h-5 w-5 text-zinc-400" />;
-  }
+  return <FileText className="h-5 w-5 text-emerald-400" />;
 }
 
 export function inferColumnType(values: unknown[]): ColumnInfo["type"] {

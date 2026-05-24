@@ -1,9 +1,5 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import { motion, useScroll, useTransform } from "motion/react";
-import dynamic from "next/dynamic";
 import {
   ArrowRight,
   BarChart3,
@@ -20,6 +16,10 @@ import {
   Wifi,
   Zap,
 } from "lucide-react";
+import { motion, useScroll, useTransform } from "motion/react";
+import dynamic from "next/dynamic";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
@@ -34,6 +34,7 @@ function Counter({ to, suffix = "" }: { to: number; suffix?: string }) {
     const el = ref.current;
     if (!el) return;
     const obs = new IntersectionObserver(([entry]) => {
+      if (!entry) return;
       if (entry.isIntersecting && !started.current) {
         started.current = true;
         const dur = 1500;
@@ -503,7 +504,7 @@ export default function LandingPage() {
                 step: "01",
                 icon: Upload,
                 title: "Upload your data",
-                desc: "Drag & drop CSV, JSON, Parquet, or Excel. Parsed instantly in-browser — no server needed.",
+                desc: "Drag & drop CSV, Parquet, or Excel. Parsed instantly in-browser — no server needed.",
                 color: "text-indigo-400",
               },
               {

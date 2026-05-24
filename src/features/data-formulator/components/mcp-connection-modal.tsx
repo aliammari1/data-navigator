@@ -64,7 +64,7 @@ export function McpConnectionModal() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm"
+        className="fixed inset-0 z-100 flex items-center justify-center bg-black/60 backdrop-blur-sm"
         onClick={() => setShow(false)}
       >
         <motion.div
@@ -102,7 +102,7 @@ export function McpConnectionModal() {
               return (
                 <div
                   key={conn.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.04] transition-colors"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-xl border border-white/5 bg-white/2 hover:bg-white/4 transition-colors"
                 >
                   <div className={cn(
                     "w-8 h-8 rounded-lg flex items-center justify-center",

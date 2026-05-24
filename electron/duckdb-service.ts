@@ -10,15 +10,15 @@
  * - Write operations are serialized via `enqueueWrite` to prevent lock contention.
  * - Read queries are distributed round-robin across read connections.
  * - File loading is path-based: DuckDB reads local files directly via
- *   `read_csv_auto()`, `read_json_auto()`, `read_parquet()`.
+ *   `read_csv_auto()`, `read_parquet()`.
  * - For drag-and-drop / buffer-based loads, data is staged to a temp file first.
  */
 
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { app } from "electron";
 import { type DuckDBConnection, DuckDBInstance } from "@duckdb/node-api";
+import { app } from "electron";
 
 // ─── Singleton state ──────────────────────────────────────────────────────────
 
@@ -40,7 +40,7 @@ function enqueueWrite<T>(operation: () => Promise<T>): Promise<T> {
 let readConnIndex = 0;
 const READ_CONN_COUNT = 3; // 1 write + 3 read = 4 total
 
-function getReadConnection(): DuckDBConnection {
+function getReadConnection(): DuckDBConnection | undefined {
   if (readConns.length === 0) {
     if (!writeConn) throw new Error("DuckDB connection not initialized");
     return writeConn;
@@ -64,11 +64,22 @@ function isReadOnlyQuery(sql: string): boolean {
 // ─── SQL helpers ──────────────────────────────────────────────────────────────
 
 function quoteSqlString(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  return `"${value.replace('"', '""')}"`;
+}
+
+function buildPipeCsvOptions(hasHeader: boolean): string {
+  return [
+    hasHeader ? "header = true" : "header = false",
+    "delim = '|'",
+    "strict_mode = false",
+    "null_padding = true",
+    "sample_size = -1",
+    "max_line_size = 10000000",
+  ].join(", ");
 }
 
 // ─── Temp file management ─────────────────────────────────────────────────────
@@ -410,7 +421,6 @@ export async function getColumnStats(
 export async function loadCSVPath(
   tableName: string,
   filePath: string,
-  delimiter = ",",
   append = false,
   hasHeader = true,
 ): Promise<void> {
@@ -419,36 +429,18 @@ export async function loadCSVPath(
     if (!writeConn) throw new Error("DuckDB connection not initialized");
 
     const t = quoteIdentifier(tableName);
-    const headerStr = hasHeader ? "header = true" : "header = false";
-    const delimStr = `delim = ${quoteSqlString(delimiter)}`;
+    const csvOptions = buildPipeCsvOptions(hasHeader);
     const pathStr = quoteSqlString(filePath);
 
     if (append) {
       await writeConn.run(
-        `INSERT INTO ${t} SELECT * FROM read_csv_auto(${pathStr}, ${headerStr}, ${delimStr})`,
+        `INSERT INTO ${t} SELECT * FROM read_csv_auto(${pathStr}, ${csvOptions})`,
       );
     } else {
       await writeConn.run(
-        `CREATE OR REPLACE TABLE ${t} AS SELECT * FROM read_csv_auto(${pathStr}, ${headerStr}, ${delimStr})`,
+        `CREATE OR REPLACE TABLE ${t} AS SELECT * FROM read_csv_auto(${pathStr}, ${csvOptions})`,
       );
     }
-  });
-}
-
-export async function loadJSONPath(
-  tableName: string,
-  filePath: string,
-): Promise<void> {
-  return enqueueWrite(async () => {
-    await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-
-    const t = quoteIdentifier(tableName);
-    const pathStr = quoteSqlString(filePath);
-
-    await writeConn.run(
-      `CREATE OR REPLACE TABLE ${t} AS SELECT * FROM read_json_auto(${pathStr})`,
-    );
   });
 }
 
@@ -457,7 +449,6 @@ export async function loadJSONPath(
 export async function loadCSVBuffer(
   tableName: string,
   buffer: ArrayBuffer,
-  delimiter = ",",
   append = false,
   hasHeader = true,
 ): Promise<void> {
@@ -466,26 +457,7 @@ export async function loadCSVBuffer(
     buffer,
   );
   try {
-    await loadCSVPath(tableName, tempPath, delimiter, append, hasHeader);
-  } finally {
-    try {
-      await fs.unlink(tempPath);
-    } catch {
-      // Non-fatal
-    }
-  }
-}
-
-export async function loadJSONBuffer(
-  tableName: string,
-  buffer: ArrayBuffer,
-): Promise<void> {
-  const tempPath = await writeTempFile(
-    `json_${Date.now()}_${Math.random().toString(36).slice(2)}.json`,
-    buffer,
-  );
-  try {
-    await loadJSONPath(tableName, tempPath);
+    await loadCSVPath(tableName, tempPath, append, hasHeader);
   } finally {
     try {
       await fs.unlink(tempPath);

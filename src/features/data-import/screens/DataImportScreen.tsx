@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -167,9 +167,9 @@ export default function DataImportScreen() {
 
   const [files, setFiles] = useState<ParsedFileInfo[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [electronAvailable, setElectronAvailable] = useState(false);
 
   const [settings] = useState<UploadSettings>({
-    delimiter: "auto",
     hasHeader: true,
     encoding: "UTF-8",
     skipEmptyLines: true,
@@ -183,6 +183,15 @@ export default function DataImportScreen() {
     files.find((file) => file.id === selectedFileId) ?? files[0] ?? null;
 
   const completedFiles = files.filter((file) => file.status === "done");
+
+  useEffect(() => {
+    setElectronAvailable(isElectron());
+  }, []);
+
+  const getUploadSuccessPath = useCallback(
+    () => (isTelecomMode ? "/dashboard/telecom-report" : "/dashboard/parsed"),
+    [isTelecomMode],
+  );
 
   const totalStorageUsed = useMemo(
     () => completedFiles.reduce((total, file) => total + file.size, 0),
@@ -213,7 +222,6 @@ export default function DataImportScreen() {
         parseTime: 0,
         dbTableName: null,
         uploadedAt: new Date(),
-        delimiter: ",",
         hasHeader: true,
         encoding: "UTF-8",
         skipEmptyLines: true,
@@ -240,14 +248,14 @@ export default function DataImportScreen() {
         update({ status: "reading", progress: 10 });
         await new Promise((resolve) => setTimeout(resolve, 80));
 
-        if (fileType === "csv" || fileType === "tsv" || fileType === "json") {
+        if (fileType === "csv") {
           update({ status: "loading_db", progress: 35 });
 
           const tableName = makeUploadTableName(file.name, id);
 
           const loaded = await loadUploadFileToDuckDB(file, {
             tableName,
-            delimiter: settings.delimiter,
+            fileExtension: fileType,
             hasHeader: settings.hasHeader,
             maxRows: settings.maxRows,
             previewLimit: 100,
@@ -368,9 +376,7 @@ export default function DataImportScreen() {
             ...quality,
           });
 
-          if (isTelecomMode && telecomProfile.compatible) {
-            router.push("/dashboard/telecom-report");
-          }
+          router.push(getUploadSuccessPath());
 
           return;
         }
@@ -492,7 +498,7 @@ export default function DataImportScreen() {
               name: file.name.replace(/\.[^.]+$/, ""),
               tableName,
               source: "upload",
-              format: "excel",
+              format: "csv",
               rowCount: rawData.length,
               colCount: colNames.length,
               sizeBytes: file.size,
@@ -524,9 +530,7 @@ export default function DataImportScreen() {
               },
             });
 
-            if (isTelecomMode && telecomProfile.compatible) {
-              router.push("/dashboard/telecom-report");
-            }
+            router.push(getUploadSuccessPath());
           } catch (error) {
             issues.push({
               severity: "warning",
@@ -560,6 +564,7 @@ export default function DataImportScreen() {
       markTableLoaded,
       addActivity,
       isTelecomMode,
+      getUploadSuccessPath,
       router,
     ],
   );
@@ -658,7 +663,7 @@ export default function DataImportScreen() {
               </Button>
             )}
 
-            {isElectron() && (
+            {electronAvailable && (
               <Button
                 type="button"
                 size="sm"
@@ -825,7 +830,7 @@ function UploadDropzone({
         )}
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {["CSV", "TSV", "JSON", "NDJSON", "XLSX"].map((format) => (
+          {["CSV"].map((format) => (
             <Badge
               key={format}
               variant="outline"
@@ -1181,7 +1186,7 @@ function ValidationIssuesCard({ issues }: { issues: ValidationIssue[] }) {
             <div className="min-w-0">
               <div>{issue.message}</div>
               {issue.column && (
-                <div className="mt-1 break-words font-mono text-[10px] opacity-80">
+                <div className="mt-1 wrap-break-word font-mono text-[10px] opacity-80">
                   {issue.column}
                 </div>
               )}

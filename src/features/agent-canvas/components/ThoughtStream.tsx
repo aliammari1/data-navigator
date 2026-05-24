@@ -73,7 +73,7 @@ export function ThoughtStream({ thoughts, className }: Props) {
             </span>
             <span
               className={cn(
-                "text-xs leading-relaxed whitespace-pre-wrap break-words",
+                "text-xs leading-relaxed whitespace-pre-wrap wrap-break-word",
                 KIND_STYLE[t.kind],
               )}
             >
