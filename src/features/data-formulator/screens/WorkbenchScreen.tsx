@@ -9,7 +9,7 @@
  * - Command bar submits → agents run → cards appear on canvas
  * - @semantic prefix → vector search → table cards appear
  * - Connections button → MCP modal opens → add real connections
- * - AI Dashboard → Ollama agent graph plans layout → cards arranged on canvas
+ * - AI Dashboard → edge AI agent graph plans layout → cards arranged on canvas
  * - Voice input → command bar text → submit
  */
 
@@ -223,7 +223,6 @@ export default function WorkbenchScreen() {
   );
   const cardCount = useWorkbenchStore((s) => s.cards.length);
   const selectedModel = useFormulatorStore((s) => s.selectedModel);
-  const settings = useFormulatorStore((s) => s.settings);
   const approvedKpis = useKpiCatalogStore((s) =>
     s.kpis.filter((kpi) => kpi.reviewStatus === "approved"),
   );
@@ -254,7 +253,6 @@ export default function WorkbenchScreen() {
     async function refreshAiGate() {
       setAiChecking(true);
       const gate = await checkAiGate({
-        host: settings.ollamaHost,
         selectedModel,
       });
       if (!cancelled) {
@@ -267,7 +265,7 @@ export default function WorkbenchScreen() {
     return () => {
       cancelled = true;
     };
-  }, [selectedModel, settings.ollamaHost]);
+  }, [selectedModel]);
 
   // ── Reconcile stale (0,0,0,0) cards persisted before the fix ───────────────
   // Once: on mount, find cards with no geometry and give them positions/sizes
@@ -380,7 +378,6 @@ export default function WorkbenchScreen() {
 
   const ensureAiReady = useCallback(async () => {
     const gate = await checkAiGate({
-      host: settings.ollamaHost,
       selectedModel,
     });
 
@@ -394,13 +391,7 @@ export default function WorkbenchScreen() {
     }
 
     return gate;
-  }, [
-    selectedModel,
-    settings.ollamaHost,
-    setActiveIntent,
-    setAgentStatusText,
-    setManagerAnswer,
-  ]);
+  }, [selectedModel, setActiveIntent, setAgentStatusText, setManagerAnswer]);
 
   const addDashboardWidgets = useCallback(
     (spec: DashboardSpec, sourceQuery: string) => {
@@ -623,7 +614,7 @@ export default function WorkbenchScreen() {
       setAgentStatusText(
         intent === "dashboard"
           ? "Generating AI dashboard..."
-          : "Asking Ollama...",
+          : "Running edge AI...",
       );
       setManagerAnswer(
         createManagerAnswer({
@@ -634,8 +625,8 @@ export default function WorkbenchScreen() {
               : "Moudir AI is thinking",
           summary:
             intent === "dashboard"
-              ? "Ollama is planning the dashboard layout, KPIs, charts, and narrative."
-              : "Ollama is reading your intent and preparing a manager-friendly answer.",
+              ? "Edge AI is planning the dashboard layout, KPIs, charts, and narrative."
+              : "Edge AI is reading your intent and preparing a manager-friendly answer.",
           assumptions: [`Model: ${gate.selectedModel}`],
           evidence: [`Table: ${tableName}`, `${columns.length} columns loaded`],
           followUps: [],
@@ -820,7 +811,7 @@ export default function WorkbenchScreen() {
             assumptions: [`Model: ${gate.selectedModel}`],
             evidence: [`Host: ${gate.host}`],
             followUps: [
-              "Check Ollama is running",
+              "Check edge AI model readiness",
               "Try a smaller local model",
               "Make the request more specific",
             ],
@@ -890,7 +881,7 @@ export default function WorkbenchScreen() {
         intent: "dashboard",
         title: "Generating AI dashboard",
         summary:
-          "Ollama is planning a dashboard with the most useful KPI, chart, and narrative widgets.",
+          "Edge AI is planning a dashboard with the most useful KPI, chart, and narrative widgets.",
         assumptions: [`Model: ${gate.selectedModel}`],
         evidence: [`Table: ${tableName}`, `${columns.length} columns loaded`],
         followUps: [],
@@ -938,7 +929,7 @@ export default function WorkbenchScreen() {
           assumptions: [`Model: ${gate.selectedModel}`],
           evidence: [`Host: ${gate.host}`],
           followUps: [
-            "Check Ollama is running",
+            "Check edge AI model readiness",
             "Try a smaller local model",
             "Ask for a narrower dashboard",
           ],

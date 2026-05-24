@@ -6,7 +6,7 @@
  */
 
 export type AiErrorCode =
-  | "OLLAMA_OFFLINE"
+  | "EDGE_AI_UNAVAILABLE"
   | "MODEL_MISSING"
   | "INVALID_JSON"
   | "SCHEMA_MISMATCH"
@@ -40,10 +40,10 @@ export function createAiError(
 export function aiErrorFromUnknown(err: unknown): AiError {
   if (err instanceof Error) {
     const msg = err.message.toLowerCase();
-    if (msg.includes("ollama") && msg.includes("offline")) {
-      return createAiError("OLLAMA_OFFLINE", err.message, {
+    if (msg.includes("edge ai") && msg.includes("unavailable")) {
+      return createAiError("EDGE_AI_UNAVAILABLE", err.message, {
         retryable: true,
-        userAction: "Run ollama serve and try again.",
+        userAction: "Use a browser runtime with Web Worker support.",
       });
     }
     if (msg.includes("json")) {

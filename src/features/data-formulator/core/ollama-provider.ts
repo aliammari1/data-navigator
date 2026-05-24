@@ -1,8 +1,11 @@
 "use client";
 
 /**
- * Ollama Provider — Dynamic model discovery + multi-provider abstraction.
- * Supports Ollama local, with extensible architecture for OpenAI, etc.
+ * Edge AI provider compatibility layer.
+ *
+ * The public function names are retained so the existing feature modules keep
+ * working, but all inference now runs through the browser/Electron renderer
+ * worker backed by Transformers.js. There are no Ollama/OpenAI HTTP calls here.
  */
 
 import { safeJsonStringify } from "./json";
@@ -24,38 +27,135 @@ export interface LLMModel {
 export interface LLMProvider {
   id: string;
   name: string;
-  type: "ollama" | "openai" | "custom";
+  type: "edge";
   baseURL: string;
-  apiKey?: string;
+  apiKey?: never;
   models: LLMModel[];
   isAvailable: boolean;
 }
 
-const OLLAMA_HOST = process.env.NEXT_PUBLIC_OLLAMA_HOST ?? "http://localhost:11434";
+type EdgeWorkerIncoming =
+  | { type: "LOAD_MODEL"; model: string }
+  | {
+      id: string;
+      type: "INFER";
+      payload: {
+        systemPrompt: string;
+        prompt: string;
+        maxTokens?: number;
+      };
+    }
+  | { id: string; type: "ABORT" };
 
-export async function discoverOllamaModels(host = OLLAMA_HOST): Promise<LLMModel[]> {
+type EdgeWorkerMessage =
+  | { type: "LOAD_PROGRESS"; progress: number; status: string }
+  | { type: "MODEL_READY"; model: string }
+  | { type: "MODEL_ERROR"; error: string }
+  | { id: string; type: "INFER_CHUNK"; chunk: string }
+  | { id: string; type: "INFER_DONE" }
+  | { id: string; type: "INFER_ERROR"; error: string };
+
+export const EDGE_AI_HOST = "edge://transformers-worker";
+
+export const EDGE_LLM_MODELS: LLMModel[] = [
+  {
+    name: "HuggingFaceTB/SmolLM2-360M-Instruct",
+    details: {
+      family: "SmolLM2",
+      parameter_size: "360M",
+      quantization_level: "q4f16",
+    },
+  },
+  {
+    name: "onnx-community/Qwen2.5-0.5B-Instruct",
+    details: {
+      family: "Qwen2.5",
+      parameter_size: "0.5B",
+      quantization_level: "q4f16",
+    },
+  },
+];
+
+let worker: Worker | null = null;
+let loadingModel: string | null = null;
+let readyModel: string | null = null;
+let loadPromise: Promise<void> | null = null;
+
+function hasEdgeRuntime(): boolean {
+  return typeof window !== "undefined" && typeof Worker !== "undefined";
+}
+
+function getWorker(): Worker {
+  if (!hasEdgeRuntime()) {
+    throw new Error(
+      "Edge AI is unavailable because Web Workers are not supported.",
+    );
+  }
+  if (!worker) {
+    worker = new Worker(
+      new URL("../../../workers/llm.worker.ts", import.meta.url),
+      {
+        type: "module",
+      },
+    );
+  }
+  return worker;
+}
+
+function onceModelReady(model: string): Promise<void> {
+  if (readyModel === model) return Promise.resolve();
+  if (loadingModel === model && loadPromise) return loadPromise;
+
+  loadingModel = model;
+  loadPromise = new Promise((resolve, reject) => {
+    const w = getWorker();
+    const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
+      const msg = event.data;
+      if (msg.type === "MODEL_READY" && msg.model === model) {
+        readyModel = model;
+        loadingModel = null;
+        w.removeEventListener("message", onMessage);
+        resolve();
+      }
+      if (msg.type === "MODEL_ERROR") {
+        loadingModel = null;
+        w.removeEventListener("message", onMessage);
+        reject(new Error(msg.error));
+      }
+    };
+    w.addEventListener("message", onMessage);
+    w.postMessage({ type: "LOAD_MODEL", model } satisfies EdgeWorkerIncoming);
+  });
+
+  return loadPromise;
+}
+
+function parseJsonObject(text: string): unknown {
   try {
-    const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(5000) });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return (data.models ?? []) as LLMModel[];
+    return JSON.parse(text);
   } catch {
-    return [];
+    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+    if (fenced) return JSON.parse(fenced[1]);
+    const object = text.match(/\{[\s\S]*\}/);
+    if (object) return JSON.parse(object[0]);
+    throw new Error("Edge AI returned invalid JSON for structured output.");
   }
 }
 
-export async function checkOllamaAvailable(host = OLLAMA_HOST): Promise<boolean> {
-  try {
-    const res = await fetch(`${host}/api/tags`, { signal: AbortSignal.timeout(3000) });
-    return res.ok;
-  } catch {
-    return false;
-  }
+export async function discoverOllamaModels(): Promise<LLMModel[]> {
+  return EDGE_LLM_MODELS;
+}
+
+export async function checkOllamaAvailable(): Promise<boolean> {
+  return hasEdgeRuntime();
 }
 
 export async function streamOllamaChat(
   model: string,
-  messages: Array<{ role: "system" | "user" | "assistant" | "tool"; content: string }>,
+  messages: Array<{
+    role: "system" | "user" | "assistant" | "tool";
+    content: string;
+  }>,
   onToken: (token: string) => void,
   onDone: () => void,
   onError: (err: Error) => void,
@@ -66,67 +166,58 @@ export async function streamOllamaChat(
     host?: string;
   },
 ) {
-  const host = options?.host ?? OLLAMA_HOST;
   const abortController = new AbortController();
 
-  try {
-    const res = await fetch(`${host}/api/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: safeJsonStringify({
-        model,
-        messages,
-        stream: true,
-        options: {
-          temperature: options?.temperature ?? 0.7,
-          top_p: options?.top_p ?? 0.9,
-          num_ctx: options?.num_ctx ?? 8192,
-        },
-      }),
-      signal: abortController.signal,
-    });
+  onceModelReady(model)
+    .then(() => {
+      const w = getWorker();
+      const id = `edge_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      const systemPrompt = messages
+        .filter((message) => message.role === "system")
+        .map((message) => message.content)
+        .join("\n\n");
+      const prompt = messages
+        .filter((message) => message.role !== "system")
+        .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
+        .join("\n\n");
 
-    if (!res.ok) {
-      throw new Error(`Ollama HTTP ${res.status}`);
-    }
-
-    const reader = res.body?.getReader();
-    if (!reader) throw new Error("No response body");
-
-    const decoder = new TextDecoder();
-    let buffer = "";
-
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true });
-      const lines = buffer.split("\n");
-      buffer = lines.pop() ?? "";
-
-      for (const line of lines) {
-        if (!line.trim()) continue;
-        try {
-          const chunk = JSON.parse(line);
-          if (chunk.message?.content) {
-            onToken(chunk.message.content);
-          }
-          if (chunk.done) {
-            onDone();
-            return;
-          }
-        } catch {
-          // ignore parse errors for malformed lines
+      const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
+        const msg = event.data;
+        if (!("id" in msg) || msg.id !== id) return;
+        if (msg.type === "INFER_CHUNK") onToken(msg.chunk);
+        if (msg.type === "INFER_DONE") {
+          w.removeEventListener("message", onMessage);
+          onDone();
         }
-      }
-    }
+        if (msg.type === "INFER_ERROR") {
+          w.removeEventListener("message", onMessage);
+          onError(new Error(msg.error));
+        }
+      };
 
-    onDone();
-  } catch (err) {
-    if ((err as Error).name !== "AbortError") {
-      onError(err instanceof Error ? err : new Error(String(err)));
-    }
-  }
+      abortController.signal.addEventListener(
+        "abort",
+        () => {
+          w.postMessage({ id, type: "ABORT" } satisfies EdgeWorkerIncoming);
+          w.removeEventListener("message", onMessage);
+        },
+        { once: true },
+      );
+
+      w.addEventListener("message", onMessage);
+      w.postMessage({
+        id,
+        type: "INFER",
+        payload: {
+          systemPrompt,
+          prompt,
+          maxTokens: options?.num_ctx ? Math.min(options.num_ctx, 1024) : 512,
+        },
+      } satisfies EdgeWorkerIncoming);
+    })
+    .catch((err) =>
+      onError(err instanceof Error ? err : new Error(String(err))),
+    );
 
   return abortController;
 }
@@ -139,40 +230,57 @@ export async function generateWithOllama(
     temperature?: number;
     host?: string;
     format?: "json";
+    maxTokens?: number;
   },
 ): Promise<string> {
-  const host = options?.host ?? OLLAMA_HOST;
-  const res = await fetch(`${host}/api/generate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: safeJsonStringify({
-      model,
-      system: systemPrompt,
-      prompt: userPrompt,
-      stream: false,
-      options: {
-        temperature: options?.temperature ?? 0.3,
-      },
-      format: options?.format,
-    }),
-  });
+  await onceModelReady(model);
 
-  if (!res.ok) throw new Error(`Ollama generate HTTP ${res.status}`);
-  const data = await res.json();
-  return data.response ?? "";
+  return new Promise((resolve, reject) => {
+    const w = getWorker();
+    const id = `edge_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    let output = "";
+
+    const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
+      const msg = event.data;
+      if (!("id" in msg) || msg.id !== id) return;
+      if (msg.type === "INFER_CHUNK") output += msg.chunk;
+      if (msg.type === "INFER_DONE") {
+        w.removeEventListener("message", onMessage);
+        resolve(output.trim());
+      }
+      if (msg.type === "INFER_ERROR") {
+        w.removeEventListener("message", onMessage);
+        reject(new Error(msg.error));
+      }
+    };
+
+    w.addEventListener("message", onMessage);
+    w.postMessage({
+      id,
+      type: "INFER",
+      payload: {
+        systemPrompt,
+        prompt: userPrompt,
+        maxTokens: options?.maxTokens ?? 768,
+      },
+    } satisfies EdgeWorkerIncoming);
+  });
 }
 
 export async function generateWithOllamaStructured<T = Record<string, unknown>>(
   model: string,
   systemPrompt: string,
   userPrompt: string,
-  schema: { type: string; properties: Record<string, unknown>; required?: readonly string[] },
-  options?: {
+  schema: {
+    type: string;
+    properties: Record<string, unknown>;
+    required?: readonly string[];
+  },
+  _options?: {
     temperature?: number;
     host?: string;
   },
 ): Promise<T> {
-  const host = options?.host ?? OLLAMA_HOST;
   const groundedPrompt = [
     userPrompt,
     "",
@@ -180,35 +288,14 @@ export async function generateWithOllamaStructured<T = Record<string, unknown>>(
     safeJsonStringify(schema),
   ].join("\n");
 
-  const res = await fetch(`${host}/api/chat`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: safeJsonStringify({
-      model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: groundedPrompt },
-      ],
-      stream: false,
-      options: {
-        temperature: options?.temperature ?? 0,
-      },
-      format: schema,
-    }),
-  });
+  const response = await generateWithOllama(
+    model,
+    [systemPrompt, "Return only valid JSON. Do not wrap it in Markdown."].join(
+      "\n",
+    ),
+    groundedPrompt,
+    { maxTokens: 1024 },
+  );
 
-  if (!res.ok) throw new Error(`Ollama chat HTTP ${res.status}`);
-  const data = await res.json();
-  const response = data.message?.content ?? data.response ?? "";
-
-  try {
-    return JSON.parse(response) as T;
-  } catch {
-    // Try extracting JSON from markdown code blocks
-    const jsonMatch = response.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (jsonMatch) {
-      return JSON.parse(jsonMatch[1]) as T;
-    }
-    throw new Error("Ollama returned invalid JSON for structured output");
-  }
+  return parseJsonObject(response) as T;
 }

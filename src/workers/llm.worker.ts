@@ -3,7 +3,8 @@
 import type { TextGenerationPipeline } from "@huggingface/transformers";
 import { env, pipeline, TextStreamer } from "@huggingface/transformers";
 
-// Always offline — models are cached in the browser after first download
+// Edge inference: models execute locally and are cached by the browser after
+// first download. WebGPU is optional; WASM/CPU is the required fallback.
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
@@ -47,6 +48,7 @@ export type LLMWorkerMessage =
 let pipe: TextGenerationPipeline | null = null;
 let loadedModel = "";
 let isLoading = false;
+const abortedRequests = new Set<string>();
 
 // ── Loader ────────────────────────────────────────────────────────────────────
 
@@ -73,7 +75,7 @@ async function loadModel(model: string) {
   for (const device of ["webgpu", "wasm"] as const) {
     try {
       pipe = await pipeline("text-generation", model, {
-        dtype: "q4f16",
+        dtype: device === "webgpu" ? "q4f16" : "q4",
         device,
         progress_callback: progressCb,
       });
@@ -126,6 +128,7 @@ async function infer(
       skip_prompt: true,
       skip_special_tokens: true,
       callback_function: (text: string) => {
+        if (abortedRequests.has(id)) return;
         self.postMessage({
           id,
           type: "INFER_CHUNK",
@@ -140,8 +143,12 @@ async function infer(
       streamer,
     });
 
-    self.postMessage({ id, type: "INFER_DONE" } satisfies LLMWorkerMessage);
+    if (!abortedRequests.has(id)) {
+      self.postMessage({ id, type: "INFER_DONE" } satisfies LLMWorkerMessage);
+    }
+    abortedRequests.delete(id);
   } catch (err) {
+    abortedRequests.delete(id);
     self.postMessage({
       id,
       type: "INFER_ERROR",
@@ -167,5 +174,10 @@ globalThis.onmessage = (e: MessageEvent<LLMWorkerIncoming>) => {
       msg.payload.prompt,
       msg.payload.maxTokens,
     );
+    return;
+  }
+
+  if (msg.type === "ABORT") {
+    abortedRequests.add(msg.id);
   }
 };

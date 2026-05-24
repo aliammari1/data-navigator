@@ -3,7 +3,7 @@
  * Offline AI helpers for Data Formulator.
  *
  * Thin wrappers around the local LLM. No rule-based fallbacks.
- * If Ollama is offline, features fail visibly.
+ * If edge AI is unavailable, features fail visibly.
  */
 
 import Fuse from "fuse.js";
@@ -450,7 +450,7 @@ const RULE_PATTERNS: Array<{
   },
 ];
 
-function deriveByRule(req: DeriveFieldRequest): DerivedField | null {
+function _deriveByRule(req: DeriveFieldRequest): DerivedField | null {
   const p = req.prompt.trim();
   for (const pat of RULE_PATTERNS) {
     const m = p.match(pat.test);
@@ -466,7 +466,7 @@ export async function deriveField(
 ): Promise<DeriveFieldResult> {
   if (!isLoaded()) {
     throw new Error(
-      "No local model loaded. Start Ollama and select a model to derive fields with AI.",
+      "No edge model loaded. Select a supported edge model to derive fields with AI.",
     );
   }
 
@@ -517,7 +517,7 @@ export function recommendCharts(
   _cardinality?: Record<string, number>,
 ): ChartRecommendation[] {
   throw new Error(
-    "Chart recommendations require a local Ollama model. Please start Ollama and select a model.",
+    "Chart recommendations require a supported edge model. Select an edge model and try again.",
   );
 }
 
@@ -530,7 +530,7 @@ export async function nlToSpec(
 ): Promise<Partial<Omit<ChartSpec, "id">> | null> {
   if (!isLoaded()) {
     throw new Error(
-      "No local model loaded. Start Ollama and select a model to generate chart specs.",
+      "No edge model loaded. Select a supported edge model to generate chart specs.",
     );
   }
 
@@ -564,7 +564,7 @@ Use only the columns listed.`;
   };
 }
 
-function nlToSpecRule(
+function _nlToSpecRule(
   query: string,
   columns: ColumnInfo[],
   current?: ChartSpec,
@@ -1058,7 +1058,7 @@ function nlToSpecRule(
 }
 
 // ── Best-effort never-throw fallback ──────────────────────────────────────
-function bestEffortSpec(
+function _bestEffortSpec(
   query: string,
   columns: ColumnInfo[],
 ): Partial<Omit<ChartSpec, "id">> {

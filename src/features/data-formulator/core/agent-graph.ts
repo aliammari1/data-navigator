@@ -14,7 +14,7 @@
  */
 
 import { safeJsonStringify } from "./json";
-import { streamOllamaChat, type LLMModel } from "./ollama-provider";
+import { EDGE_AI_HOST, streamOllamaChat } from "./ollama-provider";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -237,7 +237,7 @@ export class AgentGraph {
   }
 
   getEntryNode(): AgentNodeConfig | null {
-    return this.entryNodeId ? this.nodes.get(this.entryNodeId) ?? null : null;
+    return this.entryNodeId ? (this.nodes.get(this.entryNodeId) ?? null) : null;
   }
 
   getAllNodes(): AgentNodeConfig[] {
@@ -262,13 +262,21 @@ export class AgentGraph {
         description: "Analyzes schema, writes SQL, identifies metrics",
         systemPrompt: SYSTEM_PROMPTS.dataAnalyst,
         temperature: 0.2,
-        next: (output, ctx) => {
+        next: (_output, ctx) => {
           // If user asked for charts, go to chartArchitect
-          if (ctx.userGoal.toLowerCase().includes("chart") || ctx.userGoal.toLowerCase().includes("visual") || ctx.userGoal.toLowerCase().includes("graph")) {
+          if (
+            ctx.userGoal.toLowerCase().includes("chart") ||
+            ctx.userGoal.toLowerCase().includes("visual") ||
+            ctx.userGoal.toLowerCase().includes("graph")
+          ) {
             return "chartArchitect";
           }
           // If user asked for insights, go to insightEngineer
-          if (ctx.userGoal.toLowerCase().includes("insight") || ctx.userGoal.toLowerCase().includes("summary") || ctx.userGoal.toLowerCase().includes("explain")) {
+          if (
+            ctx.userGoal.toLowerCase().includes("insight") ||
+            ctx.userGoal.toLowerCase().includes("summary") ||
+            ctx.userGoal.toLowerCase().includes("explain")
+          ) {
             return "insightEngineer";
           }
           // Default: chart then insight
@@ -301,7 +309,9 @@ export class AgentGraph {
         systemPrompt: SYSTEM_PROMPTS.critic,
         temperature: 0.3,
         next: (output) => {
-          const structured = output.structured as { shouldIterate?: boolean } | undefined;
+          const structured = output.structured as
+            | { shouldIterate?: boolean }
+            | undefined;
           return structured?.shouldIterate ? "dataAnalyst" : null; // null = end
         },
       });
@@ -374,7 +384,7 @@ export class AgentOrchestrator {
   }) {
     this.graph = options.graph;
     this.model = options.model;
-    this.host = options.host ?? "http://localhost:11434";
+    this.host = options.host ?? EDGE_AI_HOST;
     this.onTraceUpdate = options.onTraceUpdate;
   }
 
@@ -434,7 +444,10 @@ export class AgentOrchestrator {
 
         try {
           await new Promise<void>((resolve, reject) => {
-            const timeout = setTimeout(() => reject(new Error("Agent timeout")), 120000);
+            const timeout = setTimeout(
+              () => reject(new Error("Agent timeout")),
+              120000,
+            );
 
             streamOllamaChat(
               this.model,
@@ -496,11 +509,13 @@ export class AgentOrchestrator {
           currentNode = this.graph.getNode(nextRef) ?? null;
         } else {
           const nextId = nextRef(output, input.context);
-          currentNode = nextId ? this.graph.getNode(nextId) ?? null : null;
+          currentNode = nextId ? (this.graph.getNode(nextId) ?? null) : null;
         }
       }
 
-      trace.status = this.abortController.signal.aborted ? "failed" : "completed";
+      trace.status = this.abortController.signal.aborted
+        ? "failed"
+        : "completed";
       trace.endedAt = Date.now();
       trace.finalOutput = Object.values(nodeOutputs).pop();
       this.emitUpdate(trace);
@@ -554,7 +569,10 @@ export class AgentOrchestrator {
     return messages;
   }
 
-  private buildContextPrompt(ctx: AgentContext, previousOutputs: Record<string, AgentOutput>): string {
+  private buildContextPrompt(
+    ctx: AgentContext,
+    previousOutputs: Record<string, AgentOutput>,
+  ): string {
     const parts = [
       `Table: ${ctx.tableName}`,
       `Columns: ${ctx.columns.map((c) => `${c.name}(${c.type})`).join(", ")}`,

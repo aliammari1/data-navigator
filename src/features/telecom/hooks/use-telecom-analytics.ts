@@ -61,6 +61,7 @@ export interface UseTelecomAnalyticsReturn {
   setRegions: (v: Types.RegionRow[]) => void;
   forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
+  setRawStatuses: (v: Types.RawStatusRow[]) => void;
   refresh: () => Promise<void>;
   runAnalytics: (
     m: Types.ColumnMapping,
@@ -289,6 +290,7 @@ export function useTelecomAnalytics({
     setRegions: (regions) => patchAnalytics({ regions }),
     forecast: data.forecast,
     rawStatuses: data.rawStatuses,
+    setRawStatuses: (rawStatuses) => patchAnalytics({ rawStatuses }),
     refresh,
     runAnalytics,
   };

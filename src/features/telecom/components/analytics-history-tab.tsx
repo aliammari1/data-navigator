@@ -1,9 +1,9 @@
 "use client";
 
-import { memo } from "react";
 import { Database, FolderClock } from "lucide-react";
-import type { CachedAnalyticsMeta } from "@/features/telecom/lib/analytics-cache";
+import { memo } from "react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import type { AnalyticsSnapshotMeta } from "@/platform/storage/app-db";
 
 export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   entries,
@@ -11,7 +11,7 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   onLoad,
   onExportDatabase,
 }: {
-  entries: CachedAnalyticsMeta[];
+  entries: AnalyticsSnapshotMeta[];
   onRefresh: () => void;
   onLoad: (key: string) => void;
   onExportDatabase: () => void;

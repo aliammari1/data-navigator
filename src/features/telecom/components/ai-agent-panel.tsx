@@ -58,26 +58,30 @@ export function AiAgentPanel({
   } | null>(null);
   const [chatBusy, setChatBusy] = useState(false);
 
-  const buildContext = async () => {
-    if (!table || !dateFrom || !dateTo) return;
+  const buildContext = async (): Promise<AgentContext | null> => {
+    if (!table || !dateFrom || !dateTo) return null;
     setBusy(true);
-    const [kpi, sub, top, anom] = await Promise.all([
-      fetchPeriodKPI(table, mapping, dateFrom, dateTo),
-      fetchSubStatusBreakdown(table, mapping, dateFrom, dateTo),
-      fetchTopAccounts(table, mapping, dateFrom, dateTo, 10, "amount"),
-      fetchAnomalies(table, mapping, dateFrom, dateTo),
-    ]);
-    const next: AgentContext = {
-      dateFrom,
-      dateTo,
-      kpi,
-      subStatus: sub,
-      topAccounts: top,
-      anomalies: anom,
-    };
-    setCtx(next);
-    setInsights(computeRuleInsights(next));
-    setBusy(false);
+    try {
+      const [kpi, sub, top, anom] = await Promise.all([
+        fetchPeriodKPI(table, mapping, dateFrom, dateTo),
+        fetchSubStatusBreakdown(table, mapping, dateFrom, dateTo),
+        fetchTopAccounts(table, mapping, dateFrom, dateTo, 10, "amount"),
+        fetchAnomalies(table, mapping, dateFrom, dateTo),
+      ]);
+      const next: AgentContext = {
+        dateFrom,
+        dateTo,
+        kpi,
+        subStatus: sub,
+        topAccounts: top,
+        anomalies: anom,
+      };
+      setCtx(next);
+      setInsights(computeRuleInsights(next));
+      return next;
+    } finally {
+      setBusy(false);
+    }
   };
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: reset generated agent context when the selected table/date window changes
@@ -111,26 +115,23 @@ export function AiAgentPanel({
   };
 
   const runNarrative = async () => {
-    if (!ctx) await buildContext();
-    setBusy(true);
-    const final = ctx ?? null;
+    const final = ctx ?? (await buildContext());
     if (!final) {
-      setBusy(false);
       return;
     }
-    const txt = await generateNarrative(final);
-    setNarrative(txt);
-    setBusy(false);
+    setBusy(true);
+    try {
+      const txt = await generateNarrative(final);
+      setNarrative(txt);
+    } finally {
+      setBusy(false);
+    }
   };
 
   const submitQuestion = async (e: React.SubmitEvent) => {
     e.preventDefault();
     if (!q.trim()) return;
-    let c = ctx;
-    if (!c) {
-      await buildContext();
-      c = ctx;
-    }
+    const c = ctx ?? (await buildContext());
     if (!c) return;
     setChatBusy(true);
     const ans = await askAgent(q.trim(), c);
@@ -207,7 +208,7 @@ export function AiAgentPanel({
           <button
             type="button"
             onClick={runNarrative}
-            disabled={busy || !ctx}
+            disabled={busy}
             className="h-7 px-2 rounded-md text-[11px] font-medium bg-violet-600 hover:bg-violet-700 text-white disabled:opacity-50 flex items-center gap-1"
           >
             <MessageSquare className="w-3 h-3" /> Résumé exécutif

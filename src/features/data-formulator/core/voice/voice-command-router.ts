@@ -2,7 +2,7 @@
 
 /**
  * Voice Command Router
- * Routes transcribed speech through the Ollama normalizer to produce
+ * Routes transcribed speech through the edge AI normalizer to produce
  * canonical business intents.
  */
 
@@ -28,21 +28,30 @@ self.onmessage = (e: MessageEvent<VoiceRouteRequest>) => {
   const { type, transcript, language } = e.data;
 
   if (type !== "ROUTE_COMMAND") {
-    self.postMessage({ type: "ROUTE_ERROR", error: "Unknown request type" } as VoiceRouteResponse);
+    self.postMessage({
+      type: "ROUTE_ERROR",
+      error: "Unknown request type",
+    } as VoiceRouteResponse);
     return;
   }
 
   if (!transcript.trim()) {
-    self.postMessage({ type: "ROUTE_ERROR", error: "Empty transcript" } as VoiceRouteResponse);
+    self.postMessage({
+      type: "ROUTE_ERROR",
+      error: "Empty transcript",
+    } as VoiceRouteResponse);
     return;
   }
 
-  // Local heuristic routing (fast path) — full Ollama normalization happens in main thread
+  // Local heuristic routing (fast path) — full edge AI normalization happens in main thread
   const command = heuristicallyRoute(transcript, language);
   self.postMessage({ type: "COMMAND_ROUTED", command } as VoiceRouteResponse);
 };
 
-function heuristicallyRoute(transcript: string, language: string): VoiceCommand {
+function heuristicallyRoute(
+  transcript: string,
+  language: string,
+): VoiceCommand {
   const text = transcript.toLowerCase().trim();
   let intent = "ask";
   let confidence = 0.5;
@@ -65,7 +74,7 @@ function heuristicallyRoute(transcript: string, language: string): VoiceCommand 
   } else if (/\b(scenario|what if|if|simulate|impact|suppose)\b/.test(text)) {
     intent = "scenario";
     confidence = 0.7;
-  } else if (/\b(setup|config|model|ollama|install|parametres)\b/.test(text)) {
+  } else if (/\b(setup|config|model|edge|install|parametres)\b/.test(text)) {
     intent = "setup";
     confidence = 0.7;
   }

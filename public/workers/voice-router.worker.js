@@ -4,11 +4,17 @@
   self.onmessage = (e) => {
     const { type, transcript, language } = e.data;
     if (type !== "ROUTE_COMMAND") {
-      self.postMessage({ type: "ROUTE_ERROR", error: "Unknown request type" });
+      self.postMessage({
+        type: "ROUTE_ERROR",
+        error: "Unknown request type"
+      });
       return;
     }
     if (!transcript.trim()) {
-      self.postMessage({ type: "ROUTE_ERROR", error: "Empty transcript" });
+      self.postMessage({
+        type: "ROUTE_ERROR",
+        error: "Empty transcript"
+      });
       return;
     }
     const command = heuristicallyRoute(transcript, language);
@@ -36,7 +42,7 @@
     } else if (/\b(scenario|what if|if|simulate|impact|suppose)\b/.test(text)) {
       intent = "scenario";
       confidence = 0.7;
-    } else if (/\b(setup|config|model|ollama|install|parametres)\b/.test(text)) {
+    } else if (/\b(setup|config|model|edge|install|parametres)\b/.test(text)) {
       intent = "setup";
       confidence = 0.7;
     }
