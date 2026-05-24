@@ -46,7 +46,7 @@ export function CL1({
       className={cn(
         "rounded-2xl border overflow-hidden shadow-sm transition-all duration-300",
         open
-          ? "border-border/80 bg-gradient-to-b from-muted/30 to-card"
+          ? "border-border/80 bg-linear-to-b from-muted/30 to-card"
           : "border-border bg-card",
       )}
     >

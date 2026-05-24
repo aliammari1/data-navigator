@@ -33,43 +33,59 @@ import { AgentStatusPill } from "@/features/data-formulator/components/agent-sta
 import { AttachWidgetDialog } from "@/features/data-formulator/components/attach-widget-dialog";
 import { Canvas } from "@/features/data-formulator/components/canvas";
 import { CommandBar } from "@/features/data-formulator/components/command-bar";
+import { ExecutiveBriefPanel } from "@/features/data-formulator/components/executive-brief-panel";
 import { InspectorPanel } from "@/features/data-formulator/components/inspector-panel";
 import { IntentRail } from "@/features/data-formulator/components/intent-rail";
-import { ExecutiveBriefPanel } from "@/features/data-formulator/components/executive-brief-panel";
 import { KpiFoundryPanel } from "@/features/data-formulator/components/kpi-foundry-panel";
 import { LanguageModeSelector } from "@/features/data-formulator/components/language-mode-selector";
 import { ManagerAnswerPanel } from "@/features/data-formulator/components/manager-answer-panel";
-import { ModelReadinessCenter } from "@/features/data-formulator/components/model-readiness-center";
 import { McpConnectionModal } from "@/features/data-formulator/components/mcp-connection-modal";
+import { ModelReadinessCenter } from "@/features/data-formulator/components/model-readiness-center";
 import { ModelSelector } from "@/features/data-formulator/components/model-selector";
-import { SignalRadar } from "@/features/data-formulator/components/signal-radar";
 import { RootCauseLadder } from "@/features/data-formulator/components/root-cause-ladder";
 import { ScenarioSimulator } from "@/features/data-formulator/components/scenario-simulator";
+import { SignalRadar } from "@/features/data-formulator/components/signal-radar";
 import {
-  generateDashboard,
+  type AiGateResult,
+  checkAiGate,
+  isAiReady,
+} from "@/features/data-formulator/core/ai-gate";
+import {
   type DashboardSpec,
+  generateDashboard,
 } from "@/features/data-formulator/core/auto-dashboard";
-import { checkAiGate, isAiReady, type AiGateResult } from "@/features/data-formulator/core/ai-gate";
+import {
+  type BriefingResult,
+  runBriefingAgent,
+} from "@/features/data-formulator/core/briefing-agent";
 import { inferType } from "@/features/data-formulator/core/helpers";
+import {
+  type InvestigationResult,
+  runInvestigation,
+} from "@/features/data-formulator/core/investigation-agent";
 import { sanitizeJsonValue } from "@/features/data-formulator/core/json";
+import { useKpiCatalogStore } from "@/features/data-formulator/core/kpi/kpi-catalog-store";
 import {
   classifyManagerIntent,
   type ManagerIntent,
   normalizeTunisianPrompt,
 } from "@/features/data-formulator/core/language/intent";
 import { generateManagerAnswer } from "@/features/data-formulator/core/manager-ai";
-import { runSignalRadar, type SignalRadarResult } from "@/features/data-formulator/core/signal-radar-agent";
-import { runInvestigation, type InvestigationResult } from "@/features/data-formulator/core/investigation-agent";
-import { runBriefingAgent, type BriefingResult } from "@/features/data-formulator/core/briefing-agent";
-import { runScenarioAgent, type ScenarioResult } from "@/features/data-formulator/core/scenario-agent";
 import {
   aiGateAnswer,
   createManagerAnswer,
   smallTalkAnswer,
 } from "@/features/data-formulator/core/manager-answer";
+import {
+  runScenarioAgent,
+  type ScenarioResult,
+} from "@/features/data-formulator/core/scenario-agent";
+import {
+  runSignalRadar,
+  type SignalRadarResult,
+} from "@/features/data-formulator/core/signal-radar-agent";
 import type { ColumnInfo } from "@/features/data-formulator/core/types";
 import { useVectorSearch } from "@/features/data-formulator/core/vector-search";
-import { useKpiCatalogStore } from "@/features/data-formulator/core/kpi/kpi-catalog-store";
 import { useFormulatorStore } from "@/features/data-formulator/store";
 import { useWorkbenchStore } from "@/features/data-formulator/store/workbench-store";
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
@@ -81,7 +97,6 @@ function isSmallTalk(prompt: string): boolean {
     text,
   );
 }
-
 
 function StarterPanel({
   disabled,
@@ -158,7 +173,7 @@ function StarterPanel({
               type="button"
               disabled={disabled}
               onClick={action.onClick}
-              className="group rounded-2xl border border-white/10 bg-white/[0.03] p-4 text-left transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/[0.06] disabled:pointer-events-none disabled:opacity-50"
+              className="group rounded-2xl border border-white/10 bg-white/3 p-4 text-left transition-all hover:-translate-y-0.5 hover:border-white/20 hover:bg-white/6 disabled:pointer-events-none disabled:opacity-50"
             >
               <div className="flex items-start gap-3">
                 <div className={`rounded-xl border p-2 ${action.accent}`}>
@@ -216,10 +231,15 @@ export default function WorkbenchScreen() {
   const [aiChecking, setAiChecking] = useState(false);
 
   // ── Agent Result State ─────────────────────────────────────────────────────
-  const [signalResult, setSignalResult] = useState<SignalRadarResult | null>(null);
-  const [investigationResult, setInvestigationResult] = useState<InvestigationResult | null>(null);
+  const [signalResult, setSignalResult] = useState<SignalRadarResult | null>(
+    null,
+  );
+  const [investigationResult, setInvestigationResult] =
+    useState<InvestigationResult | null>(null);
   const [briefResult, setBriefResult] = useState<BriefingResult | null>(null);
-  const [scenarioResult, setScenarioResult] = useState<ScenarioResult | null>(null);
+  const [scenarioResult, setScenarioResult] = useState<ScenarioResult | null>(
+    null,
+  );
 
   // ── Vector Search ──────────────────────────────────────────────────────────
   const {
@@ -331,7 +351,6 @@ export default function WorkbenchScreen() {
           setTableName(resolvedTable);
         }
 
-
         const info = await getTableInfo(resolvedTable);
         const normalizedColumns: ColumnInfo[] = info.columns.map((c) => ({
           name: c.name,
@@ -344,7 +363,7 @@ export default function WorkbenchScreen() {
           .join(", ");
         setSchema(schemaText);
         const result = await runQuery(
-          `SELECT * FROM "${resolvedTable.replace(/"/g, '""')}" LIMIT 2000`,
+          `SELECT * FROM "${resolvedTable.replace('"', '""')}" LIMIT 2000`,
         );
         setRows(sanitizeJsonValue(result));
       } catch (err) {
@@ -466,14 +485,7 @@ export default function WorkbenchScreen() {
       const added = addDashboardWidgets(spec, prompt);
       return { spec, added };
     },
-    [
-      addDashboardWidgets,
-      columns,
-      rows,
-      schema,
-      setAgentTrace,
-      tableName,
-    ],
+    [addDashboardWidgets, columns, rows, schema, setAgentTrace, tableName],
   );
 
   // ── Submit handler ─────────────────────────────────────────────────────────
@@ -573,9 +585,7 @@ export default function WorkbenchScreen() {
                   intent: "ask",
                   title: "No semantic matches",
                   summary: `No rows matched "${query}". Try using business wording, a customer type, a product, or a risk pattern.`,
-                  assumptions: [
-                    "The semantic index did not find close rows.",
-                  ],
+                  assumptions: ["The semantic index did not find close rows."],
                   evidence: [`Table: ${tableName}`],
                   followUps: ["Try fewer words", "Use a known column value"],
                   confidence: "medium",
@@ -635,7 +645,7 @@ export default function WorkbenchScreen() {
         }),
       );
 
-        try {
+      try {
         if (intent === "dashboard") {
           const { spec, added } = await generateDashboardFromPrompt(
             normalizedQuery || query,
@@ -676,11 +686,14 @@ export default function WorkbenchScreen() {
             createManagerAnswer({
               intent: "signal",
               title: `Signal Radar: ${result.signals.length} signals detected`,
-              summary: result.signals.length > 0
-                ? `Found ${result.signals.length} signal${result.signals.length === 1 ? "" : "s"} with overall confidence ${result.overallConfidence}.`
-                : "No significant signals detected in the current data.",
+              summary:
+                result.signals.length > 0
+                  ? `Found ${result.signals.length} signal${result.signals.length === 1 ? "" : "s"} with overall confidence ${result.overallConfidence}.`
+                  : "No significant signals detected in the current data.",
               assumptions: [`Model: ${gate.selectedModel}`],
-              evidence: result.signals.map((s) => `${s.severity}: ${s.metric} — ${s.whatChanged}`),
+              evidence: result.signals.map(
+                (s) => `${s.severity}: ${s.metric} — ${s.whatChanged}`,
+              ),
               followUps: [
                 "Investigate the highest severity signal",
                 "Run a deeper analysis",
@@ -738,7 +751,10 @@ export default function WorkbenchScreen() {
               intent: "brief",
               title: result.title || "Executive Brief",
               summary: `Briefing for ${result.audience}. ${result.keyPoints.length} key points, ${result.recommendations.length} recommendations.`,
-              assumptions: [`Model: ${gate.selectedModel}`, `Tone: ${result.tone}`],
+              assumptions: [
+                `Model: ${gate.selectedModel}`,
+                `Tone: ${result.tone}`,
+              ],
               evidence: result.keyPoints,
               followUps: [
                 "Export as Markdown",
@@ -765,7 +781,9 @@ export default function WorkbenchScreen() {
               intent: "scenario",
               title: `Scenario: ${result.name}`,
               summary: `Estimated impact on ${result.estimatedImpact.metric}: ${result.estimatedImpact.deltaPercent > 0 ? "+" : ""}${result.estimatedImpact.deltaPercent.toFixed(1)}%`,
-              assumptions: result.assumptions.map((a) => `${a.variable}: ${a.change}`),
+              assumptions: result.assumptions.map(
+                (a) => `${a.variable}: ${a.change}`,
+              ),
               evidence: result.caveats,
               followUps: [
                 "Run another scenario",
@@ -948,11 +966,20 @@ export default function WorkbenchScreen() {
     ? "Checking AI"
     : aiReady
       ? `AI ready: ${aiGate.selectedModel}`
-      : aiGate?.message ?? "AI setup required";
+      : (aiGate?.message ?? "AI setup required");
 
   // ── Side panel state ───────────────────────────────────────────────────────
   const [rightPanelOpen, setRightPanelOpen] = useState(false);
-  const [rightPanelTab, setRightPanelTab] = useState<"inspector" | "kpi" | "radar" | "investigate" | "brief" | "scenario" | "model" | "language">("inspector");
+  const [rightPanelTab, setRightPanelTab] = useState<
+    | "inspector"
+    | "kpi"
+    | "radar"
+    | "investigate"
+    | "brief"
+    | "scenario"
+    | "model"
+    | "language"
+  >("inspector");
   const activePanel = useWorkbenchStore((s) => s.activePanel);
   const showTrace = useWorkbenchStore((s) => s.showTrace);
   const setShowTrace = useWorkbenchStore((s) => s.setShowTrace);
@@ -1058,16 +1085,13 @@ export default function WorkbenchScreen() {
         </div>
       )}
 
-      {!dataError &&
-        !dataLoading &&
-        cardCount === 0 &&
-        (
-          <StarterPanel
-            disabled={dataLoading || !!dataError}
-            onRun={handleSubmit}
-            onAutoDashboard={handleAutoDashboard}
-          />
-        )}
+      {!dataError && !dataLoading && cardCount === 0 && (
+        <StarterPanel
+          disabled={dataLoading || !!dataError}
+          onRun={handleSubmit}
+          onAutoDashboard={handleAutoDashboard}
+        />
+      )}
 
       {/* Command Bar */}
       <CommandBar
@@ -1084,56 +1108,80 @@ export default function WorkbenchScreen() {
         {/* Tab rail */}
         <div className="flex flex-col gap-1.5">
           <button
-            onClick={() => { setRightPanelTab("inspector"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("inspector");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "inspector" && rightPanelOpen ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"}`}
             title="Inspector"
           >
             <PanelRightOpen className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("kpi"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("kpi");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "kpi" && rightPanelOpen ? "bg-amber-500/10 text-amber-300" : "text-muted-foreground hover:text-foreground"}`}
             title="KPI Foundry"
           >
             <BarChart3 className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("radar"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("radar");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "radar" && rightPanelOpen ? "bg-rose-500/10 text-rose-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Signal Radar"
           >
             <Radar className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("investigate"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("investigate");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "investigate" && rightPanelOpen ? "bg-orange-500/10 text-orange-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Investigations"
           >
             <Search className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("scenario"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("scenario");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "scenario" && rightPanelOpen ? "bg-emerald-500/10 text-emerald-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Scenarios"
           >
             <Activity className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("model"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("model");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "model" && rightPanelOpen ? "bg-cyan-500/10 text-cyan-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Model Readiness"
           >
             <Settings2 className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("language"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("language");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "language" && rightPanelOpen ? "bg-violet-500/10 text-violet-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Language"
           >
             <Globe className="h-4 w-4" />
           </button>
           <button
-            onClick={() => { setRightPanelTab("brief"); setRightPanelOpen(true); }}
+            onClick={() => {
+              setRightPanelTab("brief");
+              setRightPanelOpen(true);
+            }}
             className={`rounded-lg p-2 transition-colors ${rightPanelTab === "brief" && rightPanelOpen ? "bg-indigo-500/10 text-indigo-300" : "text-muted-foreground hover:text-foreground"}`}
             title="Briefings"
           >
@@ -1144,59 +1192,83 @@ export default function WorkbenchScreen() {
             className="mt-auto rounded-lg p-2 text-muted-foreground hover:text-foreground"
             title={rightPanelOpen ? "Close panel" : "Open panel"}
           >
-            {rightPanelOpen ? <PanelRightClose className="h-4 w-4" /> : <PanelRightOpen className="h-4 w-4" />}
+            {rightPanelOpen ? (
+              <PanelRightClose className="h-4 w-4" />
+            ) : (
+              <PanelRightOpen className="h-4 w-4" />
+            )}
           </button>
         </div>
 
         {/* Panel content */}
         {rightPanelOpen && (
           <div className="w-80 overflow-hidden rounded-2xl border border-white/10 bg-[#0f0f12]/95 shadow-2xl backdrop-blur-xl">
-            {rightPanelTab === "inspector" && <InspectorPanel onAttachChart={setAttachCardId} />}
-            {rightPanelTab === "kpi" && <KpiFoundryPanel tableName={tableName} columns={columns} aiGate={aiGate} />}
+            {rightPanelTab === "inspector" && (
+              <InspectorPanel onAttachChart={setAttachCardId} />
+            )}
+            {rightPanelTab === "kpi" && (
+              <KpiFoundryPanel
+                tableName={tableName}
+                columns={columns}
+                aiGate={aiGate}
+              />
+            )}
             {rightPanelTab === "radar" && (
               <SignalRadar
                 signals={signalResult?.signals}
-                onInvestigate={(signal) => handleSubmit(`Investigate ${signal.metric}: ${signal.whatChanged}`, "agent")}
+                onInvestigate={(signal) =>
+                  handleSubmit(
+                    `Investigate ${signal.metric}: ${signal.whatChanged}`,
+                    "agent",
+                  )
+                }
               />
             )}
-            {rightPanelTab === "investigate" && (
-              investigationResult ? (
+            {rightPanelTab === "investigate" &&
+              (investigationResult ? (
                 <RootCauseLadder
                   targetMetric={investigationResult.targetMetric}
                   steps={investigationResult.steps.map((s) => ({
                     dimension: s.dimension,
                     reason: s.reason,
                     sql: s.sql,
-                  result: s.result?.map((r) => ({
-                    segment: String(r[s.dimension] ?? ""),
-                    value: Number(r.value ?? r.current_value ?? r.delta ?? 0),
-                    percent: Number(r.percent ?? 0),
-                  })),
-                }))}
+                    result: s.result?.map((r) => ({
+                      segment: String(r[s.dimension] ?? ""),
+                      value: Number(r.value ?? r.current_value ?? r.delta ?? 0),
+                      percent: Number(r.percent ?? 0),
+                    })),
+                  }))}
                   hypothesis={investigationResult.hypothesis}
                   confidence={investigationResult.confidence}
                 />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center p-6 text-center">
                   <BarChart3 className="h-8 w-8 text-muted-foreground/50" />
-                  <p className="mt-2 text-xs text-muted-foreground">No investigation yet. Ask "Why did revenue drop?"</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No investigation yet. Ask "Why did revenue drop?"
+                  </p>
                 </div>
-              )
-            )}
+              ))}
             {rightPanelTab === "brief" && (
-              <ExecutiveBriefPanel brief={briefResult ? {
-                title: briefResult.title,
-                audience: briefResult.audience,
-                durationSeconds: briefResult.durationSeconds,
-                keyPoints: briefResult.keyPoints,
-                recommendations: briefResult.recommendations,
-                risks: briefResult.risks,
-                nextSteps: briefResult.nextSteps,
-                tone: briefResult.tone,
-              } : undefined} />
+              <ExecutiveBriefPanel
+                brief={
+                  briefResult
+                    ? {
+                        title: briefResult.title,
+                        audience: briefResult.audience,
+                        durationSeconds: briefResult.durationSeconds,
+                        keyPoints: briefResult.keyPoints,
+                        recommendations: briefResult.recommendations,
+                        risks: briefResult.risks,
+                        nextSteps: briefResult.nextSteps,
+                        tone: briefResult.tone,
+                      }
+                    : undefined
+                }
+              />
             )}
-            {rightPanelTab === "scenario" && (
-              scenarioResult ? (
+            {rightPanelTab === "scenario" &&
+              (scenarioResult ? (
                 <ScenarioSimulator
                   name={scenarioResult.name}
                   assumptions={scenarioResult.assumptions}
@@ -1207,11 +1279,14 @@ export default function WorkbenchScreen() {
               ) : (
                 <div className="flex h-full flex-col items-center justify-center p-6 text-center">
                   <Activity className="h-8 w-8 text-muted-foreground/50" />
-                  <p className="mt-2 text-xs text-muted-foreground">No scenario yet. Ask "What if success rate improves by 2%?"</p>
+                  <p className="mt-2 text-xs text-muted-foreground">
+                    No scenario yet. Ask "What if success rate improves by 2%?"
+                  </p>
                 </div>
-              )
+              ))}
+            {rightPanelTab === "model" && (
+              <ModelReadinessCenter aiGate={aiGate} checking={aiChecking} />
             )}
-            {rightPanelTab === "model" && <ModelReadinessCenter aiGate={aiGate} checking={aiChecking} />}
             {rightPanelTab === "language" && <LanguageModeSelector />}
           </div>
         )}

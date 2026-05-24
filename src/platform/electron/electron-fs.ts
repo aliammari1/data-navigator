@@ -62,7 +62,6 @@ export interface ElectronDuckDBBridge {
   loadCSVPath(
     tableName: string,
     filePath: string,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void>;
@@ -70,7 +69,6 @@ export interface ElectronDuckDBBridge {
   loadCSVBuffer(
     tableName: string,
     buffer: ArrayBuffer,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void>;

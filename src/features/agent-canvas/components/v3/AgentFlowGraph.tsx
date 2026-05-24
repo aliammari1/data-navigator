@@ -81,7 +81,7 @@ function AgentNode({ data }: { data: AgentNodeData }) {
       <Handle
         type="target"
         position={Position.Top}
-        className="!bg-slate-700 !border-0 !w-2 !h-2"
+        className="bg-slate-700! border-0! w-2! h-2!"
       />
       <div className="flex items-center justify-center gap-1.5">
         <span className="text-sm">{TYPE_ICON[data.type]}</span>
@@ -105,7 +105,7 @@ function AgentNode({ data }: { data: AgentNodeData }) {
       <Handle
         type="source"
         position={Position.Bottom}
-        className="!bg-slate-700 !border-0 !w-2 !h-2"
+        className="bg-slate-700! border-0! w-2! h-2!"
       />
     </motion.div>
   );
@@ -348,9 +348,9 @@ export function AgentFlowGraph() {
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#1e293b" gap={16} size={0.5} />
-          <Controls className="!bg-slate-800 !border-slate-700" />
+          <Controls className="bg-slate-800! border-slate-700!" />
           <MiniMap
-            className="!bg-slate-900 !border-slate-700"
+            className="bg-slate-900! border-slate-700!"
             nodeColor={(n) => {
               const status = (n.data as AgentNodeData).status;
               return status === "done"

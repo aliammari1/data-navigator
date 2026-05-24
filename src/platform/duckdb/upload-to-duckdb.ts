@@ -3,11 +3,11 @@
 import {
   getTableInfo,
   loadDelimitedCSVFromFile,
-  loadJSONFileToDuckDB,
   runQuery,
 } from "@/platform/duckdb/duckdb";
+import type { SupportedExtensions } from "@/shared/types";
 
-export type UploadFileFormat = "csv" | "json";
+export type UploadFileFormat = "csv";
 
 export interface LoadedUploadTable {
   tableName: string;
@@ -29,46 +29,27 @@ export interface LoadedUploadTable {
 
 export interface LoadUploadFileOptions {
   tableName?: string;
-  delimiter?: "auto" | "," | ";" | "\t" | "|";
+  fileExtension: SupportedExtensions;
   hasHeader?: boolean;
   maxRows?: number | null;
   previewLimit?: number;
 }
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace(/"/g, '""')}"`;
+  return `"${value.replaceAll('"', '""')}"`;
 }
 
 export function sanitizeUploadTableName(name: string): string {
   return (
     name
       .replace(/\.[^.]+$/, "")
-      .replace(/[^a-zA-Z0-9_]/g, "_")
+      .replace(/\W/g, "_")
       .replace(/_+/g, "_")
       .replace(/^_|_$/g, "")
       .toLowerCase()
       .slice(0, 60) || "dataset"
   );
 }
-
-export function getUploadExtension(file: File): string {
-  return file.name.split(".").pop()?.toLowerCase() ?? "";
-}
-
-async function sniffDelimiter(file: File, ext: string): Promise<string> {
-  if (ext === "tsv") return "\t";
-
-  const sample = await file.slice(0, 4096).text();
-  const counts = [
-    [",", (sample.match(/,/g) ?? []).length],
-    [";", (sample.match(/;/g) ?? []).length],
-    ["\t", (sample.match(/\t/g) ?? []).length],
-    ["|", (sample.match(/\|/g) ?? []).length],
-  ] as const;
-
-  return counts.reduce((best, next) => (next[1] > best[1] ? next : best))[0];
-}
-
 function inferSampleType(values: unknown[]): string {
   const nonNull = values.filter(
     (value) => value !== null && value !== undefined && value !== "",
@@ -132,26 +113,20 @@ function buildColumnMetadata(
 
 export async function loadUploadFileToDuckDB(
   file: File,
-  options: LoadUploadFileOptions = {},
+  options: LoadUploadFileOptions,
 ): Promise<LoadedUploadTable> {
-  const ext = getUploadExtension(file);
+  const ext = options.fileExtension;
+  if (ext !== "csv") throw new Error(`Unsupported file type: .${ext}`);
   const tableName =
     options.tableName?.trim() || sanitizeUploadTableName(file.name);
-
+  const delimiter = "|";
   if (ext === "csv" || ext === "tsv" || ext === "txt") {
-    const delimiter =
-      options.delimiter && options.delimiter !== "auto"
-        ? options.delimiter
-        : await sniffDelimiter(file, ext);
     await loadDelimitedCSVFromFile(
       tableName,
       file,
-      delimiter,
       false,
       options.hasHeader ?? true,
     );
-  } else if (ext === "json" || ext === "ndjson" || ext === "jsonl") {
-    await loadJSONFileToDuckDB(tableName, file);
   } else {
     throw new Error(`Unsupported fast upload file type: .${ext}`);
   }
@@ -175,8 +150,7 @@ export async function loadUploadFileToDuckDB(
 
   return {
     tableName,
-    format:
-      ext === "json" || ext === "ndjson" || ext === "jsonl" ? "json" : "csv",
+    format: "csv",
     rowCount: info.rowCount,
     colCount: info.columns.length,
     columns: buildColumnMetadata(columnNames, previewRows),

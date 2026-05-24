@@ -11,7 +11,6 @@ import type { ColType, FilterRule } from "./types";
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-export const TABLE_NAME = "demo_data";
 export const PAGE_SIZES = [25, 50, 100, 250, 500];
 export const OPERATOR_LABELS: Record<FilterRule["operator"], string> = {
   eq: "equals",

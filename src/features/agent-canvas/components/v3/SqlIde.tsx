@@ -1,27 +1,31 @@
 "use client";
+
 /**
  * SQL IDE — Monaco multi-tab editor with DuckDB autocomplete,
  * PrimeReact VirtualScroller DataTable, and query history.
  */
 
-import { useCallback, useRef, useState } from "react";
-import dynamic from "next/dynamic";
 import {
-  Plus,
-  Play,
   AlignLeft,
   ChevronDown,
   Clock,
   Database,
+  Play,
+  Plus,
 } from "lucide-react";
-import { motion, AnimatePresence } from "motion/react";
-import { cn } from "@/shared/utils";
-import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
+import { useCallback, useRef, useState } from "react";
 import type {
-  SQLTab,
   SQLHistoryEntry,
+  SQLTab,
 } from "@/features/agent-canvas/core/agent-store";
+import {
+  defaultSQLForTable,
+  useAgentStore,
+} from "@/features/agent-canvas/core/agent-store";
+import { runQuery } from "@/platform/duckdb/duckdb";
+import { cn } from "@/shared/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -52,7 +56,7 @@ function ResultsTable({ rows }: { rows: Record<string, unknown>[] }) {
     );
   }
 
-  const headers = Object.keys(rows[0]);
+  const headers = Object.keys(rows![0]!);
   const visible = rows.slice(0, 500);
 
   return (
@@ -104,7 +108,8 @@ function ResultsTable({ rows }: { rows: Record<string, unknown>[] }) {
 // ─── Tab bar ─────────────────────────────────────────────────────────────────
 
 function TabBar() {
-  const { sqlTabs, activeSqlTab, setActiveSQLTab, addSQLTab } = useAgentStore();
+  const { sqlTabs, activeSqlTab, setActiveSQLTab, addSQLTab, tableName } =
+    useAgentStore();
   let tabSeq = sqlTabs.length + 1;
 
   const handleNew = () => {
@@ -112,7 +117,7 @@ function TabBar() {
     addSQLTab({
       id,
       label: `Query ${tabSeq++}`,
-      sql: "SELECT * FROM data LIMIT 100;",
+      sql: defaultSQLForTable(tableName),
       results: [],
       running: false,
     });

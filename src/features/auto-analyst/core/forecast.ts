@@ -10,7 +10,7 @@ import type { ColumnProfile, ForecastPoint, ForecastSeries } from "./types";
 const HORIZON = 14;
 
 function quote(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace('"', '""')}"`;
 }
 
 function linearFit(

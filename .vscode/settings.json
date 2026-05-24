@@ -139,7 +139,7 @@
   },
 
   // ─────────────────────────────────────────────
-  // TypeScript / Next / Bun project behavior
+  // TypeScript / Next / npm project behavior
   // ─────────────────────────────────────────────
 
   "ts.tsdk": "node_modules/typescript/lib",

@@ -118,7 +118,7 @@ export function ManagerAnswerPanel({
       {(answer.assumptions.length > 0 || answer.evidence.length > 0) && (
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           {answer.assumptions.length > 0 && (
-            <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+            <div className="rounded-lg border border-white/8 bg-white/3 p-3">
               <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold text-foreground">
                 <Lightbulb className="h-3.5 w-3.5 text-amber-300" />
                 Assumptions
@@ -131,7 +131,7 @@ export function ManagerAnswerPanel({
             </div>
           )}
           {answer.evidence.length > 0 && (
-            <div className="rounded-lg border border-white/8 bg-white/[0.03] p-3">
+            <div className="rounded-lg border border-white/8 bg-white/3 p-3">
               <div className="mb-2 text-[11px] font-semibold text-foreground">
                 Evidence
               </div>
@@ -147,7 +147,7 @@ export function ManagerAnswerPanel({
 
       {/* Evidence */}
       {answer.evidence.length > 0 && (
-        <div className="mt-3 rounded-lg border border-white/8 bg-white/[0.03] p-3">
+        <div className="mt-3 rounded-lg border border-white/8 bg-white/3 p-3">
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-2 text-[11px] font-semibold text-foreground">
               <FileSearch className="h-3.5 w-3.5 text-cyan-300" />
@@ -190,7 +190,7 @@ export function ManagerAnswerPanel({
               <button
                 key={followUp}
                 onClick={() => onFollowUp?.(followUp)}
-                className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-white/20 hover:bg-white/[0.08] hover:text-foreground"
+                className="rounded-md border border-white/10 bg-white/4 px-2.5 py-1 text-[11px] text-muted-foreground transition-colors hover:border-white/20 hover:bg-white/8 hover:text-foreground"
               >
                 {followUp}
               </button>

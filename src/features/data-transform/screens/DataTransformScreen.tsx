@@ -1,25 +1,52 @@
 "use client";
 
-import { useState, useCallback, useEffect, useMemo, useRef } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import dynamic from "next/dynamic";
 import ReactECharts from "echarts-for-react";
-import { useActivityStore } from "@/core/stores/activity-store";
-import { useAppContextStore } from "@/core/stores/app-context-store";
-import { useDataStore } from "@/core/stores/data-store";
-import { cn } from "@/shared/utils";
-import { runQuery, loadJSONToDuckDB } from "@/platform/duckdb/duckdb";
 import { produce } from "immer";
-
+import {
+  Activity,
+  AlertTriangle,
+  ArrowRight,
+  ArrowUpDown,
+  BarChart2,
+  Calendar,
+  CheckCircle2,
+  ChevronDown,
+  ChevronUp,
+  Clock,
+  Code2,
+  Copy,
+  Database,
+  Download,
+  Eye,
+  Filter,
+  GripVertical,
+  Hash,
+  Loader2,
+  Merge,
+  Pause,
+  Play,
+  Plus,
+  RefreshCw,
+  RotateCcw,
+  Settings2,
+  Sparkles,
+  Split,
+  Table2,
+  Trash2,
+  Type,
+  XCircle,
+  Zap,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Separator } from "@/components/ui/separator";
 import { Progress } from "@/components/ui/progress";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -27,43 +54,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
-
-import {
-  Play,
-  Pause,
-  RotateCcw,
-  Plus,
-  Trash2,
-  ChevronDown,
-  ChevronUp,
-  GripVertical,
-  Database,
-  Zap,
-  Filter,
-  ArrowUpDown,
-  Hash,
-  Type,
-  Calendar,
-  Merge,
-  Split,
-  BarChart2,
-  RefreshCw,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  AlertTriangle,
-  Eye,
-  Code2,
-  Settings2,
-  Activity,
-  ArrowRight,
-  Download,
-  Copy,
-  Loader2,
-  Sparkles,
-  Table2,
-} from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useActivityStore } from "@/core/stores/activity-store";
+import { useAppContextStore } from "@/core/stores/app-context-store";
+import { useDataStore } from "@/core/stores/data-store";
+import { runQuery } from "@/platform/duckdb/duckdb";
+import { cn } from "@/shared/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -142,25 +140,33 @@ const STEP_ICONS: Record<StepType, React.ReactNode> = {
 
 function stepToSQL(step: TransformStep, prevTable: string): string {
   const c = step.config;
+  const source = `"${prevTable.replace('"', '""')}"`;
   switch (step.type) {
     case "filter":
-      return `SELECT * FROM "${prevTable}" WHERE ${String(c.condition ?? "1=1")}`;
+      return `SELECT * FROM ${source} WHERE ${String(c.condition ?? "1=1")}`;
     case "select":
-      return `SELECT ${String(c.columns ?? "*")} FROM "${prevTable}"`;
+      return `SELECT ${String(c.columns ?? "*")} FROM ${source}`;
     case "rename":
-      return `SELECT *, ${String(c.expression ?? "id")} AS "${String(c.alias ?? "new_col")}" FROM "${prevTable}"`;
+      return `SELECT *, ${String(c.expression ?? "1")} AS "${String(c.alias ?? "new_col")}" FROM ${source}`;
     case "derive":
-      return `SELECT *, ${String(c.expression ?? "1")} AS "${String(c.alias ?? "derived")}" FROM "${prevTable}"`;
-    case "aggregate":
-      return `SELECT ${String(c.groupBy ?? "department")}, ${String(c.agg ?? "COUNT(*) as count")} FROM "${prevTable}" GROUP BY ${String(c.groupBy ?? "department")}`;
+      return `SELECT *, ${String(c.expression ?? "1")} AS "${String(c.alias ?? "derived")}" FROM ${source}`;
+    case "aggregate": {
+      const groupBy = String(c.groupBy ?? "").trim();
+      const agg = String(c.agg ?? "COUNT(*) as count");
+      return groupBy
+        ? `SELECT ${groupBy}, ${agg} FROM ${source} GROUP BY ${groupBy}`
+        : `SELECT ${agg} FROM ${source}`;
+    }
     case "sort":
-      return `SELECT * FROM "${prevTable}" ORDER BY ${String(c.column ?? "id")} ${String(c.direction ?? "ASC")}`;
+      return c.column
+        ? `SELECT * FROM ${source} ORDER BY ${String(c.column)} ${String(c.direction ?? "ASC")}`
+        : `SELECT * FROM ${source}`;
     case "deduplicate":
-      return `SELECT DISTINCT * FROM "${prevTable}"`;
+      return `SELECT DISTINCT * FROM ${source}`;
     case "limit":
-      return `SELECT * FROM "${prevTable}" LIMIT ${String(c.count ?? 1000)}`;
+      return `SELECT * FROM ${source} LIMIT ${String(c.count ?? 1000)}`;
     default:
-      return `SELECT * FROM "${prevTable}"`;
+      return `SELECT * FROM ${source}`;
   }
 }
 
@@ -323,61 +329,28 @@ function StepCard({
 
 export default function DataTransformScreen() {
   const activeDatasetId = useDataStore((s) => s.activeDatasetId);
+  const datasets = useDataStore((s) => s.datasets);
+  const loadedTableNames = useDataStore((s) => s.loadedTableNames);
+  const activeDataset =
+    datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
   const addActivity = useActivityStore((s) => s.addEvent);
   const setAppContext = useAppContextStore((s) => s.setContext);
   const [dbReady, setDbReady] = useState(false);
+  const [sourceTableName, setSourceTableName] = useState<string | null>(null);
+  const [sourceRowCount, setSourceRowCount] = useState(0);
   const [steps, setSteps] = useState<TransformStep[]>([
     {
       id: "s1",
-      type: "filter",
-      label: "Active users only",
-      enabled: true,
-      status: "idle",
-      config: { condition: "status = 'Active'" },
-    },
-    {
-      id: "s2",
-      type: "select",
-      label: "Keep key columns",
-      enabled: true,
-      status: "idle",
-      config: {
-        columns:
-          "id, first_name, last_name, email, department, country, revenue, profit_margin, satisfaction_score, status",
-      },
-    },
-    {
-      id: "s3",
-      type: "derive",
-      label: "Revenue tier",
-      enabled: true,
-      status: "idle",
-      config: {
-        expression:
-          "CASE WHEN revenue > 50000 THEN 'High' WHEN revenue > 20000 THEN 'Medium' ELSE 'Low' END",
-        alias: "revenue_tier",
-      },
-    },
-    {
-      id: "s4",
-      type: "sort",
-      label: "Sort by revenue desc",
-      enabled: true,
-      status: "idle",
-      config: { column: "revenue", direction: "DESC" },
-    },
-    {
-      id: "s5",
       type: "deduplicate",
-      label: "Remove duplicates",
-      enabled: true,
+      label: "Remove duplicate rows",
+      enabled: false,
       status: "idle",
       config: {},
     },
     {
-      id: "s6",
+      id: "s2",
       type: "limit",
-      label: "Take top 1000",
+      label: "Limit rows",
       enabled: false,
       status: "idle",
       config: { count: 1000 },
@@ -401,25 +374,51 @@ export default function DataTransformScreen() {
     let cancelled = false;
     async function init() {
       try {
+        let tableName = activeDataset?.tableName ?? loadedTableNames[0] ?? "";
         const tables = await runQuery("SHOW TABLES").catch(() => []);
-        if (tables.length > 0) {
-          if (!cancelled) setDbReady(true);
+        const tableNames = tables
+          .map((row) =>
+            String(row.name ?? row.table_name ?? Object.values(row)[0] ?? ""),
+          )
+          .filter(Boolean);
+        if (
+          tableNames.length > 0 &&
+          (!tableName || !tableNames.includes(tableName))
+        ) {
+          tableName = tableNames[0] ?? "";
+        }
+
+        if (tableName) {
+          const countRes = await runQuery(
+            `SELECT COUNT(*) as cnt FROM "${tableName.replace('"', '""')}"`,
+          );
+          if (!cancelled) {
+            setSourceTableName(tableName);
+            setSourceRowCount(Number(countRes[0]?.cnt ?? 0));
+            setDbReady(true);
+          }
+        } else if (!cancelled) {
+          setSourceTableName(null);
+          setSourceRowCount(0);
+          setDbReady(false);
         }
       } catch (e) {
         console.error(e);
+        if (!cancelled) setDbReady(false);
       }
     }
     init();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [activeDataset?.tableName, loadedTableNames]);
 
   // Build full SQL chain
   const buildPipelineSQL = useCallback(
     (stepsToRun: TransformStep[]): string[] => {
       const sqls: string[] = [];
-      let currentTable = "transform_source";
+      let currentTable = sourceTableName;
+      if (!currentTable) return sqls;
       for (const step of stepsToRun) {
         if (!step.enabled) continue;
         const sql = stepToSQL(step, currentTable);
@@ -429,18 +428,18 @@ export default function DataTransformScreen() {
       }
       return sqls;
     },
-    [],
+    [sourceTableName],
   );
 
   // Run pipeline
   const runPipeline = useCallback(async () => {
-    if (!dbReady) return;
+    if (!dbReady || !sourceTableName) return;
     setRunning(true);
     setActiveTab("preview");
 
     const enabledSteps = steps.filter((s) => s.enabled);
     const t0 = performance.now();
-    let currentRows = 10000;
+    let currentRows = sourceRowCount;
 
     // Reset statuses
     setSteps((prev) =>
@@ -456,7 +455,7 @@ export default function DataTransformScreen() {
     );
 
     try {
-      let currentTable = "transform_source";
+      let currentTable = sourceTableName;
       for (const step of enabledSteps) {
         setSteps((prev) =>
           produce(prev, (draft) => {
@@ -511,15 +510,17 @@ export default function DataTransformScreen() {
       const lastTable =
         enabledSteps.length > 0
           ? `step_${enabledSteps[enabledSteps.length - 1].id}`
-          : "transform_source";
-      const preview = await runQuery(`SELECT * FROM "${lastTable}" LIMIT 50`);
+          : sourceTableName;
+      const preview = await runQuery(
+        `SELECT * FROM "${lastTable.replace('"', '""')}" LIMIT 50`,
+      );
       setPreviewData(preview);
       setPreviewCols(preview.length > 0 ? Object.keys(preview[0]) : []);
       setFinalRowCount(currentRows);
 
       // Build readable SQL
-      let sql = `-- Transform Pipeline SQL\n-- Source: transform_source (10,000 rows)\n\n`;
-      let prevT = "transform_source";
+      let sql = `-- Transform Pipeline SQL\n-- Source: ${sourceTableName} (${sourceRowCount.toLocaleString()} rows)\n\n`;
+      let prevT = sourceTableName;
       for (const step of enabledSteps) {
         sql += `-- Step: ${step.label}\nCREATE OR REPLACE TABLE step_${step.id} AS (\n  ${stepToSQL(step, prevT)}\n);\n\n`;
         prevT = `step_${step.id}`;
@@ -532,7 +533,7 @@ export default function DataTransformScreen() {
           id: `run_${Date.now()}`,
           timestamp: new Date(),
           steps: enabledSteps.length,
-          inputRows: 10000,
+          inputRows: sourceRowCount,
           outputRows: currentRows,
           duration: totalDur,
           success: true,
@@ -558,7 +559,15 @@ export default function DataTransformScreen() {
       console.error(e);
     }
     setRunning(false);
-  }, [activeDatasetId, addActivity, dbReady, setAppContext, steps]);
+  }, [
+    activeDatasetId,
+    addActivity,
+    dbReady,
+    setAppContext,
+    sourceRowCount,
+    sourceTableName,
+    steps,
+  ]);
 
   const addStep = useCallback((type: StepType) => {
     const defaults: Record<
@@ -573,13 +582,13 @@ export default function DataTransformScreen() {
       },
       derive: {
         label: "Derive column",
-        config: { expression: "revenue * 0.1", alias: "commission" },
+        config: { expression: "1", alias: "derived" },
       },
       aggregate: {
         label: "Aggregate",
-        config: { groupBy: "department", agg: "SUM(revenue) as total_revenue" },
+        config: { groupBy: "", agg: "COUNT(*) as count" },
       },
-      sort: { label: "Sort rows", config: { column: "id", direction: "ASC" } },
+      sort: { label: "Sort rows", config: { column: "", direction: "ASC" } },
       deduplicate: { label: "Remove duplicates", config: {} },
       limit: { label: "Limit rows", config: { count: 500 } },
       join: { label: "Join table", config: {} },
@@ -821,7 +830,8 @@ export default function DataTransformScreen() {
                 <div>
                   <p className="text-xs text-zinc-400">Source</p>
                   <p className="text-[10px] text-zinc-600">
-                    transform_source · 10,000 rows
+                    {sourceTableName ?? "No table loaded"} ·{" "}
+                    {sourceRowCount.toLocaleString()} rows
                   </p>
                 </div>
               </div>
@@ -1012,7 +1022,7 @@ export default function DataTransformScreen() {
                               )
                             }
                             className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                            placeholder="status = 'Active' AND revenue > 1000"
+                            placeholder="1=1"
                           />
                           <p className="text-[10px] text-zinc-600">
                             Standard SQL WHERE clause without the WHERE keyword
@@ -1034,7 +1044,7 @@ export default function DataTransformScreen() {
                               )
                             }
                             className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                            placeholder="id, name, revenue, status"
+                            placeholder="* or column_a, column_b"
                           />
                         </div>
                       )}
@@ -1055,7 +1065,7 @@ export default function DataTransformScreen() {
                                 )
                               }
                               className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                              placeholder="revenue * profit_margin / 100"
+                              placeholder="1"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -1072,7 +1082,7 @@ export default function DataTransformScreen() {
                                 )
                               }
                               className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                              placeholder="profit_amount"
+                              placeholder="derived"
                             />
                           </div>
                         </>
@@ -1093,7 +1103,7 @@ export default function DataTransformScreen() {
                                 )
                               }
                               className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                              placeholder="department, country"
+                              placeholder="column_name"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -1110,7 +1120,7 @@ export default function DataTransformScreen() {
                                 )
                               }
                               className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                              placeholder="SUM(revenue) as total, AVG(margin) as avg_margin"
+                              placeholder="COUNT(*) as count"
                             />
                           </div>
                         </>
@@ -1131,7 +1141,7 @@ export default function DataTransformScreen() {
                                 )
                               }
                               className="h-8 text-xs bg-zinc-800 border-zinc-700 font-mono"
-                              placeholder="revenue"
+                              placeholder="column_name"
                             />
                           </div>
                           <div className="space-y-1.5">
@@ -1356,7 +1366,11 @@ export default function DataTransformScreen() {
                     </Card>
                     <div className="grid grid-cols-3 gap-4">
                       {[
-                        { label: "Input Rows", value: "10,000", color: "zinc" },
+                        {
+                          label: "Input Rows",
+                          value: sourceRowCount.toLocaleString(),
+                          color: "zinc",
+                        },
                         {
                           label: "Output Rows",
                           value: (finalRowCount ?? 0).toLocaleString(),

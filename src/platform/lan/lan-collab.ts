@@ -199,7 +199,7 @@ interface ProviderHandle {
 }
 
 let provider: ProviderHandle | null = null;
-let watchers = new Set<() => void>();
+const watchers = new Set<() => void>();
 let status: LANStatus = "off";
 let peers: LANPeer[] = [];
 let activeSettings: LANSettings | null = null;
@@ -545,7 +545,7 @@ export async function uploadLANFile(file: File): Promise<LANSharedFile> {
 
 export function buildLANCommand(settings: LANSettings): string {
   const port = settings.url ? new URL(settings.url).port || "1234" : "1234";
-  return `PAIRING_CODE=${settings.pairingCode || "123456"} PORT=${port} bun run lan-server`;
+  return `PAIRING_CODE=${settings.pairingCode || "123456"} PORT=${port} npm run lan-server`;
 }
 
 export function getLANJoinUrl(settings: LANSettings): string {

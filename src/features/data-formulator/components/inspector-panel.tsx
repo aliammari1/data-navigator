@@ -36,13 +36,13 @@ function CardDetails({
 
       <div>
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Title</div>
-        <div className="text-sm text-foreground break-words">{card.title}</div>
+        <div className="text-sm text-foreground wrap-break-word">{card.title}</div>
       </div>
 
       {card.sourceQuery && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Source Query</div>
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-2 text-xs text-muted-foreground">
+          <div className="rounded-lg border border-white/10 bg-white/3 p-2 text-xs text-muted-foreground">
             {card.sourceQuery}
           </div>
         </div>
@@ -75,7 +75,7 @@ function CardDetails({
             </button>
           )}
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Chart Spec</div>
-          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[10px] text-muted-foreground">
+          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/3 p-2 text-[10px] text-muted-foreground">
             {safeJsonStringify(card.chartSpec, 2)}
           </pre>
         </div>
@@ -84,7 +84,7 @@ function CardDetails({
       {card.queryResult?.sql && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">SQL</div>
-          <pre className="max-h-32 overflow-auto rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[10px] text-emerald-300/80">
+          <pre className="max-h-32 overflow-auto rounded-lg border border-white/10 bg-white/3 p-2 text-[10px] text-emerald-300/80">
             {card.queryResult.sql}
           </pre>
         </div>
@@ -93,7 +93,7 @@ function CardDetails({
       {hasOperationPlan && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Operation Plan</div>
-          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[10px] text-muted-foreground">
+          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/3 p-2 text-[10px] text-muted-foreground">
             {safeJsonStringify(card.operationPlan, 2)}
           </pre>
         </div>
@@ -102,7 +102,7 @@ function CardDetails({
       {hasOperationArtifact && (
         <div>
           <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Execution</div>
-          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/[0.03] p-2 text-[10px] text-muted-foreground">
+          <pre className="max-h-48 overflow-auto rounded-lg border border-white/10 bg-white/3 p-2 text-[10px] text-muted-foreground">
             {safeJsonStringify(card.operationArtifact, 2)}
           </pre>
         </div>

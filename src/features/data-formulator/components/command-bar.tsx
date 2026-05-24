@@ -150,7 +150,7 @@ export function CommandBar({
   }, [handleSubmit]);
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3 pt-2 bg-gradient-to-t from-background via-background to-transparent sm:px-4 sm:pb-4">
+    <div className="fixed bottom-0 left-0 right-0 z-50 px-3 pb-3 pt-2 bg-linear-to-t from-background via-background to-transparent sm:px-4 sm:pb-4">
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -251,7 +251,7 @@ export function CommandBar({
             Connections
           </button>
 
-          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/[0.04] px-1 py-0.5">
+          <div className="flex items-center gap-1 rounded-lg border border-white/10 bg-white/4 px-1 py-0.5">
             <Languages className="ml-1 h-3 w-3 text-muted-foreground" />
             {LANGUAGE_OPTIONS.map((option) => (
               <button

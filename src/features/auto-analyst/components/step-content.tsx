@@ -148,7 +148,7 @@ const titles: Record<
   },
   report: {
     title: "Export report",
-    description: "PDF + PPTX bundle of charts and narrative.",
+    description: "PDF bundle of charts and narrative.",
     icon: <BarChart3 className="w-4 h-4" />,
   },
   lineage: {
@@ -261,7 +261,7 @@ function StepBrief({
       <div className="grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-3">
           <label className="block" htmlFor="auto-analyst-question">
-            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+            <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
               Analyst question
             </span>
             <AtlasTextarea
@@ -275,7 +275,7 @@ function StepBrief({
           </label>
           <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
             <label className="block" htmlFor="auto-analyst-target-metric">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+              <span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
                 Target metric
               </span>
               <AtlasInput
@@ -306,11 +306,11 @@ function StepBrief({
             </div>
           </div>
         </div>
-        <div className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-3">
-          <div className="mb-2 text-xs font-semibold text-[var(--atlas-text)]">
+        <div className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-3">
+          <div className="mb-2 text-xs font-semibold text-(--atlas-text)">
             Control handoff
           </div>
-          <div className="space-y-2 text-[11px] leading-snug text-[var(--atlas-text-subtle)]">
+          <div className="space-y-2 text-[11px] leading-snug text-(--atlas-text-subtle)">
             <p>
               The analyst will profile the table, choose viable tests, inspect
               anomalies, create a narrative and rank actions with evidence.

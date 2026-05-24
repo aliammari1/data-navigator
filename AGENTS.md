@@ -13,25 +13,25 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 | Command | Purpose |
 |---------|---------|
-| `bun run dev` | Run Next.js dev server |
-| `bun run build` | Build Next.js for production |
-| `bun run lint` | Run Biome linter |
-| `bun run format` | Format code with Biome |
-| `bun run build:worker` | Build all web workers (DuckDB, Python, LLM) |
-| `bun run electron:dev` | Run Electron with Next.js dev |
-| `bun run electron:build` | Build Electron app package |
+| `npm run dev` | Run Next.js dev server |
+| `npm run build` | Build Next.js for production |
+| `npm run lint` | Run Biome linter |
+| `npm run format` | Format code with Biome |
+| `npm run build:worker` | Build all web workers (DuckDB, Python, LLM) |
+| `npm run electron:dev` | Run Electron with Next.js dev |
+| `npm run electron:build` | Build Electron app package |
 
 ## Dev Workflow
 
-1. Always run `bun run build:worker` before `bun run dev` if workers were modified
-2. For Electron: `bun run electron:dev` runs both Next.js + Electron
-3. Lint before committing: `bun run lint` (fix with `bun run format`)
+1. Always run `npm run build:worker` before `npm run dev` if workers were modified
+2. For Electron: `npm run electron:dev` runs both Next.js + Electron
+3. Lint before committing: `npm run lint` (fix with `npm run format`)
 
 ## Project Structure
 
 - `src/app/` — Next.js App Router pages (dashboard/*, login/*, telecom-report/*)
 - `src/components/` — React components (ui/* = shadcn components)
-- `electron/` — Electron main + preload (TypeScript, built to dist-electron/)
+- `electron/` — Electron main + preload (TypeScript, built to build/)
 - `public/workers/` — Built web workers (DuckDB, Python sandbox, LLM)
 - `scripts/` — Build/util scripts (check-architecture, lan-server, prepare-standalone)
 
@@ -39,7 +39,7 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 1. Biome config version mismatch — schema says 2.2.0 but CLI is 2.4.15. Run `biome migrate` or ignore.
 2. Workers are built files — don't edit directly, modify `src/workers/` and rebuild
-3. Electron files are built — edit `electron/*.ts`, not `dist-electron/`
+3. Electron files are built — edit `electron/*.ts`, not `build/`
 4. Hardcoded language in `src/app/layout.tsx:33` — currently `lang="fr"`
 
 ## Framework Quirks
@@ -52,13 +52,13 @@ This version has breaking changes — APIs, conventions, and file structure may 
 
 ## Electron Notes
 
-- Main process: `electron/main.ts` → `dist-electron/main.js`
-- Preload: `electron/preload.ts` → `dist-electron/preload.js`
+- Main process: `electron/main.ts` → `build/main.js`
+- Preload: `electron/preload.ts` → `build/preload.js`
 - Uses Squirrel for Windows installers
 - Standalone Next.js server runs on port 3001 in Electron
 
 ## Lint/Typecheck
 
-- TypeScript: `bun x tsc --noEmit` (no errors currently)
-- Linter: Biome (`bun run lint`)
+- TypeScript: `npx tsc --noEmit` (no errors currently)
+- Linter: Biome (`npm run lint`)
 - No `@ts-ignore` workarounds in codebase

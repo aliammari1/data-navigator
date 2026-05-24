@@ -120,7 +120,7 @@ function TableCardContent({ card }: { card: CanvasCard }) {
           </thead>
           <tbody>
             {displayRows.map((row: Record<string, unknown>, i: number) => (
-              <tr key={i} className="text-foreground/70 border-b border-white/[0.03]">
+              <tr key={i} className="text-foreground/70 border-b border-white/3">
                 {headers.map((h, j) => (
                   <td key={j} className="py-1 pr-2 truncate max-w-[80px]">{String(row[h] ?? "")}</td>
                 ))}
@@ -328,7 +328,7 @@ export function CanvasCardComponent({ card }: CanvasCardComponentProps) {
       onMouseDown={handleMouseDown}
     >
       {/* Header */}
-      <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-white/[0.05] shrink-0">
+      <div className="flex items-center gap-1.5 px-2.5 py-1.5 border-b border-white/5 shrink-0">
         <GripVertical className="w-3 h-3 text-muted-foreground/40" />
         <Icon className="w-3 h-3 text-muted-foreground/60" />
         <span className="text-[10px] text-muted-foreground truncate flex-1">{card.title}</span>

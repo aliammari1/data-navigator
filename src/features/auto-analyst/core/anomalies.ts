@@ -19,7 +19,7 @@ function genId(): string {
 }
 
 function quote(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace('"', '""')}"`;
 }
 
 export async function detectAnomalies(

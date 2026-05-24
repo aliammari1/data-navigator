@@ -104,7 +104,7 @@ export async function openLocalFileDialog(options?: {
   return openFileDialog({
     title: options?.title ?? "Open file",
     filters: options?.filters ?? [
-      { name: "Data files", extensions: ["csv", "json", "parquet", "tsv"] },
+      { name: "Data files", extensions: ["csv"] },
       { name: "All files", extensions: ["*"] },
     ],
     properties: ["openFile", "multiSelections"],

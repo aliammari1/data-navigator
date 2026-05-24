@@ -1,4 +1,5 @@
 "use client";
+
 /**
  * Agent Canvas v3 — A2UI Ultra IDE-class 4-panel layout.
  *
@@ -13,29 +14,28 @@
  *        Yjs CRDT · TF.js ML worker · all nivo/echarts/visx charts
  */
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Code2, FileText, GitBranch, LayoutDashboard } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
-  ResizablePanelGroup as PanelGroup,
   ResizablePanel as Panel,
+  ResizablePanelGroup as PanelGroup,
   ResizableHandle as PanelResizeHandle,
 } from "@/components/ui/resizable";
-import { motion, AnimatePresence } from "motion/react";
-import { LayoutDashboard, Code2, GitBranch, FileText } from "lucide-react";
-
+import { makeCtx, makeEvent } from "@/features/agent-canvas/core/ag-ui-types";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import {
-  publishEvent,
   buildTraceTree,
-  getEventLog,
   clearEventLog,
+  getEventLog,
+  publishEvent,
 } from "@/features/agent-canvas/core/event-bus";
-import { makeCtx, makeEvent } from "@/features/agent-canvas/core/ag-ui-types";
-import { runPipelineV3 } from "@/features/agent-canvas/core/langgraph-pipeline-v3";
+import { runPipeline } from "@/features/agent-canvas/core/pipeline";
 import type {
-  WidgetState,
   AgentThought,
   DashboardPlan,
+  WidgetState,
 } from "@/features/agent-canvas/core/types";
 
 // ─── Dynamic imports (client-only heavy) ────────────────────────────────────
@@ -54,10 +54,10 @@ const TopBar = dynamic(
     })),
   { ssr: false },
 );
-const CanvasV3 = dynamic(
+const Canvas = dynamic(
   () =>
-    import("@/features/agent-canvas/components/v3/CanvasV3").then((m) => ({
-      default: m.CanvasV3,
+    import("@/features/agent-canvas/components/Canvas").then((m) => ({
+      default: m.Canvas,
     })),
   { ssr: false },
 );
@@ -281,7 +281,7 @@ export default function AgentCanvasScreen() {
       ]);
 
       try {
-        const handle = await runPipelineV3({
+        const handle = await runPipeline({
           tableName,
           model: store.model,
           onWidget: handleWidget,
@@ -309,7 +309,7 @@ export default function AgentCanvasScreen() {
     ],
   );
 
-  // ── File / demo loaded ────────────────────────────────────────────────────
+  // ── File loaded ───────────────────────────────────────────────────────────
 
   const handleReady = useCallback(
     (tableName: string, fileName: string) => {
@@ -414,7 +414,7 @@ export default function AgentCanvasScreen() {
                       </span>
                     </div>
                     <div className="flex-1 min-h-0 overflow-hidden">
-                      <CanvasV3 />
+                      <Canvas />
                     </div>
                   </div>
                 </Panel>

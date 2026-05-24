@@ -174,7 +174,7 @@ export function InsightCard({
               {insight.description}
             </p>
           </div>
-          <div className="flex-shrink-0">
+          <div className="shrink-0">
             {expanded ? (
               <ChevronUp className="w-4 h-4 text-muted-foreground" />
             ) : (

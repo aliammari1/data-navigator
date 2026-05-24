@@ -16,7 +16,7 @@ export function StepHypotheses({
       {hypotheses.map((h) => (
         <div
           key={h.id}
-          className="flex items-start gap-3 rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] px-3.5 py-3 hover:border-[var(--atlas-accent-border)] transition-colors"
+          className="flex items-start gap-3 rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) px-3.5 py-3 hover:border-(--atlas-accent-border) transition-colors"
         >
           <AtlasChip
             severity={
@@ -31,10 +31,10 @@ export function StepHypotheses({
             {h.priority}
           </AtlasChip>
           <div className="flex-1 min-w-0">
-            <div className="text-sm text-[var(--atlas-text)] font-medium">
+            <div className="text-sm text-(--atlas-text) font-medium">
               {h.question}
             </div>
-            <div className="text-[11px] text-[var(--atlas-text-subtle)] mt-0.5 leading-snug">
+            <div className="text-[11px] text-(--atlas-text-subtle) mt-0.5 leading-snug">
               {h.rationale}
             </div>
             {h.parents.length > 0 && (
@@ -42,7 +42,7 @@ export function StepHypotheses({
                 {h.parents.map((p) => (
                   <span
                     key={p}
-                    className="text-[10px] font-mono text-[var(--atlas-accent-fg)] bg-[var(--atlas-accent-soft)] px-1.5 py-0.5 rounded"
+                    className="text-[10px] font-mono text-(--atlas-accent-fg) bg-(--atlas-accent-soft) px-1.5 py-0.5 rounded"
                   >
                     {p}
                   </span>
@@ -54,7 +54,7 @@ export function StepHypotheses({
             <button
               type="button"
               onClick={() => onAsk(h)}
-              className="atlas-focus-ring text-[var(--atlas-accent-fg)] text-xs font-medium hover:underline inline-flex items-center gap-1"
+              className="atlas-focus-ring text-(--atlas-accent-fg) text-xs font-medium hover:underline inline-flex items-center gap-1"
             >
               Investigate <ArrowRight className="w-3 h-3" />
             </button>

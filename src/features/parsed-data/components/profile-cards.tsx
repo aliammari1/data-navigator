@@ -103,7 +103,7 @@ export function ColCard({
     >
       <div className="flex items-start gap-2.5">
         <div
-          className={`p-1.5 rounded-lg flex-shrink-0 ${typeColor(profile.type)}`}
+          className={`p-1.5 rounded-lg shrink-0 ${typeColor(profile.type)}`}
         >
           <Icon className="w-3.5 h-3.5" />
         </div>
@@ -130,7 +130,7 @@ export function ColCard({
             />
           </div>
         </div>
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <QualityRing score={overallScore} size={32} />
         </div>
       </div>

@@ -639,7 +639,7 @@ export async function loadReportCSV(
   csvContent: string,
   mapping?: import("@/features/telecom/types").ColumnMapping,
 ): Promise<{ rowCount: number; columns: string[] }> {
-  await loadDelimitedCSVToDuckDB(REPORT_TABLE, csvContent, "|");
+  await loadDelimitedCSVToDuckDB(REPORT_TABLE, csvContent);
   const info = await runQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`);
   const cols = await runQuery(
     `SELECT column_name FROM information_schema.columns WHERE table_name = '${REPORT_TABLE}'`,

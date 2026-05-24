@@ -109,7 +109,7 @@ function typeStyle(t: LNode["type"]) {
 function StatusDot({ status }: { status: LNode["status"] }) {
   return (
     <span
-      className="w-2 h-2 rounded-full flex-shrink-0 inline-block"
+      className="w-2 h-2 rounded-full shrink-0 inline-block"
       style={{ backgroundColor: statusColor(status) }}
     />
   );
@@ -463,10 +463,10 @@ export default function LineageScreen() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 md:p-5 flex-shrink-0">
+      <div className="border-b border-border p-4 md:p-5 shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-blue-600 to-cyan-600 rounded-xl">
+            <div className="p-2 bg-linear-to-br from-blue-600 to-cyan-600 rounded-xl">
               <Network className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -783,7 +783,7 @@ export default function LineageScreen() {
                       animate={{ width: 320, opacity: 1 }}
                       exit={{ width: 0, opacity: 0 }}
                       transition={{ duration: 0.25 }}
-                      className="border-l border-border bg-card overflow-y-auto flex-shrink-0"
+                      className="border-l border-border bg-card overflow-y-auto shrink-0"
                     >
                       <div className="p-4">
                         {/* Header */}

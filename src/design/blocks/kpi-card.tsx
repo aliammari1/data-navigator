@@ -14,19 +14,19 @@ interface KPIProps {
 }
 
 const sevBorder: Record<AtlasSeverity, string> = {
-  info: "border-[var(--atlas-info-border)]",
-  success: "border-[var(--atlas-success-border)]",
-  warning: "border-[var(--atlas-warning-border)]",
-  danger: "border-[var(--atlas-danger-border)]",
-  accent: "border-[var(--atlas-accent-border)]",
+  info: "border-(--atlas-info-border)",
+  success: "border-(--atlas-success-border)",
+  warning: "border-(--atlas-warning-border)",
+  danger: "border-(--atlas-danger-border)",
+  accent: "border-(--atlas-accent-border)",
 };
 
 const sevSoft: Record<AtlasSeverity, string> = {
-  info: "bg-[var(--atlas-info-soft)]",
-  success: "bg-[var(--atlas-success-soft)]",
-  warning: "bg-[var(--atlas-warning-soft)]",
-  danger: "bg-[var(--atlas-danger-soft)]",
-  accent: "bg-[var(--atlas-accent-soft)]",
+  info: "bg-(--atlas-info-soft)",
+  success: "bg-(--atlas-success-soft)",
+  warning: "bg-(--atlas-warning-soft)",
+  danger: "bg-(--atlas-danger-soft)",
+  accent: "bg-(--atlas-accent-soft)",
 };
 
 export function AtlasKPI({
@@ -49,17 +49,17 @@ export function AtlasKPI({
     delta === undefined
       ? ""
       : delta > 0
-        ? "text-[var(--atlas-success-fg)]"
+        ? "text-(--atlas-success-fg)"
         : delta < 0
-          ? "text-[var(--atlas-danger-fg)]"
-          : "text-[var(--atlas-text-muted)]";
+          ? "text-(--atlas-danger-fg)"
+          : "text-(--atlas-text-muted)";
 
   return (
     <div
-      className={`rounded-[var(--atlas-radius-3)] border ${sevBorder[severity]} bg-[var(--atlas-surface)] p-3.5 transition-colors hover:bg-[var(--atlas-surface-raised)]`}
+      className={`rounded-(--atlas-radius-3) border ${sevBorder[severity]} bg-(--atlas-surface) p-3.5 transition-colors hover:bg-(--atlas-surface-raised)`}
     >
       <div className="flex items-center justify-between gap-2 mb-1.5">
-        <span className="text-[10px] uppercase tracking-wide text-[var(--atlas-text-subtle)] font-bold">
+        <span className="text-[10px] uppercase tracking-wide text-(--atlas-text-subtle) font-bold">
           {label}
         </span>
         {icon && (
@@ -70,7 +70,7 @@ export function AtlasKPI({
           </div>
         )}
       </div>
-      <div className="text-[var(--atlas-text)] text-xl font-bold tabular-nums leading-none">
+      <div className="text-(--atlas-text) text-xl font-bold tabular-nums leading-none">
         {value}
       </div>
       <div className="mt-1.5 flex items-center gap-2">
@@ -83,7 +83,7 @@ export function AtlasKPI({
           </div>
         )}
         {hint && (
-          <span className="text-[11px] text-[var(--atlas-text-subtle)] truncate">
+          <span className="text-[11px] text-(--atlas-text-subtle) truncate">
             {hint}
           </span>
         )}

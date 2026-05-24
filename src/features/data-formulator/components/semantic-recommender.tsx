@@ -123,7 +123,7 @@ export function SemanticRecommender({
                   transition={{ delay: i * 0.05 }}
                   type="button"
                   onClick={() => onCreateChart(template, matchedFields)}
-                  className="w-full text-left rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-primary/30 hover:bg-white/[0.08] p-2.5 transition-all group"
+                  className="w-full text-left rounded-xl bg-white/5 backdrop-blur-xl border border-white/10 hover:border-primary/30 hover:bg-white/8 p-2.5 transition-all group"
                 >
                   <div className="flex items-center gap-2">
                     <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center flex-none">

@@ -1,7 +1,5 @@
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
 import {
   BarChart3,
   Brain,
@@ -14,8 +12,8 @@ import {
   Filter,
   Folder,
   GitBranch,
-  History,
   HelpCircle,
+  History,
   Keyboard,
   Layers,
   MessageSquare,
@@ -27,6 +25,8 @@ import {
   Users,
   Zap,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { cn } from "@/shared/utils";
 
 // ─── Data ─────────────────────────────────────────────────────────────────────
@@ -201,7 +201,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: "Why do I get a 'SharedWorker unavailable' message?",
-    a: "The SharedWorker enables one DuckDB instance shared across all open tabs. It requires the worker to be built (run `bun run build:worker`). Without it, each tab gets its own DuckDB instance — everything still works, just tables won't be shared across tabs.",
+    a: "The SharedWorker enables one DuckDB instance shared across all open tabs. It requires the worker to be built (run `npm run build:worker`). Without it, each tab gets its own DuckDB instance — everything still works, just tables won't be shared across tabs.",
   },
 ];
 

@@ -31,9 +31,9 @@ export function QABar({
     setQ("");
   };
   return (
-    <div className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface-raised)] shadow-[var(--atlas-shadow-2)] p-3">
+    <div className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface-raised) shadow-(--atlas-shadow-2) p-3">
       <div className="flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-[var(--atlas-accent-fg)] flex-none" />
+        <Sparkles className="w-4 h-4 text-(--atlas-accent-fg) flex-none" />
         <AtlasInput
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -58,7 +58,7 @@ export function QABar({
               key={s}
               type="button"
               onClick={() => onAsk(s)}
-              className="atlas-focus-ring text-[11px] px-2 py-0.5 rounded-[var(--atlas-radius-pill)] bg-[var(--atlas-surface)] border border-[var(--atlas-border)] text-[var(--atlas-text-muted)] hover:border-[var(--atlas-accent-border)] hover:text-[var(--atlas-accent-fg)] transition-colors"
+              className="atlas-focus-ring text-[11px] px-2 py-0.5 rounded-(--atlas-radius-pill) bg-(--atlas-surface) border border-(--atlas-border) text-(--atlas-text-muted) hover:border-(--atlas-accent-border) hover:text-(--atlas-accent-fg) transition-colors"
             >
               {s}
             </button>

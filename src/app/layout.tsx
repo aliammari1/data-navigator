@@ -6,7 +6,6 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/shared/utils";
 import "./globals.css";
 import "@/design/tokens.css";
-import { ReactScan } from "./_debug/ReactScan";
 
 export const metadata: Metadata = {
   title: "DataNavigator — Offline-first data analytics",
@@ -28,10 +27,9 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("h-full antialiased")}
+      className={cn("h-full antialiased dark")}
     >
       <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ReactScan />
         <ThemeProvider
           attribute="class"
           defaultTheme="dark"

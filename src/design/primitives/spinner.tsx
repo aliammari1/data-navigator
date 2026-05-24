@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { tv, type VariantProps } from "tailwind-variants";
 
 const spinner = tv({
-  base: "animate-spin text-[var(--atlas-text-muted)]",
+  base: "animate-spin text-(--atlas-text-muted)",
   variants: {
     size: {
       sm: "w-3 h-3",
@@ -12,8 +12,8 @@ const spinner = tv({
       lg: "w-6 h-6",
     },
     tone: {
-      neutral: "text-[var(--atlas-text-muted)]",
-      accent: "text-[var(--atlas-accent-fg)]",
+      neutral: "text-(--atlas-text-muted)",
+      accent: "text-(--atlas-accent-fg)",
     },
   },
   defaultVariants: { size: "md", tone: "neutral" },

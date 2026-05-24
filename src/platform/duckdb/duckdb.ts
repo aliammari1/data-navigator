@@ -100,14 +100,12 @@ export async function getColumnStats(
 export async function loadDelimitedCSVFromFile(
   tableName: string,
   file: File,
-  delimiter = ",",
   append = false,
   hasHeader = true,
 ): Promise<void> {
   return sharedDuckDB.loadCSVFile(
     tableName,
     file,
-    delimiter,
     append,
     hasHeader,
   );
@@ -116,19 +114,18 @@ export async function loadDelimitedCSVFromFile(
 export async function loadDelimitedCSVToDuckDB(
   tableName: string,
   csvContent: string,
-  delimiter = ",",
   append = false,
   hasHeader = true,
 ): Promise<void> {
   const buffer = new TextEncoder().encode(csvContent).buffer as ArrayBuffer;
-  return sharedDuckDB.loadCSV(tableName, buffer, delimiter, append, hasHeader);
+  return sharedDuckDB.loadCSV(tableName, buffer, append, hasHeader);
 }
 
 export async function loadCSVToDuckDB(
   tableName: string,
   csvContent: string,
 ): Promise<void> {
-  return loadDelimitedCSVToDuckDB(tableName, csvContent, ",");
+  return loadDelimitedCSVToDuckDB(tableName, csvContent);
 }
 
 export async function loadJSONToDuckDB(
@@ -138,19 +135,11 @@ export async function loadJSONToDuckDB(
   return sharedDuckDB.loadJSON(tableName, data);
 }
 
-export async function loadJSONFileToDuckDB(
-  tableName: string,
-  file: File,
-): Promise<void> {
-  return sharedDuckDB.loadJSONFile(tableName, file);
-}
-
 // ─── Path-based CSV / JSON loaders (preferred for Electron) ───────────────────
 
 export async function loadCSVPathToDuckDB(
   tableName: string,
   filePath: string,
-  delimiter = ",",
   append = false,
   hasHeader = true,
 ): Promise<void> {
@@ -158,7 +147,6 @@ export async function loadCSVPathToDuckDB(
   return duckdbBridge().loadCSVPath(
     tableName,
     filePath,
-    delimiter,
     append,
     hasHeader,
   );

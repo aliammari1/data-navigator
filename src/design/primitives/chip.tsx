@@ -5,20 +5,20 @@ import { tv, type VariantProps } from "tailwind-variants";
 import type { AtlasSeverity } from "../tokens";
 
 const chip = tv({
-  base: "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-[var(--atlas-radius-pill)] text-[var(--atlas-text-tiny)] font-semibold uppercase tracking-wide border",
+  base: "inline-flex items-center gap-1.5 px-2 py-0.5 rounded-(--atlas-radius-pill) text-(--atlas-text-tiny) font-semibold uppercase tracking-wide border",
   variants: {
     severity: {
-      info: "bg-[var(--atlas-info-soft)] border-[var(--atlas-info-border)] text-[var(--atlas-info-fg)]",
+      info: "bg-(--atlas-info-soft) border-(--atlas-info-border) text-(--atlas-info-fg)",
       success:
-        "bg-[var(--atlas-success-soft)] border-[var(--atlas-success-border)] text-[var(--atlas-success-fg)]",
+        "bg-(--atlas-success-soft) border-(--atlas-success-border) text-(--atlas-success-fg)",
       warning:
-        "bg-[var(--atlas-warning-soft)] border-[var(--atlas-warning-border)] text-[var(--atlas-warning-fg)]",
+        "bg-(--atlas-warning-soft) border-(--atlas-warning-border) text-(--atlas-warning-fg)",
       danger:
-        "bg-[var(--atlas-danger-soft)] border-[var(--atlas-danger-border)] text-[var(--atlas-danger-fg)]",
+        "bg-(--atlas-danger-soft) border-(--atlas-danger-border) text-(--atlas-danger-fg)",
       accent:
-        "bg-[var(--atlas-accent-soft)] border-[var(--atlas-accent-border)] text-[var(--atlas-accent-fg)]",
+        "bg-(--atlas-accent-soft) border-(--atlas-accent-border) text-(--atlas-accent-fg)",
       neutral:
-        "bg-[var(--atlas-surface)] border-[var(--atlas-border)] text-[var(--atlas-text-muted)]",
+        "bg-(--atlas-surface) border-(--atlas-border) text-(--atlas-text-muted)",
     },
     size: {
       sm: "text-[10px] px-1.5 py-0",

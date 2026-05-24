@@ -68,7 +68,7 @@ function TraceNodeCard({ node, isActive }: { node: AgentTraceNode; isActive: boo
         "rounded-xl border transition-all duration-300",
         isActive
           ? "border-white/20 bg-white/10 shadow-lg shadow-white/5"
-          : "border-white/5 bg-white/[0.02]",
+          : "border-white/5 bg-white/2",
       )}
     >
       <button
@@ -145,7 +145,7 @@ interface AgentTraceVisualizerProps {
 export function AgentTraceVisualizer({ trace, className }: AgentTraceVisualizerProps) {
   if (!trace) {
     return (
-      <div className={cn("rounded-xl border border-white/5 bg-white/[0.02] p-6 text-center", className)}>
+      <div className={cn("rounded-xl border border-white/5 bg-white/2 p-6 text-center", className)}>
         <Bot className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
         <p className="text-sm text-muted-foreground">No active trace</p>
         <p className="text-xs text-muted-foreground/60 mt-1">

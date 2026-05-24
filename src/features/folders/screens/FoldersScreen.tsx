@@ -1,35 +1,35 @@
 "use client";
 
-import { useState, useCallback, useMemo, useEffect } from "react";
-import dynamic from "next/dynamic";
-import { useTheme } from "next-themes";
-import { motion, AnimatePresence } from "motion/react";
 import {
+  BarChart3,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  Clock,
+  Database,
+  File,
+  FileSpreadsheet,
+  FileText,
   Folder,
   FolderOpen,
   FolderPlus,
-  File,
-  FileText,
-  FileSpreadsheet,
-  Database,
-  Search,
-  Trash2,
-  ChevronRight,
-  ChevronDown,
-  Star,
-  Clock,
-  Hash,
-  BarChart3,
   Globe,
   Grid3x3,
-  List,
   HardDrive,
+  Hash,
   Layers,
+  List,
   Lock,
-  CheckCircle2,
+  Search,
+  Star,
+  Trash2,
   Upload,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useTheme } from "@/components/theme-provider";
 import { useDataStore } from "@/core/stores/data-store";
 import { useFoldersStore } from "@/core/stores/folders-store";
 
@@ -37,14 +37,7 @@ const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
-type NodeType =
-  | "folder"
-  | "csv"
-  | "json"
-  | "excel"
-  | "parquet"
-  | "duckdb"
-  | "sql";
+type NodeType = "folder" | "csv" | "excel" | "parquet" | "duckdb" | "sql";
 
 interface FSNode {
   id: string;
@@ -98,8 +91,6 @@ function fileTypeStyle(type: NodeType) {
         color: "text-green-400",
         bg: "bg-green-500/15",
       };
-    case "json":
-      return { icon: FileText, color: "text-blue-400", bg: "bg-blue-500/15" };
     case "excel":
       return {
         icon: FileSpreadsheet,
@@ -209,7 +200,7 @@ function TreeNode({
       >
         <button
           type="button"
-          className="w-4 h-4 flex items-center justify-center flex-shrink-0"
+          className="w-4 h-4 flex items-center justify-center shrink-0"
           onClick={(e) => {
             e.stopPropagation();
             if (hasChildren) onToggle(node.id);
@@ -224,11 +215,11 @@ function TreeNode({
           ) : null}
         </button>
         {node.color && node.type === "folder" ? (
-          <span className="text-sm flex-shrink-0" style={{ color: node.color }}>
+          <span className="text-sm shrink-0" style={{ color: node.color }}>
             {isExpanded ? "📂" : "📁"}
           </span>
         ) : (
-          <Icon className={`w-4 h-4 flex-shrink-0 ${style.color}`} />
+          <Icon className={`w-4 h-4 shrink-0 ${style.color}`} />
         )}
         <span className="flex-1 text-sm text-foreground truncate min-w-0">
           {node.name}
@@ -834,10 +825,10 @@ export default function FoldersScreen() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 flex-shrink-0">
+      <div className="border-b border-border p-4 shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-xl">
+            <div className="p-2 bg-linear-to-br from-yellow-500 to-orange-500 rounded-xl">
               <HardDrive className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -999,7 +990,7 @@ export default function FoldersScreen() {
               onMouseUp={() => setDrag({ dragging: null, over: null })}
             >
               {(viewMode === "tree-grid" || viewMode === "list") && (
-                <div className="w-64 xl:w-72 border-r border-border overflow-y-auto p-2 flex-shrink-0">
+                <div className="w-64 xl:w-72 border-r border-border overflow-y-auto p-2 shrink-0">
                   <div className="text-xs text-muted-foreground px-2 py-1 mb-1">
                     FOLDERS
                   </div>
@@ -1030,7 +1021,7 @@ export default function FoldersScreen() {
               )}
 
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="p-3 border-b border-border space-y-2 flex-shrink-0">
+                <div className="p-3 border-b border-border space-y-2 shrink-0">
                   <div className="flex items-center gap-1 text-xs text-muted-foreground flex-wrap">
                     {breadcrumb.map((item, idx) => (
                       <span key={item.id} className="flex items-center gap-1">
@@ -1153,7 +1144,7 @@ export default function FoldersScreen() {
                             }`}
                           >
                             <Icon
-                              className={`w-4 h-4 flex-shrink-0 ${style.color}`}
+                              className={`w-4 h-4 shrink-0 ${style.color}`}
                             />
                             <span className="flex-1 text-sm text-foreground truncate min-w-0">
                               {node.name}
@@ -1383,7 +1374,7 @@ export default function FoldersScreen() {
                       return (
                         <div key={node.id} className="flex items-center gap-3">
                           <Icon
-                            className={`w-3.5 h-3.5 flex-shrink-0 ${style.color}`}
+                            className={`w-3.5 h-3.5 shrink-0 ${style.color}`}
                           />
                           <span className="text-xs text-foreground w-36 truncate">
                             {node.name}

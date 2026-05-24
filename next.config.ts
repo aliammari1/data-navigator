@@ -2,18 +2,12 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  serverExternalPackages: ["@duckdb/node-api", "@duckdb/node-bindings"],
-  async headers() {
-    return [
-      {
-        source: "/(.*)",
-        headers: [
-          { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
-          { key: "Cross-Origin-Embedder-Policy", value: "require-corp" },
-        ],
-      },
-    ];
-  },
+  reactStrictMode: true,
+  serverExternalPackages: [
+    "@duckdb/node-api",
+    "@duckdb/node-bindings",
+    "better-sqlite3",
+  ],
 };
 
 export default nextConfig;
