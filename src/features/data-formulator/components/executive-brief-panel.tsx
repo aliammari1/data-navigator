@@ -99,7 +99,7 @@ function Section({
   const borderColor =
     tone === "warning" ? "border-amber-500/15" : tone === "success" ? "border-emerald-500/15" : "border-white/10";
   const bgColor =
-    tone === "warning" ? "bg-amber-500/5" : tone === "success" ? "bg-emerald-500/5" : "bg-white/[0.03]";
+    tone === "warning" ? "bg-amber-500/5" : tone === "success" ? "bg-emerald-500/5" : "bg-white/3";
 
   return (
     <div className={cn("rounded-lg border p-3", borderColor, bgColor)}>

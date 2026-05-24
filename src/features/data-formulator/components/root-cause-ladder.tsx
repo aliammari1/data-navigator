@@ -59,7 +59,7 @@ export function RootCauseLadder({ targetMetric, hypothesis, steps, confidence }:
         {steps.map((step, i) => (
           <div
             key={i}
-            className="rounded-lg border border-white/10 bg-white/[0.03] p-3"
+            className="rounded-lg border border-white/10 bg-white/3 p-3"
           >
             <button
               onClick={() => setExpandedStep(expandedStep === i ? null : i)}
@@ -87,7 +87,7 @@ export function RootCauseLadder({ targetMetric, hypothesis, steps, confidence }:
                     ))}
                   </div>
                 )}
-                <div className="rounded border border-white/5 bg-white/[0.02] p-2">
+                <div className="rounded border border-white/5 bg-white/2 p-2">
                   <code className="block text-[10px] text-muted-foreground">{step.sql}</code>
                 </div>
               </div>

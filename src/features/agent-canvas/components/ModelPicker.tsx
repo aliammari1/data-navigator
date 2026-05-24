@@ -2,8 +2,8 @@
 import { useState } from "react";
 import { loadLLM } from "@/features/agent-canvas/core/llm";
 import {
-  MODEL_CATALOG,
   type LLMModelDef,
+  MODEL_CATALOG,
 } from "@/features/agent-canvas/core/types";
 import { cn } from "@/shared/utils";
 
@@ -51,6 +51,7 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
       <div className="grid gap-3">
         {MODEL_CATALOG.map((m: LLMModelDef) => (
           <button
+            type="button"
             key={m.id}
             onClick={() => setSelected(m.id)}
             className={cn(
@@ -104,6 +105,7 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
 
       <div className="flex gap-3">
         <button
+          type="button"
           onClick={handleLoad}
           disabled={loading}
           className="flex-1 py-2.5 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-medium text-sm transition-colors"
@@ -111,6 +113,7 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
           {loading ? "Loading model…" : `Load ${def.label}`}
         </button>
         <button
+          type="button"
           onClick={onSkip}
           disabled={loading}
           className="px-5 py-2.5 rounded-xl border border-slate-600 hover:border-slate-400 text-slate-300 text-sm transition-colors disabled:opacity-40"

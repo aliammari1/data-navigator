@@ -32,18 +32,18 @@ export function LLMConsentModal() {
             initial={{ opacity: 0, scale: 0.96, y: 8 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.96, y: 8 }}
-            className="w-full max-w-md rounded-[var(--atlas-radius-4)] border border-[var(--atlas-border)] bg-[var(--atlas-surface-raised)] shadow-[var(--atlas-shadow-5)] p-6"
+            className="w-full max-w-md rounded-(--atlas-radius-4) border border-(--atlas-border) bg-(--atlas-surface-raised) shadow-(--atlas-shadow-5) p-6"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-start gap-3">
-              <div className="w-10 h-10 rounded-full bg-[var(--atlas-accent-soft)] border border-[var(--atlas-accent-border)] flex items-center justify-center text-[var(--atlas-accent-fg)]">
+              <div className="w-10 h-10 rounded-full bg-(--atlas-accent-soft) border border-(--atlas-accent-border) flex items-center justify-center text-(--atlas-accent-fg)">
                 <Brain className="w-5 h-5" />
               </div>
               <div className="flex-1 min-w-0">
-                <h2 className="text-base font-bold text-[var(--atlas-text)]">
+                <h2 className="text-base font-bold text-(--atlas-text)">
                   Enable offline AI?
                 </h2>
-                <p className="text-xs text-[var(--atlas-text-subtle)] mt-1 leading-relaxed">
+                <p className="text-xs text-(--atlas-text-subtle) mt-1 leading-relaxed">
                   Downloads SmolLM2 360M (~400 MB) once, then runs locally for
                   free-form questions and chart refinement. The deterministic
                   rule engine continues to work without it.
@@ -52,7 +52,7 @@ export function LLMConsentModal() {
               <button
                 type="button"
                 onClick={decline}
-                className="text-[var(--atlas-text-subtle)] hover:text-[var(--atlas-text)]"
+                className="text-(--atlas-text-subtle) hover:text-(--atlas-text)"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -61,7 +61,7 @@ export function LLMConsentModal() {
             {status === "loading" && (
               <div className="mt-4 space-y-2">
                 <AtlasProgress value={progress * 100} tone="accent" />
-                <div className="flex items-center gap-2 text-xs text-[var(--atlas-text-muted)]">
+                <div className="flex items-center gap-2 text-xs text-(--atlas-text-muted)">
                   <Loader2 className="w-3 h-3 animate-spin" />
                   {text || "Preparing…"}
                 </div>
@@ -69,7 +69,7 @@ export function LLMConsentModal() {
             )}
 
             {status === "error" && (
-              <p className="mt-4 text-xs text-[var(--atlas-danger-fg)] leading-snug">
+              <p className="mt-4 text-xs text-(--atlas-danger-fg) leading-snug">
                 {error}
               </p>
             )}

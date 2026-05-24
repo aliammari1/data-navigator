@@ -19,19 +19,19 @@ export function StepQuality({ report }: Props) {
   return (
     <div className="space-y-4">
       <div className="flex items-baseline gap-3">
-        <span className="text-4xl font-bold text-[var(--atlas-text)] tabular-nums">
+        <span className="text-4xl font-bold text-(--atlas-text) tabular-nums">
           {report.score}
         </span>
-        <span className="text-sm text-[var(--atlas-text-subtle)]">/ 100</span>
+        <span className="text-sm text-(--atlas-text-subtle)">/ 100</span>
         <span
           className={`ml-2 text-xs font-semibold uppercase tracking-wide ${
             tone(report.score) === "success"
-              ? "text-[var(--atlas-success-fg)]"
+              ? "text-(--atlas-success-fg)"
               : tone(report.score) === "info"
-                ? "text-[var(--atlas-info-fg)]"
+                ? "text-(--atlas-info-fg)"
                 : tone(report.score) === "warning"
-                  ? "text-[var(--atlas-warning-fg)]"
-                  : "text-[var(--atlas-danger-fg)]"
+                  ? "text-(--atlas-warning-fg)"
+                  : "text-(--atlas-danger-fg)"
           }`}
         >
           {report.score >= 80
@@ -47,13 +47,13 @@ export function StepQuality({ report }: Props) {
         {report.axes.map((a) => (
           <div
             key={a.name}
-            className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-3"
+            className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-3"
           >
             <div className="flex items-baseline justify-between mb-2">
-              <span className="text-[10px] uppercase tracking-wide font-bold text-[var(--atlas-text-subtle)]">
+              <span className="text-[10px] uppercase tracking-wide font-bold text-(--atlas-text-subtle)">
                 {a.name}
               </span>
-              <span className="text-sm font-bold text-[var(--atlas-text)] tabular-nums">
+              <span className="text-sm font-bold text-(--atlas-text) tabular-nums">
                 {a.score}
               </span>
             </div>
@@ -61,7 +61,7 @@ export function StepQuality({ report }: Props) {
               value={a.score}
               tone={tone(a.score) as "success" | "warning" | "danger"}
             />
-            <div className="text-[11px] text-[var(--atlas-text-subtle)] mt-1.5 leading-snug">
+            <div className="text-[11px] text-(--atlas-text-subtle) mt-1.5 leading-snug">
               {a.detail}
             </div>
           </div>
@@ -83,7 +83,7 @@ export function StepQuality({ report }: Props) {
             >
               <div>{r.detail}</div>
               {r.fix && (
-                <div className="mt-1 text-[var(--atlas-text-subtle)]">
+                <div className="mt-1 text-(--atlas-text-subtle)">
                   → {r.fix}
                 </div>
               )}

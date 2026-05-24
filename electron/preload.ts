@@ -81,7 +81,6 @@ const electronDuckDB = {
   loadCSVPath: (
     tableName: string,
     filePath: string,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void> =>
@@ -89,18 +88,13 @@ const electronDuckDB = {
       "duckdb:loadCSVPath",
       tableName,
       filePath,
-      delimiter,
       append,
       hasHeader,
     ),
 
-  loadJSONPath: (tableName: string, filePath: string): Promise<void> =>
-    ipcRenderer.invoke("duckdb:loadJSONPath", tableName, filePath),
-
   loadCSVBuffer: (
     tableName: string,
     buffer: ArrayBuffer,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void> =>
@@ -108,13 +102,9 @@ const electronDuckDB = {
       "duckdb:loadCSVBuffer",
       tableName,
       buffer,
-      delimiter,
       append,
       hasHeader,
     ),
-
-  loadJSONBuffer: (tableName: string, buffer: ArrayBuffer): Promise<void> =>
-    ipcRenderer.invoke("duckdb:loadJSONBuffer", tableName, buffer),
 
   exportTableToParquet: (tableName: string, filePath: string): Promise<void> =>
     ipcRenderer.invoke("duckdb:exportTableToParquet", tableName, filePath),

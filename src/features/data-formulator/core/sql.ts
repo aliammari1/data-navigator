@@ -5,7 +5,10 @@ type DerivedExpression = {
   sql?: string;
 };
 
-function quote(field: string, derivedMap: Map<string, DerivedExpression>): string {
+function quote(
+  field: string,
+  derivedMap: Map<string, DerivedExpression>,
+): string {
   const d = derivedMap.get(field);
   if (d?.sql) return `(${d.sql})`;
   return `"${field}"`;
@@ -23,7 +26,7 @@ function buildWhereClause(
     if (f.op === "IN") {
       const vals = f.value
         .split(",")
-        .map((v) => `'${v.trim().replace(/'/g, "''")}'`)
+        .map((v) => `'${v.trim().replace("'", "''")}'`)
         .join(",");
       return `${lhs} IN (${vals})`;
     }
@@ -32,10 +35,10 @@ function buildWhereClause(
       return `TRY_CAST(${lhs} AS DOUBLE) BETWEEN ${a} AND ${b}`;
     }
     if (f.op === "LIKE")
-      return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replace(/'/g, "''")}'`;
+      return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replace("'", "''")}'`;
     const isNum = /^-?\d+(\.\d+)?$/.test(f.value.trim());
     if (isNum) return `TRY_CAST(${lhs} AS DOUBLE) ${f.op} ${f.value.trim()}`;
-    return `CAST(${lhs} AS VARCHAR) ${f.op} '${f.value.replace(/'/g, "''")}'`;
+    return `CAST(${lhs} AS VARCHAR) ${f.op} '${f.value.replace("'", "''")}'`;
   });
   return parts.join(" AND ");
 }

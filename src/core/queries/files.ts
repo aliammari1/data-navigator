@@ -1,6 +1,6 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useFileStore } from "@/core/stores/file-store";
 import type { FileItem, Folder, ParsedData } from "@/core/types/file";
 import { queryKeys } from "./keys";
@@ -33,7 +33,7 @@ export function useFile(id: string | null) {
 
   return useQuery({
     queryKey: id ? queryKeys.files.detail(id) : ["files", "null"],
-    queryFn: () => (id ? files.find((f) => f.id === id) ?? null : null),
+    queryFn: () => (id ? (files.find((f) => f.id === id) ?? null) : null),
     enabled: !!id,
     staleTime: Infinity,
     refetchOnMount: false,

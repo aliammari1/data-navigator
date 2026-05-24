@@ -1,34 +1,25 @@
 "use client";
+
 /**
  * SetupScreen — hero with animated mesh bg, model picker with progress bar,
- * large drop zone, demo pills (Telecom/Sales/HR/Ecommerce).
- * No upload needed — demo pills generate inline JSON → DuckDB in 200ms.
+ * large drop zone, and real uploaded data only.
  */
 
+import { Brain, CheckCircle, ChevronRight, Upload } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { motion, AnimatePresence } from "motion/react";
-import { Brain, Upload, Zap, ChevronRight, CheckCircle } from "lucide-react";
-import { cn } from "@/shared/utils";
-import { MODEL_CATALOG } from "@/features/agent-canvas/core/types";
 import { loadLLM } from "@/features/agent-canvas/core/llm";
-import {
-  loadDelimitedCSVFromFile,
-  loadJSONFileToDuckDB,
-  loadJSONToDuckDB,
-} from "@/platform/duckdb/duckdb";
-import {
-  generateDataset,
-  DEMO_PILLS,
-} from "@/features/agent-canvas/core/demo-data";
-import type { DemoDataset } from "@/features/agent-canvas/core/demo-data";
+import { MODEL_CATALOG } from "@/features/agent-canvas/core/types";
+import { loadDelimitedCSVFromFile } from "@/platform/duckdb/duckdb";
+import { cn } from "@/shared/utils";
 
 // ─── Animated mesh background ────────────────────────────────────────────────
 
 function MeshBackground() {
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      <div className="absolute inset-0 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950" />
+      <div className="absolute inset-0 bg-linear-to-br from-slate-950 via-slate-900 to-slate-950" />
       {/* Animated gradient orbs */}
       <motion.div
         className="absolute top-1/4 left-1/4 w-96 h-96 rounded-full bg-violet-600/10 blur-3xl"
@@ -82,7 +73,7 @@ function ModelPicker({
   onSelect,
   onLoaded,
   onSkip,
-}: ModelPickerProps) {
+}: Readonly<ModelPickerProps>) {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
@@ -200,7 +191,7 @@ interface DropZoneProps {
   onLoaded: (tableName: string, fileName: string) => void;
 }
 
-function DropZone({ onLoaded }: DropZoneProps) {
+function DropZone({ onLoaded }: Readonly<DropZoneProps>) {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState("");
   const [error, setError] = useState("");
@@ -218,16 +209,9 @@ function DropZone({ onLoaded }: DropZoneProps) {
         const name = file.name.toLowerCase();
         const ext = name.split(".").pop() ?? "";
 
-        if (ext === "csv" || ext === "tsv" || ext === "txt") {
+        if (ext === "csv") {
           setProgress("Loading into DuckDB…");
-          await loadDelimitedCSVFromFile(
-            tableName,
-            file,
-            ext === "tsv" ? "\t" : ",",
-          );
-        } else if (ext === "json" || ext === "ndjson") {
-          setProgress("Loading JSON into DuckDB…");
-          await loadJSONFileToDuckDB(tableName, file);
+          await loadDelimitedCSVFromFile(tableName, file);
         } else {
           throw new Error(`Unsupported file type: .${ext}`);
         }
@@ -247,9 +231,6 @@ function DropZone({ onLoaded }: DropZoneProps) {
     onDrop,
     accept: {
       "text/csv": [".csv"],
-      "text/tab-separated-values": [".tsv"],
-      "application/json": [".json", ".ndjson"],
-      "text/plain": [".txt"],
     },
     maxFiles: 1,
   });
@@ -304,7 +285,7 @@ function DropZone({ onLoaded }: DropZoneProps) {
                   {isDragActive ? "Drop to load" : "Drop your data file"}
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  CSV, TSV, JSON, NDJSON — up to 100MB
+                  CSV — up to 100MB
                 </p>
               </div>
             </motion.div>
@@ -318,62 +299,12 @@ function DropZone({ onLoaded }: DropZoneProps) {
   );
 }
 
-// ─── Demo pills ───────────────────────────────────────────────────────────────
-
-interface DemoPillsProps {
-  onLoaded: (tableName: string, datasetName: string) => void;
-}
-
-function DemoPills({ onLoaded }: DemoPillsProps) {
-  const [loading, setLoading] = useState<string | null>(null);
-
-  const handlePill = async (id: DemoDataset, label: string) => {
-    setLoading(id);
-    try {
-      const data = generateDataset(id);
-      const tableName = `demo_${id}_${Date.now()}`;
-      await loadJSONToDuckDB(tableName, data);
-      onLoaded(tableName, `${label}.json`);
-    } catch {
-      /* ignore */
-    } finally {
-      setLoading(null);
-    }
-  };
-
-  return (
-    <div className="flex flex-wrap gap-2 justify-center">
-      {DEMO_PILLS.map((pill) => (
-        <button
-          key={pill.id}
-          type="button"
-          onClick={() => handlePill(pill.id, pill.label)}
-          disabled={!!loading}
-          className={cn(
-            "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold text-white",
-            "bg-linear-to-r border border-white/10 transition-all hover:scale-105 active:scale-95",
-            "disabled:opacity-60 disabled:cursor-not-allowed",
-            `bg-linear-to-r ${pill.color}`,
-          )}
-        >
-          {loading === pill.id ? (
-            <div className="w-2.5 h-2.5 rounded-full border border-white/40 border-t-white animate-spin" />
-          ) : (
-            <Zap className="w-2.5 h-2.5" />
-          )}
-          {pill.label}
-        </button>
-      ))}
-    </div>
-  );
-}
-
 // ─── Steps indicator ─────────────────────────────────────────────────────────
 
-function StepsIndicator({ currentStep }: { currentStep: 0 | 1 | 2 }) {
+function StepsIndicator({ currentStep }: Readonly<{ currentStep: 0 | 1 | 2 }>) {
   const steps = [
     { label: "Choose Model", desc: "AI reasoning engine" },
-    { label: "Load Data", desc: "CSV, JSON or demo" },
+    { label: "Load Data", desc: "CSV file" },
     { label: "Build", desc: "Agent runs pipeline" },
   ];
 
@@ -500,16 +431,9 @@ export function SetupScreen({ onReady, model, onModelChange }: Props) {
                 </h2>
                 <p className="text-xs text-slate-400 mb-4">
                   {modelReady ? "Model loaded ✓ — " : "Rule-based mode — "}
-                  Drop any CSV, TSV, JSON or NDJSON file, or use a demo dataset.
+                  Drop a CSV file.
                 </p>
                 <DropZone onLoaded={handleLoaded} />
-              </div>
-
-              <div className="bg-slate-900/80 border border-slate-700/50 rounded-2xl p-4 backdrop-blur-sm">
-                <p className="text-xs text-slate-500 text-center mb-3">
-                  Or try a demo dataset
-                </p>
-                <DemoPills onLoaded={handleLoaded} />
               </div>
             </motion.div>
           )}

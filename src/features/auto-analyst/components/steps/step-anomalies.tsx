@@ -13,7 +13,7 @@ function fmt(n: number): string {
 export function StepAnomalies({ hits }: { hits: AnomalyHit[] }) {
   if (!hits.length)
     return (
-      <p className="text-sm text-[var(--atlas-text-subtle)]">
+      <p className="text-sm text-(--atlas-text-subtle)">
         No anomalies detected by z-score or Hampel rules.
       </p>
     );
@@ -27,44 +27,44 @@ export function StepAnomalies({ hits }: { hits: AnomalyHit[] }) {
       {Object.entries(grouped).map(([col, list]) => (
         <div
           key={col}
-          className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] overflow-hidden"
+          className="rounded-(--atlas-radius-3) border border-(--atlas-border) overflow-hidden"
         >
-          <div className="flex items-center justify-between px-3 py-2 bg-[var(--atlas-surface)] border-b border-[var(--atlas-border)]">
-            <div className="text-sm font-semibold text-[var(--atlas-text)]">
+          <div className="flex items-center justify-between px-3 py-2 bg-(--atlas-surface) border-b border-(--atlas-border)">
+            <div className="text-sm font-semibold text-(--atlas-text)">
               {col}
             </div>
-            <div className="text-[11px] text-[var(--atlas-text-subtle)]">
+            <div className="text-[11px] text-(--atlas-text-subtle)">
               {list.length} flagged · max |z| ={" "}
               {Math.abs(list[0].zScore).toFixed(1)}
             </div>
           </div>
           <table className="w-full text-xs">
-            <thead className="bg-[var(--atlas-bg-subtle)]">
-              <tr className="text-left text-[10px] uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+            <thead className="bg-(--atlas-bg-subtle)">
+              <tr className="text-left text-[10px] uppercase tracking-wide text-(--atlas-text-subtle)">
                 <th className="px-3 py-1.5">Row</th>
                 <th className="px-3 py-1.5 text-right">Value</th>
                 <th className="px-3 py-1.5 text-right">|z|</th>
                 <th className="px-3 py-1.5">Reason</th>
               </tr>
             </thead>
-            <tbody className="text-[var(--atlas-text)]">
+            <tbody className="text-(--atlas-text)">
               {list.slice(0, 10).map((h) => (
                 <tr
                   key={h.id}
-                  className="border-t border-[var(--atlas-border)]"
+                  className="border-t border-(--atlas-border)"
                 >
-                  <td className="px-3 py-1.5 font-mono text-[10px] text-[var(--atlas-text-subtle)]">
+                  <td className="px-3 py-1.5 font-mono text-[10px] text-(--atlas-text-subtle)">
                     {String(h.rowId)}
                   </td>
                   <td className="px-3 py-1.5 text-right font-mono tabular-nums">
                     {fmt(h.value)}
                   </td>
                   <td
-                    className={`px-3 py-1.5 text-right font-mono tabular-nums ${Math.abs(h.zScore) > 5 ? "text-[var(--atlas-danger-fg)]" : "text-[var(--atlas-warning-fg)]"}`}
+                    className={`px-3 py-1.5 text-right font-mono tabular-nums ${Math.abs(h.zScore) > 5 ? "text-(--atlas-danger-fg)" : "text-(--atlas-warning-fg)"}`}
                   >
                     {Math.abs(h.zScore).toFixed(1)}
                   </td>
-                  <td className="px-3 py-1.5 text-[10px] uppercase text-[var(--atlas-text-subtle)]">
+                  <td className="px-3 py-1.5 text-[10px] uppercase text-(--atlas-text-subtle)">
                     {h.reason}
                   </td>
                 </tr>
@@ -73,7 +73,7 @@ export function StepAnomalies({ hits }: { hits: AnomalyHit[] }) {
                 <tr>
                   <td
                     colSpan={4}
-                    className="px-3 py-1.5 text-[11px] text-[var(--atlas-text-subtle)] text-center"
+                    className="px-3 py-1.5 text-[11px] text-(--atlas-text-subtle) text-center"
                   >
                     + {list.length - 10} more
                   </td>

@@ -275,7 +275,7 @@ export const STATUS_AUTO_SEMANTIC_BY_CODE: Record<string, StatusSemantic> = {
 };
 
 function sqlLiteral(value: string): string {
-  return `'${value.replace(/'/g, "''")}'`;
+  return `'${value.replace("'", "''")}'`;
 }
 
 export function sqlStatusInList(codes: string[]): string {

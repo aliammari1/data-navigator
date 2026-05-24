@@ -26,6 +26,7 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useDataStore } from "@/core/stores/data-store";
 import {
   getCachedAnalyticsEntries,
   getCachedTelecomSourceFiles,
@@ -33,7 +34,6 @@ import {
 import { listDailyStats } from "@/features/telecom/lib/daily-stats-cache";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { runQuery } from "@/platform/duckdb/duckdb";
-import { useDataStore } from "@/core/stores/data-store";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
@@ -94,7 +94,7 @@ interface CellAnnotation {
   note?: string;
 }
 
-// ─── Demo data ─────────────────────────────────────────────────────────────
+// ─── Local collaboration state ─────────────────────────────────────────────
 
 const COLLABORATORS: Collaborator[] = [
   {
@@ -107,231 +107,16 @@ const COLLABORATORS: Collaborator[] = [
     role: "owner",
     lastSeen: new Date(),
   },
-  {
-    id: "alice",
-    name: "Alice Chen",
-    email: "alice@corp.com",
-    avatar: "AC",
-    color: "#22c55e",
-    status: "online",
-    role: "editor",
-    lastSeen: new Date(),
-    currentCell: "B3",
-  },
-  {
-    id: "bob",
-    name: "Bob Kim",
-    email: "bob@corp.com",
-    avatar: "BK",
-    color: "#f59e0b",
-    status: "away",
-    role: "editor",
-    lastSeen: new Date(Date.now() - 300000),
-  },
-  {
-    id: "carol",
-    name: "Carol Singh",
-    email: "carol@corp.com",
-    avatar: "CS",
-    color: "#ef4444",
-    status: "online",
-    role: "viewer",
-    lastSeen: new Date(),
-    currentCell: "D7",
-  },
-  {
-    id: "dave",
-    name: "Dave Lopez",
-    email: "dave@corp.com",
-    avatar: "DL",
-    color: "#8b5cf6",
-    status: "offline",
-    role: "viewer",
-    lastSeen: new Date(Date.now() - 7200000),
-  },
 ];
 
-function mkAgo(ms: number) {
-  return new Date(Date.now() - ms);
+const INITIAL_COMMENTS: Comment[] = [];
+const INITIAL_CHANGES: Change[] = [];
+const INITIAL_NOTIFICATIONS: Notification[] = [];
+const ANNOTATIONS: CellAnnotation[] = [];
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
 }
-
-const INITIAL_COMMENTS: Comment[] = [
-  {
-    id: "c1",
-    authorId: "alice",
-    content:
-      "Revenue for Q3 looks off — should we double-check the ERP export?",
-    timestamp: mkAgo(3600000),
-    cell: "revenue",
-    resolved: false,
-    pinned: true,
-    reactions: [{ emoji: "👍", count: 2, users: ["me", "bob"] }],
-    replies: [],
-    type: "question",
-  },
-  {
-    id: "c2",
-    authorId: "bob",
-    content:
-      "Suggestion: rename `amt` → `revenue` for clarity across all pipelines.",
-    timestamp: mkAgo(7200000),
-    cell: "revenue",
-    resolved: false,
-    pinned: false,
-    reactions: [{ emoji: "✅", count: 1, users: ["carol"] }],
-    replies: [
-      {
-        id: "c2r1",
-        authorId: "carol",
-        content: "Agreed, this confused me last week.",
-        timestamp: mkAgo(5400000),
-        resolved: false,
-        reactions: [],
-        replies: [],
-        pinned: false,
-        type: "comment",
-      },
-    ],
-    type: "suggestion",
-  },
-  {
-    id: "c3",
-    authorId: "carol",
-    content:
-      "The profit_margin column has ~3% null values — should we impute or flag?",
-    timestamp: mkAgo(86400000),
-    cell: "profit_margin",
-    resolved: true,
-    pinned: false,
-    reactions: [{ emoji: "👀", count: 3, users: ["me", "alice", "bob"] }],
-    replies: [],
-    type: "question",
-  },
-  {
-    id: "c4",
-    authorId: "me",
-    content:
-      "Added DuckDB materialized view for this dataset. Queries now 40× faster ⚡",
-    timestamp: mkAgo(1800000),
-    cell: undefined,
-    resolved: false,
-    pinned: false,
-    reactions: [
-      { emoji: "🚀", count: 4, users: ["alice", "bob", "carol", "dave"] },
-    ],
-    replies: [],
-    type: "comment",
-  },
-];
-
-const INITIAL_CHANGES: Change[] = [
-  {
-    id: "ch1",
-    authorId: "alice",
-    timestamp: mkAgo(600000),
-    type: "edit",
-    description: "Fixed revenue value for row 4821",
-    cell: "revenue",
-    oldValue: "0.00",
-    newValue: "482.50",
-    approved: true,
-  },
-  {
-    id: "ch2",
-    authorId: "bob",
-    timestamp: mkAgo(1200000),
-    type: "schema",
-    description: "Added profit_margin column (DOUBLE)",
-    rowsAffected: 141800,
-    approved: true,
-  },
-  {
-    id: "ch3",
-    authorId: "carol",
-    timestamp: mkAgo(3600000),
-    type: "filter",
-    description: "Applied filter: status = 'active'",
-    rowsAffected: 98400,
-  },
-  {
-    id: "ch4",
-    authorId: "me",
-    timestamp: mkAgo(7200000),
-    type: "add_row",
-    description: "Inserted 1,240 rows from Jan batch",
-    rowsAffected: 1240,
-    approved: true,
-  },
-  {
-    id: "ch5",
-    authorId: "alice",
-    timestamp: mkAgo(86400000),
-    type: "delete_row",
-    description: "Removed 38 duplicate rows (dedup on order_id)",
-    rowsAffected: 38,
-    approved: true,
-  },
-  {
-    id: "ch6",
-    authorId: "bob",
-    timestamp: mkAgo(172800000),
-    type: "sort",
-    description: "Sorted by revenue DESC for dashboard view",
-    approved: undefined,
-  },
-];
-
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: "n1",
-    type: "mention",
-    message: "Alice Chen mentioned you in a comment on 'revenue'",
-    timestamp: mkAgo(300000),
-    read: false,
-    authorId: "alice",
-  },
-  {
-    id: "n2",
-    type: "change",
-    message: "Bob Kim added profit_margin column",
-    timestamp: mkAgo(1200000),
-    read: false,
-    authorId: "bob",
-  },
-  {
-    id: "n3",
-    type: "join",
-    message: "Carol Singh joined the dataset",
-    timestamp: mkAgo(3600000),
-    read: true,
-    authorId: "carol",
-  },
-  {
-    id: "n4",
-    type: "approval",
-    message: "Your row insertion was approved by Alice",
-    timestamp: mkAgo(7200000),
-    read: true,
-    authorId: "alice",
-  },
-];
-
-const ANNOTATIONS: CellAnnotation[] = [
-  {
-    cell: "revenue",
-    authorId: "alice",
-    type: "comment",
-    note: "Check Q3 values",
-  },
-  { cell: "profit_margin", authorId: "carol", type: "error", note: "3% nulls" },
-  {
-    cell: "email",
-    authorId: "bob",
-    type: "suggestion",
-    note: "Normalize domain casing",
-  },
-  { cell: "department", authorId: "me", type: "highlight" },
-];
 
 // ─── Utils ──────────────────────────────────────────────────────────────────
 
@@ -372,9 +157,9 @@ function Avatar({
         ? "bg-yellow-400"
         : "bg-muted";
   return (
-    <div className="relative flex-shrink-0">
+    <div className="relative shrink-0">
       <div
-        className={`${sz} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}
+        className={`${sz} rounded-full flex items-center justify-center text-white font-bold shrink-0`}
         style={{ backgroundColor: collab.color }}
       >
         {collab.avatar}
@@ -607,7 +392,7 @@ function ChangeItem({ change }: { change: Change }) {
       animate={{ opacity: 1, x: 0 }}
       className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border hover:border-border transition-colors"
     >
-      <div className={`p-1.5 rounded-lg flex-shrink-0 ${color}`}>
+      <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">
@@ -664,26 +449,7 @@ export default function CollaborationScreen() {
   const [showNotifications, setShowNotifications] = useState(false);
   const [liveMessages, setLiveMessages] = useState<
     { id: string; authorId: string; text: string; ts: Date }[]
-  >([
-    {
-      id: "lm1",
-      authorId: "alice",
-      text: "Just joined — reviewing the revenue column now",
-      ts: mkAgo(120000),
-    },
-    {
-      id: "lm2",
-      authorId: "bob",
-      text: "I added the profit_margin column, let me know if the formula looks right",
-      ts: mkAgo(900000),
-    },
-    {
-      id: "lm3",
-      authorId: "carol",
-      text: "The null rate on profit_margin is concerning, ~3%",
-      ts: mkAgo(600000),
-    },
-  ]);
+  >([]);
   const [chatInput, setChatInput] = useState("");
   const [duckdbLoaded, setDuckdbLoaded] = useState(false);
   const [workspaceStats, setWorkspaceStats] = useState({
@@ -706,7 +472,9 @@ export default function CollaborationScreen() {
         const hasData = tables.length > 0;
         if (hasData) {
           const tableName = String(Object.values(tables[0])[0]);
-          await runQuery(`SELECT COUNT(*) as cnt FROM "${tableName}"`);
+          await runQuery(
+            `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`,
+          );
           if (!cancelled) {
             setDuckdbLoaded(true);
           }
@@ -745,15 +513,6 @@ export default function CollaborationScreen() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, []);
-
-  // ─── Simulate live cursor movement ───────────────────────────────────
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      // Just animate — no state update to avoid flicker
-    }, 3000);
-    return () => clearInterval(interval);
   }, []);
 
   // ─── Actions ─────────────────────────────────────────────────────────
@@ -985,10 +744,10 @@ export default function CollaborationScreen() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 flex-shrink-0">
+      <div className="border-b border-border p-4 shrink-0">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl">
+            <div className="p-2 bg-linear-to-br from-green-500 to-emerald-600 rounded-xl">
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
@@ -1073,7 +832,7 @@ export default function CollaborationScreen() {
                               </p>
                             </div>
                             {!n.read && (
-                              <span className="w-2 h-2 rounded-full bg-indigo-400 mt-1 flex-shrink-0" />
+                              <span className="w-2 h-2 rounded-full bg-indigo-400 mt-1 shrink-0" />
                             )}
                           </div>
                         );
@@ -1360,7 +1119,7 @@ export default function CollaborationScreen() {
               exit={{ opacity: 0 }}
               className="flex-1 flex flex-col overflow-hidden"
             >
-              <div className="p-3 border-b border-border space-y-2 flex-shrink-0">
+              <div className="p-3 border-b border-border space-y-2 shrink-0">
                 <div className="flex gap-2">
                   <div className="relative flex-1">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
@@ -1507,7 +1266,7 @@ export default function CollaborationScreen() {
               className="flex-1 flex overflow-hidden"
             >
               {/* Online users sidebar */}
-              <div className="w-52 border-r border-border p-3 flex-shrink-0">
+              <div className="w-52 border-r border-border p-3 shrink-0">
                 <div className="text-xs text-muted-foreground mb-2 font-semibold">
                   ONLINE
                 </div>

@@ -2,6 +2,14 @@ import type { ColType, ColumnDef, FilterGroup, SortConfig } from "./types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
+
+function quoteLiteral(value: string): string {
+  return `'${value.replace("'", "''")}'`;
+}
+
 export function inferColType(key: string, sample: unknown): ColType {
   if (typeof sample === "boolean") return "boolean";
   if (typeof sample === "number") return "number";
@@ -28,12 +36,12 @@ export function buildWhereClause(group: FilterGroup): string {
   const parts = group.rules
     .filter((r) => r.active)
     .map((r) => {
-      const col = `"${r.column}"`;
+      const col = quoteIdentifier(r.column);
       switch (r.operator) {
         case "eq":
-          return `${col} = '${r.value}'`;
+          return `${col} = ${quoteLiteral(r.value)}`;
         case "neq":
-          return `${col} != '${r.value}'`;
+          return `${col} != ${quoteLiteral(r.value)}`;
         case "gt":
           return `${col} > ${r.value}`;
         case "gte":
@@ -43,13 +51,13 @@ export function buildWhereClause(group: FilterGroup): string {
         case "lte":
           return `${col} <= ${r.value}`;
         case "contains":
-          return `${col} LIKE '%${r.value}%'`;
+          return `${col} LIKE ${quoteLiteral(`%${r.value}%`)}`;
         case "not_contains":
-          return `${col} NOT LIKE '%${r.value}%'`;
+          return `${col} NOT LIKE ${quoteLiteral(`%${r.value}%`)}`;
         case "starts_with":
-          return `${col} LIKE '${r.value}%'`;
+          return `${col} LIKE ${quoteLiteral(`${r.value}%`)}`;
         case "ends_with":
-          return `${col} LIKE '%${r.value}'`;
+          return `${col} LIKE ${quoteLiteral(`%${r.value}`)}`;
         case "is_null":
           return `${col} IS NULL`;
         case "is_not_null":
@@ -57,7 +65,7 @@ export function buildWhereClause(group: FilterGroup): string {
         case "in":
           return `${col} IN (${r.value
             .split(",")
-            .map((v) => `'${v.trim()}'`)
+            .map((v) => quoteLiteral(v.trim()))
             .join(", ")})`;
         case "between":
           return `${col} BETWEEN ${r.value} AND ${r.value2 ?? r.value}`;
@@ -80,21 +88,21 @@ export function generateSQL(
 ): string {
   const visibleCols = columns
     .filter((c) => c.visible)
-    .map((c) => `"${c.name}"`)
+    .map((c) => quoteIdentifier(c.name))
     .join(", ");
 
-  let sql = `SELECT ${visibleCols}\nFROM "${tableName}"`;
+  let sql = `SELECT ${visibleCols} FROM ${quoteIdentifier(tableName)}`;
 
   const whereClause = buildWhereClause(filterGroup);
-  if (whereClause) sql += `\nWHERE ${whereClause}`;
+  if (whereClause) sql += ` WHERE ${whereClause}`;
 
   if (sorts.length > 0) {
     const orderParts = [...sorts]
       .sort((a, b) => a.priority - b.priority)
-      .map((s) => `"${s.column}" ${s.direction.toUpperCase()}`);
-    sql += `\nORDER BY ${orderParts.join(", ")}`;
+      .map((s) => `${quoteIdentifier(s.column)} ${s.direction.toUpperCase()}`);
+    sql += ` ORDER BY ${orderParts.join(", ")}`;
   }
 
-  sql += `\nLIMIT ${limit} OFFSET ${offset}`;
+  sql += ` LIMIT ${limit} OFFSET ${offset}`;
   return sql;
 }

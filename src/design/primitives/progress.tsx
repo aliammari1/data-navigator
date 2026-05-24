@@ -7,10 +7,10 @@ interface ProgressProps {
 }
 
 const toneFill: Record<NonNullable<ProgressProps["tone"]>, string> = {
-  accent: "bg-[var(--atlas-accent)]",
-  success: "bg-[var(--atlas-success)]",
-  warning: "bg-[var(--atlas-warning)]",
-  danger: "bg-[var(--atlas-danger)]",
+  accent: "bg-(--atlas-accent)",
+  success: "bg-(--atlas-success)",
+  warning: "bg-(--atlas-warning)",
+  danger: "bg-(--atlas-danger)",
 };
 
 export function AtlasProgress({
@@ -21,14 +21,14 @@ export function AtlasProgress({
   const v = Math.max(0, Math.min(100, value));
   return (
     <div
-      className={`relative h-1.5 w-full overflow-hidden rounded-[var(--atlas-radius-pill)] bg-[var(--atlas-surface)] border border-[var(--atlas-border)] ${className ?? ""}`}
+      className={`relative h-1.5 w-full overflow-hidden rounded-(--atlas-radius-pill) bg-(--atlas-surface) border border-(--atlas-border) ${className ?? ""}`}
       role="progressbar"
       aria-valuenow={v}
       aria-valuemin={0}
       aria-valuemax={100}
     >
       <div
-        className={`h-full ${toneFill[tone]} transition-[width] duration-[var(--atlas-dur-3)] ease-[var(--atlas-ease-soft)]`}
+        className={`h-full ${toneFill[tone]} transition-[width] duration-(--atlas-dur-3) ease-(--atlas-ease-soft)`}
         style={{ width: `${v}%` }}
       />
     </div>

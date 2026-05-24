@@ -1,15 +1,16 @@
 "use client";
+
 /**
  * AnomalyDrawer — vaul bottom sheet showing IQR outlier rows,
  * distribution chart with markers, and filter action.
  */
 
-import { useState, useEffect } from "react";
-import { Drawer } from "vaul";
 import { AlertTriangle, Filter } from "lucide-react";
-import { cn } from "@/shared/utils";
-import type { WidgetState } from "@/features/agent-canvas/core/types";
+import { useEffect, useState } from "react";
 import * as ss from "simple-statistics";
+import { Drawer } from "vaul";
+import type { WidgetState } from "@/features/agent-canvas/core/types";
+import { cn } from "@/shared/utils";
 
 interface AnomalyInfo {
   column: string;
@@ -147,7 +148,7 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
   useEffect(() => {
     if (!widget.rawData?.length) return;
     const numericCols = Object.keys(widget.rawData[0] ?? {}).filter((k) => {
-      const v = widget.rawData![0][k];
+      const v = widget.rawData![0]![k];
       return typeof v === "number" || (!isNaN(Number(v)) && v !== "");
     });
     const detected = detectOutliers(widget.rawData, numericCols);

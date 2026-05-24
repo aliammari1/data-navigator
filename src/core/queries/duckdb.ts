@@ -1,8 +1,12 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { runQuery, getTableInfo } from "@/platform/duckdb/duckdb";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { getTableInfo, runQuery } from "@/platform/duckdb/duckdb";
 import { queryKeys } from "./keys";
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
 
 /**
  * Run a DuckDB SQL query with React Query caching.
@@ -36,7 +40,9 @@ export function useDuckDBQuery(
  */
 export function useTableSchema(tableName: string | null) {
   return useQuery({
-    queryKey: tableName ? queryKeys.duckdb.schema(tableName) : ["duckdb", "schema", "null"],
+    queryKey: tableName
+      ? queryKeys.duckdb.schema(tableName)
+      : ["duckdb", "schema", "null"],
     queryFn: async () => {
       if (!tableName) return null;
       return getTableInfo(tableName);
@@ -54,7 +60,9 @@ export function useTableSchema(tableName: string | null) {
  */
 export function useTablePreview(tableName: string | null, limit = 100) {
   return useDuckDBQuery(
-    tableName ? `SELECT * FROM "${tableName}" LIMIT ${limit}` : "",
+    tableName
+      ? `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${limit}`
+      : "",
     [],
     {
       enabled: !!tableName,
@@ -68,12 +76,14 @@ export function useTablePreview(tableName: string | null, limit = 100) {
  */
 export function useTableRowCount(tableName: string | null) {
   return useQuery({
-    queryKey: tableName ? ["duckdb", "count", tableName] : ["duckdb", "count", "null"],
+    queryKey: tableName
+      ? ["duckdb", "count", tableName]
+      : ["duckdb", "count", "null"],
     queryFn: async () => {
       if (!tableName) return 0;
-      const result = await runQuery(
-        `SELECT COUNT(*) as count FROM "${tableName}"`,
-      ) as { count: number }[];
+      const result = (await runQuery(
+        `SELECT COUNT(*) as count FROM ${quoteIdentifier(tableName)}`,
+      )) as { count: number }[];
       return result[0]?.count ?? 0;
     },
     enabled: !!tableName,
@@ -119,14 +129,12 @@ export function usePrefetchDuckDBQuery() {
   const queryClient = useQueryClient();
 
   return {
-    prefetch: async (
-      sql: string,
-      params?: unknown[],
-    ) => {
+    prefetch: async (sql: string, params?: unknown[]) => {
       if (!sql.trim()) return;
       await queryClient.prefetchQuery({
         queryKey: queryKeys.duckdb.query(sql, params),
-        queryFn: () => runQuery(sql, params as { cache?: boolean; priority?: string }),
+        queryFn: () =>
+          runQuery(sql, params as { cache?: boolean; priority?: string }),
         staleTime: 2 * 60 * 1000,
       });
     },
@@ -138,7 +146,7 @@ export function usePrefetchDuckDBQuery() {
       });
     },
     prefetchPreview: async (tableName: string, limit = 100) => {
-      const sql = `SELECT * FROM "${tableName}" LIMIT ${limit}`;
+      const sql = `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${limit}`;
       await queryClient.prefetchQuery({
         queryKey: queryKeys.duckdb.preview(tableName, limit),
         queryFn: () => runQuery(sql),

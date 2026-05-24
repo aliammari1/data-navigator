@@ -48,7 +48,7 @@ export function IntentRail({
               "flex min-w-24 items-center gap-2 rounded-lg border px-2.5 py-2 text-left transition-colors md:min-w-0",
               active
                 ? "border-emerald-500/30 bg-emerald-500/12 text-emerald-200"
-                : "border-transparent bg-transparent text-muted-foreground hover:border-white/10 hover:bg-white/[0.04] hover:text-foreground",
+                : "border-transparent bg-transparent text-muted-foreground hover:border-white/10 hover:bg-white/4 hover:text-foreground",
             )}
             title={profile.description}
           >

@@ -9,7 +9,7 @@ import type { ColumnProfile, CorrelationCell } from "./types";
 const SAMPLE = 4000;
 
 function quote(name: string): string {
-  return `"${name.replace(/"/g, '""')}"`;
+  return `"${name.replace('"', '""')}"`;
 }
 
 export async function correlationMatrix(
@@ -35,8 +35,8 @@ export async function correlationMatrix(
       const b = num[j].name;
       const qa = quote(a);
       const qb = quote(b);
-      const escA = a.replace(/'/g, "''");
-      const escB = b.replace(/'/g, "''");
+      const escA = a.replace("'", "''");
+      const escB = b.replace("'", "''");
       const samplePart = `SELECT '${escA}' AS a, '${escB}' AS b, CORR(${qa}, ${qb}) AS r, COUNT(*) AS n FROM (SELECT ${qa}, ${qb} FROM ${quote(tableName)} USING SAMPLE ${SAMPLE}) _ WHERE ${qa} IS NOT NULL AND ${qb} IS NOT NULL`;
       const limitPart = `SELECT '${escA}' AS a, '${escB}' AS b, CORR(${qa}, ${qb}) AS r, COUNT(*) AS n FROM (SELECT ${qa}, ${qb} FROM ${quote(tableName)} LIMIT ${SAMPLE}) _ WHERE ${qa} IS NOT NULL AND ${qb} IS NOT NULL`;
       sampleParts.push(samplePart);

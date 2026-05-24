@@ -213,7 +213,7 @@ function BentoChartCard({
 
         {/* Insight */}
         {insight && (
-          <div className="flex-none px-3 py-1.5 border-t border-white/5 bg-white/[0.02] flex items-start gap-1.5">
+          <div className="flex-none px-3 py-1.5 border-t border-white/5 bg-white/2 flex items-start gap-1.5">
             <Lightbulb className="w-3 h-3 text-amber-400 flex-none mt-0.5" />
             <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-2">{insight}</p>
           </div>

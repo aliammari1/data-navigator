@@ -198,7 +198,6 @@ export interface SharedDuckDB {
   loadCSV(
     tableName: string,
     buffer: ArrayBuffer,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void>;
@@ -206,7 +205,6 @@ export interface SharedDuckDB {
   loadCSVFile(
     tableName: string,
     file: File,
-    delimiter?: string,
     append?: boolean,
     hasHeader?: boolean,
   ): Promise<void>;
@@ -328,7 +326,6 @@ export const sharedDuckDB: SharedDuckDB = {
   async loadCSV(
     tableName,
     buffer,
-    delimiter = "|",
     append = false,
     hasHeader = true,
   ) {
@@ -338,7 +335,6 @@ export const sharedDuckDB: SharedDuckDB = {
         duckdbBridge().loadCSVBuffer(
           tableName,
           buffer,
-          delimiter,
           append,
           hasHeader,
         ),
@@ -451,7 +447,6 @@ export const sharedDuckDB: SharedDuckDB = {
   async loadCSVFile(
     tableName,
     file,
-    delimiter = ",",
     append = false,
     hasHeader = true,
   ) {
@@ -462,7 +457,6 @@ export const sharedDuckDB: SharedDuckDB = {
         duckdbBridge().loadCSVBuffer(
           tableName,
           buffer,
-          delimiter,
           append,
           hasHeader,
         ),

@@ -4,7 +4,7 @@
  * Deterministic DuckDB queries + optional LLM summary enrichment.
  */
 
-import { runQuery, getTableInfo } from "@/platform/duckdb/duckdb";
+import { getTableInfo, runQuery } from "@/platform/duckdb/duckdb";
 import { chat, isLoaded } from "./llm";
 import type { ColumnProfile, ColumnSemantic, DataSchema } from "./types";
 
@@ -87,7 +87,7 @@ export async function analyzeSchema(
   const profiles: ColumnProfile[] = await Promise.all(
     columns.map(async (col): Promise<ColumnProfile> => {
       try {
-        const qn = `"${col.name.replace(/"/g, '""')}"`;
+        const qn = `"${col.name.replace('"', '""')}"`;
         const rows = await runQuery(`
           SELECT
             COUNT(DISTINCT ${qn})                                            AS cardinality,

@@ -23,7 +23,7 @@ export function StepSegmentation({ result }: { result: ClusterResult }) {
   const total = result.sizePerCluster.reduce((a, b) => a + b, 0);
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 text-sm text-[var(--atlas-text)]">
+      <div className="flex items-center gap-2 text-sm text-(--atlas-text)">
         <span className="font-semibold">{result.k} clusters</span>
         <AtlasChip severity="accent" size="sm">
           features: {result.features.join(", ")}
@@ -35,17 +35,17 @@ export function StepSegmentation({ result }: { result: ClusterResult }) {
           return (
             <div
               key={key}
-              className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-3"
+              className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-3"
               style={{
                 borderLeftColor: PALETTE[i % PALETTE.length],
                 borderLeftWidth: 4,
               }}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold text-[var(--atlas-text)]">
+                <span className="text-sm font-semibold text-(--atlas-text)">
                   Cluster {i + 1}
                 </span>
-                <span className="text-xs text-[var(--atlas-text-subtle)] tabular-nums">
+                <span className="text-xs text-(--atlas-text-subtle) tabular-nums">
                   {result.sizePerCluster[i]} ·{" "}
                   {((result.sizePerCluster[i] / total) * 100).toFixed(0)}%
                 </span>
@@ -56,10 +56,10 @@ export function StepSegmentation({ result }: { result: ClusterResult }) {
                     key={result.features[f]}
                     className="flex justify-between text-[11px]"
                   >
-                    <span className="text-[var(--atlas-text-subtle)]">
+                    <span className="text-(--atlas-text-subtle)">
                       {result.features[f]}
                     </span>
-                    <span className="text-[var(--atlas-text)] font-mono tabular-nums">
+                    <span className="text-(--atlas-text) font-mono tabular-nums">
                       {fmt(v)}
                     </span>
                   </div>

@@ -71,7 +71,7 @@ export function StepCorrelations({ cells }: { cells: CorrelationCell[] }) {
 
   if (!vars.length)
     return (
-      <p className="text-sm text-[var(--atlas-text-subtle)]">
+      <p className="text-sm text-(--atlas-text-subtle)">
         Need at least 2 numeric columns to compute correlations.
       </p>
     );
@@ -83,7 +83,7 @@ export function StepCorrelations({ cells }: { cells: CorrelationCell[] }) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-2">
+      <div className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-2">
         <ReactECharts
           option={option}
           style={{ height: 320 }}
@@ -95,18 +95,18 @@ export function StepCorrelations({ cells }: { cells: CorrelationCell[] }) {
           {top.map((c) => (
             <div
               key={`${c.a}-${c.b}`}
-              className="rounded-[var(--atlas-radius-2)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] px-3 py-2 flex items-center justify-between"
+              className="rounded-(--atlas-radius-2) border border-(--atlas-border) bg-(--atlas-surface) px-3 py-2 flex items-center justify-between"
             >
-              <span className="text-xs text-[var(--atlas-text)]">
+              <span className="text-xs text-(--atlas-text)">
                 {c.a} ↔ {c.b}
               </span>
               <span
                 className={`text-sm font-mono tabular-nums font-semibold ${
                   Math.abs(c.r) >= 0.7
                     ? c.r > 0
-                      ? "text-[var(--atlas-success-fg)]"
-                      : "text-[var(--atlas-danger-fg)]"
-                    : "text-[var(--atlas-text)]"
+                      ? "text-(--atlas-success-fg)"
+                      : "text-(--atlas-danger-fg)"
+                    : "text-(--atlas-text)"
                 }`}
               >
                 r = {c.r.toFixed(2)}

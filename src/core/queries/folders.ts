@@ -1,9 +1,9 @@
 "use client";
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  useFoldersStore,
   type CatalogFolder,
+  useFoldersStore,
 } from "@/core/stores/folders-store";
 import { queryKeys } from "./keys";
 
@@ -50,7 +50,7 @@ export function useFolder(id: string | null) {
 
   return useQuery({
     queryKey: id ? queryKeys.folders.detail(id) : ["folders", "null"],
-    queryFn: () => (id ? folders.find((f) => f.id === id) ?? null : null),
+    queryFn: () => (id ? (folders.find((f) => f.id === id) ?? null) : null),
     enabled: !!id,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -83,7 +83,7 @@ export function useDatasetFolder(datasetId: string | null) {
 
   return useQuery({
     queryKey: ["folders", "dataset", datasetId],
-    queryFn: () => (datasetId ? datasetFolderMap[datasetId] ?? null : null),
+    queryFn: () => (datasetId ? (datasetFolderMap[datasetId] ?? null) : null),
     enabled: !!datasetId,
     staleTime: Infinity,
     refetchOnMount: false,
@@ -145,7 +145,9 @@ export function useRemoveFolder() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.folders.all() });
-      queryClient.invalidateQueries({ queryKey: queryKeys.folders.datasetMap() });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.folders.datasetMap(),
+      });
     },
   });
 }

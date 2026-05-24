@@ -17,14 +17,14 @@ export function AtlasEmptyState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
-      <div className="w-12 h-12 rounded-full border border-[var(--atlas-border)] bg-[var(--atlas-surface)] flex items-center justify-center text-[var(--atlas-text-subtle)] mb-4">
+      <div className="w-12 h-12 rounded-full border border-(--atlas-border) bg-(--atlas-surface) flex items-center justify-center text-(--atlas-text-subtle) mb-4">
         {icon ?? <Inbox className="w-5 h-5" />}
       </div>
-      <h3 className="text-sm font-semibold text-[var(--atlas-text)]">
+      <h3 className="text-sm font-semibold text-(--atlas-text)">
         {title}
       </h3>
       {description && (
-        <p className="text-xs text-[var(--atlas-text-subtle)] mt-1 max-w-sm leading-snug">
+        <p className="text-xs text-(--atlas-text-subtle) mt-1 max-w-sm leading-snug">
           {description}
         </p>
       )}
@@ -45,7 +45,7 @@ export function AtlasLoadingState({
       className={`flex items-center justify-center gap-2 py-12 ${className ?? ""}`}
     >
       <AtlasSpinner />
-      <span className="text-xs text-[var(--atlas-text-muted)]">{label}</span>
+      <span className="text-xs text-(--atlas-text-muted)">{label}</span>
     </div>
   );
 }
@@ -61,14 +61,14 @@ export function AtlasErrorState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
-      <div className="w-12 h-12 rounded-full border border-[var(--atlas-danger-border)] bg-[var(--atlas-danger-soft)] flex items-center justify-center text-[var(--atlas-danger-fg)] mb-3">
+      <div className="w-12 h-12 rounded-full border border-(--atlas-danger-border) bg-(--atlas-danger-soft) flex items-center justify-center text-(--atlas-danger-fg) mb-3">
         <AlertTriangle className="w-5 h-5" />
       </div>
-      <h3 className="text-sm font-semibold text-[var(--atlas-text)]">
+      <h3 className="text-sm font-semibold text-(--atlas-text)">
         {title}
       </h3>
       {description && (
-        <p className="text-xs text-[var(--atlas-text-subtle)] mt-1 max-w-md leading-snug">
+        <p className="text-xs text-(--atlas-text-subtle) mt-1 max-w-md leading-snug">
           {description}
         </p>
       )}
@@ -76,7 +76,7 @@ export function AtlasErrorState({
         <button
           type="button"
           onClick={retry}
-          className="mt-4 text-xs text-[var(--atlas-accent-fg)] hover:underline"
+          className="mt-4 text-xs text-(--atlas-accent-fg) hover:underline"
         >
           Retry
         </button>

@@ -45,7 +45,7 @@ export function StepRecommendations({
 
   if (!recommendations.length) {
     return (
-      <p className="text-sm text-[var(--atlas-text-subtle)]">
+      <p className="text-sm text-(--atlas-text-subtle)">
         No actionable recommendations from this analysis.
       </p>
     );
@@ -64,12 +64,12 @@ export function StepRecommendations({
           (s) => (
             <div
               key={s}
-              className="rounded-[var(--atlas-radius-2)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] px-3 py-2"
+              className="rounded-(--atlas-radius-2) border border-(--atlas-border) bg-(--atlas-surface) px-3 py-2"
             >
-              <div className="text-[10px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+              <div className="text-[10px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
                 {s}
               </div>
-              <div className="mt-1 text-lg font-bold tabular-nums text-[var(--atlas-text)]">
+              <div className="mt-1 text-lg font-bold tabular-nums text-(--atlas-text)">
                 {
                   recommendations.filter(
                     (r) => (states[r.id] ?? "proposed") === s,
@@ -90,14 +90,14 @@ export function StepRecommendations({
         return (
           <div
             key={r.id}
-            className="rounded-[var(--atlas-radius-3)] border border-[var(--atlas-border)] bg-[var(--atlas-surface)] p-3 transition-colors hover:border-[var(--atlas-accent-border)]"
+            className="rounded-(--atlas-radius-3) border border-(--atlas-border) bg-(--atlas-surface) p-3 transition-colors hover:border-(--atlas-accent-border)"
           >
             <div className="flex items-start gap-3">
               <div
-                className={`mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-[var(--atlas-radius-2)] border ${
+                className={`mt-0.5 flex h-9 w-9 flex-none items-center justify-center rounded-(--atlas-radius-2) border ${
                   actionState === "accepted"
-                    ? "border-[var(--atlas-success-border)] bg-[var(--atlas-success-soft)] text-[var(--atlas-success-fg)]"
-                    : "border-[var(--atlas-accent-border)] bg-[var(--atlas-accent-soft)] text-[var(--atlas-accent-fg)]"
+                    ? "border-(--atlas-success-border) bg-(--atlas-success-soft) text-(--atlas-success-fg)"
+                    : "border-(--atlas-accent-border) bg-(--atlas-accent-soft) text-(--atlas-accent-fg)"
                 }`}
               >
                 {actionState === "accepted" ? (
@@ -127,49 +127,49 @@ export function StepRecommendations({
                   >
                     {actionState}
                   </AtlasChip>
-                  <span className="text-sm font-semibold text-[var(--atlas-text)]">
+                  <span className="text-sm font-semibold text-(--atlas-text)">
                     {r.action}
                   </span>
                 </div>
 
-                <div className="mt-1 text-[11px] leading-snug text-[var(--atlas-text-subtle)]">
+                <div className="mt-1 text-[11px] leading-snug text-(--atlas-text-subtle)">
                   {r.why}
                 </div>
 
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
-                  <div className="rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-bg-subtle)] px-2 py-1.5">
-                    <div className="text-[9px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+                  <div className="rounded-md border border-(--atlas-border) bg-(--atlas-bg-subtle) px-2 py-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
                       impact
                     </div>
-                    <div className="text-sm font-bold tabular-nums text-[var(--atlas-text)]">
+                    <div className="text-sm font-bold tabular-nums text-(--atlas-text)">
                       {impact}/100
                     </div>
                   </div>
-                  <div className="rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-bg-subtle)] px-2 py-1.5">
-                    <div className="text-[9px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+                  <div className="rounded-md border border-(--atlas-border) bg-(--atlas-bg-subtle) px-2 py-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
                       effort
                     </div>
-                    <div className="text-sm font-bold text-[var(--atlas-text)]">
+                    <div className="text-sm font-bold text-(--atlas-text)">
                       {effort}
                     </div>
                   </div>
-                  <div className="rounded-md border border-[var(--atlas-border)] bg-[var(--atlas-bg-subtle)] px-2 py-1.5">
-                    <div className="text-[9px] font-bold uppercase tracking-wide text-[var(--atlas-text-subtle)]">
+                  <div className="rounded-md border border-(--atlas-border) bg-(--atlas-bg-subtle) px-2 py-1.5">
+                    <div className="text-[9px] font-bold uppercase tracking-wide text-(--atlas-text-subtle)">
                       owner
                     </div>
-                    <div className="truncate text-sm font-bold text-[var(--atlas-text)]">
+                    <div className="truncate text-sm font-bold text-(--atlas-text)">
                       {r.severity === "danger" ? "Ops lead" : "Analyst"}
                     </div>
                   </div>
                 </div>
 
                 {showEvidence && (
-                  <div className="mt-3 rounded-[var(--atlas-radius-2)] border border-[var(--atlas-accent-border)] bg-[var(--atlas-accent-soft)]/40 p-2">
-                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-[var(--atlas-accent-fg)]">
+                  <div className="mt-3 rounded-(--atlas-radius-2) border border-(--atlas-accent-border) bg-(--atlas-accent-soft)/40 p-2">
+                    <div className="mb-1 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-(--atlas-accent-fg)">
                       <BarChart3 className="h-3 w-3" />
                       Evidence packet
                     </div>
-                    <div className="text-[11px] leading-snug text-[var(--atlas-text)]">
+                    <div className="text-[11px] leading-snug text-(--atlas-text)">
                       {r.evidence ||
                         "Evidence is derived from the completed analysis steps."}
                     </div>

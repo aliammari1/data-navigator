@@ -58,7 +58,7 @@ export function ScenarioSimulator({
         </div>
       ) : (
         <>
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+          <div className="rounded-lg border border-white/10 bg-white/3 p-3">
             <div className="text-xs font-semibold text-foreground">{name}</div>
             <div className="mt-2 inline-flex rounded-full bg-violet-500/10 px-2 py-0.5 text-[10px] text-violet-300">
               Confidence: {confidence}
@@ -73,7 +73,7 @@ export function ScenarioSimulator({
               {assumptions.map((a, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.03] p-2"
+                  className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/3 p-2"
                 >
                   <ChevronRight className="h-3 w-3 text-violet-300" />
                   <div className="min-w-0 flex-1">
@@ -85,7 +85,7 @@ export function ScenarioSimulator({
             </div>
           )}
 
-          <div className="rounded-lg border border-white/10 bg-white/[0.03] p-3">
+          <div className="rounded-lg border border-white/10 bg-white/3 p-3">
             <div className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Impact
             </div>

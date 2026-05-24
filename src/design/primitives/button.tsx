@@ -8,15 +8,15 @@ const button = tv({
   variants: {
     variant: {
       solid:
-        "bg-[var(--atlas-accent)] text-white hover:bg-[var(--atlas-accent-hover)] shadow-[var(--atlas-shadow-2)]",
-      soft: "bg-[var(--atlas-accent-soft)] text-[var(--atlas-accent-fg)] hover:bg-[color:color-mix(in_oklch,var(--atlas-accent-soft),white_8%)]",
+        "bg-(--atlas-accent) text-white hover:bg-(--atlas-accent-hover) shadow-(--atlas-shadow-2)",
+      soft: "bg-(--atlas-accent-soft) text-(--atlas-accent-fg) hover:bg-[color-mix(in_oklch,var(--atlas-accent-soft),white_8%)]",
       outline:
-        "border border-[var(--atlas-border)] text-[var(--atlas-text)] hover:border-[var(--atlas-accent-border)] hover:text-[var(--atlas-accent-fg)] bg-transparent",
+        "border border-(--atlas-border) text-(--atlas-text) hover:border-(--atlas-accent-border) hover:text-(--atlas-accent-fg) bg-transparent",
       ghost:
-        "text-[var(--atlas-text-muted)] hover:text-[var(--atlas-text)] hover:bg-[var(--atlas-surface)]",
-      link: "text-[var(--atlas-accent-fg)] hover:underline underline-offset-4 px-0 py-0",
+        "text-(--atlas-text-muted) hover:text-(--atlas-text) hover:bg-(--atlas-surface)",
+      link: "text-(--atlas-accent-fg) hover:underline underline-offset-4 px-0 py-0",
       danger:
-        "bg-[var(--atlas-danger)] text-white hover:brightness-110 shadow-[var(--atlas-shadow-2)]",
+        "bg-(--atlas-danger) text-white hover:brightness-110 shadow-(--atlas-shadow-2)",
     },
     size: {
       xs: "h-6 px-2 text-[11px] rounded-md",

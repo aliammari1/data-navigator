@@ -41,7 +41,7 @@ export function AuthorAvatar({
   const sz = size === "sm" ? "w-6 h-6 text-xs" : "w-8 h-8 text-sm";
   return (
     <span
-      className={`${sz} ${colors[idx]} rounded-full flex items-center justify-center text-white font-bold flex-shrink-0`}
+      className={`${sz} ${colors[idx]} rounded-full flex items-center justify-center text-white font-bold shrink-0`}
     >
       {initials}
     </span>
@@ -75,13 +75,13 @@ export function DiffViewer({ lines }: { lines: DiffLine[] }) {
         const lineNumNew = line.type !== "removed" ? (line.newLine ?? "") : "";
         return (
           <div key={lineKey} className={`flex ${cls} leading-5`}>
-            <span className="w-8 text-right pr-2 text-muted-foreground select-none border-r border-border flex-shrink-0">
+            <span className="w-8 text-right pr-2 text-muted-foreground select-none border-r border-border shrink-0">
               {lineNumOld}
             </span>
-            <span className="w-8 text-right pr-2 text-muted-foreground select-none border-r border-border flex-shrink-0">
+            <span className="w-8 text-right pr-2 text-muted-foreground select-none border-r border-border shrink-0">
               {lineNumNew}
             </span>
-            <span className="px-1 select-none text-muted-foreground flex-shrink-0 w-4">
+            <span className="px-1 select-none text-muted-foreground shrink-0 w-4">
               {prefix}
             </span>
             <span className="flex-1 px-1 whitespace-pre">{line.content}</span>

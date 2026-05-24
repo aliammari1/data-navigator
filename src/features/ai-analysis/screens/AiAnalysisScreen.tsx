@@ -1,73 +1,69 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  ArrowDownRight,
+  ArrowUpRight,
+  BarChart3,
+  Brain,
+  CheckCircle2,
+  ChevronDown,
+  ChevronRight,
+  ChevronUp,
+  Clock,
+  Cpu,
+  Database,
+  Download,
+  Eye,
+  Filter,
+  Flame,
+  FlaskConical,
+  GitBranch,
+  Hash,
+  Info,
+  Layers,
+  Lightbulb,
+  LineChart,
+  Minus,
+  Network,
+  Play,
+  Radar as RadarIcon,
+  RefreshCw,
+  ScatterChart,
+  Search,
+  Sigma,
+  Sparkles,
+  Star,
+  Target,
+  TrendingDown,
+  TrendingUp,
+  TriangleAlert,
+  Upload,
+  XCircle,
+  Zap,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { motion, AnimatePresence } from "motion/react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { type ColMeta, useDataStore } from "@/core/stores/data-store";
 import {
-  Brain,
-  Sparkles,
-  TrendingUp,
-  TrendingDown,
-  AlertTriangle,
-  CheckCircle2,
-  XCircle,
-  Lightbulb,
-  BarChart3,
-  Activity,
-  Database,
-  RefreshCw,
-  Download,
-  Play,
-  ChevronRight,
-  ChevronDown,
-  Info,
-  Zap,
-  Target,
-  Eye,
-  GitBranch,
-  Cpu,
-  Clock,
-  ArrowUpRight,
-  ArrowDownRight,
-  Minus,
-  Search,
-  Filter,
-  Layers,
-  Star,
-  AlertCircle,
-  Sigma,
-  FlaskConical,
-  LineChart,
-  ScatterChart,
-  Flame,
-  Radar as RadarIcon,
-  Network,
-  TriangleAlert,
-  ChevronUp,
-  Hash,
-  Upload,
-} from "lucide-react";
-import { runQuery } from "@/platform/duckdb/duckdb";
-import { useDataStore, type ColMeta } from "@/core/stores/data-store";
-import {
-  pearsonCorr,
   buildCorrelationMatrix,
-  computeSkewness,
   computeKurtosis,
+  computeSkewness,
+  pearsonCorr,
 } from "@/platform/ai/insights";
+import { runQuery } from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
-import type {
-  AnalysisState,
-  Anomaly,
-  ClusterGroup,
-  ColStat,
-  Correlation,
-  ForecastPoint,
-  Insight,
-} from "@/features/ai-analysis/model/types";
+import {
+  InsightCard,
+  SeverityBadge,
+  StatCard,
+} from "@/features/ai-analysis/components/analysis-cards";
 import {
   buildHistogram,
   correlationStrength,
@@ -78,11 +74,24 @@ import {
   pearsonCorrelation,
   stdDev,
 } from "@/features/ai-analysis/model/stats";
-import {
-  InsightCard,
-  SeverityBadge,
-  StatCard,
-} from "@/features/ai-analysis/components/analysis-cards";
+import type {
+  AnalysisState,
+  Anomaly,
+  ClusterGroup,
+  ColStat,
+  Correlation,
+  ForecastPoint,
+  Insight,
+} from "@/features/ai-analysis/model/types";
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace('"', '""')}"`;
+}
+
+function tableNameFromShowTables(row: Record<string, unknown>): string {
+  return String(row.name ?? row.table_name ?? Object.values(row)[0] ?? "");
+}
+
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function AiAnalysisScreen() {
@@ -106,19 +115,20 @@ export default function AiAnalysisScreen() {
   const [insights, setInsights] = useState<Insight[]>([]);
   const [clusters, setClusters] = useState<ClusterGroup[]>([]);
   const [selectedCol, setSelectedCol] = useState<string>("");
+  const [resolvedTableName, setResolvedTableName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [rowCount, setRowCount] = useState(0);
   const [tableLoaded, setTableLoaded] = useState(false);
-  const runRef = useRef(false);
 
   // ─── Data store integration ─────────────────────────────────────────────────
 
   const { datasets, activeDatasetId, loadedTableNames } = useDataStore();
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
-  const tableName = activeDataset?.tableName ?? "";
-  const isTableReady = !!tableName && loadedTableNames.includes(tableName);
+  const preferredTableName =
+    activeDataset?.tableName ?? loadedTableNames[0] ?? "";
+  const tableName = resolvedTableName || preferredTableName;
 
   const numericCols = useMemo(
     () =>
@@ -155,19 +165,33 @@ export default function AiAnalysisScreen() {
   // ─── Load data ──────────────────────────────────────────────────────────────
 
   useEffect(() => {
-    if (!isTableReady) {
-      setTableLoaded(false);
-      return;
-    }
     let cancelled = false;
     async function init() {
-      if (runRef.current) return;
-      runRef.current = true;
       try {
+        let nextTableName = preferredTableName;
+        const tables = await runQuery("SHOW TABLES").catch(() => []);
+        const tableNames = tables.map(tableNameFromShowTables).filter(Boolean);
+        if (
+          tableNames.length > 0 &&
+          (!nextTableName || !tableNames.includes(nextTableName))
+        ) {
+          nextTableName = tableNames[0] ?? "";
+        }
+
+        if (!nextTableName) {
+          if (!cancelled) {
+            setResolvedTableName("");
+            setTableLoaded(false);
+            setRowCount(0);
+          }
+          return;
+        }
+
         const countRes = await runQuery(
-          `SELECT COUNT(*) as cnt FROM "${tableName}"`,
+          `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(nextTableName)}`,
         );
         if (!cancelled) {
+          setResolvedTableName(nextTableName);
           setTableLoaded(true);
           setRowCount(Number(countRes[0]?.cnt ?? 0));
         }
@@ -180,12 +204,13 @@ export default function AiAnalysisScreen() {
     return () => {
       cancelled = true;
     };
-  }, [isTableReady, tableName]);
+  }, [preferredTableName]);
 
   // ─── Run full analysis ────────────────────────────────────────────────────
 
   const runAnalysis = useCallback(async () => {
     if (!tableLoaded || !tableName || numericCols.length === 0) return;
+    const tableSql = quoteIdentifier(tableName);
     setAnalysisState({
       status: "running",
       progress: 0,
@@ -203,21 +228,22 @@ export default function AiAnalysisScreen() {
       const statsResults: ColStat[] = [];
 
       for (const col of numericCols) {
+        const colSql = quoteIdentifier(col);
         const res = await runQuery(`
           SELECT
             COUNT(*) as total,
-            COUNT("${col}") as non_null,
-            MIN("${col}") as min_val,
-            MAX("${col}") as max_val,
-            AVG("${col}") as avg_val,
-            STDDEV_SAMP("${col}") as std_val,
-            MEDIAN("${col}") as median_val,
-            COUNT(DISTINCT "${col}") as distinct_count
-          FROM "${tableName}"
+            COUNT(${colSql}) as non_null,
+            MIN(${colSql}) as min_val,
+            MAX(${colSql}) as max_val,
+            AVG(${colSql}) as avg_val,
+            STDDEV_SAMP(${colSql}) as std_val,
+            MEDIAN(${colSql}) as median_val,
+            COUNT(DISTINCT ${colSql}) as distinct_count
+          FROM ${tableSql}
         `);
         const r = res[0] as Record<string, number>;
         const sample = await runQuery(
-          `SELECT "${col}" FROM "${tableName}" WHERE "${col}" IS NOT NULL LIMIT 2000`,
+          `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 2000`,
         );
         const vals = sample.map((row) =>
           Number((row as Record<string, unknown>)[col]),
@@ -243,18 +269,19 @@ export default function AiAnalysisScreen() {
       }
 
       for (const col of catCols) {
+        const colSql = quoteIdentifier(col);
         const res = await runQuery(`
           SELECT
             COUNT(*) as total,
-            COUNT("${col}") as non_null,
-            COUNT(DISTINCT "${col}") as distinct_count
-          FROM "${tableName}"
+            COUNT(${colSql}) as non_null,
+            COUNT(DISTINCT ${colSql}) as distinct_count
+          FROM ${tableSql}
         `);
         const r = res[0] as Record<string, number>;
         const topRes = await runQuery(`
-          SELECT "${col}" as val, COUNT(*) as cnt
-          FROM "${tableName}"
-          GROUP BY "${col}"
+          SELECT ${colSql} as val, COUNT(*) as cnt
+          FROM ${tableSql}
+          GROUP BY ${colSql}
           ORDER BY cnt DESC
           LIMIT 10
         `);
@@ -284,8 +311,9 @@ export default function AiAnalysisScreen() {
       const numStats = statsResults.filter((s) => s.type === "numeric");
 
       for (const stat of numStats) {
+        const statSql = quoteIdentifier(stat.name);
         const sample = await runQuery(
-          `SELECT "${stat.name}" FROM "${tableName}" WHERE "${stat.name}" IS NOT NULL LIMIT 3000`,
+          `SELECT ${statSql} FROM ${tableSql} WHERE ${statSql} IS NOT NULL LIMIT 3000`,
         );
         const vals = sample.map((row) =>
           Number((row as Record<string, unknown>)[stat.name]),
@@ -367,8 +395,9 @@ export default function AiAnalysisScreen() {
 
       const corrData: Record<string, number[]> = {};
       for (const col of numericCols) {
+        const colSql = quoteIdentifier(col);
         const rows = await runQuery(
-          `SELECT "${col}" FROM "${tableName}" WHERE "${col}" IS NOT NULL LIMIT 3000`,
+          `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 3000`,
         );
         corrData[col] = rows.map((r) =>
           Number((r as Record<string, unknown>)[col]),
@@ -408,13 +437,15 @@ export default function AiAnalysisScreen() {
       const forecastMetricCol = numericCols[0];
 
       if (forecastDateCol && forecastMetricCol) {
+        const forecastDateSql = quoteIdentifier(forecastDateCol);
+        const forecastMetricSql = quoteIdentifier(forecastMetricCol);
         const revenueByMonth = await runQuery(`
           SELECT
-            strftime("${forecastDateCol}", '%Y-%m') as period,
-            AVG("${forecastMetricCol}") as avg_metric,
+            strftime(${forecastDateSql}, '%Y-%m') as period,
+            AVG(${forecastMetricSql}) as avg_metric,
             COUNT(*) as cnt
-          FROM "${tableName}"
-          WHERE "${forecastDateCol}" IS NOT NULL
+          FROM ${tableSql}
+          WHERE ${forecastDateSql} IS NOT NULL
           GROUP BY period
           ORDER BY period
           LIMIT 24
@@ -460,8 +491,9 @@ export default function AiAnalysisScreen() {
         }
       } else if (numericCols.length >= 1) {
         // No date column — fallback: use row index as time proxy
+        const forecastMetricSql = quoteIdentifier(forecastMetricCol);
         const sample = await runQuery(
-          `SELECT "${forecastMetricCol}" FROM "${tableName}" WHERE "${forecastMetricCol}" IS NOT NULL LIMIT 100`,
+          `SELECT ${forecastMetricSql} FROM ${tableSql} WHERE ${forecastMetricSql} IS NOT NULL LIMIT 100`,
         );
         const vals = sample.map((r) =>
           Number((r as Record<string, unknown>)[forecastMetricCol]),
@@ -506,16 +538,20 @@ export default function AiAnalysisScreen() {
       const newClusters: ClusterGroup[] = [];
 
       if (groupCol && metricCols.length > 0) {
+        const groupSql = quoteIdentifier(groupCol);
         const avgSelects = metricCols
-          .map((c) => `AVG("${c}") as "avg_${c}"`)
+          .map(
+            (c) =>
+              `AVG(${quoteIdentifier(c)}) as ${quoteIdentifier(`avg_${c}`)}`,
+          )
           .join(", ");
         const clusterRes = await runQuery(`
           SELECT
-            "${groupCol}",
+            ${groupSql},
             ${avgSelects},
             COUNT(*) as cnt
-          FROM "${tableName}"
-          GROUP BY "${groupCol}"
+          FROM ${tableSql}
+          GROUP BY ${groupSql}
           ORDER BY cnt DESC
           LIMIT 20
         `);
@@ -1047,7 +1083,7 @@ export default function AiAnalysisScreen() {
             Go to Upload
           </Link>
         </div>
-      ) : !isTableReady ? (
+      ) : !tableLoaded ? (
         <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
           <AlertCircle className="w-14 h-14 mb-4 text-yellow-500 opacity-60" />
           <p className="text-xl font-semibold text-foreground mb-1">
@@ -1071,7 +1107,7 @@ export default function AiAnalysisScreen() {
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
             <div>
               <div className="flex items-center gap-3">
-                <div className="p-2 bg-gradient-to-br from-violet-600 to-indigo-600 rounded-xl">
+                <div className="p-2 bg-linear-to-br from-violet-600 to-indigo-600 rounded-xl">
                   <Brain className="w-6 h-6 text-white" />
                 </div>
                 <div>
@@ -1583,7 +1619,7 @@ export default function AiAnalysisScreen() {
                               />
                             </div>
                           </div>
-                          <div className="text-right flex-shrink-0">
+                          <div className="text-right shrink-0">
                             <div
                               className={`text-sm font-mono font-bold ${corr.pearson > 0 ? "text-green-400" : "text-red-400"}`}
                             >
@@ -1814,7 +1850,7 @@ export default function AiAnalysisScreen() {
                         "Model retrained on full historical dataset",
                       ].map((item) => (
                         <li key={item} className="flex items-start gap-2">
-                          <ChevronRight className="w-3 h-3 mt-0.5 text-indigo-400 flex-shrink-0" />
+                          <ChevronRight className="w-3 h-3 mt-0.5 text-indigo-400 shrink-0" />
                           {item}
                         </li>
                       ))}
@@ -1868,7 +1904,7 @@ export default function AiAnalysisScreen() {
                         >
                           <div className="flex items-center gap-2 mb-2">
                             <span
-                              className="w-3 h-3 rounded-full flex-shrink-0"
+                              className="w-3 h-3 rounded-full shrink-0"
                               style={{ backgroundColor: cluster.color }}
                             />
                             <span className="text-sm font-semibold text-foreground">
@@ -2029,7 +2065,7 @@ export default function AiAnalysisScreen() {
                               {method.name}
                             </span>
                             <span
-                              className={`text-xs px-1.5 py-0.5 rounded flex-shrink-0 ${
+                              className={`text-xs px-1.5 py-0.5 rounded shrink-0 ${
                                 method.tag === "anomaly"
                                   ? "bg-red-500/20 text-red-300"
                                   : method.tag === "correlation"
@@ -2168,7 +2204,7 @@ export default function AiAnalysisScreen() {
                           `Anomaly detection runs Z-score + IQR across ${numericCols.length} numeric columns`,
                         ].map((note) => (
                           <li key={note} className="flex items-start gap-2">
-                            <ChevronRight className="w-3 h-3 mt-0.5 text-green-400 flex-shrink-0" />
+                            <ChevronRight className="w-3 h-3 mt-0.5 text-green-400 shrink-0" />
                             {note}
                           </li>
                         ))}

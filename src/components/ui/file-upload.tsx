@@ -65,7 +65,7 @@ export const FileUpload = ({
           id="file-upload-handle"
           type="file"
           multiple
-          accept=".csv,.txt,.xlsx,.xls,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+          accept=".csv"
           onChange={(e) => handleFileChange(Array.from(e.target.files || []))}
           className="hidden"
         />

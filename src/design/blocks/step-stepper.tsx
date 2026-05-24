@@ -22,12 +22,12 @@ interface Props {
 }
 
 const dotByStatus: Record<StepStatus, string> = {
-  idle: "border-[var(--atlas-border)] bg-[var(--atlas-surface)] text-[var(--atlas-text-subtle)]",
+  idle: "border-(--atlas-border) bg-(--atlas-surface) text-(--atlas-text-subtle)",
   running:
-    "border-[var(--atlas-accent-border)] bg-[var(--atlas-accent-soft)] text-[var(--atlas-accent-fg)]",
-  done: "border-[var(--atlas-success-border)] bg-[var(--atlas-success-soft)] text-[var(--atlas-success-fg)]",
+    "border-(--atlas-accent-border) bg-(--atlas-accent-soft) text-(--atlas-accent-fg)",
+  done: "border-(--atlas-success-border) bg-(--atlas-success-soft) text-(--atlas-success-fg)",
   error:
-    "border-[var(--atlas-danger-border)] bg-[var(--atlas-danger-soft)] text-[var(--atlas-danger-fg)]",
+    "border-(--atlas-danger-border) bg-(--atlas-danger-soft) text-(--atlas-danger-fg)",
 };
 
 function fmtDuration(ms?: number): string {
@@ -46,10 +46,10 @@ export function AtlasStepper({ steps, activeId, onSelect }: Props) {
             <button
               type="button"
               onClick={() => onSelect(s.id)}
-              className={`atlas-focus-ring group w-full flex items-start gap-3 px-2.5 py-2 rounded-[var(--atlas-radius-2)] text-left transition-colors ${
+              className={`atlas-focus-ring group w-full flex items-start gap-3 px-2.5 py-2 rounded-(--atlas-radius-2) text-left transition-colors ${
                 isActive
-                  ? "bg-[var(--atlas-surface-raised)] border border-[var(--atlas-accent-border)]"
-                  : "border border-transparent hover:bg-[var(--atlas-surface)]"
+                  ? "bg-(--atlas-surface-raised) border border-(--atlas-accent-border)"
+                  : "border border-transparent hover:bg-(--atlas-surface)"
               }`}
             >
               <div
@@ -68,22 +68,22 @@ export function AtlasStepper({ steps, activeId, onSelect }: Props) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5">
                   {s.icon && (
-                    <span className="text-[var(--atlas-text-subtle)] [&>svg]:w-3 [&>svg]:h-3">
+                    <span className="text-(--atlas-text-subtle) [&>svg]:w-3 [&>svg]:h-3">
                       {s.icon}
                     </span>
                   )}
                   <span
                     className={`text-xs font-semibold truncate ${
                       isActive
-                        ? "text-[var(--atlas-text)]"
-                        : "text-[var(--atlas-text-muted)] group-hover:text-[var(--atlas-text)]"
+                        ? "text-(--atlas-text)"
+                        : "text-(--atlas-text-muted) group-hover:text-(--atlas-text)"
                     }`}
                   >
                     {s.label}
                   </span>
                 </div>
                 {s.hint && (
-                  <div className="text-[10px] text-[var(--atlas-text-subtle)] truncate">
+                  <div className="text-[10px] text-(--atlas-text-subtle) truncate">
                     {s.hint}
                   </div>
                 )}
@@ -91,7 +91,7 @@ export function AtlasStepper({ steps, activeId, onSelect }: Props) {
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-[10px] text-[var(--atlas-success-fg)]"
+                    className="text-[10px] text-(--atlas-success-fg)"
                   >
                     {fmtDuration(s.durationMs)}
                   </motion.div>
