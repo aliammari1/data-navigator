@@ -8,7 +8,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { bigIntJsonReplacer, sanitizeJsonValue } from "./core/json";
-import type { LLMModel, LLMProvider } from "./core/ollama-provider";
+import type { LLMProvider } from "./core/ollama-provider";
 import type { ChartSpec, QueryResult } from "./core/types";
 
 export interface ExplorationStep {
@@ -107,9 +107,9 @@ interface FormulatorStore {
 }
 
 const DEFAULT_SETTINGS: FormulatorSettings = {
-  defaultProvider: "ollama",
-  defaultModel: "",
-  ollamaHost: "http://localhost:11434",
+  defaultProvider: "edge",
+  defaultModel: "HuggingFaceTB/SmolLM2-360M-Instruct",
+  ollamaHost: "edge://transformers-worker",
   temperature: 0.7,
   maxTokens: 4096,
   showSQL: true,
@@ -123,13 +123,13 @@ export const useFormulatorStore = create<FormulatorStore>()(
     (set, get) => ({
       // Providers
       providers: [],
-      selectedProviderId: "ollama",
-      selectedModel: "",
+      selectedProviderId: "edge",
+      selectedModel: DEFAULT_SETTINGS.defaultModel,
       setProviders: (providers) => set({ providers }),
       selectProvider: (id) => set({ selectedProviderId: id }),
       selectModel: (model) => set({ selectedModel: model }),
       refreshModels: async () => {
-        // This will be overridden by the component that has access to ollama-provider
+        // This is populated by the edge model selector component.
       },
 
       // Threads
@@ -150,7 +150,9 @@ export const useFormulatorStore = create<FormulatorStore>()(
 
           // If parent specified, add to parent's children
           if (cleanStep.parentId) {
-            const parent = thread.steps.find((s) => s.id === cleanStep.parentId);
+            const parent = thread.steps.find(
+              (s) => s.id === cleanStep.parentId,
+            );
             if (parent) {
               parent.childrenIds.push(newStep.id);
             }

@@ -1,6 +1,11 @@
 "use client";
 
-import { checkOllamaAvailable, discoverOllamaModels } from "./ollama-provider";
+import {
+  checkOllamaAvailable,
+  discoverOllamaModels,
+  EDGE_AI_HOST,
+  EDGE_LLM_MODELS,
+} from "./ollama-provider";
 
 export type AiGateStatus =
   | "checking"
@@ -15,55 +20,73 @@ export interface AiGateResult {
   selectedModel: string;
   modelNames: string[];
   message: string;
+  executionMode: "webgpu" | "wasm-cpu" | "unavailable";
+}
+
+function getExecutionMode(): AiGateResult["executionMode"] {
+  if (typeof window === "undefined" || typeof Worker === "undefined") {
+    return "unavailable";
+  }
+  return typeof navigator !== "undefined" && "gpu" in navigator
+    ? "webgpu"
+    : "wasm-cpu";
 }
 
 export async function checkAiGate(args: {
-  host: string;
+  host?: string;
   selectedModel: string;
 }): Promise<AiGateResult> {
-  const host = args.host.trim() || "http://localhost:11434";
-  const selectedModel = args.selectedModel.trim();
+  const executionMode = getExecutionMode();
+  const selectedModel =
+    args.selectedModel.trim() || EDGE_LLM_MODELS[0]?.name || "";
+  const available = await checkOllamaAvailable();
+  const models = await discoverOllamaModels();
+  const modelNames = models.map((model) => model.name);
 
-  const available = await checkOllamaAvailable(host);
-  if (!available) {
+  if (!available || executionMode === "unavailable") {
     return {
       status: "offline",
-      host,
+      host: EDGE_AI_HOST,
       selectedModel,
-      modelNames: [],
-      message: `Ollama is not reachable at ${host}. Start Ollama, then refresh AI status.`,
+      modelNames,
+      executionMode: "unavailable",
+      message:
+        "Edge AI is unavailable because this browser runtime does not support Web Workers.",
     };
   }
-
-  const models = await discoverOllamaModels(host);
-  const modelNames = models.map((model) => model.name);
 
   if (!selectedModel) {
     return {
       status: "no-model",
-      host,
+      host: EDGE_AI_HOST,
       selectedModel,
       modelNames,
-      message: "Select a local Ollama model before running AI actions.",
+      executionMode,
+      message: "Select an edge AI model before running AI actions.",
     };
   }
 
   if (!modelNames.includes(selectedModel)) {
     return {
       status: "model-missing",
-      host,
+      host: EDGE_AI_HOST,
       selectedModel,
       modelNames,
-      message: `Model "${selectedModel}" was not found in Ollama. Pull it or choose another installed model.`,
+      executionMode,
+      message: `Model "${selectedModel}" is not in the supported edge model list.`,
     };
   }
 
   return {
     status: "ready",
-    host,
+    host: EDGE_AI_HOST,
     selectedModel,
     modelNames,
-    message: `AI ready with ${selectedModel}.`,
+    executionMode,
+    message:
+      executionMode === "webgpu"
+        ? `Edge AI ready with ${selectedModel} using WebGPU, with WASM/CPU fallback.`
+        : `Edge AI ready with ${selectedModel} using WASM/CPU mode.`,
   };
 }
 

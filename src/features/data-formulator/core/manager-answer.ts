@@ -49,23 +49,21 @@ export function smallTalkAnswer(): ManagerAnswer {
 export function aiGateAnswer(gate: AiGateResult): ManagerAnswer {
   return createManagerAnswer({
     intent: "setup",
-    title: "AI setup required",
+    title: "Edge AI setup required",
     summary: gate.message,
     assumptions: [
-      `Host: ${gate.host}`,
+      `Runtime: ${gate.executionMode}`,
       gate.selectedModel
         ? `Selected model: ${gate.selectedModel}`
         : "No model selected",
     ],
     evidence:
       gate.modelNames.length > 0
-        ? [`Installed models: ${gate.modelNames.join(", ")}`]
-        : ["No installed Ollama models were discovered."],
+        ? [`Supported edge models: ${gate.modelNames.join(", ")}`]
+        : ["No supported edge models were discovered."],
     followUps: [
-      "Run ollama serve",
-      gate.selectedModel
-        ? `ollama pull ${gate.selectedModel}`
-        : "Pull or select a model",
+      "Select a supported edge model",
+      "Use CPU/WASM mode if WebGPU is unavailable",
     ],
     confidence: "high",
     status: "error",

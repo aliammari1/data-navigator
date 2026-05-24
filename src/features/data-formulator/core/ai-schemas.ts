@@ -1,9 +1,8 @@
 "use client";
 
 /**
- * AI Schemas — Structured output contracts for Ollama JSON mode.
- * Every schema is a Zod-like plain object used with Ollama's `format` parameter.
- * See: https://docs.ollama.com/capabilities/structured-outputs
+ * AI Schemas — Structured output contracts for edge AI JSON generation.
+ * Every schema is a Zod-like plain object included in the local model prompt.
  */
 
 // ─── Manager Intent ───────────────────────────────────────────────────────────
@@ -29,7 +28,17 @@ export const ManagerIntentJsonSchema = {
   properties: {
     intent: {
       type: "string",
-      enum: ["ask", "kpi", "dashboard", "investigate", "signal", "brief", "scenario", "setup", "clarify"],
+      enum: [
+        "ask",
+        "kpi",
+        "dashboard",
+        "investigate",
+        "signal",
+        "brief",
+        "scenario",
+        "setup",
+        "clarify",
+      ],
     },
     normalizedPrompt: { type: "string" },
     language: { type: "string", enum: ["auto", "tounsi", "fr", "en", "ar"] },
@@ -55,7 +64,12 @@ export const ClarificationQuestionJsonSchema = {
     suggestedAnswers: { type: "array", items: { type: "string" } },
     missingInfo: { type: "array", items: { type: "string" } },
   },
-  required: ["needsClarification", "question", "suggestedAnswers", "missingInfo"],
+  required: [
+    "needsClarification",
+    "question",
+    "suggestedAnswers",
+    "missingInfo",
+  ],
 } as const;
 
 // ─── KPI Draft ──────────────────────────────────────────────────────────────────
@@ -84,10 +98,16 @@ export const KpiDraftJsonSchema = {
     numerator: { type: "string" },
     denominator: { type: "string" },
     exclusions: { type: "array", items: { type: "string" } },
-    timeGrain: { type: "string", enum: ["hour", "day", "week", "month", "custom"] },
+    timeGrain: {
+      type: "string",
+      enum: ["hour", "day", "week", "month", "custom"],
+    },
     segments: { type: "array", items: { type: "string" } },
     owner: { type: "string" },
-    reviewStatus: { type: "string", enum: ["draft", "pending", "approved", "rejected"] },
+    reviewStatus: {
+      type: "string",
+      enum: ["draft", "pending", "approved", "rejected"],
+    },
     sql: { type: "string" },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     assumptions: { type: "array", items: { type: "string" } },
@@ -132,10 +152,19 @@ export const DashboardPlanJsonSchema = {
       items: {
         type: "object",
         properties: {
-          type: { type: "string", enum: ["chart", "kpi", "table", "text", "filter"] },
+          type: {
+            type: "string",
+            enum: ["chart", "kpi", "table", "text", "filter"],
+          },
           title: { type: "string" },
-          chartType: { type: "string", enum: ["bar", "line", "area", "scatter", "pie", "table"] },
-          encodings: { type: "object", additionalProperties: { type: "string" } },
+          chartType: {
+            type: "string",
+            enum: ["bar", "line", "area", "scatter", "pie", "table"],
+          },
+          encodings: {
+            type: "object",
+            additionalProperties: { type: "string" },
+          },
           filters: {
             type: "array",
             items: {
@@ -220,7 +249,14 @@ export const InvestigationPlanJsonSchema = {
     hypothesis: { type: "string" },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
   },
-  required: ["targetMetric", "currentPeriod", "baselinePeriod", "segmentationSteps", "hypothesis", "confidence"],
+  required: [
+    "targetMetric",
+    "currentPeriod",
+    "baselinePeriod",
+    "segmentationSteps",
+    "hypothesis",
+    "confidence",
+  ],
 } as const;
 
 // ─── Signal Scan ────────────────────────────────────────────────────────────────
@@ -254,7 +290,15 @@ export const SignalScanJsonSchema = {
           suggestedAction: { type: "string" },
           sql: { type: "string" },
         },
-        required: ["severity", "metric", "whatChanged", "likelyReason", "evidence", "suggestedAction", "sql"],
+        required: [
+          "severity",
+          "metric",
+          "whatChanged",
+          "likelyReason",
+          "evidence",
+          "suggestedAction",
+          "sql",
+        ],
       },
     },
     overallConfidence: { type: "string", enum: ["high", "medium", "low"] },
@@ -307,7 +351,15 @@ export const ManagerAnswerJsonSchema = {
     needsReview: { type: "boolean" },
     traceVisible: { type: "boolean" },
   },
-  required: ["title", "summary", "assumptions", "evidence", "followUps", "confidence", "language"],
+  required: [
+    "title",
+    "summary",
+    "assumptions",
+    "evidence",
+    "followUps",
+    "confidence",
+    "language",
+  ],
 } as const;
 
 // ─── Scenario Simulator ───────────────────────────────────────────────────────
@@ -317,7 +369,13 @@ export interface ScenarioSchema {
   assumptions: Array<{ variable: string; change: string; value: number }>;
   baseCaseSql: string;
   scenarioSql: string;
-  estimatedImpact: { metric: string; baseValue: number; scenarioValue: number; delta: number; deltaPercent: number };
+  estimatedImpact: {
+    metric: string;
+    baseValue: number;
+    scenarioValue: number;
+    delta: number;
+    deltaPercent: number;
+  };
   confidence: "high" | "medium" | "low";
   caveats: string[];
 }
@@ -349,12 +407,25 @@ export const ScenarioJsonSchema = {
         delta: { type: "number" },
         deltaPercent: { type: "number" },
       },
-      required: ["metric", "baseValue", "scenarioValue", "delta", "deltaPercent"],
+      required: [
+        "metric",
+        "baseValue",
+        "scenarioValue",
+        "delta",
+        "deltaPercent",
+      ],
     },
     confidence: { type: "string", enum: ["high", "medium", "low"] },
     caveats: { type: "array", items: { type: "string" } },
   },
-  required: ["name", "assumptions", "baseCaseSql", "scenarioSql", "estimatedImpact", "confidence"],
+  required: [
+    "name",
+    "assumptions",
+    "baseCaseSql",
+    "scenarioSql",
+    "estimatedImpact",
+    "confidence",
+  ],
 } as const;
 
 // ─── Executive Brief ────────────────────────────────────────────────────────────
@@ -382,7 +453,14 @@ export const BriefJsonSchema = {
     nextSteps: { type: "array", items: { type: "string" } },
     tone: { type: "string", enum: ["formal", "casual", "technical"] },
   },
-  required: ["title", "audience", "durationSeconds", "keyPoints", "recommendations", "nextSteps"],
+  required: [
+    "title",
+    "audience",
+    "durationSeconds",
+    "keyPoints",
+    "recommendations",
+    "nextSteps",
+  ],
 } as const;
 
 // ─── Schema Validation Helpers ──────────────────────────────────────────────────
@@ -392,7 +470,7 @@ export function validateSchema<T>(
   required: string[],
 ): { valid: true; data: T } | { valid: false; error: string } {
   if (!value || typeof value !== "object") {
-    return { valid: false, error: "Expected object, got " + typeof value };
+    return { valid: false, error: `Expected object, got ${typeof value}` };
   }
   const obj = value as Record<string, unknown>;
   for (const key of required) {

@@ -1,19 +1,35 @@
 "use client";
 
-import { AlertTriangle, BarChart3, Loader2, Plus, Search, Sparkles, Wand2 } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart3,
+  Loader2,
+  Search,
+  Sparkles,
+  Wand2,
+} from "lucide-react";
 import { useState } from "react";
+import type { AiGateResult } from "@/features/data-formulator/core/ai-gate";
+import {
+  checkAiGate,
+  isAiReady,
+} from "@/features/data-formulator/core/ai-gate";
+import {
+  KpiDraftJsonSchema,
+  validateSchema,
+} from "@/features/data-formulator/core/ai-schemas";
+import { safeJsonStringify } from "@/features/data-formulator/core/json";
+import { useKpiCatalogStore } from "@/features/data-formulator/core/kpi/kpi-catalog-store";
+import {
+  createKpiContract,
+  type KpiContract,
+} from "@/features/data-formulator/core/kpi/kpi-contract";
+import { validateKpiSql } from "@/features/data-formulator/core/kpi/kpi-validator";
+import { generateWithOllamaStructured } from "@/features/data-formulator/core/ollama-provider";
+import type { ColumnInfo } from "@/features/data-formulator/core/types";
+import { useFormulatorStore } from "@/features/data-formulator/store";
 import { cn } from "@/shared/utils";
 import { KpiContractCard } from "./kpi-contract-card";
-import { createKpiContract, type KpiContract } from "@/features/data-formulator/core/kpi/kpi-contract";
-import { useKpiCatalogStore } from "@/features/data-formulator/core/kpi/kpi-catalog-store";
-import { validateKpiSql } from "@/features/data-formulator/core/kpi/kpi-validator";
-import type { ColumnInfo } from "@/features/data-formulator/core/types";
-import { generateWithOllamaStructured } from "@/features/data-formulator/core/ollama-provider";
-import { KpiDraftJsonSchema, validateSchema } from "@/features/data-formulator/core/ai-schemas";
-import { safeJsonStringify } from "@/features/data-formulator/core/json";
-import { checkAiGate, isAiReady } from "@/features/data-formulator/core/ai-gate";
-import type { AiGateResult } from "@/features/data-formulator/core/ai-gate";
-import { useFormulatorStore } from "@/features/data-formulator/store";
 
 interface KpiFoundryPanelProps {
   tableName: string;
@@ -21,7 +37,11 @@ interface KpiFoundryPanelProps {
   aiGate: AiGateResult | null;
 }
 
-export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelProps) {
+export function KpiFoundryPanel({
+  tableName,
+  columns,
+  aiGate,
+}: KpiFoundryPanelProps) {
   const kpis = useKpiCatalogStore((s) => s.kpis);
   const filterStatus = useKpiCatalogStore((s) => s.filterStatus);
   const setFilterStatus = useKpiCatalogStore((s) => s.setFilterStatus);
@@ -29,26 +49,23 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
   const setSearchQuery = useKpiCatalogStore((s) => s.setSearchQuery);
   const addKpi = useKpiCatalogStore((s) => s.addKpi);
   const selectedModel = useFormulatorStore((s) => s.selectedModel);
-  const ollamaHost = useFormulatorStore((s) => s.settings.ollamaHost);
 
   const [prompt, setPrompt] = useState("");
   const [generating, setGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const aiReady =
-    isAiReady(aiGate) &&
-    aiGate.selectedModel === selectedModel &&
-    aiGate.host === (ollamaHost.trim() || "http://localhost:11434");
+  const aiReady = isAiReady(aiGate) && aiGate.selectedModel === selectedModel;
 
   const filtered = kpis.filter((k) => {
-    const matchesStatus = filterStatus === "all" || k.reviewStatus === filterStatus;
-    const matchesSearch = !searchQuery || k.name.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesStatus =
+      filterStatus === "all" || k.reviewStatus === filterStatus;
+    const matchesSearch =
+      !searchQuery || k.name.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesStatus && matchesSearch;
   });
 
   async function handleGenerate() {
     if (!prompt.trim()) return;
     const freshGate = await checkAiGate({
-      host: ollamaHost,
       selectedModel,
     });
 
@@ -96,7 +113,15 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
         confidence: "high" | "medium" | "low";
         assumptions: string[];
         edgeCases: string[];
-      }>(result, ["name", "goal", "numerator", "timeGrain", "sql", "confidence", "assumptions"]);
+      }>(result, [
+        "name",
+        "goal",
+        "numerator",
+        "timeGrain",
+        "sql",
+        "confidence",
+        "assumptions",
+      ]);
 
       if (!validated.valid) {
         setError(`AI returned invalid KPI schema: ${validated.error}`);
@@ -154,7 +179,9 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
         </div>
         <div>
           <h2 className="text-sm font-semibold text-foreground">KPI Foundry</h2>
-          <p className="text-xs text-muted-foreground">Define and approve custom metrics</p>
+          <p className="text-xs text-muted-foreground">
+            Define and approve custom metrics
+          </p>
         </div>
       </div>
 
@@ -168,6 +195,7 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
           className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-foreground placeholder:text-muted-foreground focus:border-amber-500/30 focus:outline-none"
         />
         <button
+          type="button"
           onClick={handleGenerate}
           disabled={generating || !prompt.trim() || !aiReady}
           className={cn(
@@ -177,7 +205,11 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
               : "border border-amber-500/20 bg-amber-500/10 text-amber-300 hover:bg-amber-500/20",
           )}
         >
-          {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Wand2 className="h-3.5 w-3.5" />}
+          {generating ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Wand2 className="h-3.5 w-3.5" />
+          )}
           Generate
         </button>
       </div>
@@ -202,7 +234,9 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
         </div>
         <select
           value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value as typeof filterStatus)}
+          onChange={(e) =>
+            setFilterStatus(e.target.value as typeof filterStatus)
+          }
           className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-xs text-foreground focus:outline-none"
         >
           <option value="all">All</option>
@@ -218,7 +252,9 @@ export function KpiFoundryPanel({ tableName, columns, aiGate }: KpiFoundryPanelP
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-8 text-center">
             <Sparkles className="h-8 w-8 text-muted-foreground/50" />
-            <p className="mt-2 text-xs text-muted-foreground">No KPIs yet. Generate one above.</p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              No KPIs yet. Generate one above.
+            </p>
           </div>
         ) : (
           filtered.map((kpi) => <KpiContractCard key={kpi.id} kpi={kpi} />)

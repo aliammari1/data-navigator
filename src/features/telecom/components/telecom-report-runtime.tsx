@@ -9,7 +9,7 @@ import {
   Upload,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -34,11 +34,7 @@ import { KPI_FIELDS } from "@/features/telecom/constants";
 import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
-import {
-  type CachedAnalyticsMeta,
-  getCachedAnalyticsEntries,
-  getCachedAnalyticsForKey,
-} from "@/features/telecom/lib/analytics-cache";
+import { getCachedAnalyticsForKey } from "@/features/telecom/lib/analytics-cache";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
 import {
@@ -62,7 +58,12 @@ import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
-import { saveAnalyticsSnapshot } from "@/platform/storage/app-db";
+import {
+  type AnalyticsSnapshotMeta,
+  getAnalyticsSnapshot,
+  listAnalyticsSnapshotMeta,
+  saveAnalyticsSnapshot,
+} from "@/platform/storage/app-db";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 
@@ -106,7 +107,7 @@ export interface TelecomReportRuntimeValue {
   overviewHourly: Types.HourlyRow[];
   overviewStatusData: Types.StatusRow[];
   overviewForecast: ForecastPoint[];
-  analyticsHistory: CachedAnalyticsMeta[];
+  analyticsHistory: AnalyticsSnapshotMeta[];
   selectedKpis: Set<keyof Types.KPISummary>;
   toggleKpi: (key: keyof Types.KPISummary) => void;
   selectedOverviewSections: Set<Types.OverviewExportSectionKey>;
@@ -168,6 +169,7 @@ export function TelecomReportRuntimeProvider({
   children: React.ReactNode;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const access = useDashboardAccess();
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
@@ -177,14 +179,16 @@ export function TelecomReportRuntimeProvider({
   const activeDatasetId = activeDataset?.id ?? null;
   const setActiveDatasetMutation = useSetActiveDataset();
   const loadedTableNames = useDataStore((state) => state.loadedTableNames);
-  const markTableLoaded = useDataStore((state) => state.markTableLoaded);
   const persistedTableName = useTelecomSessionStore((state) => state.tableName);
   const setTelecomSession = useTelecomSessionStore((state) => state.setSession);
   const setAppContext = useAppContextStore((state) => state.setContext);
   const addActivity = useActivityStore((state) => state.addEvent);
   const [analyticsHistory, setAnalyticsHistory] = useState<
-    CachedAnalyticsMeta[]
+    AnalyticsSnapshotMeta[]
   >([]);
+  const refreshAnalyticsHistory = useCallback(async () => {
+    setAnalyticsHistory(await listAnalyticsSnapshotMeta());
+  }, []);
   const telecomRole = access.role === "owner" ? "admin" : "user";
   const {
     mounted,
@@ -356,6 +360,16 @@ export function TelecomReportRuntimeProvider({
         totalTransactions: kpi.totalTransactions,
         successRate: kpi.successRate,
       });
+      await refreshAnalyticsHistory();
+      addActivity({
+        type: "telecom_analysis_saved",
+        message: `Saved telecom analytics for ${dashboardFileName}`,
+        tableName: dashboardTableName,
+        metadata: {
+          totalTransactions: kpi.totalTransactions,
+          successRate: kpi.successRate,
+        },
+      });
       import("sonner").then(({ toast }) =>
         toast("Analytics sauvegardés", { description: dashboardFileName }),
       );
@@ -374,6 +388,8 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     analytics.rawStatuses,
+    refreshAnalyticsHistory,
+    addActivity,
   ]);
   const [selectedKpis, setSelectedKpis] = useState<Set<keyof Types.KPISummary>>(
     () => new Set(KPI_FIELDS.map((f) => f.key)),
@@ -437,6 +453,10 @@ export function TelecomReportRuntimeProvider({
     forecast,
   });
   const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
+  const restoredSnapshotMode = Boolean(kpi) && !dashboardLoaded;
+  const historyRoute = pathname.endsWith("/telecom-report/history");
+  const reportContentVisible =
+    dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute;
   const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
   const overviewCanals = sharedOverviewMode
     ? (remoteOverview?.canals ?? [])
@@ -450,11 +470,10 @@ export function TelecomReportRuntimeProvider({
   const overviewForecast = sharedOverviewMode
     ? (remoteOverview?.forecast ?? [])
     : forecast;
-  const refreshAnalyticsHistory = useCallback(async () => {
-    setAnalyticsHistory(await getCachedAnalyticsEntries());
-  }, []);
   async function loadAnalyticsFromHistory(key: string) {
-    const cached = await getCachedAnalyticsForKey(key);
+    const cached =
+      (await getAnalyticsSnapshot(key)) ??
+      (await getCachedAnalyticsForKey(key));
     if (!cached) return;
     analytics.setKpi(cached.kpi as Types.KPISummary);
     analytics.setCanals(cached.canals as Types.CanalSummary[]);
@@ -462,11 +481,17 @@ export function TelecomReportRuntimeProvider({
     analytics.setStatusData(cached.statusData as Types.StatusRow[]);
     analytics.setOperators(cached.operators as Types.OperatorRow[]);
     analytics.setRegions(cached.regions as Types.RegionRow[]);
+    analytics.setRawStatuses(cached.rawStatuses as Types.RawStatusRow[]);
+    const restoredTableName =
+      "tableName" in cached && typeof cached.tableName === "string"
+        ? cached.tableName
+        : dashboardTableName;
     addActivity({
       type: "dataset_selected",
-      message: `Loaded cached telecom analytics for ${cached.fileName}`,
-      tableName: dashboardTableName,
+      message: `Loaded saved telecom analytics for ${cached.fileName}`,
+      tableName: restoredTableName,
     });
+    router.push("/dashboard/telecom-report/overview");
   }
   async function exportActiveDatabase() {
     if (!access.permissions.canExport) return;
@@ -700,7 +725,7 @@ export function TelecomReportRuntimeProvider({
       {/* Scrollable content */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {" "}
-        {!dashboardLoaded && !sharedOverviewMode && (
+        {!reportContentVisible && (
           <div className="space-y-5">
             {" "}
             <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
@@ -738,7 +763,7 @@ export function TelecomReportRuntimeProvider({
             )}
           </div>
         )}
-        {(dashboardLoaded || sharedOverviewMode) && (
+        {reportContentVisible && (
           <TelecomReportRuntimeContext.Provider value={runtimeValue}>
             {" "}
             {sharedOverviewMode && remoteOverview && (

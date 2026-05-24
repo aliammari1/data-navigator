@@ -288,7 +288,7 @@ export function generateInsights(
   _rowCount: number,
   _numericData?: Record<string, number[]>,
 ): Insight[] {
-  // Disabled per Moudir AI plan: insights must come from Ollama, not deterministic rules.
+  // Disabled per Moudir AI plan: insights must come from edge AI, not deterministic rules.
   return [];
 }
 // ─── Chart type recommender ───────────────────────────────────────────────────

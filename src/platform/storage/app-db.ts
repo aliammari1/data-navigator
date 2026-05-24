@@ -31,6 +31,11 @@ export interface AnalyticsSnapshot {
   successRate: number;
 }
 
+export type AnalyticsSnapshotMeta = Pick<
+  AnalyticsSnapshot,
+  "key" | "savedAt" | "fileName" | "totalTransactions" | "successRate"
+>;
+
 export interface TableParquet {
   key: string; // tableName
   savedAt: number;
@@ -71,16 +76,129 @@ export const appDb = new AppDatabase();
 
 // ─── Analytics snapshot helpers ───────────────────────────────────────────────
 
+function toFiniteNumber(value: unknown): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : 0;
+}
+
+function toCloneSafeValue(
+  value: unknown,
+  seen = new WeakSet<object>(),
+): unknown {
+  if (value === null) return null;
+
+  const valueType = typeof value;
+  if (
+    valueType === "string" ||
+    valueType === "number" ||
+    valueType === "boolean"
+  ) {
+    return value;
+  }
+
+  if (valueType === "bigint") return String(value);
+  if (
+    valueType === "undefined" ||
+    valueType === "function" ||
+    valueType === "symbol"
+  ) {
+    return undefined;
+  }
+
+  if (value instanceof Date) return value.toISOString();
+  if (value instanceof ArrayBuffer) return value;
+  if (ArrayBuffer.isView(value)) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => toCloneSafeValue(item, seen) ?? null);
+  }
+
+  if (valueType !== "object") return undefined;
+
+  const objectValue = value as Record<string, unknown>;
+  if (seen.has(objectValue)) return undefined;
+  seen.add(objectValue);
+
+  if ("$$typeof" in objectValue) return undefined;
+
+  if (value instanceof Map) {
+    return Array.from(value.entries()).map(([mapKey, mapValue]) => [
+      toCloneSafeValue(mapKey, seen) ?? null,
+      toCloneSafeValue(mapValue, seen) ?? null,
+    ]);
+  }
+
+  if (value instanceof Set) {
+    return Array.from(value.values()).map(
+      (item) => toCloneSafeValue(item, seen) ?? null,
+    );
+  }
+
+  const cloneSafeObject: Record<string, unknown> = {};
+  for (const [key, item] of Object.entries(objectValue)) {
+    const cloneSafeItem = toCloneSafeValue(item, seen);
+    if (cloneSafeItem !== undefined) {
+      cloneSafeObject[key] = cloneSafeItem;
+    }
+  }
+  return cloneSafeObject;
+}
+
+function toCloneSafeArray(value: unknown): unknown[] {
+  const cloneSafeValue = toCloneSafeValue(value);
+  return Array.isArray(cloneSafeValue) ? cloneSafeValue : [];
+}
+
 export async function saveAnalyticsSnapshot(
   snapshot: Omit<AnalyticsSnapshot, "key" | "savedAt">,
 ): Promise<string> {
-  const key = `snapshot:${snapshot.tableName}:${Date.now()}`;
-  await appDb.analyticsSnapshots.put({ ...snapshot, key, savedAt: Date.now() });
+  const savedAt = Date.now();
+  const key = `snapshot:${snapshot.tableName}:${savedAt}`;
+  await appDb.analyticsSnapshots.put({
+    key,
+    savedAt,
+    label: String(snapshot.label || snapshot.fileName || "Analytics"),
+    fileName: String(snapshot.fileName || snapshot.label || "Analytics"),
+    tableName: String(snapshot.tableName || ""),
+    kpi: toCloneSafeValue(snapshot.kpi) ?? null,
+    canals: toCloneSafeArray(snapshot.canals),
+    hourly: toCloneSafeArray(snapshot.hourly),
+    statusData: toCloneSafeArray(snapshot.statusData),
+    operators: toCloneSafeArray(snapshot.operators),
+    regions: toCloneSafeArray(snapshot.regions),
+    rawStatuses: toCloneSafeArray(snapshot.rawStatuses),
+    totalTransactions: toFiniteNumber(snapshot.totalTransactions),
+    successRate: toFiniteNumber(snapshot.successRate),
+  });
   return key;
 }
 
 export async function listAnalyticsSnapshots(): Promise<AnalyticsSnapshot[]> {
   return appDb.analyticsSnapshots.orderBy("savedAt").reverse().toArray();
+}
+
+export async function listAnalyticsSnapshotMeta(): Promise<
+  AnalyticsSnapshotMeta[]
+> {
+  const snapshots = await appDb.analyticsSnapshots
+    .orderBy("savedAt")
+    .reverse()
+    .toArray();
+
+  return snapshots.map(
+    ({ key, savedAt, fileName, totalTransactions, successRate }) => ({
+      key,
+      savedAt,
+      fileName,
+      totalTransactions,
+      successRate,
+    }),
+  );
+}
+
+export async function getAnalyticsSnapshot(
+  key: string,
+): Promise<AnalyticsSnapshot | undefined> {
+  return appDb.analyticsSnapshots.get(key);
 }
 
 export async function deleteAnalyticsSnapshot(key: string): Promise<void> {

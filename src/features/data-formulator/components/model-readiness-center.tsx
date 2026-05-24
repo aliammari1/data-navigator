@@ -1,30 +1,60 @@
 "use client";
 
-import { AlertTriangle, Bot, CheckCircle2, Cpu, Database, Globe, Mic, Speaker, Wifi, WifiOff } from "lucide-react";
-import { cn } from "@/shared/utils";
+import {
+  AlertTriangle,
+  Bot,
+  CheckCircle2,
+  Cpu,
+  Database,
+  Globe,
+  Mic,
+} from "lucide-react";
 import type { AiGateResult } from "@/features/data-formulator/core/ai-gate";
 import { useLanguageProfileStore } from "@/features/data-formulator/core/language/language-profile";
+import { cn } from "@/shared/utils";
 
 interface ModelReadinessCenterProps {
   aiGate: AiGateResult | null;
   checking: boolean;
 }
 
-export function ModelReadinessCenter({ aiGate, checking }: ModelReadinessCenterProps) {
+export function ModelReadinessCenter({
+  aiGate,
+  checking,
+}: ModelReadinessCenterProps) {
   const sttModel = useLanguageProfileStore((s) => s.sttModel);
   const voiceEnabled = useLanguageProfileStore((s) => s.voiceEnabled);
 
   const checklist = [
     {
-      label: "Ollama server",
-      status: aiGate?.status === "ready" ? "ready" : aiGate?.status === "offline" ? "error" : "warning",
-      detail: aiGate?.status === "ready" ? `Running at ${aiGate.host}` : aiGate?.status === "offline" ? "Offline — run ollama serve" : "Checking...",
-      icon: aiGate?.status === "ready" ? Wifi : WifiOff,
+      label: "Edge AI runtime",
+      status:
+        aiGate?.status === "ready"
+          ? "ready"
+          : aiGate?.status === "offline"
+            ? "error"
+            : "warning",
+      detail:
+        aiGate?.status === "ready"
+          ? aiGate.message
+          : checking
+            ? "Checking local runtime..."
+            : (aiGate?.message ?? "Checking local runtime..."),
+      icon: Cpu,
     },
     {
       label: "Selected model",
-      status: aiGate?.status === "ready" ? "ready" : aiGate?.status === "model-missing" ? "error" : aiGate?.status === "no-model" ? "warning" : "error",
-      detail: aiGate?.selectedModel ? aiGate.selectedModel : "No model selected",
+      status:
+        aiGate?.status === "ready"
+          ? "ready"
+          : aiGate?.status === "model-missing"
+            ? "error"
+            : aiGate?.status === "no-model"
+              ? "warning"
+              : "error",
+      detail: aiGate?.selectedModel
+        ? aiGate.selectedModel
+        : "No model selected",
       icon: Bot,
     },
     {
@@ -35,14 +65,27 @@ export function ModelReadinessCenter({ aiGate, checking }: ModelReadinessCenterP
     },
     {
       label: "IndexedDB storage",
-      status: typeof window !== "undefined" && "indexedDB" in window ? "ready" : "error",
+      status:
+        typeof window !== "undefined" && "indexedDB" in window
+          ? "ready"
+          : "error",
       detail: "Local persistence available",
       icon: Database,
     },
     {
       label: "WebGPU / WASM",
-      status: typeof navigator !== "undefined" && "gpu" in navigator ? "ready" : "warning",
-      detail: typeof navigator !== "undefined" && "gpu" in navigator ? "WebGPU available" : "WASM fallback",
+      status:
+        aiGate?.executionMode === "webgpu"
+          ? "ready"
+          : aiGate?.executionMode === "wasm-cpu"
+            ? "warning"
+            : "error",
+      detail:
+        aiGate?.executionMode === "webgpu"
+          ? "WebGPU available, CPU fallback enabled"
+          : aiGate?.executionMode === "wasm-cpu"
+            ? "CPU/WASM mode"
+            : "Unavailable",
       icon: Cpu,
     },
   ];
@@ -54,8 +97,12 @@ export function ModelReadinessCenter({ aiGate, checking }: ModelReadinessCenterP
           <Globe className="h-4 w-4 text-cyan-300" />
         </div>
         <div>
-          <h2 className="text-sm font-semibold text-foreground">Model Readiness</h2>
-          <p className="text-xs text-muted-foreground">AI and offline capability status</p>
+          <h2 className="text-sm font-semibold text-foreground">
+            Model Readiness
+          </h2>
+          <p className="text-xs text-muted-foreground">
+            AI and offline capability status
+          </p>
         </div>
       </div>
 
@@ -84,7 +131,9 @@ export function ModelReadinessCenter({ aiGate, checking }: ModelReadinessCenterP
             />
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-foreground">{item.label}</span>
+                <span className="text-xs font-medium text-foreground">
+                  {item.label}
+                </span>
                 {item.status === "ready" ? (
                   <CheckCircle2 className="h-3 w-3 text-emerald-400" />
                 ) : item.status === "warning" ? (
@@ -103,18 +152,19 @@ export function ModelReadinessCenter({ aiGate, checking }: ModelReadinessCenterP
         <div className="rounded-lg border border-rose-500/15 bg-rose-500/5 p-3">
           <div className="text-xs font-medium text-rose-300">Missing model</div>
           <p className="mt-1 text-[11px] text-rose-200/80">
-            Run <code className="rounded bg-rose-500/10 px-1 py-0.5">ollama pull {aiGate.selectedModel}</code> in your terminal.
+            Choose one of the supported edge models from the model selector.
           </p>
         </div>
       )}
 
       {aiGate?.status === "offline" && (
         <div className="rounded-lg border border-rose-500/15 bg-rose-500/5 p-3">
-          <div className="text-xs font-medium text-rose-300">Ollama is offline</div>
+          <div className="text-xs font-medium text-rose-300">
+            Edge AI unavailable
+          </div>
           <p className="mt-1 text-[11px] text-rose-200/80">
-            1. Install Ollama from ollama.com<br />
-            2. Run <code className="rounded bg-rose-500/10 px-1 py-0.5">ollama serve</code><br />
-            3. Pull a model: <code className="rounded bg-rose-500/10 px-1 py-0.5">ollama pull qwen3</code>
+            This browser runtime must support Web Workers. WebGPU is optional;
+            CPU/WASM mode is supported for compatible models.
           </p>
         </div>
       )}
