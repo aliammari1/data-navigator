@@ -42,14 +42,14 @@ import type {
 
 const SetupScreen = dynamic(
   () =>
-    import("@/features/agent-canvas/components/v3/SetupScreen").then((m) => ({
+    import("@/features/agent-canvas/components/SetupScreen").then((m) => ({
       default: m.SetupScreen,
     })),
   { ssr: false },
 );
 const TopBar = dynamic(
   () =>
-    import("@/features/agent-canvas/components/v3/TopBar").then((m) => ({
+    import("@/features/agent-canvas/components/TopBar").then((m) => ({
       default: m.TopBar,
     })),
   { ssr: false },
@@ -61,29 +61,19 @@ const Canvas = dynamic(
     })),
   { ssr: false },
 );
-const SqlIde = dynamic(
-  () =>
-    import("@/features/agent-canvas/components/v3/SqlIde").then((m) => ({
-      default: m.SqlIde,
-    })),
-  { ssr: false },
-);
+
 const AgentFlowGraph = dynamic(
   () =>
-    import("@/features/agent-canvas/components/v3/AgentFlowGraph").then(
-      (m) => ({
-        default: m.AgentFlowGraph,
-      }),
-    ),
+    import("@/features/agent-canvas/components/AgentFlowGraph").then((m) => ({
+      default: m.AgentFlowGraph,
+    })),
   { ssr: false },
 );
 const NarrativePanel = dynamic(
   () =>
-    import("@/features/agent-canvas/components/v3/NarrativePanel").then(
-      (m) => ({
-        default: m.NarrativePanel,
-      }),
-    ),
+    import("@/features/agent-canvas/components/NarrativePanel").then((m) => ({
+      default: m.NarrativePanel,
+    })),
   { ssr: false },
 );
 
@@ -431,9 +421,7 @@ export default function AgentCanvasScreen() {
                             SQL IDE
                           </span>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-hidden">
-                          <SqlIde />
-                        </div>
+                        <div className="flex-1 min-h-0 overflow-hidden"></div>
                       </div>
                     </Panel>
                   </>
