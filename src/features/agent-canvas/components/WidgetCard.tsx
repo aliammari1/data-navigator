@@ -13,7 +13,7 @@ import dynamic from "next/dynamic";
 import { useState } from "react";
 import type { WidgetState } from "@/features/agent-canvas/core/types";
 import { cn } from "@/shared/utils";
-import { AnomalyDrawer } from "./v3/AnomalyDrawer";
+import { AnomalyDrawer } from "./AnomalyDrawer";
 import { WidgetRenderer } from "./WidgetRenderer";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
