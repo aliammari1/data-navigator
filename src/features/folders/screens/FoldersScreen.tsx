@@ -171,8 +171,9 @@ function TreeNode({
 
   return (
     <div>
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         className={`w-full flex items-center gap-1 py-1 px-2 rounded-lg cursor-pointer select-none transition-all group text-left ${
           isSelected
             ? "bg-primary/20 border border-primary/30"
@@ -182,6 +183,12 @@ function TreeNode({
         }`}
         style={{ paddingLeft: `${depth * 12 + 8}px` }}
         onClick={() => onSelect(node.id)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onSelect(node.id);
+          }
+        }}
         draggable
         onDragStart={(e) => {
           e.stopPropagation();
@@ -249,7 +256,7 @@ function TreeNode({
             className={`w-3 h-3 ${node.starred ? "fill-yellow-400 text-yellow-400" : ""}`}
           />
         </button>
-      </button>
+      </div>
       <AnimatePresence>
         {isExpanded && hasChildren && (
           <motion.div

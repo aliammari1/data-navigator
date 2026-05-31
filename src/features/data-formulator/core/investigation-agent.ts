@@ -21,6 +21,7 @@ export interface InvestigationRequest {
   tableName: string;
   columns: ColumnInfo[];
   rowSample: Record<string, unknown>[];
+  retrievedContext?: string[];
   model: string;
   host: string;
 }
@@ -49,6 +50,7 @@ export async function runInvestigation(
     tableName,
     columns,
     rowSample,
+    retrievedContext,
     model,
     host,
   } = request;
@@ -85,6 +87,7 @@ export async function runInvestigation(
         tableName,
         columns: columnPreview,
         sampleRows: rowSample.slice(0, 8),
+        retrievedContext: retrievedContext?.slice(0, 6) ?? [],
       }),
       InvestigationPlanJsonSchema,
       { host, temperature: 0 },

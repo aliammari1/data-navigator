@@ -5,14 +5,14 @@
  * Runs what-if scenarios via AI-planned SQL modifications.
  */
 
-import { generateWithOllamaStructured } from "./ollama-provider";
-import { ScenarioJsonSchema, validateSchema } from "./ai-schemas";
-import { safeJsonStringify } from "./json";
-import type { ColumnInfo } from "./types";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import type { AiError } from "./ai-errors";
 import { aiErrorFromUnknown } from "./ai-errors";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { ScenarioJsonSchema, validateSchema } from "./ai-schemas";
+import { safeJsonStringify } from "./json";
 import { isSafeKpiSql, validateSqlDatasetScope } from "./kpi/kpi-validator";
+import { generateWithOllamaStructured } from "./ollama-provider";
+import type { ColumnInfo } from "./types";
 
 export interface ScenarioRequest {
   prompt: string;
@@ -55,7 +55,7 @@ async function runScenarioValue(
   }
 
   const query = `SELECT * FROM (${sql.trim().replace(/;$/, "")}) AS moudir_scenario LIMIT 1`;
-  const rows = await runQuery(query);
+  const rows = await runReadOnlyQuery(query);
   const firstRow = rows[0] ?? {};
   for (const value of Object.values(firstRow)) {
     const numeric = Number(value);
@@ -109,10 +109,14 @@ export async function runScenarioAgent(
       { host, temperature: 0.2 },
     );
 
-    const validated = validateSchema<typeof result>(
-      result,
-      ["name", "assumptions", "baseCaseSql", "scenarioSql", "estimatedImpact", "confidence"],
-    );
+    const validated = validateSchema<typeof result>(result, [
+      "name",
+      "assumptions",
+      "baseCaseSql",
+      "scenarioSql",
+      "estimatedImpact",
+      "confidence",
+    ]);
 
     if (!validated.valid) {
       return {
@@ -129,7 +133,11 @@ export async function runScenarioAgent(
         },
         confidence: "low",
         caveats: [validated.error],
-        error: { code: "SCHEMA_MISMATCH", message: validated.error, retryable: true },
+        error: {
+          code: "SCHEMA_MISMATCH",
+          message: validated.error,
+          retryable: true,
+        },
       };
     }
 

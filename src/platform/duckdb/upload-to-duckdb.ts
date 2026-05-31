@@ -1,22 +1,59 @@
 "use client";
 
+/**
+ * Upload dataset loader.
+ *
+ * New dataset model:
+ * - Electron imports should be path-based, not File/ArrayBuffer-based.
+ * - DuckDB main process registers the local file as a dataset.
+ * - CSV/TSV/TXT files are converted to managed Parquet cache.
+ * - Parquet files are copied into managed Parquet cache.
+ * - Renderer receives a dataset/view descriptor plus preview rows.
+ *
+ * Important:
+ * Browser `File` objects do not expose trusted local filesystem paths.
+ * For Electron, use `openLocalFileDialog()` and then `loadUploadPathToDuckDB()`.
+ */
+
 import {
-  getTableInfo,
-  loadDelimitedCSVFromFile,
-  runQuery,
+  type RegisteredDatasetColumn,
+  type RegisteredDatasetWithPreview,
+  registerCSVPathDataset,
+  registerParquetPathDataset,
 } from "@/platform/duckdb/duckdb";
 import type { SupportedExtensions } from "@/shared/types";
 
-export type UploadFileFormat = "csv";
+export type UploadFileFormat = "csv" | "tsv" | "txt" | "parquet" | "pq";
 
 export interface LoadedUploadTable {
+  /**
+   * Kept because the rest of the app likely still expects `tableName`.
+   * In the new model this is the DuckDB view name, not a physical table.
+   */
   tableName: string;
+
+  /**
+   * Stable dataset id from the DuckDB dataset catalog.
+   */
+  datasetId: string;
+
+  /**
+   * Human-readable dataset name.
+   */
+  displayName: string;
+
   format: UploadFileFormat;
   rowCount: number;
   colCount: number;
+
   columns: Array<{
     name: string;
     type: string;
+
+    /**
+     * These are preview-derived values, not full-table statistics.
+     * Use `summarizeRegisteredDataset({ datasetId })` for real profiling.
+     */
     nullCount: number;
     distinctCount: number;
     min?: number;
@@ -24,19 +61,102 @@ export interface LoadedUploadTable {
     mean?: number;
     sample: unknown[];
   }>;
+
   previewRows: Record<string, unknown>[];
+
+  /**
+   * Makes it explicit that the stats in `columns` are based only on preview rows.
+   */
+  metadataSource: "preview";
+}
+
+export interface LoadUploadPathOptions {
+  /**
+   * Old callers may pass `tableName`; in the new dataset model it becomes
+   * the display name, not a physical DuckDB table name.
+   */
+  tableName?: string;
+
+  /**
+   * Prefer this for new code.
+   */
+  displayName?: string;
+
+  fileExtension: SupportedExtensions | UploadFileFormat;
+  hasHeader?: boolean;
+  delimiter?: string;
+  sampleSize?: number;
+  previewLimit?: number;
 }
 
 export interface LoadUploadFileOptions {
   tableName?: string;
-  fileExtension: SupportedExtensions;
+  displayName?: string;
+  fileExtension: SupportedExtensions | UploadFileFormat;
   hasHeader?: boolean;
+  delimiter?: string;
+  sampleSize?: number;
   maxRows?: number | null;
   previewLimit?: number;
 }
 
-function quoteIdentifier(value: string): string {
-  return `"${value.replaceAll('"', '""')}"`;
+function getExtension(filePathOrName: string): UploadFileFormat | string {
+  const clean = filePathOrName.split(/[?#]/)[0] ?? filePathOrName;
+  const ext = clean.split(".").pop();
+
+  return ext ? ext.toLowerCase() : "";
+}
+
+function basename(filePath: string): string {
+  return filePath.split(/[\\/]/).pop() || "dataset";
+}
+
+function stripExtension(fileName: string): string {
+  return fileName.replace(/\.[^.]+$/, "");
+}
+
+function defaultDisplayName(filePath: string): string {
+  return stripExtension(basename(filePath)) || "dataset";
+}
+
+function normalizeExtension(
+  filePath: string,
+  explicitExtension?: SupportedExtensions | UploadFileFormat,
+): UploadFileFormat {
+  const ext = String(explicitExtension || getExtension(filePath)).toLowerCase();
+
+  if (
+    ext === "csv" ||
+    ext === "tsv" ||
+    ext === "txt" ||
+    ext === "parquet" ||
+    ext === "pq"
+  ) {
+    return ext;
+  }
+
+  throw new Error(
+    `Unsupported dataset file type ".${ext || "unknown"}". Supported files: .csv, .tsv, .txt, .parquet, .pq.`,
+  );
+}
+
+function isCsvLikeFormat(
+  format: UploadFileFormat,
+): format is "csv" | "tsv" | "txt" {
+  return format === "csv" || format === "tsv" || format === "txt";
+}
+
+function isParquetFormat(format: UploadFileFormat): format is "parquet" | "pq" {
+  return format === "parquet" || format === "pq";
+}
+
+function inferDelimiter(
+  format: UploadFileFormat,
+  explicitDelimiter?: string,
+): string | undefined {
+  if (explicitDelimiter) return explicitDelimiter;
+  if (format === "tsv") return "\t";
+  return undefined;
 }
 
 export function sanitizeUploadTableName(name: string): string {
@@ -50,10 +170,12 @@ export function sanitizeUploadTableName(name: string): string {
       .slice(0, 60) || "dataset"
   );
 }
-function inferSampleType(values: unknown[]): string {
+
+function inferPreviewType(values: unknown[]): string {
   const nonNull = values.filter(
     (value) => value !== null && value !== undefined && value !== "",
   );
+
   if (nonNull.length === 0) return "string";
 
   let numbers = 0;
@@ -61,48 +183,56 @@ function inferSampleType(values: unknown[]): string {
   let dates = 0;
 
   for (const value of nonNull) {
-    const text = String(value).trim();
-    if (text === "true" || text === "false") booleans++;
-    else if (text !== "" && !Number.isNaN(Number(text))) numbers++;
-    else if (/^\d{4}-\d{2}-\d{2}/.test(text)) dates++;
+    const text = String(value).trim().toLowerCase();
+
+    if (text === "true" || text === "false") {
+      booleans += 1;
+    } else if (text !== "" && !Number.isNaN(Number(text))) {
+      numbers += 1;
+    } else if (/^\d{4}-\d{2}-\d{2}/.test(text)) {
+      dates += 1;
+    }
   }
 
   const total = nonNull.length;
+
   if (numbers / total > 0.8) return "number";
   if (booleans / total > 0.8) return "boolean";
   if (dates / total > 0.8) return "date";
+
   return "string";
 }
 
-function buildColumnMetadata(
-  columnNames: string[],
+function buildPreviewColumnMetadata(
+  columns: RegisteredDatasetColumn[],
   previewRows: Record<string, unknown>[],
-) {
-  return columnNames.map((name) => {
-    const values = previewRows.map((row) => row[name]);
+): LoadedUploadTable["columns"] {
+  return columns.map((column) => {
+    const values = previewRows.map((row) => row[column.name]);
     const nonNull = values.filter(
       (value) => value !== null && value !== undefined && value !== "",
     );
-    const type = inferSampleType(values);
+
+    const previewType = inferPreviewType(values);
     const numericValues = nonNull
       .map((value) => Number(value))
       .filter((value) => !Number.isNaN(value));
 
     return {
-      name,
-      type,
+      name: column.name,
+      type: column.type || previewType,
       nullCount: values.length - nonNull.length,
       distinctCount: new Set(nonNull.map((value) => String(value))).size,
       min:
-        numericValues.length > 0 && type === "number"
+        numericValues.length > 0 && previewType === "number"
           ? Math.min(...numericValues)
           : undefined,
       max:
-        numericValues.length > 0 && type === "number"
+        numericValues.length > 0 && previewType === "number"
           ? Math.max(...numericValues)
           : undefined,
       mean:
-        numericValues.length > 0 && type === "number"
+        numericValues.length > 0 && previewType === "number"
           ? numericValues.reduce((sum, value) => sum + value, 0) /
             numericValues.length
           : undefined,
@@ -111,49 +241,92 @@ function buildColumnMetadata(
   });
 }
 
+function toLoadedUploadTable(
+  dataset: RegisteredDatasetWithPreview,
+  format: UploadFileFormat,
+  previewLimit: number,
+): LoadedUploadTable {
+  const previewRows = dataset.previewRows.slice(0, previewLimit);
+
+  return {
+    tableName: dataset.viewName,
+    datasetId: dataset.id,
+    displayName: dataset.displayName,
+    format,
+    rowCount: dataset.rowCount,
+    colCount: dataset.columns.length,
+    columns: buildPreviewColumnMetadata(dataset.columns, previewRows),
+    previewRows,
+    metadataSource: "preview",
+  };
+}
+
+/**
+ * Main Electron import path.
+ *
+ * Use this after selecting a file through Electron's open dialog.
+ */
+export async function loadUploadPathToDuckDB(
+  filePath: string,
+  options: LoadUploadPathOptions,
+): Promise<LoadedUploadTable> {
+  const format = normalizeExtension(filePath, options.fileExtension);
+  const previewLimit = options.previewLimit ?? 100;
+
+  const displayName =
+    options.displayName?.trim() ||
+    options.tableName?.trim() ||
+    defaultDisplayName(filePath);
+
+  if (isCsvLikeFormat(format)) {
+    const dataset = await registerCSVPathDataset({
+      filePath,
+      displayName,
+      hasHeader: options.hasHeader ?? true,
+      delimiter: inferDelimiter(format, options.delimiter),
+      sampleSize: options.sampleSize,
+      previewLimit,
+    });
+
+    return toLoadedUploadTable(dataset, format, previewLimit);
+  }
+
+  if (isParquetFormat(format)) {
+    const dataset = await registerParquetPathDataset({
+      filePath,
+      displayName,
+      previewLimit,
+    });
+
+    return toLoadedUploadTable(dataset, format, previewLimit);
+  }
+
+  throw new Error(`Unsupported dataset format: ${format}`);
+}
+
+/**
+ * Browser File objects do not provide a trusted native file path.
+ *
+ * In the Electron dataset model, importing by File/ArrayBuffer is intentionally
+ * not supported because it reintroduces the large IPC-buffer bottleneck.
+ *
+ * Correct flow:
+ * 1. Use `openLocalFileDialog()` from `duckdb-fs.ts`.
+ * 2. Pass the selected path to `loadUploadPathToDuckDB()`.
+ */
 export async function loadUploadFileToDuckDB(
   file: File,
   options: LoadUploadFileOptions,
 ): Promise<LoadedUploadTable> {
-  const ext = options.fileExtension;
-  if (ext !== "csv") throw new Error(`Unsupported file type: .${ext}`);
-  const tableName =
-    options.tableName?.trim() || sanitizeUploadTableName(file.name);
-  const delimiter = "|";
-  if (ext === "csv" || ext === "tsv" || ext === "txt") {
-    await loadDelimitedCSVFromFile(
-      tableName,
-      file,
-      false,
-      options.hasHeader ?? true,
-    );
-  } else {
-    throw new Error(`Unsupported fast upload file type: .${ext}`);
-  }
+  const fileName = file.name || "dataset";
+  const ext = normalizeExtension(fileName, options.fileExtension);
 
-  if (options.maxRows && options.maxRows > 0) {
-    const quotedName = quoteIdentifier(tableName);
-    await runQuery(
-      `CREATE OR REPLACE TABLE ${quotedName} AS SELECT * FROM ${quotedName} LIMIT ${Math.floor(options.maxRows)}`,
-    );
-  }
-
-  const info = await getTableInfo(tableName);
-  const previewLimit = options.previewLimit ?? 100;
-  // For large tables, use reservoir sampling for much faster preview
-  const previewSql =
-    info.rowCount > 10000
-      ? `SELECT * FROM ${quoteIdentifier(tableName)} USING SAMPLE ${previewLimit} ROWS (Reservoir)`
-      : `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${previewLimit}`;
-  const previewRows = await runQuery(previewSql);
-  const columnNames = info.columns.map((column) => column.name);
-
-  return {
-    tableName,
-    format: "csv",
-    rowCount: info.rowCount,
-    colCount: info.columns.length,
-    columns: buildColumnMetadata(columnNames, previewRows),
-    previewRows,
-  };
+  throw new Error(
+    [
+      `File-based upload for ".${ext}" is disabled in the Electron DuckDB pipeline.`,
+      "Use a path-based import instead:",
+      "const [filePath] = await openLocalFileDialog(...);",
+      "await loadUploadPathToDuckDB(filePath, { fileExtension: ext, ...options });",
+    ].join(" "),
+  );
 }

@@ -5,15 +5,15 @@
  * Scans approved KPIs and recent data for anomalies, drops, spikes, and risks.
  */
 
-import { generateWithOllamaStructured } from "./ollama-provider";
-import { SignalScanJsonSchema, validateSchema } from "./ai-schemas";
-import { safeJsonStringify } from "./json";
-import type { ColumnInfo } from "./types";
-import type { KpiContract } from "./kpi/kpi-contract";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import type { AiError } from "./ai-errors";
 import { aiErrorFromUnknown } from "./ai-errors";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { SignalScanJsonSchema, validateSchema } from "./ai-schemas";
+import { safeJsonStringify } from "./json";
+import type { KpiContract } from "./kpi/kpi-contract";
 import { isSafeKpiSql, validateSqlDatasetScope } from "./kpi/kpi-validator";
+import { generateWithOllamaStructured } from "./ollama-provider";
+import type { ColumnInfo } from "./types";
 
 export interface SignalRadarRequest {
   tableName: string;
@@ -57,7 +57,7 @@ async function verifySignal(
 
   try {
     const sql = `SELECT * FROM (${signal.sql.trim().replace(/;$/, "")}) AS moudir_signal LIMIT 25`;
-    const rows = await runQuery(sql);
+    const rows = await runReadOnlyQuery(sql);
     if (rows.length === 0) {
       return null;
     }
@@ -81,9 +81,12 @@ export async function runSignalRadar(
       .map((c) => `${c.name}:${c.dbType ?? c.type}`)
       .join(", ");
 
-    const kpiPreview = approvedKpis.length > 0
-      ? approvedKpis.map((k) => `${k.name} = ${k.numerator}/${k.denominator}`).join("; ")
-      : "No approved KPIs yet. Scan raw metrics.";
+    const kpiPreview =
+      approvedKpis.length > 0
+        ? approvedKpis
+            .map((k) => `${k.name} = ${k.numerator}/${k.denominator}`)
+            .join("; ")
+        : "No approved KPIs yet. Scan raw metrics.";
 
     const result = await generateWithOllamaStructured<{
       signals: Signal[];
@@ -107,16 +110,20 @@ export async function runSignalRadar(
       { host, temperature: 0 },
     );
 
-    const validated = validateSchema<typeof result>(
-      result,
-      ["signals", "overallConfidence"],
-    );
+    const validated = validateSchema<typeof result>(result, [
+      "signals",
+      "overallConfidence",
+    ]);
 
     if (!validated.valid) {
       return {
         signals: [],
         overallConfidence: "low",
-        error: { code: "SCHEMA_MISMATCH", message: validated.error, retryable: true },
+        error: {
+          code: "SCHEMA_MISMATCH",
+          message: validated.error,
+          retryable: true,
+        },
       };
     }
 

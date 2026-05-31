@@ -8,11 +8,13 @@ import {
   CheckCircle2,
   Database,
   FileCheck,
+  FolderOpen,
   HardDrive,
   Hash,
   Info,
   Layers,
   Loader2,
+  MousePointerClick,
   Upload,
   XCircle,
   Zap,
@@ -30,7 +32,6 @@ import type { Dataset } from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
 import {
   columnInfoToColMeta,
-  computeColumnStats,
   computeQualityScores,
   detectFileType,
   formatBytes,
@@ -44,23 +45,19 @@ import type {
   UploadStatus,
   ValidationIssue,
 } from "@/features/data-import/model/types";
-import { parseXLSXRows } from "@/features/data-import/model/xlsx";
 import {
   getTelecomDatasetProfile,
   TELECOM_REQUIRED_COLUMNS,
 } from "@/features/telecom/lib/dataset-detection";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
-import { loadJSONToDuckDB } from "@/platform/duckdb/duckdb";
-import { exportTableToFS } from "@/platform/duckdb/duckdb-fs";
 import {
-  loadUploadFileToDuckDB,
+  loadUploadPathToDuckDB,
   sanitizeUploadTableName,
 } from "@/platform/duckdb/upload-to-duckdb";
 import {
   isElectron,
   listLocalFilesRecursive,
   openFileDialog,
-  readLocalFile,
 } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
@@ -78,24 +75,31 @@ function fileNameFromPath(filePath: string): string {
 
 function isSupportedImportPath(filePath: string): boolean {
   const lower = filePath.toLowerCase();
+
   return (
     lower.endsWith(".csv") ||
     lower.endsWith(".tsv") ||
     lower.endsWith(".txt") ||
-    lower.endsWith(".json") ||
-    lower.endsWith(".ndjson") ||
-    lower.endsWith(".jsonl") ||
-    lower.endsWith(".xlsx") ||
-    lower.endsWith(".xls")
+    lower.endsWith(".parquet") ||
+    lower.endsWith(".pq")
   );
+}
+
+function getExtensionFromPath(filePath: string) {
+  const fileName = fileNameFromPath(filePath);
+  return fileName.split(".").pop()?.toLowerCase() || "csv";
+}
+
+function getDisplaySize(size: number) {
+  return size > 0 ? formatBytes(size) : "Fichier local";
 }
 
 function getStatusLabel(status: ParsedFileInfo["status"]) {
   switch (status) {
     case "reading":
-      return "Lecture";
+      return "Préparation";
     case "parsing":
-      return "Parsing";
+      return "Analyse";
     case "validating":
       return "Validation";
     case "loading_db":
@@ -114,6 +118,7 @@ function getIssueIcon(severity: ValidationIssue["severity"]) {
   if (severity === "warning") {
     return <AlertTriangle className="h-3.5 w-3.5" />;
   }
+
   return <Info className="h-3.5 w-3.5" />;
 }
 
@@ -155,9 +160,70 @@ function getStepStatus(
   return "pending";
 }
 
+function toColumnInfoType(type: string): ColumnInfo["type"] {
+  const normalized = type.toLowerCase();
+
+  if (
+    normalized.includes("int") ||
+    normalized.includes("double") ||
+    normalized.includes("float") ||
+    normalized.includes("decimal") ||
+    normalized.includes("numeric") ||
+    normalized.includes("real")
+  ) {
+    return "number";
+  }
+
+  if (
+    normalized.includes("date") ||
+    normalized.includes("time") ||
+    normalized.includes("timestamp")
+  ) {
+    return "date";
+  }
+
+  if (normalized.includes("bool")) {
+    return "boolean";
+  }
+
+  if (normalized === "mixed") {
+    return "mixed";
+  }
+
+  return "string";
+}
+
+function buildValidationIssues(
+  loaded: Awaited<ReturnType<typeof loadUploadPathToDuckDB>>,
+  columns: ColumnInfo[],
+): ValidationIssue[] {
+  const issues: ValidationIssue[] = [];
+
+  if (loaded.rowCount === 0) {
+    issues.push({
+      severity: "error",
+      message: "File is empty or has no parseable data.",
+    });
+  }
+
+  const highNullCols = columns.filter(
+    (column) => column.nullCount / Math.max(1, loaded.previewRows.length) > 0.3,
+  );
+
+  if (highNullCols.length > 0) {
+    issues.push({
+      severity: "warning",
+      message: `${highNullCols.length} column(s) have >30% null values in the preview sample.`,
+      column: highNullCols.map((column) => column.name).join(", "),
+    });
+  }
+
+  return issues;
+}
+
 export default function DataImportScreen() {
   const access = useDashboardAccess();
-  const { addDataset, setActiveDataset, markTableLoaded } = useDataStore();
+  const { addDataset, setActiveDataset } = useDataStore();
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -168,6 +234,7 @@ export default function DataImportScreen() {
   const [files, setFiles] = useState<ParsedFileInfo[]>([]);
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [electronAvailable, setElectronAvailable] = useState(false);
+  const [dropNotice, setDropNotice] = useState<string | null>(null);
 
   const [settings] = useState<UploadSettings>({
     hasHeader: true,
@@ -200,17 +267,18 @@ export default function DataImportScreen() {
 
   const latestCompletedFile = completedFiles[0] ?? null;
 
-  const processFile = useCallback(
-    async (file: File) => {
+  const processFilePath = useCallback(
+    async (filePath: string) => {
       if (!access.permissions.canUpload) return;
 
+      const fileName = fileNameFromPath(filePath);
       const id = `file_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const fileType = detectFileType(file.name);
+      const fileType = detectFileType(fileName);
 
       const initial: ParsedFileInfo = {
         id,
-        name: file.name,
-        size: file.size,
+        name: fileName,
+        size: 0,
         fileType,
         status: "reading",
         progress: 0,
@@ -222,9 +290,9 @@ export default function DataImportScreen() {
         parseTime: 0,
         dbTableName: null,
         uploadedAt: new Date(),
-        hasHeader: true,
-        encoding: "UTF-8",
-        skipEmptyLines: true,
+        hasHeader: settings.hasHeader,
+        encoding: settings.encoding,
+        skipEmptyLines: settings.skipEmptyLines,
         completeness: 0,
         accuracy: 0,
         consistency: 0,
@@ -233,6 +301,7 @@ export default function DataImportScreen() {
 
       setFiles((prev) => [initial, ...prev]);
       setSelectedFileId(id);
+      setDropNotice(null);
 
       const update = (patch: Partial<ParsedFileInfo>) =>
         setFiles((prev) =>
@@ -248,326 +317,167 @@ export default function DataImportScreen() {
         update({ status: "reading", progress: 10 });
         await new Promise((resolve) => setTimeout(resolve, 80));
 
-        if (fileType === "csv") {
-          update({ status: "loading_db", progress: 35 });
+        update({ status: "loading_db", progress: 35 });
 
-          const tableName = makeUploadTableName(file.name, id);
+        const tableName = makeUploadTableName(fileName, id);
+        const extension = getExtensionFromPath(filePath);
 
-          const loaded = await loadUploadFileToDuckDB(file, {
-            tableName,
-            fileExtension: fileType,
-            hasHeader: settings.hasHeader,
-            maxRows: settings.maxRows,
-            previewLimit: 100,
-          });
+        const loaded = await loadUploadPathToDuckDB(filePath, {
+          tableName,
+          fileExtension: extension,
+          hasHeader: settings.hasHeader,
+          previewLimit: 100,
+        });
 
-          const columns: ColumnInfo[] = loaded.columns.map((column) => ({
-            name: column.name,
-            type:
-              column.type === "number" ||
-              column.type === "date" ||
-              column.type === "boolean" ||
-              column.type === "mixed"
-                ? column.type
-                : "string",
-            nullCount: column.nullCount,
-            uniqueCount: column.distinctCount,
-            sampleValues: column.sample,
-            min: column.min,
-            max: column.max,
-            avg: column.mean,
-          }));
+        update({ status: "validating", progress: 75 });
 
-          const issues: ValidationIssue[] = [];
+        const columns: ColumnInfo[] = loaded.columns.map((column) => ({
+          name: column.name,
+          type: toColumnInfoType(column.type),
+          nullCount: column.nullCount,
+          uniqueCount: column.distinctCount,
+          sampleValues: column.sample,
+          min: column.min,
+          max: column.max,
+          avg: column.mean,
+        }));
 
-          if (loaded.rowCount === 0) {
-            issues.push({
-              severity: "error",
-              message: "File is empty or has no parseable data",
-            });
-          }
-
-          const highNullCols = columns.filter(
-            (column) =>
-              column.nullCount / Math.max(1, loaded.previewRows.length) > 0.3,
-          );
-
-          if (highNullCols.length > 0) {
-            issues.push({
-              severity: "warning",
-              message: `${highNullCols.length} column(s) have >30% null values in the preview sample`,
-              column: highNullCols.map((column) => column.name).join(", "),
-            });
-          }
-
-          const quality = computeQualityScores(
-            columns,
-            Math.max(loaded.previewRows.length, 1),
-          );
-
-          markTableLoaded(loaded.tableName);
-          exportTableToFS(loaded.tableName).catch(() => {});
-
-          const dsId = `ds_${id}`;
-
-          const dsCols = columnInfoToColMeta(columns);
-          const telecomProfile = getTelecomDatasetProfile({
-            columns: dsCols,
-            fileName: file.name,
-            telecomMode: isTelecomMode,
-          });
-
-          if (isTelecomMode && !telecomProfile.compatible) {
-            issues.push({
-              severity: "warning",
-              message:
-                "This file was uploaded in Telecom mode, but it is missing one or more required telecom columns.",
-              column: TELECOM_REQUIRED_COLUMNS.join(", "),
-            });
-          }
-
-          const ds: Dataset = {
-            id: dsId,
-            name: file.name.replace(/\.[^.]+$/, ""),
-            tableName: loaded.tableName,
-            source: "upload",
-            format: loaded.format,
-            rowCount: loaded.rowCount,
-            colCount: loaded.colCount,
-            sizeBytes: file.size,
-            columns: dsCols,
-            tags: telecomProfile.tags,
-            description: telecomProfile.description,
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            qualityScore: quality.completeness,
-          };
-
-          addDataset(ds);
-          setActiveDataset(dsId);
-          setAppContext({
-            activeDomain: isTelecomMode ? "telecom" : "general",
-            activeDatasetId: dsId,
-            activeTableName: loaded.tableName,
-          });
-          addActivity({
-            type: "dataset_uploaded",
-            message: `Uploaded dataset ${ds.name}`,
-            datasetId: dsId,
-            tableName: loaded.tableName,
-            metadata: {
-              rows: loaded.rowCount,
-              cols: loaded.colCount,
-              format: loaded.format,
-              telecomMode: isTelecomMode,
-            },
-          });
-
-          update({
-            status: "done",
-            progress: 100,
-            rowCount: loaded.rowCount,
-            columnCount: loaded.colCount,
-            columns,
-            previewRows: loaded.previewRows.slice(0, 50),
-            issues,
-            parseTime: Math.round(performance.now() - t0),
-            dbTableName: loaded.tableName,
-            ...quality,
-          });
-
-          router.push(getUploadSuccessPath());
-
-          return;
-        }
-
-        let rawData: Record<string, unknown>[] = [];
-        const parseErrors: string[] = [];
-
-        update({ status: "parsing", progress: 30 });
-
-        if (fileType === "xlsx") {
-          rawData = await parseXLSXRows(await file.arrayBuffer());
-        }
-
-        update({ progress: 50 });
-
-        if (settings.maxRows && rawData.length > settings.maxRows) {
-          rawData = rawData.slice(0, settings.maxRows);
-        }
-
-        if (settings.trimWhitespace) {
-          rawData = rawData.map((row) =>
-            Object.fromEntries(
-              Object.entries(row).map(([key, value]) => [
-                key,
-                typeof value === "string" ? value.trim() : value,
-              ]),
-            ),
-          );
-        }
-
-        update({ status: "validating", progress: 65 });
-
-        const colNames = rawData.length > 0 ? Object.keys(rawData[0]) : [];
-
-        const columns: ColumnInfo[] = colNames.map((name) =>
-          computeColumnStats(
-            name,
-            rawData.map((row) => row[name]),
-          ),
+        const issues = buildValidationIssues(loaded, columns);
+        const quality = computeQualityScores(
+          columns,
+          Math.max(loaded.previewRows.length, 1),
         );
 
-        const issues: ValidationIssue[] = [];
+        const dsCols = columnInfoToColMeta(columns);
+        const telecomProfile = getTelecomDatasetProfile({
+          columns: dsCols,
+          fileName,
+          telecomMode: isTelecomMode,
+        });
 
-        if (parseErrors.length > 0) {
-          issues.push({
-            severity: "error",
-            message: `Parse errors: ${parseErrors[0]}`,
-          });
-        }
-
-        const highNullCols = columns.filter(
-          (column) => column.nullCount / Math.max(1, rawData.length) > 0.3,
-        );
-
-        if (highNullCols.length > 0) {
+        if (isTelecomMode && !telecomProfile.compatible) {
           issues.push({
             severity: "warning",
-            message: `${highNullCols.length} column(s) have >30% null values`,
-            column: highNullCols.map((column) => column.name).join(", "),
+            message:
+              "This file was uploaded in Telecom mode, but it is missing one or more required telecom columns.",
+            column: TELECOM_REQUIRED_COLUMNS.join(", "),
           });
         }
 
-        if (rawData.length === 0) {
-          issues.push({
-            severity: "error",
-            message: "File is empty or has no parseable data",
-          });
-        }
+        const ds: Dataset = {
+          id: loaded.datasetId,
+          name: loaded.displayName,
+          tableName: loaded.tableName,
+          viewName: loaded.tableName,
+          sourcePath: filePath,
+          source: "upload",
+          format: loaded.format,
+          rowCount: loaded.rowCount,
+          colCount: loaded.colCount,
+          sizeBytes: 0,
+          columns: dsCols,
+          tags: telecomProfile.tags,
+          description: telecomProfile.description,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          qualityScore: quality.completeness,
+        };
 
-        const rowStrings = rawData.map((row) => JSON.stringify(row));
-        const dupCount = rowStrings.length - new Set(rowStrings).size;
+        addDataset(ds);
+        setActiveDataset(ds.id);
 
-        if (dupCount > 0) {
-          issues.push({
-            severity: "info",
-            message: `${dupCount} duplicate rows detected`,
-            affectedRows: dupCount,
-          });
-        }
+        setAppContext({
+          activeDomain: isTelecomMode ? "telecom" : "general",
+          activeDatasetId: ds.id,
+          activeTableName: loaded.tableName,
+        });
 
-        update({ progress: 80 });
-
-        const quality = computeQualityScores(columns, rawData.length);
-
-        let dbTableName: string | null = null;
-
-        if (settings.loadToDuckDB && rawData.length > 0) {
-          update({ status: "loading_db", progress: 90 });
-
-          const tableName = makeUploadTableName(file.name, id);
-
-          try {
-            await loadJSONToDuckDB(tableName, rawData);
-            dbTableName = tableName;
-
-            markTableLoaded(tableName);
-            exportTableToFS(tableName).catch(() => {});
-
-            const dsId = `ds_${id}`;
-
-            const dsCols = columnInfoToColMeta(columns);
-            const telecomProfile = getTelecomDatasetProfile({
-              columns: dsCols,
-              fileName: file.name,
-              telecomMode: isTelecomMode,
-            });
-
-            if (isTelecomMode && !telecomProfile.compatible) {
-              issues.push({
-                severity: "warning",
-                message:
-                  "This Excel file was uploaded in Telecom mode, but it is missing one or more required telecom columns.",
-                column: TELECOM_REQUIRED_COLUMNS.join(", "),
-              });
-            }
-
-            const ds: Dataset = {
-              id: dsId,
-              name: file.name.replace(/\.[^.]+$/, ""),
-              tableName,
-              source: "upload",
-              format: "csv",
-              rowCount: rawData.length,
-              colCount: colNames.length,
-              sizeBytes: file.size,
-              columns: dsCols,
-              tags: telecomProfile.tags,
-              description: telecomProfile.description,
-              createdAt: new Date().toISOString(),
-              updatedAt: new Date().toISOString(),
-              qualityScore: quality.completeness,
-            };
-
-            addDataset(ds);
-            setActiveDataset(dsId);
-            setAppContext({
-              activeDomain: isTelecomMode ? "telecom" : "general",
-              activeDatasetId: dsId,
-              activeTableName: tableName,
-            });
-            addActivity({
-              type: "dataset_uploaded",
-              message: `Uploaded dataset ${ds.name}`,
-              datasetId: dsId,
-              tableName,
-              metadata: {
-                rows: rawData.length,
-                cols: colNames.length,
-                format: "excel",
-                telecomMode: isTelecomMode,
-              },
-            });
-
-            router.push(getUploadSuccessPath());
-          } catch (error) {
-            issues.push({
-              severity: "warning",
-              message: `DuckDB load: ${String(error).slice(0, 60)}`,
-            });
-          }
-        }
+        addActivity({
+          type: "dataset_uploaded",
+          message: `Imported dataset ${ds.name}`,
+          datasetId: ds.id,
+          tableName: loaded.tableName,
+          metadata: {
+            rows: loaded.rowCount,
+            cols: loaded.colCount,
+            format: loaded.format,
+            telecomMode: isTelecomMode,
+            sourcePath: filePath,
+          },
+        });
 
         update({
           status: "done",
           progress: 100,
-          rowCount: rawData.length,
-          columnCount: colNames.length,
+          rowCount: loaded.rowCount,
+          columnCount: loaded.colCount,
           columns,
-          previewRows: rawData.slice(0, 50),
+          previewRows: loaded.previewRows.slice(0, 50),
           issues,
           parseTime: Math.round(performance.now() - t0),
-          dbTableName,
+          dbTableName: loaded.tableName,
           ...quality,
         });
+
+        router.push(getUploadSuccessPath());
       } catch (error) {
-        update({ status: "error", error: String(error), progress: 0 });
+        update({
+          status: "error",
+          error: error instanceof Error ? error.message : String(error),
+          progress: 0,
+        });
       }
     },
     [
       access.permissions.canUpload,
-      settings,
+      settings.hasHeader,
+      settings.encoding,
+      settings.skipEmptyLines,
       addDataset,
       setActiveDataset,
       setAppContext,
-      markTableLoaded,
       addActivity,
       isTelecomMode,
       getUploadSuccessPath,
       router,
     ],
   );
+
+  const importFromFiles = useCallback(async () => {
+    if (!access.permissions.canUpload || !isElectron()) return;
+
+    const selected = await openFileDialog({
+      title: "Select dataset files",
+      properties: ["openFile", "multiSelections"],
+      filters: [
+        {
+          name: "Data files",
+          extensions: ["csv", "tsv", "txt", "parquet", "pq"],
+        },
+        {
+          name: "CSV / delimited files",
+          extensions: ["csv", "tsv", "txt"],
+        },
+        {
+          name: "Parquet files",
+          extensions: ["parquet", "pq"],
+        },
+      ],
+    });
+
+    const supported = selected.filter(isSupportedImportPath);
+
+    if (supported.length === 0 && selected.length > 0) {
+      setDropNotice(
+        "No supported dataset files were selected. Supported formats: CSV, TSV, TXT, Parquet.",
+      );
+      return;
+    }
+
+    for (const filePath of supported) {
+      await processFilePath(filePath);
+    }
+  }, [access.permissions.canUpload, processFilePath]);
 
   const importFromFolder = useCallback(async () => {
     if (!access.permissions.canUpload || !isElectron()) return;
@@ -576,44 +486,43 @@ export default function DataImportScreen() {
       title: "Select dataset folder",
       properties: ["openDirectory"],
     });
+
     const root = selected[0];
     if (!root) return;
 
     const allPaths = await listLocalFilesRecursive(root);
     const supported = allPaths.filter(isSupportedImportPath);
 
+    if (supported.length === 0) {
+      setDropNotice(
+        "This folder does not contain supported dataset files. Supported formats: CSV, TSV, TXT, Parquet.",
+      );
+      return;
+    }
+
     for (const filePath of supported) {
       try {
-        const bytes = await readLocalFile(filePath);
-        const name = fileNameFromPath(filePath);
-        const file = new File([bytes], name);
-        await processFile(file);
+        await processFilePath(filePath);
       } catch {
         // Skip unreadable files and continue the batch.
       }
     }
-  }, [access.permissions.canUpload, processFile]);
+  }, [access.permissions.canUpload, processFilePath]);
 
-  const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
-      for (const file of acceptedFiles) {
-        processFile(file);
-      }
-    },
-    [processFile],
-  );
+  const onDrop = useCallback(() => {
+    setDropNotice(
+      "For reliable local access, use the native file picker. Drag-and-drop File objects do not expose trusted filesystem paths to DuckDB.",
+    );
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     disabled: !access.permissions.canUpload,
+    noClick: true,
+    noKeyboard: true,
     accept: {
       "text/csv": [".csv", ".tsv", ".txt"],
-      "application/json": [".json"],
-      "application/x-ndjson": [".ndjson", ".jsonl"],
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": [
-        ".xlsx",
-      ],
-      "application/vnd.ms-excel": [".xls"],
+      "application/vnd.apache.parquet": [".parquet", ".pq"],
     },
     multiple: true,
   });
@@ -623,7 +532,7 @@ export default function DataImportScreen() {
       <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-teal-700 to-emerald-600">
+            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-teal-700 to-emerald-600 shadow-sm">
               <Upload className="h-5 w-5 text-white" />
             </div>
 
@@ -634,12 +543,12 @@ export default function DataImportScreen() {
                   : "Importer des données"}
               </h1>
               <p className="truncate text-xs text-muted-foreground">
-                Fichiers locaux · DuckDB WASM · Aucun backend
+                Fichiers locaux · DuckDB natif · Cache Parquet managé
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {completedFiles.length > 0 && (
               <Badge
                 variant="outline"
@@ -664,16 +573,30 @@ export default function DataImportScreen() {
             )}
 
             {electronAvailable && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={importFromFolder}
-                disabled={!access.permissions.canUpload}
-                className="h-9 rounded-xl text-xs"
-              >
-                Dossier local
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={importFromFolder}
+                  disabled={!access.permissions.canUpload}
+                  className="h-9 rounded-xl text-xs"
+                >
+                  <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
+                  Dossier local
+                </Button>
+
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={importFromFiles}
+                  disabled={!access.permissions.canUpload}
+                  className="h-9 rounded-xl bg-teal-700 text-xs font-bold text-white hover:bg-teal-800"
+                >
+                  <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+                  Fichier local
+                </Button>
+              </>
             )}
           </div>
         </div>
@@ -689,6 +612,9 @@ export default function DataImportScreen() {
               getInputProps={getInputProps}
               isDragActive={isDragActive}
               canUpload={access.permissions.canUpload}
+              electronAvailable={electronAvailable}
+              dropNotice={dropNotice}
+              onBrowse={importFromFiles}
             />
 
             <UploadedFilesPanel
@@ -718,8 +644,8 @@ export default function DataImportScreen() {
                   Rapport prêt
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Le fichier est chargé dans DuckDB et sauvegardé localement.
-                  Vous pouvez maintenant ouvrir le dashboard Télécom.
+                  Le fichier est enregistré dans le catalogue local DuckDB et
+                  disponible via une vue optimisée sur cache Parquet.
                 </p>
                 <Button
                   type="button"
@@ -747,9 +673,9 @@ function TelecomUploadNotice() {
       </div>
 
       <p className="mt-1 text-xs text-muted-foreground">
-        Chargez le fichier journalier des transactions. Si les colonnes requises
-        sont détectées, le fichier sera automatiquement disponible dans le
-        dashboard Télécom.
+        Importez le fichier journalier des transactions. Les fichiers
+        pipe-delimited CSV/TXT sont chargés localement, convertis en Parquet et
+        exposés comme dataset DuckDB.
       </p>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5 md:grid-cols-4">
@@ -771,17 +697,23 @@ function UploadDropzone({
   getInputProps,
   isDragActive,
   canUpload,
+  electronAvailable,
+  dropNotice,
+  onBrowse,
 }: {
   getRootProps: DropzoneRootGetter;
   getInputProps: DropzoneInputGetter;
   isDragActive: boolean;
   canUpload: boolean;
+  electronAvailable: boolean;
+  dropNotice: string | null;
+  onBrowse: () => void;
 }) {
   return (
     <div
       {...getRootProps()}
       className={cn(
-        "group relative overflow-hidden rounded-3xl border border-dashed p-10 transition-all",
+        "group relative overflow-hidden rounded-3xl border p-10 transition-all",
         isDragActive
           ? "border-teal-500 bg-teal-500/10"
           : canUpload
@@ -808,29 +740,48 @@ function UploadDropzone({
 
         <h2 className="mt-6 text-lg font-bold text-foreground">
           {canUpload
-            ? isDragActive
-              ? "Déposez le fichier ici"
-              : "Glissez-déposez votre fichier"
+            ? "Importez un dataset local"
             : "Votre rôle ne permet pas l'import"}
         </h2>
 
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        <p className="mt-2 max-w-lg text-sm text-muted-foreground">
           {canUpload
-            ? "CSV, TSV, JSON, NDJSON ou Excel. Le fichier est traité localement dans votre navigateur."
+            ? "Utilisez le sélecteur natif pour donner à DuckDB un chemin local fiable. Les fichiers restent sur votre machine."
             : "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."}
         </p>
 
         {canUpload && (
-          <Button
-            type="button"
-            className="mt-6 rounded-xl bg-teal-700 px-5 text-xs font-bold text-white hover:bg-teal-800"
-          >
-            Sélectionner un fichier
-          </Button>
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onBrowse();
+              }}
+              disabled={!electronAvailable}
+              className="rounded-xl bg-teal-700 px-5 text-xs font-bold text-white hover:bg-teal-800"
+            >
+              <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+              Sélectionner un fichier local
+            </Button>
+          </div>
+        )}
+
+        {!electronAvailable && (
+          <div className="mt-4 max-w-md rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+            L'import optimisé nécessite Electron, car DuckDB doit lire le
+            fichier directement depuis le disque.
+          </div>
+        )}
+
+        {dropNotice && (
+          <div className="mt-4 max-w-md rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 text-xs text-blue-700 dark:text-blue-300">
+            {dropNotice}
+          </div>
         )}
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {["CSV"].map((format) => (
+          {["CSV", "TSV", "TXT", "PARQUET"].map((format) => (
             <Badge
               key={format}
               variant="outline"
@@ -927,7 +878,7 @@ function UploadedFilesPanel({
                   {file.name}
                 </div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span>{formatBytes(file.size)}</span>
+                  <span>{getDisplaySize(file.size)}</span>
                   <span>·</span>
                   <span>{file.fileType.toUpperCase()}</span>
                   {file.status === "done" && (
@@ -1000,14 +951,14 @@ function UploadPipelineCard({
             Pipeline d'import
           </div>
           <div className="text-xs text-muted-foreground">
-            Lecture, validation et chargement local
+            Sélection, cache Parquet et vue DuckDB
           </div>
         </div>
       </div>
 
       {!selectedFile ? (
         <div className="mt-6 rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-          Sélectionnez ou chargez un fichier pour suivre le pipeline.
+          Sélectionnez un fichier local pour suivre le pipeline.
         </div>
       ) : (
         <div className="mt-5 space-y-3">
@@ -1016,7 +967,7 @@ function UploadPipelineCard({
               {selectedFile.name}
             </div>
             <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
-              <span>{formatBytes(selectedFile.size)}</span>
+              <span>{getDisplaySize(selectedFile.size)}</span>
               <span>·</span>
               <span>{selectedFile.fileType.toUpperCase()}</span>
             </div>
@@ -1033,23 +984,23 @@ function UploadPipelineCard({
           {[
             {
               step: "reading" as UploadStatus,
-              label: "Lecture du fichier",
+              label: "Sélection du fichier",
             },
             {
               step: "parsing" as UploadStatus,
-              label: "Parsing des données",
+              label: "Détection du format",
             },
             {
               step: "validating" as UploadStatus,
-              label: "Validation et typage",
+              label: "Validation et profilage",
             },
             {
               step: "loading_db" as UploadStatus,
-              label: "Chargement dans DuckDB",
+              label: "Création du cache DuckDB",
             },
             {
               step: "done" as UploadStatus,
-              label: "Prêt pour analyse",
+              label: "Dataset prêt",
             },
           ].map(({ step, label }) => (
             <StatusStep
@@ -1083,14 +1034,17 @@ function UploadSummaryCard({
   totalStorageUsed: number;
 }) {
   const readyFiles = files.filter((file) => file.status === "done");
+
   const totalRows = readyFiles.reduce(
     (total, file) => total + file.rowCount,
     0,
   );
+
   const totalColumns = readyFiles.reduce(
     (total, file) => total + file.columnCount,
     0,
   );
+
   const duckDbFiles = readyFiles.filter((file) => file.dbTableName).length;
 
   const stats = [
@@ -1115,12 +1069,12 @@ function UploadSummaryCard({
       icon: Database,
     },
     {
-      label: "Mémoire",
-      value: formatBytes(totalStorageUsed),
+      label: "Source",
+      value: totalStorageUsed > 0 ? formatBytes(totalStorageUsed) : "Locale",
       icon: HardDrive,
     },
     {
-      label: "Temps",
+      label: "Temps moyen",
       value:
         readyFiles.length > 0
           ? `${Math.round(

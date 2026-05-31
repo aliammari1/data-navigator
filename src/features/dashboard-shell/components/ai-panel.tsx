@@ -1,9 +1,9 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import {
   AlertCircle,
   BarChart3,
+  Bot,
   Brain,
   Check,
   ChevronDown,
@@ -12,23 +12,33 @@ import {
   Hash,
   Info,
   Lightbulb,
+  Loader2,
   RefreshCw,
+  Rows3,
   Send,
+  ShieldCheck,
   Sparkles,
+  Table2,
   TrendingUp,
   X,
   Zap,
 } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { generateInsights, recommendCharts } from "@/platform/ai/insights";
-import { suggestQuestions, translateNLQ } from "@/platform/ai/nlq";
-import { getTableInfo, listTables, runQuery } from "@/platform/duckdb/duckdb";
 import {
   type ColMeta,
   inferColType,
   useDataStore,
 } from "@/core/stores/data-store";
+import { generateInsights, recommendCharts } from "@/platform/ai/insights";
+import { suggestQuestions, translateNLQ } from "@/platform/ai/nlq";
+import {
+  listRegisteredDatasets,
+  type RegisteredDataset,
+  runReadOnlyQuery,
+} from "@/platform/duckdb/duckdb";
+import { cn } from "@/shared/utils";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
@@ -56,12 +66,22 @@ interface Message {
   thinking?: boolean;
 }
 
-// Active table context — either from DataStore or auto-detected DuckDB table
 interface TableCtx {
+  datasetId: string;
   tableName: string;
   columns: ColMeta[];
   rowCount: number;
   displayName: string;
+  sourceFormat?: string;
+}
+
+interface DatasetOption {
+  id: string;
+  label: string;
+  viewName: string;
+  rowCount: number;
+  columnCount: number;
+  sourceFormat?: string;
 }
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,100 +90,158 @@ function uid(): string {
   return Math.random().toString(36).slice(2, 10);
 }
 
+function catalogColumnsToColMeta(dataset: RegisteredDataset): ColMeta[] {
+  return dataset.columns.map((column) => ({
+    name: column.name,
+    type: inferColType(column.type),
+    nullCount: 0,
+    distinctCount: 0,
+    sample: [],
+  }));
+}
+
+function datasetToCtx(dataset: {
+  id: string;
+  name?: string;
+  displayName?: string;
+  tableName?: string;
+  viewName?: string;
+  columns: ColMeta[];
+  rowCount: number;
+  format?: string;
+  sourceFormat?: string;
+}): TableCtx {
+  const viewName = dataset.viewName || dataset.tableName || dataset.id;
+
+  return {
+    datasetId: dataset.id,
+    tableName: viewName,
+    columns: dataset.columns,
+    rowCount: dataset.rowCount,
+    displayName: dataset.name || dataset.displayName || viewName,
+    sourceFormat: dataset.format || dataset.sourceFormat,
+  };
+}
+
+function catalogToOption(dataset: RegisteredDataset): DatasetOption {
+  return {
+    id: dataset.id,
+    label: dataset.displayName,
+    viewName: dataset.viewName,
+    rowCount: dataset.rowCount,
+    columnCount: dataset.columns.length,
+    sourceFormat: dataset.sourceFormat,
+  };
+}
+
 function buildChartFromResult(
   result: QueryResult,
   suggestion: string,
 ): Record<string, unknown> | null {
   const { columns, rows } = result;
+
   if (rows.length === 0 || columns.length < 2) return null;
 
   const dark = {
     bg: "transparent",
     tooltip: {
-      backgroundColor: "#1e1e2e",
-      borderColor: "#ffffff10",
-      textStyle: { color: "#cdd6f4", fontSize: 11 },
+      backgroundColor: "#0f172a",
+      borderColor: "rgba(255,255,255,0.12)",
+      textStyle: { color: "#e2e8f0", fontSize: 11 },
     },
-    axisLabel: { color: "#6c7086" },
-    splitLine: { lineStyle: { color: "#313244" } },
+    axisLabel: { color: "#94a3b8" },
+    splitLine: { lineStyle: { color: "rgba(148,163,184,0.18)" } },
   };
-  const COLORS = [
-    "#89b4fa",
-    "#a6e3a1",
-    "#f38ba8",
-    "#fab387",
-    "#cba6f7",
-    "#94e2d5",
+
+  const colors = [
+    "#60a5fa",
+    "#34d399",
+    "#f472b6",
+    "#fbbf24",
+    "#a78bfa",
+    "#2dd4bf",
   ];
 
   if (suggestion === "pie") {
-    const [nc, vc] = columns;
+    const [nameColumn, valueColumn] = columns;
+
     return {
       backgroundColor: dark.bg,
       tooltip: { ...dark.tooltip, trigger: "item" },
       series: [
         {
           type: "pie",
-          radius: ["40%", "70%"],
-          data: rows.map((r) => ({
-            name: String(r[nc] ?? ""),
-            value: Number(r[vc] ?? 0),
+          radius: ["44%", "72%"],
+          data: rows.map((row) => ({
+            name: String(row[nameColumn] ?? ""),
+            value: Number(row[valueColumn] ?? 0),
           })),
-          itemStyle: { borderColor: "#181825", borderWidth: 2 },
-          label: { color: "#cdd6f4", fontSize: 10 },
+          itemStyle: { borderColor: "#020617", borderWidth: 2 },
+          label: { color: "#e2e8f0", fontSize: 10 },
         },
       ],
-      color: COLORS,
+      color: colors,
     };
   }
+
   if (suggestion === "scatter") {
-    const [xc, yc] = columns;
+    const [xColumn, yColumn] = columns;
+
     return {
       backgroundColor: dark.bg,
       tooltip: { ...dark.tooltip, trigger: "item" },
-      grid: { top: 20, right: 20, bottom: 40, left: 50, containLabel: true },
+      grid: { top: 20, right: 20, bottom: 42, left: 52, containLabel: true },
       xAxis: {
         type: "value",
-        name: xc,
+        name: xColumn,
         axisLabel: dark.axisLabel,
         splitLine: dark.splitLine,
       },
       yAxis: {
         type: "value",
-        name: yc,
+        name: yColumn,
         axisLabel: dark.axisLabel,
         splitLine: dark.splitLine,
       },
       series: [
         {
           type: "scatter",
-          data: rows.map((r) => [Number(r[xc] ?? 0), Number(r[yc] ?? 0)]),
-          itemStyle: { color: "#89b4fa", opacity: 0.7 },
-          symbolSize: 6,
+          data: rows.map((row) => [
+            Number(row[xColumn] ?? 0),
+            Number(row[yColumn] ?? 0),
+          ]),
+          itemStyle: { color: "#60a5fa", opacity: 0.75 },
+          symbolSize: 7,
         },
       ],
     };
   }
+
   if (suggestion === "line" || suggestion === "bar") {
-    const [xc, ...ycs] = columns;
+    const [xColumn, ...yColumns] = columns;
     const isLine = suggestion === "line";
+
     return {
       backgroundColor: dark.bg,
       tooltip: { ...dark.tooltip, trigger: "axis" },
       legend:
-        ycs.length > 1
-          ? { data: ycs, textStyle: { color: "#6c7086", fontSize: 10 } }
+        yColumns.length > 1
+          ? {
+              data: yColumns,
+              textStyle: { color: "#94a3b8", fontSize: 10 },
+              top: 0,
+            }
           : undefined,
       grid: {
-        top: ycs.length > 1 ? 30 : 10,
+        top: yColumns.length > 1 ? 34 : 12,
         right: 20,
-        bottom: 40,
-        left: 20,
+        bottom: 42,
+        left: 24,
         containLabel: true,
       },
       xAxis: {
         type: "category",
-        data: rows.map((r) => String(r[xc] ?? "")),
+        data: rows.map((row) => String(row[xColumn] ?? "")),
         axisLabel: {
           ...dark.axisLabel,
           rotate: rows.length > 8 ? 25 : 0,
@@ -175,15 +253,15 @@ function buildChartFromResult(
         axisLabel: { ...dark.axisLabel, fontSize: 10 },
         splitLine: dark.splitLine,
       },
-      series: ycs.map((yc, i) => ({
-        name: yc,
+      series: yColumns.map((column, index) => ({
+        name: column,
         type: isLine ? "line" : "bar",
-        data: rows.map((r) => Number(r[yc] ?? 0)),
+        data: rows.map((row) => Number(row[column] ?? 0)),
         smooth: isLine,
         symbol: isLine ? "none" : undefined,
         itemStyle: {
-          color: COLORS[i % COLORS.length],
-          borderRadius: isLine ? undefined : [3, 3, 0, 0],
+          color: colors[index % colors.length],
+          borderRadius: isLine ? undefined : [6, 6, 0, 0],
         },
         areaStyle: isLine
           ? {
@@ -194,22 +272,26 @@ function buildChartFromResult(
                 x2: 0,
                 y2: 1,
                 colorStops: [
-                  { offset: 0, color: `${COLORS[i % COLORS.length]}33` },
+                  {
+                    offset: 0,
+                    color: `${colors[index % colors.length]}30`,
+                  },
                   { offset: 1, color: "transparent" },
                 ],
               },
             }
           : undefined,
-        barMaxWidth: 40,
+        barMaxWidth: 42,
       })),
     };
   }
-  // Horizontal bar fallback
-  const [xc, yc] = columns;
+
+  const [categoryColumn, valueColumn] = columns;
+
   return {
     backgroundColor: dark.bg,
     tooltip: { ...dark.tooltip, trigger: "axis" },
-    grid: { top: 10, right: 20, bottom: 10, left: 20, containLabel: true },
+    grid: { top: 14, right: 20, bottom: 14, left: 20, containLabel: true },
     xAxis: {
       type: "value",
       axisLabel: { ...dark.axisLabel, fontSize: 10 },
@@ -217,15 +299,15 @@ function buildChartFromResult(
     },
     yAxis: {
       type: "category",
-      data: rows.map((r) => String(r[xc] ?? "")).reverse(),
-      axisLabel: { color: "#cdd6f4", fontSize: 10 },
+      data: rows.map((row) => String(row[categoryColumn] ?? "")).reverse(),
+      axisLabel: { color: "#e2e8f0", fontSize: 10 },
     },
     series: [
       {
         type: "bar",
-        data: rows.map((r) => Number(r[yc] ?? 0)).reverse(),
-        itemStyle: { color: "#89b4fa", borderRadius: [0, 3, 3, 0] },
-        barMaxWidth: 22,
+        data: rows.map((row) => Number(row[valueColumn] ?? 0)).reverse(),
+        itemStyle: { color: "#60a5fa", borderRadius: [0, 6, 6, 0] },
+        barMaxWidth: 24,
       },
     ],
   };
@@ -234,64 +316,84 @@ function buildChartFromResult(
 // ─── Result table ─────────────────────────────────────────────────────────────
 
 function ResultTable({ result }: { result: QueryResult }) {
-  const MAX = 50;
-  const show = result.rows.slice(0, MAX);
-  if (show.length === 0)
+  const maxRows = 50;
+  const visibleRows = result.rows.slice(0, maxRows);
+
+  if (visibleRows.length === 0) {
     return (
-      <p className="text-xs text-muted-foreground py-2">
-        Query returned 0 rows.
-      </p>
-    );
-  if (result.columns.length === 1 && result.rows.length === 1) {
-    const val = result.rows[0][result.columns[0]];
-    return (
-      <div className="flex items-center gap-2 py-1">
-        <Hash className="w-4 h-4 text-indigo-400 flex-none" />
-        <span className="text-2xl font-bold text-foreground tabular-nums">
-          {typeof val === "number" ? val.toLocaleString() : String(val ?? "")}
-        </span>
-        <span className="text-xs text-muted-foreground">
-          {result.columns[0]}
-        </span>
+      <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
+        <Rows3 className="mx-auto h-5 w-5 text-muted-foreground/70" />
+        <p className="mt-2 text-xs text-muted-foreground">
+          Query returned 0 rows.
+        </p>
       </div>
     );
   }
+
+  if (result.columns.length === 1 && result.rows.length === 1) {
+    const value = result.rows[0][result.columns[0]];
+
+    return (
+      <div className="rounded-2xl border border-border bg-background p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+            <Hash className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="text-2xl font-bold tabular-nums text-foreground">
+              {typeof value === "number"
+                ? value.toLocaleString()
+                : String(value ?? "")}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {result.columns[0]}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-x-auto rounded-lg border border-border mt-1">
-      <table className="w-full text-xs">
-        <thead>
-          <tr className="bg-muted border-b border-border">
-            {result.columns.map((c) => (
-              <th
-                key={c}
-                className="px-3 py-2 text-left text-[10px] text-muted-foreground uppercase tracking-wide font-semibold whitespace-nowrap"
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {show.map((row, i) => (
-            <tr
-              key={i}
-              className="border-b border-border hover:bg-accent transition-colors"
-            >
-              {result.columns.map((c) => (
-                <td
-                  key={c}
-                  className="px-3 py-1.5 text-foreground font-mono text-[11px] whitespace-nowrap max-w-32 truncate"
+    <div className="overflow-hidden rounded-2xl border border-border bg-background">
+      <div className="overflow-x-auto">
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="border-b border-border bg-muted/80">
+              {result.columns.map((column) => (
+                <th
+                  key={column}
+                  className="whitespace-nowrap px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
                 >
-                  {String(row[c] ?? "")}
-                </td>
+                  {column}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
-      {result.rows.length > MAX && (
-        <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-t border-border">
-          Showing {MAX} of {result.rows.length.toLocaleString()} rows
+          </thead>
+          <tbody>
+            {visibleRows.map((row, index) => (
+              <tr
+                key={`${index}-${JSON.stringify(row).slice(0, 64)}`}
+                className="border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50"
+              >
+                {result.columns.map((column) => (
+                  <td
+                    key={column}
+                    className="max-w-40 truncate px-3 py-2 font-mono text-[11px] text-foreground"
+                    title={String(row[column] ?? "")}
+                  >
+                    {String(row[column] ?? "")}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {result.rows.length > maxRows && (
+        <div className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground">
+          Showing {maxRows} of {result.rows.length.toLocaleString()} rows
         </div>
       )}
     </div>
@@ -303,23 +405,26 @@ function ResultTable({ result }: { result: QueryResult }) {
 function MsgBubble({ msg }: { msg: Message }) {
   const [copied, setCopied] = useState(false);
   const isUser = msg.role === "user";
+
   const copy = useCallback(() => {
     navigator.clipboard.writeText(msg.sql ?? msg.content);
     setCopied(true);
-    setTimeout(() => setCopied(false), 1500);
+    window.setTimeout(() => setCopied(false), 1500);
   }, [msg.sql, msg.content]);
 
   if (msg.thinking) {
     return (
-      <div className="flex items-center gap-2 px-3 py-2">
-        <Brain className="w-4 h-4 text-indigo-400 animate-pulse" />
-        <span className="text-sm text-muted-foreground">Thinking…</span>
+      <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+          <Brain className="h-4 w-4 animate-pulse" />
+        </div>
+        <div className="text-sm text-muted-foreground">Thinking</div>
         <span className="flex gap-1">
-          {[0, 0.2, 0.4].map((d) => (
+          {[0, 0.2, 0.4].map((delay) => (
             <span
-              key={d}
-              className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"
-              style={{ animationDelay: `${d}s` }}
+              key={delay}
+              className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500"
+              style={{ animationDelay: `${delay}s` }}
             />
           ))}
         </span>
@@ -329,66 +434,88 @@ function MsgBubble({ msg }: { msg: Message }) {
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex flex-col gap-2 ${isUser ? "items-end" : "items-start"}`}
+      className={cn(
+        "flex flex-col gap-2",
+        isUser ? "items-end" : "items-start",
+      )}
     >
       <div
-        className={`max-w-full rounded-2xl px-4 py-2.5 text-sm leading-relaxed ${isUser ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-muted text-foreground border border-border rounded-bl-sm"}`}
+        className={cn(
+          "max-w-[92%] rounded-3xl px-4 py-3 text-sm leading-relaxed shadow-sm",
+          isUser
+            ? "rounded-br-lg bg-primary text-primary-foreground"
+            : msg.kind === "error"
+              ? "rounded-bl-lg border border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300"
+              : "rounded-bl-lg border border-border bg-card text-foreground",
+        )}
       >
-        {msg.content}
+        <div className="whitespace-pre-wrap">{msg.content}</div>
+
         {msg.confidence && msg.confidence !== "high" && (
           <span
-            className={`ml-2 text-[10px] px-1.5 py-0.5 rounded-full ${msg.confidence === "low" ? "bg-amber-500/20 text-amber-300" : "bg-blue-500/20 text-blue-300"}`}
+            className={cn(
+              "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px]",
+              msg.confidence === "low"
+                ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                : "bg-blue-500/15 text-blue-600 dark:text-blue-300",
+            )}
           >
             {msg.confidence} confidence
           </span>
         )}
       </div>
+
       {msg.sql && (
-        <div className="w-full bg-background rounded-xl border border-border overflow-hidden">
-          <div className="flex items-center justify-between px-3 py-1.5 border-b border-border">
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
-              <Database className="w-3 h-3" /> SQL
+        <div className="w-full overflow-hidden rounded-2xl border border-border bg-background">
+          <div className="flex items-center justify-between border-b border-border px-3 py-2">
+            <div className="flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+              <Database className="h-3 w-3" />
+              Read-only SQL
             </div>
             <button
               type="button"
               onClick={copy}
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
               {copied ? (
-                <Check className="w-3 h-3 text-emerald-400" />
+                <Check className="h-3.5 w-3.5 text-emerald-500" />
               ) : (
-                <Copy className="w-3 h-3" />
+                <Copy className="h-3.5 w-3.5" />
               )}
             </button>
           </div>
-          <pre className="px-3 py-2 text-[11px] text-emerald-300 font-mono overflow-x-auto whitespace-pre-wrap">
+          <pre className="max-h-40 overflow-auto px-3 py-2 font-mono text-[11px] whitespace-pre-wrap text-emerald-600 dark:text-emerald-300">
             {msg.sql}
           </pre>
         </div>
       )}
+
       {msg.result && msg.chartSuggestion !== "number" && (
-        <div className="w-full">
+        <div className="w-full space-y-2">
           <ResultTable result={msg.result} />
-          <div className="flex items-center gap-2 mt-1 text-[10px] text-muted-foreground">
+          <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground">
             <span>{msg.result.rows.length.toLocaleString()} rows</span>
             <span>·</span>
             <span>{msg.result.durationMs}ms</span>
           </div>
         </div>
       )}
+
       {msg.result && msg.chartSuggestion === "number" && (
         <ResultTable result={msg.result} />
       )}
+
       {msg.chartOption && (
-        <div className="w-full bg-muted border border-border rounded-xl overflow-hidden">
-          <div className="flex items-center gap-1.5 px-3 py-1.5 border-b border-border text-[10px] text-muted-foreground">
-            <BarChart3 className="w-3 h-3" /> Chart
+        <div className="w-full overflow-hidden rounded-2xl border border-border bg-card">
+          <div className="flex items-center gap-1.5 border-b border-border px-3 py-2 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <BarChart3 className="h-3 w-3" />
+            Chart
           </div>
           <ReactECharts
             option={msg.chartOption}
-            style={{ height: 200 }}
+            style={{ height: 220 }}
             opts={{ renderer: "canvas" }}
           />
         </div>
@@ -397,48 +524,84 @@ function MsgBubble({ msg }: { msg: Message }) {
   );
 }
 
-// ─── Table picker ─────────────────────────────────────────────────────────────
+// ─── Dataset picker ───────────────────────────────────────────────────────────
 
-function TablePicker({
-  tables,
-  active,
+function DatasetPicker({
+  options,
+  activeId,
   onSelect,
 }: {
-  tables: string[];
-  active: string;
-  onSelect: (t: string) => void;
+  options: DatasetOption[];
+  activeId: string | null;
+  onSelect: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const active = options.find((option) => option.id === activeId) ?? options[0];
+
   return (
     <div className="relative">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 bg-muted hover:bg-accent border border-border rounded-xl text-xs text-foreground transition-colors max-w-48"
+        onClick={() => setOpen((value) => !value)}
+        disabled={options.length === 0}
+        className="flex w-full items-center gap-2 rounded-2xl border border-border bg-background px-3 py-2 text-left text-xs transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
       >
-        <Database className="w-3.5 h-3.5 text-indigo-400 flex-none" />
-        <span className="truncate font-mono">{active || "Select table…"}</span>
-        <ChevronDown className="w-3.5 h-3.5 flex-none ml-auto" />
+        <div className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+          <Database className="h-4 w-4" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-semibold text-foreground">
+            {active?.label ?? "No dataset selected"}
+          </div>
+          {active && (
+            <div className="truncate text-[10px] text-muted-foreground">
+              {active.rowCount.toLocaleString()} rows · {active.columnCount}{" "}
+              columns · {active.sourceFormat ?? "dataset"}
+            </div>
+          )}
+        </div>
+        <ChevronDown className="h-4 w-4 flex-none text-muted-foreground" />
       </button>
+
       <AnimatePresence>
         {open && (
           <motion.div
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 4 }}
-            className="absolute left-0 top-full mt-1 bg-background border border-border rounded-xl shadow-xl z-50 overflow-hidden min-w-48"
+            initial={{ opacity: 0, y: 6, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 6, scale: 0.98 }}
+            className="absolute left-0 top-full z-50 mt-2 max-h-72 w-full overflow-auto rounded-2xl border border-border bg-background p-1 shadow-2xl"
           >
-            {tables.map((t) => (
+            {options.map((option) => (
               <button
-                key={t}
+                key={option.id}
                 type="button"
                 onClick={() => {
-                  onSelect(t);
+                  onSelect(option.id);
                   setOpen(false);
                 }}
-                className={`w-full text-left px-3 py-2 text-xs font-mono transition-colors ${t === active ? "bg-primary text-primary-foreground" : "text-foreground hover:bg-accent"}`}
+                className={cn(
+                  "flex w-full items-start gap-2 rounded-xl px-3 py-2 text-left transition-colors",
+                  option.id === active?.id
+                    ? "bg-primary text-primary-foreground"
+                    : "text-foreground hover:bg-muted",
+                )}
               >
-                {t}
+                <Table2 className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                <div className="min-w-0">
+                  <div className="truncate text-xs font-semibold">
+                    {option.label}
+                  </div>
+                  <div
+                    className={cn(
+                      "truncate text-[10px]",
+                      option.id === active?.id
+                        ? "text-primary-foreground/70"
+                        : "text-muted-foreground",
+                    )}
+                  >
+                    {option.viewName} · {option.rowCount.toLocaleString()} rows
+                  </div>
+                </div>
               </button>
             ))}
           </motion.div>
@@ -455,6 +618,7 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
     () => (ctx ? generateInsights(ctx.columns, ctx.rowCount) : []),
     [ctx],
   );
+
   const recs = useMemo(
     () => (ctx ? recommendCharts(ctx.columns, ctx.rowCount) : []),
     [ctx],
@@ -462,97 +626,131 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
 
   if (!ctx) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center p-6 gap-3">
-        <Database className="w-10 h-10 text-muted-foreground" />
-        <p className="text-sm text-muted-foreground">
-          No table loaded yet. Upload a file to get started.
-        </p>
+      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
+        <div className="flex h-14 w-14 items-center justify-center rounded-3xl bg-muted text-muted-foreground">
+          <Database className="h-6 w-6" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold text-foreground">
+            No dataset selected
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Import a dataset first, then open insights.
+          </p>
+        </div>
       </div>
     );
   }
 
-  const severityIcon = (s: string) =>
-    s === "critical" ? (
-      <AlertCircle className="w-3.5 h-3.5 text-red-400" />
-    ) : s === "warning" ? (
-      <AlertCircle className="w-3.5 h-3.5 text-amber-400" />
+  const severityIcon = (severity: string) =>
+    severity === "critical" ? (
+      <AlertCircle className="h-4 w-4 text-red-500" />
+    ) : severity === "warning" ? (
+      <AlertCircle className="h-4 w-4 text-amber-500" />
     ) : (
-      <Info className="w-3.5 h-3.5 text-blue-400" />
+      <Info className="h-4 w-4 text-blue-500" />
     );
 
   return (
-    <div className="flex flex-col gap-3 p-3">
-      <div className="bg-muted border border-border rounded-xl p-3">
-        <div className="flex items-center gap-2 mb-2">
-          <Database className="w-4 h-4 text-indigo-400" />
-          <span className="text-sm font-semibold text-foreground truncate">
-            {ctx.displayName}
-          </span>
+    <div className="space-y-4 p-4">
+      <div className="overflow-hidden rounded-3xl border border-border bg-card">
+        <div className="border-b border-border bg-linear-to-br from-blue-500/10 via-violet-500/10 to-transparent p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
+              <Database className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <div className="truncate text-sm font-bold text-foreground">
+                {ctx.displayName}
+              </div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">
+                {ctx.tableName}
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="grid grid-cols-3 gap-2 text-center">
+
+        <div className="grid grid-cols-3 gap-2 p-3">
           {[
             { label: "Rows", value: ctx.rowCount.toLocaleString() },
             { label: "Cols", value: ctx.columns.length },
             {
               label: "Numeric",
-              value: ctx.columns.filter((c) => c.type === "number").length,
+              value: ctx.columns.filter((column) => column.type === "number")
+                .length,
             },
-          ].map((s) => (
-            <div key={s.label} className="bg-muted rounded-lg py-2">
-              <div className="text-sm font-bold text-foreground">{s.value}</div>
-              <div className="text-[10px] text-muted-foreground">{s.label}</div>
+          ].map((stat) => (
+            <div key={stat.label} className="rounded-2xl bg-muted p-3">
+              <div className="text-base font-bold text-foreground">
+                {stat.value}
+              </div>
+              <div className="text-[10px] text-muted-foreground">
+                {stat.label}
+              </div>
             </div>
           ))}
         </div>
       </div>
+
       {recs.length > 0 && (
         <div>
-          <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-muted-foreground">
-            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" /> Suggested
-            charts
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+            <TrendingUp className="h-4 w-4 text-emerald-500" />
+            Suggested charts
           </div>
-          <div className="space-y-1.5">
-            {recs.map((r) => (
+
+          <div className="space-y-2">
+            {recs.map((rec) => (
               <div
-                key={r.title}
-                className="flex items-start gap-2 p-2 bg-muted border border-border rounded-lg"
+                key={rec.title}
+                className="rounded-2xl border border-border bg-card p-3"
               >
-                <BarChart3 className="w-3.5 h-3.5 text-blue-400 mt-0.5 flex-none" />
-                <div>
-                  <div className="text-xs font-medium text-foreground">
-                    {r.title}
+                <div className="flex items-start gap-2">
+                  <div className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
+                    <BarChart3 className="h-4 w-4" />
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {r.reason}
+                  <div className="min-w-0 flex-1">
+                    <div className="text-xs font-semibold text-foreground">
+                      {rec.title}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {rec.reason}
+                    </div>
                   </div>
+                  <span className="rounded-full bg-muted px-2 py-1 text-[10px] text-muted-foreground">
+                    {Math.round(rec.confidence * 100)}%
+                  </span>
                 </div>
-                <span className="text-[10px] text-muted-foreground ml-auto whitespace-nowrap">
-                  {Math.round(r.confidence * 100)}%
-                </span>
               </div>
             ))}
           </div>
         </div>
       )}
+
       {insights.length > 0 && (
         <div>
-          <div className="flex items-center gap-1.5 mb-2 text-xs font-semibold text-muted-foreground">
-            <Lightbulb className="w-3.5 h-3.5 text-amber-400" /> Insights
+          <div className="mb-2 flex items-center gap-1.5 text-xs font-bold text-muted-foreground">
+            <Lightbulb className="h-4 w-4 text-amber-500" />
+            Insights
           </div>
-          <div className="space-y-1.5">
-            {insights.map((ins, i) => (
-              // biome-ignore lint/suspicious/noArrayIndexKey: stable
+
+          <div className="space-y-2">
+            {insights.map((insight, index) => (
               <div
-                key={i}
-                className="flex items-start gap-2 p-2 bg-muted border border-border rounded-lg"
+                key={`${insight.title}-${index}`}
+                className="rounded-2xl border border-border bg-card p-3"
               >
-                {severityIcon(ins.severity)}
-                <div>
-                  <div className="text-xs font-medium text-foreground">
-                    {ins.title}
+                <div className="flex items-start gap-2">
+                  <div className="mt-0.5 flex-none">
+                    {severityIcon(insight.severity)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground mt-0.5">
-                    {ins.description}
+                  <div>
+                    <div className="text-xs font-semibold text-foreground">
+                      {insight.title}
+                    </div>
+                    <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                      {insight.description}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -573,68 +771,16 @@ export function AIPanel({
   open: boolean;
   onClose: () => void;
 }) {
-  const { datasets, activeDatasetId, setActiveDataset, addQueryHistory } =
-    useDataStore();
+  const {
+    datasets,
+    activeDatasetId,
+    setActiveDataset,
+    addQueryHistory,
+    replaceDatasetsFromCatalog,
+  } = useDataStore();
 
-  // Resolved context: prefer DataStore, fall back to bare DuckDB tables
-  const [duckTables, setDuckTables] = useState<string[]>([]);
-  const [manualTable, setManualTable] = useState<string>("");
-  const [manualCtx, setManualCtx] = useState<TableCtx | null>(null);
-  const [ctxLoading, setCtxLoading] = useState(false);
-
-  const storeDataset = datasets.find((d) => d.id === activeDatasetId);
-
-  // Scan DuckDB for available tables whenever panel opens
-  useEffect(() => {
-    if (!open) return;
-    listTables()
-      .then((ts) => {
-        setDuckTables(ts);
-        // Auto-select first table if no store dataset and no manual selection
-        if (!storeDataset && !manualTable && ts.length > 0) {
-          setManualTable(ts[0]);
-        }
-      })
-      .catch(() => {});
-  }, [open, storeDataset, manualTable]);
-
-  // Load column info for manually selected table
-  useEffect(() => {
-    const name = manualTable;
-    if (!name || storeDataset) {
-      setManualCtx(null);
-      return;
-    }
-    setCtxLoading(true);
-    getTableInfo(name)
-      .then((info) => {
-        const cols: ColMeta[] = info.columns.map((c) => ({
-          name: c.name,
-          type: inferColType(c.type),
-          nullCount: 0,
-          distinctCount: 0,
-          sample: [],
-        }));
-        setManualCtx({
-          tableName: name,
-          columns: cols,
-          rowCount: info.rowCount,
-          displayName: name,
-        });
-      })
-      .catch(() => setManualCtx(null))
-      .finally(() => setCtxLoading(false));
-  }, [manualTable, storeDataset]);
-
-  // Resolved active context
-  const ctx: TableCtx | null = storeDataset
-    ? {
-        tableName: storeDataset.tableName,
-        columns: storeDataset.columns,
-        rowCount: storeDataset.rowCount,
-        displayName: storeDataset.name,
-      }
-    : manualCtx;
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
 
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -642,41 +788,112 @@ export function AIPanel({
       role: "assistant",
       kind: "text",
       content:
-        "Hi! I'm your offline AI assistant powered by NL→SQL. Ask me anything about your data in plain English.",
+        "Hi, I’m your local data copilot. Select a dataset, ask a question, and I’ll translate it into safe read-only DuckDB SQL.",
     },
   ]);
+
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [tab, setTab] = useState<"chat" | "insights">("chat");
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+
+    async function refreshCatalog() {
+      setCatalogLoading(true);
+      setCatalogError(null);
+
+      try {
+        const catalog = await listRegisteredDatasets();
+
+        if (cancelled) return;
+
+        replaceDatasetsFromCatalog(catalog);
+
+        if (!activeDatasetId && catalog.length > 0) {
+          setActiveDataset(catalog[0].id);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCatalogError(
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setCatalogLoading(false);
+        }
+      }
+    }
+
+    refreshCatalog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, activeDatasetId, replaceDatasetsFromCatalog, setActiveDataset]);
+
+  useEffect(() => {
+    if (open) {
+      window.setTimeout(() => inputRef.current?.focus(), 120);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages]);
+
+  const datasetOptions: DatasetOption[] = useMemo(
+    () =>
+      datasets.map((dataset) => ({
+        id: dataset.id,
+        label: dataset.name,
+        viewName: dataset.viewName || dataset.tableName,
+        rowCount: dataset.rowCount,
+        columnCount: dataset.colCount,
+        sourceFormat: String(dataset.format),
+      })),
+    [datasets],
+  );
+
+  const activeDataset =
+    datasets.find((dataset) => dataset.id === activeDatasetId) ??
+    datasets[0] ??
+    null;
+
+  const ctx: TableCtx | null = activeDataset
+    ? datasetToCtx(activeDataset)
+    : null;
 
   const suggestions = useMemo(
     () =>
       ctx
         ? suggestQuestions({ tableName: ctx.tableName, columns: ctx.columns })
-        : ["Upload a file or select a DuckDB table to get started"],
+        : [
+            "Import a dataset first",
+            "Show me row count",
+            "What columns are available?",
+          ],
     [ctx],
   );
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: messages change triggers scroll-to-bottom
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 100);
-  }, [open]);
-
   const handleSend = useCallback(
     async (text?: string) => {
-      const q = (text ?? input).trim();
-      if (!q || loading) return;
+      const question = (text ?? input).trim();
+
+      if (!question || loading) return;
+
       setInput("");
       setLoading(true);
 
-      setMessages((m) => [
-        ...m,
-        { id: uid(), role: "user", kind: "text", content: q },
+      setMessages((current) => [
+        ...current,
+        { id: uid(), role: "user", kind: "text", content: question },
         {
           id: uid(),
           role: "assistant",
@@ -688,37 +905,46 @@ export function AIPanel({
 
       try {
         if (!ctx) {
-          setMessages((m) =>
-            m.slice(0, -1).concat([
+          setMessages((current) =>
+            current.slice(0, -1).concat([
               {
                 id: uid(),
                 role: "assistant",
-                kind: "text",
+                kind: "error",
                 content:
-                  "No table is selected. Please upload a file or pick a table from the dropdown above.",
+                  "No dataset is selected. Import a dataset first, then ask a question.",
               },
             ]),
           );
           return;
         }
 
-        const nlqCtx = { tableName: ctx.tableName, columns: ctx.columns };
+        const nlqCtx = {
+          tableName: ctx.tableName,
+          columns: ctx.columns,
+        };
+
         const { sql, explanation, confidence, chartSuggestion } = translateNLQ(
-          q,
+          question,
           nlqCtx,
         );
 
-        const t0 = performance.now();
-        const rows = await runQuery(sql);
-        const durationMs = Math.round(performance.now() - t0);
+        const start = performance.now();
+        const rows = await runReadOnlyQuery(sql);
+        const durationMs = Math.round(performance.now() - start);
         const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
-        const result: QueryResult = { columns, rows, durationMs };
+
+        const result: QueryResult = {
+          columns,
+          rows,
+          durationMs,
+        };
 
         addQueryHistory({
           id: uid(),
           sql,
-          naturalLanguage: q,
-          datasetId: storeDataset?.id ?? ctx.tableName,
+          naturalLanguage: question,
+          datasetId: ctx.datasetId,
           rowsReturned: rows.length,
           durationMs,
           ranAt: new Date().toISOString(),
@@ -729,8 +955,8 @@ export function AIPanel({
             ? (buildChartFromResult(result, chartSuggestion) ?? undefined)
             : undefined;
 
-        setMessages((m) =>
-          m.slice(0, -1).concat([
+        setMessages((current) =>
+          current.slice(0, -1).concat([
             {
               id: uid(),
               role: "assistant",
@@ -744,14 +970,16 @@ export function AIPanel({
             },
           ]),
         );
-      } catch (err) {
-        setMessages((m) =>
-          m.slice(0, -1).concat([
+      } catch (error) {
+        setMessages((current) =>
+          current.slice(0, -1).concat([
             {
               id: uid(),
               role: "assistant",
               kind: "error",
-              content: `Error: ${err instanceof Error ? err.message : String(err)}`,
+              content: `I could not complete that query. ${
+                error instanceof Error ? error.message : String(error)
+              }`,
             },
           ]),
         );
@@ -759,20 +987,19 @@ export function AIPanel({
         setLoading(false);
       }
     },
-    [input, loading, ctx, storeDataset, addQueryHistory],
+    [input, loading, ctx, addQueryHistory],
   );
 
-  const allTableOptions = [
-    ...datasets.map((d) => ({
-      id: d.id,
-      label: d.name,
-      table: d.tableName,
-      isStore: true,
-    })),
-    ...duckTables
-      .filter((t) => !datasets.find((d) => d.tableName === t))
-      .map((t) => ({ id: t, label: t, table: t, isStore: false })),
-  ];
+  const clearChat = useCallback(() => {
+    setMessages([
+      {
+        id: "welcome",
+        role: "assistant",
+        kind: "text",
+        content: "Chat cleared. Ask me a question about the selected dataset.",
+      },
+    ]);
+  }, []);
 
   return (
     <AnimatePresence>
@@ -782,165 +1009,212 @@ export function AIPanel({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm lg:hidden"
             onClick={onClose}
           />
+
           <motion.div
-            initial={{ x: "100%" }}
-            animate={{ x: 0 }}
-            exit={{ x: "100%" }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="fixed right-0 top-0 bottom-0 w-full sm:w-96 z-50 flex flex-col bg-background border-l border-border shadow-2xl"
+            initial={{ x: "100%", opacity: 0.8 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: "100%", opacity: 0.8 }}
+            transition={{ type: "spring", stiffness: 320, damping: 34 }}
+            className="fixed right-0 top-0 bottom-0 z-50 flex w-full flex-col border-l border-border bg-background shadow-2xl sm:w-[440px] xl:w-[480px]"
           >
-            {/* Header */}
-            <div className="flex items-center gap-3 px-4 py-3 border-b border-border flex-none">
-              <div className="w-7 h-7 rounded-xl bg-linear-to-br from-indigo-500 to-violet-600 flex items-center justify-center flex-none">
-                <Brain className="w-4 h-4 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-semibold text-foreground">
-                  AI Data Assistant
+            <div className="flex-none border-b border-border bg-background/95 px-4 py-4 backdrop-blur">
+              <div className="flex items-start gap-3">
+                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/20">
+                  <Bot className="h-5 w-5" />
                 </div>
-                <div className="text-[10px] text-muted-foreground flex items-center gap-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />{" "}
-                  Offline · NL→SQL
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-sm font-bold text-foreground">
+                      AI Data Copilot
+                    </h2>
+                    <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">
+                      <ShieldCheck className="h-3 w-3" />
+                      local
+                    </span>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    NL→SQL over your local DuckDB datasets.
+                  </p>
                 </div>
+
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="flex h-8 w-8 flex-none items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
-              <div className="flex gap-0.5 bg-muted rounded-lg p-0.5 flex-none">
-                {(["chat", "insights"] as const).map((t) => (
+
+              <div className="mt-4">
+                <DatasetPicker
+                  options={datasetOptions}
+                  activeId={activeDataset?.id ?? null}
+                  onSelect={setActiveDataset}
+                />
+              </div>
+
+              <div className="mt-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                  {catalogLoading ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Refreshing datasets
+                    </>
+                  ) : ctx ? (
+                    <>
+                      <Rows3 className="h-3 w-3" />
+                      {ctx.rowCount.toLocaleString()} rows ·{" "}
+                      {ctx.columns.length} columns
+                    </>
+                  ) : (
+                    <>
+                      <Database className="h-3 w-3" />
+                      No active dataset
+                    </>
+                  )}
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCatalogError(null);
+                    listRegisteredDatasets()
+                      .then((catalog) => {
+                        replaceDatasetsFromCatalog(catalog);
+                        if (!activeDatasetId && catalog[0]) {
+                          setActiveDataset(catalog[0].id);
+                        }
+                      })
+                      .catch((error) =>
+                        setCatalogError(
+                          error instanceof Error
+                            ? error.message
+                            : String(error),
+                        ),
+                      );
+                  }}
+                  className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title="Refresh datasets"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" />
+                </button>
+              </div>
+
+              {catalogError && (
+                <div className="mt-3 rounded-2xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-700 dark:text-red-300">
+                  {catalogError}
+                </div>
+              )}
+
+              <div className="mt-4 grid grid-cols-2 rounded-2xl bg-muted p-1">
+                {(["chat", "insights"] as const).map((item) => (
                   <button
-                    key={t}
+                    key={item}
                     type="button"
-                    onClick={() => setTab(t)}
-                    className={`px-2 py-1 rounded-md text-[11px] font-medium transition-colors ${tab === t ? "bg-accent text-foreground" : "text-muted-foreground hover:text-foreground"}`}
+                    onClick={() => setTab(item)}
+                    className={cn(
+                      "rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
+                      tab === item
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
                   >
-                    {t === "chat" ? "Chat" : "Insights"}
+                    {item === "chat" ? "Chat" : "Insights"}
                   </button>
                 ))}
               </div>
-              <button
-                type="button"
-                onClick={onClose}
-                className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground flex-none"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            {/* Table selector */}
-            <div className="flex items-center gap-2 px-4 py-2 border-b border-border bg-muted flex-none flex-wrap">
-              {allTableOptions.length > 0 ? (
-                <TablePicker
-                  tables={allTableOptions.map((o) => o.table)}
-                  active={ctx?.tableName ?? ""}
-                  onSelect={(t) => {
-                    const storeMatch = datasets.find((d) => d.tableName === t);
-                    if (storeMatch) setActiveDataset(storeMatch.id);
-                    else setManualTable(t);
-                  }}
-                />
-              ) : (
-                <span className="text-xs text-muted-foreground italic">
-                  No tables loaded yet
-                </span>
-              )}
-              {ctxLoading && (
-                <RefreshCw className="w-3.5 h-3.5 text-muted-foreground animate-spin" />
-              )}
-              {ctx && (
-                <span className="text-[10px] text-muted-foreground ml-auto">
-                  {ctx.rowCount.toLocaleString()} rows · {ctx.columns.length}{" "}
-                  cols
-                </span>
-              )}
             </div>
 
             {tab === "insights" ? (
-              <div className="flex-1 overflow-y-auto">
+              <div className="min-h-0 flex-1 overflow-y-auto">
                 <InsightsPanel ctx={ctx} />
               </div>
             ) : (
               <>
-                <div className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
-                  {messages.map((msg) => (
-                    <MsgBubble key={msg.id} msg={msg} />
+                <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-4">
+                  {messages.map((message) => (
+                    <MsgBubble key={message.id} msg={message} />
                   ))}
                   <div ref={messagesEndRef} />
                 </div>
 
                 {messages.length <= 2 && !loading && ctx && (
-                  <div className="px-4 pb-2 flex-none">
-                    <div className="flex items-center gap-1.5 mb-2 text-[10px] text-muted-foreground">
-                      <Sparkles className="w-3 h-3 text-amber-400" /> Try
-                      asking…
+                  <div className="flex-none px-4 pb-3">
+                    <div className="mb-2 flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      <Sparkles className="h-3 w-3 text-amber-500" />
+                      Try asking
                     </div>
                     <div className="flex flex-wrap gap-1.5">
-                      {suggestions.slice(0, 4).map((s) => (
+                      {suggestions.slice(0, 4).map((suggestion) => (
                         <button
-                          key={s}
+                          key={suggestion}
                           type="button"
-                          onClick={() => handleSend(s)}
-                          className="text-[11px] px-2.5 py-1 bg-muted hover:bg-accent border border-border rounded-full text-foreground transition-colors"
+                          onClick={() => handleSend(suggestion)}
+                          className="rounded-full border border-border bg-muted px-3 py-1.5 text-[11px] text-foreground transition-colors hover:bg-accent"
                         >
-                          {s}
+                          {suggestion}
                         </button>
                       ))}
                     </div>
                   </div>
                 )}
 
-                <div className="px-3 py-3 border-t border-border flex-none">
-                  <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center gap-2 bg-muted border border-border rounded-xl px-3 py-2 focus-within:border-primary/50 transition-colors">
+                <div className="flex-none border-t border-border bg-background/95 px-4 py-4 backdrop-blur">
+                  <div className="flex items-end gap-2">
+                    <div className="flex min-h-11 flex-1 items-center gap-2 rounded-2xl border border-border bg-muted px-3 py-2 transition-colors focus-within:border-primary/50">
                       <input
                         ref={inputRef}
                         type="text"
                         value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) {
-                            e.preventDefault();
+                        onChange={(event) => setInput(event.target.value)}
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" && !event.shiftKey) {
+                            event.preventDefault();
                             handleSend();
                           }
                         }}
                         placeholder={
-                          ctx ? "Ask about your data…" : "Select a table first…"
+                          ctx
+                            ? "Ask about your dataset…"
+                            : "Import or select a dataset first…"
                         }
                         disabled={loading}
-                        className="flex-1 bg-transparent text-sm text-foreground placeholder-muted-foreground outline-none disabled:opacity-40"
+                        className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
                       />
+
                       {loading && (
-                        <RefreshCw className="w-3.5 h-3.5 text-muted-foreground animate-spin flex-none" />
+                        <RefreshCw className="h-3.5 w-3.5 flex-none animate-spin text-muted-foreground" />
                       )}
                     </div>
+
                     <button
                       type="button"
                       onClick={() => handleSend()}
-                      disabled={!input.trim() || loading}
-                      className="w-9 h-9 bg-primary hover:bg-primary/90 disabled:opacity-40 rounded-xl flex items-center justify-center text-primary-foreground transition-colors flex-none"
+                      disabled={!input.trim() || loading || !ctx}
+                      className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                     >
-                      <Send className="w-4 h-4" />
+                      <Send className="h-4 w-4" />
                     </button>
                   </div>
-                  <div className="flex items-center justify-between mt-2 text-[10px] text-muted-foreground">
+
+                  <div className="mt-2 flex items-center justify-between text-[10px] text-muted-foreground">
                     <span className="flex items-center gap-1">
-                      <Zap className="w-3 h-3" /> Offline NL→SQL
+                      <Zap className="h-3 w-3" />
+                      Safe read-only DuckDB queries
                     </span>
+
                     <button
                       type="button"
-                      onClick={() =>
-                        setMessages([
-                          {
-                            id: "welcome",
-                            role: "assistant",
-                            kind: "text",
-                            content: "Chat cleared.",
-                          },
-                        ])
-                      }
-                      className="hover:text-foreground transition-colors flex items-center gap-1"
+                      onClick={clearChat}
+                      className="flex items-center gap-1 transition-colors hover:text-foreground"
                     >
-                      <RefreshCw className="w-3 h-3" /> Clear
+                      <RefreshCw className="h-3 w-3" />
+                      Clear
                     </button>
                   </div>
                 </div>
@@ -964,14 +1238,38 @@ export function AIToggle({
     <motion.button
       type="button"
       onClick={onClick}
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
-      className={`fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3 rounded-2xl shadow-2xl transition-colors ${active ? "bg-primary text-primary-foreground" : "bg-background border border-border text-foreground hover:border-primary/30 hover:text-foreground"}`}
+      whileHover={{ scale: 1.04, y: -2 }}
+      whileTap={{ scale: 0.96 }}
+      className={cn(
+        "fixed bottom-6 right-6 z-40 flex items-center gap-3 rounded-3xl px-4 py-3 shadow-2xl transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : "border border-border bg-background text-foreground hover:border-primary/40",
+      )}
     >
-      <Brain className="w-5 h-5" />
-      <span className="text-sm font-semibold">AI</span>
+      <div
+        className={cn(
+          "flex h-9 w-9 items-center justify-center rounded-2xl",
+          active ? "bg-primary-foreground/15" : "bg-primary/10 text-primary",
+        )}
+      >
+        <Brain className="h-5 w-5" />
+      </div>
+
+      <div className="hidden text-left sm:block">
+        <div className="text-sm font-bold leading-none">AI Copilot</div>
+        <div
+          className={cn(
+            "mt-1 text-[10px] leading-none",
+            active ? "text-primary-foreground/70" : "text-muted-foreground",
+          )}
+        >
+          local NL→SQL
+        </div>
+      </div>
+
       {!active && (
-        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+        <span className="absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full border-2 border-background bg-emerald-400" />
       )}
     </motion.button>
   );

@@ -6,7 +6,7 @@
  * Deterministic code validates, executes, and renders — but never invents insights.
  */
 
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface ToolContext {
   tableName: string;
@@ -16,7 +16,10 @@ export interface ToolContext {
 export interface ToolDefinition {
   name: string;
   description: string;
-  parameters: Record<string, { type: string; description: string; required?: boolean }>;
+  parameters: Record<
+    string,
+    { type: string; description: string; required?: boolean }
+  >;
   returns: string;
 }
 
@@ -35,21 +38,47 @@ export interface ToolResult {
 const TOOLS: ToolDefinition[] = [
   {
     name: "query",
-    description: "Run a safe read-only SQL query against the current table. Only SELECT statements allowed.",
+    description:
+      "Run a safe read-only SQL query against the current table. Only SELECT statements allowed.",
     parameters: {
-      sql: { type: "string", description: "Valid DuckDB SELECT statement", required: true },
-      limit: { type: "number", description: "Max rows to return (default 1000)", required: false },
+      sql: {
+        type: "string",
+        description: "Valid DuckDB SELECT statement",
+        required: true,
+      },
+      limit: {
+        type: "number",
+        description: "Max rows to return (default 1000)",
+        required: false,
+      },
     },
     returns: "Array of row objects",
   },
   {
     name: "aggregate",
-    description: "Compute aggregations (sum, count, avg, min, max, median) for a column.",
+    description:
+      "Compute aggregations (sum, count, avg, min, max, median) for a column.",
     parameters: {
-      column: { type: "string", description: "Column name to aggregate", required: true },
-      agg: { type: "string", description: "Aggregation function", required: true },
-      groupBy: { type: "string", description: "Optional group-by column", required: false },
-      filters: { type: "string", description: "Optional WHERE clause (safe only)", required: false },
+      column: {
+        type: "string",
+        description: "Column name to aggregate",
+        required: true,
+      },
+      agg: {
+        type: "string",
+        description: "Aggregation function",
+        required: true,
+      },
+      groupBy: {
+        type: "string",
+        description: "Optional group-by column",
+        required: false,
+      },
+      filters: {
+        type: "string",
+        description: "Optional WHERE clause (safe only)",
+        required: false,
+      },
     },
     returns: "Aggregated value or grouped results",
   },
@@ -57,32 +86,74 @@ const TOOLS: ToolDefinition[] = [
     name: "comparePeriods",
     description: "Compare a metric between two time periods.",
     parameters: {
-      metric: { type: "string", description: "Metric column or expression", required: true },
-      periodColumn: { type: "string", description: "Date/datetime column", required: true },
-      currentStart: { type: "string", description: "Current period start (ISO or SQL)", required: true },
-      currentEnd: { type: "string", description: "Current period end", required: true },
-      baselineStart: { type: "string", description: "Baseline period start", required: true },
-      baselineEnd: { type: "string", description: "Baseline period end", required: true },
+      metric: {
+        type: "string",
+        description: "Metric column or expression",
+        required: true,
+      },
+      periodColumn: {
+        type: "string",
+        description: "Date/datetime column",
+        required: true,
+      },
+      currentStart: {
+        type: "string",
+        description: "Current period start (ISO or SQL)",
+        required: true,
+      },
+      currentEnd: {
+        type: "string",
+        description: "Current period end",
+        required: true,
+      },
+      baselineStart: {
+        type: "string",
+        description: "Baseline period start",
+        required: true,
+      },
+      baselineEnd: {
+        type: "string",
+        description: "Baseline period end",
+        required: true,
+      },
     },
     returns: "Current value, baseline value, delta, deltaPercent",
   },
   {
     name: "segmentBreakdown",
-    description: "Break down a metric by a dimension to find contributors to change.",
+    description:
+      "Break down a metric by a dimension to find contributors to change.",
     parameters: {
-      metric: { type: "string", description: "Metric column or expression", required: true },
-      dimension: { type: "string", description: "Dimension column to group by", required: true },
-      filters: { type: "string", description: "Optional WHERE clause", required: false },
+      metric: {
+        type: "string",
+        description: "Metric column or expression",
+        required: true,
+      },
+      dimension: {
+        type: "string",
+        description: "Dimension column to group by",
+        required: true,
+      },
+      filters: {
+        type: "string",
+        description: "Optional WHERE clause",
+        required: false,
+      },
       limit: { type: "number", description: "Max segments", required: false },
     },
     returns: "Array of { segment, value, percent } sorted by value desc",
   },
   {
     name: "anomalyScan",
-    description: "Find rows with outliers, nulls, or unusual values in a column.",
+    description:
+      "Find rows with outliers, nulls, or unusual values in a column.",
     parameters: {
       column: { type: "string", description: "Column to scan", required: true },
-      method: { type: "string", description: "iqr, zscore, or nulls", required: true },
+      method: {
+        type: "string",
+        description: "iqr, zscore, or nulls",
+        required: true,
+      },
       limit: { type: "number", description: "Max anomalies", required: false },
     },
     returns: "Array of anomalous rows",
@@ -91,9 +162,17 @@ const TOOLS: ToolDefinition[] = [
     name: "topN",
     description: "Get top N rows by a metric.",
     parameters: {
-      metric: { type: "string", description: "Column or expression to rank by", required: true },
+      metric: {
+        type: "string",
+        description: "Column or expression to rank by",
+        required: true,
+      },
       n: { type: "number", description: "Number of rows", required: true },
-      groupBy: { type: "string", description: "Optional group-by", required: false },
+      groupBy: {
+        type: "string",
+        description: "Optional group-by",
+        required: false,
+      },
     },
     returns: "Top N rows",
   },
@@ -102,7 +181,11 @@ const TOOLS: ToolDefinition[] = [
     description: "Compute a histogram for a numeric column.",
     parameters: {
       column: { type: "string", description: "Numeric column", required: true },
-      bins: { type: "number", description: "Number of bins (default 30)", required: false },
+      bins: {
+        type: "number",
+        description: "Number of bins (default 30)",
+        required: false,
+      },
     },
     returns: "Array of { bin, count, min, max }",
   },
@@ -129,7 +212,8 @@ function isSafeSql(sql: string): boolean {
   // Must start with SELECT
   if (!normalized.startsWith("select")) return false;
   // Block dangerous keywords
-  const forbidden = /\b(drop|delete|truncate|insert|update|alter|create|attach|detach|copy|execute|pragma|vacuum)\b/;
+  const forbidden =
+    /\b(drop|delete|truncate|insert|update|alter|create|attach|detach|copy|execute|pragma|vacuum)\b/;
   if (forbidden.test(normalized)) return false;
   return true;
 }
@@ -152,11 +236,15 @@ export async function executeTool(
       case "query": {
         const sql = String(args.sql ?? "");
         if (!isSafeSql(sql)) {
-          return { tool: name, success: false, error: "Unsafe SQL rejected: only SELECT allowed" };
+          return {
+            tool: name,
+            success: false,
+            error: "Unsafe SQL rejected: only SELECT allowed",
+          };
         }
         const limit = Math.min(Number(args.limit ?? 1000), 5000);
         const limitedSql = sql.replace(/;?\s*$/, ` LIMIT ${limit}`);
-        const data = await runQuery(limitedSql);
+        const data = await runReadOnlyQuery(limitedSql);
         return {
           tool: name,
           success: true,
@@ -170,14 +258,28 @@ export async function executeTool(
       case "aggregate": {
         const col = quoteIdentifier(String(args.column ?? ""));
         const agg = String(args.agg ?? "count").toUpperCase();
-        const groupBy = args.groupBy ? quoteIdentifier(String(args.groupBy)) : null;
+        const groupBy = args.groupBy
+          ? quoteIdentifier(String(args.groupBy))
+          : null;
         const filters = String(args.filters ?? "");
-        const safeAgg = ["SUM", "COUNT", "AVG", "MIN", "MAX", "MEDIAN"].includes(agg) ? agg : "COUNT";
-        const whereClause = filters && isSafeSql(`SELECT 1 WHERE ${filters}`) ? `WHERE ${filters}` : "";
+        const safeAgg = [
+          "SUM",
+          "COUNT",
+          "AVG",
+          "MIN",
+          "MAX",
+          "MEDIAN",
+        ].includes(agg)
+          ? agg
+          : "COUNT";
+        const whereClause =
+          filters && isSafeSql(`SELECT 1 WHERE ${filters}`)
+            ? `WHERE ${filters}`
+            : "";
         const sql = groupBy
           ? `SELECT ${groupBy} AS segment, ${safeAgg}(${col}) AS value FROM "${ctx.tableName}" ${whereClause} GROUP BY ${groupBy} ORDER BY value DESC`
           : `SELECT ${safeAgg}(${col}) AS value FROM "${ctx.tableName}" ${whereClause}`;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -212,7 +314,7 @@ export async function executeTool(
               ELSE ROUND(((SELECT COALESCE(SUM(v), 0) FROM current) - (SELECT COALESCE(SUM(v), 0) FROM baseline)) * 100.0 / (SELECT COALESCE(SUM(v), 0) FROM baseline), 2)
             END AS delta_percent
         `;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -228,7 +330,10 @@ export async function executeTool(
         const dim = quoteIdentifier(String(args.dimension ?? ""));
         const filters = String(args.filters ?? "");
         const limit = Math.min(Number(args.limit ?? 20), 100);
-        const whereClause = filters && isSafeSql(`SELECT 1 WHERE ${filters}`) ? `WHERE ${filters}` : "";
+        const whereClause =
+          filters && isSafeSql(`SELECT 1 WHERE ${filters}`)
+            ? `WHERE ${filters}`
+            : "";
         const sql = `
           WITH total AS (
             SELECT SUM(${metric}) AS total FROM "${ctx.tableName}" ${whereClause}
@@ -243,7 +348,7 @@ export async function executeTool(
           ORDER BY value DESC
           LIMIT ${limit}
         `;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -283,7 +388,7 @@ export async function executeTool(
             LIMIT ${limit}
           `;
         }
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -297,11 +402,13 @@ export async function executeTool(
       case "topN": {
         const metric = String(args.metric ?? "");
         const n = Math.min(Number(args.n ?? 10), 500);
-        const groupBy = args.groupBy ? quoteIdentifier(String(args.groupBy)) : null;
+        const groupBy = args.groupBy
+          ? quoteIdentifier(String(args.groupBy))
+          : null;
         const sql = groupBy
           ? `SELECT ${groupBy} AS segment, ${metric} AS value FROM "${ctx.tableName}" GROUP BY ${groupBy} ORDER BY value DESC LIMIT ${n}`
           : `SELECT * FROM "${ctx.tableName}" ORDER BY ${metric} DESC LIMIT ${n}`;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -329,7 +436,7 @@ export async function executeTool(
           GROUP BY bin
           ORDER BY bin
         `;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -342,7 +449,7 @@ export async function executeTool(
 
       case "describeTable": {
         const sql = `SUMMARIZE "${ctx.tableName}"`;
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         return {
           tool: name,
           success: true,
@@ -354,7 +461,11 @@ export async function executeTool(
       }
 
       default:
-        return { tool: name, success: false, error: `Tool ${name} not implemented` };
+        return {
+          tool: name,
+          success: false,
+          error: `Tool ${name} not implemented`,
+        };
     }
   } catch (err) {
     return {

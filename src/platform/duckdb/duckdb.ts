@@ -1,211 +1,156 @@
 "use client";
 
 /**
- * DuckDB public API — delegates queries to the worker client and handles
- * local-filesystem persistence via Electron IPC.
+ * DuckDB public renderer API.
  *
- * All public function signatures are preserved for backward compatibility.
+ * Dataset mental model:
+ * - CSV / Parquet files are registered as datasets.
+ * - DuckDB main process converts CSV to managed Parquet cache.
+ * - DuckDB exposes each dataset through a stable view.
+ * - Renderer code should use dataset IDs, not raw table names or SQL.
  */
 
-import {
-  deleteLocalFile,
-  getDataDir,
-  isElectron,
-  localFileExists,
-  readLocalFile,
-  writeLocalFile,
-} from "@/platform/electron/electron-fs";
 import { sharedDuckDB } from "./shared-duckdb";
 
-export type { ColumnStats, TableInfo, WorkerStatus } from "./shared-duckdb";
+// ─── Types ────────────────────────────────────────────────────────────────────
 
-// ─── Local parquet path helper ────────────────────────────────────────────────
+export type DatasetSourceFormat = "csv" | "parquet";
 
-async function parquetPath(tableName: string): Promise<string> {
-  const dir = await getDataDir();
-  return `${dir}/${tableName}.parquet`;
+export interface RegisteredDatasetColumn {
+  name: string;
+  type: string;
+  nullable: boolean;
 }
 
-// ─── Core query / table operations ───────────────────────────────────────────
-
-export async function runQuery(
-  sql: string,
-  options?: { cache?: boolean; priority?: string },
-): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.runQuery(sql, options);
+export interface RegisteredDataset {
+  id: string;
+  displayName: string;
+  viewName: string;
+  sourcePath: string;
+  cachePath: string;
+  sourceFormat: DatasetSourceFormat;
+  rowCount: number;
+  columns: RegisteredDatasetColumn[];
+  createdAt: string;
+  updatedAt: string;
 }
 
-export async function runBatch(
-  sqls: string[],
-): Promise<Record<string, unknown>[][]> {
-  return sharedDuckDB.runBatch(sqls);
+export interface RegisteredDatasetWithPreview extends RegisteredDataset {
+  previewRows: Record<string, unknown>[];
 }
 
-export async function warmCache(
-  sql: string,
-): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.warmCache(sql);
+export interface RegisterCSVPathDatasetInput {
+  filePath: string;
+  displayName?: string;
+  hasHeader?: boolean;
+  delimiter?: string;
+  sampleSize?: number;
+  previewLimit?: number;
 }
 
-export function getQueryMetrics() {
+export interface RegisterParquetPathDatasetInput {
+  filePath: string;
+  displayName?: string;
+  previewLimit?: number;
+}
+
+export interface PreviewDatasetInput {
+  datasetId: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface DatasetOnlyInput {
+  datasetId: string;
+}
+
+export interface ExportDatasetInput {
+  datasetId: string;
+  targetPath: string;
+}
+
+export interface QueryMetric {
+  sql: string;
+  durationMs: number;
+  timestamp: number;
+  rowCount: number;
+}
+
+export interface DuckDBStatus {
+  active: boolean;
+  dbPath: string | null;
+  datasetsDir: string | null;
+  readConnections: number;
+  pendingReads: number;
+  pendingWrites: number;
+}
+
+// ─── Runtime ──────────────────────────────────────────────────────────────────
+
+export async function initDuckDB(): Promise<void> {
+  await sharedDuckDB.init();
+}
+
+export async function getDuckDBStatus(): Promise<DuckDBStatus> {
+  return sharedDuckDB.getStatus();
+}
+
+export async function getQueryMetrics(): Promise<QueryMetric[]> {
   return sharedDuckDB.getQueryMetrics();
 }
 
-export function clearQueryMetrics() {
+export async function clearQueryMetrics(): Promise<void> {
   return sharedDuckDB.clearQueryMetrics();
 }
 
-export async function prepareStatement(sql: string): Promise<string> {
-  return sharedDuckDB.prepare(sql);
+// ─── Dataset Registration ─────────────────────────────────────────────────────
+
+export async function registerCSVPathDataset(
+  input: RegisterCSVPathDatasetInput,
+): Promise<RegisteredDatasetWithPreview> {
+  return sharedDuckDB.registerCSVPathDataset(input);
 }
 
-export async function executeStatement(
-  stmtId: string,
-  params: unknown[],
+export async function registerParquetPathDataset(
+  input: RegisterParquetPathDatasetInput,
+): Promise<RegisteredDatasetWithPreview> {
+  return sharedDuckDB.registerParquetPathDataset(input);
+}
+
+// ─── Dataset Reads ────────────────────────────────────────────────────────────
+
+export async function listRegisteredDatasets(): Promise<RegisteredDataset[]> {
+  return sharedDuckDB.listDatasets();
+}
+
+export async function previewRegisteredDataset(
+  input: PreviewDatasetInput,
 ): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.execute(stmtId, params);
+  return sharedDuckDB.previewDataset(input);
 }
 
-export async function disposeStatement(stmtId: string): Promise<void> {
-  return sharedDuckDB.disposePrepared(stmtId);
+export async function summarizeRegisteredDataset(
+  input: DatasetOnlyInput,
+): Promise<Record<string, unknown>[]> {
+  return sharedDuckDB.summarizeDataset(input);
 }
 
-export async function listTables(): Promise<string[]> {
-  return sharedDuckDB.listTables();
-}
+// ─── Dataset Export / Delete ──────────────────────────────────────────────────
 
-export async function getTableInfo(tableName: string): Promise<{
-  columns: Array<{ name: string; type: string; nullable: boolean }>;
-  rowCount: number;
-}> {
-  return sharedDuckDB.getTableInfo(tableName);
-}
-
-export async function getColumnStats(
-  tableName: string,
-  columnName: string,
-): Promise<{
-  min: unknown;
-  max: unknown;
-  avg: unknown;
-  nullCount: number;
-  distinctCount: number;
-  histogram: Array<{ bucket: string; count: number }>;
-}> {
-  return sharedDuckDB.getColumnStats(tableName, columnName);
-}
-
-// ─── CSV / JSON loaders ───────────────────────────────────────────────────────
-
-export async function loadDelimitedCSVFromFile(
-  tableName: string,
-  file: File,
-  append = false,
-  hasHeader = true,
+export async function exportRegisteredDataset(
+  input: ExportDatasetInput,
 ): Promise<void> {
-  return sharedDuckDB.loadCSVFile(
-    tableName,
-    file,
-    append,
-    hasHeader,
-  );
+  await sharedDuckDB.exportDataset(input);
 }
 
-export async function loadDelimitedCSVToDuckDB(
-  tableName: string,
-  csvContent: string,
-  append = false,
-  hasHeader = true,
+export async function deleteRegisteredDataset(
+  input: DatasetOnlyInput,
 ): Promise<void> {
-  const buffer = new TextEncoder().encode(csvContent).buffer as ArrayBuffer;
-  return sharedDuckDB.loadCSV(tableName, buffer, append, hasHeader);
+  await sharedDuckDB.deleteDataset(input);
 }
 
-export async function loadCSVToDuckDB(
-  tableName: string,
-  csvContent: string,
-): Promise<void> {
-  return loadDelimitedCSVToDuckDB(tableName, csvContent);
-}
-
-export async function loadJSONToDuckDB(
-  tableName: string,
-  data: Record<string, unknown>[],
-): Promise<void> {
-  return sharedDuckDB.loadJSON(tableName, data);
-}
-
-// ─── Path-based CSV / JSON loaders (preferred for Electron) ───────────────────
-
-export async function loadCSVPathToDuckDB(
-  tableName: string,
-  filePath: string,
-  append = false,
-  hasHeader = true,
-): Promise<void> {
-  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-  return duckdbBridge().loadCSVPath(
-    tableName,
-    filePath,
-    append,
-    hasHeader,
-  );
-}
-
-export async function loadJSONPathToDuckDB(
-  tableName: string,
-  filePath: string,
-): Promise<void> {
-  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-  return duckdbBridge().loadJSONPath(tableName, filePath);
-}
-
-// ─── Local filesystem persistence ────────────────────────────────────────────
-
-/**
- * Export a table to Parquet and write it to the local filesystem.
- * Requires Electron (uses IPC to write the file).
- */
-export async function exportTableToParquet(tableName: string): Promise<void> {
-  if (!isElectron()) {
-    throw new Error(
-      "exportTableToParquet requires Electron — local filesystem not available in browser.",
-    );
-  }
-  const filePath = await parquetPath(tableName);
-  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-  await duckdbBridge().exportTableToParquet(tableName, filePath);
-}
-
-/**
- * Load a table from its local Parquet file.
- * Returns true if the file existed and the table was restored.
- */
-export async function loadTableFromParquet(
-  tableName: string,
-): Promise<boolean> {
-  if (!isElectron()) return false;
-  const filePath = await parquetPath(tableName);
-  const exists = await localFileExists(filePath);
-  if (!exists) return false;
-  const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-  await duckdbBridge().loadTableFromParquet(tableName, filePath);
-  return true;
-}
-
-/**
- * Drop a table from DuckDB and delete its local Parquet file.
- */
-export async function clearTable(tableName: string): Promise<void> {
-  await sharedDuckDB.clearTable(tableName);
-  if (isElectron()) {
-    await deleteLocalFile(await parquetPath(tableName));
-  }
-}
-
-/**
- * Returns the runtime status of the DuckDB worker.
- */
-export async function getWorkerStatus() {
-  return sharedDuckDB.getStatus();
+export async function runReadOnlyQuery(
+  sql: string,
+): Promise<Record<string, unknown>[]> {
+  return sharedDuckDB.runReadOnlyQuery(sql);
 }

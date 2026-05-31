@@ -36,7 +36,7 @@ import type {
   StatusMapping,
   StatusRow,
 } from "@/features/telecom/types";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 // ─── Canal label map (must stay in sync with canalCaseExpr THEN clauses) ────────
 
@@ -178,7 +178,7 @@ export async function fetchKPI(
 
   if (hasEnriched) {
     try {
-      const rows = await runQuery(`
+      const rows = await runReadOnlyQuery(`
         SELECT
           COUNT(*)                                                                        AS total,
           COUNT(*) FILTER (WHERE _status_norm='SUCCESS') AS success_count,
@@ -208,7 +208,7 @@ export async function fetchKPI(
   const id = colExpr(m.msisdn);
   const ec = colExpr(m.errorCode);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
         WITH base AS (
           SELECT
             ${sn}                          AS _status,
@@ -263,7 +263,7 @@ export async function fetchRawCanalSummaries(
     "Voucher Convergent Management": "voucher_convergent",
   };
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${canal}                                                                    AS canal_group,
         COUNT(*)                                                                    AS total,
@@ -313,7 +313,7 @@ export async function fetchHourly(
   const amt = qc(m.amount);
   const hr = hourExpr(m);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${hr}                                             AS hour,
         COUNT(*)                                          AS total,
@@ -344,7 +344,7 @@ export async function fetchStatusBreakdown(
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT ${sn} AS status,
              COUNT(*) AS count,
              ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3) AS amount
@@ -384,7 +384,7 @@ export async function fetchOperators(
       accountType,
     }));
   try {
-    const srcRows = await runQuery(`
+    const srcRows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${op} AS VARCHAR),'Inconnu')    AS operator,
         COUNT(*)                                       AS total,
@@ -397,7 +397,7 @@ export async function fetchOperators(
     const dstCol = qc("GENERATION_ACCOUNT_NAME");
     let dstRows: Record<string, unknown>[] = [];
     try {
-      dstRows = await runQuery(`
+      dstRows = await runReadOnlyQuery(`
         SELECT
           COALESCE(CAST(${dstCol} AS VARCHAR),'Inconnu') AS operator,
           COUNT(*)                                        AS total,
@@ -430,7 +430,7 @@ export async function fetchOperatorsForGroup(
     .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
     .join(", ");
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${op} AS VARCHAR), 'Inconnu') AS operator,
         COUNT(*)                                    AS total,
@@ -471,7 +471,7 @@ export async function fetchRegionsForGroup(
     .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
     .join(", ");
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${reg} AS VARCHAR), 'Inconnu') AS region,
         COUNT(*)                                     AS total,
@@ -507,7 +507,7 @@ export async function fetchDestinationsForGroup(
     .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
     .join(", ");
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${dst} AS VARCHAR), 'Inconnu') AS operator,
         COUNT(*)                                     AS total,
@@ -543,7 +543,7 @@ export async function fetchRegions(
   const amt = qc(m.amount);
   const reg = qc(m.region);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${reg} AS VARCHAR),'Inconnu') AS region,
         COUNT(*)                                     AS total,
@@ -575,7 +575,7 @@ export async function fetchCanalHourly(
   const amt = qc(m.amount);
   const hr = hourExpr(m);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${hr}                                             AS hour,
         COUNT(*)                                          AS total,
@@ -607,7 +607,7 @@ export async function fetchCanalHourlyMatrix(
   const hr = hourExpr(m);
   const canal = canalCaseExpr(m);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${canal}  AS canal,
         ${hr}     AS hour,
@@ -639,7 +639,7 @@ export async function fetchDailyTrend(
   const dayExpr = transactionDayExpr(m.transactionDate);
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         CAST(${dayExpr} AS VARCHAR) AS day,
         COUNT(*) AS total,
@@ -681,7 +681,7 @@ export async function fetchCustomerProfile(
   const msLiteral = sqlLiteral(msisdn);
   try {
     const [agg, hourly, recent] = await Promise.all([
-      runQuery(`
+      runReadOnlyQuery(`
         SELECT
           CAST(${ms} AS VARCHAR)                                           AS msisdn,
           COALESCE(CAST(${cname} AS VARCHAR), CAST(${ms} AS VARCHAR))     AS name,
@@ -698,14 +698,14 @@ export async function fetchCustomerProfile(
         GROUP BY 1, 2
         LIMIT 1
       `),
-      runQuery(`
+      runReadOnlyQuery(`
         SELECT ${hr} AS hour, COUNT(*) AS total
         FROM ${qc(tableName)}
         WHERE CAST(${ms} AS VARCHAR) = ${msLiteral}
           AND ${hr} BETWEEN 0 AND 23
         GROUP BY 1 ORDER BY 1
       `),
-      runQuery(`
+      runReadOnlyQuery(`
         SELECT * FROM ${qc(tableName)}
         WHERE CAST(${ms} AS VARCHAR) = ${msLiteral}
         ORDER BY CAST(${qc(m.transactionDate)} AS VARCHAR) DESC
@@ -745,7 +745,7 @@ export async function fetchCanalRows(
 ): Promise<RawRow[]> {
   const where = canalWhere(m);
   try {
-    return await runQuery(`
+    return await runReadOnlyQuery(`
       SELECT * FROM ${qc(tableName)}
       WHERE ${where[key]}
       LIMIT ${limit}
@@ -795,8 +795,8 @@ export async function fetchFiltered(
     : "";
   try {
     const [cnt, data] = await Promise.all([
-      runQuery(`SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`),
-      runQuery(
+      runReadOnlyQuery(`SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`),
+      runReadOnlyQuery(
         `SELECT * FROM ${qc(tableName)} ${where} ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
       ),
     ]);
@@ -810,7 +810,7 @@ export async function detectAvailableColumns(
   tableName: string,
 ): Promise<string[]> {
   try {
-    const rows = await runQuery(`DESCRIBE ${qc(tableName)}`);
+    const rows = await runReadOnlyQuery(`DESCRIBE ${qc(tableName)}`);
     return rows.map((r) => String(r.column_name ?? ""));
   } catch {
     return [];
@@ -824,7 +824,7 @@ export async function fetchDistinctStatuses(
   const s = colExpr(m.status);
   const amt = colExpr(m.amount);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         UPPER(TRIM(CAST(${s} AS VARCHAR)))              AS raw_code,
         COUNT(*)                                        AS count,
@@ -860,7 +860,7 @@ export async function fetchSpecChannelStats(
   const rows = await Promise.all(
     channels.map(async (ch) => {
       try {
-        const res = await runQuery(`
+        const res = await runReadOnlyQuery(`
           SELECT COUNT(*) AS n, COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)),0) AS m
           FROM ${qc(tableName)}
           WHERE ${successFilter} AND (${ch.condition})${df}
@@ -921,7 +921,7 @@ export async function fetchSpecStatusStats(
   try {
     const results = await Promise.all(
       statusCases.map(async ([status, filter]) => {
-        const res = await runQuery(`
+        const res = await runReadOnlyQuery(`
           SELECT COUNT(*) AS n
           FROM ${qc(tableName)}
           WHERE ${filter} ${scope}${df}
@@ -962,7 +962,7 @@ export async function fetchSpecUnitAmountStats(
     SPEC_STATUS_CODES.success,
   );
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         CAST(TRY_CAST(${amountExpr} AS DOUBLE) AS VARCHAR) AS unit_amount,
         COUNT(*) AS n,
@@ -1002,7 +1002,7 @@ export async function fetchServiceCodeRows(
   const cat = colExpr(m.transactionType);
   const canal = canalCaseExpr(m);
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         UPPER(CAST(${svc} AS VARCHAR))  AS service_code,
         UPPER(CAST(${cat} AS VARCHAR))  AS category,
@@ -1030,7 +1030,7 @@ export async function runCustomKPIExpr(
   sqlExpr: string,
 ): Promise<number> {
   try {
-    const rows = await runQuery(
+    const rows = await runReadOnlyQuery(
       `SELECT (${sqlExpr}) AS val FROM ${qc(tableName)} LIMIT 1`,
     );
     return safeNum(rows[0]?.val);
@@ -1071,7 +1071,7 @@ export async function createTelecomEnrichedView(
 
   const cn = canalCaseExpr(m);
 
-  await runQuery(`
+  await runReadOnlyQuery(`
     CREATE OR REPLACE VIEW ${qc(viewName)} AS
     SELECT
       *,
@@ -1123,7 +1123,7 @@ export async function createTelecomDailyAgg(tableName: string): Promise<void> {
   const viewName = enrichedViewName(tableName);
   const aggTable = dailyAggTableName(tableName);
 
-  await runQuery(`
+  await runReadOnlyQuery(`
     CREATE OR REPLACE TABLE ${qc(aggTable)} AS
     SELECT
       _txn_day                                       AS day,

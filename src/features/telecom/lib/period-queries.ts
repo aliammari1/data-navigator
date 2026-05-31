@@ -23,7 +23,7 @@ import {
   SPEC_SUBMITTED_FILTER,
 } from "@/features/telecom/lib/status-definitions";
 import type { ColumnMapping } from "@/features/telecom/types";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface PeriodKPI {
   total: number;
@@ -106,7 +106,7 @@ export async function fetchPeriodKPI(
 
   if (hasEnriched) {
     try {
-      const rows = await runQuery(`
+      const rows = await runReadOnlyQuery(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE _status_norm = 'SUCCESS') AS success,
@@ -132,7 +132,7 @@ export async function fetchPeriodKPI(
   }
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
         SELECT
           COUNT(*) AS total,
           COUNT(*) FILTER (WHERE ${SPEC_SUCCESS_FILTER}) AS success,
@@ -181,7 +181,7 @@ export async function fetchSubStatusBreakdown(
   const inList = allCodes.map((c) => `'${c}'`).join(",");
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${RAW_TRANSACTION_STATUS_EXPR} AS code,
         COUNT(*) AS n,
@@ -236,7 +236,7 @@ export async function fetchTopAccounts(
   const orderCol = by === "amount" ? "amount" : "total";
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         CAST(${ms} AS VARCHAR) AS msisdn,
         FIRST(CAST(${nm} AS VARCHAR)) AS name,
@@ -289,7 +289,7 @@ export async function fetchDayBuckets(
   const dayExpr = transactionDayExpr(m.transactionDate);
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         CAST(${dayExpr} AS VARCHAR) AS day,
         COUNT(*) AS total,
@@ -321,7 +321,7 @@ export async function fetchAvailableDays(
   const dayExpr = transactionDayExpr(m?.transactionDate ?? "TRANSACTION_DATE");
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT DISTINCT CAST(${dayExpr} AS VARCHAR) AS day
       FROM ${qc(table)}
       WHERE ${dayExpr} IS NOT NULL
@@ -355,7 +355,7 @@ export async function fetchCanalHourPeriod(
   const hr = transactionHourExpr(m.transactionDate);
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         ${canal} AS canal,
         ${hr} AS hour,
@@ -399,7 +399,7 @@ export async function fetchBrandBreakdown(
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT
         TRY_CAST(BRAND_D AS INTEGER) AS brand_id,
         FIRST(CAST(BRAND_NAME AS VARCHAR)) AS brand_name,
@@ -513,7 +513,9 @@ function stddev(xs: number[], mean: number): number {
 
 export async function fetchRowCount(table: string): Promise<number> {
   try {
-    const rows = await runQuery(`SELECT COUNT(*) AS n FROM ${qc(table)}`);
+    const rows = await runReadOnlyQuery(
+      `SELECT COUNT(*) AS n FROM ${qc(table)}`,
+    );
     return safeNum(rows[0]?.n);
   } catch {
     return 0;
@@ -528,7 +530,7 @@ export async function fetchRowCountForDay(
   const dayExpr = transactionDayExpr(m.transactionDate);
 
   try {
-    const rows = await runQuery(`
+    const rows = await runReadOnlyQuery(`
       SELECT COUNT(*) AS n
       FROM ${qc(table)}
       WHERE ${dayExpr} = STRPTIME(${sqlLiteral(day)},'%Y-%m-%d')

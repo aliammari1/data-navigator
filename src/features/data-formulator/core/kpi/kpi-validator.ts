@@ -5,7 +5,7 @@
  * Validates that AI-generated KPI SQL is safe and syntactically reasonable.
  */
 
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface KpiValidationResult {
   valid: boolean;
@@ -77,7 +77,7 @@ export async function validateKpiSql(
   try {
     // Run with a small LIMIT to validate syntax and get sample
     const limited = sql.replace(/;?\s*$/, " LIMIT 5");
-    const data = await runQuery(limited);
+    const data = await runReadOnlyQuery(limited);
     const durationMs = Math.round(performance.now() - start);
 
     if (!Array.isArray(data) || data.length === 0) {

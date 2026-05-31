@@ -1,5 +1,101 @@
 import { contextBridge, ipcRenderer } from "electron";
 
+export type DataFileFilter = {
+  name: string;
+  extensions: string[];
+};
+
+export type OpenDialogOptions = {
+  title?: string;
+  filters?: DataFileFilter[];
+  properties?: Array<
+    | "openFile"
+    | "openDirectory"
+    | "multiSelections"
+    | "showHiddenFiles"
+    | "createDirectory"
+    | "promptToCreate"
+    | "noResolveAliases"
+    | "treatPackageAsDirectory"
+    | "dontAddToRecent"
+  >;
+};
+
+export type SaveDialogOptions = {
+  title?: string;
+  defaultPath?: string;
+  filters?: DataFileFilter[];
+};
+
+export type RegisteredDatasetColumn = {
+  name: string;
+  type: string;
+  nullable: boolean;
+};
+
+export type RegisteredDataset = {
+  id: string;
+  displayName: string;
+  viewName: string;
+  sourcePath: string;
+  cachePath: string;
+  sourceFormat: "csv" | "parquet";
+  rowCount: number;
+  columns: RegisteredDatasetColumn[];
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type RegisteredDatasetWithPreview = RegisteredDataset & {
+  previewRows: Record<string, unknown>[];
+};
+
+export type RegisterCSVPathDatasetInput = {
+  filePath: string;
+  displayName?: string;
+  hasHeader?: boolean;
+  delimiter?: string;
+  sampleSize?: number;
+  previewLimit?: number;
+};
+
+export type RegisterParquetPathDatasetInput = {
+  filePath: string;
+  displayName?: string;
+  previewLimit?: number;
+};
+
+export type PreviewDatasetInput = {
+  datasetId: string;
+  limit?: number;
+  offset?: number;
+};
+
+export type DatasetOnlyInput = {
+  datasetId: string;
+};
+
+export type ExportDatasetInput = {
+  datasetId: string;
+  targetPath: string;
+};
+
+export type QueryMetric = {
+  sql: string;
+  durationMs: number;
+  timestamp: number;
+  rowCount: number;
+};
+
+export type DuckDBStatus = {
+  active: boolean;
+  dbPath: string | null;
+  datasetsDir: string | null;
+  readConnections: number;
+  pendingReads: number;
+  pendingWrites: number;
+};
+
 const electronFS = {
   getDataDir: (): Promise<string> => ipcRenderer.invoke("fs:getDataDir"),
 
@@ -21,117 +117,75 @@ const electronFS = {
   fileExists: (filePath: string): Promise<boolean> =>
     ipcRenderer.invoke("fs:fileExists", filePath),
 
-  openDialog: (options: {
-    title?: string;
-    filters?: { name: string; extensions: string[] }[];
-    properties?: string[];
-  }): Promise<{ canceled: boolean; filePaths: string[] }> =>
+  openDialog: (
+    options: OpenDialogOptions,
+  ): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke("fs:openDialog", options),
 
-  saveDialog: (options: {
-    title?: string;
-    defaultPath?: string;
-    filters?: { name: string; extensions: string[] }[];
-  }): Promise<{ canceled: boolean; filePath?: string }> =>
+  saveDialog: (
+    options: SaveDialogOptions,
+  ): Promise<{ canceled: boolean; filePath?: string }> =>
     ipcRenderer.invoke("fs:saveDialog", options),
 } as const;
 
 const electronDuckDB = {
   init: (): Promise<{ success: boolean }> => ipcRenderer.invoke("duckdb:init"),
 
-  runQuery: (sql: string): Promise<Record<string, unknown>[]> =>
-    ipcRenderer.invoke("duckdb:runQuery", sql),
+  registerCSVPathDataset: (
+    input: RegisterCSVPathDatasetInput,
+  ): Promise<RegisteredDatasetWithPreview> =>
+    ipcRenderer.invoke("duckdb:registerCSVPathDataset", input),
 
-  runBatch: (sqls: string[]): Promise<Record<string, unknown>[][]> =>
-    ipcRenderer.invoke("duckdb:runBatch", sqls),
+  registerParquetPathDataset: (
+    input: RegisterParquetPathDatasetInput,
+  ): Promise<RegisteredDatasetWithPreview> =>
+    ipcRenderer.invoke("duckdb:registerParquetPathDataset", input),
 
-  prepare: (sql: string): Promise<string> =>
-    ipcRenderer.invoke("duckdb:prepare", sql),
+  listDatasets: (): Promise<RegisteredDataset[]> =>
+    ipcRenderer.invoke("duckdb:listDatasets"),
 
-  execute: (
-    stmtId: string,
-    params: unknown[],
+  previewDataset: (
+    input: PreviewDatasetInput,
   ): Promise<Record<string, unknown>[]> =>
-    ipcRenderer.invoke("duckdb:execute", stmtId, params),
+    ipcRenderer.invoke("duckdb:previewDataset", input),
 
-  disposePrepared: (stmtId: string): Promise<void> =>
-    ipcRenderer.invoke("duckdb:disposePrepared", stmtId),
+  summarizeDataset: (
+    input: DatasetOnlyInput,
+  ): Promise<Record<string, unknown>[]> =>
+    ipcRenderer.invoke("duckdb:summarizeDataset", input),
 
-  listTables: (): Promise<string[]> => ipcRenderer.invoke("duckdb:listTables"),
+  exportDataset: (input: ExportDatasetInput): Promise<void> =>
+    ipcRenderer.invoke("duckdb:exportDataset", input),
 
-  getTableInfo: (
-    tableName: string,
-  ): Promise<{
-    columns: Array<{ name: string; type: string; nullable: boolean }>;
-    rowCount: number;
-  }> => ipcRenderer.invoke("duckdb:getTableInfo", tableName),
+  deleteDataset: (input: DatasetOnlyInput): Promise<void> =>
+    ipcRenderer.invoke("duckdb:deleteDataset", input),
 
-  getColumnStats: (
-    tableName: string,
-    columnName: string,
-  ): Promise<{
-    min: unknown;
-    max: unknown;
-    avg: unknown;
-    nullCount: number;
-    distinctCount: number;
-    histogram: Array<{ bucket: string; count: number }>;
-  }> => ipcRenderer.invoke("duckdb:getColumnStats", tableName, columnName),
+  getStatus: (): Promise<DuckDBStatus> =>
+    ipcRenderer.invoke("duckdb:getStatus"),
 
-  loadCSVPath: (
-    tableName: string,
-    filePath: string,
-    append?: boolean,
-    hasHeader?: boolean,
-  ): Promise<void> =>
-    ipcRenderer.invoke(
-      "duckdb:loadCSVPath",
-      tableName,
-      filePath,
-      append,
-      hasHeader,
-    ),
-
-  loadCSVBuffer: (
-    tableName: string,
-    buffer: ArrayBuffer,
-    append?: boolean,
-    hasHeader?: boolean,
-  ): Promise<void> =>
-    ipcRenderer.invoke(
-      "duckdb:loadCSVBuffer",
-      tableName,
-      buffer,
-      append,
-      hasHeader,
-    ),
-
-  exportTableToParquet: (tableName: string, filePath: string): Promise<void> =>
-    ipcRenderer.invoke("duckdb:exportTableToParquet", tableName, filePath),
-
-  loadTableFromParquet: (tableName: string, filePath: string): Promise<void> =>
-    ipcRenderer.invoke("duckdb:loadTableFromParquet", tableName, filePath),
-
-  clearTable: (tableName: string): Promise<void> =>
-    ipcRenderer.invoke("duckdb:clearTable", tableName),
-
-  getStatus: (): Promise<{
-    opfsPersistenceActive: boolean;
-    dbPath: string | null;
-  }> => ipcRenderer.invoke("duckdb:getStatus"),
-
-  getQueryMetrics: (): Promise<
-    Array<{
-      sql: string;
-      durationMs: number;
-      timestamp: number;
-      rowCount: number;
-    }>
-  > => ipcRenderer.invoke("duckdb:getQueryMetrics"),
+  getQueryMetrics: (): Promise<QueryMetric[]> =>
+    ipcRenderer.invoke("duckdb:getQueryMetrics"),
 
   clearQueryMetrics: (): Promise<void> =>
     ipcRenderer.invoke("duckdb:clearQueryMetrics"),
+  runReadOnlyQuery: (sql: string): Promise<Record<string, unknown>[]> =>
+    ipcRenderer.invoke("duckdb:runReadOnlyQuery", sql),
+} as const;
+
+const electronVoice = {
+  getMicrophoneAccessStatus: (): Promise<
+    "not-determined" | "granted" | "denied" | "restricted" | "unknown"
+  > => ipcRenderer.invoke("voice:getMicrophoneAccessStatus"),
 } as const;
 
 contextBridge.exposeInMainWorld("electronFS", electronFS);
 contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
+contextBridge.exposeInMainWorld("electronVoice", electronVoice);
+
+declare global {
+  interface Window {
+    electronFS: typeof electronFS;
+    electronDuckDB: typeof electronDuckDB;
+    electronVoice: typeof electronVoice;
+  }
+}

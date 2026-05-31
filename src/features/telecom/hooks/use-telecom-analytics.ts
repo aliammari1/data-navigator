@@ -24,7 +24,7 @@ import {
   type ForecastPoint,
   forecastNextHours,
 } from "@/platform/browser/forecast-onnx";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface UseTelecomAnalyticsParams {
   /**
@@ -131,7 +131,7 @@ export function useTelecomAnalytics({
       sm: Types.StatusMapping[],
     ): Promise<TelecomAnalyticsPayload> => {
       try {
-        const check = await runQuery(
+        const check = await runReadOnlyQuery(
           `SELECT 1 FROM information_schema.tables WHERE table_name = '${table}' LIMIT 1`,
         );
         if (check.length === 0) return EMPTY_ANALYTICS;

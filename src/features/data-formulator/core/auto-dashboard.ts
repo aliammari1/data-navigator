@@ -10,7 +10,7 @@
  * writes queries, and generates insights in one shot.
  */
 
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { AgentGraph, type AgentTrace } from "./agent-graph";
 import { buildSQL } from "./sql";
 import type { ChartSpec, ColumnInfo, QueryResult } from "./types";
@@ -165,7 +165,7 @@ export async function generateDashboard(
       let queryResult: QueryResult;
       try {
         const sql = buildSQL(chartSpec, tableName, columns);
-        const data = await runQuery(sql);
+        const data = await runReadOnlyQuery(sql);
         queryResult = { sql, data, duration: 0, rowCount: data.length };
       } catch {
         continue;
