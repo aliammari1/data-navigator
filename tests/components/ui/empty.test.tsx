@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
   Empty,
   EmptyContent,
@@ -80,9 +80,7 @@ describe("EmptyTitle", () => {
 
 describe("EmptyDescription", () => {
   it("should render with description styles", () => {
-    render(
-      <EmptyDescription data-testid="desc">Description</EmptyDescription>,
-    );
+    render(<EmptyDescription data-testid="desc">Description</EmptyDescription>);
     const element = screen.getByTestId("desc");
     expect(element).toHaveClass("text-muted-foreground");
   });

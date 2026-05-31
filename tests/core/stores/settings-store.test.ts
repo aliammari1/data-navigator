@@ -1,6 +1,11 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
-import { useSettingsStore, type AccentColor, type DensityMode, type SidebarStyle } from "@/core/stores/settings-store";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  type AccentColor,
+  type DensityMode,
+  type SidebarStyle,
+  useSettingsStore,
+} from "@/core/stores/settings-store";
 
 describe("Settings Store", () => {
   beforeEach(() => {
@@ -53,7 +58,14 @@ describe("Settings Store", () => {
 
   it("should update accent color", () => {
     const { result } = renderHook(() => useSettingsStore());
-    const colors: AccentColor[] = ["indigo", "violet", "cyan", "emerald", "amber", "rose"];
+    const colors: AccentColor[] = [
+      "indigo",
+      "violet",
+      "cyan",
+      "emerald",
+      "amber",
+      "rose",
+    ];
 
     for (const color of colors) {
       act(() => {
