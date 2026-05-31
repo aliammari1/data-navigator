@@ -33,7 +33,7 @@ import {
 } from "@/features/telecom/lib/analytics-cache";
 import { listDailyStats } from "@/features/telecom/lib/daily-stats-cache";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
@@ -468,11 +468,11 @@ export default function CollaborationScreen() {
       if (initRef.current) return;
       initRef.current = true;
       try {
-        const tables = await runQuery("SHOW TABLES").catch(() => []);
+        const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
         const hasData = tables.length > 0;
         if (hasData) {
           const tableName = String(Object.values(tables[0])[0]);
-          await runQuery(
+          await runReadOnlyQuery(
             `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`,
           );
           if (!cancelled) {
@@ -1184,6 +1184,7 @@ export default function CollaborationScreen() {
                     />
                     <button
                       type="button"
+                      aria-label="Add comment"
                       onClick={handleAddComment}
                       disabled={
                         !access.permissions.canEditComments ||
@@ -1364,6 +1365,7 @@ export default function CollaborationScreen() {
                   />
                   <button
                     type="button"
+                    aria-label="Send chat message"
                     onClick={handleSendChat}
                     disabled={!chatInput.trim()}
                     className="p-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-xl text-primary-foreground transition-colors"

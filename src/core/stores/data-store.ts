@@ -1,10 +1,21 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
 import type { SupportedExtensions } from "@/shared/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export type ColType = "number" | "string" | "date" | "boolean" | "unknown";
+
+export type DatasetFormat =
+  | SupportedExtensions
+  | "csv"
+  | "tsv"
+  | "txt"
+  | "parquet"
+  | "pq";
+
+export type DatasetSource = "upload" | "paste" | "transform" | "catalog";
 
 export interface ColMeta {
   name: string;
@@ -15,26 +26,59 @@ export interface ColMeta {
   max?: number | string;
   mean?: number;
   stddev?: number;
-  sample: unknown[]; // up to 5 sample values
+  sample: unknown[];
 }
 
 export interface Dataset {
+  /**
+   * Stable app dataset id.
+   *
+   * In the new DuckDB model this should match the DuckDB catalog id:
+   * app_datasets.id, e.g. "ds_xxxxx".
+   */
   id: string;
+
+  /**
+   * Human-readable display name.
+   */
   name: string;
-  tableName: string; // DuckDB table name
-  source: "upload" | "paste" | "transform";
-  format: SupportedExtensions;
+
+  /**
+   * Compatibility field for older UI code.
+   *
+   * In the new model this is NOT a physical DuckDB table.
+   * It is the DuckDB view name created over the managed Parquet cache.
+   */
+  tableName: string;
+
+  /**
+   * Explicit new-name alias for tableName.
+   */
+  viewName: string;
+
+  /**
+   * Original selected file path, if available.
+   */
+  sourcePath?: string;
+
+  /**
+   * Managed Parquet cache path, if available.
+   */
+  cachePath?: string;
+
+  source: DatasetSource;
+  format: DatasetFormat;
   rowCount: number;
   colCount: number;
   sizeBytes: number;
   columns: ColMeta[];
   tags: string[];
   description: string;
-  createdAt: string; // ISO string (serialisable for persist)
+  createdAt: string;
   updatedAt: string;
-  parentId?: string; // for transformed datasets
+  parentId?: string;
   transformSql?: string;
-  qualityScore: number; // 0-100
+  qualityScore: number;
 }
 
 export interface QueryHistoryItem {
@@ -53,7 +97,7 @@ export interface SavedChart {
   datasetId: string;
   title: string;
   type: string;
-  config: Record<string, unknown>; // ECharts option
+  config: Record<string, unknown>;
   createdAt: string;
 }
 
@@ -86,16 +130,36 @@ interface DataStore {
   savedCharts: SavedChart[];
   transforms: DataTransform[];
 
-  /** Table names currently loaded in DuckDB WASM this browser session (not persisted — reset on refresh) */
+  /**
+   * Legacy compatibility.
+   *
+   * Previously this tracked tables loaded into DuckDB WASM during the browser
+   * session. In the new model DuckDB restores views in the Electron main
+   * process from app_datasets + Parquet cache.
+   *
+   * Keep this field only so older components do not break while migrating.
+   * It is intentionally not persisted.
+   */
   loadedTableNames: string[];
+
   markTableLoaded: (tableName: string) => void;
+  markDatasetViewLoaded: (viewName: string) => void;
 
   // Dataset actions
-  addDataset: (ds: Dataset) => void;
+  addDataset: (dataset: Dataset) => void;
+  upsertDataset: (dataset: Dataset) => void;
   updateDataset: (id: string, patch: Partial<Dataset>) => void;
   removeDataset: (id: string) => void;
   setActiveDataset: (id: string | null) => void;
   getActiveDataset: () => Dataset | undefined;
+
+  /**
+   * Sync UI store from DuckDB app_datasets catalog.
+   *
+   * This should be used instead of the old useDatasetRestore hook.
+   */
+  replaceDatasetsFromCatalog: (datasets: RegisteredDataset[]) => void;
+  upsertDatasetFromCatalog: (dataset: RegisteredDataset) => void;
 
   // Query history
   addQueryHistory: (item: QueryHistoryItem) => void;
@@ -106,11 +170,76 @@ interface DataStore {
   removeChart: (id: string) => void;
 
   // Transforms
-  addTransform: (t: DataTransform) => void;
+  addTransform: (transform: DataTransform) => void;
 
   // Utilities
   getDatasetById: (id: string) => Dataset | undefined;
   getDatasetByTable: (tableName: string) => Dataset | undefined;
+  getDatasetByView: (viewName: string) => Dataset | undefined;
+}
+
+function normalizeFormat(format: string): DatasetFormat {
+  const normalized = format.toLowerCase();
+
+  if (normalized === "parquet" || normalized === "pq") return normalized;
+  if (normalized === "tsv" || normalized === "txt" || normalized === "csv") {
+    return normalized;
+  }
+
+  return normalized as DatasetFormat;
+}
+
+function catalogDatasetToStoreDataset(dataset: RegisteredDataset): Dataset {
+  const columns: ColMeta[] = dataset.columns.map((column) => ({
+    name: column.name,
+    type: inferColType(column.type),
+    nullCount: 0,
+    distinctCount: 0,
+    sample: [],
+  }));
+
+  return {
+    id: dataset.id,
+    name: dataset.displayName,
+    tableName: dataset.viewName,
+    viewName: dataset.viewName,
+    sourcePath: dataset.sourcePath,
+    cachePath: dataset.cachePath,
+    source: "catalog",
+    format: normalizeFormat(dataset.sourceFormat),
+    rowCount: dataset.rowCount,
+    colCount: dataset.columns.length,
+    sizeBytes: 0,
+    columns,
+    tags: [],
+    description: "",
+    createdAt: dataset.createdAt,
+    updatedAt: dataset.updatedAt,
+    qualityScore: computeQualityScore(columns, dataset.rowCount),
+  };
+}
+
+function mergeDataset(
+  existing: Dataset | undefined,
+  incoming: Dataset,
+): Dataset {
+  if (!existing) return incoming;
+
+  return {
+    ...existing,
+    ...incoming,
+
+    // Preserve user-authored metadata.
+    tags: existing.tags,
+    description: existing.description,
+    savedUserFields: undefined,
+
+    // Preserve transform information if the catalog version does not know it.
+    parentId: existing.parentId,
+    transformSql: existing.transformSql,
+
+    updatedAt: incoming.updatedAt || existing.updatedAt,
+  } as Dataset;
 }
 
 export const useDataStore = create<DataStore>()(
@@ -124,82 +253,178 @@ export const useDataStore = create<DataStore>()(
       loadedTableNames: [],
 
       markTableLoaded: (tableName) =>
-        set((s) => ({
-          loadedTableNames: s.loadedTableNames.includes(tableName)
-            ? s.loadedTableNames
-            : [...s.loadedTableNames, tableName],
+        set((state) => ({
+          loadedTableNames: state.loadedTableNames.includes(tableName)
+            ? state.loadedTableNames
+            : [...state.loadedTableNames, tableName],
         })),
 
-      addDataset: (ds) =>
-        set((s) => ({
-          datasets: [ds, ...s.datasets],
-          activeDatasetId: s.activeDatasetId ?? ds.id,
+      markDatasetViewLoaded: (viewName) =>
+        set((state) => ({
+          loadedTableNames: state.loadedTableNames.includes(viewName)
+            ? state.loadedTableNames
+            : [...state.loadedTableNames, viewName],
         })),
+
+      addDataset: (dataset) =>
+        set((state) => ({
+          datasets: [dataset, ...state.datasets],
+          activeDatasetId: state.activeDatasetId ?? dataset.id,
+          loadedTableNames: state.loadedTableNames.includes(dataset.tableName)
+            ? state.loadedTableNames
+            : [...state.loadedTableNames, dataset.tableName],
+        })),
+
+      upsertDataset: (dataset) =>
+        set((state) => {
+          const exists = state.datasets.some((item) => item.id === dataset.id);
+          const datasets = exists
+            ? state.datasets.map((item) =>
+                item.id === dataset.id ? mergeDataset(item, dataset) : item,
+              )
+            : [dataset, ...state.datasets];
+
+          return {
+            datasets,
+            activeDatasetId: state.activeDatasetId ?? dataset.id,
+            loadedTableNames: state.loadedTableNames.includes(dataset.tableName)
+              ? state.loadedTableNames
+              : [...state.loadedTableNames, dataset.tableName],
+          };
+        }),
 
       updateDataset: (id, patch) =>
-        set((s) => ({
-          datasets: s.datasets.map((d) =>
-            d.id === id
-              ? { ...d, ...patch, updatedAt: new Date().toISOString() }
-              : d,
+        set((state) => ({
+          datasets: state.datasets.map((dataset) =>
+            dataset.id === id
+              ? {
+                  ...dataset,
+                  ...patch,
+                  updatedAt: new Date().toISOString(),
+                }
+              : dataset,
           ),
         })),
 
       removeDataset: (id) =>
-        set((s) => ({
-          datasets: s.datasets.filter((d) => d.id !== id),
-          activeDatasetId:
-            s.activeDatasetId === id
-              ? (s.datasets.find((d) => d.id !== id)?.id ?? null)
-              : s.activeDatasetId,
-        })),
+        set((state) => {
+          const removed = state.datasets.find((dataset) => dataset.id === id);
+          const remaining = state.datasets.filter(
+            (dataset) => dataset.id !== id,
+          );
+
+          return {
+            datasets: remaining,
+            activeDatasetId:
+              state.activeDatasetId === id
+                ? (remaining[0]?.id ?? null)
+                : state.activeDatasetId,
+            loadedTableNames: removed
+              ? state.loadedTableNames.filter(
+                  (tableName) =>
+                    tableName !== removed.tableName &&
+                    tableName !== removed.viewName,
+                )
+              : state.loadedTableNames,
+          };
+        }),
 
       setActiveDataset: (id) => set({ activeDatasetId: id }),
 
       getActiveDataset: () => {
         const { datasets, activeDatasetId } = get();
-        return datasets.find((d) => d.id === activeDatasetId);
+        return datasets.find((dataset) => dataset.id === activeDatasetId);
+      },
+
+      replaceDatasetsFromCatalog: (catalogDatasets) =>
+        set((state) => {
+          const incoming = catalogDatasets.map(catalogDatasetToStoreDataset);
+          const incomingIds = new Set(incoming.map((dataset) => dataset.id));
+
+          const preservedLocalDatasets = state.datasets.filter(
+            (dataset) =>
+              !incomingIds.has(dataset.id) && dataset.source !== "catalog",
+          );
+
+          const mergedIncoming = incoming.map((dataset) => {
+            const existing = state.datasets.find(
+              (item) => item.id === dataset.id,
+            );
+            return mergeDataset(existing, dataset);
+          });
+
+          const datasets = [...mergedIncoming, ...preservedLocalDatasets];
+
+          const activeDatasetId =
+            state.activeDatasetId &&
+            datasets.some((dataset) => dataset.id === state.activeDatasetId)
+              ? state.activeDatasetId
+              : (datasets[0]?.id ?? null);
+
+          return {
+            datasets,
+            activeDatasetId,
+            loadedTableNames: datasets.map((dataset) => dataset.tableName),
+          };
+        }),
+
+      upsertDatasetFromCatalog: (catalogDataset) => {
+        const dataset = catalogDatasetToStoreDataset(catalogDataset);
+        get().upsertDataset(dataset);
       },
 
       addQueryHistory: (item) =>
-        set((s) => ({
-          queryHistory: [item, ...s.queryHistory].slice(0, 200),
+        set((state) => ({
+          queryHistory: [item, ...state.queryHistory].slice(0, 200),
         })),
 
       clearQueryHistory: () => set({ queryHistory: [] }),
 
       saveChart: (chart) =>
-        set((s) => ({
-          savedCharts: [chart, ...s.savedCharts],
+        set((state) => ({
+          savedCharts: [chart, ...state.savedCharts],
         })),
 
       removeChart: (id) =>
-        set((s) => ({
-          savedCharts: s.savedCharts.filter((c) => c.id !== id),
+        set((state) => ({
+          savedCharts: state.savedCharts.filter((chart) => chart.id !== id),
         })),
 
-      addTransform: (t) =>
-        set((s) => ({
-          transforms: [t, ...s.transforms],
+      addTransform: (transform) =>
+        set((state) => ({
+          transforms: [transform, ...state.transforms],
         })),
 
-      getDatasetById: (id) => get().datasets.find((d) => d.id === id),
+      getDatasetById: (id) =>
+        get().datasets.find((dataset) => dataset.id === id),
+
       getDatasetByTable: (tableName) =>
-        get().datasets.find((d) => d.tableName === tableName),
+        get().datasets.find(
+          (dataset) =>
+            dataset.tableName === tableName || dataset.viewName === tableName,
+        ),
+
+      getDatasetByView: (viewName) =>
+        get().datasets.find((dataset) => dataset.viewName === viewName),
     }),
     {
       name: "data-navigator-datasets",
       storage: createJSONStorage(() => localStorage),
-      // Don't persist sample data to keep localStorage lean
-      partialize: (s) => ({
-        datasets: s.datasets.map((d) => ({
-          ...d,
-          columns: d.columns.map((c) => ({ ...c, sample: [] })),
+
+      // Keep localStorage lean. Do not persist loadedTableNames because DuckDB
+      // main-process init restores views from the catalog.
+      partialize: (state) => ({
+        datasets: state.datasets.map((dataset) => ({
+          ...dataset,
+          columns: dataset.columns.map((column) => ({
+            ...column,
+            sample: [],
+          })),
         })),
-        activeDatasetId: s.activeDatasetId,
-        queryHistory: s.queryHistory.slice(0, 50),
-        savedCharts: s.savedCharts,
-        transforms: s.transforms,
+        activeDatasetId: state.activeDatasetId,
+        queryHistory: state.queryHistory.slice(0, 50),
+        savedCharts: state.savedCharts,
+        transforms: state.transforms,
       }),
     },
   ),
@@ -207,40 +432,56 @@ export const useDataStore = create<DataStore>()(
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Infer column type from DuckDB type string */
+/** Infer app column type from DuckDB type string. */
 export function inferColType(duckType: string): ColType {
-  const t = duckType.toUpperCase();
+  const type = duckType.toUpperCase();
+
   if (
     /INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(
-      t,
+      type,
     )
-  )
+  ) {
     return "number";
-  if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(t)) return "date";
-  if (/BOOL/.test(t)) return "boolean";
-  if (/VARCHAR|TEXT|CHAR|STRING|BLOB/.test(t)) return "string";
+  }
+
+  if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(type)) return "date";
+  if (/BOOL/.test(type)) return "boolean";
+  if (/VARCHAR|TEXT|CHAR|STRING|BLOB|UUID|ENUM/.test(type)) return "string";
+
   return "unknown";
 }
 
-/** Compute quality score 0–100 based on column metadata */
+/** Compute quality score 0–100 based on column metadata. */
 export function computeQualityScore(cols: ColMeta[], rowCount: number): number {
   if (cols.length === 0 || rowCount === 0) return 0;
+
   const completeness =
-    cols.reduce((acc, c) => acc + (1 - c.nullCount / rowCount), 0) /
-    cols.length;
+    cols.reduce((acc, column) => {
+      return acc + (1 - column.nullCount / Math.max(1, rowCount));
+    }, 0) / cols.length;
+
   const uniqueness =
-    cols.reduce(
-      (acc, c) => acc + Math.min(1, c.distinctCount / Math.max(1, rowCount)),
-      0,
-    ) / cols.length;
+    cols.reduce((acc, column) => {
+      return acc + Math.min(1, column.distinctCount / Math.max(1, rowCount));
+    }, 0) / cols.length;
+
   return Math.round((completeness * 0.7 + uniqueness * 0.3) * 100);
 }
 
-/** Generate a safe DuckDB table name from a file name */
+/**
+ * Generate a safe view/table-ish name from a display name.
+ *
+ * New code should prefer the DuckDB catalog `viewName` returned by
+ * registerCSVPathDataset/registerParquetPathDataset.
+ */
 export function toTableName(name: string): string {
-  return name
-    .replace(/\.[^.]+$/, "")
-    .replace(/[^a-zA-Z0-9_]/g, "_")
-    .replace(/^(\d)/, "_$1")
-    .toLowerCase();
+  return (
+    name
+      .replace(/\.[^.]+$/, "")
+      .replace(/[^a-zA-Z0-9_]/g, "_")
+      .replace(/^(\d)/, "_$1")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .toLowerCase() || "dataset"
+  );
 }

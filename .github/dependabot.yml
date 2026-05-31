@@ -1,0 +1,55 @@
+version: 2
+
+updates:
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:00"
+      timezone: "Africa/Tunis"
+    open-pull-requests-limit: 8
+    groups:
+      electron-stack:
+        patterns:
+          - "electron"
+          - "@electron/*"
+          - "@electron-forge/*"
+          - "electron-*"
+      next-react-stack:
+        patterns:
+          - "next"
+          - "react"
+          - "react-dom"
+          - "@next/*"
+      storybook-stack:
+        patterns:
+          - "storybook"
+          - "@storybook/*"
+      test-stack:
+        patterns:
+          - "vitest"
+          - "@vitest/*"
+          - "@testing-library/*"
+          - "@playwright/*"
+      ai-edge-stack:
+        patterns:
+          - "@huggingface/*"
+          - "@mlc-ai/*"
+          - "sherpa-onnx-node"
+          - "@tensorflow/*"
+          - "@lancedb/*"
+      forge-makers:
+        patterns:
+          - "@electron-forge/maker-*"
+          - "@electron-forge/plugin-*"
+          - "@electron-forge/publisher-*"
+
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+      day: monday
+      time: "04:30"
+      timezone: "Africa/Tunis"
+    open-pull-requests-limit: 5

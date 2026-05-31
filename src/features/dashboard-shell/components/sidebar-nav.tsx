@@ -234,23 +234,6 @@ const NAV_SECTIONS = [
         ],
       },
       {
-        title: "Agent Mesh",
-        href: "/dashboard/agent-mesh",
-        icon: ShieldCheck,
-        description: "Telecom agent cockpit",
-        badge: "MESH",
-        badgeColor: "emerald",
-        keywords: [
-          "agent",
-          "mesh",
-          "telecom",
-          "root cause",
-          "evidence",
-          "cockpit",
-          "planner",
-        ],
-      },
-      {
         title: "Data Formulator",
         href: "/dashboard/data-formulator",
         icon: FlaskConical,
@@ -564,7 +547,7 @@ function AppSidebar({
       initial={false}
       animate={{ width: collapsed ? 52 : 220 }}
       transition={{ duration: 0.2, ease: [0.4, 0, 0.2, 1] }}
-      className="relative flex flex-col h-full bg-background border-r border-border/60 overflow-hidden flex-none"
+      className="relative hidden h-full flex-none flex-col overflow-hidden border-r border-border/60 bg-background md:flex"
     >
       {/* Logo */}
       <div
@@ -1333,10 +1316,10 @@ function Topbar({
   }
 
   return (
-    <header className="h-14 flex items-center gap-3 px-4 border-b border-border bg-background/80 backdrop-blur flex-none z-40">
+    <header className="z-40 flex h-14 flex-none items-center gap-2 overflow-hidden border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
       {/* Breadcrumbs */}
       {showBreadcrumbs && (
-        <nav className="flex items-center gap-1 text-xs text-muted-foreground min-w-0 flex-1">
+        <nav className="hidden min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground sm:flex">
           {crumbs.map((crumb, i) => (
             <span key={crumb.href} className="flex items-center gap-1 min-w-0">
               {i > 0 && (
@@ -1363,16 +1346,20 @@ function Topbar({
       {/* Active dataset picker */}
       <DatasetPicker />
 
-      <AccessControlPill />
+      <div className="hidden md:block">
+        <AccessControlPill />
+      </div>
 
       {/* Global data search */}
-      <GlobalDataSearch />
+      <div className="hidden sm:block">
+        <GlobalDataSearch />
+      </div>
 
       {/* Page search trigger */}
       <button
         type="button"
         onClick={onCmdPalette}
-        className="flex items-center gap-2 px-3 py-1.5 bg-accent hover:bg-accent/80 border border-border rounded-xl text-xs text-muted-foreground hover:text-foreground transition-colors group"
+        className="flex items-center gap-2 rounded-xl border border-border bg-accent px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:px-3"
       >
         <Search className="w-3.5 h-3.5" />
         <span className="hidden md:inline">Search…</span>
@@ -1385,13 +1372,13 @@ function Topbar({
       <button
         type="button"
         onClick={cycleTheme}
-        className="w-8 h-8 rounded-xl bg-accent hover:bg-accent/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        className="hidden h-8 w-8 items-center justify-center rounded-xl bg-accent text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
       >
         <ThemeIcon className="w-4 h-4" />
       </button>
 
       {/* Notifications */}
-      <div className="relative" ref={notifRef}>
+      <div className="relative hidden sm:block" ref={notifRef}>
         <button
           type="button"
           onClick={() => setNotifOpen((v) => !v)}
@@ -1476,7 +1463,7 @@ function Topbar({
         <button
           type="button"
           onClick={onAiToggle}
-          className="w-8 h-8 rounded-xl bg-violet-500/10 hover:bg-violet-500/20 flex items-center justify-center text-violet-400 hover:text-violet-300 transition-colors"
+          className="hidden h-8 w-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 transition-colors hover:bg-violet-500/20 hover:text-violet-300 sm:flex"
           title="AI Assistant (Ctrl+\)"
         >
           <Brain className="w-4 h-4" />
@@ -1486,7 +1473,7 @@ function Topbar({
       {/* Settings shortcut */}
       <Link
         href="/dashboard/settings"
-        className="w-8 h-8 rounded-xl bg-accent hover:bg-accent/80 flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
+        className="hidden h-8 w-8 items-center justify-center rounded-xl bg-accent text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
       >
         <Settings className="w-4 h-4" />
       </Link>

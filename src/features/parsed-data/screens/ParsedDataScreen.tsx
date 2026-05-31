@@ -1,25 +1,18 @@
 "use client";
 
 import {
-  AlertCircle,
   AlertTriangle,
-  ArrowUpDown,
   BarChart3,
   Calendar,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  ChevronUp,
   Copy,
   Database,
   Download,
   Eye,
   FileSearch,
-  Filter,
   Fingerprint,
   Grid3x3,
   Hash,
-  Info,
   Layers,
   Percent,
   RefreshCw,
@@ -29,7 +22,6 @@ import {
   SlidersHorizontal,
   Star,
   Table2,
-  ToggleLeft,
   TrendingUp,
   Type,
   X,
@@ -39,12 +31,15 @@ import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
-import { getTableInfo, runQuery } from "@/platform/duckdb/duckdb";
+import {
+  listRegisteredDatasets,
+  runReadOnlyQuery,
+  type RegisteredDataset,
+} from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
 import {
-  ColCard,
   QualityRing,
   StatGrid,
 } from "@/features/parsed-data/components/profile-cards";
@@ -58,17 +53,35 @@ import type {
   ColProfile,
   QualityDimension,
 } from "@/features/parsed-data/model/types";
+import { cn } from "@/shared/utils";
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace('"', '""')}"`;
+  return `"${value.replaceAll('"', '""')}"`;
 }
 
-function tableNameFromShowTables(row: Record<string, unknown>): string {
-  return String(row.name ?? row.table_name ?? Object.values(row)[0] ?? "");
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  const text = String(value);
+
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  return text;
+}
+
+function numberOrUndefined(value: unknown): number | undefined {
+  if (value === null || value === undefined) return undefined;
+
+  const numberValue = Number(value);
+
+  return Number.isFinite(numberValue) ? numberValue : undefined;
 }
 
 function toProfileType(sqlType: string): ColProfile["type"] {
   const type = sqlType.toUpperCase();
+
   if (
     /TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT/.test(
       type,
@@ -76,105 +89,438 @@ function toProfileType(sqlType: string): ColProfile["type"] {
   ) {
     return "integer";
   }
+
   if (/DECIMAL|DOUBLE|FLOAT|REAL|NUMERIC/.test(type)) return "float";
   if (/BOOL/.test(type)) return "boolean";
   if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(type)) return "date";
   if (/VARCHAR|TEXT|CHAR|STRING|UUID|BLOB/.test(type)) return "string";
+
   return "unknown";
 }
 
-// ─── Main Component ────────────────────────────────────────────────────────
+function appTypeToDuckType(type: string): string {
+  if (type === "number") return "DOUBLE";
+  if (type === "boolean") return "BOOLEAN";
+  if (type === "date") return "TIMESTAMP";
+
+  return "VARCHAR";
+}
+
+function profileScore(profile: ColProfile): number {
+  return (
+    profile.completeness * 0.5 +
+    profile.uniqueness * 0.25 +
+    profile.validity * 0.25
+  );
+}
+
+function datasetColumnDefs(
+  dataset: RegisteredDataset | null,
+  fallbackDataset:
+    | {
+        columns: Array<{ name: string; type: string }>;
+      }
+    | null,
+): Array<{
+  index: number;
+  name: string;
+  type: ColProfile["type"];
+  sqlType: string;
+}> {
+  if (dataset) {
+    return dataset.columns.map((column, index) => ({
+      index,
+      name: column.name,
+      type: toProfileType(column.type),
+      sqlType: column.type,
+    }));
+  }
+
+  if (fallbackDataset) {
+    return fallbackDataset.columns.map((column, index) => {
+      const sqlType = appTypeToDuckType(column.type);
+
+      return {
+        index,
+        name: column.name,
+        type: toProfileType(sqlType),
+        sqlType,
+      };
+    });
+  }
+
+  return [];
+}
+
+function formatNumber(value: number | undefined, digits = 2): string {
+  if (value === undefined || Number.isNaN(value)) return "—";
+
+  return value.toLocaleString(undefined, {
+    maximumFractionDigits: digits,
+  });
+}
+
+function getDatasetViewName(
+  dataset: RegisteredDataset | null,
+  fallbackDataset:
+    | {
+        tableName?: string;
+        viewName?: string;
+      }
+    | null,
+): string | null {
+  return dataset?.viewName ?? fallbackDataset?.viewName ?? fallbackDataset?.tableName ?? null;
+}
+
+function getDatasetDisplayName(
+  dataset: RegisteredDataset | null,
+  fallbackDataset:
+    | {
+        name?: string;
+      }
+    | null,
+  viewName: string | null,
+): string {
+  return dataset?.displayName ?? fallbackDataset?.name ?? viewName ?? "Dataset";
+}
+
+function getDatasetRowCount(
+  dataset: RegisteredDataset | null,
+  fallbackDataset:
+    | {
+        rowCount?: number;
+      }
+    | null,
+): number {
+  return dataset?.rowCount ?? fallbackDataset?.rowCount ?? 0;
+}
+
+function buildQualityDimensions(profiles: ColProfile[]): QualityDimension[] {
+  const profileCount = Math.max(profiles.length, 1);
+  const avgCompleteness =
+    profiles.reduce((sum, profile) => sum + profile.completeness, 0) /
+    profileCount;
+  const avgUniqueness =
+    profiles.reduce((sum, profile) => sum + profile.uniquenessRate, 0) /
+    profileCount;
+  const avgValidity =
+    profiles.reduce((sum, profile) => sum + profile.validity, 0) /
+    profileCount;
+  const consistency =
+    profiles.filter((profile) => profile.nullRate < 0.01).length / profileCount;
+
+  return [
+    {
+      name: "Completeness",
+      score: avgCompleteness,
+      description: "Proportion of non-null values across all columns",
+      affected: profiles
+        .filter((profile) => profile.completeness < 0.95)
+        .map((profile) => profile.name),
+    },
+    {
+      name: "Uniqueness",
+      score: Math.min(1, avgUniqueness * 2),
+      description: "How unique values are relative to total rows",
+      affected: profiles
+        .filter((profile) => profile.uniquenessRate < 0.1)
+        .map((profile) => profile.name),
+    },
+    {
+      name: "Validity",
+      score: avgValidity,
+      description: "Values conform to expected type and format",
+      affected: profiles
+        .filter((profile) => profile.validity < 0.8)
+        .map((profile) => profile.name),
+    },
+    {
+      name: "Consistency",
+      score: consistency,
+      description: "Columns with less than 1% null values",
+      affected: profiles
+        .filter((profile) => profile.nullRate >= 0.01)
+        .map((profile) => profile.name),
+    },
+  ];
+}
+
+function DatasetEmptyState() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-violet-950/30 p-6">
+      <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-2xl">
+        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-violet-500/10 text-violet-500">
+          <Database className="h-8 w-8" />
+        </div>
+
+        <h1 className="mt-5 text-xl font-bold text-foreground">
+          No dataset loaded
+        </h1>
+
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+          Import a CSV, TXT, TSV, or Parquet dataset first. Once a dataset is in
+          the DuckDB catalog, this page will generate a full column profile.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function ColumnListCard({
+  profile,
+  selected,
+  onClick,
+}: {
+  profile: ColProfile;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  const Icon = typeIcon(profile.type);
+  const score = profileScore(profile);
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "group w-full rounded-2xl border p-3 text-left transition-all",
+        selected
+          ? "border-violet-500/50 bg-violet-500/10 shadow-sm"
+          : "border-border bg-card hover:border-violet-500/30 hover:bg-muted/40",
+      )}
+    >
+      <div className="flex items-start gap-3">
+        <div className={cn("rounded-xl p-2", typeColor(profile.type))}>
+          <Icon className="h-4 w-4" />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="truncate font-mono text-sm font-semibold text-foreground">
+            {profile.name}
+          </div>
+
+          <div className="mt-1 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+              {profile.sqlType}
+            </span>
+
+            {profile.nullRate > 0.05 && (
+              <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-[10px] text-amber-600 dark:text-amber-300">
+                {(profile.nullRate * 100).toFixed(1)}% null
+              </span>
+            )}
+          </div>
+
+          <div className="mt-3 flex items-center gap-2">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: `${score * 100}%`,
+                  backgroundColor: qualityColor(score),
+                }}
+              />
+            </div>
+            <span
+              className="text-[10px] font-bold"
+              style={{ color: qualityColor(score) }}
+            >
+              {(score * 100).toFixed(0)}%
+            </span>
+          </div>
+        </div>
+      </div>
+    </button>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+  sub,
+}: {
+  label: string;
+  value: string | number;
+  icon: typeof Database;
+  tone: string;
+  sub?: string;
+}) {
+  return (
+    <div className="rounded-2xl border border-border bg-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <div className="text-xs font-medium text-muted-foreground">
+            {label}
+          </div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">
+            {value}
+          </div>
+          {sub && <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>}
+        </div>
+        <div className={cn("rounded-2xl p-3", tone)}>
+          <Icon className="h-5 w-5" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ParsedDataScreen() {
-  const { datasets, activeDatasetId, loadedTableNames } = useDataStore();
-  const activeDataset =
+  const {
+    datasets,
+    activeDatasetId,
+    setActiveDataset,
+    replaceDatasetsFromCatalog,
+  } = useDataStore();
+
+  const activeStoreDataset =
     datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
+
+  const [catalog, setCatalog] = useState<RegisteredDataset[]>([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+
+  const activeCatalogDataset =
+    catalog.find((dataset) => dataset.id === activeDatasetId) ??
+    catalog[0] ??
+    null;
+
+  const activeViewName = getDatasetViewName(
+    activeCatalogDataset,
+    activeStoreDataset,
+  );
+  const activeDisplayName = getDatasetDisplayName(
+    activeCatalogDataset,
+    activeStoreDataset,
+    activeViewName,
+  );
+  const activeRowCount = getDatasetRowCount(
+    activeCatalogDataset,
+    activeStoreDataset,
+  );
+
+  const columnDefs = useMemo(
+    () => datasetColumnDefs(activeCatalogDataset, activeStoreDataset),
+    [activeCatalogDataset, activeStoreDataset],
+  );
 
   const [profiles, setProfiles] = useState<ColProfile[]>([]);
   const [selectedCol, setSelectedCol] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState("");
+  const [profileProgress, setProfileProgress] = useState({
+    done: 0,
+    total: 0,
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
   const [qualityFilter, setQualityFilter] = useState<string>("all");
   const [sortBy, setSortBy] = useState<
     "name" | "nullRate" | "distinctCount" | "quality"
-  >("name");
-  const [sortAsc, setSortAsc] = useState(true);
+  >("quality");
+  const [sortAsc, setSortAsc] = useState(false);
   const [activeDetailTab, setActiveDetailTab] = useState<
     "overview" | "distribution" | "quality" | "samples"
   >("overview");
-  const [rowCount, setRowCount] = useState(0);
-  const [colCount, setColCount] = useState(0);
   const [qualityDimensions, setQualityDimensions] = useState<
     QualityDimension[]
   >([]);
-  const [activeTableName, setActiveTableName] = useState<string | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const refreshCatalog = useCallback(async () => {
+    setCatalogLoading(true);
+    setCatalogError(null);
+
+    try {
+      const nextCatalog = await listRegisteredDatasets();
+
+      setCatalog(nextCatalog);
+      replaceDatasetsFromCatalog(nextCatalog);
+
+      if (!activeDatasetId && nextCatalog[0]) {
+        setActiveDataset(nextCatalog[0].id);
+      }
+    } catch (error) {
+      setCatalogError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setCatalogLoading(false);
+    }
+  }, [activeDatasetId, replaceDatasetsFromCatalog, setActiveDataset]);
+
+  useEffect(() => {
+    refreshCatalog();
+  }, [refreshCatalog, refreshKey]);
 
   const computeProfiles = useCallback(
     async (
       tableName: string,
-      columnDefs: Array<{
+      defs: Array<{
         index: number;
         name: string;
         type: ColProfile["type"];
         sqlType: string;
       }>,
-      cancelled: boolean,
+      isCancelled: () => boolean,
     ) => {
       setLoading(true);
+      setProfiles([]);
+      setSelectedCol(null);
+      setQualityDimensions([]);
+      setProfileProgress({ done: 0, total: defs.length });
 
-      setColCount(columnDefs.length);
       const profileResults: ColProfile[] = [];
       const quotedTable = quoteIdentifier(tableName);
 
-      for (let ci = 0; ci < columnDefs.length; ci++) {
-        if (cancelled) break;
-        const col = columnDefs[ci];
-        const quotedColumn = quoteIdentifier(col.name);
+      for (let columnIndex = 0; columnIndex < defs.length; columnIndex += 1) {
+        if (isCancelled()) break;
+
+        const column = defs[columnIndex];
+        const quotedColumn = quoteIdentifier(column.name);
+
         setLoadingStage(
-          `Profiling column ${ci + 1}/${columnDefs.length}: ${col.name}...`,
+          `Profiling ${columnIndex + 1}/${defs.length}: ${column.name}`,
         );
 
         try {
-          const baseRes = await runQuery(`
-          SELECT
-            COUNT(*) as total,
-            COUNT(${quotedColumn}) as non_null,
-            COUNT(DISTINCT ${quotedColumn}) as distinct_count
-          FROM ${quotedTable}
-        `);
-          const base = baseRes[0] as Record<string, number>;
-          const total = Number(base.total);
-          const nonNull = Number(base.non_null);
-          const nullCount = total - nonNull;
-          const nullRate = total > 0 ? nullCount / total : 0;
-          const distinctCount = Number(base.distinct_count);
+          const baseRows = await runReadOnlyQuery(`
+            SELECT
+              COUNT(*) AS total,
+              COUNT(${quotedColumn}) AS non_null,
+              COUNT(DISTINCT ${quotedColumn}) AS distinct_count
+            FROM ${quotedTable}
+          `);
 
-          // Top values
-          const topRes = await runQuery(`
-          SELECT CAST(${quotedColumn} AS VARCHAR) as val, COUNT(*) as cnt
-          FROM ${quotedTable}
-          WHERE ${quotedColumn} IS NOT NULL
-          GROUP BY val
-          ORDER BY cnt DESC
-          LIMIT 10
-        `);
-          const topValues = topRes.map((r) => {
-            const row = r as Record<string, unknown>;
-            return {
-              value: String(row.val ?? ""),
-              count: Number(row.cnt),
-              pct: total > 0 ? Number(row.cnt) / total : 0,
-            };
-          });
+          const base = baseRows[0] ?? {};
+          const total = Number(base.total ?? 0);
+          const nonNull = Number(base.non_null ?? 0);
+          const nullCount = Math.max(0, total - nonNull);
+          const nullRate = total > 0 ? nullCount / total : 0;
+          const distinctCount = Number(base.distinct_count ?? 0);
+
+          const topRows = await runReadOnlyQuery(`
+            SELECT
+              CAST(${quotedColumn} AS VARCHAR) AS val,
+              COUNT(*) AS cnt
+            FROM ${quotedTable}
+            WHERE ${quotedColumn} IS NOT NULL
+            GROUP BY val
+            ORDER BY cnt DESC
+            LIMIT 10
+          `);
+
+          const topValues = topRows.map((row) => ({
+            value: String(row.val ?? ""),
+            count: Number(row.cnt ?? 0),
+            pct: total > 0 ? Number(row.cnt ?? 0) / total : 0,
+          }));
 
           const profile: ColProfile = {
-            name: col.name,
-            index: col.index,
-            type: col.type,
-            sqlType: col.sqlType,
+            name: column.name,
+            index: column.index,
+            type: column.type,
+            sqlType: column.sqlType,
             rowCount: total,
             nullCount,
             nullRate,
@@ -183,91 +529,97 @@ export default function ParsedDataScreen() {
             topValues,
             completeness: 1 - nullRate,
             uniqueness: Math.min(1, distinctCount / Math.max(total * 0.5, 1)),
-            validity: col.type !== "unknown" ? 0.95 : 0.5,
+            validity: column.type !== "unknown" ? 0.95 : 0.5,
           };
 
-          // Numeric stats
-          if (col.type === "integer" || col.type === "float") {
-            const numRes = await runQuery(`
-            SELECT
-              MIN(${quotedColumn}) as min_val,
-              MAX(${quotedColumn}) as max_val,
-              AVG(${quotedColumn}) as avg_val,
-              STDDEV_SAMP(${quotedColumn}) as std_val,
-              MEDIAN(${quotedColumn}) as median_val,
-              PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${quotedColumn}) as p25,
-              PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${quotedColumn}) as p75,
-              SUM(${quotedColumn}) as sum_val
-            FROM ${quotedTable}
-            WHERE ${quotedColumn} IS NOT NULL
-          `);
-            const nr = numRes[0] as Record<string, number>;
-            profile.min = Number(nr.min_val);
-            profile.max = Number(nr.max_val);
-            profile.avg = Number(nr.avg_val);
-            profile.stddev = Number(nr.std_val);
-            profile.median = Number(nr.median_val);
-            profile.p25 = Number(nr.p25);
-            profile.p75 = Number(nr.p75);
-            profile.sum = Number(nr.sum_val);
-
-            // Histogram
-            const binCount = 20;
-            const range = profile.max - profile.min;
-            if (range > 0) {
-              const binWidth = range / binCount;
-              const histRes = await runQuery(`
+          if (column.type === "integer" || column.type === "float") {
+            const numericRows = await runReadOnlyQuery(`
               SELECT
-                FLOOR((${quotedColumn} - ${profile.min}) / ${binWidth}) as bin,
-                COUNT(*) as cnt
+                MIN(${quotedColumn}) AS min_val,
+                MAX(${quotedColumn}) AS max_val,
+                AVG(${quotedColumn}) AS avg_val,
+                STDDEV_SAMP(${quotedColumn}) AS std_val,
+                MEDIAN(${quotedColumn}) AS median_val,
+                PERCENTILE_CONT(0.25) WITHIN GROUP (ORDER BY ${quotedColumn}) AS p25,
+                PERCENTILE_CONT(0.75) WITHIN GROUP (ORDER BY ${quotedColumn}) AS p75,
+                SUM(${quotedColumn}) AS sum_val
               FROM ${quotedTable}
               WHERE ${quotedColumn} IS NOT NULL
-              GROUP BY bin
-              ORDER BY bin
             `);
-              const minVal = profile.min ?? 0;
+
+            const numeric = numericRows[0] ?? {};
+
+            profile.min = numberOrUndefined(numeric.min_val);
+            profile.max = numberOrUndefined(numeric.max_val);
+            profile.avg = numberOrUndefined(numeric.avg_val);
+            profile.stddev = numberOrUndefined(numeric.std_val);
+            profile.median = numberOrUndefined(numeric.median_val);
+            profile.p25 = numberOrUndefined(numeric.p25);
+            profile.p75 = numberOrUndefined(numeric.p75);
+            profile.sum = numberOrUndefined(numeric.sum_val);
+
+            if (
+              profile.min !== undefined &&
+              profile.max !== undefined &&
+              profile.max > profile.min
+            ) {
+              const binCount = 20;
+              const range = profile.max - profile.min;
+              const binWidth = range / binCount;
+
+              const histogramRows = await runReadOnlyQuery(`
+                SELECT
+                  FLOOR((${quotedColumn} - ${profile.min}) / ${binWidth}) AS bin,
+                  COUNT(*) AS cnt
+                FROM ${quotedTable}
+                WHERE ${quotedColumn} IS NOT NULL
+                GROUP BY bin
+                ORDER BY bin
+              `);
+
               const bins: { lo: number; hi: number; count: number }[] =
-                Array.from({ length: binCount }, (_, i) => ({
-                  lo: minVal + i * binWidth,
-                  hi: minVal + (i + 1) * binWidth,
+                Array.from({ length: binCount }, (_, index) => ({
+                  lo: profile.min! + index * binWidth,
+                  hi: profile.min! + (index + 1) * binWidth,
                   count: 0,
                 }));
-              for (const r of histRes) {
-                const row = r as Record<string, number>;
-                const idx = Math.min(
-                  Math.max(0, Number(row.bin)),
-                  binCount - 1,
-                );
-                bins[idx].count = Number(row.cnt);
+
+              for (const row of histogramRows) {
+                const bin = Number(row.bin ?? 0);
+                const idx = Math.min(Math.max(0, bin), binCount - 1);
+                bins[idx].count = Number(row.cnt ?? 0);
               }
+
               profile.histogram = bins;
             }
           }
 
-          // String stats
-          if (col.type === "string") {
-            const strRes = await runQuery(`
-            SELECT
-              MIN(LENGTH(${quotedColumn})) as min_len,
-              MAX(LENGTH(${quotedColumn})) as max_len,
-              AVG(LENGTH(${quotedColumn})) as avg_len
-            FROM ${quotedTable}
-            WHERE ${quotedColumn} IS NOT NULL
-          `);
-            const sr = strRes[0] as Record<string, number>;
-            profile.minLen = Number(sr.min_len);
-            profile.maxLen = Number(sr.max_len);
-            profile.avgLen = Number(sr.avg_len);
+          if (column.type === "string") {
+            const stringRows = await runReadOnlyQuery(`
+              SELECT
+                MIN(LENGTH(${quotedColumn})) AS min_len,
+                MAX(LENGTH(${quotedColumn})) AS max_len,
+                AVG(LENGTH(${quotedColumn})) AS avg_len
+              FROM ${quotedTable}
+              WHERE ${quotedColumn} IS NOT NULL
+            `);
+
+            const stringStats = stringRows[0] ?? {};
+
+            profile.minLen = numberOrUndefined(stringStats.min_len);
+            profile.maxLen = numberOrUndefined(stringStats.max_len);
+            profile.avgLen = numberOrUndefined(stringStats.avg_len);
           }
 
           profileResults.push(profile);
-        } catch (e) {
-          console.error(`Error profiling ${col.name}:`, e);
+        } catch (error) {
+          console.error(`Error profiling ${column.name}:`, error);
+
           profileResults.push({
-            name: col.name,
-            index: col.index,
-            type: col.type,
-            sqlType: col.sqlType,
+            name: column.name,
+            index: column.index,
+            type: column.type,
+            sqlType: column.sqlType,
             rowCount: 0,
             nullCount: 0,
             nullRate: 0,
@@ -279,207 +631,165 @@ export default function ParsedDataScreen() {
             validity: 0,
           });
         }
+
+        if (!isCancelled()) {
+          setProfileProgress({
+            done: columnIndex + 1,
+            total: defs.length,
+          });
+          setProfiles([...profileResults]);
+        }
       }
 
-      if (!cancelled) {
+      if (!isCancelled()) {
         setProfiles(profileResults);
-        if (profileResults.length > 0) setSelectedCol(profileResults[0].name);
-
-        // Compute quality dimensions
-        const profileCount = Math.max(profileResults.length, 1);
-        const avgComp =
-          profileResults.reduce((s, p) => s + p.completeness, 0) / profileCount;
-        const avgUniq =
-          profileResults.reduce((s, p) => s + p.uniquenessRate, 0) /
-          profileCount;
-        const avgValid =
-          profileResults.reduce((s, p) => s + p.validity, 0) / profileCount;
-        const lowCompCols = profileResults
-          .filter((p) => p.completeness < 0.95)
-          .map((p) => p.name);
-        const lowUniqCols = profileResults
-          .filter((p) => p.uniquenessRate < 0.1)
-          .map((p) => p.name);
-        const lowValidCols = profileResults
-          .filter((p) => p.validity < 0.8)
-          .map((p) => p.name);
-        const consistency =
-          profileResults.filter((p) => p.nullRate < 0.01).length / profileCount;
-
-        setQualityDimensions([
-          {
-            name: "Completeness",
-            score: avgComp,
-            description: "Proportion of non-null values across all columns",
-            affected: lowCompCols,
-          },
-          {
-            name: "Uniqueness",
-            score: Math.min(1, avgUniq * 2),
-            description: "How unique values are relative to total rows",
-            affected: lowUniqCols,
-          },
-          {
-            name: "Validity",
-            score: avgValid,
-            description: "Values conform to expected type and format",
-            affected: lowValidCols,
-          },
-          {
-            name: "Consistency",
-            score: consistency,
-            description: "Columns with <1% null rate across dataset",
-            affected: [],
-          },
-        ]);
-
+        setQualityDimensions(buildQualityDimensions(profileResults));
+        setSelectedCol((current) => current ?? profileResults[0]?.name ?? null);
         setLoading(false);
+        setLoadingStage("");
       }
     },
     [],
   );
 
-  // ─── Init data ────────────────────────────────────────────────────────
-
   useEffect(() => {
     let cancelled = false;
 
-    async function init() {
-      setLoading(true);
-      setLoadingStage("Checking for loaded data...");
-
-      try {
-        let tableName = activeDataset?.tableName ?? loadedTableNames[0] ?? "";
-        let info = tableName
-          ? await getTableInfo(tableName).catch(() => null)
-          : null;
-
-        if (!info) {
-          const tables = await runQuery("SHOW TABLES").catch(() => []);
-          tableName = tables.map(tableNameFromShowTables).find(Boolean) ?? "";
-          info = tableName
-            ? await getTableInfo(tableName).catch(() => null)
-            : null;
-        }
-
-        if (!info || !tableName) {
-          if (!cancelled) {
-            setActiveTableName(null);
-            setProfiles([]);
-            setSelectedCol(null);
-            setRowCount(0);
-            setColCount(0);
-            setQualityDimensions([]);
-            setLoadingStage("No loaded DuckDB table found.");
-            setLoading(false);
-          }
-          return;
-        }
-
-        const columnDefs = info.columns.map((column, index) => ({
-          name: column.name,
-          index,
-          type: toProfileType(column.type),
-          sqlType: column.type,
-        }));
-
-        if (!cancelled) {
-          setActiveTableName(tableName);
-          setRowCount(info.rowCount);
-        }
-        await computeProfiles(tableName, columnDefs, cancelled);
-      } catch (e) {
-        console.error("Init error:", e);
-        if (!cancelled) setLoadingStage("Could not profile the active table.");
-      } finally {
-        if (!cancelled) setLoading(false);
+    async function initProfile() {
+      if (!activeViewName || columnDefs.length === 0) {
+        setProfiles([]);
+        setSelectedCol(null);
+        setQualityDimensions([]);
+        setLoading(false);
+        return;
       }
+
+      await computeProfiles(activeViewName, columnDefs, () => cancelled);
     }
 
-    init();
+    initProfile();
+
     return () => {
       cancelled = true;
     };
-  }, [activeDataset?.tableName, loadedTableNames, refreshKey, computeProfiles]);
-
-  // ─── Derived ──────────────────────────────────────────────────────────
+  }, [activeViewName, columnDefs, refreshKey, computeProfiles]);
 
   const selectedProfile = useMemo(
-    () => profiles.find((p) => p.name === selectedCol) ?? null,
+    () => profiles.find((profile) => profile.name === selectedCol) ?? null,
     [profiles, selectedCol],
   );
 
   const filteredProfiles = useMemo(() => {
     let list = [...profiles];
+
     if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+      const query = searchQuery.toLowerCase();
+
       list = list.filter(
-        (p) => p.name.toLowerCase().includes(q) || p.type.includes(q),
+        (profile) =>
+          profile.name.toLowerCase().includes(query) ||
+          profile.type.includes(query) ||
+          profile.sqlType.toLowerCase().includes(query),
       );
     }
-    if (typeFilter !== "all") list = list.filter((p) => p.type === typeFilter);
+
+    if (typeFilter !== "all") {
+      list = list.filter((profile) => profile.type === typeFilter);
+    }
+
     if (qualityFilter !== "all") {
-      list = list.filter((p) => {
-        const score =
-          (p.completeness + p.uniqueness * 0.5 + p.validity * 0.5) / 2;
+      list = list.filter((profile) => {
+        const score = profileScore(profile);
+
         if (qualityFilter === "excellent") return score >= 0.9;
         if (qualityFilter === "good") return score >= 0.7 && score < 0.9;
         if (qualityFilter === "fair") return score >= 0.5 && score < 0.7;
+
         return score < 0.5;
       });
     }
-    list.sort((a, b) => {
-      let va: number | string = 0;
-      let vb: number | string = 0;
-      if (sortBy === "name") {
-        va = a.name;
-        vb = b.name;
-      } else if (sortBy === "nullRate") {
-        va = a.nullRate;
-        vb = b.nullRate;
-      } else if (sortBy === "distinctCount") {
-        va = a.distinctCount;
-        vb = b.distinctCount;
-      } else if (sortBy === "quality") {
-        va = (a.completeness + a.uniqueness * 0.5 + a.validity * 0.5) / 2;
-        vb = (b.completeness + b.uniqueness * 0.5 + b.validity * 0.5) / 2;
-      }
-      if (typeof va === "string")
-        return sortAsc
-          ? va.localeCompare(String(vb))
-          : String(vb).localeCompare(va);
-      return sortAsc
-        ? (va as number) - (vb as number)
-        : (vb as number) - (va as number);
-    });
-    return list;
-  }, [profiles, searchQuery, typeFilter, qualityFilter, sortBy, sortAsc]);
 
-  // ─── Charts ───────────────────────────────────────────────────────────
+    list.sort((a, b) => {
+      let first: number | string = 0;
+      let second: number | string = 0;
+
+      if (sortBy === "name") {
+        first = a.name;
+        second = b.name;
+      } else if (sortBy === "nullRate") {
+        first = a.nullRate;
+        second = b.nullRate;
+      } else if (sortBy === "distinctCount") {
+        first = a.distinctCount;
+        second = b.distinctCount;
+      } else {
+        first = profileScore(a);
+        second = profileScore(b);
+      }
+
+      if (typeof first === "string") {
+        return sortAsc
+          ? first.localeCompare(String(second))
+          : String(second).localeCompare(first);
+      }
+
+      return sortAsc
+        ? first - Number(second)
+        : Number(second) - first;
+    });
+
+    return list;
+  }, [
+    profiles,
+    searchQuery,
+    typeFilter,
+    qualityFilter,
+    sortBy,
+    sortAsc,
+  ]);
+
+  const overallScore = useMemo(() => {
+    if (!profiles.length) return 0;
+
+    return (
+      profiles.reduce((sum, profile) => sum + profileScore(profile), 0) /
+      profiles.length
+    );
+  }, [profiles]);
+
+  const nullColumnsCount = useMemo(
+    () => profiles.filter((profile) => profile.nullCount > 0).length,
+    [profiles],
+  );
+
+  const numericColumnsCount = useMemo(
+    () =>
+      profiles.filter(
+        (profile) => profile.type === "integer" || profile.type === "float",
+      ).length,
+    [profiles],
+  );
 
   const overviewQualityChart = useMemo(() => {
     if (!profiles.length) return null;
+
     return {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
-        formatter: (
-          params: Array<{ name: string; value: number; seriesName: string }>,
-        ) =>
-          `${params[0].name}<br/>${params.map((p) => `${p.seriesName}: ${(p.value * 100).toFixed(1)}%`).join("<br/>")}`,
+        backgroundColor: "#0f172a",
+        borderColor: "rgba(255,255,255,0.12)",
+        textStyle: { color: "#e2e8f0" },
       },
       legend: {
-        data: ["Completeness", "Uniqueness", "Validity"],
+        data: ["Completeness", "Validity"],
         textStyle: { color: "#94a3b8" },
         top: 5,
       },
-      grid: { top: 50, bottom: 60, left: 80, right: 20 },
+      grid: { top: 50, bottom: 70, left: 55, right: 20 },
       xAxis: {
         type: "category",
-        data: profiles.map((p) => p.name),
+        data: profiles.map((profile) => profile.name),
         axisLabel: { color: "#94a3b8", rotate: 35, fontSize: 10 },
         axisLine: { lineStyle: { color: "#334155" } },
       },
@@ -489,28 +799,28 @@ export default function ParsedDataScreen() {
         max: 1,
         axisLabel: {
           color: "#94a3b8",
-          formatter: (v: number) => `${(v * 100).toFixed(0)}%`,
+          formatter: (value: number) => `${(value * 100).toFixed(0)}%`,
         },
-        splitLine: { lineStyle: { color: "#1e293b" } },
+        splitLine: { lineStyle: { color: "rgba(148,163,184,0.14)" } },
       },
       series: [
         {
           name: "Completeness",
           type: "bar",
-          data: profiles.map((p) => parseFloat(p.completeness.toFixed(4))),
-          itemStyle: { color: "#22c55e" },
-          barMaxWidth: 16,
-          stack: "q",
+          data: profiles.map((profile) =>
+            Number(profile.completeness.toFixed(4)),
+          ),
+          itemStyle: { color: "#22c55e", borderRadius: [4, 4, 0, 0] },
+          barMaxWidth: 18,
         },
         {
           name: "Validity",
           type: "line",
-          data: profiles.map((p) => parseFloat(p.validity.toFixed(4))),
+          data: profiles.map((profile) => Number(profile.validity.toFixed(4))),
           lineStyle: { color: "#6366f1", width: 2 },
           itemStyle: { color: "#6366f1" },
           symbol: "circle",
           symbolSize: 5,
-          z: 5,
         },
       ],
     };
@@ -518,7 +828,11 @@ export default function ParsedDataScreen() {
 
   const typeDistChart = useMemo(() => {
     const counts: Record<string, number> = {};
-    for (const p of profiles) counts[p.type] = (counts[p.type] ?? 0) + 1;
+
+    for (const profile of profiles) {
+      counts[profile.type] = (counts[profile.type] ?? 0) + 1;
+    }
+
     const typeColors: Record<string, string> = {
       integer: "#3b82f6",
       float: "#6366f1",
@@ -527,44 +841,43 @@ export default function ParsedDataScreen() {
       date: "#f97316",
       unknown: "#64748b",
     };
+
     return {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "item",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
+        backgroundColor: "#0f172a",
+        borderColor: "rgba(255,255,255,0.12)",
+        textStyle: { color: "#e2e8f0" },
       },
       series: [
         {
           type: "pie",
-          radius: ["45%", "72%"],
-          data: Object.entries(counts).map(([k, v]) => ({
-            name: k,
-            value: v,
-            itemStyle: { color: typeColors[k] ?? "#64748b" },
+          radius: ["48%", "74%"],
+          data: Object.entries(counts).map(([name, value]) => ({
+            name,
+            value,
+            itemStyle: { color: typeColors[name] ?? "#64748b" },
           })),
           label: { color: "#94a3b8", fontSize: 11 },
-          emphasis: {
-            itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.5)" },
-          },
         },
       ],
     };
   }, [profiles]);
 
   const nullHeatmapData = useMemo(() => {
-    // Single-row heatmap: each column → its null rate
+    if (!profiles.length) return null;
+
     return {
       backgroundColor: "transparent",
       tooltip: {
-        formatter: (params: { name: string; data: [number, number, number] }) =>
+        formatter: (params: { data: [number, number, number] }) =>
           `${profiles[params.data[0]]?.name ?? ""}<br/>Null rate: ${(params.data[2] * 100).toFixed(2)}%`,
       },
       grid: { top: 20, bottom: 40, left: 80, right: 20 },
       xAxis: {
         type: "category",
-        data: profiles.map((p) => p.name),
+        data: profiles.map((profile) => profile.name),
         axisLabel: { color: "#94a3b8", rotate: 35, fontSize: 10 },
       },
       yAxis: {
@@ -583,15 +896,17 @@ export default function ParsedDataScreen() {
       series: [
         {
           type: "heatmap",
-          data: profiles.map((p, i) => [
-            i,
+          data: profiles.map((profile, index) => [
+            index,
             0,
-            parseFloat(p.nullRate.toFixed(4)),
+            Number(profile.nullRate.toFixed(4)),
           ]),
           label: {
             show: true,
-            formatter: (p: { data: [number, number, number] }) =>
-              p.data[2] === 0 ? "✓" : `${(p.data[2] * 100).toFixed(0)}%`,
+            formatter: (params: { data: [number, number, number] }) =>
+              params.data[2] === 0
+                ? "✓"
+                : `${(params.data[2] * 100).toFixed(0)}%`,
             color: "#fff",
             fontSize: 10,
           },
@@ -602,46 +917,39 @@ export default function ParsedDataScreen() {
 
   const histogramChart = useMemo(() => {
     if (!selectedProfile?.histogram) return null;
+
     const bins = selectedProfile.histogram;
+
     return {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
+        backgroundColor: "#0f172a",
+        borderColor: "rgba(255,255,255,0.12)",
+        textStyle: { color: "#e2e8f0" },
         formatter: (params: Array<{ data: number; name: string }>) =>
           `${params[0].name}<br/>Count: ${params[0].data.toLocaleString()}`,
       },
       grid: { top: 20, bottom: 50, left: 50, right: 20 },
       xAxis: {
         type: "category",
-        data: bins.map((b) => b.lo.toFixed(1)),
+        data: bins.map((bin) => bin.lo.toFixed(1)),
         axisLabel: { color: "#94a3b8", rotate: 30, fontSize: 9 },
         axisLine: { lineStyle: { color: "#334155" } },
       },
       yAxis: {
         type: "value",
         axisLabel: { color: "#94a3b8" },
-        splitLine: { lineStyle: { color: "#1e293b" } },
+        splitLine: { lineStyle: { color: "rgba(148,163,184,0.14)" } },
       },
       series: [
         {
           type: "bar",
-          data: bins.map((b) => b.count),
+          data: bins.map((bin) => bin.count),
           barWidth: "95%",
           itemStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#6366f1" },
-                { offset: 1, color: "#3730a3" },
-              ],
-            },
+            color: "#6366f1",
+            borderRadius: [4, 4, 0, 0],
           },
         },
       ],
@@ -650,763 +958,968 @@ export default function ParsedDataScreen() {
 
   const topValuesChart = useMemo(() => {
     if (!selectedProfile?.topValues.length) return null;
-    const tv = selectedProfile.topValues.slice(0, 10);
+
+    const topValues = selectedProfile.topValues.slice(0, 10);
+
     return {
       backgroundColor: "transparent",
       tooltip: {
         trigger: "axis",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
+        backgroundColor: "#0f172a",
+        borderColor: "rgba(255,255,255,0.12)",
+        textStyle: { color: "#e2e8f0" },
       },
       grid: { top: 10, bottom: 40, left: 20, right: 80 },
       xAxis: {
         type: "value",
         axisLabel: { color: "#94a3b8" },
-        splitLine: { lineStyle: { color: "#1e293b" } },
+        splitLine: { lineStyle: { color: "rgba(148,163,184,0.14)" } },
       },
       yAxis: {
         type: "category",
-        data: tv.map((v) => v.value.substring(0, 20)).reverse(),
+        data: topValues.map((value) => value.value.substring(0, 20)).reverse(),
         axisLabel: { color: "#94a3b8", fontSize: 11 },
         axisLine: { lineStyle: { color: "#334155" } },
       },
       series: [
         {
           type: "bar",
-          data: tv.map((v) => v.count).reverse(),
+          data: topValues.map((value) => value.count).reverse(),
           barMaxWidth: 20,
-          itemStyle: {
-            color: (params: { dataIndex: number }) => {
-              const colors = ["#6366f1", "#8b5cf6", "#a78bfa", "#c4b5fd"];
-              return colors[params.dataIndex % colors.length];
-            },
-          },
+          itemStyle: { color: "#8b5cf6", borderRadius: [0, 4, 4, 0] },
           label: {
             show: true,
             position: "right",
             color: "#94a3b8",
             fontSize: 10,
-            formatter: (p: { value: number }) => p.value.toLocaleString(),
+            formatter: (params: { value: number }) =>
+              params.value.toLocaleString(),
           },
         },
       ],
     };
   }, [selectedProfile]);
 
-  const overallScore = useMemo(() => {
-    if (!profiles.length) return 0;
-    return (
-      profiles.reduce((s, p) => {
-        const score =
-          (p.completeness + p.uniqueness * 0.5 + p.validity * 0.5) / 2;
-        return s + score;
-      }, 0) / profiles.length
-    );
-  }, [profiles]);
-
-  // ─── Export ───────────────────────────────────────────────────────────
-
   const exportProfiles = useCallback(() => {
-    const csv = [
-      "name,type,rowCount,nullCount,nullRate,distinctCount,uniquenessRate,min,max,avg,stddev,completeness,validity",
-      ...profiles.map((p) =>
-        [
-          p.name,
-          p.type,
-          p.rowCount,
-          p.nullCount,
-          p.nullRate.toFixed(4),
-          p.distinctCount,
-          p.uniquenessRate.toFixed(4),
-          p.min ?? "",
-          p.max ?? "",
-          p.avg ?? "",
-          p.stddev ?? "",
-          p.completeness.toFixed(4),
-          p.validity.toFixed(4),
-        ].join(","),
-      ),
-    ].join("\n");
+    const header = [
+      "name",
+      "type",
+      "rowCount",
+      "nullCount",
+      "nullRate",
+      "distinctCount",
+      "uniquenessRate",
+      "min",
+      "max",
+      "avg",
+      "stddev",
+      "completeness",
+      "validity",
+    ];
+
+    const rows = profiles.map((profile) => [
+      profile.name,
+      profile.type,
+      profile.rowCount,
+      profile.nullCount,
+      profile.nullRate.toFixed(4),
+      profile.distinctCount,
+      profile.uniquenessRate.toFixed(4),
+      profile.min ?? "",
+      profile.max ?? "",
+      profile.avg ?? "",
+      profile.stddev ?? "",
+      profile.completeness.toFixed(4),
+      profile.validity.toFixed(4),
+    ]);
+
+    const csv = [header, ...rows]
+      .map((row) => row.map(csvEscape).join(","))
+      .join("\n");
+
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "column_profiles.csv";
-    a.click();
-    URL.revokeObjectURL(url);
-  }, [profiles]);
+    const anchor = document.createElement("a");
 
-  // ─── Render ───────────────────────────────────────────────────────────
+    anchor.href = url;
+    anchor.download = `${activeDisplayName.replace(/\W/g, "_").toLowerCase()}_column_profiles.csv`;
+    anchor.click();
+
+    URL.revokeObjectURL(url);
+  }, [profiles, activeDisplayName]);
+
+  if (!activeViewName && !loading && !catalogLoading) {
+    return <DatasetEmptyState />;
+  }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-background via-background to-violet-950 flex flex-col">
-      {/* Header */}
-      <div className="border-b border-border p-4 md:p-6">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="p-2 bg-linear-to-br from-violet-600 to-purple-600 rounded-xl">
-              <FileSearch className="w-6 h-6 text-primary-foreground" />
+    <div className="min-h-screen bg-linear-to-br from-background via-background to-violet-950/20 text-foreground">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
+        <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 items-center gap-4">
+            <div className="flex h-12 w-12 flex-none items-center justify-center rounded-3xl bg-linear-to-br from-violet-600 to-fuchsia-600 text-white shadow-lg shadow-violet-500/20">
+              <FileSearch className="h-6 w-6" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                Data Profile
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Deep column analysis · {colCount} columns ·{" "}
-                {rowCount.toLocaleString()} rows
-                {activeTableName ? ` · ${activeTableName}` : ""}
+
+            <div className="min-w-0">
+              <div className="flex flex-wrap items-center gap-2">
+                <h1 className="truncate text-xl font-bold text-foreground">
+                  Data Profile
+                </h1>
+                <span
+                  className="rounded-full px-2 py-0.5 text-xs font-semibold"
+                  style={{
+                    color: qualityColor(overallScore),
+                    backgroundColor: `${qualityColor(overallScore)}20`,
+                  }}
+                >
+                  {qualityLabel(overallScore)}
+                </span>
+              </div>
+
+              <p className="mt-0.5 truncate text-sm text-muted-foreground">
+                {activeDisplayName} · {activeViewName}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            {loading && (
-              <span className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <RefreshCw className="w-3 h-3 animate-spin text-indigo-400" />
-                {loadingStage}
-              </span>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {catalog.length > 0 && (
+              <select
+                value={activeCatalogDataset?.id ?? activeDatasetId ?? ""}
+                onChange={(event) => setActiveDataset(event.target.value)}
+                className="h-10 min-w-52 rounded-xl border border-border bg-card px-3 text-sm text-foreground outline-none"
+              >
+                {catalog.map((dataset) => (
+                  <option key={dataset.id} value={dataset.id}>
+                    {dataset.displayName}
+                  </option>
+                ))}
+              </select>
             )}
+
             <button
               type="button"
               onClick={exportProfiles}
               disabled={loading || !profiles.length}
-              className="flex items-center gap-2 px-3 py-2 bg-accent hover:bg-accent disabled:opacity-50 rounded-lg text-sm text-foreground transition-colors"
+              className="inline-flex h-10 items-center gap-2 rounded-xl border border-border bg-card px-3 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-50"
             >
-              <Download className="w-4 h-4" /> Export CSV
+              <Download className="h-4 w-4" />
+              Export
             </button>
+
             <button
               type="button"
               onClick={() => {
                 setProfiles([]);
                 setRefreshKey((key) => key + 1);
               }}
-              disabled={loading}
-              className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg text-sm text-primary-foreground transition-colors"
+              disabled={loading || catalogLoading}
+              className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <RefreshCw
-                className={`w-4 h-4 ${loading ? "animate-spin" : ""}`}
+                className={cn("h-4 w-4", (loading || catalogLoading) && "animate-spin")}
               />
               Refresh
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Loading progress */}
-      <AnimatePresence>
-        {loading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="px-4 md:px-6 pt-3"
-          >
-            <div className="bg-card border border-border rounded-xl p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Database className="w-4 h-4 text-indigo-400 animate-pulse" />
-                <span className="text-sm text-foreground">{loadingStage}</span>
+        {(loading || catalogLoading || catalogError) && (
+          <div className="border-t border-border px-5 py-3">
+            {catalogError ? (
+              <div className="rounded-xl border border-red-500/20 bg-red-500/10 px-3 py-2 text-sm text-red-700 dark:text-red-300">
+                {catalogError}
               </div>
-              <div className="h-2 bg-muted rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-linear-to-r from-indigo-500 to-violet-500 rounded-full"
-                  animate={{
-                    width:
-                      profiles.length > 0
-                        ? `${(profiles.length / 14) * 100}%`
-                        : "5%",
-                  }}
-                  transition={{ duration: 0.5 }}
-                />
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left panel — column list */}
-        <div className="w-72 xl:w-80 border-r border-border flex flex-col overflow-hidden">
-          {/* Filters */}
-          <div className="p-3 border-b border-border space-y-2">
-            <div className="relative">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-              <input
-                type="text"
-                placeholder="Search columns..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-8 pr-3 py-1.5 bg-card border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-primary"
-              />
-            </div>
-            <div className="flex gap-2">
-              <select
-                value={typeFilter}
-                onChange={(e) => setTypeFilter(e.target.value)}
-                className="flex-1 px-2 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground focus:outline-none"
-              >
-                <option value="all">All types</option>
-                <option value="integer">Integer</option>
-                <option value="float">Float</option>
-                <option value="string">String</option>
-                <option value="boolean">Boolean</option>
-                <option value="date">Date</option>
-              </select>
-              <select
-                value={qualityFilter}
-                onChange={(e) => setQualityFilter(e.target.value)}
-                className="flex-1 px-2 py-1.5 bg-card border border-border rounded-lg text-xs text-foreground focus:outline-none"
-              >
-                <option value="all">All quality</option>
-                <option value="excellent">Excellent</option>
-                <option value="good">Good</option>
-                <option value="fair">Fair</option>
-                <option value="poor">Poor</option>
-              </select>
-            </div>
-            <div className="flex items-center gap-1">
-              <span className="text-xs text-muted-foreground">Sort:</span>
-              {(["name", "nullRate", "quality", "distinctCount"] as const).map(
-                (s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => {
-                      if (sortBy === s) setSortAsc(!sortAsc);
-                      else {
-                        setSortBy(s);
-                        setSortAsc(true);
-                      }
-                    }}
-                    className={`text-xs px-1.5 py-0.5 rounded transition-colors ${
-                      sortBy === s
-                        ? "bg-primary/40 text-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {s === "nullRate"
-                      ? "nulls"
-                      : s === "distinctCount"
-                        ? "distinct"
-                        : s}
-                    {sortBy === s && (sortAsc ? " ↑" : " ↓")}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
-
-          {/* Column cards */}
-          <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-            {filteredProfiles.length === 0 && !loading && (
-              <div className="text-center py-12 text-muted-foreground text-sm">
-                {profiles.length === 0
-                  ? "Loading profiles..."
-                  : "No columns match filters"}
-              </div>
-            )}
-            <AnimatePresence mode="popLayout">
-              {filteredProfiles.map((profile) => (
-                <ColCard
-                  key={profile.name}
-                  profile={profile}
-                  selected={selectedCol === profile.name}
-                  onClick={() => setSelectedCol(profile.name)}
-                />
-              ))}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* Right panel — detail */}
-        <div className="flex-1 overflow-y-auto">
-          {!selectedProfile && !loading && (
-            <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-8">
-              <Grid3x3 className="w-16 h-16 mb-4 opacity-20" />
-              <p className="text-lg">Select a column to see its profile</p>
-            </div>
-          )}
-
-          {selectedProfile && (
-            <div className="p-4 md:p-6 space-y-4">
-              {/* Column header */}
-              <div className="flex flex-wrap items-start gap-4 justify-between">
-                <div className="flex items-center gap-3">
-                  {(() => {
-                    const Icon = typeIcon(selectedProfile.type);
-                    return (
-                      <div
-                        className={`p-2 rounded-xl ${typeColor(selectedProfile.type)}`}
-                      >
-                        <Icon className="w-5 h-5" />
-                      </div>
-                    );
-                  })()}
-                  <div>
-                    <h2 className="text-xl font-bold text-foreground font-mono">
-                      {selectedProfile.name}
-                    </h2>
-                    <div className="flex items-center gap-2 mt-0.5">
-                      <span
-                        className={`text-xs px-1.5 py-0.5 rounded ${typeColor(selectedProfile.type)}`}
-                      >
-                        {selectedProfile.sqlType}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        column #{selectedProfile.index + 1}
-                      </span>
-                    </div>
+            ) : (
+              <div className="rounded-xl border border-border bg-card px-4 py-3">
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Database className="h-4 w-4 animate-pulse text-violet-500" />
+                    {catalogLoading
+                      ? "Refreshing dataset catalog..."
+                      : loadingStage || "Profiling dataset..."}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {profileProgress.total > 0
+                      ? `${profileProgress.done}/${profileProgress.total}`
+                      : ""}
                   </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <div className="text-right">
-                    <div
-                      className="text-2xl font-bold"
-                      style={{
-                        color: qualityColor(
-                          (selectedProfile.completeness +
-                            selectedProfile.uniqueness * 0.5 +
-                            selectedProfile.validity * 0.5) /
-                            2,
-                        ),
-                      }}
-                    >
-                      {(
-                        ((selectedProfile.completeness +
-                          selectedProfile.uniqueness * 0.5 +
-                          selectedProfile.validity * 0.5) /
-                          2) *
-                        100
-                      ).toFixed(0)}
-                      %
-                    </div>
-                    <div className="text-xs text-muted-foreground">
-                      {qualityLabel(
-                        (selectedProfile.completeness +
-                          selectedProfile.uniqueness * 0.5 +
-                          selectedProfile.validity * 0.5) /
-                          2,
-                      )}
-                    </div>
-                  </div>
-                  <QualityRing
-                    score={
-                      (selectedProfile.completeness +
-                        selectedProfile.uniqueness * 0.5 +
-                        selectedProfile.validity * 0.5) /
-                      2
-                    }
-                    size={64}
+
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <motion.div
+                    className="h-full rounded-full bg-linear-to-r from-violet-500 to-fuchsia-500"
+                    animate={{
+                      width:
+                        profileProgress.total > 0
+                          ? `${Math.max(
+                              6,
+                              (profileProgress.done /
+                                profileProgress.total) *
+                                100,
+                            )}%`
+                          : "8%",
+                    }}
+                    transition={{ duration: 0.35 }}
                   />
                 </div>
               </div>
+            )}
+          </div>
+        )}
+      </header>
 
-              {/* Detail tabs */}
-              <div className="flex gap-1 bg-card rounded-xl p-1 border border-border">
-                {(
-                  ["overview", "distribution", "quality", "samples"] as const
-                ).map((tab) => (
-                  <button
-                    key={tab}
-                    type="button"
-                    onClick={() => setActiveDetailTab(tab)}
-                    className={`flex-1 py-1.5 rounded-lg text-sm font-medium transition-all ${
-                      activeDetailTab === tab
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground hover:bg-accent"
-                    }`}
-                  >
-                    {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
-                ))}
+      <main className="grid gap-5 p-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <aside className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <MetricCard
+              label="Rows"
+              value={activeRowCount.toLocaleString()}
+              icon={Hash}
+              tone="bg-blue-500/10 text-blue-500"
+            />
+            <MetricCard
+              label="Columns"
+              value={columnDefs.length.toLocaleString()}
+              icon={Layers}
+              tone="bg-violet-500/10 text-violet-500"
+            />
+            <MetricCard
+              label="Numeric"
+              value={numericColumnsCount.toLocaleString()}
+              icon={Sigma}
+              tone="bg-emerald-500/10 text-emerald-500"
+            />
+            <MetricCard
+              label="With nulls"
+              value={nullColumnsCount.toLocaleString()}
+              icon={AlertTriangle}
+              tone="bg-amber-500/10 text-amber-500"
+            />
+          </div>
+
+          <div className="rounded-3xl border border-border bg-card p-4">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <div>
+                <h2 className="text-sm font-bold text-foreground">
+                  Column Explorer
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Search, filter and inspect columns.
+                </p>
+              </div>
+              <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
+            </div>
+
+            <div className="space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="text"
+                  placeholder="Search columns..."
+                  value={searchQuery}
+                  onChange={(event) => setSearchQuery(event.target.value)}
+                  className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-3 text-sm text-foreground outline-none transition-colors focus:border-violet-500/50"
+                />
               </div>
 
-              <AnimatePresence mode="wait">
-                {/* Overview */}
-                {activeDetailTab === "overview" && (
-                  <motion.div
-                    key="overview"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-4"
-                  >
-                    {/* Key stats */}
-                    {selectedProfile.type === "integer" ||
-                    selectedProfile.type === "float" ? (
-                      <StatGrid
-                        items={[
-                          {
-                            label: "Min",
-                            value:
-                              selectedProfile.min?.toFixed(
-                                selectedProfile.type === "float" ? 2 : 0,
-                              ) ?? "—",
-                          },
-                          {
-                            label: "Max",
-                            value:
-                              selectedProfile.max?.toFixed(
-                                selectedProfile.type === "float" ? 2 : 0,
-                              ) ?? "—",
-                          },
-                          {
-                            label: "Mean",
-                            value: selectedProfile.avg?.toFixed(2) ?? "—",
-                          },
-                          {
-                            label: "Median",
-                            value: selectedProfile.median?.toFixed(2) ?? "—",
-                          },
-                          {
-                            label: "Std Dev",
-                            value: selectedProfile.stddev?.toFixed(2) ?? "—",
-                          },
-                          {
-                            label: "Sum",
-                            value:
-                              selectedProfile.sum !== undefined
-                                ? selectedProfile.sum.toFixed(0)
-                                : "—",
-                          },
-                          {
-                            label: "P25",
-                            value: selectedProfile.p25?.toFixed(2) ?? "—",
-                          },
-                          {
-                            label: "P75",
-                            value: selectedProfile.p75?.toFixed(2) ?? "—",
-                          },
-                          {
-                            label: "IQR",
-                            value:
-                              selectedProfile.p25 !== undefined &&
-                              selectedProfile.p75 !== undefined
-                                ? (
-                                    selectedProfile.p75 - selectedProfile.p25
-                                  ).toFixed(2)
-                                : "—",
-                          },
-                          {
-                            label: "Null Count",
-                            value: selectedProfile.nullCount.toLocaleString(),
-                            highlight: selectedProfile.nullCount > 0,
-                          },
-                          {
-                            label: "Distinct",
-                            value:
-                              selectedProfile.distinctCount.toLocaleString(),
-                          },
-                          {
-                            label: "Row Count",
-                            value: selectedProfile.rowCount.toLocaleString(),
-                          },
-                        ]}
-                      />
-                    ) : selectedProfile.type === "string" ? (
-                      <StatGrid
-                        items={[
-                          {
-                            label: "Min Length",
-                            value: String(selectedProfile.minLen ?? "—"),
-                          },
-                          {
-                            label: "Max Length",
-                            value: String(selectedProfile.maxLen ?? "—"),
-                          },
-                          {
-                            label: "Avg Length",
-                            value: selectedProfile.avgLen?.toFixed(1) ?? "—",
-                          },
-                          {
-                            label: "Distinct",
-                            value:
-                              selectedProfile.distinctCount.toLocaleString(),
-                          },
-                          {
-                            label: "Null Count",
-                            value: selectedProfile.nullCount.toLocaleString(),
-                            highlight: selectedProfile.nullCount > 0,
-                          },
-                          {
-                            label: "Uniqueness",
-                            value: `${(selectedProfile.uniquenessRate * 100).toFixed(1)}%`,
-                          },
-                        ]}
-                      />
-                    ) : (
-                      <StatGrid
-                        items={[
-                          {
-                            label: "Distinct",
-                            value:
-                              selectedProfile.distinctCount.toLocaleString(),
-                          },
-                          {
-                            label: "Null Count",
-                            value: selectedProfile.nullCount.toLocaleString(),
-                            highlight: selectedProfile.nullCount > 0,
-                          },
-                          {
-                            label: "Row Count",
-                            value: selectedProfile.rowCount.toLocaleString(),
-                          },
-                          {
-                            label: "Null Rate",
-                            value: `${(selectedProfile.nullRate * 100).toFixed(2)}%`,
-                            highlight: selectedProfile.nullRate > 0.05,
-                          },
-                          {
-                            label: "Completeness",
-                            value: `${(selectedProfile.completeness * 100).toFixed(1)}%`,
-                          },
-                          {
-                            label: "Uniqueness Rate",
-                            value: `${(selectedProfile.uniquenessRate * 100).toFixed(1)}%`,
-                          },
-                        ]}
-                      />
-                    )}
+              <div className="grid grid-cols-2 gap-2">
+                <select
+                  value={typeFilter}
+                  onChange={(event) => setTypeFilter(event.target.value)}
+                  className="h-9 rounded-xl border border-border bg-background px-2 text-xs text-foreground outline-none"
+                >
+                  <option value="all">All types</option>
+                  <option value="integer">Integer</option>
+                  <option value="float">Float</option>
+                  <option value="string">String</option>
+                  <option value="boolean">Boolean</option>
+                  <option value="date">Date</option>
+                  <option value="unknown">Unknown</option>
+                </select>
 
-                    {/* Top values preview */}
-                    {selectedProfile.topValues.length > 0 && (
-                      <div className="bg-card border border-border rounded-xl p-4">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Star className="w-4 h-4 text-yellow-400" />
-                          Top Values
-                        </h3>
-                        <div className="space-y-1.5">
-                          {selectedProfile.topValues.slice(0, 6).map((tv) => (
-                            <div
-                              key={tv.value}
-                              className="flex items-center gap-2"
-                            >
-                              <span className="text-xs font-mono text-foreground w-32 truncate">
-                                {tv.value}
-                              </span>
-                              <div className="flex-1 h-1.5 bg-accent rounded-full overflow-hidden">
-                                <motion.div
-                                  className="h-full rounded-full bg-indigo-500"
-                                  initial={{ width: 0 }}
-                                  animate={{ width: `${tv.pct * 100}%` }}
-                                  transition={{
-                                    duration: 0.6,
-                                    ease: "easeOut",
-                                  }}
-                                />
-                              </div>
-                              <span className="text-xs text-muted-foreground w-16 text-right">
-                                {tv.count.toLocaleString()} (
-                                {(tv.pct * 100).toFixed(1)}%)
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </motion.div>
+                <select
+                  value={qualityFilter}
+                  onChange={(event) => setQualityFilter(event.target.value)}
+                  className="h-9 rounded-xl border border-border bg-background px-2 text-xs text-foreground outline-none"
+                >
+                  <option value="all">All quality</option>
+                  <option value="excellent">Excellent</option>
+                  <option value="good">Good</option>
+                  <option value="fair">Fair</option>
+                  <option value="poor">Poor</option>
+                </select>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-1 text-xs">
+                <span className="mr-1 text-muted-foreground">Sort</span>
+                {(["quality", "name", "nullRate", "distinctCount"] as const).map(
+                  (sort) => (
+                    <button
+                      key={sort}
+                      type="button"
+                      onClick={() => {
+                        if (sortBy === sort) {
+                          setSortAsc((value) => !value);
+                        } else {
+                          setSortBy(sort);
+                          setSortAsc(sort === "name");
+                        }
+                      }}
+                      className={cn(
+                        "rounded-lg px-2 py-1 transition-colors",
+                        sortBy === sort
+                          ? "bg-primary text-primary-foreground"
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      {sort === "nullRate"
+                        ? "nulls"
+                        : sort === "distinctCount"
+                          ? "distinct"
+                          : sort}
+                      {sortBy === sort ? (sortAsc ? " ↑" : " ↓") : ""}
+                    </button>
+                  ),
                 )}
+              </div>
+            </div>
+          </div>
 
-                {/* Distribution */}
-                {activeDetailTab === "distribution" && (
+          <div className="max-h-[calc(100vh-25rem)] space-y-2 overflow-y-auto pr-1">
+            {filteredProfiles.length === 0 && !loading ? (
+              <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center">
+                <Grid3x3 className="mx-auto h-8 w-8 text-muted-foreground/60" />
+                <p className="mt-3 text-sm text-muted-foreground">
+                  {profiles.length === 0
+                    ? "No profiles available yet."
+                    : "No columns match your filters."}
+                </p>
+              </div>
+            ) : (
+              <AnimatePresence mode="popLayout">
+                {filteredProfiles.map((profile) => (
                   <motion.div
-                    key="distribution"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-4"
+                    key={profile.name}
+                    layout
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
                   >
-                    {histogramChart && (
-                      <div className="bg-card border border-border rounded-xl p-4">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <BarChart3 className="w-4 h-4 text-indigo-400" />
-                          Frequency Distribution (20 bins)
-                        </h3>
-                        <ReactECharts
-                          option={histogramChart}
-                          style={{ height: 220 }}
-                        />
-                        {selectedProfile.min !== undefined &&
-                          selectedProfile.max !== undefined && (
-                            <div className="flex justify-between text-xs text-muted-foreground mt-1">
-                              <span>min: {selectedProfile.min.toFixed(2)}</span>
-                              <span>
-                                mean: {selectedProfile.avg?.toFixed(2)}
-                              </span>
-                              <span>max: {selectedProfile.max.toFixed(2)}</span>
-                            </div>
-                          )}
-                      </div>
-                    )}
-
-                    {topValuesChart && (
-                      <div className="bg-card border border-border rounded-xl p-4">
-                        <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <TrendingUp className="w-4 h-4 text-purple-400" />
-                          Top 10 Values
-                        </h3>
-                        <ReactECharts
-                          option={topValuesChart}
-                          style={{ height: 280 }}
-                        />
-                      </div>
-                    )}
-
-                    {!histogramChart && !topValuesChart && (
-                      <div className="text-center py-12 text-muted-foreground">
-                        No distribution data available for this column type
-                      </div>
-                    )}
+                    <ColumnListCard
+                      profile={profile}
+                      selected={selectedCol === profile.name}
+                      onClick={() => setSelectedCol(profile.name)}
+                    />
                   </motion.div>
-                )}
+                ))}
+              </AnimatePresence>
+            )}
+          </div>
+        </aside>
 
-                {/* Quality */}
-                {activeDetailTab === "quality" && (
-                  <motion.div
-                    key="quality"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    className="space-y-4"
+        <section className="min-w-0 space-y-5">
+          <div className="grid gap-4 lg:grid-cols-[1fr_280px]">
+            <div className="rounded-3xl border border-border bg-card p-5">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-sm font-bold text-foreground">
+                    Dataset Quality Overview
+                  </h2>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    Summary of completeness, uniqueness, validity and
+                    consistency.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div className="text-right">
+                    <div
+                      className="text-3xl font-bold"
+                      style={{ color: qualityColor(overallScore) }}
+                    >
+                      {(overallScore * 100).toFixed(1)}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {qualityLabel(overallScore)}
+                    </div>
+                  </div>
+
+                  <QualityRing score={overallScore} size={72} />
+                </div>
+              </div>
+
+              <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {qualityDimensions.map((dimension) => (
+                  <div
+                    key={dimension.name}
+                    className="rounded-2xl border border-border bg-background p-4"
                   >
-                    {[
-                      {
-                        name: "Completeness",
-                        score: selectedProfile.completeness,
-                        desc: `${(selectedProfile.completeness * 100).toFixed(2)}% of values are non-null`,
-                        icon: CheckCircle2,
-                        sub: `${selectedProfile.nullCount.toLocaleString()} null values out of ${selectedProfile.rowCount.toLocaleString()}`,
-                      },
-                      {
-                        name: "Uniqueness",
-                        score: selectedProfile.uniqueness,
-                        desc: `${selectedProfile.distinctCount.toLocaleString()} distinct values`,
-                        icon: Fingerprint,
-                        sub: `${(selectedProfile.uniquenessRate * 100).toFixed(1)}% uniqueness rate`,
-                      },
-                      {
-                        name: "Validity",
-                        score: selectedProfile.validity,
-                        desc: `Values conform to ${selectedProfile.sqlType} type`,
-                        icon: Shield,
-                        sub: "Type-based validation",
-                      },
-                    ].map((dim) => {
-                      const Icon = dim.icon;
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-foreground">
+                        {dimension.name}
+                      </span>
+                      <span
+                        className="text-sm font-bold"
+                        style={{ color: qualityColor(dimension.score) }}
+                      >
+                        {(dimension.score * 100).toFixed(0)}%
+                      </span>
+                    </div>
+
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                      <motion.div
+                        className="h-full rounded-full"
+                        style={{
+                          backgroundColor: qualityColor(dimension.score),
+                        }}
+                        initial={{ width: 0 }}
+                        animate={{ width: `${dimension.score * 100}%` }}
+                        transition={{ duration: 0.8 }}
+                      />
+                    </div>
+
+                    <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">
+                      {dimension.description}
+                    </p>
+
+                    {dimension.affected.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-1">
+                        {dimension.affected.slice(0, 3).map((column) => (
+                          <span
+                            key={column}
+                            className="rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] text-amber-600 dark:text-amber-300"
+                          >
+                            {column}
+                          </span>
+                        ))}
+                        {dimension.affected.length > 3 && (
+                          <span className="text-[10px] text-muted-foreground">
+                            +{dimension.affected.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div className="rounded-3xl border border-border bg-card p-5">
+              <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                <Layers className="h-4 w-4 text-violet-500" />
+                Type Mix
+              </h3>
+
+              <div className="mt-4">
+                {profiles.length > 0 ? (
+                  <ReactECharts option={typeDistChart} style={{ height: 180 }} />
+                ) : (
+                  <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
+                    No profile data.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {!selectedProfile && !loading ? (
+            <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card p-8 text-center">
+              <Eye className="h-12 w-12 text-muted-foreground/40" />
+              <h2 className="mt-4 text-lg font-bold text-foreground">
+                Select a column
+              </h2>
+              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                Choose a column from the explorer to inspect its statistics,
+                distribution, quality, and sample frequencies.
+              </p>
+            </div>
+          ) : null}
+
+          {selectedProfile && (
+            <div className="rounded-3xl border border-border bg-card">
+              <div className="border-b border-border p-5">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                  <div className="flex min-w-0 items-center gap-4">
+                    {(() => {
+                      const Icon = typeIcon(selectedProfile.type);
+
                       return (
                         <div
-                          key={dim.name}
-                          className="bg-card border border-border rounded-xl p-4"
+                          className={cn(
+                            "flex h-12 w-12 flex-none items-center justify-center rounded-2xl",
+                            typeColor(selectedProfile.type),
+                          )}
                         >
-                          <div className="flex items-center justify-between mb-2">
-                            <div className="flex items-center gap-2">
-                              <Icon
-                                className="w-4 h-4"
-                                style={{ color: qualityColor(dim.score) }}
-                              />
-                              <span className="text-sm font-semibold text-foreground">
-                                {dim.name}
-                              </span>
-                            </div>
-                            <span
-                              className="text-lg font-bold"
-                              style={{ color: qualityColor(dim.score) }}
-                            >
-                              {(dim.score * 100).toFixed(1)}%
-                            </span>
-                          </div>
-                          <div className="h-2 bg-accent rounded-full overflow-hidden mb-2">
-                            <motion.div
-                              className="h-full rounded-full"
-                              style={{
-                                backgroundColor: qualityColor(dim.score),
-                              }}
-                              initial={{ width: 0 }}
-                              animate={{ width: `${dim.score * 100}%` }}
-                              transition={{ duration: 0.8 }}
-                            />
-                          </div>
-                          <p className="text-sm text-foreground">{dim.desc}</p>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {dim.sub}
-                          </p>
+                          <Icon className="h-5 w-5" />
                         </div>
                       );
-                    })}
-                  </motion.div>
-                )}
+                    })()}
 
-                {/* Samples */}
-                {activeDetailTab === "samples" && (
-                  <motion.div
-                    key="samples"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                  >
-                    <div className="bg-card border border-border rounded-xl p-4">
-                      <div className="flex items-center justify-between mb-3">
-                        <h3 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                          <Table2 className="w-4 h-4 text-muted-foreground" />
+                    <div className="min-w-0">
+                      <h2 className="truncate font-mono text-xl font-bold text-foreground">
+                        {selectedProfile.name}
+                      </h2>
+                      <div className="mt-1 flex flex-wrap items-center gap-2">
+                        <span
+                          className={cn(
+                            "rounded-full px-2 py-0.5 text-xs",
+                            typeColor(selectedProfile.type),
+                          )}
+                        >
+                          {selectedProfile.sqlType}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          column #{selectedProfile.index + 1}
+                        </span>
+                        <span className="text-xs text-muted-foreground">
+                          {selectedProfile.distinctCount.toLocaleString()}{" "}
+                          distinct values
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4">
+                    <div className="text-right">
+                      <div
+                        className="text-3xl font-bold"
+                        style={{
+                          color: qualityColor(profileScore(selectedProfile)),
+                        }}
+                      >
+                        {(profileScore(selectedProfile) * 100).toFixed(0)}%
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {qualityLabel(profileScore(selectedProfile))}
+                      </div>
+                    </div>
+
+                    <QualityRing score={profileScore(selectedProfile)} size={72} />
+                  </div>
+                </div>
+
+                <div className="mt-5 grid grid-cols-2 gap-2 rounded-2xl bg-muted p-1 md:grid-cols-4">
+                  {(
+                    [
+                      ["overview", "Overview", Eye],
+                      ["distribution", "Distribution", BarChart3],
+                      ["quality", "Quality", Shield],
+                      ["samples", "Samples", Table2],
+                    ] as const
+                  ).map(([tab, label, Icon]) => (
+                    <button
+                      key={tab}
+                      type="button"
+                      onClick={() => setActiveDetailTab(tab)}
+                      className={cn(
+                        "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold transition-colors",
+                        activeDetailTab === tab
+                          ? "bg-background text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="h-4 w-4" />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-5">
+                <AnimatePresence mode="wait">
+                  {activeDetailTab === "overview" && (
+                    <motion.div
+                      key="overview"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="space-y-5"
+                    >
+                      {selectedProfile.type === "integer" ||
+                      selectedProfile.type === "float" ? (
+                        <StatGrid
+                          items={[
+                            {
+                              label: "Min",
+                              value: formatNumber(selectedProfile.min),
+                            },
+                            {
+                              label: "Max",
+                              value: formatNumber(selectedProfile.max),
+                            },
+                            {
+                              label: "Mean",
+                              value: formatNumber(selectedProfile.avg),
+                            },
+                            {
+                              label: "Median",
+                              value: formatNumber(selectedProfile.median),
+                            },
+                            {
+                              label: "Std Dev",
+                              value: formatNumber(selectedProfile.stddev),
+                            },
+                            {
+                              label: "Sum",
+                              value: formatNumber(selectedProfile.sum, 0),
+                            },
+                            {
+                              label: "P25",
+                              value: formatNumber(selectedProfile.p25),
+                            },
+                            {
+                              label: "P75",
+                              value: formatNumber(selectedProfile.p75),
+                            },
+                            {
+                              label: "IQR",
+                              value:
+                                selectedProfile.p25 !== undefined &&
+                                selectedProfile.p75 !== undefined
+                                  ? formatNumber(
+                                      selectedProfile.p75 - selectedProfile.p25,
+                                    )
+                                  : "—",
+                            },
+                            {
+                              label: "Null Count",
+                              value: selectedProfile.nullCount.toLocaleString(),
+                              highlight: selectedProfile.nullCount > 0,
+                            },
+                            {
+                              label: "Distinct",
+                              value:
+                                selectedProfile.distinctCount.toLocaleString(),
+                            },
+                            {
+                              label: "Row Count",
+                              value: selectedProfile.rowCount.toLocaleString(),
+                            },
+                          ]}
+                        />
+                      ) : selectedProfile.type === "string" ? (
+                        <StatGrid
+                          items={[
+                            {
+                              label: "Min Length",
+                              value: String(selectedProfile.minLen ?? "—"),
+                            },
+                            {
+                              label: "Max Length",
+                              value: String(selectedProfile.maxLen ?? "—"),
+                            },
+                            {
+                              label: "Avg Length",
+                              value: formatNumber(selectedProfile.avgLen, 1),
+                            },
+                            {
+                              label: "Distinct",
+                              value:
+                                selectedProfile.distinctCount.toLocaleString(),
+                            },
+                            {
+                              label: "Null Count",
+                              value: selectedProfile.nullCount.toLocaleString(),
+                              highlight: selectedProfile.nullCount > 0,
+                            },
+                            {
+                              label: "Uniqueness",
+                              value: `${(
+                                selectedProfile.uniquenessRate * 100
+                              ).toFixed(1)}%`,
+                            },
+                          ]}
+                        />
+                      ) : (
+                        <StatGrid
+                          items={[
+                            {
+                              label: "Distinct",
+                              value:
+                                selectedProfile.distinctCount.toLocaleString(),
+                            },
+                            {
+                              label: "Null Count",
+                              value: selectedProfile.nullCount.toLocaleString(),
+                              highlight: selectedProfile.nullCount > 0,
+                            },
+                            {
+                              label: "Row Count",
+                              value: selectedProfile.rowCount.toLocaleString(),
+                            },
+                            {
+                              label: "Null Rate",
+                              value: `${(
+                                selectedProfile.nullRate * 100
+                              ).toFixed(2)}%`,
+                              highlight: selectedProfile.nullRate > 0.05,
+                            },
+                            {
+                              label: "Completeness",
+                              value: `${(
+                                selectedProfile.completeness * 100
+                              ).toFixed(1)}%`,
+                            },
+                            {
+                              label: "Uniqueness",
+                              value: `${(
+                                selectedProfile.uniquenessRate * 100
+                              ).toFixed(1)}%`,
+                            },
+                          ]}
+                        />
+                      )}
+
+                      {selectedProfile.topValues.length > 0 && (
+                        <div className="rounded-3xl border border-border bg-background p-5">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
+                            <Star className="h-4 w-4 text-yellow-500" />
+                            Top Values
+                          </h3>
+
+                          <div className="space-y-3">
+                            {selectedProfile.topValues.slice(0, 6).map((value) => (
+                              <div key={value.value} className="flex items-center gap-3">
+                                <span className="w-36 truncate font-mono text-xs text-foreground">
+                                  {value.value || (
+                                    <span className="italic text-muted-foreground">
+                                      empty
+                                    </span>
+                                  )}
+                                </span>
+
+                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                                  <motion.div
+                                    className="h-full rounded-full bg-violet-500"
+                                    initial={{ width: 0 }}
+                                    animate={{ width: `${value.pct * 100}%` }}
+                                    transition={{ duration: 0.6 }}
+                                  />
+                                </div>
+
+                                <span className="w-24 text-right text-xs text-muted-foreground">
+                                  {value.count.toLocaleString()} ·{" "}
+                                  {(value.pct * 100).toFixed(1)}%
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {activeDetailTab === "distribution" && (
+                    <motion.div
+                      key="distribution"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="grid gap-5 lg:grid-cols-2"
+                    >
+                      {histogramChart && (
+                        <div className="rounded-3xl border border-border bg-background p-5 lg:col-span-2">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
+                            <BarChart3 className="h-4 w-4 text-indigo-500" />
+                            Frequency Distribution
+                          </h3>
+
+                          <ReactECharts
+                            option={histogramChart}
+                            style={{ height: 260 }}
+                          />
+                        </div>
+                      )}
+
+                      {topValuesChart && (
+                        <div className="rounded-3xl border border-border bg-background p-5 lg:col-span-2">
+                          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-foreground">
+                            <TrendingUp className="h-4 w-4 text-purple-500" />
+                            Top 10 Values
+                          </h3>
+
+                          <ReactECharts
+                            option={topValuesChart}
+                            style={{ height: 300 }}
+                          />
+                        </div>
+                      )}
+
+                      {!histogramChart && !topValuesChart && (
+                        <div className="rounded-3xl border border-dashed border-border bg-background p-10 text-center text-sm text-muted-foreground lg:col-span-2">
+                          No distribution chart is available for this column.
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+
+                  {activeDetailTab === "quality" && (
+                    <motion.div
+                      key="quality"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="grid gap-4 md:grid-cols-3"
+                    >
+                      {[
+                        {
+                          name: "Completeness",
+                          score: selectedProfile.completeness,
+                          description: `${(
+                            selectedProfile.completeness * 100
+                          ).toFixed(2)}% of values are non-null`,
+                          icon: CheckCircle2,
+                          detail: `${selectedProfile.nullCount.toLocaleString()} null values`,
+                        },
+                        {
+                          name: "Uniqueness",
+                          score: selectedProfile.uniqueness,
+                          description: `${selectedProfile.distinctCount.toLocaleString()} distinct values`,
+                          icon: Fingerprint,
+                          detail: `${(
+                            selectedProfile.uniquenessRate * 100
+                          ).toFixed(1)}% uniqueness rate`,
+                        },
+                        {
+                          name: "Validity",
+                          score: selectedProfile.validity,
+                          description: `Values conform to ${selectedProfile.sqlType}`,
+                          icon: Shield,
+                          detail: "Type-based validation",
+                        },
+                      ].map((dimension) => {
+                        const Icon = dimension.icon;
+
+                        return (
+                          <div
+                            key={dimension.name}
+                            className="rounded-3xl border border-border bg-background p-5"
+                          >
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <Icon
+                                  className="h-5 w-5"
+                                  style={{ color: qualityColor(dimension.score) }}
+                                />
+                                <span className="text-sm font-bold text-foreground">
+                                  {dimension.name}
+                                </span>
+                              </div>
+
+                              <span
+                                className="text-xl font-bold"
+                                style={{ color: qualityColor(dimension.score) }}
+                              >
+                                {(dimension.score * 100).toFixed(1)}%
+                              </span>
+                            </div>
+
+                            <div className="mt-4 h-2 overflow-hidden rounded-full bg-muted">
+                              <motion.div
+                                className="h-full rounded-full"
+                                style={{
+                                  backgroundColor: qualityColor(dimension.score),
+                                }}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${dimension.score * 100}%` }}
+                                transition={{ duration: 0.8 }}
+                              />
+                            </div>
+
+                            <p className="mt-4 text-sm text-foreground">
+                              {dimension.description}
+                            </p>
+                            <p className="mt-1 text-xs text-muted-foreground">
+                              {dimension.detail}
+                            </p>
+                          </div>
+                        );
+                      })}
+                    </motion.div>
+                  )}
+
+                  {activeDetailTab === "samples" && (
+                    <motion.div
+                      key="samples"
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="rounded-3xl border border-border bg-background p-5"
+                    >
+                      <div className="mb-4 flex items-center justify-between gap-3">
+                        <h3 className="flex items-center gap-2 text-sm font-bold text-foreground">
+                          <Table2 className="h-4 w-4 text-muted-foreground" />
                           Value Frequency Table
                         </h3>
+
                         <button
                           type="button"
                           onClick={() => {
                             const text = selectedProfile.topValues
                               .map(
-                                (v) =>
-                                  `${v.value}\t${v.count}\t${(v.pct * 100).toFixed(2)}%`,
+                                (value) =>
+                                  `${value.value}\t${value.count}\t${(
+                                    value.pct * 100
+                                  ).toFixed(2)}%`,
                               )
                               .join("\n");
+
                             navigator.clipboard.writeText(text);
                           }}
-                          className="text-xs flex items-center gap-1 px-2 py-1 bg-muted hover:bg-accent rounded text-foreground transition-colors"
+                          className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-card px-3 py-2 text-xs text-foreground transition-colors hover:bg-muted"
                         >
-                          <Copy className="w-3 h-3" /> Copy
+                          <Copy className="h-3.5 w-3.5" />
+                          Copy
                         </button>
                       </div>
-                      <div className="overflow-x-auto">
+
+                      <div className="overflow-hidden rounded-2xl border border-border">
                         <table className="w-full text-sm">
                           <thead>
-                            <tr className="border-b border-border">
-                              <th className="text-left py-2 px-2 text-xs text-muted-foreground font-medium">
+                            <tr className="border-b border-border bg-muted">
+                              <th className="px-3 py-2 text-left text-xs font-semibold text-muted-foreground">
                                 Value
                               </th>
-                              <th className="text-right py-2 px-2 text-xs text-muted-foreground font-medium">
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
                                 Count
                               </th>
-                              <th className="text-right py-2 px-2 text-xs text-muted-foreground font-medium">
+                              <th className="px-3 py-2 text-right text-xs font-semibold text-muted-foreground">
                                 %
                               </th>
-                              <th className="py-2 px-2 text-xs text-muted-foreground font-medium">
-                                Bar
+                              <th className="px-3 py-2 text-xs font-semibold text-muted-foreground">
+                                Distribution
                               </th>
                             </tr>
                           </thead>
                           <tbody>
-                            {selectedProfile.topValues.map((tv, idx) => (
+                            {selectedProfile.topValues.map((value, index) => (
                               <tr
-                                key={tv.value}
-                                className={`border-b border-border ${idx % 2 === 0 ? "" : "bg-muted"}`}
+                                key={`${value.value}-${index}`}
+                                className={cn(
+                                  "border-b border-border last:border-0",
+                                  index % 2 === 1 && "bg-muted/40",
+                                )}
                               >
-                                <td className="py-1.5 px-2 font-mono text-foreground max-w-[150px] truncate">
-                                  {tv.value || (
-                                    <span className="text-muted-foreground italic">
+                                <td className="max-w-72 truncate px-3 py-2 font-mono text-foreground">
+                                  {value.value || (
+                                    <span className="italic text-muted-foreground">
                                       empty
                                     </span>
                                   )}
                                 </td>
-                                <td className="py-1.5 px-2 text-right text-foreground font-mono">
-                                  {tv.count.toLocaleString()}
+                                <td className="px-3 py-2 text-right font-mono text-foreground">
+                                  {value.count.toLocaleString()}
                                 </td>
-                                <td className="py-1.5 px-2 text-right text-muted-foreground font-mono">
-                                  {(tv.pct * 100).toFixed(2)}%
+                                <td className="px-3 py-2 text-right font-mono text-muted-foreground">
+                                  {(value.pct * 100).toFixed(2)}%
                                 </td>
-                                <td className="py-1.5 px-2 w-24">
-                                  <div className="h-1.5 bg-accent rounded-full overflow-hidden">
+                                <td className="w-40 px-3 py-2">
+                                  <div className="h-2 overflow-hidden rounded-full bg-muted">
                                     <div
-                                      className="h-full rounded-full bg-indigo-500"
-                                      style={{ width: `${tv.pct * 100}%` }}
+                                      className="h-full rounded-full bg-violet-500"
+                                      style={{ width: `${value.pct * 100}%` }}
                                     />
                                   </div>
                                 </td>
@@ -1415,124 +1928,41 @@ export default function ParsedDataScreen() {
                           </tbody>
                         </table>
                       </div>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           )}
-        </div>
-      </div>
 
-      {/* Bottom: overall quality overview */}
-      <div className="border-t border-border p-4 md:p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-            <Shield className="w-4 h-4 text-green-400" />
-            Dataset Quality Overview
-          </h2>
-          <div className="flex items-center gap-2">
-            <span
-              className="text-sm font-bold"
-              style={{ color: qualityColor(overallScore) }}
-            >
-              {(overallScore * 100).toFixed(1)}% Overall
-            </span>
-            <span className="text-xs text-muted-foreground">
-              {qualityLabel(overallScore)}
-            </span>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {qualityDimensions.map((dim) => (
-            <div
-              key={dim.name}
-              className="bg-card border border-border rounded-xl p-3"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-foreground">
-                  {dim.name}
-                </span>
-                <span
-                  className="text-sm font-bold"
-                  style={{ color: qualityColor(dim.score) }}
-                >
-                  {(dim.score * 100).toFixed(0)}%
-                </span>
-              </div>
-              <div className="h-1.5 bg-accent rounded-full overflow-hidden mb-1.5">
-                <motion.div
-                  className="h-full rounded-full"
-                  style={{ backgroundColor: qualityColor(dim.score) }}
-                  initial={{ width: 0 }}
-                  animate={{ width: `${dim.score * 100}%` }}
-                  transition={{ duration: 0.8 }}
-                />
-              </div>
-              <p className="text-xs text-muted-foreground line-clamp-2">
-                {dim.description}
-              </p>
-              {dim.affected.length > 0 && (
-                <div className="mt-1.5 flex flex-wrap gap-1">
-                  {dim.affected.slice(0, 3).map((c) => (
-                    <span
-                      key={c}
-                      className="text-xs bg-yellow-500/15 text-yellow-300 px-1 rounded"
-                    >
-                      {c}
-                    </span>
-                  ))}
-                  {dim.affected.length > 3 && (
-                    <span className="text-xs text-muted-foreground">
-                      +{dim.affected.length - 3}
-                    </span>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-
-        {/* Quality charts row */}
-        {profiles.length > 0 && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2 bg-card border border-border rounded-xl p-4">
-              <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                <BarChart3 className="w-3.5 h-3.5 text-indigo-400" />{" "}
-                Completeness by Column
-              </h3>
-              {overviewQualityChart && (
-                <ReactECharts
-                  option={overviewQualityChart}
-                  style={{ height: 180 }}
-                />
-              )}
-            </div>
-            <div className="space-y-3">
-              <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <Layers className="w-3.5 h-3.5 text-purple-400" /> Type
-                  Distribution
+          {profiles.length > 0 && (
+            <div className="grid gap-5 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
+              <div className="rounded-3xl border border-border bg-card p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <BarChart3 className="h-4 w-4 text-indigo-500" />
+                  Completeness by Column
                 </h3>
-                <ReactECharts option={typeDistChart} style={{ height: 120 }} />
-              </div>
-              <div className="bg-card border border-border rounded-xl p-4">
-                <h3 className="text-xs font-semibold text-muted-foreground mb-2 flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-orange-400" /> Null
-                  Rate Heatmap
-                </h3>
-                {nullHeatmapData && (
+                {overviewQualityChart && (
                   <ReactECharts
-                    option={nullHeatmapData}
-                    style={{ height: 70 }}
+                    option={overviewQualityChart}
+                    style={{ height: 240 }}
                   />
                 )}
               </div>
+
+              <div className="rounded-3xl border border-border bg-card p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-bold text-foreground">
+                  <Percent className="h-4 w-4 text-orange-500" />
+                  Null Rate Heatmap
+                </h3>
+                {nullHeatmapData && (
+                  <ReactECharts option={nullHeatmapData} style={{ height: 240 }} />
+                )}
+              </div>
             </div>
-          </div>
-        )}
-      </div>
+          )}
+        </section>
+      </main>
     </div>
   );
 }

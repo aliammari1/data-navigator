@@ -2,11 +2,10 @@
 
 /**
  * WidgetRenderer — full chart suite:
- * ECharts (standard + 3D GL), Nivo (heatmap/network/sankey/calendar/bump),
+ * ECharts (standard + 3D GL)
  * visx sparklines + box plots, react-countup KPI cards.
  */
 
-import numeral from "numeral";
 import { lazy, Suspense, useMemo } from "react";
 import CountUp from "react-countup";
 import type { KPICard, WidgetState } from "@/features/agent-canvas/core/types";
@@ -26,6 +25,442 @@ const KPI_ACCENT: Record<string, string> = {
   "text-cyan-400": "#22d3ee",
   "text-rose-400": "#fb7185",
 };
+
+// ─── ECharts specialized chart builders ──────────────────────────────────────
+
+type EChartsOptionObject = Record<string, unknown>;
+
+const SPECIAL_ECHART_TYPES = new Set([
+  "heatmap",
+  "network",
+  "sankey",
+  "calendar",
+  "bump",
+]);
+
+function getRowKeys(data: Record<string, unknown>[]): string[] {
+  return Object.keys(data[0] ?? {});
+}
+
+function asNumber(value: unknown, fallback = 0): number {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function asLabel(value: unknown, fallback: string): string {
+  if (value == null || value === "") return fallback;
+  return String(value);
+}
+
+function getExtent(values: number[]): { min: number; max: number } {
+  const finite = values.filter(Number.isFinite);
+
+  if (finite.length === 0) {
+    return { min: 0, max: 1 };
+  }
+
+  const min = Math.min(...finite);
+  const max = Math.max(...finite);
+
+  return min === max ? { min: 0, max: max || 1 } : { min, max };
+}
+
+function buildHeatmapOption(
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject {
+  const keys = getRowKeys(rawData);
+  const labelKey = keys[0];
+  const valueKeys = keys.filter((key) => key !== labelKey).slice(0, 24);
+  const rows = rawData.slice(0, 24);
+
+  const values = rows.flatMap((row) =>
+    valueKeys.map((key) => asNumber(row[key])),
+  );
+
+  const { min, max } = getExtent(values);
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      formatter: (params: { value: [number, number, number] }) => {
+        const [x, y, value] = params.value;
+        return `${rows[y]?.[labelKey] ?? `Row ${y + 1}`}<br/>${valueKeys[x]}: ${value}`;
+      },
+    },
+    grid: {
+      top: 20,
+      right: 20,
+      bottom: 70,
+      left: 90,
+    },
+    xAxis: {
+      type: "category",
+      data: valueKeys,
+      axisLabel: {
+        color: "#94a3b8",
+        rotate: 35,
+        fontSize: 10,
+      },
+      axisLine: { lineStyle: { color: "#334155" } },
+      splitArea: { show: true },
+    },
+    yAxis: {
+      type: "category",
+      data: rows.map((row, index) => asLabel(row[labelKey], `row${index + 1}`)),
+      axisLabel: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+      axisLine: { lineStyle: { color: "#334155" } },
+      splitArea: { show: true },
+    },
+    visualMap: {
+      min,
+      max,
+      show: false,
+      calculable: true,
+      inRange: {
+        color: ["#1e3a8a", "#2563eb", "#facc15", "#ef4444"],
+      },
+    },
+    series: [
+      {
+        type: "heatmap",
+        data: rows.flatMap((row, y) =>
+          valueKeys.map((key, x) => [x, y, asNumber(row[key])]),
+        ),
+        emphasis: {
+          itemStyle: {
+            borderColor: "#e2e8f0",
+            borderWidth: 1,
+          },
+        },
+      },
+    ],
+  };
+}
+
+function buildNetworkOption(
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject {
+  const keys = getRowKeys(rawData);
+  const sourceKey = keys[0];
+  const targetKey = keys[1];
+
+  const nodeIds = new Set<string>();
+  const links = rawData
+    .slice(0, 80)
+    .map((row, index) => {
+      const source = asLabel(row[sourceKey], `source-${index}`);
+      const target = asLabel(row[targetKey], `target-${index}`);
+
+      nodeIds.add(source);
+      nodeIds.add(target);
+
+      return {
+        source,
+        target,
+        value: 1,
+      };
+    })
+    .filter((link) => link.source !== link.target);
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {},
+    series: [
+      {
+        type: "graph",
+        layout: "force",
+        roam: true,
+        draggable: true,
+        data: Array.from(nodeIds).map((id) => ({
+          id,
+          name: id,
+          symbolSize: 18,
+          itemStyle: {
+            color: "#7c3aed",
+          },
+          label: {
+            show: true,
+            color: "#cbd5e1",
+            fontSize: 10,
+          },
+        })),
+        links,
+        force: {
+          repulsion: 140,
+          edgeLength: 80,
+        },
+        lineStyle: {
+          color: "#64748b",
+          opacity: 0.45,
+        },
+        emphasis: {
+          focus: "adjacency",
+        },
+      },
+    ],
+  };
+}
+
+function buildSankeyOption(
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject {
+  const keys = getRowKeys(rawData);
+  const sourceKey = keys[0];
+  const targetKey = keys[1];
+  const valueKey = keys[2];
+
+  const nodeIds = new Set<string>();
+
+  const links = rawData
+    .slice(0, 80)
+    .map((row, index) => {
+      const source = asLabel(row[sourceKey], `source-${index}`);
+      const target = asLabel(row[targetKey], `target-${index}`);
+
+      nodeIds.add(source);
+      nodeIds.add(target);
+
+      return {
+        source,
+        target,
+        value: Math.max(1, Math.abs(asNumber(row[valueKey], 1))),
+      };
+    })
+    .filter((link) => link.source !== link.target);
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "item",
+      triggerOn: "mousemove",
+    },
+    series: [
+      {
+        type: "sankey",
+        top: 10,
+        right: 20,
+        bottom: 10,
+        left: 20,
+        nodeWidth: 14,
+        nodeGap: 10,
+        data: Array.from(nodeIds).map((name) => ({ name })),
+        links,
+        label: {
+          color: "#cbd5e1",
+          fontSize: 10,
+        },
+        lineStyle: {
+          color: "gradient",
+          opacity: 0.35,
+          curveness: 0.5,
+        },
+        itemStyle: {
+          borderColor: "#0f172a",
+          borderWidth: 1,
+        },
+      },
+    ],
+  };
+}
+
+function buildCalendarOption(
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject | null {
+  const keys = getRowKeys(rawData);
+
+  const dateKey =
+    keys.find((key) => {
+      const lower = key.toLowerCase();
+      return lower.includes("date") || lower.includes("day");
+    }) ?? keys[0];
+
+  const valueKey = keys.find((key) => key !== dateKey) ?? keys[1];
+
+  const data = rawData
+    .filter((row) => {
+      const value = row[dateKey];
+      return value && !Number.isNaN(new Date(String(value)).getTime());
+    })
+    .slice(0, 365)
+    .map((row) => [
+      String(row[dateKey]).slice(0, 10),
+      asNumber(row[valueKey], 1),
+    ]);
+
+  if (data.length < 2) {
+    return null;
+  }
+
+  const values = data.map(([, value]) => Number(value));
+  const { min, max } = getExtent(values);
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {
+      position: "top",
+    },
+    visualMap: {
+      min,
+      max,
+      show: false,
+      inRange: {
+        color: ["#1e293b", "#1d4ed8", "#3b82f6", "#60a5fa"],
+      },
+    },
+    calendar: {
+      top: 25,
+      left: 35,
+      right: 20,
+      bottom: 25,
+      range: [String(data[0][0]), String(data[data.length - 1][0])],
+      cellSize: ["auto", 14],
+      splitLine: {
+        lineStyle: {
+          color: "#0f172a",
+        },
+      },
+      itemStyle: {
+        color: "#1e293b",
+        borderColor: "#0f172a",
+        borderWidth: 1,
+      },
+      dayLabel: {
+        color: "#64748b",
+        fontSize: 10,
+      },
+      monthLabel: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+      yearLabel: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+    },
+    series: [
+      {
+        type: "heatmap",
+        coordinateSystem: "calendar",
+        data,
+      },
+    ],
+  };
+}
+
+function buildBumpOption(
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject {
+  const keys = getRowKeys(rawData);
+  const seriesKey = keys[0];
+  const periodKey = keys[1];
+  const rankKey = keys[2];
+
+  const seriesIds = Array.from(
+    new Set(rawData.map((row) => asLabel(row[seriesKey], "Unknown"))),
+  ).slice(0, 8);
+
+  const periods = Array.from(
+    new Set(rawData.map((row) => asLabel(row[periodKey], "Period"))),
+  ).slice(0, 16);
+
+  return {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "axis",
+    },
+    grid: {
+      top: 20,
+      right: 90,
+      bottom: 40,
+      left: 40,
+    },
+    xAxis: {
+      type: "category",
+      data: periods,
+      axisLabel: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+      axisLine: {
+        lineStyle: {
+          color: "#334155",
+        },
+      },
+    },
+    yAxis: {
+      type: "value",
+      inverse: true,
+      min: 1,
+      axisLabel: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+      splitLine: {
+        lineStyle: {
+          color: "rgba(148, 163, 184, 0.12)",
+        },
+      },
+    },
+    legend: {
+      right: 0,
+      top: 10,
+      orient: "vertical",
+      textStyle: {
+        color: "#94a3b8",
+        fontSize: 10,
+      },
+    },
+    series: seriesIds.map((id) => ({
+      name: id,
+      type: "line",
+      smooth: true,
+      symbol: "circle",
+      symbolSize: 7,
+      connectNulls: true,
+      emphasis: {
+        focus: "series",
+      },
+      lineStyle: {
+        width: 2,
+      },
+      data: periods.map((period) => {
+        const row = rawData.find(
+          (candidate) =>
+            asLabel(candidate[seriesKey], "") === id &&
+            asLabel(candidate[periodKey], "") === period,
+        );
+
+        return row ? asNumber(row[rankKey], 1) : null;
+      }),
+    })),
+  };
+}
+
+function buildSpecialEChartsOption(
+  chartType: string,
+  rawData: Record<string, unknown>[],
+): EChartsOptionObject | null {
+  if (!rawData.length) return null;
+
+  switch (chartType) {
+    case "heatmap":
+      return buildHeatmapOption(rawData);
+    case "network":
+      return buildNetworkOption(rawData);
+    case "sankey":
+      return buildSankeyOption(rawData);
+    case "calendar":
+      return buildCalendarOption(rawData);
+    case "bump":
+      return buildBumpOption(rawData);
+    default:
+      return null;
+  }
+}
 
 function parseNumber(value: string): number | null {
   const n = parseFloat(value.replace(/[^0-9.-]/g, ""));
@@ -67,7 +502,13 @@ function KPIGrid({ cards }: { cards: KPICard[] }) {
                   decimals={numVal % 1 !== 0 ? 2 : 0}
                   formattingFn={
                     isLarge
-                      ? (v) => numeral(v).format("0.[0]a").toUpperCase()
+                      ? (v) =>
+                          Intl.NumberFormat(undefined, {
+                            notation: "compact",
+                            compactDisplay: "short",
+                          })
+                            .format(v)
+                            .toUpperCase()
                       : undefined
                   }
                 />
@@ -129,210 +570,6 @@ function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
   );
 }
 
-// ─── Nivo Heatmap ─────────────────────────────────────────────────────────────
-
-function NivoHeatmap({ data: rawData }: { data: Record<string, unknown>[] }) {
-  const { ResponsiveHeatMap } = require("@nivo/heatmap"); // eslint-disable-line
-  const keys = Object.keys(rawData[0] ?? {}).filter((k) => k !== "id");
-  const data = rawData.slice(0, 15).map((row, i) => ({
-    id: String(row[Object.keys(row)[0]] ?? `row${i}`),
-    data: keys.map((k) => ({ x: k, y: Number(row[k]) || 0 })),
-  }));
-
-  return (
-    <ResponsiveHeatMap
-      data={data}
-      keys={keys}
-      indexBy="id"
-      margin={{ top: 20, right: 20, bottom: 60, left: 80 }}
-      colors={{ type: "diverging", scheme: "red_yellow_blue", divergeAt: 0.5 }}
-      theme={{
-        text: { fill: "#94a3b8", fontSize: 10 },
-        axis: { ticks: { text: { fill: "#64748b" } } },
-      }}
-      axisTop={null}
-      axisLeft={{ tickSize: 0, tickPadding: 5 }}
-      axisBottom={{ tickSize: 0, tickPadding: 5, tickRotation: -30 }}
-      borderWidth={1}
-      borderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
-      animate={true}
-      motionConfig="gentle"
-    />
-  );
-}
-
-// ─── Nivo Network ─────────────────────────────────────────────────────────────
-
-function NivoNetwork({ data: rawData }: { data: Record<string, unknown>[] }) {
-  const { ResponsiveNetwork } = require("@nivo/network"); // eslint-disable-line
-  const keys = Object.keys(rawData[0] ?? {});
-  const nodes = keys
-    .slice(0, 10)
-    .map((k) => ({ id: k, height: 1, size: 20, color: "#6d28d9" }));
-  const links = rawData
-    .slice(0, 20)
-    .map((row, i) => ({
-      source: String(row[keys[0]] ?? `src${i}`),
-      target: String(row[keys[1]] ?? `tgt${i}`),
-      distance: 60,
-    }))
-    .filter((l) => l.source !== l.target);
-
-  return (
-    <ResponsiveNetwork
-      data={{ nodes, links }}
-      margin={{ top: 0, right: 0, bottom: 0, left: 0 }}
-      linkDistance={(e: { distance: number }) => e.distance}
-      centeringStrength={0.3}
-      repulsivity={6}
-      nodeSize={(n: { size: number }) => n.size}
-      activeNodeSize={(n: { size: number }) => n.size * 1.5}
-      nodeColor={(e: { color: string }) => e.color}
-      nodeBorderWidth={1}
-      nodeBorderColor={{ from: "color", modifiers: [["darker", 0.4]] }}
-      theme={{ text: { fill: "#94a3b8" } }}
-    />
-  );
-}
-
-// ─── Nivo Sankey ─────────────────────────────────────────────────────────────
-
-function NivoSankey({ data: rawData }: { data: Record<string, unknown>[] }) {
-  const { ResponsiveSankey } = require("@nivo/sankey"); // eslint-disable-line
-  const keys = Object.keys(rawData[0] ?? {});
-  const srcKey = keys[0];
-  const tgtKey = keys[1];
-  const valKey = keys[2];
-
-  const nodeSet = new Set<string>();
-  rawData.forEach((r) => {
-    nodeSet.add(String(r[srcKey]));
-    nodeSet.add(String(r[tgtKey]));
-  });
-
-  const nodes = Array.from(nodeSet).map((id) => ({ id }));
-  const linksRaw = rawData
-    .slice(0, 15)
-    .map((r) => ({
-      source: String(r[srcKey]),
-      target: String(r[tgtKey]),
-      value: Math.abs(Number(r[valKey]) || 1),
-    }))
-    .filter((l) => l.source !== l.target);
-
-  return (
-    <ResponsiveSankey
-      data={{ nodes, links: linksRaw }}
-      margin={{ top: 10, right: 30, bottom: 10, left: 30 }}
-      align="justify"
-      colors={{ scheme: "paired" }}
-      nodeOpacity={1}
-      nodeThickness={12}
-      nodeBorderColor={{ from: "color", modifiers: [["darker", 0.8]] }}
-      linkOpacity={0.4}
-      enableLinkGradient
-      theme={{ text: { fill: "#94a3b8", fontSize: 10 } }}
-    />
-  );
-}
-
-// ─── Nivo Calendar ────────────────────────────────────────────────────────────
-
-function NivoCalendar({ data: rawData }: { data: Record<string, unknown>[] }) {
-  const { ResponsiveCalendar } = require("@nivo/calendar"); // eslint-disable-line
-  const keys = Object.keys(rawData[0] ?? {});
-  const dateKey =
-    keys.find(
-      (k) =>
-        k.toLowerCase().includes("date") || k.toLowerCase().includes("day"),
-    ) ?? keys[0];
-  const valKey = keys.find((k) => k !== dateKey) ?? keys[1];
-
-  const calData = rawData
-    .filter((r) => r[dateKey] && !isNaN(new Date(String(r[dateKey])).getTime()))
-    .slice(0, 365)
-    .map((r) => ({
-      day: String(r[dateKey]).slice(0, 10),
-      value: Number(r[valKey]) || 1,
-    }));
-
-  if (calData.length < 2)
-    return (
-      <div className="text-xs text-slate-600 p-4 text-center">
-        Need date column for calendar
-      </div>
-    );
-
-  const from = calData[0].day;
-  const to = calData[calData.length - 1].day;
-
-  return (
-    <ResponsiveCalendar
-      data={calData}
-      from={from}
-      to={to}
-      emptyColor="#1e293b"
-      colors={["#1e3a5f", "#1d4ed8", "#3b82f6", "#60a5fa"]}
-      margin={{ top: 20, right: 20, bottom: 20, left: 40 }}
-      yearSpacing={40}
-      monthBorderColor="#0f172a"
-      dayBorderWidth={1}
-      dayBorderColor="#0f172a"
-      theme={{ text: { fill: "#64748b", fontSize: 10 } }}
-    />
-  );
-}
-
-// ─── Nivo Bump ────────────────────────────────────────────────────────────────
-
-function NivoBump({ data: rawData }: { data: Record<string, unknown>[] }) {
-  const { ResponsiveBump } = require("@nivo/bump"); // eslint-disable-line
-  const keys = Object.keys(rawData[0] ?? {});
-  const seriesKey = keys[0];
-  const periodKey = keys[1];
-  const rankKey = keys[2];
-
-  const seriesSet = Array.from(
-    new Set(rawData.map((r) => String(r[seriesKey]))),
-  ).slice(0, 8);
-  const periods = Array.from(
-    new Set(rawData.map((r) => String(r[periodKey]))),
-  ).slice(0, 12);
-
-  const bumpData = seriesSet.map((id) => ({
-    id,
-    data: periods.map((x) => {
-      const row = rawData.find(
-        (r) => String(r[seriesKey]) === id && String(r[periodKey]) === x,
-      );
-      return { x, y: row ? Number(row[rankKey]) || 1 : null };
-    }),
-  }));
-
-  return (
-    <ResponsiveBump
-      data={bumpData}
-      colors={{ scheme: "nivo" }}
-      lineWidth={2}
-      activeLineWidth={4}
-      inactiveLineWidth={1}
-      inactiveOpacity={0.15}
-      pointSize={8}
-      activePointSize={12}
-      inactivePointSize={0}
-      pointColor={{ theme: "background" }}
-      pointBorderWidth={2}
-      activePointBorderWidth={3}
-      pointBorderColor={{ from: "serie.color" }}
-      margin={{ top: 20, right: 120, bottom: 40, left: 40 }}
-      axisTop={null}
-      axisBottom={{ tickSize: 0, tickPadding: 5 }}
-      axisLeft={{ tickSize: 0, tickPadding: 5 }}
-      theme={{ text: { fill: "#94a3b8", fontSize: 10 } }}
-    />
-  );
-}
-
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
 function Skeleton({
@@ -376,43 +613,6 @@ function Skeleton({
   );
 }
 
-// ─── Nivo chart type router ───────────────────────────────────────────────────
-
-function NivoChart({
-  chartType,
-  data,
-}: {
-  chartType: string;
-  data: Record<string, unknown>[];
-}) {
-  if (!data?.length)
-    return (
-      <div className="text-xs text-slate-600 p-4 text-center">No data</div>
-    );
-
-  switch (chartType) {
-    case "heatmap":
-      return <NivoHeatmap data={data} />;
-    case "network":
-      return <NivoNetwork data={data} />;
-    case "sankey":
-      return <NivoSankey data={data} />;
-    case "calendar":
-      return <NivoCalendar data={data} />;
-    case "bump":
-      return <NivoBump data={data} />;
-    default:
-      return null;
-  }
-}
-
-const NIVO_TYPES = new Set([
-  "heatmap",
-  "network",
-  "sankey",
-  "calendar",
-  "bump",
-]);
 const ECHARTS_OPTS = { renderer: "canvas" as const };
 const ECHARTS_STYLE = { height: "100%", width: "100%" };
 
@@ -438,10 +638,15 @@ export function WidgetRenderer({ widget, height = "100%", className }: Props) {
 
   // Memoize
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const chartOpts = useMemo(
-    () => echartsOption,
-    [JSON.stringify(echartsOption)],
-  );
+  const specialChartOption = useMemo(() => {
+    if (!rawData?.length || !SPECIAL_ECHART_TYPES.has(spec.chartType)) {
+      return null;
+    }
+
+    return buildSpecialEChartsOption(spec.chartType, rawData);
+  }, [rawData, spec.chartType]);
+
+  const chartOpts = echartsOption ?? specialChartOption;
 
   if (status !== "done" && !echartsOption && !kpis && !tableHeaders) {
     return <Skeleton status={status} error={error} />;
@@ -458,17 +663,6 @@ export function WidgetRenderer({ widget, height = "100%", className }: Props) {
     return (
       <div className={cn("h-full", className)} style={{ height }}>
         <DataTable headers={tableHeaders} rows={tableRows} />
-      </div>
-    );
-  }
-
-  // Nivo charts
-  if (NIVO_TYPES.has(spec.chartType) && rawData?.length) {
-    return (
-      <div className={cn("h-full w-full", className)} style={{ height }}>
-        <Suspense fallback={<Skeleton status="building" />}>
-          <NivoChart chartType={spec.chartType} data={rawData} />
-        </Suspense>
       </div>
     );
   }

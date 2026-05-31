@@ -148,7 +148,7 @@ import type * as Types from "@/features/telecom/types";
 import {
   getColumnStats,
   getTableInfo,
-  runQuery,
+  runReadOnlyQuery,
 } from "@/platform/duckdb/duckdb";
 import { loadUploadFileToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
 import { cn } from "@/shared/utils";
@@ -313,7 +313,7 @@ export default function DataBrowserScreen({
         let usingUploadedData = false;
 
         try {
-          const tablesResult = await runQuery(`SHOW TABLES`);
+          const tablesResult = await runReadOnlyQuery(`SHOW TABLES`);
           const tableNames = tablesResult
             .map((r) => String(r.name ?? r.table_name ?? Object.values(r)[0]))
             .filter(Boolean);
@@ -344,7 +344,7 @@ export default function DataBrowserScreen({
         // Sample first row to help infer types
         let sampleRow: Record<string, unknown> = {};
         try {
-          const sample = await runQuery(
+          const sample = await runReadOnlyQuery(
             `SELECT * FROM ${quoteIdentifier(tableToUse)} LIMIT 1`,
           );
           sampleRow = sample[0] ?? {};
@@ -404,7 +404,7 @@ export default function DataBrowserScreen({
       setUploadingFile((p) => p && { ...p, progress: 100, status: "done" });
 
       // Refresh table list and switch to new table
-      const tablesResult = await runQuery(`SHOW TABLES`);
+      const tablesResult = await runReadOnlyQuery(`SHOW TABLES`);
       const tableNames = tablesResult
         .map((r) => String(r.name ?? r.table_name ?? Object.values(r)[0]))
         .filter(Boolean);
@@ -413,7 +413,7 @@ export default function DataBrowserScreen({
       const info = await getTableInfo(tableName);
       let sampleRow: Record<string, unknown> = {};
       try {
-        const sample = await runQuery(
+        const sample = await runReadOnlyQuery(
           `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 1`,
         );
         sampleRow = sample[0] ?? {};
@@ -469,7 +469,7 @@ export default function DataBrowserScreen({
       // Count query
       const whereClause = buildWhereClause(filterGroup);
       const countSql = `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(activeTable)}${whereClause ? ` WHERE ${whereClause}` : ""}`;
-      const countResult = await runQuery(countSql);
+      const countResult = await runReadOnlyQuery(countSql);
       const newTotal = Number(countResult[0]?.cnt ?? 0);
       setTotalRows(newTotal);
 
@@ -487,7 +487,7 @@ export default function DataBrowserScreen({
         clampedPage * pageSize,
       );
 
-      const data = await runQuery(sql);
+      const data = await runReadOnlyQuery(sql);
       setRows(data);
       setQueryTime(Math.round(performance.now() - t0));
     } catch (err) {
@@ -528,7 +528,7 @@ export default function DataBrowserScreen({
       const secondaryMetricSql = quoteIdentifier(secondaryMetric.id);
 
       try {
-        const data = await runQuery(`
+        const data = await runReadOnlyQuery(`
           SELECT CAST(${dimensionSql} AS VARCHAR) as department,
             ROUND(SUM(TRY_CAST(${sumMetricSql} AS DOUBLE)), 2) as total_revenue,
             ROUND(AVG(TRY_CAST(${avgMetricSql} AS DOUBLE)), 2) as avg_margin,
@@ -672,7 +672,7 @@ export default function DataBrowserScreen({
     setQueryError(null);
     try {
       const t0 = performance.now();
-      const result = await runQuery(sqlQuery);
+      const result = await runReadOnlyQuery(sqlQuery);
       setCustomQueryResult(result);
       setCustomQueryCols(result.length > 0 ? Object.keys(result[0]) : []);
       setCustomQueryTime(Math.round(performance.now() - t0));
@@ -1000,6 +1000,7 @@ export default function DataBrowserScreen({
                   uploadPanelOpen &&
                     "border-blue-500/50 bg-blue-500/10 text-blue-400",
                 )}
+                aria-label="Upload file"
                 onClick={() => setUploadPanelOpen(!uploadPanelOpen)}
               >
                 <Upload className="h-3.5 w-3.5" />
@@ -1131,6 +1132,7 @@ export default function DataBrowserScreen({
                   filterGroup.rules.filter((r) => r.active).length > 0 &&
                     "border-emerald-500/50 bg-emerald-500/10 text-emerald-400",
                 )}
+                aria-label="Filters"
                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
               >
                 <Filter className="h-3.5 w-3.5" />
@@ -1151,6 +1153,7 @@ export default function DataBrowserScreen({
                 variant="outline"
                 size="icon"
                 className="h-8 w-8 border-zinc-800 bg-zinc-900"
+                aria-label="Columns"
                 onClick={() => setColPanelOpen(!colPanelOpen)}
               >
                 <Columns3 className="h-3.5 w-3.5" />
@@ -1265,6 +1268,7 @@ export default function DataBrowserScreen({
             variant="outline"
             size="icon"
             className="h-8 w-8 border-zinc-800 bg-zinc-900"
+            aria-label="Refresh rows"
             onClick={fetchRows}
             disabled={queryLoading}
           >

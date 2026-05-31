@@ -1,15 +1,25 @@
 /**
- * F27 — onnxruntime-web + WebGPU Forecasting
- * Replaces TF.js (F13). Uses ONNX runtime with WebGPU execution provider.
- * Model loaded from cache → fetched from /models/ on first use.
- * Falls back to simple-statistics linear regression when no model is available.
+ * Forecasting — TensorFlow.js + simple-statistics
  *
- * Why linear regression fallback: 24 data points is too few for a neural net
- * to generalize. Linear regression is more stable and interpretable at this scale.
+ * Replaces onnxruntime-web.
+ *
+ * Runtime path:
+ * 1. Try TensorFlow.js model from IndexedDB cache.
+ * 2. If enabled, fetch model from /models/forecast-tfjs/model.json.
+ * 3. Save fetched model into IndexedDB.
+ * 4. Fall back to simple-statistics linear regression when no model exists.
+ *
+ * Expected TFJS model:
+ * - Input shape:  [1, sequenceLength, 4]
+ * - Output shape: [1, horizon, 2] or [horizon * 2]
+ * - Output values:
+ *   - even index: normalized total
+ *   - odd index: success rate
  */
 
 "use client";
 
+import type * as Tf from "@tensorflow/tfjs";
 import { linearRegression, linearRegressionLine } from "simple-statistics";
 
 export interface HourlyRow {
@@ -27,159 +37,216 @@ export interface ForecastPoint {
   isForecast: true;
 }
 
-// ─── WebGPU Detection ─────────────────────────────────────────────────────────
+type TfModule = typeof Tf;
+type TfModel = Tf.LayersModel;
 
-export async function isWebGPUAvailable(): Promise<boolean> {
-  if (typeof navigator === "undefined") return false;
-  if (!("gpu" in navigator)) return false;
-  try {
-    const adapter = await (
-      navigator as unknown as { gpu: { requestAdapter(): Promise<unknown> } }
-    ).gpu.requestAdapter();
-    return adapter !== null;
-  } catch {
-    return false;
-  }
-}
+const MODEL_INDEXEDDB_PATH = "indexeddb://forecast-tfjs";
+const MODEL_PUBLIC_PATH = "/models/forecast-tfjs/model.json";
 
-// ─── ONNX Session (cached) ────────────────────────────────────────────────────
+/**
+ * Disabled by default so the app does not spam 404 requests
+ * when you have not shipped a model yet.
+ *
+ * Enable only after adding:
+ * public/models/forecast-tfjs/model.json
+ * public/models/forecast-tfjs/*.bin
+ */
+const MODEL_HTTP_FETCH_ENABLED =
+  process.env.NEXT_PUBLIC_ENABLE_FORECAST_TFJS === "true";
 
-const MODEL_OPFS_NAME = "forecast-lstm-int8.onnx";
-// HTTP fetch is intentionally disabled: no model file is bundled with the app.
-// To enable ONNX inference, place forecast-lstm-int8.onnx in public/models/ and
-// set this to true.  Without the file, the linear-regression fallback is used.
-const MODEL_HTTP_FETCH_ENABLED = false;
-const MODEL_PUBLIC_PATH = "/models/forecast-lstm-int8.onnx";
+let tfPromise: Promise<TfModule> | null = null;
+let modelPromise: Promise<TfModel | null> | null = null;
 
-let _sessionPromise: Promise<unknown> | null = null;
-
-async function getONNXSession(): Promise<unknown | null> {
-  if (_sessionPromise) return _sessionPromise;
-  _sessionPromise = (async () => {
-    try {
-      const ort = await import("onnxruntime-web");
-
-      // Configure WASM paths
-      ort.env.wasm.wasmPaths = "/_next/static/onnx/";
-
-      // Try OPFS cache first
-      let modelBuffer: ArrayBuffer | null = null;
+async function loadTf(): Promise<TfModule> {
+  if (!tfPromise) {
+    tfPromise = import("@tensorflow/tfjs").then(async (tf) => {
+      /**
+       * TensorFlow.js can pick a backend automatically, but for browser apps
+       * we try WebGL first because it is the normal accelerated browser path.
+       */
       try {
-        const opfsRoot = await navigator.storage.getDirectory();
-        const fh = await opfsRoot.getFileHandle(MODEL_OPFS_NAME);
-        modelBuffer = await (await fh.getFile()).arrayBuffer();
+        await tf.setBackend("webgl");
       } catch {
-        // Not in OPFS — fetch from public directory only when enabled
-        if (MODEL_HTTP_FETCH_ENABLED) {
-          try {
-            const res = await fetch(MODEL_PUBLIC_PATH, {
-              cache: "force-cache",
-            });
-            if (res.ok) {
-              modelBuffer = await res.arrayBuffer();
-              // Cache in OPFS for future sessions
-              try {
-                const opfsRoot = await navigator.storage.getDirectory();
-                const fh = await opfsRoot.getFileHandle(MODEL_OPFS_NAME, {
-                  create: true,
-                });
-                const writable = await fh.createWritable();
-                await writable.write(modelBuffer);
-                await writable.close();
-              } catch {
-                // OPFS write failure — non-critical
-              }
-            }
-          } catch {
-            // No model available — will use linear regression fallback
-          }
+        try {
+          await tf.setBackend("cpu");
+        } catch {
+          // tf.ready() below will surface any real init issue.
         }
       }
 
-      if (!modelBuffer) return null;
+      await tf.ready();
+      return tf;
+    });
+  }
 
-      const webgpu = await isWebGPUAvailable();
-      const session = await ort.InferenceSession.create(modelBuffer, {
-        executionProviders: webgpu ? ["webgpu", "wasm"] : ["wasm"],
-      });
-      return session;
-    } catch (err) {
-      console.warn("[forecast-onnx] ONNX session init failed:", err);
-      return null;
-    }
-  })();
-  return _sessionPromise;
+  return tfPromise;
 }
 
-// ─── Linear Regression Fallback ───────────────────────────────────────────────
-
-function linearForecast(hourly: HourlyRow[], horizon: number): ForecastPoint[] {
-  const n = hourly.length;
-  if (n < 3) return [];
-
-  // Points: [index, value]
-  const totalPts = hourly.map((r, i) => [i, r.total] as [number, number]);
-  const ratePts = hourly.map(
-    (r, i) => [i, r.total > 0 ? r.success / r.total : 0] as [number, number],
-  );
-
-  const totalReg = linearRegression(totalPts);
-  const rateReg = linearRegression(ratePts);
-  const totalLine = linearRegressionLine(totalReg);
-  const rateLine = linearRegressionLine(rateReg);
-
-  const lastHour = hourly.at(-1)!.hour;
-  return Array.from({ length: horizon }, (_, i) => ({
-    hour: (lastHour + i + 1) % 24,
-    predictedTotal: Math.max(0, Math.round(totalLine(n + i))),
-    predictedSuccessRate: Math.max(0, Math.min(1, rateLine(n + i))),
-    isForecast: true as const,
-  }));
-}
-
-// ─── ONNX Inference (when model present) ─────────────────────────────────────
-
-async function onnxForecast(
-  session: unknown,
-  hourly: HourlyRow[],
-  horizon: number,
-): Promise<ForecastPoint[]> {
+async function tryLoadModelFromIndexedDB(
+  tf: TfModule,
+): Promise<TfModel | null> {
   try {
-    const ort = await import("onnxruntime-web");
-
-    const maxTotal = Math.max(...hourly.map((r) => r.total), 1);
-    const inputData = new Float32Array(
-      hourly.flatMap((r, i) => [
-        i / hourly.length,
-        r.hour / 23,
-        r.total / maxTotal,
-        r.total > 0 ? r.success / r.total : 0,
-      ]),
-    );
-
-    const tensor = new ort.Tensor("float32", inputData, [1, hourly.length, 4]);
-    // biome-ignore lint/suspicious/noExplicitAny: session type varies by ort version
-    const output = await (session as any).run({ input: tensor });
-    const raw = output.output?.data as Float32Array | undefined;
-    if (!raw) throw new Error("no output");
-
-    const lastHour = hourly.at(-1)!.hour;
-    return Array.from({ length: horizon }, (_, i) => ({
-      hour: (lastHour + i + 1) % 24,
-      predictedTotal: Math.max(0, Math.round((raw[i * 2] ?? 0) * maxTotal)),
-      predictedSuccessRate: Math.max(0, Math.min(1, raw[i * 2 + 1] ?? 0)),
-      isForecast: true as const,
-    }));
-  } catch (err) {
-    console.warn(
-      "[forecast-onnx] inference failed, using linear regression:",
-      err,
-    );
-    return linearForecast(hourly, horizon);
+    return await tf.loadLayersModel(MODEL_INDEXEDDB_PATH);
+  } catch {
+    return null;
   }
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+async function tryLoadModelFromPublic(tf: TfModule): Promise<TfModel | null> {
+  if (!MODEL_HTTP_FETCH_ENABLED) return null;
+
+  try {
+    const model = await tf.loadLayersModel(MODEL_PUBLIC_PATH);
+
+    try {
+      await model.save(MODEL_INDEXEDDB_PATH);
+    } catch {
+      // IndexedDB cache failure is not fatal.
+    }
+
+    return model;
+  } catch (error) {
+    console.warn("[forecast-tfjs] Public model load failed:", error);
+    return null;
+  }
+}
+
+async function getTfModel(): Promise<TfModel | null> {
+  if (typeof window === "undefined") return null;
+
+  if (!modelPromise) {
+    modelPromise = (async () => {
+      try {
+        const tf = await loadTf();
+
+        return (
+          (await tryLoadModelFromIndexedDB(tf)) ??
+          (await tryLoadModelFromPublic(tf))
+        );
+      } catch (error) {
+        console.warn("[forecast-tfjs] Model init failed:", error);
+        return null;
+      }
+    })();
+  }
+
+  return modelPromise;
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function linearForecast(hourly: HourlyRow[], horizon: number): ForecastPoint[] {
+  const rows = hourly.slice(-24);
+  const n = rows.length;
+
+  if (n < 3) return [];
+
+  const totalPoints = rows.map((row, index) => {
+    return [index, row.total] as [number, number];
+  });
+
+  const successRatePoints = rows.map((row, index) => {
+    const successRate = row.total > 0 ? row.success / row.total : 0;
+    return [index, successRate] as [number, number];
+  });
+
+  const totalRegression = linearRegression(totalPoints);
+  const successRateRegression = linearRegression(successRatePoints);
+
+  const totalLine = linearRegressionLine(totalRegression);
+  const successRateLine = linearRegressionLine(successRateRegression);
+
+  const lastHour = rows.at(-1)?.hour ?? 0;
+
+  return Array.from({ length: horizon }, (_, index) => {
+    const predictedIndex = n + index;
+
+    return {
+      hour: (lastHour + index + 1) % 24,
+      predictedTotal: Math.max(0, Math.round(totalLine(predictedIndex))),
+      predictedSuccessRate: clamp(successRateLine(predictedIndex), 0, 1),
+      isForecast: true,
+    };
+  });
+}
+
+async function tfjsForecast(
+  model: TfModel,
+  hourly: HourlyRow[],
+  horizon: number,
+): Promise<ForecastPoint[]> {
+  const tf = await loadTf();
+  const rows = hourly.slice(-24);
+
+  if (rows.length < 3) return [];
+
+  const maxTotal = Math.max(...rows.map((row) => row.total), 1);
+  const lastHour = rows.at(-1)?.hour ?? 0;
+
+  let outputTensor: Tf.Tensor | null = null;
+
+  try {
+    const inputData = new Float32Array(
+      rows.flatMap((row, index) => {
+        const successRate = row.total > 0 ? row.success / row.total : 0;
+
+        return [
+          index / rows.length,
+          row.hour / 23,
+          row.total / maxTotal,
+          successRate,
+        ];
+      }),
+    );
+
+    const inputTensor = tf.tensor(inputData, [1, rows.length, 4], "float32");
+
+    outputTensor = tf.tidy(() => {
+      const prediction = model.predict(inputTensor);
+
+      if (Array.isArray(prediction)) {
+        return prediction[0].clone();
+      }
+
+      return prediction.clone();
+    });
+
+    inputTensor.dispose();
+
+    const raw = await outputTensor.data();
+
+    if (raw.length < horizon * 2) {
+      throw new Error(
+        `TFJS output too short. Expected at least ${
+          horizon * 2
+        } values, got ${raw.length}.`,
+      );
+    }
+
+    return Array.from({ length: horizon }, (_, index) => {
+      const normalizedTotal = Number(raw[index * 2] ?? 0);
+      const successRate = Number(raw[index * 2 + 1] ?? 0);
+
+      return {
+        hour: (lastHour + index + 1) % 24,
+        predictedTotal: Math.max(0, Math.round(normalizedTotal * maxTotal)),
+        predictedSuccessRate: clamp(successRate, 0, 1),
+        isForecast: true,
+      };
+    });
+  } catch (error) {
+    console.warn(
+      "[forecast-tfjs] Inference failed. Falling back to linear regression:",
+      error,
+    );
+
+    return linearForecast(hourly, horizon);
+  } finally {
+    outputTensor?.dispose();
+  }
+}
 
 export async function forecastNextHours(
   hourly: HourlyRow[],
@@ -188,14 +255,15 @@ export async function forecastNextHours(
   if (hourly.length < 3) return [];
 
   try {
-    const session = await getONNXSession();
-    if (session) {
-      return onnxForecast(session, hourly, horizon);
+    const model = await getTfModel();
+
+    if (!model) {
+      return linearForecast(hourly, horizon);
     }
-    // No ONNX model — use linear regression (fast, no model file needed)
-    return linearForecast(hourly, horizon);
-  } catch (err) {
-    console.warn("[forecast-onnx] forecastNextHours failed:", err);
+
+    return await tfjsForecast(model, hourly, horizon);
+  } catch (error) {
+    console.warn("[forecast-tfjs] forecastNextHours failed:", error);
     return linearForecast(hourly, horizon);
   }
 }

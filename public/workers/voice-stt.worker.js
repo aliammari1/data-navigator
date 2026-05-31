@@ -33010,40 +33010,60 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
       progress
     });
   }
+  async function getPreferredDevice() {
+    const nav = navigator;
+    if (!nav.gpu) {
+      return "wasm";
+    }
+    try {
+      const adapter = await nav.gpu.requestAdapter();
+      return adapter ? "webgpu" : "wasm";
+    } catch {
+      return "wasm";
+    }
+  }
+  function getDtypeForDevice(device) {
+    return device === "webgpu" ? "fp32" : "q8";
+  }
+  function isDownloadProgress(progress) {
+    return progress.status === "progress" || progress.status === "progress_total" || typeof progress.progress === "number";
+  }
+  function handleProgress(progress) {
+    const payload = progress;
+    postStatus(
+      isDownloadProgress(payload) ? "downloading-model" : "loading-model",
+      payload.status,
+      payload
+    );
+  }
+  async function createPipeline(device) {
+    return pipeline2("automatic-speech-recognition", MODEL_NAME, {
+      device,
+      dtype: getDtypeForDevice(device),
+      progress_callback: handleProgress
+    });
+  }
   async function loadPipeline() {
     if (pipe) return pipe;
     env2.allowLocalModels = false;
     env2.useBrowserCache = true;
-    const device = "webgpu" in navigator ? "webgpu" : "cpu";
+    const preferredDevice = await getPreferredDevice();
     postStatus(
       "loading-model",
-      `Preparing ${MODEL_NAME} with ${device === "webgpu" ? "WebGPU" : "WASM/CPU"}`
+      `Preparing ${MODEL_NAME} with ${preferredDevice === "webgpu" ? "WebGPU" : "WASM"}.`
     );
     try {
-      pipe = await pipeline2("automatic-speech-recognition", MODEL_NAME, {
-        device,
-        dtype: "fp32",
-        progress_callback: (progress) => {
-          postStatus(
-            progress.status === "progress_total" ? "downloading-model" : "loading-model",
-            progress.status,
-            progress
-          );
-        }
-      });
-    } catch (e) {
-      postStatus("fallback-cpu", "WebGPU failed. Retrying with WASM/CPU.");
-      pipe = await pipeline2("automatic-speech-recognition", MODEL_NAME, {
-        device: "cpu",
-        dtype: "fp32",
-        progress_callback: (progress) => {
-          postStatus(
-            progress.status === "progress_total" ? "downloading-model" : "loading-model",
-            progress.status,
-            progress
-          );
-        }
-      });
+      pipe = await createPipeline(preferredDevice);
+    } catch (firstError) {
+      if (preferredDevice === "wasm") {
+        throw firstError;
+      }
+      console.warn(
+        "[voice-stt-worker] WebGPU failed. Retrying with WASM.",
+        firstError
+      );
+      postStatus("fallback-wasm", "WebGPU failed. Retrying with WASM.");
+      pipe = await createPipeline("wasm");
     }
     postStatus("ready", "Offline voice model ready.");
     self.postMessage({ type: "MODEL_LOADED", model: MODEL_NAME });
@@ -33054,13 +33074,15 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
     if (!audio || audio.length === 0) {
       throw new Error("Empty audio buffer");
     }
-    postStatus("transcribing", `Transcribing ${Math.round(audio.length / 16e3)}s of audio.`);
+    postStatus(
+      "transcribing",
+      `Transcribing ${Math.round(audio.length / 16e3)}s of audio.`
+    );
     const result = await p(audio, {
       sampling_rate: 16e3,
       return_timestamps: false
     });
-    const text = result.text?.trim() ?? "";
-    return text;
+    return result.text?.trim() ?? "";
   }
   self.addEventListener("message", async (event) => {
     const { type, audio } = event.data;
@@ -33078,13 +33100,19 @@ ${fake_token_around_image}${global_img_token}` + image_token.repeat(image_seq_le
       }
       case "TRANSCRIBE": {
         if (!audio) {
-          self.postMessage({ type: "ERROR", error: "No audio data provided" });
+          self.postMessage({
+            type: "ERROR",
+            error: "No audio data provided"
+          });
           return;
         }
         try {
           postStatus("processing", "Preparing captured audio.");
           const text = await transcribe(audio);
-          self.postMessage({ type: "TRANSCRIPTION", text });
+          self.postMessage({
+            type: "TRANSCRIPTION",
+            text
+          });
         } catch (err) {
           self.postMessage({
             type: "ERROR",

@@ -1,0 +1,58 @@
+name: Storybook
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+    paths:
+      - "app/**"
+      - "src/**"
+      - "features/**"
+      - "components/**"
+      - ".storybook/**"
+      - "package.json"
+      - "package-lock.json"
+      - ".github/workflows/storybook.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: storybook-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  storybook:
+    name: Build and test Storybook
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24.x
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build Storybook
+        run: npm run build:storybook
+
+      - name: Upload Storybook static build
+        uses: actions/upload-artifact@v5
+        with:
+          name: storybook-static
+          path: storybook-static
+          if-no-files-found: error
+          retention-days: 7

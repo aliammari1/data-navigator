@@ -4,10 +4,29 @@
  * Offline Voice Button
  * Uses browser microphone + Web Workers for offline STT.
  * No Web Speech API — fully offline after model download.
+ *
+ * Flow:
+ * 1. Hold button to record.
+ * 2. Whisper transcribes audio.
+ * 3. User reviews transcript.
+ * 4. User clicks "Use transcript".
+ * 5. Transcript is routed.
  */
 
-import { AlertTriangle, CheckCircle2, Loader2, Mic, MicOff } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Loader2,
+  Mic,
+  MicOff,
+} from "lucide-react";
+import {
+  type PointerEvent as ReactPointerEvent,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { VoiceCaptureState } from "@/features/data-formulator/core/voice/voice-capture";
 import {
   startVoiceCapture,
@@ -23,7 +42,13 @@ interface VoiceButtonProps {
   className?: string;
 }
 
-type VoicePhase = "idle" | "capturing" | "processing" | "error";
+type VoicePhase =
+  | "idle"
+  | "capturing"
+  | "processing"
+  | "preview"
+  | "routing"
+  | "error";
 
 type VoiceWorkerProgress = {
   status?: string;
@@ -59,20 +84,88 @@ export function VoiceButton({
   const [error, setError] = useState<string | null>(null);
   const [modelReady, setModelReady] = useState(false);
   const [showReadyNotice, setShowReadyNotice] = useState(false);
+  const [pendingTranscript, setPendingTranscript] = useState<string | null>(
+    null,
+  );
   const [status, setStatus] = useState<VoiceStatus>({
     label: "Preparing offline voice",
     detail: "Loading speech worker...",
   });
+
   const sttWorkerRef = useRef<Worker | null>(null);
   const routerWorkerRef = useRef<Worker | null>(null);
   const phaseRef = useRef<VoicePhase>("idle");
+  const activePointerIdRef = useRef<number | null>(null);
+  const autoStopTimerRef = useRef<number | null>(null);
 
-  // Keep phaseRef in sync
   useEffect(() => {
     phaseRef.current = phase;
   }, [phase]);
 
-  // Initialize workers from public/workers/ built artifacts
+  const clearAutoStopTimer = useCallback(() => {
+    if (autoStopTimerRef.current !== null) {
+      window.clearTimeout(autoStopTimerRef.current);
+      autoStopTimerRef.current = null;
+    }
+  }, []);
+
+  const routeTranscript = useCallback(
+    (transcript: string) => {
+      const cleanTranscript = transcript.trim();
+
+      if (!cleanTranscript) {
+        setPhase("error");
+        phaseRef.current = "error";
+        setError("Transcript was empty.");
+        setStatus({
+          label: "Voice unavailable",
+          detail: "Transcript was empty.",
+        });
+        return;
+      }
+
+      const routerWorker = routerWorkerRef.current;
+
+      if (!routerWorker) {
+        setPhase("error");
+        phaseRef.current = "error";
+        setError("Voice router is not ready.");
+        setStatus({
+          label: "Voice unavailable",
+          detail: "Voice router is not ready.",
+        });
+        return;
+      }
+
+      setPhase("routing");
+      phaseRef.current = "routing";
+      setStatus({
+        label: "Routing transcript",
+        detail: "Converting transcript into a manager action...",
+      });
+
+      routerWorker.postMessage({
+        type: "ROUTE_COMMAND",
+        transcript: cleanTranscript,
+        language,
+      });
+    },
+    [language],
+  );
+
+  const clearPreview = useCallback(() => {
+    setPendingTranscript(null);
+    setAudioLevel(0);
+    setDurationMs(0);
+    setPhase("idle");
+    phaseRef.current = "idle";
+    setStatus({
+      label: "Offline voice ready",
+      detail: "Hold to speak.",
+      progress: 100,
+    });
+  }, []);
+
   useEffect(() => {
     const sttWorker = new Worker("/workers/voice-stt.worker.js", {
       type: "module",
@@ -84,38 +177,87 @@ export function VoiceButton({
     });
     routerWorkerRef.current = routerWorker;
 
-    sttWorker.onmessage = (e) => {
-      const msg = e.data;
+    sttWorker.onerror = (event) => {
+      setPhase("error");
+      phaseRef.current = "error";
+      setError(event.message || "Speech worker crashed.");
+      setStatus({
+        label: "Voice unavailable",
+        detail: event.message || "Speech worker crashed.",
+      });
+    };
+
+    routerWorker.onerror = (event) => {
+      setPhase("error");
+      phaseRef.current = "error";
+      setError(event.message || "Voice router crashed.");
+      setStatus({
+        label: "Voice unavailable",
+        detail: event.message || "Voice router crashed.",
+      });
+    };
+
+    sttWorker.onmessage = (event) => {
+      const msg = event.data;
+
       if (msg.type === "TRANSCRIPTION") {
+        const transcript = String(msg.text ?? "").trim();
+
+        if (!transcript) {
+          setPhase("error");
+          phaseRef.current = "error";
+          setError("No speech was detected.");
+          setStatus({
+            label: "Voice unavailable",
+            detail: "No speech was detected. Try speaking closer to the mic.",
+          });
+          return;
+        }
+
+        setPendingTranscript(transcript);
+        setPhase("preview");
+        phaseRef.current = "preview";
         setStatus({
-          label: "Normalizing command",
-          detail: "Converting transcript into a manager action...",
+          label: "Review transcript",
+          detail: "Check the text before routing it.",
         });
-        setPhase("processing");
-        // Route the command
-        routerWorker.postMessage({
-          type: "ROUTE_COMMAND",
-          transcript: msg.text,
-          language,
-        });
-      } else if (msg.type === "ERROR") {
+
+        return;
+      }
+
+      if (msg.type === "ERROR") {
         setPhase("error");
+        phaseRef.current = "error";
         setError(msg.error);
-      } else if (msg.type === "MODEL_LOADED") {
+        setStatus({
+          label: "Voice unavailable",
+          detail: msg.error ?? "Voice failed.",
+        });
+        return;
+      }
+
+      if (msg.type === "MODEL_LOADED") {
         setModelReady(true);
         setShowReadyNotice(true);
+        setPhase("idle");
+        phaseRef.current = "idle";
+        setError(null);
         setStatus({
           label: "Offline voice ready",
           detail: `${msg.model ?? "Speech model"} is cached and ready.`,
           progress: 100,
         });
         window.setTimeout(() => setShowReadyNotice(false), 2600);
-      } else if (msg.type === "STATUS") {
+        return;
+      }
+
+      if (msg.type === "STATUS") {
         const progress = msg.progress as VoiceWorkerProgress | undefined;
         const loaded = formatBytes(progress?.loaded);
         const total = formatBytes(progress?.total);
         const progressText =
-          loaded && total ? `${loaded} / ${total}` : msg.detail ?? msg.status;
+          loaded && total ? `${loaded} / ${total}` : (msg.detail ?? msg.status);
+
         setStatus({
           label:
             msg.status === "ready"
@@ -124,7 +266,7 @@ export function VoiceButton({
                 ? "Downloading voice model"
                 : msg.status === "transcribing"
                   ? "Transcribing speech"
-                  : msg.status === "fallback-cpu"
+                  : msg.status === "fallback-wasm"
                     ? "Using WASM fallback"
                     : "Preparing offline voice",
           detail: progressText,
@@ -137,15 +279,28 @@ export function VoiceButton({
       }
     };
 
-    routerWorker.onmessage = (e) => {
-      const msg = e.data;
+    routerWorker.onmessage = (event) => {
+      const msg = event.data;
+
       if (msg.type === "COMMAND_ROUTED") {
         setPhase("idle");
+        phaseRef.current = "idle";
         setShowReadyNotice(false);
+        setPendingTranscript(null);
+        setAudioLevel(0);
+        setDurationMs(0);
         onResult(msg.command.transcript);
-      } else if (msg.type === "ROUTE_ERROR") {
+        return;
+      }
+
+      if (msg.type === "ROUTE_ERROR") {
         setPhase("error");
+        phaseRef.current = "error";
         setError(msg.error);
+        setStatus({
+          label: "Voice command failed",
+          detail: msg.error ?? "Could not route voice command.",
+        });
       }
     };
 
@@ -153,21 +308,37 @@ export function VoiceButton({
       label: "Preparing offline voice",
       detail: "Checking browser cache for Whisper...",
     });
+
     sttWorker.postMessage({ type: "LOAD_MODEL" });
 
     return () => {
+      clearAutoStopTimer();
       sttWorker.terminate();
       routerWorker.terminate();
+      sttWorkerRef.current = null;
+      routerWorkerRef.current = null;
     };
-  }, []);
+  }, [clearAutoStopTimer, language, onResult]);
 
   const handleStop = useCallback(() => {
+    if (phaseRef.current !== "capturing") return;
+
+    clearAutoStopTimer();
+
     const audio = stopVoiceCapture();
+
+    setAudioLevel(0);
     setPhase("processing");
+    phaseRef.current = "processing";
 
     if (!audio || audio.length === 0) {
       setPhase("error");
+      phaseRef.current = "error";
       setError("No audio captured");
+      setStatus({
+        label: "Voice unavailable",
+        detail: "No audio captured. Hold the button a little longer.",
+      });
       return;
     }
 
@@ -175,56 +346,141 @@ export function VoiceButton({
       label: "Transcribing speech",
       detail: "Running local Whisper in the browser...",
     });
+
     sttWorkerRef.current?.postMessage({
       type: "TRANSCRIBE",
       audio,
     });
-  }, []);
+  }, [clearAutoStopTimer]);
 
   const handleStart = useCallback(async () => {
+    if (disabled) return;
+    if (phaseRef.current === "processing") return;
+    if (phaseRef.current === "routing") return;
+    if (phaseRef.current === "preview") return;
+
     if (!modelReady) {
       setShowReadyNotice(true);
+      setStatus((current) => ({
+        ...current,
+        label: "Voice is still preparing",
+        detail:
+          current.detail || "Wait until the offline model finishes loading.",
+      }));
       return;
     }
 
-    setPhase("capturing");
-    setError(null);
-    setStatus({
-      label: "Listening",
-      detail: "Release to transcribe.",
-    });
+    try {
+      clearAutoStopTimer();
 
-    await startVoiceCapture(
-      "push-to-talk",
-      (state: VoiceCaptureState) => {
-        setAudioLevel(state.audioLevel);
-        setDurationMs(state.durationMs);
-        if (state.error) {
-          setPhase("error");
-          setError(state.error);
+      setPendingTranscript(null);
+      setPhase("capturing");
+      phaseRef.current = "capturing";
+      setError(null);
+      setAudioLevel(0);
+      setDurationMs(0);
+
+      setStatus({
+        label: "Recording...",
+        detail: "Speak now. Release to transcribe.",
+      });
+
+      await startVoiceCapture(
+        "push-to-talk",
+        (state: VoiceCaptureState) => {
+          setAudioLevel(state.audioLevel);
+          setDurationMs(state.durationMs);
+
+          if (state.error) {
+            setPhase("error");
+            phaseRef.current = "error";
+            setError(state.error);
+            setStatus({
+              label: "Voice unavailable",
+              detail: state.error,
+            });
+          }
+        },
+        () => {},
+      );
+
+      autoStopTimerRef.current = window.setTimeout(() => {
+        if (phaseRef.current === "capturing") {
+          handleStop();
         }
-      },
-      // Chunks are accumulated internally by voice-capture; we rely on stopVoiceCapture() to return the full buffer
-      () => {},
-    );
+      }, 10000);
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Could not start recording.";
 
-    // Auto-stop after 10 seconds max
-    setTimeout(() => {
-      if (phaseRef.current === "capturing") {
-        handleStop();
+      setPhase("error");
+      phaseRef.current = "error";
+      setError(message);
+      setStatus({
+        label: "Voice unavailable",
+        detail: message,
+      });
+    }
+  }, [clearAutoStopTimer, disabled, handleStop, modelReady]);
+
+  const handlePointerDown = useCallback(
+    async (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (event.button !== 0) return;
+      if (activePointerIdRef.current !== null) return;
+
+      event.preventDefault();
+
+      activePointerIdRef.current = event.pointerId;
+      event.currentTarget.setPointerCapture(event.pointerId);
+
+      await handleStart();
+    },
+    [handleStart],
+  );
+
+  const handlePointerUp = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+
+      event.preventDefault();
+
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
       }
-    }, 10000);
-  }, [handleStop]);
+
+      activePointerIdRef.current = null;
+      handleStop();
+    },
+    [handleStop],
+  );
+
+  const handlePointerCancel = useCallback(
+    (event: ReactPointerEvent<HTMLButtonElement>) => {
+      if (activePointerIdRef.current !== event.pointerId) return;
+
+      activePointerIdRef.current = null;
+      handleStop();
+    },
+    [handleStop],
+  );
 
   const isCapturing = phase === "capturing";
-  const isProcessing = phase === "processing";
+  const isProcessing = phase === "processing" || phase === "routing";
   const isPreparing = !modelReady;
+  const isPreviewing = phase === "preview";
+
   const showStatus =
-    isPreparing || showReadyNotice || isCapturing || isProcessing || phase === "error";
+    isPreparing ||
+    showReadyNotice ||
+    isCapturing ||
+    isProcessing ||
+    isPreviewing ||
+    phase === "error";
+
   const statusTone =
     phase === "error"
       ? "rose"
-      : isCapturing
+      : isCapturing || isPreviewing
         ? "emerald"
         : isProcessing || isPreparing
           ? "amber"
@@ -235,7 +491,7 @@ export function VoiceButton({
       {showStatus && (
         <div
           className={cn(
-            "absolute bottom-full left-0 z-50 mb-3 w-[280px] rounded-xl border p-3 text-left shadow-2xl backdrop-blur-xl",
+            "absolute bottom-full left-0 z-50 mb-3 w-[320px] rounded-xl border p-3 text-left shadow-2xl backdrop-blur-xl",
             statusTone === "rose"
               ? "border-rose-500/25 bg-rose-950/95"
               : statusTone === "amber"
@@ -257,26 +513,30 @@ export function VoiceButton({
               {phase === "error" ? (
                 <AlertTriangle className="h-3.5 w-3.5" />
               ) : isCapturing ? (
-                <Mic className="h-3.5 w-3.5" />
+                <Mic className="h-3.5 w-3.5 animate-pulse" />
               ) : isProcessing || isPreparing ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
               ) : (
                 <CheckCircle2 className="h-3.5 w-3.5" />
               )}
             </div>
+
             <div className="min-w-0 flex-1">
               <div className="text-xs font-semibold text-foreground">
-                {phase === "error" ? "Voice unavailable" : status.label}
+                {status.label}
               </div>
+
               <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
-                {phase === "error" ? error : status.detail}
+                {phase === "error" ? (error ?? status.detail) : status.detail}
               </div>
+
               {status.file && (
                 <div className="mt-1 truncate text-[10px] text-muted-foreground/70">
                   {status.file}
                 </div>
               )}
             </div>
+
             {isCapturing && (
               <div className="rounded-md border border-emerald-500/20 bg-emerald-500/10 px-1.5 py-0.5 text-[10px] text-emerald-300">
                 {(durationMs / 1000).toFixed(1)}s
@@ -304,7 +564,9 @@ export function VoiceButton({
           {isCapturing && (
             <div className="mt-3 flex h-8 items-end gap-1">
               {Array.from({ length: 18 }).map((_, index) => {
-                const height = 20 + audioLevel * 70 * (index % 3 === 0 ? 1 : 0.65);
+                const height =
+                  20 + audioLevel * 70 * (index % 3 === 0 ? 1 : 0.65);
+
                 return (
                   <span
                     key={index}
@@ -315,42 +577,84 @@ export function VoiceButton({
               })}
             </div>
           )}
+
+          {isPreviewing && pendingTranscript && (
+            <div className="mt-3 rounded-lg border border-white/10 bg-black/25 p-2">
+              <div className="mb-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                Transcribed text
+              </div>
+
+              <div className="max-h-24 overflow-y-auto whitespace-pre-wrap text-xs leading-relaxed text-foreground">
+                {pendingTranscript}
+              </div>
+
+              <div className="mt-3 flex items-center justify-end gap-2">
+                <button
+                  type="button"
+                  onClick={clearPreview}
+                  className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+                >
+                  Retry
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => routeTranscript(pendingTranscript)}
+                  className="rounded-md border border-emerald-500/25 bg-emerald-500/15 px-2 py-1 text-[11px] font-medium text-emerald-300 transition-colors hover:bg-emerald-500/25"
+                >
+                  Use transcript
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
       <button
         type="button"
-        onMouseDown={handleStart}
-        onMouseUp={isCapturing ? handleStop : undefined}
-        onMouseLeave={isCapturing ? handleStop : undefined}
-        onTouchStart={handleStart}
-        onTouchEnd={isCapturing ? handleStop : undefined}
-        disabled={disabled || isProcessing}
+        onPointerDown={handlePointerDown}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerCancel}
+        disabled={disabled || isProcessing || isPreviewing}
+        aria-pressed={isCapturing}
+        aria-label={
+          isCapturing
+            ? "Recording. Release to stop."
+            : isPreviewing
+              ? "Review transcript before routing."
+              : isPreparing
+                ? "Preparing offline voice model."
+                : "Hold to speak."
+        }
         title={
           isPreparing
             ? "Preparing offline voice model"
             : isCapturing
-              ? "Release to stop"
-              : isProcessing
-                ? "Processing..."
-                : "Hold to speak"
+              ? "Recording — release to stop"
+              : isPreviewing
+                ? "Review transcript before routing"
+                : isProcessing
+                  ? "Processing..."
+                  : "Hold to speak"
         }
         className={cn(
-          "relative flex items-center justify-center rounded-xl border transition-all",
+          "relative flex touch-none select-none items-center justify-center rounded-xl border transition-all",
           isCapturing
-            ? "border-emerald-500/30 bg-emerald-500/20 text-emerald-300"
-            : isProcessing || isPreparing
-              ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
-              : phase === "error"
-                ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
-                : "border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground",
+            ? "scale-105 border-emerald-400/60 bg-emerald-500/25 text-emerald-200 shadow-lg shadow-emerald-500/20"
+            : isPreviewing
+              ? "border-emerald-500/30 bg-emerald-500/15 text-emerald-300"
+              : isProcessing || isPreparing
+                ? "border-amber-500/20 bg-amber-500/10 text-amber-300"
+                : phase === "error"
+                  ? "border-rose-500/30 bg-rose-500/10 text-rose-300"
+                  : "border-white/10 bg-white/5 text-muted-foreground hover:bg-white/10 hover:text-foreground",
           className,
         )}
       >
         {isProcessing || isPreparing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
         ) : isCapturing ? (
-          <MicOff className="h-4 w-4" />
+          <MicOff className="h-4 w-4 animate-pulse" />
         ) : (
           <Mic className="h-4 w-4" />
         )}
@@ -360,17 +664,24 @@ export function VoiceButton({
         )}
 
         {isCapturing && (
-          <div className="pointer-events-none absolute inset-0 animate-pulse rounded-xl ring-2 ring-emerald-400/40" />
-        )}
+          <>
+            <span className="absolute -right-1 -top-1 h-3 w-3 rounded-full bg-emerald-400 ring-2 ring-background" />
+            <span className="absolute -right-1 -top-1 h-3 w-3 animate-ping rounded-full bg-emerald-400/70" />
 
-        {isCapturing && (
-          <div
-            className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-emerald-400/30 transition-all"
-            style={{
-              transform: `scale(${1 + audioLevel * 0.5})`,
-              opacity: 0.3 + audioLevel * 0.7,
-            }}
-          />
+            <span className="pointer-events-none absolute left-full ml-2 whitespace-nowrap rounded-full border border-emerald-500/30 bg-emerald-950/95 px-2 py-1 text-[10px] font-medium text-emerald-200 shadow-lg">
+              Recording {(durationMs / 1000).toFixed(1)}s
+            </span>
+
+            <div className="pointer-events-none absolute inset-0 animate-pulse rounded-xl ring-2 ring-emerald-400/50" />
+
+            <div
+              className="pointer-events-none absolute -inset-1 rounded-xl border-2 border-emerald-400/30 transition-all"
+              style={{
+                transform: `scale(${1 + audioLevel * 0.5})`,
+                opacity: 0.35 + audioLevel * 0.65,
+              }}
+            />
+          </>
         )}
       </button>
     </div>

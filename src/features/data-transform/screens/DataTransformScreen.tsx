@@ -60,7 +60,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { cn } from "@/shared/utils";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -375,7 +375,7 @@ export default function DataTransformScreen() {
     async function init() {
       try {
         let tableName = activeDataset?.tableName ?? loadedTableNames[0] ?? "";
-        const tables = await runQuery("SHOW TABLES").catch(() => []);
+        const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
         const tableNames = tables
           .map((row) =>
             String(row.name ?? row.table_name ?? Object.values(row)[0] ?? ""),
@@ -389,7 +389,7 @@ export default function DataTransformScreen() {
         }
 
         if (tableName) {
-          const countRes = await runQuery(
+          const countRes = await runReadOnlyQuery(
             `SELECT COUNT(*) as cnt FROM "${tableName.replace('"', '""')}"`,
           );
           if (!cancelled) {
@@ -469,10 +469,10 @@ export default function DataTransformScreen() {
         try {
           const sql = stepToSQL(step, currentTable);
           const outputTable = `step_${step.id}`;
-          await runQuery(
+          await runReadOnlyQuery(
             `CREATE OR REPLACE TABLE "${outputTable}" AS (${sql})`,
           );
-          const countRes = await runQuery(
+          const countRes = await runReadOnlyQuery(
             `SELECT COUNT(*) as cnt FROM "${outputTable}"`,
           );
           const outRows = Number(countRes[0]?.cnt ?? 0);
@@ -511,7 +511,7 @@ export default function DataTransformScreen() {
         enabledSteps.length > 0
           ? `step_${enabledSteps[enabledSteps.length - 1].id}`
           : sourceTableName;
-      const preview = await runQuery(
+      const preview = await runReadOnlyQuery(
         `SELECT * FROM "${lastTable.replace('"', '""')}" LIMIT 50`,
       );
       setPreviewData(preview);

@@ -8,6 +8,7 @@
  */
 
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
+import { createTelecomEnrichedView } from "@/features/telecom/lib/queries";
 import {
   REPORT_DOUBT_STATUS_CODES,
   REPORT_HOLD_STATUS_CODES,
@@ -15,8 +16,7 @@ import {
   SPEC_STATUS_CODES,
   sqlStatusInList,
 } from "@/features/telecom/lib/status-definitions";
-import { loadDelimitedCSVToDuckDB, runQuery } from "@/platform/duckdb/duckdb";
-import { createTelecomEnrichedView } from "@/features/telecom/lib/queries";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -561,19 +561,19 @@ export interface StatusSummary {
 
 export async function getStatusSummary(): Promise<StatusSummary> {
   const [success, refund, instance, declined, total] = await Promise.all([
-    runQuery(
+    runReadOnlyQuery(
       `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${successFilter}`,
     ),
-    runQuery(
+    runReadOnlyQuery(
       `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${refundFilter}`,
     ),
-    runQuery(
+    runReadOnlyQuery(
       `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${instanceFilter}`,
     ),
-    runQuery(
+    runReadOnlyQuery(
       `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${declinedFilter}`,
     ),
-    runQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`),
+    runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`),
   ]);
   return {
     reussie: Number(success[0]?.cnt ?? 0),
@@ -621,7 +621,7 @@ export async function getChannelStats(
       WHERE ${successFilter}
         AND (${ch.condition})${df}
     `;
-    const rows = await runQuery(sql);
+    const rows = await runReadOnlyQuery(sql);
     const nombre = Number(rows[0]?.nombre ?? 0);
     const montant = Number(rows[0]?.montant ?? 0);
     results.push({ canal: ch.name, nombre, montant });
@@ -640,8 +640,10 @@ export async function loadReportCSV(
   mapping?: import("@/features/telecom/types").ColumnMapping,
 ): Promise<{ rowCount: number; columns: string[] }> {
   await loadDelimitedCSVToDuckDB(REPORT_TABLE, csvContent);
-  const info = await runQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`);
-  const cols = await runQuery(
+  const info = await runReadOnlyQuery(
+    `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`,
+  );
+  const cols = await runReadOnlyQuery(
     `SELECT column_name FROM information_schema.columns WHERE table_name = '${REPORT_TABLE}'`,
   );
   // Build enriched view for faster downstream queries
@@ -661,7 +663,7 @@ export async function loadReportCSV(
 export async function getTopTransactionsByAmount(
   limit = 20,
 ): Promise<Record<string, unknown>[]> {
-  return runQuery(`
+  return runReadOnlyQuery(`
     SELECT TRANSACTION_ID, TRANSACTION_DATE, ORIGINAL_AMOUNT, ACCOUNT_NAME, CUSTOMER_NAME, TRANSACTION_STATUS, BRAND_NAME, CHANNEL
     FROM "${REPORT_TABLE}"
     WHERE ${successFilter}
@@ -673,7 +675,7 @@ export async function getTopTransactionsByAmount(
 export async function getHourlyDistribution(): Promise<
   { hour: number; count: number; amount: number }[]
 > {
-  const rows = await runQuery(`
+  const rows = await runReadOnlyQuery(`
     SELECT
       EXTRACT(HOUR FROM TRY_CAST(TRANSACTION_DATE AS TIMESTAMP)) as hour,
       COUNT(*) as count,
