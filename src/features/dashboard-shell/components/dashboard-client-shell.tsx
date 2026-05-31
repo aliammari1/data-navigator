@@ -1,7 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
-import { useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
 import {
@@ -14,7 +13,6 @@ import {
   DashboardLayout,
   type DashboardUser,
 } from "@/features/dashboard-shell/components/sidebar-nav";
-import { useDatasetRestore } from "@/platform/duckdb/use-dataset-restore";
 
 export function DashboardClientShell({
   children,
@@ -24,28 +22,44 @@ export function DashboardClientShell({
   user?: DashboardUser;
 }) {
   const [aiOpen, setAiOpen] = useState(false);
-  const toggle = useCallback(() => setAiOpen((v) => !v), []);
-  const activeDatasetId = useDataStore((s) => s.activeDatasetId);
-  const datasets = useDataStore((s) => s.datasets);
-  const setAppContext = useAppContextStore((s) => s.setContext);
 
-  useDatasetRestore();
+  const activeDatasetId = useDataStore((state) => state.activeDatasetId);
+  const datasets = useDataStore((state) => state.datasets);
+  const setAppContext = useAppContextStore((state) => state.setContext);
+
+  const toggleAiPanel = useCallback(() => {
+    setAiOpen((value) => !value);
+  }, []);
+
+  const closeAiPanel = useCallback(() => {
+    setAiOpen(false);
+  }, []);
 
   useEffect(() => {
-    const active = datasets.find((d) => d.id === activeDatasetId) ?? null;
+    const activeDataset =
+      datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
+
+    /**
+     * New DuckDB model:
+     * - dataset.id is the stable app/catalog id.
+     * - dataset.tableName, if still present in Zustand, should represent the
+     *   DuckDB view name.
+     *
+     * This keeps old AI/context consumers working while the rest of the app is
+     * migrated from "table" language to "dataset/view" language.
+     */
     setAppContext({
       activeDatasetId,
-      activeTableName: active?.tableName ?? null,
+      activeTableName: activeDataset?.tableName ?? null,
     });
   }, [activeDatasetId, datasets, setAppContext]);
 
   return (
-    <DashboardLayout onAiToggle={toggle} user={user}>
-      <LanAccessGate isAdmin={!!user}>
-        {children}
-      </LanAccessGate>
-      <AIPanel open={aiOpen} onClose={() => setAiOpen(false)} />
-      <AIToggle onClick={toggle} active={aiOpen} />
+    <DashboardLayout onAiToggle={toggleAiPanel} user={user}>
+      <LanAccessGate isAdmin={Boolean(user)}>{children}</LanAccessGate>
+
+      <AIPanel open={aiOpen} onClose={closeAiPanel} />
+      <AIToggle onClick={toggleAiPanel} active={aiOpen} />
       <LanStatusDock />
     </DashboardLayout>
   );

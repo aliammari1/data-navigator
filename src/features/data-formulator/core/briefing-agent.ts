@@ -5,12 +5,12 @@
  * Generates executive briefings from analysis context.
  */
 
-import { generateWithOllamaStructured } from "./ollama-provider";
-import { BriefJsonSchema, validateSchema } from "./ai-schemas";
-import { safeJsonStringify } from "./json";
-import type { ColumnInfo } from "./types";
 import type { AiError } from "./ai-errors";
 import { aiErrorFromUnknown } from "./ai-errors";
+import { BriefJsonSchema, validateSchema } from "./ai-schemas";
+import { safeJsonStringify } from "./json";
+import { generateWithOllamaStructured } from "./ollama-provider";
+import type { ColumnInfo } from "./types";
 
 export interface BriefingRequest {
   prompt: string;
@@ -20,6 +20,7 @@ export interface BriefingRequest {
     rowSample: Record<string, unknown>[];
     recentAnswer?: string;
     recentEvidence?: string[];
+    retrievedContext?: string[];
   };
   model: string;
   host: string;
@@ -72,15 +73,20 @@ export async function runBriefingAgent(
         sampleRows: context.rowSample.slice(0, 6),
         recentAnswer: context.recentAnswer,
         recentEvidence: context.recentEvidence,
+        retrievedContext: context.retrievedContext?.slice(0, 6) ?? [],
       }),
       BriefJsonSchema,
       { host, temperature: 0.2 },
     );
 
-    const validated = validateSchema<typeof result>(
-      result,
-      ["title", "audience", "durationSeconds", "keyPoints", "recommendations", "nextSteps"],
-    );
+    const validated = validateSchema<typeof result>(result, [
+      "title",
+      "audience",
+      "durationSeconds",
+      "keyPoints",
+      "recommendations",
+      "nextSteps",
+    ]);
 
     if (!validated.valid) {
       return {
@@ -92,7 +98,11 @@ export async function runBriefingAgent(
         risks: [],
         nextSteps: [],
         tone: "formal",
-        error: { code: "SCHEMA_MISMATCH", message: validated.error, retryable: true },
+        error: {
+          code: "SCHEMA_MISMATCH",
+          message: validated.error,
+          retryable: true,
+        },
       };
     }
 

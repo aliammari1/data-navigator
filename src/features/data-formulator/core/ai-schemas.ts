@@ -329,6 +329,9 @@ export const ToolCallJsonSchema = {
 export interface ManagerAnswerSchema {
   title: string;
   summary: string;
+  decision?: string;
+  impact?: string;
+  nextAction?: string;
   assumptions: string[];
   evidence: string[];
   followUps: string[];
@@ -343,6 +346,9 @@ export const ManagerAnswerJsonSchema = {
   properties: {
     title: { type: "string" },
     summary: { type: "string" },
+    decision: { type: "string" },
+    impact: { type: "string" },
+    nextAction: { type: "string" },
     assumptions: { type: "array", items: { type: "string" } },
     evidence: { type: "array", items: { type: "string" } },
     followUps: { type: "array", items: { type: "string" } },

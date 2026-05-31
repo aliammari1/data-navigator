@@ -21,7 +21,7 @@ import {
   START,
   StateGraph,
 } from "@langchain/langgraph";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import type { AGUIThreadContext } from "./ag-ui-types";
 import { makeCtx, makeEvent } from "./ag-ui-types";
 import { buildEChartsOption, buildKPICards, buildTableData } from "./charts";
@@ -190,7 +190,7 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
           }),
         );
       }
-      const rows = await runQuery(sql);
+      const rows = await runReadOnlyQuery(sql);
       const t = emitThought(
         state,
         "ReActAgent",
@@ -390,7 +390,7 @@ async function buildWidgetNode(
   // Execute
   let rawData: Record<string, unknown>[] = [];
   try {
-    rawData = await runQuery(sql);
+    rawData = await runReadOnlyQuery(sql);
     if (state.ctx) {
       publishEvent(
         makeEvent(state.ctx, {

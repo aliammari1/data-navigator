@@ -1,32 +1,32 @@
 "use client";
+
 /**
  * AgentFlowGraph — @xyflow/react DAG.
- * Live LangGraph node states, animated edges, d3-force layout, vaul drawer.
+ * Live LangGraph node states, animated edges, vaul drawer.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ReactFlow,
-  Background,
-  Controls,
-  MiniMap,
-  useNodesState,
-  useEdgesState,
   addEdge,
-  type Node,
-  type Edge,
+  Background,
   type Connection,
+  Controls,
+  type Edge,
   Handle,
-  Position,
   MarkerType,
+  MiniMap,
+  type Node,
+  Position,
+  ReactFlow,
+  useEdgesState,
+  useNodesState,
 } from "@xyflow/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import "@xyflow/react/dist/style.css";
-import * as d3 from "d3-force";
 import { motion } from "motion/react";
 import { Drawer } from "vaul";
-import { cn } from "@/shared/utils";
-import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { FlowNode } from "@/features/agent-canvas/core/agent-store";
+import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
+import { cn } from "@/shared/utils";
 
 // ─── Node status colors ───────────────────────────────────────────────────────
 

@@ -1,20 +1,24 @@
 'use strict';
 
-var fs4 = require('fs/promises');
-var path2 = require('path');
+var fs = require('fs/promises');
+var path = require('path');
 var electron = require('electron');
 var fs3 = require('fs');
-var os = require('os');
+var os2 = require('os');
 var getPortPlease = require('get-port-please');
 var startServer = require('next/dist/server/lib/start-server');
 var nodeApi = require('@duckdb/node-api');
+var nanoid = require('nanoid');
+var PQueue = require('p-queue');
+var zod = require('zod');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
-var fs4__default = /*#__PURE__*/_interopDefault(fs4);
-var path2__default = /*#__PURE__*/_interopDefault(path2);
+var fs__default = /*#__PURE__*/_interopDefault(fs);
+var path__default = /*#__PURE__*/_interopDefault(path);
 var fs3__default = /*#__PURE__*/_interopDefault(fs3);
-var os__default = /*#__PURE__*/_interopDefault(os);
+var os2__default = /*#__PURE__*/_interopDefault(os2);
+var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -10199,7 +10203,7 @@ var require_lib3 = __commonJS({
   }
 });
 function mkdirp(path22) {
-  return fs4__default.default.mkdir(path22, { recursive: true });
+  return fs__default.default.mkdir(path22, { recursive: true });
 }
 function crxToZip(buf) {
   function calcLength(a, b, c, d) {
@@ -10232,27 +10236,27 @@ function crxToZip(buf) {
   return buf.slice(zipStartOffset, buf.length);
 }
 async function unzip(crxFilePath, destination) {
-  const filePath = path2__default.default.resolve(crxFilePath);
+  const filePath = path__default.default.resolve(crxFilePath);
   let dest;
   if (destination) {
     dest = destination;
   } else {
-    const extname = path2__default.default.extname(crxFilePath);
-    const basename = path2__default.default.basename(crxFilePath, extname);
-    const dirname = path2__default.default.dirname(crxFilePath);
-    dest = path2__default.default.resolve(dirname, basename);
+    const extname = path__default.default.extname(crxFilePath);
+    const basename = path__default.default.basename(crxFilePath, extname);
+    const dirname = path__default.default.dirname(crxFilePath);
+    dest = path__default.default.resolve(dirname, basename);
   }
-  const buf = await fs4__default.default.readFile(filePath);
+  const buf = await fs__default.default.readFile(filePath);
   const { files } = await import_jszip.default.loadAsync(crxToZip(buf));
   return Promise.all(
     Object.keys(files).map(async (filename) => {
       const isFile = !files[filename].dir;
-      const fullPath = path2__default.default.join(dest, filename);
-      const directory = isFile && path2__default.default.dirname(fullPath) || fullPath;
+      const fullPath = path__default.default.join(dest, filename);
+      const directory = isFile && path__default.default.dirname(fullPath) || fullPath;
       await mkdirp(directory);
       if (isFile) {
         const content = await files[filename].async("nodebuffer");
-        await fs4__default.default.writeFile(fullPath, content);
+        await fs__default.default.writeFile(fullPath, content);
       }
     })
   );
@@ -10326,13 +10330,13 @@ function downloadFile(url, filePath) {
 }
 function changePermissions(dir, mode) {
   fs3__default.default.readdirSync(dir).forEach((file) => {
-    const filePath = path2__default.default.join(dir, file);
+    const filePath = path__default.default.join(dir, file);
     fs3__default.default.chmodSync(filePath, Number.parseInt(`${mode}`, 8));
     if (fs3__default.default.statSync(filePath).isDirectory()) changePermissions(filePath, mode);
   });
 }
 function getExtensionPath() {
-  return path2__default.default.join(electron.app.getPath("userData"), "extensions");
+  return path__default.default.join(electron.app.getPath("userData"), "extensions");
 }
 async function downloadExtension(extensionId, options) {
   const opts = Object.assign({
@@ -10343,9 +10347,9 @@ async function downloadExtension(extensionId, options) {
   const outPath = opts.outPath || getExtensionPath();
   const source = opts.source || (new Intl.NumberFormat().resolvedOptions().locale === "zh-CN" ? "npmmirror" : "unpkg");
   mkdirp2(outPath);
-  const unzipPath = path2__default.default.join(outPath, extensionId);
+  const unzipPath = path__default.default.join(outPath, extensionId);
   return new Promise((resolve, reject) => {
-    const filePath = path2__default.default.resolve(`${unzipPath}.crx`);
+    const filePath = path__default.default.resolve(`${unzipPath}.crx`);
     const unzipExtension = () => {
       mkdirp2(unzipPath, true);
       src_default(filePath, unzipPath).then(() => {
@@ -10355,7 +10359,7 @@ async function downloadExtension(extensionId, options) {
           unzipPath
         });
       }).catch((err) => {
-        if (!fs3__default.default.existsSync(path2__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
+        if (!fs3__default.default.existsSync(path__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
       });
     };
     if (fs3__default.default.existsSync(filePath) && !opts.force) {
@@ -10368,7 +10372,7 @@ async function downloadExtension(extensionId, options) {
         unzipPath
       });
     }
-    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
+    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os2__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
     if ([
       "unpkg",
       "jsdelivr",
@@ -10465,164 +10469,49 @@ var init_dist2 = __esm({
     src_default2 = installExtension;
   }
 });
+var READ_CONN_COUNT = 3;
+var MAX_METRICS = 200;
+var DEFAULT_PREVIEW_LIMIT = 100;
+var MAX_PREVIEW_LIMIT = 500;
+var DEFAULT_CSV_SAMPLE_SIZE = 20480;
+var MAX_CSV_SAMPLE_SIZE = 1e6;
+var DatasetIdSchema = zod.z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
+var RegisterCSVPathDatasetSchema = zod.z.object({
+  filePath: zod.z.string().min(1),
+  displayName: zod.z.string().min(1).max(255).optional(),
+  hasHeader: zod.z.boolean().optional(),
+  delimiter: zod.z.string().min(1).max(4).optional(),
+  sampleSize: zod.z.number().int().positive().max(MAX_CSV_SAMPLE_SIZE).optional(),
+  previewLimit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
+});
+var RegisterParquetPathDatasetSchema = zod.z.object({
+  filePath: zod.z.string().min(1),
+  displayName: zod.z.string().min(1).max(255).optional(),
+  previewLimit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
+});
+var PreviewDatasetSchema = zod.z.object({
+  datasetId: DatasetIdSchema,
+  limit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional(),
+  offset: zod.z.number().int().min(0).optional()
+});
+var DatasetOnlySchema = zod.z.object({
+  datasetId: DatasetIdSchema
+});
+var ExportDatasetSchema = zod.z.object({
+  datasetId: DatasetIdSchema,
+  targetPath: zod.z.string().min(1)
+});
 var instance = null;
 var writeConn = null;
 var readConns = [];
 var initPromise = null;
-var writeQueue = Promise.resolve();
-function enqueueWrite(operation) {
-  const run = writeQueue.then(operation, operation);
-  writeQueue = run.catch(() => void 0);
-  return run;
-}
+var activeDbPath = null;
+var activeDatasetsDir = null;
 var readConnIndex = 0;
-var READ_CONN_COUNT = 3;
-function getReadConnection() {
-  if (readConns.length === 0) {
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    return writeConn;
-  }
-  const conn = readConns[readConnIndex % readConns.length];
-  readConnIndex++;
-  return conn;
-}
-function isReadOnlyQuery(sql) {
-  const trimmed = sql.trim().toUpperCase();
-  return trimmed.startsWith("SELECT") || trimmed.startsWith("SHOW") || trimmed.startsWith("DESCRIBE") || trimmed.startsWith("EXPLAIN") || trimmed.startsWith("PRAGMA");
-}
-function quoteSqlString(value) {
-  return `'${value.replaceAll("'", "''")}'`;
-}
-function quoteIdentifier(value) {
-  return `"${value.replace('"', '""')}"`;
-}
-function buildPipeCsvOptions(hasHeader) {
-  return [
-    hasHeader ? "header = true" : "header = false",
-    "delim = '|'",
-    "strict_mode = false",
-    "null_padding = true",
-    "sample_size = -1",
-    "max_line_size = 10000000"
-  ].join(", ");
-}
-var tempDir = null;
-async function getTempDir() {
-  if (tempDir) return tempDir;
-  const base = electron.app.isPackaged ? path2__default.default.join(electron.app.getPath("userData"), "data-navigator", "tmp") : path2__default.default.join(os__default.default.tmpdir(), "data-navigator-dev");
-  await fs4__default.default.mkdir(base, { recursive: true });
-  tempDir = base;
-  return base;
-}
-async function writeTempFile(name, data) {
-  const dir = await getTempDir();
-  const filePath = path2__default.default.join(dir, name);
-  await fs4__default.default.writeFile(filePath, Buffer.from(data));
-  return filePath;
-}
-async function cleanTempDir() {
-  if (!tempDir) return;
-  try {
-    await fs4__default.default.rm(tempDir, { recursive: true, force: true });
-  } catch (e) {
-  }
-  tempDir = null;
-}
-async function ensureInit() {
-  if (instance && writeConn) return;
-  if (initPromise) return initPromise;
-  initPromise = (async () => {
-    var _a, _b, _c;
-    try {
-      const dbPath = path2__default.default.join(
-        electron.app.getPath("userData"),
-        "data-navigator",
-        "duckdb.db"
-      );
-      await fs4__default.default.mkdir(path2__default.default.dirname(dbPath), { recursive: true });
-      const threads = String(Math.max(1, (_c = (_b = (_a = os__default.default).availableParallelism) == null ? void 0 : _b.call(_a)) != null ? _c : 4));
-      instance = await nodeApi.DuckDBInstance.create(dbPath, { threads });
-      writeConn = await instance.connect();
-      readConns = [];
-      for (let i = 0; i < READ_CONN_COUNT; i++) {
-        readConns.push(await instance.connect());
-      }
-      const pragmas = [
-        `PRAGMA threads = ${threads}`,
-        `PRAGMA enable_progress_bar = false`,
-        `PRAGMA memory_limit = '2GB'`
-      ];
-      for (const pragma of pragmas) {
-        await writeConn.run(pragma);
-        for (const rc of readConns) await rc.run(pragma);
-      }
-    } catch (error) {
-      instance = null;
-      writeConn = null;
-      readConns = [];
-      initPromise = null;
-      throw error;
-    }
-  })();
-  return initPromise;
-}
-async function convertResult(conn, sql) {
-  const result = await conn.run(sql);
-  return await result.getRowObjectsJS();
-}
-var MAX_PREPARED_STATEMENTS = 50;
-var preparedStatements = /* @__PURE__ */ new Map();
-function generateStmtId() {
-  return `${Date.now()}_${Math.random().toString(36).slice(2)}`;
-}
-async function prepareInternal(sql) {
-  await ensureInit();
-  if (!writeConn) throw new Error("DuckDB connection not initialized");
-  if (preparedStatements.size >= MAX_PREPARED_STATEMENTS) {
-    const firstKey = preparedStatements.keys().next().value;
-    preparedStatements.delete(firstKey);
-  }
-  const stmt = await writeConn.prepare(sql);
-  const stmtId = generateStmtId();
-  preparedStatements.set(stmtId, { statement: stmt });
-  return stmtId;
-}
-async function runPreparedInternal(stmtId, params) {
-  await ensureInit();
-  const handle = preparedStatements.get(stmtId);
-  if (!handle) throw new Error(`Prepared statement ${stmtId} not found`);
-  const stmt = handle.statement;
-  for (let i = 0; i < params.length; i++) {
-    const param = params[i];
-    const idx = i + 1;
-    if (param === null || param === void 0) {
-      stmt.bindNull(idx);
-    } else if (typeof param === "string") {
-      stmt.bindVarchar(idx, param);
-    } else if (typeof param === "number") {
-      if (Number.isInteger(param)) {
-        stmt.bindInteger(idx, param);
-      } else {
-        stmt.bindDouble(idx, param);
-      }
-    } else if (typeof param === "boolean") {
-      stmt.bindBoolean(idx, param);
-    } else {
-      stmt.bindVarchar(idx, String(param));
-    }
-  }
-  const result = await stmt.run();
-  return await result.getRowObjectsJS();
-}
-async function disposePreparedInternal(stmtId) {
-  const handle = preparedStatements.get(stmtId);
-  if (!handle) return;
-  preparedStatements.delete(stmtId);
-  handle.statement.destroySync();
-}
-var MAX_METRICS = 200;
+var writeQueue = new PQueue__default.default({ concurrency: 1 });
+var readQueue = new PQueue__default.default({ concurrency: READ_CONN_COUNT });
 var queryMetrics = [];
-function truncateSql(sql, maxLen = 200) {
+function truncateSql(sql, maxLen = 240) {
   return sql.length > maxLen ? `${sql.slice(0, maxLen)}...` : sql;
 }
 function pushMetric(metric) {
@@ -10631,172 +10520,622 @@ function pushMetric(metric) {
     queryMetrics.pop();
   }
 }
-async function init() {
-  return ensureInit();
-}
-async function runQuery(sql) {
+async function measureRows(conn, sql) {
   const start = performance.now();
-  await ensureInit();
-  const conn = isReadOnlyQuery(sql) ? getReadConnection() : writeConn;
-  if (!conn) throw new Error("DuckDB connection not initialized");
-  const rows = await convertResult(conn, sql);
-  const duration = performance.now() - start;
+  const result = await conn.run(sql);
+  const rows = await result.getRowObjectsJS();
+  const durationMs = Math.round(performance.now() - start);
   pushMetric({
     sql: truncateSql(sql),
-    durationMs: Math.round(duration),
+    durationMs,
     timestamp: Date.now(),
     rowCount: rows.length
   });
   return rows;
 }
-async function runBatch(sqls) {
-  return enqueueWrite(async () => {
-    await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    const results = [];
-    for (const sql of sqls) {
-      const rows = await convertResult(writeConn, sql);
-      results.push(rows);
-    }
-    return results;
+async function measureRun(conn, sql) {
+  const start = performance.now();
+  await conn.run(sql);
+  const durationMs = Math.round(performance.now() - start);
+  pushMetric({
+    sql: truncateSql(sql),
+    durationMs,
+    timestamp: Date.now(),
+    rowCount: 0
   });
 }
-async function prepare(sql) {
-  return enqueueWrite(() => prepareInternal(sql));
+function enqueueWrite(operation) {
+  return writeQueue.add(operation);
 }
-async function execute(stmtId, params) {
-  return enqueueWrite(() => runPreparedInternal(stmtId, params));
+function enqueueRead(operation) {
+  return readQueue.add(operation);
 }
-async function disposePrepared(stmtId) {
-  return enqueueWrite(() => disposePreparedInternal(stmtId));
+function getDuckDBRootDir() {
+  return path__default.default.join(electron.app.getPath("userData"), "data-navigator");
 }
-async function listTables() {
-  const rows = await runQuery("SHOW TABLES");
-  return rows.map((row) => String(row.name));
+function getDuckDBPath() {
+  return path__default.default.join(getDuckDBRootDir(), "data-navigator.duckdb");
 }
-async function getTableInfo(tableName) {
+function getDatasetsDirPath() {
+  return path__default.default.join(getDuckDBRootDir(), "datasets");
+}
+async function ensureDirectory(dir) {
+  await fs__default.default.mkdir(dir, { recursive: true });
+}
+async function assertReadableFile(filePath) {
+  const resolved = path__default.default.resolve(filePath);
+  const stat = await fs__default.default.stat(resolved);
+  if (!stat.isFile()) {
+    throw new Error(`Path is not a file: ${resolved}`);
+  }
+  return resolved;
+}
+async function assertManagedCachePath(cachePath) {
+  const datasetsDir = path__default.default.resolve(getDatasetsDirPath());
+  const resolved = path__default.default.resolve(cachePath);
+  const relative = path__default.default.relative(datasetsDir, resolved);
+  const isInsideDatasetsDir = relative !== "" && !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
+  if (!isInsideDatasetsDir) {
+    throw new Error(`Refusing to access unmanaged cache path: ${resolved}`);
+  }
+  return resolved;
+}
+async function ensureParentDirectory(filePath) {
+  await fs__default.default.mkdir(path__default.default.dirname(path__default.default.resolve(filePath)), { recursive: true });
+}
+function quoteSqlString(value) {
+  return `'${value.replaceAll("'", "''")}'`;
+}
+function quoteIdentifier(value) {
+  return `"${value.replaceAll('"', '""')}"`;
+}
+function makeDatasetId() {
+  return `ds_${nanoid.nanoid(12)}`;
+}
+function datasetViewName(datasetId) {
+  return DatasetIdSchema.parse(datasetId);
+}
+function buildCsvOptions(options) {
   var _a, _b;
-  const quoted = quoteIdentifier(tableName);
-  const [columns, rowCountResult] = await Promise.all([
-    runQuery(`DESCRIBE ${quoted}`),
-    runQuery(`SELECT COUNT(*) AS row_count FROM ${quoted}`)
-  ]);
-  return {
-    columns: columns.map((row) => {
-      var _a2, _b2;
-      return {
-        name: String((_a2 = row.column_name) != null ? _a2 : row.name),
-        type: String((_b2 = row.column_type) != null ? _b2 : row.type),
-        nullable: row.null !== "NO" && row.null !== false
-      };
-    }),
-    rowCount: Number((_b = (_a = rowCountResult[0]) == null ? void 0 : _a.row_count) != null ? _b : 0)
-  };
+  const parts = [
+    "auto_detect = true",
+    `header = ${(_a = options.hasHeader) != null ? _a : true}`,
+    "strict_mode = false",
+    "null_padding = true",
+    `sample_size = ${(_b = options.sampleSize) != null ? _b : DEFAULT_CSV_SAMPLE_SIZE}`,
+    "max_line_size = 10000000"
+  ];
+  if (options.delimiter) {
+    parts.push(`delim = ${quoteSqlString(options.delimiter)}`);
+  }
+  return parts.join(", ");
 }
-async function getColumnStats(tableName, columnName) {
-  var _a, _b, _c, _d, _e, _f, _g;
-  const t = quoteIdentifier(tableName);
-  const c = quoteIdentifier(columnName);
-  const [basic, distinct, histogram] = await Promise.all([
-    runQuery(`
-      SELECT
-        MIN(${c}) AS min,
-        MAX(${c}) AS max,
-        AVG(${c}) AS avg,
-        COUNT(*) - COUNT(${c}) AS null_count
-      FROM ${t}
-    `),
-    runQuery(`
-      SELECT COUNT(DISTINCT ${c}) AS distinct_count FROM ${t}
-    `),
-    runQuery(`
-      SELECT
-        ${c} AS bucket,
-        COUNT(*) AS count
-      FROM ${t}
-      WHERE ${c} IS NOT NULL
-      GROUP BY ${c}
-      ORDER BY count DESC
-      LIMIT 20
-    `)
-  ]);
-  const stats = (_a = basic[0]) != null ? _a : {};
-  return {
-    min: (_b = stats.min) != null ? _b : null,
-    max: (_c = stats.max) != null ? _c : null,
-    avg: (_d = stats.avg) != null ? _d : null,
-    nullCount: Number((_e = stats.null_count) != null ? _e : 0),
-    distinctCount: Number((_g = (_f = distinct[0]) == null ? void 0 : _f.distinct_count) != null ? _g : 0),
-    histogram: histogram.map((row) => ({
-      bucket: String(row.bucket),
-      count: Number(row.count)
-    }))
-  };
-}
-async function loadCSVPath(tableName, filePath, append = false, hasHeader = true) {
-  return enqueueWrite(async () => {
-    await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    const t = quoteIdentifier(tableName);
-    const csvOptions = buildPipeCsvOptions(hasHeader);
-    const pathStr = quoteSqlString(filePath);
-    if (append) {
-      await writeConn.run(
-        `INSERT INTO ${t} SELECT * FROM read_csv_auto(${pathStr}, ${csvOptions})`
-      );
-    } else {
-      await writeConn.run(
-        `CREATE OR REPLACE TABLE ${t} AS SELECT * FROM read_csv_auto(${pathStr}, ${csvOptions})`
-      );
-    }
+function normalizeColumns(rows) {
+  return rows.map((row) => {
+    var _a, _b;
+    return {
+      name: String((_a = row.column_name) != null ? _a : row.name),
+      type: String((_b = row.column_type) != null ? _b : row.type),
+      nullable: row.null !== "NO" && row.null !== false
+    };
   });
 }
-async function loadCSVBuffer(tableName, buffer, append = false, hasHeader = true) {
-  const tempPath = await writeTempFile(
-    `csv_${Date.now()}_${Math.random().toString(36).slice(2)}.csv`,
-    buffer
-  );
+function parseColumns(value) {
   try {
-    await loadCSVPath(tableName, tempPath, append, hasHeader);
-  } finally {
+    const parsed = JSON.parse(String(value != null ? value : "[]"));
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+    return parsed.map((column) => ({
+      name: String(column.name),
+      type: String(column.type),
+      nullable: Boolean(column.nullable)
+    }));
+  } catch (e) {
+    return [];
+  }
+}
+function getReadConnection() {
+  if (readConns.length === 0) {
+    if (!writeConn) {
+      throw new Error("DuckDB connection not initialized");
+    }
+    return writeConn;
+  }
+  const conn = readConns[readConnIndex % readConns.length];
+  readConnIndex += 1;
+  return conn;
+}
+function getWriteConnection() {
+  if (!writeConn) {
+    throw new Error("DuckDB connection not initialized");
+  }
+  return writeConn;
+}
+async function ensureDatasetCatalog() {
+  const conn = getWriteConnection();
+  await measureRun(
+    conn,
+    `
+      CREATE TABLE IF NOT EXISTS app_datasets (
+        id TEXT PRIMARY KEY,
+        display_name TEXT NOT NULL,
+        view_name TEXT NOT NULL UNIQUE,
+        source_path TEXT NOT NULL,
+        cache_path TEXT NOT NULL,
+        source_format TEXT NOT NULL,
+        row_count BIGINT NOT NULL DEFAULT 0,
+        schema_json TEXT NOT NULL DEFAULT '[]',
+        csv_options_json TEXT,
+        created_at TIMESTAMP DEFAULT now(),
+        updated_at TIMESTAMP DEFAULT now()
+      )
+    `
+  );
+}
+async function restoreDatasetViews() {
+  const conn = getWriteConnection();
+  const datasets = await measureRows(
+    conn,
+    `
+      SELECT id, view_name, cache_path
+      FROM app_datasets
+      ORDER BY created_at ASC
+    `
+  );
+  for (const dataset of datasets) {
+    const id = String(dataset.id);
+    const viewName = String(dataset.view_name);
+    const cachePath = String(dataset.cache_path);
     try {
-      await fs4__default.default.unlink(tempPath);
+      await assertManagedCachePath(cachePath);
+      await fs__default.default.access(cachePath);
+      await measureRun(
+        conn,
+        `
+          CREATE OR REPLACE VIEW ${quoteIdentifier(viewName)} AS
+          SELECT *
+          FROM read_parquet(${quoteSqlString(cachePath)})
+        `
+      );
     } catch (e) {
+      await measureRun(
+        conn,
+        `
+          UPDATE app_datasets
+          SET updated_at = now()
+          WHERE id = ${quoteSqlString(id)}
+        `
+      );
     }
   }
 }
-async function exportTableToParquet(tableName, filePath) {
+async function getDatasetById(conn, datasetId) {
+  var _a;
+  const id = DatasetIdSchema.parse(datasetId);
+  const rows = await measureRows(
+    conn,
+    `
+      SELECT
+        id,
+        display_name,
+        view_name,
+        source_path,
+        cache_path,
+        source_format,
+        row_count,
+        schema_json,
+        created_at,
+        updated_at
+      FROM app_datasets
+      WHERE id = ${quoteSqlString(id)}
+      LIMIT 1
+    `
+  );
+  const row = rows[0];
+  if (!row) {
+    return null;
+  }
+  return {
+    id: String(row.id),
+    displayName: String(row.display_name),
+    viewName: String(row.view_name),
+    sourcePath: String(row.source_path),
+    cachePath: String(row.cache_path),
+    sourceFormat: String(row.source_format),
+    rowCount: Number((_a = row.row_count) != null ? _a : 0),
+    columns: parseColumns(row.schema_json),
+    createdAt: String(row.created_at),
+    updatedAt: String(row.updated_at)
+  };
+}
+function assertReadOnlySql(sql) {
+  const trimmed = sql.trim();
+  const upper = trimmed.toUpperCase();
+  const allowed = upper.startsWith("SELECT") || upper.startsWith("WITH") || upper.startsWith("SHOW") || upper.startsWith("DESCRIBE") || upper.startsWith("SUMMARIZE") || upper.startsWith("EXPLAIN");
+  if (!allowed) {
+    throw new Error("Only read-only DuckDB queries are allowed from renderer.");
+  }
+  const blocked = /\b(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|COPY|EXPORT|IMPORT|ATTACH|DETACH|INSTALL|LOAD|CALL|PRAGMA)\b/i;
+  if (blocked.test(trimmed)) {
+    throw new Error("Unsafe SQL statement blocked.");
+  }
+  return trimmed;
+}
+async function describeView(conn, viewName) {
+  const rows = await measureRows(conn, `DESCRIBE ${quoteIdentifier(viewName)}`);
+  return normalizeColumns(rows);
+}
+async function countViewRows(conn, viewName) {
+  var _a, _b;
+  const rows = await measureRows(
+    conn,
+    `
+      SELECT count(*) AS row_count
+      FROM ${quoteIdentifier(viewName)}
+    `
+  );
+  return Number((_b = (_a = rows[0]) == null ? void 0 : _a.row_count) != null ? _b : 0);
+}
+async function ensureInit() {
+  if (instance && writeConn) return;
+  if (initPromise) return initPromise;
+  initPromise = (async () => {
+    var _a, _b, _c;
+    try {
+      const rootDir = getDuckDBRootDir();
+      const datasetsDir = getDatasetsDirPath();
+      const dbPath = getDuckDBPath();
+      await ensureDirectory(rootDir);
+      await ensureDirectory(datasetsDir);
+      const threads = String(Math.max(1, (_c = (_b = (_a = os2__default.default).availableParallelism) == null ? void 0 : _b.call(_a)) != null ? _c : 4));
+      instance = await nodeApi.DuckDBInstance.create(dbPath, {
+        threads
+      });
+      writeConn = await instance.connect();
+      readConns = [];
+      for (let i = 0; i < READ_CONN_COUNT; i += 1) {
+        readConns.push(await instance.connect());
+      }
+      activeDbPath = dbPath;
+      activeDatasetsDir = datasetsDir;
+      const pragmas = [
+        `PRAGMA threads = ${threads}`,
+        "PRAGMA enable_progress_bar = false"
+      ];
+      for (const pragma of pragmas) {
+        await writeConn.run(pragma);
+        for (const readConn of readConns) {
+          await readConn.run(pragma);
+        }
+      }
+      await ensureDatasetCatalog();
+      await restoreDatasetViews();
+    } catch (error) {
+      instance = null;
+      writeConn = null;
+      readConns = [];
+      readConnIndex = 0;
+      activeDbPath = null;
+      activeDatasetsDir = null;
+      initPromise = null;
+      throw error;
+    }
+  })();
+  return initPromise;
+}
+async function init() {
+  await ensureInit();
+}
+async function registerCSVPathDataset(rawInput) {
+  const input = RegisterCSVPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
+    var _a, _b, _c, _d, _e;
     await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    const t = quoteIdentifier(tableName);
-    const p = quoteSqlString(filePath);
-    await writeConn.run(`COPY ${t} TO ${p} (FORMAT PARQUET)`);
+    const conn = getWriteConnection();
+    const sourcePath = await assertReadableFile(input.filePath);
+    const datasetsDir = getDatasetsDirPath();
+    await ensureDirectory(datasetsDir);
+    const id = makeDatasetId();
+    const viewName = datasetViewName(id);
+    const displayName = (_a = input.displayName) != null ? _a : path__default.default.basename(sourcePath);
+    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
+    const csvOptions = buildCsvOptions({
+      hasHeader: input.hasHeader,
+      delimiter: input.delimiter,
+      sampleSize: input.sampleSize
+    });
+    await measureRun(
+      conn,
+      `
+        COPY (
+          SELECT *
+          FROM read_csv(${quoteSqlString(sourcePath)}, ${csvOptions})
+        )
+        TO ${quoteSqlString(cachePath)}
+        (
+          FORMAT parquet,
+          COMPRESSION zstd,
+          COMPRESSION_LEVEL 1
+        )
+      `
+    );
+    await measureRun(
+      conn,
+      `
+        CREATE OR REPLACE VIEW ${quoteIdentifier(viewName)} AS
+        SELECT *
+        FROM read_parquet(${quoteSqlString(cachePath)})
+      `
+    );
+    const columns = await describeView(conn, viewName);
+    const rowCount = await countViewRows(conn, viewName);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await measureRun(
+      conn,
+      `
+        INSERT INTO app_datasets (
+          id,
+          display_name,
+          view_name,
+          source_path,
+          cache_path,
+          source_format,
+          row_count,
+          schema_json,
+          csv_options_json,
+          updated_at
+        )
+        VALUES (
+          ${quoteSqlString(id)},
+          ${quoteSqlString(displayName)},
+          ${quoteSqlString(viewName)},
+          ${quoteSqlString(sourcePath)},
+          ${quoteSqlString(cachePath)},
+          'csv',
+          ${rowCount},
+          ${quoteSqlString(JSON.stringify(columns))},
+          ${quoteSqlString(
+        JSON.stringify({
+          auto_detect: true,
+          header: (_b = input.hasHeader) != null ? _b : true,
+          delimiter: (_c = input.delimiter) != null ? _c : null,
+          sample_size: (_d = input.sampleSize) != null ? _d : DEFAULT_CSV_SAMPLE_SIZE
+        })
+      )},
+          now()
+        )
+      `
+    );
+    const previewLimit = (_e = input.previewLimit) != null ? _e : DEFAULT_PREVIEW_LIMIT;
+    const previewRows = await measureRows(
+      conn,
+      `
+        SELECT *
+        FROM ${quoteIdentifier(viewName)}
+        LIMIT ${previewLimit}
+      `
+    );
+    return {
+      id,
+      displayName,
+      viewName,
+      sourcePath,
+      cachePath,
+      sourceFormat: "csv",
+      rowCount,
+      columns,
+      createdAt: now,
+      updatedAt: now,
+      previewRows
+    };
   });
 }
-async function loadTableFromParquet(tableName, filePath) {
+async function registerParquetPathDataset(rawInput) {
+  const input = RegisterParquetPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
+    var _a, _b;
     await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    const t = quoteIdentifier(tableName);
-    const p = quoteSqlString(filePath);
-    await writeConn.run(
-      `CREATE OR REPLACE TABLE ${t} AS SELECT * FROM read_parquet(${p})`
+    const conn = getWriteConnection();
+    const sourcePath = await assertReadableFile(input.filePath);
+    const datasetsDir = getDatasetsDirPath();
+    await ensureDirectory(datasetsDir);
+    const id = makeDatasetId();
+    const viewName = datasetViewName(id);
+    const displayName = (_a = input.displayName) != null ? _a : path__default.default.basename(sourcePath);
+    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
+    await fs__default.default.copyFile(sourcePath, cachePath);
+    await measureRun(
+      conn,
+      `
+        CREATE OR REPLACE VIEW ${quoteIdentifier(viewName)} AS
+        SELECT *
+        FROM read_parquet(${quoteSqlString(cachePath)})
+      `
+    );
+    const columns = await describeView(conn, viewName);
+    const rowCount = await countViewRows(conn, viewName);
+    const now = (/* @__PURE__ */ new Date()).toISOString();
+    await measureRun(
+      conn,
+      `
+        INSERT INTO app_datasets (
+          id,
+          display_name,
+          view_name,
+          source_path,
+          cache_path,
+          source_format,
+          row_count,
+          schema_json,
+          csv_options_json,
+          updated_at
+        )
+        VALUES (
+          ${quoteSqlString(id)},
+          ${quoteSqlString(displayName)},
+          ${quoteSqlString(viewName)},
+          ${quoteSqlString(sourcePath)},
+          ${quoteSqlString(cachePath)},
+          'parquet',
+          ${rowCount},
+          ${quoteSqlString(JSON.stringify(columns))},
+          NULL,
+          now()
+        )
+      `
+    );
+    const previewLimit = (_b = input.previewLimit) != null ? _b : DEFAULT_PREVIEW_LIMIT;
+    const previewRows = await measureRows(
+      conn,
+      `
+        SELECT *
+        FROM ${quoteIdentifier(viewName)}
+        LIMIT ${previewLimit}
+      `
+    );
+    return {
+      id,
+      displayName,
+      viewName,
+      sourcePath,
+      cachePath,
+      sourceFormat: "parquet",
+      rowCount,
+      columns,
+      createdAt: now,
+      updatedAt: now,
+      previewRows
+    };
+  });
+}
+async function listDatasets() {
+  return enqueueRead(async () => {
+    await ensureInit();
+    const conn = getReadConnection();
+    const rows = await measureRows(
+      conn,
+      `
+        SELECT
+          id,
+          display_name,
+          view_name,
+          source_path,
+          cache_path,
+          source_format,
+          row_count,
+          schema_json,
+          created_at,
+          updated_at
+        FROM app_datasets
+        ORDER BY created_at DESC
+      `
+    );
+    return rows.map((row) => {
+      var _a;
+      return {
+        id: String(row.id),
+        displayName: String(row.display_name),
+        viewName: String(row.view_name),
+        sourcePath: String(row.source_path),
+        cachePath: String(row.cache_path),
+        sourceFormat: String(row.source_format),
+        rowCount: Number((_a = row.row_count) != null ? _a : 0),
+        columns: parseColumns(row.schema_json),
+        createdAt: String(row.created_at),
+        updatedAt: String(row.updated_at)
+      };
+    });
+  });
+}
+async function previewDataset(rawInput) {
+  const input = PreviewDatasetSchema.parse(rawInput);
+  return enqueueRead(async () => {
+    var _a, _b;
+    await ensureInit();
+    const conn = getReadConnection();
+    const viewName = datasetViewName(input.datasetId);
+    const limit = (_a = input.limit) != null ? _a : DEFAULT_PREVIEW_LIMIT;
+    const offset = (_b = input.offset) != null ? _b : 0;
+    return measureRows(
+      conn,
+      `
+        SELECT *
+        FROM ${quoteIdentifier(viewName)}
+        LIMIT ${limit}
+        OFFSET ${offset}
+      `
     );
   });
 }
-async function clearTable(tableName) {
+async function summarizeDataset(rawInput) {
+  const input = DatasetOnlySchema.parse(rawInput);
+  return enqueueRead(async () => {
+    await ensureInit();
+    const conn = getReadConnection();
+    const viewName = datasetViewName(input.datasetId);
+    return measureRows(
+      conn,
+      `
+        SUMMARIZE
+        SELECT *
+        FROM ${quoteIdentifier(viewName)}
+      `
+    );
+  });
+}
+async function exportDataset(rawInput) {
+  const input = ExportDatasetSchema.parse(rawInput);
+  return enqueueRead(async () => {
+    await ensureInit();
+    const conn = getReadConnection();
+    const dataset = await getDatasetById(conn, input.datasetId);
+    if (!dataset) {
+      throw new Error("Dataset not found.");
+    }
+    const sourceCachePath = await assertManagedCachePath(dataset.cachePath);
+    await fs__default.default.access(sourceCachePath);
+    await ensureParentDirectory(input.targetPath);
+    await fs__default.default.copyFile(sourceCachePath, path__default.default.resolve(input.targetPath));
+  });
+}
+async function deleteDataset(rawInput) {
+  const input = DatasetOnlySchema.parse(rawInput);
   return enqueueWrite(async () => {
     await ensureInit();
-    if (!writeConn) throw new Error("DuckDB connection not initialized");
-    const t = quoteIdentifier(tableName);
-    await writeConn.run(`DROP TABLE IF EXISTS ${t}`);
+    const conn = getWriteConnection();
+    const dataset = await getDatasetById(conn, input.datasetId);
+    if (!dataset) {
+      return;
+    }
+    const cachePath = await assertManagedCachePath(dataset.cachePath);
+    await measureRun(
+      conn,
+      `
+        DROP VIEW IF EXISTS ${quoteIdentifier(dataset.viewName)}
+      `
+    );
+    await measureRun(
+      conn,
+      `
+        DELETE FROM app_datasets
+        WHERE id = ${quoteSqlString(input.datasetId)}
+      `
+    );
+    try {
+      await fs__default.default.unlink(cachePath);
+    } catch (e) {
+    }
   });
 }
 function getStatus() {
   return {
-    opfsPersistenceActive: false,
-    dbPath: instance ? "active" : null
+    active: Boolean(instance && writeConn),
+    dbPath: activeDbPath,
+    datasetsDir: activeDatasetsDir,
+    readConnections: readConns.length,
+    pendingReads: readQueue.size + readQueue.pending,
+    pendingWrites: writeQueue.size + writeQueue.pending
   };
 }
 function getQueryMetrics() {
@@ -10805,20 +11144,28 @@ function getQueryMetrics() {
 function clearQueryMetrics() {
   queryMetrics.length = 0;
 }
+async function runReadOnlyQuery(sql) {
+  return enqueueRead(async () => {
+    await ensureInit();
+    const conn = getReadConnection();
+    const safeSql = assertReadOnlySql(sql);
+    return measureRows(conn, safeSql);
+  });
+}
 async function close() {
-  for (const [id, handle] of preparedStatements) {
-    handle.statement.destroySync();
-    preparedStatements.delete(id);
-  }
+  writeQueue.clear();
+  readQueue.clear();
   readConns = [];
   writeConn = null;
   instance = null;
   initPromise = null;
-  await cleanTempDir();
+  readConnIndex = 0;
+  activeDbPath = null;
+  activeDatasetsDir = null;
 }
 electron.app.on("quit", () => {
-  close().catch((err) => {
-    console.error("[duckdb-service] cleanup error:", err);
+  close().catch((error) => {
+    console.error("[duckdb-service] cleanup error:", error);
   });
 });
 
@@ -10827,177 +11174,392 @@ if (require_electron_squirrel_startup()) {
   electron.app.quit();
 }
 var isDev = !electron.app.isPackaged;
-async function installReactDevTools() {
-  if (!isDev) return;
-  try {
-    const { installExtension: installExtension2, REACT_DEVELOPER_TOOLS: REACT_DEVELOPER_TOOLS2 } = await Promise.resolve().then(() => (init_dist2(), dist_exports));
-    const extension = await installExtension2(REACT_DEVELOPER_TOOLS2);
-    console.log(`Installed ${extension.name}`);
-  } catch (err) {
-    console.warn("React DevTools install failed:", err);
-  }
+if (electron.app.isPackaged) {
+  import('update-electron-app').then(({ updateElectronApp }) => {
+    updateElectronApp({
+      repo: "aliammari1/data-navigator",
+      updateInterval: "1 hour"
+    });
+  }).catch((error) => {
+    console.warn("[electron] auto-update setup failed:", error);
+  });
 }
 electron.app.commandLine.appendSwitch("enable-unsafe-webgpu");
 if (process.platform === "linux") {
   electron.app.commandLine.appendSwitch("enable-features", "Vulkan");
 }
 electron.app.commandLine.appendSwitch("ignore-gpu-blocklist");
-var DATA_DIR = path2__default.default.join(electron.app.getPath("userData"), "data-navigator");
+var DATA_DIR = path__default.default.join(electron.app.getPath("userData"), "data-navigator");
 async function ensureDataDir() {
-  await fs4__default.default.mkdir(DATA_DIR, { recursive: true });
+  await fs__default.default.mkdir(DATA_DIR, { recursive: true });
 }
-electron.ipcMain.handle("fs:getDataDir", () => DATA_DIR);
-electron.ipcMain.handle("fs:readFile", async (_event, filePath) => {
-  const data = await fs4__default.default.readFile(filePath);
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
-});
-electron.ipcMain.handle(
-  "fs:writeFile",
-  async (_event, filePath, data) => {
-    await fs4__default.default.mkdir(path2__default.default.dirname(filePath), { recursive: true });
-    await fs4__default.default.writeFile(filePath, Buffer.from(data));
+function normalizePath(filePath) {
+  return path__default.default.resolve(filePath);
+}
+function isPathInside(childPath, parentPath) {
+  const child = normalizePath(childPath);
+  const parent = normalizePath(parentPath);
+  const relative = path__default.default.relative(parent, child);
+  return relative === "" || !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
+}
+function isInsideDataDir(filePath) {
+  return isPathInside(filePath, DATA_DIR);
+}
+async function ensureParentDirectory2(filePath) {
+  await fs__default.default.mkdir(path__default.default.dirname(normalizePath(filePath)), { recursive: true });
+}
+var allowedReadPaths = /* @__PURE__ */ new Set();
+var allowedWritePaths = /* @__PURE__ */ new Set();
+var allowedDirectoryPaths = /* @__PURE__ */ new Set();
+function rememberSavePath(filePath) {
+  allowedWritePaths.add(normalizePath(filePath));
+}
+function assertAllowedReadPath(filePath) {
+  const resolved = normalizePath(filePath);
+  if (allowedReadPaths.has(resolved) || isInsideDataDir(resolved)) {
+    return resolved;
   }
-);
-electron.ipcMain.handle("fs:deleteFile", async (_event, filePath) => {
+  for (const allowedDir of allowedDirectoryPaths) {
+    if (isPathInside(resolved, allowedDir)) {
+      return resolved;
+    }
+  }
+  throw new Error(`Blocked read access to untrusted path: ${resolved}`);
+}
+function assertAllowedWritePath(filePath) {
+  const resolved = normalizePath(filePath);
+  if (allowedWritePaths.has(resolved) || isInsideDataDir(resolved)) {
+    return resolved;
+  }
+  throw new Error(`Blocked write access to untrusted path: ${resolved}`);
+}
+function assertAllowedDeletePath(filePath) {
+  const resolved = normalizePath(filePath);
+  if (!isInsideDataDir(resolved)) {
+    throw new Error(`Blocked delete access outside app data dir: ${resolved}`);
+  }
+  return resolved;
+}
+function assertAllowedDirectoryPath(dirPath) {
+  const resolved = normalizePath(dirPath);
+  if (allowedDirectoryPaths.has(resolved) || isInsideDataDir(resolved)) {
+    return resolved;
+  }
+  throw new Error(`Blocked directory access to untrusted path: ${resolved}`);
+}
+function getStringProperty(input, key) {
+  if (!input || typeof input !== "object") {
+    throw new Error(`Expected object input with property "${key}".`);
+  }
+  const value = input[key];
+  if (typeof value !== "string" || value.trim() === "") {
+    throw new Error(`Expected non-empty string property "${key}".`);
+  }
+  return value;
+}
+function isAllowedAppOrigin(value) {
+  if (!value) return false;
   try {
-    await fs4__default.default.unlink(filePath);
-    return true;
+    const url = new URL(value);
+    if (url.protocol === "file:") return true;
+    if (url.hostname === "localhost") return true;
+    if (url.hostname === "127.0.0.1") return true;
+    return false;
   } catch (e) {
     return false;
   }
-});
-electron.ipcMain.handle("fs:listFiles", async (_event, dir) => {
-  const target = dir != null ? dir : DATA_DIR;
-  try {
-    return await fs4__default.default.readdir(target);
-  } catch (e) {
-    return [];
+}
+function assertTrustedSender(event) {
+  var _a;
+  const frameUrl = (_a = event.senderFrame) == null ? void 0 : _a.url;
+  const webContentsUrl = event.sender.getURL();
+  const url = frameUrl || webContentsUrl;
+  if (!isAllowedAppOrigin(url)) {
+    throw new Error(`Blocked IPC call from untrusted sender: ${url}`);
   }
-});
+}
+async function withTrustedSender(event, handler) {
+  assertTrustedSender(event);
+  return handler();
+}
+async function installReactDevTools() {
+  if (!isDev) return;
+  try {
+    const { installExtension: installExtension2, REACT_DEVELOPER_TOOLS: REACT_DEVELOPER_TOOLS2 } = await Promise.resolve().then(() => (init_dist2(), dist_exports));
+    const extension = await installExtension2(REACT_DEVELOPER_TOOLS2);
+    console.log(`[electron] Installed ${extension.name}`);
+  } catch (error) {
+    console.warn("[electron] React DevTools install failed:", error);
+  }
+}
+electron.ipcMain.handle(
+  "fs:getDataDir",
+  async (event) => withTrustedSender(event, async () => {
+    await ensureDataDir();
+    return DATA_DIR;
+  })
+);
+electron.ipcMain.handle(
+  "fs:readFile",
+  async (event, filePath) => withTrustedSender(event, async () => {
+    const safePath = assertAllowedReadPath(filePath);
+    const data = await fs__default.default.readFile(safePath);
+    return data.buffer.slice(
+      data.byteOffset,
+      data.byteOffset + data.byteLength
+    );
+  })
+);
+electron.ipcMain.handle(
+  "fs:writeFile",
+  async (event, filePath, data) => withTrustedSender(event, async () => {
+    const safePath = assertAllowedWritePath(filePath);
+    await ensureParentDirectory2(safePath);
+    await fs__default.default.writeFile(safePath, Buffer.from(data));
+  })
+);
+electron.ipcMain.handle(
+  "fs:deleteFile",
+  async (event, filePath) => withTrustedSender(event, async () => {
+    const safePath = assertAllowedDeletePath(filePath);
+    try {
+      await fs__default.default.unlink(safePath);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  })
+);
+electron.ipcMain.handle(
+  "fs:listFiles",
+  async (event, dir) => withTrustedSender(event, async () => {
+    const target = dir ? assertAllowedDirectoryPath(dir) : DATA_DIR;
+    try {
+      return await fs__default.default.readdir(target);
+    } catch (e) {
+      return [];
+    }
+  })
+);
 async function walkFilesRecursive(rootDir) {
   const out = [];
-  const entries = await fs4__default.default.readdir(rootDir, { withFileTypes: true });
+  const entries = await fs__default.default.readdir(rootDir, { withFileTypes: true });
   for (const entry of entries) {
-    const full = path2__default.default.join(rootDir, entry.name);
+    const full = path__default.default.join(rootDir, entry.name);
     if (entry.isDirectory()) {
       out.push(...await walkFilesRecursive(full));
       continue;
     }
-    if (entry.isFile()) out.push(full);
+    if (entry.isFile()) {
+      out.push(full);
+    }
   }
   return out;
 }
-electron.ipcMain.handle("fs:listFilesRecursive", async (_event, dir) => {
-  try {
-    return await walkFilesRecursive(dir);
-  } catch (e) {
-    return [];
-  }
-});
+electron.ipcMain.handle(
+  "fs:listFilesRecursive",
+  async (event, dir) => withTrustedSender(event, async () => {
+    try {
+      const safeDir = assertAllowedDirectoryPath(dir);
+      return await walkFilesRecursive(safeDir);
+    } catch (e) {
+      return [];
+    }
+  })
+);
 electron.ipcMain.handle(
   "fs:fileExists",
-  (_event, filePath) => fs3.existsSync(filePath)
-);
-electron.ipcMain.handle("fs:openDialog", async (_event, options) => {
-  const result = await electron.dialog.showOpenDialog(options);
-  return { canceled: result.canceled, filePaths: result.filePaths };
-});
-electron.ipcMain.handle("fs:saveDialog", async (_event, options) => {
-  const result = await electron.dialog.showSaveDialog(options);
-  return { canceled: result.canceled, filePath: result.filePath };
-});
-electron.ipcMain.handle("duckdb:init", async () => {
-  await init();
-  return { success: true };
-});
-electron.ipcMain.handle("duckdb:runQuery", async (_event, sql) => {
-  return runQuery(sql);
-});
-electron.ipcMain.handle("duckdb:runBatch", async (_event, sqls) => {
-  return runBatch(sqls);
-});
-electron.ipcMain.handle("duckdb:prepare", async (_event, sql) => {
-  return prepare(sql);
-});
-electron.ipcMain.handle(
-  "duckdb:execute",
-  async (_event, stmtId, params) => {
-    return execute(stmtId, params);
-  }
-);
-electron.ipcMain.handle("duckdb:disposePrepared", async (_event, stmtId) => {
-  return disposePrepared(stmtId);
-});
-electron.ipcMain.handle("duckdb:listTables", async () => {
-  return listTables();
-});
-electron.ipcMain.handle("duckdb:getTableInfo", async (_event, tableName) => {
-  return getTableInfo(tableName);
-});
-electron.ipcMain.handle(
-  "duckdb:getColumnStats",
-  async (_event, tableName, columnName) => {
-    return getColumnStats(tableName, columnName);
-  }
+  async (event, filePath) => withTrustedSender(event, async () => {
+    try {
+      const safePath = assertAllowedReadPath(filePath);
+      return fs3.existsSync(safePath);
+    } catch (e) {
+      return false;
+    }
+  })
 );
 electron.ipcMain.handle(
-  "duckdb:loadCSVPath",
-  async (_event, tableName, filePath, append, hasHeader) => {
-    return loadCSVPath(tableName, filePath, append, hasHeader);
-  }
+  "fs:openDialog",
+  async (event, options) => withTrustedSender(event, async () => {
+    var _a;
+    const result = await electron.dialog.showOpenDialog(options);
+    const opensDirectory = (_a = options.properties) == null ? void 0 : _a.includes("openDirectory");
+    for (const filePath of result.filePaths) {
+      if (opensDirectory) {
+        allowedDirectoryPaths.add(normalizePath(filePath));
+      } else {
+        allowedReadPaths.add(normalizePath(filePath));
+      }
+    }
+    return {
+      canceled: result.canceled,
+      filePaths: result.filePaths
+    };
+  })
 );
 electron.ipcMain.handle(
-  "duckdb:loadCSVBuffer",
-  async (_event, tableName, buffer, append, hasHeader) => {
-    return loadCSVBuffer(tableName, buffer, append, hasHeader);
-  }
+  "fs:saveDialog",
+  async (event, options) => withTrustedSender(event, async () => {
+    const result = await electron.dialog.showSaveDialog(options);
+    if (result.filePath) {
+      rememberSavePath(result.filePath);
+    }
+    return {
+      canceled: result.canceled,
+      filePath: result.filePath
+    };
+  })
 );
 electron.ipcMain.handle(
-  "duckdb:exportTableToParquet",
-  async (_event, tableName, filePath) => {
-    return exportTableToParquet(tableName, filePath);
-  }
+  "duckdb:init",
+  async (event) => withTrustedSender(event, async () => {
+    await init();
+    return { success: true };
+  })
 );
 electron.ipcMain.handle(
-  "duckdb:loadTableFromParquet",
-  async (_event, tableName, filePath) => {
-    return loadTableFromParquet(tableName, filePath);
-  }
+  "duckdb:registerCSVPathDataset",
+  async (event, input) => withTrustedSender(event, async () => {
+    const filePath = getStringProperty(input, "filePath");
+    const safePath = assertAllowedReadPath(filePath);
+    return registerCSVPathDataset(__spreadProps(__spreadValues({}, input), {
+      filePath: safePath
+    }));
+  })
 );
-electron.ipcMain.handle("duckdb:clearTable", async (_event, tableName) => {
-  return clearTable(tableName);
-});
-electron.ipcMain.handle("duckdb:getStatus", async () => {
-  return getStatus();
-});
-electron.ipcMain.handle("duckdb:getQueryMetrics", async () => {
-  return getQueryMetrics();
-});
-electron.ipcMain.handle("duckdb:clearQueryMetrics", async () => {
-  return clearQueryMetrics();
-});
+electron.ipcMain.handle(
+  "duckdb:registerParquetPathDataset",
+  async (event, input) => withTrustedSender(event, async () => {
+    const filePath = getStringProperty(input, "filePath");
+    const safePath = assertAllowedReadPath(filePath);
+    return registerParquetPathDataset(__spreadProps(__spreadValues({}, input), {
+      filePath: safePath
+    }));
+  })
+);
+electron.ipcMain.handle(
+  "duckdb:listDatasets",
+  async (event) => withTrustedSender(event, () => listDatasets())
+);
+electron.ipcMain.handle(
+  "duckdb:previewDataset",
+  async (event, input) => withTrustedSender(event, () => previewDataset(input))
+);
+electron.ipcMain.handle(
+  "duckdb:summarizeDataset",
+  async (event, input) => withTrustedSender(event, () => summarizeDataset(input))
+);
+electron.ipcMain.handle(
+  "duckdb:exportDataset",
+  async (event, input) => withTrustedSender(event, async () => {
+    const targetPath = getStringProperty(input, "targetPath");
+    const safeTargetPath = assertAllowedWritePath(targetPath);
+    return exportDataset(__spreadProps(__spreadValues({}, input), {
+      targetPath: safeTargetPath
+    }));
+  })
+);
+electron.ipcMain.handle(
+  "duckdb:deleteDataset",
+  async (event, input) => withTrustedSender(event, () => deleteDataset(input))
+);
+electron.ipcMain.handle(
+  "duckdb:getStatus",
+  async (event) => withTrustedSender(event, () => getStatus())
+);
+electron.ipcMain.handle(
+  "duckdb:getQueryMetrics",
+  async (event) => withTrustedSender(event, () => getQueryMetrics())
+);
+electron.ipcMain.handle(
+  "duckdb:clearQueryMetrics",
+  async (event) => withTrustedSender(event, () => {
+    clearQueryMetrics();
+    return { success: true };
+  })
+);
+function wantsMicrophone(details) {
+  if (!details) return true;
+  if (Array.isArray(details.mediaTypes)) {
+    return details.mediaTypes.includes("audio");
+  }
+  if (details.mediaType) {
+    return details.mediaType === "audio" || details.mediaType === "unknown";
+  }
+  return true;
+}
+function installMediaPermissionHandlers() {
+  electron.session.defaultSession.setPermissionCheckHandler(
+    (_webContents, permission, requestingOrigin, details) => {
+      var _a;
+      if (permission !== "media") return false;
+      const mediaDetails = details;
+      const origin = (_a = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a : requestingOrigin;
+      return isAllowedAppOrigin(origin) && wantsMicrophone(mediaDetails);
+    }
+  );
+  electron.session.defaultSession.setPermissionRequestHandler(
+    (webContents, permission, callback, details) => {
+      var _a, _b;
+      if (permission !== "media") {
+        callback(false);
+        return;
+      }
+      const mediaDetails = details;
+      const pageUrl = (_b = (_a = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b : webContents.getURL();
+      const allowed = isAllowedAppOrigin(pageUrl) && wantsMicrophone(mediaDetails);
+      console.log("[electron] media permission request", {
+        pageUrl,
+        mediaDetails,
+        allowed
+      });
+      callback(allowed);
+    }
+  );
+}
+electron.ipcMain.handle(
+  "voice:getMicrophoneAccessStatus",
+  async (event) => withTrustedSender(event, () => {
+    if (process.platform !== "darwin" && process.platform !== "win32") {
+      return "unknown";
+    }
+    return electron.systemPreferences.getMediaAccessStatus("microphone");
+  })
+);
+electron.ipcMain.handle(
+  "duckdb:runReadOnlyQuery",
+  async (event, sql) => withTrustedSender(event, () => runReadOnlyQuery(sql))
+);
 var mainWindow = null;
 async function createWindow() {
   await ensureDataDir();
   mainWindow = new electron.BrowserWindow({
     width: 1400,
     height: 900,
+    show: false,
     webPreferences: {
-      preload: path2__default.default.join(__dirname, "preload.js"),
-      nodeIntegration: true
+      preload: path__default.default.join(__dirname, "preload.js"),
+      contextIsolation: true,
+      nodeIntegration: false,
+      // Keep false if your existing preload bundle depends on Node APIs.
+      // Change to true only after confirming the preload still works.
+      sandbox: false
     }
+  });
+  mainWindow.once("ready-to-show", () => {
+    mainWindow == null ? void 0 : mainWindow.show();
   });
   if (isDev) {
     await installReactDevTools();
-    mainWindow.loadURL("http://localhost:3000");
+    await mainWindow.loadURL("http://localhost:3000");
     mainWindow.webContents.openDevTools();
   } else {
     try {
       const port = await startNextJSServer();
-      console.log("Next.js server started on port:", port);
-      mainWindow.loadURL(`http://localhost:${port}`);
+      console.log("[electron] Next.js server started on port:", port);
+      await mainWindow.loadURL(`http://localhost:${port}`);
     } catch (error) {
-      console.error("Error starting Next.js server:", error);
+      console.error("[electron] Error starting Next.js server:", error);
     }
   }
   let loadRetries = 0;
@@ -11011,14 +11573,14 @@ async function createWindow() {
         );
         return;
       }
-      loadRetries++;
+      loadRetries += 1;
       const delay = Math.min(1e3 * loadRetries, 5e3);
       console.warn(
         `[electron] Load failed (${errorDescription}), retrying in ${delay}ms (attempt ${loadRetries}/${MAX_LOAD_RETRIES})...`
       );
       setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.loadURL(validatedURL);
+          void mainWindow.loadURL(validatedURL);
         }
       }, delay);
     }
@@ -11027,10 +11589,10 @@ async function createWindow() {
     mainWindow = null;
   });
 }
-var startNextJSServer = async () => {
+async function startNextJSServer() {
   try {
     const nextJSPort = await getPortPlease.getPort({ portRange: [30011, 5e4] });
-    const webDir = path2__default.default.join(electron.app.getAppPath(), "app");
+    const webDir = path__default.default.join(electron.app.getAppPath(), "app");
     const serverUrl = `http://localhost:${nextJSPort}`;
     process.env.BETTER_AUTH_URL = serverUrl;
     await startServer.startServer({
@@ -11045,15 +11607,21 @@ var startNextJSServer = async () => {
     });
     return nextJSPort;
   } catch (error) {
-    console.error("Error starting Next.js server:", error);
+    console.error("[electron] Error starting Next.js server:", error);
     throw error;
   }
-};
+}
 electron.app.whenReady().then(async () => {
+  installMediaPermissionHandlers();
   electron.session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     const headers = __spreadValues({}, details.responseHeaders);
     callback({ responseHeaders: headers });
   });
+  console.log(
+    "[electron] microphone access status:",
+    process.platform === "darwin" || process.platform === "win32" ? electron.systemPreferences.getMediaAccessStatus("microphone") : "unknown"
+  );
+  await init();
   await createWindow();
   electron.app.on("activate", async () => {
     if (electron.BrowserWindow.getAllWindows().length === 0) {
@@ -11061,6 +11629,13 @@ electron.app.whenReady().then(async () => {
     }
   });
 });
+electron.app.on("before-quit", () => {
+  close().catch((error) => {
+    console.error("[electron] DuckDB cleanup error:", error);
+  });
+});
 electron.app.on("window-all-closed", () => {
-  if (process.platform !== "darwin") electron.app.quit();
+  if (process.platform !== "darwin") {
+    electron.app.quit();
+  }
 });

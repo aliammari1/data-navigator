@@ -12,14 +12,15 @@ import {
   Eye,
   FileText,
   Filter,
+  FolderOpen,
   Hash,
   Loader2,
+  MousePointerClick,
   Play,
   RefreshCw,
   Settings2,
   Table2,
   Trash2,
-  Type,
   Upload,
   X,
   XCircle,
@@ -32,17 +33,23 @@ import { toast } from "sonner";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
 import {
-  getTableInfo,
-  loadDelimitedCSVFromFile,
-  loadJSONToDuckDB,
-} from "@/platform/duckdb/duckdb";
+  type LoadedUploadTable,
+  loadUploadPathToDuckDB,
+  sanitizeUploadTableName,
+} from "@/platform/duckdb/upload-to-duckdb";
+import {
+  isElectron,
+  localDataPath,
+  openFileDialog,
+  writeLocalFile,
+} from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ColType = "string" | "number" | "date" | "boolean";
 
-const LARGE_FILE_DIRECT_LOAD_BYTES = 16 * 1024 * 1024;
+const LARGE_FILE_EDITOR_BYTES = 16 * 1024 * 1024;
 
 interface ColConfig {
   original: string;
@@ -60,15 +67,21 @@ interface ParsedResult {
 
 // ─── Delimiter options ────────────────────────────────────────────────────────
 
-const DELIMITERS = [{ label: "Pipe  |", value: "|" }];
+const DELIMITERS = [
+  { label: "Auto", value: "" },
+  { label: "Comma  ,", value: "," },
+  { label: "Pipe  |", value: "|" },
+  { label: "Tab", value: "\t" },
+  { label: "Semicolon  ;", value: ";" },
+];
 
-// ─── Type badge ───────────────────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function TypeBadge({ type }: { type: ColType }) {
   return (
     <span
       className={cn(
-        "text-[9px] px-1.5 py-0.5 rounded font-mono",
+        "rounded px-1.5 py-0.5 font-mono text-[9px]",
         type === "number" && "bg-emerald-500/15 text-emerald-400",
         type === "string" && "bg-blue-500/15 text-blue-400",
         type === "date" && "bg-purple-500/15 text-purple-400",
@@ -80,203 +93,418 @@ function TypeBadge({ type }: { type: ColType }) {
   );
 }
 
-// ─── Auto-detect column type from sample values ───────────────────────────────
-
 function detectType(values: unknown[]): ColType {
   const nonNull = values.filter(
-    (v) => v !== null && v !== undefined && v !== "",
+    (value) => value !== null && value !== undefined && value !== "",
   );
+
   if (nonNull.length === 0) return "string";
-  let nums = 0,
-    dates = 0,
-    bools = 0;
-  for (const v of nonNull) {
-    const s = String(v).trim();
-    if (s === "true" || s === "false" || s === "1" || s === "0") bools++;
-    else if (!Number.isNaN(Number(s)) && s !== "") nums++;
-    else if (/^\d{4}-\d{2}-\d{2}/.test(s) || /^\d{2}\/\d{2}\/\d{4}/.test(s))
-      dates++;
+
+  let nums = 0;
+  let dates = 0;
+  let bools = 0;
+
+  for (const value of nonNull) {
+    const text = String(value).trim().toLowerCase();
+
+    if (
+      text === "true" ||
+      text === "false" ||
+      text === "1" ||
+      text === "0" ||
+      text === "yes" ||
+      text === "no" ||
+      text === "oui" ||
+      text === "non"
+    ) {
+      bools += 1;
+    } else if (!Number.isNaN(Number(text.replace(/,/g, ""))) && text !== "") {
+      nums += 1;
+    } else if (
+      /^\d{4}-\d{2}-\d{2}/.test(text) ||
+      /^\d{2}\/\d{2}\/\d{4}/.test(text)
+    ) {
+      dates += 1;
+    }
   }
-  const n = nonNull.length;
-  if (nums / n > 0.85) return "number";
-  if (dates / n > 0.85) return "date";
-  if (bools / n > 0.85) return "boolean";
+
+  const total = nonNull.length;
+
+  if (nums / total > 0.85) return "number";
+  if (dates / total > 0.85) return "date";
+  if (bools / total > 0.85) return "boolean";
+
   return "string";
 }
 
-// ─── Cast a value to a target type ───────────────────────────────────────────
+function castValue(value: unknown, type: ColType): unknown {
+  if (value === null || value === undefined || value === "") return null;
 
-function castValue(v: unknown, type: ColType): unknown {
-  if (v === null || v === undefined || v === "") return null;
-  const s = String(v).trim();
+  const text = String(value).trim();
+
   if (type === "number") {
-    const n = Number(s.replace(/,/g, ""));
-    return Number.isNaN(n) ? null : n;
+    const numberValue = Number(text.replace(/,/g, ""));
+    return Number.isNaN(numberValue) ? null : numberValue;
   }
-  if (type === "boolean")
-    return s === "true" || s === "1" || s === "yes" || s === "oui";
-  if (type === "date") {
-    const d = new Date(s);
-    return Number.isNaN(d.getTime()) ? s : d.toISOString().slice(0, 10);
-  }
-  return s;
-}
 
-// ─── Apply filter expression to a row ────────────────────────────────────────
+  if (type === "boolean") {
+    const normalized = text.toLowerCase();
+    return (
+      normalized === "true" ||
+      normalized === "1" ||
+      normalized === "yes" ||
+      normalized === "oui"
+    );
+  }
+
+  if (type === "date") {
+    const date = new Date(text);
+    return Number.isNaN(date.getTime())
+      ? text
+      : date.toISOString().slice(0, 10);
+  }
+
+  return text;
+}
 
 function applyFilter(row: Record<string, unknown>, filter: string): boolean {
   if (!filter.trim()) return true;
+
   try {
-    // Simple equality filter: COLUMN = value or COLUMN != value or COLUMN > value
-    const eqMatch = filter.match(/^(\w+)\s*(=|!=|>|<|>=|<=)\s*(.+)$/i);
+    const eqMatch = filter.match(/^(\w+)\s*(>=|<=|!=|=|>|<)\s*(.+)$/i);
+
     if (eqMatch) {
       const [, col, op, raw] = eqMatch;
-      const val = row[col];
+      const value = row[col];
       const target = raw.trim().replace(/^['"]|['"]$/g, "");
-      const a = String(val ?? "").toLowerCase();
+
+      const a = String(value ?? "").toLowerCase();
       const b = target.toLowerCase();
-      const na = Number(val),
-        nb = Number(target);
+
+      const numberA = Number(value);
+      const numberB = Number(target);
+
       if (op === "=") return a === b;
       if (op === "!=") return a !== b;
-      if (op === ">" && !Number.isNaN(na) && !Number.isNaN(nb)) return na > nb;
-      if (op === "<" && !Number.isNaN(na) && !Number.isNaN(nb)) return na < nb;
-      if (op === ">=" && !Number.isNaN(na) && !Number.isNaN(nb))
-        return na >= nb;
-      if (op === "<=" && !Number.isNaN(na) && !Number.isNaN(nb))
-        return na <= nb;
+      if (op === ">" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
+        return numberA > numberB;
+      }
+      if (op === "<" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
+        return numberA < numberB;
+      }
+      if (op === ">=" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
+        return numberA >= numberB;
+      }
+      if (op === "<=" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
+        return numberA <= numberB;
+      }
     }
-    // CONTAINS: COLUMN LIKE %value%
+
     const likeMatch = filter.match(/^(\w+)\s+LIKE\s+%(.+)%$/i);
+
     if (likeMatch) {
       const [, col, sub] = likeMatch;
+
       return String(row[col] ?? "")
         .toLowerCase()
         .includes(sub.toLowerCase());
     }
+
     return true;
   } catch {
     return true;
   }
 }
 
-// ─── Export rows as CSV string ────────────────────────────────────────────────
+function csvEscape(value: unknown): string {
+  if (value === null || value === undefined) return "";
+
+  const text = String(value);
+
+  if (text.includes(",") || text.includes('"') || text.includes("\n")) {
+    return `"${text.replaceAll('"', '""')}"`;
+  }
+
+  return text;
+}
 
 function rowsToCSV(rows: Record<string, unknown>[], headers: string[]): string {
-  const lines = [headers.join(",")];
+  const lines = [headers.map(csvEscape).join(",")];
+
   for (const row of rows) {
-    lines.push(
-      headers
-        .map((h) => {
-          const v = String(row[h] ?? "");
-          return v.includes(",") || v.includes('"')
-            ? `"${v.replace('"', '""')}"`
-            : v;
-        })
-        .join(","),
-    );
+    lines.push(headers.map((header) => csvEscape(row[header])).join(","));
   }
+
   return lines.join("\n");
+}
+
+function safeFileBase(value: string): string {
+  return (
+    value
+      .replace(/\.[^.]+$/, "")
+      .replace(/\W/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_|_$/g, "")
+      .toLowerCase()
+      .slice(0, 80) || "parsed_data"
+  );
+}
+
+function fileNameFromPath(filePath: string): string {
+  return filePath.split(/[\\/]/).pop() || "dataset";
+}
+
+function extensionFromPath(filePath: string): string {
+  return fileNameFromPath(filePath).split(".").pop()?.toLowerCase() || "csv";
+}
+
+function isSupportedDatasetPath(filePath: string): boolean {
+  const lower = filePath.toLowerCase();
+
+  return (
+    lower.endsWith(".csv") ||
+    lower.endsWith(".tsv") ||
+    lower.endsWith(".txt") ||
+    lower.endsWith(".parquet") ||
+    lower.endsWith(".pq")
+  );
+}
+
+function toColumnType(type: string): ColMeta["type"] {
+  const normalized = type.toUpperCase();
+
+  if (
+    /INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(
+      normalized,
+    )
+  ) {
+    return "number";
+  }
+
+  if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(normalized)) return "date";
+  if (/BOOL/.test(normalized)) return "boolean";
+  if (/VARCHAR|TEXT|CHAR|STRING|BLOB|UUID|ENUM/.test(normalized)) {
+    return "string";
+  }
+
+  return "unknown";
+}
+
+function loadedToColMeta(loaded: LoadedUploadTable): ColMeta[] {
+  return loaded.columns.map((column) => ({
+    name: column.name,
+    type: toColumnType(column.type),
+    nullCount: column.nullCount,
+    distinctCount: column.distinctCount,
+    min: column.min,
+    max: column.max,
+    mean: column.mean,
+    sample: column.sample,
+  }));
+}
+
+function parsedColumnsToColMeta(
+  columns: ColConfig[],
+  rows: Record<string, unknown>[],
+): ColMeta[] {
+  return columns
+    .filter((column) => column.include)
+    .map((column) => ({
+      name: column.alias,
+      type: column.type,
+      nullCount: rows.filter((row) => row[column.alias] === null).length,
+      distinctCount: new Set(rows.map((row) => String(row[column.alias]))).size,
+      sample: rows.slice(0, 5).map((row) => row[column.alias]),
+    }));
+}
+
+function buildDatasetFromLoaded(
+  loaded: LoadedUploadTable,
+  options: {
+    name: string;
+    description: string;
+    sizeBytes: number;
+    tags?: string[];
+  },
+): Dataset {
+  const columns = loadedToColMeta(loaded);
+
+  return {
+    id: loaded.datasetId,
+    name: options.name,
+    tableName: loaded.tableName,
+    viewName: loaded.tableName,
+    source: "upload",
+    format: loaded.format,
+    rowCount: loaded.rowCount,
+    colCount: loaded.colCount,
+    sizeBytes: options.sizeBytes,
+    columns,
+    tags: options.tags ?? [],
+    description: options.description,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    qualityScore: 85,
+  };
+}
+
+function arrayBufferFromText(text: string): ArrayBuffer {
+  const bytes = new TextEncoder().encode(text);
+  return bytes.buffer.slice(
+    bytes.byteOffset,
+    bytes.byteOffset + bytes.byteLength,
+  );
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function CsvParserScreen() {
-  const { addDataset, setActiveDataset, markTableLoaded } = useDataStore();
+  const { addDataset, setActiveDataset } = useDataStore();
 
-  // ── Raw input state ──────────────────────────────────────────────────────
   const [rawText, setRawText] = useState("");
   const [delimiter, setDelimiter] = useState("|");
   const [hasHeader, setHasHeader] = useState(true);
   const [skipEmpty, setSkipEmpty] = useState(true);
   const [trimWS, setTrimWS] = useState(true);
 
-  // ── Parsed state ─────────────────────────────────────────────────────────
   const [parsed, setParsed] = useState<ParsedResult | null>(null);
   const [colConfigs, setColConfigs] = useState<ColConfig[]>([]);
   const [filterExpr, setFilterExpr] = useState("");
   const [previewLimit, setPreviewLimit] = useState(50);
   const [parsing, setParsing] = useState(false);
 
-  // ── DuckDB load state ────────────────────────────────────────────────────
-  const [tableName, setTableName] = useState("parsed_data");
+  const [datasetName, setDatasetName] = useState("parsed_data");
   const [loadingDB, setLoadingDB] = useState(false);
-  const [loadedTable, setLoadedTable] = useState<string | null>(null);
+  const [loadedDataset, setLoadedDataset] = useState<{
+    id: string;
+    viewName: string;
+    rows: number;
+  } | null>(null);
 
-  // ── Panel visibility ─────────────────────────────────────────────────────
   const [showColPanel, setShowColPanel] = useState(true);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  // ── Drop zone ────────────────────────────────────────────────────────────
-  const onDrop = useCallback(
-    async (files: File[]) => {
-      const file = files[0];
-      if (!file) return;
-      if (file.name.endsWith(".csv")) setDelimiter(",");
+  const registerLoadedDataset = useCallback(
+    (loaded: LoadedUploadTable, sourceName: string, description: string) => {
+      const dataset = buildDatasetFromLoaded(loaded, {
+        name: sourceName,
+        description,
+        sizeBytes: rawText.length,
+      });
 
-      if (file.size >= LARGE_FILE_DIRECT_LOAD_BYTES) {
-        const safeName =
-          file.name
-            .replace(/\.[^.]+$/, "")
-            .replace(/\W/g, "_")
-            .replace(/_+/g, "_")
-            .replace(/^_|_$/g, "")
-            .toLowerCase() || "parsed_data";
+      addDataset(dataset);
+      setActiveDataset(dataset.id);
+      setDatasetName(safeFileBase(sourceName));
+      setLoadedDataset({
+        id: dataset.id,
+        viewName: dataset.tableName,
+        rows: dataset.rowCount,
+      });
 
-        setLoadingDB(true);
-        try {
-          await loadDelimitedCSVFromFile(safeName, file);
-          const info = await getTableInfo(safeName);
-          markTableLoaded(safeName);
-          const dsId = `ds_csv_${Date.now()}`;
-          const dsCols: ColMeta[] = info.columns.map((column) => ({
-            name: column.name,
-            type: "string",
-            nullCount: 0,
-            distinctCount: 0,
-            sample: [],
-          }));
-          const ds: Dataset = {
-            id: dsId,
-            name: safeName,
-            tableName: safeName,
-            source: "upload",
-            format: "csv",
-            rowCount: info.rowCount,
-            colCount: info.columns.length,
-            sizeBytes: file.size,
-            columns: dsCols,
-            tags: [],
-            description: "Direct-loaded large CSV file",
-            createdAt: new Date().toISOString(),
-            updatedAt: new Date().toISOString(),
-            qualityScore: 85,
-          };
-          addDataset(ds);
-          setActiveDataset(dsId);
-          setTableName(safeName);
-          setLoadedTable(safeName);
-          setRawText("");
-          setParsed(null);
-          toast.success(
-            `Large file loaded directly to DuckDB — ${info.rowCount.toLocaleString()} rows`,
-          );
-        } catch (error) {
-          toast.error(`DuckDB error: ${String(error).slice(0, 80)}`);
-        } finally {
-          setLoadingDB(false);
-        }
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = (e) => setRawText(String(e.target?.result ?? ""));
-      reader.readAsText(file, "UTF-8");
+      return dataset;
     },
-    [addDataset, markTableLoaded, setActiveDataset],
+    [addDataset, rawText.length, setActiveDataset],
   );
+
+  const handleOpenLocalDataset = useCallback(async () => {
+    if (!isElectron()) {
+      toast.error("Local file import requires Electron.");
+      return;
+    }
+
+    const selected = await openFileDialog({
+      title: "Open dataset file",
+      properties: ["openFile"],
+      filters: [
+        {
+          name: "Data files",
+          extensions: ["csv", "tsv", "txt", "parquet", "pq"],
+        },
+        {
+          name: "Delimited files",
+          extensions: ["csv", "tsv", "txt"],
+        },
+        {
+          name: "Parquet files",
+          extensions: ["parquet", "pq"],
+        },
+      ],
+    });
+
+    const filePath = selected[0];
+
+    if (!filePath) return;
+
+    if (!isSupportedDatasetPath(filePath)) {
+      toast.error("Unsupported file. Use CSV, TSV, TXT, or Parquet.");
+      return;
+    }
+
+    setLoadingDB(true);
+
+    try {
+      const fileName = fileNameFromPath(filePath);
+      const extension = extensionFromPath(filePath);
+
+      const loaded = await loadUploadPathToDuckDB(filePath, {
+        tableName: sanitizeUploadTableName(fileName),
+        displayName: safeFileBase(fileName),
+        fileExtension: extension,
+        hasHeader,
+        delimiter: delimiter || undefined,
+        previewLimit: 100,
+      });
+
+      registerLoadedDataset(
+        loaded,
+        loaded.displayName,
+        "Imported from local file through the CSV parser workspace.",
+      );
+
+      setRawText("");
+      setParsed(null);
+      setColConfigs([]);
+      toast.success(
+        `Dataset loaded — ${loaded.rowCount.toLocaleString()} rows`,
+      );
+    } catch (error) {
+      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
+    } finally {
+      setLoadingDB(false);
+    }
+  }, [delimiter, hasHeader, registerLoadedDataset]);
+
+  const onDrop = useCallback((files: File[]) => {
+    const file = files[0];
+
+    if (!file) return;
+
+    if (file.size >= LARGE_FILE_EDITOR_BYTES) {
+      toast.info(
+        "Large files should be opened with the native file picker so DuckDB can read them directly from disk.",
+      );
+      return;
+    }
+
+    if (file.name.endsWith(".csv")) setDelimiter(",");
+
+    const reader = new FileReader();
+
+    reader.onload = (event) => {
+      setRawText(String(event.target?.result ?? ""));
+      setDatasetName(safeFileBase(file.name));
+      setLoadedDataset(null);
+      toast.success("File loaded into parser.");
+    };
+
+    reader.onerror = () => {
+      toast.error("Could not read file.");
+    };
+
+    reader.readAsText(file, "UTF-8");
+  }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -285,11 +513,13 @@ export default function CsvParserScreen() {
     multiple: false,
   });
 
-  // ── Parse ────────────────────────────────────────────────────────────────
   const handleParse = useCallback(() => {
     if (!rawText.trim()) return;
+
     setParsing(true);
-    const t0 = performance.now();
+    setLoadedDataset(null);
+
+    const start = performance.now();
 
     Papa.parse(rawText, {
       header: hasHeader,
@@ -298,24 +528,25 @@ export default function CsvParserScreen() {
       dynamicTyping: false,
       complete: (result) => {
         const raw = result.data as Record<string, unknown>[];
+
         const trimmed = trimWS
           ? raw.map((row) =>
               Object.fromEntries(
-                Object.entries(row).map(([k, v]) => [
-                  k,
-                  typeof v === "string" ? v.trim() : v,
+                Object.entries(row).map(([key, value]) => [
+                  key,
+                  typeof value === "string" ? value.trim() : value,
                 ]),
               ),
             )
           : raw;
 
         const headers = trimmed.length > 0 ? Object.keys(trimmed[0]) : [];
-        const errors = result.errors.slice(0, 3).map((e) => e.message);
+        const errors = result.errors.slice(0, 3).map((error) => error.message);
 
-        const configs: ColConfig[] = headers.map((h) => ({
-          original: h,
-          alias: h,
-          type: detectType(trimmed.slice(0, 200).map((r) => r[h])),
+        const configs: ColConfig[] = headers.map((header) => ({
+          original: header,
+          alias: header,
+          type: detectType(trimmed.slice(0, 200).map((row) => row[header])),
           include: true,
         }));
 
@@ -323,127 +554,151 @@ export default function CsvParserScreen() {
           rows: trimmed,
           headers,
           errors,
-          parseMs: Math.round(performance.now() - t0),
+          parseMs: Math.round(performance.now() - start),
         });
+
         setColConfigs(configs);
-        setLoadedTable(null);
         setParsing(false);
       },
-      error: () => setParsing(false),
+      error: (error) => {
+        toast.error(error.message);
+        setParsing(false);
+      },
     });
   }, [rawText, delimiter, hasHeader, skipEmpty, trimWS]);
 
-  // ── Transformed output (memoized) ────────────────────────────────────────
   const transformed = useMemo(() => {
     if (!parsed) return { rows: [], headers: [] };
 
-    const activeCols = colConfigs.filter((c) => c.include);
-    const headers = activeCols.map((c) => c.alias);
+    const activeCols = colConfigs.filter((column) => column.include);
+    const headers = activeCols.map((column) => column.alias);
 
     const rows = parsed.rows
       .filter((row) => applyFilter(row, filterExpr))
       .slice(0, previewLimit)
       .map((row) =>
         Object.fromEntries(
-          activeCols.map((c) => [c.alias, castValue(row[c.original], c.type)]),
+          activeCols.map((column) => [
+            column.alias,
+            castValue(row[column.original], column.type),
+          ]),
         ),
       );
 
     return { rows, headers };
   }, [parsed, colConfigs, filterExpr, previewLimit]);
 
-  // Full transformed (no preview limit, for export/DB)
   const allTransformed = useMemo(() => {
     if (!parsed) return { rows: [], headers: [] };
-    const activeCols = colConfigs.filter((c) => c.include);
-    const headers = activeCols.map((c) => c.alias);
+
+    const activeCols = colConfigs.filter((column) => column.include);
+    const headers = activeCols.map((column) => column.alias);
+
     const rows = parsed.rows
       .filter((row) => applyFilter(row, filterExpr))
       .map((row) =>
         Object.fromEntries(
-          activeCols.map((c) => [c.alias, castValue(row[c.original], c.type)]),
+          activeCols.map((column) => [
+            column.alias,
+            castValue(row[column.original], column.type),
+          ]),
         ),
       );
+
     return { rows, headers };
   }, [parsed, colConfigs, filterExpr]);
 
-  // ── Export CSV ───────────────────────────────────────────────────────────
   const handleExport = useCallback(() => {
     const { rows, headers } = allTransformed;
+
     if (rows.length === 0) return;
+
     const csv = rowsToCSV(rows, headers);
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `${tableName}.csv`;
-    a.click();
+    const anchor = document.createElement("a");
+
+    anchor.href = url;
+    anchor.download = `${safeFileBase(datasetName)}.csv`;
+    anchor.click();
+
     URL.revokeObjectURL(url);
     toast.success(`Exported ${rows.length.toLocaleString()} rows`);
-  }, [allTransformed, tableName]);
+  }, [allTransformed, datasetName]);
 
-  // ── Load to DuckDB ────────────────────────────────────────────────────────
   const handleLoadDB = useCallback(async () => {
     const { rows, headers } = allTransformed;
-    if (rows.length === 0 || !tableName.trim()) return;
-    setLoadingDB(true);
-    try {
-      const safeName = tableName.replace(/[^a-zA-Z0-9_]/g, "_");
-      await loadJSONToDuckDB(safeName, rows);
-      markTableLoaded(safeName);
 
-      const dsId = `ds_csv_${Date.now()}`;
-      const dsCols: ColMeta[] = colConfigs
-        .filter((c) => c.include)
-        .map((c) => ({
-          name: c.alias,
-          type: c.type === "boolean" ? "boolean" : c.type,
-          nullCount: rows.filter((r) => r[c.alias] === null).length,
-          distinctCount: new Set(rows.map((r) => String(r[c.alias]))).size,
-          sample: rows.slice(0, 5).map((r) => r[c.alias]),
-        }));
-      const ds: Dataset = {
-        id: dsId,
-        name: safeName,
+    if (rows.length === 0 || !datasetName.trim()) return;
+
+    if (!isElectron()) {
+      toast.error("DuckDB dataset registration requires Electron.");
+      return;
+    }
+
+    setLoadingDB(true);
+
+    try {
+      const safeName = safeFileBase(datasetName);
+      const csv = rowsToCSV(rows, headers);
+      const filePath = await localDataPath(
+        `imports/${safeName}_${Date.now()}.csv`,
+      );
+
+      await writeLocalFile(filePath, arrayBufferFromText(csv));
+
+      const loaded = await loadUploadPathToDuckDB(filePath, {
         tableName: safeName,
+        displayName: safeName,
+        fileExtension: "csv",
+        hasHeader: true,
+        delimiter: ",",
+        previewLimit: 100,
+      });
+
+      const dsCols = parsedColumnsToColMeta(colConfigs, rows);
+
+      const dataset: Dataset = {
+        id: loaded.datasetId,
+        name: safeName,
+        tableName: loaded.tableName,
+        viewName: loaded.tableName,
         source: "upload",
         format: "csv",
         rowCount: rows.length,
         colCount: headers.length,
-        sizeBytes: rawText.length,
+        sizeBytes: csv.length,
         columns: dsCols,
-        tags: [],
-        description: "Loaded from CSV Parser",
+        tags: ["parsed"],
+        description: "Loaded from Advanced CSV Parser",
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
         qualityScore: 85,
       };
-      addDataset(ds);
-      setActiveDataset(dsId);
-      setLoadedTable(safeName);
+
+      addDataset(dataset);
+      setActiveDataset(dataset.id);
+      setLoadedDataset({
+        id: dataset.id,
+        viewName: dataset.tableName,
+        rows: dataset.rowCount,
+      });
+
       toast.success(
-        `Table "${safeName}" loaded — ${rows.length.toLocaleString()} rows`,
+        `Dataset loaded — ${rows.length.toLocaleString()} rows in DuckDB`,
       );
-    } catch (e) {
-      toast.error(`DuckDB error: ${String(e).slice(0, 80)}`);
+    } catch (error) {
+      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
     } finally {
       setLoadingDB(false);
     }
-  }, [
-    allTransformed,
-    tableName,
-    colConfigs,
-    rawText,
-    addDataset,
-    setActiveDataset,
-    markTableLoaded,
-  ]);
+  }, [allTransformed, datasetName, colConfigs, addDataset, setActiveDataset]);
 
-  // ── Paste from clipboard ─────────────────────────────────────────────────
   const handlePaste = useCallback(async () => {
     try {
       const text = await navigator.clipboard.readText();
       setRawText(text);
+      setLoadedDataset(null);
       toast.success("Pasted from clipboard");
     } catch {
       textareaRef.current?.focus();
@@ -451,167 +706,203 @@ export default function CsvParserScreen() {
     }
   }, []);
 
-  const includedCount = colConfigs.filter((c) => c.include).length;
+  const includedCount = colConfigs.filter((column) => column.include).length;
+
   const filteredTotal = useMemo(() => {
     if (!parsed) return 0;
     return parsed.rows.filter((row) => applyFilter(row, filterExpr)).length;
   }, [parsed, filterExpr]);
 
   return (
-    <div className="flex flex-col h-full bg-background text-foreground overflow-hidden">
-      {/* ── Header ── */}
-      <div className="flex-none border-b border-border px-5 py-3 flex items-center gap-3">
-        <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center">
-          <FileText className="w-3.5 h-3.5 text-emerald-400" />
-        </div>
-        <div>
-          <h1 className="text-sm font-semibold text-foreground">
-            Advanced CSV Parser
-          </h1>
-          <p className="text-[10px] text-muted-foreground">
-            Paste or drop · retype columns · filter · load to DuckDB
-          </p>
-        </div>
-        <div className="flex-1" />
-        {parsed && (
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1">
-              <Hash className="w-3 h-3" />
-              {filteredTotal.toLocaleString()} rows
-            </span>
-            <span>·</span>
-            <span>{includedCount} cols</span>
-            <span>·</span>
-            <span className="text-emerald-400">{parsed.parseMs}ms</span>
+    <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
+      <div className="flex-none border-b border-border px-5 py-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-8 w-8 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10">
+            <FileText className="h-4 w-4 text-emerald-400" />
           </div>
-        )}
+
+          <div>
+            <h1 className="text-sm font-semibold text-foreground">
+              Advanced CSV Parser
+            </h1>
+            <p className="text-[10px] text-muted-foreground">
+              Paste, clean, retype, filter, export, or register as a DuckDB
+              dataset.
+            </p>
+          </div>
+
+          <div className="flex-1" />
+
+          <button
+            type="button"
+            onClick={handleOpenLocalDataset}
+            disabled={loadingDB}
+            className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
+          >
+            {loadingDB ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FolderOpen className="h-3.5 w-3.5" />
+            )}
+            Open local dataset
+          </button>
+
+          {parsed && (
+            <div className="hidden items-center gap-2 text-[11px] text-muted-foreground md:flex">
+              <span className="flex items-center gap-1">
+                <Hash className="h-3 w-3" />
+                {filteredTotal.toLocaleString()} rows
+              </span>
+              <span>·</span>
+              <span>{includedCount} cols</span>
+              <span>·</span>
+              <span className="text-emerald-400">{parsed.parseMs}ms</span>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        {/* ── Left: input + settings ── */}
-        <div className="w-80 flex-none border-r border-border flex flex-col">
-          {/* Drop / paste area */}
+      <div className="flex flex-1 overflow-hidden">
+        <div className="flex w-84 flex-none flex-col border-r border-border">
           <div
             {...getRootProps()}
             className={cn(
-              "mx-3 mt-3 rounded-xl border-2 border-dashed transition-colors relative",
+              "relative mx-3 mt-3 rounded-xl border-2 border-dashed transition-colors",
               isDragActive
                 ? "border-emerald-500 bg-emerald-500/5"
                 : "border-border",
             )}
           >
             <input {...getInputProps()} />
+
             <textarea
               ref={textareaRef}
               value={rawText}
-              onChange={(e) => setRawText(e.target.value)}
-              placeholder={`Paste delimited text here…\n\nOr drop a .csv / .tsv file\n\nExample (pipe-delimited):\nID|NAME|AMOUNT\n1|Alice|5000.00\n2|Bob|3200.50`}
-              className="w-full h-48 bg-transparent text-xs font-mono text-foreground placeholder:text-muted-foreground/50 resize-none outline-none p-3 rounded-xl"
+              onChange={(event) => {
+                setRawText(event.target.value);
+                setLoadedDataset(null);
+              }}
+              placeholder={`Paste delimited text here…
+
+Or drop a small .csv / .tsv / .txt file.
+
+For large files, use "Open local dataset" so DuckDB reads directly from disk.
+
+Example:
+ID|NAME|AMOUNT
+1|Alice|5000.00
+2|Bob|3200.50`}
+              className="h-56 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50"
               spellCheck={false}
             />
+
             {isDragActive && (
-              <div className="absolute inset-0 flex items-center justify-center rounded-xl bg-emerald-500/10 pointer-events-none">
-                <p className="text-emerald-400 text-sm font-medium">
-                  Drop file here
+              <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-emerald-500/10">
+                <p className="text-sm font-medium text-emerald-400">
+                  Drop small text file here
                 </p>
               </div>
             )}
           </div>
 
-          {/* Quick actions */}
-          <div className="flex gap-2 px-3 mt-2">
+          <div className="mt-2 flex gap-2 px-3">
             <button
               type="button"
               onClick={handlePaste}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-muted hover:bg-accent border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
             >
-              <Clipboard className="w-3 h-3" /> Paste
+              <Clipboard className="h-3 w-3" />
+              Paste
             </button>
+
             <button
               type="button"
               onClick={() => {
                 setRawText("");
                 setParsed(null);
                 setColConfigs([]);
-                setLoadedTable(null);
+                setLoadedDataset(null);
               }}
-              disabled={!rawText}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs bg-muted hover:bg-accent border border-border rounded-lg text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40"
+              disabled={!rawText && !parsed}
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
             >
-              <Trash2 className="w-3 h-3" /> Clear
+              <Trash2 className="h-3 w-3" />
+              Clear
             </button>
           </div>
 
-          {/* Parse settings */}
-          <div className="px-3 mt-3 space-y-2.5 pb-3 border-b border-border">
-            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
+          <div className="mt-3 space-y-2.5 border-b border-border px-3 pb-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
               Parse Settings
             </p>
 
-            {/* Delimiter */}
             <div className="space-y-1">
               <label className="text-[11px] text-muted-foreground">
                 Delimiter
               </label>
-              <div className="grid grid-cols-3 gap-1">
-                {DELIMITERS.map((d) => (
+
+              <div className="grid grid-cols-2 gap-1">
+                {DELIMITERS.map((option) => (
                   <button
-                    key={d.label}
+                    key={option.label}
                     type="button"
-                    onClick={() => setDelimiter(d.value)}
+                    onClick={() => setDelimiter(option.value)}
                     className={cn(
-                      "px-2 py-1 text-[10px] rounded-lg border transition-colors",
-                      delimiter === d.value
+                      "rounded-lg border px-2 py-1 text-[10px] transition-colors",
+                      delimiter === option.value
                         ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
-                        : "border-border text-muted-foreground hover:border-border hover:text-foreground",
+                        : "border-border text-muted-foreground hover:text-foreground",
                     )}
                   >
-                    {d.label}
+                    {option.label}
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Toggles */}
             <div className="space-y-1.5">
               {[
                 {
                   key: "header",
                   label: "First row is header",
-                  val: hasHeader,
-                  set: setHasHeader,
+                  value: hasHeader,
+                  setValue: setHasHeader,
                 },
                 {
                   key: "empty",
                   label: "Skip empty lines",
-                  val: skipEmpty,
-                  set: setSkipEmpty,
+                  value: skipEmpty,
+                  setValue: setSkipEmpty,
                 },
                 {
                   key: "trim",
                   label: "Trim whitespace",
-                  val: trimWS,
-                  set: setTrimWS,
+                  value: trimWS,
+                  setValue: setTrimWS,
                 },
-              ].map(({ key, label, val, set }) => (
+              ].map(({ key, label, value, setValue }) => (
                 <label
                   key={key}
-                  className="flex items-center gap-2 cursor-pointer"
+                  className="flex cursor-pointer items-center gap-2"
                 >
-                  <div
-                    onClick={() => set((v) => !v)}
+                  <button
+                    type="button"
+                    onClick={() => setValue((current) => !current)}
                     className={cn(
-                      "w-8 h-4 rounded-full relative transition-colors cursor-pointer",
-                      val ? "bg-emerald-500" : "bg-muted border border-border",
+                      "relative h-4 w-8 rounded-full transition-colors",
+                      value
+                        ? "bg-emerald-500"
+                        : "border border-border bg-muted",
                     )}
                   >
-                    <div
+                    <span
                       className={cn(
-                        "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-transform",
-                        val ? "translate-x-4" : "translate-x-0.5",
+                        "absolute top-0.5 h-3 w-3 rounded-full bg-white transition-transform",
+                        value ? "translate-x-1" : "-translate-x-3",
                       )}
                     />
-                  </div>
+                  </button>
+
                   <span className="text-[11px] text-muted-foreground">
                     {label}
                   </span>
@@ -620,168 +911,183 @@ export default function CsvParserScreen() {
             </div>
           </div>
 
-          {/* Parse button */}
-          <div className="px-3 mt-3">
+          <div className="mt-3 px-3">
             <button
               type="button"
               onClick={handleParse}
               disabled={!rawText.trim() || parsing}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary/90 disabled:opacity-50 text-primary-foreground rounded-xl text-sm font-semibold transition-colors"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               {parsing ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Play className="w-4 h-4" />
+                <Play className="h-4 w-4" />
               )}
               {parsing ? "Parsing…" : "Parse"}
             </button>
           </div>
 
-          {/* DuckDB loader */}
           {parsed && (
-            <div className="px-3 mt-3 pb-3 space-y-2">
-              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide">
-                Load to DuckDB
+            <div className="mt-3 space-y-2 px-3 pb-3">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                Register as DuckDB dataset
               </p>
+
               <div className="flex gap-2">
                 <input
-                  value={tableName}
-                  onChange={(e) => setTableName(e.target.value)}
-                  placeholder="table_name"
-                  className="flex-1 h-8 px-2.5 text-xs bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground outline-none focus:border-emerald-500/50"
+                  value={datasetName}
+                  onChange={(event) => setDatasetName(event.target.value)}
+                  placeholder="dataset_name"
+                  className="h-8 flex-1 rounded-lg border border-border bg-muted px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-emerald-500/50"
                 />
+
                 <button
                   type="button"
                   onClick={handleLoadDB}
                   disabled={loadingDB || allTransformed.rows.length === 0}
-                  className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white rounded-lg text-xs font-medium transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
                 >
                   {loadingDB ? (
-                    <Loader2 className="w-3 h-3 animate-spin" />
+                    <Loader2 className="h-3 w-3 animate-spin" />
                   ) : (
-                    <Database className="w-3 h-3" />
+                    <Database className="h-3 w-3" />
                   )}
                   Load
                 </button>
               </div>
-              {loadedTable && (
-                <div className="flex items-center gap-2 px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <Check className="w-3 h-3 text-emerald-400" />
-                  <span className="text-[11px] text-emerald-300">
-                    Table <code className="font-mono">{loadedTable}</code> ready
-                  </span>
+
+              {loadedDataset && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-2">
+                  <div className="flex items-center gap-2">
+                    <Check className="h-3 w-3 text-emerald-400" />
+                    <span className="text-[11px] text-emerald-300">
+                      Dataset ready
+                    </span>
+                  </div>
+                  <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
+                    {loadedDataset.viewName} ·{" "}
+                    {loadedDataset.rows.toLocaleString()} rows
+                  </div>
                 </div>
               )}
+
               <button
                 type="button"
                 onClick={handleExport}
                 disabled={allTransformed.rows.length === 0}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-1.5 border border-border text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg text-xs transition-colors disabled:opacity-40"
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
               >
-                <Download className="w-3 h-3" /> Export CSV (
-                {allTransformed.rows.length.toLocaleString()} rows)
+                <Download className="h-3 w-3" />
+                Export CSV ({allTransformed.rows.length.toLocaleString()} rows)
               </button>
             </div>
           )}
         </div>
 
-        {/* ── Right: columns + preview ── */}
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col overflow-hidden">
           {!parsed ? (
-            /* Empty state */
-            <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-8">
-              <div className="w-16 h-16 rounded-2xl bg-muted border border-border flex items-center justify-center">
-                <Table2 className="w-7 h-7 text-muted-foreground" />
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 px-8 text-center">
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted">
+                <Table2 className="h-7 w-7 text-muted-foreground" />
               </div>
+
               <div>
                 <p className="text-base font-semibold text-foreground">
-                  No data yet
+                  No parsed data yet
                 </p>
-                <p className="text-sm text-muted-foreground mt-1 max-w-xs">
-                  Paste delimited text on the left, configure the delimiter,
-                  then click <strong>Parse</strong>.
+                <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                  Paste delimited text, drop a small CSV/TSV/TXT file, or open a
+                  local dataset directly through DuckDB.
                 </p>
               </div>
+
               <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                 {[
                   "Rename columns",
                   "Change types",
                   "Filter rows",
-                  "Load to DuckDB",
-                ].map((f) => (
+                  "Export CSV",
+                  "Register dataset",
+                ].map((feature) => (
                   <span
-                    key={f}
-                    className="flex items-center gap-1 px-2.5 py-1 bg-muted border border-border rounded-lg"
+                    key={feature}
+                    className="flex items-center gap-1 rounded-lg border border-border bg-muted px-2.5 py-1"
                   >
-                    <Check className="w-3 h-3 text-emerald-400" /> {f}
+                    <Check className="h-3 w-3 text-emerald-400" />
+                    {feature}
                   </span>
                 ))}
               </div>
+
+              <button
+                type="button"
+                onClick={handleOpenLocalDataset}
+                className="mt-2 flex items-center gap-2 rounded-xl bg-emerald-600 px-4 py-2 text-xs font-semibold text-white transition-colors hover:bg-emerald-500"
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Open local dataset
+              </button>
             </div>
           ) : (
             <>
-              {/* ── Toolbar ── */}
-              <div className="flex-none border-b border-border px-4 py-2 flex items-center gap-3">
-                {/* Column config toggle */}
+              <div className="flex flex-none items-center gap-3 border-b border-border px-4 py-2">
                 <button
                   type="button"
-                  onClick={() => setShowColPanel((v) => !v)}
+                  onClick={() => setShowColPanel((value) => !value)}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors",
+                    "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
                     showColPanel
                       ? "border-indigo-500/40 bg-indigo-500/10 text-indigo-300"
                       : "border-border text-muted-foreground hover:bg-accent",
                   )}
                 >
-                  <Settings2 className="w-3 h-3" />
+                  <Settings2 className="h-3 w-3" />
                   Columns ({includedCount}/{colConfigs.length})
                   {showColPanel ? (
-                    <ChevronUp className="w-3 h-3" />
+                    <ChevronUp className="h-3 w-3" />
                   ) : (
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="h-3 w-3" />
                   )}
                 </button>
 
-                {/* Filter toggle */}
                 <button
                   type="button"
-                  onClick={() => setShowFilterPanel((v) => !v)}
+                  onClick={() => setShowFilterPanel((value) => !value)}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs border transition-colors",
+                    "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
                     showFilterPanel || filterExpr
                       ? "border-amber-500/40 bg-amber-500/10 text-amber-300"
                       : "border-border text-muted-foreground hover:bg-accent",
                   )}
                 >
-                  <Filter className="w-3 h-3" />
+                  <Filter className="h-3 w-3" />
                   Filter
                   {filterExpr && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
                   )}
                   {showFilterPanel ? (
-                    <ChevronUp className="w-3 h-3" />
+                    <ChevronUp className="h-3 w-3" />
                   ) : (
-                    <ChevronDown className="w-3 h-3" />
+                    <ChevronDown className="h-3 w-3" />
                   )}
                 </button>
 
-                {/* Preview limit */}
-                <div className="flex items-center gap-1.5 ml-auto text-[11px] text-muted-foreground">
-                  <Eye className="w-3 h-3" />
+                <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <Eye className="h-3 w-3" />
                   <span>Preview:</span>
-                  {[50, 200, 500].map((n) => (
+                  {[50, 200, 500].map((value) => (
                     <button
-                      key={n}
+                      key={value}
                       type="button"
-                      onClick={() => setPreviewLimit(n)}
+                      onClick={() => setPreviewLimit(value)}
                       className={cn(
-                        "px-2 py-0.5 rounded text-[10px] transition-colors",
-                        previewLimit === n
+                        "rounded px-2 py-0.5 text-[10px] transition-colors",
+                        previewLimit === value
                           ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {n}
+                      {value}
                     </button>
                   ))}
                   <span className="ml-1">
@@ -789,17 +1095,16 @@ export default function CsvParserScreen() {
                   </span>
                 </div>
 
-                {/* Re-parse */}
                 <button
                   type="button"
                   onClick={handleParse}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 border border-border rounded-lg text-xs text-muted-foreground hover:bg-accent transition-colors"
+                  className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
                 >
-                  <RefreshCw className="w-3 h-3" /> Re-parse
+                  <RefreshCw className="h-3 w-3" />
+                  Re-parse
                 </button>
               </div>
 
-              {/* ── Column config panel ── */}
               <AnimatePresence>
                 {showColPanel && (
                   <motion.div
@@ -807,90 +1112,100 @@ export default function CsvParserScreen() {
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.18 }}
-                    className="border-b border-border overflow-hidden"
+                    className="overflow-hidden border-b border-border"
                   >
-                    <div className="p-3 overflow-x-auto">
-                      <div className="flex gap-1.5 min-w-max">
-                        {/* Select all / none */}
-                        <div className="flex gap-1 mr-2">
+                    <div className="overflow-x-auto p-3">
+                      <div className="flex min-w-max gap-1.5">
+                        <div className="mr-2 flex gap-1">
                           <button
                             type="button"
                             onClick={() =>
-                              setColConfigs((c) =>
-                                c.map((x) => ({ ...x, include: true })),
+                              setColConfigs((columns) =>
+                                columns.map((column) => ({
+                                  ...column,
+                                  include: true,
+                                })),
                               )
                             }
-                            className="px-2 py-1 text-[10px] border border-border rounded-lg text-muted-foreground hover:bg-accent transition-colors"
+                            className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent"
                           >
                             All
                           </button>
+
                           <button
                             type="button"
                             onClick={() =>
-                              setColConfigs((c) =>
-                                c.map((x) => ({ ...x, include: false })),
+                              setColConfigs((columns) =>
+                                columns.map((column) => ({
+                                  ...column,
+                                  include: false,
+                                })),
                               )
                             }
-                            className="px-2 py-1 text-[10px] border border-border rounded-lg text-muted-foreground hover:bg-accent transition-colors"
+                            className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent"
                           >
                             None
                           </button>
                         </div>
 
-                        {colConfigs.map((col, i) => (
+                        {colConfigs.map((column, index) => (
                           <div
-                            key={col.original}
+                            key={column.original}
                             className={cn(
-                              "flex flex-col gap-1 p-2 rounded-xl border min-w-32 transition-colors",
-                              col.include
+                              "flex min-w-32 flex-col gap-1 rounded-xl border p-2 transition-colors",
+                              column.include
                                 ? "border-border bg-muted/40"
                                 : "border-border/40 bg-muted/10 opacity-50",
                             )}
                           >
-                            {/* Include toggle */}
                             <div className="flex items-center justify-between gap-2">
                               <input
-                                value={col.alias}
-                                onChange={(e) =>
-                                  setColConfigs((prev) =>
-                                    prev.map((c, j) =>
-                                      j === i
-                                        ? { ...c, alias: e.target.value }
-                                        : c,
+                                value={column.alias}
+                                onChange={(event) =>
+                                  setColConfigs((previous) =>
+                                    previous.map((item, itemIndex) =>
+                                      itemIndex === index
+                                        ? {
+                                            ...item,
+                                            alias: event.target.value,
+                                          }
+                                        : item,
                                     ),
                                   )
                                 }
-                                className="flex-1 bg-transparent text-[11px] font-medium text-foreground outline-none min-w-0 truncate"
+                                className="min-w-0 flex-1 truncate bg-transparent text-[11px] font-medium text-foreground outline-none"
                               />
+
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setColConfigs((prev) =>
-                                    prev.map((c, j) =>
-                                      j === i
-                                        ? { ...c, include: !c.include }
-                                        : c,
+                                  setColConfigs((previous) =>
+                                    previous.map((item, itemIndex) =>
+                                      itemIndex === index
+                                        ? {
+                                            ...item,
+                                            include: !item.include,
+                                          }
+                                        : item,
                                     ),
                                   )
                                 }
                                 className={cn(
-                                  "w-3.5 h-3.5 rounded-full flex-none border transition-colors",
-                                  col.include
-                                    ? "bg-emerald-500 border-emerald-500"
-                                    : "bg-transparent border-muted-foreground",
+                                  "h-3.5 w-3.5 flex-none rounded-full border transition-colors",
+                                  column.include
+                                    ? "border-emerald-500 bg-emerald-500"
+                                    : "border-muted-foreground bg-transparent",
                                 )}
                               />
                             </div>
 
-                            {/* Original name if renamed */}
-                            {col.alias !== col.original && (
-                              <span className="text-[9px] text-muted-foreground truncate font-mono">
-                                ← {col.original}
+                            {column.alias !== column.original && (
+                              <span className="truncate font-mono text-[9px] text-muted-foreground">
+                                ← {column.original}
                               </span>
                             )}
 
-                            {/* Type selector */}
-                            <div className="flex gap-1 flex-wrap">
+                            <div className="flex flex-wrap gap-1">
                               {(
                                 [
                                   "string",
@@ -898,33 +1213,35 @@ export default function CsvParserScreen() {
                                   "date",
                                   "boolean",
                                 ] as ColType[]
-                              ).map((t) => (
+                              ).map((type) => (
                                 <button
-                                  key={t}
+                                  key={type}
                                   type="button"
                                   onClick={() =>
-                                    setColConfigs((prev) =>
-                                      prev.map((c, j) =>
-                                        j === i ? { ...c, type: t } : c,
+                                    setColConfigs((previous) =>
+                                      previous.map((item, itemIndex) =>
+                                        itemIndex === index
+                                          ? { ...item, type }
+                                          : item,
                                       ),
                                     )
                                   }
                                   className={cn(
-                                    "text-[9px] px-1.5 py-0.5 rounded font-mono transition-opacity",
-                                    col.type === t
+                                    "rounded px-1.5 py-0.5 font-mono text-[9px] transition-opacity",
+                                    column.type === type
                                       ? "opacity-100"
                                       : "opacity-30 hover:opacity-60",
-                                    t === "number" &&
+                                    type === "number" &&
                                       "bg-emerald-500/15 text-emerald-400",
-                                    t === "string" &&
+                                    type === "string" &&
                                       "bg-blue-500/15 text-blue-400",
-                                    t === "date" &&
+                                    type === "date" &&
                                       "bg-purple-500/15 text-purple-400",
-                                    t === "boolean" &&
+                                    type === "boolean" &&
                                       "bg-amber-500/15 text-amber-400",
                                   )}
                                 >
-                                  {t}
+                                  {type}
                                 </button>
                               ))}
                             </div>
@@ -936,7 +1253,6 @@ export default function CsvParserScreen() {
                 )}
               </AnimatePresence>
 
-              {/* ── Filter panel ── */}
               <AnimatePresence>
                 {showFilterPanel && (
                   <motion.div
@@ -944,28 +1260,33 @@ export default function CsvParserScreen() {
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
                     transition={{ duration: 0.18 }}
-                    className="border-b border-border overflow-hidden"
+                    className="overflow-hidden border-b border-border"
                   >
-                    <div className="p-3 space-y-2">
+                    <div className="space-y-2 p-3">
                       <div className="flex items-center gap-2">
-                        <Code2 className="w-3.5 h-3.5 text-amber-400 flex-none" />
+                        <Code2 className="h-3.5 w-3.5 flex-none text-amber-400" />
+
                         <input
                           value={filterExpr}
-                          onChange={(e) => setFilterExpr(e.target.value)}
-                          placeholder="e.g.  STATUS = SUCCESS  or  AMOUNT > 1000  or  NAME LIKE %Ali%"
-                          className="flex-1 h-8 px-3 text-xs bg-muted border border-border rounded-lg text-foreground placeholder:text-muted-foreground font-mono outline-none focus:border-amber-500/50"
+                          onChange={(event) =>
+                            setFilterExpr(event.target.value)
+                          }
+                          placeholder="e.g. STATUS = SUCCESS or AMOUNT > 1000 or NAME LIKE %Ali%"
+                          className="h-8 flex-1 rounded-lg border border-border bg-muted px-3 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-amber-500/50"
                         />
+
                         {filterExpr && (
                           <button
                             type="button"
                             onClick={() => setFilterExpr("")}
                             className="text-muted-foreground hover:text-foreground"
                           >
-                            <X className="w-3.5 h-3.5" />
+                            <X className="h-3.5 w-3.5" />
                           </button>
                         )}
                       </div>
-                      <p className="text-[10px] text-muted-foreground pl-5">
+
+                      <p className="pl-5 text-[10px] text-muted-foreground">
                         Syntax: <code className="font-mono">COL = value</code> ·{" "}
                         <code className="font-mono">COL &gt; 100</code> ·{" "}
                         <code className="font-mono">COL LIKE %text%</code> ·{" "}
@@ -976,87 +1297,94 @@ export default function CsvParserScreen() {
                 )}
               </AnimatePresence>
 
-              {/* ── Parse errors ── */}
               {parsed.errors.length > 0 && (
-                <div className="flex-none mx-4 mt-2 p-2.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400 flex-none mt-0.5" />
-                  <div className="text-[11px] text-amber-300 space-y-0.5">
-                    {parsed.errors.map((e, i) => (
-                      <p key={i}>{e}</p>
+                <div className="mx-4 mt-2 flex flex-none items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5">
+                  <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none text-amber-400" />
+                  <div className="space-y-0.5 text-[11px] text-amber-300">
+                    {parsed.errors.map((error) => (
+                      <p key={error}>{error}</p>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* ── Data table ── */}
               <div className="flex-1 overflow-auto">
                 {transformed.rows.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-muted-foreground">
-                    <XCircle className="w-8 h-8 mb-2 opacity-30" />
+                  <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
+                    <XCircle className="mb-2 h-8 w-8 opacity-30" />
                     <p className="text-sm">No rows match the current filter</p>
                   </div>
                 ) : (
                   <table className="w-full border-collapse text-xs">
-                    <thead className="sticky top-0 bg-muted/95 z-10 backdrop-blur">
+                    <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
                       <tr>
-                        <th className="px-3 py-2 text-left font-medium text-muted-foreground border-b border-r border-border w-10 text-[10px]">
+                        <th className="w-10 border-b border-r border-border px-3 py-2 text-left text-[10px] font-medium text-muted-foreground">
                           #
                         </th>
-                        {transformed.headers.map((h, i) => {
-                          const cfg = colConfigs.find((c) => c.alias === h);
+
+                        {transformed.headers.map((header) => {
+                          const config = colConfigs.find(
+                            (column) => column.alias === header,
+                          );
+
                           return (
                             <th
-                              key={h}
-                              className="px-3 py-2 text-left border-b border-r border-border whitespace-nowrap"
+                              key={header}
+                              className="whitespace-nowrap border-b border-r border-border px-3 py-2 text-left"
                             >
                               <div className="flex items-center gap-1.5">
-                                <span className="font-medium text-foreground text-[11px]">
-                                  {h}
+                                <span className="text-[11px] font-medium text-foreground">
+                                  {header}
                                 </span>
-                                {cfg && <TypeBadge type={cfg.type} />}
+                                {config && <TypeBadge type={config.type} />}
                               </div>
                             </th>
                           );
                         })}
                       </tr>
                     </thead>
+
                     <tbody>
-                      {transformed.rows.map((row, ri) => (
+                      {transformed.rows.map((row, rowIndex) => (
                         <tr
-                          key={ri}
+                          key={rowIndex}
                           className={cn(
-                            "border-b border-border/30 hover:bg-muted/40 transition-colors",
-                            ri % 2 === 1 && "bg-muted/10",
+                            "border-b border-border/30 transition-colors hover:bg-muted/40",
+                            rowIndex % 2 === 1 && "bg-muted/10",
                           )}
                         >
-                          <td className="px-3 py-1.5 text-muted-foreground font-mono text-center border-r border-border/30 text-[10px]">
-                            {ri + 1}
+                          <td className="border-r border-border/30 px-3 py-1.5 text-center font-mono text-[10px] text-muted-foreground">
+                            {rowIndex + 1}
                           </td>
-                          {transformed.headers.map((h) => {
-                            const val = row[h];
-                            const cfg = colConfigs.find((c) => c.alias === h);
+
+                          {transformed.headers.map((header) => {
+                            const value = row[header];
+                            const config = colConfigs.find(
+                              (column) => column.alias === header,
+                            );
+
                             return (
                               <td
-                                key={h}
+                                key={header}
                                 className={cn(
-                                  "px-3 py-1.5 border-r border-border/20 font-mono whitespace-nowrap max-w-55 overflow-hidden text-ellipsis text-[11px]",
-                                  val === null
+                                  "max-w-55 overflow-hidden text-ellipsis whitespace-nowrap border-r border-border/20 px-3 py-1.5 font-mono text-[11px]",
+                                  value === null
                                     ? "text-muted-foreground/40 italic"
-                                    : cfg?.type === "number"
-                                      ? "text-emerald-300 text-right"
-                                      : cfg?.type === "date"
+                                    : config?.type === "number"
+                                      ? "text-right text-emerald-300"
+                                      : config?.type === "date"
                                         ? "text-purple-300"
-                                        : cfg?.type === "boolean"
+                                        : config?.type === "boolean"
                                           ? "text-amber-300"
                                           : "text-foreground",
                                 )}
-                                title={val === null ? "NULL" : String(val)}
+                                title={value === null ? "NULL" : String(value)}
                               >
-                                {val === null
+                                {value === null
                                   ? "NULL"
-                                  : typeof val === "boolean"
-                                    ? String(val)
-                                    : String(val)}
+                                  : typeof value === "boolean"
+                                    ? String(value)
+                                    : String(value)}
                               </td>
                             );
                           })}

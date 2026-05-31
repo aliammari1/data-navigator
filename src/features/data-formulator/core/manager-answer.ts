@@ -8,6 +8,9 @@ export interface ManagerAnswer {
   intent: ManagerIntent;
   title: string;
   summary: string;
+  decision?: string;
+  impact?: string;
+  nextAction?: string;
   assumptions: string[];
   evidence: string[];
   followUps: string[];

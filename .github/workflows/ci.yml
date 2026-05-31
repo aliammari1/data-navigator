@@ -1,0 +1,80 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+  push:
+    branches:
+      - main
+      - develop
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  CI: true
+  NODE_ENV: test
+  NEXT_TELEMETRY_DISABLED: "1"
+  ELECTRON_SKIP_BINARY_DOWNLOAD: "0"
+
+jobs:
+  quality:
+    name: Quality / Node ${{ matrix.node }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 24.x
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Check package hygiene
+        run: npx sherif
+
+      - name: Check unused dependencies
+        run: npx knip
+        continue-on-error: true
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Oxlint
+        run: npx oxlint .
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Check provider boundaries
+        run: npm run check:providers
+
+      - name: Check architecture
+        run: npm run check:architecture
+
+      - name: Unit tests
+        run: npm run test
+
+      - name: Storybook build
+        run: npm run build:storybook
+
+      - name: Next build
+        run: npm run build

@@ -46,12 +46,71 @@ export async function ensureModel(
   onProgress?: (p: number, t: string) => void,
   modelId: string = DEFAULT_MODEL,
 ): Promise<void> {
+  const traceId = `telecom-ensure-model-${modelId}-${Date.now()}`;
+
+  console.groupCollapsed("[TelecomAgent] ensureModel", {
+    traceId,
+    modelId,
+    alreadyLoaded: isLoaded(),
+    modelReadyFlag: _modelReady,
+  });
+
   if (isLoaded()) {
+    console.log("[TelecomAgent] ensureModel skipped: already loaded", {
+      traceId,
+      modelId,
+    });
+
     _modelReady = true;
+    console.groupEnd();
     return;
   }
-  await loadLLM(modelId, onProgress);
-  _modelReady = true;
+
+  try {
+    console.log("[TelecomAgent] calling loadLLM", {
+      traceId,
+      modelId,
+    });
+
+    await loadLLM({
+      modelId,
+      dtype: "q4",
+      preferredDevice: "auto",
+      traceId,
+      debug: true,
+      onProgress: (p, t) => {
+        console.log("[TelecomAgent] load progress", {
+          traceId,
+          modelId,
+          rawProgress: p,
+          percent: Math.round(p * 100),
+          text: t,
+        });
+
+        onProgress?.(p, t);
+      },
+    });
+
+    _modelReady = true;
+
+    console.log("[TelecomAgent] ensureModel success", {
+      traceId,
+      modelId,
+      modelReadyFlag: _modelReady,
+    });
+  } catch (err) {
+    console.error("[TelecomAgent] ensureModel failed", {
+      traceId,
+      modelId,
+      error: err,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : null,
+    });
+
+    throw err;
+  } finally {
+    console.groupEnd();
+  }
 }
 
 export function modelReady(): boolean {
@@ -246,22 +305,77 @@ export async function askAgent(
   question: string,
   ctx: AgentContext,
 ): Promise<AgentAnswer> {
-  if (!_modelReady && !isLoaded()) {
-    return {
-      text: "Modèle local non chargé. Cliquez 'Charger l'IA' pour activer le mode IA. Sans modèle, l'analyse heuristique reste disponible.",
-      intent: null,
+  const traceId = `telecom-ask-agent-${Date.now()}`;
+
+  console.groupCollapsed("[TelecomAgent] askAgent", {
+    traceId,
+    question,
+    modelReadyFlag: _modelReady,
+    isLoaded: isLoaded(),
+  });
+
+  try {
+    if (!_modelReady && !isLoaded()) {
+      console.warn("[TelecomAgent] askAgent no model loaded", {
+        traceId,
+        modelReadyFlag: _modelReady,
+        isLoaded: isLoaded(),
+      });
+
+      return {
+        text: "Modèle local non chargé. Cliquez 'Charger l'IA' pour activer le mode IA. Sans modèle, l'analyse heuristique reste disponible.",
+        intent: null,
+      };
+    }
+
+    const summary = summarizeContext(ctx);
+
+    console.log("[TelecomAgent] context summary", {
+      traceId,
+      summary,
+    });
+
+    const raw = await chat(
+      SYSTEM,
+      `Données :\n${summary}\n\nQuestion : ${question}`,
+      {
+        maxTokens: 220,
+        temperature: 0.05,
+        agentName: "telecom-ask-agent",
+        traceId,
+        logFullPrompt: true,
+        debug: true,
+      },
+    );
+
+    console.log("[TelecomAgent] raw LLM answer", {
+      traceId,
+      raw,
+    });
+
+    const answer = {
+      text: raw.replace(/INTENT:\s*[a-z_]+(?::[a-z_]+)?/i, "").trim(),
+      intent: parseIntent(raw),
     };
+
+    console.log("[TelecomAgent] parsed answer", {
+      traceId,
+      answer,
+    });
+
+    return answer;
+  } catch (err) {
+    console.error("[TelecomAgent] askAgent failed", {
+      traceId,
+      error: err,
+      message: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack : null,
+    });
+
+    throw err;
+  } finally {
+    console.groupEnd();
   }
-  const summary = summarizeContext(ctx);
-  const raw = await chat(
-    SYSTEM,
-    `Données :\n${summary}\n\nQuestion : ${question}`,
-    { maxTokens: 220, temperature: 0.05 },
-  );
-  return {
-    text: raw.replace(/INTENT:\s*[a-z_]+(?::[a-z_]+)?/i, "").trim(),
-    intent: parseIntent(raw),
-  };
 }
 
 export async function generateNarrative(ctx: AgentContext): Promise<string> {

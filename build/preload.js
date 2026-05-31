@@ -16,34 +16,21 @@ var electronFS = {
 };
 var electronDuckDB = {
   init: () => electron.ipcRenderer.invoke("duckdb:init"),
-  runQuery: (sql) => electron.ipcRenderer.invoke("duckdb:runQuery", sql),
-  runBatch: (sqls) => electron.ipcRenderer.invoke("duckdb:runBatch", sqls),
-  prepare: (sql) => electron.ipcRenderer.invoke("duckdb:prepare", sql),
-  execute: (stmtId, params) => electron.ipcRenderer.invoke("duckdb:execute", stmtId, params),
-  disposePrepared: (stmtId) => electron.ipcRenderer.invoke("duckdb:disposePrepared", stmtId),
-  listTables: () => electron.ipcRenderer.invoke("duckdb:listTables"),
-  getTableInfo: (tableName) => electron.ipcRenderer.invoke("duckdb:getTableInfo", tableName),
-  getColumnStats: (tableName, columnName) => electron.ipcRenderer.invoke("duckdb:getColumnStats", tableName, columnName),
-  loadCSVPath: (tableName, filePath, append, hasHeader) => electron.ipcRenderer.invoke(
-    "duckdb:loadCSVPath",
-    tableName,
-    filePath,
-    append,
-    hasHeader
-  ),
-  loadCSVBuffer: (tableName, buffer, append, hasHeader) => electron.ipcRenderer.invoke(
-    "duckdb:loadCSVBuffer",
-    tableName,
-    buffer,
-    append,
-    hasHeader
-  ),
-  exportTableToParquet: (tableName, filePath) => electron.ipcRenderer.invoke("duckdb:exportTableToParquet", tableName, filePath),
-  loadTableFromParquet: (tableName, filePath) => electron.ipcRenderer.invoke("duckdb:loadTableFromParquet", tableName, filePath),
-  clearTable: (tableName) => electron.ipcRenderer.invoke("duckdb:clearTable", tableName),
+  registerCSVPathDataset: (input) => electron.ipcRenderer.invoke("duckdb:registerCSVPathDataset", input),
+  registerParquetPathDataset: (input) => electron.ipcRenderer.invoke("duckdb:registerParquetPathDataset", input),
+  listDatasets: () => electron.ipcRenderer.invoke("duckdb:listDatasets"),
+  previewDataset: (input) => electron.ipcRenderer.invoke("duckdb:previewDataset", input),
+  summarizeDataset: (input) => electron.ipcRenderer.invoke("duckdb:summarizeDataset", input),
+  exportDataset: (input) => electron.ipcRenderer.invoke("duckdb:exportDataset", input),
+  deleteDataset: (input) => electron.ipcRenderer.invoke("duckdb:deleteDataset", input),
   getStatus: () => electron.ipcRenderer.invoke("duckdb:getStatus"),
   getQueryMetrics: () => electron.ipcRenderer.invoke("duckdb:getQueryMetrics"),
-  clearQueryMetrics: () => electron.ipcRenderer.invoke("duckdb:clearQueryMetrics")
+  clearQueryMetrics: () => electron.ipcRenderer.invoke("duckdb:clearQueryMetrics"),
+  runReadOnlyQuery: (sql) => electron.ipcRenderer.invoke("duckdb:runReadOnlyQuery", sql)
+};
+var electronVoice = {
+  getMicrophoneAccessStatus: () => electron.ipcRenderer.invoke("voice:getMicrophoneAccessStatus")
 };
 electron.contextBridge.exposeInMainWorld("electronFS", electronFS);
 electron.contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
+electron.contextBridge.exposeInMainWorld("electronVoice", electronVoice);

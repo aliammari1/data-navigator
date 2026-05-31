@@ -55,7 +55,7 @@ import {
   computeSkewness,
   pearsonCorr,
 } from "@/platform/ai/insights";
-import { runQuery } from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
@@ -169,7 +169,7 @@ export default function AiAnalysisScreen() {
     async function init() {
       try {
         let nextTableName = preferredTableName;
-        const tables = await runQuery("SHOW TABLES").catch(() => []);
+        const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
         const tableNames = tables.map(tableNameFromShowTables).filter(Boolean);
         if (
           tableNames.length > 0 &&
@@ -187,7 +187,7 @@ export default function AiAnalysisScreen() {
           return;
         }
 
-        const countRes = await runQuery(
+        const countRes = await runReadOnlyQuery(
           `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(nextTableName)}`,
         );
         if (!cancelled) {
@@ -229,7 +229,7 @@ export default function AiAnalysisScreen() {
 
       for (const col of numericCols) {
         const colSql = quoteIdentifier(col);
-        const res = await runQuery(`
+        const res = await runReadOnlyQuery(`
           SELECT
             COUNT(*) as total,
             COUNT(${colSql}) as non_null,
@@ -242,7 +242,7 @@ export default function AiAnalysisScreen() {
           FROM ${tableSql}
         `);
         const r = res[0] as Record<string, number>;
-        const sample = await runQuery(
+        const sample = await runReadOnlyQuery(
           `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 2000`,
         );
         const vals = sample.map((row) =>
@@ -270,7 +270,7 @@ export default function AiAnalysisScreen() {
 
       for (const col of catCols) {
         const colSql = quoteIdentifier(col);
-        const res = await runQuery(`
+        const res = await runReadOnlyQuery(`
           SELECT
             COUNT(*) as total,
             COUNT(${colSql}) as non_null,
@@ -278,7 +278,7 @@ export default function AiAnalysisScreen() {
           FROM ${tableSql}
         `);
         const r = res[0] as Record<string, number>;
-        const topRes = await runQuery(`
+        const topRes = await runReadOnlyQuery(`
           SELECT ${colSql} as val, COUNT(*) as cnt
           FROM ${tableSql}
           GROUP BY ${colSql}
@@ -312,7 +312,7 @@ export default function AiAnalysisScreen() {
 
       for (const stat of numStats) {
         const statSql = quoteIdentifier(stat.name);
-        const sample = await runQuery(
+        const sample = await runReadOnlyQuery(
           `SELECT ${statSql} FROM ${tableSql} WHERE ${statSql} IS NOT NULL LIMIT 3000`,
         );
         const vals = sample.map((row) =>
@@ -396,7 +396,7 @@ export default function AiAnalysisScreen() {
       const corrData: Record<string, number[]> = {};
       for (const col of numericCols) {
         const colSql = quoteIdentifier(col);
-        const rows = await runQuery(
+        const rows = await runReadOnlyQuery(
           `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 3000`,
         );
         corrData[col] = rows.map((r) =>
@@ -439,7 +439,7 @@ export default function AiAnalysisScreen() {
       if (forecastDateCol && forecastMetricCol) {
         const forecastDateSql = quoteIdentifier(forecastDateCol);
         const forecastMetricSql = quoteIdentifier(forecastMetricCol);
-        const revenueByMonth = await runQuery(`
+        const revenueByMonth = await runReadOnlyQuery(`
           SELECT
             strftime(${forecastDateSql}, '%Y-%m') as period,
             AVG(${forecastMetricSql}) as avg_metric,
@@ -492,7 +492,7 @@ export default function AiAnalysisScreen() {
       } else if (numericCols.length >= 1) {
         // No date column — fallback: use row index as time proxy
         const forecastMetricSql = quoteIdentifier(forecastMetricCol);
-        const sample = await runQuery(
+        const sample = await runReadOnlyQuery(
           `SELECT ${forecastMetricSql} FROM ${tableSql} WHERE ${forecastMetricSql} IS NOT NULL LIMIT 100`,
         );
         const vals = sample.map((r) =>
@@ -545,7 +545,7 @@ export default function AiAnalysisScreen() {
               `AVG(${quoteIdentifier(c)}) as ${quoteIdentifier(`avg_${c}`)}`,
           )
           .join(", ");
-        const clusterRes = await runQuery(`
+        const clusterRes = await runReadOnlyQuery(`
           SELECT
             ${groupSql},
             ${avgSelects},
