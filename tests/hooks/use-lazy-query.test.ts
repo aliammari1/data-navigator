@@ -1,5 +1,5 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
 
 describe("useLazyQuery", () => {
@@ -100,7 +100,7 @@ describe("useLazyQuery", () => {
     // We verify this by checking that the internal state is reset
     // This test verifies the deps effect runs and resets ran.current
     rerender({ dep: 2 });
-    
+
     // The component should still have the old data until re-triggered
     expect(result.current.data).toBe("result");
   });

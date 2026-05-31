@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Settings User Journey Tests
@@ -17,7 +17,9 @@ test.describe("Settings Configuration Journey", () => {
     await expect(page).toHaveURL(/.*settings.*/);
 
     // Look for common settings sections
-    const settingsText = page.locator("text=/theme|appearance|notification|data|performance/i");
+    const settingsText = page.locator(
+      "text=/theme|appearance|notification|data|performance/i",
+    );
     const count = await settingsText.count();
     expect(count).toBeGreaterThan(0);
   });

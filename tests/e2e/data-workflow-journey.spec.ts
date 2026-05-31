@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Data Import and Processing User Journey Tests
@@ -16,9 +16,7 @@ test.describe("Data Import Workflow Journey", () => {
     await expect(page.locator("body")).toBeVisible();
 
     // Look for upload-related text or icons
-    const uploadElements = page.locator(
-      "text=/upload|import|drop|drag/i",
-    );
+    const uploadElements = page.locator("text=/upload|import|drop|drag/i");
     const count = await uploadElements.count();
     expect(count).toBeGreaterThan(0);
   });

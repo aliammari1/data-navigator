@@ -33,8 +33,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
 import {
   listRegisteredDatasets,
-  runReadOnlyQuery,
   type RegisteredDataset,
+  runReadOnlyQuery,
 } from "@/platform/duckdb/duckdb";
 
 const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
@@ -116,11 +116,9 @@ function profileScore(profile: ColProfile): number {
 
 function datasetColumnDefs(
   dataset: RegisteredDataset | null,
-  fallbackDataset:
-    | {
-        columns: Array<{ name: string; type: string }>;
-      }
-    | null,
+  fallbackDataset: {
+    columns: Array<{ name: string; type: string }>;
+  } | null,
 ): Array<{
   index: number;
   name: string;
@@ -162,23 +160,24 @@ function formatNumber(value: number | undefined, digits = 2): string {
 
 function getDatasetViewName(
   dataset: RegisteredDataset | null,
-  fallbackDataset:
-    | {
-        tableName?: string;
-        viewName?: string;
-      }
-    | null,
+  fallbackDataset: {
+    tableName?: string;
+    viewName?: string;
+  } | null,
 ): string | null {
-  return dataset?.viewName ?? fallbackDataset?.viewName ?? fallbackDataset?.tableName ?? null;
+  return (
+    dataset?.viewName ??
+    fallbackDataset?.viewName ??
+    fallbackDataset?.tableName ??
+    null
+  );
 }
 
 function getDatasetDisplayName(
   dataset: RegisteredDataset | null,
-  fallbackDataset:
-    | {
-        name?: string;
-      }
-    | null,
+  fallbackDataset: {
+    name?: string;
+  } | null,
   viewName: string | null,
 ): string {
   return dataset?.displayName ?? fallbackDataset?.name ?? viewName ?? "Dataset";
@@ -186,11 +185,9 @@ function getDatasetDisplayName(
 
 function getDatasetRowCount(
   dataset: RegisteredDataset | null,
-  fallbackDataset:
-    | {
-        rowCount?: number;
-      }
-    | null,
+  fallbackDataset: {
+    rowCount?: number;
+  } | null,
 ): number {
   return dataset?.rowCount ?? fallbackDataset?.rowCount ?? 0;
 }
@@ -204,8 +201,7 @@ function buildQualityDimensions(profiles: ColProfile[]): QualityDimension[] {
     profiles.reduce((sum, profile) => sum + profile.uniquenessRate, 0) /
     profileCount;
   const avgValidity =
-    profiles.reduce((sum, profile) => sum + profile.validity, 0) /
-    profileCount;
+    profiles.reduce((sum, profile) => sum + profile.validity, 0) / profileCount;
   const consistency =
     profiles.filter((profile) => profile.nullRate < 0.01).length / profileCount;
 
@@ -357,7 +353,9 @@ function MetricCard({
           <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">
             {value}
           </div>
-          {sub && <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>}
+          {sub && (
+            <div className="mt-1 text-[11px] text-muted-foreground">{sub}</div>
+          )}
         </div>
         <div className={cn("rounded-2xl p-3", tone)}>
           <Icon className="h-5 w-5" />
@@ -733,20 +731,11 @@ export default function ParsedDataScreen() {
           : String(second).localeCompare(first);
       }
 
-      return sortAsc
-        ? first - Number(second)
-        : Number(second) - first;
+      return sortAsc ? first - Number(second) : Number(second) - first;
     });
 
     return list;
-  }, [
-    profiles,
-    searchQuery,
-    typeFilter,
-    qualityFilter,
-    sortBy,
-    sortAsc,
-  ]);
+  }, [profiles, searchQuery, typeFilter, qualityFilter, sortBy, sortAsc]);
 
   const overallScore = useMemo(() => {
     if (!profiles.length) return 0;
@@ -1118,7 +1107,10 @@ export default function ParsedDataScreen() {
               className="inline-flex h-10 items-center gap-2 rounded-xl bg-primary px-3 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
               <RefreshCw
-                className={cn("h-4 w-4", (loading || catalogLoading) && "animate-spin")}
+                className={cn(
+                  "h-4 w-4",
+                  (loading || catalogLoading) && "animate-spin",
+                )}
               />
               Refresh
             </button>
@@ -1155,8 +1147,7 @@ export default function ParsedDataScreen() {
                         profileProgress.total > 0
                           ? `${Math.max(
                               6,
-                              (profileProgress.done /
-                                profileProgress.total) *
+                              (profileProgress.done / profileProgress.total) *
                                 100,
                             )}%`
                           : "8%",
@@ -1254,35 +1245,35 @@ export default function ParsedDataScreen() {
 
               <div className="flex flex-wrap items-center gap-1 text-xs">
                 <span className="mr-1 text-muted-foreground">Sort</span>
-                {(["quality", "name", "nullRate", "distinctCount"] as const).map(
-                  (sort) => (
-                    <button
-                      key={sort}
-                      type="button"
-                      onClick={() => {
-                        if (sortBy === sort) {
-                          setSortAsc((value) => !value);
-                        } else {
-                          setSortBy(sort);
-                          setSortAsc(sort === "name");
-                        }
-                      }}
-                      className={cn(
-                        "rounded-lg px-2 py-1 transition-colors",
-                        sortBy === sort
-                          ? "bg-primary text-primary-foreground"
-                          : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                      )}
-                    >
-                      {sort === "nullRate"
-                        ? "nulls"
-                        : sort === "distinctCount"
-                          ? "distinct"
-                          : sort}
-                      {sortBy === sort ? (sortAsc ? " ↑" : " ↓") : ""}
-                    </button>
-                  ),
-                )}
+                {(
+                  ["quality", "name", "nullRate", "distinctCount"] as const
+                ).map((sort) => (
+                  <button
+                    key={sort}
+                    type="button"
+                    onClick={() => {
+                      if (sortBy === sort) {
+                        setSortAsc((value) => !value);
+                      } else {
+                        setSortBy(sort);
+                        setSortAsc(sort === "name");
+                      }
+                    }}
+                    className={cn(
+                      "rounded-lg px-2 py-1 transition-colors",
+                      sortBy === sort
+                        ? "bg-primary text-primary-foreground"
+                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                    )}
+                  >
+                    {sort === "nullRate"
+                      ? "nulls"
+                      : sort === "distinctCount"
+                        ? "distinct"
+                        : sort}
+                    {sortBy === sort ? (sortAsc ? " ↑" : " ↓") : ""}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -1414,7 +1405,10 @@ export default function ParsedDataScreen() {
 
               <div className="mt-4">
                 {profiles.length > 0 ? (
-                  <ReactECharts option={typeDistChart} style={{ height: 180 }} />
+                  <ReactECharts
+                    option={typeDistChart}
+                    style={{ height: 180 }}
+                  />
                 ) : (
                   <div className="flex h-40 items-center justify-center text-sm text-muted-foreground">
                     No profile data.
@@ -1496,7 +1490,10 @@ export default function ParsedDataScreen() {
                       </div>
                     </div>
 
-                    <QualityRing score={profileScore(selectedProfile)} size={72} />
+                    <QualityRing
+                      score={profileScore(selectedProfile)}
+                      size={72}
+                    />
                   </div>
                 </div>
 
@@ -1680,31 +1677,36 @@ export default function ParsedDataScreen() {
                           </h3>
 
                           <div className="space-y-3">
-                            {selectedProfile.topValues.slice(0, 6).map((value) => (
-                              <div key={value.value} className="flex items-center gap-3">
-                                <span className="w-36 truncate font-mono text-xs text-foreground">
-                                  {value.value || (
-                                    <span className="italic text-muted-foreground">
-                                      empty
-                                    </span>
-                                  )}
-                                </span>
+                            {selectedProfile.topValues
+                              .slice(0, 6)
+                              .map((value) => (
+                                <div
+                                  key={value.value}
+                                  className="flex items-center gap-3"
+                                >
+                                  <span className="w-36 truncate font-mono text-xs text-foreground">
+                                    {value.value || (
+                                      <span className="italic text-muted-foreground">
+                                        empty
+                                      </span>
+                                    )}
+                                  </span>
 
-                                <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
-                                  <motion.div
-                                    className="h-full rounded-full bg-violet-500"
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${value.pct * 100}%` }}
-                                    transition={{ duration: 0.6 }}
-                                  />
+                                  <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
+                                    <motion.div
+                                      className="h-full rounded-full bg-violet-500"
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${value.pct * 100}%` }}
+                                      transition={{ duration: 0.6 }}
+                                    />
+                                  </div>
+
+                                  <span className="w-24 text-right text-xs text-muted-foreground">
+                                    {value.count.toLocaleString()} ·{" "}
+                                    {(value.pct * 100).toFixed(1)}%
+                                  </span>
                                 </div>
-
-                                <span className="w-24 text-right text-xs text-muted-foreground">
-                                  {value.count.toLocaleString()} ·{" "}
-                                  {(value.pct * 100).toFixed(1)}%
-                                </span>
-                              </div>
-                            ))}
+                              ))}
                           </div>
                         </div>
                       )}
@@ -1801,7 +1803,9 @@ export default function ParsedDataScreen() {
                               <div className="flex items-center gap-2">
                                 <Icon
                                   className="h-5 w-5"
-                                  style={{ color: qualityColor(dimension.score) }}
+                                  style={{
+                                    color: qualityColor(dimension.score),
+                                  }}
                                 />
                                 <span className="text-sm font-bold text-foreground">
                                   {dimension.name}
@@ -1820,7 +1824,9 @@ export default function ParsedDataScreen() {
                               <motion.div
                                 className="h-full rounded-full"
                                 style={{
-                                  backgroundColor: qualityColor(dimension.score),
+                                  backgroundColor: qualityColor(
+                                    dimension.score,
+                                  ),
                                 }}
                                 initial={{ width: 0 }}
                                 animate={{ width: `${dimension.score * 100}%` }}
@@ -1956,7 +1962,10 @@ export default function ParsedDataScreen() {
                   Null Rate Heatmap
                 </h3>
                 {nullHeatmapData && (
-                  <ReactECharts option={nullHeatmapData} style={{ height: 240 }} />
+                  <ReactECharts
+                    option={nullHeatmapData}
+                    style={{ height: 240 }}
+                  />
                 )}
               </div>
             </div>
