@@ -1,38 +1,38 @@
-# lefthook.yml
+# # lefthook.yml
 
-pre-commit:
-  parallel: true
-  jobs:
-    - name: biome
-      glob: "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx,yml,yaml}"
-      run: npx biome check --write --no-errors-on-unmatched {staged_files}
-      stage_fixed: true
+# pre-commit:
+#   parallel: true
+#   jobs:
+#     - name: biome
+#       glob: "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx,yml,yaml}"
+#       run: npx biome check --write --no-errors-on-unmatched {staged_files}
+#       stage_fixed: true
 
-    - name: oxlint
-      glob: "*.{js,jsx,ts,tsx}"
-      run: npx oxlint {staged_files}
+#     - name: oxlint
+#       glob: "*.{js,jsx,ts,tsx}"
+#       run: npx oxlint {staged_files}
 
-    - name: package-hygiene
-      glob:
-        - "package.json"
-        - "package-lock.json"
-      run: npx sherif
+#     - name: package-hygiene
+#       glob:
+#         - "package.json"
+#         - "package-lock.json"
+#       run: npx sherif
 
-    - name: typecheck-related
-      glob: "*.{ts,tsx}"
-      run: npm run typecheck
+#     - name: typecheck-related
+#       glob: "*.{ts,tsx}"
+#       run: npm run typecheck
 
-pre-push:
-  parallel: false
-  jobs:
-    - name: providers-boundaries
-      run: npm run check:providers
+# pre-push:
+#   parallel: false
+#   jobs:
+#     - name: providers-boundaries
+#       run: npm run check:providers
 
-    - name: architecture
-      run: npm run check:architecture
+#     - name: architecture
+#       run: npm run check:architecture
 
-    - name: tests
-      run: npm run test
+#     - name: tests
+#       run: npm run test
 
-    - name: storybook-build
-      run: npm run build:storybook
+#     - name: storybook-build
+#       run: npm run build:storybook

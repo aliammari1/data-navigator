@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Navigation User Journey Tests
@@ -12,7 +12,9 @@ test.describe("Dashboard Navigation Journey", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("should navigate through all core pages via sidebar", async ({ page }) => {
+  test("should navigate through all core pages via sidebar", async ({
+    page,
+  }) => {
     const pages = [
       { path: "/dashboard/upload", label: "Upload" },
       { path: "/dashboard/folders", label: "Folders" },

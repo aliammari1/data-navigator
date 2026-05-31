@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 /**
  * Authentication User Journey Tests
@@ -34,9 +34,7 @@ test.describe("Authentication Journey", () => {
     await page.goto("/login");
 
     // Default should be signin mode
-    await expect(
-      page.locator("text=/sign in/i").first(),
-    ).toBeVisible();
+    await expect(page.locator("text=/sign in/i").first()).toBeVisible();
 
     // Find and click toggle to signup
     const toggleButton = page.locator("button", {
@@ -44,9 +42,7 @@ test.describe("Authentication Journey", () => {
     });
     if (await toggleButton.isVisible().catch(() => false)) {
       await toggleButton.click();
-      await expect(
-        page.locator("text=/sign up/i").first(),
-      ).toBeVisible();
+      await expect(page.locator("text=/sign up/i").first()).toBeVisible();
     }
   });
 
@@ -85,9 +81,7 @@ test.describe("Authentication Journey", () => {
       await passwordInput.fill("password123");
 
       // Click sign in
-      const signInButton = page
-        .locator('button[type="submit"]')
-        .first();
+      const signInButton = page.locator('button[type="submit"]').first();
       await signInButton.click();
 
       // Wait for response (may redirect or show error)
