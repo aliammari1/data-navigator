@@ -272,7 +272,7 @@ export function buildCanalShareOption(canals: CanalSummary[]): object {
         type: "bar",
         stack: "s",
         data: sorted.map((c) => c.refund),
-        itemStyle: { color: "#8b5cf6", borderRadius: [0, 3, 3, 0] },
+        itemStyle: { color: "#F59E0B", borderRadius: [0, 3, 3, 0] },
         barMaxWidth: 22,
       },
     ],
@@ -404,7 +404,7 @@ export function buildAnomalyTimelineOption(
         ];
         if (anom)
           parts.push(
-            `<span style="color:${anom.type === "spike" ? "#f59e0b" : "#8b5cf6"}">⚠ Anomalie (z=${anom.zScore.toFixed(2)})</span>`,
+            `<span style="color:${anom.type === "spike" ? "#f59e0b" : "#F59E0B"}">⚠ Anomalie (z=${anom.zScore.toFixed(2)})</span>`,
           );
         return parts.join("<br/>");
       },
@@ -431,7 +431,7 @@ export function buildAnomalyTimelineOption(
               color: a
                 ? a.type === "spike"
                   ? "#f59e0b"
-                  : "#8b5cf6"
+                  : "#F59E0B"
                 : "#89b4fa",
               borderRadius: [3, 3, 0, 0],
             },

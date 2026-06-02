@@ -1135,9 +1135,9 @@ export default function WorkbenchScreen() {
 
   // ── Render ─────────────────────────────────────────────────────────────────
   return (
-    <div className="relative h-[calc(100vh-4rem)] overflow-hidden bg-background">
+    <div className="dn-page relative h-full min-h-full overflow-hidden">
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between gap-3 border-b border-white/5 bg-background/80 px-4 py-2.5 backdrop-blur-sm">
+      <div className="dn-sticky-header absolute left-0 right-0 top-0 z-40 flex items-center justify-between gap-3 px-4 py-2.5">
         <div className="flex min-w-0 items-center gap-3">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-emerald-400" />

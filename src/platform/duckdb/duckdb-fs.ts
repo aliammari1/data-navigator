@@ -144,6 +144,15 @@ export async function openLocalFileDialog(
 ): Promise<string[]> {
   ensureElectron("openLocalFileDialog");
 
+  type OpenFileDialogProperties = NonNullable<
+    Parameters<typeof openFileDialog>[0]["properties"]
+  >;
+
+  const properties: OpenFileDialogProperties =
+    options?.multiSelections === false
+      ? ["openFile"]
+      : ["openFile", "multiSelections"];
+
   return openFileDialog({
     title: options?.title ?? "Open dataset file",
     filters: options?.filters ?? [
@@ -164,10 +173,7 @@ export async function openLocalFileDialog(
         extensions: ["*"],
       },
     ],
-    properties: [
-      "openFile",
-      ...(options?.multiSelections === false ? [] : ["multiSelections"]),
-    ],
+    properties,
   });
 }
 

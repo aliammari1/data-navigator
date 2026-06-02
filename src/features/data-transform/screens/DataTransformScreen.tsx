@@ -698,9 +698,9 @@ export default function DataTransformScreen() {
   const hasErrors = steps.some((s) => s.status === "error");
 
   return (
-    <div className="flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden">
+    <div className="dn-page flex h-full min-h-full flex-col overflow-hidden">
       {/* Header */}
-      <div className="flex-none border-b border-zinc-800 px-4 py-2.5 flex items-center gap-3">
+      <div className="dn-sticky-header flex flex-none items-center gap-3 px-4 py-2.5">
         <div className="h-7 w-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center">
           <Activity className="h-3.5 w-3.5 text-purple-400" />
         </div>

@@ -60,7 +60,7 @@ function statusColor(s: LNode["status"]) {
     case "pending":
       return "#94a3b8";
     case "running":
-      return "#6366f1";
+      return "#1E40AF";
   }
 }
 
@@ -224,11 +224,11 @@ function EdgeLine({
 
   const color =
     edge.type === "streaming"
-      ? "#6366f1"
+      ? "#1E40AF"
       : edge.type === "partial"
         ? "#f59e0b"
         : "#334155";
-  const stroke = highlighted ? "#6366f1" : color;
+  const stroke = highlighted ? "#1E40AF" : color;
   const strokeW = highlighted ? 2.5 : 1.5;
 
   return (
@@ -461,9 +461,9 @@ export default function LineageScreen() {
   const staleNodes = nodes.filter((n) => n.status === "stale");
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="dn-page flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 md:p-5 shrink-0">
+      <div className="dn-sticky-header shrink-0 px-4 py-3 md:px-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-linear-to-br from-blue-600 to-cyan-600 rounded-xl">
@@ -711,7 +711,7 @@ export default function LineageScreen() {
                         >
                           <polygon
                             points="0 0, 8 3, 0 6"
-                            fill="#6366f1"
+                            fill="#1E40AF"
                             opacity="0.8"
                           />
                         </marker>

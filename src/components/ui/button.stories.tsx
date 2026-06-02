@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Download, Plus, Settings } from "lucide-react";
 
+import { figmaDesign, figmaLinks } from "../../../.storybook/figma-links";
 import { Button } from "./button";
 
 const meta = {
@@ -8,6 +9,7 @@ const meta = {
   component: Button,
   parameters: {
     layout: "centered",
+    design: figmaDesign(figmaLinks.button),
   },
   tags: ["autodocs"],
   args: {

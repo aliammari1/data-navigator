@@ -198,9 +198,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <div className="flex h-full bg-background text-foreground">
+    <div className="dn-page flex h-full text-foreground">
       {/* Left sidebar */}
-      <aside className="w-52 flex-none border-r border-border p-3 space-y-0.5">
+      <aside className="hidden w-52 flex-none space-y-0.5 border-r border-border/80 p-3 md:block">
         <div className="px-3 py-2 mb-2">
           <h1 className="text-base font-bold text-foreground">Settings</h1>
           <p className="text-xs text-muted-foreground">
@@ -234,7 +234,7 @@ export default function SettingsScreen() {
       {/* Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Topbar */}
-        <div className="flex items-center justify-between px-6 py-3.5 border-b border-border flex-none">
+        <div className="dn-sticky-header flex flex-none items-center justify-between px-4 py-3.5 md:px-6">
           <div>
             <h2 className="text-base font-semibold text-foreground capitalize">
               {activeTab}
@@ -272,7 +272,8 @@ export default function SettingsScreen() {
         </div>
 
         {/* Tab panels */}
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto">
+          <div className="dn-page-shell max-w-5xl">
           <AnimatePresence mode="wait">
             <motion.div
               key={activeTab}
@@ -729,6 +730,7 @@ export default function SettingsScreen() {
               )}
             </motion.div>
           </AnimatePresence>
+          </div>
         </div>
       </div>
     </div>

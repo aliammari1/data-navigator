@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { Database } from "lucide-react";
 
+import { figmaDesign, figmaLinks } from "../../../.storybook/figma-links";
 import { Button } from "./button";
 import {
   Empty,
@@ -16,6 +17,7 @@ const meta = {
   component: Empty,
   parameters: {
     layout: "padded",
+    design: figmaDesign(figmaLinks.empty),
   },
   tags: ["autodocs"],
 } satisfies Meta<typeof Empty>;

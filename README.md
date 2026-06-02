@@ -98,6 +98,28 @@ The dashboard is ready to use out of the box. For advanced configuration:
 2. **AI Models**: Adjust in AI analysis page
 3. **Collaboration**: Set up WebSocket server for real-time sync
 
+## ✅ Quality Gates
+
+```bash
+# Validate dependency boundaries with Dependency Cruiser
+pnpm run check:deps
+
+# Print a Mermaid dependency graph
+pnpm run deps:graph
+```
+
+Dependency Cruiser is configured in `.dependency-cruiser.js` for the app source,
+Electron entrypoints, scripts, and Storybook config. It enforces resolvable
+imports, package declarations, and test/story isolation, while reporting the
+local architecture boundaries documented in `CONTEXT.md`.
+
+## 🎨 Storybook and Figma
+
+Storybook uses `@storybook/addon-designs` so component stories can show linked
+Figma designs in the Design panel. Update `.storybook/figma-links.ts` with the
+real Data Navigator Figma file URL and node IDs, then add `design:
+figmaDesign(figmaLinks.componentName)` to component story `parameters`.
+
 ## 📈 Performance
 
 - Handles 1M+ data points with virtual scrolling

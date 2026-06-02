@@ -335,8 +335,8 @@ export default function HelpScreen() {
     : FAQS;
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="max-w-3xl mx-auto px-6 py-8 space-y-8">
+    <div className="dn-page flex-1 overflow-y-auto">
+      <div className="dn-page-shell max-w-4xl space-y-8">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 12 }}

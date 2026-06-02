@@ -1,0 +1,16 @@
+onlyBuiltDependencies:
+  - '@bitdisaster/exe-icon-extractor'
+  - '@swc/core'
+  - core-js
+  - core-js-pure
+  - electron
+  - electron-winstaller
+  - es5-ext
+  - esbuild
+  - lefthook
+  - msw
+  - onnxruntime-node
+  - protobufjs
+  - sharp
+  - unrs-resolver
+blockExoticSubdeps: false
