@@ -1,6 +1,6 @@
 import { headers } from "next/headers";
 import { DashboardClientShell } from "@/features/dashboard-shell/components/dashboard-client-shell";
-import { auth, authReady } from "@/platform/auth/auth";
+import { auth } from "@/platform/auth/auth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,8 +10,6 @@ export default async function DashboardRootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  await authReady;
-
   const session = await auth.api.getSession({
     headers: await headers(),
   });

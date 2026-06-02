@@ -447,7 +447,7 @@ export default function FoldersScreen() {
       starred: false,
       shared: false,
       locked: false,
-      color: "#6366f1",
+      color: "#1E40AF",
     };
 
     const folderNodes: FSNode[] = catalogFolders.map((f) => ({
@@ -701,11 +701,11 @@ export default function FoldersScreen() {
     );
     const colorsMap: Record<string, string> = {};
     const palette = [
-      "#6366f1",
+      "#1E40AF",
       "#22c55e",
       "#f59e0b",
       "#ef4444",
-      "#8b5cf6",
+      "#F59E0B",
       "#3b82f6",
       "#10b981",
     ];
@@ -780,8 +780,8 @@ export default function FoldersScreen() {
       csv: "#22c55e",
       json: "#3b82f6",
       excel: "#10b981",
-      parquet: "#6366f1",
-      duckdb: "#8b5cf6",
+      parquet: "#1E40AF",
+      duckdb: "#F59E0B",
       sql: "#f97316",
     };
     return {
@@ -830,9 +830,9 @@ export default function FoldersScreen() {
   ]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="dn-page flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 shrink-0">
+      <div className="dn-sticky-header shrink-0 px-4 py-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-linear-to-br from-yellow-500 to-orange-500 rounded-xl">

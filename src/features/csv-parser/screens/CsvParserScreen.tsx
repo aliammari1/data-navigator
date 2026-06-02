@@ -36,6 +36,7 @@ import {
   type LoadedUploadTable,
   loadUploadPathToDuckDB,
   sanitizeUploadTableName,
+  type UploadFileFormat,
 } from "@/platform/duckdb/upload-to-duckdb";
 import {
   isElectron,
@@ -254,8 +255,9 @@ function fileNameFromPath(filePath: string): string {
   return filePath.split(/[\\/]/).pop() || "dataset";
 }
 
-function extensionFromPath(filePath: string): string {
-  return fileNameFromPath(filePath).split(".").pop()?.toLowerCase() || "csv";
+function extensionFromPath(filePath: string): UploadFileFormat {
+  return (fileNameFromPath(filePath).split(".").pop()?.toLowerCase() ||
+    "csv") as UploadFileFormat;
 }
 
 function isSupportedDatasetPath(filePath: string): boolean {
@@ -560,7 +562,7 @@ export default function CsvParserScreen() {
         setColConfigs(configs);
         setParsing(false);
       },
-      error: (error) => {
+      error: (error: Error) => {
         toast.error(error.message);
         setParsing(false);
       },

@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Database,
-  Loader2,
   RefreshCw,
   Signal,
   Upload,
@@ -24,12 +22,9 @@ import {
   isTelecomDataset,
 } from "@/features/telecom/lib/dataset-detection";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
-import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
 import { fetchDailyTrend as _fetchDailyTrend } from "@/features/telecom/lib/queries";
 import { DEFAULT_MAPPING } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
-import { loadTableFromFS } from "@/platform/duckdb/duckdb-fs";
-import { cn } from "@/shared/utils";
 
 const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
   "assistant",
@@ -49,17 +44,13 @@ export default function DashboardHomeScreen() {
   const datasets = useDataStore((state) => state.datasets);
   const activeDatasetId = useDataStore((state) => state.activeDatasetId);
   const setActiveDataset = useDataStore((state) => state.setActiveDataset);
-  const loadedTableNames = useDataStore((state) => state.loadedTableNames);
-  const markTableLoaded = useDataStore((state) => state.markTableLoaded);
 
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
-  const tableNameRef = useRef(TELECOM_TABLE_BASE);
+  const tableNameRef = useRef("");
 
-  const [activeTableName, setActiveTableName] = useState(TELECOM_TABLE_BASE);
+  const [activeTableName, setActiveTableName] = useState("");
   const [tableReady, setTableReady] = useState(false);
-  const [restoring, setRestoring] = useState(false);
-  const [restoreError, setRestoreError] = useState<string | null>(null);
 
   const [statusMapping, setStatusMapping] = useState<Types.StatusMapping[]>([]);
   const statusMappingRef = useRef<Types.StatusMapping[]>([]);
@@ -148,67 +139,41 @@ export default function DashboardHomeScreen() {
   useEffect(() => {
     if (!activeTelecomDataset) {
       setTableReady(false);
-      setRestoreError(null);
+      setCurrentTableName("");
+      fileNameRef.current = "";
       return;
     }
 
-    const tableName = activeTelecomDataset.tableName;
+    const viewName =
+      activeTelecomDataset.viewName || activeTelecomDataset.tableName;
 
-    setCurrentTableName(tableName);
+    if (!viewName) {
+      setTableReady(false);
+      setCurrentTableName("");
+      fileNameRef.current = activeTelecomDataset.name;
+      return;
+    }
+
+    if (activeDatasetId !== activeTelecomDataset.id) {
+      setActiveDataset(activeTelecomDataset.id);
+    }
+
+    setCurrentTableName(viewName);
     fileNameRef.current = activeTelecomDataset.name;
     firstLoad.current = true;
-
-    if (loadedTableNames.includes(tableName)) {
-      setTableReady(true);
-      setRestoreError(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    setTableReady(false);
-    setRestoring(true);
-    setRestoreError(null);
-
-    loadTableFromFS(tableName)
-      .then((restored) => {
-        if (cancelled) return;
-
-        if (restored) {
-          markTableLoaded(tableName);
-          setTableReady(true);
-          return;
-        }
-
-        setRestoreError(
-          "Le dataset télécom existe dans le catalogue, mais sa table DuckDB locale est introuvable. Rechargez le rapport depuis Upload.",
-        );
-      })
-      .catch(() => {
-        if (cancelled) return;
-
-        setRestoreError(
-          "Impossible de restaurer la table DuckDB locale. Rechargez le rapport depuis Upload.",
-        );
-      })
-      .finally(() => {
-        if (!cancelled) setRestoring(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
+    setTableReady(true);
   }, [
+    activeDatasetId,
     activeTelecomDataset?.id,
     activeTelecomDataset?.name,
     activeTelecomDataset?.tableName,
-    loadedTableNames,
-    markTableLoaded,
+    activeTelecomDataset?.viewName,
+    setActiveDataset,
     setCurrentTableName,
   ]);
 
   useEffect(() => {
-    if (!tableReady) return;
+    if (!tableReady || !activeTableName) return;
 
     analytics.runAnalytics(DEFAULT_MAPPING, statusMappingRef.current);
   }, [tableReady, activeTableName, analytics.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -220,8 +185,8 @@ export default function DashboardHomeScreen() {
   }
 
   return (
-    <div className="flex-1 overflow-y-auto bg-background text-foreground">
-      <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
+    <div className="dn-page flex-1 overflow-y-auto">
+      <div className="dn-sticky-header px-4 py-3 md:px-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-teal-700 to-emerald-600">
@@ -271,7 +236,6 @@ export default function DashboardHomeScreen() {
             <TelecomDatasetPicker
               datasets={telecomDatasets}
               activeDatasetId={activeTelecomDataset.id}
-              loadedTableNames={loadedTableNames}
               onSelect={(id) => {
                 setActiveDataset(id);
               }}
@@ -282,15 +246,10 @@ export default function DashboardHomeScreen() {
               variant="outline"
               size="sm"
               onClick={() => analytics.refresh()}
-              disabled={!tableReady || restoring}
+              disabled={!tableReady}
               className="h-9 rounded-xl text-xs"
             >
-              <RefreshCw
-                className={cn(
-                  "mr-1.5 h-3.5 w-3.5",
-                  restoring && "animate-spin",
-                )}
-              />
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
               Actualiser
             </Button>
 
@@ -318,39 +277,8 @@ export default function DashboardHomeScreen() {
         </div>
       </div>
 
-      <main className="p-6">
-        {restoring && (
-          <div className="mb-6 rounded-xl border border-teal-500/25 bg-teal-500/10 px-4 py-3 text-xs text-teal-700 dark:text-teal-300">
-            <div className="flex items-center gap-2">
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              Restauration de la table DuckDB locale…
-            </div>
-          </div>
-        )}
-
-        {restoreError && (
-          <div className="mb-6 rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-xs text-amber-700 dark:text-amber-300">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="mt-0.5 h-4 w-4 flex-none" />
-              <div className="min-w-0">
-                <div>{restoreError}</div>
-
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() =>
-                    router.push("/dashboard/upload?context=telecom")
-                  }
-                  className="mt-3 h-8 rounded-lg bg-amber-600 px-3 text-xs font-bold text-white hover:bg-amber-700"
-                >
-                  Recharger depuis Upload
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {!tableReady && !restoreError && (
+      <main className="dn-page-shell-wide space-y-5">
+        {!tableReady && (
           <DashboardLoadingState label="Préparation du dashboard…" />
         )}
 
@@ -380,36 +308,38 @@ export default function DashboardHomeScreen() {
 
 function DashboardHomeEmptyState() {
   return (
-    <div className="flex-1 overflow-y-auto bg-background p-6 text-foreground">
-      <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center text-center">
-        <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card text-muted-foreground">
-          <Database className="h-9 w-9" />
-        </div>
+    <div className="dn-page flex-1 overflow-y-auto">
+      <div className="dn-page-shell">
+        <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card text-muted-foreground">
+            <Database className="h-9 w-9" />
+          </div>
 
-        <h1 className="mt-6 text-2xl font-bold text-foreground">
-          Aucun rapport télécom disponible
-        </h1>
+          <h1 className="mt-6 text-2xl font-bold text-foreground">
+            Aucun rapport télécom disponible
+          </h1>
 
-        <p className="mt-2 max-w-md text-sm text-muted-foreground">
-          Importez un fichier de transactions télécom depuis Upload. Le rapport
-          sera chargé localement dans DuckDB, puis affiché ici comme écran
-          d'accueil.
-        </p>
+          <p className="mt-2 max-w-md text-sm text-muted-foreground">
+            Importez un fichier de transactions télécom depuis Upload. Le
+            rapport sera chargé localement dans DuckDB, puis affiché ici comme
+            écran d'accueil.
+          </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-3">
-          <Link href="/dashboard/upload?context=telecom">
-            <Button className="rounded-xl bg-teal-700 text-white hover:bg-teal-800">
-              <Upload className="mr-2 h-4 w-4" />
-              Importer un rapport
-            </Button>
-          </Link>
+          <div className="mt-6 flex flex-wrap justify-center gap-3">
+            <Link href="/dashboard/upload?context=telecom">
+              <Button className="rounded-xl bg-teal-700 text-white hover:bg-teal-800">
+                <Upload className="mr-2 h-4 w-4" />
+                Importer un rapport
+              </Button>
+            </Link>
 
-          <Link href="/dashboard/telecom-report">
-            <Button variant="outline" className="rounded-xl">
-              Rapport Télécom
-              <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
-          </Link>
+            <Link href="/dashboard/telecom-report">
+              <Button variant="outline" className="rounded-xl">
+                Rapport Télécom
+                <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </div>
@@ -421,7 +351,7 @@ function DashboardLoadingState({ label }: { label: string }) {
     <div className="flex flex-col items-center justify-center py-24">
       <div className="relative h-14 w-14">
         <div className="absolute inset-0 rounded-full border-2 border-teal-500/20" />
-        <div className="absolute inset-0 rounded-full border-t-2 border-teal-600 animate-spin" />
+        <div className="absolute inset-0 animate-spin rounded-full border-t-2 border-teal-600" />
       </div>
       <div className="mt-4 text-sm font-semibold text-muted-foreground">
         {label}
@@ -433,17 +363,16 @@ function DashboardLoadingState({ label }: { label: string }) {
 function TelecomDatasetPicker({
   datasets,
   activeDatasetId,
-  loadedTableNames,
   onSelect,
 }: {
   datasets: Array<{
     id: string;
     name: string;
     tableName: string;
+    viewName?: string;
     rowCount: number;
   }>;
   activeDatasetId: string;
-  loadedTableNames: string[];
   onSelect: (id: string) => void;
 }) {
   if (datasets.length <= 1) {
@@ -465,16 +394,11 @@ function TelecomDatasetPicker({
         onChange={(event) => onSelect(event.target.value)}
         className="h-9 max-w-72 rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {datasets.map((dataset) => {
-          const loaded = loadedTableNames.includes(dataset.tableName);
-
-          return (
-            <option key={dataset.id} value={dataset.id}>
-              {dataset.name} · {dataset.rowCount.toLocaleString()} rows
-              {loaded ? "" : " · restore"}
-            </option>
-          );
-        })}
+        {datasets.map((dataset) => (
+          <option key={dataset.id} value={dataset.id}>
+            {dataset.name} · {dataset.rowCount.toLocaleString()} rows
+          </option>
+        ))}
       </select>
     </div>
   );

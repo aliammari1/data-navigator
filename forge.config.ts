@@ -1,10 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
-import { FuseV1Options, FuseVersion } from "@electron/fuses";
-import { MakerMSIX } from "@electron-forge/maker-msix";
-import { MakerSquirrel } from "@electron-forge/maker-squirrel";
+// import { FuseV1Options, FuseVersion } from "@electron/fuses";
+// import { MakerMSIX } from "@electron-forge/maker-msix";
+// import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerWix } from "@electron-forge/maker-wix";
-import { MakerZIP } from "@electron-forge/maker-zip";
+// import { MakerZIP } from "@electron-forge/maker-zip";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { ElectronegativityPlugin } from "@electron-forge/plugin-electronegativity";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -168,7 +168,6 @@ const config: ForgeConfig = {
   rebuildConfig: {
     force: true,
     onlyModules: [
-      "better-sqlite3",
       "@duckdb/node-bindings",
       "sherpa-onnx-node",
       "sqlite-vec",
@@ -191,44 +190,44 @@ const config: ForgeConfig = {
       ["win32"],
     ),
 
-    new MakerSquirrel(
-      {
-        name: appSlug.replaceAll("-", "_"),
-        authors: manufacturer,
-        description:
-          "AI-powered local data analysis and visualization platform",
-        setupExe: "DataNavigatorSetup.exe",
-        setupIcon: iconIco,
-        noMsi: true,
-        ...windowsCertificateConfig,
-      },
-      ["win32"],
-    ),
+    // new MakerSquirrel(
+    //   {
+    //     name: appSlug.replaceAll("-", "_"),
+    //     authors: manufacturer,
+    //     description:
+    //       "AI-powered local data analysis and visualization platform",
+    //     setupExe: "DataNavigatorSetup.exe",
+    //     setupIcon: iconIco,
+    //     noMsi: true,
+    //     ...windowsCertificateConfig,
+    //   },
+    //   ["win32"],
+    // ),
 
-    new MakerMSIX(
-      {
-        manifestVariables: {
-          packageIdentity: "AliAmmari.DataNavigator",
-          appDisplayName: appName,
-          publisher: process.env.WINDOWS_PUBLISHER ?? "CN=Ali Ammari",
-          publisherDisplayName: manufacturer,
-          packageDescription:
-            "AI-powered local data analysis and visualization platform",
-        },
+    // new MakerMSIX(
+    //   {
+    //     manifestVariables: {
+    //       packageIdentity: "AliAmmari.DataNavigator",
+    //       appDisplayName: appName,
+    //       publisher: process.env.WINDOWS_PUBLISHER ?? "CN=Ali Ammari",
+    //       publisherDisplayName: manufacturer,
+    //       packageDescription:
+    //         "AI-powered local data analysis and visualization platform",
+    //     },
 
-        ...(hasWindowsCertificate
-          ? {
-              windowsSignOptions: {
-                certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
-                certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
-              },
-            }
-          : {}),
-      },
-      ["win32"],
-    ),
+    //     ...(hasWindowsCertificate
+    //       ? {
+    //           windowsSignOptions: {
+    //             certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+    //             certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+    //           },
+    //         }
+    //       : {}),
+    //   },
+    //   ["win32"],
+    // ),
 
-    new MakerZIP({}, ["win32"]),
+    // new MakerZIP({}, ["win32"]),
   ],
 
   publishers: [

@@ -1,0 +1,844 @@
+"use client";
+
+/**
+ * Voice Output Player
+ *
+ * Reusable playback UI for generated local TTS audio.
+ *
+ * Responsibilities:
+ * - Play / pause / resume / stop / replay generated voice output.
+ * - Support WAV URL, Blob, Uint8Array, ArrayBuffer, or existing HTMLAudioElement.
+ * - Show duration, position, progress, engine/voice metadata.
+ * - Expose playback callbacks for AG-UI/debug events.
+ * - Keep this component UI-only: no TTS worker side effects here.
+ */
+
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock,
+  Download,
+  Gauge,
+  Pause,
+  Play,
+  RefreshCcw,
+  RotateCcw,
+  SkipBack,
+  Square,
+  Volume2,
+  VolumeX,
+  Waves,
+  X,
+} from "lucide-react";
+import {
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type {
+  SpeakMode,
+  TtsEngine,
+  VoiceRuntime,
+} from "@/features/data-formulator/core/voice/voice-model-registry";
+import { cn } from "@/shared/utils";
+
+export type VoiceOutputPlaybackState =
+  | "empty"
+  | "ready"
+  | "playing"
+  | "paused"
+  | "stopped"
+  | "ended"
+  | "error";
+
+export interface VoiceOutputPlayerMetadata {
+  jobId?: string;
+  engine?: TtsEngine | string;
+  runtime?: VoiceRuntime | string;
+  model?: string;
+  voice?: string;
+  speakMode?: SpeakMode | string;
+  sampleRate?: number;
+  durationMs?: number;
+  latencyMs?: number;
+  text?: string;
+  createdAt?: number;
+}
+
+export interface VoiceOutputPlayerProps {
+  /**
+   * Object URL or regular URL.
+   */
+  src?: string | null;
+
+  /**
+   * WAV/MP3/OGG blob.
+   */
+  blob?: Blob | null;
+
+  /**
+   * WAV bytes from voice-tts-worker.
+   */
+  wav?: Uint8Array | ArrayBuffer | null;
+
+  /**
+   * Raw PCM is not played directly by this component.
+   * Keep it here for metadata/debug display if needed.
+   */
+  audio?: Float32Array | null;
+
+  metadata?: VoiceOutputPlayerMetadata;
+  disabled?: boolean;
+  autoPlay?: boolean;
+  compact?: boolean;
+  className?: string;
+  title?: string;
+  description?: string;
+  showText?: boolean;
+  showMetadata?: boolean;
+  showDownload?: boolean;
+  showWaveform?: boolean;
+  footer?: ReactNode;
+
+  onPlay?: (metadata: VoiceOutputPlayerMetadata) => void;
+  onPause?: (
+    metadata: VoiceOutputPlayerMetadata & { positionMs: number },
+  ) => void;
+  onResume?: (
+    metadata: VoiceOutputPlayerMetadata & { positionMs: number },
+  ) => void;
+  onStop?: (
+    metadata: VoiceOutputPlayerMetadata & { positionMs: number },
+  ) => void;
+  onReplay?: (metadata: VoiceOutputPlayerMetadata) => void;
+  onEnded?: (metadata: VoiceOutputPlayerMetadata) => void;
+  onError?: (error: string) => void;
+  onClose?: () => void;
+}
+
+function formatMs(value?: number): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+
+  if (value >= 60_000) {
+    const minutes = Math.floor(value / 60_000);
+    const seconds = Math.floor((value % 60_000) / 1000);
+    return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+  }
+
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}s`;
+
+  return `${Math.round(value)}ms`;
+}
+
+function formatSampleRate(value?: number): string {
+  if (typeof value !== "number" || !Number.isFinite(value)) return "—";
+  if (value >= 1000) return `${(value / 1000).toFixed(1)}kHz`;
+  return `${value}Hz`;
+}
+
+function formatSpeed(value: number): string {
+  return `${value.toFixed(2)}x`;
+}
+
+function uint8ArrayToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
+  const buffer = new ArrayBuffer(bytes.byteLength);
+  new Uint8Array(buffer).set(bytes);
+  return buffer;
+}
+
+function createBlobFromWav(wav: Uint8Array | ArrayBuffer): Blob {
+  const wavBuffer =
+    wav instanceof ArrayBuffer ? wav : uint8ArrayToArrayBuffer(wav);
+
+  return new Blob([wavBuffer], {
+    type: "audio/wav",
+  });
+}
+
+function getPlaybackTone(
+  state: VoiceOutputPlaybackState,
+): "success" | "warning" | "danger" | "neutral" {
+  if (state === "playing") return "success";
+  if (state === "paused" || state === "ready") return "warning";
+  if (state === "error") return "danger";
+  return "neutral";
+}
+
+function getPlaybackLabel(state: VoiceOutputPlaybackState): string {
+  switch (state) {
+    case "empty":
+      return "No voice output";
+    case "ready":
+      return "Voice ready";
+    case "playing":
+      return "Speaking";
+    case "paused":
+      return "Paused";
+    case "stopped":
+      return "Stopped";
+    case "ended":
+      return "Completed";
+    case "error":
+      return "Playback error";
+    default:
+      return "Voice output";
+  }
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+export function VoiceOutputPlayer({
+  src,
+  blob,
+  wav,
+  audio,
+  metadata,
+  disabled,
+  autoPlay = false,
+  compact = false,
+  className,
+  title = "Voice output",
+  description = "Local TTS playback generated by the voice-agent pipeline.",
+  showText = true,
+  showMetadata = true,
+  showDownload = true,
+  showWaveform = true,
+  footer,
+  onPlay,
+  onPause,
+  onResume,
+  onStop,
+  onReplay,
+  onEnded,
+  onError,
+  onClose,
+}: VoiceOutputPlayerProps) {
+  const [state, setState] = useState<VoiceOutputPlaybackState>("empty");
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const [currentTimeMs, setCurrentTimeMs] = useState(0);
+  const [durationMs, setDurationMs] = useState(metadata?.durationMs ?? 0);
+  const [volume, setVolume] = useState(1);
+  const [playbackRate, setPlaybackRate] = useState(1);
+  const [error, setError] = useState<string | null>(null);
+
+  const audioElementRef = useRef<HTMLAudioElement | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const lastKnownSrcRef = useRef<string | null>(null);
+
+  const effectiveSrc = objectUrl ?? src ?? null;
+  const hasAudio = Boolean(effectiveSrc);
+  const tone = getPlaybackTone(state);
+  const progress = durationMs > 0 ? clamp(currentTimeMs / durationMs, 0, 1) : 0;
+
+  const effectiveMetadata = useMemo<VoiceOutputPlayerMetadata>(
+    () => ({
+      ...metadata,
+      durationMs: durationMs || metadata?.durationMs,
+    }),
+    [durationMs, metadata],
+  );
+
+  const previewText = useMemo(() => {
+    const text = metadata?.text?.trim();
+
+    if (!text) return "";
+
+    return text.length > 220 ? `${text.slice(0, 220).trim()}…` : text;
+  }, [metadata?.text]);
+
+  const cleanupAnimation = useCallback(() => {
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+  }, []);
+
+  const syncTime = useCallback(() => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement) return;
+
+    setCurrentTimeMs(Math.round(audioElement.currentTime * 1000));
+
+    if (Number.isFinite(audioElement.duration)) {
+      setDurationMs(Math.round(audioElement.duration * 1000));
+    }
+
+    if (!audioElement.paused && !audioElement.ended) {
+      animationFrameRef.current = requestAnimationFrame(syncTime);
+    }
+  }, []);
+
+  const createAudioElement = useCallback(
+    (url: string) => {
+      const audioElement = new Audio(url);
+
+      audioElement.volume = volume;
+      audioElement.playbackRate = playbackRate;
+      audioElement.preload = "auto";
+
+      audioElement.onloadedmetadata = () => {
+        if (Number.isFinite(audioElement.duration)) {
+          setDurationMs(Math.round(audioElement.duration * 1000));
+        }
+
+        setState("ready");
+        setError(null);
+      };
+
+      audioElement.onplay = () => {
+        setState("playing");
+        setError(null);
+        cleanupAnimation();
+        animationFrameRef.current = requestAnimationFrame(syncTime);
+        onPlay?.(effectiveMetadata);
+      };
+
+      audioElement.onpause = () => {
+        cleanupAnimation();
+
+        if (!audioElement.ended) {
+          setState("paused");
+          onPause?.({
+            ...effectiveMetadata,
+            positionMs: Math.round(audioElement.currentTime * 1000),
+          });
+        }
+      };
+
+      audioElement.onended = () => {
+        cleanupAnimation();
+        setState("ended");
+        setCurrentTimeMs(Math.round(audioElement.duration * 1000));
+        onEnded?.(effectiveMetadata);
+      };
+
+      audioElement.onerror = () => {
+        cleanupAnimation();
+
+        const message = "Could not play generated voice audio.";
+
+        setState("error");
+        setError(message);
+        onError?.(message);
+      };
+
+      return audioElement;
+    },
+    [
+      cleanupAnimation,
+      effectiveMetadata,
+      onEnded,
+      onError,
+      onPause,
+      onPlay,
+      playbackRate,
+      syncTime,
+      volume,
+    ],
+  );
+
+  useEffect(() => {
+    let nextObjectUrl: string | null = null;
+
+    if (blob) {
+      nextObjectUrl = URL.createObjectURL(blob);
+    } else if (wav) {
+      nextObjectUrl = URL.createObjectURL(createBlobFromWav(wav));
+    }
+
+    setObjectUrl(nextObjectUrl);
+
+    return () => {
+      if (nextObjectUrl) {
+        URL.revokeObjectURL(nextObjectUrl);
+      }
+    };
+  }, [blob, wav]);
+
+  useEffect(() => {
+    if (!effectiveSrc) {
+      cleanupAnimation();
+
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.src = "";
+        audioElementRef.current = null;
+      }
+
+      lastKnownSrcRef.current = null;
+      setState("empty");
+      setCurrentTimeMs(0);
+      setDurationMs(metadata?.durationMs ?? 0);
+      return;
+    }
+
+    if (lastKnownSrcRef.current === effectiveSrc) {
+      return;
+    }
+
+    cleanupAnimation();
+
+    if (audioElementRef.current) {
+      audioElementRef.current.pause();
+      audioElementRef.current.src = "";
+      audioElementRef.current = null;
+    }
+
+    const audioElement = createAudioElement(effectiveSrc);
+
+    audioElementRef.current = audioElement;
+    lastKnownSrcRef.current = effectiveSrc;
+    setCurrentTimeMs(0);
+    setState("ready");
+    setError(null);
+
+    if (autoPlay && !disabled) {
+      audioElement.play().catch(() => {
+        setState("ready");
+        setError("Browser blocked autoplay. Press play.");
+      });
+    }
+
+    return () => {
+      cleanupAnimation();
+      audioElement.pause();
+      audioElement.src = "";
+    };
+  }, [
+    autoPlay,
+    cleanupAnimation,
+    createAudioElement,
+    disabled,
+    effectiveSrc,
+    metadata?.durationMs,
+  ]);
+
+  useEffect(() => {
+    if (audioElementRef.current) {
+      audioElementRef.current.volume = volume;
+    }
+  }, [volume]);
+
+  useEffect(() => {
+    if (audioElementRef.current) {
+      audioElementRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
+
+  useEffect(() => {
+    return () => {
+      cleanupAnimation();
+
+      if (audioElementRef.current) {
+        audioElementRef.current.pause();
+        audioElementRef.current.src = "";
+      }
+    };
+  }, [cleanupAnimation]);
+
+  const play = useCallback(async () => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement || disabled) return;
+
+    try {
+      setError(null);
+
+      if (state === "ended" || state === "stopped") {
+        audioElement.currentTime = 0;
+        setCurrentTimeMs(0);
+      }
+
+      await audioElement.play();
+
+      if (state === "paused") {
+        onResume?.({
+          ...effectiveMetadata,
+          positionMs: Math.round(audioElement.currentTime * 1000),
+        });
+      }
+    } catch {
+      const message = "Browser blocked audio playback. Press play again.";
+
+      setState("error");
+      setError(message);
+      onError?.(message);
+    }
+  }, [disabled, effectiveMetadata, onError, onResume, state]);
+
+  const pause = useCallback(() => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement || disabled) return;
+
+    audioElement.pause();
+  }, [disabled]);
+
+  const stop = useCallback(() => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement || disabled) return;
+
+    const positionMs = Math.round(audioElement.currentTime * 1000);
+
+    audioElement.pause();
+    audioElement.currentTime = 0;
+
+    setCurrentTimeMs(0);
+    setState("stopped");
+
+    onStop?.({
+      ...effectiveMetadata,
+      positionMs,
+    });
+  }, [disabled, effectiveMetadata, onStop]);
+
+  const replay = useCallback(async () => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement || disabled) return;
+
+    try {
+      audioElement.pause();
+      audioElement.currentTime = 0;
+      setCurrentTimeMs(0);
+      onReplay?.(effectiveMetadata);
+      await audioElement.play();
+    } catch {
+      const message = "Could not replay voice output.";
+
+      setState("error");
+      setError(message);
+      onError?.(message);
+    }
+  }, [disabled, effectiveMetadata, onError, onReplay]);
+
+  const seek = useCallback((ratio: number) => {
+    const audioElement = audioElementRef.current;
+
+    if (!audioElement || !Number.isFinite(audioElement.duration)) return;
+
+    const nextTime = clamp(ratio, 0, 1) * audioElement.duration;
+
+    audioElement.currentTime = nextTime;
+    setCurrentTimeMs(Math.round(nextTime * 1000));
+  }, []);
+
+  const downloadAudio = useCallback(() => {
+    if (!effectiveSrc) return;
+
+    const link = document.createElement("a");
+    link.href = effectiveSrc;
+    link.download = `voice-output-${metadata?.jobId ?? Date.now()}.wav`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  }, [effectiveSrc, metadata?.jobId]);
+
+  const toggleMute = useCallback(() => {
+    setVolume((current) => (current > 0 ? 0 : 1));
+  }, []);
+
+  const icon = (() => {
+    if (state === "error") return <AlertTriangle className="h-4 w-4" />;
+    if (state === "playing") return <Volume2 className="h-4 w-4" />;
+    if (state === "ended") return <CheckCircle2 className="h-4 w-4" />;
+    if (!hasAudio) return <VolumeX className="h-4 w-4" />;
+    return <Waves className="h-4 w-4" />;
+  })();
+
+  return (
+    <div
+      className={cn(
+        "rounded-2xl border border-white/10 bg-background/95 p-3 text-left shadow-xl backdrop-blur-xl",
+        disabled && "opacity-70",
+        compact && "p-2.5",
+        className,
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <div
+          className={cn(
+            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border",
+            tone === "success"
+              ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+              : tone === "warning"
+                ? "border-amber-500/25 bg-amber-500/10 text-amber-300"
+                : tone === "danger"
+                  ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                  : "border-white/10 bg-white/5 text-muted-foreground",
+          )}
+        >
+          {icon}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+
+            <span
+              className={cn(
+                "rounded-full border px-2 py-0.5 text-[10px]",
+                tone === "success"
+                  ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                  : tone === "warning"
+                    ? "border-amber-500/25 bg-amber-500/10 text-amber-300"
+                    : tone === "danger"
+                      ? "border-rose-500/25 bg-rose-500/10 text-rose-300"
+                      : "border-white/10 bg-white/5 text-muted-foreground",
+              )}
+            >
+              {getPlaybackLabel(state)}
+            </span>
+
+            {metadata?.engine && (
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground">
+                {metadata.engine}
+              </span>
+            )}
+
+            {metadata?.voice && (
+              <span className="rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground">
+                {metadata.voice}
+              </span>
+            )}
+          </div>
+
+          <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+            {error ?? description}
+          </p>
+        </div>
+
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={disabled}
+            className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            aria-label="Close voice output player"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
+        )}
+      </div>
+
+      {showMetadata && (
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          <MetadataBadge
+            icon={<Clock className="h-3 w-3" />}
+            label={`duration ${formatMs(durationMs || metadata?.durationMs)}`}
+          />
+          <MetadataBadge
+            icon={<Gauge className="h-3 w-3" />}
+            label={`latency ${formatMs(metadata?.latencyMs)}`}
+          />
+          <MetadataBadge
+            icon={<Waves className="h-3 w-3" />}
+            label={formatSampleRate(metadata?.sampleRate)}
+          />
+          <MetadataBadge
+            icon={<RefreshCcw className="h-3 w-3" />}
+            label={formatSpeed(playbackRate)}
+          />
+          {metadata?.runtime && (
+            <MetadataBadge
+              icon={<Gauge className="h-3 w-3" />}
+              label={String(metadata.runtime)}
+            />
+          )}
+          {audio && (
+            <MetadataBadge
+              icon={<Waves className="h-3 w-3" />}
+              label={`${audio.length.toLocaleString()} samples`}
+            />
+          )}
+        </div>
+      )}
+
+      <div className="mt-3 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+        <div className="mb-2 flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+          <span>{formatMs(currentTimeMs)}</span>
+          <span>{formatMs(durationMs || metadata?.durationMs)}</span>
+        </div>
+
+        <button
+          type="button"
+          disabled={!hasAudio || disabled}
+          onClick={(event) => {
+            const rect = event.currentTarget.getBoundingClientRect();
+            const ratio = (event.clientX - rect.left) / rect.width;
+            seek(ratio);
+          }}
+          className="relative h-2 w-full overflow-hidden rounded-full bg-white/10 disabled:cursor-not-allowed disabled:opacity-50"
+          aria-label="Seek voice output"
+        >
+          <span
+            className={cn(
+              "absolute left-0 top-0 h-full rounded-full transition-all",
+              state === "playing" ? "bg-emerald-400" : "bg-muted-foreground",
+            )}
+            style={{ width: `${progress * 100}%` }}
+          />
+        </button>
+
+        {showWaveform && (
+          <div className="mt-3 flex h-10 items-end gap-1">
+            {Array.from({ length: compact ? 24 : 40 }).map((_, index) => {
+              const wave =
+                22 + Math.sin(index * 0.9) * 16 + Math.sin(index * 0.23) * 20;
+              const active = index / (compact ? 24 : 40) <= progress;
+
+              return (
+                <span
+                  key={index}
+                  className={cn(
+                    "w-1 flex-1 rounded-full transition-colors",
+                    active
+                      ? state === "playing"
+                        ? "bg-emerald-300/80"
+                        : "bg-muted-foreground/70"
+                      : "bg-white/10",
+                  )}
+                  style={{
+                    height: `${clamp(wave, 12, 95)}%`,
+                  }}
+                />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={state === "playing" ? pause : play}
+            disabled={!hasAudio || disabled}
+            className={cn(
+              "inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors",
+              hasAudio && !disabled
+                ? state === "playing"
+                  ? "border border-amber-500/25 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25"
+                  : "border border-emerald-500/25 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                : "cursor-not-allowed border border-white/10 bg-white/5 text-muted-foreground",
+            )}
+          >
+            {state === "playing" ? (
+              <Pause className="h-3.5 w-3.5" />
+            ) : (
+              <Play className="h-3.5 w-3.5" />
+            )}
+            {state === "playing" ? "Pause" : "Play"}
+          </button>
+
+          <button
+            type="button"
+            onClick={stop}
+            disabled={!hasAudio || disabled || state === "empty"}
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Square className="h-3 w-3" />
+            Stop
+          </button>
+
+          <button
+            type="button"
+            onClick={replay}
+            disabled={!hasAudio || disabled}
+            className="inline-flex items-center gap-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-[11px] text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+          >
+            <SkipBack className="h-3 w-3" />
+            Replay
+          </button>
+        </div>
+
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={toggleMute}
+            disabled={disabled}
+            className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+            aria-label={
+              volume > 0 ? "Mute voice output" : "Unmute voice output"
+            }
+          >
+            {volume > 0 ? (
+              <Volume2 className="h-3.5 w-3.5" />
+            ) : (
+              <VolumeX className="h-3.5 w-3.5" />
+            )}
+          </button>
+
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            disabled={disabled}
+            onChange={(event) => setVolume(Number(event.target.value))}
+            className="w-20"
+            aria-label="Voice output volume"
+          />
+
+          <select
+            value={playbackRate}
+            disabled={disabled}
+            onChange={(event) => setPlaybackRate(Number(event.target.value))}
+            className="rounded-lg border border-white/10 bg-black/25 px-2 py-1.5 text-[11px] text-foreground outline-none focus:border-emerald-500/35 disabled:opacity-50"
+            aria-label="Voice output speed"
+          >
+            <option value={0.75}>0.75x</option>
+            <option value={0.9}>0.90x</option>
+            <option value={1}>1.00x</option>
+            <option value={1.1}>1.10x</option>
+            <option value={1.25}>1.25x</option>
+            <option value={1.5}>1.50x</option>
+          </select>
+
+          {showDownload && (
+            <button
+              type="button"
+              onClick={downloadAudio}
+              disabled={!hasAudio || disabled}
+              className="rounded-lg border border-white/10 bg-white/5 p-1.5 text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground disabled:pointer-events-none disabled:opacity-50"
+              aria-label="Download voice output"
+            >
+              <Download className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showText && previewText && (
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/20 p-2.5">
+          <div className="mb-1 flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <Volume2 className="h-3 w-3" />
+            Spoken text
+          </div>
+          <div className="text-xs leading-relaxed text-foreground">
+            “{previewText}”
+          </div>
+        </div>
+      )}
+
+      {footer && <div className="mt-3">{footer}</div>}
+    </div>
+  );
+}
+
+function MetadataBadge({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-white/10 bg-white/5 px-2 py-0.5 text-[10px] text-muted-foreground">
+      {icon}
+      {label}
+    </span>
+  );
+}

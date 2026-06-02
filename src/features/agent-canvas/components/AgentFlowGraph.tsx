@@ -356,7 +356,7 @@ export function AgentFlowGraph() {
               return status === "done"
                 ? "#10b981"
                 : status === "running"
-                  ? "#8b5cf6"
+                  ? "#F59E0B"
                   : status === "error"
                     ? "#ef4444"
                     : status === "interrupt"

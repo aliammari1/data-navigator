@@ -210,7 +210,7 @@ const NAV_SECTIONS = [
         icon: Brain,
         description: "Stats & anomalies",
         badge: "AI",
-        badgeColor: "violet",
+        badgeColor: "blue",
         keywords: ["ai", "ml", "anomaly", "insight"],
       },
       {
@@ -219,7 +219,7 @@ const NAV_SECTIONS = [
         icon: Bot,
         description: "AI-driven analysis pipeline",
         badge: "AI",
-        badgeColor: "violet",
+        badgeColor: "blue",
         keywords: [
           "analyst",
           "ai",
@@ -255,7 +255,7 @@ const NAV_SECTIONS = [
         icon: Brain,
         description: "AI builds dashboard live",
         badge: "A2UI",
-        badgeColor: "violet",
+        badgeColor: "blue",
         keywords: ["agent", "ai", "live", "canvas", "build", "a2ui"],
       },
       {
@@ -420,14 +420,14 @@ function CommandPalette({
                     <div
                       className={cn(
                         "w-8 h-8 rounded-lg flex items-center justify-center flex-none",
-                        i === selected ? "bg-indigo-500/20" : "bg-accent",
+                        i === selected ? "bg-blue-500/20" : "bg-accent",
                       )}
                     >
                       <Icon
                         className={cn(
                           "w-4 h-4",
                           i === selected
-                            ? "text-indigo-400"
+                            ? "text-blue-400"
                             : "text-muted-foreground",
                         )}
                       />
@@ -715,7 +715,7 @@ const FORMAT_COLORS: Record<string, string> = {
   csv: "bg-green-500/20 text-green-300",
   json: "bg-blue-500/20 text-blue-300",
   excel: "bg-emerald-500/20 text-emerald-300",
-  parquet: "bg-indigo-500/20 text-indigo-300",
+  parquet: "bg-blue-500/20 text-blue-300",
   sql: "bg-orange-500/20 text-orange-300",
 };
 
@@ -749,7 +749,7 @@ function DatasetPicker() {
         className="flex items-center gap-1.5 px-3 py-1.5 bg-accent hover:bg-accent/80 border border-border rounded-xl text-xs transition-colors max-w-44"
         title="Switch active dataset"
       >
-        <Database className="w-3.5 h-3.5 text-indigo-400 flex-none" />
+        <Database className="w-3.5 h-3.5 text-blue-400 flex-none" />
         {activeDs ? (
           <>
             <span className="truncate text-foreground font-medium">
@@ -828,20 +828,20 @@ function DatasetPicker() {
                       }}
                       className={cn(
                         "w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors",
-                        active && "bg-indigo-500/10",
+                        active && "bg-blue-500/10",
                       )}
                     >
                       <div
                         className={cn(
                           "w-7 h-7 rounded-lg flex items-center justify-center flex-none",
-                          active ? "bg-indigo-500/20" : "bg-accent",
+                          active ? "bg-blue-500/20" : "bg-accent",
                         )}
                       >
                         <Table2
                           className={cn(
                             "w-3.5 h-3.5",
                             active
-                              ? "text-indigo-400"
+                              ? "text-blue-400"
                               : "text-muted-foreground",
                           )}
                         />
@@ -875,7 +875,7 @@ function DatasetPicker() {
                         </div>
                       </div>
                       {active && (
-                        <Check className="w-3.5 h-3.5 text-indigo-400 flex-none" />
+                        <Check className="w-3.5 h-3.5 text-blue-400 flex-none" />
                       )}
                     </button>
                   );
@@ -1147,7 +1147,7 @@ function GlobalDataSearch() {
                       }}
                       className="w-full flex items-center gap-3 px-4 py-2.5 text-left hover:bg-accent transition-colors"
                     >
-                      <Table2 className="w-4 h-4 text-indigo-400 flex-none" />
+                      <Table2 className="w-4 h-4 text-blue-400 flex-none" />
                       <div className="flex-1 min-w-0">
                         <div className="text-xs font-medium text-foreground truncate">
                           {ds.name}
@@ -1267,7 +1267,7 @@ function Topbar({
     {
       id: "n3",
       icon: Users,
-      color: "text-violet-400",
+      color: "text-blue-400",
       msg: "Alice commented on revenue column",
       time: "12m ago",
       read: true,
@@ -1386,7 +1386,7 @@ function Topbar({
         >
           <Bell className="w-4 h-4" />
           {unread > 0 && (
-            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-indigo-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white">
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center text-[9px] font-bold text-white">
               {unread}
             </span>
           )}
@@ -1420,7 +1420,7 @@ function Topbar({
                     key={n.id}
                     className={cn(
                       "flex gap-3 px-4 py-3 border-b border-border hover:bg-accent transition-colors",
-                      !n.read && "bg-indigo-500/5",
+                      !n.read && "bg-blue-500/5",
                     )}
                   >
                     <div
@@ -1440,7 +1440,7 @@ function Topbar({
                       </p>
                     </div>
                     {!n.read && (
-                      <div className="w-2 h-2 rounded-full bg-indigo-400 mt-1 flex-none" />
+                      <div className="w-2 h-2 rounded-full bg-blue-400 mt-1 flex-none" />
                     )}
                   </div>
                 );
@@ -1448,7 +1448,7 @@ function Topbar({
               <div className="px-4 py-2.5 text-center">
                 <button
                   type="button"
-                  className="text-xs text-indigo-400 hover:text-indigo-300 transition-colors"
+                  className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   Mark all read
                 </button>
@@ -1463,7 +1463,7 @@ function Topbar({
         <button
           type="button"
           onClick={onAiToggle}
-          className="hidden h-8 w-8 items-center justify-center rounded-xl bg-violet-500/10 text-violet-400 transition-colors hover:bg-violet-500/20 hover:text-violet-300 sm:flex"
+          className="hidden h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 transition-colors hover:bg-blue-500/20 hover:text-blue-300 sm:flex"
           title="AI Assistant (Ctrl+\)"
         >
           <Brain className="w-4 h-4" />
@@ -1569,19 +1569,19 @@ export function DashboardLayout({
   }, [onAiToggle]);
 
   return (
-    <div className="flex h-screen w-full bg-background text-foreground overflow-hidden">
+    <div className="dn-app-bg flex h-screen w-full overflow-hidden text-foreground">
       <AppSidebar
         collapsed={collapsed}
         onToggle={() => setCollapsed((v) => !v)}
         onAiToggle={onAiToggle}
       />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar
           onCmdPalette={() => setCmdOpen(true)}
           onAiToggle={onAiToggle}
           user={user}
         />
-        <main className="flex-1 overflow-auto">{children}</main>
+        <main className="min-w-0 flex-1 overflow-auto">{children}</main>
       </div>
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />
     </div>

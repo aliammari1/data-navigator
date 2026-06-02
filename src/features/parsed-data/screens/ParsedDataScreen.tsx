@@ -243,8 +243,8 @@ function buildQualityDimensions(profiles: ColProfile[]): QualityDimension[] {
 
 function DatasetEmptyState() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-linear-to-br from-background via-background to-violet-950/30 p-6">
-      <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-2xl">
+    <div className="dn-page flex items-center justify-center p-6">
+      <div className="dn-panel max-w-md rounded-2xl p-8 text-center">
         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-3xl bg-violet-500/10 text-violet-500">
           <Database className="h-8 w-8" />
         </div>
@@ -806,8 +806,8 @@ export default function ParsedDataScreen() {
           name: "Validity",
           type: "line",
           data: profiles.map((profile) => Number(profile.validity.toFixed(4))),
-          lineStyle: { color: "#6366f1", width: 2 },
-          itemStyle: { color: "#6366f1" },
+          lineStyle: { color: "#1E40AF", width: 2 },
+          itemStyle: { color: "#1E40AF" },
           symbol: "circle",
           symbolSize: 5,
         },
@@ -824,7 +824,7 @@ export default function ParsedDataScreen() {
 
     const typeColors: Record<string, string> = {
       integer: "#3b82f6",
-      float: "#6366f1",
+      float: "#1E40AF",
       string: "#a855f7",
       boolean: "#22c55e",
       date: "#f97316",
@@ -937,7 +937,7 @@ export default function ParsedDataScreen() {
           data: bins.map((bin) => bin.count),
           barWidth: "95%",
           itemStyle: {
-            color: "#6366f1",
+            color: "#1E40AF",
             borderRadius: [4, 4, 0, 0],
           },
         },
@@ -975,7 +975,7 @@ export default function ParsedDataScreen() {
           type: "bar",
           data: topValues.map((value) => value.count).reverse(),
           barMaxWidth: 20,
-          itemStyle: { color: "#8b5cf6", borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: "#F59E0B", borderRadius: [0, 4, 4, 0] },
           label: {
             show: true,
             position: "right",
@@ -1042,7 +1042,7 @@ export default function ParsedDataScreen() {
   }
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-background via-background to-violet-950/20 text-foreground">
+    <div className="dn-page text-foreground">
       <header className="sticky top-0 z-30 border-b border-border bg-background/90 backdrop-blur-xl">
         <div className="flex flex-col gap-4 px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 items-center gap-4">
@@ -1161,7 +1161,7 @@ export default function ParsedDataScreen() {
         )}
       </header>
 
-      <main className="grid gap-5 p-5 xl:grid-cols-[360px_minmax(0,1fr)]">
+      <main className="dn-page-shell-wide grid gap-5 xl:grid-cols-[360px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <MetricCard
