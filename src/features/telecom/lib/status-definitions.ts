@@ -32,7 +32,7 @@ export const STATUS_PRESENTATION: Record<
   },
   refund: {
     label: "Annulation",
-    color: "#8b5cf6",
+    color: "#F59E0B",
     badgeClass:
       "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
   },

@@ -3,6 +3,12 @@
 /**
  * Voice Capture — Raw PCM via Web Audio API
  * Bypasses MediaRecorder/WebM issues. Captures Float32Array directly.
+ *
+ * Notes:
+ * - This still uses ScriptProcessorNode for compatibility with your current app.
+ * - The next upgrade should move the PCM processor to AudioWorkletNode.
+ * - The returned sampleRate is the real AudioContext sample rate, not assumed.
+ * - The live callback emits 20 ms frames for VoiceSession turn-taking.
  */
 
 export type VoiceCaptureMode = "push-to-talk" | "hold-to-talk" | "continuous";
@@ -15,13 +21,30 @@ export interface VoiceCaptureState {
   error: string | null;
 }
 
+export interface CapturedAudio {
+  samples: Float32Array;
+  sampleRate: number;
+  durationMs: number;
+  rms: number;
+  peak: number;
+}
+
+const TARGET_SAMPLE_RATE = 16000;
+const SCRIPT_PROCESSOR_BUFFER_SIZE = 4096;
+const FRAME_DURATION_MS = 20;
+
 let audioContext: AudioContext | null = null;
 let micStream: MediaStream | null = null;
 let scriptNode: ScriptProcessorNode | null = null;
 let sourceNode: MediaStreamAudioSourceNode | null = null;
 let analyserNode: AnalyserNode | null = null;
+let silentGainNode: GainNode | null = null;
+
 let captureStartTime = 0;
+let captureSampleRate = TARGET_SAMPLE_RATE;
+let currentCaptureMode: VoiceCaptureMode = "push-to-talk";
 let audioChunks: Float32Array[] = [];
+let frameCarry = new Float32Array(0);
 let levelInterval: ReturnType<typeof setInterval> | null = null;
 
 function formatMicrophoneError(error: unknown): string {
@@ -54,6 +77,12 @@ function formatMicrophoneError(error: unknown): string {
   return "Microphone access failed.";
 }
 
+function getCaptureDurationMs(): number {
+  return captureStartTime > 0
+    ? Math.round(performance.now() - captureStartTime)
+    : 0;
+}
+
 function emitState(
   mode: VoiceCaptureMode,
   onStateChange: (state: VoiceCaptureState) => void,
@@ -63,13 +92,20 @@ function emitState(
     mode,
     isCapturing: false,
     audioLevel: 0,
-    durationMs:
-      captureStartTime > 0
-        ? Math.round(performance.now() - captureStartTime)
-        : 0,
+    durationMs: getCaptureDurationMs(),
     error: null,
     ...patch,
   });
+}
+
+function safeDisconnect(node: AudioNode | null): void {
+  if (!node) return;
+
+  try {
+    node.disconnect();
+  } catch {
+    // Ignore disconnect errors. Nodes may already be disconnected.
+  }
 }
 
 function cleanupAudioGraph(): void {
@@ -79,20 +115,19 @@ function cleanupAudioGraph(): void {
   }
 
   if (scriptNode) {
-    scriptNode.disconnect();
     scriptNode.onaudioprocess = null;
+    safeDisconnect(scriptNode);
     scriptNode = null;
   }
 
-  if (sourceNode) {
-    sourceNode.disconnect();
-    sourceNode = null;
-  }
+  safeDisconnect(sourceNode);
+  sourceNode = null;
 
-  if (analyserNode) {
-    analyserNode.disconnect();
-    analyserNode = null;
-  }
+  safeDisconnect(analyserNode);
+  analyserNode = null;
+
+  safeDisconnect(silentGainNode);
+  silentGainNode = null;
 
   if (micStream) {
     for (const track of micStream.getTracks()) {
@@ -108,13 +143,103 @@ function cleanupAudioGraph(): void {
   }
 }
 
+function analyzePcm(samples: Float32Array): { rms: number; peak: number } {
+  if (samples.length === 0) {
+    return { rms: 0, peak: 0 };
+  }
+
+  let sumSquares = 0;
+  let peak = 0;
+
+  for (let i = 0; i < samples.length; i++) {
+    const sample = Number.isFinite(samples[i]) ? samples[i] : 0;
+    const abs = Math.abs(sample);
+
+    peak = Math.max(peak, abs);
+    sumSquares += sample * sample;
+  }
+
+  return {
+    rms: Math.sqrt(sumSquares / samples.length),
+    peak,
+  };
+}
+
+function computeAudioLevelFromAnalyser(analyser: AnalyserNode): number {
+  const dataArray = new Uint8Array(analyser.fftSize);
+
+  analyser.getByteTimeDomainData(dataArray);
+
+  let sumSquares = 0;
+
+  for (let i = 0; i < dataArray.length; i++) {
+    const centered = (dataArray[i] - 128) / 128;
+    sumSquares += centered * centered;
+  }
+
+  const rms = Math.sqrt(sumSquares / dataArray.length);
+
+  /**
+   * Multiply a little so quiet microphones still show visible feedback.
+   * Clamp to 1 for UI safety.
+   */
+  return Math.min(1, rms * 4);
+}
+
+function concatFloat32(a: Float32Array, b: Float32Array): Float32Array {
+  if (a.length === 0) return b;
+  if (b.length === 0) return a;
+
+  const result = new Float32Array(a.length + b.length);
+  result.set(a, 0);
+  result.set(b, a.length);
+
+  return result;
+}
+
+/**
+ * Emits 20 ms frames for the real-time voice session.
+ *
+ * ScriptProcessorNode gives larger chunks, usually 4096 samples.
+ * The voice assistant pipeline wants smaller turn-taking frames,
+ * so this function slices the stream into stable 20 ms frames.
+ */
+function emitRealtimeFrames(
+  chunk: Float32Array,
+  sampleRate: number,
+  onAudioChunk: (chunk: Float32Array, sampleRate: number) => void,
+): void {
+  const frameSize = Math.max(
+    1,
+    Math.round((sampleRate * FRAME_DURATION_MS) / 1000),
+  );
+
+  const buffer = concatFloat32(frameCarry, chunk);
+  let offset = 0;
+
+  while (offset + frameSize <= buffer.length) {
+    const frame = buffer.slice(offset, offset + frameSize);
+    onAudioChunk(frame, sampleRate);
+    offset += frameSize;
+  }
+
+  frameCarry =
+    offset < buffer.length ? buffer.slice(offset) : new Float32Array(0);
+}
+
 export async function startVoiceCapture(
   mode: VoiceCaptureMode,
   onStateChange: (state: VoiceCaptureState) => void,
-  onAudioChunk: (chunk: Float32Array) => void,
+  onAudioChunk: (chunk: Float32Array, sampleRate: number) => void,
 ): Promise<void> {
   try {
     cleanupAudioGraph();
+
+    audioChunks = [];
+    frameCarry = new Float32Array(0);
+    captureStartTime = 0;
+    captureSampleRate = TARGET_SAMPLE_RATE;
+    currentCaptureMode = mode;
 
     if (typeof navigator === "undefined") {
       throw new Error("Voice capture is only available in the browser.");
@@ -157,19 +282,29 @@ export async function startVoiceCapture(
     }
 
     audioContext = new AudioContext({
-      sampleRate: 16000,
+      sampleRate: TARGET_SAMPLE_RATE,
     });
 
     if (audioContext.state === "suspended") {
       await audioContext.resume();
     }
 
+    captureSampleRate = audioContext.sampleRate;
+
     sourceNode = audioContext.createMediaStreamSource(micStream);
-    scriptNode = audioContext.createScriptProcessor(4096, 1, 1);
+    scriptNode = audioContext.createScriptProcessor(
+      SCRIPT_PROCESSOR_BUFFER_SIZE,
+      1,
+      1,
+    );
+
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;
+    analyserNode.smoothingTimeConstant = 0.2;
 
-    audioChunks = [];
+    silentGainNode = audioContext.createGain();
+    silentGainNode.gain.value = 0;
+
     captureStartTime = performance.now();
 
     scriptNode.onaudioprocess = (event) => {
@@ -178,34 +313,35 @@ export async function startVoiceCapture(
       const clone = new Float32Array(input.length);
       clone.set(input);
 
+      /**
+       * Full capture buffer for stopVoiceCapture().
+       */
       audioChunks.push(clone);
-      onAudioChunk(clone);
+
+      /**
+       * Real-time 20 ms frames for VoiceSession turn-taking.
+       */
+      emitRealtimeFrames(clone, captureSampleRate, onAudioChunk);
     };
 
     /**
      * Important:
-     * ScriptProcessorNode only runs while connected to an output.
-     * We keep it connected, but its output is silence because we never write to it.
+     * ScriptProcessorNode only processes while connected to an output.
+     * We route it through a zero-gain node, so there is no audible mic feedback.
      */
     sourceNode.connect(scriptNode);
-    scriptNode.connect(audioContext.destination);
+    scriptNode.connect(silentGainNode);
+    silentGainNode.connect(audioContext.destination);
 
     sourceNode.connect(analyserNode);
-
-    const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
 
     levelInterval = setInterval(() => {
       if (!analyserNode) return;
 
-      analyserNode.getByteFrequencyData(dataArray);
-
-      const average =
-        dataArray.reduce((total, value) => total + value, 0) / dataArray.length;
-
       emitState(mode, onStateChange, {
         isCapturing: true,
-        audioLevel: average / 255,
-        durationMs: Math.round(performance.now() - captureStartTime),
+        audioLevel: computeAudioLevelFromAnalyser(analyserNode),
+        durationMs: getCaptureDurationMs(),
         error: null,
       });
     }, 100);
@@ -221,6 +357,10 @@ export async function startVoiceCapture(
 
     cleanupAudioGraph();
 
+    audioChunks = [];
+    frameCarry = new Float32Array(0);
+    captureStartTime = 0;
+
     emitState(mode, onStateChange, {
       isCapturing: false,
       audioLevel: 0,
@@ -232,18 +372,26 @@ export async function startVoiceCapture(
 
 export function stopVoiceCapture(
   onStateChange?: (state: VoiceCaptureState) => void,
-): Float32Array | null {
-  const durationMs =
-    captureStartTime > 0 ? Math.round(performance.now() - captureStartTime) : 0;
+): CapturedAudio | null {
+  const durationMs = getCaptureDurationMs();
+  const sampleRate = captureSampleRate || TARGET_SAMPLE_RATE;
+  const mode = currentCaptureMode;
+
+  /**
+   * Copy chunks before cleanup/reset.
+   */
+  const chunks = audioChunks;
+  audioChunks = [];
+  frameCarry = new Float32Array(0);
 
   cleanupAudioGraph();
 
-  if (audioChunks.length === 0) {
+  if (chunks.length === 0) {
     console.warn("[voice-capture] stopped with no captured chunks");
 
     if (onStateChange) {
       onStateChange({
-        mode: "push-to-talk",
+        mode,
         isCapturing: false,
         audioLevel: 0,
         durationMs,
@@ -251,32 +399,59 @@ export function stopVoiceCapture(
       });
     }
 
+    captureStartTime = 0;
+
     return null;
   }
 
-  const totalLength = audioChunks.reduce((sum, chunk) => sum + chunk.length, 0);
+  const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
+
+  if (totalLength === 0) {
+    console.warn("[voice-capture] stopped with empty captured chunks");
+
+    if (onStateChange) {
+      onStateChange({
+        mode,
+        isCapturing: false,
+        audioLevel: 0,
+        durationMs,
+        error: "Captured audio was empty.",
+      });
+    }
+
+    captureStartTime = 0;
+
+    return null;
+  }
 
   const result = new Float32Array(totalLength);
 
   let offset = 0;
 
-  for (const chunk of audioChunks) {
+  for (const chunk of chunks) {
     result.set(chunk, offset);
     offset += chunk.length;
   }
 
-  console.log("[voice-capture] captured PCM", {
-    chunks: audioChunks.length,
-    samples: result.length,
-    seconds: result.length / 16000,
-    durationMs,
-  });
+  /**
+   * Important:
+   * Analyze after chunks are copied into result.
+   */
+  const { rms, peak } = analyzePcm(result);
 
-  audioChunks = [];
+  console.log("[voice-capture] captured PCM", {
+    chunks: chunks.length,
+    samples: result.length,
+    sampleRate,
+    seconds: result.length / sampleRate,
+    durationMs,
+    rms,
+    peak,
+  });
 
   if (onStateChange) {
     onStateChange({
-      mode: "push-to-talk",
+      mode,
       isCapturing: false,
       audioLevel: 0,
       durationMs,
@@ -284,5 +459,13 @@ export function stopVoiceCapture(
     });
   }
 
-  return result;
+  captureStartTime = 0;
+
+  return {
+    samples: result,
+    sampleRate,
+    durationMs,
+    rms,
+    peak,
+  };
 }

@@ -17,7 +17,8 @@ import {
   sqlStatusInList,
 } from "@/features/telecom/lib/status-definitions";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
-
+import { registerLocalDatasetFile } from "@/platform/duckdb/duckdb-fs";
+import { localDataPath, writeLocalFile } from "@/platform/electron/electron-fs";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const REPORT_TABLE = TELECOM_TABLE_BASE;
@@ -635,31 +636,60 @@ export async function getChannelStats(
   };
 }
 
+function textToArrayBuffer(text: string): ArrayBuffer {
+  const bytes = new TextEncoder().encode(text);
+  const buffer = new ArrayBuffer(bytes.byteLength);
+
+  new Uint8Array(buffer).set(bytes);
+
+  return buffer;
+}
+
+function safeTelecomReportName(): string {
+  return `telecom_report_${Date.now()}`;
+}
+
 export async function loadReportCSV(
   csvContent: string,
   mapping?: import("@/features/telecom/types").ColumnMapping,
-): Promise<{ rowCount: number; columns: string[] }> {
-  await loadDelimitedCSVToDuckDB(REPORT_TABLE, csvContent);
-  const info = await runReadOnlyQuery(
-    `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`,
-  );
-  const cols = await runReadOnlyQuery(
-    `SELECT column_name FROM information_schema.columns WHERE table_name = '${REPORT_TABLE}'`,
-  );
-  // Build enriched view for faster downstream queries
+): Promise<{
+  datasetId: string;
+  tableName: string;
+  viewName: string;
+  rowCount: number;
+  columns: string[];
+}> {
+  const displayName = safeTelecomReportName();
+  const filePath = await localDataPath(`imports/${displayName}.csv`);
+
+  await writeLocalFile(filePath, textToArrayBuffer(csvContent));
+
+  const dataset = await registerLocalDatasetFile({
+    filePath,
+    displayName,
+    hasHeader: true,
+    delimiter: ",",
+    previewLimit: 100,
+  });
+
+  const viewName = dataset.viewName;
+
   if (mapping) {
     try {
-      await createTelecomEnrichedView(REPORT_TABLE, mapping);
-    } catch (e) {
-      console.warn("[loadReportCSV] Failed to create enriched view:", e);
+      await createTelecomEnrichedView(viewName, mapping);
+    } catch (error) {
+      console.warn("[loadReportCSV] Failed to create enriched view:", error);
     }
   }
+
   return {
-    rowCount: Number(info[0]?.cnt ?? 0),
-    columns: cols.map((c) => String(c.column_name)),
+    datasetId: dataset.id,
+    tableName: viewName,
+    viewName,
+    rowCount: dataset.rowCount,
+    columns: dataset.columns.map((column) => column.name),
   };
 }
-
 export async function getTopTransactionsByAmount(
   limit = 20,
 ): Promise<Record<string, unknown>[]> {

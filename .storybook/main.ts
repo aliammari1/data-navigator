@@ -8,10 +8,7 @@ const config: StorybookConfig = {
   },
 
   stories: [
-    "../app/**/*.stories.@(ts|tsx|mdx)",
     "../src/**/*.stories.@(ts|tsx|mdx)",
-    "../features/**/*.stories.@(ts|tsx|mdx)",
-    "../components/**/*.stories.@(ts|tsx|mdx)",
   ],
 
   addons: [
@@ -20,13 +17,7 @@ const config: StorybookConfig = {
     "@storybook/addon-designs",
   ],
 
-  staticDirs: [
-    "../public",
-    {
-      from: "../models",
-      to: "/models",
-    },
-  ],
+  staticDirs: ["../public"],
 
   typescript: {
     reactDocgen: "react-docgen-typescript",

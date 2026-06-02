@@ -25,14 +25,14 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
 const ACCENT: Record<string, string> = {
   bar: "#3b82f6",
   "horizontal-bar": "#3b82f6",
-  "stacked-bar": "#6366f1",
+  "stacked-bar": "#1E40AF",
   line: "#10b981",
   area: "#10b981",
   "multi-line": "#10b981",
   pie: "#f59e0b",
   donut: "#f59e0b",
-  scatter: "#8b5cf6",
-  bubble: "#8b5cf6",
+  scatter: "#F59E0B",
+  bubble: "#F59E0B",
   heatmap: "#ec4899",
   network: "#a78bfa",
   sankey: "#06b6d4",
@@ -69,7 +69,7 @@ export function WidgetCard({
 }: Props) {
   const [showSQL, setShowSQL] = useState(false);
   const { spec, status, sql, insight, error } = widget;
-  const accent = ACCENT[spec.chartType] ?? "#8b5cf6";
+  const accent = ACCENT[spec.chartType] ?? "#F59E0B";
 
   const handleFilter = (col: string, lower: number, upper: number) => {
     // Apply filter by updating SQL in store

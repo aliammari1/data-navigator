@@ -146,11 +146,15 @@ import type {
 } from "@/features/data-browser/model/types";
 import type * as Types from "@/features/telecom/types";
 import {
-  getColumnStats,
-  getTableInfo,
+  listRegisteredDatasets,
+  type RegisteredDataset,
   runReadOnlyQuery,
 } from "@/platform/duckdb/duckdb";
-import { loadUploadFileToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
+import {
+  loadUploadPathToDuckDB,
+  sanitizeUploadTableName,
+} from "@/platform/duckdb/upload-to-duckdb";
+import { openFileDialog } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
 // Lazy load Monaco Editor
@@ -176,7 +180,47 @@ import {
 } from "@/features/data-browser/components/table-widgets";
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace('"', '""')}"`;
+  return `"${value.replaceAll('"', '""')}"`;
+}
+
+function datasetMatchesName(
+  dataset: RegisteredDataset,
+  value: string,
+): boolean {
+  return (
+    dataset.id === value ||
+    dataset.viewName === value ||
+    dataset.displayName === value
+  );
+}
+
+function columnsFromDataset(
+  dataset: RegisteredDataset,
+  sampleRow: Record<string, unknown>,
+): ColumnDef[] {
+  return dataset.columns.map((column) => ({
+    id: column.name,
+    name: column.name,
+    dbType: column.type,
+    type: inferColType(column.name, sampleRow[column.name]),
+    width: column.name.length > 10 ? 160 : 130,
+    visible: true,
+    pinned: null,
+    sortable: true,
+    filterable: true,
+  }));
+}
+
+function getDatasetLabel(dataset: RegisteredDataset): string {
+  return dataset.displayName || dataset.viewName || dataset.id;
+}
+
+function fileNameFromPath(filePath: string): string {
+  return filePath.split(/[/]/).pop() || "dataset";
+}
+
+function fileExtensionFromPath(filePath: string): string {
+  return fileNameFromPath(filePath).split(".").pop()?.toLowerCase() || "csv";
 }
 
 // ─── Main Component ───────────────────────────────────────────────────────────
@@ -219,7 +263,7 @@ export default function DataBrowserScreen({
   const [queryError, setQueryError] = useState<string | null>(null);
   const [queryTime, setQueryTime] = useState<number | null>(null);
   const [activeTable, setActiveTable] = useState<string>(tableName);
-  const [availableTables, setAvailableTables] = useState<string[]>([]);
+  const [datasetCatalog, setDatasetCatalog] = useState<RegisteredDataset[]>([]);
   const [uploadPanelOpen, setUploadPanelOpen] = useState(false);
   const [uploadDragging, setUploadDragging] = useState(false);
   const [uploadingFile, setUploadingFile] = useState<{
@@ -300,6 +344,40 @@ export default function DataBrowserScreen({
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
 
+  const switchToDataset = useCallback(async (dataset: RegisteredDataset) => {
+    const viewName = dataset.viewName;
+
+    let sampleRow: Record<string, unknown> = {};
+    try {
+      const sample = await runReadOnlyQuery(
+        `SELECT * FROM ${quoteIdentifier(viewName)} LIMIT 1`,
+      );
+      sampleRow = sample[0] ?? {};
+    } catch {
+      sampleRow = {};
+    }
+
+    const cols = columnsFromDataset(dataset, sampleRow);
+
+    setColumns(cols);
+    setTotalRows(dataset.rowCount);
+    setActiveTable(viewName);
+    setDbReady(true);
+    setDbLoading(false);
+    setQueryError(null);
+    setCustomQueryResult(null);
+    setCustomQueryCols([]);
+    setColumnStats({});
+    setPage(0);
+    setSorts([]);
+    setFilterGroup((prev) =>
+      produce(prev, (draft) => {
+        draft.rules = [];
+      }),
+    );
+    setSqlQuery(`SELECT * FROM ${quoteIdentifier(viewName)} LIMIT 100`);
+  }, []);
+
   // ── DuckDB Init ──
   useEffect(() => {
     let cancelled = false;
@@ -307,154 +385,130 @@ export default function DataBrowserScreen({
     async function init() {
       try {
         setDbLoading(true);
+        setDbReady(false);
+        setQueryError(null);
 
-        // Check for tables already loaded into DuckDB from upload page
-        let tableToUse = tableName;
-        let usingUploadedData = false;
+        const catalog = await listRegisteredDatasets();
+        if (cancelled) return;
 
-        try {
-          const tablesResult = await runReadOnlyQuery(`SHOW TABLES`);
-          const tableNames = tablesResult
-            .map((r) => String(r.name ?? r.table_name ?? Object.values(r)[0]))
-            .filter(Boolean);
+        setDatasetCatalog(catalog);
 
-          if (tableNames.length > 0) {
-            setAvailableTables(tableNames);
-            tableToUse = tableNames[0];
-            usingUploadedData = true;
-          }
-        } catch {
-          // SHOW TABLES failed, fall through to the provided table name.
-        }
+        const selectedDataset =
+          catalog.find((dataset) => datasetMatchesName(dataset, tableName)) ??
+          catalog[0] ??
+          null;
 
-        if (!usingUploadedData) {
-          // No tables loaded yet — wait for user to upload data
-          if (!cancelled) {
-            setDbLoading(false);
-          }
+        if (!selectedDataset) {
+          setColumns([]);
+          setRows([]);
+          setTotalRows(0);
+          setActiveTable("");
+          setDbReady(false);
+          setDbLoading(false);
           return;
         }
 
-        if (cancelled) return;
-
-        const info = await getTableInfo(tableToUse);
-
-        if (cancelled) return;
-
-        // Sample first row to help infer types
-        let sampleRow: Record<string, unknown> = {};
-        try {
-          const sample = await runReadOnlyQuery(
-            `SELECT * FROM ${quoteIdentifier(tableToUse)} LIMIT 1`,
-          );
-          sampleRow = sample[0] ?? {};
-        } catch {
-          // ignore, we'll fall back to string type
-        }
-
-        const cols: ColumnDef[] = info.columns.map((c) => ({
-          id: c.name,
-          name: c.name,
-          dbType: c.type,
-          type: inferColType(c.name, sampleRow[c.name]),
-          width: c.name.length > 10 ? 160 : 130,
-          visible: true,
-          pinned: null,
-          sortable: true,
-          filterable: true,
-        }));
-
-        setColumns(cols);
-        setTotalRows(info.rowCount);
-        setActiveTable(tableToUse);
-        setDbReady(true);
-        setDbLoading(false);
-
-        setSqlQuery(`SELECT * FROM ${quoteIdentifier(tableToUse)} LIMIT 100`);
+        await switchToDataset(selectedDataset);
       } catch (err) {
         console.error(err);
-        if (!cancelled) setDbLoading(false);
+        if (!cancelled) {
+          setDbReady(false);
+          setDbLoading(false);
+          setQueryError(err instanceof Error ? err.message : String(err));
+        }
       }
     }
 
     init();
+
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [tableName, switchToDataset]);
+
   const handleBrowserUpload = useCallback(async (file: File) => {
-    setUploadingFile({ name: file.name, progress: 10, status: "reading" });
+    setUploadingFile({
+      name: file.name,
+      progress: 0,
+      status: "error",
+      error:
+        "Drag-and-drop does not provide a trusted local path. Click this panel to use the native file picker instead.",
+    });
+  }, []);
 
+  const handleNativeUpload = useCallback(async () => {
     try {
-      const ext = file.name.split(".").pop()?.toLowerCase() ?? "";
-      if (ext !== "csv") {
-        throw new Error(`Unsupported file type: .${ext}`);
-      }
+      const selected = await openFileDialog({
+        title: "Open dataset file",
+        properties: ["openFile"],
+        filters: [
+          {
+            name: "Data files",
+            extensions: ["csv", "tsv", "txt", "parquet", "pq"],
+          },
+        ],
+      });
 
+      const filePath = selected[0];
+      if (!filePath) return;
+
+      const fileName = fileNameFromPath(filePath);
+      const ext = fileExtensionFromPath(filePath);
+
+      setUploadingFile({ name: fileName, progress: 20, status: "reading" });
       setUploadingFile(
-        (p) => p && { ...p, progress: 70, status: "loading_db" },
+        (p) => p && { ...p, progress: 65, status: "loading_db" },
       );
 
-      const loaded = await loadUploadFileToDuckDB(file, {
+      const loaded = await loadUploadPathToDuckDB(filePath, {
+        tableName: sanitizeUploadTableName(fileName),
+        displayName: fileName.replace(/\.[^.]+$/, ""),
+        fileExtension: ext as Parameters<
+          typeof loadUploadPathToDuckDB
+        >[1]["fileExtension"],
+        hasHeader: true,
         previewLimit: 1,
-        fileExtension: ext,
       });
-      const tableName = loaded.tableName;
+
+      const catalog = await listRegisteredDatasets();
+      setDatasetCatalog(catalog);
+
+      const selectedDataset =
+        catalog.find(
+          (dataset) =>
+            dataset.id === loaded.datasetId ||
+            dataset.viewName === loaded.tableName ||
+            dataset.displayName === loaded.displayName,
+        ) ?? null;
+
+      if (selectedDataset) {
+        await switchToDataset(selectedDataset);
+      }
 
       setUploadingFile((p) => p && { ...p, progress: 100, status: "done" });
 
-      // Refresh table list and switch to new table
-      const tablesResult = await runReadOnlyQuery(`SHOW TABLES`);
-      const tableNames = tablesResult
-        .map((r) => String(r.name ?? r.table_name ?? Object.values(r)[0]))
-        .filter(Boolean);
-      setAvailableTables(tableNames);
-
-      const info = await getTableInfo(tableName);
-      let sampleRow: Record<string, unknown> = {};
-      try {
-        const sample = await runReadOnlyQuery(
-          `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 1`,
-        );
-        sampleRow = sample[0] ?? {};
-      } catch {
-        /* ignore */
-      }
-
-      const cols: ColumnDef[] = info.columns.map((c) => ({
-        id: c.name,
-        name: c.name,
-        dbType: c.type,
-        type: inferColType(c.name, sampleRow[c.name]),
-        width: c.name.length > 10 ? 160 : 130,
-        visible: true,
-        pinned: null,
-        sortable: true,
-        filterable: true,
-      }));
-
-      setColumns(cols);
-      setTotalRows(info.rowCount);
-      setActiveTable(tableName);
-      setPage(0);
-      setSorts([]);
-      setFilterGroup((prev) =>
-        produce(prev, (d) => {
-          d.rules = [];
-        }),
-      );
-      setSqlQuery(`SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100`);
-
-      setTimeout(() => {
+      window.setTimeout(() => {
         setUploadingFile(null);
         setUploadPanelOpen(false);
-      }, 1500);
+      }, 1200);
     } catch (err) {
-      setUploadingFile(
-        (p) => p && { ...p, status: "error", error: String(err) },
+      setUploadingFile((p) =>
+        p
+          ? {
+              ...p,
+              status: "error",
+              error: err instanceof Error ? err.message : String(err),
+            }
+          : {
+              name: "Import failed",
+              progress: 0,
+              status: "error",
+              error: err instanceof Error ? err.message : String(err),
+            },
       );
     }
-  }, []);
+  }, [switchToDataset]);
+
   // ── Data Fetch ──
   const fetchRows = useCallback(async () => {
     if (!dbReady) return;
@@ -571,14 +625,57 @@ export default function DataBrowserScreen({
       );
 
       try {
-        const stats = await getColumnStats(activeTable, colName);
+        const columnSql = quoteIdentifier(colName);
+        const tableSql = quoteIdentifier(activeTable);
+
+        const [basicRows, histogramRows] = await Promise.all([
+          runReadOnlyQuery(`
+            SELECT
+              MIN(TRY_CAST(${columnSql} AS DOUBLE)) AS min,
+              MAX(TRY_CAST(${columnSql} AS DOUBLE)) AS max,
+              AVG(TRY_CAST(${columnSql} AS DOUBLE)) AS avg,
+              COUNT(*) - COUNT(${columnSql}) AS null_count,
+              COUNT(DISTINCT ${columnSql}) AS distinct_count
+            FROM ${tableSql}
+          `),
+          runReadOnlyQuery(`
+            SELECT
+              CAST(${columnSql} AS VARCHAR) AS bucket,
+              COUNT(*) AS count
+            FROM ${tableSql}
+            WHERE ${columnSql} IS NOT NULL
+            GROUP BY 1
+            ORDER BY count DESC
+            LIMIT 20
+          `),
+        ]);
+
+        const basic = basicRows[0] ?? {};
+        const stats: ColumnStats = {
+          min: basic.min ?? null,
+          max: basic.max ?? null,
+          avg: basic.avg ?? null,
+          nullCount: Number(basic.null_count ?? 0),
+          distinctCount: Number(basic.distinct_count ?? 0),
+          histogram: histogramRows.map((row) => ({
+            bucket: String(row.bucket ?? ""),
+            count: Number(row.count ?? 0),
+          })),
+          loading: false,
+        };
+
         setColumnStats((prev) =>
           produce(prev, (draft) => {
-            draft[colName] = { ...stats, loading: false };
+            draft[colName] = stats;
           }),
         );
       } catch (e) {
         console.error(e);
+        setColumnStats((prev) =>
+          produce(prev, (draft) => {
+            if (draft[colName]) draft[colName].loading = false;
+          }),
+        );
       }
     },
     [activeTable, dbReady, columnStats],
@@ -854,7 +951,7 @@ export default function DataBrowserScreen({
       color: [
         "#10b981",
         "#3b82f6",
-        "#8b5cf6",
+        "#F59E0B",
         "#f59e0b",
         "#ef4444",
         "#06b6d4",
@@ -902,7 +999,7 @@ export default function DataBrowserScreen({
           type: "scatter",
           data: analyticsData.map((d) => [d.total_revenue, d.avg_satisfaction]),
           symbolSize: 10,
-          itemStyle: { color: "#8b5cf6", opacity: 0.8 },
+          itemStyle: { color: "#F59E0B", opacity: 0.8 },
         },
       ],
     }),
@@ -959,7 +1056,7 @@ export default function DataBrowserScreen({
 
   // ── Render ──
   const pageContainerClass = cn(
-    "flex flex-col h-screen bg-zinc-950 text-zinc-100 overflow-hidden transition-all duration-300",
+    "dn-page flex h-full min-h-full flex-col overflow-hidden text-foreground transition-all duration-300",
     fullscreen && "fixed inset-0 z-50",
   );
 
@@ -968,7 +1065,7 @@ export default function DataBrowserScreen({
   return (
     <div className={pageContainerClass}>
       {/* ── Header ─────────────────────────────────── */}
-      <div className="flex-none border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-sm px-4 py-2.5">
+      <div className="dn-sticky-header flex-none px-4 py-2.5">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Title */}
           <div className="flex items-center gap-2 min-w-0">
@@ -1013,29 +1110,12 @@ export default function DataBrowserScreen({
               value={activeTable}
               onValueChange={async (v) => {
                 if (!v) return;
-                setActiveTable(v);
-                const info = await getTableInfo(v);
-                const cols: ColumnDef[] = info.columns.map((c) => ({
-                  id: c.name,
-                  name: c.name,
-                  dbType: c.type,
-                  type: inferColType(c.name, undefined),
-                  width: c.name.length > 10 ? 160 : 130,
-                  visible: true,
-                  pinned: null,
-                  sortable: true,
-                  filterable: true,
-                }));
-                setColumns(cols);
-                setTotalRows(info.rowCount);
-                setPage(0);
-                setSorts([]);
-                setFilterGroup((prev) =>
-                  produce(prev, (d) => {
-                    d.rules = [];
-                  }),
+                const selectedDataset = datasetCatalog.find((dataset) =>
+                  datasetMatchesName(dataset, v),
                 );
-                setSqlQuery(`SELECT * FROM ${quoteIdentifier(v)} LIMIT 100`);
+                if (selectedDataset) {
+                  await switchToDataset(selectedDataset);
+                }
               }}
             >
               <SelectTrigger className="h-8 w-44 text-xs bg-zinc-900 border-zinc-800">
@@ -1043,9 +1123,13 @@ export default function DataBrowserScreen({
                 <SelectValue placeholder="Select table…" />
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800">
-                {availableTables.map((t) => (
-                  <SelectItem key={t} value={t} className="text-xs">
-                    {t}
+                {datasetCatalog.map((dataset) => (
+                  <SelectItem
+                    key={dataset.id}
+                    value={dataset.viewName}
+                    className="text-xs"
+                  >
+                    {getDatasetLabel(dataset)}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -1383,16 +1467,7 @@ export default function DataBrowserScreen({
                       const file = e.dataTransfer.files[0];
                       if (file) handleBrowserUpload(file);
                     }}
-                    onClick={() => {
-                      const input = document.createElement("input");
-                      input.type = "file";
-                      input.accept = ".csv,.tsv,.json,.xlsx,.xls,.txt";
-                      input.onchange = (e) => {
-                        const file = (e.target as HTMLInputElement).files?.[0];
-                        if (file) handleBrowserUpload(file);
-                      };
-                      input.click();
-                    }}
+                    onClick={handleNativeUpload}
                     className={cn(
                       "border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all",
                       uploadDragging
@@ -1423,11 +1498,11 @@ export default function DataBrowserScreen({
                     <div className="text-center">
                       <p className="text-sm font-medium text-zinc-200">
                         {uploadDragging
-                          ? "Drop to upload"
-                          : "Drag & drop or click to upload"}
+                          ? "Drop detected"
+                          : "Click to choose a trusted local file"}
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
-                        CSV, TSV, JSON, XLSX — loads directly into DuckDB
+                        Use the Upload screen for path-based DuckDB import
                       </p>
                     </div>
                     <div className="flex gap-2">
@@ -1814,10 +1889,10 @@ export default function DataBrowserScreen({
                 </div>
                 <div className="text-center">
                   <p className="text-sm font-medium text-zinc-200">
-                    Initializing DuckDB WASM
+                    Initializing native DuckDB
                   </p>
                   <p className="text-xs text-zinc-500 mt-1">
-                    Loading 10,000 rows into memory…
+                    Opening the catalog-backed dataset view…
                   </p>
                 </div>
               </div>

@@ -329,7 +329,7 @@ export default function AgentCanvasScreen() {
   const isSetup = store.step === "setup";
 
   return (
-    <div className="h-screen flex flex-col bg-slate-950 text-white overflow-hidden">
+    <div className="dn-page flex h-full min-h-full flex-col overflow-hidden text-foreground">
       <AnimatePresence mode="wait">
         {isSetup ? (
           <motion.div
@@ -357,7 +357,7 @@ export default function AgentCanvasScreen() {
             <TopBar onReset={handleReset} />
 
             {/* Panel visibility toggles + build status */}
-            <div className="flex items-center justify-between px-3 py-1 bg-slate-950 border-b border-slate-800 shrink-0">
+            <div className="dn-sticky-header flex shrink-0 items-center justify-between px-3 py-1">
               <div className="flex items-center gap-1">
                 <PanelToggle
                   label="SQL IDE"

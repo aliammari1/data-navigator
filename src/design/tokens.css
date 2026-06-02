@@ -5,12 +5,12 @@
  * Light/dark modes flip with [data-theme="light"] / [data-theme="dark"].
  * Falls back to dark when no attribute is set.
  *
- * Built on @radix-ui/colors (slate, violet, cyan, amber, crimson, mint, iris).
+ * Built on @radix-ui/colors (slate, blue, cyan, amber, crimson, mint, iris).
  * Five shadow elevations; OKLCH-mixed for true dark mode.
  */
 
 @import "@radix-ui/colors/slate-dark.css";
-@import "@radix-ui/colors/violet-dark.css";
+@import "@radix-ui/colors/blue-dark.css";
 @import "@radix-ui/colors/cyan-dark.css";
 @import "@radix-ui/colors/amber-dark.css";
 @import "@radix-ui/colors/crimson-dark.css";
@@ -21,10 +21,10 @@
 :root,
 [data-theme="dark"] {
   /* Surfaces — layered dark backgrounds */
-  --atlas-bg: var(--slate-1);
-  --atlas-bg-subtle: var(--slate-2);
-  --atlas-surface: var(--slate-3);
-  --atlas-surface-raised: var(--slate-4);
+  --atlas-bg: #070b14;
+  --atlas-bg-subtle: #0a1221;
+  --atlas-surface: #0f1a2b;
+  --atlas-surface-raised: #142238;
   --atlas-border: var(--slate-6);
   --atlas-border-strong: var(--slate-7);
 
@@ -34,11 +34,11 @@
   --atlas-text-subtle: var(--slate-10);
 
   /* Brand / accents */
-  --atlas-accent: var(--violet-9);
-  --atlas-accent-hover: var(--violet-10);
-  --atlas-accent-fg: var(--violet-12);
-  --atlas-accent-soft: var(--violet-3);
-  --atlas-accent-border: var(--violet-7);
+  --atlas-accent: var(--blue-9);
+  --atlas-accent-hover: var(--blue-10);
+  --atlas-accent-fg: var(--blue-12);
+  --atlas-accent-soft: var(--blue-3);
+  --atlas-accent-border: var(--blue-7);
 
   --atlas-info: var(--cyan-9);
   --atlas-info-soft: var(--cyan-3);
@@ -88,10 +88,10 @@
 
   /* Typography */
   --atlas-font-sans:
-    var(--font-geist-sans), ui-sans-serif, system-ui, -apple-system,
+    var(--font-moudir-sans), ui-sans-serif, system-ui, -apple-system,
     BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --atlas-font-mono:
-    var(--font-geist-mono), ui-monospace, SFMono-Regular, "JetBrains Mono",
+    var(--font-moudir-mono), ui-monospace, SFMono-Regular, "JetBrains Mono",
     Menlo, monospace;
 
   --atlas-text-display: clamp(1.75rem, 1.4rem + 1.2vw, 2.5rem);
@@ -123,7 +123,7 @@
 
   /* Glow accents */
   --atlas-glow-accent:
-    0 0 0 1px var(--atlas-accent-border), 0 0 24px -4px var(--violet-a8);
+    0 0 0 1px var(--atlas-accent-border), 0 0 24px -4px rgb(59 130 246 / 0.34);
   --atlas-glow-success:
     0 0 0 1px var(--atlas-success-border), 0 0 24px -4px var(--mint-a8);
   --atlas-glow-danger:

@@ -1,6 +1,6 @@
 "use client";
 import { useCallback, useRef, useState } from "react";
-import { loadDelimitedCSVFromFile } from "@/platform/duckdb/duckdb";
+import { loadUploadFileToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
 import { cn } from "@/shared/utils";
 
 interface Props {
@@ -43,7 +43,11 @@ export function UploadZone({ onLoaded }: Readonly<Props>) {
           `Loading ${ext.toUpperCase() || "file"} (delimiter="${delimiter}")…`,
         );
 
-        await loadDelimitedCSVFromFile(tableName, file);
+        await loadUploadFileToDuckDB(file, {
+          tableName,
+          fileExtension: "csv",
+          delimiter,
+        });
 
         setProgress(`Loaded as table "${tableName}"`);
         setState("done");

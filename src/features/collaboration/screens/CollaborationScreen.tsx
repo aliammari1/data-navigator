@@ -102,7 +102,7 @@ const COLLABORATORS: Collaborator[] = [
     name: "You",
     email: "you@corp.com",
     avatar: "Y",
-    color: "#6366f1",
+    color: "#1E40AF",
     status: "online",
     role: "owner",
     lastSeen: new Date(),
@@ -702,7 +702,7 @@ export default function CollaborationScreen() {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: "#6366f1" },
+                { offset: 0, color: "#1E40AF" },
                 { offset: 1, color: "#3730a3" },
               ],
             },
@@ -720,7 +720,7 @@ export default function CollaborationScreen() {
         value: Math.floor(Math.random() * 50) + 5,
         itemStyle: { color: c.color },
       }));
-    data.push({ name: "You", value: 45, itemStyle: { color: "#6366f1" } });
+    data.push({ name: "You", value: 45, itemStyle: { color: "#1E40AF" } });
     return {
       backgroundColor: "transparent",
       tooltip: {
@@ -742,9 +742,9 @@ export default function CollaborationScreen() {
   }, [collaborators]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="dn-page flex flex-col">
       {/* Header */}
-      <div className="border-b border-border p-4 shrink-0">
+      <div className="dn-sticky-header shrink-0 px-4 py-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-linear-to-br from-green-500 to-emerald-600 rounded-xl">

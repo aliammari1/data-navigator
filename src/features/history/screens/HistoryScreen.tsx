@@ -157,8 +157,8 @@ export default function HistoryScreen() {
   }, [filtered]);
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
-      <div className="mx-auto max-w-6xl space-y-4">
+    <div className="dn-page">
+      <div className="dn-page-shell max-w-6xl space-y-4">
         <div className="rounded-2xl border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex items-center gap-3">

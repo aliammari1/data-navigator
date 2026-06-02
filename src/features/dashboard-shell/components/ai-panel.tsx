@@ -415,7 +415,7 @@ function MsgBubble({ msg }: { msg: Message }) {
   if (msg.thinking) {
     return (
       <div className="flex items-center gap-3 rounded-2xl border border-border bg-muted/40 px-4 py-3">
-        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-500">
+        <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
           <Brain className="h-4 w-4 animate-pulse" />
         </div>
         <div className="text-sm text-muted-foreground">Thinking</div>
@@ -423,7 +423,7 @@ function MsgBubble({ msg }: { msg: Message }) {
           {[0, 0.2, 0.4].map((delay) => (
             <span
               key={delay}
-              className="h-1.5 w-1.5 animate-bounce rounded-full bg-indigo-500"
+              className="h-1.5 w-1.5 animate-bounce rounded-full bg-blue-500"
               style={{ animationDelay: `${delay}s` }}
             />
           ))}
@@ -654,7 +654,7 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
   return (
     <div className="space-y-4 p-4">
       <div className="overflow-hidden rounded-3xl border border-border bg-card">
-        <div className="border-b border-border bg-linear-to-br from-blue-500/10 via-violet-500/10 to-transparent p-4">
+        <div className="border-b border-border bg-linear-to-br from-blue-500/10 via-amber-500/10 to-transparent p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-500/10 text-blue-500">
               <Database className="h-5 w-5" />
@@ -1022,7 +1022,7 @@ export function AIPanel({
           >
             <div className="flex-none border-b border-border bg-background/95 px-4 py-4 backdrop-blur">
               <div className="flex items-start gap-3">
-                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-500/20">
+                <div className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-500/20">
                   <Bot className="h-5 w-5" />
                 </div>
 

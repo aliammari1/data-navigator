@@ -25,7 +25,10 @@ import { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { loadLLM } from "@/features/agent-canvas/core/llm";
 import { MODEL_CATALOG } from "@/features/agent-canvas/core/types";
-import { loadUploadPathToDuckDB } from "@/platform/duckdb/upload-to-duckdb";
+import {
+  loadUploadPathToDuckDB,
+  type UploadFileFormat,
+} from "@/platform/duckdb/upload-to-duckdb";
 import { isElectron, openFileDialog } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
@@ -35,8 +38,20 @@ function fileNameFromPath(filePath: string): string {
   return filePath.split(/[\\/]/).pop() || "dataset";
 }
 
-function fileExtensionFromPath(filePath: string): string {
-  return fileNameFromPath(filePath).split(".").pop()?.toLowerCase() || "csv";
+function fileExtensionFromPath(filePath: string): UploadFileFormat {
+  const ext = fileNameFromPath(filePath).split(".").pop()?.toLowerCase();
+
+  if (
+    ext === "csv" ||
+    ext === "tsv" ||
+    ext === "txt" ||
+    ext === "parquet" ||
+    ext === "pq"
+  ) {
+    return ext;
+  }
+
+  return "csv";
 }
 
 function displayNameFromPath(filePath: string): string {

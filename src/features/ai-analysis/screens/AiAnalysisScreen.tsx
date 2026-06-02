@@ -557,11 +557,11 @@ export default function AiAnalysisScreen() {
         `);
 
         const clusterColors = [
-          "#6366f1",
+          "#1E40AF",
           "#22c55e",
           "#f59e0b",
           "#ef4444",
-          "#8b5cf6",
+          "#F59E0B",
           "#06b6d4",
           "#ec4899",
           "#84cc16",
@@ -863,7 +863,7 @@ export default function AiAnalysisScreen() {
           type: "line",
           data: forecasts.map((f) => parseFloat(f.predicted.toFixed(2))),
           lineStyle: {
-            color: "#6366f1",
+            color: "#1E40AF",
             width: 2,
             type:
               future.length > 0
@@ -872,7 +872,7 @@ export default function AiAnalysisScreen() {
                   : "dashed"
                 : "solid",
           },
-          itemStyle: { color: "#6366f1" },
+          itemStyle: { color: "#1E40AF" },
           symbol: "none",
           z: 2,
         },
@@ -1013,7 +1013,7 @@ export default function AiAnalysisScreen() {
               x2: 0,
               y2: 1,
               colorStops: [
-                { offset: 0, color: "#6366f1" },
+                { offset: 0, color: "#1E40AF" },
                 { offset: 1, color: "#3730a3" },
               ],
             },
@@ -1065,7 +1065,8 @@ export default function AiAnalysisScreen() {
   );
 
   return (
-    <div className="min-h-screen bg-background p-4 md:p-6">
+    <div className="dn-page">
+      <div className="dn-page-shell-wide">
       {/* No dataset or stale table guard */}
       {!activeDataset ? (
         <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
@@ -2217,6 +2218,7 @@ export default function AiAnalysisScreen() {
           </AnimatePresence>
         </>
       )}
+      </div>
     </div>
   );
 }

@@ -21,7 +21,7 @@ export function PageHeader({
   actions,
 }: PageHeaderProps) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {breadcrumbs && breadcrumbs.length > 0 && (
         <Breadcrumb>
           <BreadcrumbList>
@@ -42,14 +42,20 @@ export function PageHeader({
           </BreadcrumbList>
         </Breadcrumb>
       )}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="truncate text-2xl font-semibold tracking-tight text-foreground md:text-3xl">
+            {title}
+          </h1>
           {description && (
-            <p className="text-muted-foreground">{description}</p>
+            <p className="mt-1 max-w-3xl text-sm leading-6 text-muted-foreground">
+              {description}
+            </p>
           )}
         </div>
-        {actions && <div className="flex items-center gap-2">{actions}</div>}
+        {actions && (
+          <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        )}
       </div>
       <Separator />
     </div>

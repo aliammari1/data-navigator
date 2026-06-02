@@ -195,7 +195,7 @@ export async function exportToPNG(
 
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => {
+      (blob: Blob | null) => {
         if (blob) resolve(blob);
         else reject(new Error("Canvas toBlob failed"));
       },

@@ -53,6 +53,7 @@ import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import {
   loadUploadPathToDuckDB,
   sanitizeUploadTableName,
+  type UploadFileFormat,
 } from "@/platform/duckdb/upload-to-duckdb";
 import {
   isElectron,
@@ -324,7 +325,7 @@ export default function DataImportScreen() {
 
         const loaded = await loadUploadPathToDuckDB(filePath, {
           tableName,
-          fileExtension: extension,
+          fileExtension: extension as UploadFileFormat,
           hasHeader: settings.hasHeader,
           previewLimit: 100,
         });
@@ -528,8 +529,8 @@ export default function DataImportScreen() {
   });
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <div className="sticky top-0 z-30 border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
+    <div className="dn-page flex flex-col">
+      <div className="dn-sticky-header px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-teal-700 to-emerald-600 shadow-sm">
@@ -602,8 +603,8 @@ export default function DataImportScreen() {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto p-6">
-        <div className="mx-auto grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+      <main className="flex-1 overflow-y-auto">
+        <div className="dn-page-shell grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-6">
             {isTelecomMode && <TelecomUploadNotice />}
 
