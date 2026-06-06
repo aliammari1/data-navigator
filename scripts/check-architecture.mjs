@@ -79,9 +79,7 @@ function checkImport(file, specifier, line) {
 
   if (fileArea === "shared") {
     if (specifier.startsWith("@/") && specifier !== "@/shared/utils") {
-      violations.push(
-        `${location} shared must stay dependency-light: ${specifier}`,
-      );
+      violations.push(`${location} shared must stay dependency-light: ${specifier}`);
     }
   }
 }

@@ -25,17 +25,8 @@ import {
   type VoiceTimelineItem,
 } from "./voice-agui-events";
 import type { VoiceCommand, VoiceToolCall } from "./voice-command-router";
-import type {
-  SttEngine,
-  TtsEngine,
-  VoiceLanguageHint,
-  VoiceRuntime,
-} from "./voice-model-registry";
-import {
-  loadVoiceSettings,
-  subscribeVoiceSettings,
-  type VoiceDebugLevel,
-} from "./voice-settings";
+import type { SttEngine, TtsEngine, VoiceLanguageHint, VoiceRuntime } from "./voice-model-registry";
+import { loadVoiceSettings, subscribeVoiceSettings, type VoiceDebugLevel } from "./voice-settings";
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -79,14 +70,7 @@ export interface VoiceDebugMetric {
 
 export interface VoiceWorkerStatus {
   name: "vad" | "stt" | "router" | "tts";
-  status:
-    | "idle"
-    | "initializing"
-    | "loading"
-    | "ready"
-    | "running"
-    | "stopped"
-    | "error";
+  status: "idle" | "initializing" | "loading" | "ready" | "running" | "stopped" | "error";
   detail?: string;
   model?: string;
   progress?: number;
@@ -196,15 +180,11 @@ function now(): number {
 }
 
 function isBrowser(): boolean {
-  return (
-    typeof window !== "undefined" && typeof window.localStorage !== "undefined"
-  );
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
 function createId(prefix: string): string {
-  return `${prefix}_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 9)}`;
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
 function safeJsonParse<T>(value: string | null, fallback: T): T {
@@ -225,11 +205,7 @@ function toErrorMessage(error: unknown): string {
 function normalizeUnknownForStorage(value: unknown): unknown {
   if (value == null) return value;
 
-  if (
-    typeof value === "string" ||
-    typeof value === "number" ||
-    typeof value === "boolean"
-  ) {
+  if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
     return value;
   }
 
@@ -272,9 +248,7 @@ function normalizeUnknownForStorage(value: unknown): unknown {
   }
 }
 
-function createDefaultWorkerStatus(
-  name: VoiceWorkerStatus["name"],
-): VoiceWorkerStatus {
+function createDefaultWorkerStatus(name: VoiceWorkerStatus["name"]): VoiceWorkerStatus {
   return {
     name,
     status: "idle",
@@ -334,10 +308,7 @@ function getSeverityRank(severity: VoiceDebugSeverity): number {
   }
 }
 
-function shouldKeepLog(
-  level: VoiceDebugLevel,
-  severity: VoiceDebugSeverity,
-): boolean {
+function shouldKeepLog(level: VoiceDebugLevel, severity: VoiceDebugSeverity): boolean {
   if (level === "off") return false;
   if (level === "errors") return severity === "error";
   if (level === "normal") return getSeverityRank(severity) >= 1;
@@ -474,10 +445,7 @@ class VoiceDebugStore {
 
     this.patch({
       logs,
-      lastError:
-        severity === "error"
-          ? (input.message ?? input.label)
-          : this.snapshot.lastError,
+      lastError: severity === "error" ? (input.message ?? input.label) : this.snapshot.lastError,
       updatedAt: now(),
     });
 
@@ -616,9 +584,7 @@ class VoiceDebugStore {
   }
 
   appendAguiEvent(event: VoiceAguiEvent): VoiceAguiRunSnapshot {
-    const existing =
-      this.snapshot.runs[event.runId] ??
-      createInitialVoiceRunSnapshot(event.runId);
+    const existing = this.snapshot.runs[event.runId] ?? createInitialVoiceRunSnapshot(event.runId);
 
     const nextRun = reduceVoiceAguiEvent(existing, event);
     const durations = calculateLatencyDurations(nextRun.latency);
@@ -652,9 +618,7 @@ class VoiceDebugStore {
       runs,
       runOrder,
       lastTranscript:
-        nextRun.editedTranscript ??
-        nextRun.transcript ??
-        this.snapshot.lastTranscript,
+        nextRun.editedTranscript ?? nextRun.transcript ?? this.snapshot.lastTranscript,
       lastCommand: nextRun.command ?? this.snapshot.lastCommand,
       lastToolCall: nextRun.toolCall ?? this.snapshot.lastToolCall,
       lastError: nextRun.error ?? this.snapshot.lastError,
@@ -680,8 +644,7 @@ class VoiceDebugStore {
     if (events.length === 0) return null;
 
     const runId = events[0].runId;
-    const existing =
-      this.snapshot.runs[runId] ?? createInitialVoiceRunSnapshot(runId);
+    const existing = this.snapshot.runs[runId] ?? createInitialVoiceRunSnapshot(runId);
 
     const nextRun = reduceVoiceAguiEvents(existing, events);
     const durations = calculateLatencyDurations(nextRun.latency);
@@ -709,9 +672,7 @@ class VoiceDebugStore {
         ? this.snapshot.runOrder
         : [...this.snapshot.runOrder, runId].slice(-this.maxRuns),
       lastTranscript:
-        nextRun.editedTranscript ??
-        nextRun.transcript ??
-        this.snapshot.lastTranscript,
+        nextRun.editedTranscript ?? nextRun.transcript ?? this.snapshot.lastTranscript,
       lastCommand: nextRun.command ?? this.snapshot.lastCommand,
       lastToolCall: nextRun.toolCall ?? this.snapshot.lastToolCall,
       lastError: nextRun.error ?? this.snapshot.lastError,
@@ -740,8 +701,7 @@ class VoiceDebugStore {
     name: VoiceWorkerStatus["name"],
     patch: Partial<Omit<VoiceWorkerStatus, "name" | "updatedAt">>,
   ): void {
-    const current =
-      this.snapshot.workers[name] ?? createDefaultWorkerStatus(name);
+    const current = this.snapshot.workers[name] ?? createDefaultWorkerStatus(name);
 
     const next: VoiceWorkerStatus = {
       ...current,
@@ -770,10 +730,7 @@ class VoiceDebugStore {
     }
   }
 
-  updateModelStatus(
-    key: string,
-    patch: Omit<VoiceDebugModelStatus, "updatedAt">,
-  ): void {
+  updateModelStatus(key: string, patch: Omit<VoiceDebugModelStatus, "updatedAt">): void {
     const next: VoiceDebugModelStatus = {
       ...patch,
       updatedAt: now(),
@@ -820,12 +777,7 @@ class VoiceDebugStore {
     });
   }
 
-  recordLatency(
-    key: string,
-    label: string,
-    startedAt: number,
-    endedAt = now(),
-  ): void {
+  recordLatency(key: string, label: string, startedAt: number, endedAt = now()): void {
     this.updateMetric({
       key,
       label,
@@ -854,17 +806,13 @@ class VoiceDebugStore {
   }
 
   importJson(json: string): VoiceDebugSnapshot {
-    const parsed = safeJsonParse<VoiceDebugExport | VoiceDebugSnapshot | null>(
-      json,
-      null,
-    );
+    const parsed = safeJsonParse<VoiceDebugExport | VoiceDebugSnapshot | null>(json, null);
 
     if (!parsed) {
       throw new Error("Invalid voice debug JSON.");
     }
 
-    const snapshot =
-      "snapshot" in parsed ? parsed.snapshot : (parsed as VoiceDebugSnapshot);
+    const snapshot = "snapshot" in parsed ? parsed.snapshot : (parsed as VoiceDebugSnapshot);
 
     this.snapshot = normalizeSnapshot(snapshot);
     this.commit();
@@ -878,10 +826,7 @@ class VoiceDebugStore {
     this.subscribers.clear();
   }
 
-  private updateSettingsState(input: {
-    enabled: boolean;
-    debugLevel: VoiceDebugLevel;
-  }): void {
+  private updateSettingsState(input: { enabled: boolean; debugLevel: VoiceDebugLevel }): void {
     this.patch({
       enabled: input.enabled,
       debugLevel: input.debugLevel,
@@ -903,10 +848,7 @@ class VoiceDebugStore {
   private commit(): void {
     if (this.persist && isBrowser()) {
       try {
-        window.localStorage.setItem(
-          this.storageKey,
-          JSON.stringify(this.snapshot),
-        );
+        window.localStorage.setItem(this.storageKey, JSON.stringify(this.snapshot));
       } catch {
         /**
          * localStorage may fail if the debug log is too large.
@@ -931,7 +873,7 @@ class VoiceDebugStore {
     }
 
     if (isBrowser()) {
-      window.dispatchEvent(
+      globalThis.window.dispatchEvent(
         new CustomEvent<VoiceDebugSnapshot>(VOICE_DEBUG_EVENT_NAME, {
           detail: this.snapshot,
         }),
@@ -961,22 +903,16 @@ class VoiceDebugStore {
 /*  Normalization                                                      */
 /* ------------------------------------------------------------------ */
 
-function normalizeSnapshot(
-  snapshot: Partial<VoiceDebugSnapshot>,
-): VoiceDebugSnapshot {
+function normalizeSnapshot(snapshot: Partial<VoiceDebugSnapshot>): VoiceDebugSnapshot {
   const initial = createInitialSnapshot();
 
   return {
     ...initial,
     ...snapshot,
     version: VOICE_DEBUG_STORE_VERSION,
-    enabled:
-      typeof snapshot.enabled === "boolean"
-        ? snapshot.enabled
-        : initial.enabled,
+    enabled: typeof snapshot.enabled === "boolean" ? snapshot.enabled : initial.enabled,
     debugLevel: snapshot.debugLevel ?? initial.debugLevel,
-    updatedAt:
-      typeof snapshot.updatedAt === "number" ? snapshot.updatedAt : now(),
+    updatedAt: typeof snapshot.updatedAt === "number" ? snapshot.updatedAt : now(),
     currentRun: snapshot.currentRun ?? null,
     runs: snapshot.runs ?? {},
     runOrder: snapshot.runOrder ?? [],
@@ -1038,9 +974,7 @@ export function getVoiceDebugStore(): VoiceDebugStore {
   return singleton;
 }
 
-export function createVoiceDebugStore(
-  options: VoiceDebugStoreOptions = {},
-): VoiceDebugStore {
+export function createVoiceDebugStore(options: VoiceDebugStoreOptions = {}): VoiceDebugStore {
   return new VoiceDebugStore(options);
 }
 
@@ -1048,9 +982,7 @@ export function getVoiceDebugSnapshot(): VoiceDebugSnapshot {
   return getVoiceDebugStore().getSnapshot();
 }
 
-export function subscribeVoiceDebugStore(
-  subscriber: VoiceDebugSubscriber,
-): () => void {
+export function subscribeVoiceDebugStore(subscriber: VoiceDebugSubscriber): () => void {
   return getVoiceDebugStore().subscribe(subscriber);
 }
 
@@ -1077,15 +1009,11 @@ export function logVoiceDebug(input: {
   return getVoiceDebugStore().log(input);
 }
 
-export function appendVoiceAguiEvent(
-  event: VoiceAguiEvent,
-): VoiceAguiRunSnapshot {
+export function appendVoiceAguiEvent(event: VoiceAguiEvent): VoiceAguiRunSnapshot {
   return getVoiceDebugStore().appendAguiEvent(event);
 }
 
-export function appendVoiceAguiEvents(
-  events: VoiceAguiEvent[],
-): VoiceAguiRunSnapshot | null {
+export function appendVoiceAguiEvents(events: VoiceAguiEvent[]): VoiceAguiRunSnapshot | null {
   return getVoiceDebugStore().appendAguiEvents(events);
 }
 
@@ -1103,9 +1031,7 @@ export function updateVoiceModelDebugStatus(
   getVoiceDebugStore().updateModelStatus(key, patch);
 }
 
-export function updateVoiceAudioDebugState(
-  patch: Partial<VoiceDebugAudioState>,
-): void {
+export function updateVoiceAudioDebugState(patch: Partial<VoiceDebugAudioState>): void {
   getVoiceDebugStore().updateAudioState(patch);
 }
 

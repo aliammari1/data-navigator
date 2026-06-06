@@ -60,12 +60,14 @@ import {
 } from "@/features/data-formulator/core/voice/voice-model-registry";
 import {
   applyVoiceSettingsPreset,
+  exportVoiceSettingsFromDatabase,
   exportVoiceSettings,
   getTranscriptBehavior,
   getVadThresholdsFromSensitivity,
   getVoiceOutputMode,
   getVoiceSettingsSummary,
   importVoiceSettings,
+  hydrateVoiceSettingsFromDatabase,
   loadVoiceSettings,
   resetVoiceSettings,
   subscribeVoiceSettings,
@@ -338,7 +340,9 @@ export function VoiceSettingsPanel({
   }, []);
 
   const handleExport = useCallback(async () => {
-    const json = exportVoiceSettings();
+    const json = await exportVoiceSettingsFromDatabase().catch(() =>
+      exportVoiceSettings(),
+    );
 
     try {
       await navigator.clipboard.writeText(json);
@@ -359,6 +363,8 @@ export function VoiceSettingsPanel({
   }, [importText]);
 
   useEffect(() => {
+    void hydrateVoiceSettingsFromDatabase();
+
     const unsubscribe = subscribeVoiceSettings((event) => {
       setSettings(event.settings);
     });

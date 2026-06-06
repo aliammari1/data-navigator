@@ -151,6 +151,35 @@ See `IMPLEMENTATION_SUMMARY.md` for detailed implementation notes and `.kiro/spe
 
 Contributions welcome! Please read our contributing guidelines first.
 
+## 🦋 Versioning and releases
+
+Data Navigator uses [Changesets](https://github.com/changesets/changesets) to
+version the private desktop application and generate `CHANGELOG.md`.
+
+Add a release note with:
+
+```bash
+pnpm changeset
+```
+
+Use `patch` for compatible fixes, `minor` for backward-compatible features, and
+`major` for breaking changes. Commit the generated `.changeset/*.md` file with
+the implementation.
+
+On `main`, the release workflow maintains a version pull request. Merging that
+pull request updates the application version and changelog, creates a
+`data-navigator@x.y.z` Git tag, and publishes a GitHub Release. Because this is a
+private application package, nothing is published to npm.
+
+Useful commands:
+
+```bash
+pnpm changeset
+pnpm run changeset:status
+pnpm run version:app
+pnpm run release
+```
+
 ---
 
 Built with ❤️ using Next.js, React, and TensorFlow.js

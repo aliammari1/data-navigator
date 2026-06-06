@@ -13,16 +13,8 @@ const workers = [
     out: "public/workers/llm.worker.js",
   },
   {
-    in: "src/features/data-formulator/core/voice/voice-stt-worker.ts",
-    out: "public/workers/voice-stt.worker.js",
-  },
-  {
     in: "src/features/data-formulator/core/voice/voice-command-router.ts",
     out: "public/workers/voice-router.worker.js",
-  },
-  {
-    in: "src/features/data-formulator/core/voice/voice-tts-worker.ts",
-    out: "public/workers/voice-tts.worker.js",
   },
 ];
 
@@ -35,9 +27,7 @@ const sharedOptions = {
   minify: isProduction,
   logLevel: "info",
   define: {
-    "process.env.NODE_ENV": JSON.stringify(
-      process.env.NODE_ENV ?? "development",
-    ),
+    "process.env.NODE_ENV": JSON.stringify(process.env.NODE_ENV ?? "development"),
   },
 };
 

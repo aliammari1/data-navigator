@@ -8,9 +8,7 @@ const publicDir = path.join(root, "public");
 const staticDir = path.join(root, ".next", "static");
 
 if (!fs.existsSync(standaloneDir)) {
-  throw new Error(
-    "Missing .next/standalone. Make sure next.config.js has output: 'standalone'.",
-  );
+  throw new Error("Missing .next/standalone. Make sure next.config.js has output: 'standalone'.");
 }
 
 if (fs.existsSync(publicDir)) {
