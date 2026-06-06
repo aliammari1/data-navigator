@@ -1,5 +1,16 @@
 // .storybook/main.ts
 import type { StorybookConfig } from "@storybook/nextjs";
+import { config as loadEnv } from "dotenv";
+
+loadEnv({ path: ".env.storybook", quiet: true });
+
+const publicFigmaEnvironment = {
+  STORYBOOK_FIGMA_FILE_URL: process.env.STORYBOOK_FIGMA_FILE_URL ?? "",
+  STORYBOOK_FIGMA_BUTTON_NODE_ID:
+    process.env.STORYBOOK_FIGMA_BUTTON_NODE_ID ?? "",
+  STORYBOOK_FIGMA_EMPTY_NODE_ID:
+    process.env.STORYBOOK_FIGMA_EMPTY_NODE_ID ?? "",
+};
 
 const config: StorybookConfig = {
   framework: {
@@ -12,6 +23,11 @@ const config: StorybookConfig = {
   addons: ["@storybook/addon-docs", "@storybook/addon-a11y", "@storybook/addon-designs"],
 
   staticDirs: ["../public"],
+
+  env: (environment) => ({
+    ...environment,
+    ...publicFigmaEnvironment,
+  }),
 
   typescript: {
     reactDocgen: "react-docgen-typescript",
