@@ -5,25 +5,25 @@
  * Draggable, resizable cards that appear on the workbench canvas.
  */
 
-import { useState, useCallback } from "react";
-import { motion } from "motion/react";
 import {
+  BarChart3,
+  BrainCircuit,
+  GitBranch,
   GripVertical,
-  X,
+  Lightbulb,
   Pin,
   PinOff,
-  BarChart3,
-  Lightbulb,
   Table2,
-  BrainCircuit,
-  Zap,
   Wrench,
-  GitBranch,
+  X,
+  Zap,
 } from "lucide-react";
+import { motion } from "motion/react";
+import { useCallback, useState } from "react";
 import { cn } from "@/shared/utils";
 import { safeJsonStringify } from "../core/json";
-import type { CanvasCard } from "../store/workbench-store";
 import type { Encoding } from "../core/types";
+import type { CanvasCard } from "../store/workbench-store";
 import { useWorkbenchStore } from "../store/workbench-store";
 
 // ─── Chart Card ───────────────────────────────────────────────────────────────
@@ -59,7 +59,9 @@ function ChartCardContent({ card }: { card: CanvasCard }) {
               transition={{ duration: 0.5, delay: i * 0.02 }}
               className="w-full bg-emerald-500/40 rounded-t-[1px] min-h-[2px]"
             />
-            <span className="text-[7px] text-muted-foreground truncate w-full text-center">{d.label}</span>
+            <span className="text-[7px] text-muted-foreground truncate w-full text-center">
+              {d.label}
+            </span>
           </div>
         ))}
       </div>
@@ -88,7 +90,9 @@ function InsightCardContent({ card }: { card: CanvasCard }) {
           </span>
         )}
       </div>
-      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-4">{card.insightText}</p>
+      <p className="text-[11px] text-muted-foreground leading-relaxed line-clamp-4">
+        {card.insightText}
+      </p>
     </div>
   );
 }
@@ -114,7 +118,9 @@ function TableCardContent({ card }: { card: CanvasCard }) {
           <thead>
             <tr className="text-muted-foreground border-b border-white/5">
               {headers.map((h) => (
-                <th key={h} className="text-left py-1 pr-2 font-medium">{h}</th>
+                <th key={h} className="text-left py-1 pr-2 font-medium">
+                  {h}
+                </th>
               ))}
             </tr>
           </thead>
@@ -122,7 +128,9 @@ function TableCardContent({ card }: { card: CanvasCard }) {
             {displayRows.map((row: Record<string, unknown>, i: number) => (
               <tr key={i} className="text-foreground/70 border-b border-white/3">
                 {headers.map((h, j) => (
-                  <td key={j} className="py-1 pr-2 truncate max-w-[80px]">{String(row[h] ?? "")}</td>
+                  <td key={j} className="py-1 pr-2 truncate max-w-[80px]">
+                    {String(row[h] ?? "")}
+                  </td>
                 ))}
               </tr>
             ))}
@@ -142,8 +150,14 @@ function KpiCardContent({ card }: { card: CanvasCard }) {
       <span className="text-3xl font-bold text-emerald-400 tabular-nums">{card.kpiValue}</span>
       <span className="text-[11px] text-muted-foreground mt-1">{card.kpiLabel}</span>
       {card.kpiDelta !== undefined && (
-        <span className={cn("text-[10px] font-medium mt-0.5", deltaPositive ? "text-emerald-400" : "text-red-400")}>
-          {deltaPositive ? "+" : ""}{card.kpiDelta}%
+        <span
+          className={cn(
+            "text-[10px] font-medium mt-0.5",
+            deltaPositive ? "text-emerald-400" : "text-red-400",
+          )}
+        >
+          {deltaPositive ? "+" : ""}
+          {card.kpiDelta}%
         </span>
       )}
     </div>
@@ -195,14 +209,10 @@ function OperationCardContent({ card }: { card: CanvasCard }) {
     <div className="h-full flex flex-col min-h-0">
       <div className="flex items-center gap-2 mb-1.5 shrink-0">
         <GitBranch className="w-3.5 h-3.5 text-teal-400" />
-        <span className="text-[11px] font-medium text-foreground truncate">
-          {card.title}
-        </span>
+        <span className="text-[11px] font-medium text-foreground truncate">{card.title}</span>
       </div>
       <pre className="flex-1 overflow-auto whitespace-pre-wrap rounded-md bg-black/30 p-2 text-[9px] text-muted-foreground">
-        {detail
-          ? safeJsonStringify(detail, 2).slice(0, 1000)
-          : "No operation details"}
+        {detail ? safeJsonStringify(detail, 2).slice(0, 1000) : "No operation details"}
       </pre>
     </div>
   );
@@ -266,12 +276,12 @@ export function CanvasCardComponent({ card }: CanvasCardComponentProps) {
 
       const handleUp = () => {
         setDragging(false);
-        window.removeEventListener("mousemove", handleMove);
-        window.removeEventListener("mouseup", handleUp);
+        globalThis.window.removeEventListener("mousemove", handleMove);
+        globalThis.window.removeEventListener("mouseup", handleUp);
       };
 
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("mouseup", handleUp);
+      globalThis.window.addEventListener("mousemove", handleMove);
+      globalThis.window.addEventListener("mouseup", handleUp);
     },
     [card.id, card.x, card.y, moveCard, scale, selectCard],
   );
@@ -295,12 +305,12 @@ export function CanvasCardComponent({ card }: CanvasCardComponentProps) {
 
       const handleUp = () => {
         setResizing(false);
-        window.removeEventListener("mousemove", handleMove);
-        window.removeEventListener("mouseup", handleUp);
+        globalThis.window.removeEventListener("mousemove", handleMove);
+        globalThis.window.removeEventListener("mouseup", handleUp);
       };
 
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("mouseup", handleUp);
+      globalThis.window.addEventListener("mousemove", handleMove);
+      globalThis.window.addEventListener("mouseup", handleUp);
     },
     [card.id, card.w, card.h, resizeCard, scale],
   );
@@ -338,7 +348,11 @@ export function CanvasCardComponent({ card }: CanvasCardComponentProps) {
           onClick={() => updateCard(card.id, { pinned: !card.pinned })}
           className="text-muted-foreground/40 hover:text-foreground transition-colors"
         >
-          {card.pinned ? <Pin className="w-3 h-3 text-emerald-400" /> : <PinOff className="w-3 h-3" />}
+          {card.pinned ? (
+            <Pin className="w-3 h-3 text-emerald-400" />
+          ) : (
+            <PinOff className="w-3 h-3" />
+          )}
         </button>
         <button
           type="button"

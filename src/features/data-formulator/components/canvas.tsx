@@ -5,11 +5,11 @@
  * Infinite pan/zoom surface where cards live.
  */
 
-import { useRef, useEffect, useCallback, useState } from "react";
 import { motion } from "motion/react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { cn } from "@/shared/utils";
 import { useWorkbenchStore } from "../store/workbench-store";
 import { CanvasCardComponent } from "./canvas-cards";
-import { cn } from "@/shared/utils";
 
 export function Canvas() {
   const cards = useWorkbenchStore((s) => s.cards);
@@ -41,12 +41,12 @@ export function Canvas() {
 
         const handleUp = () => {
           setPanning(false);
-          window.removeEventListener("mousemove", handleMove);
-          window.removeEventListener("mouseup", handleUp);
+          globalThis.window.removeEventListener("mousemove", handleMove);
+          globalThis.window.removeEventListener("mouseup", handleUp);
         };
 
-        window.addEventListener("mousemove", handleMove);
-        window.addEventListener("mouseup", handleUp);
+        globalThis.window.addEventListener("mousemove", handleMove);
+        globalThis.window.addEventListener("mouseup", handleUp);
       } else if (e.button === 0) {
         // Click on empty canvas deselects
         if (e.target === containerRef.current) {
@@ -73,7 +73,7 @@ export function Canvas() {
   // Pre-compute a corrected card list so stale (0,0,0,0) cards from a
   // previous session are never rendered invisible.
   const { visibleCards, hiddenCount } = (() => {
-    const visible: Array<typeof cards[0]> = [];
+    const visible: Array<(typeof cards)[0]> = [];
     let hidden = 0;
     for (const card of cards) {
       // A card is "visible" only when it has real dimensions; cards with
@@ -119,7 +119,6 @@ export function Canvas() {
         {visibleCards.map((card) => (
           <CanvasCardComponent key={card.id} card={card} />
         ))}
-
       </div>
 
       {/* Zoom indicator */}
@@ -134,7 +133,8 @@ export function Canvas() {
 
       {hiddenCount > 0 && (
         <div className="pointer-events-none absolute top-3 right-3 z-50 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[10px] text-amber-300">
-          {hiddenCount} card{hiddenCount !== 1 ? "s" : ""} hidden (stale — dimensions 0, drag cards below to reveal or clear canvas)
+          {hiddenCount} card{hiddenCount !== 1 ? "s" : ""} hidden (stale — dimensions 0, drag cards
+          below to reveal or clear canvas)
         </div>
       )}
       {visibleCards.length > 0 && hiddenCount === 0 && (

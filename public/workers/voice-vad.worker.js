@@ -1,4 +1,3 @@
-"use strict";
 (() => {
   // src/features/data-formulator/core/voice/voice-vad-worker.ts
   var workerSelf = self;
@@ -10,7 +9,7 @@
     silenceHangoverMs: 500,
     maxSpeechMs: 12e3,
     speechPaddingMs: 160,
-    adaptiveBatchThreshold: true
+    adaptiveBatchThreshold: true,
   };
   var options = { ...DEFAULT_OPTIONS };
   var state = createInitialState();
@@ -21,7 +20,7 @@
       speechMs: 0,
       silenceMs: 0,
       utteranceMs: 0,
-      emittedStart: false
+      emittedStart: false,
     };
   }
   function postMessage(message) {
@@ -30,13 +29,13 @@
   function postError(error) {
     postMessage({
       type: "VAD_ERROR",
-      error: error instanceof Error ? error.message : String(error)
+      error: error instanceof Error ? error.message : String(error),
     });
   }
   function configure(next = {}) {
     options = normalizeOptions({
       ...options,
-      ...next
+      ...next,
     });
   }
   function normalizeOptions(value) {
@@ -46,39 +45,27 @@
         value.speechThresholdDbfs,
         -90,
         -5,
-        DEFAULT_OPTIONS.speechThresholdDbfs
+        DEFAULT_OPTIONS.speechThresholdDbfs,
       ),
       bargeInThresholdDbfs: clampNumber(
         value.bargeInThresholdDbfs,
         -90,
         -5,
-        DEFAULT_OPTIONS.bargeInThresholdDbfs
+        DEFAULT_OPTIONS.bargeInThresholdDbfs,
       ),
-      minSpeechMs: clampNumber(
-        value.minSpeechMs,
-        40,
-        2e3,
-        DEFAULT_OPTIONS.minSpeechMs
-      ),
+      minSpeechMs: clampNumber(value.minSpeechMs, 40, 2e3, DEFAULT_OPTIONS.minSpeechMs),
       silenceHangoverMs: clampNumber(
         value.silenceHangoverMs,
         80,
         5e3,
-        DEFAULT_OPTIONS.silenceHangoverMs
+        DEFAULT_OPTIONS.silenceHangoverMs,
       ),
-      maxSpeechMs: clampNumber(
-        value.maxSpeechMs,
-        1e3,
-        12e4,
-        DEFAULT_OPTIONS.maxSpeechMs
-      ),
-      speechPaddingMs: clampNumber(
-        value.speechPaddingMs,
-        0,
-        2e3,
-        DEFAULT_OPTIONS.speechPaddingMs
-      ),
-      adaptiveBatchThreshold: typeof value.adaptiveBatchThreshold === "boolean" ? value.adaptiveBatchThreshold : DEFAULT_OPTIONS.adaptiveBatchThreshold
+      maxSpeechMs: clampNumber(value.maxSpeechMs, 1e3, 12e4, DEFAULT_OPTIONS.maxSpeechMs),
+      speechPaddingMs: clampNumber(value.speechPaddingMs, 0, 2e3, DEFAULT_OPTIONS.speechPaddingMs),
+      adaptiveBatchThreshold:
+        typeof value.adaptiveBatchThreshold === "boolean"
+          ? value.adaptiveBatchThreshold
+          : DEFAULT_OPTIONS.adaptiveBatchThreshold,
     };
   }
   function clampNumber(value, min, max, fallback) {
@@ -155,7 +142,7 @@
     return {
       rms,
       rmsDbfs: rmsDbfsFromRms(rms),
-      peak
+      peak,
     };
   }
   function frameRms(samples, startSample, endSample) {
@@ -184,10 +171,12 @@
       throw new Error("Frame is empty.");
     }
     const stats = analyzeSamples(frame);
-    const frameDurationMs = frame.length / request.sampleRate * 1e3;
+    const frameDurationMs = (frame.length / request.sampleRate) * 1e3;
     const timestampMs = request.timestampMs ?? nowMs();
     const assistantSpeaking = Boolean(request.assistantSpeaking);
-    const speechThreshold = assistantSpeaking ? options.bargeInThresholdDbfs : options.speechThresholdDbfs;
+    const speechThreshold = assistantSpeaking
+      ? options.bargeInThresholdDbfs
+      : options.speechThresholdDbfs;
     const isSpeech = stats.rmsDbfs >= speechThreshold && stats.peak > 5e-3;
     if (assistantSpeaking && isSpeech) {
       postMessage({
@@ -201,7 +190,7 @@
         silenceMs: state.silenceMs,
         utteranceMs: state.utteranceMs,
         frameDurationMs,
-        timestampMs
+        timestampMs,
       });
       state = createInitialState();
       state.inSpeech = true;
@@ -230,7 +219,7 @@
           silenceMs: state.silenceMs,
           utteranceMs: state.utteranceMs,
           frameDurationMs,
-          timestampMs
+          timestampMs,
         });
         return;
       }
@@ -250,7 +239,7 @@
             silenceMs: state.silenceMs,
             utteranceMs: state.utteranceMs,
             frameDurationMs,
-            timestampMs
+            timestampMs,
           });
           state = createInitialState();
           return;
@@ -266,7 +255,7 @@
           silenceMs: state.silenceMs,
           utteranceMs: state.utteranceMs,
           frameDurationMs,
-          timestampMs
+          timestampMs,
         });
         return;
       }
@@ -274,7 +263,7 @@
         isSpeech: true,
         stats,
         frameDurationMs,
-        timestampMs
+        timestampMs,
       });
       return;
     }
@@ -293,7 +282,7 @@
           silenceMs: state.silenceMs,
           utteranceMs: state.utteranceMs,
           frameDurationMs,
-          timestampMs
+          timestampMs,
         });
         state = createInitialState();
         return;
@@ -309,7 +298,7 @@
         silenceMs: state.silenceMs,
         utteranceMs: state.utteranceMs,
         frameDurationMs,
-        timestampMs
+        timestampMs,
       });
       return;
     }
@@ -318,15 +307,10 @@
       isSpeech: false,
       stats,
       frameDurationMs,
-      timestampMs
+      timestampMs,
     });
   }
-  function postFrameOnly({
-    isSpeech,
-    stats,
-    frameDurationMs,
-    timestampMs
-  }) {
+  function postFrameOnly({ isSpeech, stats, frameDurationMs, timestampMs }) {
     postMessage({
       type: "VAD_FRAME",
       isSpeech,
@@ -337,7 +321,7 @@
       silenceMs: state.silenceMs,
       utteranceMs: state.utteranceMs,
       frameDurationMs,
-      timestampMs
+      timestampMs,
     });
   }
   function pushSegment(segments, segment) {
@@ -350,7 +334,7 @@
     segments.push(segment);
   }
   function energyBasedBatchVAD(samples, sampleRate, batchOptions) {
-    const totalDurationMs = samples.length / sampleRate * 1e3;
+    const totalDurationMs = (samples.length / sampleRate) * 1e3;
     const { rms, peak } = analyzeSamples(samples);
     if (samples.length === 0) {
       return {
@@ -362,24 +346,18 @@
         peak,
         speechRms: 0,
         speechDurationMs: 0,
-        totalDurationMs
+        totalDurationMs,
       };
     }
-    const frameSize = Math.max(
-      1,
-      Math.floor(sampleRate * batchOptions.frameMs / 1e3)
-    );
-    const minSpeechFrames = Math.max(
-      1,
-      Math.ceil(batchOptions.minSpeechMs / batchOptions.frameMs)
-    );
+    const frameSize = Math.max(1, Math.floor((sampleRate * batchOptions.frameMs) / 1e3));
+    const minSpeechFrames = Math.max(1, Math.ceil(batchOptions.minSpeechMs / batchOptions.frameMs));
     const minSilenceFrames = Math.max(
       1,
-      Math.ceil(batchOptions.silenceHangoverMs / batchOptions.frameMs)
+      Math.ceil(batchOptions.silenceHangoverMs / batchOptions.frameMs),
     );
     const paddingSamples = Math.max(
       0,
-      Math.floor(sampleRate * batchOptions.speechPaddingMs / 1e3)
+      Math.floor((sampleRate * batchOptions.speechPaddingMs) / 1e3),
     );
     const frameEnergies = [];
     for (let start = 0; start < samples.length; start += frameSize) {
@@ -387,7 +365,9 @@
       frameEnergies.push(frameRms(samples, start, end));
     }
     const baseThreshold = 10 ** (batchOptions.speechThresholdDbfs / 20);
-    const threshold = batchOptions.adaptiveBatchThreshold ? computeAdaptiveThreshold(frameEnergies, baseThreshold) : baseThreshold;
+    const threshold = batchOptions.adaptiveBatchThreshold
+      ? computeAdaptiveThreshold(frameEnergies, baseThreshold)
+      : baseThreshold;
     const segments = [];
     let inSpeech = false;
     let candidateSpeechStartFrame = 0;
@@ -411,13 +391,13 @@
           const silenceStartTime2 = segments.length > 0 ? segments[segments.length - 1].end : 0;
           const speechStartTime = Math.max(
             0,
-            (speechStartFrame * frameSize - paddingSamples) / sampleRate
+            (speechStartFrame * frameSize - paddingSamples) / sampleRate,
           );
           if (speechStartTime > silenceStartTime2) {
             pushSegment(segments, {
               start: silenceStartTime2,
               end: speechStartTime,
-              isSpeech: false
+              isSpeech: false,
             });
           }
         }
@@ -429,16 +409,16 @@
           const speechEndFrame = Math.max(speechStartFrame, lastSpeechFrame + 1);
           const speechStartTime = Math.max(
             0,
-            (speechStartFrame * frameSize - paddingSamples) / sampleRate
+            (speechStartFrame * frameSize - paddingSamples) / sampleRate,
           );
           const speechEndTime = Math.min(
             samples.length / sampleRate,
-            (speechEndFrame * frameSize + paddingSamples) / sampleRate
+            (speechEndFrame * frameSize + paddingSamples) / sampleRate,
           );
           pushSegment(segments, {
             start: speechStartTime,
             end: speechEndTime,
-            isSpeech: true
+            isSpeech: true,
           });
           inSpeech = false;
           speechFrameCount = 0;
@@ -446,52 +426,62 @@
           const silenceStartTime2 = speechEndTime;
           const silenceEndTime2 = Math.min(
             samples.length / sampleRate,
-            (frameIndex + 1) * frameSize / sampleRate
+            ((frameIndex + 1) * frameSize) / sampleRate,
           );
           if (silenceEndTime2 > silenceStartTime2) {
             pushSegment(segments, {
               start: silenceStartTime2,
               end: silenceEndTime2,
-              isSpeech: false
+              isSpeech: false,
             });
           }
         }
         continue;
       }
       speechFrameCount = 0;
-      const silenceStartTime = segments.length > 0 ? segments[segments.length - 1].end : frameIndex * frameSize / sampleRate;
+      const silenceStartTime =
+        segments.length > 0
+          ? segments[segments.length - 1].end
+          : (frameIndex * frameSize) / sampleRate;
       const silenceEndTime = Math.min(
         samples.length / sampleRate,
-        (frameIndex + 1) * frameSize / sampleRate
+        ((frameIndex + 1) * frameSize) / sampleRate,
       );
       pushSegment(segments, {
         start: silenceStartTime,
         end: silenceEndTime,
-        isSpeech: false
+        isSpeech: false,
       });
     }
     if (inSpeech) {
       const speechEndFrame = Math.max(speechStartFrame, lastSpeechFrame + 1);
       pushSegment(segments, {
-        start: Math.max(
-          0,
-          (speechStartFrame * frameSize - paddingSamples) / sampleRate
-        ),
+        start: Math.max(0, (speechStartFrame * frameSize - paddingSamples) / sampleRate),
         end: Math.min(
           samples.length / sampleRate,
-          (speechEndFrame * frameSize + paddingSamples) / sampleRate
+          (speechEndFrame * frameSize + paddingSamples) / sampleRate,
         ),
-        isSpeech: true
+        isSpeech: true,
       });
     }
     const speechSegments = segments.filter((segment) => segment.isSpeech);
-    const speechStartSample = speechSegments.length ? Math.max(0, Math.floor(speechSegments[0].start * sampleRate)) : null;
-    const speechEndSample = speechSegments.length ? Math.min(
-      samples.length,
-      Math.ceil(speechSegments[speechSegments.length - 1].end * sampleRate)
-    ) : null;
-    const speechSamples = speechStartSample !== null && speechEndSample !== null ? Math.max(0, speechEndSample - speechStartSample) : 0;
-    const speechSlice = speechStartSample !== null && speechEndSample !== null ? samples.subarray(speechStartSample, speechEndSample) : new Float32Array();
+    const speechStartSample = speechSegments.length
+      ? Math.max(0, Math.floor(speechSegments[0].start * sampleRate))
+      : null;
+    const speechEndSample = speechSegments.length
+      ? Math.min(
+          samples.length,
+          Math.ceil(speechSegments[speechSegments.length - 1].end * sampleRate),
+        )
+      : null;
+    const speechSamples =
+      speechStartSample !== null && speechEndSample !== null
+        ? Math.max(0, speechEndSample - speechStartSample)
+        : 0;
+    const speechSlice =
+      speechStartSample !== null && speechEndSample !== null
+        ? samples.subarray(speechStartSample, speechEndSample)
+        : new Float32Array();
     const speechStats = analyzeSamples(speechSlice);
     return {
       segments,
@@ -501,8 +491,8 @@
       rms,
       peak,
       speechRms: speechStats.rms,
-      speechDurationMs: speechSamples / sampleRate * 1e3,
-      totalDurationMs
+      speechDurationMs: (speechSamples / sampleRate) * 1e3,
+      totalDurationMs,
     };
   }
   function processAudio(request) {
@@ -514,14 +504,10 @@
     }
     const batchOptions = normalizeOptions({
       ...options,
-      ...request.options ?? {}
+      ...(request.options ?? {}),
     });
     const samples = decodeAudioBuffer(request.audioBuffer);
-    const analysis = energyBasedBatchVAD(
-      samples,
-      request.sampleRate,
-      batchOptions
-    );
+    const analysis = energyBasedBatchVAD(samples, request.sampleRate, batchOptions);
     postMessage({
       type: "VAD_RESULT",
       segments: analysis.segments,
@@ -532,7 +518,7 @@
       peak: analysis.peak,
       speechRms: analysis.speechRms,
       speechDurationMs: analysis.speechDurationMs,
-      totalDurationMs: analysis.totalDurationMs
+      totalDurationMs: analysis.totalDurationMs,
     });
   }
   workerSelf.onmessage = (event) => {
@@ -547,7 +533,7 @@
           state = createInitialState();
           postMessage({
             type: "RESET_DONE",
-            options
+            options,
           });
           return;
         }
@@ -555,7 +541,7 @@
           configure(request.options);
           postMessage({
             type: "CONFIGURED",
-            options
+            options,
           });
           return;
         }
@@ -577,6 +563,6 @@
   };
   postMessage({
     type: "READY",
-    options
+    options,
   });
 })();

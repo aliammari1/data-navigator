@@ -1,12 +1,8 @@
 "use client";
 
-import {
-  QueryClient,
-  QueryClientProvider,
-  focusManager,
-} from "@tanstack/react-query";
+import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 
 /**
  * Create a QueryClient with performance-optimized defaults.
@@ -62,9 +58,9 @@ function getQueryClient() {
 focusManager.setEventListener((handleFocus) => {
   if (typeof window !== "undefined" && "addEventListener" in window) {
     const handler = () => handleFocus();
-    window.addEventListener("visibilitychange", handler, false);
+    globalThis.window.addEventListener("visibilitychange", handler, false);
     return () => {
-      window.removeEventListener("visibilitychange", handler);
+      globalThis.window.removeEventListener("visibilitychange", handler);
     };
   }
   return undefined;
@@ -88,11 +84,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools
-        initialIsOpen={false}
-        buttonPosition="bottom-left"
-        position="left"
-      />
+      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" position="left" />
     </QueryClientProvider>
   );
 }

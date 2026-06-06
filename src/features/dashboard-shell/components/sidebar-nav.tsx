@@ -300,20 +300,11 @@ const FOOTER_ITEMS: NavItem[] = [
   },
 ];
 
-const ALL_ITEMS: NavItem[] = [
-  ...NAV_SECTIONS.flatMap((s) => s.items),
-  ...FOOTER_ITEMS,
-];
+const ALL_ITEMS: NavItem[] = [...NAV_SECTIONS.flatMap((s) => s.items), ...FOOTER_ITEMS];
 
 // ─── Command Palette ─────────────────────────────────────────────────────────
 
-function CommandPalette({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const router = useRouter();
@@ -426,16 +417,12 @@ function CommandPalette({
                       <Icon
                         className={cn(
                           "w-4 h-4",
-                          i === selected
-                            ? "text-blue-400"
-                            : "text-muted-foreground",
+                          i === selected ? "text-blue-400" : "text-muted-foreground",
                         )}
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-foreground">
-                        {item.title}
-                      </div>
+                      <div className="text-sm font-medium text-foreground">{item.title}</div>
                       <div className="text-xs text-muted-foreground truncate">
                         {item.description}
                       </div>
@@ -469,8 +456,7 @@ function CommandPalette({
 function NavButton({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
   const pathname = usePathname();
   const isActive =
-    pathname === item.href ||
-    (item.href !== "/dashboard" && pathname.startsWith(item.href));
+    pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href));
   const Icon = item.icon;
 
   return (
@@ -489,9 +475,7 @@ function NavButton({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
         <Icon
           className={cn(
             "w-4 h-4 flex-none shrink-0 transition-colors",
-            isActive
-              ? "text-teal-400"
-              : "text-muted-foreground/70 group-hover:text-foreground",
+            isActive ? "text-teal-400" : "text-muted-foreground/70 group-hover:text-foreground",
           )}
         />
         {!collapsed && (
@@ -538,9 +522,7 @@ function AppSidebar({
   function isTelecomTabActive(key: TelecomDashboardTab): boolean {
     return pathname === `/dashboard/telecom-report/${key}`;
   }
-  const pinnedNavItems = ALL_ITEMS.filter((item) =>
-    pinnedItems.includes(item.href),
-  );
+  const pinnedNavItems = ALL_ITEMS.filter((item) => pinnedItems.includes(item.href));
 
   return (
     <motion.aside
@@ -569,9 +551,7 @@ function AppSidebar({
             <div className="text-sm font-semibold text-foreground truncate leading-none">
               DataNavigator
             </div>
-            <div className="text-[10px] text-muted-foreground/50 font-mono mt-0.5">
-              DuckDB WASM
-            </div>
+            <div className="text-[10px] text-muted-foreground/50 font-mono mt-0.5">DuckDB WASM</div>
           </motion.div>
         )}
         {!collapsed && (
@@ -616,9 +596,7 @@ function AppSidebar({
                 {section.label}
               </div>
             )}
-            {collapsed && (
-              <div className="my-1 mx-1 border-t border-border/30" />
-            )}
+            {collapsed && <div className="my-1 mx-1 border-t border-border/30" />}
             {section.items.map((item) => (
               <NavButton key={item.href} item={item} collapsed={collapsed} />
             ))}
@@ -659,9 +637,7 @@ function AppSidebar({
                     )}
                   />
                   {!collapsed && (
-                    <span className="flex-1 truncate text-left text-sm">
-                      {item.label}
-                    </span>
+                    <span className="flex-1 truncate text-left text-sm">{item.label}</span>
                   )}
                 </button>
                 {collapsed && (
@@ -693,9 +669,7 @@ function AppSidebar({
             )}
           >
             <Brain className="w-4 h-4 flex-none shrink-0 text-muted-foreground/60" />
-            {!collapsed && (
-              <span className="flex-1 text-left">AI Assistant</span>
-            )}
+            {!collapsed && <span className="flex-1 text-left">AI Assistant</span>}
           </button>
         )}
       </div>
@@ -722,8 +696,7 @@ const FORMAT_COLORS: Record<string, string> = {
 // ─── Dataset Picker ──────────────────────────────────────────────────────────
 
 function DatasetPicker() {
-  const { datasets, activeDatasetId, setActiveDataset, loadedTableNames } =
-    useDataStore();
+  const { datasets, activeDatasetId, setActiveDataset, loadedTableNames } = useDataStore();
   const setAppContext = useAppContextStore((s) => s.setContext);
   const addActivity = useActivityStore((s) => s.addEvent);
   const router = useRouter();
@@ -734,8 +707,7 @@ function DatasetPicker() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -752,9 +724,7 @@ function DatasetPicker() {
         <Database className="w-3.5 h-3.5 text-blue-400 flex-none" />
         {activeDs ? (
           <>
-            <span className="truncate text-foreground font-medium">
-              {activeDs.name}
-            </span>
+            <span className="truncate text-foreground font-medium">{activeDs.name}</span>
             {!loadedTableNames.includes(activeDs.tableName) && (
               <AlertCircle
                 className="w-3 h-3 text-amber-400 flex-none"
@@ -778,19 +748,13 @@ function DatasetPicker() {
             className="absolute left-0 top-full mt-2 w-80 bg-popover border border-border rounded-2xl shadow-2xl z-50 overflow-hidden"
           >
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-border">
-              <span className="text-xs font-semibold text-foreground">
-                Switch Dataset
-              </span>
-              <span className="text-[10px] text-muted-foreground">
-                {datasets.length} uploaded
-              </span>
+              <span className="text-xs font-semibold text-foreground">Switch Dataset</span>
+              <span className="text-[10px] text-muted-foreground">{datasets.length} uploaded</span>
             </div>
             {datasets.length === 0 ? (
               <div className="flex flex-col items-center gap-3 py-8 px-4 text-center">
                 <Database className="w-8 h-8 text-muted-foreground opacity-30" />
-                <p className="text-xs text-muted-foreground">
-                  No datasets uploaded yet
-                </p>
+                <p className="text-xs text-muted-foreground">No datasets uploaded yet</p>
                 <button
                   type="button"
                   onClick={() => {
@@ -840,9 +804,7 @@ function DatasetPicker() {
                         <Table2
                           className={cn(
                             "w-3.5 h-3.5",
-                            active
-                              ? "text-blue-400"
-                              : "text-muted-foreground",
+                            active ? "text-blue-400" : "text-muted-foreground",
                           )}
                         />
                       </div>
@@ -854,8 +816,7 @@ function DatasetPicker() {
                           <span
                             className={cn(
                               "text-[9px] px-1 py-0.5 rounded flex-none",
-                              FORMAT_COLORS[ds.format] ??
-                                "bg-accent text-muted-foreground",
+                              FORMAT_COLORS[ds.format] ?? "bg-accent text-muted-foreground",
                             )}
                           >
                             {ds.format}
@@ -865,18 +826,12 @@ function DatasetPicker() {
                           <span className="text-muted-foreground">
                             {fmtCompact(ds.rowCount)} rows
                           </span>
-                          <span
-                            className={
-                              live ? "text-green-400" : "text-amber-400"
-                            }
-                          >
+                          <span className={live ? "text-green-400" : "text-amber-400"}>
                             {live ? "● live" : "⊘ stale"}
                           </span>
                         </div>
                       </div>
-                      {active && (
-                        <Check className="w-3.5 h-3.5 text-blue-400 flex-none" />
-                      )}
+                      {active && <Check className="w-3.5 h-3.5 text-blue-400 flex-none" />}
                     </button>
                   );
                 })}
@@ -890,8 +845,7 @@ function DatasetPicker() {
 }
 
 function AccessControlPill() {
-  const { role, roleLabel, cacheMode, setRole, setCacheMode } =
-    useDashboardAccess();
+  const { role, roleLabel, cacheMode, setRole, setCacheMode } = useDashboardAccess();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -929,9 +883,7 @@ function AccessControlPill() {
             className="absolute right-0 top-full z-50 mt-2 w-72 overflow-hidden rounded-2xl border border-border bg-popover shadow-2xl"
           >
             <div className="border-b border-border px-4 py-3">
-              <div className="text-sm font-semibold text-foreground">
-                Access & cache
-              </div>
+              <div className="text-sm font-semibold text-foreground">Access & cache</div>
               <div className="mt-0.5 text-[11px] text-muted-foreground">
                 Shared across dashboard pages on this device.
               </div>
@@ -1005,8 +957,7 @@ function GlobalDataSearch() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node))
-        setOpen(false);
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1027,9 +978,10 @@ function GlobalDataSearch() {
         .filter((d) => d.name.toLowerCase().includes(q) || d.format.includes(q))
         .slice(0, 8) as (Dataset | CatalogFolder)[];
     }
-    return folders
-      .filter((f) => f.name.toLowerCase().includes(q))
-      .slice(0, 8) as (Dataset | CatalogFolder)[];
+    return folders.filter((f) => f.name.toLowerCase().includes(q)).slice(0, 8) as (
+      | Dataset
+      | CatalogFolder
+    )[];
   }, [query, scope, datasets, folders]);
 
   const displayList = query
@@ -1091,9 +1043,7 @@ function GlobalDataSearch() {
                 ref={inputRef}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
-                placeholder={
-                  scope === "files" ? "Search datasets…" : "Search folders…"
-                }
+                placeholder={scope === "files" ? "Search datasets…" : "Search folders…"}
                 className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
                 onKeyDown={(e) => e.key === "Escape" && setOpen(false)}
               />
@@ -1112,9 +1062,7 @@ function GlobalDataSearch() {
             <div className="max-h-64 overflow-y-auto py-1">
               {!query && displayList.length === 0 && (
                 <div className="py-6 text-center text-xs text-muted-foreground">
-                  {scope === "files"
-                    ? "No datasets uploaded"
-                    : "No folders created"}
+                  {scope === "files" ? "No datasets uploaded" : "No folders created"}
                 </div>
               )}
               {query && results.length === 0 && (
@@ -1159,8 +1107,7 @@ function GlobalDataSearch() {
                       <span
                         className={cn(
                           "text-[9px] px-1.5 py-0.5 rounded flex-none",
-                          FORMAT_COLORS[ds.format] ??
-                            "bg-accent text-muted-foreground",
+                          FORMAT_COLORS[ds.format] ?? "bg-accent text-muted-foreground",
                         )}
                       >
                         {ds.format}
@@ -1226,15 +1173,14 @@ function Topbar({
         onCmdPalette();
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    globalThis.window.addEventListener("keydown", handler);
+    return () => globalThis.window.removeEventListener("keydown", handler);
   }, [onCmdPalette]);
 
   // Click outside
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (notifRef.current && !notifRef.current.contains(e.target as Node))
-        setNotifOpen(false);
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) setNotifOpen(false);
     };
     document.addEventListener("mousedown", handler);
     return () => document.removeEventListener("mousedown", handler);
@@ -1284,9 +1230,7 @@ function Topbar({
   const unread = NOTIFS.filter((n) => !n.read).length;
 
   const cycleTheme = () => {
-    setTheme(
-      theme === "dark" ? "light" : theme === "light" ? "system" : "dark",
-    );
+    setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark");
   };
 
   const ThemeIcon = !mounted
@@ -1322,16 +1266,12 @@ function Topbar({
         <nav className="hidden min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground sm:flex">
           {crumbs.map((crumb, i) => (
             <span key={crumb.href} className="flex items-center gap-1 min-w-0">
-              {i > 0 && (
-                <ChevronRight className="w-3 h-3 flex-none text-muted-foreground" />
-              )}
+              {i > 0 && <ChevronRight className="w-3 h-3 flex-none text-muted-foreground" />}
               <Link
                 href={crumb.href}
                 className={cn(
                   "truncate hover:text-foreground transition-colors",
-                  i === crumbs.length - 1
-                    ? "text-foreground font-medium"
-                    : "text-muted-foreground",
+                  i === crumbs.length - 1 ? "text-foreground font-medium" : "text-muted-foreground",
                 )}
               >
                 {crumb.label}
@@ -1402,9 +1342,7 @@ function Topbar({
               className="absolute right-0 top-full mt-2 w-80 bg-popover border border-border rounded-2xl shadow-2xl overflow-hidden z-50"
             >
               <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-                <span className="text-sm font-semibold text-foreground">
-                  Notifications
-                </span>
+                <span className="text-sm font-semibold text-foreground">Notifications</span>
                 <button
                   type="button"
                   onClick={() => setNotifOpen(false)}
@@ -1432,16 +1370,10 @@ function Topbar({
                       <NIcon className="w-4 h-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-foreground leading-relaxed">
-                        {n.msg}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground mt-0.5">
-                        {n.time}
-                      </p>
+                      <p className="text-xs text-foreground leading-relaxed">{n.msg}</p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5">{n.time}</p>
                     </div>
-                    {!n.read && (
-                      <div className="w-2 h-2 rounded-full bg-blue-400 mt-1 flex-none" />
-                    )}
+                    {!n.read && <div className="w-2 h-2 rounded-full bg-blue-400 mt-1 flex-none" />}
                   </div>
                 );
               })}
@@ -1492,21 +1424,15 @@ function Topbar({
           <DropdownMenuLabel>
             <div className="flex items-center gap-3">
               <Avatar className="size-9 rounded-xl">
-                {user?.image && (
-                  <AvatarImage src={user.image} alt={displayName} />
-                )}
+                {user?.image && <AvatarImage src={user.image} alt={displayName} />}
                 <AvatarFallback className="rounded-xl text-xs font-semibold">
                   {userInitials || "DN"}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
-                <div className="truncate text-sm font-semibold text-foreground">
-                  {displayName}
-                </div>
+                <div className="truncate text-sm font-semibold text-foreground">{displayName}</div>
                 {user?.email ? (
-                  <div className="truncate text-xs text-muted-foreground">
-                    {user.email}
-                  </div>
+                  <div className="truncate text-xs text-muted-foreground">{user.email}</div>
                 ) : (
                   <div className="text-xs text-amber-400">Local mode</div>
                 )}
@@ -1564,8 +1490,8 @@ export function DashboardLayout({
         setCollapsed((v) => !v);
       }
     };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    globalThis.window.addEventListener("keydown", handler);
+    return () => globalThis.window.removeEventListener("keydown", handler);
   }, [onAiToggle]);
 
   return (
@@ -1576,11 +1502,7 @@ export function DashboardLayout({
         onAiToggle={onAiToggle}
       />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar
-          onCmdPalette={() => setCmdOpen(true)}
-          onAiToggle={onAiToggle}
-          user={user}
-        />
+        <Topbar onCmdPalette={() => setCmdOpen(true)} onAiToggle={onAiToggle} user={user} />
         <main className="min-w-0 flex-1 overflow-auto">{children}</main>
       </div>
       <CommandPalette open={cmdOpen} onClose={() => setCmdOpen(false)} />

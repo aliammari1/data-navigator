@@ -6,7 +6,6 @@ import path from "node:path";
 import { MakerWix } from "@electron-forge/maker-wix";
 // import { MakerZIP } from "@electron-forge/maker-zip";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
-import { ElectronegativityPlugin } from "@electron-forge/plugin-electronegativity";
 import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
 
@@ -45,6 +44,7 @@ const appSlug = "data-navigator";
 const appExe = "data-navigator";
 const appId = "com.data-navigator.app";
 const manufacturer = "Ali Ammari";
+const protocolScheme = "com.data-navigator.app";
 
 const publicDir = path.join(root, "public");
 const iconBase = path.join(publicDir, "icon");
@@ -55,8 +55,7 @@ const nextStaticDir = path.join(root, ".next", "static");
 const electronMainBuild = path.join(root, "build", "main.js");
 
 const githubOwner = process.env.GITHUB_REPOSITORY_OWNER ?? "aliammari1";
-const githubRepo =
-  process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "data-navigator";
+const githubRepo = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "data-navigator";
 
 const hasWindowsCertificate =
   Boolean(process.env.WINDOWS_CERTIFICATE_FILE) &&
@@ -113,6 +112,7 @@ const asarUnpackDirs = [
   "node_modules/sharp",
   "node_modules/sherpa-onnx-node",
   "node_modules/sqlite-vec",
+  "node_modules/better-sqlite3",
 
   "app/node_modules/@duckdb",
   "app/node_modules/@img",
@@ -124,6 +124,7 @@ const asarUnpackDirs = [
   "app/node_modules/sharp",
   "app/node_modules/sherpa-onnx-node",
   "app/node_modules/sqlite-vec",
+  "app/node_modules/better-sqlite3",
 ].join(",");
 
 const config: ForgeConfig = {
@@ -135,6 +136,12 @@ const config: ForgeConfig = {
     icon: iconBase,
     overwrite: true,
     prune: true,
+    protocols: [
+      {
+        name: "Data Navigator Protocol",
+        schemes: [protocolScheme],
+      },
+    ],
 
     win32metadata: {
       CompanyName: manufacturer,
@@ -152,26 +159,25 @@ const config: ForgeConfig = {
     ignore: (filePath) => {
       if (!filePath) return false;
 
+      const normalizedPath = filePath.replaceAll("\\", "/");
+
       const keep = [
         /^\/build(?:\/|$)/,
         /^\/app(?:\/|$)/,
         /^\/public(?:\/|$)/,
         /^\/models(?:\/|$)/,
         /^\/package\.json$/,
-        /^\/node_modules(?:\/|$)/,
+        /^\/node_modules\/next(?:\/|$)/,
+        /^\/node_modules\/@next(?:\/|$)/,
       ];
 
-      return !keep.some((pattern) => pattern.test(filePath));
+      return !keep.some((pattern) => pattern.test(normalizedPath));
     },
   },
 
   rebuildConfig: {
     force: true,
-    onlyModules: [
-      "@duckdb/node-bindings",
-      "sherpa-onnx-node",
-      "sqlite-vec",
-    ],
+    onlyModules: ["@duckdb/node-bindings", "sherpa-onnx-node", "sqlite-vec", "better-sqlite3"],
   },
 
   makers: [
@@ -244,13 +250,7 @@ const config: ForgeConfig = {
     }),
   ],
 
-  plugins: [
-    new AutoUnpackNativesPlugin({}),
-
-    new ElectronegativityPlugin({
-      isSarif: true,
-    }),
-  ],
+  plugins: [new AutoUnpackNativesPlugin({})],
 
   hooks: {
     packageAfterCopy: async (_forgeConfig, buildPath) => {
@@ -264,11 +264,7 @@ const config: ForgeConfig = {
 
       copyDir("Next standalone app", nextStandaloneDir, appDest);
 
-      copyDir(
-        "Next static assets",
-        nextStaticDir,
-        path.join(appDest, ".next", "static"),
-      );
+      copyDir("Next static assets", nextStaticDir, path.join(appDest, ".next", "static"));
 
       copyDir("public assets", publicDir, path.join(appDest, "public"));
 
@@ -279,6 +275,9 @@ const config: ForgeConfig = {
       );
 
       for (const packageName of [
+        "next",
+        "@next/env",
+        "better-sqlite3",
         "@duckdb",
         "@lancedb",
         "@mlc-ai",
@@ -302,14 +301,10 @@ const config: ForgeConfig = {
       packageJson.name = appSlug;
       packageJson.productName = appName;
       packageJson.author = manufacturer;
-      packageJson.description =
-        "AI-powered local data analysis and visualization platform";
+      packageJson.description = "AI-powered local data analysis and visualization platform";
       packageJson.main = "build/main.js";
 
-      fs.writeFileSync(
-        packageJsonPath,
-        `${JSON.stringify(packageJson, null, 2)}\n`,
-      );
+      fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
     },
   },
 };

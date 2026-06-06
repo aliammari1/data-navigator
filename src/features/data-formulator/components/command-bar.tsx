@@ -41,10 +41,7 @@ import {
   type VoiceSettings,
 } from "@/features/data-formulator/core/voice/voice-settings";
 import { cn } from "@/shared/utils";
-import {
-  useWorkbenchStore,
-  type WorkbenchState,
-} from "../store/workbench-store";
+import { useWorkbenchStore, type WorkbenchState } from "../store/workbench-store";
 import { VoiceButton } from "./voice-button";
 import { VoiceDebugPanel } from "./voice-debug-panel";
 import { VoiceSettingsPanel } from "./voice-settings-panel";
@@ -109,10 +106,7 @@ const LANGUAGE_OPTIONS: Array<{
 ];
 
 function languageOptionFor(mode: LanguageMode) {
-  return (
-    LANGUAGE_OPTIONS.find((option) => option.mode === mode) ??
-    LANGUAGE_OPTIONS[0]
-  );
+  return LANGUAGE_OPTIONS.find((option) => option.mode === mode) ?? LANGUAGE_OPTIONS[0];
 }
 
 function languageModeForVoiceHint(hint: VoiceLanguageHint): LanguageMode {
@@ -127,10 +121,7 @@ function normalizeQuery(value: string): string {
   return value.trim().replace(/\s+/g, " ");
 }
 
-function getSubmitMode(
-  query: string,
-  semanticMode: boolean,
-): "agent" | "semantic" {
+function getSubmitMode(query: string, semanticMode: boolean): "agent" | "semantic" {
   return semanticMode || query.startsWith("@semantic") ? "semantic" : "agent";
 }
 
@@ -150,19 +141,13 @@ function formatTime(value: number): string {
   }
 }
 
-export function CommandBar({
-  onSubmit,
-  onAutoDashboard,
-  disabled,
-}: CommandBarProps) {
+export function CommandBar({ onSubmit, onAutoDashboard, disabled }: CommandBarProps) {
   const [query, setQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const [voiceDraft, setVoiceDraft] = useState<VoiceDraft | null>(null);
   const [voicePanelOpen, setVoicePanelOpen] = useState(false);
   const [voicePanelTab, setVoicePanelTab] = useState<VoicePanelTab>("settings");
-  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() =>
-    loadVoiceSettings(),
-  );
+  const [voiceSettings, setVoiceSettings] = useState<VoiceSettings>(() => loadVoiceSettings());
 
   const inputRef = useRef<HTMLInputElement>(null);
   const voiceSettingsRef = useRef<VoiceSettings>(voiceSettings);
@@ -176,10 +161,7 @@ export function CommandBar({
 
   const voiceLanguage = languageOptionFor(languageMode);
 
-  const voiceOutputMode = useMemo(
-    () => getVoiceOutputMode(voiceSettings),
-    [voiceSettings],
-  );
+  const voiceOutputMode = useMemo(() => getVoiceOutputMode(voiceSettings), [voiceSettings]);
 
   const submitMode = getSubmitMode(query.trim(), semanticMode);
 
@@ -223,8 +205,7 @@ export function CommandBar({
       if (!cleanText || disabled || agentRunning) return;
 
       const shouldSubmitImmediately =
-        voiceSettingsRef.current.autoSubmit &&
-        !voiceSettingsRef.current.showTranscript;
+        voiceSettingsRef.current.autoSubmit && !voiceSettingsRef.current.showTranscript;
 
       if (shouldSubmitImmediately) {
         setVoiceDraft({
@@ -262,10 +243,7 @@ export function CommandBar({
 
     requestAnimationFrame(() => {
       inputRef.current?.focus();
-      inputRef.current?.setSelectionRange(
-        voiceDraft.text.length,
-        voiceDraft.text.length,
-      );
+      inputRef.current?.setSelectionRange(voiceDraft.text.length, voiceDraft.text.length);
     });
   }, [voiceDraft]);
 
@@ -298,9 +276,7 @@ export function CommandBar({
       setVoiceSettings(event.settings);
       voiceSettingsRef.current = event.settings;
 
-      const nextLanguageMode = languageModeForVoiceHint(
-        event.settings.languageHint,
-      );
+      const nextLanguageMode = languageModeForVoiceHint(event.settings.languageHint);
 
       if (nextLanguageMode !== languageMode) {
         setLanguageMode(nextLanguageMode);
@@ -312,12 +288,7 @@ export function CommandBar({
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (
-        event.key === "/" &&
-        !event.metaKey &&
-        !event.ctrlKey &&
-        !event.altKey
-      ) {
+      if (event.key === "/" && !event.metaKey && !event.ctrlKey && !event.altKey) {
         const target = event.target as HTMLElement;
 
         if (
@@ -332,25 +303,18 @@ export function CommandBar({
         inputRef.current?.focus();
       }
 
-      if (
-        event.key === "Enter" &&
-        document.activeElement === inputRef.current
-      ) {
+      if (event.key === "Enter" && document.activeElement === inputRef.current) {
         handleSubmit();
       }
 
-      if (
-        event.key === "Escape" &&
-        document.activeElement === inputRef.current &&
-        voiceDraft
-      ) {
+      if (event.key === "Escape" && document.activeElement === inputRef.current && voiceDraft) {
         clearVoiceDraft();
       }
     };
 
-    window.addEventListener("keydown", handler);
+    globalThis.window.addEventListener("keydown", handler);
 
-    return () => window.removeEventListener("keydown", handler);
+    return () => globalThis.window.removeEventListener("keydown", handler);
   }, [clearVoiceDraft, handleSubmit, voiceDraft]);
 
   return (
@@ -432,11 +396,7 @@ export function CommandBar({
                   ? "border border-emerald-500/20 bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500/30"
                   : "cursor-not-allowed border border-white/10 bg-white/5 text-muted-foreground",
             )}
-            title={
-              submitMode === "semantic"
-                ? "Run semantic vector search"
-                : "Run agent command"
-            }
+            title={submitMode === "semantic" ? "Run semantic vector search" : "Run agent command"}
           >
             {agentRunning ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -445,11 +405,7 @@ export function CommandBar({
             )}
 
             <span className="hidden sm:inline">
-              {agentRunning
-                ? "Running..."
-                : submitMode === "semantic"
-                  ? "Search"
-                  : "Run"}
+              {agentRunning ? "Running..." : submitMode === "semantic" ? "Search" : "Run"}
             </span>
           </button>
         </div>
@@ -489,9 +445,8 @@ export function CommandBar({
                 </div>
 
                 <div className="mt-1 text-[10px] text-muted-foreground">
-                  The command is editable in the input before running. Voice
-                  routing and tool preview already happened inside the voice
-                  journey.
+                  The command is editable in the input before running. Voice routing and tool
+                  preview already happened inside the voice journey.
                 </div>
               </div>
 
@@ -535,9 +490,7 @@ export function CommandBar({
                   ) : (
                     <TerminalSquare className="h-3.5 w-3.5 text-emerald-300" />
                   )}
-                  {voicePanelTab === "settings"
-                    ? "Voice settings"
-                    : "Voice debug"}
+                  {voicePanelTab === "settings" ? "Voice settings" : "Voice debug"}
                 </div>
 
                 <div className="mt-0.5 text-[10px] text-muted-foreground">
@@ -586,15 +539,9 @@ export function CommandBar({
             </div>
 
             {voicePanelTab === "settings" ? (
-              <VoiceSettingsPanel
-                compact
-                onClose={() => setVoicePanelOpen(false)}
-              />
+              <VoiceSettingsPanel compact onClose={() => setVoicePanelOpen(false)} />
             ) : (
-              <VoiceDebugPanel
-                compact
-                onClose={() => setVoicePanelOpen(false)}
-              />
+              <VoiceDebugPanel compact onClose={() => setVoicePanelOpen(false)} />
             )}
           </div>
         )}
@@ -686,9 +633,7 @@ export function CommandBar({
           <div className="flex-1" />
 
           <span className="hidden text-[10px] text-muted-foreground/60 sm:inline">
-            Press{" "}
-            <kbd className="rounded bg-white/10 px-1 py-0.5 text-[9px]">/</kbd>{" "}
-            to focus
+            Press <kbd className="rounded bg-white/10 px-1 py-0.5 text-[9px]">/</kbd> to focus
           </span>
         </div>
       </motion.div>

@@ -1,7 +1,6 @@
 // .storybook/preview.tsx
 import type { Preview } from "@storybook/nextjs";
 import { initialize, mswLoader } from "msw-storybook-addon";
-import React from "react";
 import "../src/app/globals.css";
 import "./storybook-electron-mocks";
 

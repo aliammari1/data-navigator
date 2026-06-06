@@ -1,4 +1,8 @@
+import { setupRenderer } from "@better-auth/electron/preload";
 import { contextBridge, ipcRenderer } from "electron";
+import type { authClient } from "./auth-client";
+
+setupRenderer();
 
 export type DataFileFilter = {
   name: string;
@@ -99,32 +103,24 @@ export type DuckDBStatus = {
 const electronFS = {
   getDataDir: (): Promise<string> => ipcRenderer.invoke("fs:getDataDir"),
 
-  readFile: (filePath: string): Promise<ArrayBuffer> =>
-    ipcRenderer.invoke("fs:readFile", filePath),
+  readFile: (filePath: string): Promise<ArrayBuffer> => ipcRenderer.invoke("fs:readFile", filePath),
 
   writeFile: (filePath: string, data: ArrayBuffer): Promise<void> =>
     ipcRenderer.invoke("fs:writeFile", filePath, data),
 
-  deleteFile: (filePath: string): Promise<boolean> =>
-    ipcRenderer.invoke("fs:deleteFile", filePath),
+  deleteFile: (filePath: string): Promise<boolean> => ipcRenderer.invoke("fs:deleteFile", filePath),
 
-  listFiles: (dir?: string): Promise<string[]> =>
-    ipcRenderer.invoke("fs:listFiles", dir),
+  listFiles: (dir?: string): Promise<string[]> => ipcRenderer.invoke("fs:listFiles", dir),
 
   listFilesRecursive: (dir: string): Promise<string[]> =>
     ipcRenderer.invoke("fs:listFilesRecursive", dir),
 
-  fileExists: (filePath: string): Promise<boolean> =>
-    ipcRenderer.invoke("fs:fileExists", filePath),
+  fileExists: (filePath: string): Promise<boolean> => ipcRenderer.invoke("fs:fileExists", filePath),
 
-  openDialog: (
-    options: OpenDialogOptions,
-  ): Promise<{ canceled: boolean; filePaths: string[] }> =>
+  openDialog: (options: OpenDialogOptions): Promise<{ canceled: boolean; filePaths: string[] }> =>
     ipcRenderer.invoke("fs:openDialog", options),
 
-  saveDialog: (
-    options: SaveDialogOptions,
-  ): Promise<{ canceled: boolean; filePath?: string }> =>
+  saveDialog: (options: SaveDialogOptions): Promise<{ canceled: boolean; filePath?: string }> =>
     ipcRenderer.invoke("fs:saveDialog", options),
 } as const;
 
@@ -141,17 +137,12 @@ const electronDuckDB = {
   ): Promise<RegisteredDatasetWithPreview> =>
     ipcRenderer.invoke("duckdb:registerParquetPathDataset", input),
 
-  listDatasets: (): Promise<RegisteredDataset[]> =>
-    ipcRenderer.invoke("duckdb:listDatasets"),
+  listDatasets: (): Promise<RegisteredDataset[]> => ipcRenderer.invoke("duckdb:listDatasets"),
 
-  previewDataset: (
-    input: PreviewDatasetInput,
-  ): Promise<Record<string, unknown>[]> =>
+  previewDataset: (input: PreviewDatasetInput): Promise<Record<string, unknown>[]> =>
     ipcRenderer.invoke("duckdb:previewDataset", input),
 
-  summarizeDataset: (
-    input: DatasetOnlyInput,
-  ): Promise<Record<string, unknown>[]> =>
+  summarizeDataset: (input: DatasetOnlyInput): Promise<Record<string, unknown>[]> =>
     ipcRenderer.invoke("duckdb:summarizeDataset", input),
 
   exportDataset: (input: ExportDatasetInput): Promise<void> =>
@@ -160,14 +151,11 @@ const electronDuckDB = {
   deleteDataset: (input: DatasetOnlyInput): Promise<void> =>
     ipcRenderer.invoke("duckdb:deleteDataset", input),
 
-  getStatus: (): Promise<DuckDBStatus> =>
-    ipcRenderer.invoke("duckdb:getStatus"),
+  getStatus: (): Promise<DuckDBStatus> => ipcRenderer.invoke("duckdb:getStatus"),
 
-  getQueryMetrics: (): Promise<QueryMetric[]> =>
-    ipcRenderer.invoke("duckdb:getQueryMetrics"),
+  getQueryMetrics: (): Promise<QueryMetric[]> => ipcRenderer.invoke("duckdb:getQueryMetrics"),
 
-  clearQueryMetrics: (): Promise<void> =>
-    ipcRenderer.invoke("duckdb:clearQueryMetrics"),
+  clearQueryMetrics: (): Promise<void> => ipcRenderer.invoke("duckdb:clearQueryMetrics"),
   runReadOnlyQuery: (sql: string): Promise<Record<string, unknown>[]> =>
     ipcRenderer.invoke("duckdb:runReadOnlyQuery", sql),
 } as const;
@@ -176,6 +164,51 @@ const electronVoice = {
   getMicrophoneAccessStatus: (): Promise<
     "not-determined" | "granted" | "denied" | "restricted" | "unknown"
   > => ipcRenderer.invoke("voice:getMicrophoneAccessStatus"),
+  preloadStt: (input: {
+    engine?: string;
+    localModelPath?: string | null;
+  }): Promise<{ engine: string; model: string; runtime: "cpu" }> =>
+    ipcRenderer.invoke("voice:preloadStt", input),
+  transcribe: (input: {
+    audio: ArrayBuffer | Float32Array | number[];
+    sampleRate?: number;
+    engine?: string;
+    language?: string;
+    localModelPath?: string | null;
+  }): Promise<{
+    text: string;
+    engine: string;
+    model: string;
+    runtime: "cpu";
+    sampleRate: number;
+    audioDurationMs: number;
+    latencyMs: number;
+    language?: string;
+  }> => ipcRenderer.invoke("voice:transcribe", input),
+  preloadTts: (input: {
+    engine?: string;
+    localModelPath?: string | null;
+  }): Promise<{ engine: string; model: string; runtime: "cpu" }> =>
+    ipcRenderer.invoke("voice:preloadTts", input),
+  speak: (input: {
+    text: string;
+    engine?: string;
+    voice?: string;
+    speed?: number;
+    localModelPath?: string | null;
+  }): Promise<{
+    jobId: string;
+    engine: string;
+    model: string;
+    runtime: "cpu";
+    voice: string;
+    text: string;
+    sampleRate: number;
+    durationMs: number;
+    latencyMs: number;
+    wav: ArrayBuffer;
+  }> => ipcRenderer.invoke("voice:speak", input),
+  clearModels: (): Promise<{ stt: number; tts: number }> => ipcRenderer.invoke("voice:clearModels"),
 } as const;
 
 contextBridge.exposeInMainWorld("electronFS", electronFS);
@@ -183,6 +216,10 @@ contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 contextBridge.exposeInMainWorld("electronVoice", electronVoice);
 
 declare global {
+  type AuthBridges = typeof authClient.$Infer.Bridges;
+
+  interface Window extends AuthBridges {}
+
   interface Window {
     electronFS: typeof electronFS;
     electronDuckDB: typeof electronDuckDB;

@@ -14,7 +14,8 @@
  * - voice-debug-panel.tsx
  *
  * Storage:
- * localStorage["moudir_voice_settings"]
+ * - Drizzle app_setting row: namespace="voice", key="settings"
+ * - localStorage["moudir_voice_settings"] as the synchronous browser cache
  */
 
 import {
@@ -43,19 +44,11 @@ export type VoiceInteractionMode = VoiceMode;
 
 export type VoiceOutputMode = "text-only" | "speak-summary" | "speak-full";
 
-export type VoiceTranscriptBehavior =
-  | "review"
-  | "auto-submit"
-  | "silent-submit";
+export type VoiceTranscriptBehavior = "review" | "auto-submit" | "silent-submit";
 
 export type VoiceDebugLevel = "off" | "errors" | "normal" | "verbose";
 
-export type VoiceSettingsEventType =
-  | "loaded"
-  | "saved"
-  | "updated"
-  | "reset"
-  | "migrated";
+export type VoiceSettingsEventType = "loaded" | "saved" | "updated" | "reset" | "migrated";
 
 export interface VoiceSettings {
   /**
@@ -257,27 +250,20 @@ export type SttEngineLegacy =
   | "whisper-tunisian"
   | "moonshine";
 
-export type VoiceLanguageHintLegacy =
-  | VoiceLanguageHint
-  | "tounsi"
-  | "ar-SA"
-  | "fr-FR"
-  | "en-US";
+export type VoiceLanguageHintLegacy = VoiceLanguageHint | "tounsi" | "ar-SA" | "fr-FR" | "en-US";
 
 /* Re-export central registry types for convenience. */
-export type {
-  SpeakMode,
-  SttEngine,
-  TtsEngine,
-  VoiceLanguageHint,
-  VoiceRuntime,
-};
+export type { SpeakMode, SttEngine, TtsEngine, VoiceLanguageHint, VoiceRuntime };
 
 /* ------------------------------------------------------------------ */
 /*  Constants                                                          */
 /* ------------------------------------------------------------------ */
 
 export const VOICE_SETTINGS_STORAGE_KEY = "moudir_voice_settings";
+
+export const VOICE_SETTINGS_NAMESPACE = "voice";
+
+export const VOICE_SETTINGS_DB_KEY = "settings";
 
 export const VOICE_SETTINGS_EVENT_NAME = "moudir_voice_settings_changed";
 
@@ -334,8 +320,7 @@ export const VOICE_SETTINGS_PRESETS: VoiceSettingsPreset[] = [
   {
     id: "safe-review",
     label: "Safe review",
-    description:
-      "Best default: hold to talk, review transcript, preview tool call.",
+    description: "Best default: hold to talk, review transcript, preview tool call.",
     settings: {
       mode: "hold-to-talk",
       autoSubmit: false,
@@ -408,9 +393,11 @@ export const VOICE_SETTINGS_PRESETS: VoiceSettingsPreset[] = [
 /* ------------------------------------------------------------------ */
 
 function isBrowser(): boolean {
-  return (
-    typeof window !== "undefined" && typeof window.localStorage !== "undefined"
-  );
+  return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
+}
+
+function canUseSettingsApi(): boolean {
+  return typeof window !== "undefined" && typeof fetch !== "undefined";
 }
 
 function now(): number {
@@ -427,12 +414,13 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   }
 }
 
-function clampNumber(
-  value: unknown,
-  min: number,
-  max: number,
-  fallback: number,
-): number {
+function getVoiceSettingsApiPath(): string {
+  return `/api/settings/${encodeURIComponent(VOICE_SETTINGS_NAMESPACE)}/${encodeURIComponent(
+    VOICE_SETTINGS_DB_KEY,
+  )}`;
+}
+
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
@@ -453,11 +441,7 @@ function normalizeBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 function normalizeVoiceMode(value: unknown): VoiceMode {
-  if (
-    value === "hold-to-talk" ||
-    value === "push-to-talk" ||
-    value === "auto-vad"
-  ) {
+  if (value === "hold-to-talk" || value === "push-to-talk" || value === "auto-vad") {
     return value;
   }
 
@@ -472,12 +456,7 @@ function normalizeVoiceMode(value: unknown): VoiceMode {
 }
 
 function normalizeDebugLevel(value: unknown): VoiceDebugLevel {
-  if (
-    value === "off" ||
-    value === "errors" ||
-    value === "normal" ||
-    value === "verbose"
-  ) {
+  if (value === "off" || value === "errors" || value === "normal" || value === "verbose") {
     return value;
   }
 
@@ -527,9 +506,7 @@ function normalizeLegacyLanguageHint(value: unknown): VoiceLanguageHint {
  * - minRecordingMs
  * - languageHint: "tounsi"
  */
-function migrateRawSettings(
-  raw: Record<string, unknown>,
-): Partial<VoiceSettings> {
+function migrateRawSettings(raw: Record<string, unknown>): Partial<VoiceSettings> {
   const migrated: Record<string, unknown> = { ...raw };
 
   if ("minRecordingMs" in migrated && !("minSpeechMs" in migrated)) {
@@ -571,32 +548,16 @@ export function normalizeVoiceSettings(
 
     mode: normalizeVoiceMode(raw.mode),
 
-    vadSensitivity: clampNumber(
-      raw.vadSensitivity,
-      0,
-      1,
-      DEFAULT_VOICE_SETTINGS.vadSensitivity,
-    ),
-    vadEnabled: normalizeBoolean(
-      raw.vadEnabled,
-      DEFAULT_VOICE_SETTINGS.vadEnabled,
-    ),
-    bargeInEnabled: normalizeBoolean(
-      raw.bargeInEnabled,
-      DEFAULT_VOICE_SETTINGS.bargeInEnabled,
-    ),
+    vadSensitivity: clampNumber(raw.vadSensitivity, 0, 1, DEFAULT_VOICE_SETTINGS.vadSensitivity),
+    vadEnabled: normalizeBoolean(raw.vadEnabled, DEFAULT_VOICE_SETTINGS.vadEnabled),
+    bargeInEnabled: normalizeBoolean(raw.bargeInEnabled, DEFAULT_VOICE_SETTINGS.bargeInEnabled),
     maxRecordingMs: clampNumber(
       raw.maxRecordingMs,
       3_000,
       120_000,
       DEFAULT_VOICE_SETTINGS.maxRecordingMs,
     ),
-    minSpeechMs: clampNumber(
-      raw.minSpeechMs,
-      150,
-      3_000,
-      DEFAULT_VOICE_SETTINGS.minSpeechMs,
-    ),
+    minSpeechMs: clampNumber(raw.minSpeechMs, 150, 3_000, DEFAULT_VOICE_SETTINGS.minSpeechMs),
     silenceTimeoutMs: clampNumber(
       raw.silenceTimeoutMs,
       250,
@@ -609,32 +570,20 @@ export function normalizeVoiceSettings(
 
     sttEngine: normalizeSttEngine(raw.sttEngine),
     sttRuntime: normalizeVoiceRuntime(raw.sttRuntime),
-    preloadSttModel: normalizeBoolean(
-      raw.preloadSttModel,
-      DEFAULT_VOICE_SETTINGS.preloadSttModel,
-    ),
+    preloadSttModel: normalizeBoolean(raw.preloadSttModel, DEFAULT_VOICE_SETTINGS.preloadSttModel),
     allowRemoteSttModels: normalizeBoolean(
       raw.allowRemoteSttModels,
       DEFAULT_VOICE_SETTINGS.allowRemoteSttModels,
     ),
     localSttModelPath: normalizeNullableString(raw.localSttModelPath),
 
-    showTranscript: normalizeBoolean(
-      raw.showTranscript,
-      DEFAULT_VOICE_SETTINGS.showTranscript,
-    ),
-    autoSubmit: normalizeBoolean(
-      raw.autoSubmit,
-      DEFAULT_VOICE_SETTINGS.autoSubmit,
-    ),
+    showTranscript: normalizeBoolean(raw.showTranscript, DEFAULT_VOICE_SETTINGS.showTranscript),
+    autoSubmit: normalizeBoolean(raw.autoSubmit, DEFAULT_VOICE_SETTINGS.autoSubmit),
     saveTranscriptHistory: normalizeBoolean(
       raw.saveTranscriptHistory,
       DEFAULT_VOICE_SETTINGS.saveTranscriptHistory,
     ),
-    showToolPreview: normalizeBoolean(
-      raw.showToolPreview,
-      DEFAULT_VOICE_SETTINGS.showToolPreview,
-    ),
+    showToolPreview: normalizeBoolean(raw.showToolPreview, DEFAULT_VOICE_SETTINGS.showToolPreview),
     requireToolConfirmation: normalizeBoolean(
       raw.requireToolConfirmation,
       DEFAULT_VOICE_SETTINGS.requireToolConfirmation,
@@ -643,31 +592,14 @@ export function normalizeVoiceSettings(
     ttsEngine: normalizeTtsEngine(raw.ttsEngine),
     ttsRuntime: normalizeVoiceRuntime(raw.ttsRuntime),
     speakMode: normalizeSpeakMode(raw.speakMode),
-    autoPlayTts: normalizeBoolean(
-      raw.autoPlayTts,
-      DEFAULT_VOICE_SETTINGS.autoPlayTts,
-    ),
+    autoPlayTts: normalizeBoolean(raw.autoPlayTts, DEFAULT_VOICE_SETTINGS.autoPlayTts),
     ttsVoice: normalizeTtsVoice(raw.ttsVoice),
-    ttsSpeed: clampNumber(
-      raw.ttsSpeed,
-      0.5,
-      2,
-      DEFAULT_VOICE_SETTINGS.ttsSpeed,
-    ),
-    preloadTtsModel: normalizeBoolean(
-      raw.preloadTtsModel,
-      DEFAULT_VOICE_SETTINGS.preloadTtsModel,
-    ),
+    ttsSpeed: clampNumber(raw.ttsSpeed, 0.5, 2, DEFAULT_VOICE_SETTINGS.ttsSpeed),
+    preloadTtsModel: normalizeBoolean(raw.preloadTtsModel, DEFAULT_VOICE_SETTINGS.preloadTtsModel),
     localTtsModelPath: normalizeNullableString(raw.localTtsModelPath),
 
-    showJourney: normalizeBoolean(
-      raw.showJourney,
-      DEFAULT_VOICE_SETTINGS.showJourney,
-    ),
-    debugEnabled: normalizeBoolean(
-      raw.debugEnabled,
-      DEFAULT_VOICE_SETTINGS.debugEnabled,
-    ),
+    showJourney: normalizeBoolean(raw.showJourney, DEFAULT_VOICE_SETTINGS.showJourney),
+    debugEnabled: normalizeBoolean(raw.debugEnabled, DEFAULT_VOICE_SETTINGS.debugEnabled),
     debugLevel: normalizeDebugLevel(raw.debugLevel),
     emitVadFrameEvents: normalizeBoolean(
       raw.emitVadFrameEvents,
@@ -675,9 +607,7 @@ export function normalizeVoiceSettings(
     ),
 
     updatedAt:
-      typeof raw.updatedAt === "number" && Number.isFinite(raw.updatedAt)
-        ? raw.updatedAt
-        : now(),
+      typeof raw.updatedAt === "number" && Number.isFinite(raw.updatedAt) ? raw.updatedAt : now(),
   };
 
   /**
@@ -716,17 +646,13 @@ export function validateVoiceSettings(settings: VoiceSettings): {
   const enabledStt = getEnabledSttEngines();
 
   if (!enabledStt.includes(settings.sttEngine)) {
-    warnings.push(
-      `STT engine "${settings.sttEngine}" is registered but not marked enabled.`,
-    );
+    warnings.push(`STT engine "${settings.sttEngine}" is registered but not marked enabled.`);
   }
 
   const enabledTts = getEnabledTtsEngines();
 
   if (!enabledTts.includes(settings.ttsEngine)) {
-    warnings.push(
-      `TTS engine "${settings.ttsEngine}" is registered but not marked enabled.`,
-    );
+    warnings.push(`TTS engine "${settings.ttsEngine}" is registered but not marked enabled.`);
   }
 
   if (settings.mode === "auto-vad" && !settings.vadEnabled) {
@@ -763,6 +689,100 @@ export function getDefaultVoiceSettings(): VoiceSettings {
   };
 }
 
+let remoteHydrationStarted = false;
+
+function writeCachedVoiceSettings(settings: VoiceSettings): void {
+  if (!isBrowser()) return;
+
+  window.localStorage.setItem(VOICE_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
+}
+
+function readCachedVoiceSettings(): Record<string, unknown> | null {
+  if (!isBrowser()) return null;
+
+  return safeJsonParse<Record<string, unknown> | null>(
+    window.localStorage.getItem(VOICE_SETTINGS_STORAGE_KEY),
+    null,
+  );
+}
+
+function persistVoiceSettingsToDatabase(settings: VoiceSettings): void {
+  if (!canUseSettingsApi()) return;
+
+  void fetch(getVoiceSettingsApiPath(), {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ value: settings }),
+  }).catch((error) => {
+    console.warn("[voice-settings] failed to persist settings to database", error);
+  });
+}
+
+function deleteVoiceSettingsFromDatabase(): void {
+  if (!canUseSettingsApi()) return;
+
+  void fetch(getVoiceSettingsApiPath(), {
+    method: "DELETE",
+  }).catch((error) => {
+    console.warn("[voice-settings] failed to delete settings from database", error);
+  });
+}
+
+export async function loadVoiceSettingsFromDatabase(): Promise<VoiceSettings | null> {
+  if (!canUseSettingsApi()) return null;
+
+  const response = await fetch(getVoiceSettingsApiPath(), {
+    method: "GET",
+  });
+
+  if (response.status === 404) return null;
+
+  if (!response.ok) {
+    throw new Error(`Failed to load voice settings from database: ${response.status}`);
+  }
+
+  const payload = (await response.json()) as { value?: Record<string, unknown> | null };
+  if (!payload.value) return null;
+
+  return normalizeVoiceSettings(payload.value);
+}
+
+export async function hydrateVoiceSettingsFromDatabase(): Promise<VoiceSettings | null> {
+  const remote = await loadVoiceSettingsFromDatabase();
+  if (!remote) return null;
+
+  const cachedRaw = readCachedVoiceSettings();
+  const current = cachedRaw ? normalizeVoiceSettings(cachedRaw) : null;
+
+  if (current && remote.updatedAt < current.updatedAt) {
+    persistVoiceSettingsToDatabase(current);
+    return current;
+  }
+
+  writeCachedVoiceSettings(remote);
+
+  if (!current || JSON.stringify(remote) !== JSON.stringify(current)) {
+    dispatchVoiceSettingsChanged({
+      type: "loaded",
+      settings: remote,
+      previousSettings: current ?? getDefaultVoiceSettings(),
+    });
+  }
+
+  return remote;
+}
+
+function ensureVoiceSettingsHydratedFromDatabase(): void {
+  if (remoteHydrationStarted || !canUseSettingsApi()) return;
+
+  remoteHydrationStarted = true;
+  void hydrateVoiceSettingsFromDatabase().catch((error) => {
+    console.warn("[voice-settings] failed to hydrate settings from database", error);
+  });
+}
+
 export function loadVoiceSettingsSnapshot(): VoiceSettingsSnapshot {
   if (!isBrowser()) {
     return {
@@ -772,12 +792,11 @@ export function loadVoiceSettingsSnapshot(): VoiceSettingsSnapshot {
     };
   }
 
-  const raw = safeJsonParse<Record<string, unknown> | null>(
-    window.localStorage.getItem(VOICE_SETTINGS_STORAGE_KEY),
-    null,
-  );
+  const raw = readCachedVoiceSettings();
 
   if (!raw) {
+    ensureVoiceSettingsHydratedFromDatabase();
+
     return {
       settings: getDefaultVoiceSettings(),
       source: "defaults",
@@ -789,11 +808,11 @@ export function loadVoiceSettingsSnapshot(): VoiceSettingsSnapshot {
   const migrated = raw.version !== VOICE_SETTINGS_VERSION;
 
   if (migrated) {
-    saveVoiceSettings(normalized, {
-      eventType: "migrated",
-      dispatch: true,
-    });
+    writeCachedVoiceSettings(normalized);
   }
+
+  persistVoiceSettingsToDatabase(normalized);
+  ensureVoiceSettingsHydratedFromDatabase();
 
   return {
     settings: normalized,
@@ -820,12 +839,10 @@ export function saveVoiceSettings(
     updatedAt: now(),
   });
 
-  if (isBrowser()) {
-    window.localStorage.setItem(
-      VOICE_SETTINGS_STORAGE_KEY,
-      JSON.stringify(normalized),
-    );
+  writeCachedVoiceSettings(normalized);
+  persistVoiceSettingsToDatabase(normalized);
 
+  if (isBrowser()) {
     if (options.dispatch ?? true) {
       dispatchVoiceSettingsChanged({
         type: options.eventType ?? "saved",
@@ -838,9 +855,7 @@ export function saveVoiceSettings(
   return normalized;
 }
 
-export function updateVoiceSettings(
-  patch: Partial<VoiceSettings>,
-): VoiceSettings {
+export function updateVoiceSettings(patch: Partial<VoiceSettings>): VoiceSettings {
   const current = loadVoiceSettings();
 
   return saveVoiceSettings(
@@ -860,12 +875,10 @@ export function resetVoiceSettings(): VoiceSettings {
   const previousSettings = loadVoiceSettings();
   const next = getDefaultVoiceSettings();
 
-  if (isBrowser()) {
-    window.localStorage.setItem(
-      VOICE_SETTINGS_STORAGE_KEY,
-      JSON.stringify(next),
-    );
+  writeCachedVoiceSettings(next);
+  persistVoiceSettingsToDatabase(next);
 
+  if (isBrowser()) {
     dispatchVoiceSettingsChanged({
       type: "reset",
       settings: next,
@@ -882,6 +895,7 @@ export function clearVoiceSettings(): void {
   const previousSettings = loadVoiceSettings();
 
   window.localStorage.removeItem(VOICE_SETTINGS_STORAGE_KEY);
+  deleteVoiceSettingsFromDatabase();
 
   dispatchVoiceSettingsChanged({
     type: "reset",
@@ -894,12 +908,10 @@ export function clearVoiceSettings(): void {
 /*  Events / subscriptions                                             */
 /* ------------------------------------------------------------------ */
 
-export function dispatchVoiceSettingsChanged(
-  event: VoiceSettingsChangeEvent,
-): void {
+export function dispatchVoiceSettingsChanged(event: VoiceSettingsChangeEvent): void {
   if (!isBrowser()) return;
 
-  window.dispatchEvent(
+  globalThis.window.dispatchEvent(
     new CustomEvent<VoiceSettingsChangeEvent>(VOICE_SETTINGS_EVENT_NAME, {
       detail: event,
     }),
@@ -927,12 +939,12 @@ export function subscribeVoiceSettings(
     });
   };
 
-  window.addEventListener(VOICE_SETTINGS_EVENT_NAME, handleLocalEvent);
-  window.addEventListener("storage", handleStorageEvent);
+  globalThis.window.addEventListener(VOICE_SETTINGS_EVENT_NAME, handleLocalEvent);
+  globalThis.window.addEventListener("storage", handleStorageEvent);
 
   return () => {
-    window.removeEventListener(VOICE_SETTINGS_EVENT_NAME, handleLocalEvent);
-    window.removeEventListener("storage", handleStorageEvent);
+    globalThis.window.removeEventListener(VOICE_SETTINGS_EVENT_NAME, handleLocalEvent);
+    globalThis.window.removeEventListener("storage", handleStorageEvent);
   };
 }
 
@@ -950,9 +962,7 @@ export function applyVoiceSettingsPreset(presetId: string): VoiceSettings {
   return updateVoiceSettings(preset.settings);
 }
 
-export function getVoiceSettingsPreset(
-  presetId: string,
-): VoiceSettingsPreset | null {
+export function getVoiceSettingsPreset(presetId: string): VoiceSettingsPreset | null {
   return VOICE_SETTINGS_PRESETS.find((item) => item.id === presetId) ?? null;
 }
 
@@ -972,9 +982,7 @@ export function getVoiceOutputMode(settings: VoiceSettings): VoiceOutputMode {
   return "speak-full";
 }
 
-export function getTranscriptBehavior(
-  settings: VoiceSettings,
-): VoiceTranscriptBehavior {
+export function getTranscriptBehavior(settings: VoiceSettings): VoiceTranscriptBehavior {
   if (settings.autoSubmit && settings.showTranscript) {
     return "auto-submit";
   }
@@ -1000,10 +1008,7 @@ export function getVadThresholdsFromSensitivity(settings: VoiceSettings): {
   const sensitivity = Math.min(1, Math.max(0, settings.vadSensitivity));
 
   const positiveSpeechThreshold = 0.75 - sensitivity * 0.35;
-  const negativeSpeechThreshold = Math.max(
-    0.15,
-    positiveSpeechThreshold - 0.15,
-  );
+  const negativeSpeechThreshold = Math.max(0.15, positiveSpeechThreshold - 0.15);
 
   return {
     positiveSpeechThreshold: Math.round(positiveSpeechThreshold * 100) / 100,
@@ -1023,10 +1028,7 @@ export function getVadFrameSettings(settings: VoiceSettings): {
   const frameMs = 32;
 
   return {
-    redemptionFrames: Math.max(
-      4,
-      Math.round(settings.silenceTimeoutMs / frameMs),
-    ),
+    redemptionFrames: Math.max(4, Math.round(settings.silenceTimeoutMs / frameMs)),
     preSpeechPadFrames: 10,
     minSpeechFrames: Math.max(3, Math.round(settings.minSpeechMs / frameMs)),
   };
@@ -1141,6 +1143,11 @@ export function createVoiceWorkerSettingsPayload(settings: VoiceSettings): {
 
 export function exportVoiceSettings(): string {
   return JSON.stringify(loadVoiceSettings(), null, 2);
+}
+
+export async function exportVoiceSettingsFromDatabase(): Promise<string> {
+  const settings = (await hydrateVoiceSettingsFromDatabase()) ?? loadVoiceSettings();
+  return JSON.stringify(settings, null, 2);
 }
 
 export function importVoiceSettings(json: string): VoiceSettings {

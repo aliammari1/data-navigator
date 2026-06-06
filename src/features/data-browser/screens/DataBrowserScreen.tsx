@@ -72,14 +72,7 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useTransition,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { Badge } from "@/components/ui/badge";
 // UI components
 import { Button } from "@/components/ui/button";
@@ -116,11 +109,7 @@ import { Separator } from "@/components/ui/separator";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   OPERATOR_LABELS,
   PAGE_SIZES,
@@ -183,15 +172,8 @@ function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
-function datasetMatchesName(
-  dataset: RegisteredDataset,
-  value: string,
-): boolean {
-  return (
-    dataset.id === value ||
-    dataset.viewName === value ||
-    dataset.displayName === value
-  );
+function datasetMatchesName(dataset: RegisteredDataset, value: string): boolean {
+  return dataset.id === value || dataset.viewName === value || dataset.displayName === value;
 }
 
 function columnsFromDataset(
@@ -302,31 +284,24 @@ export default function DataBrowserScreen({
 
   // Views
   const [viewMode, setViewMode] = useState<ViewMode>("table");
-  const [customQueryResult, setCustomQueryResult] = useState<
-    Record<string, unknown>[] | null
-  >(null);
+  const [customQueryResult, setCustomQueryResult] = useState<Record<string, unknown>[] | null>(
+    null,
+  );
   const [customQueryCols, setCustomQueryCols] = useState<string[]>([]);
   const [customQueryTime, setCustomQueryTime] = useState<number | null>(null);
-  const [sqlQuery, setSqlQuery] = useState(
-    `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100`,
-  );
+  const [sqlQuery, setSqlQuery] = useState(`SELECT * FROM ${quoteIdentifier(tableName)} LIMIT 100`);
 
   // Column UI
   const [colPanelOpen, setColPanelOpen] = useState(false);
   const [columnSearch, setColumnSearch] = useState("");
   const [activeColStats, setActiveColStats] = useState<string | null>(null);
-  const [columnStats, setColumnStats] = useState<Record<string, ColumnStats>>(
-    {},
-  );
+  const [columnStats, setColumnStats] = useState<Record<string, ColumnStats>>({});
   const [resizingCol, setResizingCol] = useState<string | null>(null);
   const [resizeStart, setResizeStart] = useState(0);
   const [resizeStartWidth, setResizeStartWidth] = useState(0);
 
   // Row details
-  const [rowDetailRow, setRowDetailRow] = useState<Record<
-    string,
-    unknown
-  > | null>(null);
+  const [rowDetailRow, setRowDetailRow] = useState<Record<string, unknown> | null>(null);
   const [starredRows, setStarredRows] = useState<Set<number>>(new Set());
 
   // Misc
@@ -337,9 +312,7 @@ export default function DataBrowserScreen({
   const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
 
   const [analyticsTab, setAnalyticsTab] = useState("overview");
-  const [analyticsData, setAnalyticsData] = useState<Record<string, unknown>[]>(
-    [],
-  );
+  const [analyticsData, setAnalyticsData] = useState<Record<string, unknown>[]>([]);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
   const [isPending, startTransition] = useTransition();
@@ -349,9 +322,7 @@ export default function DataBrowserScreen({
 
     let sampleRow: Record<string, unknown> = {};
     try {
-      const sample = await runReadOnlyQuery(
-        `SELECT * FROM ${quoteIdentifier(viewName)} LIMIT 1`,
-      );
+      const sample = await runReadOnlyQuery(`SELECT * FROM ${quoteIdentifier(viewName)} LIMIT 1`);
       sampleRow = sample[0] ?? {};
     } catch {
       sampleRow = {};
@@ -394,9 +365,7 @@ export default function DataBrowserScreen({
         setDatasetCatalog(catalog);
 
         const selectedDataset =
-          catalog.find((dataset) => datasetMatchesName(dataset, tableName)) ??
-          catalog[0] ??
-          null;
+          catalog.find((dataset) => datasetMatchesName(dataset, tableName)) ?? catalog[0] ?? null;
 
         if (!selectedDataset) {
           setColumns([]);
@@ -456,16 +425,12 @@ export default function DataBrowserScreen({
       const ext = fileExtensionFromPath(filePath);
 
       setUploadingFile({ name: fileName, progress: 20, status: "reading" });
-      setUploadingFile(
-        (p) => p && { ...p, progress: 65, status: "loading_db" },
-      );
+      setUploadingFile((p) => p && { ...p, progress: 65, status: "loading_db" });
 
       const loaded = await loadUploadPathToDuckDB(filePath, {
         tableName: sanitizeUploadTableName(fileName),
         displayName: fileName.replace(/\.[^.]+$/, ""),
-        fileExtension: ext as Parameters<
-          typeof loadUploadPathToDuckDB
-        >[1]["fileExtension"],
+        fileExtension: ext as Parameters<typeof loadUploadPathToDuckDB>[1]["fileExtension"],
         hasHeader: true,
         previewLimit: 1,
       });
@@ -561,12 +526,9 @@ export default function DataBrowserScreen({
 
     async function fetchAnalytics() {
       const dimension =
-        columns.find((column) =>
-          ["string", "email", "url", "date"].includes(column.type),
-        ) ?? columns[0];
-      const numericColumns = columns.filter(
-        (column) => column.type === "number",
-      );
+        columns.find((column) => ["string", "email", "url", "date"].includes(column.type)) ??
+        columns[0];
+      const numericColumns = columns.filter((column) => column.type === "number");
       const sumMetric = numericColumns[0];
       const avgMetric = numericColumns[1] ?? sumMetric;
       const secondaryMetric = numericColumns[2] ?? avgMetric;
@@ -686,10 +648,7 @@ export default function DataBrowserScreen({
   }, [activeColStats, loadColumnStats]);
 
   // ── Virtualization ──
-  const visibleColumns = useMemo(
-    () => columns.filter((c) => c.visible),
-    [columns],
-  );
+  const visibleColumns = useMemo(() => columns.filter((c) => c.visible), [columns]);
 
   const rowVirtualizer = useVirtualizer({
     count: rows.length,
@@ -747,10 +706,7 @@ export default function DataBrowserScreen({
             );
           return prev.filter((s) => s.column !== colName);
         }
-        return [
-          ...prev,
-          { column: colName, direction: "asc" as const, priority: prev.length },
-        ];
+        return [...prev, { column: colName, direction: "asc" as const, priority: prev.length }];
       }
       if (existing) {
         if (existing.direction === "asc")
@@ -783,8 +739,7 @@ export default function DataBrowserScreen({
   // ── Export ──
   const exportData = useCallback(
     (format: "csv") => {
-      const data =
-        selectedRows.size > 0 ? [...selectedRows].map((i) => rows[i]) : rows;
+      const data = selectedRows.size > 0 ? [...selectedRows].map((i) => rows[i]) : rows;
 
       const sep = ",";
       const headers = Object.keys(data[0] || {});
@@ -842,11 +797,11 @@ export default function DataBrowserScreen({
       );
     };
     const onUp = () => setResizingCol(null);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    globalThis.window.addEventListener("mousemove", onMove);
+    globalThis.window.addEventListener("mouseup", onUp);
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      globalThis.window.removeEventListener("mousemove", onMove);
+      globalThis.window.removeEventListener("mouseup", onUp);
     };
   }, [resizingCol, resizeStart, resizeStartWidth]);
 
@@ -875,9 +830,7 @@ export default function DataBrowserScreen({
           color: "#71717a",
           fontSize: 11,
           formatter: (v: number) =>
-            v >= 1e6
-              ? `$${(v / 1e6).toFixed(1)}M`
-              : `$${(v / 1e3).toFixed(0)}K`,
+            v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${(v / 1e3).toFixed(0)}K`,
         },
         splitLine: { lineStyle: { color: "#27272a" } },
       },
@@ -1040,14 +993,11 @@ export default function DataBrowserScreen({
     const selectedData = [...selectedRows].map((i) => rows[i]).filter(Boolean);
     const numCols = columns.filter((c) => c.visible && c.type === "number");
     return numCols.slice(0, 3).map((col) => {
-      const vals = selectedData
-        .map((r) => Number(r[col.name]))
-        .filter((v) => !Number.isNaN(v));
+      const vals = selectedData.map((r) => Number(r[col.name])).filter((v) => !Number.isNaN(v));
       return {
         col: col.name,
         sum: vals.reduce((a, b) => a + b, 0),
-        avg:
-          vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0,
+        avg: vals.length > 0 ? vals.reduce((a, b) => a + b, 0) / vals.length : 0,
         min: vals.length > 0 ? Math.min(...vals) : 0,
         max: vals.length > 0 ? Math.max(...vals) : 0,
       };
@@ -1073,13 +1023,10 @@ export default function DataBrowserScreen({
               <Database className="h-3.5 w-3.5 text-emerald-400" />
             </div>
             <div className="min-w-0">
-              <h1 className="text-sm font-semibold text-zinc-100 leading-none">
-                Data Browser
-              </h1>
+              <h1 className="text-sm font-semibold text-zinc-100 leading-none">Data Browser</h1>
               {dbReady && (
                 <p className="text-[10px] text-zinc-500 mt-0.5">
-                  {totalRows.toLocaleString()} rows ·{" "}
-                  {columns.filter((c) => c.visible).length} cols
+                  {totalRows.toLocaleString()} rows · {columns.filter((c) => c.visible).length} cols
                   {queryTime != null && ` · ${queryTime}ms`}
                 </p>
               )}
@@ -1094,8 +1041,7 @@ export default function DataBrowserScreen({
                 size="icon"
                 className={cn(
                   "h-8 w-8 border-zinc-800 bg-zinc-900",
-                  uploadPanelOpen &&
-                    "border-blue-500/50 bg-blue-500/10 text-blue-400",
+                  uploadPanelOpen && "border-blue-500/50 bg-blue-500/10 text-blue-400",
                 )}
                 aria-label="Upload file"
                 onClick={() => setUploadPanelOpen(!uploadPanelOpen)}
@@ -1124,11 +1070,7 @@ export default function DataBrowserScreen({
               </SelectTrigger>
               <SelectContent className="bg-zinc-900 border-zinc-800">
                 {datasetCatalog.map((dataset) => (
-                  <SelectItem
-                    key={dataset.id}
-                    value={dataset.viewName}
-                    className="text-xs"
-                  >
+                  <SelectItem key={dataset.id} value={dataset.viewName} className="text-xs">
                     {getDatasetLabel(dataset)}
                   </SelectItem>
                 ))}
@@ -1253,10 +1195,7 @@ export default function DataBrowserScreen({
               Export
               <ChevronDown className="h-3 w-3 text-zinc-500" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="bg-zinc-900 border-zinc-800"
-            >
+            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800">
               <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium">
                 {selectedRows.size > 0
                   ? `${selectedRows.size} selected rows`
@@ -1278,13 +1217,8 @@ export default function DataBrowserScreen({
             <DropdownMenuTrigger className="inline-flex items-center justify-center h-8 w-8 rounded-md border border-zinc-800 bg-zinc-900 hover:bg-zinc-800 transition-colors text-zinc-300">
               <SlidersHorizontal className="h-3.5 w-3.5" />
             </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              className="bg-zinc-900 border-zinc-800 w-52"
-            >
-              <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium">
-                Table Options
-              </div>
+            <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 w-52">
+              <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium">Table Options</div>
               <DropdownMenuSeparator className="bg-zinc-800" />
               <div className="px-2 py-1.5 space-y-2">
                 <div className="flex items-center justify-between">
@@ -1322,9 +1256,7 @@ export default function DataBrowserScreen({
               </div>
               <DropdownMenuSeparator className="bg-zinc-800" />
               <div className="px-2 py-1.5">
-                <Label className="text-xs text-zinc-500 block mb-1.5">
-                  Page Size
-                </Label>
+                <Label className="text-xs text-zinc-500 block mb-1.5">Page Size</Label>
                 <Select
                   value={String(pageSize)}
                   onValueChange={(v) => {
@@ -1356,17 +1288,14 @@ export default function DataBrowserScreen({
             onClick={fetchRows}
             disabled={queryLoading}
           >
-            <RefreshCw
-              className={cn("h-3.5 w-3.5", queryLoading && "animate-spin")}
-            />
+            <RefreshCw className={cn("h-3.5 w-3.5", queryLoading && "animate-spin")} />
           </Button>
         </div>
       </div>
 
       {/* ── Toolbar row 2: active filters + sorts ── */}
       <AnimatePresence>
-        {(filterGroup.rules.filter((r) => r.active).length > 0 ||
-          sorts.length > 0) && (
+        {(filterGroup.rules.filter((r) => r.active).length > 0 || sorts.length > 0) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: "auto", opacity: 1 }}
@@ -1387,11 +1316,7 @@ export default function DataBrowserScreen({
                   )}
                   {s.column}
                   <Button
-                    onClick={() =>
-                      setSorts((prev) =>
-                        prev.filter((x) => x.column !== s.column),
-                      )
-                    }
+                    onClick={() => setSorts((prev) => prev.filter((x) => x.column !== s.column))}
                   >
                     <X className="h-2.5 w-2.5 ml-0.5 opacity-60 hover:opacity-100" />
                   </Button>
@@ -1411,9 +1336,7 @@ export default function DataBrowserScreen({
                       onClick={() =>
                         setFilterGroup((prev) =>
                           produce(prev, (draft) => {
-                            const idx = draft.rules.findIndex(
-                              (x) => x.id === r.id,
-                            );
+                            const idx = draft.rules.findIndex((x) => x.id === r.id);
                             if (idx !== -1) draft.rules.splice(idx, 1);
                           }),
                         )
@@ -1423,8 +1346,7 @@ export default function DataBrowserScreen({
                     </Button>
                   </Badge>
                 ))}
-              {(filterGroup.rules.filter((r) => r.active).length > 0 ||
-                sorts.length > 0) && (
+              {(filterGroup.rules.filter((r) => r.active).length > 0 || sorts.length > 0) && (
                 <Button
                   className="text-[11px] text-zinc-500 hover:text-zinc-300"
                   onClick={() => {
@@ -1476,11 +1398,7 @@ export default function DataBrowserScreen({
                     )}
                   >
                     <motion.div
-                      animate={
-                        uploadDragging
-                          ? { scale: 1.1, y: -4 }
-                          : { scale: 1, y: 0 }
-                      }
+                      animate={uploadDragging ? { scale: 1.1, y: -4 } : { scale: 1, y: 0 }}
                       className={cn(
                         "h-12 w-12 rounded-xl flex items-center justify-center",
                         uploadDragging
@@ -1497,34 +1415,27 @@ export default function DataBrowserScreen({
                     </motion.div>
                     <div className="text-center">
                       <p className="text-sm font-medium text-zinc-200">
-                        {uploadDragging
-                          ? "Drop detected"
-                          : "Click to choose a trusted local file"}
+                        {uploadDragging ? "Drop detected" : "Click to choose a trusted local file"}
                       </p>
                       <p className="text-xs text-zinc-500 mt-1">
                         Use the Upload screen for path-based DuckDB import
                       </p>
                     </div>
                     <div className="flex gap-2">
-                      {[{ ext: "CSV", color: "emerald" }].map(
-                        ({ ext, color }) => (
-                          <Badge
-                            key={ext}
-                            variant="outline"
-                            className={cn(
-                              "text-[11px]",
-                              color === "emerald" &&
-                                "border-emerald-500/30 text-emerald-400",
-                              color === "blue" &&
-                                "border-blue-500/30 text-blue-400",
-                              color === "green" &&
-                                "border-green-500/30 text-green-400",
-                            )}
-                          >
-                            .{ext}
-                          </Badge>
-                        ),
-                      )}
+                      {[{ ext: "CSV", color: "emerald" }].map(({ ext, color }) => (
+                        <Badge
+                          key={ext}
+                          variant="outline"
+                          className={cn(
+                            "text-[11px]",
+                            color === "emerald" && "border-emerald-500/30 text-emerald-400",
+                            color === "blue" && "border-blue-500/30 text-blue-400",
+                            color === "green" && "border-green-500/30 text-green-400",
+                          )}
+                        >
+                          .{ext}
+                        </Badge>
+                      ))}
                     </div>
                   </div>
                 ) : (
@@ -1537,11 +1448,9 @@ export default function DataBrowserScreen({
                       <div
                         className={cn(
                           "h-9 w-9 rounded-lg flex items-center justify-center flex-none",
-                          uploadingFile.status === "done" &&
-                            "bg-emerald-500/10",
+                          uploadingFile.status === "done" && "bg-emerald-500/10",
                           uploadingFile.status === "error" && "bg-red-500/10",
-                          !["done", "error"].includes(uploadingFile.status) &&
-                            "bg-blue-500/10",
+                          !["done", "error"].includes(uploadingFile.status) && "bg-blue-500/10",
                         )}
                       >
                         {uploadingFile.status === "done" && (
@@ -1561,11 +1470,9 @@ export default function DataBrowserScreen({
                         <p
                           className={cn(
                             "text-xs mt-0.5 capitalize",
-                            uploadingFile.status === "done" &&
-                              "text-emerald-400",
+                            uploadingFile.status === "done" && "text-emerald-400",
                             uploadingFile.status === "error" && "text-red-400",
-                            !["done", "error"].includes(uploadingFile.status) &&
-                              "text-blue-400",
+                            !["done", "error"].includes(uploadingFile.status) && "text-blue-400",
                           )}
                         >
                           {uploadingFile.status === "loading_db"
@@ -1618,10 +1525,7 @@ export default function DataBrowserScreen({
                 {selectedRows.size} rows selected
               </span>
               {selectionStats.map((s) => (
-                <div
-                  key={s.col}
-                  className="flex items-center gap-3 text-[11px]"
-                >
+                <div key={s.col} className="flex items-center gap-3 text-[11px]">
                   <span className="text-zinc-500">{s.col}:</span>
                   <span className="text-emerald-400">
                     Σ{" "}
@@ -1709,9 +1613,7 @@ export default function DataBrowserScreen({
                             onCheckedChange={(v) =>
                               setFilterGroup((prev) =>
                                 produce(prev, (draft) => {
-                                  const r = draft.rules.find(
-                                    (x) => x.id === rule.id,
-                                  );
+                                  const r = draft.rules.find((x) => x.id === rule.id);
                                   if (r) r.active = Boolean(v);
                                 }),
                               )
@@ -1723,9 +1625,7 @@ export default function DataBrowserScreen({
                               v &&
                               setFilterGroup((prev) =>
                                 produce(prev, (draft) => {
-                                  const r = draft.rules.find(
-                                    (x) => x.id === rule.id,
-                                  );
+                                  const r = draft.rules.find((x) => x.id === rule.id);
                                   if (r) r.column = v;
                                 }),
                               )
@@ -1738,11 +1638,7 @@ export default function DataBrowserScreen({
                               {columns
                                 .filter((c) => c.filterable)
                                 .map((c) => (
-                                  <SelectItem
-                                    key={c.id}
-                                    value={c.name}
-                                    className="text-xs"
-                                  >
+                                  <SelectItem key={c.id} value={c.name} className="text-xs">
                                     {c.name}
                                   </SelectItem>
                                 ))}
@@ -1752,9 +1648,7 @@ export default function DataBrowserScreen({
                             onClick={() =>
                               setFilterGroup((prev) =>
                                 produce(prev, (draft) => {
-                                  draft.rules = draft.rules.filter(
-                                    (x) => x.id !== rule.id,
-                                  );
+                                  draft.rules = draft.rules.filter((x) => x.id !== rule.id);
                                 }),
                               )
                             }
@@ -1769,9 +1663,7 @@ export default function DataBrowserScreen({
                             v &&
                             setFilterGroup((prev) =>
                               produce(prev, (draft) => {
-                                const r = draft.rules.find(
-                                  (x) => x.id === rule.id,
-                                );
+                                const r = draft.rules.find((x) => x.id === rule.id);
                                 if (r) r.operator = v as FilterRule["operator"];
                               }),
                             )
@@ -1781,38 +1673,29 @@ export default function DataBrowserScreen({
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-zinc-900 border-zinc-800">
-                            {Object.entries(OPERATOR_LABELS).map(
-                              ([op, label]) => (
-                                <SelectItem
-                                  key={op}
-                                  value={op}
-                                  className="text-xs"
-                                >
-                                  {label}
-                                </SelectItem>
-                              ),
-                            )}
+                            {Object.entries(OPERATOR_LABELS).map(([op, label]) => (
+                              <SelectItem key={op} value={op} className="text-xs">
+                                {label}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
 
-                        {rule.operator !== "is_null" &&
-                          rule.operator !== "is_not_null" && (
-                            <Input
-                              value={rule.value}
-                              onChange={(e) =>
-                                setFilterGroup((prev) =>
-                                  produce(prev, (draft) => {
-                                    const r = draft.rules.find(
-                                      (x) => x.id === rule.id,
-                                    );
-                                    if (r) r.value = e.target.value;
-                                  }),
-                                )
-                              }
-                              placeholder="Value..."
-                              className="h-7 text-xs bg-zinc-800 border-zinc-700"
-                            />
-                          )}
+                        {rule.operator !== "is_null" && rule.operator !== "is_not_null" && (
+                          <Input
+                            value={rule.value}
+                            onChange={(e) =>
+                              setFilterGroup((prev) =>
+                                produce(prev, (draft) => {
+                                  const r = draft.rules.find((x) => x.id === rule.id);
+                                  if (r) r.value = e.target.value;
+                                }),
+                              )
+                            }
+                            placeholder="Value..."
+                            className="h-7 text-xs bg-zinc-800 border-zinc-700"
+                          />
+                        )}
 
                         {rule.operator === "between" && (
                           <Input
@@ -1820,9 +1703,7 @@ export default function DataBrowserScreen({
                             onChange={(e) =>
                               setFilterGroup((prev) =>
                                 produce(prev, (draft) => {
-                                  const r = draft.rules.find(
-                                    (x) => x.id === rule.id,
-                                  );
+                                  const r = draft.rules.find((x) => x.id === rule.id);
                                   if (r) r.value2 = e.target.value;
                                 }),
                               )
@@ -1888,9 +1769,7 @@ export default function DataBrowserScreen({
                   <Database className="absolute inset-0 m-auto h-7 w-7 text-emerald-400" />
                 </div>
                 <div className="text-center">
-                  <p className="text-sm font-medium text-zinc-200">
-                    Initializing native DuckDB
-                  </p>
+                  <p className="text-sm font-medium text-zinc-200">Initializing native DuckDB</p>
                   <p className="text-xs text-zinc-500 mt-1">
                     Opening the catalog-backed dataset view…
                   </p>
@@ -1910,17 +1789,12 @@ export default function DataBrowserScreen({
                   className="flex-none overflow-hidden border-b border-zinc-800 bg-zinc-900/50"
                   style={{ paddingRight: "0px" }}
                 >
-                  <div
-                    className="flex items-stretch"
-                    style={{ minWidth: "fit-content" }}
-                  >
+                  <div className="flex items-stretch" style={{ minWidth: "fit-content" }}>
                     {/* Row number header */}
                     {showRowNumbers && (
                       <div className="flex-none w-10 flex items-center justify-center border-r border-zinc-800 bg-zinc-900">
                         <Checkbox
-                          checked={
-                            rows.length > 0 && selectedRows.size === rows.length
-                          }
+                          checked={rows.length > 0 && selectedRows.size === rows.length}
                           onCheckedChange={selectAll}
                           className="h-3.5 w-3.5"
                         />
@@ -1938,9 +1812,7 @@ export default function DataBrowserScreen({
                           activeColStats={activeColStats}
                           onSort={handleSort}
                           onStats={() =>
-                            setActiveColStats(
-                              activeColStats === col.id ? null : col.id,
-                            )
+                            setActiveColStats(activeColStats === col.id ? null : col.id)
                           }
                           onResize={(e) => startResize(col.id, e)}
                           onPin={(dir) =>
@@ -1965,9 +1837,7 @@ export default function DataBrowserScreen({
 
                     {/* Regular columns */}
                     {visibleColumns
-                      .filter(
-                        (c) => c.pinned !== "left" && c.pinned !== "right",
-                      )
+                      .filter((c) => c.pinned !== "left" && c.pinned !== "right")
                       .map((col) => (
                         <ColumnHeader
                           key={col.id}
@@ -1976,9 +1846,7 @@ export default function DataBrowserScreen({
                           activeColStats={activeColStats}
                           onSort={handleSort}
                           onStats={() =>
-                            setActiveColStats(
-                              activeColStats === col.id ? null : col.id,
-                            )
+                            setActiveColStats(activeColStats === col.id ? null : col.id)
                           }
                           onResize={(e) => startResize(col.id, e)}
                           onPin={(dir) =>
@@ -2012,9 +1880,7 @@ export default function DataBrowserScreen({
                           activeColStats={activeColStats}
                           onSort={handleSort}
                           onStats={() =>
-                            setActiveColStats(
-                              activeColStats === col.id ? null : col.id,
-                            )
+                            setActiveColStats(activeColStats === col.id ? null : col.id)
                           }
                           onResize={(e) => startResize(col.id, e)}
                           onPin={(dir) =>
@@ -2055,15 +1921,9 @@ export default function DataBrowserScreen({
                               {activeColStats}
                             </span>
                             <ColumnTypeChip
-                              type={
-                                columns.find((c) => c.id === activeColStats)
-                                  ?.type ?? "string"
-                              }
+                              type={columns.find((c) => c.id === activeColStats)?.type ?? "string"}
                             />
-                            <Button
-                              onClick={() => setActiveColStats(null)}
-                              className="ml-auto"
-                            >
+                            <Button onClick={() => setActiveColStats(null)} className="ml-auto">
                               <X className="h-3.5 w-3.5 text-zinc-500 hover:text-zinc-300" />
                             </Button>
                           </div>
@@ -2119,11 +1979,8 @@ export default function DataBrowserScreen({
                       if (!rowData) return null;
 
                       const isSelected = selectedRows.has(virtualRow.index);
-                      const isStarred = starredRows.has(
-                        Number(rowData.id ?? virtualRow.index),
-                      );
-                      const isZebra =
-                        zebraStripes && virtualRow.index % 2 === 1;
+                      const isStarred = starredRows.has(Number(rowData.id ?? virtualRow.index));
+                      const isZebra = zebraStripes && virtualRow.index % 2 === 1;
 
                       return (
                         <div
@@ -2140,8 +1997,7 @@ export default function DataBrowserScreen({
                           onDoubleClick={() => setRowDetailRow(rowData)}
                           className={cn(
                             "flex items-stretch border-b border-zinc-800/30 group transition-colors cursor-pointer",
-                            isSelected &&
-                              "bg-emerald-500/10 border-emerald-500/10",
+                            isSelected && "bg-emerald-500/10 border-emerald-500/10",
                             !isSelected && isZebra && "bg-zinc-900/30",
                             !isSelected && !isZebra && "bg-transparent",
                             "hover:bg-zinc-800/40",
@@ -2177,14 +2033,12 @@ export default function DataBrowserScreen({
                                 key={col.id}
                                 className={cn(
                                   "flex items-center px-3 border-r border-zinc-800/20 text-xs font-mono truncate",
-                                  col.type === "number" &&
-                                    "justify-end text-emerald-300",
+                                  col.type === "number" && "justify-end text-emerald-300",
                                   col.type === "boolean" && "justify-center",
                                   col.type === "date" && "text-purple-300",
                                   col.type === "email" && "text-blue-300",
                                   !value && "text-zinc-600 italic",
-                                  isFocused &&
-                                    "outline outline-1 outline-blue-500 bg-blue-500/5",
+                                  isFocused && "outline outline-1 outline-blue-500 bg-blue-500/5",
                                 )}
                                 style={{
                                   width: col.width,
@@ -2205,9 +2059,7 @@ export default function DataBrowserScreen({
                                 }}
                               >
                                 {value === null || value === undefined ? (
-                                  <span className="text-zinc-700 text-[10px]">
-                                    NULL
-                                  </span>
+                                  <span className="text-zinc-700 text-[10px]">NULL</span>
                                 ) : col.type === "boolean" ? (
                                   <span
                                     className={cn(
@@ -2233,9 +2085,7 @@ export default function DataBrowserScreen({
                             <Button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const id = Number(
-                                  rowData.id ?? virtualRow.index,
-                                );
+                                const id = Number(rowData.id ?? virtualRow.index);
                                 setStarredRows((prev) => {
                                   const next = new Set(prev);
                                   if (next.has(id)) next.delete(id);
@@ -2245,9 +2095,7 @@ export default function DataBrowserScreen({
                               }}
                               className="h-5 w-5 flex items-center justify-center rounded hover:bg-zinc-700"
                             >
-                              {starredRows.has(
-                                Number(rowData.id ?? virtualRow.index),
-                              ) ? (
+                              {starredRows.has(Number(rowData.id ?? virtualRow.index)) ? (
                                 <Star className="h-3 w-3 text-amber-400" />
                               ) : (
                                 <StarOff className="h-3 w-3 text-zinc-600" />
@@ -2282,8 +2130,7 @@ export default function DataBrowserScreen({
                     <div className="w-64 h-full flex flex-col">
                       <div className="flex items-center justify-between px-3 py-2.5 border-b border-zinc-800">
                         <span className="text-xs font-medium text-zinc-200">
-                          Columns ({columns.filter((c) => c.visible).length}/
-                          {columns.length})
+                          Columns ({columns.filter((c) => c.visible).length}/{columns.length})
                         </span>
                         <Button onClick={() => setColPanelOpen(false)}>
                           <X className="h-3.5 w-3.5 text-zinc-500" />
@@ -2303,9 +2150,7 @@ export default function DataBrowserScreen({
                             .filter(
                               (c) =>
                                 !columnSearch ||
-                                c.name
-                                  .toLowerCase()
-                                  .includes(columnSearch.toLowerCase()),
+                                c.name.toLowerCase().includes(columnSearch.toLowerCase()),
                             )
                             .map((col) => (
                               <div
@@ -2317,9 +2162,7 @@ export default function DataBrowserScreen({
                                   onCheckedChange={(v) =>
                                     setColumns((prev) =>
                                       produce(prev, (draft) => {
-                                        const c = draft.find(
-                                          (x) => x.id === col.id,
-                                        );
+                                        const c = draft.find((x) => x.id === col.id);
                                         if (c) c.visible = Boolean(v);
                                       }),
                                     )
@@ -2333,9 +2176,7 @@ export default function DataBrowserScreen({
                                 <Button
                                   className="opacity-0 group-hover:opacity-100"
                                   onClick={() =>
-                                    setActiveColStats(
-                                      activeColStats === col.id ? null : col.id,
-                                    )
+                                    setActiveColStats(activeColStats === col.id ? null : col.id)
                                   }
                                 >
                                   <Activity className="h-3 w-3 text-zinc-500 hover:text-zinc-300" />
@@ -2394,8 +2235,7 @@ export default function DataBrowserScreen({
                     transition={{ delay: i * 0.01 }}
                     className={cn(
                       "bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20",
-                      selectedRows.has(i) &&
-                        "border-emerald-500/50 bg-emerald-500/5",
+                      selectedRows.has(i) && "border-emerald-500/50 bg-emerald-500/5",
                     )}
                     onClick={(e) => toggleRow(i, e)}
                     onDoubleClick={() => setRowDetailRow(row)}
@@ -2403,16 +2243,11 @@ export default function DataBrowserScreen({
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-linear-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
-                          {
-                            String(
-                              row.first_name ?? row[Object.keys(row)[1]] ?? "?",
-                            )[0]
-                          }
+                          {String(row.first_name ?? row[Object.keys(row)[1]] ?? "?")[0]}
                         </div>
                         <div>
                           <p className="text-xs font-medium text-zinc-200 leading-none">
-                            {String(row.first_name ?? "")}{" "}
-                            {String(row.last_name ?? "")}
+                            {String(row.first_name ?? "")} {String(row.last_name ?? "")}
                           </p>
                           <p className="text-[10px] text-zinc-500 mt-0.5">
                             {String(row.department ?? row.email ?? "")}
@@ -2437,19 +2272,11 @@ export default function DataBrowserScreen({
                     <div className="space-y-1.5">
                       {Object.entries(row)
                         .filter(([k]) =>
-                          [
-                            "revenue",
-                            "units_sold",
-                            "satisfaction_score",
-                            "country",
-                          ].includes(k),
+                          ["revenue", "units_sold", "satisfaction_score", "country"].includes(k),
                         )
                         .slice(0, 4)
                         .map(([k, v]) => (
-                          <div
-                            key={k}
-                            className="flex items-center justify-between"
-                          >
+                          <div key={k} className="flex items-center justify-between">
                             <span className="text-[10px] text-zinc-500 capitalize">
                               {k.replace(/_/g, " ")}
                             </span>
@@ -2467,17 +2294,12 @@ export default function DataBrowserScreen({
                     {typeof row.revenue === "number" && (
                       <div className="mt-3">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] text-zinc-600 uppercase">
-                            Revenue
-                          </span>
+                          <span className="text-[9px] text-zinc-600 uppercase">Revenue</span>
                           <span className="text-[10px] text-emerald-400 font-mono">
                             ${Number(row.revenue).toLocaleString()}
                           </span>
                         </div>
-                        <Progress
-                          value={(Number(row.revenue) / 100000) * 100}
-                          className="h-1"
-                        />
+                        <Progress value={(Number(row.revenue) / 100000) * 100} className="h-1" />
                       </div>
                     )}
                   </motion.div>
@@ -2491,28 +2313,16 @@ export default function DataBrowserScreen({
             <div className="flex-1 overflow-auto p-4">
               <Tabs value={analyticsTab} onValueChange={setAnalyticsTab}>
                 <TabsList className="bg-zinc-900 border border-zinc-800 mb-4">
-                  <TabsTrigger
-                    value="overview"
-                    className="text-xs data-[state=active]:bg-zinc-700"
-                  >
+                  <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-zinc-700">
                     Overview
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="revenue"
-                    className="text-xs data-[state=active]:bg-zinc-700"
-                  >
+                  <TabsTrigger value="revenue" className="text-xs data-[state=active]:bg-zinc-700">
                     Revenue
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="segments"
-                    className="text-xs data-[state=active]:bg-zinc-700"
-                  >
+                  <TabsTrigger value="segments" className="text-xs data-[state=active]:bg-zinc-700">
                     Segments
                   </TabsTrigger>
-                  <TabsTrigger
-                    value="scatter"
-                    className="text-xs data-[state=active]:bg-zinc-700"
-                  >
+                  <TabsTrigger value="scatter" className="text-xs data-[state=active]:bg-zinc-700">
                     Correlation
                   </TabsTrigger>
                 </TabsList>
@@ -2537,10 +2347,8 @@ export default function DataBrowserScreen({
                         value:
                           analyticsData.length > 0
                             ? (
-                                analyticsData.reduce(
-                                  (a, b) => a + Number(b.avg_margin ?? 0),
-                                  0,
-                                ) / analyticsData.length
+                                analyticsData.reduce((a, b) => a + Number(b.avg_margin ?? 0), 0) /
+                                analyticsData.length
                               ).toFixed(1) + "%"
                             : "—",
                         icon: <PieChart className="h-4 w-4" />,
@@ -2580,24 +2388,16 @@ export default function DataBrowserScreen({
                         <div
                           className={cn(
                             "h-8 w-8 rounded-lg flex items-center justify-center mb-3",
-                            stat.color === "emerald" &&
-                              "bg-emerald-500/10 text-emerald-400",
-                            stat.color === "blue" &&
-                              "bg-blue-500/10 text-blue-400",
-                            stat.color === "purple" &&
-                              "bg-purple-500/10 text-purple-400",
-                            stat.color === "amber" &&
-                              "bg-amber-500/10 text-amber-400",
+                            stat.color === "emerald" && "bg-emerald-500/10 text-emerald-400",
+                            stat.color === "blue" && "bg-blue-500/10 text-blue-400",
+                            stat.color === "purple" && "bg-purple-500/10 text-purple-400",
+                            stat.color === "amber" && "bg-amber-500/10 text-amber-400",
                           )}
                         >
                           {stat.icon}
                         </div>
-                        <p className="text-2xl font-bold text-zinc-100">
-                          {stat.value}
-                        </p>
-                        <p className="text-xs text-zinc-500 mt-1">
-                          {stat.label}
-                        </p>
+                        <p className="text-2xl font-bold text-zinc-100">{stat.value}</p>
+                        <p className="text-xs text-zinc-500 mt-1">{stat.label}</p>
                       </div>
                     ))}
                   </div>
@@ -2605,9 +2405,7 @@ export default function DataBrowserScreen({
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <Card className="bg-zinc-900 border-zinc-800">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">
-                          Revenue by Department
-                        </CardTitle>
+                        <CardTitle className="text-sm">Revenue by Department</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ReactECharts
@@ -2619,9 +2417,7 @@ export default function DataBrowserScreen({
                     </Card>
                     <Card className="bg-zinc-900 border-zinc-800">
                       <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">
-                          Revenue Distribution
-                        </CardTitle>
+                        <CardTitle className="text-sm">Revenue Distribution</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ReactECharts
@@ -2684,15 +2480,10 @@ export default function DataBrowserScreen({
                 <TabsContent value="segments">
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     {analyticsData.map((dept) => (
-                      <Card
-                        key={String(dept.department)}
-                        className="bg-zinc-900 border-zinc-800"
-                      >
+                      <Card key={String(dept.department)} className="bg-zinc-900 border-zinc-800">
                         <CardHeader className="pb-2">
                           <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm">
-                              {String(dept.department)}
-                            </CardTitle>
+                            <CardTitle className="text-sm">{String(dept.department)}</CardTitle>
                             <Badge
                               variant="outline"
                               className="text-xs border-zinc-700 text-zinc-400"
@@ -2704,42 +2495,31 @@ export default function DataBrowserScreen({
                         <CardContent>
                           <div className="grid grid-cols-2 gap-3">
                             <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">
-                                Revenue
-                              </p>
+                              <p className="text-[10px] text-zinc-500 uppercase">Revenue</p>
                               <p className="text-sm font-bold text-emerald-400">
                                 $
-                                {Number(dept.total_revenue).toLocaleString(
-                                  "en-US",
-                                  { maximumFractionDigits: 0 },
-                                )}
+                                {Number(dept.total_revenue).toLocaleString("en-US", {
+                                  maximumFractionDigits: 0,
+                                })}
                               </p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">
-                                Margin
-                              </p>
+                              <p className="text-[10px] text-zinc-500 uppercase">Margin</p>
                               <p className="text-sm font-bold text-blue-400">
                                 {Number(dept.avg_margin).toFixed(1)}%
                               </p>
                             </div>
                             <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">
-                                Satisfaction
-                              </p>
+                              <p className="text-[10px] text-zinc-500 uppercase">Satisfaction</p>
                               <div className="flex items-center gap-1">
                                 <p className="text-sm font-bold text-amber-400">
                                   {Number(dept.avg_satisfaction).toFixed(2)}
                                 </p>
-                                <span className="text-[10px] text-zinc-600">
-                                  /5
-                                </span>
+                                <span className="text-[10px] text-zinc-600">/5</span>
                               </div>
                             </div>
                             <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">
-                                Units
-                              </p>
+                              <p className="text-[10px] text-zinc-500 uppercase">Units</p>
                               <p className="text-sm font-bold text-purple-400">
                                 {Number(dept.total_units).toLocaleString()}
                               </p>
@@ -2752,8 +2532,7 @@ export default function DataBrowserScreen({
                                 {(
                                   (Number(dept.total_revenue) /
                                     analyticsData.reduce(
-                                      (a, b) =>
-                                        a + Number(b.total_revenue ?? 0),
+                                      (a, b) => a + Number(b.total_revenue ?? 0),
                                       0,
                                     )) *
                                   100
@@ -2782,9 +2561,7 @@ export default function DataBrowserScreen({
                 <TabsContent value="scatter">
                   <Card className="bg-zinc-900 border-zinc-800">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        Revenue vs Satisfaction Correlation
-                      </CardTitle>
+                      <CardTitle className="text-sm">Revenue vs Satisfaction Correlation</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <ReactECharts
@@ -2804,12 +2581,8 @@ export default function DataBrowserScreen({
             <div className="flex-1 flex flex-col overflow-hidden">
               <div className="flex-none border-b border-zinc-800 bg-zinc-900/30 px-3 py-2 flex items-center gap-2">
                 <Code2 className="h-3.5 w-3.5 text-emerald-400" />
-                <span className="text-xs font-medium text-zinc-300">
-                  SQL Editor
-                </span>
-                <span className="text-[10px] text-zinc-600">
-                  — Powered by DuckDB WASM
-                </span>
+                <span className="text-xs font-medium text-zinc-300">SQL Editor</span>
+                <span className="text-[10px] text-zinc-600">— Powered by DuckDB WASM</span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1.5">
                   {savedQueries.map((q) => (
@@ -2823,9 +2596,7 @@ export default function DataBrowserScreen({
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
-                        <pre className="text-[10px] whitespace-pre-wrap">
-                          {q.sql}
-                        </pre>
+                        <pre className="text-[10px] whitespace-pre-wrap">{q.sql}</pre>
                       </TooltipContent>
                     </Tooltip>
                   ))}
@@ -2881,16 +2652,14 @@ export default function DataBrowserScreen({
                   {queryError ? (
                     <>
                       <AlertCircle className="h-3.5 w-3.5 text-red-400 flex-none" />
-                      <span className="text-xs text-red-300 font-mono">
-                        {queryError}
-                      </span>
+                      <span className="text-xs text-red-300 font-mono">{queryError}</span>
                     </>
                   ) : (
                     <>
                       <Zap className="h-3.5 w-3.5 text-emerald-400" />
                       <span className="text-xs text-emerald-300">
-                        Query executed in {customQueryTime}ms —{" "}
-                        {customQueryResult?.length ?? 0} rows returned
+                        Query executed in {customQueryTime}ms — {customQueryResult?.length ?? 0}{" "}
+                        rows returned
                       </span>
                     </>
                   )}
@@ -2915,10 +2684,7 @@ export default function DataBrowserScreen({
                     </thead>
                     <tbody>
                       {customQueryResult.slice(0, 500).map((row, i) => (
-                        <tr
-                          key={i}
-                          className="hover:bg-zinc-900/60 border-b border-zinc-800/30"
-                        >
+                        <tr key={i} className="hover:bg-zinc-900/60 border-b border-zinc-800/30">
                           {customQueryCols.map((col) => (
                             <td
                               key={col}
@@ -2942,13 +2708,10 @@ export default function DataBrowserScreen({
                 <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
                     <Code2 className="h-12 w-12 text-zinc-700 mx-auto mb-3" />
-                    <p className="text-sm text-zinc-500">
-                      Write a SQL query and click Run
-                    </p>
+                    <p className="text-sm text-zinc-500">Write a SQL query and click Run</p>
                     <p className="text-xs text-zinc-600 mt-1">
-                      Table:{" "}
-                      <code className="text-emerald-500/70">{activeTable}</code>{" "}
-                      ({totalRows.toLocaleString()} rows)
+                      Table: <code className="text-emerald-500/70">{activeTable}</code> (
+                      {totalRows.toLocaleString()} rows)
                     </p>
                   </div>
                 </div>
@@ -2964,12 +2727,9 @@ export default function DataBrowserScreen({
           <div className="flex items-center gap-3">
             <span className="text-xs text-zinc-500 flex-none">
               {selectedRows.size > 0 ? (
-                <span className="text-emerald-400">
-                  {selectedRows.size} selected ·{" "}
-                </span>
+                <span className="text-emerald-400">{selectedRows.size} selected · </span>
               ) : null}
-              Showing {page * pageSize + 1}–
-              {Math.min((page + 1) * pageSize, totalRows)} of{" "}
+              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, totalRows)} of{" "}
               {totalRows.toLocaleString()} rows
             </span>
 
@@ -3019,10 +2779,7 @@ export default function DataBrowserScreen({
 
                   if (pageNum === -1) {
                     return (
-                      <span
-                        key={`ellipsis-${i}`}
-                        className="text-xs text-zinc-600 px-1"
-                      >
+                      <span key={`ellipsis-${i}`} className="text-xs text-zinc-600 px-1">
                         …
                       </span>
                     );
@@ -3119,8 +2876,7 @@ export default function DataBrowserScreen({
                   </div>
                   <div>
                     <p className="text-sm font-medium text-zinc-200">
-                      {String(rowDetailRow.first_name ?? "")}{" "}
-                      {String(rowDetailRow.last_name ?? "")}
+                      {String(rowDetailRow.first_name ?? "")} {String(rowDetailRow.last_name ?? "")}
                     </p>
                     <p className="text-[10px] text-zinc-500">
                       Row #{String(rowDetailRow.id ?? "?")}

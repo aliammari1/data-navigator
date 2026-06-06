@@ -43,9 +43,7 @@ const MAX_CSV_SAMPLE_SIZE = 1_000_000;
 
 // ─── Schemas ──────────────────────────────────────────────────────────────────
 
-const DatasetIdSchema = z
-  .string()
-  .regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
+const DatasetIdSchema = z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
 
 const RegisterCSVPathDatasetSchema = z.object({
   filePath: z.string().min(1),
@@ -278,9 +276,7 @@ function buildCsvOptions(options: {
   return parts.join(", ");
 }
 
-function normalizeColumns(
-  rows: Record<string, unknown>[],
-): RegisteredDataset["columns"] {
+function normalizeColumns(rows: Record<string, unknown>[]): RegisteredDataset["columns"] {
   return rows.map((row) => ({
     name: String(row.column_name ?? row.name),
     type: String(row.column_type ?? row.type),
@@ -477,10 +473,7 @@ async function describeView(
   return normalizeColumns(rows);
 }
 
-async function countViewRows(
-  conn: DuckDBConnection,
-  viewName: string,
-): Promise<number> {
+async function countViewRows(conn: DuckDBConnection, viewName: string): Promise<number> {
   const rows = await measureRows(
     conn,
     `
@@ -523,10 +516,7 @@ async function ensureInit(): Promise<void> {
       activeDbPath = dbPath;
       activeDatasetsDir = datasetsDir;
 
-      const pragmas = [
-        `PRAGMA threads = ${threads}`,
-        "PRAGMA enable_progress_bar = false",
-      ];
+      const pragmas = [`PRAGMA threads = ${threads}`, "PRAGMA enable_progress_bar = false"];
 
       for (const pragma of pragmas) {
         await writeConn.run(pragma);
@@ -815,9 +805,7 @@ export async function listDatasets(): Promise<RegisteredDataset[]> {
   });
 }
 
-export async function previewDataset(
-  rawInput: unknown,
-): Promise<Record<string, unknown>[]> {
+export async function previewDataset(rawInput: unknown): Promise<Record<string, unknown>[]> {
   const input = PreviewDatasetSchema.parse(rawInput);
 
   return enqueueRead(async () => {
@@ -840,9 +828,7 @@ export async function previewDataset(
   });
 }
 
-export async function summarizeDataset(
-  rawInput: unknown,
-): Promise<Record<string, unknown>[]> {
+export async function summarizeDataset(rawInput: unknown): Promise<Record<string, unknown>[]> {
   const input = DatasetOnlySchema.parse(rawInput);
 
   return enqueueRead(async () => {
@@ -944,9 +930,7 @@ export function clearQueryMetrics(): void {
   queryMetrics.length = 0;
 }
 
-export async function runReadOnlyQuery(
-  sql: string,
-): Promise<Record<string, unknown>[]> {
+export async function runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]> {
   return enqueueRead(async () => {
     await ensureInit();
 
