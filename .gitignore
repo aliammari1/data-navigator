@@ -47,3 +47,5 @@ dist
 .codex
 pfe-*/
 BACKLOG.md
+
+storybook-static/
