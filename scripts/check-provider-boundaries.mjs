@@ -25,16 +25,7 @@ const ignoredDirs = new Set([
   "out",
   "public",
 ]);
-const sourceExtensions = new Set([
-  ".cjs",
-  ".cts",
-  ".js",
-  ".jsx",
-  ".mjs",
-  ".mts",
-  ".ts",
-  ".tsx",
-]);
+const sourceExtensions = new Set([".cjs", ".cts", ".js", ".jsx", ".mjs", ".mts", ".ts", ".tsx"]);
 
 const importPattern =
   /(?:from\s+["']([^"']+)["']|import\s*\(\s*["']([^"']+)["']\s*\)|require\s*\(\s*["']([^"']+)["']\s*\))/g;
@@ -46,18 +37,12 @@ function isBlockedPackage(name) {
 }
 
 function isRelativeOrAlias(specifier) {
-  return (
-    specifier.startsWith(".") ||
-    specifier.startsWith("/") ||
-    specifier.startsWith("@/")
-  );
+  return specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith("@/");
 }
 
 async function collectSourceFiles(dir) {
   const absoluteDir = path.join(root, dir);
-  const entries = await readdir(absoluteDir, { withFileTypes: true }).catch(
-    () => [],
-  );
+  const entries = await readdir(absoluteDir, { withFileTypes: true }).catch(() => []);
   const files = [];
 
   for (const entry of entries) {
@@ -78,9 +63,7 @@ async function collectSourceFiles(dir) {
 }
 
 const failures = [];
-const packageJson = JSON.parse(
-  await readFile(path.join(root, "package.json"), "utf8"),
-);
+const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
 
 for (const section of ["dependencies", "devDependencies", "peerDependencies"]) {
   for (const packageName of Object.keys(packageJson[section] ?? {})) {
@@ -95,11 +78,7 @@ for (const sourceRoot of sourceRoots) {
     const content = await readFile(path.join(root, file), "utf8");
     for (const match of content.matchAll(importPattern)) {
       const specifier = match[1] ?? match[2] ?? match[3];
-      if (
-        specifier &&
-        !isRelativeOrAlias(specifier) &&
-        isBlockedPackage(specifier)
-      ) {
+      if (specifier && !isRelativeOrAlias(specifier) && isBlockedPackage(specifier)) {
         failures.push(`${file} imports blocked provider package ${specifier}`);
       }
     }

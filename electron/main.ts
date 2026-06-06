@@ -12,15 +12,22 @@ import {
   session,
   systemPreferences,
 } from "electron";
-import { getPort } from "get-port-please";
 import { startServer } from "next/dist/server/lib/start-server";
+import { BETTER_AUTH_BASE_URL } from "../src/platform/auth/electron-options";
+import { authClient } from "./auth-client";
 import * as duckdbService from "./duckdb-service";
+import * as voiceService from "./voice-service";
 
-if (require("electron-squirrel-startup")) {
-  app.quit();
-}
+// if (require("electron-squirrel-startup")) {
+//   app.quit();
+// }
 
 const isDev = !app.isPackaged;
+let mainWindow: BrowserWindow | null = null;
+
+authClient.setupMain({
+  getWindow: () => mainWindow,
+});
 
 // ─── App Update ───────────────────────────────────────────────────────────────
 
@@ -67,10 +74,7 @@ function isPathInside(childPath: string, parentPath: string): boolean {
   const parent = normalizePath(parentPath);
   const relative = path.relative(parent, child);
 
-  return (
-    relative === "" ||
-    (!relative.startsWith("..") && !path.isAbsolute(relative))
-  );
+  return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
 function isInsideDataDir(filePath: string): boolean {
@@ -87,7 +91,7 @@ const allowedReadPaths = new Set<string>();
 const allowedWritePaths = new Set<string>();
 const allowedDirectoryPaths = new Set<string>();
 
-function rememberDialogPath(filePath: string): void {
+function _rememberDialogPath(filePath: string): void {
   const resolved = normalizePath(filePath);
   allowedReadPaths.add(resolved);
   allowedDirectoryPaths.add(resolved);
@@ -226,21 +230,16 @@ ipcMain.handle("fs:readFile", async (event, filePath: string) =>
     const safePath = assertAllowedReadPath(filePath);
     const data = await fs.readFile(safePath);
 
-    return data.buffer.slice(
-      data.byteOffset,
-      data.byteOffset + data.byteLength,
-    );
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   }),
 );
 
-ipcMain.handle(
-  "fs:writeFile",
-  async (event, filePath: string, data: ArrayBuffer) =>
-    withTrustedSender(event, async () => {
-      const safePath = assertAllowedWritePath(filePath);
-      await ensureParentDirectory(safePath);
-      await fs.writeFile(safePath, Buffer.from(data));
-    }),
+ipcMain.handle("fs:writeFile", async (event, filePath: string, data: ArrayBuffer) =>
+  withTrustedSender(event, async () => {
+    const safePath = assertAllowedWritePath(filePath);
+    await ensureParentDirectory(safePath);
+    await fs.writeFile(safePath, Buffer.from(data));
+  }),
 );
 
 ipcMain.handle("fs:deleteFile", async (event, filePath: string) =>
@@ -466,12 +465,9 @@ function installMediaPermissionHandlers(): void {
 
       const mediaDetails = details as MediaPermissionDetails | undefined;
       const pageUrl =
-        mediaDetails?.requestingUrl ??
-        mediaDetails?.securityOrigin ??
-        webContents.getURL();
+        mediaDetails?.requestingUrl ?? mediaDetails?.securityOrigin ?? webContents.getURL();
 
-      const allowed =
-        isAllowedAppOrigin(pageUrl) && wantsMicrophone(mediaDetails);
+      const allowed = isAllowedAppOrigin(pageUrl) && wantsMicrophone(mediaDetails);
 
       console.log("[electron] media permission request", {
         pageUrl,
@@ -494,12 +490,30 @@ ipcMain.handle("voice:getMicrophoneAccessStatus", async (event) =>
   }),
 );
 
+ipcMain.handle("voice:preloadStt", async (event, input) =>
+  withTrustedSender(event, () => voiceService.preloadStt(input)),
+);
+
+ipcMain.handle("voice:transcribe", async (event, input) =>
+  withTrustedSender(event, () => voiceService.transcribe(input)),
+);
+
+ipcMain.handle("voice:preloadTts", async (event, input) =>
+  withTrustedSender(event, () => voiceService.preloadTts(input)),
+);
+
+ipcMain.handle("voice:speak", async (event, input) =>
+  withTrustedSender(event, () => voiceService.speak(input)),
+);
+
+ipcMain.handle("voice:clearModels", async (event) =>
+  withTrustedSender(event, () => voiceService.clearVoiceModels()),
+);
+
 ipcMain.handle("duckdb:runReadOnlyQuery", async (event, sql: string) =>
   withTrustedSender(event, () => duckdbService.runReadOnlyQuery(sql)),
 );
 // ─── Window ──────────────────────────────────────────────────────────────────
-
-let mainWindow: BrowserWindow | null = null;
 
 async function createWindow(): Promise<void> {
   await ensureDataDir();
@@ -530,10 +544,10 @@ async function createWindow(): Promise<void> {
     mainWindow.webContents.openDevTools();
   } else {
     try {
-      const port = await startNextJSServer();
-      console.log("[electron] Next.js server started on port:", port);
+      const serverUrl = await startNextJSServer();
+      console.log("[electron] Next.js server started at:", serverUrl);
 
-      await mainWindow.loadURL(`http://localhost:${port}`);
+      await mainWindow.loadURL(serverUrl);
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
     }
@@ -575,18 +589,23 @@ async function createWindow(): Promise<void> {
 
 // ─── Next.js Server ──────────────────────────────────────────────────────────
 
-async function startNextJSServer(): Promise<number> {
+async function startNextJSServer(): Promise<string> {
   try {
-    const nextJSPort = await getPort({ portRange: [30_011, 50_000] });
-    const webDir = path.join(app.getAppPath(), "app");
-    const serverUrl = `http://localhost:${nextJSPort}`;
+    const authUrl = new URL(BETTER_AUTH_BASE_URL);
+    const hostname = authUrl.hostname;
+    const nextJSPort = authUrl.port ? Number(authUrl.port) : 3000;
 
-    process.env.BETTER_AUTH_URL = serverUrl;
+    const webDir = path.join(app.getAppPath(), "app");
+
+    process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
+    process.env.APP_USER_DATA = app.getPath("userData"); // ← add
+    process.env.PORT = nextJSPort.toString();
 
     await startServer({
       dir: webDir,
       isDev: false,
-      hostname: "localhost",
+      hostname,
       port: nextJSPort,
       customServer: true,
       allowRetry: false,
@@ -594,7 +613,7 @@ async function startNextJSServer(): Promise<number> {
       minimalMode: true,
     });
 
-    return nextJSPort;
+    return BETTER_AUTH_BASE_URL;
   } catch (error) {
     console.error("[electron] Error starting Next.js server:", error);
     throw error;

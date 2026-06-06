@@ -28,12 +28,7 @@ import {
   type VoiceModelKind,
 } from "./voice-model-registry";
 
-export type VoiceCacheState =
-  | "unknown"
-  | "checking"
-  | "available"
-  | "missing"
-  | "error";
+export type VoiceCacheState = "unknown" | "checking" | "available" | "missing" | "error";
 
 export type VoiceCacheSource =
   | "local-asset"
@@ -196,12 +191,9 @@ export function saveVoiceModelCacheSnapshot(
   };
 
   if (isBrowser()) {
-    window.localStorage.setItem(
-      VOICE_MODEL_CACHE_STORAGE_KEY,
-      JSON.stringify(next),
-    );
+    window.localStorage.setItem(VOICE_MODEL_CACHE_STORAGE_KEY, JSON.stringify(next));
 
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent("moudir_voice_model_cache_changed", {
         detail: next,
       }),
@@ -217,7 +209,7 @@ export function clearVoiceModelCacheSnapshot(): VoiceModelCacheSnapshot {
   if (isBrowser()) {
     window.localStorage.removeItem(VOICE_MODEL_CACHE_STORAGE_KEY);
 
-    window.dispatchEvent(
+    globalThis.window.dispatchEvent(
       new CustomEvent("moudir_voice_model_cache_changed", {
         detail: next,
       }),
@@ -283,9 +275,7 @@ export function markVoiceModelMissing(
   return record;
 }
 
-export function getCachedModelRecord(
-  model: VoiceModelDefinition,
-): VoiceCachedModelRecord | null {
+export function getCachedModelRecord(model: VoiceModelDefinition): VoiceCachedModelRecord | null {
   const snapshot = loadVoiceModelCacheSnapshot();
   return snapshot.models[createModelCacheKey(model)] ?? null;
 }
@@ -294,9 +284,7 @@ export function getCachedModelRecord(
 /*  Asset checks                                                       */
 /* ------------------------------------------------------------------ */
 
-async function checkAssetReachable(
-  path: string,
-): Promise<{ ready: boolean; error?: string }> {
+async function checkAssetReachable(path: string): Promise<{ ready: boolean; error?: string }> {
   if (!isBrowser()) {
     return {
       ready: false,
@@ -387,10 +375,7 @@ function createModelSearchNeedles(model: VoiceModelDefinition): string[] {
 async function inspectCacheStorageForModel(
   model: VoiceModelDefinition,
 ): Promise<
-  Pick<
-    VoiceCachedModelRecord,
-    "ready" | "source" | "cacheName" | "matchedRequestUrl" | "error"
-  >
+  Pick<VoiceCachedModelRecord, "ready" | "source" | "cacheName" | "matchedRequestUrl" | "error">
 > {
   if (!isBrowser()) {
     return {
@@ -516,10 +501,7 @@ export async function checkVoiceModelCache(
       error:
         missing.length > 0
           ? missing
-              .map(
-                (item) =>
-                  `${item.asset.filename}: ${item.result.error ?? "not found"}`,
-              )
+              .map((item) => `${item.asset.filename}: ${item.result.error ?? "not found"}`)
               .join("; ")
           : undefined,
     };
@@ -545,11 +527,7 @@ export async function checkVoiceModelCache(
       kind: model.kind,
       engine: String(model.engine),
       source: cacheResult.source,
-      state: cacheResult.ready
-        ? "available"
-        : cacheResult.error
-          ? "error"
-          : "missing",
+      state: cacheResult.ready ? "available" : cacheResult.error ? "error" : "missing",
       ready: cacheResult.ready,
       checkedAt,
       sizeHintMb: model.sizeHintMb,
@@ -577,9 +555,7 @@ export async function checkVoiceModelCache(
 /*  Refresh / report                                                   */
 /* ------------------------------------------------------------------ */
 
-function getSelectedModels(
-  options: RefreshVoiceModelCacheOptions,
-): VoiceModelDefinition[] {
+function getSelectedModels(options: RefreshVoiceModelCacheOptions): VoiceModelDefinition[] {
   const vadEngine = options.vadEngine ?? VOICE_REGISTRY_DEFAULTS.vadEngine;
   const sttEngine = options.sttEngine ?? VOICE_REGISTRY_DEFAULTS.sttEngine;
   const ttsEngine = options.ttsEngine ?? VOICE_REGISTRY_DEFAULTS.ttsEngine;
@@ -588,11 +564,7 @@ function getSelectedModels(
     return [...ALL_VOICE_MODELS];
   }
 
-  return [
-    getVadModel(vadEngine),
-    getSttModel(sttEngine),
-    getTtsModel(ttsEngine),
-  ];
+  return [getVadModel(vadEngine), getSttModel(sttEngine), getTtsModel(ttsEngine)];
 }
 
 export async function refreshVoiceModelCache(
@@ -702,9 +674,7 @@ export interface VoiceModelDownloadProgress {
  * This function records intent and lets the actual STT/TTS worker mark the model
  * ready after it successfully loads.
  */
-export function markVoiceModelDownloadStarted(
-  model: VoiceModelDefinition,
-): VoiceCachedModelRecord {
+export function markVoiceModelDownloadStarted(model: VoiceModelDefinition): VoiceCachedModelRecord {
   const snapshot = loadVoiceModelCacheSnapshot();
   const key = createModelCacheKey(model);
 

@@ -11,8 +11,7 @@ module.exports = {
     {
       name: "not-to-unresolvable",
       severity: "error",
-      comment:
-        "Every import must resolve through Node, TypeScript paths, or the local file tree.",
+      comment: "Every import must resolve through Node, TypeScript paths, or the local file tree.",
       from: {},
       to: { couldNotResolve: true },
     },
@@ -47,24 +46,21 @@ module.exports = {
     {
       name: "core-stays-independent",
       severity: "warn",
-      comment:
-        "Core modules must not depend on app, feature, platform, or component layers.",
+      comment: "Core modules must not depend on app, feature, platform, or component layers.",
       from: { path: "^src/core/" },
       to: { path: "^src/(app|features|platform|components)/" },
     },
     {
       name: "platform-stays-independent",
       severity: "warn",
-      comment:
-        "Platform modules must not depend on app, feature, or component layers.",
+      comment: "Platform modules must not depend on app, feature, or component layers.",
       from: { path: "^src/platform/" },
       to: { path: "^src/(app|features|components)/" },
     },
     {
       name: "shared-stays-light",
       severity: "warn",
-      comment:
-        "Shared utilities stay dependency-light and must not reach into product layers.",
+      comment: "Shared utilities stay dependency-light and must not reach into product layers.",
       from: { path: "^src/shared/" },
       to: {
         path: "^src/(app|core|features|platform|components|design|workers)/",
@@ -73,8 +69,7 @@ module.exports = {
     {
       name: "not-to-dev-dep-from-src",
       severity: "error",
-      comment:
-        "Browser production code must not import packages declared only as devDependencies.",
+      comment: "Browser production code must not import packages declared only as devDependencies.",
       from: {
         path: "^src/",
         pathNot: "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
@@ -90,35 +85,13 @@ module.exports = {
     doNotFollow: { path: ["node_modules"] },
     includeOnly: ["^(src|electron|scripts|\\.storybook)"],
     exclude: {
-      path: [
-        "^src/app/favicon[.]ico$",
-        "^src/app/globals[.]css$",
-        "^src/design/tokens[.]css$",
-      ],
+      path: ["^src/app/favicon[.]ico$", "^src/app/globals[.]css$", "^src/design/tokens[.]css$"],
     },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: "specify",
     enhancedResolveOptions: {
-      conditionNames: [
-        "import",
-        "require",
-        "node",
-        "browser",
-        "default",
-        "types",
-      ],
-      extensions: [
-        ".ts",
-        ".tsx",
-        ".mts",
-        ".cts",
-        ".js",
-        ".jsx",
-        ".mjs",
-        ".cjs",
-        ".json",
-        ".css",
-      ],
+      conditionNames: ["import", "require", "node", "browser", "default", "types"],
+      extensions: [".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs", ".json", ".css"],
       exportsFields: ["exports"],
       mainFields: ["browser", "module", "main", "types", "typings"],
     },

@@ -1,5 +1,4 @@
-const figmaFile =
-  "https://www.figma.com/design/REPLACE_WITH_FILE_KEY/Data-Navigator-Design-System";
+const figmaFile = "https://www.figma.com/design/REPLACE_WITH_FILE_KEY/Data-Navigator-Design-System";
 
 export const figmaLinks = {
   button: `${figmaFile}?node-id=button-component`,

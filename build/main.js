@@ -5,19 +5,46 @@ var path = require('path');
 var electron = require('electron');
 var fs3 = require('fs');
 var os2 = require('os');
-var getPortPlease = require('get-port-please');
 var startServer = require('next/dist/server/lib/start-server');
+var betterAuth = require('better-auth');
+var crypto = require('better-auth/crypto');
+var z = require('zod');
+var buffer = require('buffer');
+var api = require('better-auth/api');
+var cookies = require('better-auth/cookies');
+var Conf = require('conf');
+var client = require('better-auth/client');
 var nodeApi = require('@duckdb/node-api');
 var nanoid = require('nanoid');
 var PQueue = require('p-queue');
-var zod = require('zod');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
+function _interopNamespace(e) {
+  if (e && e.__esModule) return e;
+  var n = Object.create(null);
+  if (e) {
+    Object.keys(e).forEach(function (k) {
+      if (k !== 'default') {
+        var d = Object.getOwnPropertyDescriptor(e, k);
+        Object.defineProperty(n, k, d.get ? d : {
+          enumerable: true,
+          get: function () { return e[k]; }
+        });
+      }
+    });
+  }
+  n.default = e;
+  return Object.freeze(n);
+}
+
 var fs__default = /*#__PURE__*/_interopDefault(fs);
 var path__default = /*#__PURE__*/_interopDefault(path);
+var electron__default = /*#__PURE__*/_interopDefault(electron);
 var fs3__default = /*#__PURE__*/_interopDefault(fs3);
 var os2__default = /*#__PURE__*/_interopDefault(os2);
+var z__namespace = /*#__PURE__*/_interopNamespace(z);
+var Conf__default = /*#__PURE__*/_interopDefault(Conf);
 var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
 
 var __create = Object.create;
@@ -49,6 +76,18 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
+var __objRest = (source, exclude) => {
+  var target = {};
+  for (var prop in source)
+    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
+      target[prop] = source[prop];
+  if (source != null && __getOwnPropSymbols)
+    for (var prop of __getOwnPropSymbols(source)) {
+      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
+        target[prop] = source[prop];
+    }
+  return target;
+};
 var __esm = (fn, res) => function __init() {
   return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
@@ -76,471 +115,9 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   mod
 ));
 
-// node_modules/electron-squirrel-startup/node_modules/ms/index.js
-var require_ms = __commonJS({
-  "node_modules/electron-squirrel-startup/node_modules/ms/index.js"(exports, module) {
-    var s = 1e3;
-    var m = s * 60;
-    var h = m * 60;
-    var d = h * 24;
-    var y = d * 365.25;
-    module.exports = function(val, options) {
-      options = options || {};
-      var type = typeof val;
-      if (type === "string" && val.length > 0) {
-        return parse(val);
-      } else if (type === "number" && isNaN(val) === false) {
-        return options.long ? fmtLong(val) : fmtShort(val);
-      }
-      throw new Error(
-        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
-      );
-    };
-    function parse(str) {
-      str = String(str);
-      if (str.length > 100) {
-        return;
-      }
-      var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
-        str
-      );
-      if (!match) {
-        return;
-      }
-      var n = parseFloat(match[1]);
-      var type = (match[2] || "ms").toLowerCase();
-      switch (type) {
-        case "years":
-        case "year":
-        case "yrs":
-        case "yr":
-        case "y":
-          return n * y;
-        case "days":
-        case "day":
-        case "d":
-          return n * d;
-        case "hours":
-        case "hour":
-        case "hrs":
-        case "hr":
-        case "h":
-          return n * h;
-        case "minutes":
-        case "minute":
-        case "mins":
-        case "min":
-        case "m":
-          return n * m;
-        case "seconds":
-        case "second":
-        case "secs":
-        case "sec":
-        case "s":
-          return n * s;
-        case "milliseconds":
-        case "millisecond":
-        case "msecs":
-        case "msec":
-        case "ms":
-          return n;
-        default:
-          return void 0;
-      }
-    }
-    function fmtShort(ms) {
-      if (ms >= d) {
-        return Math.round(ms / d) + "d";
-      }
-      if (ms >= h) {
-        return Math.round(ms / h) + "h";
-      }
-      if (ms >= m) {
-        return Math.round(ms / m) + "m";
-      }
-      if (ms >= s) {
-        return Math.round(ms / s) + "s";
-      }
-      return ms + "ms";
-    }
-    function fmtLong(ms) {
-      return plural(ms, d, "day") || plural(ms, h, "hour") || plural(ms, m, "minute") || plural(ms, s, "second") || ms + " ms";
-    }
-    function plural(ms, n, name) {
-      if (ms < n) {
-        return;
-      }
-      if (ms < n * 1.5) {
-        return Math.floor(ms / n) + " " + name;
-      }
-      return Math.ceil(ms / n) + " " + name + "s";
-    }
-  }
-});
-
-// node_modules/electron-squirrel-startup/node_modules/debug/src/debug.js
-var require_debug = __commonJS({
-  "node_modules/electron-squirrel-startup/node_modules/debug/src/debug.js"(exports, module) {
-    exports = module.exports = createDebug.debug = createDebug["default"] = createDebug;
-    exports.coerce = coerce;
-    exports.disable = disable;
-    exports.enable = enable;
-    exports.enabled = enabled;
-    exports.humanize = require_ms();
-    exports.names = [];
-    exports.skips = [];
-    exports.formatters = {};
-    var prevTime;
-    function selectColor(namespace) {
-      var hash = 0, i;
-      for (i in namespace) {
-        hash = (hash << 5) - hash + namespace.charCodeAt(i);
-        hash |= 0;
-      }
-      return exports.colors[Math.abs(hash) % exports.colors.length];
-    }
-    function createDebug(namespace) {
-      function debug() {
-        if (!debug.enabled) return;
-        var self2 = debug;
-        var curr = +/* @__PURE__ */ new Date();
-        var ms = curr - (prevTime || curr);
-        self2.diff = ms;
-        self2.prev = prevTime;
-        self2.curr = curr;
-        prevTime = curr;
-        var args = new Array(arguments.length);
-        for (var i = 0; i < args.length; i++) {
-          args[i] = arguments[i];
-        }
-        args[0] = exports.coerce(args[0]);
-        if ("string" !== typeof args[0]) {
-          args.unshift("%O");
-        }
-        var index = 0;
-        args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
-          if (match === "%%") return match;
-          index++;
-          var formatter = exports.formatters[format];
-          if ("function" === typeof formatter) {
-            var val = args[index];
-            match = formatter.call(self2, val);
-            args.splice(index, 1);
-            index--;
-          }
-          return match;
-        });
-        exports.formatArgs.call(self2, args);
-        var logFn = debug.log || exports.log || console.log.bind(console);
-        logFn.apply(self2, args);
-      }
-      debug.namespace = namespace;
-      debug.enabled = exports.enabled(namespace);
-      debug.useColors = exports.useColors();
-      debug.color = selectColor(namespace);
-      if ("function" === typeof exports.init) {
-        exports.init(debug);
-      }
-      return debug;
-    }
-    function enable(namespaces) {
-      exports.save(namespaces);
-      exports.names = [];
-      exports.skips = [];
-      var split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
-      var len = split.length;
-      for (var i = 0; i < len; i++) {
-        if (!split[i]) continue;
-        namespaces = split[i].replace(/\*/g, ".*?");
-        if (namespaces[0] === "-") {
-          exports.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
-        } else {
-          exports.names.push(new RegExp("^" + namespaces + "$"));
-        }
-      }
-    }
-    function disable() {
-      exports.enable("");
-    }
-    function enabled(name) {
-      var i, len;
-      for (i = 0, len = exports.skips.length; i < len; i++) {
-        if (exports.skips[i].test(name)) {
-          return false;
-        }
-      }
-      for (i = 0, len = exports.names.length; i < len; i++) {
-        if (exports.names[i].test(name)) {
-          return true;
-        }
-      }
-      return false;
-    }
-    function coerce(val) {
-      if (val instanceof Error) return val.stack || val.message;
-      return val;
-    }
-  }
-});
-
-// node_modules/electron-squirrel-startup/node_modules/debug/src/browser.js
-var require_browser = __commonJS({
-  "node_modules/electron-squirrel-startup/node_modules/debug/src/browser.js"(exports, module) {
-    exports = module.exports = require_debug();
-    exports.log = log;
-    exports.formatArgs = formatArgs;
-    exports.save = save;
-    exports.load = load;
-    exports.useColors = useColors;
-    exports.storage = "undefined" != typeof chrome && "undefined" != typeof chrome.storage ? chrome.storage.local : localstorage();
-    exports.colors = [
-      "lightseagreen",
-      "forestgreen",
-      "goldenrod",
-      "dodgerblue",
-      "darkorchid",
-      "crimson"
-    ];
-    function useColors() {
-      if (typeof window !== "undefined" && window.process && window.process.type === "renderer") {
-        return true;
-      }
-      return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // is firebug? http://stackoverflow.com/a/398120/376773
-      typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || // is firefox >= v31?
-      // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
-      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // double check webkit in userAgent just in case we are in a worker
-      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
-    }
-    exports.formatters.j = function(v) {
-      try {
-        return JSON.stringify(v);
-      } catch (err) {
-        return "[UnexpectedJSONParseError]: " + err.message;
-      }
-    };
-    function formatArgs(args) {
-      var useColors2 = this.useColors;
-      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports.humanize(this.diff);
-      if (!useColors2) return;
-      var c = "color: " + this.color;
-      args.splice(1, 0, c, "color: inherit");
-      var index = 0;
-      var lastC = 0;
-      args[0].replace(/%[a-zA-Z%]/g, function(match) {
-        if ("%%" === match) return;
-        index++;
-        if ("%c" === match) {
-          lastC = index;
-        }
-      });
-      args.splice(lastC, 0, c);
-    }
-    function log() {
-      return "object" === typeof console && console.log && Function.prototype.apply.call(console.log, console, arguments);
-    }
-    function save(namespaces) {
-      try {
-        if (null == namespaces) {
-          exports.storage.removeItem("debug");
-        } else {
-          exports.storage.debug = namespaces;
-        }
-      } catch (e) {
-      }
-    }
-    function load() {
-      var r;
-      try {
-        r = exports.storage.debug;
-      } catch (e) {
-      }
-      if (!r && typeof process !== "undefined" && "env" in process) {
-        r = process.env.DEBUG;
-      }
-      return r;
-    }
-    exports.enable(load());
-    function localstorage() {
-      try {
-        return window.localStorage;
-      } catch (e) {
-      }
-    }
-  }
-});
-
-// node_modules/electron-squirrel-startup/node_modules/debug/src/node.js
-var require_node = __commonJS({
-  "node_modules/electron-squirrel-startup/node_modules/debug/src/node.js"(exports, module) {
-    var tty = __require("tty");
-    var util = __require("util");
-    exports = module.exports = require_debug();
-    exports.init = init2;
-    exports.log = log;
-    exports.formatArgs = formatArgs;
-    exports.save = save;
-    exports.load = load;
-    exports.useColors = useColors;
-    exports.colors = [6, 2, 3, 4, 5, 1];
-    exports.inspectOpts = Object.keys(process.env).filter(function(key) {
-      return /^debug_/i.test(key);
-    }).reduce(function(obj, key) {
-      var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function(_, k) {
-        return k.toUpperCase();
-      });
-      var val = process.env[key];
-      if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
-      else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
-      else if (val === "null") val = null;
-      else val = Number(val);
-      obj[prop] = val;
-      return obj;
-    }, {});
-    var fd = parseInt(process.env.DEBUG_FD, 10) || 2;
-    if (1 !== fd && 2 !== fd) {
-      util.deprecate(function() {
-      }, "except for stderr(2) and stdout(1), any other usage of DEBUG_FD is deprecated. Override debug.log if you want to use a different log function (https://git.io/debug_fd)")();
-    }
-    var stream = 1 === fd ? process.stdout : 2 === fd ? process.stderr : createWritableStdioStream(fd);
-    function useColors() {
-      return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(fd);
-    }
-    exports.formatters.o = function(v) {
-      this.inspectOpts.colors = this.useColors;
-      return util.inspect(v, this.inspectOpts).split("\n").map(function(str) {
-        return str.trim();
-      }).join(" ");
-    };
-    exports.formatters.O = function(v) {
-      this.inspectOpts.colors = this.useColors;
-      return util.inspect(v, this.inspectOpts);
-    };
-    function formatArgs(args) {
-      var name = this.namespace;
-      var useColors2 = this.useColors;
-      if (useColors2) {
-        var c = this.color;
-        var prefix = "  \x1B[3" + c + ";1m" + name + " \x1B[0m";
-        args[0] = prefix + args[0].split("\n").join("\n" + prefix);
-        args.push("\x1B[3" + c + "m+" + exports.humanize(this.diff) + "\x1B[0m");
-      } else {
-        args[0] = (/* @__PURE__ */ new Date()).toUTCString() + " " + name + " " + args[0];
-      }
-    }
-    function log() {
-      return stream.write(util.format.apply(util, arguments) + "\n");
-    }
-    function save(namespaces) {
-      if (null == namespaces) {
-        delete process.env.DEBUG;
-      } else {
-        process.env.DEBUG = namespaces;
-      }
-    }
-    function load() {
-      return process.env.DEBUG;
-    }
-    function createWritableStdioStream(fd2) {
-      var stream2;
-      var tty_wrap = process.binding("tty_wrap");
-      switch (tty_wrap.guessHandleType(fd2)) {
-        case "TTY":
-          stream2 = new tty.WriteStream(fd2);
-          stream2._type = "tty";
-          if (stream2._handle && stream2._handle.unref) {
-            stream2._handle.unref();
-          }
-          break;
-        case "FILE":
-          var fs5 = __require("fs");
-          stream2 = new fs5.SyncWriteStream(fd2, { autoClose: false });
-          stream2._type = "fs";
-          break;
-        case "PIPE":
-        case "TCP":
-          var net2 = __require("net");
-          stream2 = new net2.Socket({
-            fd: fd2,
-            readable: false,
-            writable: true
-          });
-          stream2.readable = false;
-          stream2.read = null;
-          stream2._type = "pipe";
-          if (stream2._handle && stream2._handle.unref) {
-            stream2._handle.unref();
-          }
-          break;
-        default:
-          throw new Error("Implement me. Unknown stream file type!");
-      }
-      stream2.fd = fd2;
-      stream2._isStdio = true;
-      return stream2;
-    }
-    function init2(debug) {
-      debug.inspectOpts = {};
-      var keys = Object.keys(exports.inspectOpts);
-      for (var i = 0; i < keys.length; i++) {
-        debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
-      }
-    }
-    exports.enable(load());
-  }
-});
-
-// node_modules/electron-squirrel-startup/node_modules/debug/src/index.js
-var require_src = __commonJS({
-  "node_modules/electron-squirrel-startup/node_modules/debug/src/index.js"(exports, module) {
-    if (typeof process !== "undefined" && process.type === "renderer") {
-      module.exports = require_browser();
-    } else {
-      module.exports = require_node();
-    }
-  }
-});
-
-// node_modules/electron-squirrel-startup/index.js
-var require_electron_squirrel_startup = __commonJS({
-  "node_modules/electron-squirrel-startup/index.js"(exports, module) {
-    var path5 = __require("path");
-    var spawn = __require("child_process").spawn;
-    var debug = require_src()("electron-squirrel-startup");
-    var app4 = __require("electron").app;
-    var run = function(args, done) {
-      var updateExe = path5.resolve(path5.dirname(process.execPath), "..", "Update.exe");
-      debug("Spawning `%s` with args `%s`", updateExe, args);
-      spawn(updateExe, args, {
-        detached: true
-      }).on("close", done);
-    };
-    var check = function() {
-      if (process.platform === "win32") {
-        var cmd = process.argv[1];
-        debug("processing squirrel command `%s`", cmd);
-        var target = path5.basename(process.execPath);
-        if (cmd === "--squirrel-install" || cmd === "--squirrel-updated") {
-          run(["--createShortcut=" + target], app4.quit);
-          return true;
-        }
-        if (cmd === "--squirrel-uninstall") {
-          run(["--removeShortcut=" + target], app4.quit);
-          return true;
-        }
-        if (cmd === "--squirrel-obsolete") {
-          app4.quit();
-          return true;
-        }
-      }
-      return false;
-    };
-    module.exports = check();
-  }
-});
-
-// node_modules/process-nextick-args/index.js
+// node_modules/.pnpm/process-nextick-args@2.0.1/node_modules/process-nextick-args/index.js
 var require_process_nextick_args = __commonJS({
-  "node_modules/process-nextick-args/index.js"(exports, module) {
+  "node_modules/.pnpm/process-nextick-args@2.0.1/node_modules/process-nextick-args/index.js"(exports, module) {
     if (typeof process === "undefined" || !process.version || process.version.indexOf("v0.") === 0 || process.version.indexOf("v1.") === 0 && process.version.indexOf("v1.8.") !== 0) {
       module.exports = { nextTick };
     } else {
@@ -582,9 +159,9 @@ var require_process_nextick_args = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/isarray/index.js
+// node_modules/.pnpm/isarray@1.0.0/node_modules/isarray/index.js
 var require_isarray = __commonJS({
-  "node_modules/jszip/node_modules/isarray/index.js"(exports, module) {
+  "node_modules/.pnpm/isarray@1.0.0/node_modules/isarray/index.js"(exports, module) {
     var toString = {}.toString;
     module.exports = Array.isArray || function(arr) {
       return toString.call(arr) == "[object Array]";
@@ -592,44 +169,44 @@ var require_isarray = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/internal/streams/stream.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/stream.js
 var require_stream = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/internal/streams/stream.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/stream.js"(exports, module) {
     module.exports = __require("stream");
   }
 });
 
-// node_modules/jszip/node_modules/safe-buffer/index.js
+// node_modules/.pnpm/safe-buffer@5.1.2/node_modules/safe-buffer/index.js
 var require_safe_buffer = __commonJS({
-  "node_modules/jszip/node_modules/safe-buffer/index.js"(exports, module) {
+  "node_modules/.pnpm/safe-buffer@5.1.2/node_modules/safe-buffer/index.js"(exports, module) {
     var buffer = __require("buffer");
-    var Buffer2 = buffer.Buffer;
+    var Buffer3 = buffer.Buffer;
     function copyProps(src, dst) {
       for (var key in src) {
         dst[key] = src[key];
       }
     }
-    if (Buffer2.from && Buffer2.alloc && Buffer2.allocUnsafe && Buffer2.allocUnsafeSlow) {
+    if (Buffer3.from && Buffer3.alloc && Buffer3.allocUnsafe && Buffer3.allocUnsafeSlow) {
       module.exports = buffer;
     } else {
       copyProps(buffer, exports);
       exports.Buffer = SafeBuffer;
     }
     function SafeBuffer(arg, encodingOrOffset, length) {
-      return Buffer2(arg, encodingOrOffset, length);
+      return Buffer3(arg, encodingOrOffset, length);
     }
-    copyProps(Buffer2, SafeBuffer);
+    copyProps(Buffer3, SafeBuffer);
     SafeBuffer.from = function(arg, encodingOrOffset, length) {
       if (typeof arg === "number") {
         throw new TypeError("Argument must not be a number");
       }
-      return Buffer2(arg, encodingOrOffset, length);
+      return Buffer3(arg, encodingOrOffset, length);
     };
     SafeBuffer.alloc = function(size, fill, encoding) {
       if (typeof size !== "number") {
         throw new TypeError("Argument must be a number");
       }
-      var buf = Buffer2(size);
+      var buf = Buffer3(size);
       if (fill !== void 0) {
         if (typeof encoding === "string") {
           buf.fill(fill, encoding);
@@ -645,7 +222,7 @@ var require_safe_buffer = __commonJS({
       if (typeof size !== "number") {
         throw new TypeError("Argument must be a number");
       }
-      return Buffer2(size);
+      return Buffer3(size);
     };
     SafeBuffer.allocUnsafeSlow = function(size) {
       if (typeof size !== "number") {
@@ -656,9 +233,9 @@ var require_safe_buffer = __commonJS({
   }
 });
 
-// node_modules/core-util-is/lib/util.js
+// node_modules/.pnpm/core-util-is@1.0.3/node_modules/core-util-is/lib/util.js
 var require_util = __commonJS({
-  "node_modules/core-util-is/lib/util.js"(exports) {
+  "node_modules/.pnpm/core-util-is@1.0.3/node_modules/core-util-is/lib/util.js"(exports) {
     function isArray(arg) {
       if (Array.isArray) {
         return Array.isArray(arg);
@@ -726,9 +303,9 @@ var require_util = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits_browser.js
+// node_modules/.pnpm/inherits@2.0.4/node_modules/inherits/inherits_browser.js
 var require_inherits_browser = __commonJS({
-  "node_modules/inherits/inherits_browser.js"(exports, module) {
+  "node_modules/.pnpm/inherits@2.0.4/node_modules/inherits/inherits_browser.js"(exports, module) {
     if (typeof Object.create === "function") {
       module.exports = function inherits(ctor, superCtor) {
         if (superCtor) {
@@ -758,9 +335,9 @@ var require_inherits_browser = __commonJS({
   }
 });
 
-// node_modules/inherits/inherits.js
+// node_modules/.pnpm/inherits@2.0.4/node_modules/inherits/inherits.js
 var require_inherits = __commonJS({
-  "node_modules/inherits/inherits.js"(exports, module) {
+  "node_modules/.pnpm/inherits@2.0.4/node_modules/inherits/inherits.js"(exports, module) {
     try {
       util = __require("util");
       if (typeof util.inherits !== "function") throw "";
@@ -772,15 +349,15 @@ var require_inherits = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/internal/streams/BufferList.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/BufferList.js
 var require_BufferList = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/internal/streams/BufferList.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/BufferList.js"(exports, module) {
     function _classCallCheck(instance2, Constructor) {
       if (!(instance2 instanceof Constructor)) {
         throw new TypeError("Cannot call a class as a function");
       }
     }
-    var Buffer2 = require_safe_buffer().Buffer;
+    var Buffer3 = require_safe_buffer().Buffer;
     var util = __require("util");
     function copyBuffer(src, target, offset) {
       src.copy(target, offset);
@@ -827,8 +404,8 @@ var require_BufferList = __commonJS({
         return ret;
       };
       BufferList.prototype.concat = function concat(n) {
-        if (this.length === 0) return Buffer2.alloc(0);
-        var ret = Buffer2.allocUnsafe(n >>> 0);
+        if (this.length === 0) return Buffer3.alloc(0);
+        var ret = Buffer3.allocUnsafe(n >>> 0);
         var p = this.head;
         var i = 0;
         while (p) {
@@ -849,9 +426,9 @@ var require_BufferList = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/internal/streams/destroy.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/destroy.js
 var require_destroy = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/internal/streams/destroy.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/internal/streams/destroy.js"(exports, module) {
     var pna = require_process_nextick_args();
     function destroy(err, cb) {
       var _this = this;
@@ -917,16 +494,16 @@ var require_destroy = __commonJS({
   }
 });
 
-// node_modules/util-deprecate/node.js
-var require_node2 = __commonJS({
-  "node_modules/util-deprecate/node.js"(exports, module) {
+// node_modules/.pnpm/util-deprecate@1.0.2/node_modules/util-deprecate/node.js
+var require_node = __commonJS({
+  "node_modules/.pnpm/util-deprecate@1.0.2/node_modules/util-deprecate/node.js"(exports, module) {
     module.exports = __require("util").deprecate;
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/_stream_writable.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_writable.js
 var require_stream_writable = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/_stream_writable.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_writable.js"(exports, module) {
     var pna = require_process_nextick_args();
     module.exports = Writable;
     function CorkedRequest(state) {
@@ -943,17 +520,17 @@ var require_stream_writable = __commonJS({
     var util = Object.create(require_util());
     util.inherits = require_inherits();
     var internalUtil = {
-      deprecate: require_node2()
+      deprecate: require_node()
     };
     var Stream = require_stream();
-    var Buffer2 = require_safe_buffer().Buffer;
+    var Buffer3 = require_safe_buffer().Buffer;
     var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {
     };
     function _uint8ArrayToBuffer(chunk) {
-      return Buffer2.from(chunk);
+      return Buffer3.from(chunk);
     }
     function _isUint8Array(obj) {
-      return Buffer2.isBuffer(obj) || obj instanceof OurUint8Array;
+      return Buffer3.isBuffer(obj) || obj instanceof OurUint8Array;
     }
     var destroyImpl = require_destroy();
     util.inherits(Writable, Stream);
@@ -1022,15 +599,15 @@ var require_stream_writable = __commonJS({
     if (typeof Symbol === "function" && Symbol.hasInstance && typeof Function.prototype[Symbol.hasInstance] === "function") {
       realHasInstance = Function.prototype[Symbol.hasInstance];
       Object.defineProperty(Writable, Symbol.hasInstance, {
-        value: function(object) {
-          if (realHasInstance.call(this, object)) return true;
+        value: function(object2) {
+          if (realHasInstance.call(this, object2)) return true;
           if (this !== Writable) return false;
-          return object && object._writableState instanceof WritableState;
+          return object2 && object2._writableState instanceof WritableState;
         }
       });
     } else {
-      realHasInstance = function(object) {
-        return object instanceof this;
+      realHasInstance = function(object2) {
+        return object2 instanceof this;
       };
     }
     function Writable(options) {
@@ -1075,7 +652,7 @@ var require_stream_writable = __commonJS({
       var state = this._writableState;
       var ret = false;
       var isBuf = !state.objectMode && _isUint8Array(chunk);
-      if (isBuf && !Buffer2.isBuffer(chunk)) {
+      if (isBuf && !Buffer3.isBuffer(chunk)) {
         chunk = _uint8ArrayToBuffer(chunk);
       }
       if (typeof encoding === "function") {
@@ -1111,7 +688,7 @@ var require_stream_writable = __commonJS({
     };
     function decodeChunk(state, chunk, encoding) {
       if (!state.objectMode && state.decodeStrings !== false && typeof chunk === "string") {
-        chunk = Buffer2.from(chunk, encoding);
+        chunk = Buffer3.from(chunk, encoding);
       }
       return chunk;
     }
@@ -1363,9 +940,9 @@ var require_stream_writable = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/_stream_duplex.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_duplex.js
 var require_stream_duplex = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/_stream_duplex.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_duplex.js"(exports, module) {
     var pna = require_process_nextick_args();
     var objectKeys = Object.keys || function(obj) {
       var keys2 = [];
@@ -1439,11 +1016,11 @@ var require_stream_duplex = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/string_decoder/lib/string_decoder.js
+// node_modules/.pnpm/string_decoder@1.1.1/node_modules/string_decoder/lib/string_decoder.js
 var require_string_decoder = __commonJS({
-  "node_modules/jszip/node_modules/string_decoder/lib/string_decoder.js"(exports) {
-    var Buffer2 = require_safe_buffer().Buffer;
-    var isEncoding = Buffer2.isEncoding || function(encoding) {
+  "node_modules/.pnpm/string_decoder@1.1.1/node_modules/string_decoder/lib/string_decoder.js"(exports) {
+    var Buffer3 = require_safe_buffer().Buffer;
+    var isEncoding = Buffer3.isEncoding || function(encoding) {
       encoding = "" + encoding;
       switch (encoding && encoding.toLowerCase()) {
         case "hex":
@@ -1491,7 +1068,7 @@ var require_string_decoder = __commonJS({
     }
     function normalizeEncoding(enc) {
       var nenc = _normalizeEncoding(enc);
-      if (typeof nenc !== "string" && (Buffer2.isEncoding === isEncoding || !isEncoding(enc))) throw new Error("Unknown encoding: " + enc);
+      if (typeof nenc !== "string" && (Buffer3.isEncoding === isEncoding || !isEncoding(enc))) throw new Error("Unknown encoding: " + enc);
       return nenc || enc;
     }
     exports.StringDecoder = StringDecoder;
@@ -1520,7 +1097,7 @@ var require_string_decoder = __commonJS({
       }
       this.lastNeed = 0;
       this.lastTotal = 0;
-      this.lastChar = Buffer2.allocUnsafe(nb);
+      this.lastChar = Buffer3.allocUnsafe(nb);
     }
     StringDecoder.prototype.write = function(buf) {
       if (buf.length === 0) return "";
@@ -1676,9 +1253,9 @@ var require_string_decoder = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/_stream_readable.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_readable.js
 var require_stream_readable = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/_stream_readable.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_readable.js"(exports, module) {
     var pna = require_process_nextick_args();
     module.exports = Readable;
     var isArray = require_isarray();
@@ -1689,14 +1266,14 @@ var require_stream_readable = __commonJS({
       return emitter.listeners(type).length;
     };
     var Stream = require_stream();
-    var Buffer2 = require_safe_buffer().Buffer;
+    var Buffer3 = require_safe_buffer().Buffer;
     var OurUint8Array = (typeof global !== "undefined" ? global : typeof window !== "undefined" ? window : typeof self !== "undefined" ? self : {}).Uint8Array || function() {
     };
     function _uint8ArrayToBuffer(chunk) {
-      return Buffer2.from(chunk);
+      return Buffer3.from(chunk);
     }
     function _isUint8Array(obj) {
-      return Buffer2.isBuffer(obj) || obj instanceof OurUint8Array;
+      return Buffer3.isBuffer(obj) || obj instanceof OurUint8Array;
     }
     var util = Object.create(require_util());
     util.inherits = require_inherits();
@@ -1795,7 +1372,7 @@ var require_stream_readable = __commonJS({
         if (typeof chunk === "string") {
           encoding = encoding || state.defaultEncoding;
           if (encoding !== state.encoding) {
-            chunk = Buffer2.from(chunk, encoding);
+            chunk = Buffer3.from(chunk, encoding);
             encoding = "";
           }
           skipChunkCheck = true;
@@ -1819,7 +1396,7 @@ var require_stream_readable = __commonJS({
         if (er) {
           stream.emit("error", er);
         } else if (state.objectMode || chunk && chunk.length > 0) {
-          if (typeof chunk !== "string" && !state.objectMode && Object.getPrototypeOf(chunk) !== Buffer2.prototype) {
+          if (typeof chunk !== "string" && !state.objectMode && Object.getPrototypeOf(chunk) !== Buffer3.prototype) {
             chunk = _uint8ArrayToBuffer(chunk);
           }
           if (addToFront) {
@@ -2311,7 +1888,7 @@ var require_stream_readable = __commonJS({
       return ret;
     }
     function copyFromBuffer(n, list) {
-      var ret = Buffer2.allocUnsafe(n);
+      var ret = Buffer3.allocUnsafe(n);
       var p = list.head;
       var c = 1;
       p.data.copy(ret);
@@ -2361,9 +1938,9 @@ var require_stream_readable = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/_stream_transform.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_transform.js
 var require_stream_transform = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/_stream_transform.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_transform.js"(exports, module) {
     module.exports = Transform;
     var Duplex = require_stream_duplex();
     var util = Object.create(require_util());
@@ -2460,9 +2037,9 @@ var require_stream_transform = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/lib/_stream_passthrough.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_passthrough.js
 var require_stream_passthrough = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/lib/_stream_passthrough.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_passthrough.js"(exports, module) {
     module.exports = PassThrough;
     var Transform = require_stream_transform();
     var util = Object.create(require_util());
@@ -2478,9 +2055,9 @@ var require_stream_passthrough = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/readable-stream/readable.js
+// node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/readable.js
 var require_readable = __commonJS({
-  "node_modules/jszip/node_modules/readable-stream/readable.js"(exports, module) {
+  "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/readable.js"(exports, module) {
     var Stream = __require("stream");
     if (process.env.READABLE_STREAM === "disable" && Stream) {
       module.exports = Stream;
@@ -2503,9 +2080,9 @@ var require_readable = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/support.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/support.js
 var require_support = __commonJS({
-  "node_modules/jszip/lib/support.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/support.js"(exports) {
     exports.base64 = true;
     exports.array = true;
     exports.string = true;
@@ -2542,9 +2119,9 @@ var require_support = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/base64.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/base64.js
 var require_base64 = __commonJS({
-  "node_modules/jszip/lib/base64.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/base64.js"(exports) {
     var utils = require_utils();
     var support = require_support();
     var _keyStr = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=";
@@ -2618,9 +2195,9 @@ var require_base64 = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/nodejsUtils.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejsUtils.js
 var require_nodejsUtils = __commonJS({
-  "node_modules/jszip/lib/nodejsUtils.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejsUtils.js"(exports, module) {
     module.exports = {
       /**
        * True if this is running in Nodejs, will be undefined in a browser.
@@ -2673,9 +2250,9 @@ var require_nodejsUtils = __commonJS({
   }
 });
 
-// node_modules/immediate/lib/index.js
+// node_modules/.pnpm/immediate@3.0.6/node_modules/immediate/lib/index.js
 var require_lib = __commonJS({
-  "node_modules/immediate/lib/index.js"(exports, module) {
+  "node_modules/.pnpm/immediate@3.0.6/node_modules/immediate/lib/index.js"(exports, module) {
     var Mutation = global.MutationObserver || global.WebKitMutationObserver;
     var scheduleDrain;
     if (process.browser) {
@@ -2746,9 +2323,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/lie/lib/index.js
+// node_modules/.pnpm/lie@3.3.0/node_modules/lie/lib/index.js
 var require_lib2 = __commonJS({
-  "node_modules/lie/lib/index.js"(exports, module) {
+  "node_modules/.pnpm/lie@3.3.0/node_modules/lie/lib/index.js"(exports, module) {
     var immediate = require_lib();
     function INTERNAL() {
     }
@@ -2780,8 +2357,8 @@ var require_lib2 = __commonJS({
         return this;
       }
       var p = this.constructor;
-      return this.then(resolve2, reject2);
-      function resolve2(value) {
+      return this.then(resolve3, reject2);
+      function resolve3(value) {
         function yes() {
           return value;
         }
@@ -2934,8 +2511,8 @@ var require_lib2 = __commonJS({
       }
       return out;
     }
-    Promise2.resolve = resolve;
-    function resolve(value) {
+    Promise2.resolve = resolve2;
+    function resolve2(value) {
       if (value instanceof this) {
         return value;
       }
@@ -3015,9 +2592,9 @@ var require_lib2 = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/external.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/external.js
 var require_external = __commonJS({
-  "node_modules/jszip/lib/external.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/external.js"(exports, module) {
     var ES6Promise = null;
     if (typeof Promise !== "undefined") {
       ES6Promise = Promise;
@@ -3030,9 +2607,9 @@ var require_external = __commonJS({
   }
 });
 
-// node_modules/setimmediate/setImmediate.js
+// node_modules/.pnpm/setimmediate@1.0.5/node_modules/setimmediate/setImmediate.js
 var require_setImmediate = __commonJS({
-  "node_modules/setimmediate/setImmediate.js"(exports) {
+  "node_modules/.pnpm/setimmediate@1.0.5/node_modules/setimmediate/setImmediate.js"(exports) {
     (function(global2, undefined2) {
       if (global2.setImmediate) {
         return;
@@ -3177,11 +2754,11 @@ var require_setImmediate = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/utils.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/utils.js
 var require_utils = __commonJS({
-  "node_modules/jszip/lib/utils.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/utils.js"(exports) {
     var support = require_support();
-    var base64 = require_base64();
+    var base642 = require_base64();
     var nodejsUtils = require_nodejsUtils();
     var external = require_external();
     require_setImmediate();
@@ -3389,8 +2966,8 @@ var require_utils = __commonJS({
       var result = transform[inputType][outputType](input);
       return result;
     };
-    exports.resolve = function(path5) {
-      var parts = path5.split("/");
+    exports.resolve = function(path6) {
+      var parts = path6.split("/");
       var result = [];
       for (var index = 0; index < parts.length; index++) {
         var part = parts[index];
@@ -3463,10 +3040,10 @@ var require_utils = __commonJS({
       var promise = external.Promise.resolve(inputData).then(function(data) {
         var isBlob = support.blob && (data instanceof Blob || ["[object File]", "[object Blob]"].indexOf(Object.prototype.toString.call(data)) !== -1);
         if (isBlob && typeof FileReader !== "undefined") {
-          return new external.Promise(function(resolve, reject) {
+          return new external.Promise(function(resolve2, reject) {
             var reader = new FileReader();
             reader.onload = function(e) {
-              resolve(e.target.result);
+              resolve2(e.target.result);
             };
             reader.onerror = function(e) {
               reject(e.target.error);
@@ -3488,7 +3065,7 @@ var require_utils = __commonJS({
           data = exports.transformTo("uint8array", data);
         } else if (dataType === "string") {
           if (isBase64) {
-            data = base64.decode(data);
+            data = base642.decode(data);
           } else if (isBinary) {
             if (isOptimizedBinaryString !== true) {
               data = string2binary(data);
@@ -3501,9 +3078,9 @@ var require_utils = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/GenericWorker.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/GenericWorker.js
 var require_GenericWorker = __commonJS({
-  "node_modules/jszip/lib/stream/GenericWorker.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/GenericWorker.js"(exports, module) {
     function GenericWorker(name) {
       this.name = name || "default";
       this.streamInfo = {};
@@ -3727,9 +3304,9 @@ var require_GenericWorker = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/utf8.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/utf8.js
 var require_utf8 = __commonJS({
-  "node_modules/jszip/lib/utf8.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/utf8.js"(exports) {
     var utils = require_utils();
     var support = require_support();
     var nodejsUtils = require_nodejsUtils();
@@ -3916,9 +3493,9 @@ var require_utf8 = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/ConvertWorker.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/ConvertWorker.js
 var require_ConvertWorker = __commonJS({
-  "node_modules/jszip/lib/stream/ConvertWorker.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/ConvertWorker.js"(exports, module) {
     var GenericWorker = require_GenericWorker();
     var utils = require_utils();
     function ConvertWorker(destType) {
@@ -3936,9 +3513,9 @@ var require_ConvertWorker = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js
 var require_NodejsStreamOutputAdapter = __commonJS({
-  "node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js"(exports, module) {
     var Readable = require_readable().Readable;
     var utils = require_utils();
     utils.inherits(NodejsStreamOutputAdapter, Readable);
@@ -3966,13 +3543,13 @@ var require_NodejsStreamOutputAdapter = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/StreamHelper.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/StreamHelper.js
 var require_StreamHelper = __commonJS({
-  "node_modules/jszip/lib/stream/StreamHelper.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/StreamHelper.js"(exports, module) {
     var utils = require_utils();
     var ConvertWorker = require_ConvertWorker();
     var GenericWorker = require_GenericWorker();
-    var base64 = require_base64();
+    var base642 = require_base64();
     var support = require_support();
     var external = require_external();
     var NodejsStreamOutputAdapter = null;
@@ -3987,7 +3564,7 @@ var require_StreamHelper = __commonJS({
         case "blob":
           return utils.newBlob(utils.transformTo("arraybuffer", content), mimeType);
         case "base64":
-          return base64.encode(content);
+          return base642.encode(content);
         default:
           return utils.transformTo(type, content);
       }
@@ -4016,7 +3593,7 @@ var require_StreamHelper = __commonJS({
       }
     }
     function accumulate(helper, updateCallback) {
-      return new external.Promise(function(resolve, reject) {
+      return new external.Promise(function(resolve2, reject) {
         var dataArray = [];
         var chunkType = helper._internalType, resultType = helper._outputType, mimeType = helper._mimeType;
         helper.on("data", function(data, meta) {
@@ -4030,7 +3607,7 @@ var require_StreamHelper = __commonJS({
         }).on("end", function() {
           try {
             var result = transformZipOutput(resultType, concat(chunkType, dataArray), mimeType);
-            resolve(result);
+            resolve2(result);
           } catch (e) {
             reject(e);
           }
@@ -4125,9 +3702,9 @@ var require_StreamHelper = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/defaults.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/defaults.js
 var require_defaults = __commonJS({
-  "node_modules/jszip/lib/defaults.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/defaults.js"(exports) {
     exports.base64 = false;
     exports.binary = false;
     exports.dir = false;
@@ -4141,9 +3718,9 @@ var require_defaults = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/DataWorker.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/DataWorker.js
 var require_DataWorker = __commonJS({
-  "node_modules/jszip/lib/stream/DataWorker.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/DataWorker.js"(exports, module) {
     var utils = require_utils();
     var GenericWorker = require_GenericWorker();
     var DEFAULT_BLOCK_SIZE = 16 * 1024;
@@ -4228,9 +3805,9 @@ var require_DataWorker = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/crc32.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/crc32.js
 var require_crc32 = __commonJS({
-  "node_modules/jszip/lib/crc32.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/crc32.js"(exports, module) {
     var utils = require_utils();
     function makeTable() {
       var c, table = [];
@@ -4274,9 +3851,9 @@ var require_crc32 = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/Crc32Probe.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/Crc32Probe.js
 var require_Crc32Probe = __commonJS({
-  "node_modules/jszip/lib/stream/Crc32Probe.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/Crc32Probe.js"(exports, module) {
     var GenericWorker = require_GenericWorker();
     var crc32 = require_crc32();
     var utils = require_utils();
@@ -4293,9 +3870,9 @@ var require_Crc32Probe = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/stream/DataLengthProbe.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/DataLengthProbe.js
 var require_DataLengthProbe = __commonJS({
-  "node_modules/jszip/lib/stream/DataLengthProbe.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/stream/DataLengthProbe.js"(exports, module) {
     var utils = require_utils();
     var GenericWorker = require_GenericWorker();
     function DataLengthProbe(propName) {
@@ -4315,9 +3892,9 @@ var require_DataLengthProbe = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/compressedObject.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/compressedObject.js
 var require_compressedObject = __commonJS({
-  "node_modules/jszip/lib/compressedObject.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/compressedObject.js"(exports, module) {
     var external = require_external();
     var DataWorker = require_DataWorker();
     var Crc32Probe = require_Crc32Probe();
@@ -4359,9 +3936,9 @@ var require_compressedObject = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/zipObject.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipObject.js
 var require_zipObject = __commonJS({
-  "node_modules/jszip/lib/zipObject.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipObject.js"(exports, module) {
     var StreamHelper = require_StreamHelper();
     var DataWorker = require_DataWorker();
     var utf8 = require_utf8();
@@ -4475,9 +4052,9 @@ var require_zipObject = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/utils/common.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/utils/common.js
 var require_common = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/utils/common.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/utils/common.js"(exports) {
     var TYPED_OK = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Int32Array !== "undefined";
     function _has(obj, key) {
       return Object.prototype.hasOwnProperty.call(obj, key);
@@ -4565,9 +4142,9 @@ var require_common = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/trees.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/trees.js
 var require_trees = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/trees.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/trees.js"(exports) {
     var utils = require_common();
     var Z_FIXED = 4;
     var Z_BINARY = 0;
@@ -5206,9 +4783,9 @@ var require_trees = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/adler32.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/adler32.js
 var require_adler32 = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/adler32.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/adler32.js"(exports, module) {
     function adler32(adler, buf, len, pos) {
       var s1 = adler & 65535 | 0, s2 = adler >>> 16 & 65535 | 0, n = 0;
       while (len !== 0) {
@@ -5227,9 +4804,9 @@ var require_adler32 = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/crc32.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/crc32.js
 var require_crc322 = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/crc32.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/crc32.js"(exports, module) {
     function makeTable() {
       var c, table = [];
       for (var n = 0; n < 256; n++) {
@@ -5254,9 +4831,9 @@ var require_crc322 = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/messages.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/messages.js
 var require_messages = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/messages.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/messages.js"(exports, module) {
     module.exports = {
       2: "need dictionary",
       /* Z_NEED_DICT       2  */
@@ -5280,9 +4857,9 @@ var require_messages = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/deflate.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/deflate.js
 var require_deflate = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/deflate.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/deflate.js"(exports) {
     var utils = require_common();
     var trees = require_trees();
     var adler32 = require_adler32();
@@ -6328,9 +5905,9 @@ var require_deflate = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/utils/strings.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/utils/strings.js
 var require_strings = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/utils/strings.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/utils/strings.js"(exports) {
     var utils = require_common();
     var STR_APPLY_OK = true;
     var STR_APPLY_UIA_OK = true;
@@ -6469,9 +6046,9 @@ var require_strings = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/zstream.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/zstream.js
 var require_zstream = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/zstream.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/zstream.js"(exports, module) {
     function ZStream() {
       this.input = null;
       this.next_in = 0;
@@ -6490,9 +6067,9 @@ var require_zstream = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/deflate.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/deflate.js
 var require_deflate2 = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/deflate.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/deflate.js"(exports) {
     var zlib_deflate = require_deflate();
     var utils = require_common();
     var strings = require_strings();
@@ -6650,9 +6227,9 @@ var require_deflate2 = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/inffast.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inffast.js
 var require_inffast = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/inffast.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inffast.js"(exports, module) {
     var BAD = 30;
     var TYPE = 12;
     module.exports = function inflate_fast(strm, start) {
@@ -6878,9 +6455,9 @@ var require_inffast = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/inftrees.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inftrees.js
 var require_inftrees = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/inftrees.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inftrees.js"(exports, module) {
     var utils = require_common();
     var MAXBITS = 15;
     var ENOUGH_LENS = 852;
@@ -7193,9 +6770,9 @@ var require_inftrees = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/inflate.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inflate.js
 var require_inflate = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/inflate.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inflate.js"(exports) {
     var utils = require_common();
     var adler32 = require_adler32();
     var crc32 = require_crc322();
@@ -8428,9 +8005,9 @@ var require_inflate = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/constants.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/constants.js
 var require_constants = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/constants.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/constants.js"(exports, module) {
     module.exports = {
       /* Allowed flush values; see deflate() and inflate() below for details */
       Z_NO_FLUSH: 0,
@@ -8474,9 +8051,9 @@ var require_constants = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/zlib/gzheader.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/gzheader.js
 var require_gzheader = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/zlib/gzheader.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/gzheader.js"(exports, module) {
     function GZheader() {
       this.text = 0;
       this.time = 0;
@@ -8493,9 +8070,9 @@ var require_gzheader = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/lib/inflate.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/inflate.js
 var require_inflate2 = __commonJS({
-  "node_modules/jszip/node_modules/pako/lib/inflate.js"(exports) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/inflate.js"(exports) {
     var zlib_inflate = require_inflate();
     var utils = require_common();
     var strings = require_strings();
@@ -8666,9 +8243,9 @@ var require_inflate2 = __commonJS({
   }
 });
 
-// node_modules/jszip/node_modules/pako/index.js
+// node_modules/.pnpm/pako@1.0.11/node_modules/pako/index.js
 var require_pako = __commonJS({
-  "node_modules/jszip/node_modules/pako/index.js"(exports, module) {
+  "node_modules/.pnpm/pako@1.0.11/node_modules/pako/index.js"(exports, module) {
     var assign = require_common().assign;
     var deflate = require_deflate2();
     var inflate = require_inflate2();
@@ -8679,9 +8256,9 @@ var require_pako = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/flate.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/flate.js
 var require_flate = __commonJS({
-  "node_modules/jszip/lib/flate.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/flate.js"(exports) {
     var USE_TYPEDARRAY = typeof Uint8Array !== "undefined" && typeof Uint16Array !== "undefined" && typeof Uint32Array !== "undefined";
     var pako = require_pako();
     var utils = require_utils();
@@ -8737,9 +8314,9 @@ var require_flate = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/compressions.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/compressions.js
 var require_compressions = __commonJS({
-  "node_modules/jszip/lib/compressions.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/compressions.js"(exports) {
     var GenericWorker = require_GenericWorker();
     exports.STORE = {
       magic: "\0\0",
@@ -8754,9 +8331,9 @@ var require_compressions = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/signature.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/signature.js
 var require_signature = __commonJS({
-  "node_modules/jszip/lib/signature.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/signature.js"(exports) {
     exports.LOCAL_FILE_HEADER = "PK";
     exports.CENTRAL_FILE_HEADER = "PK";
     exports.CENTRAL_DIRECTORY_END = "PK";
@@ -8766,9 +8343,9 @@ var require_signature = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/generate/ZipFileWorker.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/generate/ZipFileWorker.js
 var require_ZipFileWorker = __commonJS({
-  "node_modules/jszip/lib/generate/ZipFileWorker.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/generate/ZipFileWorker.js"(exports, module) {
     var utils = require_utils();
     var GenericWorker = require_GenericWorker();
     var utf8 = require_utf8();
@@ -9049,9 +8626,9 @@ var require_ZipFileWorker = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/generate/index.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/generate/index.js
 var require_generate = __commonJS({
-  "node_modules/jszip/lib/generate/index.js"(exports) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/generate/index.js"(exports) {
     var compressions = require_compressions();
     var ZipFileWorker = require_ZipFileWorker();
     var getCompression = function(fileCompression, zipCompression) {
@@ -9089,9 +8666,9 @@ var require_generate = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/nodejs/NodejsStreamInputAdapter.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamInputAdapter.js
 var require_NodejsStreamInputAdapter = __commonJS({
-  "node_modules/jszip/lib/nodejs/NodejsStreamInputAdapter.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamInputAdapter.js"(exports, module) {
     var utils = require_utils();
     var GenericWorker = require_GenericWorker();
     function NodejsStreamInputAdapter(filename, stream) {
@@ -9147,9 +8724,9 @@ var require_NodejsStreamInputAdapter = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/object.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/object.js
 var require_object = __commonJS({
-  "node_modules/jszip/lib/object.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/object.js"(exports, module) {
     var utf8 = require_utf8();
     var utils = require_utils();
     var GenericWorker = require_GenericWorker();
@@ -9202,21 +8779,21 @@ var require_object = __commonJS({
       } else {
         zipObjectContent = utils.prepareContent(name, data, o.binary, o.optimizedBinaryString, o.base64);
       }
-      var object = new ZipObject(name, zipObjectContent, o);
-      this.files[name] = object;
+      var object2 = new ZipObject(name, zipObjectContent, o);
+      this.files[name] = object2;
     };
-    var parentFolder = function(path5) {
-      if (path5.slice(-1) === "/") {
-        path5 = path5.substring(0, path5.length - 1);
+    var parentFolder = function(path6) {
+      if (path6.slice(-1) === "/") {
+        path6 = path6.substring(0, path6.length - 1);
       }
-      var lastSlash = path5.lastIndexOf("/");
-      return lastSlash > 0 ? path5.substring(0, lastSlash) : "";
+      var lastSlash = path6.lastIndexOf("/");
+      return lastSlash > 0 ? path6.substring(0, lastSlash) : "";
     };
-    var forceTrailingSlash = function(path5) {
-      if (path5.slice(-1) !== "/") {
-        path5 += "/";
+    var forceTrailingSlash = function(path6) {
+      if (path6.slice(-1) !== "/") {
+        path6 += "/";
       }
-      return path5;
+      return path6;
     };
     var folderAdd = function(name, createFolders) {
       createFolders = typeof createFolders !== "undefined" ? createFolders : defaults.createFolders;
@@ -9229,8 +8806,8 @@ var require_object = __commonJS({
       }
       return this.files[name];
     };
-    function isRegExp(object) {
-      return Object.prototype.toString.call(object) === "[object RegExp]";
+    function isRegExp(object2) {
+      return Object.prototype.toString.call(object2) === "[object RegExp]";
     }
     var out = {
       /**
@@ -9419,9 +8996,9 @@ var require_object = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/DataReader.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/DataReader.js
 var require_DataReader = __commonJS({
-  "node_modules/jszip/lib/reader/DataReader.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/DataReader.js"(exports, module) {
     var utils = require_utils();
     function DataReader(data) {
       this.data = data;
@@ -9540,9 +9117,9 @@ var require_DataReader = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/ArrayReader.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/ArrayReader.js
 var require_ArrayReader = __commonJS({
-  "node_modules/jszip/lib/reader/ArrayReader.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/ArrayReader.js"(exports, module) {
     var DataReader = require_DataReader();
     var utils = require_utils();
     function ArrayReader(data) {
@@ -9581,9 +9158,9 @@ var require_ArrayReader = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/StringReader.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/StringReader.js
 var require_StringReader = __commonJS({
-  "node_modules/jszip/lib/reader/StringReader.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/StringReader.js"(exports, module) {
     var DataReader = require_DataReader();
     var utils = require_utils();
     function StringReader(data) {
@@ -9610,9 +9187,9 @@ var require_StringReader = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/Uint8ArrayReader.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/Uint8ArrayReader.js
 var require_Uint8ArrayReader = __commonJS({
-  "node_modules/jszip/lib/reader/Uint8ArrayReader.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/Uint8ArrayReader.js"(exports, module) {
     var ArrayReader = require_ArrayReader();
     var utils = require_utils();
     function Uint8ArrayReader(data) {
@@ -9632,9 +9209,9 @@ var require_Uint8ArrayReader = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/NodeBufferReader.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/NodeBufferReader.js
 var require_NodeBufferReader = __commonJS({
-  "node_modules/jszip/lib/reader/NodeBufferReader.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/NodeBufferReader.js"(exports, module) {
     var Uint8ArrayReader = require_Uint8ArrayReader();
     var utils = require_utils();
     function NodeBufferReader(data) {
@@ -9651,9 +9228,9 @@ var require_NodeBufferReader = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/reader/readerFor.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/readerFor.js
 var require_readerFor = __commonJS({
-  "node_modules/jszip/lib/reader/readerFor.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/reader/readerFor.js"(exports, module) {
     var utils = require_utils();
     var support = require_support();
     var ArrayReader = require_ArrayReader();
@@ -9677,9 +9254,9 @@ var require_readerFor = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/zipEntry.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipEntry.js
 var require_zipEntry = __commonJS({
-  "node_modules/jszip/lib/zipEntry.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipEntry.js"(exports, module) {
     var readerFor = require_readerFor();
     var utils = require_utils();
     var CompressedObject = require_compressedObject();
@@ -9894,9 +9471,9 @@ var require_zipEntry = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/zipEntries.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipEntries.js
 var require_zipEntries = __commonJS({
-  "node_modules/jszip/lib/zipEntries.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/zipEntries.js"(exports, module) {
     var readerFor = require_readerFor();
     var utils = require_utils();
     var sig = require_signature();
@@ -10089,9 +9666,9 @@ var require_zipEntries = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/load.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/load.js
 var require_load = __commonJS({
-  "node_modules/jszip/lib/load.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/load.js"(exports, module) {
     var utils = require_utils();
     var external = require_external();
     var utf8 = require_utf8();
@@ -10099,7 +9676,7 @@ var require_load = __commonJS({
     var Crc32Probe = require_Crc32Probe();
     var nodejsUtils = require_nodejsUtils();
     function checkEntryCRC32(zipEntry) {
-      return new external.Promise(function(resolve, reject) {
+      return new external.Promise(function(resolve2, reject) {
         var worker = zipEntry.decompressed.getContentWorker().pipe(new Crc32Probe());
         worker.on("error", function(e) {
           reject(e);
@@ -10107,7 +9684,7 @@ var require_load = __commonJS({
           if (worker.streamInfo.crc32 !== zipEntry.decompressed.crc32) {
             reject(new Error("Corrupted zip : CRC32 mismatch"));
           } else {
-            resolve();
+            resolve2();
           }
         }).resume();
       });
@@ -10167,9 +9744,9 @@ var require_load = __commonJS({
   }
 });
 
-// node_modules/jszip/lib/index.js
+// node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/index.js
 var require_lib3 = __commonJS({
-  "node_modules/jszip/lib/index.js"(exports, module) {
+  "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/index.js"(exports, module) {
     function JSZip() {
       if (!(this instanceof JSZip)) {
         return new JSZip();
@@ -10263,13 +9840,13 @@ async function unzip(crxFilePath, destination) {
 }
 var import_jszip, src_default;
 var init_dist = __esm({
-  "node_modules/@tomjs/unzip-crx/dist/index.mjs"() {
+  "node_modules/.pnpm/@tomjs+unzip-crx@1.1.3/node_modules/@tomjs/unzip-crx/dist/index.mjs"() {
     import_jszip = __toESM(require_lib3());
     src_default = unzip;
   }
 });
 
-// node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
+// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.7.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   ANGULAR_DEVTOOLS: () => ANGULAR_DEVTOOLS,
@@ -10304,7 +9881,7 @@ function rmSync(path$1) {
   fs3__default.default.rmSync(path$1, { recursive: true });
 }
 function downloadFile(url, filePath) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     const request = electron.net.request(url);
     request.on("response", (response) => {
       if (response.statusCode !== 200) {
@@ -10315,7 +9892,7 @@ function downloadFile(url, filePath) {
       response.pipe(fileStream);
       fileStream.on("finish", () => {
         fileStream.close();
-        resolve();
+        resolve2();
       });
       fileStream.on("error", (err) => {
         fs3__default.default.unlink(filePath, () => reject(err));
@@ -10348,13 +9925,13 @@ async function downloadExtension(extensionId, options) {
   const source = opts.source || (new Intl.NumberFormat().resolvedOptions().locale === "zh-CN" ? "npmmirror" : "unpkg");
   mkdirp2(outPath);
   const unzipPath = path__default.default.join(outPath, extensionId);
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve2, reject) => {
     const filePath = path__default.default.resolve(`${unzipPath}.crx`);
     const unzipExtension = () => {
       mkdirp2(unzipPath, true);
       src_default(filePath, unzipPath).then(() => {
         changePermissions(unzipPath, 755);
-        return resolve({
+        return resolve2({
           filePath,
           unzipPath
         });
@@ -10367,7 +9944,7 @@ async function downloadExtension(extensionId, options) {
         unzipExtension();
         return;
       }
-      return resolve({
+      return resolve2({
         filePath,
         unzipPath
       });
@@ -10389,7 +9966,7 @@ async function downloadExtension(extensionId, options) {
         break;
     }
     downloadFile(fileUrl, filePath).then(() => {
-      if (!opts.unzip) return resolve({ filePath });
+      if (!opts.unzip) return resolve2({ filePath });
       unzipExtension();
     }).catch((err) => {
       console.log(`Failed to fetch extension, trying ${attempts - 1} more times`);
@@ -10397,7 +9974,7 @@ async function downloadExtension(extensionId, options) {
       setTimeout(() => {
         downloadExtension(extensionId, __spreadProps(__spreadValues({}, opts), {
           attempts: attempts - 1
-        })).then(resolve).catch(reject);
+        })).then(resolve2).catch(reject);
       }, 200);
     });
   });
@@ -10434,7 +10011,7 @@ async function installExtension(extensionIds, options) {
 }
 var ANGULAR_DEVTOOLS, APOLLO_CLIENT_TOOLS, BACKBONE_DEBUGGER, EMBER_INSPECTOR, MOBX_DEVTOOLS, PREACT_DEVELOPER_TOOLS, REACT_DEVELOPER_TOOLS, REDUX_DEVTOOLS, SOLID_DEVTOOLS, SVELTE_DEVTOOLS, VUEJS_DEVTOOLS, VUEJS_DEVTOOLS_BETA, VUEJS_DEVTOOLS_V5, VUEJS_DEVTOOLS_V6, EXTENSIONS, src_default2;
 var init_dist2 = __esm({
-  "node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
+  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.7.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
     init_dist();
     ANGULAR_DEVTOOLS = "ienfalfjdbdpebioblfackkekamfmbnh";
     APOLLO_CLIENT_TOOLS = "jdkknkkbebbapilgoeccciglkfbmbnfm";
@@ -10469,37 +10046,1067 @@ var init_dist2 = __esm({
     src_default2 = installExtension;
   }
 });
+
+// src/platform/auth/electron-options.ts
+var _a, _b;
+var BETTER_AUTH_BASE_URL = (_b = (_a = process.env.NEXT_PUBLIC_BETTER_AUTH_URL) != null ? _a : process.env.BETTER_AUTH_URL) != null ? _b : "http://localhost:3000";
+var ELECTRON_AUTH_PROTOCOL = "com.data-navigator.app";
+var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
+var ELECTRON_AUTH_CLIENT_ID = "electron";
+var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
+
+// node_modules/.pnpm/@better-auth+electron@1.6.1_b8496d9c31a6e141f12ee2ada677772a/node_modules/@better-auth/electron/dist/version-ekzjMTDh.mjs
+var PACKAGE_VERSION = "1.6.14";
+
+// node_modules/.pnpm/@better-auth+electron@1.6.1_b8496d9c31a6e141f12ee2ada677772a/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+function isProcessType(type) {
+  return typeof process !== "undefined" && process.type === type;
+}
+function parseProtocolScheme(protocolOption) {
+  if (typeof protocolOption === "string") return {
+    scheme: protocolOption,
+    privileges: {}
+  };
+  return {
+    scheme: protocolOption.scheme,
+    privileges: protocolOption.privileges || {}
+  };
+}
+function getChannelPrefixWithDelimiter(ns = "better-auth") {
+  return ns.length > 0 ? ns + ":" : ns;
+}
+
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/error/index.mjs
+var BetterAuthError = class extends Error {
+  constructor(message, options) {
+    super(message, options);
+    this.name = "BetterAuthError";
+    this.message = message;
+    this.stack = "";
+  }
+};
+
+// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/base64.mjs
+function getAlphabet(urlSafe) {
+  return urlSafe ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+}
+function base64Encode(data, alphabet, padding) {
+  let result = "";
+  let buffer = 0;
+  let shift = 0;
+  for (const byte of data) {
+    buffer = buffer << 8 | byte;
+    shift += 8;
+    while (shift >= 6) {
+      shift -= 6;
+      result += alphabet[buffer >> shift & 63];
+    }
+  }
+  if (shift > 0) {
+    result += alphabet[buffer << 6 - shift & 63];
+  }
+  if (padding) {
+    const padCount = (4 - result.length % 4) % 4;
+    result += "=".repeat(padCount);
+  }
+  return result;
+}
+function base64Decode(data, alphabet) {
+  const decodeMap = /* @__PURE__ */ new Map();
+  for (let i = 0; i < alphabet.length; i++) {
+    decodeMap.set(alphabet[i], i);
+  }
+  const result = [];
+  let buffer = 0;
+  let bitsCollected = 0;
+  for (const char of data) {
+    if (char === "=")
+      break;
+    const value = decodeMap.get(char);
+    if (value === void 0) {
+      throw new Error(`Invalid Base64 character: ${char}`);
+    }
+    buffer = buffer << 6 | value;
+    bitsCollected += 6;
+    if (bitsCollected >= 8) {
+      bitsCollected -= 8;
+      result.push(buffer >> bitsCollected & 255);
+    }
+  }
+  return Uint8Array.from(result);
+}
+var base64 = {
+  encode(data, options = {}) {
+    var _a2;
+    const alphabet = getAlphabet(false);
+    const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+    return base64Encode(buffer, alphabet, (_a2 = options.padding) != null ? _a2 : true);
+  },
+  decode(data) {
+    if (typeof data !== "string") {
+      data = new TextDecoder().decode(data);
+    }
+    const urlSafe = data.includes("-") || data.includes("_");
+    const alphabet = getAlphabet(urlSafe);
+    return base64Decode(data, alphabet);
+  }
+};
+var base64Url = {
+  encode(data, options = {}) {
+    var _a2;
+    const alphabet = getAlphabet(true);
+    const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
+    return base64Encode(buffer, alphabet, (_a2 = options.padding) != null ? _a2 : true);
+  },
+  decode(data) {
+    const urlSafe = data.includes("-") || data.includes("_");
+    const alphabet = getAlphabet(urlSafe);
+    return base64Decode(data, alphabet);
+  }
+};
+
+// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/index.mjs
+function getWebcryptoSubtle() {
+  const cr = typeof globalThis !== "undefined" && globalThis.crypto;
+  if (cr && typeof cr.subtle === "object" && cr.subtle != null)
+    return cr.subtle;
+  throw new Error("crypto.subtle must be defined");
+}
+
+// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/hash.mjs
+function createHash(algorithm, encoding) {
+  return {
+    digest: async (input) => {
+      const encoder = new TextEncoder();
+      const data = typeof input === "string" ? encoder.encode(input) : input;
+      const hashBuffer = await getWebcryptoSubtle().digest(algorithm, data);
+      return hashBuffer;
+    }
+  };
+}
+
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/env/env-impl.mjs
+var _envShim = /* @__PURE__ */ Object.create(null);
+var _getEnv = (useShim) => {
+  var _a2, _b2;
+  return ((_a2 = globalThis.process) == null ? void 0 : _a2.env) || ((_b2 = globalThis.Deno) == null ? void 0 : _b2.env.toObject()) || globalThis.__env__ || (useShim ? _envShim : globalThis);
+};
+new Proxy(_envShim, {
+  get(_, prop) {
+    var _a2;
+    return (_a2 = _getEnv()[prop]) != null ? _a2 : _envShim[prop];
+  },
+  has(_, prop) {
+    return prop in _getEnv() || prop in _envShim;
+  },
+  set(_, prop, value) {
+    const env2 = _getEnv(true);
+    env2[prop] = value;
+    return true;
+  },
+  deleteProperty(_, prop) {
+    if (!prop) return false;
+    const env2 = _getEnv(true);
+    delete env2[prop];
+    return true;
+  },
+  ownKeys() {
+    const env2 = _getEnv(true);
+    return Object.keys(env2);
+  }
+});
+var nodeENV = typeof process !== "undefined" && process.env && process.env.NODE_ENV || "";
+var isDevelopment = () => nodeENV === "dev" || nodeENV === "development";
+function isValidIP(ip) {
+  return z__namespace.ipv4().safeParse(ip).success || z__namespace.ipv6().safeParse(ip).success;
+}
+function isIPv6(ip) {
+  return z__namespace.ipv6().safeParse(ip).success;
+}
+function extractIPv4FromMapped(ipv62) {
+  var _a2;
+  const lower = ipv62.toLowerCase();
+  if (lower.startsWith("::ffff:")) {
+    const ipv4Part = lower.substring(7);
+    if (z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
+  }
+  const parts = ipv62.split(":");
+  if (parts.length === 7 && ((_a2 = parts[5]) == null ? void 0 : _a2.toLowerCase()) === "ffff") {
+    const ipv4Part = parts[6];
+    if (ipv4Part && z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
+  }
+  if (lower.includes("::ffff:") || lower.includes(":ffff:")) {
+    const groups = expandIPv6(ipv62);
+    if (groups.length === 8 && groups[0] === "0000" && groups[1] === "0000" && groups[2] === "0000" && groups[3] === "0000" && groups[4] === "0000" && groups[5] === "ffff" && groups[6] && groups[7]) return `${Number.parseInt(groups[6].substring(0, 2), 16)}.${Number.parseInt(groups[6].substring(2, 4), 16)}.${Number.parseInt(groups[7].substring(0, 2), 16)}.${Number.parseInt(groups[7].substring(2, 4), 16)}`;
+  }
+  return null;
+}
+function expandIPv6(ipv62) {
+  if (ipv62.includes("::")) {
+    const sides = ipv62.split("::");
+    const left = sides[0] ? sides[0].split(":") : [];
+    const right = sides[1] ? sides[1].split(":") : [];
+    const missingGroups = 8 - left.length - right.length;
+    const zeros = Array(missingGroups).fill("0000");
+    const paddedLeft = left.map((g) => g.padStart(4, "0"));
+    const paddedRight = right.map((g) => g.padStart(4, "0"));
+    return [
+      ...paddedLeft,
+      ...zeros,
+      ...paddedRight
+    ];
+  }
+  return ipv62.split(":").map((g) => g.padStart(4, "0"));
+}
+function normalizeIPv6(ipv62, subnetPrefix) {
+  const groups = expandIPv6(ipv62);
+  if (subnetPrefix !== void 0 && subnetPrefix < 128) {
+    let bitsRemaining = Math.max(0, Math.floor(subnetPrefix));
+    return groups.map((group) => {
+      if (bitsRemaining <= 0) return "0000";
+      if (bitsRemaining >= 16) {
+        bitsRemaining -= 16;
+        return group;
+      }
+      const masked = Number.parseInt(group, 16) & (65535 << 16 - bitsRemaining & 65535);
+      bitsRemaining = 0;
+      return masked.toString(16).padStart(4, "0");
+    }).join(":").toLowerCase();
+  }
+  return groups.join(":").toLowerCase();
+}
+function normalizeIP(ip, options = {}) {
+  var _a2;
+  if (z__namespace.ipv4().safeParse(ip).success) return ip.toLowerCase();
+  if (!isIPv6(ip)) return ip.toLowerCase();
+  const ipv42 = extractIPv4FromMapped(ip);
+  if (ipv42) return ipv42.toLowerCase();
+  return normalizeIPv6(ip, (_a2 = options.ipv6Subnet) != null ? _a2 : 64);
+}
+
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/utils/host.mjs
+var CLOUD_METADATA_HOSTS = /* @__PURE__ */ new Set([
+  "metadata.google.internal",
+  "metadata.goog",
+  "metadata",
+  "instance-data",
+  "instance-data.ec2.internal"
+]);
+function stripBrackets(host) {
+  if (host.length >= 2 && host.startsWith("[") && host.endsWith("]")) return host.slice(1, -1);
+  return host;
+}
+function stripPort(host) {
+  if (host.startsWith("[")) {
+    const end = host.indexOf("]");
+    if (end === -1) return host;
+    return host.slice(0, end + 1);
+  }
+  const firstColon = host.indexOf(":");
+  if (firstColon === -1) return host;
+  if (host.indexOf(":", firstColon + 1) !== -1) return host;
+  return host.slice(0, firstColon);
+}
+function stripZoneId(host) {
+  const zone = host.indexOf("%");
+  if (zone === -1) return host;
+  return host.slice(0, zone);
+}
+function stripTrailingDot(host) {
+  return host.replace(/\.+$/, "");
+}
+function looksLikeIPv4(host) {
+  return /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(host);
+}
+function ipv4ToUint32(ip) {
+  const parts = ip.split(".");
+  return (Number(parts[0]) << 24 | Number(parts[1]) << 16 | Number(parts[2]) << 8 | Number(parts[3])) >>> 0;
+}
+function inIPv4Range(value, prefix, length) {
+  if (length === 0) return true;
+  const mask = length === 32 ? 4294967295 : -1 << 32 - length >>> 0;
+  return (value & mask) === (prefix & mask);
+}
+function classifyIPv4(ip) {
+  if (ip === "0.0.0.0") return "unspecified";
+  if (ip === "255.255.255.255") return "broadcast";
+  const n = ipv4ToUint32(ip);
+  if (inIPv4Range(n, ipv4ToUint32("127.0.0.0"), 8)) return "loopback";
+  if (inIPv4Range(n, ipv4ToUint32("10.0.0.0"), 8)) return "private";
+  if (inIPv4Range(n, ipv4ToUint32("172.16.0.0"), 12)) return "private";
+  if (inIPv4Range(n, ipv4ToUint32("192.168.0.0"), 16)) return "private";
+  if (inIPv4Range(n, ipv4ToUint32("169.254.0.0"), 16)) return "linkLocal";
+  if (inIPv4Range(n, ipv4ToUint32("100.64.0.0"), 10)) return "sharedAddressSpace";
+  if (inIPv4Range(n, ipv4ToUint32("192.0.2.0"), 24)) return "documentation";
+  if (inIPv4Range(n, ipv4ToUint32("198.51.100.0"), 24)) return "documentation";
+  if (inIPv4Range(n, ipv4ToUint32("203.0.113.0"), 24)) return "documentation";
+  if (inIPv4Range(n, ipv4ToUint32("198.18.0.0"), 15)) return "benchmarking";
+  if (inIPv4Range(n, ipv4ToUint32("224.0.0.0"), 4)) return "multicast";
+  if (inIPv4Range(n, ipv4ToUint32("0.0.0.0"), 8)) return "reserved";
+  if (inIPv4Range(n, ipv4ToUint32("192.0.0.0"), 24)) return "reserved";
+  if (inIPv4Range(n, ipv4ToUint32("240.0.0.0"), 4)) return "reserved";
+  return "public";
+}
+function extractEmbeddedIPv4(expanded, startGroup, options = {}) {
+  const offset = startGroup * 5;
+  const g1 = Number.parseInt(expanded.slice(offset, offset + 4), 16);
+  const g2 = Number.parseInt(expanded.slice(offset + 5, offset + 9), 16);
+  if (!Number.isFinite(g1) || !Number.isFinite(g2)) return null;
+  let combined = (g1 << 16 | g2) >>> 0;
+  if (options.xor) combined = (combined ^ 4294967295) >>> 0;
+  return `${combined >>> 24 & 255}.${combined >>> 16 & 255}.${combined >>> 8 & 255}.${combined & 255}`;
+}
+function classifyIPv6(expanded) {
+  if (expanded === "0000:0000:0000:0000:0000:0000:0000:0000") return "unspecified";
+  if (expanded === "0000:0000:0000:0000:0000:0000:0000:0001") return "loopback";
+  const firstByte = Number.parseInt(expanded.slice(0, 2), 16);
+  const secondByte = Number.parseInt(expanded.slice(2, 4), 16);
+  if (firstByte === 255) return "multicast";
+  if (firstByte === 254 && (secondByte & 192) === 128) return "linkLocal";
+  if ((firstByte & 254) === 252) return "private";
+  if (expanded.startsWith("2001:0db8:")) return "documentation";
+  if (expanded.startsWith("2002:")) {
+    const embedded = extractEmbeddedIPv4(expanded, 1);
+    if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
+    return "public";
+  }
+  if (expanded.startsWith("0064:ff9b:0000:0000:0000:0000:")) {
+    const embedded = extractEmbeddedIPv4(expanded, 6);
+    if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
+    return "reserved";
+  }
+  if (expanded.startsWith("2001:0000:")) {
+    const embedded = extractEmbeddedIPv4(expanded, 6, { xor: true });
+    if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
+    return "reserved";
+  }
+  if (expanded.startsWith("0100:0000:0000:0000:")) return "reserved";
+  return "public";
+}
+function classifyHost(host) {
+  const lowered = stripTrailingDot(stripZoneId(stripBrackets(stripPort(host.trim())))).toLowerCase();
+  if (lowered === "") return {
+    kind: "reserved",
+    literal: "fqdn",
+    canonical: ""
+  };
+  if (!isValidIP(lowered)) {
+    if (lowered === "localhost" || lowered.endsWith(".localhost")) return {
+      kind: "localhost",
+      literal: "fqdn",
+      canonical: lowered
+    };
+    if (CLOUD_METADATA_HOSTS.has(lowered)) return {
+      kind: "cloudMetadata",
+      literal: "fqdn",
+      canonical: lowered
+    };
+    return {
+      kind: "public",
+      literal: "fqdn",
+      canonical: lowered
+    };
+  }
+  if (looksLikeIPv4(lowered)) return {
+    kind: classifyIPv4(lowered),
+    literal: "ipv4",
+    canonical: lowered
+  };
+  const canonical = normalizeIP(lowered, { ipv6Subnet: 128 });
+  if (looksLikeIPv4(canonical)) return {
+    kind: classifyIPv4(canonical),
+    literal: "ipv4",
+    canonical
+  };
+  return {
+    kind: classifyIPv6(canonical),
+    literal: "ipv6",
+    canonical
+  };
+}
+function isPublicRoutableHost(host) {
+  return classifyHost(host).kind === "public";
+}
+var { net } = electron__default.default;
+var DEFAULT_MAX_BYTES = 1024 * 1024 * 5;
+async function fetchUserImage(baseURL, url, options) {
+  var _a2, _b2, _c;
+  if (((_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.enabled) === false) return null;
+  const decoded = await decodeDataImageUrl(url, options);
+  if (decoded) return {
+    stream: new ReadableStream({ start(controller) {
+      controller.enqueue(decoded.bytes);
+      controller.close();
+    } }),
+    mimeType: decoded.mimeType
+  };
+  let resolvedUrl;
+  try {
+    let parsed;
+    try {
+      parsed = new URL(url);
+    } catch (e) {
+      if (!baseURL) return null;
+      const base = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
+      const relative = url.startsWith("/") ? url.slice(1) : url;
+      parsed = new URL(relative, base);
+    }
+    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (!isDevelopment() && !isPublicRoutableHost(parsed.hostname)) return null;
+    resolvedUrl = parsed.href;
+  } catch (e) {
+    return null;
+  }
+  const { maxSize = DEFAULT_MAX_BYTES, accept = "image/*", customValidator: validateImage = detectImageType } = (_b2 = options == null ? void 0 : options.userImageProxy) != null ? _b2 : {};
+  const response = await net.fetch(resolvedUrl, {
+    method: "GET",
+    headers: { accept }
+  });
+  if (!response.ok) return null;
+  const contentType = response.headers.get("content-type");
+  if (!(contentType == null ? void 0 : contentType.startsWith("image/")) || contentType.startsWith("image/svg")) return null;
+  const contentLength = response.headers.get("content-length");
+  if (contentLength && Number(contentLength) > maxSize) return null;
+  const body = response.body;
+  if (!body) return null;
+  const mimeType = ((_c = contentType.split(";")[0]) == null ? void 0 : _c.trim()) || "image/png";
+  const reader = body.getReader();
+  let totalSize = 0;
+  let firstChunk = true;
+  return {
+    stream: new ReadableStream({
+      async pull(controller) {
+        const { done, value } = await reader.read();
+        if (done) {
+          controller.close();
+          return;
+        }
+        totalSize += value.byteLength;
+        if (totalSize > maxSize) {
+          reader.cancel();
+          controller.error(/* @__PURE__ */ new Error("Image exceeds maximum size"));
+          return;
+        }
+        if (firstChunk) {
+          firstChunk = false;
+          if (!validateImage(value)) {
+            reader.cancel();
+            controller.error(/* @__PURE__ */ new Error("Invalid image type"));
+            return;
+          }
+        }
+        controller.enqueue(value);
+      },
+      cancel() {
+        reader.cancel();
+      }
+    }),
+    mimeType
+  };
+}
+function normalizeUserOutput(user, options) {
+  var _a2, _b2;
+  const result = __spreadValues({}, user);
+  if (result.image && ((_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.enabled) !== false) result.image = `${((_b2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _b2.scheme) || "user-image"}://${result.id}`;
+  return result;
+}
+async function decodeDataImageUrl(url, options) {
+  var _a2, _b2, _c;
+  const maxSize = (_b2 = (_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.maxSize) != null ? _b2 : DEFAULT_MAX_BYTES;
+  const maxBase64Size = Math.ceil(maxSize * 4 / 3);
+  const lower = url.toLowerCase();
+  if (!lower.startsWith("data:image/") || lower.startsWith("data:image/svg")) return null;
+  const markerIdx = lower.indexOf(";base64,");
+  if (markerIdx === -1) return null;
+  const mimeType = url.substring(5, markerIdx);
+  const payload = url.substring(markerIdx + 8);
+  if (!payload || payload.length > maxBase64Size) return null;
+  try {
+    const bytes = base64.decode(payload);
+    const { customValidator: validateImage = detectImageType } = (_c = options == null ? void 0 : options.userImageProxy) != null ? _c : {};
+    if (!await validateImage(bytes)) return null;
+    return {
+      bytes,
+      mimeType
+    };
+  } catch (e) {
+    return null;
+  }
+}
+function detectImageType(bytes) {
+  if (bytes.length < 12) return null;
+  if (bytes[0] === 137 && bytes[1] === 80 && bytes[2] === 78 && bytes[3] === 71 && bytes[4] === 13 && bytes[5] === 10 && bytes[6] === 26 && bytes[7] === 10) return "image/png";
+  if (bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255) return "image/jpg";
+  if (bytes[0] === 71 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 56 && (bytes[4] === 55 || bytes[4] === 57) && bytes[5] === 97) return "image/gif";
+  if (bytes.length >= 12 && bytes[0] === 82 && bytes[1] === 73 && bytes[2] === 70 && bytes[3] === 70 && bytes[8] === 87 && bytes[9] === 69 && bytes[10] === 66 && bytes[11] === 80) return "image/webp";
+  if (bytes[0] === 66 && bytes[1] === 77) return "image/bmp";
+  if (bytes[0] === 73 && bytes[1] === 73 && bytes[2] === 42 && bytes[3] === 0 || bytes[0] === 77 && bytes[1] === 77 && bytes[2] === 0 && bytes[3] === 42) return "image/tiff";
+  if (bytes[0] === 0 && bytes[1] === 0 && bytes[2] === 1 && bytes[3] === 0) return "image/x-icon";
+  if (bytes.length < 16) return null;
+  if (String.fromCharCode(...bytes.slice(4, 8)) !== "ftyp") return null;
+  const brand = String.fromCharCode(...bytes.slice(8, 12));
+  if (brand === "avif" || brand === "heic" || brand === "heif") return `image/${brand}`;
+  if (brand === "heix" || brand === "hevc" || brand === "mif1" || brand === "msf1") return "image/heic";
+  return null;
+}
+var kElectron = /* @__PURE__ */ Symbol.for("better-auth:electron");
+(() => {
+  const _a2 = api.signInSocial().options.body.shape, { provider, idToken, loginHint } = _a2, signInSocialBody = __objRest(_a2, ["provider", "idToken", "loginHint"]);
+  return z__namespace.object(__spreadProps(__spreadValues({}, signInSocialBody), {
+    provider: z__namespace.string().nonempty().optional()
+  }));
+})();
+async function requestAuth(clientOptions, options, cfg) {
+  var _a2;
+  if (!isProcessType("browser")) throw new BetterAuthError("`requestAuth` can only be called in the main process");
+  const { randomBytes } = await import('crypto');
+  const state = crypto.generateRandomString(16, "A-Z", "a-z", "0-9");
+  const codeVerifier = base64Url.encode(randomBytes(32));
+  const codeChallenge = base64Url.encode(await createHash("SHA-256").digest(codeVerifier));
+  ((_a2 = globalThis[kElectron]) != null ? _a2 : globalThis[kElectron] = /* @__PURE__ */ new Map()).set(state, codeVerifier);
+  let url = null;
+  if (cfg == null ? void 0 : cfg.provider) {
+    const baseURL = betterAuth.getBaseURL(clientOptions == null ? void 0 : clientOptions.baseURL, clientOptions == null ? void 0 : clientOptions.basePath, void 0, true);
+    if (!baseURL) {
+      console.log("No base URL found in client options");
+      throw betterAuth.APIError.from("INTERNAL_SERVER_ERROR", {
+        code: "NO_BASE_URL",
+        message: "Base URL is required to use provider-based sign-in."
+      });
+    }
+    url = new URL(`${baseURL}/electron/init-oauth-proxy`);
+    for (const [key, value] of Object.entries(cfg)) url.searchParams.set(key, typeof value === "string" ? value : JSON.stringify(value));
+  } else url = new URL(options.signInURL);
+  url.searchParams.set("client_id", options.clientID || "electron");
+  url.searchParams.set("code_challenge", codeChallenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("state", state);
+  await electron.shell.openExternal(url.toString(), { activate: true });
+}
+async function authenticate({ $fetch, options, token, getWindow, fetchOptions }) {
+  var _a2, _b2;
+  if (!isProcessType("browser")) throw new BetterAuthError("`authenticate` can only be called in the main process.");
+  const decoded = betterAuth.safeJSONParse(new TextDecoder().decode(base64Url.decode(decodeURIComponent(token))));
+  const codeVerifier = (_a2 = globalThis[kElectron]) == null ? void 0 : _a2.get(decoded == null ? void 0 : decoded.state);
+  (_b2 = globalThis[kElectron]) == null ? void 0 : _b2.delete(decoded == null ? void 0 : decoded.state);
+  if (!codeVerifier) throw new BetterAuthError("Code verifier not found.");
+  return await $fetch("/electron/token", __spreadProps(__spreadValues({}, fetchOptions), {
+    method: "POST",
+    body: __spreadProps(__spreadValues({}, (fetchOptions == null ? void 0 : fetchOptions.body) || {}), {
+      token: decoded.identifier,
+      state: decoded.state,
+      code_verifier: codeVerifier
+    }),
+    onSuccess: async (ctx) => {
+      var _a3, _b3, _c, _d;
+      let user = (_b3 = (_a3 = ctx.data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+      if (user !== null && typeof options.sanitizeUser === "function") try {
+        user = await options.sanitizeUser(user);
+      } catch (error) {
+        console.error("Error while sanitizing user", error);
+        user = null;
+      }
+      if (user === null) return;
+      user = normalizeUserOutput(user, options);
+      await ((_c = fetchOptions == null ? void 0 : fetchOptions.onSuccess) == null ? void 0 : _c.call(fetchOptions, ctx));
+      (_d = getWindow()) == null ? void 0 : _d.webContents.send(`${getChannelPrefixWithDelimiter(options.channelPrefix)}authenticated`, user);
+    }
+  }));
+}
+var { app: app$1, session, protocol, BrowserWindow, ipcMain, webContents: webContents$1 } = electron__default.default;
+function withGetWindowFallback(win) {
+  return win != null ? win : (() => {
+    const allWindows = BrowserWindow.getAllWindows();
+    return allWindows.length > 0 ? allWindows[0] : null;
+  });
+}
+function setupMain($fetch, $store, getCookie2, opts, clientOptions, cfg) {
+  var _a2;
+  if (!isProcessType("browser")) throw new BetterAuthError("setupMain can only be called in the main process.");
+  const getWindow = withGetWindowFallback(cfg == null ? void 0 : cfg.getWindow);
+  if (!cfg || cfg.csp === true) setupCSP(clientOptions, opts);
+  if (!cfg || cfg.scheme === true) registerProtocolScheme($fetch, opts, getWindow, clientOptions);
+  if (!cfg || cfg.bridges === true) setupBridges({
+    $fetch,
+    $store,
+    getCookie: getCookie2,
+    getWindow
+  }, opts, clientOptions);
+  if (((_a2 = opts.userImageProxy) == null ? void 0 : _a2.enabled) !== false) setupUserImageProxy({
+    $fetch,
+    getCookie: getCookie2
+  }, opts, clientOptions);
+}
+async function handleDeepLink({ $fetch, options, url, getWindow, clientOptions }) {
+  if (!isProcessType("browser")) throw new BetterAuthError("`handleDeepLink` can only be called in the main process.");
+  let parsedURL = null;
+  try {
+    parsedURL = new URL(url);
+  } catch (e) {
+  }
+  if (!parsedURL) return;
+  const { scheme } = parseProtocolScheme(options.protocol);
+  if (!url.startsWith(`${scheme}:/`)) return;
+  const { protocol: protocol2, pathname, hostname, hash } = parsedURL;
+  if (protocol2 !== `${scheme}:`) return;
+  if ("/" + hostname + pathname !== (options.callbackPath || "/auth/callback")) return;
+  if (!hash.startsWith("#token=")) return;
+  await authenticate({
+    $fetch,
+    fetchOptions: { throw: true },
+    token: hash.substring(7),
+    getWindow: withGetWindowFallback(getWindow),
+    options
+  });
+}
+function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
+  const { scheme, privileges = {} } = typeof options.protocol === "string" ? { scheme: options.protocol } : options.protocol;
+  protocol.registerSchemesAsPrivileged([{
+    scheme,
+    privileges: __spreadValues({
+      standard: false,
+      secure: true
+    }, privileges)
+  }]);
+  let hasSetupProtocolClient = false;
+  if (process == null ? void 0 : process.defaultApp) {
+    if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path.resolve(process.argv[1])]);
+  } else hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme);
+  if (!hasSetupProtocolClient) console.error(`Failed to register protocol ${scheme} as default protocol client.`);
+  if (!app$1.requestSingleInstanceLock()) app$1.quit();
+  else {
+    app$1.on("second-instance", async (_event, commandLine, _workingDir, url) => {
+      const win = getWindow();
+      if (win) {
+        if (win.isMinimized()) win.restore();
+        win.focus();
+      }
+      if (!url) {
+        const maybeURL = commandLine.pop();
+        if (typeof maybeURL === "string" && maybeURL.trim() !== "") try {
+          url = new URL(maybeURL).toString();
+        } catch (e) {
+        }
+      }
+      if ((process == null ? void 0 : process.platform) !== "darwin" && typeof url === "string") await handleDeepLink({
+        $fetch,
+        options,
+        url,
+        getWindow,
+        clientOptions
+      });
+    });
+    app$1.on("open-url", async (_event, url) => {
+      if ((process == null ? void 0 : process.platform) === "darwin") await handleDeepLink({
+        $fetch,
+        options,
+        url,
+        getWindow,
+        clientOptions
+      });
+    });
+    app$1.whenReady().then(async () => {
+      if ((process == null ? void 0 : process.platform) !== "darwin" && typeof process.argv[1] === "string") await handleDeepLink({
+        $fetch,
+        options,
+        url: process.argv[1],
+        getWindow,
+        clientOptions
+      });
+    });
+  }
+}
+function setupCSP(clientOptions, options) {
+  app$1.whenReady().then(() => {
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+      var _a2, _b2, _c;
+      const origin = new URL((clientOptions == null ? void 0 : clientOptions.baseURL) || "", "http://localhost").origin;
+      const cspKey = Object.keys(details.responseHeaders || {}).find((k) => k.toLowerCase() === "content-security-policy");
+      if (!cspKey) return callback({ responseHeaders: __spreadProps(__spreadValues({}, details.responseHeaders || {}), {
+        "content-security-policy": `connect-src 'self' ${origin}`
+      }) });
+      const policy = ((_b2 = (_a2 = details.responseHeaders) == null ? void 0 : _a2[cspKey]) == null ? void 0 : _b2.toString()) || "";
+      const csp = /* @__PURE__ */ new Map();
+      for (let token of policy.split(";")) {
+        token = token.trim();
+        if (!token || !/^[\x00-\x7f]*$/.test(token)) continue;
+        const [rawDirectiveName, ...directiveValue] = token.split(/\s+/);
+        const directiveName = rawDirectiveName == null ? void 0 : rawDirectiveName.toLowerCase();
+        if (!directiveName) continue;
+        if (csp.has(directiveName)) continue;
+        csp.set(directiveName, directiveValue);
+      }
+      if (csp.has("connect-src")) {
+        const values = csp.get("connect-src") || [];
+        if (!values.includes(origin)) values.push(origin);
+        csp.set("connect-src", values);
+      } else csp.set("connect-src", ["'self'", origin]);
+      const userImageScheme = (((_c = options.userImageProxy) == null ? void 0 : _c.scheme) || "user-image") + ":";
+      if (csp.has("img-src")) {
+        const values = csp.get("img-src") || [];
+        if (!values.includes(userImageScheme)) values.push(userImageScheme);
+        csp.set("img-src", values);
+      } else csp.set("img-src", ["'self'", userImageScheme]);
+      callback({ responseHeaders: __spreadProps(__spreadValues({}, details.responseHeaders), {
+        "content-security-policy": Array.from(csp.entries()).map(([k, v]) => `${k} ${v.join(" ")}`).join("; ")
+      }) });
+    });
+  });
+}
+function setupBridges(ctx, opts, clientOptions) {
+  var _a2, _b2;
+  const prefix = getChannelPrefixWithDelimiter(opts.channelPrefix);
+  (_b2 = (_a2 = ctx.$store) == null ? void 0 : _a2.atoms.session) == null ? void 0 : _b2.subscribe(async (state) => {
+    var _a3, _b3, _c;
+    if (state.isPending === true) return;
+    let user = (_b3 = (_a3 = state.data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+    if (user !== null && typeof opts.sanitizeUser === "function") try {
+      user = await opts.sanitizeUser(user);
+    } catch (error) {
+      console.error("Error while sanitizing user", error);
+      user = null;
+    }
+    if (user !== null) user = normalizeUserOutput(user, opts);
+    (_c = webContents$1.getFocusedWebContents()) == null ? void 0 : _c.send(`${prefix}user-updated`, user);
+  });
+  ipcMain.handle(`${prefix}getUser`, async () => {
+    var _a3, _b3;
+    let user = (_b3 = (_a3 = (await ctx.$fetch("/get-session", {
+      method: "GET",
+      headers: {
+        cookie: ctx.getCookie(),
+        "content-type": "application/json"
+      }
+    })).data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+    if (user !== null && typeof opts.sanitizeUser === "function") try {
+      user = await opts.sanitizeUser(user);
+    } catch (error) {
+      console.error("Error while sanitizing user", error);
+      user = null;
+    }
+    if (user !== null) user = normalizeUserOutput(user, opts);
+    return user != null ? user : null;
+  });
+  ipcMain.handle(`${prefix}requestAuth`, async (_evt, options) => requestAuth(clientOptions, opts, options));
+  ipcMain.handle(`${prefix}authenticate`, async (_evt, data) => {
+    await authenticate({
+      $fetch: ctx.$fetch,
+      getWindow: ctx.getWindow,
+      options: opts,
+      token: data.token
+    });
+  });
+  ipcMain.handle(`${prefix}signOut`, async () => {
+    await ctx.$fetch("/sign-out", {
+      method: "POST",
+      body: "{}",
+      headers: {
+        cookie: ctx.getCookie(),
+        "content-type": "application/json"
+      }
+    });
+  });
+}
+function setupUserImageProxy(ctx, opts, clientOptions) {
+  var _a2, _b2, _c;
+  const hasAdminPlugin = (_b2 = (_a2 = clientOptions == null ? void 0 : clientOptions.plugins) == null ? void 0 : _a2.some((plugin) => plugin.id === "admin")) != null ? _b2 : false;
+  const scheme = ((_c = opts.userImageProxy) == null ? void 0 : _c.scheme) || "user-image";
+  protocol.registerSchemesAsPrivileged([{
+    scheme,
+    privileges: {
+      standard: false,
+      secure: true,
+      bypassCSP: true,
+      stream: true
+    }
+  }]);
+  app$1.whenReady().then(() => {
+    protocol.handle(scheme, async (request) => {
+      var _a3, _b3, _c2, _d;
+      try {
+        const userId = new URL(request.url).hostname;
+        if (!userId) return new Response(null, { status: 400 });
+        const headers = {
+          cookie: ctx.getCookie(),
+          "content-type": "application/json"
+        };
+        let imageUrl = null;
+        const sessionResult = await ctx.$fetch("/get-session", {
+          method: "GET",
+          headers
+        });
+        if (((_b3 = (_a3 = sessionResult.data) == null ? void 0 : _a3.user) == null ? void 0 : _b3.id) === userId) imageUrl = sessionResult.data.user.image;
+        else if (hasAdminPlugin) imageUrl = (_d = (_c2 = (await ctx.$fetch(`/admin/get-user?id=${encodeURIComponent(userId)}`, {
+          method: "GET",
+          headers
+        })).data) == null ? void 0 : _c2.user) == null ? void 0 : _d.image;
+        if (!imageUrl) return new Response(null, { status: 404 });
+        const result = await fetchUserImage(clientOptions == null ? void 0 : clientOptions.baseURL, imageUrl, opts);
+        if (!result) return new Response(null, { status: 404 });
+        return new Response(result.stream, { headers: {
+          "content-type": result.mimeType,
+          "cache-control": "private, max-age=3600"
+        } });
+      } catch (e) {
+        return new Response(null, { status: 500 });
+      }
+    });
+  });
+}
+function getSetCookie(header, prevCookie) {
+  const parsed = cookies.parseSetCookieHeader(header);
+  let toSetCookie = {};
+  parsed.forEach((cookie, key) => {
+    const expiresAt = cookie["expires"];
+    const maxAge = cookie["max-age"];
+    const expires = maxAge ? new Date(Date.now() + Number(maxAge) * 1e3) : expiresAt ? new Date(String(expiresAt)) : null;
+    toSetCookie[key] = {
+      value: cookie["value"],
+      expires: expires ? expires.toISOString() : null
+    };
+  });
+  if (prevCookie) try {
+    toSetCookie = __spreadValues(__spreadValues({}, JSON.parse(prevCookie)), toSetCookie);
+  } catch (e) {
+  }
+  return JSON.stringify(toSetCookie);
+}
+function getCookie(cookie) {
+  let parsed = {};
+  try {
+    parsed = JSON.parse(cookie);
+  } catch (_e) {
+  }
+  const pairs = [];
+  for (const [key, value] of Object.entries(parsed)) {
+    if (value.expires && new Date(value.expires) < /* @__PURE__ */ new Date()) continue;
+    if (!cookies.cookieNameRegex.test(key)) continue;
+    pairs.push(`${key}=${encodeURIComponent(value.value)}`);
+  }
+  return pairs.join("; ");
+}
+function hasSessionCookieChanged(prevCookie, newCookie) {
+  var _a2, _b2;
+  if (!prevCookie) return true;
+  try {
+    const prev = JSON.parse(prevCookie);
+    const next = JSON.parse(newCookie);
+    const sessionKeys = /* @__PURE__ */ new Set();
+    Object.keys(prev).forEach((key) => {
+      if (key.includes("session_token") || key.includes("session_data")) sessionKeys.add(key);
+    });
+    Object.keys(next).forEach((key) => {
+      if (key.includes("session_token") || key.includes("session_data")) sessionKeys.add(key);
+    });
+    for (const key of sessionKeys) if (((_a2 = prev[key]) == null ? void 0 : _a2.value) !== ((_b2 = next[key]) == null ? void 0 : _b2.value)) return true;
+    return false;
+  } catch (e) {
+    return true;
+  }
+}
+function hasBetterAuthCookies(setCookieHeader, cookiePrefix) {
+  const cookies$1 = cookies.parseSetCookieHeader(setCookieHeader);
+  const cookieSuffixes = ["session_token", "session_data"];
+  const prefixes = Array.isArray(cookiePrefix) ? cookiePrefix : [cookiePrefix];
+  for (const name of cookies$1.keys()) {
+    const nameWithoutSecure = name.startsWith("__Secure-") ? name.slice(9) : name;
+    for (const prefix of prefixes) if (prefix) {
+      if (nameWithoutSecure.startsWith(prefix)) return true;
+    } else for (const suffix of cookieSuffixes) if (nameWithoutSecure.endsWith(suffix)) return true;
+  }
+  return false;
+}
+var { app, safeStorage, webContents } = electron__default.default;
+var storageAdapter = (storage2, sessionKeys) => {
+  const memory = /* @__PURE__ */ new Map();
+  return __spreadProps(__spreadValues({}, storage2), {
+    getDecrypted: (name) => {
+      var _a2;
+      if (sessionKeys.has(name) && memory.has(name)) return (_a2 = memory.get(name)) != null ? _a2 : null;
+      if (!safeStorage.isEncryptionAvailable()) return null;
+      const item = storage2.getItem(name);
+      if (!item || typeof item !== "string") return null;
+      try {
+        return safeStorage.decryptString(buffer.Buffer.from(base64.decode(item)));
+      } catch (e) {
+        return null;
+      }
+    },
+    setEncrypted: (name, value) => {
+      if (!safeStorage.isEncryptionAvailable()) {
+        if (sessionKeys.has(name)) memory.set(name, value);
+        return;
+      }
+      try {
+        storage2.setItem(name, base64.encode(safeStorage.encryptString(value)));
+      } catch (e) {
+        return;
+      }
+    }
+  });
+};
+var electronClient = (options) => {
+  const opts = __spreadValues({
+    storagePrefix: "better-auth",
+    cookiePrefix: "better-auth",
+    channelPrefix: "better-auth",
+    callbackPath: "/auth/callback"
+  }, options);
+  const { scheme } = parseProtocolScheme(opts.protocol);
+  let store = null;
+  const cookieName = `${opts.storagePrefix}.cookie`;
+  const localCacheName = `${opts.storagePrefix}.local_cache`;
+  const { getDecrypted, setEncrypted } = storageAdapter(opts.storage, /* @__PURE__ */ new Set([cookieName, localCacheName]));
+  if ((betterAuth.isDevelopment() || betterAuth.isTest()) && /^(?!\.)(?!.*\.\.)(?!.*\.$)[^.]+\.[^.]+$/.test(scheme)) console.warn("The provided scheme does not follow the reverse domain name notation. For example: `app.example.com` -> `com.example.app`.");
+  return {
+    id: "electron",
+    version: PACKAGE_VERSION,
+    fetchPlugins: [{
+      id: "electron",
+      name: "Electron",
+      async init(url, options2) {
+        var _a2;
+        if (!isProcessType("browser")) throw new Error("Requests must be made from the Electron main process");
+        const cookie = getCookie(getDecrypted(cookieName) || "{}");
+        options2 || (options2 = {});
+        options2.credentials = "omit";
+        options2.headers = __spreadProps(__spreadValues({}, options2.headers), {
+          cookie,
+          "user-agent": app.userAgentFallback,
+          "electron-origin": `${scheme}:/`,
+          "x-skip-oauth-proxy": "true"
+        });
+        if (url.endsWith("/sign-out")) {
+          setEncrypted(cookieName, "{}");
+          (_a2 = store == null ? void 0 : store.atoms.session) == null ? void 0 : _a2.set(__spreadProps(__spreadValues({}, store.atoms.session.get()), {
+            data: null,
+            error: null,
+            isPending: false
+          }));
+          setEncrypted(localCacheName, "{}");
+        }
+        return {
+          url,
+          options: options2
+        };
+      },
+      hooks: {
+        onSuccess: async (context) => {
+          const setCookie = context.response.headers.get("set-cookie");
+          if (setCookie) {
+            if (hasBetterAuthCookies(setCookie, opts.cookiePrefix)) {
+              const prevCookie = getDecrypted(cookieName);
+              const toSetCookie = getSetCookie(setCookie || "{}", prevCookie != null ? prevCookie : void 0);
+              if (hasSessionCookieChanged(prevCookie, toSetCookie)) {
+                setEncrypted(cookieName, toSetCookie);
+                store == null ? void 0 : store.notify("$sessionSignal");
+              } else setEncrypted(cookieName, toSetCookie);
+            }
+          }
+          if (context.request.url.toString().includes("/get-session") && !opts.disableCache) {
+            const data = context.data;
+            setEncrypted(localCacheName, JSON.stringify(data));
+          }
+        },
+        onError: async (context) => {
+          var _a2;
+          (_a2 = webContents.getFocusedWebContents()) == null ? void 0 : _a2.send(`${getChannelPrefixWithDelimiter(opts.channelPrefix)}error`, __spreadProps(__spreadValues({}, context.error), {
+            path: context.request.url
+          }));
+        }
+      }
+    }],
+    getActions: ($fetch, $store, clientOptions) => {
+      store = $store;
+      let getWindow = () => null;
+      const getCookieFn = () => {
+        return getCookie(getDecrypted(cookieName) || "{}");
+      };
+      return {
+        getCookie: getCookieFn,
+        authenticate: async (data) => {
+          return await authenticate(__spreadProps(__spreadValues({}, data), {
+            $fetch,
+            options,
+            getWindow: withGetWindowFallback(getWindow)
+          }));
+        },
+        requestAuth: (options2) => requestAuth(clientOptions, opts, options2),
+        setupMain: (cfg) => {
+          if (cfg == null ? void 0 : cfg.getWindow) getWindow = cfg.getWindow;
+          return setupMain($fetch, store, getCookieFn, opts, clientOptions, cfg);
+        },
+        $Infer: {}
+      };
+    }
+  };
+};
+var { app: app2 } = electron__default.default;
+var storage = (opts) => {
+  if (!app2) return {
+    getItem: () => null,
+    setItem: () => {
+    }
+  };
+  const config = new Conf__default.default(__spreadValues({
+    cwd: app2.getPath("userData"),
+    projectName: app2.getName(),
+    projectVersion: app2.getVersion()
+  }, opts));
+  return {
+    getItem: (key) => {
+      return config.get(key, null);
+    },
+    setItem: (key, value) => {
+      config.set(key, value);
+    }
+  };
+};
+var authClient = client.createAuthClient({
+  baseURL: BETTER_AUTH_BASE_URL,
+  plugins: [
+    electronClient({
+      callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
+      clientID: ELECTRON_AUTH_CLIENT_ID,
+      protocol: {
+        scheme: ELECTRON_AUTH_PROTOCOL
+      },
+      signInURL: ELECTRON_AUTH_SIGN_IN_URL,
+      storage: storage()
+    })
+  ]
+});
 var READ_CONN_COUNT = 3;
 var MAX_METRICS = 200;
 var DEFAULT_PREVIEW_LIMIT = 100;
 var MAX_PREVIEW_LIMIT = 500;
 var DEFAULT_CSV_SAMPLE_SIZE = 20480;
 var MAX_CSV_SAMPLE_SIZE = 1e6;
-var DatasetIdSchema = zod.z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
-var RegisterCSVPathDatasetSchema = zod.z.object({
-  filePath: zod.z.string().min(1),
-  displayName: zod.z.string().min(1).max(255).optional(),
-  hasHeader: zod.z.boolean().optional(),
-  delimiter: zod.z.string().min(1).max(4).optional(),
-  sampleSize: zod.z.number().int().positive().max(MAX_CSV_SAMPLE_SIZE).optional(),
-  previewLimit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
+var DatasetIdSchema = z.z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
+var RegisterCSVPathDatasetSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().min(1).max(255).optional(),
+  hasHeader: z.z.boolean().optional(),
+  delimiter: z.z.string().min(1).max(4).optional(),
+  sampleSize: z.z.number().int().positive().max(MAX_CSV_SAMPLE_SIZE).optional(),
+  previewLimit: z.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
 });
-var RegisterParquetPathDatasetSchema = zod.z.object({
-  filePath: zod.z.string().min(1),
-  displayName: zod.z.string().min(1).max(255).optional(),
-  previewLimit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
+var RegisterParquetPathDatasetSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().min(1).max(255).optional(),
+  previewLimit: z.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
 });
-var PreviewDatasetSchema = zod.z.object({
+var PreviewDatasetSchema = z.z.object({
   datasetId: DatasetIdSchema,
-  limit: zod.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional(),
-  offset: zod.z.number().int().min(0).optional()
+  limit: z.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional(),
+  offset: z.z.number().int().min(0).optional()
 });
-var DatasetOnlySchema = zod.z.object({
+var DatasetOnlySchema = z.z.object({
   datasetId: DatasetIdSchema
 });
-var ExportDatasetSchema = zod.z.object({
+var ExportDatasetSchema = z.z.object({
   datasetId: DatasetIdSchema,
-  targetPath: zod.z.string().min(1)
+  targetPath: z.z.string().min(1)
 });
 var instance = null;
 var writeConn = null;
@@ -10596,13 +11203,13 @@ function datasetViewName(datasetId) {
   return DatasetIdSchema.parse(datasetId);
 }
 function buildCsvOptions(options) {
-  var _a, _b;
+  var _a2, _b2;
   const parts = [
     "auto_detect = true",
-    `header = ${(_a = options.hasHeader) != null ? _a : true}`,
+    `header = ${(_a2 = options.hasHeader) != null ? _a2 : true}`,
     "strict_mode = false",
     "null_padding = true",
-    `sample_size = ${(_b = options.sampleSize) != null ? _b : DEFAULT_CSV_SAMPLE_SIZE}`,
+    `sample_size = ${(_b2 = options.sampleSize) != null ? _b2 : DEFAULT_CSV_SAMPLE_SIZE}`,
     "max_line_size = 10000000"
   ];
   if (options.delimiter) {
@@ -10612,10 +11219,10 @@ function buildCsvOptions(options) {
 }
 function normalizeColumns(rows) {
   return rows.map((row) => {
-    var _a, _b;
+    var _a2, _b2;
     return {
-      name: String((_a = row.column_name) != null ? _a : row.name),
-      type: String((_b = row.column_type) != null ? _b : row.type),
+      name: String((_a2 = row.column_name) != null ? _a2 : row.name),
+      type: String((_b2 = row.column_type) != null ? _b2 : row.type),
       nullable: row.null !== "NO" && row.null !== false
     };
   });
@@ -10711,7 +11318,7 @@ async function restoreDatasetViews() {
   }
 }
 async function getDatasetById(conn, datasetId) {
-  var _a;
+  var _a2;
   const id = DatasetIdSchema.parse(datasetId);
   const rows = await measureRows(
     conn,
@@ -10743,7 +11350,7 @@ async function getDatasetById(conn, datasetId) {
     sourcePath: String(row.source_path),
     cachePath: String(row.cache_path),
     sourceFormat: String(row.source_format),
-    rowCount: Number((_a = row.row_count) != null ? _a : 0),
+    rowCount: Number((_a2 = row.row_count) != null ? _a2 : 0),
     columns: parseColumns(row.schema_json),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
@@ -10767,7 +11374,7 @@ async function describeView(conn, viewName) {
   return normalizeColumns(rows);
 }
 async function countViewRows(conn, viewName) {
-  var _a, _b;
+  var _a2, _b2;
   const rows = await measureRows(
     conn,
     `
@@ -10775,20 +11382,20 @@ async function countViewRows(conn, viewName) {
       FROM ${quoteIdentifier(viewName)}
     `
   );
-  return Number((_b = (_a = rows[0]) == null ? void 0 : _a.row_count) != null ? _b : 0);
+  return Number((_b2 = (_a2 = rows[0]) == null ? void 0 : _a2.row_count) != null ? _b2 : 0);
 }
 async function ensureInit() {
   if (instance && writeConn) return;
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    var _a, _b, _c;
+    var _a2, _b2, _c;
     try {
       const rootDir = getDuckDBRootDir();
       const datasetsDir = getDatasetsDirPath();
       const dbPath = getDuckDBPath();
       await ensureDirectory(rootDir);
       await ensureDirectory(datasetsDir);
-      const threads = String(Math.max(1, (_c = (_b = (_a = os2__default.default).availableParallelism) == null ? void 0 : _b.call(_a)) != null ? _c : 4));
+      const threads = String(Math.max(1, (_c = (_b2 = (_a2 = os2__default.default).availableParallelism) == null ? void 0 : _b2.call(_a2)) != null ? _c : 4));
       instance = await nodeApi.DuckDBInstance.create(dbPath, {
         threads
       });
@@ -10799,10 +11406,7 @@ async function ensureInit() {
       }
       activeDbPath = dbPath;
       activeDatasetsDir = datasetsDir;
-      const pragmas = [
-        `PRAGMA threads = ${threads}`,
-        "PRAGMA enable_progress_bar = false"
-      ];
+      const pragmas = [`PRAGMA threads = ${threads}`, "PRAGMA enable_progress_bar = false"];
       for (const pragma of pragmas) {
         await writeConn.run(pragma);
         for (const readConn of readConns) {
@@ -10830,7 +11434,7 @@ async function init() {
 async function registerCSVPathDataset(rawInput) {
   const input = RegisterCSVPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a, _b, _c, _d, _e;
+    var _a2, _b2, _c, _d, _e;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -10838,7 +11442,7 @@ async function registerCSVPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a = input.displayName) != null ? _a : path__default.default.basename(sourcePath);
+    const displayName = (_a2 = input.displayName) != null ? _a2 : path__default.default.basename(sourcePath);
     const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
     const csvOptions = buildCsvOptions({
       hasHeader: input.hasHeader,
@@ -10898,7 +11502,7 @@ async function registerCSVPathDataset(rawInput) {
           ${quoteSqlString(
         JSON.stringify({
           auto_detect: true,
-          header: (_b = input.hasHeader) != null ? _b : true,
+          header: (_b2 = input.hasHeader) != null ? _b2 : true,
           delimiter: (_c = input.delimiter) != null ? _c : null,
           sample_size: (_d = input.sampleSize) != null ? _d : DEFAULT_CSV_SAMPLE_SIZE
         })
@@ -10934,7 +11538,7 @@ async function registerCSVPathDataset(rawInput) {
 async function registerParquetPathDataset(rawInput) {
   const input = RegisterParquetPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a, _b;
+    var _a2, _b2;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -10942,7 +11546,7 @@ async function registerParquetPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a = input.displayName) != null ? _a : path__default.default.basename(sourcePath);
+    const displayName = (_a2 = input.displayName) != null ? _a2 : path__default.default.basename(sourcePath);
     const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
     await fs__default.default.copyFile(sourcePath, cachePath);
     await measureRun(
@@ -10985,7 +11589,7 @@ async function registerParquetPathDataset(rawInput) {
         )
       `
     );
-    const previewLimit = (_b = input.previewLimit) != null ? _b : DEFAULT_PREVIEW_LIMIT;
+    const previewLimit = (_b2 = input.previewLimit) != null ? _b2 : DEFAULT_PREVIEW_LIMIT;
     const previewRows = await measureRows(
       conn,
       `
@@ -11032,7 +11636,7 @@ async function listDatasets() {
       `
     );
     return rows.map((row) => {
-      var _a;
+      var _a2;
       return {
         id: String(row.id),
         displayName: String(row.display_name),
@@ -11040,7 +11644,7 @@ async function listDatasets() {
         sourcePath: String(row.source_path),
         cachePath: String(row.cache_path),
         sourceFormat: String(row.source_format),
-        rowCount: Number((_a = row.row_count) != null ? _a : 0),
+        rowCount: Number((_a2 = row.row_count) != null ? _a2 : 0),
         columns: parseColumns(row.schema_json),
         createdAt: String(row.created_at),
         updatedAt: String(row.updated_at)
@@ -11051,12 +11655,12 @@ async function listDatasets() {
 async function previewDataset(rawInput) {
   const input = PreviewDatasetSchema.parse(rawInput);
   return enqueueRead(async () => {
-    var _a, _b;
+    var _a2, _b2;
     await ensureInit();
     const conn = getReadConnection();
     const viewName = datasetViewName(input.datasetId);
-    const limit = (_a = input.limit) != null ? _a : DEFAULT_PREVIEW_LIMIT;
-    const offset = (_b = input.offset) != null ? _b : 0;
+    const limit = (_a2 = input.limit) != null ? _a2 : DEFAULT_PREVIEW_LIMIT;
+    const offset = (_b2 = input.offset) != null ? _b2 : 0;
     return measureRows(
       conn,
       `
@@ -11168,12 +11772,282 @@ electron.app.on("quit", () => {
     console.error("[duckdb-service] cleanup error:", error);
   });
 });
+var DEFAULT_SAMPLE_RATE = 16e3;
+var DEFAULT_STT_ENGINE = "sherpa-whisper-tiny";
+var DEFAULT_TTS_ENGINE = "sherpa-kokoro";
+var DEFAULT_STT_MODEL_DIR = path__default.default.join(
+  process.cwd(),
+  "public",
+  "models",
+  "sherpa",
+  "stt",
+  "sherpa-onnx-whisper-tiny.en"
+);
+var DEFAULT_TTS_MODEL_DIR = path__default.default.join(
+  process.cwd(),
+  "public",
+  "models",
+  "sherpa",
+  "tts",
+  "kokoro-en-v0_19"
+);
+var KOKORO_SPEAKER_IDS = {
+  af_sky: 6,
+  af_heart: 0,
+  am_adam: 1,
+  am_michael: 2
+};
+var sherpaModulePromise = null;
+var recognizers = /* @__PURE__ */ new Map();
+var ttsModels = /* @__PURE__ */ new Map();
+function getSherpa() {
+  sherpaModulePromise != null ? sherpaModulePromise : sherpaModulePromise = import('sherpa-onnx-node').then(
+    (module) => {
+      var _a2;
+      return (_a2 = module.default) != null ? _a2 : module;
+    }
+  );
+  return sherpaModulePromise;
+}
+function normalizeSttEngine(value) {
+  if (value === "sherpa-whisper-tiny") return value;
+  return DEFAULT_STT_ENGINE;
+}
+function normalizeTtsEngine(value) {
+  if (value === "off") return "off";
+  return DEFAULT_TTS_ENGINE;
+}
+function normalizeModelDir(value, fallback) {
+  return path__default.default.resolve((value == null ? void 0 : value.trim()) || fallback);
+}
+function requireFile(filePath) {
+  if (!fs3.existsSync(filePath)) {
+    throw new Error(`Missing Sherpa model file: ${filePath}`);
+  }
+  return filePath;
+}
+function normalizeAudioInput(input) {
+  if (input instanceof Float32Array) {
+    return sanitizeAudio(input);
+  }
+  if (input instanceof ArrayBuffer) {
+    return sanitizeAudio(new Float32Array(input));
+  }
+  if (Array.isArray(input)) {
+    return sanitizeAudio(Float32Array.from(input));
+  }
+  throw new Error("Unsupported audio payload for Sherpa STT.");
+}
+function sanitizeAudio(samples) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i += 1) {
+    const sample = Number.isFinite(samples[i]) ? samples[i] : 0;
+    out[i] = Math.max(-1, Math.min(1, sample));
+  }
+  return out;
+}
+function normalizeSampleRate(sampleRate) {
+  if (!sampleRate || !Number.isFinite(sampleRate) || sampleRate <= 0) {
+    return DEFAULT_SAMPLE_RATE;
+  }
+  return Math.round(sampleRate);
+}
+function getWhisperModelConfig(modelDir) {
+  return {
+    featConfig: {
+      sampleRate: DEFAULT_SAMPLE_RATE,
+      featureDim: 80
+    },
+    modelConfig: {
+      whisper: {
+        encoder: requireFile(path__default.default.join(modelDir, "tiny.en-encoder.int8.onnx")),
+        decoder: requireFile(path__default.default.join(modelDir, "tiny.en-decoder.int8.onnx"))
+      },
+      tokens: requireFile(path__default.default.join(modelDir, "tiny.en-tokens.txt")),
+      numThreads: 2,
+      provider: "cpu",
+      debug: 0
+    }
+  };
+}
+function getKokoroModelConfig(modelDir) {
+  return {
+    model: {
+      kokoro: {
+        model: requireFile(path__default.default.join(modelDir, "model.onnx")),
+        voices: requireFile(path__default.default.join(modelDir, "voices.bin")),
+        tokens: requireFile(path__default.default.join(modelDir, "tokens.txt")),
+        dataDir: requireFile(path__default.default.join(modelDir, "espeak-ng-data"))
+      },
+      debug: false,
+      numThreads: 2,
+      provider: "cpu"
+    },
+    maxNumSentences: 1
+  };
+}
+async function getRecognizer(modelDir) {
+  const key = path__default.default.resolve(modelDir);
+  let recognizer = recognizers.get(key);
+  if (!recognizer) {
+    recognizer = getSherpa().then(
+      (sherpa) => sherpa.OfflineRecognizer.createAsync(getWhisperModelConfig(key))
+    );
+    recognizers.set(key, recognizer);
+  }
+  return recognizer;
+}
+async function getTts(modelDir) {
+  const key = path__default.default.resolve(modelDir);
+  let tts = ttsModels.get(key);
+  if (!tts) {
+    tts = getSherpa().then((sherpa) => sherpa.OfflineTts.createAsync(getKokoroModelConfig(key)));
+    ttsModels.set(key, tts);
+  }
+  return tts;
+}
+function getSpeakerId(voice) {
+  var _a2;
+  if (!voice) return KOKORO_SPEAKER_IDS.af_sky;
+  return (_a2 = KOKORO_SPEAKER_IDS[voice]) != null ? _a2 : KOKORO_SPEAKER_IDS.af_sky;
+}
+function encodeWav(samples, sampleRate) {
+  const numChannels = 1;
+  const bytesPerSample = 2;
+  const dataSize = samples.length * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+  writeAscii(view, 0, "RIFF");
+  view.setUint32(4, 36 + dataSize, true);
+  writeAscii(view, 8, "WAVE");
+  writeAscii(view, 12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, numChannels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
+  view.setUint16(32, numChannels * bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeAscii(view, 36, "data");
+  view.setUint32(40, dataSize, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i += 1, offset += 2) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, clamped < 0 ? clamped * 32768 : clamped * 32767, true);
+  }
+  return buffer;
+}
+function writeAscii(view, offset, value) {
+  for (let i = 0; i < value.length; i += 1) {
+    view.setUint8(offset + i, value.charCodeAt(i));
+  }
+}
+async function preloadStt(input = {}) {
+  const engine = normalizeSttEngine(input.engine);
+  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
+  await getRecognizer(modelDir);
+  return {
+    engine,
+    model: modelDir,
+    runtime: "cpu"
+  };
+}
+async function transcribe(input) {
+  var _a2, _b2;
+  const start = Date.now();
+  const engine = normalizeSttEngine(input.engine);
+  const sampleRate = normalizeSampleRate(input.sampleRate);
+  const samples = normalizeAudioInput(input.audio);
+  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
+  const recognizer = await getRecognizer(modelDir);
+  const stream = recognizer.createStream();
+  stream.acceptWaveform({
+    sampleRate,
+    samples
+  });
+  const result = await recognizer.decodeAsync(stream);
+  const text = ((_b2 = (_a2 = result.text) != null ? _a2 : recognizer.getResult(stream).text) != null ? _b2 : "").trim();
+  return {
+    text,
+    engine,
+    model: modelDir,
+    runtime: "cpu",
+    sampleRate,
+    audioDurationMs: Math.round(samples.length / sampleRate * 1e3),
+    latencyMs: Date.now() - start,
+    language: result.lang || input.language
+  };
+}
+async function preloadTts(input = {}) {
+  const engine = normalizeTtsEngine(input.engine);
+  if (engine === "off") {
+    return {
+      engine,
+      model: "text-only",
+      runtime: "cpu"
+    };
+  }
+  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
+  await getTts(modelDir);
+  return {
+    engine,
+    model: modelDir,
+    runtime: "cpu"
+  };
+}
+async function speak(input) {
+  const engine = normalizeTtsEngine(input.engine);
+  if (engine === "off") {
+    throw new Error("TTS engine is set to text-only mode.");
+  }
+  const text = input.text.trim();
+  if (!text) {
+    throw new Error("No text was provided for Sherpa TTS.");
+  }
+  const start = Date.now();
+  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
+  const tts = await getTts(modelDir);
+  const speed = typeof input.speed === "number" && Number.isFinite(input.speed) ? Math.min(2, Math.max(0.5, input.speed)) : 1;
+  const sherpa = await getSherpa();
+  const generationConfig = new sherpa.GenerationConfig({
+    sid: getSpeakerId(input.voice),
+    speed,
+    silenceScale: 0.2
+  });
+  const audio = await tts.generateAsync({
+    text,
+    sid: getSpeakerId(input.voice),
+    speed,
+    generationConfig
+  });
+  const wav = encodeWav(sanitizeAudio(audio.samples), audio.sampleRate);
+  return {
+    jobId: `tts_${Date.now().toString(36)}`,
+    engine,
+    model: modelDir,
+    runtime: "cpu",
+    voice: input.voice || "af_sky",
+    text,
+    sampleRate: audio.sampleRate,
+    durationMs: Math.round(audio.samples.length / audio.sampleRate * 1e3),
+    latencyMs: Date.now() - start,
+    wav
+  };
+}
+function clearVoiceModels() {
+  const stt = recognizers.size;
+  const tts = ttsModels.size;
+  recognizers.clear();
+  ttsModels.clear();
+  return { stt, tts };
+}
 
 // electron/main.ts
-if (require_electron_squirrel_startup()) {
-  electron.app.quit();
-}
 var isDev = !electron.app.isPackaged;
+var mainWindow = null;
+authClient.setupMain({
+  getWindow: () => mainWindow
+});
 if (electron.app.isPackaged) {
   import('update-electron-app').then(({ updateElectronApp }) => {
     updateElectronApp({
@@ -11270,8 +12144,8 @@ function isAllowedAppOrigin(value) {
   }
 }
 function assertTrustedSender(event) {
-  var _a;
-  const frameUrl = (_a = event.senderFrame) == null ? void 0 : _a.url;
+  var _a2;
+  const frameUrl = (_a2 = event.senderFrame) == null ? void 0 : _a2.url;
   const webContentsUrl = event.sender.getURL();
   const url = frameUrl || webContentsUrl;
   if (!isAllowedAppOrigin(url)) {
@@ -11304,10 +12178,7 @@ electron.ipcMain.handle(
   async (event, filePath) => withTrustedSender(event, async () => {
     const safePath = assertAllowedReadPath(filePath);
     const data = await fs__default.default.readFile(safePath);
-    return data.buffer.slice(
-      data.byteOffset,
-      data.byteOffset + data.byteLength
-    );
+    return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength);
   })
 );
 electron.ipcMain.handle(
@@ -11381,9 +12252,9 @@ electron.ipcMain.handle(
 electron.ipcMain.handle(
   "fs:openDialog",
   async (event, options) => withTrustedSender(event, async () => {
-    var _a;
+    var _a2;
     const result = await electron.dialog.showOpenDialog(options);
-    const opensDirectory = (_a = options.properties) == null ? void 0 : _a.includes("openDirectory");
+    const opensDirectory = (_a2 = options.properties) == null ? void 0 : _a2.includes("openDirectory");
     for (const filePath of result.filePaths) {
       if (opensDirectory) {
         allowedDirectoryPaths.add(normalizePath(filePath));
@@ -11491,22 +12362,22 @@ function wantsMicrophone(details) {
 function installMediaPermissionHandlers() {
   electron.session.defaultSession.setPermissionCheckHandler(
     (_webContents, permission, requestingOrigin, details) => {
-      var _a;
+      var _a2;
       if (permission !== "media") return false;
       const mediaDetails = details;
-      const origin = (_a = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a : requestingOrigin;
+      const origin = (_a2 = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a2 : requestingOrigin;
       return isAllowedAppOrigin(origin) && wantsMicrophone(mediaDetails);
     }
   );
   electron.session.defaultSession.setPermissionRequestHandler(
-    (webContents, permission, callback, details) => {
-      var _a, _b;
+    (webContents2, permission, callback, details) => {
+      var _a2, _b2;
       if (permission !== "media") {
         callback(false);
         return;
       }
       const mediaDetails = details;
-      const pageUrl = (_b = (_a = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b : webContents.getURL();
+      const pageUrl = (_b2 = (_a2 = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a2 : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b2 : webContents2.getURL();
       const allowed = isAllowedAppOrigin(pageUrl) && wantsMicrophone(mediaDetails);
       console.log("[electron] media permission request", {
         pageUrl,
@@ -11527,10 +12398,29 @@ electron.ipcMain.handle(
   })
 );
 electron.ipcMain.handle(
+  "voice:preloadStt",
+  async (event, input) => withTrustedSender(event, () => preloadStt(input))
+);
+electron.ipcMain.handle(
+  "voice:transcribe",
+  async (event, input) => withTrustedSender(event, () => transcribe(input))
+);
+electron.ipcMain.handle(
+  "voice:preloadTts",
+  async (event, input) => withTrustedSender(event, () => preloadTts(input))
+);
+electron.ipcMain.handle(
+  "voice:speak",
+  async (event, input) => withTrustedSender(event, () => speak(input))
+);
+electron.ipcMain.handle(
+  "voice:clearModels",
+  async (event) => withTrustedSender(event, () => clearVoiceModels())
+);
+electron.ipcMain.handle(
   "duckdb:runReadOnlyQuery",
   async (event, sql) => withTrustedSender(event, () => runReadOnlyQuery(sql))
 );
-var mainWindow = null;
 async function createWindow() {
   await ensureDataDir();
   mainWindow = new electron.BrowserWindow({
@@ -11555,9 +12445,9 @@ async function createWindow() {
     mainWindow.webContents.openDevTools();
   } else {
     try {
-      const port = await startNextJSServer();
-      console.log("[electron] Next.js server started on port:", port);
-      await mainWindow.loadURL(`http://localhost:${port}`);
+      const serverUrl = await startNextJSServer();
+      console.log("[electron] Next.js server started at:", serverUrl);
+      await mainWindow.loadURL(serverUrl);
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
     }
@@ -11591,21 +12481,25 @@ async function createWindow() {
 }
 async function startNextJSServer() {
   try {
-    const nextJSPort = await getPortPlease.getPort({ portRange: [30011, 5e4] });
+    const authUrl = new URL(BETTER_AUTH_BASE_URL);
+    const hostname = authUrl.hostname;
+    const nextJSPort = authUrl.port ? Number(authUrl.port) : 3e3;
     const webDir = path__default.default.join(electron.app.getAppPath(), "app");
-    const serverUrl = `http://localhost:${nextJSPort}`;
-    process.env.BETTER_AUTH_URL = serverUrl;
+    process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
+    process.env.APP_USER_DATA = electron.app.getPath("userData");
+    process.env.PORT = nextJSPort.toString();
     await startServer.startServer({
       dir: webDir,
       isDev: false,
-      hostname: "localhost",
+      hostname,
       port: nextJSPort,
       customServer: true,
       allowRetry: false,
       keepAliveTimeout: 5e3,
       minimalMode: true
     });
-    return nextJSPort;
+    return BETTER_AUTH_BASE_URL;
   } catch (error) {
     console.error("[electron] Error starting Next.js server:", error);
     throw error;

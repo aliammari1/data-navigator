@@ -6,6 +6,7 @@ const nextConfig: NextConfig = {
   serverExternalPackages: [
     "@duckdb/node-api",
     "@duckdb/node-bindings",
+    "better-sqlite3",
   ],
 };
 

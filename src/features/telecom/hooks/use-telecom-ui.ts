@@ -4,10 +4,7 @@ import { useEffect, useState } from "react";
 
 import { onBroadcast } from "@/features/telecom/lib/channel";
 import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
-import {
-  normalizeColumnMapping,
-  useTelecomStore,
-} from "@/features/telecom/store";
+import { normalizeColumnMapping, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 
 const TELECOM_UI_STORAGE_KEY = "telecom-session-v1";
@@ -74,9 +71,7 @@ export function useTelecomUI({
     normalizeColumnMapping(defaultMapping),
   );
 
-  const setMapping: React.Dispatch<
-    React.SetStateAction<Types.ColumnMapping>
-  > = (value) => {
+  const setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>> = (value) => {
     setMappingState((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
       return normalizeColumnMapping(next);
@@ -91,9 +86,7 @@ export function useTelecomUI({
   useEffect(() => {
     setMounted(true);
     const persisted = readPersistedUiState();
-    setMapping(
-      normalizeColumnMapping(persisted.columnMapping ?? defaultMapping),
-    );
+    setMapping(normalizeColumnMapping(persisted.columnMapping ?? defaultMapping));
     if (persisted.statusMapping?.length) {
       setStatusMapping(persisted.statusMapping);
     }
@@ -117,8 +110,8 @@ export function useTelecomUI({
       e.preventDefault();
       setInstallPrompt(e);
     };
-    window.addEventListener("beforeinstallprompt", handler);
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    globalThis.window.addEventListener("beforeinstallprompt", handler);
+    return () => globalThis.window.removeEventListener("beforeinstallprompt", handler);
   }, []);
 
   // F10 — BroadcastChannel: listen for cross-tab file-loaded events
@@ -146,9 +139,7 @@ export function useTelecomUI({
         const mappingObs = () => {
           setMapping((prev) => {
             const next = { ...prev };
-            for (const key of Object.keys(
-              prev,
-            ) as (keyof Types.ColumnMapping)[]) {
+            for (const key of Object.keys(prev) as (keyof Types.ColumnMapping)[]) {
               const v = yMapping.get(key);
               if (v !== undefined) (next as Record<string, string>)[key] = v;
             }

@@ -1,28 +1,16 @@
-import { mkdirSync } from "node:fs";
-import path from "node:path";
-import { PGlite } from "@electric-sql/pglite";
+import { drizzleAdapter } from "@better-auth/drizzle-adapter";
 import { type BetterAuthOptions, betterAuth } from "better-auth";
 import { nextCookies } from "better-auth/next-js";
-import { Kysely } from "kysely";
-import { PGliteDialect } from "kysely-pglite-dialect";
-
-const dataDir = path.join(process.cwd(), ".data");
-mkdirSync(dataDir, { recursive: true });
-
-const pgliteDir = path.join(dataDir, "better-auth-pglite");
-
-const db = new Kysely({
-  dialect: new PGliteDialect(new PGlite(pgliteDir)),
-});
+import * as schema from "@/db/schema";
+import { authDb } from "@/platform/auth/auth-database";
 
 export const authConfig = {
   appName: "DataNavigator",
 
-  database: {
-    db,
-    type: "postgres",
-    transaction: true,
-  },
+  database: drizzleAdapter(authDb, {
+    provider: "sqlite",
+    schema,
+  }),
 
   secret:
     process.env.BETTER_AUTH_SECRET ??

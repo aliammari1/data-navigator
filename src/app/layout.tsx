@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fira_Code, Fira_Sans } from "next/font/google";
+import { Fira_Code, Poppins } from "next/font/google";
 import { QueryProvider } from "@/components/query-provider";
 import { SWRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -8,10 +8,10 @@ import { cn } from "@/shared/utils";
 import "./globals.css";
 import "@/design/tokens.css";
 
-const firaSans = Fira_Sans({
+const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700"],
-  variable: "--font-moudir-sans",
+  weight: ["300", "400", "500", "600", "700", "800"],
+  variable: "--font-data-navigator-sans",
   display: "swap",
 });
 
@@ -42,19 +42,13 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn(
-        "h-full antialiased dark",
-        firaSans.variable,
-        firaCode.variable,
-      )}
+      className={cn("h-full antialiased dark", poppins.variable, firaCode.variable)}
     >
-      <body className="min-h-full flex flex-col bg-background text-foreground">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="dark"
-          enableSystem
-          disableTransitionOnChange
-        >
+      <body
+        className="min-h-full flex flex-col bg-background text-foreground"
+        style={{ scrollBehavior: "smooth" }}
+      >
+        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
           <QueryProvider>
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>

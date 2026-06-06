@@ -125,11 +125,7 @@ async function navigationFallback(request) {
 
     return response;
   } catch {
-    return (
-      (await cache.match("/dashboard")) ||
-      (await cache.match("/")) ||
-      Response.error()
-    );
+    return (await cache.match("/dashboard")) || (await cache.match("/")) || Response.error();
   }
 }
 
@@ -152,12 +148,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter(
-              (key) =>
-                key !== SHELL_CACHE &&
-                key !== STATIC_CACHE &&
-                key !== DUCKDB_CACHE,
-            )
+            .filter((key) => key !== SHELL_CACHE && key !== STATIC_CACHE && key !== DUCKDB_CACHE)
             .map((key) => caches.delete(key)),
         ),
       )

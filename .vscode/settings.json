@@ -157,13 +157,7 @@
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  "tailwindCSS.classAttributes": [
-    "class",
-    "className",
-    "ngClass",
-    ".*ClassName",
-    ".*Classes"
-  ],
+  "tailwindCSS.classAttributes": ["class", "className", "ngClass", ".*ClassName", ".*Classes"],
   "tailwindCSS.experimental.classRegex": [
     ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
     ["clsx\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
@@ -255,7 +249,7 @@
   "security.workspace.trust.untrustedFiles": "open",
   "telemetry.telemetryLevel": "off",
   "update.showReleaseNotes": false,
-  "extensions.ignoreRecommendations": false,
+  "extensions.ignoreRecommendations": true,
 
   // ─────────────────────────────────────────────
   // Copilot / AI ergonomics

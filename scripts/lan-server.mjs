@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+
 /**
  * Minimal LAN sync server for telecom dashboard (y-websocket v3 compatible).
  * Speaks y-protocols/sync + y-protocols/awareness over plain WebSocket so the
@@ -10,25 +11,24 @@
  *   HOST=192.168.1.10 PORT=1234 node scripts/lan-server.mjs
  */
 
-import http from "node:http";
-import os from "node:os";
 import crypto from "node:crypto";
 import fs from "node:fs";
+import http from "node:http";
+import os from "node:os";
 import path from "node:path";
-import { WebSocketServer } from "ws";
-import * as Y from "yjs";
-import * as syncProtocol from "y-protocols/sync";
-import * as awarenessProtocol from "y-protocols/awareness";
-import * as encoding from "lib0/encoding";
 import * as decoding from "lib0/decoding";
+import * as encoding from "lib0/encoding";
 import * as map from "lib0/map";
+import { WebSocketServer } from "ws";
+import * as awarenessProtocol from "y-protocols/awareness";
+import * as syncProtocol from "y-protocols/sync";
+import * as Y from "yjs";
 
 const HOST = process.env.HOST ?? "0.0.0.0";
 const REQUESTED_PORT = Number(process.env.PORT ?? 1234);
 const PORT_SCAN_LIMIT = Number(process.env.PORT_SCAN_LIMIT ?? 24);
 const PAIRING_CODE =
-  process.env.PAIRING_CODE ??
-  String(Math.floor(100000 + Math.random() * 900000));
+  process.env.PAIRING_CODE ?? String(Math.floor(100000 + Math.random() * 900000));
 const SESSION_NAME = process.env.SESSION_NAME ?? "Data Navigator LAN";
 const ALLOW_GUESTS = process.env.ALLOW_GUESTS !== "0";
 const MAX_FILE_BYTES = Number(process.env.MAX_FILE_BYTES ?? 512 * 1024 * 1024);
@@ -123,8 +123,7 @@ function closeConn(conn) {
   if (room) {
     const ids = room.conns.get(conn);
     room.conns.delete(conn);
-    if (ids)
-      awarenessProtocol.removeAwarenessStates(room.awareness, [...ids], null);
+    if (ids) awarenessProtocol.removeAwarenessStates(room.awareness, [...ids], null);
     if (room.conns.size === 0) docs.delete(room.name);
   }
   try {
@@ -249,10 +248,7 @@ function setupConn(conn, req) {
   if (ids.length > 0) {
     const enc = encoding.createEncoder();
     encoding.writeVarUint(enc, MSG_AWARENESS);
-    encoding.writeVarUint8Array(
-      enc,
-      awarenessProtocol.encodeAwarenessUpdate(room.awareness, ids),
-    );
+    encoding.writeVarUint8Array(enc, awarenessProtocol.encodeAwarenessUpdate(room.awareness, ids));
     send(conn, encoding.toUint8Array(enc));
   }
 }
@@ -281,10 +277,7 @@ function roomSummaries() {
 let activePort = REQUESTED_PORT;
 
 const server = http.createServer((req, res) => {
-  const url = new URL(
-    req.url ?? "/",
-    `http://${req.headers.host ?? "localhost"}`,
-  );
+  const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
       "access-control-allow-origin": "*",
@@ -334,13 +327,7 @@ const server = http.createServer((req, res) => {
       "content-type": "application/json",
       "access-control-allow-origin": "*",
     });
-    res.end(
-      JSON.stringify(
-        { files, maxFileBytes: MAX_FILE_BYTES, inboxDir: INBOX_DIR },
-        null,
-        2,
-      ),
-    );
+    res.end(JSON.stringify({ files, maxFileBytes: MAX_FILE_BYTES, inboxDir: INBOX_DIR }, null, 2));
     return;
   }
   if (url.pathname === "/lan/files" && req.method === "POST") {
@@ -359,9 +346,7 @@ const server = http.createServer((req, res) => {
     }
 
     fs.mkdirSync(INBOX_DIR, { recursive: true });
-    const originalName = safeFileName(
-      req.headers["x-file-name"] ?? "upload.bin",
-    );
+    const originalName = safeFileName(req.headers["x-file-name"] ?? "upload.bin");
     const storedName = `${Date.now()}-${crypto.randomUUID().slice(0, 8)}-${originalName}`;
     const target = path.join(INBOX_DIR, storedName);
     const out = fs.createWriteStream(target, { flags: "wx" });
