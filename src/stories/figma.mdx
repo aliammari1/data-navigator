@@ -1,0 +1,27 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Design System/Figma workflow" />
+
+# Figma workflow
+
+Storybook's **Design** panel embeds the matching Figma selection beside each
+implemented component.
+
+## Local setup
+
+1. Copy `.env.storybook.example` to `.env.storybook`.
+2. Replace `STORYBOOK_FIGMA_FILE_URL` with the shared design-system file URL.
+3. In Figma, select each component and use **Copy link to selection**.
+4. Copy the URL's `node-id` value into the matching `STORYBOOK_FIGMA_*_NODE_ID`
+   variable.
+5. Run `pnpm run check:storybook-figma`, then `pnpm run storybook`.
+
+The Design panel remains hidden when the Figma variables are not configured.
+Do not place Figma access tokens in Storybook environment variables because
+Storybook embeds public variables in the browser bundle.
+
+## Adding a component
+
+Add a `STORYBOOK_FIGMA_<COMPONENT>_NODE_ID` variable, expose it through
+`.storybook/figma-links.ts`, and set the story's `parameters.design` with the
+shared `figmaDesign` helper.
