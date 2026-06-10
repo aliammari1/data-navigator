@@ -6,7 +6,8 @@
  */
 
 import { create } from "zustand";
-import { persist, subscribeWithSelector } from "zustand/middleware";
+import { createJSONStorage, persist, subscribeWithSelector } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import type { ColumnMapping, CustomKPI, StatusMapping } from "./types";
 
 export type { ColumnMapping, CustomKPI, StatusMapping };
@@ -142,6 +143,7 @@ export const useTelecomStore = create<TelecomStore>()(
     })),
     {
       name: "telecom-session-v1",
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
 
       partialize: (s) => ({
         columnMapping: normalizeColumnMapping(s.columnMapping),

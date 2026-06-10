@@ -1,47 +1,38 @@
 "use client";
 
-import Link from "next/link";
 import {
   Activity,
   ArrowRight,
   ArrowUpRight,
-  BarChart3,
   Brain,
   Check,
   Cpu,
   Database,
   FileSpreadsheet,
   GitBranch,
-  Globe2,
   Lock,
   Menu,
   MessageSquareText,
   Radar,
   Shield,
-  Sparkles,
-  Zap,
 } from "lucide-react";
-import { motion, useMotionValueEvent, useScroll } from "motion/react";
-import { useMemo, useState } from "react";
-
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+  motion,
+  useMotionValue,
+  useMotionValueEvent,
+  useReducedMotion,
+  useScroll,
+  useTransform,
+} from "motion/react";
+import Link from "next/link";
+import type { ReactNode } from "react";
+import { useState } from "react";
 import {
-  NavigationMenu,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-} from "@/components/ui/navigation-menu";
-import { Separator } from "@/components/ui/separator";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import {
   Sheet,
   SheetClose,
@@ -50,253 +41,233 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { CountStat, SpotlightCard } from "@/components/landing/interactive";
 import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+  AvailabilityGauge,
+  RegionBars,
+  Sparkline,
+  ThroughputChart,
+} from "@/components/landing/visuals";
+
+/* ───────────────────────────── data ───────────────────────────── */
 
 const nav = [
-  { href: "#product", label: "Product" },
   { href: "#capabilities", label: "Capabilities" },
-  { href: "#trust", label: "Trust" },
+  { href: "#architecture", label: "Architecture" },
   { href: "#pricing", label: "Pricing" },
   { href: "#faq", label: "FAQ" },
 ] as const;
 
-const trustSignals = [
-  { icon: Shield, label: "Hardened shell", desc: "Isolated renderer + typed IPC." },
-  { icon: Lock, label: "Data stays local", desc: "No default outbound traffic." },
-  { icon: Database, label: "DuckDB core", desc: "OLAP joins + windows in-process." },
-  { icon: Brain, label: "Embedded AI", desc: "Anomalies, forecasts, narratives." },
+const pillars = [
+  { icon: Radar, k: "Renderer", v: "React 19 + Next.js", note: "No Node access, strict CSP." },
+  { icon: Shield, k: "Main process", v: "Typed IPC bridge", note: "Allow-listed channels only." },
+  { icon: Database, k: "Analytical core", v: "DuckDB + SQLite", note: "OLAP at desktop speed." },
+  { icon: Cpu, k: "Workers", v: "ML, LLM, voice", note: "Off-thread, responsive UI." },
 ] as const;
 
-const capabilities = [
-  {
-    icon: FileSpreadsheet,
-    title: "Ingest anything tabular",
-    desc: "CSV, Parquet, JSON, Excel. Schema inference, type casting, and fast import.",
-    chips: ["CSV", "Parquet", "XLSX", "JSON"],
-  },
-  {
-    icon: Database,
-    title: "Query at operator scale",
-    desc: "DuckDB SQL for millions of rows with joins, windows and aggregations in milliseconds.",
-    chips: ["DuckDB", "SQL", "Windows", "Joins"],
-  },
-  {
-    icon: Activity,
-    title: "AI-assisted analysis",
-    desc: "Anomaly detection, correlation analysis, and short-horizon forecasts — on-device.",
-    chips: ["Anomalies", "Forecasts", "Correlation", "Narratives"],
-  },
-  {
-    icon: GitBranch,
-    title: "Lineage you can trust",
-    desc: "See how files → tables → queries → charts → reports connect. Replayable steps.",
-    chips: ["Lineage", "Audit trail", "Replay", "Impact"],
-  },
-  {
-    icon: Radar,
-    title: "Telecom-first KPIs",
-    desc: "Availability, throughput, latency, drop rate, traffic patterns and churn indicators.",
-    chips: ["5G", "QoS", "CDR", "Churn"],
-  },
-  {
-    icon: MessageSquareText,
-    title: "Collaboration-ready",
-    desc: "Presence, threaded discussion, and shareable narratives designed for teams.",
-    chips: ["Presence", "Comments", "Roles", "History"],
-  },
-] as const;
-
-const testimonials = [
-  {
-    name: "Network Operations Lead",
-    org: "Tier-1 operator",
-    quote:
-      "We can run deep KPI investigations locally, explain the anomalies, and walk into the war room with lineage-backed evidence.",
-    initials: "NO",
-  },
-  {
-    name: "Data Engineering Manager",
-    org: "Enterprise analytics",
-    quote:
-      "The workflow feels like a control room: import → query → narrative. The UI makes complex pipelines feel obvious.",
-    initials: "DE",
-  },
-  {
-    name: "Security Architect",
-    org: "Regulated environment",
-    quote:
-      "Local-first by default changes the whole conversation. The product reads like an architecture decision, not a marketing claim.",
-    initials: "SA",
-  },
-] as const;
+const flow = ["Files", "Tables", "Queries", "Charts", "Reports"] as const;
 
 const pricing = [
   {
     name: "Personal",
     price: "Free",
     desc: "Explore datasets locally and build dashboards.",
-    badge: "Best for solo",
-    features: ["Imports + profiling", "DuckDB SQL", "Core charts", "Local projects"],
-    cta: "Start free",
+    features: ["Imports and profiling", "DuckDB SQL", "Core charts", "Local projects"],
+    cta: "Get started",
+    href: "/signup",
+    highlight: false,
   },
   {
     name: "Team",
-    price: "Contact",
-    desc: "Collaboration, governance, and shared workspaces.",
-    badge: "Most popular",
-    features: [
-      "Everything in Personal",
-      "Presence + comments",
-      "Audit trails",
-      "Role-based access",
-    ],
+    price: "Custom",
+    desc: "Collaboration, governance and shared workspaces.",
+    features: ["Everything in Personal", "Presence and comments", "Audit trails", "Role-based access"],
     cta: "Talk to us",
+    href: "/signup",
     highlight: true,
   },
   {
     name: "Enterprise",
-    price: "Contact",
-    desc: "Security reviews, dedicated support, and custom integrations.",
-    badge: "For regulated orgs",
-    features: ["SSO / identity", "Compliance support", "Deployment hardening", "SLA"],
+    price: "Custom",
+    desc: "Security reviews, dedicated support, integrations.",
+    features: ["SSO and identity", "Compliance support", "Deployment hardening", "SLA"],
     cta: "Request a demo",
+    href: "/signup",
+    highlight: false,
   },
 ] as const;
 
 const faqs = [
   {
     q: "Is it really offline-first?",
-    a: "Yes. The platform is designed so analysis runs on-device and your data does not need to leave the workstation. You can still choose to integrate external services later — it’s just not required.",
+    a: "Yes. Analysis runs on-device and your data does not need to leave the workstation. You can still integrate external services later, but it is never required.",
   },
   {
     q: "What data sizes can it handle?",
-    a: "DuckDB enables fast analytics on large, columnar datasets. Practical limits depend on your device resources, but the workflow is built for telecom-scale tables and wide schemas.",
+    a: "DuckDB enables fast analytics on large, columnar datasets. Practical limits depend on your device, but the workflow is built for telecom-scale tables and wide schemas.",
   },
   {
     q: "Is this a web app or a desktop app?",
-    a: "Both: the UI runs in a Next.js renderer inside an Electron shell. That gives you a modern web UI while keeping local access and a hardened boundary via typed IPC.",
+    a: "Both. The UI runs in a Next.js renderer inside an Electron shell: a modern web UI with local access and a hardened boundary via typed IPC.",
   },
   {
     q: "Can I use it outside telecom?",
-    a: "Absolutely. Telecom KPIs are first-class, but the import/query/AI workflow applies to any tabular analytics workload.",
+    a: "Yes. Telecom KPIs are first-class, but the import, query and AI workflow applies to any tabular analytics workload.",
   },
 ] as const;
+
+/* ──────────────────────────── primitives ──────────────────────────── */
+
+function Reveal({
+  children,
+  delay = 0,
+  className,
+}: {
+  children: ReactNode;
+  delay?: number;
+  className?: string;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <motion.div
+      className={className}
+      initial={reduce ? false : { opacity: 0, y: 18 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, amount: 0.3 }}
+      transition={{ duration: 0.55, delay, ease: [0.16, 1, 0.3, 1] }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 function Logo() {
   return (
     <div className="flex items-center gap-2.5">
-      <div className="relative">
-        <div className="grid size-9 place-items-center rounded-3xl border border-border bg-card-gradient">
-          <Sparkles className="text-primary" />
-        </div>
-        <span className="pointer-events-none absolute -right-1 -top-1 size-3 rounded-full bg-success/90 ring-2 ring-background animate-pulse-dot" />
+      <div className="grid size-9 place-items-center rounded-xl border border-cyan-400/30 bg-cyan-400/5">
+        <Radar className="size-[18px] text-cyan-300" />
       </div>
-      <div className="flex flex-col leading-none">
-        <span className="font-heading text-[15px] font-semibold tracking-tight">
-          Data Navigator
-        </span>
-        <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
-          local · duckdb · ai
-        </span>
-      </div>
+      <span className="text-[15px] font-semibold tracking-tight text-white">Data Navigator</span>
     </div>
   );
 }
 
+function PrimaryLink({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="inline-flex h-11 items-center justify-center gap-1.5 rounded-xl bg-cyan-400 px-5 text-sm font-semibold text-[#04121f] shadow-[0_8px_30px_-8px_rgba(34,211,238,0.5)] transition-all hover:bg-cyan-300 active:translate-y-px"
+    >
+      {children}
+    </Link>
+  );
+}
+
+function GhostLink({ href, children }: { href: string; children: ReactNode }) {
+  const cls =
+    "inline-flex h-11 items-center justify-center gap-1.5 rounded-xl border border-white/12 px-5 text-sm font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white active:translate-y-px";
+  return href.startsWith("#") ? (
+    <a href={href} className={cls}>
+      {children}
+    </a>
+  ) : (
+    <Link href={href} className={cls}>
+      {children}
+    </Link>
+  );
+}
+
+function Chip({ children }: { children: ReactNode }) {
+  return (
+    <span className="rounded-full border border-white/10 bg-white/[0.03] px-2.5 py-1 font-mono text-[11px] text-slate-300">
+      {children}
+    </span>
+  );
+}
+
+/* ──────────────────────────── nav ──────────────────────────── */
+
 function TopNav() {
   const [scrolled, setScrolled] = useState(false);
   const { scrollY } = useScroll();
-  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 10));
+  useMotionValueEvent(scrollY, "change", (y) => setScrolled(y > 12));
 
   return (
     <header
       className={[
-        "fixed inset-x-0 top-0 z-50 transition-all duration-300",
-        scrolled ? "glass border-b border-border" : "bg-transparent",
+        "fixed inset-x-0 top-0 z-50 transition-colors duration-300",
+        scrolled ? "border-b border-white/10 bg-[#07090f]/85 backdrop-blur-xl" : "border-b border-transparent",
       ].join(" ")}
     >
-      <div className="container flex h-16 items-center justify-between">
-        <Link href="#top" className="focus-visible:outline-none">
+      <div className="mx-auto flex h-[68px] max-w-7xl items-center justify-between px-6">
+        <Link href="#top">
           <Logo />
         </Link>
 
-        <NavigationMenu className="hidden md:flex">
-          <NavigationMenuList>
-            {nav.map((l) => (
-              <NavigationMenuItem key={l.href}>
-                <NavigationMenuLink
-                  href={l.href}
-                  className="text-muted-foreground hover:text-foreground"
-                >
-                  {l.label}
-                </NavigationMenuLink>
-              </NavigationMenuItem>
-            ))}
-          </NavigationMenuList>
-        </NavigationMenu>
+        <nav className="hidden items-center gap-1 md:flex">
+          {nav.map((l) => (
+            <a
+              key={l.href}
+              href={l.href}
+              className="rounded-lg px-3 py-1.5 text-sm text-slate-400 transition-colors hover:text-white"
+            >
+              {l.label}
+            </a>
+          ))}
+        </nav>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="gradient"
-            className="hidden sm:inline-flex"
-            render={<Link href="/login?redirect=/dashboard" />}
-            nativeButton={false}
+          <Link
+            href="/login"
+            className="hidden rounded-lg px-3 py-1.5 text-sm text-slate-300 transition-colors hover:text-white sm:inline-flex"
           >
-            Open platform
-            <ArrowUpRight data-icon="inline-end" />
-          </Button>
+            Sign in
+          </Link>
+          <div className="hidden sm:block">
+            <PrimaryLink href="/signup">
+              Get started <ArrowUpRight className="size-4" />
+            </PrimaryLink>
+          </div>
 
           <Sheet>
-            <SheetTrigger
-              render={
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="md:hidden"
-                  aria-label="Open menu"
-                />
-              }
-            >
-              <Menu />
+            <SheetTrigger asChild>
+              <button
+                type="button"
+                aria-label="Open menu"
+                className="grid size-10 place-items-center rounded-xl border border-white/12 text-slate-200 md:hidden"
+              >
+                <Menu className="size-5" />
+              </button>
             </SheetTrigger>
-            <SheetContent side="right" className="gap-0 p-0">
-              <SheetHeader className="border-b border-border">
-                <SheetTitle>Navigation</SheetTitle>
+            <SheetContent side="right" className="gap-0 border-white/10 bg-[#0a0d14] p-0">
+              <SheetHeader className="border-b border-white/10">
+                <SheetTitle className="text-white">Menu</SheetTitle>
               </SheetHeader>
               <div className="flex flex-col gap-1 p-4">
                 {nav.map((l) => (
-                  <SheetClose
-                    // Base UI uses `render`, not `asChild`.
-                    key={l.href}
-                    render={
-                      <a
-                        href={l.href}
-                        className="rounded-3xl px-3 py-2.5 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                      />
-                    }
-                  >
-                    {l.label}
+                  <SheetClose key={l.href} asChild>
+                    <a
+                      href={l.href}
+                      className="rounded-lg px-3 py-2.5 text-sm text-slate-300 transition-colors hover:bg-white/5 hover:text-white"
+                    >
+                      {l.label}
+                    </a>
                   </SheetClose>
                 ))}
               </div>
-              <div className="mt-auto border-t border-border p-4">
-                <SheetClose
-                  render={
-                    <Button
-                      variant="gradient"
-                      className="w-full"
-                      // Base UI Button renders a <button> by default; we replace it with a link.
-                      render={<Link href="/login?redirect=/dashboard" />}
-                      nativeButton={false}
-                    />
-                  }
-                >
-                  Open platform <ArrowUpRight data-icon="inline-end" />
+              <div className="mt-auto flex flex-col gap-2 border-t border-white/10 p-4">
+                <SheetClose asChild>
+                  <Link
+                    href="/login"
+                    className="rounded-lg px-3 py-2.5 text-center text-sm text-slate-300 hover:text-white"
+                  >
+                    Sign in
+                  </Link>
+                </SheetClose>
+                <SheetClose asChild>
+                  <PrimaryLink href="/signup">
+                    Get started <ArrowUpRight className="size-4" />
+                  </PrimaryLink>
                 </SheetClose>
               </div>
             </SheetContent>
@@ -307,667 +278,521 @@ function TopNav() {
   );
 }
 
-function ChipRow({ items }: { items: readonly string[] }) {
+/* ──────────────────────────── hero ──────────────────────────── */
+
+function HeroDashboard() {
+  const reduce = useReducedMotion();
+  const px = useMotionValue(0.5);
+  const py = useMotionValue(0.5);
+  const rotateX = useTransform(py, [0, 1], reduce ? ["0deg", "0deg"] : ["5deg", "-5deg"]);
+  const rotateY = useTransform(px, [0, 1], reduce ? ["0deg", "0deg"] : ["-5deg", "5deg"]);
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      {items.map((t) => (
-        <Badge key={t} variant="secondary" className="font-mono text-[11px]">
-          {t}
-        </Badge>
-      ))}
-    </div>
+    <motion.div
+      onMouseMove={(e) => {
+        if (reduce) return;
+        const r = e.currentTarget.getBoundingClientRect();
+        px.set((e.clientX - r.left) / r.width);
+        py.set((e.clientY - r.top) / r.height);
+      }}
+      onMouseLeave={() => {
+        px.set(0.5);
+        py.set(0.5);
+      }}
+      style={{ rotateX, rotateY, transformPerspective: 1200 }}
+      initial={reduce ? false : { opacity: 0, y: 26 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.7, delay: 0.1, ease: [0.16, 1, 0.3, 1] }}
+      className="rounded-2xl border border-white/10 bg-white/[0.025] p-3 shadow-[0_40px_120px_-50px_rgba(0,0,0,0.9)] backdrop-blur-xl"
+    >
+      {/* header */}
+      <div className="flex items-center justify-between px-3 pb-3 pt-2">
+        <div className="flex items-center gap-2 text-sm font-medium text-white">
+          <Activity className="size-4 text-cyan-300" />
+          Operations overview
+        </div>
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-[11px] text-emerald-200">
+          <span className="size-1.5 rounded-full bg-emerald-400 animate-pulse-dot" /> live
+        </span>
+      </div>
+
+      {/* mini bento of real charts */}
+      <div className="grid grid-cols-3 gap-3">
+        <div className="col-span-2 rounded-xl border border-white/10 bg-[#07090f] p-3">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="text-xs text-slate-400">Throughput, Gbps</span>
+            <span className="rounded-full border border-amber-400/30 bg-amber-400/10 px-2 py-0.5 font-mono text-[10px] text-amber-200">
+              anomaly 16:00
+            </span>
+          </div>
+          <div className="h-36">
+            <ThroughputChart />
+          </div>
+        </div>
+
+        <div className="rounded-xl border border-white/10 bg-[#07090f] p-3">
+          <span className="text-xs text-slate-400">Fleet availability</span>
+          <div className="mt-1 h-36">
+            <AvailabilityGauge value={98.6} />
+          </div>
+        </div>
+
+        <div className="col-span-3 rounded-xl border border-white/10 bg-[#07090f] p-3">
+          <span className="text-xs text-slate-400">Availability by region</span>
+          <div className="mt-2 h-24">
+            <RegionBars />
+          </div>
+        </div>
+      </div>
+
+      <div className="flex items-center justify-between px-3 pt-3 font-mono text-[11px] text-slate-500">
+        <span>navigator://operations</span>
+        <span>sample data</span>
+      </div>
+    </motion.div>
   );
 }
 
-function ProductDemo() {
-  const tiles = useMemo(
-    () => [
-      {
-        title: "Import",
-        icon: FileSpreadsheet,
-        body: (
-          <div className="flex flex-col gap-2">
-            {[
-              { name: "cdr_q3.parquet", meta: "2.4 GB", ok: true },
-              { name: "kpi_4g.json", meta: "84 MB", ok: true },
-              { name: "churn_train.csv", meta: "210 MB", ok: false },
-            ].map((f) => (
-              <div
-                key={f.name}
-                className="flex items-center gap-2 rounded-3xl bg-muted/40 px-3 py-2"
-              >
-                <span className="font-mono text-[11px] text-foreground/90">
-                  {f.name}
-                </span>
-                <span className="ml-auto font-mono text-[10px] text-muted-foreground">
-                  {f.meta}
-                </span>
-                {f.ok ? (
-                  <Check className="text-success" />
-                ) : (
-                  <span className="size-2 rounded-full bg-warning animate-pulse-dot" />
-                )}
-              </div>
-            ))}
+function Hero() {
+  const reduce = useReducedMotion();
+  return (
+    <section className="relative flex min-h-[100dvh] items-center px-6 pt-24 pb-16">
+      <div className="mx-auto grid w-full max-w-7xl grid-cols-1 items-center gap-12 lg:grid-cols-12">
+        <motion.div
+          className="lg:col-span-5"
+          initial={reduce ? false : { opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+        >
+          <span className="inline-flex items-center gap-2 rounded-full border border-cyan-400/20 bg-cyan-400/[0.06] px-3 py-1 font-mono text-[11px] uppercase tracking-[0.18em] text-cyan-200">
+            Offline-first analytics
+          </span>
+
+          <h1 className="mt-6 text-5xl font-semibold leading-[1.02] tracking-tight text-white md:text-6xl">
+            Query telecom-scale data, fully{" "}
+            <span className="relative inline-block text-cyan-300">
+              on-device
+              <motion.span
+                aria-hidden
+                className="absolute -bottom-1 left-0 h-0.5 w-full origin-left rounded-full bg-cyan-400/60"
+                initial={reduce ? false : { scaleX: 0 }}
+                animate={{ scaleX: 1 }}
+                transition={{ delay: 0.55, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+              />
+            </span>
+            .
+          </h1>
+
+          <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-400">
+            Import, profile, query and explain large tabular datasets locally. DuckDB performance and
+            embedded AI in a hardened desktop shell.
+          </p>
+
+          <div className="mt-9 flex flex-wrap items-center gap-3">
+            <PrimaryLink href="/signup">
+              Get started <ArrowUpRight className="size-4" />
+            </PrimaryLink>
+            <GhostLink href="#capabilities">
+              See how it works <ArrowRight className="size-4" />
+            </GhostLink>
           </div>
-        ),
-      },
-      {
-        title: "Query",
-        icon: Database,
-        body: (
-          <div className="rounded-3xl border border-border bg-background/40 p-3">
-            <pre className="overflow-hidden font-mono text-[11px] leading-relaxed text-foreground/90">
-              <span className="text-secondary">SELECT</span> cell_id,{" "}
-              <span className="text-primary">avg</span>(throughput_mbps){" "}
-              <span className="text-secondary">AS</span> avg_tp{"\n"}
-              <span className="text-secondary">FROM</span> read_parquet(
-              <span className="text-success">'cdr_q3.parquet'</span>){"\n"}
-              <span className="text-secondary">GROUP BY</span> 1{"\n"}
-              <span className="text-secondary">ORDER BY</span> avg_tp{" "}
-              <span className="text-secondary">DESC</span>
-              <span className="ml-0.5 inline-block h-3 w-1.5 -mb-0.5 bg-primary animate-pulse-dot" />
-            </pre>
-          </div>
-        ),
-      },
-      {
-        title: "Explain",
-        icon: Brain,
-        body: (
-          <div className="flex flex-col gap-3">
-            <div className="rounded-3xl border border-warning/30 bg-warning/10 p-3">
-              <div className="flex items-start gap-2">
-                <span className="mt-1 size-2 rounded-full bg-warning animate-pulse-dot" />
+        </motion.div>
+
+        <div className="lg:col-span-7">
+          <HeroDashboard />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ──────────────────────────── telemetry band ──────────────────────────── */
+
+function Telemetry() {
+  return (
+    <section className="border-y border-white/10 bg-white/[0.015]">
+      <div className="mx-auto max-w-7xl px-6 py-12">
+        <div className="grid grid-cols-2 gap-8 lg:grid-cols-4">
+          <CountStat end={12} suffix="M+" label="rows scanned per second" />
+          <CountStat end={98.6} decimals={1} suffix="%" label="fleet availability" />
+          <CountStat end={0} label="outbound connections by default" />
+          <CountStat end={6} label="AI models running on-device" />
+        </div>
+        <p className="mt-6 font-mono text-[11px] text-slate-500">Illustrative sample telemetry.</p>
+      </div>
+    </section>
+  );
+}
+
+/* ──────────────────────────── capabilities ──────────────────────────── */
+
+function Capabilities() {
+  return (
+    <section id="capabilities" className="mx-auto max-w-7xl px-6 py-28">
+      <Reveal className="max-w-2xl">
+        <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+          Built for the messy reality of telecom data engineering.
+        </h2>
+        <p className="mt-5 text-lg text-slate-400">
+          Every part of the workflow maps to a real stage and a real trust boundary.
+        </p>
+      </Reveal>
+
+      <div className="mt-14 grid grid-cols-1 gap-4 lg:grid-cols-6">
+        {/* A — large, with real bar chart */}
+        <Reveal className="lg:col-span-4">
+          <SpotlightCard className="h-full">
+            <div className="flex h-full flex-col p-6">
+              <div className="flex items-start justify-between gap-4">
                 <div>
-                  <p className="text-sm font-medium">QoS drop · zone NORD-3</p>
-                  <p className="mt-1 text-xs text-muted-foreground">
-                    p95 latency 312 ms · +4.2σ · correlated with congestion
+                  <div className="flex items-center gap-2.5">
+                    <Database className="size-5 text-cyan-300" />
+                    <h3 className="text-xl font-semibold text-white">Query at operator scale</h3>
+                  </div>
+                  <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-400">
+                    DuckDB SQL across millions of rows: joins, windows and aggregations resolved in
+                    milliseconds, entirely in-process.
                   </p>
                 </div>
+                <div className="hidden gap-1.5 sm:flex">
+                  <Chip>DuckDB</Chip>
+                  <Chip>SQL</Chip>
+                </div>
+              </div>
+              <div className="mt-6 h-40 flex-1">
+                <RegionBars />
+              </div>
+              <div className="mt-2 font-mono text-[11px] text-slate-500">
+                availability by region, sample data
               </div>
             </div>
-            <div className="rounded-3xl border border-border bg-background/40 p-3">
-              <p className="text-sm text-muted-foreground">
-                <span className="text-foreground">Narrative:</span> The spike
-                begins at 16:00, coinciding with a throughput drop on cells
-                0xA14–0xA18. The agent recommends a capacity review and a
-                handover-parameter check.
+          </SpotlightCard>
+        </Reveal>
+
+        {/* B — ingest */}
+        <Reveal delay={0.05} className="lg:col-span-2">
+          <SpotlightCard className="h-full">
+            <div className="flex h-full flex-col p-6">
+              <FileSpreadsheet className="size-5 text-cyan-300" />
+              <h3 className="mt-4 text-xl font-semibold text-white">Ingest anything tabular</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                Schema inference, type casting and fast import in a single pass.
+              </p>
+              <div className="mt-auto flex flex-wrap gap-1.5 pt-5">
+                <Chip>CSV</Chip>
+                <Chip>Parquet</Chip>
+                <Chip>XLSX</Chip>
+                <Chip>JSON</Chip>
+              </div>
+            </div>
+          </SpotlightCard>
+        </Reveal>
+
+        {/* C — AI */}
+        <Reveal className="lg:col-span-2">
+          <SpotlightCard className="h-full">
+            <div className="flex h-full flex-col p-6">
+              <Brain className="size-5 text-cyan-300" />
+              <h3 className="mt-4 text-xl font-semibold text-white">AI-assisted analysis</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                Anomaly detection, correlation and short-horizon forecasts, computed on-device.
               </p>
             </div>
-          </div>
-        ),
-      },
-    ],
-    [],
-  );
+          </SpotlightCard>
+        </Reveal>
 
-  return (
-    <Card className="border-gradient shadow-elevated bg-card-gradient">
-      <CardHeader className="flex flex-row items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="grid size-10 place-items-center rounded-3xl border border-border bg-background/60 text-primary">
-            <Zap />
+        {/* D — lineage */}
+        <Reveal delay={0.05} className="lg:col-span-2">
+          <SpotlightCard className="h-full">
+            <div className="flex h-full flex-col p-6">
+              <GitBranch className="size-5 text-cyan-300" />
+              <h3 className="mt-4 text-xl font-semibold text-white">Lineage you can defend</h3>
+              <p className="mt-2 text-sm leading-relaxed text-slate-400">
+                Files to tables to queries to charts to reports, fully connected and replayable.
+              </p>
+            </div>
+          </SpotlightCard>
+        </Reveal>
+
+        {/* E — KPIs, tinted background */}
+        <Reveal delay={0.1} className="lg:col-span-2">
+          <div className="h-full rounded-2xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/10 to-transparent p-6">
+            <Radar className="size-5 text-cyan-300" />
+            <h3 className="mt-4 text-xl font-semibold text-white">Telecom-first KPIs</h3>
+            <p className="mt-2 text-sm leading-relaxed text-slate-400">
+              Availability, throughput, latency, drop rate and churn indicators out of the box.
+            </p>
           </div>
-          <div>
-            <CardTitle className="font-heading text-lg">
-              Control-room workflow
-            </CardTitle>
-            <CardDescription>
-              Import → query → explain. Everything stays on-device.
-            </CardDescription>
-          </div>
-        </div>
-        <Badge variant="secondary" className="hidden sm:inline-flex font-mono">
-          local · 0 outbound connections
-        </Badge>
-      </CardHeader>
-      <CardContent className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-        {tiles.map((t) => {
-          const Icon = t.icon;
-          return (
-            <Card key={t.title} size="sm" className="bg-background/40">
-              <CardHeader className="border-b border-border">
-                <div className="flex items-center gap-2">
-                  <Icon className="text-primary" />
-                  <CardTitle className="text-sm">{t.title}</CardTitle>
+        </Reveal>
+
+        {/* F — full width, collaboration + sparkline */}
+        <Reveal className="lg:col-span-6">
+          <SpotlightCard className="h-full">
+            <div className="grid grid-cols-1 gap-6 p-6 sm:grid-cols-2 sm:items-center">
+              <div>
+                <div className="flex items-center gap-2.5">
+                  <MessageSquareText className="size-5 text-cyan-300" />
+                  <h3 className="text-xl font-semibold text-white">Collaboration-ready</h3>
                 </div>
-              </CardHeader>
-              <CardContent className="flex flex-col gap-3">{t.body}</CardContent>
-            </Card>
-          );
-        })}
-      </CardContent>
-      <CardFooter className="border-t border-border justify-between">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Cpu className="text-primary" />
-          Isolated renderer · typed IPC · local OLAP
-        </div>
-        <Button
-          variant="outline"
-          size="sm"
-          render={<a href="#capabilities" />}
-          nativeButton={false}
-        >
-          See features <ArrowRight data-icon="inline-end" />
-        </Button>
-      </CardFooter>
-    </Card>
+                <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-400">
+                  Presence, threaded discussion and shareable narratives engineered for operations
+                  teams that need answers they can defend.
+                </p>
+              </div>
+              <div className="h-24 w-full">
+                <Sparkline />
+              </div>
+            </div>
+          </SpotlightCard>
+        </Reveal>
+      </div>
+    </section>
   );
 }
 
-export default function Page() {
+/* ──────────────────────────── architecture ──────────────────────────── */
+
+function Architecture() {
   return (
-    <div id="top" className="min-h-[100dvh] bg-background text-foreground dn-page">
-      <TopNav />
-
-      {/* HERO */}
-      <section className="relative overflow-hidden pt-28 md:pt-36">
-        <div className="absolute inset-0 -z-10 bg-hero" />
-        <div className="absolute inset-0 -z-10 grid-bg mask-fade-b opacity-35" />
-        <div className="absolute -left-40 top-40 -z-10 h-[520px] w-[680px] rounded-full bg-primary/10 blur-3xl" />
-        <div className="absolute -right-44 top-10 -z-10 h-[420px] w-[620px] rounded-full bg-accent/10 blur-3xl" />
-
-        <div className="container">
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:items-end">
-            <motion.div
-              initial={{ opacity: 0, y: 18 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-7"
-            >
-              <div className="flex flex-wrap items-center gap-2">
-                <Badge className="font-mono" variant="secondary">
-                  offline-first
-                </Badge>
-                <Badge className="font-mono" variant="secondary">
-                  duckdb core
-                </Badge>
-                <Badge className="font-mono" variant="secondary">
-                  hardened electron shell
-                </Badge>
-              </div>
-
-              <h1 className="mt-6 font-heading text-5xl font-semibold leading-[0.95] tracking-tight md:text-7xl">
-                Enterprise analytics
-                <br />
-                without surrendering <span className="text-primary">your data</span>.
-              </h1>
-
-              <p className="mt-7 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                Data Navigator imports, profiles, queries, and explains telecom-scale
-                tabular data — entirely on-device. A modern Next.js UI on top of DuckDB
-                and embedded AI, inside a hardened desktop shell.
-              </p>
-
-              <div className="mt-10 flex flex-wrap items-center gap-3">
-                <Button
-                  variant="gradient"
-                  size="lg"
-                  render={<Link href="/login?redirect=/dashboard" />}
-                  nativeButton={false}
-                >
-                  Open platform <ArrowUpRight data-icon="inline-end" />
-                </Button>
-                <Button
-                  variant="outline"
-                  size="lg"
-                  render={<a href="#product" />}
-                  nativeButton={false}
-                >
-                  See the workflow <ArrowRight data-icon="inline-end" />
-                </Button>
-              </div>
-
-              <div className="mt-10 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-2">
-                  <Lock className="text-success" />
-                  zero-default outbound connections
-                </span>
-                <Separator orientation="vertical" className="h-4" />
-                <span className="inline-flex items-center gap-2">
-                  <Database className="text-primary" />
-                  in-process OLAP engine
-                </span>
-                <Separator orientation="vertical" className="h-4" />
-                <span className="inline-flex items-center gap-2">
-                  <Globe2 className="text-secondary" />
-                  works beyond telecom
-                </span>
-              </div>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.08, ease: [0.16, 1, 0.3, 1] }}
-              className="lg:col-span-5"
-            >
-              <Card className="bg-card-gradient border-gradient shadow-elevated">
-                <CardHeader className="border-b border-border">
-                  <CardTitle className="text-base">What you get</CardTitle>
-                  <CardDescription>
-                    A control-room UI built for speed, trust, and narrative clarity.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-4">
-                  {trustSignals.map((s) => {
-                    const Icon = s.icon;
-                    return (
-                      <div key={s.label} className="flex items-start gap-3">
-                        <div className="grid size-9 shrink-0 place-items-center rounded-3xl border border-border bg-background/60 text-primary">
-                          <Icon />
-                        </div>
-                        <div>
-                          <div className="text-sm font-medium">{s.label}</div>
-                          <div className="mt-0.5 text-sm text-muted-foreground">
-                            {s.desc}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-                <CardFooter className="border-t border-border">
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    render={<a href="#trust" />}
-                    nativeButton={false}
-                  >
-                    Read the security story <ArrowRight data-icon="inline-end" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            </motion.div>
-          </div>
-
-          <div id="product" className="mt-14 pb-24 md:mt-20">
-            <ProductDemo />
-          </div>
-        </div>
-      </section>
-
-      {/* CAPABILITIES */}
-      <section id="capabilities" className="container py-24 md:py-32">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12 lg:items-end">
-          <div className="lg:col-span-7">
-            <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.25em] text-primary">
-              + capabilities
-            </div>
-            <h2 className="font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-              Built for the messy reality of{" "}
-              <span className="text-primary">telecom data engineering</span>.
-            </h2>
-          </div>
-          <p className="lg:col-span-5 text-base text-muted-foreground">
-            The landing page is the product: structured, legible, and precise.
-            Every section maps to a real workflow stage and a real trust boundary.
+    <section id="architecture" className="border-y border-white/10 bg-white/[0.015] px-6 py-28">
+      <div className="mx-auto max-w-7xl">
+        <Reveal className="mx-auto max-w-2xl text-center">
+          <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+            Sovereign by construction.
+          </h2>
+          <p className="mt-5 text-lg text-slate-400">
+            The UI runs in an isolated world and every sensitive capability crosses a typed boundary.
+            Designed for air-gapped and regulated environments.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="mt-12 grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-          {capabilities.map((c, i) => {
-            const Icon = c.icon;
+        <div className="mt-14 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {pillars.map((p, i) => {
+            const Icon = p.icon;
             return (
-              <motion.div
-                key={c.title}
-                initial={{ opacity: 0, y: 14 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true, amount: 0.35 }}
-                transition={{ duration: 0.45, delay: i * 0.04 }}
-              >
-                <Card className="dn-card-hover bg-card-gradient border-gradient">
-                  <CardHeader className="gap-3">
-                    <div className="flex items-center justify-between">
-                      <div className="grid size-10 place-items-center rounded-3xl border border-border bg-background/60 text-primary">
-                        <Icon />
-                      </div>
-                      <Badge variant="secondary" className="font-mono">
-                        {String(i + 1).padStart(2, "0")}
-                      </Badge>
-                    </div>
-                    <CardTitle className="text-lg">{c.title}</CardTitle>
-                    <CardDescription className="text-sm">{c.desc}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <ChipRow items={c.chips} />
-                  </CardContent>
-                </Card>
-              </motion.div>
+              <Reveal key={p.k} delay={i * 0.05}>
+                <div className="h-full rounded-2xl border border-white/10 bg-[#07090f] p-6">
+                  <Icon className="size-5 text-cyan-300" />
+                  <div className="mt-4 text-base font-semibold text-white">{p.k}</div>
+                  <div className="mt-1 font-mono text-[12px] text-cyan-300/80">{p.v}</div>
+                  <div className="mt-3 text-sm text-slate-400">{p.note}</div>
+                </div>
+              </Reveal>
             );
           })}
         </div>
-      </section>
 
-      {/* TRUST */}
-      <section
-        id="trust"
-        className="relative border-y border-border bg-card/10 py-24 md:py-32"
-      >
-        <div className="absolute inset-0 -z-10 grid-bg-fine opacity-20" />
-        <div className="container">
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-            <div className="lg:col-span-5">
-              <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.25em] text-primary">
-                + trust model
-              </div>
-              <h2 className="font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-                Sovereign by <span className="text-primary">construction</span>.
-              </h2>
-              <p className="mt-5 text-base text-muted-foreground">
-                The architecture is a contract: the UI runs in an isolated world,
-                and every sensitive capability crosses a typed boundary.
-              </p>
-
-              <div className="mt-8 flex flex-col gap-3">
-                {trustSignals.map((t) => {
-                  const Icon = t.icon;
-                  return (
-                    <div key={t.label} className="flex items-start gap-3">
-                      <div className="grid size-9 shrink-0 place-items-center rounded-3xl border border-border bg-background/60 text-success">
-                        <Icon />
-                      </div>
-                      <div>
-                        <div className="text-sm font-medium">{t.label}</div>
-                        <div className="mt-0.5 text-sm text-muted-foreground">
-                          {t.desc}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="lg:col-span-7">
-              <Card className="bg-card-gradient border-gradient shadow-elevated">
-                <CardHeader className="border-b border-border">
-                  <CardTitle>Architecture snapshot</CardTitle>
-                  <CardDescription>
-                    Next.js UI in an isolated renderer · Electron main as broker · DuckDB core · workers for ML/LLM.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="grid gap-3 md:grid-cols-2">
-                  {[
-                    {
-                      k: "Renderer (UI)",
-                      v: "React 19 + Next.js",
-                      icon: Sparkles,
-                      note: "No Node access. Strict CSP.",
-                    },
-                    {
-                      k: "Main process",
-                      v: "Typed IPC bridge",
-                      icon: Shield,
-                      note: "Allow-listed channels only.",
-                    },
-                    {
-                      k: "Analytical core",
-                      v: "DuckDB + SQLite metadata",
-                      icon: Database,
-                      note: "OLAP at desktop speed.",
-                    },
-                    {
-                      k: "Workers",
-                      v: "ML · LLM · Python · Voice",
-                      icon: Cpu,
-                      note: "Off-thread compute, responsive UI.",
-                    },
-                  ].map((b) => {
-                    const Icon = b.icon;
-                    return (
-                      <Card key={b.k} size="sm" className="bg-background/40">
-                        <CardHeader className="border-b border-border gap-2">
-                          <div className="flex items-center gap-2">
-                            <Icon className="text-primary" />
-                            <CardTitle className="text-sm">{b.k}</CardTitle>
-                          </div>
-                          <CardDescription className="text-xs font-mono">
-                            {b.v}
-                          </CardDescription>
-                        </CardHeader>
-                        <CardContent className="text-sm text-muted-foreground">
-                          {b.note}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                </CardContent>
-                <CardFooter className="border-t border-border">
-                  <div className="flex flex-wrap items-center justify-between gap-3 w-full">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span className="size-2 rounded-full bg-success animate-pulse-dot" />
-                      designed for air-gapped + regulated environments
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      render={<Link href="/dashboard" />}
-                      nativeButton={false}
-                    >
-                      View dashboard <ArrowUpRight data-icon="inline-end" />
-                    </Button>
-                  </div>
-                </CardFooter>
-              </Card>
+        {/* animated data pipeline */}
+        <Reveal delay={0.1}>
+          <div className="mt-4 rounded-2xl border border-white/10 bg-[#07090f] px-6 py-8">
+            <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+              {flow.map((step, i) => (
+                <div key={step} className="flex items-center gap-3 sm:flex-1">
+                  <span className="w-full rounded-lg border border-white/10 bg-white/[0.03] px-3 py-2 text-center text-sm text-slate-200 sm:w-auto sm:flex-1">
+                    {step}
+                  </span>
+                  {i < flow.length - 1 && (
+                    <span className="relative hidden h-px w-10 overflow-hidden rounded-full bg-white/10 sm:block">
+                      <span className="absolute inset-0 flow-shimmer" />
+                    </span>
+                  )}
+                </div>
+              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
 
-      {/* TESTIMONIALS */}
-      <section className="container py-24 md:py-32">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-12 lg:items-end">
-          <h2 className="lg:col-span-7 font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-            Built for teams that need{" "}
-            <span className="text-primary">answers they can defend</span>.
-          </h2>
-          <p className="lg:col-span-5 text-base text-muted-foreground">
-            The UI is optimized for narrative clarity: what happened, why it happened,
-            and what to do next — with lineage to back it up.
-          </p>
-        </div>
+/* ──────────────────────────── pricing ──────────────────────────── */
 
-        <div className="mt-12 grid gap-3 lg:grid-cols-3">
-          {testimonials.map((t, i) => (
-            <motion.div
-              key={t.name}
-              initial={{ opacity: 0, y: 14 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, amount: 0.35 }}
-              transition={{ duration: 0.45, delay: i * 0.05 }}
+function Pricing() {
+  return (
+    <section id="pricing" className="mx-auto max-w-7xl px-6 py-28">
+      <Reveal className="max-w-2xl">
+        <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+          Start locally. Add governance when you need it.
+        </h2>
+        <p className="mt-5 text-lg text-slate-400">
+          One workflow, three ways to run it. Keep your data sovereignty at every tier.
+        </p>
+      </Reveal>
+
+      <div className="mt-14 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-3">
+        {pricing.map((p, i) => (
+          <Reveal key={p.name} delay={i * 0.05}>
+            <div
+              className={[
+                "flex h-full flex-col rounded-2xl border p-7",
+                p.highlight
+                  ? "border-cyan-400/40 bg-gradient-to-b from-cyan-400/[0.07] to-transparent lg:-my-2 lg:py-9"
+                  : "border-white/10 bg-white/[0.02]",
+              ].join(" ")}
             >
-              <Card className="bg-card-gradient border-gradient">
-                <CardHeader className="gap-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="size-10">
-                      <AvatarFallback className="font-mono">
-                        {t.initials}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <CardTitle className="text-sm">{t.name}</CardTitle>
-                      <CardDescription className="text-sm">{t.org}</CardDescription>
-                    </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="text-sm text-muted-foreground">
-                  “{t.quote}”
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      </section>
-
-      {/* PRICING */}
-      <section
-        id="pricing"
-        className="relative border-y border-border bg-card/10 py-24 md:py-32"
-      >
-        <div className="absolute inset-0 -z-10 bg-hero opacity-70" />
-        <div className="container">
-          <div className="max-w-3xl">
-            <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.25em] text-primary">
-              + pricing
-            </div>
-            <h2 className="font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-              Choose your lane. Keep your{" "}
-              <span className="text-primary">data sovereignty</span>.
-            </h2>
-            <p className="mt-5 text-base text-muted-foreground">
-              Start locally. Add collaboration and governance when you need it.
-            </p>
-          </div>
-
-          <div className="mt-12 grid gap-3 lg:grid-cols-3">
-            {pricing.map((p) => (
-              <Card
-                key={p.name}
-                className={[
-                  "bg-card-gradient border-gradient",
-                  p.highlight ? "shadow-elevated" : "",
-                ].join(" ")}
-              >
-                <CardHeader className="gap-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{p.name}</CardTitle>
-                    <Badge
-                      variant={p.highlight ? "default" : "secondary"}
-                      className="font-mono"
-                    >
-                      {p.badge}
-                    </Badge>
-                  </div>
-                  <div className="flex items-end gap-2">
-                    <div className="font-heading text-4xl font-semibold">
-                      {p.price}
-                    </div>
-                    <div className="pb-1 text-sm text-muted-foreground">/ user</div>
-                  </div>
-                  <CardDescription className="text-sm">{p.desc}</CardDescription>
-                </CardHeader>
-                <CardContent className="flex flex-col gap-3">
-                  <Separator />
-                  <ul className="flex flex-col gap-2">
-                    {p.features.map((f) => (
-                      <li key={f} className="flex items-start gap-2 text-sm">
-                        <Check className="mt-0.5 text-success" />
-                        <span className="text-muted-foreground">{f}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </CardContent>
-                <CardFooter className="border-t border-border">
-                  <Button
-                    variant={p.highlight ? "gradient" : "outline"}
-                    className="w-full"
-                    render={<Link href="/login?redirect=/dashboard" />}
-                    nativeButton={false}
-                  >
-                    {p.cta} <ArrowUpRight data-icon="inline-end" />
-                  </Button>
-                </CardFooter>
-              </Card>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section id="faq" className="container py-24 md:py-32">
-        <div className="grid grid-cols-1 gap-10 lg:grid-cols-12">
-          <div className="lg:col-span-5">
-            <div className="mb-3 font-mono text-[11px] uppercase tracking-[0.25em] text-primary">
-              + faq
-            </div>
-            <h2 className="font-heading text-4xl font-semibold tracking-tight md:text-5xl">
-              Questions, answered.
-            </h2>
-            <p className="mt-5 text-base text-muted-foreground">
-              If you want, tell me your exact positioning (B2B vs open-source vs
-              internal tool) and I’ll tailor the copy precisely.
-            </p>
-          </div>
-
-          <Card className="lg:col-span-7 bg-card-gradient border-gradient">
-            <CardHeader className="border-b border-border">
-              <CardTitle>FAQ</CardTitle>
-              <CardDescription>
-                Practical details for teams evaluating a local-first analytics stack.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Accordion type="single" collapsible className="w-full">
-                {faqs.map((f, i) => (
-                  <AccordionItem key={f.q} value={`faq-${i}`}>
-                    <AccordionTrigger>{f.q}</AccordionTrigger>
-                    <AccordionContent className="text-sm text-muted-foreground">
-                      {f.a}
-                    </AccordionContent>
-                  </AccordionItem>
+              <div className="flex items-center justify-between">
+                <span className="text-lg font-semibold text-white">{p.name}</span>
+                {p.highlight && (
+                  <span className="rounded-full bg-cyan-400/15 px-2.5 py-0.5 font-mono text-[11px] text-cyan-200">
+                    most teams
+                  </span>
+                )}
+              </div>
+              <div className="mt-4 flex items-end gap-1.5">
+                <span className="text-4xl font-semibold tracking-tight text-white">{p.price}</span>
+                {p.price !== "Custom" && <span className="pb-1.5 text-sm text-slate-500">/ user</span>}
+              </div>
+              <p className="mt-3 text-sm text-slate-400">{p.desc}</p>
+              <ul className="mt-6 flex flex-col gap-2.5">
+                {p.features.map((f) => (
+                  <li key={f} className="flex items-start gap-2.5 text-sm text-slate-300">
+                    <Check className="mt-0.5 size-4 shrink-0 text-cyan-300" />
+                    {f}
+                  </li>
                 ))}
-              </Accordion>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+              </ul>
+              <div className="mt-8 pt-2">
+                {p.highlight ? (
+                  <Link
+                    href={p.href}
+                    className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl bg-cyan-400 px-5 text-sm font-semibold text-[#04121f] transition-all hover:bg-cyan-300 active:translate-y-px"
+                  >
+                    {p.cta} <ArrowUpRight className="size-4" />
+                  </Link>
+                ) : (
+                  <Link
+                    href={p.href}
+                    className="inline-flex h-11 w-full items-center justify-center gap-1.5 rounded-xl border border-white/12 px-5 text-sm font-medium text-slate-200 transition-colors hover:border-white/25 hover:bg-white/5 hover:text-white active:translate-y-px"
+                  >
+                    {p.cta} <ArrowUpRight className="size-4" />
+                  </Link>
+                )}
+              </div>
+            </div>
+          </Reveal>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-      {/* FINAL CTA */}
-      <section className="relative overflow-hidden py-24 md:py-32">
-        <div className="absolute inset-0 -z-10 bg-hero opacity-80" />
-        <div className="absolute left-1/2 top-1/2 -z-10 h-[420px] w-[680px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/15 blur-3xl" />
-        <div className="container">
-          <Card className="mx-auto max-w-3xl bg-card-gradient border-gradient shadow-elevated">
-            <CardHeader className="text-center gap-3">
-              <CardTitle className="text-3xl md:text-5xl">
-                Start navigating <span className="text-primary">your data</span>.
-              </CardTitle>
-              <CardDescription className="mx-auto max-w-xl">
-                Open the platform, import your first dataset, and generate a narrative
-                report — locally, securely, in minutes.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center gap-3 sm:flex-row sm:justify-center">
-              <Button
-                variant="gradient"
-                size="lg"
-                render={<Link href="/login?redirect=/dashboard" />}
-                nativeButton={false}
-              >
-                Open platform <ArrowUpRight data-icon="inline-end" />
-              </Button>
-              <Button
-                variant="outline"
-                size="lg"
-                render={<a href="#capabilities" />}
-                nativeButton={false}
-              >
-                Explore features <ArrowRight data-icon="inline-end" />
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </section>
+/* ──────────────────────────── faq ──────────────────────────── */
 
-      {/* FOOTER */}
-      <footer className="border-t border-border bg-card/20">
-        <div className="container flex flex-col items-center justify-between gap-4 py-8 md:flex-row">
-          <Logo />
-          <div className="flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-            {nav.map((l) => (
-              <a key={l.href} href={l.href} className="hover:text-foreground">
-                {l.label}
-              </a>
+function Faq() {
+  return (
+    <section id="faq" className="border-t border-white/10 px-6 py-28">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 gap-12 lg:grid-cols-12">
+        <Reveal className="lg:col-span-5">
+          <h2 className="text-4xl font-semibold tracking-tight text-white md:text-5xl">
+            Questions, answered.
+          </h2>
+          <p className="mt-5 text-lg text-slate-400">
+            Practical details for teams evaluating a local-first analytics stack.
+          </p>
+          <div className="mt-8">
+            <GhostLink href="/login">
+              Sign in to your workspace <ArrowRight className="size-4" />
+            </GhostLink>
+          </div>
+        </Reveal>
+
+        <div className="lg:col-span-7">
+          <Accordion type="single" collapsible className="w-full">
+            {faqs.map((f) => (
+              <AccordionItem key={f.q} value={f.q} className="border-white/10">
+                <AccordionTrigger className="py-5 text-left text-base text-white hover:no-underline">
+                  {f.q}
+                </AccordionTrigger>
+                <AccordionContent className="text-[15px] leading-relaxed text-slate-400">
+                  {f.a}
+                </AccordionContent>
+              </AccordionItem>
             ))}
+          </Accordion>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ──────────────────────────── cta + footer ──────────────────────────── */
+
+function CtaBand() {
+  return (
+    <section className="px-6 py-28">
+      <Reveal className="mx-auto max-w-4xl">
+        <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-gradient-to-b from-cyan-400/[0.08] to-transparent px-8 py-16 text-center">
+          <div className="mx-auto grid size-12 place-items-center rounded-2xl border border-cyan-400/30 bg-cyan-400/5">
+            <Lock className="size-5 text-cyan-300" />
           </div>
-          <div className="flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            <span className="size-2 rounded-full bg-success animate-pulse-dot" />
-            on-device · typed · explainable
+          <h2 className="mx-auto mt-6 max-w-2xl text-3xl font-semibold tracking-tight text-white md:text-4xl">
+            Start navigating your data, locally and securely.
+          </h2>
+          <p className="mx-auto mt-4 max-w-xl text-base text-slate-400">
+            Create an account, import your first dataset and generate a narrative report in minutes.
+          </p>
+          <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
+            <PrimaryLink href="/signup">
+              Get started <ArrowUpRight className="size-4" />
+            </PrimaryLink>
+            <GhostLink href="/login">
+              Sign in <ArrowRight className="size-4" />
+            </GhostLink>
           </div>
         </div>
-      </footer>
+      </Reveal>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-white/10 px-6 py-10">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 md:flex-row">
+        <Logo />
+        <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-400">
+          {nav.map((l) => (
+            <a key={l.href} href={l.href} className="transition-colors hover:text-white">
+              {l.label}
+            </a>
+          ))}
+          <Link href="/login" className="transition-colors hover:text-white">
+            Sign in
+          </Link>
+        </nav>
+        <span className="font-mono text-[11px] text-slate-500">On-device. Typed. Explainable.</span>
+      </div>
+    </footer>
+  );
+}
+
+/* ──────────────────────────── page ──────────────────────────── */
+
+export default function Page() {
+  return (
+    <div id="top" className="relative min-h-[100dvh] overflow-hidden bg-[#07090f] text-slate-200">
+      {/* moving aurora wash (gated by reduced motion) */}
+      <div aria-hidden className="pointer-events-none fixed inset-0 -z-10">
+        <div
+          className="aurora absolute -left-1/4 -top-1/3 h-[80vh] w-[80vh] rounded-full opacity-90 blur-[120px]"
+          style={{ background: "radial-gradient(circle, rgba(34,211,238,0.10), transparent 65%)" }}
+        />
+        <div
+          className="aurora absolute -right-1/4 top-1/4 h-[70vh] w-[70vh] rounded-full opacity-80 blur-[120px]"
+          style={{ background: "radial-gradient(circle, rgba(59,130,246,0.08), transparent 65%)", animationDelay: "-7s" }}
+        />
+      </div>
+
+      <TopNav />
+      <Hero />
+      <Telemetry />
+      <Capabilities />
+      <Architecture />
+      <Pricing />
+      <Faq />
+      <CtaBand />
+      <Footer />
     </div>
   );
 }

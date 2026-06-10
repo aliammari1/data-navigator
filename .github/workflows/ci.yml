@@ -27,54 +27,68 @@ jobs:
   quality:
     name: Quality / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     strategy:
       fail-fast: false
       matrix:
         node:
-          - 24.x
+          - 24
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          lfs: true
 
-      - name: Setup Node
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+          run_install: false
+
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
           node-version: ${{ matrix.node }}
-          cache: npm
-          cache-dependency-path: package-lock.json
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Check package hygiene
-        run: npx sherif
+        run: pnpm dlx sherif
 
       - name: Check unused dependencies
-        run: npx knip
+        run: pnpm dlx knip
         continue-on-error: true
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Oxlint
-        run: npx oxlint .
+        run: pnpm dlx oxlint .
 
       - name: Typecheck
-        run: npm run typecheck
+        run: pnpm run typecheck
 
       - name: Check provider boundaries
-        run: npm run check:providers
+        run: pnpm run check:providers
 
       - name: Check architecture
-        run: npm run check:architecture
+        run: pnpm run check:architecture
 
       - name: Unit tests
-        run: npm run test
+        run: pnpm run test
 
       - name: Storybook build
-        run: npm run build:storybook
+        run: pnpm run build:storybook
+
+      - name: Remove heavy runtime assets from Storybook build
+        run: |
+          rm -rf storybook-static/models
+          rm -rf storybook-static/vad
 
       - name: Next build
-        run: npm run build
+        run: pnpm run build

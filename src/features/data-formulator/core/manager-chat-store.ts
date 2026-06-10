@@ -7,7 +7,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import { bigIntJsonReplacer, sanitizeJsonValue } from "./json";
 
 export interface ChatMessage {
@@ -117,7 +118,7 @@ export const useManagerChatStore = create<ManagerChatState>()(
     }),
     {
       name: "moudir-chat-sessions",
-      storage: createJSONStorage(() => localStorage, {
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" }), {
         replacer: (key, value) => bigIntJsonReplacer(key, sanitizeJsonValue(value)),
       }),
     },

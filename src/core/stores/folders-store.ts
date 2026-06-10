@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 // A folder record stored in the catalog (not a dataset, just a container)
 export interface CatalogFolder {
@@ -113,6 +114,7 @@ export const useFoldersStore = create<FoldersStore>()(
     }),
     {
       name: "data-navigator-folders",
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
     },
   ),
 );

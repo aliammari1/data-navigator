@@ -10,6 +10,10 @@ export default defineConfig({
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
     exclude: ["node_modules", ".next", "out", "dist", "tests/e2e"],
+    benchmark: {
+      include: ["tests/**/*.bench.{ts,tsx}"],
+      exclude: ["node_modules", ".next", "out", "dist", "tests/e2e"],
+    },
     coverage: {
       provider: "v8",
       reporter: ["text", "json", "html"],

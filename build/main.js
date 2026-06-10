@@ -10055,10 +10055,10 @@ var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
 var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_b8496d9c31a6e141f12ee2ada677772a/node_modules/@better-auth/electron/dist/version-ekzjMTDh.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_17404b850b4e41aafeaadc9ab306f2d2/node_modules/@better-auth/electron/dist/version-ekzjMTDh.mjs
 var PACKAGE_VERSION = "1.6.14";
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_b8496d9c31a6e141f12ee2ada677772a/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_17404b850b4e41aafeaadc9ab306f2d2/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
 function isProcessType(type) {
   return typeof process !== "undefined" && process.type === type;
 }
@@ -10076,7 +10076,7 @@ function getChannelPrefixWithDelimiter(ns = "better-auth") {
   return ns.length > 0 ? ns + ":" : ns;
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/error/index.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/error/index.mjs
 var BetterAuthError = class extends Error {
   constructor(message, options) {
     super(message, options);
@@ -10185,7 +10185,7 @@ function createHash(algorithm, encoding) {
   };
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/env/env-impl.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/env/env-impl.mjs
 var _envShim = /* @__PURE__ */ Object.create(null);
 var _getEnv = (useShim) => {
   var _a2, _b2;
@@ -10284,7 +10284,7 @@ function normalizeIP(ip, options = {}) {
   return normalizeIPv6(ip, (_a2 = options.ipv6Subnet) != null ? _a2 : 64);
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_6ee417f62feb89c5593a45e7aad93802/node_modules/@better-auth/core/dist/utils/host.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/utils/host.mjs
 var CLOUD_METADATA_HOSTS = /* @__PURE__ */ new Set([
   "metadata.google.internal",
   "metadata.goog",
