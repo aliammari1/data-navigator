@@ -1,5 +1,5 @@
 import { drizzleAdapter } from "@better-auth/drizzle-adapter";
-import { type BetterAuthOptions, betterAuth } from "better-auth";
+import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import * as schema from "@/db/schema";
 import { authDb } from "@/platform/auth/auth-database";
@@ -12,9 +12,7 @@ export const authConfig = {
     schema,
   }),
 
-  secret:
-    process.env.BETTER_AUTH_SECRET ??
-    "data-navigator-local-dev-secret-change-me",
+  secret: process.env.BETTER_AUTH_SECRET ?? "data-navigator-local-dev-secret-change-me",
 
   baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
 
@@ -25,7 +23,7 @@ export const authConfig = {
   },
 
   plugins: [nextCookies()],
-} satisfies BetterAuthOptions;
+};
 
 export const auth = betterAuth(authConfig);
 

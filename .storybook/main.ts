@@ -6,10 +6,8 @@ loadEnv({ path: ".env.storybook", quiet: true });
 
 const publicFigmaEnvironment = {
   STORYBOOK_FIGMA_FILE_URL: process.env.STORYBOOK_FIGMA_FILE_URL ?? "",
-  STORYBOOK_FIGMA_BUTTON_NODE_ID:
-    process.env.STORYBOOK_FIGMA_BUTTON_NODE_ID ?? "",
-  STORYBOOK_FIGMA_EMPTY_NODE_ID:
-    process.env.STORYBOOK_FIGMA_EMPTY_NODE_ID ?? "",
+  STORYBOOK_FIGMA_BUTTON_NODE_ID: process.env.STORYBOOK_FIGMA_BUTTON_NODE_ID ?? "",
+  STORYBOOK_FIGMA_EMPTY_NODE_ID: process.env.STORYBOOK_FIGMA_EMPTY_NODE_ID ?? "",
 };
 
 const config: StorybookConfig = {
@@ -18,9 +16,14 @@ const config: StorybookConfig = {
     options: {},
   },
 
-  stories: ["../src/**/*.stories.@(ts|tsx|mdx)"],
+  stories: ["../src/**/*.stories.@(js|jsx|mjs|ts|tsx)", "../src/**/*.mdx"],
 
-  addons: ["@storybook/addon-docs", "@storybook/addon-a11y", "@storybook/addon-designs"],
+  addons: [
+    "@storybook/addon-docs",
+    "@storybook/addon-a11y",
+    "@storybook/addon-themes",
+    "@storybook/addon-designs",
+  ],
 
   staticDirs: ["../public"],
 
@@ -37,17 +40,19 @@ const config: StorybookConfig = {
     config.resolve ??= {};
     config.resolve.alias ??= {};
 
-    /**
-     * Prevent Storybook renderer from trying to bundle Electron main/preload
-     * modules. Components should use the mocked window APIs instead.
-     */
     config.resolve.alias = {
       ...config.resolve.alias,
+
       electron: false,
       "node:fs": false,
       "node:path": false,
       "node:os": false,
       "node:crypto": false,
+
+      fs: false,
+      path: false,
+      os: false,
+      crypto: false,
     };
 
     return config;

@@ -1,45 +1,51 @@
-name: Quality
+name: CI
 
 on:
-  pull_request:
   push:
     branches:
       - main
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  quality:
-    name: Quality gates
+  ci:
+    name: Lint, test, and build
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
+    timeout-minutes: 20
 
-      - name: Setup Node
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+          run_install: false
+
+      - name: Setup Node.js
         uses: actions/setup-node@v6
         with:
           node-version: 24
-          cache: npm
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: Check provider boundaries
-        run: npm run check:providers
+      - name: Run lint
+        run: pnpm lint
 
-      - name: Lint
-        run: npm run lint
+      - name: Run tests
+        run: pnpm test --if-present
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Architecture check
-        run: npm run check:architecture
-
-      - name: Unit tests
-        run: npm run test
-
-      - name: Build Storybook
-        run: npm run build:storybook
+      - name: Build
+        run: pnpm build

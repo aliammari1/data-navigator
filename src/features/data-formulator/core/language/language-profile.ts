@@ -6,7 +6,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type LanguageMode = "auto" | "tounsi" | "fr" | "en" | "ar";
 export type ToneMode = "casual" | "professional" | "executive" | "technical";
@@ -77,7 +78,7 @@ export const useLanguageProfileStore = create<LanguageProfileState>()(
     }),
     {
       name: "moudir-language-profile",
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
     },
   ),
 );
