@@ -7,7 +7,8 @@
  */
 
 import { create } from "zustand";
-import { persist, createJSONStorage } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import type { AgentTrace } from "../core/agent-graph";
 import { bigIntJsonReplacer, sanitizeJsonValue } from "../core/json";
 import type { ManagerIntent } from "../core/language/intent";
@@ -274,7 +275,9 @@ export const useWorkbenchStore = create<WorkbenchState>()(
     }),
     {
       name: "workbench-store",
-      storage: createJSONStorage(() => localStorage, { replacer: bigIntJsonReplacer }),
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" }), {
+        replacer: bigIntJsonReplacer,
+      }),
       partialize: (state) => ({
         cards: state.cards,
         history: state.history,

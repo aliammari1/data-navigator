@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type ActivityType =
   | "dataset_uploaded"
@@ -44,6 +45,7 @@ export const useActivityStore = create<ActivityStore>()(
     }),
     {
       name: "workspace-activity-v1",
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       partialize: (s) => ({ events: s.events }),
     },
   ),

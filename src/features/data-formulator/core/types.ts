@@ -22,6 +22,8 @@ export type AggregateFn =
   | "median"
   | "distinct";
 
+export type TimeUnit = "hour" | "day" | "week" | "month" | "quarter" | "year";
+
 export interface Encoding {
   id: string;
   channel: "x" | "y" | "color" | "size" | "facet" | "tooltip";
@@ -29,6 +31,8 @@ export interface Encoding {
   aggregate?: AggregateFn;
   sort?: "asc" | "desc" | "none";
   bin?: boolean;
+  // Temporal bucketing applied via DATE_TRUNC when the field is a date/timestamp
+  timeUnit?: TimeUnit;
 }
 
 export type FilterOp =

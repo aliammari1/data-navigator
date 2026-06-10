@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AccentColor =
   | "indigo"
@@ -177,6 +178,11 @@ export const useSettingsStore = create<SettingsStore>()(
           ],
         }),
     }),
-    { name: "data-navigator-settings" },
+    {
+      name: "data-navigator-settings",
+      // Durable in drizzle (app_setting) with a synchronous localStorage
+      // working copy — see createDrizzleStorage.
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "settings" })),
+    },
   ),
 );

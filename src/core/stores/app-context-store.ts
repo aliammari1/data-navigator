@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AppDomain = "telecom" | "general";
 
@@ -33,6 +34,7 @@ export const useAppContextStore = create<AppContextState>()(
     }),
     {
       name: "app-context-v1",
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       partialize: (s) => ({
         activeDomain: s.activeDomain,
         activeDatasetId: s.activeDatasetId,

@@ -42,7 +42,7 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={cn("h-full antialiased dark", poppins.variable, firaCode.variable)}
+      className={cn("h-full antialiased dark", poppins.variable, firaCode.variable, "font-sans")}
     >
       <body
         className="min-h-full flex flex-col bg-background text-foreground"

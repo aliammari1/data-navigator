@@ -14,20 +14,24 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
-  security-events: write
 
 jobs:
   codeql:
     name: CodeQL
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+      security-events: write
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
 
       - name: Initialize CodeQL
@@ -42,30 +46,38 @@ jobs:
   dependency-and-package-checks:
     name: Dependency and package checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+
     permissions:
       contents: read
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
 
-      - name: Setup Node
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+          run_install: false
+
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24.x
-          cache: npm
-          cache-dependency-path: package-lock.json
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
-      - name: npm audit
-        run: npm audit --audit-level=high
+      - name: Audit production dependencies
+        run: pnpm audit --audit-level high --prod
         continue-on-error: true
 
       - name: Package hygiene
-        run: npx sherif
+        run: pnpm dlx sherif
 
       - name: Dependency hygiene
-        run: npx knip
+        run: pnpm dlx knip
         continue-on-error: true

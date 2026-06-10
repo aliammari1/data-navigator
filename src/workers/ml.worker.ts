@@ -9,8 +9,8 @@
  * - computePCA
  */
 
-import * as Comlink from "comlink";
 import * as tf from "@tensorflow/tfjs";
+import * as Comlink from "comlink";
 
 const EPSILON = 1e-12;
 
@@ -91,10 +91,7 @@ function assertPositiveInteger(value: number, label: string): void {
 }
 
 function resolvedColumnNames(columns: string[], nCols: number): string[] {
-  return Array.from(
-    { length: nCols },
-    (_, index) => columns[index] ?? `column_${index + 1}`,
-  );
+  return Array.from({ length: nCols }, (_, index) => columns[index] ?? `column_${index + 1}`);
 }
 
 // ─── K-Means clustering ───────────────────────────────────────────────────────
@@ -116,37 +113,25 @@ export async function kMeansClustering(
   assertPositiveInteger(iters, "iters");
 
   if (k > nRows) {
-    throw new Error(
-      `k cannot be greater than row count; received k=${k}, rows=${nRows}`,
-    );
+    throw new Error(`k cannot be greater than row count; received k=${k}, rows=${nRows}`);
   }
 
   const tensor = tf.tensor2d(data, [nRows, nCols], "float32");
 
-  const initialIndices = Array.from({ length: k }, (_, index) =>
-    Math.floor((index * nRows) / k),
-  );
+  const initialIndices = Array.from({ length: k }, (_, index) => Math.floor((index * nRows) / k));
 
-  let centroids = tf.tidy(() =>
-    tf.gather(tensor, initialIndices),
-  ) as tf.Tensor2D;
+  let centroids = tf.tidy(() => tf.gather(tensor, initialIndices)) as tf.Tensor2D;
   let labels = new Int32Array(nRows).fill(-1);
 
   try {
     for (let iter = 0; iter < iters; iter++) {
       const newLabels = tf.tidy(() => {
-        const distances = tensor
-          .expandDims(1)
-          .sub(centroids.expandDims(0))
-          .square()
-          .sum(2);
+        const distances = tensor.expandDims(1).sub(centroids.expandDims(0)).square().sum(2);
 
         return Array.from(distances.argMin(1).dataSync());
       });
 
-      const sameLabels = newLabels.every(
-        (label, index) => label === labels[index],
-      );
+      const sameLabels = newLabels.every((label, index) => label === labels[index]);
       labels = Int32Array.from(newLabels);
 
       if (sameLabels && iter > 0) break;
@@ -175,11 +160,7 @@ export async function kMeansClustering(
         }
       }
 
-      const nextCentroidsTensor = tf.tensor2d(
-        nextCentroids,
-        [k, nCols],
-        "float32",
-      );
+      const nextCentroidsTensor = tf.tensor2d(nextCentroids, [k, nCols], "float32");
 
       centroids.dispose();
       centroids = nextCentroidsTensor;
@@ -224,8 +205,7 @@ export async function detectAnomalies(
   const iqr = q3 - q1;
 
   const mean = values.reduce((sum, value) => sum + value, 0) / n;
-  const variance =
-    values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n;
+  const variance = values.reduce((sum, value) => sum + (value - mean) ** 2, 0) / n;
   const std = Math.sqrt(variance);
 
   const indices: number[] = [];
@@ -299,9 +279,7 @@ export async function computeCorrelationMatrix(
 
   try {
     const covarianceMatrix = covariance.arraySync() as number[][];
-    const stds = covarianceMatrix.map((row, index) =>
-      Math.sqrt(Math.max(0, row[index] ?? 0)),
-    );
+    const stds = covarianceMatrix.map((row, index) => Math.sqrt(Math.max(0, row[index] ?? 0)));
 
     const matrix = covarianceMatrix.map((row, i) =>
       row.map((cov, j) => {
@@ -416,9 +394,7 @@ export async function computePCA(
           row.reduce((sum, value, index) => sum + value * vector[index], 0),
         );
 
-        const norm = Math.sqrt(
-          multiplied.reduce((sum, value) => sum + value * value, 0),
-        );
+        const norm = Math.sqrt(multiplied.reduce((sum, value) => sum + value * value, 0));
 
         if (norm < EPSILON) {
           return Array(size).fill(0);
@@ -491,9 +467,9 @@ export async function computePCA(
 // doesn't block on ONNX session init or linear-regression computation.
 
 import {
-  forecastNextHours,
-  type ForecastPoint,
   type HourlyRow as ForecastHourlyRow,
+  type ForecastPoint,
+  forecastNextHours,
 } from "@/platform/browser/forecast-onnx";
 
 export interface MLForecastRequest {
@@ -513,10 +489,7 @@ self.addEventListener("message", async (e: MessageEvent) => {
   if (e.data?.type !== "FORECAST") return;
   const req = e.data as MLForecastRequest;
   try {
-    const result = await forecastNextHours(
-      req.payload.hourly,
-      req.payload.horizon ?? 4,
-    );
+    const result = await forecastNextHours(req.payload.hourly, req.payload.horizon ?? 4);
     const response: MLForecastResponse = {
       id: req.id,
       type: "FORECAST_RESULT",

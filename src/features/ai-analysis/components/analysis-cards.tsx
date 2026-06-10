@@ -13,6 +13,38 @@ import {
   TrendingUp,
 } from "lucide-react";
 import type { Anomaly, Insight } from "@/features/ai-analysis/model/types";
+
+// ─── Main AnalysisCards component ─────────────────────────────────────────────
+
+export interface AnalysisCardsProps {
+  stats: Array<{
+    label: string;
+    value: string | number;
+    sub?: string;
+    icon: ElementType;
+    color: string;
+    trend?: number;
+  }>;
+  insights: Insight[];
+  onAcknowledge: (id: string) => void;
+}
+
+export function AnalysisCards({ stats, insights, onAcknowledge }: AnalysisCardsProps) {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {stats.map((stat, index) => (
+          <StatCard key={index} {...stat} />
+        ))}
+      </div>
+      <div className="space-y-3">
+        {insights.map((insight) => (
+          <InsightCard key={insight.id} insight={insight} onAcknowledge={onAcknowledge} />
+        ))}
+      </div>
+    </div>
+  );
+}
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 export function SeverityBadge({

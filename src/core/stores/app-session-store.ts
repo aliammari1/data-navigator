@@ -1,6 +1,7 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 interface TelecomSessionState {
   tableName: string;
@@ -34,6 +35,7 @@ export const useTelecomSessionStore = create<TelecomSessionState>()(
     }),
     {
       name: "telecom-session-context-v1",
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       partialize: (s) => ({
         tableName: s.tableName,
         fileName: s.fileName,

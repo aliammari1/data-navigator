@@ -7,6 +7,7 @@
 
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import { bigIntJsonReplacer, sanitizeJsonValue } from "./core/json";
 import type { LLMProvider } from "./core/ollama-provider";
 import type { ChartSpec, QueryResult } from "./core/types";
@@ -285,7 +286,7 @@ export const useFormulatorStore = create<FormulatorStore>()(
     }),
     {
       name: "data-formulator-enterprise-v1",
-      storage: createJSONStorage(() => localStorage, {
+      storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" }), {
         replacer: bigIntJsonReplacer,
       }),
       partialize: (state) => ({

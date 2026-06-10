@@ -19,7 +19,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: storybook-${{ github.ref }}
+  group: storybook-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -36,18 +36,24 @@ jobs:
   storybook:
     name: Build and test Storybook
     runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v6
+        with:
+          lfs: true
 
-      - name: Setup pnpm
+      - name: Set up pnpm
         uses: pnpm/action-setup@v4
+        with:
+          version: 10.25.0
+          run_install: false
 
-      - name: Setup Node
+      - name: Set up Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: 24.x
+          node-version: 24
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
@@ -56,6 +62,11 @@ jobs:
 
       - name: Build Storybook
         run: pnpm run build:storybook
+
+      - name: Remove heavy runtime assets from Storybook artifact
+        run: |
+          rm -rf storybook-static/models
+          rm -rf storybook-static/vad
 
       - name: Upload Storybook static build
         uses: actions/upload-artifact@v5

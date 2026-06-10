@@ -29,14 +29,7 @@ const sevSoft: Record<AtlasSeverity, string> = {
   accent: "bg-(--atlas-accent-soft)",
 };
 
-export function AtlasKPI({
-  label,
-  value,
-  delta,
-  hint,
-  icon,
-  severity = "accent",
-}: KPIProps) {
+export function AtlasKPI({ label, value, delta, hint, icon, severity = "accent" }: KPIProps) {
   const trendIcon =
     delta === undefined ? null : delta > 0 ? (
       <ArrowUpRight className="w-3.5 h-3.5" />
@@ -70,23 +63,15 @@ export function AtlasKPI({
           </div>
         )}
       </div>
-      <div className="text-(--atlas-text) text-xl font-bold tabular-nums leading-none">
-        {value}
-      </div>
+      <div className="text-(--atlas-text) text-xl font-bold tabular-nums leading-none">{value}</div>
       <div className="mt-1.5 flex items-center gap-2">
         {delta !== undefined && (
-          <div
-            className={`flex items-center gap-1 text-[11px] font-semibold ${trendTone}`}
-          >
+          <div className={`flex items-center gap-1 text-[11px] font-semibold ${trendTone}`}>
             {trendIcon}
             <span>{Math.abs(delta).toFixed(1)}%</span>
           </div>
         )}
-        {hint && (
-          <span className="text-[11px] text-(--atlas-text-subtle) truncate">
-            {hint}
-          </span>
-        )}
+        {hint && <span className="text-[11px] text-(--atlas-text-subtle) truncate">{hint}</span>}
       </div>
     </div>
   );
