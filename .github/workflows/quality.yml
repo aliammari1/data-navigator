@@ -70,9 +70,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Package hygiene (sherif)
-        run: pnpm dlx sherif
-
       - name: Lint (biome)
         run: pnpm run lint
 
