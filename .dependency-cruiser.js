@@ -65,7 +65,14 @@ module.exports = {
       comment: "Browser production code must not import packages declared only as devDependencies.",
       from: {
         path: "^src/",
-        pathNot: "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+        pathNot: [
+          "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          // Dev-only profiler: react-scan is gated behind `NODE_ENV !== "production"`
+          // and loaded via dynamic `import()` so it is dead-code-eliminated from prod
+          // bundles (see react-scan-dev.ts). It correctly stays a devDependency and
+          // never ships, so this single file is exempt from the prod-import rule.
+          "^src/platform/perf/react-scan-dev[.]ts$",
+        ],
       },
       to: {
         dependencyTypes: ["npm-dev"],

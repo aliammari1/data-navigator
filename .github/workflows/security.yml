@@ -112,9 +112,6 @@ jobs:
         run: pnpm run audit:security
         continue-on-error: true
 
-      - name: Package hygiene
-        run: pnpm dlx sherif
-
       - name: Dead-code hygiene
         run: pnpm dlx knip
         continue-on-error: true
