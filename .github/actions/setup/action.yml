@@ -1,0 +1,59 @@
+# facts: Shared composite setup for data-navigator (private, offline-first Electron + Next.js 16
+# app on pnpm@10.25.0). Single drop-in `uses: ./.github/actions/setup` step that installs pnpm,
+# sets up Node with the pnpm-store cache, restores the Next build cache, and installs deps with a
+# frozen lockfile. Used by quality.yml and security.yml (and ready to replace the inline setup
+# blocks in ci.yml/storybook.yml/electron-windows.yml). Assumes the caller has already run
+# actions/checkout (LFS handling stays explicit in each workflow). No GGUF/model download here.
+# Third-party pnpm/action-setup is SHA-pinned; first-party actions/* use major-version tags.
+name: Set up pnpm + Node + caches
+description: >-
+  Install pnpm 10.25.0, configure Node with the pnpm store cache, restore the
+  Next.js build cache, and install dependencies with a frozen lockfile.
+
+inputs:
+  node-version:
+    description: Node.js major version to set up.
+    required: false
+    default: "24"
+  install:
+    description: Whether to run `pnpm install --frozen-lockfile`.
+    required: false
+    default: "true"
+  pnpm-version:
+    description: pnpm version to install (must match package.json packageManager).
+    required: false
+    default: "10.25.0"
+
+runs:
+  using: composite
+  steps:
+    - name: Set up pnpm
+      # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
+      uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      with:
+        version: ${{ inputs.pnpm-version }}
+        run_install: false
+
+    - name: Set up Node.js
+      # First-party action: major-version tag is acceptable. Caches the pnpm store
+      # (not node_modules), keyed off pnpm-lock.yaml.
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ inputs.node-version }}
+        cache: pnpm
+        cache-dependency-path: pnpm-lock.yaml
+
+    - name: Cache Next.js build
+      # First-party action: major-version tag is acceptable. Key must match the
+      # inline setup blocks in the workflows so caches are shared across jobs.
+      uses: actions/cache@v4
+      with:
+        path: .next/cache
+        key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}
+        restore-keys: |
+          nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+    - name: Install dependencies
+      if: inputs.install == 'true'
+      shell: bash
+      run: pnpm install --frozen-lockfile

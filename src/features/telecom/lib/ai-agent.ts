@@ -1,18 +1,25 @@
 /**
  * Edge / offline AI agent for telecom analytics.
- * Uses @huggingface/transformers (WebGPU/WASM) — zero network calls at inference.
+ *
+ * Inference routes through the unified offline provider registry
+ * (`@/platform/ai/provider`) — llamacpp grammar-constrained JSON in Electron,
+ * transformers.js WASM in the browser. Zero network calls at inference.
  *
  * Two layers:
  *   - Heuristic rules (fast, always available) compute insights from KPIs.
- *   - LLM layer (optional, lazy-loaded) generates natural language commentary
- *     and translates user questions into one of a fixed action set the UI
- *     already supports — never executes raw SQL from the model.
+ *   - LLM layer (optional) generates natural-language commentary and translates
+ *     user questions into one of a fixed action set the UI already supports —
+ *     never executes raw SQL from the model. The intent is returned as a
+ *     schema-validated field (no regex parsing).
+ *
+ * The LLM functions take dependency-injected `generate` / `generateStructured`
+ * callbacks so this stays a hook-free lib; components bind them from `useAI()`.
  */
 
 "use client";
 
 import * as ss from "simple-statistics";
-import { chat, isLoaded, loadLLM } from "@/features/agent-canvas/core/llm";
+import { type ZodType, z } from "zod";
 import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type {
   PeriodKPI,
@@ -38,84 +45,26 @@ export interface AgentContext {
   anomalies: RowAnomaly[];
 }
 
-const DEFAULT_MODEL = "onnx-community/Qwen2.5-0.5B-Instruct";
+/** `useAI().generate` — bound to the active offline provider. */
+export type AgentGenerate = (req: {
+  system?: string;
+  prompt: string;
+  maxTokens?: number;
+  temperature?: number;
+  signal?: AbortSignal;
+}) => Promise<{ text: string }>;
 
-let _modelReady = false;
-
-export async function ensureModel(
-  onProgress?: (p: number, t: string) => void,
-  modelId: string = DEFAULT_MODEL,
-): Promise<void> {
-  const traceId = `telecom-ensure-model-${modelId}-${Date.now()}`;
-
-  console.groupCollapsed("[TelecomAgent] ensureModel", {
-    traceId,
-    modelId,
-    alreadyLoaded: isLoaded(),
-    modelReadyFlag: _modelReady,
-  });
-
-  if (isLoaded()) {
-    console.log("[TelecomAgent] ensureModel skipped: already loaded", {
-      traceId,
-      modelId,
-    });
-
-    _modelReady = true;
-    console.groupEnd();
-    return;
-  }
-
-  try {
-    console.log("[TelecomAgent] calling loadLLM", {
-      traceId,
-      modelId,
-    });
-
-    await loadLLM({
-      modelId,
-      dtype: "q4",
-      preferredDevice: "auto",
-      traceId,
-      debug: true,
-      onProgress: (p, t) => {
-        console.log("[TelecomAgent] load progress", {
-          traceId,
-          modelId,
-          rawProgress: p,
-          percent: Math.round(p * 100),
-          text: t,
-        });
-
-        onProgress?.(p, t);
-      },
-    });
-
-    _modelReady = true;
-
-    console.log("[TelecomAgent] ensureModel success", {
-      traceId,
-      modelId,
-      modelReadyFlag: _modelReady,
-    });
-  } catch (err) {
-    console.error("[TelecomAgent] ensureModel failed", {
-      traceId,
-      modelId,
-      error: err,
-      message: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : null,
-    });
-
-    throw err;
-  } finally {
-    console.groupEnd();
-  }
-}
-
-export function modelReady(): boolean {
-  return _modelReady;
-}
+/** `useAI().generateStructured` — bound to the active offline provider. */
+export type AgentGenerateStructured = <T>(
+  req: {
+    system?: string;
+    prompt: string;
+    maxTokens?: number;
+    temperature?: number;
+    signal?: AbortSignal;
+  },
+  schema: ZodType<T>,
+) => Promise<T>;
 
 // ─── Rule-based insights (always offline, no model needed) ────────────────────
 
@@ -246,11 +195,57 @@ export type AgentIntent =
   | { kind: "show_brands" }
   | { kind: "explain_kpi" };
 
+/**
+ * Schema-validated agent answer: the model returns a short text reply plus an
+ * optional UI action drawn from a fixed enum. Because the provider produces this
+ * via grammar-constrained decoding, no regex parsing of an "INTENT:" suffix is
+ * needed — the action is a real, validated field.
+ */
+const AgentAnswerSchema = z.object({
+  reply: z.string(),
+  action: z
+    .enum([
+      "none",
+      "show_anomalies",
+      "show_top_accounts_amount",
+      "show_top_accounts_count",
+      "show_sub_status",
+      "compare_periods",
+      "show_brands",
+      "explain_kpi",
+    ])
+    .default("none"),
+});
+type AgentAnswerJson = z.infer<typeof AgentAnswerSchema>;
+
+function actionToIntent(action: AgentAnswerJson["action"]): AgentIntent | null {
+  switch (action) {
+    case "show_anomalies":
+      return { kind: "show_anomalies" };
+    case "show_top_accounts_amount":
+      return { kind: "show_top_accounts", by: "amount" };
+    case "show_top_accounts_count":
+      return { kind: "show_top_accounts", by: "count" };
+    case "show_sub_status":
+      return { kind: "show_sub_status" };
+    case "compare_periods":
+      return { kind: "compare_periods" };
+    case "show_brands":
+      return { kind: "show_brands" };
+    case "explain_kpi":
+      return { kind: "explain_kpi" };
+    default:
+      return null;
+  }
+}
+
 const SYSTEM = `Tu es l'agent télécom d'un dashboard de recharges. Tu as accès aux KPI agrégés.
-- Réponds en français, court (<= 4 phrases).
+- Réponds en français, court (<= 4 phrases) dans le champ "reply".
 - N'invente jamais de chiffres. Cite uniquement ceux fournis.
-- Si l'utilisateur demande une action UI possible (anomalies, top abonnés, sous-statuts, comparaison, brands), termine par "INTENT: <action>".
-Actions valides: show_anomalies, show_top_accounts:amount, show_top_accounts:count, show_sub_status, compare_periods, show_brands, explain_kpi.`;
+- Si l'utilisateur demande une action UI possible, renseigne le champ "action"
+  avec l'une des valeurs: show_anomalies, show_top_accounts_amount,
+  show_top_accounts_count, show_sub_status, compare_periods, show_brands,
+  explain_kpi. Sinon, mets "none".`;
 
 function summarizeContext(ctx: AgentContext): string {
   const k = ctx.kpi;
@@ -275,118 +270,70 @@ function summarizeContext(ctx: AgentContext): string {
   return lines.join("\n");
 }
 
-function parseIntent(raw: string): AgentIntent | null {
-  const m = raw.match(/INTENT:\s*([a-z_]+)(?::([a-z_]+))?/i);
-  if (!m) return null;
-  const k = m[1].toLowerCase();
-  const arg = m[2]?.toLowerCase();
-  switch (k) {
-    case "show_anomalies":
-      return { kind: "show_anomalies" };
-    case "show_top_accounts":
-      return {
-        kind: "show_top_accounts",
-        by: arg === "count" ? "count" : "amount",
-      };
-    case "show_sub_status":
-      return { kind: "show_sub_status", parent: arg };
-    case "compare_periods":
-      return { kind: "compare_periods" };
-    case "show_brands":
-      return { kind: "show_brands" };
-    case "explain_kpi":
-      return { kind: "explain_kpi" };
-    default:
-      return null;
-  }
-}
-
+/**
+ * Translate a user question into a short reply + UI intent, grounded in the
+ * aggregated context. Routes through the offline provider via the injected
+ * `generateStructured`. When no generator is supplied (provider not ready),
+ * returns a heuristic prompt so the rule-based panel stays useful.
+ */
 export async function askAgent(
   question: string,
   ctx: AgentContext,
+  generateStructured?: AgentGenerateStructured,
 ): Promise<AgentAnswer> {
-  const traceId = `telecom-ask-agent-${Date.now()}`;
-
-  console.groupCollapsed("[TelecomAgent] askAgent", {
-    traceId,
-    question,
-    modelReadyFlag: _modelReady,
-    isLoaded: isLoaded(),
-  });
-
-  try {
-    if (!_modelReady && !isLoaded()) {
-      console.warn("[TelecomAgent] askAgent no model loaded", {
-        traceId,
-        modelReadyFlag: _modelReady,
-        isLoaded: isLoaded(),
-      });
-
-      return {
-        text: "Modèle local non chargé. Cliquez 'Charger l'IA' pour activer le mode IA. Sans modèle, l'analyse heuristique reste disponible.",
-        intent: null,
-      };
-    }
-
-    const summary = summarizeContext(ctx);
-
-    console.log("[TelecomAgent] context summary", {
-      traceId,
-      summary,
-    });
-
-    const raw = await chat(
-      SYSTEM,
-      `Données :\n${summary}\n\nQuestion : ${question}`,
-      {
-        maxTokens: 220,
-        temperature: 0.05,
-        agentName: "telecom-ask-agent",
-        traceId,
-        logFullPrompt: true,
-        debug: true,
-      },
-    );
-
-    console.log("[TelecomAgent] raw LLM answer", {
-      traceId,
-      raw,
-    });
-
-    const answer = {
-      text: raw.replace(/INTENT:\s*[a-z_]+(?::[a-z_]+)?/i, "").trim(),
-      intent: parseIntent(raw),
+  if (!generateStructured) {
+    return {
+      text: "Modèle IA non disponible. L'analyse heuristique (règles) reste active ci-dessus.",
+      intent: null,
     };
+  }
 
-    console.log("[TelecomAgent] parsed answer", {
-      traceId,
-      answer,
-    });
-
-    return answer;
+  const summary = summarizeContext(ctx);
+  try {
+    const json = await generateStructured(
+      {
+        system: SYSTEM,
+        prompt: `Données :\n${summary}\n\nQuestion : ${question}`,
+        maxTokens: 260,
+        temperature: 0.05,
+      },
+      AgentAnswerSchema,
+    );
+    return { text: json.reply.trim(), intent: actionToIntent(json.action) };
   } catch (err) {
-    console.error("[TelecomAgent] askAgent failed", {
-      traceId,
-      error: err,
-      message: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack : null,
-    });
-
-    throw err;
-  } finally {
-    console.groupEnd();
+    console.warn("[TelecomAgent] askAgent failed, heuristic fallback", err);
+    return {
+      text: "L'IA n'a pas pu répondre. Consultez les insights heuristiques ci-dessus.",
+      intent: null,
+    };
   }
 }
 
-export async function generateNarrative(ctx: AgentContext): Promise<string> {
-  if (!_modelReady && !isLoaded()) {
+/**
+ * Executive narrative. Uses the offline provider via injected `generate`; falls
+ * back to a deterministic rule-insight digest when no generator is available.
+ */
+export async function generateNarrative(
+  ctx: AgentContext,
+  generate?: AgentGenerate,
+): Promise<string> {
+  if (!generate) {
     const ins = computeRuleInsights(ctx);
     return ins.map((i) => `• ${i.title} — ${i.body}`).join("\n");
   }
   const summary = summarizeContext(ctx);
-  return chat(
-    "Tu es l'analyste télécom. Rédige un résumé exécutif (4 phrases max) en français.",
-    `Données :\n${summary}\n\nRédige.`,
-    { maxTokens: 200, temperature: 0.1 },
-  );
+  try {
+    const { text } = await generate({
+      system:
+        "Tu es l'analyste télécom. Rédige un résumé exécutif (4 phrases max) en français, fondé uniquement sur les chiffres fournis.",
+      prompt: `Données :\n${summary}\n\nRédige.`,
+      maxTokens: 220,
+      temperature: 0.1,
+    });
+    return text.trim();
+  } catch (err) {
+    console.warn("[TelecomAgent] generateNarrative failed, rule digest", err);
+    const ins = computeRuleInsights(ctx);
+    return ins.map((i) => `• ${i.title} — ${i.body}`).join("\n");
+  }
 }

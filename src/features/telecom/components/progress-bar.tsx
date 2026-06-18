@@ -7,7 +7,7 @@ import { clamp, fmtPct } from "@/features/telecom/lib/format";
 export function ProgressBar({
   value,
   max,
-  color = "bg-indigo-500",
+  color = "bg-primary",
   showLabel = true,
   height = "h-1.5",
 }: {

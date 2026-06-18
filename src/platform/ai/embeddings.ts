@@ -1,53 +1,23 @@
 /**
- * Browser-side text embeddings via @huggingface/transformers.
- * Lazy-loads a small model (all-MiniLM-L6-v2) for semantic column matching,
- * NLQ understanding, and smart insight generation — all running locally.
+ * Browser-side text embeddings for semantic column matching, NLQ understanding,
+ * and smart insight generation.
+ *
+ * The actual ONNX model (all-MiniLM-L6-v2, int8) runs in the Lane B inference
+ * WEB WORKER (`src/workers/inference.worker.ts`) via Comlink — NOT on the
+ * renderer main thread. This module is a thin, stable API over that worker;
+ * `@huggingface/transformers` is never imported here anymore.
  */
 
 import type { ColMeta } from "@/core/stores/data-store";
+import { embedTexts, preloadEmbedder } from "./inference-client";
 
-// Lazy-loaded pipeline reference
-let embedPipeline: EmbedFn | null = null;
-let loadingPromise: Promise<EmbedFn> | null = null;
+let embedderReady = false;
 
-type EmbedFn = (
-  texts: string[],
-  options?: { pooling: string; normalize: boolean },
-) => Promise<{ tolist: () => number[][] }>;
-
-/**
- * Lazy-load the feature-extraction pipeline once.
- * Returns a function: (texts) => embeddings[]
- */
-async function getEmbedder(): Promise<EmbedFn> {
-  if (embedPipeline) return embedPipeline;
-
-  if (loadingPromise) return loadingPromise;
-
-  loadingPromise = (async () => {
-    const { pipeline, env } = await import("@huggingface/transformers");
-    // Use WebGPU if available, fallback to WASM
-    env.allowLocalModels = false;
-
-    const extractor = await pipeline(
-      "feature-extraction",
-      "Xenova/all-MiniLM-L6-v2",
-      { dtype: "q8" },
-    );
-
-    const fn = async (texts: string[]) => {
-      const result = await extractor(texts, {
-        pooling: "mean",
-        normalize: true,
-      });
-      return result;
-    };
-
-    embedPipeline = fn as unknown as EmbedFn;
-    return embedPipeline;
-  })();
-
-  return loadingPromise;
+/** Embed texts via the worker and unpack to plain number[][] for downstream math. */
+async function embed(texts: string[]): Promise<number[][]> {
+  const vectors = await embedTexts(texts);
+  embedderReady = true;
+  return vectors.map((v) => Array.from(v));
 }
 
 // ─── Cosine similarity ─────────────────────────────────────────────────────────
@@ -82,9 +52,7 @@ export async function semanticColumnMatch(
   topK = 3,
 ): Promise<SemanticMatch[]> {
   try {
-    const embedder = await getEmbedder();
-
-    // Build descriptive text for each column
+    // Build descriptive text for each column.
     const colTexts = columns.map((c) => {
       const parts = [c.name.replace(/_/g, " ")];
       if (c.type === "number") parts.push("numeric metric value");
@@ -93,9 +61,7 @@ export async function semanticColumnMatch(
       return parts.join(" ");
     });
 
-    const allTexts = [query, ...colTexts];
-    const embeddings = await embedder(allTexts);
-    const vectors = embeddings.tolist();
+    const vectors = await embed([query, ...colTexts]);
 
     const queryVec = vectors[0];
     const results: SemanticMatch[] = columns.map((col, i) => ({
@@ -105,7 +71,7 @@ export async function semanticColumnMatch(
 
     return results.sort((a, b) => b.score - a.score).slice(0, topK);
   } catch {
-    // Fallback: basic substring matching if model fails to load
+    // Fallback: basic substring matching if the model fails to load.
     return columns
       .map((col) => ({
         column: col,
@@ -124,10 +90,8 @@ export async function semanticColumnRelations(
   columns: ColMeta[],
 ): Promise<{ col1: string; col2: string; similarity: number }[]> {
   try {
-    const embedder = await getEmbedder();
     const texts = columns.map((c) => c.name.replace(/_/g, " "));
-    const embeddings = await embedder(texts);
-    const vectors = embeddings.tolist();
+    const vectors = await embed(texts);
 
     const relations: { col1: string; col2: string; similarity: number }[] = [];
     for (let i = 0; i < columns.length; i++) {
@@ -150,17 +114,27 @@ export async function semanticColumnRelations(
 }
 
 /**
- * Check if the embeddings model is loaded and ready.
+ * Low-level batch embedding helper for callers that want raw vectors
+ * (e.g. a vector index). Returns one Float32Array per input text.
  */
-export function isEmbeddingsReady(): boolean {
-  return embedPipeline !== null;
+export async function embedRaw(texts: string[]): Promise<Float32Array[]> {
+  const vectors = await embedTexts(texts);
+  embedderReady = true;
+  return vectors;
 }
 
-/**
- * Preload the model without blocking.
- */
+/** Check if the embeddings model has been loaded at least once. */
+export function isEmbeddingsReady(): boolean {
+  return embedderReady;
+}
+
+/** Preload the model without blocking. */
 export function preloadEmbeddings(): void {
-  getEmbedder().catch(() => {
-    // silently fail — model will retry on next use
-  });
+  preloadEmbedder()
+    .then(() => {
+      embedderReady = true;
+    })
+    .catch(() => {
+      // silently fail — model will retry on next use
+    });
 }

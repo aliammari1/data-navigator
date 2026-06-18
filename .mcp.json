@@ -1,0 +1,109 @@
+{
+  "mcpServers": {
+    "microsoft/playwright-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@playwright/mcp@latest"],
+      "gallery": "https://api.mcp.github.com/2025-09-15/v0/servers/41b79849-7e6c-4fc7-82c0-5a611ea21523",
+      "version": "0.0.1-seed"
+    },
+    "stripe/agent-toolkit": {
+      "type": "http",
+      "url": "https://mcp.stripe.com",
+      "gallery": "https://api.mcp.github.com",
+      "version": "1.0.0"
+    },
+    "tavily": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "mcp-remote",
+        "https://mcp.tavily.com/mcp/?tavilyApiKey=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"
+      ]
+    },
+    "io.github.upstash/context7": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["@upstash/context7-mcp@1.0.25"],
+      "env": {
+        "CONTEXT7_API_KEY": "${input:CONTEXT7_API_KEY}"
+      },
+      "gallery": "https://api.mcp.github.com",
+      "version": "1.0.0"
+    },
+    "flutter-mcp-server": {
+      "type": "stdio",
+      "command": "dart",
+      "args": ["mcp-server"]
+    },
+    "android-mcp-server": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@latest"]
+    },
+    "io.github.github/github-mcp-server": {
+      "type": "http",
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "${input:Authorization}"
+      },
+      "gallery": "https://api.mcp.github.com",
+      "version": "0.23.0-gosdk"
+    },
+    "oraios/serena": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/oraios/serena",
+        "serena",
+        "start-mcp-server",
+        "serena==latest",
+        "--context",
+        "ide-assistant"
+      ],
+      "gallery": "https://api.mcp.github.com",
+      "version": "1.0.0"
+    },
+    "huggingface/hf-mcp-server": {
+      "type": "http",
+      "url": "https://huggingface.co/mcp?login",
+      "gallery": "https://api.mcp.github.com",
+      "version": "1.0.0"
+    },
+    "mcp-feedback-enhanced": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["mcp-feedback-enhanced@latest"]
+    },
+    "mobile-mcp": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@mobilenext/mobile-mcp@latest"]
+    },
+    "token-optimizer": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "token-optimizer-mcp"]
+    },
+    "shadcn": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["shadcn@latest", "mcp"]
+    },
+    "21st-dev/magic": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@21st-dev/magic@latest"],
+      "env": {
+        "API_KEY": "${input:MAGIC_API_KEY}"
+      }
+    },
+    "reactbits": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "reactbits-dev-mcp-server"]
+    }
+  }
+}

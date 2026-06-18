@@ -1,26 +1,21 @@
 // .storybook/preview.tsx
 import type { Preview } from "@storybook/nextjs";
 import { initialize, mswLoader } from "msw-storybook-addon";
-import { Fira_Code, Poppins } from "next/font/google";
+import { Fira_Code, Geist } from "next/font/google";
 import { useEffect, type ReactNode } from "react";
 
 import { QueryProvider } from "../src/components/query-provider";
-import {
-  ThemeProvider,
-  useTheme,
-} from "../src/components/theme-provider";
+import { ThemeProvider, useTheme } from "../src/components/theme-provider";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import "../src/app/globals.css";
-import "../src/design/tokens.css";
 import "./storybook-electron-mocks";
 
 initialize({
   onUnhandledRequest: "bypass",
 });
 
-const poppins = Poppins({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
   variable: "--font-data-navigator-sans",
 });
 
@@ -32,13 +27,7 @@ const firaCode = Fira_Code({
 
 type StorybookTheme = "light" | "dark";
 
-function ThemeSynchronizer({
-  children,
-  theme,
-}: {
-  children: ReactNode;
-  theme: StorybookTheme;
-}) {
+function ThemeSynchronizer({ children, theme }: { children: ReactNode; theme: StorybookTheme }) {
   const { setTheme } = useTheme();
 
   useEffect(() => {
@@ -84,7 +73,9 @@ const preview: Preview = {
     },
 
     a11y: {
-      test: "todo",
+      // Fail the a11y addon / test-runner when a story has violations.
+      // Individual stories may relax this via parameters.a11y.config.rules.
+      test: "error",
     },
 
     backgrounds: {
@@ -124,11 +115,10 @@ const preview: Preview = {
 
   decorators: [
     (Story, context) => {
-      const theme: StorybookTheme =
-        context.globals.theme === "light" ? "light" : "dark";
+      const theme: StorybookTheme = context.globals.theme === "light" ? "light" : "dark";
 
       return (
-        <div className={`${poppins.variable} ${firaCode.variable}`}>
+        <div className={`${geist.variable} ${firaCode.variable}`}>
           <ThemeProvider
             attribute="class"
             defaultTheme={theme}

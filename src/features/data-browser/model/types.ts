@@ -1,12 +1,6 @@
 // ─── Types ───────────────────────────────────────────────────────────────────
 
-export type ColType =
-  | "string"
-  | "number"
-  | "date"
-  | "boolean"
-  | "email"
-  | "url";
+export type ColType = "string" | "number" | "date" | "boolean" | "email" | "url";
 
 export interface ColumnDef {
   id: string;

@@ -1,163 +1,151 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 
-
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here.
-All colors MUST be HSL.
-*/
-
-@layer base {
-  :root {
-    /* Data Navigator — Telecom data lab dark theme */
-    --background: 220 45% 6%;
-    --foreground: 210 30% 96%;
-
-    --card: 220 40% 9%;
-    --card-foreground: 210 30% 96%;
-
-    --popover: 220 40% 9%;
-    --popover-foreground: 210 30% 96%;
-
-    --primary: 188 95% 55%;          /* electric cyan */
-    --primary-foreground: 220 60% 6%;
-    --primary-glow: 188 100% 70%;
-
-    --secondary: 215 85% 55%;        /* telecom blue */
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 220 30% 14%;
-    --muted-foreground: 215 20% 65%;
-
-    --accent: 215 85% 55%;
-    --accent-foreground: 210 40% 98%;
-
-    --warning: 36 100% 60%;          /* warm amber */
-    --warning-foreground: 30 60% 10%;
-
-    --success: 152 70% 50%;          /* soft green */
-    --success-foreground: 150 60% 8%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 215 30% 18%;
-    --input: 215 30% 18%;
-    --ring: 188 95% 55%;
-
-    --grid-line: 215 40% 18%;
-
-    --gradient-hero: radial-gradient(ellipse at 20% 0%, hsl(215 85% 25% / 0.55), transparent 55%), radial-gradient(ellipse at 80% 20%, hsl(188 95% 35% / 0.35), transparent 50%), linear-gradient(180deg, hsl(220 50% 7%), hsl(220 45% 5%));
-    --gradient-primary: linear-gradient(135deg, hsl(188 95% 55%), hsl(215 85% 55%));
-    --gradient-card: linear-gradient(180deg, hsl(220 40% 10% / 0.9), hsl(220 45% 7% / 0.9));
-    --gradient-text: linear-gradient(135deg, hsl(210 30% 98%), hsl(188 95% 70%));
-
-    --shadow-glow: 0 0 40px hsl(188 95% 55% / 0.25);
-    --shadow-elevated: 0 30px 60px -20px hsl(220 80% 2% / 0.7), 0 0 0 1px hsl(215 30% 18%);
-    --shadow-card: 0 10px 30px -10px hsl(220 80% 2% / 0.6);
-
-    --radius: 0.75rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-}
-
-@layer base {
-  * {
-    @apply border-border;
-  }
-
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "ss01", "cv11";
-  }
-
-  html {
-    scroll-behavior: smooth;
-  }
-}
-
-@layer utilities {
-  .bg-hero { background: var(--gradient-hero); }
-  .bg-card-gradient { background: var(--gradient-card); }
-  .bg-primary-gradient { background: var(--gradient-primary); }
-  .text-gradient {
-    background: var(--gradient-text);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-  .shadow-glow { box-shadow: var(--shadow-glow); }
-  .shadow-elevated { box-shadow: var(--shadow-elevated); }
-  .shadow-card { box-shadow: var(--shadow-card); }
-  .grid-bg {
-    background-image:
-      linear-gradient(hsl(var(--grid-line) / 0.5) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line) / 0.5) 1px, transparent 1px);
-    background-size: 48px 48px;
-  }
-  .grid-bg-fine {
-    background-image:
-      linear-gradient(hsl(var(--grid-line) / 0.35) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line) / 0.35) 1px, transparent 1px);
-    background-size: 24px 24px;
-  }
-  .mask-fade-b {
-    -webkit-mask-image: linear-gradient(180deg, black 40%, transparent);
-    mask-image: linear-gradient(180deg, black 40%, transparent);
-  }
-  .glass {
-    background: hsl(220 40% 9% / 0.6);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-  }
-}
-
-@keyframes pulse-dot {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.4; transform: scale(0.85); }
-}
-@keyframes flow {
-  0% { stroke-dashoffset: 200; }
-  100% { stroke-dashoffset: 0; }
-}
-@keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-}
-.animate-pulse-dot { animation: pulse-dot 1.8s ease-in-out infinite; }
-.animate-flow { stroke-dasharray: 6 6; animation: flow 4s linear infinite; }
-.shimmer {
-  background: linear-gradient(90deg, transparent, hsl(var(--primary) / 0.15), transparent);
-  background-size: 200% 100%;
-  animation: shimmer 3s linear infinite;
-}
-
-
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Tabs primitive variants (src/components/ui/tabs.tsx).
+ * Radix emits data-orientation on the root/list and data-state on triggers;
+ * the component styles them through these custom variants. Without them the
+ * tabs root never switches to flex-col (list + content render side-by-side),
+ * the list loses its height, and the active trigger gets no highlight.
+ */
+@custom-variant data-horizontal (&[data-orientation="horizontal"]);
+@custom-variant data-vertical (&[data-orientation="vertical"]);
+@custom-variant data-active (&[data-state="active"]);
+
+/*
+ * Data Navigator theme — one source of truth.
+ * Dark-first navy surfaces with a single electric-cyan accent, matching the
+ * landing and auth pages. Light mode stays in the same slate/cyan family.
+ */
+
+:root {
+  /* Clean "light" neutrals. The whole app shares ONE cyan/navy identity now
+     (warm Daily-Edition paper retired): neutrals carry a faint cyan undertone
+     (hue ~215) at very low chroma so light mode reads as crisp off-white —
+     never pure #fff (avoids glare). Brand/semantic/chart hues are cyan-anchored. */
+  --background: oklch(0.99 0.004 215);
+  --foreground: oklch(0.25 0.021 230);
+  --card: oklch(0.998 0.003 215);
+  --card-foreground: oklch(0.25 0.021 230);
+  --popover: oklch(0.998 0.003 215);
+  --popover-foreground: oklch(0.25 0.021 230);
+  --primary: oklch(0.575 0.214 266);
+  --primary-foreground: oklch(0.99 0.005 220);
+  --secondary: oklch(0.955 0.008 216);
+  --secondary-foreground: oklch(0.27 0.022 230);
+  --muted: oklch(0.96 0.007 216);
+  --muted-foreground: oklch(0.498 0.026 226);
+  --accent: oklch(0.95 0.013 214);
+  --accent-foreground: oklch(0.3 0.03 230);
+  --destructive: oklch(0.577 0.245 27);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.596 0.145 163);
+  --success-foreground: oklch(0.985 0 0);
+  --warning: oklch(0.666 0.179 58);
+  --warning-foreground: oklch(0.985 0 0);
+  /* AI-surface tint (replaces rogue violet) + KPI delta semantics */
+  --ai: oklch(0.585 0.18 290);
+  --ai-foreground: oklch(0.985 0 0);
+  --positive: oklch(0.596 0.145 163);
+  --negative: oklch(0.577 0.245 27);
+  /* Surface elevation ramp — light mode steps up off the off-white base */
+  --surface-0: var(--background);
+  --surface-1: var(--card);
+  --surface-2: oklch(0.975 0.006 214);
+  --surface-3: oklch(0.957 0.009 216);
+  --border: oklch(0.908 0.009 220);
+  --input: oklch(0.908 0.009 220);
+  --ring: oklch(0.6 0.2 266);
+  --chart-1: oklch(0.6 0.2 266);
+  --chart-2: oklch(0.546 0.245 263);
+  --chart-3: oklch(0.596 0.145 163);
+  --chart-4: oklch(0.769 0.188 70);
+  --chart-5: oklch(0.585 0.233 277);
+  --radius: 0.75rem;
+  --sidebar: oklch(0.972 0.007 214);
+  --sidebar-foreground: oklch(0.25 0.021 230);
+  --sidebar-primary: oklch(0.575 0.214 266);
+  --sidebar-primary-foreground: oklch(0.99 0.005 220);
+  --sidebar-accent: oklch(0.95 0.013 214);
+  --sidebar-accent-foreground: oklch(0.3 0.03 230);
+  --sidebar-border: oklch(0.908 0.009 220);
+  --sidebar-ring: oklch(0.6 0.2 266);
+  /* Cyan-tinted shadow base + accent glow + grid/motion scalars */
+  --shadow-hsl: 213 32% 50%;
+  --glow-primary: oklch(0.575 0.214 266 / 22%); /* electric blue */
+  --space: 0.25rem; /* 4-pt grid unit (density-scalable in Settings) */
+  --motion-scale: 1; /* Settings "Réduire les animations" → 0 */
+}
+
+.dark {
+  /* Dark "cyan" — Signal Cyan on a cyan-TINTED near-black (hue ~209, not navy-
+     purple, not pure black). Elevation = each surface LIGHTER than the one
+     below (shadows barely read on dark). Text is off-white (~0.93 L), never
+     pure white, to avoid halation. */
+  --surface-0: oklch(0.16 0.026 209); /* app bg — dark cyan */
+  --surface-1: oklch(0.205 0.03 209); /* card */
+  --surface-2: oklch(0.247 0.032 208); /* raised / popover */
+  --surface-3: oklch(0.288 0.033 207); /* overlay panel */
+  --background: var(--surface-0);
+  --foreground: oklch(0.93 0.012 210);
+  --card: var(--surface-1);
+  --card-foreground: oklch(0.93 0.012 210);
+  --popover: var(--surface-2);
+  --popover-foreground: oklch(0.93 0.012 210);
+  --primary: oklch(0.675 0.16 266);
+  --primary-foreground: oklch(0.18 0.04 264);
+  --secondary: oklch(0.255 0.03 209);
+  --secondary-foreground: oklch(0.93 0.012 210);
+  --muted: oklch(0.235 0.026 209);
+  --muted-foreground: oklch(0.728 0.03 213); /* AA on the dark-cyan base */
+  --accent: oklch(0.278 0.035 208);
+  --accent-foreground: oklch(0.93 0.012 210);
+  --destructive: oklch(0.704 0.191 22);
+  --destructive-foreground: oklch(0.985 0 0);
+  --success: oklch(0.765 0.177 163);
+  --success-foreground: oklch(0.15 0.03 170);
+  --warning: oklch(0.837 0.128 66);
+  --warning-foreground: oklch(0.18 0.04 60);
+  --ai: oklch(0.673 0.182 290);
+  --ai-foreground: oklch(0.16 0.03 290);
+  --positive: oklch(0.765 0.177 163);
+  --negative: oklch(0.704 0.191 22);
+  --border: oklch(0.86 0.04 210 / 12%);
+  --input: oklch(0.86 0.04 210 / 15%);
+  --ring: oklch(0.7 0.15 266);
+  --chart-1: oklch(0.675 0.16 266);
+  --chart-2: oklch(0.623 0.214 260);
+  --chart-3: oklch(0.765 0.177 163);
+  --chart-4: oklch(0.837 0.128 66);
+  --chart-5: oklch(0.673 0.182 277);
+  --sidebar: oklch(0.183 0.028 209);
+  --sidebar-foreground: oklch(0.93 0.012 210);
+  --sidebar-primary: oklch(0.675 0.16 266);
+  --sidebar-primary-foreground: oklch(0.18 0.04 264);
+  --sidebar-accent: oklch(0.255 0.03 209);
+  --sidebar-accent-foreground: oklch(0.93 0.012 210);
+  --sidebar-border: oklch(0.86 0.04 210 / 12%);
+  --sidebar-ring: oklch(0.7 0.15 266);
+  --shadow-hsl: 205 50% 4%; /* cyan-tinted shadow base for dark surfaces */
+  --glow-primary: oklch(0.675 0.16 266 / 16%); /* electric blue */
+}
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-data-navigator-sans), Poppins, ui-sans-serif, system-ui, sans-serif;
-  --font-mono: var(--font-moudir-mono);
+  --color-ai: var(--ai);
+  --color-ai-foreground: var(--ai-foreground);
+  --color-positive: var(--positive);
+  --color-negative: var(--negative);
+  --color-surface-0: var(--surface-0);
+  --color-surface-1: var(--surface-1);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --font-sans: var(--font-data-navigator-sans), "Poppins", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-moudir-mono), ui-monospace, "Fira Code", monospace;
+  --font-display: var(--font-data-navigator-display), var(--font-data-navigator-sans), ui-sans-serif, system-ui, sans-serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -175,7 +163,12 @@ All colors MUST be HSL.
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
+  --color-destructive-foreground: var(--destructive-foreground);
   --color-destructive: var(--destructive);
+  --color-success-foreground: var(--success-foreground);
+  --color-success: var(--success);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-warning: var(--warning);
   --color-accent-foreground: var(--accent-foreground);
   --color-accent: var(--accent);
   --color-muted-foreground: var(--muted-foreground);
@@ -195,231 +188,99 @@ All colors MUST be HSL.
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
-}
 
-:root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
+  /* Shadow system — 3-layer, hue-tinted (Comeau) */
+  --shadow-1: 0 1px 1px hsl(var(--shadow-hsl) / 0.25), 0 2px 2px -1px hsl(var(--shadow-hsl) / 0.2);
+  --shadow-2: 0 1px 1.1px hsl(var(--shadow-hsl) / 0.3), 0 3px 3.3px -1.2px hsl(var(--shadow-hsl) / 0.28),
+    0 8px 9px -2.5px hsl(var(--shadow-hsl) / 0.26);
+  --shadow-3: 0 1px 1.2px hsl(var(--shadow-hsl) / 0.32), 0 5px 5.5px -1px hsl(var(--shadow-hsl) / 0.3),
+    0 14px 14px -2px hsl(var(--shadow-hsl) / 0.28), 0 28px 28px -3px hsl(var(--shadow-hsl) / 0.24);
 
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  /* Z-index scale — only these values may be used */
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-topbar: 30;
+  --z-dock: 40;
+  --z-drawer: 50;
+  --z-modal: 60;
+  --z-palette: 70;
+  --z-toast: 80;
+  --z-tour: 90;
+
+  /* Motion tokens */
+  --dur-micro: 120ms;
+  --dur-enter: 180ms;
+  --dur-overlay: 240ms;
+  --ease-out-quart: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground;
-  }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "ss01", "cv11";
+  }
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  ::selection {
+    background: oklch(0.575 0.214 266 / 0.25);
   }
 }
 
-/* ── Immersive animation keyframes ───────────────────────────────────────── */
-@keyframes pulse-ring {
-  0% {
-    box-shadow: 0 0 0 0
-      color-mix(in oklch, var(--color-violet-500, #8b5cf6) 40%, transparent);
-  }
-  70% {
-    box-shadow: 0 0 0 10px
-      color-mix(in oklch, var(--color-violet-500, #8b5cf6) 0%, transparent);
-  }
-  100% {
-    box-shadow: 0 0 0 0
-      color-mix(in oklch, var(--color-violet-500, #8b5cf6) 0%, transparent);
-  }
-}
-@keyframes shimmer {
-  0% {
-    background-position: -200% center;
-  }
-  100% {
-    background-position: 200% center;
-  }
-}
-@keyframes float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-4px);
-  }
-}
-@keyframes scan-line {
-  0% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  10% {
-    opacity: 0.3;
-  }
-  90% {
-    opacity: 0.3;
-  }
-  100% {
-    transform: translateY(100vh);
-    opacity: 0;
-  }
-}
-@keyframes glow-pulse {
-  0%,
-  100% {
-    opacity: 0.6;
-  }
-  50% {
-    opacity: 1;
-  }
-}
-@keyframes blink-caret {
-  0%,
-  100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0;
-  }
-}
-@keyframes dash-flow {
-  to {
-    stroke-dashoffset: -20;
-  }
-}
-@keyframes spin-slow {
-  to {
-    transform: rotate(360deg);
-  }
-}
-@keyframes fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+/* Settings "Réduire les animations" kill-switch (ported from Atlas) */
+[data-animations="off"] *,
+[data-animations="off"] *::before,
+[data-animations="off"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
 }
 
-/* ── Utility classes ─────────────────────────────────────────────────────── */
-.animate-pulse-ring {
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-.animate-shimmer {
-  background-size: 200% auto;
-  animation: shimmer 2.5s linear infinite;
-}
-.animate-float {
-  animation: float 3s ease-in-out infinite;
-}
-.animate-glow-pulse {
-  animation: glow-pulse 2s ease-in-out infinite;
-}
-.animate-blink-caret {
-  animation: blink-caret 1s step-end infinite;
-}
-.animate-spin-slow {
-  animation: spin-slow 6s linear infinite;
-}
-.animate-fade-up {
-  animation: fade-up 0.35s var(--atlas-ease-soft, ease) both;
+/*
+ * Settings-driven appearance tokens (ported from the retired Atlas tokens.css).
+ *
+ * `applySettings()` (src/platform/storage/apply-settings.ts) writes `--accent`
+ * (hex), `--density-scale` (0.75 / 1 / 1.25) and the matching `data-accent` /
+ * `data-density` attributes on <html>. These rules make the shadcn design
+ * tokens actually READ those values, so the accent-color and density settings
+ * have a visible effect instead of being write-only.
+ */
+
+/* Accent: when a custom accent is chosen, drive the brand token family off the
+   `--user-accent` hex the settings applier writes. (SettingsEffects also sets
+   --primary/--ring inline per-theme; this is the CSS fallback.) We deliberately
+   do NOT override --primary-foreground here so each theme keeps its tuned
+   on-primary text colour — white on a bright dark-mode cyan would fail contrast. */
+[data-accent] {
+  --primary: var(--user-accent, var(--primary));
+  --ring: var(--user-accent, var(--ring));
+  --sidebar-primary: var(--user-accent, var(--sidebar-primary));
+  --sidebar-ring: var(--user-accent, var(--sidebar-ring));
+  --glow-primary: color-mix(in oklab, var(--user-accent, var(--primary)) 22%, transparent);
 }
 
-/* ── Mesh gradient backgrounds ───────────────────────────────────────────── */
-.bg-mesh-dark {
-  background-color: #07080e;
-  background-image:
-    radial-gradient(
-      ellipse 80% 50% at 20% 10%,
-      oklch(0.35 0.12 280 / 0.18) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 60% 40% at 80% 90%,
-      oklch(0.3 0.1 200 / 0.12) 0%,
-      transparent 60%
-    ),
-    radial-gradient(
-      ellipse 40% 60% at 60% 40%,
-      oklch(0.25 0.08 260 / 0.08) 0%,
-      transparent 60%
-    );
+/* Density: scale the 4-pt grid unit every spacing helper resolves from. */
+[data-density] {
+  --space: calc(0.25rem * var(--density-scale, 1));
 }
 
-/* ── Glassmorphism ───────────────────────────────────────────────────────── */
-.glass {
-  backdrop-filter: blur(12px) saturate(1.4);
-  background: oklch(0.14 0.01 260 / 0.7);
-  border: 1px solid oklch(1 0 0 / 0.07);
-}
-.glass-strong {
-  backdrop-filter: blur(20px) saturate(1.6);
-  background: oklch(0.16 0.015 270 / 0.85);
-  border: 1px solid oklch(1 0 0 / 0.1);
+/* Tabular figures wherever numbers carry meaning */
+.metric-value,
+.amount,
+.count,
+.date,
+.kpi-number,
+[data-numeric="true"] {
+  font-variant-numeric: tabular-nums;
 }
 
 /* ── Custom scrollbar ────────────────────────────────────────────────────── */
@@ -437,26 +298,48 @@ All colors MUST be HSL.
 .scrollbar-thin::-webkit-scrollbar-thumb:hover {
   background: oklch(1 0 0 / 0.15);
 }
-.metric-value,
-.amount,
-.count,
-.date,
-.kpi-number,
-[data-numeric="true"] {
-  font-variant-numeric: tabular-nums;
+
+/* ── Landing accents ─────────────────────────────────────────────────────── */
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.8s ease-in-out infinite;
 }
 
-/* ── Landing: subtle moving aurora + flow shimmer (additive, gated) ───────── */
 @keyframes aurora-pan {
-  0% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
-  50% { transform: translate3d(2%, -2%, 0) scale(1.1); opacity: 1; }
-  100% { transform: translate3d(0, 0, 0) scale(1); opacity: 0.9; }
+  0% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.9;
+  }
+  50% {
+    transform: translate3d(2%, -2%, 0) scale(1.1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate3d(0, 0, 0) scale(1);
+    opacity: 0.9;
+  }
 }
-.aurora { animation: aurora-pan 20s ease-in-out infinite; }
+.aurora {
+  animation: aurora-pan 20s ease-in-out infinite;
+}
 
 @keyframes flow-shimmer {
-  0% { background-position: -120% 0; }
-  100% { background-position: 220% 0; }
+  0% {
+    background-position: -120% 0;
+  }
+  100% {
+    background-position: 220% 0;
+  }
 }
 .flow-shimmer {
   background-image: linear-gradient(90deg, transparent, rgb(34 211 238 / 0.7), transparent);
@@ -465,7 +348,287 @@ All colors MUST be HSL.
   animation: flow-shimmer 2.4s linear infinite;
 }
 
+/* Fixed grain overlay — breaks flat digital surfaces without drawing attention */
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .aurora,
-  .flow-shimmer { animation: none; }
+  .flow-shimmer,
+  .animate-pulse-dot {
+    animation: none;
+  }
 }
+
+/* ══════════════════════════════════════════════════════════════════════════
+   The Daily Edition — print/editorial utilities for the landing experience.
+   The landing page is composed as a living broadsheet: warm paper, ink type,
+   vermilion editor's marks. Every animation here drives transform/opacity.
+   ══════════════════════════════════════════════════════════════════════════ */
+
+@theme inline {
+  --font-serif: var(--font-edition-serif), "Fraunces", Georgia, "Times New Roman", serif;
+  /* Archivo removed (blueprint §4) — grotesk now folds into the UI sans. */
+  --font-grotesk: var(--font-sans);
+}
+
+/* Paper fiber — warm, almost invisible texture for broadsheet surfaces */
+.ed-fiber {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240' viewBox='0 0 240 240'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='240' height='240' filter='url(%23f)' opacity='0.4'/%3E%3C/svg%3E");
+  background-size: 240px 240px;
+}
+
+/* Halftone dot screen — print-press shading for plates and photos */
+.ed-halftone {
+  background-image: radial-gradient(currentColor 1px, transparent 1.5px);
+  background-size: 7px 7px;
+}
+
+/* Ruled column guides — faint vertical rules like a typeset broadsheet */
+.ed-columns-rule {
+  background-image: linear-gradient(currentColor 1px, transparent 1px);
+}
+
+/* Ticker tape — duplicated track loops at -50% */
+@keyframes ed-tape {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+.ed-tape {
+  animation: ed-tape 60s linear infinite;
+  will-change: transform;
+}
+.ed-tape-fast {
+  animation: ed-tape 38s linear infinite;
+  will-change: transform;
+}
+.ed-tape-reverse {
+  animation: ed-tape 70s linear infinite reverse;
+  will-change: transform;
+}
+.ed-tape-hold:hover .ed-tape,
+.ed-tape-hold:hover .ed-tape-fast,
+.ed-tape-hold:hover .ed-tape-reverse {
+  animation-play-state: paused;
+}
+
+/* Press rumble — barely-there vertical oscillation for running presses */
+@keyframes ed-rumble {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  25% {
+    transform: translate3d(0, -1px, 0);
+  }
+  75% {
+    transform: translate3d(0, 1px, 0);
+  }
+}
+.ed-rumble {
+  animation: ed-rumble 0.35s linear infinite;
+}
+
+/* Blinking typesetter caret */
+@keyframes ed-caret {
+  0%,
+  45% {
+    opacity: 1;
+  }
+  55%,
+  100% {
+    opacity: 0;
+  }
+}
+.ed-caret {
+  animation: ed-caret 1.05s steps(1) infinite;
+}
+
+/* Rubber-stamp slam — used once per stamp, on first reveal */
+@keyframes ed-stamp {
+  0% {
+    opacity: 0;
+    transform: scale(1.6) rotate(var(--ed-stamp-tilt, -8deg));
+  }
+  62% {
+    opacity: 1;
+    transform: scale(0.94) rotate(var(--ed-stamp-tilt, -8deg));
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(var(--ed-stamp-tilt, -8deg));
+  }
+}
+.ed-stamp {
+  animation: ed-stamp 0.45s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ed-tape,
+  .ed-tape-fast,
+  .ed-tape-reverse,
+  .ed-rumble,
+  .ed-caret,
+  .ed-stamp {
+    animation: none;
+  }
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * Desktop workspace (Puter-style windowed home).
+ * Cyan/navy wallpapers so the workspace shares the one Signal-Cyan identity as
+ * the rest of the app (warm Daily-Edition look retired). Tokens are referenced
+ * by the desktop store (var(--wp-<id>)).
+ * ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --wp-dawn:
+    radial-gradient(1200px 800px at 12% -10%, #d4eef5 0%, transparent 55%),
+    radial-gradient(1100px 760px at 105% 8%, #bfe6f0 0%, transparent 50%),
+    radial-gradient(900px 700px at 60% 120%, #d6eef4 0%, transparent 55%),
+    linear-gradient(160deg, #eef7fa 0%, #dceef4 48%, #cbe7ef 100%);
+  --wp-paper:
+    radial-gradient(900px 700px at 0% 0%, #f1f9fb 0%, transparent 60%),
+    linear-gradient(180deg, #eaf4f7 0%, #dceaef 100%);
+  --wp-dusk:
+    radial-gradient(1200px 820px at 80% -10%, #8fc9da 0%, transparent 55%),
+    radial-gradient(1000px 720px at 0% 110%, #6f9fc4 0%, transparent 50%),
+    linear-gradient(165deg, #aedbe6 0%, #6fa6c2 45%, #3f6f95 100%);
+  --wp-ink:
+    radial-gradient(1100px 760px at 18% 0%, #103043 0%, transparent 55%),
+    radial-gradient(900px 700px at 100% 100%, #0e2735 0%, transparent 55%),
+    linear-gradient(160deg, #0a1c28 0%, #0c2230 60%, #0a1f2c 100%);
+}
+
+/* Dark-mode wallpapers — each id gets a deep cyan/navy variant so whatever the
+   user picked stays in the dark-cyan family instead of a washed-out light wash
+   under the dark chrome. (ink is already dark; it keeps its :root value.) */
+.dark {
+  --wp-dawn:
+    radial-gradient(1200px 800px at 12% -10%, #103246 0%, transparent 55%),
+    radial-gradient(1100px 760px at 105% 8%, #0d2533 0%, transparent 50%),
+    radial-gradient(900px 700px at 60% 120%, #0b212e 0%, transparent 55%),
+    linear-gradient(160deg, #0a1722 0%, #0a1b27 48%, #08131c 100%);
+  --wp-paper:
+    radial-gradient(900px 700px at 0% 0%, #0d2533 0%, transparent 60%),
+    linear-gradient(180deg, #0a1822 0%, #07121b 100%);
+  --wp-dusk:
+    radial-gradient(1200px 820px at 80% -10%, #154860 0%, transparent 55%),
+    radial-gradient(1000px 720px at 0% 110%, #0f2c40 0%, transparent 50%),
+    linear-gradient(165deg, #0c2031 0%, #0a1a28 45%, #081320 100%);
+}
+
+/* The window canvas establishes the Rnd bounds + isolates the stacking context. */
+.dn-desktop-canvas {
+  isolation: isolate;
+}
+
+/* Subtle cool grain over the wallpaper for texture. */
+.dn-desktop-canvas::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: radial-gradient(rgba(20, 55, 75, 0.6) 0.5px, transparent 0.5px);
+  background-size: 4px 4px;
+  z-index: 0;
+}
+
+.dn-window {
+  will-change: transform;
+}
+.dn-window:focus-within {
+  outline: none;
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * Windows-style desktop chrome tokens (Fluent/mica surfaces + acrylic).
+ * Used by the desktop window frame, taskbar, Start menu, spotlight and context
+ * menus so the workspace reads as a native Windows desktop — now cyan/navy.
+ * ─────────────────────────────────────────────────────────────────────────── */
+:root {
+  --win-accent: 222 88% 55%;           /* cyan accent (brand) */
+  --win-surface: rgba(248, 252, 253, 0.97);
+  --win-titlebar: rgba(238, 246, 249, 0.92);
+  --win-border: rgba(20, 50, 70, 0.12);
+  --win-acrylic: rgba(242, 249, 251, 0.82);
+  --win-taskbar: rgba(238, 247, 250, 0.78);
+}
+.dark {
+  --win-accent: 222 95% 68%;
+  --win-surface: rgba(20, 32, 41, 0.97);
+  --win-titlebar: rgba(24, 38, 48, 0.94);
+  --win-border: rgba(255, 255, 255, 0.1);
+  --win-acrylic: rgba(22, 35, 44, 0.84);
+  --win-taskbar: rgba(16, 28, 36, 0.82);
+}
+
+/* ───────────────────────────────────────────────────────────────────────────
+ * macOS-style GLASS chrome — palette-driven via [data-glass] on the desktop root.
+ * The dock, Launchpad and menu bar use these (Windows window chrome keeps its
+ * own --win-* tokens). Three CYAN-family palettes (keys kept as sand/peach/amber
+ * for component compatibility), switchable live. Default = "sand" (cyan).
+ * ─────────────────────────────────────────────────────────────────────────── */
+:root,
+[data-glass="sand"] {
+  /* "sand" key kept for compatibility — now the default CYAN glass. */
+  --glass-bg: rgba(235, 247, 251, 0.55);
+  --glass-bg-strong: rgba(235, 247, 251, 0.74);
+  --glass-border: rgba(20, 55, 75, 0.14);
+  --glass-hairline: rgba(255, 255, 255, 0.5);
+  --glass-text: rgba(20, 40, 50, 0.92);
+  --glass-text-dim: rgba(20, 40, 50, 0.55);
+  --glass-accent: 222 88% 55%;
+  --glass-shadow: 0 24px 60px -16px rgba(15, 50, 70, 0.4);
+}
+[data-glass="peach"] {
+  /* now TEAL glass */
+  --glass-bg: rgba(228, 246, 245, 0.52);
+  --glass-bg-strong: rgba(228, 246, 245, 0.72);
+  --glass-border: rgba(20, 70, 65, 0.14);
+  --glass-hairline: rgba(255, 255, 255, 0.55);
+  --glass-text: rgba(16, 44, 42, 0.92);
+  --glass-text-dim: rgba(16, 44, 42, 0.55);
+  --glass-accent: 175 70% 40%;
+  --glass-shadow: 0 24px 60px -16px rgba(20, 70, 65, 0.38);
+}
+[data-glass="amber"] {
+  /* now AZURE glass */
+  --glass-bg: rgba(228, 240, 251, 0.54);
+  --glass-bg-strong: rgba(226, 239, 251, 0.74);
+  --glass-border: rgba(20, 50, 90, 0.16);
+  --glass-hairline: rgba(255, 255, 255, 0.55);
+  --glass-text: rgba(18, 36, 58, 0.92);
+  --glass-text-dim: rgba(18, 36, 58, 0.55);
+  --glass-accent: 212 82% 50%;
+  --glass-shadow: 0 24px 64px -16px rgba(20, 50, 95, 0.42);
+}
+/* `.dark` lives on <html>; `[data-glass]` on the desktop root — the dark
+   overrides MUST use a descendant combinator (the same-element form never
+   matched, so the chrome stayed light in dark mode). */
+.dark [data-glass],
+.dark[data-glass] {
+  --glass-bg: rgba(18, 32, 40, 0.62);
+  --glass-bg-strong: rgba(22, 38, 47, 0.8);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-hairline: rgba(255, 255, 255, 0.08);
+  --glass-text: rgba(228, 240, 244, 0.95);
+  --glass-text-dim: rgba(228, 240, 244, 0.55);
+  --glass-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.65);
+}
+.dark [data-glass="peach"],
+.dark[data-glass="peach"] { --glass-bg: rgba(16, 36, 38, 0.62); --glass-bg-strong: rgba(20, 42, 44, 0.8); }
+.dark [data-glass="amber"],
+.dark[data-glass="amber"] { --glass-bg: rgba(16, 30, 44, 0.62); --glass-bg-strong: rgba(20, 36, 50, 0.8); }
+
+/* Dock surface — cyan glass in light mode, dark cyan-navy in dark mode so the
+   dock sits in the Signal-Cyan theme family (matches telecom).
+   Defined after the glass overrides so `.dark` wins over `:root` by source order. */
+:root { --dock-bg: var(--glass-bg); }
+.dark { --dock-bg: rgba(14, 30, 42, 0.72); }

@@ -2,6 +2,7 @@
 
 import {
   AlertTriangle,
+  BarChart3,
   Check,
   ChevronDown,
   ChevronUp,
@@ -15,23 +16,31 @@ import {
   FolderOpen,
   Hash,
   Loader2,
-  MousePointerClick,
   Play,
   RefreshCw,
   Settings2,
+  ShieldAlert,
   Table2,
   Trash2,
   Upload,
   X,
-  XCircle,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import Papa from "papaparse";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 import { useDropzone } from "react-dropzone";
 import { toast } from "sonner";
+import { type PreviewColumn, PreviewGrid } from "@/components/shared/preview-grid";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { profileDataset, type SummarizeRow } from "@/platform/duckdb/duckdb";
 import {
   type LoadedUploadTable,
   loadUploadPathToDuckDB,
@@ -44,29 +53,21 @@ import {
   openFileDialog,
   writeLocalFile,
 } from "@/platform/electron/electron-fs";
+import { addImportRecord, putColumnProfile } from "@/platform/storage";
+import { getExportProxy, saveBytes } from "@/platform/viz";
 import { cn } from "@/shared/utils";
+import { ProfilePanel } from "../components/ProfilePanel";
+import { type RejectRowView, RejectsPanel } from "../components/RejectsPanel";
+import { clearDraft, loadDraft, saveDraft } from "../lib/draft-store";
+import { compileFilter } from "../lib/filter";
+import type { ColConfig, ColType, ParseResult } from "../lib/types";
+import { useCsvWorker } from "../workers/useCsvWorker";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-type ColType = "string" | "number" | "date" | "boolean";
+// ─── Constants ─────────────────────────────────────────────────────────────────
 
 const LARGE_FILE_EDITOR_BYTES = 16 * 1024 * 1024;
-
-interface ColConfig {
-  original: string;
-  alias: string;
-  type: ColType;
-  include: boolean;
-}
-
-interface ParsedResult {
-  rows: Record<string, unknown>[];
-  headers: string[];
-  errors: string[];
-  parseMs: number;
-}
-
-// ─── Delimiter options ────────────────────────────────────────────────────────
+const PREVIEW_LIMITS = [50, 200, 500, 5000] as const;
+const COLUMN_TYPES: ColType[] = ["string", "number", "date", "boolean"];
 
 const DELIMITERS = [
   { label: "Auto", value: "" },
@@ -76,167 +77,15 @@ const DELIMITERS = [
   { label: "Semicolon  ;", value: ";" },
 ];
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function TypeBadge({ type }: { type: ColType }) {
-  return (
-    <span
-      className={cn(
-        "rounded px-1.5 py-0.5 font-mono text-[9px]",
-        type === "number" && "bg-emerald-500/15 text-emerald-400",
-        type === "string" && "bg-blue-500/15 text-blue-400",
-        type === "date" && "bg-purple-500/15 text-purple-400",
-        type === "boolean" && "bg-amber-500/15 text-amber-400",
-      )}
-    >
-      {type}
-    </span>
-  );
-}
-
-function detectType(values: unknown[]): ColType {
-  const nonNull = values.filter(
-    (value) => value !== null && value !== undefined && value !== "",
-  );
-
-  if (nonNull.length === 0) return "string";
-
-  let nums = 0;
-  let dates = 0;
-  let bools = 0;
-
-  for (const value of nonNull) {
-    const text = String(value).trim().toLowerCase();
-
-    if (
-      text === "true" ||
-      text === "false" ||
-      text === "1" ||
-      text === "0" ||
-      text === "yes" ||
-      text === "no" ||
-      text === "oui" ||
-      text === "non"
-    ) {
-      bools += 1;
-    } else if (!Number.isNaN(Number(text.replace(/,/g, ""))) && text !== "") {
-      nums += 1;
-    } else if (
-      /^\d{4}-\d{2}-\d{2}/.test(text) ||
-      /^\d{2}\/\d{2}\/\d{4}/.test(text)
-    ) {
-      dates += 1;
-    }
-  }
-
-  const total = nonNull.length;
-
-  if (nums / total > 0.85) return "number";
-  if (dates / total > 0.85) return "date";
-  if (bools / total > 0.85) return "boolean";
-
-  return "string";
-}
-
-function castValue(value: unknown, type: ColType): unknown {
-  if (value === null || value === undefined || value === "") return null;
-
-  const text = String(value).trim();
-
-  if (type === "number") {
-    const numberValue = Number(text.replace(/,/g, ""));
-    return Number.isNaN(numberValue) ? null : numberValue;
-  }
-
-  if (type === "boolean") {
-    const normalized = text.toLowerCase();
-    return (
-      normalized === "true" ||
-      normalized === "1" ||
-      normalized === "yes" ||
-      normalized === "oui"
-    );
-  }
-
-  if (type === "date") {
-    const date = new Date(text);
-    return Number.isNaN(date.getTime())
-      ? text
-      : date.toISOString().slice(0, 10);
-  }
-
-  return text;
-}
-
-function applyFilter(row: Record<string, unknown>, filter: string): boolean {
-  if (!filter.trim()) return true;
-
-  try {
-    const eqMatch = filter.match(/^(\w+)\s*(>=|<=|!=|=|>|<)\s*(.+)$/i);
-
-    if (eqMatch) {
-      const [, col, op, raw] = eqMatch;
-      const value = row[col];
-      const target = raw.trim().replace(/^['"]|['"]$/g, "");
-
-      const a = String(value ?? "").toLowerCase();
-      const b = target.toLowerCase();
-
-      const numberA = Number(value);
-      const numberB = Number(target);
-
-      if (op === "=") return a === b;
-      if (op === "!=") return a !== b;
-      if (op === ">" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
-        return numberA > numberB;
-      }
-      if (op === "<" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
-        return numberA < numberB;
-      }
-      if (op === ">=" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
-        return numberA >= numberB;
-      }
-      if (op === "<=" && !Number.isNaN(numberA) && !Number.isNaN(numberB)) {
-        return numberA <= numberB;
-      }
-    }
-
-    const likeMatch = filter.match(/^(\w+)\s+LIKE\s+%(.+)%$/i);
-
-    if (likeMatch) {
-      const [, col, sub] = likeMatch;
-
-      return String(row[col] ?? "")
-        .toLowerCase()
-        .includes(sub.toLowerCase());
-    }
-
-    return true;
-  } catch {
-    return true;
-  }
-}
+// ─── Pure helpers ───────────────────────────────────────────────────────────────
 
 function csvEscape(value: unknown): string {
   if (value === null || value === undefined) return "";
-
   const text = String(value);
-
   if (text.includes(",") || text.includes('"') || text.includes("\n")) {
     return `"${text.replaceAll('"', '""')}"`;
   }
-
   return text;
-}
-
-function rowsToCSV(rows: Record<string, unknown>[], headers: string[]): string {
-  const lines = [headers.map(csvEscape).join(",")];
-
-  for (const row of rows) {
-    lines.push(headers.map((header) => csvEscape(row[header])).join(","));
-  }
-
-  return lines.join("\n");
 }
 
 function safeFileBase(value: string): string {
@@ -256,13 +105,11 @@ function fileNameFromPath(filePath: string): string {
 }
 
 function extensionFromPath(filePath: string): UploadFileFormat {
-  return (fileNameFromPath(filePath).split(".").pop()?.toLowerCase() ||
-    "csv") as UploadFileFormat;
+  return (fileNameFromPath(filePath).split(".").pop()?.toLowerCase() || "csv") as UploadFileFormat;
 }
 
 function isSupportedDatasetPath(filePath: string): boolean {
   const lower = filePath.toLowerCase();
-
   return (
     lower.endsWith(".csv") ||
     lower.endsWith(".tsv") ||
@@ -274,21 +121,14 @@ function isSupportedDatasetPath(filePath: string): boolean {
 
 function toColumnType(type: string): ColMeta["type"] {
   const normalized = type.toUpperCase();
-
-  if (
-    /INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(
-      normalized,
-    )
-  ) {
+  if (/INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(normalized)) {
     return "number";
   }
-
   if (/DATE|TIME|TIMESTAMP|INTERVAL/.test(normalized)) return "date";
   if (/BOOL/.test(normalized)) return "boolean";
   if (/VARCHAR|TEXT|CHAR|STRING|BLOB|UUID|ENUM/.test(normalized)) {
     return "string";
   }
-
   return "unknown";
 }
 
@@ -305,63 +145,36 @@ function loadedToColMeta(loaded: LoadedUploadTable): ColMeta[] {
   }));
 }
 
-function parsedColumnsToColMeta(
-  columns: ColConfig[],
-  rows: Record<string, unknown>[],
-): ColMeta[] {
-  return columns
-    .filter((column) => column.include)
-    .map((column) => ({
-      name: column.alias,
-      type: column.type,
-      nullCount: rows.filter((row) => row[column.alias] === null).length,
-      distinctCount: new Set(rows.map((row) => String(row[column.alias]))).size,
-      sample: rows.slice(0, 5).map((row) => row[column.alias]),
-    }));
-}
-
-function buildDatasetFromLoaded(
-  loaded: LoadedUploadTable,
-  options: {
-    name: string;
-    description: string;
-    sizeBytes: number;
-    tags?: string[];
-  },
-): Dataset {
-  const columns = loadedToColMeta(loaded);
-
-  return {
-    id: loaded.datasetId,
-    name: options.name,
-    tableName: loaded.tableName,
-    viewName: loaded.tableName,
-    source: "upload",
-    format: loaded.format,
-    rowCount: loaded.rowCount,
-    colCount: loaded.colCount,
-    sizeBytes: options.sizeBytes,
-    columns,
-    tags: options.tags ?? [],
-    description: options.description,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-    qualityScore: 85,
-  };
+/** Merge real DuckDB SUMMARIZE stats into the preview-derived column metadata. */
+function applySummarizeStats(columns: ColMeta[], summary: SummarizeRow[]): ColMeta[] {
+  const byName = new Map(summary.map((row) => [row.column_name, row]));
+  return columns.map((column) => {
+    const row = byName.get(column.name);
+    if (!row) return column;
+    const count = Number(row.count) || 0;
+    const nullPct = row.null_percentage ?? 0;
+    return {
+      ...column,
+      type: toColumnType(row.column_type),
+      distinctCount: row.approx_unique ?? column.distinctCount,
+      nullCount: Math.round((Number(nullPct) / 100) * count),
+      min: typeof row.min === "number" ? row.min : column.min,
+      max: typeof row.max === "number" ? row.max : column.max,
+      mean: row.avg ?? column.mean,
+    };
+  });
 }
 
 function arrayBufferFromText(text: string): ArrayBuffer {
   const bytes = new TextEncoder().encode(text);
-  return bytes.buffer.slice(
-    bytes.byteOffset,
-    bytes.byteOffset + bytes.byteLength,
-  );
+  return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
-// ─── Main page ────────────────────────────────────────────────────────────────
+// ─── Component ───────────────────────────────────────────────────────────────────
 
 export default function CsvParserScreen() {
   const { addDataset, setActiveDataset } = useDataStore();
+  const { parse: parseCsv } = useCsvWorker();
 
   const [rawText, setRawText] = useState("");
   const [delimiter, setDelimiter] = useState("|");
@@ -369,118 +182,176 @@ export default function CsvParserScreen() {
   const [skipEmpty, setSkipEmpty] = useState(true);
   const [trimWS, setTrimWS] = useState(true);
 
-  const [parsed, setParsed] = useState<ParsedResult | null>(null);
+  const [parsed, setParsed] = useState<ParseResult | null>(null);
   const [colConfigs, setColConfigs] = useState<ColConfig[]>([]);
   const [filterExpr, setFilterExpr] = useState("");
-  const [previewLimit, setPreviewLimit] = useState(50);
-  const [parsing, setParsing] = useState(false);
+  const [previewLimit, setPreviewLimit] = useState<number>(50);
+  const [parsing, startParse] = useTransition();
 
   const [datasetName, setDatasetName] = useState("parsed_data");
   const [loadingDB, setLoadingDB] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [loadedDataset, setLoadedDataset] = useState<{
     id: string;
     viewName: string;
     rows: number;
   } | null>(null);
+  const [dbRejects, setDbRejects] = useState<RejectRowView[]>([]);
+  const [dbRejectTotal, setDbRejectTotal] = useState(0);
 
   const [showColPanel, setShowColPanel] = useState(true);
   const [showFilterPanel, setShowFilterPanel] = useState(false);
+  const [showProfilePanel, setShowProfilePanel] = useState(false);
+  const [showRejectsPanel, setShowRejectsPanel] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const draftRestored = useRef(false);
 
-  const registerLoadedDataset = useCallback(
-    (loaded: LoadedUploadTable, sourceName: string, description: string) => {
-      const dataset = buildDatasetFromLoaded(loaded, {
-        name: sourceName,
-        description,
-        sizeBytes: rawText.length,
+  // ─── Draft restore (once) + debounced autosave ─────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadDraft().then((draft) => {
+      if (cancelled || !draft) {
+        draftRestored.current = true;
+        return;
+      }
+      setRawText(draft.rawText);
+      setDelimiter(draft.delimiter);
+      setHasHeader(draft.hasHeader);
+      setSkipEmpty(draft.skipEmpty);
+      setTrimWS(draft.trimWS);
+      setColConfigs(draft.colConfigs);
+      setDatasetName(draft.datasetName || "parsed_data");
+      draftRestored.current = true;
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!draftRestored.current) return;
+    const id = setTimeout(() => {
+      void saveDraft({
+        rawText,
+        delimiter,
+        hasHeader,
+        skipEmpty,
+        trimWS,
+        colConfigs,
+        datasetName,
       });
+    }, 600);
+    return () => clearTimeout(id);
+  }, [rawText, delimiter, hasHeader, skipEmpty, trimWS, colConfigs, datasetName]);
 
-      addDataset(dataset);
-      setActiveDataset(dataset.id);
-      setDatasetName(safeFileBase(sourceName));
-      setLoadedDataset({
-        id: dataset.id,
-        viewName: dataset.tableName,
-        rows: dataset.rowCount,
-      });
+  // ─── Derived: active columns + preview columns ─────────────────────────────
 
-      return dataset;
-    },
-    [addDataset, rawText.length, setActiveDataset],
+  const sourceIndexByName = useMemo(() => {
+    const map = new Map<string, number>();
+    if (parsed) {
+      for (let index = 0; index < parsed.columns.length; index++) {
+        map.set(parsed.columns[index], index);
+      }
+    }
+    return map;
+  }, [parsed]);
+
+  const previewColumns = useMemo<PreviewColumn[]>(() => {
+    if (!parsed) return [];
+    return colConfigs
+      .filter((column) => column.include)
+      .map((column) => {
+        const sourceIndex = sourceIndexByName.get(column.original) ?? -1;
+        return {
+          header: column.alias,
+          type: column.type,
+          sourceIndex,
+        };
+      })
+      .filter((column) => column.sourceIndex >= 0);
+  }, [parsed, colConfigs, sourceIndexByName]);
+
+  // ─── Filtering: compile predicate once, single pass over columnar data ─────
+
+  const deferredFilter = useDeferredValue(filterExpr);
+
+  const filteredRowIndices = useMemo<number[]>(() => {
+    if (!parsed) return [];
+    const predicate = compileFilter(deferredFilter);
+    if (!predicate) {
+      // No filter — identity index range, no row materialization.
+      return Array.from({ length: parsed.rowCount }, (_, index) => index);
+    }
+    // Only build a row record for columns referenced by the predicate by
+    // exposing a proxy-like record over the columnar arrays per row.
+    const indices: number[] = [];
+    const columns = parsed.columns;
+    const columnar = parsed.columnar;
+    const rowView: Record<string, unknown> = {};
+    for (let r = 0; r < parsed.rowCount; r++) {
+      for (let c = 0; c < columns.length; c++) {
+        rowView[columns[c]] = columnar[c][r];
+      }
+      if (predicate(rowView)) indices.push(r);
+    }
+    return indices;
+  }, [parsed, deferredFilter]);
+
+  const filteredTotal = filteredRowIndices.length;
+
+  const previewRowIndices = useMemo(
+    () => filteredRowIndices.slice(0, previewLimit),
+    [filteredRowIndices, previewLimit],
   );
 
-  const handleOpenLocalDataset = useCallback(async () => {
-    if (!isElectron()) {
-      toast.error("Local file import requires Electron.");
-      return;
-    }
+  const getCell = useCallback(
+    (rowIndex: number, sourceIndex: number): unknown => {
+      return parsed?.columnar[sourceIndex]?.[rowIndex] ?? null;
+    },
+    [parsed],
+  );
 
-    const selected = await openFileDialog({
-      title: "Open dataset file",
-      properties: ["openFile"],
-      filters: [
-        {
-          name: "Data files",
-          extensions: ["csv", "tsv", "txt", "parquet", "pq"],
-        },
-        {
-          name: "Delimited files",
-          extensions: ["csv", "tsv", "txt"],
-        },
-        {
-          name: "Parquet files",
-          extensions: ["parquet", "pq"],
-        },
-      ],
+  // ─── Parse (off-thread, in a transition) ───────────────────────────────────
+
+  const runParse = useCallback(() => {
+    if (!rawText.trim()) return;
+    setLoadedDataset(null);
+    setDbRejects([]);
+    setDbRejectTotal(0);
+
+    startParse(() => {
+      void (async () => {
+        try {
+          const result = await parseCsv({
+            text: rawText,
+            delimiter: delimiter || undefined,
+            hasHeader,
+            skipEmpty,
+            trimWS,
+          });
+          setParsed(result);
+          setColConfigs(
+            result.columns.map((name, index) => ({
+              original: name,
+              alias: name,
+              type: result.profiles[index]?.type ?? "string",
+              include: true,
+            })),
+          );
+          setShowRejectsPanel(result.rejects.length > 0);
+        } catch (error) {
+          toast.error(`Parse failed: ${String(error).slice(0, 120)}`);
+        }
+      })();
     });
+  }, [rawText, delimiter, hasHeader, skipEmpty, trimWS, parseCsv]);
 
-    const filePath = selected[0];
-
-    if (!filePath) return;
-
-    if (!isSupportedDatasetPath(filePath)) {
-      toast.error("Unsupported file. Use CSV, TSV, TXT, or Parquet.");
-      return;
-    }
-
-    setLoadingDB(true);
-
-    try {
-      const fileName = fileNameFromPath(filePath);
-      const extension = extensionFromPath(filePath);
-
-      const loaded = await loadUploadPathToDuckDB(filePath, {
-        tableName: sanitizeUploadTableName(fileName),
-        displayName: safeFileBase(fileName),
-        fileExtension: extension,
-        hasHeader,
-        delimiter: delimiter || undefined,
-        previewLimit: 100,
-      });
-
-      registerLoadedDataset(
-        loaded,
-        loaded.displayName,
-        "Imported from local file through the CSV parser workspace.",
-      );
-
-      setRawText("");
-      setParsed(null);
-      setColConfigs([]);
-      toast.success(
-        `Dataset loaded — ${loaded.rowCount.toLocaleString()} rows`,
-      );
-    } catch (error) {
-      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
-    } finally {
-      setLoadingDB(false);
-    }
-  }, [delimiter, hasHeader, registerLoadedDataset]);
+  // ─── File / clipboard input ────────────────────────────────────────────────
 
   const onDrop = useCallback((files: File[]) => {
     const file = files[0];
-
     if (!file) return;
 
     if (file.size >= LARGE_FILE_EDITOR_BYTES) {
@@ -491,20 +362,16 @@ export default function CsvParserScreen() {
     }
 
     if (file.name.endsWith(".csv")) setDelimiter(",");
+    if (file.name.endsWith(".tsv")) setDelimiter("\t");
 
     const reader = new FileReader();
-
     reader.onload = (event) => {
       setRawText(String(event.target?.result ?? ""));
       setDatasetName(safeFileBase(file.name));
       setLoadedDataset(null);
       toast.success("File loaded into parser.");
     };
-
-    reader.onerror = () => {
-      toast.error("Could not read file.");
-    };
-
+    reader.onerror = () => toast.error("Could not read file.");
     reader.readAsText(file, "UTF-8");
   }, []);
 
@@ -514,187 +381,6 @@ export default function CsvParserScreen() {
     noClick: rawText.length > 0,
     multiple: false,
   });
-
-  const handleParse = useCallback(() => {
-    if (!rawText.trim()) return;
-
-    setParsing(true);
-    setLoadedDataset(null);
-
-    const start = performance.now();
-
-    Papa.parse(rawText, {
-      header: hasHeader,
-      delimiter: delimiter || undefined,
-      skipEmptyLines: skipEmpty,
-      dynamicTyping: false,
-      complete: (result) => {
-        const raw = result.data as Record<string, unknown>[];
-
-        const trimmed = trimWS
-          ? raw.map((row) =>
-              Object.fromEntries(
-                Object.entries(row).map(([key, value]) => [
-                  key,
-                  typeof value === "string" ? value.trim() : value,
-                ]),
-              ),
-            )
-          : raw;
-
-        const headers = trimmed.length > 0 ? Object.keys(trimmed[0]) : [];
-        const errors = result.errors.slice(0, 3).map((error) => error.message);
-
-        const configs: ColConfig[] = headers.map((header) => ({
-          original: header,
-          alias: header,
-          type: detectType(trimmed.slice(0, 200).map((row) => row[header])),
-          include: true,
-        }));
-
-        setParsed({
-          rows: trimmed,
-          headers,
-          errors,
-          parseMs: Math.round(performance.now() - start),
-        });
-
-        setColConfigs(configs);
-        setParsing(false);
-      },
-      error: (error: Error) => {
-        toast.error(error.message);
-        setParsing(false);
-      },
-    });
-  }, [rawText, delimiter, hasHeader, skipEmpty, trimWS]);
-
-  const transformed = useMemo(() => {
-    if (!parsed) return { rows: [], headers: [] };
-
-    const activeCols = colConfigs.filter((column) => column.include);
-    const headers = activeCols.map((column) => column.alias);
-
-    const rows = parsed.rows
-      .filter((row) => applyFilter(row, filterExpr))
-      .slice(0, previewLimit)
-      .map((row) =>
-        Object.fromEntries(
-          activeCols.map((column) => [
-            column.alias,
-            castValue(row[column.original], column.type),
-          ]),
-        ),
-      );
-
-    return { rows, headers };
-  }, [parsed, colConfigs, filterExpr, previewLimit]);
-
-  const allTransformed = useMemo(() => {
-    if (!parsed) return { rows: [], headers: [] };
-
-    const activeCols = colConfigs.filter((column) => column.include);
-    const headers = activeCols.map((column) => column.alias);
-
-    const rows = parsed.rows
-      .filter((row) => applyFilter(row, filterExpr))
-      .map((row) =>
-        Object.fromEntries(
-          activeCols.map((column) => [
-            column.alias,
-            castValue(row[column.original], column.type),
-          ]),
-        ),
-      );
-
-    return { rows, headers };
-  }, [parsed, colConfigs, filterExpr]);
-
-  const handleExport = useCallback(() => {
-    const { rows, headers } = allTransformed;
-
-    if (rows.length === 0) return;
-
-    const csv = rowsToCSV(rows, headers);
-    const blob = new Blob([csv], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement("a");
-
-    anchor.href = url;
-    anchor.download = `${safeFileBase(datasetName)}.csv`;
-    anchor.click();
-
-    URL.revokeObjectURL(url);
-    toast.success(`Exported ${rows.length.toLocaleString()} rows`);
-  }, [allTransformed, datasetName]);
-
-  const handleLoadDB = useCallback(async () => {
-    const { rows, headers } = allTransformed;
-
-    if (rows.length === 0 || !datasetName.trim()) return;
-
-    if (!isElectron()) {
-      toast.error("DuckDB dataset registration requires Electron.");
-      return;
-    }
-
-    setLoadingDB(true);
-
-    try {
-      const safeName = safeFileBase(datasetName);
-      const csv = rowsToCSV(rows, headers);
-      const filePath = await localDataPath(
-        `imports/${safeName}_${Date.now()}.csv`,
-      );
-
-      await writeLocalFile(filePath, arrayBufferFromText(csv));
-
-      const loaded = await loadUploadPathToDuckDB(filePath, {
-        tableName: safeName,
-        displayName: safeName,
-        fileExtension: "csv",
-        hasHeader: true,
-        delimiter: ",",
-        previewLimit: 100,
-      });
-
-      const dsCols = parsedColumnsToColMeta(colConfigs, rows);
-
-      const dataset: Dataset = {
-        id: loaded.datasetId,
-        name: safeName,
-        tableName: loaded.tableName,
-        viewName: loaded.tableName,
-        source: "upload",
-        format: "csv",
-        rowCount: rows.length,
-        colCount: headers.length,
-        sizeBytes: csv.length,
-        columns: dsCols,
-        tags: ["parsed"],
-        description: "Loaded from Advanced CSV Parser",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        qualityScore: 85,
-      };
-
-      addDataset(dataset);
-      setActiveDataset(dataset.id);
-      setLoadedDataset({
-        id: dataset.id,
-        viewName: dataset.tableName,
-        rows: dataset.rowCount,
-      });
-
-      toast.success(
-        `Dataset loaded — ${rows.length.toLocaleString()} rows in DuckDB`,
-      );
-    } catch (error) {
-      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
-    } finally {
-      setLoadingDB(false);
-    }
-  }, [allTransformed, datasetName, colConfigs, addDataset, setActiveDataset]);
 
   const handlePaste = useCallback(async () => {
     try {
@@ -708,12 +394,293 @@ export default function CsvParserScreen() {
     }
   }, []);
 
-  const includedCount = colConfigs.filter((column) => column.include).length;
+  const handleClear = useCallback(() => {
+    setRawText("");
+    setParsed(null);
+    setColConfigs([]);
+    setFilterExpr("");
+    setLoadedDataset(null);
+    setDbRejects([]);
+    setDbRejectTotal(0);
+    void clearDraft();
+  }, []);
 
-  const filteredTotal = useMemo(() => {
-    if (!parsed) return 0;
-    return parsed.rows.filter((row) => applyFilter(row, filterExpr)).length;
-  }, [parsed, filterExpr]);
+  // ─── Register loaded dataset into the data store + Dexie history ────────────
+
+  const registerLoadedDataset = useCallback(
+    async (
+      loaded: LoadedUploadTable,
+      sourceName: string,
+      description: string,
+      sizeBytes: number,
+    ): Promise<Dataset> => {
+      let columns = loadedToColMeta(loaded);
+
+      // Pull REAL full-table stats from DuckDB SUMMARIZE (single scan) instead
+      // of the preview-only metadata the import returns.
+      try {
+        const summary = await profileDataset({ datasetId: loaded.datasetId });
+        columns = applySummarizeStats(columns, summary);
+        await Promise.all(
+          summary.map((row) => putColumnProfile(loaded.datasetId, row.column_name, row)),
+        );
+      } catch {
+        // Profiling is best-effort; the dataset is still usable without it.
+      }
+
+      const dataset: Dataset = {
+        id: loaded.datasetId,
+        name: sourceName,
+        tableName: loaded.tableName,
+        viewName: loaded.tableName,
+        source: "upload",
+        format: loaded.format,
+        rowCount: loaded.rowCount,
+        colCount: loaded.colCount,
+        sizeBytes,
+        columns,
+        tags: ["parsed"],
+        description,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        qualityScore: 85,
+      };
+
+      addDataset(dataset);
+      setActiveDataset(dataset.id);
+      setDatasetName(safeFileBase(sourceName));
+      setLoadedDataset({
+        id: dataset.id,
+        viewName: dataset.tableName,
+        rows: dataset.rowCount,
+      });
+
+      if (loaded.rejects) {
+        const sample = loaded.rejects.sample.map<RejectRowView>((reject) => ({
+          row: reject.line,
+          column: reject.columnName,
+          type: reject.errorType,
+          message: reject.errorMessage ?? "Rejected row",
+        }));
+        setDbRejects(sample);
+        setDbRejectTotal(loaded.rejects.rejectedRowCount);
+        setShowRejectsPanel(sample.length > 0);
+      }
+
+      await addImportRecord({
+        fileName: sourceName,
+        datasetId: dataset.id,
+        tableName: dataset.tableName,
+        rowCount: dataset.rowCount,
+        byteSize: sizeBytes,
+        status: loaded.rejects?.rejectedRowCount ? "partial" : "success",
+        detail: loaded.rejects ? { rejectedRowCount: loaded.rejects.rejectedRowCount } : undefined,
+      }).catch(() => undefined);
+
+      return dataset;
+    },
+    [addDataset, setActiveDataset],
+  );
+
+  const handleOpenLocalDataset = useCallback(async () => {
+    if (!isElectron()) {
+      toast.error("Local file import requires Electron.");
+      return;
+    }
+
+    const selected = await openFileDialog({
+      title: "Open dataset file",
+      properties: ["openFile"],
+      filters: [
+        { name: "Data files", extensions: ["csv", "tsv", "txt", "parquet", "pq"] },
+        { name: "Delimited files", extensions: ["csv", "tsv", "txt"] },
+        { name: "Parquet files", extensions: ["parquet", "pq"] },
+      ],
+    });
+
+    const filePath = selected[0];
+    if (!filePath) return;
+
+    if (!isSupportedDatasetPath(filePath)) {
+      toast.error("Unsupported file. Use CSV, TSV, TXT, or Parquet.");
+      return;
+    }
+
+    setLoadingDB(true);
+    try {
+      const fileName = fileNameFromPath(filePath);
+      const extension = extensionFromPath(filePath);
+
+      const loaded = await loadUploadPathToDuckDB(filePath, {
+        tableName: sanitizeUploadTableName(fileName),
+        displayName: safeFileBase(fileName),
+        fileExtension: extension,
+        hasHeader,
+        delimiter: delimiter || undefined,
+        previewLimit: 100,
+        storeRejects: true,
+      });
+
+      await registerLoadedDataset(
+        loaded,
+        loaded.displayName,
+        "Imported from local file through the CSV parser workspace.",
+        loaded.rowCount,
+      );
+
+      setRawText("");
+      setParsed(null);
+      setColConfigs([]);
+      void clearDraft();
+      toast.success(`Dataset loaded — ${loaded.rowCount.toLocaleString()} rows`);
+    } catch (error) {
+      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
+    } finally {
+      setLoadingDB(false);
+    }
+  }, [delimiter, hasHeader, registerLoadedDataset]);
+
+  // ─── Register parsed (paste) data into DuckDB ──────────────────────────────
+  //
+  // We write the ORIGINAL pasted text to disk ONCE and let native DuckDB
+  // read_csv it directly — no rowsToCSV re-serialization, no triple
+  // materialization. Column renames/type overrides are reapplied via SUMMARIZE
+  // metadata and the data-store column model.
+
+  const handleLoadDB = useCallback(async () => {
+    if (!parsed || !rawText.trim() || !datasetName.trim()) return;
+
+    if (!isElectron()) {
+      toast.error("DuckDB dataset registration requires Electron.");
+      return;
+    }
+
+    setLoadingDB(true);
+    try {
+      const safeName = safeFileBase(datasetName);
+      const filePath = await localDataPath(`imports/${safeName}_${Date.now()}.csv`);
+
+      await writeLocalFile(filePath, arrayBufferFromText(rawText));
+
+      const loaded = await loadUploadPathToDuckDB(filePath, {
+        tableName: safeName,
+        displayName: safeName,
+        fileExtension: "csv",
+        hasHeader,
+        delimiter: delimiter || undefined,
+        previewLimit: 100,
+        storeRejects: true,
+      });
+
+      await registerLoadedDataset(
+        loaded,
+        safeName,
+        "Loaded from the Advanced CSV Parser.",
+        rawText.length,
+      );
+
+      toast.success(`Dataset loaded — ${loaded.rowCount.toLocaleString()} rows in DuckDB`);
+    } catch (error) {
+      toast.error(`DuckDB error: ${String(error).slice(0, 120)}`);
+    } finally {
+      setLoadingDB(false);
+    }
+  }, [parsed, rawText, datasetName, hasHeader, delimiter, registerLoadedDataset]);
+
+  // ─── Export (heavy work off the main thread) ───────────────────────────────
+
+  const buildExportRows = useCallback((): {
+    headers: string[];
+    rows: unknown[][];
+  } => {
+    const cols = previewColumns;
+    const headers = cols.map((column) => column.header);
+    const rows = filteredRowIndices.map((rowIndex) =>
+      cols.map((column) => getCell(rowIndex, column.sourceIndex)),
+    );
+    return { headers, rows };
+  }, [previewColumns, filteredRowIndices, getCell]);
+
+  const handleExportCSV = useCallback(() => {
+    const { headers, rows } = buildExportRows();
+    if (rows.length === 0) return;
+    const lines = [headers.map(csvEscape).join(",")];
+    for (const row of rows) lines.push(row.map(csvEscape).join(","));
+    const csv = lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${safeFileBase(datasetName)}.csv`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    toast.success(`Exported ${rows.length.toLocaleString()} rows`);
+  }, [buildExportRows, datasetName]);
+
+  const handleExportXLSX = useCallback(async () => {
+    const proxy = getExportProxy();
+    if (!proxy) {
+      toast.error("Export worker unavailable.");
+      return;
+    }
+    const { headers, rows } = buildExportRows();
+    if (rows.length === 0) return;
+
+    setExporting(true);
+    try {
+      const bytes = await proxy.xlsx({
+        title: datasetName,
+        sections: [
+          {
+            title: datasetName,
+            headers,
+            rows: rows.map((row) => row.map((value) => (value == null ? "" : String(value)))),
+          },
+        ],
+      });
+      const result = await saveBytes(
+        bytes as ArrayBuffer,
+        `${safeFileBase(datasetName)}.xlsx`,
+        "xlsx",
+      );
+      if (result.saved) {
+        toast.success(`Exported ${rows.length.toLocaleString()} rows to XLSX`);
+      }
+    } catch (error) {
+      toast.error(`Export failed: ${String(error).slice(0, 120)}`);
+    } finally {
+      setExporting(false);
+    }
+  }, [buildExportRows, datasetName]);
+
+  // ─── Column-config mutators ────────────────────────────────────────────────
+
+  const setAllIncluded = useCallback((include: boolean) => {
+    setColConfigs((columns) => columns.map((column) => ({ ...column, include })));
+  }, []);
+
+  const updateColumn = useCallback((index: number, patch: Partial<ColConfig>) => {
+    setColConfigs((columns) =>
+      columns.map((column, i) => (i === index ? { ...column, ...patch } : column)),
+    );
+  }, []);
+
+  // ─── Derived display values ────────────────────────────────────────────────
+
+  const includedCount = colConfigs.filter((column) => column.include).length;
+  const allRejects = parsed?.rejects ?? [];
+  const rejectViews: RejectRowView[] =
+    dbRejects.length > 0
+      ? dbRejects
+      : allRejects.map((reject) => ({
+          row: reject.row,
+          column: reject.column,
+          type: reject.type,
+          message: reject.message,
+        }));
+  const rejectTotal = dbRejectTotal > 0 ? dbRejectTotal : rejectViews.length;
+
+  // ─── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-background text-foreground">
@@ -724,12 +691,9 @@ export default function CsvParserScreen() {
           </div>
 
           <div>
-            <h1 className="text-sm font-semibold text-foreground">
-              Advanced CSV Parser
-            </h1>
+            <h1 className="text-sm font-semibold text-foreground">Advanced CSV Parser</h1>
             <p className="text-[10px] text-muted-foreground">
-              Paste, clean, retype, filter, export, or register as a DuckDB
-              dataset.
+              Paste, clean, retype, filter, export, or register as a DuckDB dataset.
             </p>
           </div>
 
@@ -759,24 +723,23 @@ export default function CsvParserScreen() {
               <span>{includedCount} cols</span>
               <span>·</span>
               <span className="text-emerald-400">{parsed.parseMs}ms</span>
+              <span>·</span>
+              <span className="font-mono uppercase">{parsed.engine}</span>
             </div>
           )}
         </div>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex w-84 flex-none flex-col border-r border-border">
+        <div className="flex w-84 flex-none flex-col overflow-y-auto border-r border-border">
           <div
             {...getRootProps()}
             className={cn(
               "relative mx-3 mt-3 rounded-xl border-2 border-dashed transition-colors",
-              isDragActive
-                ? "border-emerald-500 bg-emerald-500/5"
-                : "border-border",
+              isDragActive ? "border-emerald-500 bg-emerald-500/5" : "border-border",
             )}
           >
             <input {...getInputProps()} />
-
             <textarea
               ref={textareaRef}
               value={rawText}
@@ -797,12 +760,9 @@ ID|NAME|AMOUNT
               className="h-56 w-full resize-none rounded-xl bg-transparent p-3 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground/50"
               spellCheck={false}
             />
-
             {isDragActive && (
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center rounded-xl bg-emerald-500/10">
-                <p className="text-sm font-medium text-emerald-400">
-                  Drop small text file here
-                </p>
+                <p className="text-sm font-medium text-emerald-400">Drop small text file here</p>
               </div>
             )}
           </div>
@@ -816,15 +776,9 @@ ID|NAME|AMOUNT
               <Clipboard className="h-3 w-3" />
               Paste
             </button>
-
             <button
               type="button"
-              onClick={() => {
-                setRawText("");
-                setParsed(null);
-                setColConfigs([]);
-                setLoadedDataset(null);
-              }}
+              onClick={handleClear}
               disabled={!rawText && !parsed}
               className="flex items-center gap-1.5 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
             >
@@ -839,10 +793,7 @@ ID|NAME|AMOUNT
             </p>
 
             <div className="space-y-1">
-              <label className="text-[11px] text-muted-foreground">
-                Delimiter
-              </label>
-
+              <label className="text-[11px] text-muted-foreground">Delimiter</label>
               <div className="grid grid-cols-2 gap-1">
                 {DELIMITERS.map((option) => (
                   <button
@@ -883,18 +834,13 @@ ID|NAME|AMOUNT
                   setValue: setTrimWS,
                 },
               ].map(({ key, label, value, setValue }) => (
-                <label
-                  key={key}
-                  className="flex cursor-pointer items-center gap-2"
-                >
+                <label key={key} className="flex cursor-pointer items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setValue((current) => !current)}
                     className={cn(
                       "relative h-4 w-8 rounded-full transition-colors",
-                      value
-                        ? "bg-emerald-500"
-                        : "border border-border bg-muted",
+                      value ? "bg-emerald-500" : "border border-border bg-muted",
                     )}
                   >
                     <span
@@ -904,10 +850,7 @@ ID|NAME|AMOUNT
                       )}
                     />
                   </button>
-
-                  <span className="text-[11px] text-muted-foreground">
-                    {label}
-                  </span>
+                  <span className="text-[11px] text-muted-foreground">{label}</span>
                 </label>
               ))}
             </div>
@@ -916,7 +859,7 @@ ID|NAME|AMOUNT
           <div className="mt-3 px-3">
             <button
               type="button"
-              onClick={handleParse}
+              onClick={runParse}
               disabled={!rawText.trim() || parsing}
               className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
             >
@@ -942,11 +885,10 @@ ID|NAME|AMOUNT
                   placeholder="dataset_name"
                   className="h-8 flex-1 rounded-lg border border-border bg-muted px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-emerald-500/50"
                 />
-
                 <button
                   type="button"
                   onClick={handleLoadDB}
-                  disabled={loadingDB || allTransformed.rows.length === 0}
+                  disabled={loadingDB || filteredTotal === 0}
                   className="flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
                 >
                   {loadingDB ? (
@@ -962,26 +904,41 @@ ID|NAME|AMOUNT
                 <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-2">
                   <div className="flex items-center gap-2">
                     <Check className="h-3 w-3 text-emerald-400" />
-                    <span className="text-[11px] text-emerald-300">
-                      Dataset ready
-                    </span>
+                    <span className="text-[11px] text-emerald-300">Dataset ready</span>
                   </div>
                   <div className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
-                    {loadedDataset.viewName} ·{" "}
-                    {loadedDataset.rows.toLocaleString()} rows
+                    {loadedDataset.viewName} · {loadedDataset.rows.toLocaleString()} rows
                   </div>
                 </div>
               )}
 
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={allTransformed.rows.length === 0}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
-              >
-                <Download className="h-3 w-3" />
-                Export CSV ({allTransformed.rows.length.toLocaleString()} rows)
-              </button>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleExportCSV}
+                  disabled={filteredTotal === 0}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+                >
+                  <Download className="h-3 w-3" />
+                  CSV
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportXLSX}
+                  disabled={filteredTotal === 0 || exporting}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
+                >
+                  {exporting ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Download className="h-3 w-3" />
+                  )}
+                  XLSX
+                </button>
+              </div>
+              <p className="text-center text-[10px] text-muted-foreground">
+                {filteredTotal.toLocaleString()} rows · {includedCount} cols
+              </p>
             </div>
           )}
         </div>
@@ -992,23 +949,20 @@ ID|NAME|AMOUNT
               <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-border bg-muted">
                 <Table2 className="h-7 w-7 text-muted-foreground" />
               </div>
-
               <div>
-                <p className="text-base font-semibold text-foreground">
-                  No parsed data yet
-                </p>
+                <p className="text-base font-semibold text-foreground">No parsed data yet</p>
                 <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                  Paste delimited text, drop a small CSV/TSV/TXT file, or open a
-                  local dataset directly through DuckDB.
+                  Paste delimited text, drop a small CSV/TSV/TXT file, or open a local dataset
+                  directly through DuckDB.
                 </p>
               </div>
-
               <div className="flex flex-wrap justify-center gap-2 text-xs text-muted-foreground">
                 {[
                   "Rename columns",
                   "Change types",
                   "Filter rows",
-                  "Export CSV",
+                  "Profile columns",
+                  "Export XLSX",
                   "Register dataset",
                 ].map((feature) => (
                   <span
@@ -1020,7 +974,6 @@ ID|NAME|AMOUNT
                   </span>
                 ))}
               </div>
-
               <button
                 type="button"
                 onClick={handleOpenLocalDataset}
@@ -1032,7 +985,7 @@ ID|NAME|AMOUNT
             </div>
           ) : (
             <>
-              <div className="flex flex-none items-center gap-3 border-b border-border px-4 py-2">
+              <div className="flex flex-none flex-wrap items-center gap-2 border-b border-border px-4 py-2">
                 <button
                   type="button"
                   onClick={() => setShowColPanel((value) => !value)}
@@ -1064,20 +1017,43 @@ ID|NAME|AMOUNT
                 >
                   <Filter className="h-3 w-3" />
                   Filter
-                  {filterExpr && (
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-                  )}
-                  {showFilterPanel ? (
-                    <ChevronUp className="h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
+                  {filterExpr && <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />}
                 </button>
+
+                <button
+                  type="button"
+                  onClick={() => setShowProfilePanel((value) => !value)}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+                    showProfilePanel
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                      : "border-border text-muted-foreground hover:bg-accent",
+                  )}
+                >
+                  <BarChart3 className="h-3 w-3" />
+                  Profile
+                </button>
+
+                {rejectViews.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowRejectsPanel((value) => !value)}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs transition-colors",
+                      showRejectsPanel
+                        ? "border-rose-500/40 bg-rose-500/10 text-rose-300"
+                        : "border-border text-muted-foreground hover:bg-accent",
+                    )}
+                  >
+                    <ShieldAlert className="h-3 w-3" />
+                    Rejects ({rejectTotal.toLocaleString()})
+                  </button>
+                )}
 
                 <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
                   <Eye className="h-3 w-3" />
                   <span>Preview:</span>
-                  {[50, 200, 500].map((value) => (
+                  {PREVIEW_LIMITS.map((value) => (
                     <button
                       key={value}
                       type="button"
@@ -1089,17 +1065,15 @@ ID|NAME|AMOUNT
                           : "text-muted-foreground hover:text-foreground",
                       )}
                     >
-                      {value}
+                      {value.toLocaleString()}
                     </button>
                   ))}
-                  <span className="ml-1">
-                    of {filteredTotal.toLocaleString()}
-                  </span>
+                  <span className="ml-1">of {filteredTotal.toLocaleString()}</span>
                 </div>
 
                 <button
                   type="button"
-                  onClick={handleParse}
+                  onClick={runParse}
                   className="flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent"
                 >
                   <RefreshCw className="h-3 w-3" />
@@ -1121,29 +1095,14 @@ ID|NAME|AMOUNT
                         <div className="mr-2 flex gap-1">
                           <button
                             type="button"
-                            onClick={() =>
-                              setColConfigs((columns) =>
-                                columns.map((column) => ({
-                                  ...column,
-                                  include: true,
-                                })),
-                              )
-                            }
+                            onClick={() => setAllIncluded(true)}
                             className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent"
                           >
                             All
                           </button>
-
                           <button
                             type="button"
-                            onClick={() =>
-                              setColConfigs((columns) =>
-                                columns.map((column) => ({
-                                  ...column,
-                                  include: false,
-                                })),
-                              )
-                            }
+                            onClick={() => setAllIncluded(false)}
                             className="rounded-lg border border-border px-2 py-1 text-[10px] text-muted-foreground transition-colors hover:bg-accent"
                           >
                             None
@@ -1164,33 +1123,18 @@ ID|NAME|AMOUNT
                               <input
                                 value={column.alias}
                                 onChange={(event) =>
-                                  setColConfigs((previous) =>
-                                    previous.map((item, itemIndex) =>
-                                      itemIndex === index
-                                        ? {
-                                            ...item,
-                                            alias: event.target.value,
-                                          }
-                                        : item,
-                                    ),
-                                  )
+                                  updateColumn(index, {
+                                    alias: event.target.value,
+                                  })
                                 }
                                 className="min-w-0 flex-1 truncate bg-transparent text-[11px] font-medium text-foreground outline-none"
                               />
-
                               <button
                                 type="button"
                                 onClick={() =>
-                                  setColConfigs((previous) =>
-                                    previous.map((item, itemIndex) =>
-                                      itemIndex === index
-                                        ? {
-                                            ...item,
-                                            include: !item.include,
-                                          }
-                                        : item,
-                                    ),
-                                  )
+                                  updateColumn(index, {
+                                    include: !column.include,
+                                  })
                                 }
                                 className={cn(
                                   "h-3.5 w-3.5 flex-none rounded-full border transition-colors",
@@ -1208,39 +1152,20 @@ ID|NAME|AMOUNT
                             )}
 
                             <div className="flex flex-wrap gap-1">
-                              {(
-                                [
-                                  "string",
-                                  "number",
-                                  "date",
-                                  "boolean",
-                                ] as ColType[]
-                              ).map((type) => (
+                              {COLUMN_TYPES.map((type) => (
                                 <button
                                   key={type}
                                   type="button"
-                                  onClick={() =>
-                                    setColConfigs((previous) =>
-                                      previous.map((item, itemIndex) =>
-                                        itemIndex === index
-                                          ? { ...item, type }
-                                          : item,
-                                      ),
-                                    )
-                                  }
+                                  onClick={() => updateColumn(index, { type })}
                                   className={cn(
                                     "rounded px-1.5 py-0.5 font-mono text-[9px] transition-opacity",
                                     column.type === type
                                       ? "opacity-100"
                                       : "opacity-30 hover:opacity-60",
-                                    type === "number" &&
-                                      "bg-emerald-500/15 text-emerald-400",
-                                    type === "string" &&
-                                      "bg-blue-500/15 text-blue-400",
-                                    type === "date" &&
-                                      "bg-purple-500/15 text-purple-400",
-                                    type === "boolean" &&
-                                      "bg-amber-500/15 text-amber-400",
+                                    type === "number" && "bg-emerald-500/15 text-emerald-400",
+                                    type === "string" && "bg-blue-500/15 text-blue-400",
+                                    type === "date" && "bg-purple-500/15 text-purple-400",
+                                    type === "boolean" && "bg-amber-500/15 text-amber-400",
                                   )}
                                 >
                                   {type}
@@ -1267,16 +1192,12 @@ ID|NAME|AMOUNT
                     <div className="space-y-2 p-3">
                       <div className="flex items-center gap-2">
                         <Code2 className="h-3.5 w-3.5 flex-none text-amber-400" />
-
                         <input
                           value={filterExpr}
-                          onChange={(event) =>
-                            setFilterExpr(event.target.value)
-                          }
+                          onChange={(event) => setFilterExpr(event.target.value)}
                           placeholder="e.g. STATUS = SUCCESS or AMOUNT > 1000 or NAME LIKE %Ali%"
                           className="h-8 flex-1 rounded-lg border border-border bg-muted px-3 font-mono text-xs text-foreground outline-none placeholder:text-muted-foreground focus:border-amber-500/50"
                         />
-
                         {filterExpr && (
                           <button
                             type="button"
@@ -1287,7 +1208,6 @@ ID|NAME|AMOUNT
                           </button>
                         )}
                       </div>
-
                       <p className="pl-5 text-[10px] text-muted-foreground">
                         Syntax: <code className="font-mono">COL = value</code> ·{" "}
                         <code className="font-mono">COL &gt; 100</code> ·{" "}
@@ -1299,103 +1219,62 @@ ID|NAME|AMOUNT
                 )}
               </AnimatePresence>
 
-              {parsed.errors.length > 0 && (
+              <AnimatePresence>
+                {showProfilePanel && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="max-h-72 overflow-auto border-b border-border"
+                  >
+                    <ProfilePanel profiles={parsed.profiles} rowCount={parsed.rowCount} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <AnimatePresence>
+                {showRejectsPanel && rejectViews.length > 0 && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: "auto", opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="overflow-hidden border-b border-border"
+                  >
+                    <RejectsPanel rejects={rejectViews} totalRejected={rejectTotal} />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {parsed.errors.length > 0 && rejectViews.length === 0 && (
                 <div className="mx-4 mt-2 flex flex-none items-start gap-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-2.5">
                   <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none text-amber-400" />
                   <div className="space-y-0.5 text-[11px] text-amber-300">
-                    {parsed.errors.map((error) => (
+                    {parsed.errors.slice(0, 3).map((error) => (
                       <p key={error}>{error}</p>
                     ))}
                   </div>
                 </div>
               )}
 
-              <div className="flex-1 overflow-auto">
-                {transformed.rows.length === 0 ? (
-                  <div className="flex h-full flex-col items-center justify-center text-muted-foreground">
-                    <XCircle className="mb-2 h-8 w-8 opacity-30" />
-                    <p className="text-sm">No rows match the current filter</p>
-                  </div>
-                ) : (
-                  <table className="w-full border-collapse text-xs">
-                    <thead className="sticky top-0 z-10 bg-muted/95 backdrop-blur">
-                      <tr>
-                        <th className="w-10 border-b border-r border-border px-3 py-2 text-left text-[10px] font-medium text-muted-foreground">
-                          #
-                        </th>
-
-                        {transformed.headers.map((header) => {
-                          const config = colConfigs.find(
-                            (column) => column.alias === header,
-                          );
-
-                          return (
-                            <th
-                              key={header}
-                              className="whitespace-nowrap border-b border-r border-border px-3 py-2 text-left"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span className="text-[11px] font-medium text-foreground">
-                                  {header}
-                                </span>
-                                {config && <TypeBadge type={config.type} />}
-                              </div>
-                            </th>
-                          );
-                        })}
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {transformed.rows.map((row, rowIndex) => (
-                        <tr
-                          key={rowIndex}
-                          className={cn(
-                            "border-b border-border/30 transition-colors hover:bg-muted/40",
-                            rowIndex % 2 === 1 && "bg-muted/10",
-                          )}
-                        >
-                          <td className="border-r border-border/30 px-3 py-1.5 text-center font-mono text-[10px] text-muted-foreground">
-                            {rowIndex + 1}
-                          </td>
-
-                          {transformed.headers.map((header) => {
-                            const value = row[header];
-                            const config = colConfigs.find(
-                              (column) => column.alias === header,
-                            );
-
-                            return (
-                              <td
-                                key={header}
-                                className={cn(
-                                  "max-w-55 overflow-hidden text-ellipsis whitespace-nowrap border-r border-border/20 px-3 py-1.5 font-mono text-[11px]",
-                                  value === null
-                                    ? "text-muted-foreground/40 italic"
-                                    : config?.type === "number"
-                                      ? "text-right text-emerald-300"
-                                      : config?.type === "date"
-                                        ? "text-purple-300"
-                                        : config?.type === "boolean"
-                                          ? "text-amber-300"
-                                          : "text-foreground",
-                                )}
-                                title={value === null ? "NULL" : String(value)}
-                              >
-                                {value === null
-                                  ? "NULL"
-                                  : typeof value === "boolean"
-                                    ? String(value)
-                                    : String(value)}
-                              </td>
-                            );
-                          })}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-              </div>
+              {previewColumns.length === 0 || previewRowIndices.length === 0 ? (
+                <div className="flex flex-1 flex-col items-center justify-center text-muted-foreground">
+                  <Table2 className="mb-2 h-8 w-8 opacity-30" />
+                  <p className="text-sm">
+                    {previewColumns.length === 0
+                      ? "No columns selected"
+                      : "No rows match the current filter"}
+                  </p>
+                </div>
+              ) : (
+                <PreviewGrid
+                  variant="typed"
+                  columns={previewColumns}
+                  rowIndices={previewRowIndices}
+                  getCell={getCell}
+                />
+              )}
             </>
           )}
         </div>

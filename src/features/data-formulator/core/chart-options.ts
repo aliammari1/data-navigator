@@ -5,6 +5,20 @@ import {
 import type { ChartSpec } from "./types";
 import { PALETTE } from "./constants";
 import { fmtVal } from "./helpers";
+
+/**
+ * Maximum of a numeric array via `reduce`. Avoids `Math.max(...arr)`, whose
+ * argument spread can overflow the call stack on large result sets (tens of
+ * thousands of elements). Returns `floor` when the array is empty.
+ */
+function safeMax(values: number[], floor = 0): number {
+  let max = floor;
+  for (const v of values) {
+    if (v > max) max = v;
+  }
+  return max;
+}
+
 // ─── Smart chart option builder ───────────────────────────────────────────────
 
 export function buildOption(
@@ -127,7 +141,10 @@ export function buildOption(
       String(d.color_val ?? ""),
       Number(d.size_val ?? d.y_val ?? 0),
     ]);
-    const max = Math.max(...vals.map((v) => v[2] as number), 1);
+    const max = safeMax(
+      vals.map((v) => v[2] as number),
+      1,
+    );
     return {
       ...base,
       grid: { top: 16, right: 60, bottom: 36, left: 12, containLabel: true },
@@ -232,7 +249,7 @@ export function buildOption(
 
   // ── Radar ───────────────────────────────────────────────────────────────
   if (spec.type === "radar") {
-    const max = Math.max(...yValues, 1);
+    const max = safeMax(yValues, 1);
     return {
       ...base,
       radar: {
@@ -269,6 +286,15 @@ export function buildOption(
   if ((isStacked || isMultiLine) && hasColor) {
     const xs = [...new Set(xLabels)];
     const groups = [...new Set(colorVals)];
+    // Build an (x, color) → y lookup ONCE (O(data)) instead of scanning the full
+    // `data` array for every (x, group) cell (O(xs·groups·data) via `data.find`).
+    const byKey = new Map<string, number>();
+    for (const d of data) {
+      byKey.set(
+        `${String(d.x_val ?? "")} ${String(d.color_val ?? "")}`,
+        Number(d.y_val ?? 0),
+      );
+    }
     const series = groups.map((g, i) => ({
       name: g,
       type: isMultiLine ? "line" : "bar",
@@ -276,12 +302,7 @@ export function buildOption(
       smooth: isMultiLine,
       symbol: isMultiLine ? "circle" : undefined,
       symbolSize: 4,
-      data: xs.map((x) => {
-        const row = data.find(
-          (d) => String(d.x_val ?? "") === x && String(d.color_val ?? "") === g,
-        );
-        return row ? Number(row.y_val ?? 0) : 0;
-      }),
+      data: xs.map((x) => byKey.get(`${x} ${g}`) ?? 0),
       itemStyle: { color: PALETTE[i % PALETTE.length] },
       lineStyle: isMultiLine
         ? { color: PALETTE[i % PALETTE.length], width: 2.5 }

@@ -167,9 +167,9 @@ export function FileManagementModal({
             type="button"
             onClick={() => onUpload("append")}
             disabled={!canMutate}
-            className="rounded-2xl border border-teal-500/25 bg-teal-500/10 p-4 text-left transition hover:bg-teal-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left transition hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            <FilePlus2 className="mb-3 h-5 w-5 text-teal-500" />
+            <FilePlus2 className="mb-3 h-5 w-5 text-primary" />
             <div className="text-sm font-semibold text-foreground">
               Ajouter des fichiers
             </div>

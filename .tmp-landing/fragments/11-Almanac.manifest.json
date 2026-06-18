@@ -1,0 +1,18 @@
+{
+  "component": "AlmanacSection",
+  "icons": [
+    "CalendarDays",
+    "CloudSun",
+    "Coffee",
+    "Cpu",
+    "Database",
+    "Gauge",
+    "HardDrive",
+    "Moon",
+    "Sigma",
+    "Store",
+    "Sunrise",
+    "Sunset"
+  ],
+  "lines": 1451
+}

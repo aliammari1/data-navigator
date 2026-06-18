@@ -1,3 +1,7 @@
+# facts: PR-time validation gate for data-navigator (private, offline-first Electron app).
+# Asserts every PR to main carries a changeset (or is intentionally version-neutral) via
+# `changeset:status --since=origin/main`. Read-only; no release/tag/MSI side effects.
+# Third-party pnpm/action-setup is SHA-pinned; first-party actions/* use major tags.
 name: Changesets
 
 on:
@@ -29,7 +33,8 @@ jobs:
         run: git fetch origin main --depth=1
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.25.0
           run_install: false

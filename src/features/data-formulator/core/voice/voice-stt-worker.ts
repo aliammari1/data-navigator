@@ -44,8 +44,6 @@ import {
 
 type ConcreteRuntime = Exclude<VoiceRuntime, "auto">;
 
-type TransformersDevice = "webgpu" | "wasm";
-
 type SttTask = "transcribe" | "translate";
 
 type ProgressPayload = {

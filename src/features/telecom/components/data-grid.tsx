@@ -8,22 +8,25 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   ChevronsUpDown,
   ChevronUp,
   Columns3,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fmtN } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 import { StatusBadge } from "./status-badge";
 
-const PAGE_SIZE = 50;
+// Server "window" size. We fetch large pages and window the DOM with
+// @tanstack/react-virtual instead of rendering N*cols nodes synchronously.
+const WINDOW_SIZE = 500;
+// Estimated row height (px) for the virtualizer.
+const ROW_HEIGHT = 34;
 const SKELETON_KEYS = ["sk0", "sk1", "sk2", "sk3", "sk4", "sk5", "sk6", "sk7"];
 
 export function DataGrid({
@@ -32,6 +35,8 @@ export function DataGrid({
   statusMapping,
   onMsisdnClick,
   fetchFiltered,
+  fetchFilteredCount,
+  fetchFilteredPage,
 }: {
   m: Types.ColumnMapping;
   filters: Types.FilterState;
@@ -46,47 +51,177 @@ export function DataGrid({
     sortCol: string,
     sortDir: Types.SortDir,
   ) => Promise<{ rows: Types.RawRow[]; total: number }>;
+  fetchFilteredCount?: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+  ) => Promise<number>;
+  fetchFilteredPage?: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+    limit: number,
+    offset: number,
+    sortCol: string,
+    sortDir: Types.SortDir,
+  ) => Promise<Types.RawRow[]>;
 }) {
   const [rows, setRows] = useState<Types.RawRow[]>([]);
   const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(0);
+  // How many rows of the (filtered, sorted) result are loaded into `rows`.
+  const [loadedCount, setLoadedCount] = useState(0);
   const [loading, setLoading] = useState(false);
+  const [fetchingMore, setFetchingMore] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [visDropOpen, setVisDropOpen] = useState(false);
   const visDropRef = useRef<HTMLDivElement>(null);
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const sortCol = sorting[0]?.id ?? "";
   const sortDir: Types.SortDir = sorting[0]?.desc ? "desc" : "asc";
 
-  // Reset page on filter change
-  // biome-ignore lint/correctness/useExhaustiveDependencies: page intentionally resets on filter change
-  useEffect(() => {
-    setPage(0);
-  }, [filters]);
+  // Whether the split count/page fetchers are available (real runtime).
+  const hasSplitFetchers = Boolean(fetchFilteredCount && fetchFilteredPage);
 
+  // ── Count query: depends ONLY on the filter, not page/sort. ───────────────
+  // Re-runs only when the filter changes — never on scroll or sort.
   useEffect(() => {
-    setLoading(true);
-    fetchFiltered(
-      m,
-      filters,
-      statusMapping,
-      PAGE_SIZE,
-      page * PAGE_SIZE,
-      sortCol,
-      sortDir,
-    )
-      .then(({ rows: r, total: t }) => {
-        setRows(r);
-        setTotal(t);
+    if (!hasSplitFetchers || !fetchFilteredCount) return;
+    let cancelled = false;
+    fetchFilteredCount(m, filters, statusMapping)
+      .then((t) => {
+        if (!cancelled) setTotal(t);
       })
       .catch((err) => {
+        console.error("[DataGrid] count failed:", err);
+        if (!cancelled) setTotal(0);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [m, filters, statusMapping, hasSplitFetchers, fetchFilteredCount]);
+
+  // ── First window: reload whenever filter/sort changes. ────────────────────
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    parentRef.current?.scrollTo({ top: 0 });
+
+    const load = async () => {
+      if (hasSplitFetchers && fetchFilteredPage) {
+        const r = await fetchFilteredPage(
+          m,
+          filters,
+          statusMapping,
+          WINDOW_SIZE,
+          0,
+          sortCol,
+          sortDir,
+        );
+        if (cancelled) return;
+        setRows(r);
+        setLoadedCount(r.length);
+      } else {
+        const { rows: r, total: t } = await fetchFiltered(
+          m,
+          filters,
+          statusMapping,
+          WINDOW_SIZE,
+          0,
+          sortCol,
+          sortDir,
+        );
+        if (cancelled) return;
+        setRows(r);
+        setTotal(t);
+        setLoadedCount(r.length);
+      }
+    };
+
+    load()
+      .catch((err) => {
         console.error("[DataGrid] Failed to fetch data:", err);
-        setRows([]);
-        setTotal(0);
+        if (!cancelled) {
+          setRows([]);
+          setTotal(0);
+          setLoadedCount(0);
+        }
       })
-      .finally(() => setLoading(false));
-  }, [m, filters, page, sortCol, sortDir, statusMapping, fetchFiltered]);
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    m,
+    filters,
+    statusMapping,
+    sortCol,
+    sortDir,
+    hasSplitFetchers,
+    fetchFiltered,
+    fetchFilteredPage,
+  ]);
+
+  // ── Incrementally load the next window when scrolling near the bottom. ────
+  const loadMore = useCallback(async () => {
+    if (fetchingMore) return;
+    if (rows.length >= total && total > 0) return;
+    if (rows.length === 0) return;
+    setFetchingMore(true);
+    try {
+      const offset = rows.length;
+      let next: Types.RawRow[];
+      if (hasSplitFetchers && fetchFilteredPage) {
+        next = await fetchFilteredPage(
+          m,
+          filters,
+          statusMapping,
+          WINDOW_SIZE,
+          offset,
+          sortCol,
+          sortDir,
+        );
+      } else {
+        const res = await fetchFiltered(
+          m,
+          filters,
+          statusMapping,
+          WINDOW_SIZE,
+          offset,
+          sortCol,
+          sortDir,
+        );
+        next = res.rows;
+      }
+      if (next.length > 0) {
+        setRows((prev) => {
+          const merged = [...prev, ...next];
+          setLoadedCount(merged.length);
+          return merged;
+        });
+      }
+    } catch (err) {
+      console.error("[DataGrid] loadMore failed:", err);
+    } finally {
+      setFetchingMore(false);
+    }
+  }, [
+    fetchingMore,
+    rows.length,
+    total,
+    hasSplitFetchers,
+    fetchFilteredPage,
+    fetchFiltered,
+    m,
+    filters,
+    statusMapping,
+    sortCol,
+    sortDir,
+  ]);
 
   // Close visibility dropdown on outside click
   useEffect(() => {
@@ -140,7 +275,7 @@ export function DataGrid({
               <button
                 type="button"
                 onClick={() => onMsisdnClick(v)}
-                className="font-mono text-[11px] text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 dark:hover:text-indigo-300 hover:underline transition-colors"
+                className="font-mono text-[11px] text-primary hover:text-primary/80 hover:underline transition-colors"
               >
                 {v}
               </button>
@@ -167,8 +302,29 @@ export function DataGrid({
     enableMultiSort: false,
   });
 
-  const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const tableRows = table.getRowModel().rows;
   const allCols = table.getAllLeafColumns();
+
+  const rowVirtualizer = useVirtualizer({
+    count: tableRows.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => ROW_HEIGHT,
+    overscan: 12,
+  });
+
+  const virtualItems = rowVirtualizer.getVirtualItems();
+
+  // Trigger an incremental load when the last virtual row approaches the
+  // end of what's currently loaded.
+  useEffect(() => {
+    const last = virtualItems[virtualItems.length - 1];
+    if (!last) return;
+    if (last.index >= loadedCount - 1 && loadedCount < total) {
+      loadMore();
+    }
+  }, [virtualItems, loadedCount, total, loadMore]);
+
+  const colCount = table.getVisibleLeafColumns().length || displayCols.length;
 
   return (
     <div className="space-y-3">
@@ -176,8 +332,12 @@ export function DataGrid({
       <div className="flex items-center justify-between flex-wrap gap-2">
         <span className="text-xs text-muted-foreground">
           {fmtN(total)} lignes correspondant aux filtres
-          {total > PAGE_SIZE &&
-            ` · affichage ${page * PAGE_SIZE + 1}–${Math.min((page + 1) * PAGE_SIZE, total)}`}
+          {total > 0 && (
+            <>
+              {" · "}
+              {fmtN(loadedCount)} chargées
+            </>
+          )}
         </span>
 
         <div className="flex items-center gap-2">
@@ -189,7 +349,7 @@ export function DataGrid({
               className={cn(
                 "flex items-center gap-1.5 px-2.5 py-1.5 text-xs border rounded-lg transition-colors",
                 visDropOpen
-                  ? "bg-indigo-50 border-indigo-200 text-indigo-700 dark:bg-indigo-500/15 dark:border-indigo-500/30 dark:text-indigo-300"
+                  ? "bg-primary/15 border-primary/30 text-primary"
                   : "bg-muted hover:bg-accent border-border text-muted-foreground",
               )}
             >
@@ -218,7 +378,7 @@ export function DataGrid({
                           type="checkbox"
                           checked={col.getIsVisible()}
                           onChange={col.getToggleVisibilityHandler()}
-                          className="w-3.5 h-3.5 rounded accent-indigo-500"
+                          className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
                         />
                         <span className="text-xs text-foreground font-mono truncate">
                           {col.id}
@@ -231,26 +391,11 @@ export function DataGrid({
             </AnimatePresence>
           </div>
 
-          {/* Pagination */}
-          <span className="text-xs text-muted-foreground tabular-nums">
-            {page + 1} / {pageCount}
-          </span>
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0}
-            className="w-7 h-7 rounded-lg bg-muted disabled:opacity-30 flex items-center justify-center hover:bg-accent transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
-          </button>
-          <button
-            type="button"
-            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-            disabled={page >= pageCount - 1}
-            className="w-7 h-7 rounded-lg bg-muted disabled:opacity-30 flex items-center justify-center hover:bg-accent transition-colors"
-          >
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
-          </button>
+          {fetchingMore && (
+            <span className="text-[10px] text-muted-foreground animate-pulse">
+              Chargement…
+            </span>
+          )}
         </div>
       </div>
 
@@ -267,69 +412,97 @@ export function DataGrid({
           ))}
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-xl border border-border">
-          <table className="w-full text-xs">
-            <thead>
-              {table.getHeaderGroups().map((hg) => (
-                <tr key={hg.id} className="bg-muted/50 border-b border-border">
-                  {hg.headers.map((header) => {
-                    const sorted = header.column.getIsSorted();
-                    return (
-                      <th
-                        key={header.id}
-                        className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold whitespace-nowrap cursor-pointer hover:text-foreground select-none group"
-                        onClick={header.column.getToggleSortingHandler()}
-                      >
-                        <span className="flex items-center gap-1">
-                          {flexRender(
-                            header.column.columnDef.header,
-                            header.getContext(),
-                          )}
-                          {sorted === "asc" ? (
-                            <ChevronUp className="w-3 h-3 text-indigo-500" />
-                          ) : sorted === "desc" ? (
-                            <ChevronDown className="w-3 h-3 text-indigo-500" />
-                          ) : (
-                            <ChevronsUpDown className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity" />
-                          )}
-                        </span>
-                      </th>
-                    );
-                  })}
-                </tr>
-              ))}
-            </thead>
-            <tbody>
-              {table.getRowModel().rows.map((row) => (
-                <tr
-                  key={row.id}
-                  className="border-b border-border hover:bg-muted/40 transition-colors"
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <td
-                      key={cell.id}
-                      className="px-3 py-1.5 whitespace-nowrap max-w-36 truncate"
+        <div className="rounded-xl border border-border overflow-hidden">
+          {/* Sticky header */}
+          <div className="overflow-x-auto">
+            <div className="min-w-full">
+              <table className="w-full text-xs table-fixed">
+                <thead className="sticky top-0 z-10">
+                  {table.getHeaderGroups().map((hg) => (
+                    <tr
+                      key={hg.id}
+                      className="bg-muted/80 backdrop-blur border-b border-border"
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
-                    </td>
+                      {hg.headers.map((header) => {
+                        const sorted = header.column.getIsSorted();
+                        return (
+                          <th
+                            key={header.id}
+                            className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold whitespace-nowrap cursor-pointer hover:text-foreground select-none group"
+                            onClick={header.column.getToggleSortingHandler()}
+                          >
+                            <span className="flex items-center gap-1">
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                              {sorted === "asc" ? (
+                                <ChevronUp className="w-3 h-3 text-primary" />
+                              ) : sorted === "desc" ? (
+                                <ChevronDown className="w-3 h-3 text-primary" />
+                              ) : (
+                                <ChevronsUpDown className="w-3 h-3 opacity-0 group-hover:opacity-40 transition-opacity" />
+                              )}
+                            </span>
+                          </th>
+                        );
+                      })}
+                    </tr>
                   ))}
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td
-                    colSpan={displayCols.length || 1}
-                    className="py-10 text-center text-muted-foreground text-sm"
-                  >
-                    Aucun résultat correspondant aux filtres actuels.
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                </thead>
+              </table>
+            </div>
+          </div>
+
+          {/* Virtualized body */}
+          {rows.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground text-sm">
+              Aucun résultat correspondant aux filtres actuels.
+            </div>
+          ) : (
+            <div ref={parentRef} className="overflow-auto h-[62vh]">
+              <div
+                style={{
+                  height: rowVirtualizer.getTotalSize(),
+                  position: "relative",
+                  width: "100%",
+                }}
+              >
+                {virtualItems.map((vItem) => {
+                  const row = tableRows[vItem.index];
+                  if (!row) return null;
+                  return (
+                    <div
+                      key={row.id}
+                      data-index={vItem.index}
+                      ref={rowVirtualizer.measureElement}
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${vItem.start}px)`,
+                      }}
+                      className="flex border-b border-border hover:bg-muted/40 transition-colors"
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <div
+                          key={cell.id}
+                          className="px-3 py-1.5 whitespace-nowrap truncate"
+                          style={{ width: `${100 / colCount}%` }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </div>
       )}
     </div>

@@ -1,36 +1,28 @@
 "use client";
 /**
  * Canvas — react-grid-layout drag/resize canvas.
- * - Yjs-persisted layout
- * - Stagger entrance animations
- * - Generative UI target: widgets materialize as agent calls useFrontendTool
+ *
+ * Layout is persisted durably via the foundation collaboration substrate
+ * (`@/platform/collab` → y-indexeddb): each dataset gets a room doc, layouts are
+ * stored in `room.meta`, gated on `whenStored`, and READ BACK on reload so the
+ * arrangement survives offline restarts. This replaces the previous dead,
+ * never-read-back in-memory `Y.Doc`.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ResponsiveLayouts } from "react-grid-layout";
+import type { LayoutItem, ResponsiveLayouts } from "react-grid-layout";
 import { ResponsiveGridLayout } from "react-grid-layout";
 import "react-grid-layout/css/styles.css";
-import * as Y from "yjs";
+import { acquireRoom, releaseRoom } from "@/platform/collab";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { WidgetState } from "@/features/agent-canvas/core/types";
 import { WidgetCard } from "./WidgetCard";
 
 const DRAG_HANDLE = ".drag-handle";
 
-// ─── Yjs layout persistence ───────────────────────────────────────────────────
-
-let _yjsDoc: Y.Doc | null = null;
-
-function getYjsDoc(): Y.Doc {
-  if (!_yjsDoc) {
-    _yjsDoc = new Y.Doc();
-  }
-  return _yjsDoc;
-}
-
 // ─── Build responsive layouts from widget specs ───────────────────────────────
 
-function buildLayouts(widgets: WidgetState[]): ResponsiveLayouts<string> {
+function specLayouts(widgets: WidgetState[]): ResponsiveLayouts<string> {
   const items = widgets.map((w) => ({
     i: w.spec.id,
     x: w.spec.position.x,
@@ -45,6 +37,22 @@ function buildLayouts(widgets: WidgetState[]): ResponsiveLayouts<string> {
     md: items.map((l) => ({ ...l, w: Math.min(l.w, 10) })),
     sm: items.map((l) => ({ ...l, w: 4, x: 0 })),
   };
+}
+
+/** Merge a persisted layout over the spec defaults (so new widgets still appear). */
+function mergeLayouts(
+  base: ResponsiveLayouts<string>,
+  saved: ResponsiveLayouts<string> | undefined,
+): ResponsiveLayouts<string> {
+  if (!saved) return base;
+  const out = { ...base } as ResponsiveLayouts<string>;
+  for (const bp of Object.keys(base) as Array<keyof ResponsiveLayouts<string>>) {
+    const savedByI = new Map<string, LayoutItem>(
+      (saved[bp] ?? []).map((l) => [l.i, l] as const),
+    );
+    out[bp] = (base[bp] ?? []).map((l) => savedByI.get(l.i) ?? l);
+  }
+  return out;
 }
 
 // ─── Empty state ──────────────────────────────────────────────────────────────
@@ -86,13 +94,43 @@ function EmptyCanvas({ running }: { running: boolean }) {
 // ─── Main Canvas ──────────────────────────────────────────────────────────────
 
 export function Canvas() {
-  const { widgets, running } = useAgentStore();
+  // Narrow selectors — a thought/event push no longer re-renders the canvas.
+  const widgets = useAgentStore((s) => s.widgets);
+  const running = useAgentStore((s) => s.running);
+  const tableName = useAgentStore((s) => s.tableName);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
-  const yjsDoc = useMemo(() => getYjsDoc(), []);
-  const layoutMap = yjsDoc.getMap("layouts");
+  const [savedLayouts, setSavedLayouts] = useState<
+    ResponsiveLayouts<string> | undefined
+  >(undefined);
+  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Measure container width
+  const roomId = tableName ? `agent-canvas:${tableName}` : null;
+
+  // Acquire the durable room doc for this dataset; read the persisted layout
+  // back once IndexedDB has loaded, then keep a handle for debounced writes.
+  const roomRef = useRef<ReturnType<typeof acquireRoom> | null>(null);
+  useEffect(() => {
+    if (!roomId) return;
+    let cancelled = false;
+    const room = acquireRoom(roomId);
+    roomRef.current = room;
+    void room.whenStored.then(() => {
+      if (cancelled) return;
+      const stored = room.meta.get("layouts") as
+        | ResponsiveLayouts<string>
+        | undefined;
+      if (stored) setSavedLayouts(stored);
+    });
+    return () => {
+      cancelled = true;
+      roomRef.current = null;
+      releaseRoom(roomId);
+    };
+  }, [roomId]);
+
+  // Measure container width.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
@@ -106,27 +144,25 @@ export function Canvas() {
     return () => ro.disconnect();
   }, []);
 
-  // Build layouts from specs (or Yjs-persisted if available)
-  const layouts = useMemo<ResponsiveLayouts<string>>(() => {
-    return buildLayouts(widgets);
-  }, [widgets]);
-
-  // Persist layout changes to Yjs
-  const handleLayoutChange = useCallback(
-    (_: unknown, allLayouts: ResponsiveLayouts<string>) => {
-      yjsDoc.transact(() => {
-        layoutMap.set("layouts", allLayouts);
-      });
-    },
-    [yjsDoc, layoutMap],
+  const layouts = useMemo<ResponsiveLayouts<string>>(
+    () => mergeLayouts(specLayouts(widgets), savedLayouts),
+    [widgets, savedLayouts],
   );
 
-  // Map widget id → latest state
-  const widgetMap = useMemo(() => {
-    const m = new Map<string, WidgetState>();
-    for (const w of widgets) m.set(w.spec.id, w);
-    return m;
-  }, [widgets]);
+  // Persist layout changes (debounced) into the room doc → y-indexeddb.
+  const handleLayoutChange = useCallback(
+    (_: unknown, allLayouts: ResponsiveLayouts<string>) => {
+      const room = roomRef.current;
+      if (!room) return;
+      if (saveTimer.current) clearTimeout(saveTimer.current);
+      saveTimer.current = setTimeout(() => {
+        room.doc.transact(() => {
+          room.meta.set("layouts", allLayouts);
+        });
+      }, 400);
+    },
+    [],
+  );
 
   if (widgets.length === 0) {
     return <EmptyCanvas running={running} />;
@@ -147,19 +183,16 @@ export function Canvas() {
         onLayoutChange={handleLayoutChange}
         autoSize
       >
-        {widgets.map((w, i) => {
-          const current = widgetMap.get(w.spec.id) ?? w;
-          return (
-            <div key={w.spec.id}>
-              <WidgetCard
-                widget={current}
-                dragHandleClass="drag-handle"
-                className="h-full"
-                index={i}
-              />
-            </div>
-          );
-        })}
+        {widgets.map((w, i) => (
+          <div key={w.spec.id}>
+            <WidgetCard
+              widget={w}
+              dragHandleClass="drag-handle"
+              className="h-full"
+              index={i}
+            />
+          </div>
+        ))}
       </ResponsiveGridLayout>
     </div>
   );

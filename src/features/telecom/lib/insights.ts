@@ -61,10 +61,14 @@ export function linearRegression(pts: Array<[number, number]>): {
   const sumXY = pts.reduce((s, [x, y]) => s + x * y, 0);
   const sumXX = pts.reduce((s, [x]) => s + x * x, 0);
   const denom = n * sumXX - sumX * sumX;
+  // Degenerate x (zero variance) → no slope; fall back to a flat line at mean(y).
   if (denom === 0) return { slope: 0, intercept: sumY / n };
   const slope = (n * sumXY - sumX * sumY) / denom;
   const intercept = (sumY - slope * sumX) / n;
-  return { slope, intercept };
+  return {
+    slope: Number.isFinite(slope) ? slope : 0,
+    intercept: Number.isFinite(intercept) ? intercept : sumY / n,
+  };
 }
 
 // ─── Executive narrative ──────────────────────────────────────────────────────

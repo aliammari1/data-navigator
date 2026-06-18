@@ -1,8 +1,5 @@
 import {
   Check,
-  File,
-  FileJson,
-  FileSpreadsheet,
   FileText,
   Loader2,
   X,
@@ -22,93 +19,73 @@ export function formatBytes(bytes: number): string {
 
 export function detectFileType(name: string): FileType {
   const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  // `.txt` stays `unknown` on purpose: it is ambiguous (it can be a pipe/tab
+  // export or free text), and the import pipeline detects its real dialect at
+  // read time. CSV/TSV/Parquet are unambiguous and labelled directly.
   const map: Record<string, FileType> = {
     csv: "csv",
+    tsv: "tsv",
+    parquet: "parquet",
+    pq: "parquet",
   };
   return map[ext] ?? "unknown";
 }
 
-export function getFileIcon(type: FileType) {
+export function getFileIcon(_type: FileType) {
   return <FileText className="h-5 w-5 text-emerald-400" />;
 }
 
-export function inferColumnType(values: unknown[]): ColumnInfo["type"] {
-  const nonNull = values.filter(
-    (v) => v !== null && v !== undefined && v !== "",
-  );
-  if (nonNull.length === 0) return "string";
-  let numCount = 0,
-    dateCount = 0,
-    boolCount = 0;
-  for (const v of nonNull) {
-    const s = String(v).trim();
-    if (s === "true" || s === "false") boolCount++;
-    else if (!Number.isNaN(Number(s)) && s !== "") numCount++;
-    else if (/^\d{4}-\d{2}-\d{2}/.test(s)) dateCount++;
+/**
+ * Per-column null fraction (0..1).
+ *
+ * Prefers the full-table `nullRate` from DuckDB SUMMARIZE when present, and
+ * falls back to `nullCount / rowCount` (preview sample) otherwise.
+ */
+function columnNullRate(column: ColumnInfo, rowCount: number): number {
+  if (typeof column.nullRate === "number") {
+    return Math.min(1, Math.max(0, column.nullRate));
   }
-  const total = nonNull.length;
-  if (numCount / total > 0.8) return "number";
-  if (dateCount / total > 0.8) return "date";
-  if (boolCount / total > 0.8) return "boolean";
-  return "string";
-}
-
-export function computeColumnStats(
-  name: string,
-  values: unknown[],
-): ColumnInfo {
-  const nonNull = values.filter(
-    (v) => v !== null && v !== undefined && v !== "",
-  );
-  const type = inferColumnType(values);
-  const nullCount = values.length - nonNull.length;
-  const uniqueSet = new Set(nonNull.map((v) => String(v)));
-  const info: ColumnInfo = {
-    name,
-    type,
-    nullCount,
-    uniqueCount: uniqueSet.size,
-    sampleValues: nonNull.slice(0, 5),
-  };
-  if (type === "number") {
-    const nums = nonNull.map((v) => Number(v)).filter((n) => !Number.isNaN(n));
-    if (nums.length > 0) {
-      info.min = nums.reduce((a, b) => (a < b ? a : b));
-      info.max = nums.reduce((a, b) => (a > b ? a : b));
-      info.avg = nums.reduce((a, b) => a + b, 0) / nums.length;
-    }
-  }
-  return info;
+  return Math.min(1, column.nullCount / Math.max(1, rowCount));
 }
 
 export function computeQualityScores(columns: ColumnInfo[], rowCount: number) {
-  if (rowCount === 0)
+  if (rowCount === 0 || columns.length === 0)
     return {
       completeness: 100,
       accuracy: 100,
       consistency: 100,
       uniqueness: 100,
     };
-  const totalCells = columns.length * rowCount;
-  const nullCells = columns.reduce((a, c) => a + c.nullCount, 0);
+
   const completeness = Math.round(
-    ((totalCells - nullCells) / totalCells) * 100,
+    (1 -
+      columns.reduce((acc, c) => acc + columnNullRate(c, rowCount), 0) /
+        columns.length) *
+      100,
   );
+
+  // A column is "usable" when it has at least one non-null value.
   const accuracy = Math.round(
-    (columns.reduce((acc, c) => acc + (rowCount - c.nullCount > 0 ? 1 : 0), 0) /
+    (columns.reduce(
+      (acc, c) => acc + (columnNullRate(c, rowCount) < 1 ? 1 : 0),
+      0,
+    ) /
       columns.length) *
       100,
   );
+
   const mixedCols = columns.filter((c) => c.type === "mixed").length;
   const consistency = Math.round(
     (1 - mixedCols / Math.max(1, columns.length)) * 100,
   );
+
   const avgUnique =
     columns.reduce(
       (acc, c) => acc + Math.min(1, c.uniqueCount / Math.max(1, rowCount)),
       0,
     ) / Math.max(1, columns.length);
   const uniqueness = Math.round(avgUnique * 100);
+
   return { completeness, accuracy, consistency, uniqueness };
 }
 

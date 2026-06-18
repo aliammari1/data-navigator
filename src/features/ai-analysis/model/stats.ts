@@ -14,7 +14,11 @@ export function stdDev(values: number[]): number {
 
 export function pearsonCorrelation(xs: number[], ys: number[]): number {
   if (xs.length !== ys.length || xs.length < 3) return 0;
-  return ss.sampleCorrelation(xs, ys);
+  // A constant (zero-variance) series has no linear relationship and makes
+  // sampleCorrelation divide by a zero standard deviation → NaN. Return 0.
+  if (ss.variance(xs) === 0 || ss.variance(ys) === 0) return 0;
+  const r = ss.sampleCorrelation(xs, ys);
+  return Number.isFinite(r) ? r : 0;
 }
 
 export function linearRegression(
@@ -22,11 +26,20 @@ export function linearRegression(
   ys: number[],
 ): { slope: number; intercept: number; r2: number } {
   if (xs.length < 2) return { slope: 0, intercept: 0, r2: 0 };
+  // A degenerate x (zero variance) has no slope and makes ss.linearRegression
+  // yield NaN. Fall back to a flat line through the mean of y.
+  if (ss.variance(xs) === 0) {
+    return { slope: 0, intercept: mean(ys), r2: 0 };
+  }
   const pairs: [number, number][] = xs.map((x, i) => [x, ys[i]]);
   const reg = ss.linearRegression(pairs);
   const line = ss.linearRegressionLine(reg);
-  const r2 = Math.max(0, Math.min(1, ss.rSquared(pairs, line)));
-  return { slope: reg.m, intercept: reg.b, r2 };
+  // rSquared is 0/0 = NaN when y is constant; clamp and coerce NaN → 0.
+  const rawR2 = ss.rSquared(pairs, line);
+  const r2 = Number.isFinite(rawR2) ? Math.max(0, Math.min(1, rawR2)) : 0;
+  const slope = Number.isFinite(reg.m) ? reg.m : 0;
+  const intercept = Number.isFinite(reg.b) ? reg.b : mean(ys);
+  return { slope, intercept, r2 };
 }
 
 export function detectZScoreAnomalies(

@@ -40,6 +40,10 @@ describe("pearsonCorrelation", () => {
   it("detects a perfect negative correlation", () => {
     expect(pearsonCorrelation([1, 2, 3, 4], [4, 3, 2, 1])).toBeCloseTo(-1);
   });
+  it("returns 0 (not NaN) when a series is constant (zero variance)", () => {
+    expect(pearsonCorrelation([1, 2, 3], [5, 5, 5])).toBe(0);
+    expect(pearsonCorrelation([0, 0, 0], [1, 2, 3])).toBe(0);
+  });
 });
 
 describe("linearRegression", () => {
@@ -51,6 +55,18 @@ describe("linearRegression", () => {
     expect(slope).toBeCloseTo(2);
     expect(intercept).toBeCloseTo(1);
     expect(r2).toBeCloseTo(1);
+  });
+  it("returns a flat line through mean(y) for a degenerate x (zero variance)", () => {
+    const { slope, intercept, r2 } = linearRegression([5, 5, 5], [1, 2, 3]);
+    expect(slope).toBe(0);
+    expect(intercept).toBeCloseTo(2); // mean([1,2,3])
+    expect(r2).toBe(0);
+  });
+  it("returns r2 = 0 (not NaN) when y is constant even though x varies", () => {
+    const { slope, intercept, r2 } = linearRegression([0, 1, 2], [4, 4, 4]);
+    expect(r2).toBe(0);
+    expect(slope).toBeCloseTo(0);
+    expect(intercept).toBeCloseTo(4);
   });
 });
 

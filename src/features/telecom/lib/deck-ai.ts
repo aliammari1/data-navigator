@@ -1,11 +1,7 @@
 "use client";
 
+import { type ZodType, z } from "zod";
 import type * as Types from "@/features/telecom/types";
-import {
-  chat,
-  isLoaded as isLocalLLMLoaded,
-  parseJSON,
-} from "@/features/agent-canvas/core/llm";
 
 export interface TelecomDeckInsight {
   title: string;
@@ -20,6 +16,44 @@ export interface TelecomDeckBrief {
   recommendedActions: string[];
   speakerNotes: string[];
 }
+
+/**
+ * Zod schema for the deck brief. Passed to the provider's
+ * `generateStructured(req, schema)` so the LLM output is valid JSON *by
+ * construction* (GBNF grammar from the schema in the llamacpp lane) — no
+ * regex/parseJSON repair loop is needed any more.
+ */
+export const TelecomDeckBriefSchema: ZodType<TelecomDeckBrief> = z.object({
+  executiveSummary: z.string(),
+  keyFindings: z
+    .array(
+      z.object({
+        title: z.string(),
+        summary: z.string(),
+        bullets: z.array(z.string()),
+        risk: z.enum(["low", "medium", "high"]),
+      }),
+    )
+    .max(8),
+  recommendedActions: z.array(z.string()).max(8),
+  speakerNotes: z.array(z.string()).max(8),
+});
+
+/**
+ * Dependency-injected structured generator. Components bind this to
+ * `useAI().generateStructured` (the offline provider registry) and pass it in,
+ * so this lib stays hook-free while still routing through the unified provider.
+ */
+export type GenerateStructured = <T>(
+  req: {
+    system?: string;
+    prompt: string;
+    maxTokens?: number;
+    temperature?: number;
+    signal?: AbortSignal;
+  },
+  schema: ZodType<T>,
+) => Promise<T>;
 
 export interface TelecomDeckBriefInput {
   reportDate: string;
@@ -131,8 +165,17 @@ function buildFallbackBrief(input: TelecomDeckBriefInput): TelecomDeckBrief {
   };
 }
 
+/**
+ * Generate a NotebookLM-style executive deck brief.
+ *
+ * Pass `generateStructured` from `useAI()` to route through the offline provider
+ * registry (llamacpp grammar-constrained JSON by default). When no generator is
+ * supplied — or the provider is unavailable / throws — we fall back to a
+ * fully-deterministic, in-house brief computed from the already-aggregated KPIs.
+ */
 export async function generateTelecomDeckBrief(
   input: TelecomDeckBriefInput,
+  generateStructured?: GenerateStructured,
 ): Promise<{ brief: TelecomDeckBrief; source: "ai" | "local" }> {
   const payload = {
     reportDate: input.reportDate,
@@ -155,14 +198,19 @@ export async function generateTelecomDeckBrief(
     hourly: input.hourly,
   };
 
-  if (isLocalLLMLoaded()) {
+  if (generateStructured) {
     try {
-      const raw = await chat(
-        "You are a telecom reporting analyst running fully offline in the browser. Create NotebookLM-quality executive slide narrative in French. Be specific, operational, and grounded only in the provided metrics. Return strict JSON only.",
-        `Generate a telecom recharge dashboard deck brief from this JSON. Return exactly this JSON shape: {"executiveSummary":string,"keyFindings":[{"title":string,"summary":string,"bullets":string[],"risk":"low"|"medium"|"high"}],"recommendedActions":string[],"speakerNotes":string[]}.\n\n${JSON.stringify(payload)}`,
-        { maxTokens: 1600, temperature: 0.15 },
+      const brief = await generateStructured(
+        {
+          system:
+            "Tu es un analyste de reporting télécom qui tourne 100% hors-ligne. Produis une narration de slides exécutives de qualité NotebookLM en français. Sois spécifique, opérationnel, et fonde-toi UNIQUEMENT sur les métriques fournies — n'invente jamais de chiffre.",
+          prompt: `Génère un brief de deck pour un dashboard de recharges télécom à partir de ce JSON de métriques (toutes les valeurs sont exactes) :\n\n${JSON.stringify(payload)}`,
+          maxTokens: 1600,
+          temperature: 0.15,
+        },
+        TelecomDeckBriefSchema,
       );
-      return { brief: parseJSON<TelecomDeckBrief>(raw), source: "ai" };
+      return { brief, source: "ai" };
     } catch (err) {
       console.warn(
         "[telecom deck] offline AI brief failed, using local brief",

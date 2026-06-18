@@ -63,7 +63,7 @@ export const KPICard = memo(function KPICard({
         color,
         kpiKey &&
           selected &&
-          "ring-2 ring-indigo-400/60 dark:ring-indigo-400/50",
+          "ring-2 ring-primary/60",
       )}
     >
       {kpiKey && (
@@ -78,8 +78,8 @@ export const KPICard = memo(function KPICard({
           className={cn(
             "absolute top-2 left-2 w-4 h-4 rounded flex items-center justify-center border transition-all z-10",
             selected
-              ? "bg-indigo-500 border-indigo-500 text-white"
-              : "bg-background/70 border-border/60 text-transparent hover:border-indigo-400",
+              ? "bg-primary border-primary text-primary-foreground"
+              : "bg-background/70 border-border/60 text-transparent hover:border-primary",
           )}
         >
           {selected && (

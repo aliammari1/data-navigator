@@ -43,11 +43,15 @@ test.describe("AI Analysis Journey", () => {
     await expect(page).toHaveURL(/.*data-formulator.*/);
   });
 
-  test("should access browser page", async ({ page }) => {
-    await page.goto("/dashboard/browser");
+  test("should access data browser page", async ({ page }) => {
+    // The legacy /dashboard/browser route was removed (it now redirects to the
+    // telecom grid). The generic SQL/DuckDB explorer at /dashboard/data-browser
+    // is the surviving functional match for this browsing coverage.
+    await page.goto("/dashboard/data-browser");
     await page.waitForLoadState("networkidle");
 
     await expect(page.locator("body")).toBeVisible();
-    await expect(page).toHaveURL(/.*browser.*/);
+    await expect(page).toHaveURL(/.*data-browser.*/);
+    await expect(page.locator("body")).toContainText(/data browser|duckdb/i);
   });
 });
