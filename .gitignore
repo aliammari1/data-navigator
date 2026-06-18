@@ -55,6 +55,10 @@ BACKLOG.md
 storybook-static/
 .claude-flow
 .swarm
+.superpowers
+.tmp-landing
+.sisyphus
+playwright-report
 
 # Build-time model staging (scripts/prepare-models.mjs) — large GGUF weights.
 .model-cache/
