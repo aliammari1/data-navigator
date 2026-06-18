@@ -1,0 +1,174 @@
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap');
+
+.ns-wrap { font-family: 'Poppins', system-ui, sans-serif; }
+.ns-note { color:#9aa3b2; font-size:13px; margin: 2px 0 14px; }
+
+/* The "screen" */
+.screen {
+  position: relative; width: 100%; aspect-ratio: 16/9; border-radius: 14px; overflow: hidden;
+  background-color: #0b0e14;                 /* solid wallpaper, no gradient */
+  background-image:
+    radial-gradient(rgba(255,255,255,0.022) 1px, transparent 1px);  /* faint dotted texture only */
+  background-size: 22px 22px;
+  border: 1px solid #20262f; box-shadow: 0 20px 60px rgba(0,0,0,.5);
+  color: #e8ecf3; user-select: none;
+}
+/* one disciplined accent presence in a corner — solid-ish, very low intensity */
+.screen::before {
+  content:""; position:absolute; right:-120px; top:-120px; width:420px; height:420px; border-radius:50%;
+  background: rgba(47,107,255,0.10); filter: blur(70px); pointer-events:none;
+}
+
+/* desktop icons */
+.dicons { position:absolute; top:18px; left:18px; display:flex; flex-direction:column; gap:16px; }
+.dicon { width:64px; display:flex; flex-direction:column; align-items:center; gap:5px; }
+.dicon .sq { width:42px; height:42px; border-radius:10px; background:rgba(255,255,255,0.06); border:1px solid rgba(255,255,255,0.10); display:flex; align-items:center; justify-content:center; font-size:18px; }
+.dicon span { font-size:11px; color:#c5cdda; }
+
+/* widget board */
+.board { position:absolute; top:18px; right:18px; width:320px; display:flex; flex-direction:column; gap:12px; }
+.card {
+  background: rgba(22,27,36,0.66); backdrop-filter: blur(22px) saturate(140%);
+  border:1px solid rgba(255,255,255,0.09); border-radius:14px; padding:14px 15px;
+  box-shadow: 0 10px 30px rgba(0,0,0,.35);
+}
+.card .hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+.card .hd .t { font-size:12px; font-weight:600; letter-spacing:.03em; color:#aeb7c6; text-transform:uppercase; }
+.card .hd .pill { font-size:10px; color:#5e8bff; border:1px solid rgba(94,139,255,.45); border-radius:999px; padding:2px 7px; font-weight:600; }
+
+/* KPI */
+.kpis { display:flex; gap:18px; }
+.kpi .v { font-size:26px; font-weight:700; line-height:1; }
+.kpi .l { font-size:11px; color:#93a; color:#8b94a4; margin-top:4px; }
+.kpi .d { font-size:11px; font-weight:600; color:#3ad29f; margin-top:3px; }
+.kpi .d.neg { color:#ff7a7a; }
+
+/* channel bars */
+.bars { display:flex; align-items:flex-end; gap:7px; height:54px; }
+.bars .b { flex:1; background:rgba(255,255,255,0.10); border-radius:4px 4px 2px 2px; }
+.bars .b.on { background:#2f6bff; }
+.legend { display:flex; gap:12px; margin-top:9px; font-size:10px; color:#8b94a4; }
+.legend i { display:inline-block; width:8px;height:8px;border-radius:2px; margin-right:4px; vertical-align:middle; }
+
+/* AI briefing card with presence */
+.ai { display:flex; gap:12px; align-items:flex-start; }
+.orb { position:relative; width:38px; height:38px; flex:0 0 38px; border-radius:50%;
+  background:rgba(47,107,255,0.16); border:1px solid rgba(94,139,255,0.5);
+  display:flex; align-items:center; justify-content:center; }
+.orb .core { width:14px; height:14px; border-radius:50%; background:#5e8bff; animation: breathe 2.8s ease-in-out infinite; }
+.orb::after { content:""; position:absolute; inset:-6px; border-radius:50%; border:1px solid rgba(94,139,255,0.35); animation: ring 2.8s ease-in-out infinite; }
+@keyframes breathe { 0%,100%{ transform:scale(.8); opacity:.85 } 50%{ transform:scale(1.12); opacity:1 } }
+@keyframes ring { 0%,100%{ transform:scale(.85); opacity:.55 } 50%{ transform:scale(1.15); opacity:0 } }
+.ai .txt { font-size:12.5px; line-height:1.5; color:#d4dae4; }
+.ai .txt b { color:#fff; font-weight:600; }
+.lottie-tag { font-size:10px; color:#6b7governed; color:#717b8c; margin-top:8px; font-style:italic; }
+
+/* recent activity */
+.act { display:flex; flex-direction:column; gap:9px; }
+.act .row { display:flex; align-items:center; gap:9px; font-size:12px; color:#c5cdda; }
+.act .dot { width:7px;height:7px;border-radius:50%;background:#2f6bff; flex:0 0 7px; }
+.act .row small { margin-left:auto; color:#727c8d; font-size:10.5px; }
+
+/* greeting bottom-left */
+.greet { position:absolute; left:22px; bottom:78px; }
+.greet h1 { font-size:30px; font-weight:600; margin:0; letter-spacing:-.01em; }
+.greet p { margin:6px 0 0; color:#9aa3b2; font-size:13px; }
+
+/* Windows 11 taskbar */
+.taskbar {
+  position:absolute; left:50%; bottom:14px; transform:translateX(-50%);
+  display:flex; align-items:center; gap:6px; padding:7px 10px;
+  background: rgba(18,22,30,0.72); backdrop-filter: blur(26px) saturate(150%);
+  border:1px solid rgba(255,255,255,0.08); border-radius:14px; box-shadow:0 12px 34px rgba(0,0,0,.45);
+}
+.tb-ic { width:34px; height:34px; border-radius:9px; background:rgba(255,255,255,0.06); display:flex; align-items:center; justify-content:center; font-size:15px; position:relative; transition:.15s; }
+.tb-ic:hover { background:rgba(255,255,255,0.12); }
+.tb-ic.start { background:#2f6bff; color:#fff; font-weight:700; }
+.tb-ic.run::after { content:""; position:absolute; bottom:-4px; left:50%; transform:translateX(-50%); width:5px;height:5px;border-radius:50%;background:#5e8bff; }
+.tb-div { width:1px; height:24px; background:rgba(255,255,255,0.10); margin:0 3px; }
+.tb-search { display:flex; align-items:center; gap:7px; padding:0 12px; height:34px; border-radius:9px; background:rgba(255,255,255,0.05); color:#9aa3b2; font-size:12px; }
+.tb-tray { display:flex; align-items:center; gap:8px; padding:0 10px; height:34px; color:#aeb7c6; font-size:11px; }
+
+/* mic / AI assistant button on taskbar */
+.tb-ic.ai { background:rgba(47,107,255,0.18); border:1px solid rgba(94,139,255,0.5); }
+</style>
+
+<div class="ns-wrap">
+  <h2>North-star: the desktop in Fluent / "Microsoft" dress</h2>
+  <p class="ns-note">Acrylic widgets · solid Electric-Blue accent · Poppins · Windows 11 taskbar · no decorative gradients. The pulsing orb is a placeholder for a real Lottie. React in the terminal — this sets the language everything inherits.</p>
+
+  <div class="screen">
+
+    <!-- desktop icons -->
+    <div class="dicons">
+      <div class="dicon"><div class="sq">🖥️</div><span>Ce PC</span></div>
+      <div class="dicon"><div class="sq">📁</div><span>Télécom</span></div>
+      <div class="dicon"><div class="sq">🗑️</div><span>Corbeille</span></div>
+    </div>
+
+    <!-- greeting -->
+    <div class="greet">
+      <h1>Bonjour, Ali.</h1>
+      <p>Lundi 16 juin · 1 jeu de données actif · tout est à jour</p>
+    </div>
+
+    <!-- widget board -->
+    <div class="board">
+
+      <div class="card">
+        <div class="hd"><span class="t">Aujourd'hui</span><span class="pill">LIVE</span></div>
+        <div class="kpis">
+          <div class="kpi"><div class="v">98.2%</div><div class="l">Taux de succès</div><div class="d">▲ 0.4 pts</div></div>
+          <div class="kpi"><div class="v">1.24M</div><div class="l">Transactions</div><div class="d neg">▼ 2.1%</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><span class="t">Canaux</span></div>
+        <div class="bars">
+          <div class="b on" style="height:80%"></div><div class="b" style="height:55%"></div>
+          <div class="b on" style="height:95%"></div><div class="b" style="height:40%"></div>
+          <div class="b" style="height:62%"></div><div class="b on" style="height:72%"></div>
+          <div class="b" style="height:48%"></div>
+        </div>
+        <div class="legend"><span><i style="background:#2f6bff"></i>USSD</span><span><i style="background:rgba(255,255,255,.2)"></i>APP · WEB · SMS</span></div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><span class="t">Briefing IA</span><span class="pill">Moudir</span></div>
+        <div class="ai">
+          <div class="orb"><div class="core"></div></div>
+          <div class="txt"><b>Pic d'échecs USSD</b> détecté 14h–15h sur la région Centre. Volume APP en hausse de 8% vs hier.</div>
+        </div>
+        <div class="lottie-tag">↳ orbe = emplacement Lottie (assistant IA animé)</div>
+      </div>
+
+      <div class="card">
+        <div class="hd"><span class="t">Activité récente</span></div>
+        <div class="act">
+          <div class="row"><span class="dot"></span>Rapport télécom exporté <small>il y a 12 min</small></div>
+          <div class="row"><span class="dot"></span>Prévision générée <small>1 h</small></div>
+          <div class="row"><span class="dot"></span>DailyTransactions importé <small>3 h</small></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Windows 11 taskbar -->
+    <div class="taskbar">
+      <div class="tb-ic start">▦</div>
+      <div class="tb-search">🔍 Rechercher ou demander à Moudir…</div>
+      <div class="tb-div"></div>
+      <div class="tb-ic run">🏠</div>
+      <div class="tb-ic run">🧾</div>
+      <div class="tb-ic">📊</div>
+      <div class="tb-ic">📈</div>
+      <div class="tb-ic">🗺️</div>
+      <div class="tb-ic ai">🎙️</div>
+      <div class="tb-div"></div>
+      <div class="tb-tray">📶 🔊 &nbsp;14:32</div>
+    </div>
+
+  </div>
+</div>

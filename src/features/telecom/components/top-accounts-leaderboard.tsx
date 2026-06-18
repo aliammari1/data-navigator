@@ -62,7 +62,7 @@ export function TopAccountsLeaderboard({
             onClick={() => setBy("count")}
             className={`h-6 px-2 rounded text-[10px] font-medium border ${
               by === "count"
-                ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-300"
+                ? "border-primary/40 bg-primary/10 text-primary"
                 : "border-border text-muted-foreground hover:bg-muted"
             }`}
           >

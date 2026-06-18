@@ -1,0 +1,35 @@
+/**
+ * Unified, pluggable, offline-first AI provider layer.
+ *
+ * Public surface — import from "@/platform/ai/provider":
+ *   import { useAI } from "@/platform/ai/provider";
+ *   import { getProvider, detectAvailability } from "@/platform/ai/provider";
+ *   import { parseStructured } from "@/platform/ai/provider";
+ *
+ * See docs/AI-PROVIDER.md for the architecture and migration guide.
+ */
+
+export { llamacppProvider } from "./adapters/llamacpp";
+export { ollamaProvider } from "./adapters/ollama";
+export { openaiProvider } from "./adapters/openai";
+export { transformersProvider } from "./adapters/transformers";
+export { isWebLLMOptIn, setWebLLMOptIn, webllmProvider } from "./adapters/webllm";
+export {
+  detectAvailability,
+  getProvider,
+  listProviders,
+  PROVIDERS,
+  type ProviderAvailability,
+  pickDefaultProvider,
+} from "./registry";
+export { useAIRuntimeStore } from "./store";
+export {
+  buildJsonInstruction,
+  extractJsonBlock,
+  parseStructured,
+  repairJson,
+  schemaToGrammarJson,
+} from "./structured";
+export * from "./types";
+export { useAI } from "./use-ai";
+export { zodToInlineJsonSchema } from "./zod-json-schema";

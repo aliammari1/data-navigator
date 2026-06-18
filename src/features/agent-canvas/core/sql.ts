@@ -4,7 +4,8 @@
  * LLM-powered when available; heuristic fallback when not.
  */
 
-import { chat, isLoaded, parseJSON } from "./llm";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
+import { aiChat, aiReadySync } from "./ai-bridge";
 import type { ChartType, DataSchema, WidgetSpec } from "./types";
 
 // ─── SQL Helpers ──────────────────────────────────────────────────────────────
@@ -194,14 +195,37 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 8`;
   ), 1) AS value
 FROM ${tbl}`;
     }
-
-    case "data-table":
     default: {
       const orderBy = met ? `ORDER BY ${qc(met)} DESC NULLS LAST` : "";
       return `SELECT * FROM ${tbl} ${orderBy} LIMIT 30`;
     }
   }
 }
+
+// ─── SQL validation (DuckDB EXPLAIN) ─────────────────────────────────────────
+
+/**
+ * Validate a query against DuckDB itself with `EXPLAIN` (planning only — no
+ * rows scanned, fully offline). Catches hallucinated columns / bad syntax that
+ * the "starts with SELECT/WITH" regex check misses, before the real query runs.
+ */
+async function explainOk(
+  sql: string,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const trimmed = sql.trim().replace(/;\s*$/, "");
+  try {
+    await runReadOnlyQuery(`EXPLAIN ${trimmed}`);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+const SQL_REPAIR_SYSTEM = `You are a DuckDB SQL expert. The previous query failed to plan.
+Fix it so it executes against the given table. Rules:
+- Use ONLY the columns listed; do not invent column names.
+- Use DuckDB syntax, TRY_CAST for numeric conversions, IS NOT NULL guards.
+- RETURN ONLY THE CORRECTED SQL QUERY — no explanation, no markdown, no code fences.`;
 
 // ─── LLM SQL Generation ───────────────────────────────────────────────────────
 
@@ -246,14 +270,14 @@ export async function generateSQL(
 ): Promise<string> {
   let sql: string;
 
-  if (!isLoaded()) {
+  if (!aiReadySync()) {
     sql = heuristicSQL(spec, schema);
     emit(`Rule-based SQL for "${spec.title}"`);
   } else {
     emit(`LLM generating SQL for "${spec.title}" (${spec.chartType})…`);
 
     try {
-      const raw = await chat(SQL_SYSTEM, buildSQLPrompt(spec, schema), {
+      const raw = await aiChat(SQL_SYSTEM, buildSQLPrompt(spec, schema), {
         maxTokens: 400,
         temperature: 0,
       });
@@ -278,12 +302,65 @@ export async function generateSQL(
 
   // Post-processing: ensure LIMIT and replace SELECT * for charts
   const defaultLimit = spec.chartType === "data-table" ? 100 : 50;
-  sql = addLimit(sql, defaultLimit);
-  if (spec.chartType !== "data-table") {
-    sql = explicitColumns(sql, schema);
+  sql = postProcessSQL(sql, spec, schema, defaultLimit);
+
+  // Validate against DuckDB before the real query runs. On failure, attempt a
+  // single LLM-driven repair (feeding the planner error back), then re-validate.
+  // If both validations fail, fall back to the deterministic heuristic template.
+  const check = await explainOk(sql);
+  if (!check.ok) {
+    emit(`SQL failed validation: ${check.error.slice(0, 120)}`);
+
+    if (aiReadySync()) {
+      try {
+        const repaired = await aiChat(
+          SQL_REPAIR_SYSTEM,
+          `${buildSQLPrompt(spec, schema)}\n\nThe failing query was:\n${sql}\n\nDuckDB error:\n${check.error}\n\nCorrected SQL query:`,
+          { maxTokens: 400, temperature: 0 },
+        );
+
+        let candidate = repaired.trim();
+        const fence = candidate.match(/```(?:sql)?\s*([\s\S]*?)```/i);
+        if (fence) candidate = fence[1].trim();
+
+        if (/^\s*(SELECT|WITH)/i.test(candidate)) {
+          candidate = postProcessSQL(candidate, spec, schema, defaultLimit);
+          const recheck = await explainOk(candidate);
+          if (recheck.ok) {
+            emit(`Repaired SQL validated`);
+            return candidate;
+          }
+        }
+      } catch {
+        // Repair attempt failed — fall through to heuristic.
+      }
+    }
+
+    const fallback = postProcessSQL(
+      heuristicSQL(spec, schema),
+      spec,
+      schema,
+      defaultLimit,
+    );
+    emit(`Using validated heuristic SQL for "${spec.title}"`);
+    return fallback;
   }
 
   return sql;
+}
+
+/** Apply LIMIT + explicit-column rewrite consistently to any generated SQL. */
+function postProcessSQL(
+  sql: string,
+  spec: WidgetSpec,
+  schema: DataSchema,
+  defaultLimit: number,
+): string {
+  let out = addLimit(sql, defaultLimit);
+  if (spec.chartType !== "data-table") {
+    out = explicitColumns(out, schema);
+  }
+  return out;
 }
 
 // ─── Insight Generation ───────────────────────────────────────────────────────
@@ -293,7 +370,7 @@ export async function generateInsight(
   data: Record<string, unknown>[],
   emit: (text: string) => void,
 ): Promise<string> {
-  if (!isLoaded() || data.length === 0) return "";
+  if (!aiReadySync() || data.length === 0) return "";
 
   try {
     // Build compact data summary
@@ -306,7 +383,7 @@ export async function generateInsight(
       )
       .join("; ");
 
-    const raw = await chat(
+    const raw = await aiChat(
       "You are a data analyst. Give a single insightful sentence (max 30 words) about this chart data. Be specific with numbers.",
       `Chart: "${spec.title}" (${spec.chartType}). Data (top 5 rows): ${topRows}. Total rows: ${data.length}.`,
       { maxTokens: 60, temperature: 0.3 },
@@ -319,6 +396,3 @@ export async function generateInsight(
     return "";
   }
 }
-
-// Re-export for use in insight-only generation
-export { parseJSON };

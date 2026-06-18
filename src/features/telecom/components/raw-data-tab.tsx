@@ -11,8 +11,10 @@ export const RawDataTab = memo(function RawDataTab({
   operators,
   regions,
   statusMapping,
-  tableName,
+  tableName: _tableName,
   fetchFiltered,
+  fetchFilteredCount,
+  fetchFilteredPage,
   fetchCustomerProfile,
 }: {
   m: Types.ColumnMapping;
@@ -29,6 +31,20 @@ export const RawDataTab = memo(function RawDataTab({
     sortCol: string,
     sortDir: Types.SortDir,
   ) => Promise<{ rows: Types.RawRow[]; total: number }>;
+  fetchFilteredCount?: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+  ) => Promise<number>;
+  fetchFilteredPage?: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+    limit: number,
+    offset: number,
+    sortCol: string,
+    sortDir: Types.SortDir,
+  ) => Promise<Types.RawRow[]>;
   fetchCustomerProfile: (
     m: Types.ColumnMapping,
     msisdn: string,
@@ -70,6 +86,8 @@ export const RawDataTab = memo(function RawDataTab({
         statusMapping={statusMapping}
         onMsisdnClick={(ms) => setSelectedMsisdn(ms)}
         fetchFiltered={fetchFiltered}
+        fetchFilteredCount={fetchFilteredCount}
+        fetchFilteredPage={fetchFilteredPage}
       />
       {selectedMsisdn && (
         <CustomerProfilePanel

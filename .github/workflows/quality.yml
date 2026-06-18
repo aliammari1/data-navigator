@@ -1,23 +1,194 @@
-name: CI
+# facts: data-navigator is a private (package.json private:true), offline-first
+# Electron + Next.js 16 app using pnpm@10.25.0; this is THE PR quality gate
+# (replaces the deleted ci.yml). It runs static analysis + tests + build on every
+# PR/push/merge_group, plus deeper, advisory size-limit and Lighthouse budgets on
+# PRs and a nightly schedule. No multi-GB GGUF model is ever downloaded in CI.
+name: Quality
 
 on:
+  pull_request:
+    branches:
+      - main
+      - develop
   push:
     branches:
       - main
-  pull_request:
+      - develop
+  merge_group:
+  schedule:
+    # Nightly deep-quality run (size budgets + Lighthouse) at 03:11 UTC.
+    - cron: "11 3 * * *"
+  workflow_dispatch:
 
+# Cancel superseded runs on the same ref; never cancel a queued merge-group entry
+# is irrelevant here because each merge_group ref is unique.
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: quality-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
+# Least privilege: grant nothing at the top level; each job opts into the minimum.
+permissions: {}
+
+env:
+  CI: "true"
+  NODE_ENV: test
+  NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  ci:
-    name: Lint, test, and build
+  # ---------------------------------------------------------------------------
+  # THE required PR gate: static analysis, type/arch/provider checks, tests, and
+  # the Next + Storybook builds. Keep this unfiltered so the branch-protection
+  # "Quality" check always reports a status.
+  # ---------------------------------------------------------------------------
+  quality:
+    name: Quality / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node:
+          - 24
+
+    steps:
+      - name: Checkout repository
+        # First-party action: major-version tag is acceptable (auto-patched).
+        uses: actions/checkout@v6
+        with:
+          # LFS holds tracked model/binary fixtures; the build references them.
+          lfs: true
+
+      - name: Set up pnpm + Node + caches
+        # Shared composite action (see CROSS-FILE DEPENDENCY note in the PR/return):
+        # installs pnpm 10.25.0, sets up Node with the pnpm store cache, restores
+        # the Next build cache, and runs `pnpm install --frozen-lockfile`.
+        uses: ./.github/actions/setup
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Package hygiene (sherif)
+        run: pnpm dlx sherif
+
+      - name: Lint (biome)
+        run: pnpm run lint
+
+      - name: Format check (biome)
+        # biome `lint` and `format` are separate; this is the only formatting gate
+        # in CI (lefthook is disabled), so keep it here after deleting ci.yml.
+        run: pnpm run format:check
+
+      - name: Lint (oxlint)
+        run: pnpm dlx oxlint .
+
+      - name: Typecheck (tsc --noEmit)
+        # Run once in CI even though local dev skips tsc for speed.
+        run: pnpm run typecheck
+
+      - name: Architecture check
+        run: pnpm run check:architecture
+
+      - name: Dependency graph check (dependency-cruiser, incl. provider boundaries)
+        run: pnpm run check:deps
+
+      - name: Dead-code check (knip)
+        # Advisory: knip findings should not block the PR gate.
+        run: pnpm run check:deadcode
+        continue-on-error: true
+
+      - name: Unit tests + coverage gate
+        run: pnpm run test:coverage
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: coverage-node-${{ matrix.node }}
+          path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Storybook build + story audit
+        run: pnpm run build:storybook
+
+      - name: Strip heavy runtime assets from Storybook build
+        run: |
+          rm -rf storybook-static/models
+          rm -rf storybook-static/vad
+
+      - name: Next build
+        run: pnpm run build
+
+  # ---------------------------------------------------------------------------
+  # Deeper, advisory gate: bundle/worker size budgets from .size-limit.json.
+  # On PRs, post a size-delta comment vs the base branch; on push/schedule, just
+  # assert the budgets. Runs on PRs and nightly; skipped in the merge queue to
+  # keep landing fast.
+  # ---------------------------------------------------------------------------
+  size-limit:
+    name: Size budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: github.event_name != 'merge_group'
+
+    permissions:
+      contents: read
+      # Needed only so the PR run can post/update the size-delta comment.
+      pull-requests: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+          # size-limit-action diffs against the base branch; give it history.
+          fetch-depth: 0
+
+      - name: Set up pnpm + Node + caches
+        uses: ./.github/actions/setup
+        with:
+          node-version: 24
+
+      # On pull_request: build + measure + comment the delta in one step.
+      - name: Size budgets with PR delta comment
+        if: github.event_name == 'pull_request'
+        # Third-party action: pinned to a commit SHA per supply-chain policy.
+        uses: andresz1/size-limit-action@94bc357df29c36c8f8d50ea497c3e225c3c95d1d # v1.8.0
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          package_manager: pnpm
+          # Reuse the repo's real scripts: `build` (worker:build + next:build)
+          # and `size` (size-limit against .size-limit.json).
+          build_script: build
+          script: pnpm run size
+          # Deps already installed by the composite setup above.
+          skip_step: install
+
+      # On push / schedule / manual: no PR to comment on, so just assert budgets.
+      - name: Size budgets (assert only)
+        if: github.event_name != 'pull_request'
+        run: |
+          pnpm run build
+          pnpm run size
+
+  # ---------------------------------------------------------------------------
+  # Deepest, advisory gate: Lighthouse (lhci) Core Web Vitals budgets from
+  # lighthouserc.cjs, run against the locally started Next production server.
+  # Advisory (continue-on-error) because @lhci/cli is not a pinned dependency and
+  # lab perf numbers are noisy; runs on PRs and nightly only.
+  # ---------------------------------------------------------------------------
+  lighthouse:
+    name: Lighthouse budgets
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    if: github.event_name != 'merge_group'
+    continue-on-error: true
+
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
@@ -25,27 +196,40 @@ jobs:
         with:
           lfs: true
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 10.25.0
-          run_install: false
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
+      - name: Set up pnpm + Node + caches
+        uses: ./.github/actions/setup
         with:
           node-version: 24
-          cache: pnpm
-          cache-dependency-path: pnpm-lock.yaml
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: Build app
+        run: pnpm run build
 
-      - name: Run lint
-        run: pnpm lint
+      - name: Start Next production server
+        # lighthouserc.cjs collects against http://localhost:3000 with no
+        # startServerCommand (offline invariant), so boot the server ourselves.
+        run: |
+          pnpm run start &
+          echo "NEXT_SERVER_PID=$!" >> "$GITHUB_ENV"
 
-      - name: Run tests
-        run: pnpm test --if-present
+      - name: Wait for server
+        run: pnpm exec wait-on --timeout 120000 http://localhost:3000
 
-      - name: Build
-        run: pnpm build
+      - name: Lighthouse CI (Core Web Vitals budgets)
+        # @lhci/cli is not a declared dependency; fetch a pinned version on demand.
+        run: pnpm dlx @lhci/cli@0.16.0 autorun
+
+      - name: Stop Next production server
+        if: always()
+        run: |
+          if [ -n "${NEXT_SERVER_PID:-}" ]; then
+            kill "${NEXT_SERVER_PID}" || true
+          fi
+
+      - name: Upload Lighthouse reports
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: lighthouse-reports
+          path: .lighthouseci
+          if-no-files-found: ignore
+          retention-days: 14

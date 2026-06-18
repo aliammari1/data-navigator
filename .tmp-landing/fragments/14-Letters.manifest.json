@@ -1,0 +1,19 @@
+{
+  "component": "LettersSection",
+  "icons": [
+    "Check",
+    "CornerUpLeft",
+    "Database",
+    "Inbox",
+    "Mail",
+    "MailOpen",
+    "Paperclip",
+    "PenLine",
+    "Presentation",
+    "RadioTower",
+    "Scissors",
+    "Send",
+    "ShieldCheck"
+  ],
+  "lines": 1053
+}

@@ -11,6 +11,7 @@ import {
   useMemo,
   useState,
 } from "react";
+import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
 
 type Theme = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
@@ -40,9 +41,7 @@ const ThemeContext = createContext<ThemeContextValue>({
 });
 
 function getSystemTheme(): ResolvedTheme {
-  return window.matchMedia("(prefers-color-scheme: dark)").matches
-    ? "dark"
-    : "light";
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
 function applyTheme(
@@ -56,9 +55,7 @@ function applyTheme(
   if (disableTransitionOnChange) {
     transitionStyle = document.createElement("style");
     transitionStyle.appendChild(
-      document.createTextNode(
-        "*,*::before,*::after{transition:none!important}",
-      ),
+      document.createTextNode("*,*::before,*::after{transition:none!important}"),
     );
     document.head.appendChild(transitionStyle);
   }
@@ -89,6 +86,10 @@ export function ThemeProvider({
   const [systemTheme, setSystemTheme] = useState<ResolvedTheme>("dark");
 
   useEffect(() => {
+    let cancelled = false;
+    const isValid = (t: string | null): t is Theme =>
+      t === "light" || t === "dark" || (enableSystem && t === "system");
+
     let storedTheme: Theme | null = null;
     try {
       storedTheme = localStorage.getItem("theme") as Theme | null;
@@ -96,13 +97,31 @@ export function ThemeProvider({
       storedTheme = null;
     }
 
-    if (
-      storedTheme === "light" ||
-      storedTheme === "dark" ||
-      (enableSystem && storedTheme === "system")
-    ) {
+    if (isValid(storedTheme)) {
       setThemeState(storedTheme);
+      return;
     }
+
+    // Cold restore: no local working copy (fresh profile / cleared cache). Pull
+    // the durable theme from drizzle settings and adopt it. Best-effort — keeps
+    // the default theme if the durable read is unavailable.
+    void getAppSettingRemote<Theme>("settings", "theme")
+      .then(({ value }) => {
+        if (cancelled || !isValid(value)) return;
+        try {
+          localStorage.setItem("theme", value);
+        } catch {
+          // storage unavailable — React state still updates below
+        }
+        setThemeState(value);
+      })
+      .catch(() => {
+        // durable read unavailable — keep the default theme
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [enableSystem]);
 
   useEffect(() => {
@@ -116,8 +135,7 @@ export function ThemeProvider({
     return () => media.removeEventListener("change", updateSystemTheme);
   }, [enableSystem]);
 
-  const resolvedTheme =
-    theme === "system" && enableSystem ? systemTheme : (theme as ResolvedTheme);
+  const resolvedTheme = theme === "system" && enableSystem ? systemTheme : (theme as ResolvedTheme);
 
   useEffect(() => {
     applyTheme(resolvedTheme, attribute, disableTransitionOnChange);
@@ -131,6 +149,9 @@ export function ThemeProvider({
       } catch {
         // Storage can be unavailable in privacy-restricted browser contexts.
       }
+      // Best-effort durable mirror into drizzle settings. localStorage stays the
+      // authoritative pre-paint read; this only adds durability + backup inclusion.
+      void putAppSettingRemote("settings", "theme", next).catch(() => {});
       return next;
     });
   }, []);
@@ -146,9 +167,7 @@ export function ThemeProvider({
     [enableSystem, resolvedTheme, setTheme, systemTheme, theme],
   );
 
-  return (
-    <ThemeContext.Provider value={context}>{children}</ThemeContext.Provider>
-  );
+  return <ThemeContext.Provider value={context}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

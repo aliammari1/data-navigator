@@ -1,4 +1,22 @@
-name: Electron Windows Build
+name: Electron Windows
+
+# Build + release the Windows MSI for Data Navigator.
+#
+# Two modes:
+#  - PR / manual smoke      -> build-only: prove the WiX MSI still MAKEs (no publish).
+#  - Release (workflow_call) -> MAKE the MSI on windows-latest, upload it as a workflow
+#    artifact AND attach it to the GitHub Release for the current version, with a signed
+#    build-provenance attestation. update-electron-app consumes that Release.
+#
+# RELEASE TRIGGER: this workflow is CALLED by release.yml (workflow_call) after the
+# changesets job cuts the version + git tag + GitHub Release. It is NOT triggered by
+# `on: push: tags`, because the tag is created with GITHUB_TOKEN and GitHub deliberately
+# does NOT start new workflow runs from GITHUB_TOKEN-pushed tags (loop-prevention). The
+# `workflow_dispatch` input below also allows a manual release build.
+#
+# Offline-product note: the multi-GB GGUF model is intentionally NOT downloaded.
+# forge.config.ts copies ./models only if it exists (copyDirIfExists), so CI
+# builds a model-less MSI on purpose. Do not add a model-download step here.
 
 on:
   pull_request:
@@ -7,6 +25,7 @@ on:
     paths:
       - "app/**"
       - "src/**"
+      - "electron/**"
       - "build/**"
       - "public/**"
       - "scripts/**"
@@ -16,33 +35,72 @@ on:
       - "pnpm-lock.yaml"
       - "tsconfig.json"
       - ".github/workflows/electron-windows.yml"
+  # Called by release.yml once a release has been cut; `release: true` flips this run
+  # from build-only smoke into publish mode (attest + attach MSI to the Release).
+  workflow_call:
+    inputs:
+      release:
+        description: Build and publish the MSI to the GitHub Release.
+        type: boolean
+        required: false
+        default: false
+      release-tag:
+        description: The `v<version>` tag whose GitHub Release the MSI is attached to.
+        type: string
+        required: false
+        default: ""
   workflow_dispatch:
+    inputs:
+      release:
+        description: Build and publish the MSI to the GitHub Release.
+        type: boolean
+        required: false
+        default: false
+      release-tag:
+        description: The `v<version>` tag whose GitHub Release the MSI is attached to (e.g. v0.2.0).
+        type: string
+        required: false
+        default: ""
 
+# Release builds must never be cancelled mid-flight; PR smoke runs are cancellable.
 concurrency:
-  group: electron-windows-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: electron-windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-permissions:
-  contents: read
+# Least privilege at the workflow level; jobs opt into exactly what they need.
+permissions: {}
 
 env:
-  CI: true
+  CI: "true"
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
-  package:
-    name: Package Windows app
+  build:
+    name: Build Windows MSI
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 90
+
+    permissions:
+      contents: write # attach the MSI to the GitHub Release (release runs only)
+      id-token: write # OIDC token for build-provenance attestation
+      attestations: write # write the provenance attestation
+
+    # `release: true` (from workflow_call by release.yml, or a manual dispatch) makes
+    # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
+    env:
+      IS_RELEASE: ${{ inputs.release == true }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
           lfs: true
+          # On a release, build from the exact tag changesets cut so the MSI matches
+          # the published version; otherwise build the event's default ref (PR head).
+          ref: ${{ inputs.release-tag != '' && inputs.release-tag || github.ref }}
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.25.0
           run_install: false
@@ -54,25 +112,74 @@ jobs:
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
+      # Cache Electron + electron-builder binary downloads (electron-rebuild /
+      # forge fetch the matching Electron headers + prebuilt binaries on make).
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-${{ runner.os }}-
+
+      # Cache the Next.js build cache to speed up `desktop:build` -> next build.
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Rebuild native modules for Electron
-        run: pnpm run native:rebuild:electron
+      # NOTE: no explicit `native:rebuild:electron` step. Forge rebuildConfig
+      # (force:true in forge.config.ts) rebuilds better-sqlite3 / @duckdb /
+      # sherpa-onnx-node / sqlite-vec / node-llama-cpp during make. Adding an
+      # explicit step would reference a script that does not exist in package.json.
 
-      - name: Verify
+      - name: Verify (quality + build)
         run: pnpm run verify
 
-      - name: Package Electron app
-        run: pnpm run electron:package
+      # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
+      - name: Make Windows MSI
+        run: pnpm run electron:make
         env:
           NODE_ENV: production
 
-      - name: Upload packaged app
+      # Build a verifiable supply-chain provenance attestation over the MSI(s),
+      # even for this private app (defense-in-depth). First-party action -> major tag.
+      - name: Attest build provenance
+        if: env.IS_RELEASE == 'true'
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-path: "out/make/**/*.msi"
+
+      # Attach the MSI to the GitHub Release changesets created for this version.
+      # tag_name is the explicit `v<version>` tag (NOT github.ref, which is the caller's
+      # branch during a workflow_call); softprops updates that existing draft Release.
+      - name: Attach MSI to GitHub Release
+        if: env.IS_RELEASE == 'true'
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
+        with:
+          tag_name: ${{ inputs.release-tag }}
+          draft: true
+          fail_on_unmatched_files: true
+          files: |
+            out/make/**/*.msi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Always upload the MSI as a workflow artifact (build record + PR download).
+      - name: Upload MSI artifact
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: data-navigator-windows-package
+          name: data-navigator-windows-msi
           path: |
-            out/**
-          if-no-files-found: error
-          retention-days: 14
+            out/make/**/*.msi
+          if-no-files-found: warn
+          retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

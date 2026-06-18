@@ -2,7 +2,8 @@
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { persistQueryClient, restoreQueryClient } from "@/platform/storage";
 
 /**
  * Create a QueryClient with performance-optimized defaults.
@@ -68,6 +69,7 @@ focusManager.setEventListener((handleFocus) => {
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   const [queryClient] = useState(getQueryClient);
+  const persistedRef = useRef(false);
 
   // Disable refetch on window focus for Electron environments
   useEffect(() => {
@@ -80,6 +82,27 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       focusManager.setFocused(false);
     }
   }, []);
+
+  // Offline-first cold-load: hydrate the last cache snapshot from IndexedDB so
+  // the last KPI/analytics paint appears instantly, then start the debounced
+  // write subscription so subsequent results survive reloads. Guarded so the
+  // persist subscription is only ever started once.
+  useEffect(() => {
+    if (persistedRef.current) return;
+    persistedRef.current = true;
+
+    let stop: (() => void) | undefined;
+    let cancelled = false;
+
+    void restoreQueryClient(queryClient).finally(() => {
+      if (!cancelled) stop = persistQueryClient(queryClient);
+    });
+
+    return () => {
+      cancelled = true;
+      stop?.();
+    };
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>

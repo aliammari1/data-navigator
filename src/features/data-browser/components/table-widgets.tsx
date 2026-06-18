@@ -1,7 +1,6 @@
 "use client";
 
 import ReactECharts from "echarts-for-react";
-import type React from "react";
 import {
   Activity,
   ArrowDown,
@@ -12,6 +11,7 @@ import {
   MoreHorizontal,
   Pin,
 } from "lucide-react";
+import type React from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,24 +21,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/shared/utils";
-import {
-  TYPE_COLORS,
-  TYPE_ICON,
-} from "@/features/data-browser/model/constants";
+import { TYPE_COLORS, TYPE_ICON } from "@/features/data-browser/model/constants";
 import type {
   ColType,
   ColumnDef,
   ColumnStats,
   SortConfig,
 } from "@/features/data-browser/model/types";
+import { cn } from "@/shared/utils";
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-export function LoadingOverlay({
-  message = "Running query...",
-}: {
-  message?: string;
-}) {
+export function LoadingOverlay({ message = "Running query..." }: { message?: string }) {
   return (
     <div className="absolute inset-0 bg-zinc-950/80 backdrop-blur-sm flex flex-col items-center justify-center z-50 rounded-lg">
       <div className="flex flex-col items-center gap-3">
@@ -66,9 +59,7 @@ export function DBStatusBadge({ initialized }: { initialized: boolean }) {
       <span
         className={cn(
           "h-1.5 w-1.5 rounded-full",
-          initialized
-            ? "bg-emerald-400 animate-pulse"
-            : "bg-amber-400 animate-bounce",
+          initialized ? "bg-emerald-400 animate-pulse" : "bg-amber-400 animate-bounce",
         )}
       />
       {initialized ? "DuckDB Ready" : "Initializing…"}
@@ -79,10 +70,7 @@ export function DBStatusBadge({ initialized }: { initialized: boolean }) {
 export function ColumnTypeChip({ type }: { type: ColType }) {
   return (
     <span
-      className={cn(
-        "inline-flex items-center gap-0.5 text-[10px] font-mono",
-        TYPE_COLORS[type],
-      )}
+      className={cn("inline-flex items-center gap-0.5 text-[10px] font-mono", TYPE_COLORS[type])}
     >
       {TYPE_ICON[type]}
       <span>{type}</span>
@@ -98,9 +86,7 @@ export function MiniSparkline({ data }: { data: number[] }) {
   const h = 28;
   const w = 80;
   const pts = data
-    .map(
-      (v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`,
-    )
+    .map((v, i) => `${(i / (data.length - 1)) * w},${h - ((v - min) / range) * h}`)
     .join(" ");
   return (
     <svg width={w} height={h} className="opacity-60">
@@ -116,13 +102,7 @@ export function MiniSparkline({ data }: { data: number[] }) {
   );
 }
 
-export function ColumnStatPanel({
-  stats,
-  colDef,
-}: {
-  stats: ColumnStats;
-  colDef: ColumnDef;
-}) {
+export function ColumnStatPanel({ stats, colDef }: { stats: ColumnStats; colDef: ColumnDef }) {
   if (stats.loading) {
     return (
       <div className="p-3 space-y-2">
@@ -161,26 +141,16 @@ export function ColumnStatPanel({
     <div className="p-3 space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="bg-zinc-900 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">
-            Min
-          </div>
-          <div className="text-xs font-mono text-zinc-200 truncate">
-            {String(stats.min ?? "—")}
-          </div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Min</div>
+          <div className="text-xs font-mono text-zinc-200 truncate">{String(stats.min ?? "—")}</div>
         </div>
         <div className="bg-zinc-900 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">
-            Max
-          </div>
-          <div className="text-xs font-mono text-zinc-200 truncate">
-            {String(stats.max ?? "—")}
-          </div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Max</div>
+          <div className="text-xs font-mono text-zinc-200 truncate">{String(stats.max ?? "—")}</div>
         </div>
         {colDef.type === "number" && (
           <div className="bg-zinc-900 rounded-lg p-2">
-            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">
-              Avg
-            </div>
+            <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Avg</div>
             <div className="text-xs font-mono text-zinc-200">
               {typeof stats.avg === "number"
                 ? new Intl.NumberFormat("en-US", {
@@ -191,37 +161,28 @@ export function ColumnStatPanel({
           </div>
         )}
         <div className="bg-zinc-900 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">
-            Distinct
-          </div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wide">Distinct</div>
           <div className="text-xs font-mono text-zinc-200">
             {stats.distinctCount.toLocaleString()}
           </div>
         </div>
         <div className="col-span-2 bg-zinc-900 rounded-lg p-2">
-          <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">
-            Null Rate
-          </div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">Null Rate</div>
           <Progress
             value={
               stats.nullCount > 0
-                ? (stats.nullCount / (stats.nullCount + stats.distinctCount)) *
-                  100
+                ? (stats.nullCount / (stats.nullCount + stats.distinctCount)) * 100
                 : 0
             }
             className="h-1.5"
           />
-          <div className="text-[10px] text-zinc-500 mt-1">
-            {stats.nullCount} nulls
-          </div>
+          <div className="text-[10px] text-zinc-500 mt-1">{stats.nullCount} nulls</div>
         </div>
       </div>
 
       {stats.histogram.length > 0 && (
         <div>
-          <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">
-            Distribution
-          </div>
+          <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">Distribution</div>
           <ReactECharts
             option={chartOption}
             style={{ height: 100 }}
@@ -258,8 +219,7 @@ export function ColumnHeader({
   pinned,
 }: ColumnHeaderProps) {
   const sort = sorts.find((s) => s.column === col.name);
-  const sortPriority =
-    sorts.length > 1 ? sorts.findIndex((s) => s.column === col.name) + 1 : null;
+  const sortPriority = sorts.length > 1 ? sorts.findIndex((s) => s.column === col.name) + 1 : null;
 
   return (
     <div
@@ -291,9 +251,7 @@ export function ColumnHeader({
               <ArrowDown className="h-3 w-3" />
             )}
             {sortPriority && (
-              <span className="text-[9px] bg-blue-500/20 rounded px-0.5">
-                {sortPriority}
-              </span>
+              <span className="text-[9px] bg-blue-500/20 rounded px-0.5">{sortPriority}</span>
             )}
           </span>
         ) : (
@@ -316,10 +274,7 @@ export function ColumnHeader({
         <DropdownMenuTrigger className="flex-none opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center justify-center">
           <MoreHorizontal className="h-3.5 w-3.5 text-zinc-500 hover:text-zinc-300" />
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          className="bg-zinc-900 border-zinc-800 w-44"
-        >
+        <DropdownMenuContent align="end" className="bg-zinc-900 border-zinc-800 w-44">
           <DropdownMenuItem
             onClick={onStats}
             className="text-xs gap-2 text-zinc-300 focus:bg-zinc-800"
@@ -354,8 +309,10 @@ export function ColumnHeader({
       </DropdownMenu>
 
       {/* Resize handle */}
-      <div
-        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-emerald-500/50 transition-opacity"
+      <button
+        type="button"
+        aria-label="Resize column"
+        className="absolute right-0 top-0 bottom-0 w-1 cursor-col-resize opacity-0 group-hover:opacity-100 hover:bg-emerald-500/50 transition-opacity p-0 border-0 bg-transparent"
         onMouseDown={onResize}
       />
     </div>

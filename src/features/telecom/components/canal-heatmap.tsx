@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import ReactECharts from "echarts-for-react";
-import { cn } from "@/shared/utils";
+import { useEffect, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildCanalHeatmapOption } from "@/features/telecom/lib/chart-options";
 import type * as Types from "@/features/telecom/types";
+import { cn } from "@/shared/utils";
 
 type FetchCanalHourlyMatrix = (
   m: Types.ColumnMapping,
@@ -62,7 +62,7 @@ export function CanalHeatmap({
               className={cn(
                 "px-3 py-1.5 transition-colors",
                 viewMode === mode
-                  ? "bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 font-semibold"
+                  ? "bg-primary/10 text-primary font-semibold"
                   : "text-muted-foreground hover:text-foreground",
               )}
             >
@@ -75,14 +75,12 @@ export function CanalHeatmap({
         </span>
       </div>
       <div className="rounded-xl border border-border/50 bg-muted/10 overflow-x-auto">
-        <ReactECharts
-          option={buildCanalHeatmapOption(data, viewMode)}
-          style={{
-            height: `${Math.max(canalCount * 28 + 50, 200)}px`,
-            minWidth: "600px",
-          }}
-          opts={{ renderer: "canvas" }}
-        />
+        <div style={{ minWidth: "600px" }}>
+          <EChart
+            option={buildCanalHeatmapOption(data, viewMode)}
+            height={Math.max(canalCount * 28 + 50, 200)}
+          />
+        </div>
       </div>
     </div>
   );

@@ -1,17 +1,21 @@
 "use client";
 /**
  * PlannerAgent — generates a DashboardPlan from a DataSchema.
- * Uses LLM when available; falls back to deterministic heuristics.
+ *
+ * Uses the foundation AI provider registry via `aiStructured()` for
+ * grammar-valid JSON by construction (no regex/parseJSON repair loop), and
+ * falls back to deterministic heuristics when no offline model is warmed.
  */
 
-import { chat, isLoaded, parseJSON } from "./llm";
+import { aiReadySync, aiStructured } from "./ai-bridge";
+import { DashboardPlanSchema } from "./plan-schema";
 import type { ChartType, DashboardPlan, DataSchema, WidgetSpec } from "./types";
 
 // ─── Layout Helper ────────────────────────────────────────────────────────────
 
 function gridPos(
   index: number,
-  total: number,
+  _total: number,
   chartType: ChartType,
 ): { x: number; y: number; w: number; h: number } {
   const isWide = [
@@ -43,8 +47,7 @@ function gridPos(
 // ─── Fallback Rule-Based Planner ──────────────────────────────────────────────
 
 function heuristicPlan(schema: DataSchema): DashboardPlan {
-  const { tableName, dimensions, metrics, timeDims, category, rowCount } =
-    schema;
+  const { dimensions, metrics, timeDims, category, rowCount } = schema;
   const specs: WidgetSpec[] = [];
   let idx = 0;
 
@@ -187,8 +190,9 @@ function heuristicPlan(schema: DataSchema): DashboardPlan {
 // ─── LLM-Based Planner ────────────────────────────────────────────────────────
 
 const SYSTEM_PROMPT = `You are an expert data visualization engineer.
-Given a dataset schema, create a diverse, insightful dashboard plan as JSON.
-You MUST respond with VALID JSON only — no markdown, no explanation, no code fences.`;
+Given a dataset schema, design a diverse, insightful dashboard of 3-9 widgets.
+Use only the listed columns for dimensions/metrics. Prefer a kpi-grid overview,
+at least one trend chart, and a mix of categorical breakdowns and comparisons.`;
 
 function buildUserPrompt(schema: DataSchema): string {
   const colSummary = schema.columns
@@ -216,30 +220,10 @@ Create a dashboard with 6-9 widgets. Think about:
 
 Allowed chartType values: "bar","horizontal-bar","stacked-bar","line","area","multi-line","pie","donut","scatter","bubble","heatmap","treemap","radar","gauge","funnel","kpi-grid","data-table"
 
-Position rules: 12-column grid, rowHeight=60px.
-- kpi-grid: w=12, h=3
-- full-width charts: w=12, h=4
-- half-width charts: w=6, h=4
-- Avoid overlap.
-
-JSON schema:
-{
-  "title": "string",
-  "description": "string",
-  "widgets": [
-    {
-      "id": "unique-id",
-      "title": "Widget title",
-      "chartType": "bar",
-      "sqlIntent": "Natural language: what SQL should compute. Be specific about GROUP BY, aggregation, ordering, LIMIT.",
-      "dimensions": ["col_name"],
-      "metrics": ["col_name"],
-      "position": {"x":0,"y":0,"w":6,"h":4},
-      "reasoning": "Why this chart"
-    }
-  ]
-}
-`;
+For each widget provide: id (unique), title, chartType, sqlIntent (natural language
+description of the SQL — be specific about GROUP BY, aggregation, ordering, LIMIT),
+dimensions (GROUP BY column names), metrics (aggregate column names), and reasoning.
+Grid positions are assigned automatically; do not include them.`;
 }
 
 // ─── Exported function ────────────────────────────────────────────────────────
@@ -248,46 +232,41 @@ export async function buildPlan(
   schema: DataSchema,
   emit: (text: string) => void,
 ): Promise<DashboardPlan> {
-  if (!isLoaded()) {
-    emit("LLM not loaded — using rule-based planner");
+  if (!aiReadySync()) {
+    emit("No model warmed — using rule-based planner");
     const plan = heuristicPlan(schema);
     emit(`Rule-based plan ready: ${plan.widgets.length} widgets`);
     return plan;
   }
 
-  emit("Sending schema to LLM planner…");
+  emit("Asking the LLM planner for a dashboard (grammar-constrained JSON)…");
 
   try {
-    const raw = await chat(SYSTEM_PROMPT, buildUserPrompt(schema), {
-      maxTokens: 1800,
-      temperature: 0.15,
-    });
+    // Grammar-constrained structured output: the result is schema-valid by
+    // construction — no markdown stripping, no parseJSON candidate juggling.
+    const parsed = await aiStructured(
+      SYSTEM_PROMPT,
+      buildUserPrompt(schema),
+      DashboardPlanSchema,
+      { maxTokens: 1800 },
+    );
 
-    emit("Parsing LLM response…");
-    const parsed = parseJSON<DashboardPlan>(raw);
-
-    // Validation + normalization
-    if (!Array.isArray(parsed.widgets) || parsed.widgets.length === 0) {
-      throw new Error("LLM returned plan with no widgets");
-    }
-
-    // Ensure each widget has all required fields
+    // Assign deterministic grid positions (kept out of the grammar on purpose).
     const widgets: WidgetSpec[] = parsed.widgets.map((w, i) => ({
-      id: String(w.id ?? `w${i}`),
-      title: String(w.title ?? `Chart ${i + 1}`),
-      chartType: (w.chartType as ChartType) ?? "bar",
-      sqlIntent: String(w.sqlIntent ?? `Show data from ${schema.tableName}`),
-      dimensions: Array.isArray(w.dimensions) ? w.dimensions.map(String) : [],
-      metrics: Array.isArray(w.metrics) ? w.metrics.map(String) : [],
-      position:
-        w.position ?? gridPos(i, parsed.widgets.length, w.chartType ?? "bar"),
+      id: w.id || `w${i}`,
+      title: w.title || `Chart ${i + 1}`,
+      chartType: w.chartType as ChartType,
+      sqlIntent: w.sqlIntent || `Show data from ${schema.tableName}`,
+      dimensions: w.dimensions ?? [],
+      metrics: w.metrics ?? [],
+      position: gridPos(i, parsed.widgets.length, w.chartType as ChartType),
       reasoning: w.reasoning,
     }));
 
     emit(`LLM plan ready: ${widgets.length} widgets — "${parsed.title}"`);
     return {
-      title: parsed.title ?? "Dashboard",
-      description: parsed.description ?? schema.summary,
+      title: parsed.title || "Dashboard",
+      description: parsed.description || schema.summary,
       widgets,
     };
   } catch (err) {

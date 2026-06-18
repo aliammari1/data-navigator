@@ -30,7 +30,31 @@ export interface ColProfile {
   // quality scores
   completeness: number; // 1 - nullRate
   uniqueness: number; // uniquenessRate
-  validity: number; // heuristic based on type consistency
+  validity: number; // real local validity score (see validity-detail)
+  validityDetail?: ColValidityDetail;
+}
+
+/**
+ * Real, locally-computed validity signal for a column. Replaces the old
+ * `type !== "unknown" ? 0.95 : 0.5` heuristic with a measured score derived
+ * from a bounded reservoir sample of the column.
+ */
+export interface ColValidityDetail {
+  /** 0..1 fraction of sampled non-null values that conform to the column type. */
+  conformanceRate: number;
+  /** 0..1 fraction of sampled numeric values flagged as outliers (MAD-based). */
+  outlierRate: number;
+  /** Inferred semantic type from format inference, if a strong match was found. */
+  semanticType?:
+    | "email"
+    | "uuid"
+    | "url"
+    | "date"
+    | "numeric"
+    | "boolean"
+    | "categorical";
+  /** Number of non-null values inspected for this score. */
+  sampleSize: number;
 }
 
 export interface QualityDimension {
@@ -38,4 +62,15 @@ export interface QualityDimension {
   score: number;
   description: string;
   affected: string[];
+}
+
+/** Lazily-fetched, per-selected-column detail (distribution + frequencies). */
+export interface ColumnDetail {
+  column: string;
+  topValues: { value: string; count: number; pct: number }[];
+  histogram?: { lo: number; hi: number; count: number }[];
+  minLen?: number;
+  maxLen?: number;
+  avgLen?: number;
+  validityDetail?: ColValidityDetail;
 }

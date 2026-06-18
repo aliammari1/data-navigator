@@ -1,14 +1,22 @@
+import type { Dataset, DataTransform, SavedChart } from "@/core/stores/data-store";
 import type {
   CachedAnalyticsMeta,
   CachedTelecomSourceFileMeta,
 } from "@/features/telecom/lib/analytics-cache";
 import type { DailyStat } from "@/features/telecom/lib/daily-stats-cache";
-import type {
-  Dataset,
-  DataTransform,
-  SavedChart,
-} from "@/core/stores/data-store";
+import { parseProjectionLineage } from "./sql-lineage";
 import type { ColumnLineage, LEdge, LNode } from "./types";
+
+// Serializable input shape passed across the worker boundary.
+export interface BuildLineageInput {
+  datasets: Dataset[];
+  transforms: DataTransform[];
+  savedCharts: SavedChart[];
+  telecomSources: CachedTelecomSourceFileMeta[];
+  telecomAnalytics: CachedAnalyticsMeta[];
+  dailyStats: DailyStat[];
+  loadedTableNames: string[];
+}
 function nodeId(prefix: string, value: string): string {
   return `${prefix}_${value.replace(/[^a-zA-Z0-9_]/g, "_").slice(0, 80)}`;
 }
@@ -30,10 +38,7 @@ export function columnLineageKey(cl: ColumnLineage): string {
   return `${cl.sourceNode}:${cl.sourceCol}->${cl.targetNode}:${cl.targetCol}:${cl.transform ?? "pass"}`;
 }
 
-function datasetStatus(
-  ds: Dataset,
-  loadedTableNames: string[],
-): LNode["status"] {
+function datasetStatus(ds: Dataset, loadedTableNames: string[]): LNode["status"] {
   if (loadedTableNames.includes(ds.tableName)) return "active";
   return Date.now() - new Date(ds.updatedAt).getTime() > 7 * 24 * 60 * 60 * 1000
     ? "stale"
@@ -48,15 +53,7 @@ export function buildRealLineage({
   telecomAnalytics,
   dailyStats,
   loadedTableNames,
-}: {
-  datasets: Dataset[];
-  transforms: DataTransform[];
-  savedCharts: SavedChart[];
-  telecomSources: CachedTelecomSourceFileMeta[];
-  telecomAnalytics: CachedAnalyticsMeta[];
-  dailyStats: DailyStat[];
-  loadedTableNames: string[];
-}): {
+}: BuildLineageInput): {
   nodes: LNode[];
   edges: LEdge[];
   columnLineage: ColumnLineage[];
@@ -64,6 +61,10 @@ export function buildRealLineage({
   const nodes = new Map<string, LNode>();
   const edges = new Map<string, LEdge>();
   const columnLineage: ColumnLineage[] = [];
+
+  // Index datasets once so parent lookups are O(1) instead of O(n) find scans.
+  const datasetById = new Map<string, Dataset>();
+  for (const ds of datasets) datasetById.set(ds.id, ds);
 
   const addNode = (node: LNode) => nodes.set(node.id, node);
   const addEdge = (edge: LEdge) => {
@@ -106,17 +107,38 @@ export function buildRealLineage({
         rowsTransferred: ds.rowCount,
       });
 
-      const parent = datasets.find((item) => item.id === ds.parentId);
-      for (const col of ds.columns.slice(0, 40)) {
-        columnLineage.push({
-          sourceNode: nodeId("dataset", ds.parentId),
-          sourceCol:
-            parent?.columns.find((candidate) => candidate.name === col.name)
-              ?.name ?? "*",
-          targetNode: id,
-          targetCol: col.name,
-          transform: ds.transformSql ? "SQL projection" : undefined,
-        });
+      const parent = datasetById.get(ds.parentId);
+      const parentColumns = new Set(parent?.columns.map((candidate) => candidate.name) ?? []);
+      const parentNode = nodeId("dataset", ds.parentId);
+
+      // Prefer REAL column lineage derived from the dataset's own transform SQL.
+      // Falls back to name-equality matching only when the SQL cannot be parsed
+      // (e.g. SELECT *, set operations, CTEs) so we never emit wrong lineage.
+      const projection = ds.transformSql ? parseProjectionLineage(ds.transformSql) : null;
+
+      if (projection) {
+        for (const proj of projection) {
+          const sources = proj.sourceCols.length > 0 ? proj.sourceCols : [proj.targetCol];
+          for (const sourceCol of sources) {
+            columnLineage.push({
+              sourceNode: parentNode,
+              sourceCol: sourceCol,
+              targetNode: id,
+              targetCol: proj.targetCol,
+              transform: proj.transform,
+            });
+          }
+        }
+      } else {
+        for (const col of ds.columns.slice(0, 40)) {
+          columnLineage.push({
+            sourceNode: parentNode,
+            sourceCol: parentColumns.has(col.name) ? col.name : "*",
+            targetNode: id,
+            targetCol: col.name,
+            transform: ds.transformSql ? "SQL projection" : undefined,
+          });
+        }
       }
     }
   }
@@ -194,16 +216,11 @@ export function buildRealLineage({
       rowCount: entry.totalTransactions,
       colCount: 0,
       owner: "telecom",
-      description:
-        "Cached KPI, channel, hourly, status, error, operator and region analytics.",
+      description: "Cached KPI, channel, hourly, status, error, operator and region analytics.",
       quality: Math.max(0, Math.min(1, entry.successRate / 100)),
       tags: ["telecom", "analytics", "kpi"],
       lastUpdated: timeAgo(entry.savedAt),
-      upstreams: telecomSources.some(
-        (sourceMeta) => sourceMeta.key === entry.key,
-      )
-        ? [source]
-        : [],
+      upstreams: telecomSources.some((sourceMeta) => sourceMeta.key === entry.key) ? [source] : [],
       downstreams: [],
     });
     if (telecomSources.some((sourceMeta) => sourceMeta.key === entry.key)) {
@@ -220,9 +237,7 @@ export function buildRealLineage({
 
   for (const stat of dailyStats) {
     const id = nodeId("telecom_day", stat.day);
-    const upstreams = stat.lineage.map((lineage) =>
-      nodeId("telecom_source", lineage.fileKey),
-    );
+    const upstreams = stat.lineage.map((lineage) => nodeId("telecom_source", lineage.fileKey));
     addNode({
       id,
       name: `Telecom daily snapshot · ${stat.day}`,
@@ -266,58 +281,11 @@ export function buildRealLineage({
 
   return {
     nodes: nodeList,
-    edges: [...edges.values()].filter(
-      (edge) => nodes.has(edge.source) && nodes.has(edge.target),
-    ),
+    edges: [...edges.values()].filter((edge) => nodes.has(edge.source) && nodes.has(edge.target)),
     columnLineage,
   };
 }
 
-// ─── Layout helpers ─────────────────────────────────────────────────────────
-
-export function computeLayout(
-  nodes: LNode[],
-): Record<string, { x: number; y: number }> {
-  // Multi-pass topological sort → assign columns
-  const cols: Record<string, number> = {};
-  const inDegree: Record<string, number> = {};
-  for (const n of nodes) inDegree[n.id] = n.upstreams.length;
-  const queue = nodes.filter((n) => n.upstreams.length === 0).map((n) => n.id);
-  let col = 0;
-  while (queue.length > 0) {
-    const next: string[] = [];
-    for (const id of queue) {
-      cols[id] = cols[id] !== undefined ? Math.max(cols[id], col) : col;
-      const node = nodes.find((n) => n.id === id);
-      if (!node) continue;
-      for (const ds of node.downstreams) {
-        inDegree[ds]--;
-        if (inDegree[ds] === 0) next.push(ds);
-        const dsNode = nodes.find((n) => n.id === ds);
-        if (dsNode) cols[ds] = Math.max(cols[ds] ?? 0, cols[id] + 1);
-      }
-    }
-    col++;
-    queue.splice(0, queue.length, ...next);
-  }
-
-  // Assign y positions within each column
-  const colGroups: Record<number, string[]> = {};
-  for (const [id, c] of Object.entries(cols)) {
-    colGroups[c] = colGroups[c] ?? [];
-    colGroups[c].push(id);
-  }
-  const positions: Record<string, { x: number; y: number }> = {};
-  const nodeW = 220,
-    nodeH = 100,
-    padX = 80,
-    padY = 30;
-  for (const [col, ids] of Object.entries(colGroups)) {
-    const x = Number(col) * (nodeW + padX) + 40;
-    ids.forEach((id, i) => {
-      const y = i * (nodeH + padY) + 40;
-      positions[id] = { x, y };
-    });
-  }
-  return positions;
-}
+// Layout now lives in `./elk-layout.ts` (ELK layered DAG, worker-side). The old
+// dagre `computeLayout` was removed per the v2 plan (dagre is deprecated and was
+// the installed-but-unused layout dep). Node dimensions are re-exported there.

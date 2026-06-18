@@ -41,8 +41,11 @@ import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
 import { buildOption } from "@/features/data-formulator/core/chart-options";
 
+// Custom data-formulator widgets render through the shared telecom EChart
+// surface (OffscreenCanvas worker + tree-shaken core, with an echarts-for-react
+// fallback). Lazy-loaded so the chart code stays out of the initial route JS.
 const ReactEChartsWidget = dynamic(
-  () => import("echarts-for-react").then((m) => ({ default: m.default })),
+  () => import("./echart").then((m) => ({ default: m.EChart })),
   { ssr: false },
 );
 
@@ -139,7 +142,7 @@ function ExportToggle({
       className={cn(
         "flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-semibold transition-colors",
         checked
-          ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
+          ? "border-primary/30 bg-primary/10 text-primary"
           : "border-border bg-background text-muted-foreground hover:bg-muted",
       )}
       aria-pressed={checked}
@@ -147,7 +150,7 @@ function ExportToggle({
       <span
         className={cn(
           "flex h-3.5 w-3.5 items-center justify-center rounded border",
-          checked ? "border-indigo-500 bg-indigo-500" : "border-border",
+          checked ? "border-primary bg-primary" : "border-border",
         )}
       >
         {checked && (
@@ -509,8 +512,7 @@ export const OverviewTab = memo(function OverviewTab({
           {w.result && w.result.data.length > 0 ? (
             <ReactEChartsWidget
               option={buildOption(w.chartSpec, w.result.data) ?? {}}
-              style={{ height: 240 }}
-              opts={{ renderer: "canvas" }}
+              height={240}
             />
           ) : (
             <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
@@ -532,11 +534,11 @@ export const OverviewTab = memo(function OverviewTab({
       {kpi && <AlertBanner kpi={kpi} canals={canals} />}
 
       {insights.length > 0 && (
-        <div className="rounded-2xl border border-indigo-500/15 bg-indigo-500/5 p-4">
+        <div className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 min-w-0">
-              <Sparkles className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
-              <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+              <Sparkles className="w-3.5 h-3.5 text-primary" />
+              <span className="text-xs font-semibold text-primary">
                 Assistant métier
               </span>
               <span className="text-[10px] text-muted-foreground">

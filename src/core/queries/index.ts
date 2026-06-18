@@ -2,6 +2,5 @@
 
 export * from "./datasets";
 export * from "./duckdb";
-export * from "./files";
 export * from "./folders";
 export * from "./keys";

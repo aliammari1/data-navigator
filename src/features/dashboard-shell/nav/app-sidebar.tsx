@@ -1,0 +1,194 @@
+"use client";
+
+import { Brain, ChevronRight, Database } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { useMemo } from "react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { usePinnedItems } from "@/core/stores/settings-store";
+import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
+import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
+import {
+  ALL_ITEMS,
+  FOOTER_ITEMS,
+  isNavGroupActive,
+  isNavItemActive,
+  NAV_SECTIONS,
+} from "@/features/dashboard-shell/nav/nav-config";
+import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
+import { cn } from "@/lib/utils";
+
+/**
+ * Application sidebar (IA v2).
+ *
+ * `<nav>` landmark, grouped/collapsible sections, fully tokenized (the teal
+ * hardcodes are gone), 12px section labels (the 9px floor is lifted), and a
+ * 56px icon rail when collapsed with keyboard-accessible Radix tooltips.
+ * Active state is computed once here and passed down to memoized buttons.
+ */
+export function AppSidebar({
+  collapsed,
+  onToggle,
+  onAiToggle,
+}: {
+  collapsed: boolean;
+  onToggle: () => void;
+  onAiToggle?: () => void;
+}) {
+  const pinnedItems = usePinnedItems();
+  const pathname = usePathname();
+  const engine = useEngineInfo();
+
+  const pinnedNavItems = useMemo(
+    () => ALL_ITEMS.filter((item) => pinnedItems.includes(item.href)),
+    [pinnedItems],
+  );
+
+  return (
+    <aside
+      data-collapsed={collapsed || undefined}
+      style={{ width: collapsed ? 56 : 232 }}
+      className="relative hidden h-full flex-none flex-col overflow-hidden border-r border-sidebar-border bg-sidebar text-sidebar-foreground transition-[width] duration-200 ease-out motion-reduce:transition-none md:flex"
+    >
+      {/* Brand */}
+      <div
+        className={cn(
+          "flex h-12 flex-none items-center gap-2.5 border-b border-sidebar-border px-3",
+          collapsed && "justify-center",
+        )}
+      >
+        <div className="flex size-7 flex-none shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/15">
+          <Database className="size-3.5 text-primary" />
+        </div>
+        {!collapsed && (
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-sm font-semibold leading-none text-sidebar-foreground">
+              Data Navigator
+            </div>
+            <div className="mt-0.5 font-mono text-[10px] text-muted-foreground/60">
+              {engine.label}
+            </div>
+          </div>
+        )}
+        {!collapsed && (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-label="Réduire le menu"
+            className="flex size-6 flex-none items-center justify-center rounded-md text-muted-foreground/50 transition-colors hover:bg-foreground/5 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ChevronRight className="size-3 rotate-180" />
+          </button>
+        )}
+        {collapsed && (
+          <button
+            type="button"
+            onClick={onToggle}
+            className="absolute inset-0 size-full"
+            aria-label="Développer le menu"
+          />
+        )}
+      </div>
+
+      {/* Scrollable nav */}
+      <nav
+        aria-label="Navigation principale"
+        className="scrollbar-none flex-1 overflow-y-auto overflow-x-hidden py-2"
+      >
+        {/* Pinned */}
+        {!collapsed && pinnedNavItems.length > 0 && (
+          <div className="mb-1 px-2">
+            <SectionLabel>Épinglés</SectionLabel>
+            {pinnedNavItems.map((item) => (
+              <NavButton
+                key={`pinned-${item.href}`}
+                item={item}
+                collapsed={false}
+                active={isNavItemActive(pathname, item.href)}
+              />
+            ))}
+            <div className="mx-2 my-2 border-t border-sidebar-border/60" />
+          </div>
+        )}
+
+        {NAV_SECTIONS.map((section) => (
+          <div key={section.label} className="mb-1 space-y-px px-2">
+            {!collapsed ? (
+              <SectionLabel>{section.label}</SectionLabel>
+            ) : (
+              <div className="mx-1 my-1 border-t border-sidebar-border/40" />
+            )}
+            {section.items.map((item) =>
+              item.children ? (
+                <NavGroup
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                  pathname={pathname}
+                  groupActive={isNavGroupActive(pathname, item)}
+                />
+              ) : (
+                <NavButton
+                  key={item.href}
+                  item={item}
+                  collapsed={collapsed}
+                  active={isNavItemActive(pathname, item.href)}
+                />
+              ),
+            )}
+          </div>
+        ))}
+      </nav>
+
+      {/* Footer */}
+      <div className="flex-none space-y-px border-t border-sidebar-border px-2 py-2">
+        {FOOTER_ITEMS.map((item) => (
+          <NavButton
+            key={item.href}
+            item={item}
+            collapsed={collapsed}
+            active={isNavItemActive(pathname, item.href)}
+          />
+        ))}
+        {onAiToggle && <AiAssistantButton collapsed={collapsed} onClick={onAiToggle} />}
+      </div>
+    </aside>
+  );
+}
+
+function SectionLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
+      {children}
+    </div>
+  );
+}
+
+function AiAssistantButton({
+  collapsed,
+  onClick,
+}: {
+  collapsed: boolean;
+  onClick: () => void;
+}) {
+  const button = (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        "flex w-full items-center gap-2.5 rounded-lg border-l-2 border-transparent py-1.5 text-sm text-muted-foreground transition-colors hover:bg-ai/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+        collapsed ? "justify-center px-3" : "pr-2 pl-3",
+      )}
+    >
+      <Brain className="size-4 flex-none shrink-0 text-ai" />
+      {!collapsed && <span className="flex-1 text-left">Assistant IA</span>}
+    </button>
+  );
+
+  if (!collapsed) return button;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>{button}</TooltipTrigger>
+      <TooltipContent side="right">Assistant IA</TooltipContent>
+    </Tooltip>
+  );
+}

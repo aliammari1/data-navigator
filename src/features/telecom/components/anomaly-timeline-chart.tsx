@@ -1,8 +1,8 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
-import type * as Types from "@/features/telecom/types";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildAnomalyTimelineOption } from "@/features/telecom/lib/chart-options";
+import type * as Types from "@/features/telecom/types";
 
 export function AnomalyTimelineChart({
   hourly,
@@ -12,10 +12,6 @@ export function AnomalyTimelineChart({
   anomalies: Array<{ hour: number; zScore: number; type: "spike" | "drop" }>;
 }) {
   return (
-    <ReactECharts
-      option={buildAnomalyTimelineOption(hourly, anomalies)}
-      style={{ height: 200 }}
-      opts={{ renderer: "canvas" }}
-    />
+    <EChart option={buildAnomalyTimelineOption(hourly, anomalies)} height={200} />
   );
 }

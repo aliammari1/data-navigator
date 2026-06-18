@@ -1,8 +1,8 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { AlertTriangle, BarChart2, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
@@ -256,12 +256,9 @@ export function SpecChannelTable({
             <BarChart2 className="w-3 h-3" /> Distribution des transactions par
             canal
           </div>
-          <ReactECharts
+          <EChart
             option={chartOption}
-            style={{
-              height: `${Math.max(sorted.length * 30 + 24, 80)}px`,
-            }}
-            opts={{ renderer: "canvas" }}
+            height={Math.max(sorted.length * 30 + 24, 80)}
           />
         </div>
       )}

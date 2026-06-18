@@ -35,7 +35,7 @@ describe("Settings Store", () => {
     expect(result.current.theme).toBe("dark");
     expect(result.current.maxFileSize).toBe(10 * 1024 * 1024);
     expect(result.current.maxFiles).toBe(20);
-    expect(result.current.accentColor).toBe("indigo");
+    expect(result.current.accentColor).toBe("blue");
     expect(result.current.density).toBe("comfortable");
     expect(result.current.sidebarStyle).toBe("dark");
     expect(result.current.animationsEnabled).toBe(true);
@@ -242,7 +242,7 @@ describe("Settings Store", () => {
     });
 
     expect(result.current.theme).toBe("dark");
-    expect(result.current.accentColor).toBe("indigo");
+    expect(result.current.accentColor).toBe("blue");
     expect(result.current.density).toBe("comfortable");
     expect(result.current.sidebarStyle).toBe("dark");
     expect(result.current.animationsEnabled).toBe(true);

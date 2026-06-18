@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "incremental": false
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "**/*.mts",
+    "electron/**/*.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "out",
+    "dist",
+    "tests",
+    "evals"
+  ]
+}

@@ -143,7 +143,7 @@ export function StatusConfigPanel({
         <button
           type="button"
           onClick={handleAutoMap}
-          className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 dark:border-indigo-500/25 dark:text-indigo-300 rounded-lg text-xs font-medium transition-colors"
+          className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/10 hover:bg-primary/15 border border-primary/30 text-primary rounded-lg text-xs font-medium transition-colors"
         >
           <Brain className="w-3.5 h-3.5" /> Auto-Map All
         </button>
@@ -156,12 +156,12 @@ export function StatusConfigPanel({
           return editCode === rs.rawCode ? (
             <div
               key={rs.rawCode}
-              className="rounded-xl border border-indigo-500/30 bg-indigo-500/5 p-4 space-y-3"
+              className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3"
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-foreground">
                   Editing:{" "}
-                  <code className="text-indigo-700 dark:text-indigo-300 font-mono">
+                  <code className="text-primary font-mono">
                     {rs.rawCode}
                   </code>
                   <span className="text-muted-foreground ml-2">

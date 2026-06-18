@@ -1,20 +1,39 @@
 import { build } from "esbuild";
+import { copyWorkerAssets } from "./scripts/copy-worker-assets.mjs";
 
 const isWatch = process.argv.includes("--watch");
 const isProduction = process.env.NODE_ENV === "production";
+
+// Self-host worker runtime assets (resvg wasm) BEFORE bundling so the offline
+// zero-network invariant holds — never fetched from a CDN at runtime.
+copyWorkerAssets();
 
 const workers = [
   {
     in: "src/workers/python-sandbox.worker.ts",
     out: "public/workers/python-sandbox.worker.js",
   },
+  // Shared Comlink workers (web-build pre-bundle path; the renderer also loads
+  // these via `new Worker(new URL(...), { type: "module" })` through Next).
   {
-    in: "src/workers/llm.worker.ts",
-    out: "public/workers/llm.worker.js",
+    in: "src/workers/analysis.worker.ts",
+    out: "public/workers/analysis.worker.js",
   },
   {
-    in: "src/features/data-formulator/core/voice/voice-command-router.ts",
-    out: "public/workers/voice-router.worker.js",
+    in: "src/workers/chart.worker.ts",
+    out: "public/workers/chart.worker.js",
+  },
+  {
+    in: "src/workers/parse.worker.ts",
+    out: "public/workers/parse.worker.js",
+  },
+  {
+    in: "src/workers/layout.worker.ts",
+    out: "public/workers/layout.worker.js",
+  },
+  {
+    in: "src/workers/export.worker.ts",
+    out: "public/workers/export.worker.js",
   },
 ];
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { loadLLM } from "@/features/agent-canvas/core/llm";
+import { loadLLM } from "@/platform/ai/transformers-engine";
 import {
   type LLMModelDef,
   MODEL_CATALOG,
@@ -57,6 +57,8 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
     return found;
   }, [selected]);
 
+  // Intentional: only log initial mount/unmount.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: mount/unmount-only logging effect; reads current selected/loading at lifecycle boundaries by design
   useEffect(() => {
     debugLog("mounted", {
       initialSelected: selected,
@@ -77,8 +79,6 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
 
       abortControllerRef.current?.abort();
     };
-    // Intentional: only log initial mount/unmount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { Crown, Plus, Shield, Trash2, User as UserIcon } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createUser,
   ensureBootstrapUser,
@@ -29,15 +29,15 @@ export function UserManagementPanel({
   });
   const [error, setError] = useState("");
 
-  const reload = () => {
+  const reload = useCallback(() => {
     ensureBootstrapUser();
     setUsers(listUsers());
     setMe(getCurrentUser());
-  };
+  }, []);
 
   useEffect(() => {
     reload();
-  }, []);
+  }, [reload]);
 
   const isAdmin = currentRole === "admin";
 
@@ -61,7 +61,7 @@ export function UserManagementPanel({
   return (
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
-        <Shield className="w-3.5 h-3.5 text-indigo-500" />
+        <Shield className="w-3.5 h-3.5 text-primary" />
         <span className="text-xs font-semibold">Gestion des Utilisateurs</span>
         <span className="text-[10px] text-muted-foreground ml-2">
           {users.length} compte(s)
@@ -130,7 +130,7 @@ export function UserManagementPanel({
           </select>
           <button
             type="submit"
-            className="h-8 px-3 rounded-md text-xs font-semibold bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center gap-1"
+            className="h-8 px-3 rounded-md text-xs font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center justify-center gap-1"
           >
             <Plus className="w-3.5 h-3.5" /> Créer
           </button>
@@ -179,7 +179,7 @@ export function UserManagementPanel({
                     </div>
                   </div>
                   {me?.id === u.id && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-500/30">
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
                       vous
                     </span>
                   )}

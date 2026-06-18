@@ -32,7 +32,7 @@ test.describe("Settings Configuration Journey", () => {
     if (toggleCount > 0) {
       // Click first toggle
       const firstToggle = toggles.first();
-      const initialState = await firstToggle.getAttribute("aria-checked");
+      const _initialState = await firstToggle.getAttribute("aria-checked");
 
       await firstToggle.click();
       await page.waitForTimeout(300);
@@ -68,7 +68,7 @@ test.describe("Settings Configuration Journey", () => {
     const toggle = page.locator('[role="switch"]').first();
 
     if (await toggle.isVisible().catch(() => false)) {
-      const beforeState = await toggle.getAttribute("aria-checked");
+      const _beforeState = await toggle.getAttribute("aria-checked");
       await toggle.click();
       await page.waitForTimeout(500);
 

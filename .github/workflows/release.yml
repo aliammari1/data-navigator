@@ -1,3 +1,10 @@
+# facts: Release pipeline for data-navigator (private, offline-first Electron app). Changesets
+# owns version+git-tag+GitHub Release on push to main; a needs-gated Windows job then builds and
+# attaches the WiX MSI to that Release. The tag is created with GITHUB_TOKEN, which does NOT
+# re-trigger electron-windows.yml's `on: push: tags` (GitHub loop-prevention safeguard), so the
+# MSI build is chained explicitly via `needs` + the changesets `published` output instead of by
+# tag push. Third-party actions are SHA-pinned; first-party actions/* use major tags. No GGUF
+# model download anywhere in this pipeline.
 name: Release
 
 on:
@@ -6,19 +13,31 @@ on:
       - main
   workflow_dispatch:
 
+# Never cancel a half-done release.
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-  pull-requests: write
+# Least privilege: grant nothing at the top level; each job opts into the minimum it needs.
+permissions: {}
 
 jobs:
   changesets:
     name: Version or release
     runs-on: ubuntu-latest
     timeout-minutes: 30
+
+    permissions:
+      contents: write
+      pull-requests: write
+
+    # Expose the changesets outcome so the Windows job only builds when a real
+    # release was actually cut (a git tag + GitHub Release were created), plus the
+    # exact `v<version>` tag the MSI must be attached to.
+    outputs:
+      published: ${{ steps.changesets.outputs.published }}
+      publishedPackages: ${{ steps.changesets.outputs.publishedPackages }}
+      releaseTag: ${{ steps.tag.outputs.releaseTag }}
 
     steps:
       - name: Check out repository
@@ -28,7 +47,8 @@ jobs:
           lfs: true
 
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.25.0
           run_install: false
@@ -45,9 +65,12 @@ jobs:
 
       - name: Create release pull request or GitHub Release
         id: changesets
-        uses: changesets/action@v1
+        # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
+        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm run version:app
+          # Private root package: `changeset publish` skips npm and (privatePackages.tag=true)
+          # creates the `v<version>` git tag + GitHub Release. No npm token needed.
           publish: pnpm run release
           title: "Release: version Data Navigator"
           commit: "Prepare a traceable Data Navigator release"
@@ -55,3 +78,31 @@ jobs:
           createGithubReleases: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # Derive the `v<version>` tag changesets created (tool=root single private pkg,
+      # so the tag is `v${version}`). Used as the MSI's target release.
+      - name: Resolve release tag
+        id: tag
+        if: steps.changesets.outputs.published == 'true'
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          echo "releaseTag=v${version}" >> "$GITHUB_OUTPUT"
+
+  # Build + attach the Windows MSI to the Release that the changesets job just cut.
+  # Chained via `needs` (not a tag-push trigger) because GITHUB_TOKEN-created tags
+  # do not start new workflow runs. Calls the reusable Windows build in
+  # electron-windows.yml so there is a single source of truth for the MSI build.
+  windows-msi:
+    name: Build + publish Windows MSI
+    needs: changesets
+    if: needs.changesets.outputs.published == 'true'
+    uses: ./.github/workflows/electron-windows.yml
+    permissions:
+      contents: write # attach the MSI to the GitHub Release
+      id-token: write # OIDC token for build-provenance attestation
+      attestations: write # write the provenance attestation
+    with:
+      release: true
+      # Check out + attach the MSI to the exact tag changesets created.
+      release-tag: ${{ needs.changesets.outputs.releaseTag }}
+    secrets: inherit
