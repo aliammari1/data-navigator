@@ -18,13 +18,14 @@ import {
   Database,
   FolderOpen,
   Loader2,
-  Upload,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { loadLLM } from "@/features/agent-canvas/core/llm";
-import { MODEL_CATALOG } from "@/features/agent-canvas/core/types";
+import { warmAI } from "@/features/agent-canvas/core/ai-bridge";
+import { ModelDownloadPanel } from "@/features/agent-canvas/components/ModelDownloadPanel";
+import type { AIModelInfo } from "@/platform/ai/provider";
+import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
 import {
   loadUploadPathToDuckDB,
   type UploadFileFormat,
@@ -152,6 +153,42 @@ function ModelPicker({
   const [status, setStatus] = useState("");
   const [done, setDone] = useState(false);
   const [error, setError] = useState("");
+  const [models, setModels] = useState<AIModelInfo[]>([]);
+  const [providerLabel, setProviderLabel] = useState("");
+
+  const setRuntimeModel = useAIRuntimeStore((s) => s.setModel);
+
+  // Selecting a model updates BOTH the feature store (props.onSelect) and the
+  // shared AI runtime store the pipeline reads — keeping them in lockstep.
+  const selectModel = useCallback(
+    (id: string) => {
+      onSelect(id);
+      setRuntimeModel(id);
+    },
+    [onSelect, setRuntimeModel],
+  );
+
+  // Discover the best available OFFLINE provider (llamacpp in Electron →
+  // transformers.js browser worker) and its real model list. No hub ids, no CDN
+  // assumptions — the platform adapters own offline asset resolution.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one-time offline provider discovery; selected/selectModel are read at mount only to seed the initial choice.
+  useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const provider = await pickDefaultProvider();
+      const list = await provider.listModels().catch(() => []);
+      if (!alive) return;
+      setProviderLabel(provider.label);
+      setModels(list);
+      if (list.length > 0 && !list.some((m) => m.id === selected)) {
+        selectModel(list[0].id);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleLoad = useCallback(async () => {
     setLoading(true);
@@ -160,35 +197,18 @@ function ModelPicker({
     setProgress(0);
 
     try {
-      const traceId = `setup-model-${selected}-${Date.now()}`;
-
-      console.groupCollapsed("[SetupScreen] load model", { traceId, selected });
-
-      await loadLLM({
-        modelId: selected,
-        dtype: "q4",
-        preferredDevice: "auto",
-        traceId,
-        debug: true,
-        onProgress: (rawProgress, text) => {
-          const percent = Math.round(rawProgress * 100);
-
-          console.log("[SetupScreen] load progress", {
-            traceId,
-            selected,
-            rawProgress,
-            percent,
-            text,
-          });
-
-          setProgress(percent);
-          setStatus(text);
-        },
+      // Persist the choice into the shared AI runtime store and warm it through
+      // the provider registry (same path the pipeline uses). Progress is mirrored
+      // from the runtime store's load progress.
+      setRuntimeModel(selected);
+      const unsub = useAIRuntimeStore.subscribe((s) => {
+        setProgress(s.progress.progress);
+        if (s.progress.message) setStatus(s.progress.message);
       });
+      await warmAI(selected);
+      unsub();
 
-      console.log("[SetupScreen] model loaded", { traceId, selected });
-      console.groupEnd();
-
+      setProgress(100);
       setDone(true);
       setTimeout(onLoaded, 500);
     } catch (err) {
@@ -197,14 +217,19 @@ function ModelPicker({
     } finally {
       setLoading(false);
     }
-  }, [selected, onLoaded]);
+  }, [selected, onLoaded, setRuntimeModel]);
 
-  const model = MODEL_CATALOG.find((item) => item.id === selected);
+  const model = models.find((item) => item.id === selected);
 
   return (
     <div className="space-y-4">
+      {providerLabel && (
+        <p className="text-[10px] text-slate-500">
+          Runtime: <span className="text-slate-300">{providerLabel}</span>
+        </p>
+      )}
       <div className="grid grid-cols-2 gap-2">
-        {MODEL_CATALOG.map((item) => (
+        {models.map((item) => (
           <button
             key={item.id}
             type="button"
@@ -212,7 +237,7 @@ function ModelPicker({
               if (!loading) {
                 setDone(false);
                 setError("");
-                onSelect(item.id);
+                selectModel(item.id);
               }
             }}
             disabled={loading}
@@ -228,18 +253,18 @@ function ModelPicker({
                 {item.label}
               </span>
 
-              {item.badge && (
+              {item.sizeLabel && (
                 <span className="shrink-0 rounded border border-violet-700/40 bg-violet-900/60 px-1.5 py-0.5 text-[9px] text-violet-300">
-                  {item.badge}
+                  {item.sizeLabel}
                 </span>
               )}
             </div>
 
-            <p className="text-[10px] leading-relaxed text-slate-400">
-              {item.description}
-            </p>
-
-            <p className="mt-1 text-[10px] text-slate-600">{item.sizeLabel}</p>
+            {item.family && (
+              <p className="text-[10px] leading-relaxed text-slate-400">
+                {item.family}
+              </p>
+            )}
           </button>
         ))}
       </div>
@@ -302,8 +327,8 @@ function ModelPicker({
 
       {model && !loading && !done && (
         <p className="text-center text-[10px] text-slate-600">
-          First load downloads ~{model.sizeLabel}; later runs use the local
-          browser cache.
+          Model weights are served from bundled / OPFS-cached assets — no network
+          needed once present.
         </p>
       )}
     </div>
@@ -627,6 +652,10 @@ export function SetupScreen({ onReady, model, onModelChange }: Props) {
                 onLoaded={handleModelReady}
                 onSkip={handleModelSkip}
               />
+
+              <div className="mt-5 border-t border-slate-800 pt-4">
+                <ModelDownloadPanel />
+              </div>
             </motion.div>
           )}
 

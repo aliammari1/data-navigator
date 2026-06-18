@@ -209,7 +209,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
             key={step.label}
             className={`rounded-xl border p-3 ${
               step.done
-                ? "border-indigo-500/25 bg-indigo-500/5"
+                ? "border-primary/25 bg-primary/5"
                 : "border-border bg-card"
             }`}
           >
@@ -217,7 +217,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
               <step.icon
                 className={`w-3.5 h-3.5 ${
                   step.done
-                    ? "text-indigo-600 dark:text-indigo-300"
+                    ? "text-primary"
                     : "text-muted-foreground"
                 }`}
               />
@@ -258,7 +258,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
               onClick={() => setTab(t.key)}
               className={`flex-1 min-w-25 flex items-center justify-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 tab === t.key
-                  ? "bg-indigo-600 text-white shadow"
+                  ? "bg-primary text-primary-foreground shadow"
                   : "text-muted-foreground hover:bg-muted"
               }`}
             >

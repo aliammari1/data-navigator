@@ -14,6 +14,8 @@ export default function GridPage() {
       statusMapping={report.statusMapping}
       tableName={report.dashboardTableName}
       fetchFiltered={report.fetchFiltered}
+      fetchFilteredCount={report.fetchFilteredCount}
+      fetchFilteredPage={report.fetchFilteredPage}
       fetchCustomerProfile={report.fetchCustomerProfile}
     />
   );

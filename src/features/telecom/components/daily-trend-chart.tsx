@@ -1,8 +1,8 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { Loader2 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildDailyTrendOption } from "@/features/telecom/lib/chart-options";
 import { fmtN, fmtPct, movingAverage } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
@@ -93,7 +93,7 @@ export const DailyTrendChart = memo(function DailyTrendChart({
         <div className="w-px h-3 bg-border" />
         <div className="flex items-center gap-1.5">
           <span className="text-muted-foreground">{d.length} jours ·</span>
-          <span className="font-bold text-indigo-600 dark:text-indigo-400 tabular-nums">
+          <span className="font-bold text-primary tabular-nums">
             {fmtN(totalTx)} tx
           </span>
         </div>
@@ -115,11 +115,7 @@ export const DailyTrendChart = memo(function DailyTrendChart({
         </div>
       </div>
       <div className="rounded-xl border border-border/50 bg-muted/10 overflow-hidden">
-        <ReactECharts
-          option={option}
-          style={{ height: "220px" }}
-          opts={{ renderer: "canvas" }}
-        />
+        <EChart option={option} height={220} />
       </div>
     </div>
   );

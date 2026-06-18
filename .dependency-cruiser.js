@@ -37,13 +37,6 @@ module.exports = {
       to: { path: "[.]stories[.](?:ts|tsx|mdx)$" },
     },
     {
-      name: "not-to-retired-lib",
-      severity: "error",
-      comment: "The legacy '@/lib' import surface is retired in this codebase.",
-      from: {},
-      to: { path: "^src/lib/" },
-    },
-    {
       name: "core-stays-independent",
       severity: "warn",
       comment: "Core modules must not depend on app, feature, platform, or component layers.",
@@ -80,12 +73,133 @@ module.exports = {
         pathNot: ["^node_modules/@types/"],
       },
     },
+    {
+      name: "no-cloud-ai-or-telemetry",
+      severity: "error",
+      comment:
+        "Offline-first: forbid cloud LLM SDKs and telemetry anywhere. Replaces scripts/check-provider-boundaries.mjs — all AI must run locally via @/platform/ai/provider.",
+      from: {},
+      to: {
+        path: "node_modules/(?:[.]pnpm/)?(?:@ai-sdk[@+/]|@anthropic-ai[@+/]sdk|@anthropic[@+/]|@vercel[+/]ai|@sentry[@+/]|ai[@/]|ai-sdk[@/]|sentry[@/])",
+      },
+    },
+    {
+      name: "ai-engine-only-in-platform-or-workers",
+      severity: "error",
+      comment:
+        "Local-LLM engine packages may only be imported under src/platform/ai, src/workers, or a genuine Web Worker entry point (a *.worker.ts / *-worker.ts module run off-thread). Everything else (UI/feature code) must consume @/platform/ai/provider so capability routing + the WebGPU-safety demotion apply uniformly. Worker entry points are excluded because they already run in an isolated thread and load the engine directly via new Worker(new URL(...)).",
+      from: {
+        path: "^src/",
+        // Allowed homes for the heavy engine import:
+        //  - src/platform/ai/** (the central provider/adapter layer)
+        //  - src/workers/** (shared worker pool)
+        //  - any genuine Web Worker entry point, identified by a
+        //    `*.worker.ts` / `*-worker.ts` filename, regardless of folder.
+        //    This intentionally does NOT broaden to all of src/features.
+        pathNot: ["^src/(?:platform/ai|workers)/", "[.-]worker[.]ts$"],
+      },
+      to: { path: "(?:@mlc-ai/web-llm|@huggingface/transformers|@xenova/transformers)" },
+    },
+    {
+      name: "renderer-no-main-only-natives",
+      severity: "error",
+      comment:
+        "Renderer code under src/ must not import main-process-only native packages (these have no browser build and would crash the renderer / leak the privileged boundary). They belong in electron/, scripts, or a main-only adapter that the renderer reaches via IPC. EXCEPTIONS: electron/, scripts/, *.config.*, and src/platform/auth/auth-database.ts (a Node-only better-auth adapter loaded lazily in the main/server context, never bundled into the browser).",
+      from: {
+        path: "^src/",
+        pathNot: [
+          "[.]config[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          // Known main-only / server-only adapters consumed by the renderer via IPC
+          // or only ever executed in the Node/server context, never bundled to the
+          // browser. Keep this list tight so genuine renderer leaks are still caught.
+          "^src/platform/auth/auth-database[.]ts$",
+        ],
+      },
+      to: {
+        path: "node_modules/(?:@duckdb/node-api|@duckdb[+]node-api|better-sqlite3|better-sqlite3-multiple-ciphers|node-llama-cpp|sherpa-onnx-node|@hocuspocus/server|@hocuspocus[+]server|bonjour-service)(?:[@/]|$)",
+      },
+    },
+    {
+      name: "renderer-no-node-builtins",
+      severity: "error",
+      comment:
+        "Renderer code under src/ must not import Node core builtins (node:* / fs, path, crypto, child_process, …). These only exist in the privileged main process; importing them in renderer code either crashes in the browser or signals a main↔renderer boundary leak. Use the preload-exposed IPC bridge instead. EXCEPTIONS: electron/, scripts/, *.config.*, and src/platform/auth/auth-database.ts (Node-only better-auth adapter loaded lazily in the main/server context).",
+      from: {
+        path: "^src/",
+        pathNot: [
+          "[.]config[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          "^src/platform/auth/auth-database[.]ts$",
+        ],
+      },
+      to: {
+        dependencyTypes: ["core"],
+      },
+    },
+    {
+      name: "renderer-no-electron",
+      severity: "error",
+      comment:
+        "Renderer code under src/ must not import the `electron` module. It only exists in the privileged main process; reaching for it from renderer code crashes in the browser and is a main↔renderer boundary leak. Use the preload-exposed IPC bridge instead. EXCEPTIONS: electron/, scripts/, *.config.*, and src/platform/auth/auth-database.ts.",
+      from: {
+        path: "^src/",
+        pathNot: [
+          "[.]config[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
+          "^src/platform/auth/auth-database[.]ts$",
+        ],
+      },
+      to: {
+        path: "node_modules/electron(?:[/]|$)",
+      },
+    },
+    {
+      name: "no-cross-feature-imports",
+      severity: "warn",
+      comment:
+        "A feature must not reach into another feature. Share via src/{platform,core,shared,components,design} instead. The telecom report engine is the product; support features must stay decoupled.",
+      from: { path: "^src/features/([^/]+)/" },
+      to: {
+        path: "^src/features/([^/]+)/",
+        pathNot: "^src/features/$1/",
+      },
+    },
+    {
+      name: "ui-primitives-stay-pure",
+      severity: "warn",
+      comment:
+        "shadcn UI primitives (src/components/ui, src/design) must not import product layers, so they stay swappable and visually cohesive.",
+      from: { path: "^src/(components/ui|design)/" },
+      to: { path: "^src/(app|features|platform|core)/" },
+    },
+    {
+      name: "no-orphans",
+      severity: "warn",
+      comment:
+        "Modules nothing imports are likely dead or half-wired (the 'half-implemented stacks' problem). Wire them up or delete them.",
+      from: {
+        orphan: true,
+        pathNot: [
+          "[.]d[.]ts$",
+          "[.]stories[.](?:ts|tsx|mdx)$",
+          "[.](?:test|spec)[.](?:ts|tsx)$",
+          "(?:^|/)src/app/.+/(?:page|layout|loading|error|template|not-found|route|default|global-error)[.]tsx?$",
+          "(?:^|/)src/app/(?:layout|page|error|loading|not-found|global-error|sitemap|robots)[.]tsx?$",
+          "(?:^|/)src/types/",
+          "(?:^|/)src/workers/.+[.]worker[.]ts$",
+          "(?:^|/)next-env[.]d[.]ts$",
+          "[.]config[.](?:ts|js|mjs|cjs)$",
+          "(?:^|/)[.]storybook/",
+        ],
+      },
+      to: {},
+    },
   ],
   options: {
     doNotFollow: { path: ["node_modules"] },
-    includeOnly: ["^(src|electron|scripts|\\.storybook)"],
     exclude: {
-      path: ["^src/app/favicon[.]ico$", "^src/app/globals[.]css$", "^src/design/tokens[.]css$"],
+      path: ["^src/app/favicon[.]ico$", "^src/app/globals[.]css$"],
     },
     tsConfig: { fileName: "tsconfig.json" },
     tsPreCompilationDeps: "specify",

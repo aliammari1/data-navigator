@@ -1,0 +1,287 @@
+{
+  "$schema": "./nlq-gold.schema.md",
+  "table": "daily_transactions",
+  "columns": [
+    { "name": "TransactionDate", "type": "date" },
+    { "name": "Region", "type": "string" },
+    { "name": "City", "type": "string" },
+    { "name": "ServiceType", "type": "string" },
+    { "name": "Operator", "type": "string" },
+    { "name": "Status", "type": "string" },
+    { "name": "Revenue", "type": "number" },
+    { "name": "CallDuration", "type": "number" },
+    { "name": "DataUsageMB", "type": "number" },
+    { "name": "Subscribers", "type": "number" }
+  ],
+  "cases": [
+    {
+      "id": "count-rows",
+      "question": "How many transactions are in this dataset?",
+      "expected": {
+        "aggregation": "COUNT",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "number",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "count-records",
+      "question": "Count the total number of records",
+      "expected": {
+        "aggregation": "COUNT",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "number",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "top-region-revenue",
+      "question": "Top 5 regions by revenue",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "top-operators-subscribers",
+      "question": "Top 10 operators by subscribers",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "avg-revenue-by-region",
+      "question": "Average revenue by region",
+      "expected": {
+        "aggregation": "AVG",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "avg-call-duration",
+      "question": "What is the average call duration?",
+      "expected": {
+        "aggregation": "AVG",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "sum-revenue-by-servicetype",
+      "question": "Sum of revenue by servicetype",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "total-datausage-by-city",
+      "question": "Total datausage by city",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "distribution-status",
+      "question": "Distribution of status",
+      "expected": {
+        "aggregation": "COUNT",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "pie",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "breakdown-region",
+      "question": "Breakdown by region",
+      "expected": {
+        "aggregation": "COUNT",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "pie",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "trend-over-time",
+      "question": "Revenue trend over time",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasWhere": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "line",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "trend-by-month",
+      "question": "Show subscribers by month",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasWhere": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "line",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "correlation",
+      "question": "Correlation between revenue and datausage",
+      "expected": {
+        "aggregation": "NONE",
+        "groupBy": false,
+        "hasWhere": true,
+        "hasOrderBy": false,
+        "chartSuggestion": "scatter",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "missing-values",
+      "question": "Show missing values per column",
+      "expected": {
+        "aggregation": "FILTER",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "null-check",
+      "question": "Which columns have null or empty values?",
+      "expected": {
+        "aggregation": "FILTER",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "outliers",
+      "question": "Show outliers and anomalies",
+      "expected": {
+        "aggregation": "NONE",
+        "groupBy": false,
+        "hasWhere": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "table",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "duplicates",
+      "question": "Find duplicate rows",
+      "expected": {
+        "aggregation": "COUNT",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "table",
+        "confidence": "medium"
+      }
+    },
+    {
+      "id": "describe",
+      "question": "Describe statistics for all columns",
+      "expected": {
+        "aggregation": "MIXED",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "table",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "show-all",
+      "question": "show all rows",
+      "expected": {
+        "aggregation": "NONE",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "table",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "filter-status",
+      "question": "filter Status = active",
+      "expected": {
+        "aggregation": "NONE",
+        "groupBy": false,
+        "hasWhere": true,
+        "hasOrderBy": false,
+        "chartSuggestion": "table",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "max-revenue",
+      "question": "Maximum revenue",
+      "expected": {
+        "aggregation": "MAX",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "min-callduration",
+      "question": "Minimum callduration",
+      "expected": {
+        "aggregation": "MIN",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "raw-sql-passthrough",
+      "question": "SELECT Region, Revenue FROM daily_transactions",
+      "expected": {
+        "aggregation": "NONE",
+        "groupBy": false,
+        "hasOrderBy": false,
+        "chartSuggestion": "table",
+        "confidence": "high"
+      }
+    },
+    {
+      "id": "vague-fallback",
+      "question": "tell me something interesting about the telecom data",
+      "expected": {
+        "aggregation": "SUM",
+        "groupBy": true,
+        "hasOrderBy": true,
+        "chartSuggestion": "bar",
+        "confidence": "low"
+      }
+    }
+  ]
+}

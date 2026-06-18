@@ -1,8 +1,10 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AccentColor =
+  | "blue"
   | "indigo"
   | "violet"
   | "cyan"
@@ -60,6 +62,12 @@ export interface SettingsStore {
   // Performance
   performance: PerformanceSettings;
 
+  // AI
+  // Off by default: the deterministic validators (validate.ts) already catch the
+  // dangerous cases, and skipping the batched critic LLM pass shaves a serialized
+  // model call off every analysis run. Opt in only when stricter review is wanted.
+  enableAiCritic: boolean;
+
   // Notifications
   notifications: NotificationSettings;
 
@@ -80,6 +88,7 @@ export interface SettingsStore {
   setCompactNumbers: (v: boolean) => void;
   setData: (patch: Partial<DataSettings>) => void;
   setPerformance: (patch: Partial<PerformanceSettings>) => void;
+  setEnableAiCritic: (v: boolean) => void;
   setNotifications: (patch: Partial<NotificationSettings>) => void;
   togglePinnedItem: (href: string) => void;
   resetToDefaults: () => void;
@@ -118,7 +127,7 @@ export const useSettingsStore = create<SettingsStore>()(
       maxFiles: 20,
       defaultFolderId: null,
       theme: "dark",
-      accentColor: "indigo",
+      accentColor: "blue",
       density: "comfortable",
       sidebarStyle: "dark",
       animationsEnabled: true,
@@ -127,6 +136,7 @@ export const useSettingsStore = create<SettingsStore>()(
       compactNumbers: true,
       data: DEFAULT_DATA,
       performance: DEFAULT_PERFORMANCE,
+      enableAiCritic: false,
       notifications: DEFAULT_NOTIFICATIONS,
       pinnedItems: [
         "/dashboard",
@@ -148,6 +158,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setData: (patch) => set((s) => ({ data: { ...s.data, ...patch } })),
       setPerformance: (patch) =>
         set((s) => ({ performance: { ...s.performance, ...patch } })),
+      setEnableAiCritic: (v) => set({ enableAiCritic: v }),
       setNotifications: (patch) =>
         set((s) => ({ notifications: { ...s.notifications, ...patch } })),
       togglePinnedItem: (href) => {
@@ -161,7 +172,7 @@ export const useSettingsStore = create<SettingsStore>()(
       resetToDefaults: () =>
         set({
           theme: "dark",
-          accentColor: "indigo",
+          accentColor: "blue",
           density: "comfortable",
           sidebarStyle: "dark",
           animationsEnabled: true,
@@ -170,6 +181,7 @@ export const useSettingsStore = create<SettingsStore>()(
           compactNumbers: true,
           data: DEFAULT_DATA,
           performance: DEFAULT_PERFORMANCE,
+          enableAiCritic: false,
           notifications: DEFAULT_NOTIFICATIONS,
           pinnedItems: [
             "/dashboard",
@@ -180,9 +192,104 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: "data-navigator-settings",
+      version: 4,
       // Durable in drizzle (app_setting) with a synchronous localStorage
       // working copy — see createDrizzleStorage.
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "settings" })),
+      // Deep-merge persisted nested settings onto defaults so missing keys
+      // backfill and unknown/renamed keys are dropped (zustand only shallow
+      // merges the top level, leaking stale nested keys without this).
+      migrate: (persisted, _version) => {
+        const prev = (persisted ?? {}) as Partial<SettingsStore>;
+        return {
+          ...prev,
+          // →v3: brand accent is now Electric Blue. Carry the old defaults
+          // (indigo, then cyan) forward to blue so existing installs adopt the new
+          // identity instead of keeping a stale default they never deliberately chose.
+          accentColor:
+            prev.accentColor === "indigo" || prev.accentColor === "cyan"
+              ? "blue"
+              : prev.accentColor,
+          data: { ...DEFAULT_DATA, ...(prev.data ?? {}) },
+          performance: { ...DEFAULT_PERFORMANCE, ...(prev.performance ?? {}) },
+          // New in this version — off by default for installs that predate it.
+          enableAiCritic: prev.enableAiCritic ?? false,
+          notifications: {
+            ...DEFAULT_NOTIFICATIONS,
+            ...(prev.notifications ?? {}),
+          },
+        } as SettingsStore;
+      },
+      // Persist only durable state keys; action functions and any future
+      // derived/volatile fields are never written.
+      partialize: (s) => ({
+        maxFileSize: s.maxFileSize,
+        maxFiles: s.maxFiles,
+        defaultFolderId: s.defaultFolderId,
+        theme: s.theme,
+        accentColor: s.accentColor,
+        density: s.density,
+        sidebarStyle: s.sidebarStyle,
+        animationsEnabled: s.animationsEnabled,
+        sidebarPinned: s.sidebarPinned,
+        showBreadcrumbs: s.showBreadcrumbs,
+        compactNumbers: s.compactNumbers,
+        data: s.data,
+        performance: s.performance,
+        enableAiCritic: s.enableAiCritic,
+        notifications: s.notifications,
+        pinnedItems: s.pinnedItems,
+      }),
     },
   ),
 );
+
+// ─── Selector hooks ─────────────────────────────────────────────────────────
+// Narrow slices so consumers stop calling bare useSettingsStore() and only
+// re-render on the fields they read.
+
+export const useAppearanceSettings = () =>
+  useSettingsStore(
+    useShallow((s) => ({
+      theme: s.theme,
+      accentColor: s.accentColor,
+      density: s.density,
+      sidebarStyle: s.sidebarStyle,
+      animationsEnabled: s.animationsEnabled,
+      sidebarPinned: s.sidebarPinned,
+      showBreadcrumbs: s.showBreadcrumbs,
+      compactNumbers: s.compactNumbers,
+    })),
+  );
+
+export const useDataSettings = () => useSettingsStore((s) => s.data);
+export const usePerformanceSettings = () =>
+  useSettingsStore((s) => s.performance);
+export const useEnableAiCritic = () =>
+  useSettingsStore((s) => s.enableAiCritic);
+export const useNotificationSettings = () =>
+  useSettingsStore((s) => s.notifications);
+export const usePinnedItems = () => useSettingsStore((s) => s.pinnedItems);
+
+export const useSettingsActions = () =>
+  useSettingsStore(
+    useShallow((s) => ({
+      setMaxFileSize: s.setMaxFileSize,
+      setMaxFiles: s.setMaxFiles,
+      setDefaultFolderId: s.setDefaultFolderId,
+      setTheme: s.setTheme,
+      setAccentColor: s.setAccentColor,
+      setDensity: s.setDensity,
+      setSidebarStyle: s.setSidebarStyle,
+      setAnimationsEnabled: s.setAnimationsEnabled,
+      setSidebarPinned: s.setSidebarPinned,
+      setShowBreadcrumbs: s.setShowBreadcrumbs,
+      setCompactNumbers: s.setCompactNumbers,
+      setData: s.setData,
+      setPerformance: s.setPerformance,
+      setEnableAiCritic: s.setEnableAiCritic,
+      setNotifications: s.setNotifications,
+      togglePinnedItem: s.togglePinnedItem,
+      resetToDefaults: s.resetToDefaults,
+    })),
+  );

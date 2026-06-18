@@ -1,7 +1,6 @@
 "use client";
 
 import { useVirtualizer } from "@tanstack/react-virtual";
-import Fuse from "fuse.js";
 import { produce } from "immer";
 // Icons
 import {
@@ -9,62 +8,32 @@ import {
   AlertCircle,
   ArrowDown,
   ArrowUp,
-  ArrowUpDown,
   BarChart2,
-  Bookmark,
-  BookmarkCheck,
-  Calendar,
   CheckCircle2,
-  CheckSquare,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
-  ChevronUp,
-  CircleDot,
   Code2,
   Columns3,
-  Command,
   Copy,
   Database,
   Download,
-  ExternalLink,
-  Eye,
-  EyeOff,
   FileJson,
   FileSpreadsheet,
   FileText,
   Filter,
   Grid3X3,
-  Hash,
-  Info,
-  Keyboard,
-  LayoutGrid,
   Loader2,
   Maximize2,
-  Minimize2,
-  Minus,
-  MoreHorizontal,
-  PieChart,
-  Pin,
-  PinOff,
   Plus,
   RefreshCw,
   Search,
-  Settings,
-  Share2,
   SlidersHorizontal,
-  Sparkles,
-  Square,
   Star,
   StarOff,
   Table2,
-  ToggleLeft,
-  Trash2,
-  TrendingDown,
-  TrendingUp,
-  Type,
   Upload,
   X,
   XCircle,
@@ -73,24 +42,15 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from "react";
+import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 // UI components
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -105,38 +65,42 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { OPERATOR_LABELS, PAGE_SIZES } from "@/features/data-browser/model/constants";
 import {
-  OPERATOR_LABELS,
-  PAGE_SIZES,
-  TYPE_COLORS,
-  TYPE_ICON,
-} from "@/features/data-browser/model/constants";
-import {
-  buildWhereClause,
+  composeWhereClause,
   formatCellValue,
+  generateCountSQL,
+  generateExportSQL,
   generateSQL,
   inferColType,
 } from "@/features/data-browser/model/helpers";
+import {
+  listSavedFilters,
+  listSavedSql,
+  loadStarredKeys,
+  removeSavedRecord,
+  type SavedFilterRecord,
+  type SavedSqlRecord,
+  saveFilter,
+  saveSql,
+  saveStarredKeys,
+} from "@/features/data-browser/model/persistence";
 import type {
   CellSelection,
-  ColType,
   ColumnDef,
   ColumnStats,
   FilterGroup,
   FilterRule,
-  SavedQuery,
   SortConfig,
   ViewMode,
 } from "@/features/data-browser/model/types";
-import type * as Types from "@/features/telecom/types";
 import {
+  cancelQueries,
   listRegisteredDatasets,
   type RegisteredDataset,
+  resetCancelToken,
   runReadOnlyQuery,
 } from "@/platform/duckdb/duckdb";
 import {
@@ -144,6 +108,7 @@ import {
   sanitizeUploadTableName,
 } from "@/platform/duckdb/upload-to-duckdb";
 import { openFileDialog } from "@/platform/electron/electron-fs";
+import { getExportProxy, saveBytes } from "@/platform/viz";
 import { cn } from "@/shared/utils";
 
 // Lazy load Monaco Editor
@@ -157,8 +122,18 @@ const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ),
 });
 
-// Lazy load ECharts
-import ReactECharts from "echarts-for-react";
+// Lazy-load the analytics view so ECharts + the chart worker stay out of the
+// browser route's initial JS chunk and only load when the Charts tab is opened.
+// All charts inside render off the main thread via OffscreenChart.
+const AnalyticsView = dynamic(() => import("@/features/data-browser/components/AnalyticsView"), {
+  ssr: false,
+  loading: () => (
+    <div className="flex flex-1 items-center justify-center text-zinc-600 text-xs">
+      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+      Loading analytics…
+    </div>
+  ),
+});
 
 import {
   ColumnHeader,
@@ -208,32 +183,16 @@ function fileExtensionFromPath(filePath: string): string {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 export default function DataBrowserScreen({
-  m,
-  operators,
-  regions,
-  statusMapping,
-  tableName,
-  fetchFiltered,
-  fetchCustomerProfile,
+  tableName = "",
 }: {
-  m: Types.ColumnMapping;
-  operators: Types.OperatorRow[];
-  regions: Types.RegionRow[];
-  statusMapping: Types.StatusMapping[];
-  tableName: string;
-  fetchFiltered: (
-    m: Types.ColumnMapping,
-    f: Types.FilterState,
-    sm: Types.StatusMapping[],
-    limit: number,
-    offset: number,
-    sortCol: string,
-    sortDir: Types.SortDir,
-  ) => Promise<{ rows: Types.RawRow[]; total: number }>;
-  fetchCustomerProfile: (
-    m: Types.ColumnMapping,
-    msisdn: string,
-  ) => Promise<Types.CustomerProfileData | null>;
+  /**
+   * Optional initial dataset to open. When it doesn't match a registered
+   * dataset (or is omitted) the first catalogued dataset is opened instead.
+   * The dead telecom prop plumbing (m/operators/regions/statusMapping/
+   * fetchFiltered/fetchCustomerProfile) was removed — the screen queries DuckDB
+   * directly via the platform API.
+   */
+  tableName?: string;
 }) {
   // ── State ──
   const [dbReady, setDbReady] = useState(false);
@@ -270,11 +229,14 @@ export default function DataBrowserScreen({
     name: "Active Filters",
     saved: false,
   });
-  const [savedFilterGroups, setSavedFilterGroups] = useState<FilterGroup[]>([]);
+  const [savedFilterGroups, setSavedFilterGroups] = useState<SavedFilterRecord[]>([]);
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
 
   // Search
   const [searchQuery, setSearchQuery] = useState("");
+  // Debounced copy of the search term that is actually pushed down to DuckDB,
+  // so typing does not fire one COUNT + page query per keystroke.
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [searchHighlight, setSearchHighlight] = useState(false);
 
   // Selection
@@ -302,23 +264,76 @@ export default function DataBrowserScreen({
 
   // Row details
   const [rowDetailRow, setRowDetailRow] = useState<Record<string, unknown> | null>(null);
-  const [starredRows, setStarredRows] = useState<Set<number>>(new Set());
+  // Starred rows persist by a STABLE row key (rowid/id), not page index, so the
+  // star survives sort/page changes and reloads (Dexie-backed per dataset).
+  const [starredKeys, setStarredKeys] = useState<Set<string>>(new Set());
 
   // Misc
   const [fullscreen, setFullscreen] = useState(false);
   const [compactMode, setCompactMode] = useState(false);
   const [showRowNumbers, setShowRowNumbers] = useState(true);
   const [zebraStripes, setZebraStripes] = useState(true);
-  const [savedQueries, setSavedQueries] = useState<SavedQuery[]>([]);
+  // Saved SQL queries persist per dataset (Dexie). `SavedQuery` from model/types
+  // is the legacy in-memory shape; the durable record is `SavedSqlRecord`.
+  const [savedQueries, setSavedQueries] = useState<SavedSqlRecord[]>([]);
 
-  const [analyticsTab, setAnalyticsTab] = useState("overview");
-  const [analyticsData, setAnalyticsData] = useState<Record<string, unknown>[]>([]);
+  // ── Cell Editing ──
+  const [editingCell, setEditingCell] = useState<{ rowIdx: number; colId: string } | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [editedCells, setEditedCells] = useState<Map<string, unknown>>(new Map());
+
+  // ── Heatmap ──
+  const [heatmapEnabled, setHeatmapEnabled] = useState(false);
 
   const tableContainerRef = useRef<HTMLDivElement>(null);
-  const [isPending, startTransition] = useTransition();
+  const cardsContainerRef = useRef<HTMLDivElement>(null);
+  const [cardColumns, setCardColumns] = useState(4);
+  const [_isPending, _startTransition] = useTransition();
+
+  // Monotonic id used to drop stale page queries: if a slower earlier query
+  // resolves after a newer one, its result is ignored (fixes the race where an
+  // out-of-date page overwrites the current one).
+  const fetchIdRef = useRef(0);
+  // Cache COUNT(*) keyed by `${table}::${where}` so we don't recount on every
+  // sort/page change — the total only moves when the table or WHERE changes.
+  const countCacheRef = useRef<Map<string, number>>(new Map());
+  // Stable cancel-token id: cancel queued + in-flight scans for this group when
+  // the user switches datasets so a slow scan can't bleed into the new view.
+  const cancelTokenRef = useRef("data-browser-grid");
+
+  // Resolve a STABLE per-row key for starring (rowid/id else a content hash).
+  const rowStableKey = useCallback((row: Record<string, unknown>): string => {
+    const id = row.rowid ?? row.id ?? row._rowid;
+    if (id != null) return `id:${String(id)}`;
+    // Fallback: hash of the row's values (stable across page/sort for a given row).
+    // BigInt-safe: DuckDB returns BigInt for 64-bit columns, which JSON.stringify
+    // throws on — coerce them to strings in the replacer.
+    let h = 0;
+    const s = JSON.stringify(row, (_k, v) => (typeof v === "bigint" ? v.toString() : v));
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return `h:${h}`;
+  }, []);
+
+  // Debounce the search term before it hits the engine.
+  useEffect(() => {
+    const handle = window.setTimeout(() => {
+      setDebouncedSearch(searchQuery.trim());
+      setPage(0);
+    }, 250);
+    return () => window.clearTimeout(handle);
+  }, [searchQuery]);
 
   const switchToDataset = useCallback(async (dataset: RegisteredDataset) => {
     const viewName = dataset.viewName;
+
+    // Cancel any queued/in-flight scans tied to the previous dataset, then
+    // reset the token so the fresh dataset starts a clean cancellable group.
+    try {
+      await cancelQueries(cancelTokenRef.current);
+      await resetCancelToken(cancelTokenRef.current);
+    } catch {
+      /* cancellation is best-effort */
+    }
 
     let sampleRow: Record<string, unknown> = {};
     try {
@@ -329,6 +344,9 @@ export default function DataBrowserScreen({
     }
 
     const cols = columnsFromDataset(dataset, sampleRow);
+
+    // A new dataset invalidates every cached count.
+    countCacheRef.current.clear();
 
     setColumns(cols);
     setTotalRows(dataset.rowCount);
@@ -347,6 +365,22 @@ export default function DataBrowserScreen({
       }),
     );
     setSqlQuery(`SELECT * FROM ${quoteIdentifier(viewName)} LIMIT 100`);
+
+    // Restore durable per-dataset state (starred rows, saved filters/SQL).
+    try {
+      const [stars, filters, sql] = await Promise.all([
+        loadStarredKeys(viewName),
+        listSavedFilters(viewName),
+        listSavedSql(viewName),
+      ]);
+      setStarredKeys(stars);
+      setSavedFilterGroups(filters);
+      setSavedQueries(sql);
+    } catch {
+      setStarredKeys(new Set());
+      setSavedFilterGroups([]);
+      setSavedQueries([]);
+    }
   }, []);
 
   // ── DuckDB Init ──
@@ -475,9 +509,35 @@ export default function DataBrowserScreen({
   }, [switchToDataset]);
 
   // ── Data Fetch ──
-  const fetchRows = useCallback(async () => {
-    if (!dbReady) return;
+  // Stable query key: changes only on data-relevant inputs. Notably it depends
+  // on the *visible column signature* (names) — not the columns array — so
+  // resizing or pinning a column never re-queries the database. Serialized
+  // sorts/filter keep the key referentially comparable.
+  const visibleColumnSignature = useMemo(
+    () =>
+      columns
+        .filter((c) => c.visible)
+        .map((c) => c.name)
+        .join(""),
+    [columns],
+  );
+  const composedWhere = useMemo(
+    () => composeWhereClause(filterGroup, debouncedSearch, columns),
+    [filterGroup, debouncedSearch, columns],
+  );
+  const sortSignature = useMemo(
+    () =>
+      [...sorts]
+        .sort((a, b) => a.priority - b.priority)
+        .map((s) => `${s.column}:${s.direction}`)
+        .join(","),
+    [sorts],
+  );
 
+  const fetchRows = useCallback(async () => {
+    if (!dbReady || !activeTable) return;
+
+    const fetchId = ++fetchIdRef.current;
     setQueryLoading(true);
     setQueryError(null);
 
@@ -485,87 +545,60 @@ export default function DataBrowserScreen({
       const t0 = performance.now();
       const visibleCols = columns.filter((c) => c.visible);
 
-      // Count query
-      const whereClause = buildWhereClause(filterGroup);
-      const countSql = `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(activeTable)}${whereClause ? ` WHERE ${whereClause}` : ""}`;
-      const countResult = await runReadOnlyQuery(countSql);
-      const newTotal = Number(countResult[0]?.cnt ?? 0);
-      setTotalRows(newTotal);
+      // Count: served from cache when the (table, where) pair is unchanged,
+      // and run in parallel with the page query when it must be recomputed.
+      const countKey = `${activeTable}::${composedWhere}`;
+      const cachedCount = countCacheRef.current.get(countKey);
+      const countPromise =
+        cachedCount !== undefined
+          ? Promise.resolve(cachedCount)
+          : runReadOnlyQuery(generateCountSQL(activeTable, composedWhere)).then((res) => {
+              const value = Number(res[0]?.cnt ?? 0);
+              countCacheRef.current.set(countKey, value);
+              return value;
+            });
 
-      // Clamp page
-      const maxPage = Math.max(0, Math.ceil(newTotal / pageSize) - 1);
-      const clampedPage = Math.min(page, maxPage);
-      if (clampedPage !== page) setPage(clampedPage);
+      // Clamp the page against the *cached* total when available so we don't
+      // serialize the count before issuing the data query.
+      const knownTotal = cachedCount ?? totalRows;
+      const maxPage = Math.max(0, Math.ceil(knownTotal / pageSize) - 1);
+      const clampedPage = Math.min(Math.max(0, page), maxPage);
 
       const sql = generateSQL(
         activeTable,
         visibleCols.length > 0 ? columns : columns,
         sorts,
-        filterGroup,
+        composedWhere,
         pageSize,
         clampedPage * pageSize,
       );
 
-      const data = await runReadOnlyQuery(sql);
+      const [newTotal, data] = await Promise.all([countPromise, runReadOnlyQuery(sql)]);
+
+      // Drop the result if a newer fetch has started in the meantime.
+      if (fetchId !== fetchIdRef.current) return;
+
+      setTotalRows(newTotal);
+      if (clampedPage !== page) setPage(clampedPage);
       setRows(data);
       setQueryTime(Math.round(performance.now() - t0));
     } catch (err) {
+      if (fetchId !== fetchIdRef.current) return;
       setQueryError(String(err));
     } finally {
-      setQueryLoading(false);
+      if (fetchId === fetchIdRef.current) setQueryLoading(false);
     }
-  }, [dbReady, columns, sorts, filterGroup, page, pageSize, activeTable]);
+    // `columns` is intentionally included for the projection, but width/pinning
+    // changes are absorbed by `visibleColumnSignature` in the effect below.
+  }, [dbReady, activeTable, columns, sorts, composedWhere, page, pageSize, totalRows]);
 
+  // Refetch only when a data-relevant slice changes. Resizing/pinning columns
+  // mutates `columns` but not this dependency set, so they never hit the DB.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: query-key driven
   useEffect(() => {
-    fetchRows();
-  }, [fetchRows]);
-
-  // Analytics data
-  useEffect(() => {
-    if (!dbReady || viewMode !== "analytics") return;
-
-    async function fetchAnalytics() {
-      const dimension =
-        columns.find((column) => ["string", "email", "url", "date"].includes(column.type)) ??
-        columns[0];
-      const numericColumns = columns.filter((column) => column.type === "number");
-      const sumMetric = numericColumns[0];
-      const avgMetric = numericColumns[1] ?? sumMetric;
-      const secondaryMetric = numericColumns[2] ?? avgMetric;
-
-      if (!dimension || !sumMetric) {
-        setAnalyticsData([]);
-        return;
-      }
-
-      const dimensionSql = quoteIdentifier(dimension.id);
-      const sumMetricSql = quoteIdentifier(sumMetric.id);
-      const avgMetricSql = quoteIdentifier(avgMetric.id);
-      const secondaryMetricSql = quoteIdentifier(secondaryMetric.id);
-
-      try {
-        const data = await runReadOnlyQuery(`
-          SELECT CAST(${dimensionSql} AS VARCHAR) as department,
-            ROUND(SUM(TRY_CAST(${sumMetricSql} AS DOUBLE)), 2) as total_revenue,
-            ROUND(AVG(TRY_CAST(${avgMetricSql} AS DOUBLE)), 2) as avg_margin,
-            COUNT(*) as user_count,
-            ROUND(AVG(TRY_CAST(${secondaryMetricSql} AS DOUBLE)), 2) as avg_satisfaction,
-            ROUND(SUM(TRY_CAST(${sumMetricSql} AS DOUBLE)), 2) as total_units
-          FROM ${quoteIdentifier(activeTable)}
-          WHERE ${sumMetricSql} IS NOT NULL
-          GROUP BY 1
-          ORDER BY total_revenue DESC
-          LIMIT 20
-        `);
-        setAnalyticsData(data);
-      } catch (e) {
-        console.error(e);
-        setAnalyticsData([]);
-      }
-    }
-
-    fetchAnalytics();
-  }, [activeTable, columns, dbReady, viewMode]);
+    void fetchRows();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dbReady, activeTable, composedWhere, sortSignature, page, pageSize, visibleColumnSignature]);
 
   // ── Column Stats ──
   const loadColumnStats = useCallback(
@@ -657,9 +690,35 @@ export default function DataBrowserScreen({
     overscan: 10,
   });
 
+  // ── Cards view: responsive column count + virtualized rows ──
+  // Keep the card column count in sync with the container width (mirrors the
+  // grid breakpoints) so the row virtualizer chunks rows correctly.
+  useEffect(() => {
+    if (viewMode !== "cards") return;
+    const el = cardsContainerRef.current;
+    if (!el) return;
+    const compute = () => {
+      const w = el.clientWidth;
+      const next = w >= 1280 ? 4 : w >= 1024 ? 3 : w >= 640 ? 2 : 1;
+      setCardColumns((prev) => (prev === next ? prev : next));
+    };
+    compute();
+    const observer = new ResizeObserver(compute);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [viewMode]);
+
+  const cardRowCount = Math.ceil(rows.length / cardColumns);
+  const cardRowVirtualizer = useVirtualizer({
+    count: cardRowCount,
+    getScrollElement: () => cardsContainerRef.current,
+    estimateSize: () => 188, // card height (172) + vertical gap (12) + padding
+    overscan: 4,
+  });
+
   // ── Selection ──
   const toggleRow = useCallback(
-    (rowIdx: number, e: React.MouseEvent) => {
+    (rowIdx: number, e: React.MouseEvent | React.KeyboardEvent) => {
       setSelectedRows((prev) => {
         const next = new Set(prev);
         if (e.shiftKey && lastSelectedRow !== null) {
@@ -693,6 +752,21 @@ export default function DataBrowserScreen({
       setSelectedRows(new Set(rows.map((_, i) => i)));
     }
   }, [rows, selectedRows.size]);
+
+  // ── Star toggle (stable row key → Dexie-persisted, survives sort/page) ──
+  const toggleStar = useCallback(
+    (row: Record<string, unknown>) => {
+      const key = rowStableKey(row);
+      setStarredKeys((prev) => {
+        const next = new Set(prev);
+        if (next.has(key)) next.delete(key);
+        else next.add(key);
+        if (activeTable) void saveStarredKeys(activeTable, next);
+        return next;
+      });
+    },
+    [activeTable, rowStableKey],
+  );
 
   // ── Sort ──
   const handleSort = useCallback((colName: string, e: React.MouseEvent) => {
@@ -736,37 +810,167 @@ export default function DataBrowserScreen({
     }
   }, [dbReady, sqlQuery]);
 
-  // ── Export ──
-  const exportData = useCallback(
-    (format: "csv") => {
-      const data = selectedRows.size > 0 ? [...selectedRows].map((i) => rows[i]) : rows;
+  // ── Durable saves (Dexie, per dataset) ──
+  const handleSaveSql = useCallback(async () => {
+    if (!activeTable || !sqlQuery.trim()) return;
+    const name = `Query ${new Date().toLocaleString()}`;
+    await saveSql(activeTable, name, sqlQuery);
+    setSavedQueries(await listSavedSql(activeTable));
+    toast.success("Query saved");
+  }, [activeTable, sqlQuery]);
 
-      const sep = ",";
-      const headers = Object.keys(data[0] || {});
-      const csvRows = [
-        headers.join(sep),
-        ...data.map((r) =>
-          headers
-            .map((h) => {
-              const v = r[h];
-              const s = v == null ? "" : String(v);
-              return format === "csv" && (s.includes(",") || s.includes('"'))
-                ? `"${s.replaceAll('"', '""')}"`
-                : s;
-            })
-            .join(sep),
-        ),
-      ];
-      const blob = new Blob([csvRows.join("\n")], { type: "text/plain" });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `export.${format}`;
-      a.click();
-      URL.revokeObjectURL(url);
+  const handleSaveFilter = useCallback(async () => {
+    if (!activeTable || filterGroup.rules.length === 0) return;
+    const name = `Filter ${new Date().toLocaleTimeString()}`;
+    await saveFilter(activeTable, name, filterGroup);
+    setSavedFilterGroups(await listSavedFilters(activeTable));
+    toast.success("Filter saved");
+  }, [activeTable, filterGroup]);
+
+  const handleApplyFilter = useCallback((record: SavedFilterRecord) => {
+    setFilterGroup(record.group);
+    setPage(0);
+  }, []);
+
+  const handleDeleteSaved = useCallback(
+    async (id: string, kind: "filter" | "query") => {
+      await removeSavedRecord(id);
+      if (!activeTable) return;
+      if (kind === "query") setSavedQueries(await listSavedSql(activeTable));
+      else setSavedFilterGroups(await listSavedFilters(activeTable));
     },
-    [rows, selectedRows],
+    [activeTable],
   );
+
+  // ── Export ──
+  // Upper bound on a single client-side export so a multi-million-row filtered
+  // set cannot OOM the renderer. (A true unbounded export needs a main-process
+  // COPY ... TO streaming path — see sharedChangesNeeded.)
+  const EXPORT_ROW_CAP = 1_000_000;
+
+  const triggerDownload = useCallback((blob: Blob, fileName: string): void => {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = fileName;
+    a.click();
+    URL.revokeObjectURL(url);
+  }, []);
+
+  /**
+   * Resolve the rows to export. With an explicit selection we export exactly
+   * the selected (page-local) rows; otherwise we stream the FULL filtered +
+   * sorted result from DuckDB — not just the visible page.
+   */
+  const resolveExportRows = useCallback(async (): Promise<Record<string, unknown>[]> => {
+    if (selectedRows.size > 0) {
+      return [...selectedRows].map((i) => rows[i]).filter(Boolean);
+    }
+    const sql = generateExportSQL(activeTable, columns, sorts, composedWhere, EXPORT_ROW_CAP);
+    return runReadOnlyQuery(sql);
+  }, [selectedRows, rows, activeTable, columns, sorts, composedWhere]);
+
+  const exportData = useCallback(
+    async (format: "csv") => {
+      const toastId = toast.loading("Preparing CSV export…");
+      try {
+        const data = await resolveExportRows();
+        if (data.length === 0) {
+          toast.error("No rows to export", { id: toastId });
+          return;
+        }
+        const sep = ",";
+        const headers = Object.keys(data[0] ?? {});
+        const csvRows = [
+          headers.join(sep),
+          ...data.map((r) =>
+            headers
+              .map((h) => {
+                const v = r[h];
+                const s = v == null ? "" : String(v);
+                return s.includes(",") || s.includes('"') || s.includes("\n")
+                  ? `"${s.replaceAll('"', '""')}"`
+                  : s;
+              })
+              .join(sep),
+          ),
+        ];
+        triggerDownload(new Blob([csvRows.join("\n")], { type: "text/csv" }), `export.${format}`);
+        toast.success(`Exported ${data.length.toLocaleString()} rows`, { id: toastId });
+      } catch (err) {
+        toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`, {
+          id: toastId,
+        });
+      }
+    },
+    [resolveExportRows, triggerDownload],
+  );
+
+  // XLSX runs off the main thread in the export.worker (exceljs writeBuffer) and
+  // is written through the Electron save dialog (saveBytes) — never a giant
+  // main-thread Blob.
+  const exportExcel = useCallback(async () => {
+    const toastId = toast.loading("Preparing Excel export…");
+    try {
+      const data = await resolveExportRows();
+      if (data.length === 0) {
+        toast.error("No rows to export", { id: toastId });
+        return;
+      }
+      const headers = Object.keys(data[0]);
+      const proxy = getExportProxy();
+      if (!proxy) {
+        toast.error("Excel export unavailable in this environment", { id: toastId });
+        return;
+      }
+      const bytes = await proxy.xlsx({
+        title: "Data Export",
+        sections: [
+          {
+            title: "Data",
+            headers,
+            rows: data.map((r) =>
+              headers.map((h) => {
+                const v = r[h];
+                if (v == null) return "";
+                return typeof v === "number" || typeof v === "string" ? v : String(v);
+              }),
+            ),
+          },
+        ],
+      });
+      const result = await saveBytes(bytes, "export.xlsx", "xlsx");
+      if (result.saved) {
+        toast.success(`Exported ${data.length.toLocaleString()} rows`, { id: toastId });
+      } else {
+        toast.dismiss(toastId);
+      }
+    } catch (err) {
+      toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`, {
+        id: toastId,
+      });
+    }
+  }, [resolveExportRows]);
+
+  const exportJSON = useCallback(async () => {
+    const toastId = toast.loading("Preparing JSON export…");
+    try {
+      const data = await resolveExportRows();
+      if (data.length === 0) {
+        toast.error("No rows to export", { id: toastId });
+        return;
+      }
+      triggerDownload(
+        new Blob([JSON.stringify(data, null, 2)], { type: "application/json" }),
+        "export.json",
+      );
+      toast.success(`Exported ${data.length.toLocaleString()} rows`, { id: toastId });
+    } catch (err) {
+      toast.error(`Export failed: ${err instanceof Error ? err.message : String(err)}`, {
+        id: toastId,
+      });
+    }
+  }, [resolveExportRows, triggerDownload]);
 
   // ── Copy Cell ──
   const copyCell = useCallback((value: unknown) => {
@@ -787,188 +991,40 @@ export default function DataBrowserScreen({
 
   useEffect(() => {
     if (!resizingCol) return;
-    const onMove = (e: MouseEvent) => {
-      const delta = e.clientX - resizeStart;
+    // Coalesce mousemove updates to at most one state commit per animation
+    // frame (instead of a full columns-array clone per pixel of drag).
+    let rafId = 0;
+    let pendingWidth = resizeStartWidth;
+    const applyWidth = () => {
+      rafId = 0;
       setColumns((prev) =>
         produce(prev, (draft) => {
           const col = draft.find((c) => c.id === resizingCol);
-          if (col) col.width = Math.max(60, resizeStartWidth + delta);
+          if (col) col.width = pendingWidth;
         }),
       );
     };
-    const onUp = () => setResizingCol(null);
+    const onMove = (e: MouseEvent) => {
+      pendingWidth = Math.max(60, resizeStartWidth + (e.clientX - resizeStart));
+      if (rafId === 0) rafId = window.requestAnimationFrame(applyWidth);
+    };
+    const onUp = () => {
+      if (rafId !== 0) {
+        window.cancelAnimationFrame(rafId);
+        applyWidth(); // commit the final width
+      }
+      setResizingCol(null);
+    };
     globalThis.window.addEventListener("mousemove", onMove);
     globalThis.window.addEventListener("mouseup", onUp);
     return () => {
+      if (rafId !== 0) window.cancelAnimationFrame(rafId);
       globalThis.window.removeEventListener("mousemove", onMove);
       globalThis.window.removeEventListener("mouseup", onUp);
     };
   }, [resizingCol, resizeStart, resizeStartWidth]);
 
-  // ── Analytics Charts ──
-  const revenueByDeptOption = useMemo(
-    () => ({
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "#18181b",
-        borderColor: "#3f3f46",
-        textStyle: { color: "#e4e4e7", fontSize: 12 },
-      },
-      grid: { top: 20, right: 20, bottom: 60, left: 60, containLabel: true },
-      xAxis: {
-        type: "category",
-        data: analyticsData.map((d) => d.department),
-        axisLabel: { color: "#71717a", rotate: 20, fontSize: 11 },
-        axisLine: { lineStyle: { color: "#3f3f46" } },
-      },
-      yAxis: {
-        type: "value",
-        name: "Revenue ($)",
-        nameTextStyle: { color: "#71717a", fontSize: 11 },
-        axisLabel: {
-          color: "#71717a",
-          fontSize: 11,
-          formatter: (v: number) =>
-            v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${(v / 1e3).toFixed(0)}K`,
-        },
-        splitLine: { lineStyle: { color: "#27272a" } },
-      },
-      series: [
-        {
-          type: "bar",
-          data: analyticsData.map((d) => d.total_revenue),
-          itemStyle: {
-            color: {
-              type: "linear",
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: "#10b981" },
-                { offset: 1, color: "#064e3b" },
-              ],
-            },
-            borderRadius: [4, 4, 0, 0],
-          },
-          label: {
-            show: true,
-            position: "top",
-            color: "#10b981",
-            fontSize: 10,
-            formatter: (p: { value: number }) =>
-              p.value >= 1e6
-                ? `$${(p.value / 1e6).toFixed(1)}M`
-                : `$${(p.value / 1e3).toFixed(0)}K`,
-          },
-        },
-      ],
-    }),
-    [analyticsData],
-  );
-
-  const marginPieOption = useMemo(
-    () => ({
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "#18181b",
-        borderColor: "#3f3f46",
-        textStyle: { color: "#e4e4e7" },
-      },
-      legend: {
-        orient: "vertical",
-        right: 10,
-        textStyle: { color: "#71717a", fontSize: 11 },
-      },
-      series: [
-        {
-          type: "pie",
-          radius: ["40%", "70%"],
-          center: ["40%", "50%"],
-          data: analyticsData.map((d, i) => ({
-            name: d.department,
-            value: d.total_revenue,
-          })),
-          itemStyle: {
-            borderColor: "#09090b",
-            borderWidth: 2,
-          },
-          label: { show: false },
-          emphasis: {
-            itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.5)" },
-          },
-        },
-      ],
-      color: [
-        "#10b981",
-        "#3b82f6",
-        "#F59E0B",
-        "#f59e0b",
-        "#ef4444",
-        "#06b6d4",
-        "#84cc16",
-        "#f97316",
-      ],
-    }),
-    [analyticsData],
-  );
-
-  const satisfactionScatterOption = useMemo(
-    () => ({
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "#18181b",
-        borderColor: "#3f3f46",
-        textStyle: { color: "#e4e4e7", fontSize: 11 },
-        formatter: (p: { data: number[] }) =>
-          `Revenue: $${p.data[0].toLocaleString()}<br/>Satisfaction: ${p.data[1]}`,
-      },
-      grid: { top: 20, right: 20, bottom: 40, left: 60, containLabel: true },
-      xAxis: {
-        type: "value",
-        name: "Revenue",
-        nameTextStyle: { color: "#71717a", fontSize: 11 },
-        axisLabel: {
-          color: "#71717a",
-          fontSize: 10,
-          formatter: (v: number) => `$${(v / 1e3).toFixed(0)}K`,
-        },
-        splitLine: { lineStyle: { color: "#27272a" } },
-      },
-      yAxis: {
-        type: "value",
-        name: "Satisfaction",
-        nameTextStyle: { color: "#71717a", fontSize: 11 },
-        axisLabel: { color: "#71717a", fontSize: 10 },
-        splitLine: { lineStyle: { color: "#27272a" } },
-        min: 0,
-        max: 5,
-      },
-      series: [
-        {
-          type: "scatter",
-          data: analyticsData.map((d) => [d.total_revenue, d.avg_satisfaction]),
-          symbolSize: 10,
-          itemStyle: { color: "#F59E0B", opacity: 0.8 },
-        },
-      ],
-    }),
-    [analyticsData],
-  );
-
-  // ── Search Filter ──
-  const fuse = useMemo(() => {
-    if (!searchHighlight || !searchQuery) return null;
-    return new Fuse(rows, {
-      keys: columns.filter((c) => c.visible).map((c) => c.name),
-      includeScore: true,
-      threshold: 0.3,
-    });
-  }, [rows, columns, searchHighlight, searchQuery]);
-
+  // ── Search highlight (visual only — matching is pushed down to DuckDB) ──
   const highlightText = useCallback(
     (text: string): React.ReactNode => {
       if (!searchHighlight || !searchQuery || !text) return text;
@@ -1004,9 +1060,33 @@ export default function DataBrowserScreen({
     });
   }, [selectedRows, rows, columns]);
 
+  // ── Heatmap column ranges ──
+  const columnRanges = useMemo(() => {
+    if (!heatmapEnabled) return {} as Record<string, { min: number; max: number }>;
+    const ranges: Record<string, { min: number; max: number }> = {};
+    for (const col of columns.filter((c) => c.type === "number")) {
+      const vals = rows.map((r) => Number(r[col.name])).filter((v) => !Number.isNaN(v));
+      if (vals.length) ranges[col.name] = { min: Math.min(...vals), max: Math.max(...vals) };
+    }
+    return ranges;
+  }, [rows, columns, heatmapEnabled]);
+
+  const cellHeatmapStyle = useCallback(
+    (colName: string, value: unknown): React.CSSProperties => {
+      if (!heatmapEnabled) return {};
+      const range = columnRanges[colName];
+      if (!range || range.max === range.min) return {};
+      const ratio = (Number(value) - range.min) / (range.max - range.min);
+      if (Number.isNaN(ratio)) return {};
+      const hue = ratio * 120; // 0=red, 120=green
+      return { backgroundColor: `hsla(${hue}, 70%, 45%, 0.15)` };
+    },
+    [heatmapEnabled, columnRanges],
+  );
+
   // ── Render ──
   const pageContainerClass = cn(
-    "dn-page flex h-full min-h-full flex-col overflow-hidden text-foreground transition-all duration-300",
+    " flex h-full min-h-full flex-col overflow-hidden text-foreground transition-all duration-300",
     fullscreen && "fixed inset-0 z-50",
   );
 
@@ -1015,7 +1095,7 @@ export default function DataBrowserScreen({
   return (
     <div className={pageContainerClass}>
       {/* ── Header ─────────────────────────────────── */}
-      <div className="dn-sticky-header flex-none px-4 py-2.5">
+      <div className=" flex-none px-4 py-2.5">
         <div className="flex items-center gap-3 flex-wrap">
           {/* Title */}
           <div className="flex items-center gap-2 min-w-0">
@@ -1035,13 +1115,13 @@ export default function DataBrowserScreen({
 
           <DBStatusBadge initialized={dbReady} />
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "h-8 w-8 border-zinc-800 bg-zinc-900",
-                  uploadPanelOpen && "border-blue-500/50 bg-blue-500/10 text-blue-400",
+                  "h-8 w-8",
+                  uploadPanelOpen && "border-primary/50 bg-primary/10 text-primary",
                 )}
                 aria-label="Upload file"
                 onClick={() => setUploadPanelOpen(!uploadPanelOpen)}
@@ -1149,21 +1229,21 @@ export default function DataBrowserScreen({
 
           {/* Filter */}
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
                 className={cn(
-                  "h-8 w-8 border-zinc-800 bg-zinc-900",
+                  "h-8 w-8",
                   filterGroup.rules.filter((r) => r.active).length > 0 &&
-                    "border-emerald-500/50 bg-emerald-500/10 text-emerald-400",
+                    "border-success/50 bg-success/10 text-success",
                 )}
                 aria-label="Filters"
                 onClick={() => setFilterPanelOpen(!filterPanelOpen)}
               >
                 <Filter className="h-3.5 w-3.5" />
                 {filterGroup.rules.filter((r) => r.active).length > 0 && (
-                  <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 text-[8px] flex items-center justify-center text-black font-bold">
+                  <span className="absolute -top-1 -right-1 h-3.5 w-3.5 rounded-full bg-success text-[8px] flex items-center justify-center text-success-foreground font-bold">
                     {filterGroup.rules.filter((r) => r.active).length}
                   </span>
                 )}
@@ -1174,11 +1254,11 @@ export default function DataBrowserScreen({
 
           {/* Column manager */}
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger asChild>
               <Button
                 variant="outline"
                 size="icon"
-                className="h-8 w-8 border-zinc-800 bg-zinc-900"
+                className="h-8 w-8"
                 aria-label="Columns"
                 onClick={() => setColPanelOpen(!colPanelOpen)}
               >
@@ -1199,7 +1279,7 @@ export default function DataBrowserScreen({
               <div className="px-2 py-1.5 text-xs text-zinc-500 font-medium">
                 {selectedRows.size > 0
                   ? `${selectedRows.size} selected rows`
-                  : `All ${rows.length} rows`}
+                  : `All ${totalRows.toLocaleString()} filtered rows`}
               </div>
               <DropdownMenuSeparator className="bg-zinc-800" />
               <DropdownMenuItem
@@ -1208,6 +1288,20 @@ export default function DataBrowserScreen({
               >
                 <FileText className="h-3.5 w-3.5 text-zinc-500" />
                 CSV (.csv)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={exportExcel}
+                className="text-sm gap-2 text-zinc-300 focus:bg-zinc-800"
+              >
+                <FileSpreadsheet className="h-3.5 w-3.5 text-emerald-500" />
+                Excel (.xlsx)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onClick={exportJSON}
+                className="text-sm gap-2 text-zinc-300 focus:bg-zinc-800"
+              >
+                <FileJson className="h-3.5 w-3.5 text-blue-400" />
+                JSON (.json)
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
@@ -1253,6 +1347,14 @@ export default function DataBrowserScreen({
                     className="scale-75"
                   />
                 </div>
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-zinc-300">Heatmap colors</Label>
+                  <Switch
+                    checked={heatmapEnabled}
+                    onCheckedChange={setHeatmapEnabled}
+                    className="scale-75"
+                  />
+                </div>
               </div>
               <DropdownMenuSeparator className="bg-zinc-800" />
               <div className="px-2 py-1.5">
@@ -1285,7 +1387,11 @@ export default function DataBrowserScreen({
             size="icon"
             className="h-8 w-8 border-zinc-800 bg-zinc-900"
             aria-label="Refresh rows"
-            onClick={fetchRows}
+            onClick={() => {
+              // Force a fresh count + page on manual refresh.
+              countCacheRef.current.clear();
+              void fetchRows();
+            }}
             disabled={queryLoading}
           >
             <RefreshCw className={cn("h-3.5 w-3.5", queryLoading && "animate-spin")} />
@@ -1377,7 +1483,8 @@ export default function DataBrowserScreen({
             <div className="px-4 py-4">
               <div className="max-w-2xl mx-auto">
                 {!uploadingFile ? (
-                  <div
+                  <button
+                    type="button"
                     onDragOver={(e) => {
                       e.preventDefault();
                       setUploadDragging(true);
@@ -1391,7 +1498,7 @@ export default function DataBrowserScreen({
                     }}
                     onClick={handleNativeUpload}
                     className={cn(
-                      "border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all",
+                      "w-full border-2 border-dashed rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer transition-all",
                       uploadDragging
                         ? "border-blue-500 bg-blue-500/5 scale-[1.01]"
                         : "border-zinc-700 hover:border-zinc-600 hover:bg-zinc-900/50",
@@ -1437,7 +1544,7 @@ export default function DataBrowserScreen({
                         </Badge>
                       ))}
                     </div>
-                  </div>
+                  </button>
                 ) : (
                   <motion.div
                     initial={{ opacity: 0, y: 6 }}
@@ -1541,6 +1648,14 @@ export default function DataBrowserScreen({
                   </span>
                 </div>
               ))}
+              {editedCells.size > 0 && (
+                <Button
+                  className="text-[11px] bg-amber-600/20 text-amber-300 hover:bg-amber-600/30 border border-amber-500/30 rounded px-2 py-0.5"
+                  onClick={() => setEditedCells(new Map())}
+                >
+                  Save changes ({editedCells.size} edited)
+                </Button>
+              )}
               <Button
                 className="ml-auto text-[11px] text-zinc-500 hover:text-zinc-300"
                 onClick={() => setSelectedRows(new Set())}
@@ -1717,6 +1832,31 @@ export default function DataBrowserScreen({
                   </div>
                 </ScrollArea>
 
+                {/* Saved filters (Dexie, per dataset) */}
+                {savedFilterGroups.length > 0 && (
+                  <div className="px-4 py-2 border-t border-zinc-800 space-y-1">
+                    <p className="text-[10px] text-zinc-500 uppercase tracking-wide">
+                      Saved filters
+                    </p>
+                    {savedFilterGroups.map((f) => (
+                      <div key={f.id} className="flex items-center gap-1">
+                        <Button
+                          className="flex-1 text-left text-[11px] text-zinc-300 hover:text-emerald-300 truncate px-2 py-1 rounded bg-zinc-900 hover:bg-zinc-800"
+                          onClick={() => handleApplyFilter(f)}
+                        >
+                          {f.name} ({f.group.rules.length})
+                        </Button>
+                        <Button
+                          onClick={() => void handleDeleteSaved(f.id, "filter")}
+                          className="h-5 w-5 flex items-center justify-center rounded hover:bg-zinc-700"
+                        >
+                          <X className="h-3 w-3 text-zinc-600 hover:text-red-400" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
                 <div className="p-4 border-t border-zinc-800 space-y-2">
                   <Button
                     size="sm"
@@ -1738,20 +1878,32 @@ export default function DataBrowserScreen({
                     <Plus className="h-3.5 w-3.5 mr-1" />
                     Add Rule
                   </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="w-full h-8 text-xs border-zinc-800"
-                    onClick={() =>
-                      setFilterGroup((prev) =>
-                        produce(prev, (draft) => {
-                          draft.rules = [];
-                        }),
-                      )
-                    }
-                  >
-                    Clear All
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-8 text-xs border-zinc-800"
+                      disabled={filterGroup.rules.length === 0}
+                      onClick={handleSaveFilter}
+                    >
+                      <Star className="h-3.5 w-3.5 mr-1" />
+                      Save
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 h-8 text-xs border-zinc-800"
+                      onClick={() =>
+                        setFilterGroup((prev) =>
+                          produce(prev, (draft) => {
+                            draft.rules = [];
+                          }),
+                        )
+                      }
+                    >
+                      Clear All
+                    </Button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1979,7 +2131,7 @@ export default function DataBrowserScreen({
                       if (!rowData) return null;
 
                       const isSelected = selectedRows.has(virtualRow.index);
-                      const isStarred = starredRows.has(Number(rowData.id ?? virtualRow.index));
+                      const isStarred = starredKeys.has(rowStableKey(rowData));
                       const isZebra = zebraStripes && virtualRow.index % 2 === 1;
 
                       return (
@@ -1993,8 +2145,15 @@ export default function DataBrowserScreen({
                             height: `${virtualRow.size}px`,
                             transform: `translateY(${virtualRow.start}px)`,
                           }}
+                          role="button"
+                          tabIndex={0}
                           onClick={(e) => toggleRow(virtualRow.index, e)}
-                          onDoubleClick={() => setRowDetailRow(rowData)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              toggleRow(virtualRow.index, e);
+                            }
+                          }}
                           className={cn(
                             "flex items-stretch border-b border-zinc-800/30 group transition-colors cursor-pointer",
                             isSelected && "bg-emerald-500/10 border-emerald-500/10",
@@ -2022,30 +2181,43 @@ export default function DataBrowserScreen({
 
                           {/* Cells */}
                           {visibleColumns.map((col) => {
-                            const value = rowData[col.name];
-                            const formatted = formatCellValue(value, col.type);
+                            const cellKey = `${virtualRow.index}-${col.id}`;
+                            const rawValue = rowData[col.name];
+                            const isEdited = editedCells.has(cellKey);
+                            const displayValue = isEdited ? editedCells.get(cellKey) : rawValue;
+                            const formatted = formatCellValue(displayValue, col.type);
                             const isFocused =
                               focusedCell?.rowIdx === virtualRow.index &&
                               focusedCell?.colId === col.id;
+                            const isEditing =
+                              editingCell?.rowIdx === virtualRow.index &&
+                              editingCell?.colId === col.id;
+
+                            const heatStyle =
+                              col.type === "number" ? cellHeatmapStyle(col.name, displayValue) : {};
 
                             return (
                               <div
                                 key={col.id}
                                 className={cn(
-                                  "flex items-center px-3 border-r border-zinc-800/20 text-xs font-mono truncate",
+                                  "relative flex items-center px-3 border-r border-zinc-800/20 text-xs font-mono truncate",
                                   col.type === "number" && "justify-end text-emerald-300",
                                   col.type === "boolean" && "justify-center",
                                   col.type === "date" && "text-purple-300",
                                   col.type === "email" && "text-blue-300",
-                                  !value && "text-zinc-600 italic",
+                                  !displayValue && "text-zinc-600 italic",
                                   isFocused && "outline outline-1 outline-blue-500 bg-blue-500/5",
+                                  isEdited && !isEditing && "bg-amber-500/10",
                                 )}
                                 style={{
                                   width: col.width,
                                   minWidth: col.width,
                                   maxWidth: col.width,
                                   height: rowHeight,
+                                  ...(!isEdited ? heatStyle : {}),
                                 }}
+                                role="button"
+                                tabIndex={0}
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   setFocusedCell({
@@ -2053,23 +2225,62 @@ export default function DataBrowserScreen({
                                     colId: col.id,
                                   });
                                 }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter" || e.key === " ") {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    setFocusedCell({
+                                      rowIdx: virtualRow.index,
+                                      colId: col.id,
+                                    });
+                                  }
+                                }}
                                 onDoubleClick={(e) => {
                                   e.stopPropagation();
-                                  copyCell(value);
+                                  setEditingCell({ rowIdx: virtualRow.index, colId: col.id });
+                                  setEditValue(displayValue == null ? "" : String(displayValue));
                                 }}
                               >
-                                {value === null || value === undefined ? (
+                                {isEditing ? (
+                                  <input
+                                    ref={(el) => el?.focus()}
+                                    value={editValue}
+                                    onChange={(e) => setEditValue(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        setEditedCells((prev) => {
+                                          const next = new Map(prev);
+                                          next.set(cellKey, editValue);
+                                          return next;
+                                        });
+                                        setEditingCell(null);
+                                      } else if (e.key === "Escape") {
+                                        setEditingCell(null);
+                                      }
+                                    }}
+                                    onBlur={() => {
+                                      setEditedCells((prev) => {
+                                        const next = new Map(prev);
+                                        next.set(cellKey, editValue);
+                                        return next;
+                                      });
+                                      setEditingCell(null);
+                                    }}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="absolute inset-0 w-full h-full px-3 text-xs font-mono bg-zinc-800 border border-blue-500 outline-none text-zinc-100 z-10"
+                                  />
+                                ) : displayValue === null || displayValue === undefined ? (
                                   <span className="text-zinc-700 text-[10px]">NULL</span>
                                 ) : col.type === "boolean" ? (
                                   <span
                                     className={cn(
                                       "h-4 w-4 rounded-full flex items-center justify-center text-[9px] font-bold",
-                                      String(value) === "true"
+                                      String(displayValue) === "true"
                                         ? "bg-emerald-500/20 text-emerald-400"
                                         : "bg-zinc-700 text-zinc-500",
                                     )}
                                   >
-                                    {String(value) === "true" ? "T" : "F"}
+                                    {String(displayValue) === "true" ? "T" : "F"}
                                   </span>
                                 ) : searchHighlight && searchQuery ? (
                                   highlightText(formatted)
@@ -2085,17 +2296,11 @@ export default function DataBrowserScreen({
                             <Button
                               onClick={(e) => {
                                 e.stopPropagation();
-                                const id = Number(rowData.id ?? virtualRow.index);
-                                setStarredRows((prev) => {
-                                  const next = new Set(prev);
-                                  if (next.has(id)) next.delete(id);
-                                  else next.add(id);
-                                  return next;
-                                });
+                                toggleStar(rowData);
                               }}
                               className="h-5 w-5 flex items-center justify-center rounded hover:bg-zinc-700"
                             >
-                              {starredRows.has(Number(rowData.id ?? virtualRow.index)) ? (
+                              {isStarred ? (
                                 <Star className="h-3 w-3 text-amber-400" />
                               ) : (
                                 <StarOff className="h-3 w-3 text-zinc-600" />
@@ -2193,7 +2398,9 @@ export default function DataBrowserScreen({
                           onClick={() =>
                             setColumns((prev) =>
                               produce(prev, (draft) => {
-                                draft.forEach((c) => (c.visible = true));
+                                draft.forEach((c) => {
+                                  c.visible = true;
+                                });
                               }),
                             )
                           }
@@ -2207,7 +2414,9 @@ export default function DataBrowserScreen({
                           onClick={() =>
                             setColumns((prev) =>
                               produce(prev, (draft) => {
-                                draft.forEach((c, i) => (c.visible = i < 5));
+                                draft.forEach((c, i) => {
+                                  c.visible = i < 5;
+                                });
                               }),
                             )
                           }
@@ -2224,356 +2433,137 @@ export default function DataBrowserScreen({
 
           {/* ── CARDS VIEW ── */}
           {viewMode === "cards" && (
-            <div className="flex-1 overflow-auto p-4 relative">
+            <div ref={cardsContainerRef} className="flex-1 overflow-auto p-4 relative">
               {queryLoading && <LoadingOverlay />}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
-                {rows.map((row, i) => (
-                  <motion.div
-                    key={i}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.01 }}
-                    className={cn(
-                      "bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20",
-                      selectedRows.has(i) && "border-emerald-500/50 bg-emerald-500/5",
-                    )}
-                    onClick={(e) => toggleRow(i, e)}
-                    onDoubleClick={() => setRowDetailRow(row)}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 w-8 rounded-full bg-linear-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
-                          {String(row.first_name ?? row[Object.keys(row)[1]] ?? "?")[0]}
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-zinc-200 leading-none">
-                            {String(row.first_name ?? "")} {String(row.last_name ?? "")}
-                          </p>
-                          <p className="text-[10px] text-zinc-500 mt-0.5">
-                            {String(row.department ?? row.email ?? "")}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge
-                        variant="outline"
-                        className={cn(
-                          "text-[10px] border-0",
-                          String(row.status) === "Active"
-                            ? "bg-emerald-500/10 text-emerald-400"
-                            : String(row.status) === "Inactive"
-                              ? "bg-zinc-700 text-zinc-400"
-                              : "bg-amber-500/10 text-amber-400",
-                        )}
-                      >
-                        {String(row.status ?? "")}
-                      </Badge>
-                    </div>
+              {/* Single container fade — no per-item staggered delay (which made
+                  every card animate independently with no virtualization). */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.15 }}
+                style={{ height: `${cardRowVirtualizer.getTotalSize()}px`, position: "relative" }}
+              >
+                {cardRowVirtualizer.getVirtualItems().map((virtualRow) => {
+                  const start = virtualRow.index * cardColumns;
+                  const rowSlice = rows.slice(start, start + cardColumns);
+                  return (
+                    <div
+                      key={virtualRow.key}
+                      className="grid gap-3"
+                      style={{
+                        position: "absolute",
+                        top: 0,
+                        left: 0,
+                        width: "100%",
+                        transform: `translateY(${virtualRow.start}px)`,
+                        gridTemplateColumns: `repeat(${cardColumns}, minmax(0, 1fr))`,
+                      }}
+                    >
+                      {rowSlice.map((row, offset) => {
+                        const i = start + offset;
+                        return (
+                          <div
+                            key={i}
+                            className={cn(
+                              "bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 cursor-pointer transition-all hover:shadow-lg hover:shadow-black/20",
+                              selectedRows.has(i) && "border-emerald-500/50 bg-emerald-500/5",
+                            )}
+                            role="button"
+                            tabIndex={0}
+                            onClick={(e) => toggleRow(i, e)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                toggleRow(i, e);
+                              }
+                            }}
+                            onDoubleClick={() => setRowDetailRow(row)}
+                          >
+                            <div className="flex items-start justify-between mb-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-linear-to-br from-emerald-500/20 to-blue-500/20 flex items-center justify-center text-sm font-bold text-zinc-300">
+                                  {String(row.first_name ?? row[Object.keys(row)[1]] ?? "?")[0]}
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-zinc-200 leading-none">
+                                    {String(row.first_name ?? "")} {String(row.last_name ?? "")}
+                                  </p>
+                                  <p className="text-[10px] text-zinc-500 mt-0.5">
+                                    {String(row.department ?? row.email ?? "")}
+                                  </p>
+                                </div>
+                              </div>
+                              <Badge
+                                variant="outline"
+                                className={cn(
+                                  "text-[10px] border-0",
+                                  String(row.status) === "Active"
+                                    ? "bg-emerald-500/10 text-emerald-400"
+                                    : String(row.status) === "Inactive"
+                                      ? "bg-zinc-700 text-zinc-400"
+                                      : "bg-amber-500/10 text-amber-400",
+                                )}
+                              >
+                                {String(row.status ?? "")}
+                              </Badge>
+                            </div>
 
-                    <div className="space-y-1.5">
-                      {Object.entries(row)
-                        .filter(([k]) =>
-                          ["revenue", "units_sold", "satisfaction_score", "country"].includes(k),
-                        )
-                        .slice(0, 4)
-                        .map(([k, v]) => (
-                          <div key={k} className="flex items-center justify-between">
-                            <span className="text-[10px] text-zinc-500 capitalize">
-                              {k.replace(/_/g, " ")}
-                            </span>
-                            <span className="text-[11px] font-mono text-zinc-300">
-                              {typeof v === "number"
-                                ? v.toLocaleString("en-US", {
-                                    maximumFractionDigits: 2,
-                                  })
-                                : String(v ?? "—")}
-                            </span>
+                            <div className="space-y-1.5">
+                              {Object.entries(row)
+                                .filter(([k]) =>
+                                  [
+                                    "revenue",
+                                    "units_sold",
+                                    "satisfaction_score",
+                                    "country",
+                                  ].includes(k),
+                                )
+                                .slice(0, 4)
+                                .map(([k, v]) => (
+                                  <div key={k} className="flex items-center justify-between">
+                                    <span className="text-[10px] text-zinc-500 capitalize">
+                                      {k.replace(/_/g, " ")}
+                                    </span>
+                                    <span className="text-[11px] font-mono text-zinc-300">
+                                      {typeof v === "number"
+                                        ? v.toLocaleString("en-US", {
+                                            maximumFractionDigits: 2,
+                                          })
+                                        : String(v ?? "—")}
+                                    </span>
+                                  </div>
+                                ))}
+                            </div>
+
+                            {typeof row.revenue === "number" && (
+                              <div className="mt-3">
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className="text-[9px] text-zinc-600 uppercase">
+                                    Revenue
+                                  </span>
+                                  <span className="text-[10px] text-emerald-400 font-mono">
+                                    ${Number(row.revenue).toLocaleString()}
+                                  </span>
+                                </div>
+                                <Progress
+                                  value={(Number(row.revenue) / 100000) * 100}
+                                  className="h-1"
+                                />
+                              </div>
+                            )}
                           </div>
-                        ))}
+                        );
+                      })}
                     </div>
-
-                    {typeof row.revenue === "number" && (
-                      <div className="mt-3">
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[9px] text-zinc-600 uppercase">Revenue</span>
-                          <span className="text-[10px] text-emerald-400 font-mono">
-                            ${Number(row.revenue).toLocaleString()}
-                          </span>
-                        </div>
-                        <Progress value={(Number(row.revenue) / 100000) * 100} className="h-1" />
-                      </div>
-                    )}
-                  </motion.div>
-                ))}
-              </div>
+                  );
+                })}
+              </motion.div>
             </div>
           )}
 
-          {/* ── ANALYTICS VIEW ── */}
-          {viewMode === "analytics" && (
-            <div className="flex-1 overflow-auto p-4">
-              <Tabs value={analyticsTab} onValueChange={setAnalyticsTab}>
-                <TabsList className="bg-zinc-900 border border-zinc-800 mb-4">
-                  <TabsTrigger value="overview" className="text-xs data-[state=active]:bg-zinc-700">
-                    Overview
-                  </TabsTrigger>
-                  <TabsTrigger value="revenue" className="text-xs data-[state=active]:bg-zinc-700">
-                    Revenue
-                  </TabsTrigger>
-                  <TabsTrigger value="segments" className="text-xs data-[state=active]:bg-zinc-700">
-                    Segments
-                  </TabsTrigger>
-                  <TabsTrigger value="scatter" className="text-xs data-[state=active]:bg-zinc-700">
-                    Correlation
-                  </TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="overview">
-                  <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                    {[
-                      {
-                        label: "Total Revenue",
-                        value: analyticsData
-                          .reduce((a, b) => a + Number(b.total_revenue ?? 0), 0)
-                          .toLocaleString("en-US", {
-                            style: "currency",
-                            currency: "USD",
-                            maximumFractionDigits: 0,
-                          }),
-                        icon: <TrendingUp className="h-4 w-4" />,
-                        color: "emerald",
-                      },
-                      {
-                        label: "Avg Margin",
-                        value:
-                          analyticsData.length > 0
-                            ? (
-                                analyticsData.reduce((a, b) => a + Number(b.avg_margin ?? 0), 0) /
-                                analyticsData.length
-                              ).toFixed(1) + "%"
-                            : "—",
-                        icon: <PieChart className="h-4 w-4" />,
-                        color: "blue",
-                      },
-                      {
-                        label: "Departments",
-                        value: analyticsData.length,
-                        icon: <Grid3X3 className="h-4 w-4" />,
-                        color: "purple",
-                      },
-                      {
-                        label: "Avg Satisfaction",
-                        value:
-                          analyticsData.length > 0
-                            ? (
-                                analyticsData.reduce(
-                                  (a, b) => a + Number(b.avg_satisfaction ?? 0),
-                                  0,
-                                ) / analyticsData.length
-                              ).toFixed(2)
-                            : "—",
-                        icon: <Sparkles className="h-4 w-4" />,
-                        color: "amber",
-                      },
-                    ].map((stat) => (
-                      <div
-                        key={stat.label}
-                        className={cn(
-                          "bg-zinc-900 border rounded-xl p-4",
-                          stat.color === "emerald" && "border-emerald-500/20",
-                          stat.color === "blue" && "border-blue-500/20",
-                          stat.color === "purple" && "border-purple-500/20",
-                          stat.color === "amber" && "border-amber-500/20",
-                        )}
-                      >
-                        <div
-                          className={cn(
-                            "h-8 w-8 rounded-lg flex items-center justify-center mb-3",
-                            stat.color === "emerald" && "bg-emerald-500/10 text-emerald-400",
-                            stat.color === "blue" && "bg-blue-500/10 text-blue-400",
-                            stat.color === "purple" && "bg-purple-500/10 text-purple-400",
-                            stat.color === "amber" && "bg-amber-500/10 text-amber-400",
-                          )}
-                        >
-                          {stat.icon}
-                        </div>
-                        <p className="text-2xl font-bold text-zinc-100">{stat.value}</p>
-                        <p className="text-xs text-zinc-500 mt-1">{stat.label}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <Card className="bg-zinc-900 border-zinc-800">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Revenue by Department</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ReactECharts
-                          option={revenueByDeptOption}
-                          style={{ height: 280 }}
-                          opts={{ renderer: "canvas" }}
-                        />
-                      </CardContent>
-                    </Card>
-                    <Card className="bg-zinc-900 border-zinc-800">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Revenue Distribution</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ReactECharts
-                          option={marginPieOption}
-                          style={{ height: 280 }}
-                          opts={{ renderer: "canvas" }}
-                        />
-                      </CardContent>
-                    </Card>
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="revenue">
-                  <Card className="bg-zinc-900 border-zinc-800">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">
-                        Revenue vs Profit Margin by Department
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ReactECharts
-                        option={{
-                          ...revenueByDeptOption,
-                          series: [
-                            ...(revenueByDeptOption.series ?? []),
-                            {
-                              type: "line",
-                              yAxisIndex: 1,
-                              data: analyticsData.map((d) => d.avg_margin),
-                              smooth: true,
-                              symbol: "circle",
-                              symbolSize: 6,
-                              lineStyle: { color: "#3b82f6", width: 2 },
-                              itemStyle: { color: "#3b82f6" },
-                              name: "Avg Margin %",
-                            },
-                          ],
-                          yAxis: [
-                            revenueByDeptOption.yAxis,
-                            {
-                              type: "value",
-                              name: "Margin %",
-                              nameTextStyle: { color: "#71717a", fontSize: 11 },
-                              axisLabel: {
-                                color: "#71717a",
-                                fontSize: 11,
-                                formatter: "{value}%",
-                              },
-                              splitLine: { show: false },
-                            },
-                          ],
-                        }}
-                        style={{ height: 400 }}
-                        opts={{ renderer: "canvas" }}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-
-                <TabsContent value="segments">
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {analyticsData.map((dept) => (
-                      <Card key={String(dept.department)} className="bg-zinc-900 border-zinc-800">
-                        <CardHeader className="pb-2">
-                          <div className="flex items-center justify-between">
-                            <CardTitle className="text-sm">{String(dept.department)}</CardTitle>
-                            <Badge
-                              variant="outline"
-                              className="text-xs border-zinc-700 text-zinc-400"
-                            >
-                              {Number(dept.user_count).toLocaleString()} users
-                            </Badge>
-                          </div>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="grid grid-cols-2 gap-3">
-                            <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">Revenue</p>
-                              <p className="text-sm font-bold text-emerald-400">
-                                $
-                                {Number(dept.total_revenue).toLocaleString("en-US", {
-                                  maximumFractionDigits: 0,
-                                })}
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">Margin</p>
-                              <p className="text-sm font-bold text-blue-400">
-                                {Number(dept.avg_margin).toFixed(1)}%
-                              </p>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">Satisfaction</p>
-                              <div className="flex items-center gap-1">
-                                <p className="text-sm font-bold text-amber-400">
-                                  {Number(dept.avg_satisfaction).toFixed(2)}
-                                </p>
-                                <span className="text-[10px] text-zinc-600">/5</span>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-[10px] text-zinc-500 uppercase">Units</p>
-                              <p className="text-sm font-bold text-purple-400">
-                                {Number(dept.total_units).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-3 space-y-1">
-                            <div className="flex items-center justify-between text-[10px] text-zinc-500">
-                              <span>Revenue share</span>
-                              <span>
-                                {(
-                                  (Number(dept.total_revenue) /
-                                    analyticsData.reduce(
-                                      (a, b) => a + Number(b.total_revenue ?? 0),
-                                      0,
-                                    )) *
-                                  100
-                                ).toFixed(1)}
-                                %
-                              </span>
-                            </div>
-                            <Progress
-                              value={
-                                (Number(dept.total_revenue) /
-                                  analyticsData.reduce(
-                                    (a, b) => a + Number(b.total_revenue ?? 0),
-                                    0,
-                                  )) *
-                                100
-                              }
-                              className="h-1.5"
-                            />
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                  </div>
-                </TabsContent>
-
-                <TabsContent value="scatter">
-                  <Card className="bg-zinc-900 border-zinc-800">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm">Revenue vs Satisfaction Correlation</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <ReactECharts
-                        option={satisfactionScatterOption}
-                        style={{ height: 400 }}
-                        opts={{ renderer: "canvas" }}
-                      />
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              </Tabs>
-            </div>
+          {/* ── ANALYTICS VIEW (dataset-generic, real DuckDB + analysis worker) ── */}
+          {viewMode === "analytics" && activeTable && (
+            <AnalyticsView datasetId={activeTable} columns={columns} whereClause={composedWhere} />
           )}
 
           {/* ── SQL VIEW ── */}
@@ -2582,17 +2572,24 @@ export default function DataBrowserScreen({
               <div className="flex-none border-b border-zinc-800 bg-zinc-900/30 px-3 py-2 flex items-center gap-2">
                 <Code2 className="h-3.5 w-3.5 text-emerald-400" />
                 <span className="text-xs font-medium text-zinc-300">SQL Editor</span>
-                <span className="text-[10px] text-zinc-600">— Powered by DuckDB WASM</span>
+                <span className="text-[10px] text-zinc-600">— Powered by native DuckDB</span>
                 <div className="flex-1" />
                 <div className="flex items-center gap-1.5">
                   {savedQueries.map((q) => (
                     <Tooltip key={q.id}>
-                      <TooltipTrigger>
+                      <TooltipTrigger asChild>
                         <Button
                           onClick={() => setSqlQuery(q.sql)}
                           className="text-[10px] text-zinc-500 hover:text-zinc-300 px-2 py-0.5 rounded bg-zinc-800 hover:bg-zinc-700 transition-colors"
                         >
                           {q.name}
+                          <X
+                            className="h-2.5 w-2.5 ml-1 inline opacity-50 hover:opacity-100"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void handleDeleteSaved(q.id, "query");
+                            }}
+                          />
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent className="max-w-xs">
@@ -2601,6 +2598,16 @@ export default function DataBrowserScreen({
                     </Tooltip>
                   ))}
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-zinc-800 gap-1.5"
+                  onClick={handleSaveSql}
+                  disabled={!dbReady || !sqlQuery.trim()}
+                >
+                  <Star className="h-3 w-3" />
+                  Save
+                </Button>
                 <Button
                   size="sm"
                   className="h-7 text-xs bg-emerald-600 hover:bg-emerald-500 gap-1.5"

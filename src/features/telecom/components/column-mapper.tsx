@@ -64,7 +64,7 @@ export function ColumnMapper({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
-            <Settings2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+            <Settings2 className="w-5 h-5 text-primary" />
             <span className="text-sm font-bold text-foreground">
               Mappage des Colonnes
             </span>

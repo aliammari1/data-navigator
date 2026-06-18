@@ -1,8 +1,8 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { BarChart2, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
 import { buildCanalCompareBarOption } from "@/features/telecom/lib/chart-options";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
@@ -143,10 +143,9 @@ export function CanalComparePanel({
                 <BarChart2 className="w-3 h-3" /> Volume des transactions
                 réussies
               </div>
-              <ReactECharts
+              <EChart
                 option={buildCanalCompareBarOption(results)}
-                style={{ height: "220px" }}
-                opts={{ renderer: "canvas" }}
+                height={220}
               />
             </div>
           )}

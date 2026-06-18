@@ -1,9 +1,9 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { ChevronDown, Clock, Loader2, Users, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildCustomerHourlyOption } from "@/features/telecom/lib/chart-options";
 import {
   fmtAmount,
@@ -252,13 +252,12 @@ export function CustomerProfilePanel({
                     <div className="px-3 pt-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
                       <Clock className="w-3 h-3" /> Activité horaire
                     </div>
-                    <ReactECharts
+                    <EChart
                       option={buildCustomerHourlyOption(
                         profile.hourly,
                         profile.peakHour,
                       )}
-                      style={{ height: "100px" }}
-                      opts={{ renderer: "canvas" }}
+                      height={100}
                     />
                   </div>
                 )}
@@ -306,7 +305,7 @@ export function CustomerProfilePanel({
                         </tr>
                       </thead>
                       <tbody>
-                        {pageTx.map((row) => {
+                        {pageTx.map((row, rowIdx) => {
                           const st = String(row[m.status] ?? "");
                           const isSuccess =
                             BUILTIN_STATUS_CODES.success.includes(
@@ -315,11 +314,13 @@ export function CustomerProfilePanel({
                           const isDeclined =
                             st.toUpperCase().startsWith("DC") ||
                             st.toUpperCase().startsWith("SDL");
+                          // Stable, deterministic key (no Math.random): prefer a
+                          // real id, else fall back to the row's page index.
                           const rowKey = String(
                             row[m.transactionId] ??
                               row[m.msisdn] ??
                               row[m.transactionDate] ??
-                              Math.random(),
+                              `row-${rowIdx}`,
                           );
                           return (
                             <tr

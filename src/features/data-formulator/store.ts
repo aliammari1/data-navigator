@@ -293,7 +293,19 @@ export const useFormulatorStore = create<FormulatorStore>()(
         providers: state.providers,
         selectedProviderId: state.selectedProviderId,
         selectedModel: state.selectedModel,
-        threads: state.threads,
+        // Persist the exploration graph WITHOUT the heavy `chartResult` rows.
+        // The result set is fully re-derivable from the stored `sql`, so dropping
+        // it keeps the synchronous JSON serialization on every `addStep` small
+        // (large histories previously serialized every row of every chart).
+        threads: Object.fromEntries(
+          Object.entries(state.threads).map(([id, thread]) => [
+            id,
+            {
+              ...thread,
+              steps: thread.steps.map(({ chartResult: _chartResult, ...step }) => step),
+            },
+          ]),
+        ),
         activeThreadId: state.activeThreadId,
         settings: state.settings,
       }),

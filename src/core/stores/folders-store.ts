@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 // A folder record stored in the catalog (not a dataset, just a container)
@@ -114,7 +115,77 @@ export const useFoldersStore = create<FoldersStore>()(
     }),
     {
       name: "data-navigator-folders",
+      version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
+      // Backfill CatalogFolder defaults (starred:false, parentId:null) and
+      // prune datasetFolderMap entries with malformed values.
+      migrate: (persisted, _version) => {
+        const prev = (persisted ?? {}) as Partial<FoldersStore>;
+
+        const folders: CatalogFolder[] = Array.isArray(prev.folders)
+          ? prev.folders.map((raw) => {
+              const f = (raw ?? {}) as Partial<CatalogFolder>;
+              return {
+                id: f.id ?? "",
+                name: f.name ?? "",
+                parentId: f.parentId ?? null,
+                starred: f.starred ?? false,
+                color: f.color,
+                createdAt: f.createdAt ?? new Date().toISOString(),
+              };
+            })
+          : [];
+
+        const rawMap =
+          prev.datasetFolderMap &&
+          typeof prev.datasetFolderMap === "object"
+            ? prev.datasetFolderMap
+            : {};
+        const datasetFolderMap: Record<string, string | null> = {};
+        for (const [key, value] of Object.entries(rawMap)) {
+          if (value === null || typeof value === "string") {
+            datasetFolderMap[key] = value;
+          }
+        }
+
+        const starredDatasets = Array.isArray(prev.starredDatasets)
+          ? prev.starredDatasets.filter(
+              (id): id is string => typeof id === "string",
+            )
+          : [];
+
+        return { folders, datasetFolderMap, starredDatasets };
+      },
+      partialize: (s) => ({
+        folders: s.folders,
+        datasetFolderMap: s.datasetFolderMap,
+        starredDatasets: s.starredDatasets,
+      }),
     },
   ),
 );
+
+// ─── Selector hooks ─────────────────────────────────────────────────────────
+
+export const useFoldersSlice = () =>
+  useFoldersStore(
+    useShallow((s) => ({
+      folders: s.folders,
+      datasetFolderMap: s.datasetFolderMap,
+      starredDatasets: s.starredDatasets,
+    })),
+  );
+
+export const useFoldersActions = () =>
+  useFoldersStore(
+    useShallow((s) => ({
+      addFolder: s.addFolder,
+      removeFolder: s.removeFolder,
+      renameFolder: s.renameFolder,
+      starFolder: s.starFolder,
+      moveFolder: s.moveFolder,
+      moveDataset: s.moveDataset,
+      removeDatasetFromMap: s.removeDatasetFromMap,
+      starDataset: s.starDataset,
+    })),
+  );

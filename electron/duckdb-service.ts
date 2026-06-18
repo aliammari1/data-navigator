@@ -31,6 +31,7 @@ import { app } from "electron";
 import { nanoid } from "nanoid";
 import PQueue from "p-queue";
 import { z } from "zod";
+import { type DuckDBColumnTypeLike, encodeColumnsToArrowIPC } from "./duckdb-arrow";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -45,6 +46,8 @@ const MAX_CSV_SAMPLE_SIZE = 1_000_000;
 
 const DatasetIdSchema = z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
 
+const CsvEncodingSchema = z.enum(["utf-8", "utf-16", "latin-1"]);
+
 const RegisterCSVPathDatasetSchema = z.object({
   filePath: z.string().min(1),
   displayName: z.string().min(1).max(255).optional(),
@@ -52,6 +55,10 @@ const RegisterCSVPathDatasetSchema = z.object({
   delimiter: z.string().min(1).max(4).optional(),
   sampleSize: z.number().int().positive().max(MAX_CSV_SAMPLE_SIZE).optional(),
   previewLimit: z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional(),
+  /** Detected/overridden text encoding (the data-import cluster detects it). */
+  encoding: CsvEncodingSchema.optional(),
+  /** Capture coerced/skipped rows into reject_scans/reject_errors temp tables. */
+  storeRejects: z.boolean().optional(),
 });
 
 const RegisterParquetPathDatasetSchema = z.object({
@@ -75,6 +82,51 @@ const ExportDatasetSchema = z.object({
   targetPath: z.string().min(1),
 });
 
+// Column identifiers come from the dataset schema. Validate them defensively so
+// a malformed column name cannot break out of quoteIdentifier.
+const ColumnNameSchema = z.string().min(1).max(255);
+const CancelTokenSchema = z.string().min(1).max(128).optional();
+
+const ProfileDatasetSchema = z.object({
+  datasetId: DatasetIdSchema,
+  cancelToken: CancelTokenSchema,
+});
+
+const ProfileColumnDetailSchema = z.object({
+  datasetId: DatasetIdSchema,
+  column: ColumnNameSchema,
+  topK: z.number().int().positive().max(100).optional(),
+  binCount: z.number().int().positive().max(200).optional(),
+  cancelToken: CancelTokenSchema,
+});
+
+const CountRowsSchema = z.object({
+  datasetId: DatasetIdSchema,
+  where: z.string().max(10_000).optional(),
+  force: z.boolean().optional(),
+  cancelToken: CancelTokenSchema,
+});
+
+const KeysetSortKeySchema = z.object({
+  column: ColumnNameSchema,
+  direction: z.enum(["ASC", "DESC"]).default("ASC"),
+});
+
+const KeysetCursorSchema = z.object({
+  sortValues: z.array(z.unknown()),
+  rowid: z.number(),
+});
+
+const KeysetPageSchema = z.object({
+  datasetId: DatasetIdSchema,
+  sortKeys: z.array(KeysetSortKeySchema).min(1).max(8),
+  limit: z.number().int().positive().max(100_000),
+  where: z.string().max(10_000).optional(),
+  cursor: KeysetCursorSchema.optional(),
+  columns: z.array(ColumnNameSchema).max(512).optional(),
+  cancelToken: CancelTokenSchema,
+});
+
 // ─── Public Types ─────────────────────────────────────────────────────────────
 
 export interface RegisteredDataset {
@@ -94,8 +146,24 @@ export interface RegisteredDataset {
   updatedAt: string;
 }
 
+export interface RejectError {
+  line: number | null;
+  columnName: string | null;
+  errorType: string | null;
+  errorMessage: string | null;
+}
+
+export interface RejectSummary {
+  /** Total faulty rows captured by `store_rejects = true`. 0 when not enabled. */
+  rejectedRowCount: number;
+  /** First N reject_errors rows for surfacing in a data-quality panel. */
+  sample: RejectError[];
+}
+
 export interface RegisteredDatasetWithPreview extends RegisteredDataset {
   previewRows: Record<string, unknown>[];
+  /** Present only when CSV import ran with `storeRejects = true`. */
+  rejects?: RejectSummary;
 }
 
 export interface QueryMetrics {
@@ -247,6 +315,68 @@ function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
+/**
+ * Format a list of directory paths as a DuckDB SQL list literal, e.g.
+ * `['C:\\a', 'C:\\b']`. Each path is single-quote escaped via quoteSqlString.
+ */
+function quoteSqlPathList(paths: readonly string[]): string {
+  return `[${paths.map((p) => quoteSqlString(p)).join(", ")}]`;
+}
+
+/**
+ * Engine-enforced read-only sandbox for a READ connection.
+ *
+ * Restricts filesystem access to ONLY the managed datasets + spill directories
+ * so a malicious/compromised renderer SQL string cannot use functions like
+ * `read_parquet('C:/Users/.../secret')` to exfiltrate arbitrary files — even if
+ * it gets past the textual `assertReadOnlySql` guard. We still need
+ * `enable_external_access = true` because the lazy dataset views are
+ * `read_parquet(<cachePath>)` over real files on disk; `allowed_directories`
+ * then narrows that access to the managed cache, and `lock_configuration = true`
+ * makes the sandbox un-resettable for the lifetime of the connection.
+ *
+ * Each SET is applied independently and tolerantly: if the installed
+ * @duckdb/node-api build does not recognize a setting name, we log and skip it
+ * rather than crash init (degrades to the existing textual guard).
+ *
+ * NOTE: `lock_configuration` is intentionally applied LAST so the preceding
+ * directory/external-access settings are still mutable while being set.
+ */
+async function applyReadConnectionSandbox(
+  conn: DuckDBConnection,
+  allowedDirs: readonly string[],
+): Promise<void> {
+  const resolvedDirs = allowedDirs
+    .filter((dir): dir is string => typeof dir === "string" && dir.length > 0)
+    .map((dir) => path.resolve(dir));
+
+  if (resolvedDirs.length === 0) return;
+
+  // Order matters: scope access, then lock so it cannot be widened/reset.
+  const settings: readonly string[] = [
+    // Views need to touch real parquet files on disk.
+    "SET enable_external_access = true",
+    // ...but only inside the managed cache/spill directories.
+    `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
+    // Freeze the configuration for this connection's lifetime.
+    "SET lock_configuration = true",
+  ];
+
+  for (const setting of settings) {
+    try {
+      await conn.run(setting);
+    } catch (error) {
+      // Unsupported setting name on this engine build, or already locked.
+      // Degrade gracefully to the textual assertReadOnlySql guard.
+      console.warn(
+        `[duckdb] read-connection sandbox skipped (${setting.split("=")[0].trim()}): ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+}
+
 function makeDatasetId(): string {
   return `ds_${nanoid(12)}`;
 }
@@ -255,10 +385,14 @@ function datasetViewName(datasetId: string): string {
   return DatasetIdSchema.parse(datasetId);
 }
 
+type CsvEncoding = "utf-8" | "utf-16" | "latin-1";
+
 function buildCsvOptions(options: {
   hasHeader?: boolean;
   delimiter?: string;
   sampleSize?: number;
+  encoding?: CsvEncoding;
+  storeRejects?: boolean;
 }): string {
   const parts = [
     "auto_detect = true",
@@ -271,6 +405,17 @@ function buildCsvOptions(options: {
 
   if (options.delimiter) {
     parts.push(`delim = ${quoteSqlString(options.delimiter)}`);
+  }
+
+  // encoding: DuckDB ≥1.2 supports 'utf-8' (default), 'utf-16', 'latin-1'.
+  if (options.encoding) {
+    parts.push(`encoding = ${quoteSqlString(options.encoding)}`);
+  }
+
+  // store_rejects: capture coerced/skipped rows into the session-scoped
+  // reject_scans / reject_errors temp tables (queried right after the read).
+  if (options.storeRejects) {
+    parts.push("store_rejects = true");
   }
 
   return parts.join(", ");
@@ -439,8 +584,24 @@ async function getDatasetById(
     updatedAt: String(row.updated_at),
   };
 }
+/**
+ * Strip markdown fences, leading SQL comments, and trailing semicolons before
+ * evaluating safety. The on-device 1.5B model frequently wraps a valid SELECT in
+ * ```sql fences or prefixes it with a `-- comment`; without this the security
+ * guard rejected legitimate read-only queries. Stripping comments cannot weaken
+ * the boundary — the actual statement is still validated below.
+ */
+function stripSqlWrapping(sql: string): string {
+  let s = sql.trim();
+  const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
+  if (fence?.[1]) s = fence[1].trim();
+  s = s.replace(/^(\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)+/i, "").trim();
+  s = s.replace(/;+\s*$/, "").trim();
+  return s;
+}
+
 function assertReadOnlySql(sql: string): string {
-  const trimmed = sql.trim();
+  const trimmed = stripSqlWrapping(sql);
   const upper = trimmed.toUpperCase();
 
   const allowed =
@@ -448,11 +609,21 @@ function assertReadOnlySql(sql: string): string {
     upper.startsWith("WITH") ||
     upper.startsWith("SHOW") ||
     upper.startsWith("DESCRIBE") ||
+    upper.startsWith("DESC ") ||
     upper.startsWith("SUMMARIZE") ||
-    upper.startsWith("EXPLAIN");
+    upper.startsWith("EXPLAIN") ||
+    // DuckDB read-only shorthands the 1.5B model sometimes emits.
+    upper.startsWith("FROM") ||
+    upper.startsWith("TABLE") ||
+    upper.startsWith("VALUES") ||
+    upper.startsWith("PIVOT") ||
+    upper.startsWith("UNPIVOT");
 
   if (!allowed) {
-    throw new Error("Only read-only DuckDB queries are allowed from renderer.");
+    const preview = trimmed.slice(0, 200).replace(/\s+/g, " ");
+    throw new Error(
+      `Only read-only DuckDB queries are allowed from renderer. Got: ${preview || "<empty>"}`,
+    );
   }
 
   const blocked =
@@ -460,6 +631,30 @@ function assertReadOnlySql(sql: string): string {
 
   if (blocked.test(trimmed)) {
     throw new Error("Unsafe SQL statement blocked.");
+  }
+
+  // Block file / IO / env table-functions that read arbitrary paths or env even
+  // inside a SELECT (e.g. `SELECT * FROM read_csv('/etc/passwd')`). Legit
+  // renderer queries reference registered VIEW identifiers, never these.
+  const blockedFunctions =
+    /\b(read_csv(_auto)?|read_parquet|parquet_scan|parquet_metadata|parquet_schema|parquet_file_metadata|parquet_kv_metadata|read_json(_auto|_objects)?|read_ndjson(_auto)?|read_text|read_blob|sniff_csv|glob|getenv)\s*\(/i;
+  if (blockedFunctions.test(trimmed)) {
+    throw new Error("Unsafe SQL function blocked (file/IO/env access).");
+  }
+
+  // Block the DuckDB replacement-scan file-read vector: a string literal used
+  // directly as a table source (`FROM 'x.parquet'` / `JOIN '...'`) resolves to a
+  // file read. Renderer queries always use identifiers, never string tables.
+  const fromStringLiteral = /\b(FROM|JOIN)\s+'/i;
+  if (fromStringLiteral.test(trimmed)) {
+    throw new Error("Unsafe SQL: string-literal table source blocked.");
+  }
+
+  // Block SET config assignment in a chained statement (e.g. re-enabling
+  // external access). Targeted so a column named "set" is not a false positive.
+  const setConfig = /\bSET\s+(SESSION\s+|GLOBAL\s+|LOCAL\s+)?[A-Za-z_][\w]*\s*=/i;
+  if (setConfig.test(trimmed)) {
+    throw new Error("Unsafe SQL: SET configuration blocked.");
   }
 
   return trimmed;
@@ -485,6 +680,52 @@ async function countViewRows(conn: DuckDBConnection, viewName: string): Promise<
   return Number(rows[0]?.row_count ?? 0);
 }
 
+const REJECT_SAMPLE_LIMIT = 50;
+
+/**
+ * Read the `reject_errors` temp table populated by a `store_rejects = true` CSV
+ * read on the SAME connection. Returns a count + a small sample for a
+ * data-quality panel. Tolerant of the table not existing (no rejects / older
+ * engine) — returns an empty summary.
+ */
+async function collectRejectSummary(conn: DuckDBConnection): Promise<RejectSummary> {
+  try {
+    const countRows = await measureRows(conn, "SELECT count(*) AS bad_rows FROM reject_errors");
+    const rejectedRowCount = Number(countRows[0]?.bad_rows ?? 0);
+
+    if (rejectedRowCount === 0) {
+      return { rejectedRowCount: 0, sample: [] };
+    }
+
+    const sampleRows = await measureRows(
+      conn,
+      `
+        SELECT line, column_name, error_type, error_message
+        FROM reject_errors
+        ORDER BY line
+        LIMIT ${REJECT_SAMPLE_LIMIT}
+      `,
+    );
+
+    const sample: RejectError[] = sampleRows.map((row) => ({
+      line: row.line === null || row.line === undefined ? null : Number(row.line),
+      columnName:
+        row.column_name === null || row.column_name === undefined ? null : String(row.column_name),
+      errorType:
+        row.error_type === null || row.error_type === undefined ? null : String(row.error_type),
+      errorMessage:
+        row.error_message === null || row.error_message === undefined
+          ? null
+          : String(row.error_message),
+    }));
+
+    return { rejectedRowCount, sample };
+  } catch {
+    // reject_errors not present (no rejects, or store_rejects was off).
+    return { rejectedRowCount: 0, sample: [] };
+  }
+}
+
 // ─── DuckDB Init ──────────────────────────────────────────────────────────────
 
 async function ensureInit(): Promise<void> {
@@ -500,7 +741,15 @@ async function ensureInit(): Promise<void> {
       await ensureDirectory(rootDir);
       await ensureDirectory(datasetsDir);
 
-      const threads = String(Math.max(1, os.availableParallelism?.() ?? 4));
+      // Spill scratch directory: lets big scans/sorts spill to disk instead of
+      // OOM-ing the 8 GB target. Lives under the managed root, auto-cleaned.
+      const tmpSpillDir = path.join(rootDir, "tmp");
+      await ensureDirectory(tmpSpillDir);
+
+      // Cap cores so the renderer/compositor stay responsive on a medium-end PC
+      // (4-core / 8 GB), and clamp into [2, 6].
+      const cores = os.availableParallelism?.() ?? 4;
+      const threads = String(Math.max(2, Math.min(cores - 1, 6)));
 
       instance = await DuckDBInstance.create(dbPath, {
         threads,
@@ -516,7 +765,16 @@ async function ensureInit(): Promise<void> {
       activeDbPath = dbPath;
       activeDatasetsDir = datasetsDir;
 
-      const pragmas = [`PRAGMA threads = ${threads}`, "PRAGMA enable_progress_bar = false"];
+      const pragmas = [
+        `PRAGMA threads = ${threads}`,
+        "PRAGMA enable_progress_bar = false",
+        // Cap RAM so a big scan can't OOM 8 GB; spill to disk past the limit.
+        "PRAGMA memory_limit = '4GB'",
+        `PRAGMA temp_directory = ${quoteSqlString(tmpSpillDir)}`,
+        "PRAGMA max_temp_directory_size = '20GB'",
+        // Cache Parquet footers across queries.
+        "PRAGMA enable_object_cache",
+      ];
 
       for (const pragma of pragmas) {
         await writeConn.run(pragma);
@@ -524,6 +782,16 @@ async function ensureInit(): Promise<void> {
         for (const readConn of readConns) {
           await readConn.run(pragma);
         }
+      }
+
+      // Engine-enforced filesystem sandbox for READ connections only. The write
+      // connection stays unrestricted so dataset registration (COPY TO parquet,
+      // read_parquet of freshly imported files, view creation) keeps working.
+      // Read connections may only touch the managed cache (dataset parquet
+      // views) and the spill directory (temp_directory for big scans/sorts).
+      const readSandboxDirs = [datasetsDir, tmpSpillDir];
+      for (const readConn of readConns) {
+        await applyReadConnectionSandbox(readConn, readSandboxDirs);
       }
 
       await ensureDatasetCatalog();
@@ -576,6 +844,8 @@ export async function registerCSVPathDataset(
       hasHeader: input.hasHeader,
       delimiter: input.delimiter,
       sampleSize: input.sampleSize,
+      encoding: input.encoding,
+      storeRejects: input.storeRejects,
     });
 
     await measureRun(
@@ -593,6 +863,11 @@ export async function registerCSVPathDataset(
         )
       `,
     );
+
+    // reject_scans / reject_errors are session/connection temp tables populated
+    // by the store_rejects read above. Capture them on THIS connection now,
+    // before any other scan reuses it (§1.5).
+    const rejects = input.storeRejects ? await collectRejectSummary(conn) : undefined;
 
     await measureRun(
       conn,
@@ -667,6 +942,7 @@ export async function registerCSVPathDataset(
       createdAt: now,
       updatedAt: now,
       previewRows,
+      ...(rejects ? { rejects } : {}),
     };
   });
 }
@@ -886,6 +1162,8 @@ export async function deleteDataset(rawInput: unknown): Promise<void> {
 
     const cachePath = await assertManagedCachePath(dataset.cachePath);
 
+    invalidateCountCache(dataset.viewName);
+
     await measureRun(
       conn,
       `
@@ -941,11 +1219,501 @@ export async function runReadOnlyQuery(sql: string): Promise<Record<string, unkn
   });
 }
 
+// ─── Cancellation tokens ──────────────────────────────────────────────────────
+//
+// A cancel token is a renderer-supplied string id that groups one or more
+// queued/running read queries (e.g. all scans for the active dataset). Calling
+// cancelQueries(token):
+//  - marks the token cancelled so still-queued queries short-circuit before they
+//    acquire a connection, and
+//  - interrupt()s every connection currently running a query under that token.
+// This is the missing piece in the brief/architecture §2: switching datasets now
+// actually cancels queued main-process scans instead of leaving them running.
+
+const cancelledTokens = new Set<string>();
+/** token -> set of connections currently executing a query under that token. */
+const activeTokenConns = new Map<string, Set<DuckDBConnection>>();
+
+export class QueryCancelledError extends Error {
+  readonly token: string;
+  constructor(token: string) {
+    super(`DuckDB query cancelled (token: ${token}).`);
+    this.name = "QueryCancelledError";
+    this.token = token;
+  }
+}
+
+function bindTokenConn(token: string, conn: DuckDBConnection): void {
+  let set = activeTokenConns.get(token);
+  if (!set) {
+    set = new Set();
+    activeTokenConns.set(token, set);
+  }
+  set.add(conn);
+}
+
+function unbindTokenConn(token: string, conn: DuckDBConnection): void {
+  const set = activeTokenConns.get(token);
+  if (!set) return;
+  set.delete(conn);
+  if (set.size === 0) {
+    activeTokenConns.delete(token);
+  }
+}
+
+/**
+ * Cancel all queued and in-flight read queries associated with `token`.
+ * Idempotent. Safe to call for an unknown token.
+ */
+export function cancelQueries(token: string): void {
+  if (!token) return;
+  cancelledTokens.add(token);
+
+  const conns = activeTokenConns.get(token);
+  if (conns) {
+    for (const conn of conns) {
+      try {
+        conn.interrupt();
+      } catch {
+        // Connection already idle/closed; nothing to interrupt.
+      }
+    }
+  }
+}
+
+/**
+ * Clear a cancellation token so its id can be reused (e.g. after the renderer
+ * starts a fresh batch for the same dataset). Does not affect running queries.
+ */
+export function resetCancelToken(token: string): void {
+  cancelledTokens.delete(token);
+}
+
+function assertNotCancelled(token: string | undefined): void {
+  if (token && cancelledTokens.has(token)) {
+    throw new QueryCancelledError(token);
+  }
+}
+
+/**
+ * Run a read body on a read connection, honoring a cancel token. Queued work
+ * short-circuits if the token was cancelled before it started; running work is
+ * interruptible via cancelQueries(token).
+ */
+async function runCancellableRead<T>(
+  token: string | undefined,
+  body: (conn: DuckDBConnection) => Promise<T>,
+): Promise<T> {
+  return enqueueRead(async () => {
+    await ensureInit();
+    assertNotCancelled(token);
+
+    const conn = getReadConnection();
+    if (token) bindTokenConn(token, conn);
+
+    try {
+      return await body(conn);
+    } finally {
+      if (token) unbindTokenConn(token, conn);
+    }
+  });
+}
+
+// ─── Arrow IPC transport (large windows / exports / worker hand-off) ──────────
+//
+// Build the Arrow IPC stream buffer in MAIN from DuckDB's native columnar output
+// and return it as a transferable Uint8Array. Decode renderer/worker-side with
+// @uwdata/flechette (see src/platform/duckdb/arrow-ipc.ts). Use this only for
+// large results; keep getRowObjectsJS (JSON) for tiny aggregate/preview rows.
+
+async function measureArrow(conn: DuckDBConnection, sql: string): Promise<Uint8Array> {
+  const start = performance.now();
+  const reader = await conn.runAndReadAll(sql);
+  const cols = reader.getColumnsObjectJS();
+  const types = reader.columnTypes() as unknown as DuckDBColumnTypeLike[];
+  const bytes = encodeColumnsToArrowIPC(cols, types);
+  const durationMs = Math.round(performance.now() - start);
+
+  // Row count = length of the first column's value array (0 columns → 0 rows).
+  const firstCol = Object.values(cols)[0];
+  const rowCount = Array.isArray(firstCol) ? firstCol.length : 0;
+
+  pushMetric({
+    sql: truncateSql(sql),
+    durationMs,
+    timestamp: Date.now(),
+    rowCount,
+  });
+
+  return bytes;
+}
+
+/**
+ * Run a read-only query and return Arrow IPC STREAM bytes (offline; no
+ * extension). `cancelToken` ties the scan to a cancellable group.
+ */
+export async function runReadOnlyQueryArrow(
+  sql: string,
+  cancelToken?: string,
+): Promise<Uint8Array> {
+  const safeSql = assertReadOnlySql(sql);
+  return runCancellableRead(cancelToken, (conn) => measureArrow(conn, safeSql));
+}
+
+// ─── Profiling pushdown (single-scan; replaces per-column fan-out) ────────────
+
+export interface SummarizeRow {
+  column_name: string;
+  column_type: string;
+  min: unknown;
+  max: unknown;
+  approx_unique: number | null;
+  avg: number | null;
+  std: number | null;
+  q25: number | null;
+  q50: number | null;
+  q75: number | null;
+  count: number;
+  null_percentage: number | null;
+}
+
+export interface ColumnDetail {
+  column: string;
+  distinctApprox: number;
+  topValues: Array<{ value: unknown; count: number | null }>;
+  histogram: Array<{ bin: string; count: number }>;
+}
+
+/**
+ * Whole-dataset profile in ONE scan via SUMMARIZE (projected). Approximate
+ * quantiles/`approx_unique` by design (cheap). Replaces N×2-4 per-column queries.
+ */
+export async function profileDataset(rawInput: unknown): Promise<SummarizeRow[]> {
+  const input = ProfileDatasetSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    const rows = await measureRows(
+      conn,
+      `
+        SELECT
+          column_name, column_type, min, max, approx_unique,
+          avg, std, q25, q50, q75, count, null_percentage
+        FROM (SUMMARIZE SELECT * FROM ${quoteIdentifier(viewName)})
+      `,
+    );
+
+    return rows.map((row) => ({
+      column_name: String(row.column_name ?? ""),
+      column_type: String(row.column_type ?? ""),
+      min: row.min ?? null,
+      max: row.max ?? null,
+      approx_unique: numOrNull(row.approx_unique),
+      avg: numOrNull(row.avg),
+      std: numOrNull(row.std),
+      q25: numOrNull(row.q25),
+      q50: numOrNull(row.q50),
+      q75: numOrNull(row.q75),
+      count: Number(row.count ?? 0),
+      null_percentage: numOrNull(row.null_percentage),
+    }));
+  });
+}
+
+/**
+ * Per-selected-column detail in a couple of scans: approx_count_distinct +
+ * approx_top_k + an equi-width histogram via the table macro (the only form that
+ * accepts bin_count). Lazy — call only for the column the user clicked.
+ */
+export async function profileColumnDetail(rawInput: unknown): Promise<ColumnDetail> {
+  const input = ProfileColumnDetailSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+  const col = quoteIdentifier(input.column);
+  const binCount = input.binCount ?? 20;
+
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    const distinctRows = await measureRows(
+      conn,
+      `SELECT approx_count_distinct(${col}) AS distinct_approx FROM ${quoteIdentifier(viewName)}`,
+    );
+    const distinctApprox = Number(distinctRows[0]?.distinct_approx ?? 0);
+
+    // approx_top_k returns a LIST of the K most frequent values.
+    const topRows = await measureRows(
+      conn,
+      `SELECT approx_top_k(${col}, ${input.topK ?? 10}) AS top_values FROM ${quoteIdentifier(viewName)}`,
+    );
+    const topValues = normalizeTopValues(topRows[0]?.top_values);
+
+    // Equi-width histogram via the DuckDB ≥1.1 table macro.
+    let histogram: ColumnDetail["histogram"] = [];
+    try {
+      const histRows = await measureRows(
+        conn,
+        `FROM histogram(${quoteIdentifier(viewName)}, ${col}, bin_count := ${binCount})`,
+      );
+      histogram = histRows.map((row) => ({
+        bin: String(row.bin ?? row.x ?? ""),
+        count: Number(row.count ?? row.y ?? 0),
+      }));
+    } catch {
+      histogram = [];
+    }
+
+    return {
+      column: input.column,
+      distinctApprox,
+      topValues,
+      histogram,
+    };
+  });
+}
+
+// ─── Cached COUNT(*) (invariant across page/sort) ─────────────────────────────
+
+interface CountCacheEntry {
+  total: number;
+  cachedAt: number;
+}
+const countCache = new Map<string, CountCacheEntry>();
+
+function countKey(viewName: string, where?: string): string {
+  return `${viewName}::${(where ?? "").trim()}`;
+}
+
+/** Invalidate cached counts for a view (call on dataset re-register/delete). */
+function invalidateCountCache(viewName: string): void {
+  for (const key of countCache.keys()) {
+    if (key.startsWith(`${viewName}::`)) {
+      countCache.delete(key);
+    }
+  }
+}
+
+/**
+ * COUNT(*) for (view, where), cached. For the empty filter on a freshly
+ * registered dataset the renderer should prefer the catalog `rowCount`; this is
+ * the cache for filtered counts and re-fetches.
+ */
+export async function countRows(rawInput: unknown): Promise<number> {
+  const input = CountRowsSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+  const where = input.where?.trim();
+  const key = countKey(viewName, where);
+
+  if (!input.force) {
+    const cached = countCache.get(key);
+    if (cached) return cached.total;
+  }
+
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    const filter = where ? ` WHERE ${where}` : "";
+    const rows = await measureRows(
+      conn,
+      `SELECT count(*) AS total FROM ${quoteIdentifier(viewName)}${filter}`,
+    );
+    const total = Number(rows[0]?.total ?? 0);
+    countCache.set(key, { total, cachedAt: Date.now() });
+    return total;
+  });
+}
+
+// ─── Keyset / seek pagination (replaces deep OFFSET) ──────────────────────────
+
+export interface KeysetPageResult {
+  /** Arrow IPC stream bytes for the page rows (transferable). */
+  arrow: Uint8Array;
+  /** Cursor for the NEXT page; null when this page is the last. */
+  nextCursor: { sortValues: unknown[]; rowid: number } | null;
+  /** Number of rows in this page. */
+  rowCount: number;
+}
+
+/**
+ * Forward keyset/seek page returned as Arrow IPC. O(window) regardless of depth.
+ * `rowid` is always projected and used as the stable strict tiebreaker; the
+ * returned `nextCursor` feeds straight back in as `cursor` for the next page.
+ */
+export async function fetchKeysetPage(rawInput: unknown): Promise<KeysetPageResult> {
+  const input = KeysetPageSchema.parse(rawInput);
+
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    // Parquet-backed views do NOT expose a `rowid` pseudo-column, so we scan the
+    // managed Parquet cache directly with `file_row_number = true` and alias it
+    // to `rowid` — a stable, monotonic per-file tiebreaker that is consistent
+    // across page queries (verified against the engine).
+    const dataset = await getDatasetById(conn, input.datasetId);
+    if (!dataset) {
+      throw new Error("Dataset not found.");
+    }
+    const cachePath = await assertManagedCachePath(dataset.cachePath);
+
+    const { sql, params } = buildKeysetPage(cachePath, input);
+
+    type RunValues = Parameters<DuckDBConnection["runAndReadAll"]>[1];
+
+    const start = performance.now();
+    const reader =
+      params.length > 0
+        ? await conn.runAndReadAll(sql, params as RunValues)
+        : await conn.runAndReadAll(sql);
+    const cols = reader.getColumnsObjectJS();
+    const types = reader.columnTypes() as unknown as DuckDBColumnTypeLike[];
+    const durationMs = Math.round(performance.now() - start);
+
+    const rowidCol = (cols.rowid as unknown[] | undefined) ?? [];
+    const rowCount = rowidCol.length;
+
+    pushMetric({
+      sql: truncateSql(sql),
+      durationMs,
+      timestamp: Date.now(),
+      rowCount,
+    });
+
+    const arrow = encodeColumnsToArrowIPC(cols, types);
+
+    let nextCursor: KeysetPageResult["nextCursor"] = null;
+    if (rowCount === input.limit) {
+      const lastIdx = rowCount - 1;
+      const sortValues = input.sortKeys.map((k) => {
+        const colVals = cols[k.column] as unknown[] | undefined;
+        return colVals ? toCursorValue(colVals[lastIdx]) : null;
+      });
+      nextCursor = {
+        sortValues,
+        rowid: Number(rowidCol[lastIdx]),
+      };
+    }
+
+    return { arrow, nextCursor, rowCount };
+  });
+}
+
+// ─── Keyset SQL builder (main-side; parameterized) ────────────────────────────
+
+interface KeysetInput {
+  sortKeys: Array<{ column: string; direction: "ASC" | "DESC" }>;
+  limit: number;
+  where?: string;
+  cursor?: { sortValues: unknown[]; rowid: number };
+  columns?: string[];
+}
+
+function buildKeysetPage(
+  cachePath: string,
+  input: KeysetInput,
+): { sql: string; params: unknown[] } {
+  const limit = Math.max(1, Math.trunc(input.limit));
+
+  // Inner relation: the managed Parquet cache with a stable `rowid` tiebreaker
+  // sourced from Parquet's per-file physical row number. Aliasing it inside a
+  // subquery lets WHERE/ORDER reference `rowid` uniformly.
+  const inner = `(
+        SELECT *, file_row_number AS rowid
+        FROM read_parquet(${quoteSqlString(cachePath)}, file_row_number = true)
+      ) AS _kp`;
+
+  // The inner relation already exposes `rowid` (aliased from file_row_number),
+  // so `* EXCLUDE (file_row_number)` yields the data columns + rowid exactly
+  // once. For the explicit-columns case, append rowid since `*` is not used.
+  const projection = input.columns?.length
+    ? `${input.columns.map(quoteIdentifier).join(", ")}, rowid`
+    : "* EXCLUDE (file_row_number)";
+
+  const orderParts = input.sortKeys.map((k) => `${quoteIdentifier(k.column)} ${k.direction}`);
+  orderParts.push("rowid ASC");
+
+  const filters: string[] = [];
+  if (input.where?.trim()) {
+    filters.push(`(${input.where})`);
+  }
+
+  const params: unknown[] = [];
+
+  if (input.cursor) {
+    const { sortValues, rowid } = input.cursor;
+    const keyCount = input.sortKeys.length;
+    const orClauses: string[] = [];
+
+    for (let k = 0; k < keyCount; k += 1) {
+      const ands: string[] = [];
+      for (let i = 0; i < k; i += 1) {
+        params.push(sortValues[i]);
+        ands.push(`${quoteIdentifier(input.sortKeys[i].column)} = $${params.length}`);
+      }
+      params.push(sortValues[k]);
+      const strict = input.sortKeys[k].direction === "ASC" ? ">" : "<";
+      ands.push(`${quoteIdentifier(input.sortKeys[k].column)} ${strict} $${params.length}`);
+      orClauses.push(`(${ands.join(" AND ")})`);
+    }
+
+    const tieAnds: string[] = [];
+    for (let i = 0; i < keyCount; i += 1) {
+      params.push(sortValues[i]);
+      tieAnds.push(`${quoteIdentifier(input.sortKeys[i].column)} = $${params.length}`);
+    }
+    params.push(rowid);
+    tieAnds.push(`rowid > $${params.length}`);
+    orClauses.push(`(${tieAnds.join(" AND ")})`);
+
+    filters.push(`(${orClauses.join(" OR ")})`);
+  }
+
+  const whereSql = filters.length > 0 ? `\n      WHERE ${filters.join(" AND ")}` : "";
+
+  const sql = `
+      SELECT ${projection}
+      FROM ${inner}${whereSql}
+      ORDER BY ${orderParts.join(", ")}
+      LIMIT ${limit}
+  `.trim();
+
+  return { sql, params };
+}
+
+// ─── Small value helpers ──────────────────────────────────────────────────────
+
+function numOrNull(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
+
+/** BigInt cursor values must survive JSON IPC — downcast safe, stringify big. */
+function toCursorValue(value: unknown): unknown {
+  if (typeof value === "bigint") {
+    return value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER)
+      ? Number(value)
+      : value.toString();
+  }
+  if (value instanceof Date) return value.toISOString();
+  return value ?? null;
+}
+
+function normalizeTopValues(raw: unknown): Array<{ value: unknown; count: number | null }> {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const rec = entry as Record<string, unknown>;
+      return {
+        value: rec.value ?? rec.key ?? rec[Object.keys(rec)[0]] ?? null,
+        count: numOrNull(rec.count ?? rec.n),
+      };
+    }
+    return { value: entry ?? null, count: null };
+  });
+}
+
 // ─── Lifecycle ────────────────────────────────────────────────────────────────
 
 export async function close(): Promise<void> {
   writeQueue.clear();
   readQueue.clear();
+
+  cancelledTokens.clear();
+  activeTokenConns.clear();
+  countCache.clear();
 
   readConns = [];
   writeConn = null;

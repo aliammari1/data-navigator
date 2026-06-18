@@ -4,10 +4,20 @@
  * Edge AI provider compatibility layer.
  *
  * The public function names are retained so the existing feature modules keep
- * working, but all inference now runs through the browser/Electron renderer
- * worker backed by Transformers.js. There are no Ollama/OpenAI HTTP calls here.
+ * working, but all inference now runs through the unified platform provider
+ * registry (`@/platform/ai/provider`). That registry prefers the Electron
+ * main-process `node-llama-cpp` lane (grammar-constrained JSON, off the renderer
+ * thread) and falls back to the fully-offline transformers.js Web Worker — both
+ * keep token generation off the renderer main thread. There are no Ollama/OpenAI
+ * HTTP calls here.
  */
 
+import {
+  buildJsonInstruction,
+  extractJsonBlock,
+  pickDefaultProvider,
+  repairJson,
+} from "@/platform/ai/provider";
 import { safeJsonStringify } from "./json";
 
 export interface LLMModel {
@@ -34,27 +44,6 @@ export interface LLMProvider {
   isAvailable: boolean;
 }
 
-type EdgeWorkerIncoming =
-  | { type: "LOAD_MODEL"; model: string }
-  | {
-      id: string;
-      type: "INFER";
-      payload: {
-        systemPrompt: string;
-        prompt: string;
-        maxTokens?: number;
-      };
-    }
-  | { id: string; type: "ABORT" };
-
-type EdgeWorkerMessage =
-  | { type: "LOAD_PROGRESS"; progress: number; status: string }
-  | { type: "MODEL_READY"; model: string }
-  | { type: "MODEL_ERROR"; error: string }
-  | { id: string; type: "INFER_CHUNK"; chunk: string }
-  | { id: string; type: "INFER_DONE" }
-  | { id: string; type: "INFER_ERROR"; error: string };
-
 export const EDGE_AI_HOST = "edge://transformers-worker";
 
 export const EDGE_LLM_MODELS: LLMModel[] = [
@@ -76,69 +65,22 @@ export const EDGE_LLM_MODELS: LLMModel[] = [
   },
 ];
 
-let worker: Worker | null = null;
-let loadingModel: string | null = null;
-let readyModel: string | null = null;
-let loadPromise: Promise<void> | null = null;
-
 function hasEdgeRuntime(): boolean {
-  return typeof window !== "undefined" && typeof Worker !== "undefined";
+  return typeof window !== "undefined";
 }
 
-function getWorker(): Worker {
-  if (!hasEdgeRuntime()) {
-    throw new Error(
-      "Edge AI is unavailable because Web Workers are not supported.",
-    );
-  }
-  if (!worker) {
-    worker = new Worker(
-      new URL("../../../workers/llm.worker.ts", import.meta.url),
-      {
-        type: "module",
-      },
-    );
-  }
-  return worker;
-}
-
-function onceModelReady(model: string): Promise<void> {
-  if (readyModel === model) return Promise.resolve();
-  if (loadingModel === model && loadPromise) return loadPromise;
-
-  loadingModel = model;
-  loadPromise = new Promise((resolve, reject) => {
-    const w = getWorker();
-    const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
-      const msg = event.data;
-      if (msg.type === "MODEL_READY" && msg.model === model) {
-        readyModel = model;
-        loadingModel = null;
-        w.removeEventListener("message", onMessage);
-        resolve();
-      }
-      if (msg.type === "MODEL_ERROR") {
-        loadingModel = null;
-        w.removeEventListener("message", onMessage);
-        reject(new Error(msg.error));
-      }
-    };
-    w.addEventListener("message", onMessage);
-    w.postMessage({ type: "LOAD_MODEL", model } satisfies EdgeWorkerIncoming);
-  });
-
-  return loadPromise;
-}
-
+/**
+ * Extract a JSON value from a model completion using the shared platform
+ * helpers (balanced-brace block extraction + light repair) instead of a bespoke
+ * regex loop. Grammar-constrained providers (llamacpp) emit clean JSON and this
+ * is a no-op; prompt-only providers (transformers.js) benefit from the repair.
+ */
 function parseJsonObject(text: string): unknown {
+  const block = extractJsonBlock(text) ?? text;
   try {
-    return JSON.parse(text);
+    return JSON.parse(block);
   } catch {
-    const fenced = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
-    if (fenced) return JSON.parse(fenced[1]);
-    const object = text.match(/\{[\s\S]*\}/);
-    if (object) return JSON.parse(object[0]);
-    throw new Error("Edge AI returned invalid JSON for structured output.");
+    return JSON.parse(repairJson(text));
   }
 }
 
@@ -147,7 +89,16 @@ export async function discoverOllamaModels(): Promise<LLMModel[]> {
 }
 
 export async function checkOllamaAvailable(): Promise<boolean> {
-  return hasEdgeRuntime();
+  if (!hasEdgeRuntime()) return false;
+  // Availability now reflects the unified provider registry: an edge runtime is
+  // "available" when at least one offline provider (llamacpp main lane or the
+  // transformers.js worker) reports ready.
+  try {
+    const provider = await pickDefaultProvider();
+    return await provider.isAvailable();
+  } catch {
+    return false;
+  }
 }
 
 export async function streamOllamaChat(
@@ -168,56 +119,36 @@ export async function streamOllamaChat(
 ) {
   const abortController = new AbortController();
 
-  onceModelReady(model)
-    .then(() => {
-      const w = getWorker();
-      const id = `edge_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const systemPrompt = messages
-        .filter((message) => message.role === "system")
-        .map((message) => message.content)
-        .join("\n\n");
-      const prompt = messages
-        .filter((message) => message.role !== "system")
-        .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
-        .join("\n\n");
+  const systemPrompt = messages
+    .filter((message) => message.role === "system")
+    .map((message) => message.content)
+    .join("\n\n");
+  const prompt = messages
+    .filter((message) => message.role !== "system")
+    .map((message) => `${message.role.toUpperCase()}:\n${message.content}`)
+    .join("\n\n");
 
-      const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
-        const msg = event.data;
-        if (!("id" in msg) || msg.id !== id) return;
-        if (msg.type === "INFER_CHUNK") onToken(msg.chunk);
-        if (msg.type === "INFER_DONE") {
-          w.removeEventListener("message", onMessage);
-          onDone();
-        }
-        if (msg.type === "INFER_ERROR") {
-          w.removeEventListener("message", onMessage);
-          onError(new Error(msg.error));
-        }
-      };
-
-      abortController.signal.addEventListener(
-        "abort",
-        () => {
-          w.postMessage({ id, type: "ABORT" } satisfies EdgeWorkerIncoming);
-          w.removeEventListener("message", onMessage);
-        },
-        { once: true },
-      );
-
-      w.addEventListener("message", onMessage);
-      w.postMessage({
-        id,
-        type: "INFER",
-        payload: {
-          systemPrompt,
-          prompt,
-          maxTokens: options?.num_ctx ? Math.min(options.num_ctx, 1024) : 512,
-        },
-      } satisfies EdgeWorkerIncoming);
-    })
-    .catch((err) =>
-      onError(err instanceof Error ? err : new Error(String(err))),
-    );
+  void (async () => {
+    try {
+      const provider = await pickDefaultProvider();
+      await provider.generate({
+        model,
+        system: systemPrompt || undefined,
+        prompt,
+        maxTokens: options?.num_ctx ? Math.min(options.num_ctx, 1024) : 512,
+        temperature: options?.temperature ?? 0,
+        signal: abortController.signal,
+        onToken,
+      });
+      onDone();
+    } catch (err) {
+      if (abortController.signal.aborted) {
+        onDone();
+        return;
+      }
+      onError(err instanceof Error ? err : new Error(String(err)));
+    }
+  })();
 
   return abortController;
 }
@@ -233,38 +164,15 @@ export async function generateWithOllama(
     maxTokens?: number;
   },
 ): Promise<string> {
-  await onceModelReady(model);
-
-  return new Promise((resolve, reject) => {
-    const w = getWorker();
-    const id = `edge_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-    let output = "";
-
-    const onMessage = (event: MessageEvent<EdgeWorkerMessage>) => {
-      const msg = event.data;
-      if (!("id" in msg) || msg.id !== id) return;
-      if (msg.type === "INFER_CHUNK") output += msg.chunk;
-      if (msg.type === "INFER_DONE") {
-        w.removeEventListener("message", onMessage);
-        resolve(output.trim());
-      }
-      if (msg.type === "INFER_ERROR") {
-        w.removeEventListener("message", onMessage);
-        reject(new Error(msg.error));
-      }
-    };
-
-    w.addEventListener("message", onMessage);
-    w.postMessage({
-      id,
-      type: "INFER",
-      payload: {
-        systemPrompt,
-        prompt: userPrompt,
-        maxTokens: options?.maxTokens ?? 768,
-      },
-    } satisfies EdgeWorkerIncoming);
+  const provider = await pickDefaultProvider();
+  const result = await provider.generate({
+    model,
+    system: systemPrompt || undefined,
+    prompt: userPrompt,
+    maxTokens: options?.maxTokens ?? 768,
+    temperature: options?.temperature ?? 0,
   });
+  return result.text.trim();
 }
 
 export async function generateWithOllamaStructured<T = Record<string, unknown>>(
@@ -276,26 +184,52 @@ export async function generateWithOllamaStructured<T = Record<string, unknown>>(
     properties: Record<string, unknown>;
     required?: readonly string[];
   },
-  _options?: {
+  options?: {
     temperature?: number;
     host?: string;
   },
 ): Promise<T> {
+  const provider = await pickDefaultProvider();
+
+  // FAST PATH — grammar-constrained decoding. The llamacpp lane accepts a raw
+  // JSON Schema and constrains the sampler so the output is valid by
+  // construction; the agents already hand us a JSON Schema, so feed it straight
+  // through. This deletes the prompt-grounding + regex-repair brute force on the
+  // primary (Electron) path entirely.
+  if (
+    provider.id === "llamacpp" &&
+    typeof window !== "undefined" &&
+    window.electronLlama
+  ) {
+    const out = await window.electronLlama.generateStructured({
+      system: systemPrompt || undefined,
+      prompt: userPrompt,
+      jsonSchema: schema,
+      maxTokens: 1024,
+      temperature: options?.temperature ?? 0,
+    });
+    return out as T;
+  }
+
+  // FALLBACK — prompt-only providers (transformers.js Web Worker). Ground the
+  // request with the schema and parse defensively with the shared platform
+  // helpers (no bespoke regex loop).
   const groundedPrompt = [
     userPrompt,
     "",
-    "Return only JSON that matches this JSON Schema:",
-    safeJsonStringify(schema),
+    buildJsonInstruction(safeJsonStringify(schema)),
   ].join("\n");
 
-  const response = await generateWithOllama(
+  const response = await provider.generate({
     model,
-    [systemPrompt, "Return only valid JSON. Do not wrap it in Markdown."].join(
-      "\n",
-    ),
-    groundedPrompt,
-    { maxTokens: 1024 },
-  );
+    system:
+      [systemPrompt, "Return only valid JSON. Do not wrap it in Markdown."].join(
+        "\n",
+      ) || undefined,
+    prompt: groundedPrompt,
+    maxTokens: 1024,
+    temperature: options?.temperature ?? 0,
+  });
 
-  return parseJsonObject(response) as T;
+  return parseJsonObject(response.text) as T;
 }

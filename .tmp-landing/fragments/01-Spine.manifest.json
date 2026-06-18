@@ -1,0 +1,16 @@
+{
+  "component": "SpineSection",
+  "icons": [
+    "AppWindow",
+    "ArrowRight",
+    "ArrowUp",
+    "ArrowUpRight",
+    "FileSpreadsheet",
+    "Lock",
+    "Menu",
+    "Newspaper",
+    "WifiOff",
+    "X"
+  ],
+  "lines": 918
+}

@@ -8,6 +8,14 @@ export interface ColStat {
   avg?: number;
   stddev?: number;
   median?: number;
+  /** First quartile (25th percentile), DuckDB `quantile_cont`. */
+  q1?: number;
+  /** Third quartile (75th percentile), DuckDB `quantile_cont`. */
+  q3?: number;
+  /** 1st percentile — robust lower bound for chart/anomaly framing. */
+  p01?: number;
+  /** 99th percentile — robust upper bound for chart/anomaly framing. */
+  p99?: number;
   nullCount: number;
   distinctCount: number;
   rowCount: number;
@@ -27,6 +35,14 @@ export interface Anomaly {
   score: number;
   values?: number[];
   threshold?: number;
+  /** Detection method used (e.g. "IQR (Tukey fence)") for transparency. */
+  method?: string;
+}
+
+export interface ForecastMeta {
+  metricCol: string | null;
+  dateCol: string | null;
+  method: string;
 }
 
 export interface Correlation {

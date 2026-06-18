@@ -1,9 +1,16 @@
-blockExoticSubdeps: false
+blockExoticSubdeps: true
+
+# Supply-chain cooldown: refuse package versions published less than 7 days ago,
+# so a freshly-compromised release (Shai-Hulud / nx / event-stream class) cannot
+# be installed before the ecosystem flags it. Override only consciously.
+minimumReleaseAge: 10080
 
 onlyBuiltDependencies:
   - '@bitdisaster/exe-icon-extractor'
   - '@swc/core'
+  - '@vaadin/vaadin-usage-statistics'
   - better-sqlite3
+  - better-sqlite3-multiple-ciphers
   - core-js
   - core-js-pure
   - electron
@@ -11,7 +18,9 @@ onlyBuiltDependencies:
   - es5-ext
   - esbuild
   - lefthook
+  - msgpackr-extract
   - msw
+  - node-llama-cpp
   - onnxruntime-node
   - protobufjs
   - sharp

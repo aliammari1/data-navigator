@@ -5,11 +5,10 @@ import {
   BarChart3,
   Bot,
   Brain,
-  Check,
   ChevronDown,
   Copy,
+  Check,
   Database,
-  Hash,
   Info,
   Lightbulb,
   Loader2,
@@ -24,34 +23,31 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import dynamic from "next/dynamic";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { type ColMeta, useDataStore } from "@/core/stores/data-store";
 import {
-  type ColMeta,
-  inferColType,
-  useDataStore,
-} from "@/core/stores/data-store";
+  type AiQueryResult,
+  buildAiChartOption,
+} from "@/features/dashboard-shell/components/ai-panel-chart";
+import { AiResultTable } from "@/features/dashboard-shell/components/ai-result-table";
+import { useNlqTranslator } from "@/features/dashboard-shell/command/use-nlq-translator";
+import { useShellActions, useShellStore } from "@/features/dashboard-shell/shell/shell-store";
 import { generateInsights, recommendCharts } from "@/platform/ai/insights";
-import { suggestQuestions, translateNLQ } from "@/platform/ai/nlq";
+import { suggestQuestions } from "@/platform/ai/nlq";
 import {
+  arrowColumnNames,
+  arrowToRows,
+  decodeArrowIPC,
   listRegisteredDatasets,
-  type RegisteredDataset,
-  runReadOnlyQuery,
+  runReadOnlyQueryArrow,
 } from "@/platform/duckdb/duckdb";
+import { type EChartsOption, OffscreenChart } from "@/platform/viz";
 import { cn } from "@/shared/utils";
-
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type MsgRole = "user" | "assistant";
 type MsgKind = "text" | "result" | "error";
-
-interface QueryResult {
-  columns: string[];
-  rows: Record<string, unknown>[];
-  durationMs: number;
-}
 
 interface Message {
   id: string;
@@ -59,10 +55,11 @@ interface Message {
   kind: MsgKind;
   content: string;
   sql?: string;
-  result?: QueryResult;
-  chartOption?: Record<string, unknown>;
+  result?: AiQueryResult;
+  chartOption?: EChartsOption;
   chartSuggestion?: string;
   confidence?: string;
+  source?: "llm" | "rules";
   thinking?: boolean;
 }
 
@@ -86,18 +83,12 @@ interface DatasetOption {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
+/** Stable id without Math.random (secure-context crypto in Electron renderer). */
 function uid(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
-
-function catalogColumnsToColMeta(dataset: RegisteredDataset): ColMeta[] {
-  return dataset.columns.map((column) => ({
-    name: column.name,
-    type: inferColType(column.type),
-    nullCount: 0,
-    distinctCount: 0,
-    sample: [],
-  }));
+  if (typeof crypto !== "undefined" && "randomUUID" in crypto) {
+    return crypto.randomUUID();
+  }
+  return `m_${Date.now().toString(36)}`;
 }
 
 function datasetToCtx(dataset: {
@@ -112,7 +103,6 @@ function datasetToCtx(dataset: {
   sourceFormat?: string;
 }): TableCtx {
   const viewName = dataset.viewName || dataset.tableName || dataset.id;
-
   return {
     datasetId: dataset.id,
     tableName: viewName,
@@ -121,283 +111,6 @@ function datasetToCtx(dataset: {
     displayName: dataset.name || dataset.displayName || viewName,
     sourceFormat: dataset.format || dataset.sourceFormat,
   };
-}
-
-function catalogToOption(dataset: RegisteredDataset): DatasetOption {
-  return {
-    id: dataset.id,
-    label: dataset.displayName,
-    viewName: dataset.viewName,
-    rowCount: dataset.rowCount,
-    columnCount: dataset.columns.length,
-    sourceFormat: dataset.sourceFormat,
-  };
-}
-
-function buildChartFromResult(
-  result: QueryResult,
-  suggestion: string,
-): Record<string, unknown> | null {
-  const { columns, rows } = result;
-
-  if (rows.length === 0 || columns.length < 2) return null;
-
-  const dark = {
-    bg: "transparent",
-    tooltip: {
-      backgroundColor: "#0f172a",
-      borderColor: "rgba(255,255,255,0.12)",
-      textStyle: { color: "#e2e8f0", fontSize: 11 },
-    },
-    axisLabel: { color: "#94a3b8" },
-    splitLine: { lineStyle: { color: "rgba(148,163,184,0.18)" } },
-  };
-
-  const colors = [
-    "#60a5fa",
-    "#34d399",
-    "#f472b6",
-    "#fbbf24",
-    "#a78bfa",
-    "#2dd4bf",
-  ];
-
-  if (suggestion === "pie") {
-    const [nameColumn, valueColumn] = columns;
-
-    return {
-      backgroundColor: dark.bg,
-      tooltip: { ...dark.tooltip, trigger: "item" },
-      series: [
-        {
-          type: "pie",
-          radius: ["44%", "72%"],
-          data: rows.map((row) => ({
-            name: String(row[nameColumn] ?? ""),
-            value: Number(row[valueColumn] ?? 0),
-          })),
-          itemStyle: { borderColor: "#020617", borderWidth: 2 },
-          label: { color: "#e2e8f0", fontSize: 10 },
-        },
-      ],
-      color: colors,
-    };
-  }
-
-  if (suggestion === "scatter") {
-    const [xColumn, yColumn] = columns;
-
-    return {
-      backgroundColor: dark.bg,
-      tooltip: { ...dark.tooltip, trigger: "item" },
-      grid: { top: 20, right: 20, bottom: 42, left: 52, containLabel: true },
-      xAxis: {
-        type: "value",
-        name: xColumn,
-        axisLabel: dark.axisLabel,
-        splitLine: dark.splitLine,
-      },
-      yAxis: {
-        type: "value",
-        name: yColumn,
-        axisLabel: dark.axisLabel,
-        splitLine: dark.splitLine,
-      },
-      series: [
-        {
-          type: "scatter",
-          data: rows.map((row) => [
-            Number(row[xColumn] ?? 0),
-            Number(row[yColumn] ?? 0),
-          ]),
-          itemStyle: { color: "#60a5fa", opacity: 0.75 },
-          symbolSize: 7,
-        },
-      ],
-    };
-  }
-
-  if (suggestion === "line" || suggestion === "bar") {
-    const [xColumn, ...yColumns] = columns;
-    const isLine = suggestion === "line";
-
-    return {
-      backgroundColor: dark.bg,
-      tooltip: { ...dark.tooltip, trigger: "axis" },
-      legend:
-        yColumns.length > 1
-          ? {
-              data: yColumns,
-              textStyle: { color: "#94a3b8", fontSize: 10 },
-              top: 0,
-            }
-          : undefined,
-      grid: {
-        top: yColumns.length > 1 ? 34 : 12,
-        right: 20,
-        bottom: 42,
-        left: 24,
-        containLabel: true,
-      },
-      xAxis: {
-        type: "category",
-        data: rows.map((row) => String(row[xColumn] ?? "")),
-        axisLabel: {
-          ...dark.axisLabel,
-          rotate: rows.length > 8 ? 25 : 0,
-          fontSize: 10,
-        },
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: { ...dark.axisLabel, fontSize: 10 },
-        splitLine: dark.splitLine,
-      },
-      series: yColumns.map((column, index) => ({
-        name: column,
-        type: isLine ? "line" : "bar",
-        data: rows.map((row) => Number(row[column] ?? 0)),
-        smooth: isLine,
-        symbol: isLine ? "none" : undefined,
-        itemStyle: {
-          color: colors[index % colors.length],
-          borderRadius: isLine ? undefined : [6, 6, 0, 0],
-        },
-        areaStyle: isLine
-          ? {
-              color: {
-                type: "linear",
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  {
-                    offset: 0,
-                    color: `${colors[index % colors.length]}30`,
-                  },
-                  { offset: 1, color: "transparent" },
-                ],
-              },
-            }
-          : undefined,
-        barMaxWidth: 42,
-      })),
-    };
-  }
-
-  const [categoryColumn, valueColumn] = columns;
-
-  return {
-    backgroundColor: dark.bg,
-    tooltip: { ...dark.tooltip, trigger: "axis" },
-    grid: { top: 14, right: 20, bottom: 14, left: 20, containLabel: true },
-    xAxis: {
-      type: "value",
-      axisLabel: { ...dark.axisLabel, fontSize: 10 },
-      splitLine: dark.splitLine,
-    },
-    yAxis: {
-      type: "category",
-      data: rows.map((row) => String(row[categoryColumn] ?? "")).reverse(),
-      axisLabel: { color: "#e2e8f0", fontSize: 10 },
-    },
-    series: [
-      {
-        type: "bar",
-        data: rows.map((row) => Number(row[valueColumn] ?? 0)).reverse(),
-        itemStyle: { color: "#60a5fa", borderRadius: [0, 6, 6, 0] },
-        barMaxWidth: 24,
-      },
-    ],
-  };
-}
-
-// ─── Result table ─────────────────────────────────────────────────────────────
-
-function ResultTable({ result }: { result: QueryResult }) {
-  const maxRows = 50;
-  const visibleRows = result.rows.slice(0, maxRows);
-
-  if (visibleRows.length === 0) {
-    return (
-      <div className="rounded-2xl border border-dashed border-border bg-muted/30 px-4 py-5 text-center">
-        <Rows3 className="mx-auto h-5 w-5 text-muted-foreground/70" />
-        <p className="mt-2 text-xs text-muted-foreground">
-          Query returned 0 rows.
-        </p>
-      </div>
-    );
-  }
-
-  if (result.columns.length === 1 && result.rows.length === 1) {
-    const value = result.rows[0][result.columns[0]];
-
-    return (
-      <div className="rounded-2xl border border-border bg-background p-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
-            <Hash className="h-4 w-4" />
-          </div>
-          <div className="min-w-0">
-            <div className="text-2xl font-bold tabular-nums text-foreground">
-              {typeof value === "number"
-                ? value.toLocaleString()
-                : String(value ?? "")}
-            </div>
-            <div className="truncate text-xs text-muted-foreground">
-              {result.columns[0]}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className="overflow-hidden rounded-2xl border border-border bg-background">
-      <div className="overflow-x-auto">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="border-b border-border bg-muted/80">
-              {result.columns.map((column) => (
-                <th
-                  key={column}
-                  className="whitespace-nowrap px-3 py-2 text-left text-[10px] font-bold uppercase tracking-wide text-muted-foreground"
-                >
-                  {column}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {visibleRows.map((row, index) => (
-              <tr
-                key={`${index}-${JSON.stringify(row).slice(0, 64)}`}
-                className="border-b border-border/60 transition-colors last:border-0 hover:bg-muted/50"
-              >
-                {result.columns.map((column) => (
-                  <td
-                    key={column}
-                    className="max-w-40 truncate px-3 py-2 font-mono text-[11px] text-foreground"
-                    title={String(row[column] ?? "")}
-                  >
-                    {String(row[column] ?? "")}
-                  </td>
-                ))}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {result.rows.length > maxRows && (
-        <div className="border-t border-border px-3 py-2 text-[10px] text-muted-foreground">
-          Showing {maxRows} of {result.rows.length.toLocaleString()} rows
-        </div>
-      )}
-    </div>
-  );
 }
 
 // ─── Message bubble ───────────────────────────────────────────────────────────
@@ -436,10 +149,7 @@ function MsgBubble({ msg }: { msg: Message }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn(
-        "flex flex-col gap-2",
-        isUser ? "items-end" : "items-start",
-      )}
+      className={cn("flex flex-col gap-2", isUser ? "items-end" : "items-start")}
     >
       <div
         className={cn(
@@ -453,18 +163,25 @@ function MsgBubble({ msg }: { msg: Message }) {
       >
         <div className="whitespace-pre-wrap">{msg.content}</div>
 
-        {msg.confidence && msg.confidence !== "high" && (
-          <span
-            className={cn(
-              "mt-2 inline-flex rounded-full px-2 py-0.5 text-[10px]",
-              msg.confidence === "low"
-                ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
-                : "bg-blue-500/15 text-blue-600 dark:text-blue-300",
-            )}
-          >
-            {msg.confidence} confidence
-          </span>
-        )}
+        <div className="mt-2 flex flex-wrap items-center gap-1.5">
+          {msg.source === "llm" && (
+            <span className="inline-flex rounded-full bg-blue-500/15 px-2 py-0.5 text-[10px] text-blue-600 dark:text-blue-300">
+              local model
+            </span>
+          )}
+          {msg.confidence && msg.confidence !== "high" && (
+            <span
+              className={cn(
+                "inline-flex rounded-full px-2 py-0.5 text-[10px]",
+                msg.confidence === "low"
+                  ? "bg-amber-500/15 text-amber-600 dark:text-amber-300"
+                  : "bg-blue-500/15 text-blue-600 dark:text-blue-300",
+              )}
+            >
+              {msg.confidence} confidence
+            </span>
+          )}
+        </div>
       </div>
 
       {msg.sql && (
@@ -478,6 +195,7 @@ function MsgBubble({ msg }: { msg: Message }) {
               type="button"
               onClick={copy}
               className="rounded-lg p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              aria-label="Copy SQL"
             >
               {copied ? (
                 <Check className="h-3.5 w-3.5 text-emerald-500" />
@@ -494,7 +212,7 @@ function MsgBubble({ msg }: { msg: Message }) {
 
       {msg.result && msg.chartSuggestion !== "number" && (
         <div className="w-full space-y-2">
-          <ResultTable result={msg.result} />
+          <AiResultTable result={msg.result} />
           <div className="flex items-center gap-2 px-1 text-[10px] text-muted-foreground">
             <span>{msg.result.rows.length.toLocaleString()} rows</span>
             <span>·</span>
@@ -503,9 +221,7 @@ function MsgBubble({ msg }: { msg: Message }) {
         </div>
       )}
 
-      {msg.result && msg.chartSuggestion === "number" && (
-        <ResultTable result={msg.result} />
-      )}
+      {msg.result && msg.chartSuggestion === "number" && <AiResultTable result={msg.result} />}
 
       {msg.chartOption && (
         <div className="w-full overflow-hidden rounded-2xl border border-border bg-card">
@@ -513,10 +229,14 @@ function MsgBubble({ msg }: { msg: Message }) {
             <BarChart3 className="h-3 w-3" />
             Chart
           </div>
-          <ReactECharts
+          <OffscreenChart
             option={msg.chartOption}
-            style={{ height: 220 }}
-            opts={{ renderer: "canvas" }}
+            height={220}
+            fallback={
+              <div className="flex h-[220px] items-center justify-center text-xs text-muted-foreground">
+                Chart rendering unavailable on this device.
+              </div>
+            }
           />
         </div>
       )}
@@ -555,8 +275,8 @@ function DatasetPicker({
           </div>
           {active && (
             <div className="truncate text-[10px] text-muted-foreground">
-              {active.rowCount.toLocaleString()} rows · {active.columnCount}{" "}
-              columns · {active.sourceFormat ?? "dataset"}
+              {active.rowCount.toLocaleString()} rows · {active.columnCount} columns ·{" "}
+              {active.sourceFormat ?? "dataset"}
             </div>
           )}
         </div>
@@ -588,9 +308,7 @@ function DatasetPicker({
               >
                 <Table2 className="mt-0.5 h-3.5 w-3.5 flex-none" />
                 <div className="min-w-0">
-                  <div className="truncate text-xs font-semibold">
-                    {option.label}
-                  </div>
+                  <div className="truncate text-xs font-semibold">{option.label}</div>
                   <div
                     className={cn(
                       "truncate text-[10px]",
@@ -614,15 +332,34 @@ function DatasetPicker({
 // ─── Insights panel ────────────────────────────────────────────────────────────
 
 function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
-  const insights = useMemo(
-    () => (ctx ? generateInsights(ctx.columns, ctx.rowCount) : []),
-    [ctx],
-  );
+  const [insights, setInsights] = useState<import("@/platform/ai/insights").Insight[]>([]);
+  const [recs, setRecs] = useState<import("@/platform/ai/insights").ChartRecommendation[]>([]);
 
-  const recs = useMemo(
-    () => (ctx ? recommendCharts(ctx.columns, ctx.rowCount) : []),
-    [ctx],
-  );
+  useEffect(() => {
+    if (!ctx) {
+      setInsights([]);
+      setRecs([]);
+      return;
+    }
+    let cancelled = false;
+    generateInsights(ctx.columns, ctx.rowCount)
+      .then((result) => {
+        if (!cancelled) setInsights(result);
+      })
+      .catch(() => {
+        /* keep empty */
+      });
+    recommendCharts(ctx.columns, ctx.rowCount)
+      .then((result) => {
+        if (!cancelled) setRecs(result);
+      })
+      .catch(() => {
+        /* keep empty */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [ctx]);
 
   if (!ctx) {
     return (
@@ -631,9 +368,7 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
           <Database className="h-6 w-6" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">
-            No dataset selected
-          </p>
+          <p className="text-sm font-semibold text-foreground">No dataset selected</p>
           <p className="mt-1 text-xs text-muted-foreground">
             Import a dataset first, then open insights.
           </p>
@@ -660,12 +395,8 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
               <Database className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <div className="truncate text-sm font-bold text-foreground">
-                {ctx.displayName}
-              </div>
-              <div className="mt-1 truncate text-xs text-muted-foreground">
-                {ctx.tableName}
-              </div>
+              <div className="truncate text-sm font-bold text-foreground">{ctx.displayName}</div>
+              <div className="mt-1 truncate text-xs text-muted-foreground">{ctx.tableName}</div>
             </div>
           </div>
         </div>
@@ -676,17 +407,12 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
             { label: "Cols", value: ctx.columns.length },
             {
               label: "Numeric",
-              value: ctx.columns.filter((column) => column.type === "number")
-                .length,
+              value: ctx.columns.filter((column) => column.type === "number").length,
             },
           ].map((stat) => (
             <div key={stat.label} className="rounded-2xl bg-muted p-3">
-              <div className="text-base font-bold text-foreground">
-                {stat.value}
-              </div>
-              <div className="text-[10px] text-muted-foreground">
-                {stat.label}
-              </div>
+              <div className="text-base font-bold text-foreground">{stat.value}</div>
+              <div className="text-[10px] text-muted-foreground">{stat.label}</div>
             </div>
           ))}
         </div>
@@ -701,18 +427,13 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
 
           <div className="space-y-2">
             {recs.map((rec) => (
-              <div
-                key={rec.title}
-                className="rounded-2xl border border-border bg-card p-3"
-              >
+              <div key={rec.title} className="rounded-2xl border border-border bg-card p-3">
                 <div className="flex items-start gap-2">
                   <div className="flex h-8 w-8 flex-none items-center justify-center rounded-xl bg-blue-500/10 text-blue-500">
                     <BarChart3 className="h-4 w-4" />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="text-xs font-semibold text-foreground">
-                      {rec.title}
-                    </div>
+                    <div className="text-xs font-semibold text-foreground">{rec.title}</div>
                     <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       {rec.reason}
                     </div>
@@ -741,13 +462,9 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
                 className="rounded-2xl border border-border bg-card p-3"
               >
                 <div className="flex items-start gap-2">
-                  <div className="mt-0.5 flex-none">
-                    {severityIcon(insight.severity)}
-                  </div>
+                  <div className="mt-0.5 flex-none">{severityIcon(insight.severity)}</div>
                   <div>
-                    <div className="text-xs font-semibold text-foreground">
-                      {insight.title}
-                    </div>
+                    <div className="text-xs font-semibold text-foreground">{insight.title}</div>
                     <div className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       {insight.description}
                     </div>
@@ -764,13 +481,7 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
 
 // ─── Main AI Panel ────────────────────────────────────────────────────────────
 
-export function AIPanel({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+export function AIPanel({ open, onClose }: { open: boolean; onClose: () => void }) {
   const {
     datasets,
     activeDatasetId,
@@ -778,6 +489,10 @@ export function AIPanel({
     addQueryHistory,
     replaceDatasetsFromCatalog,
   } = useDataStore();
+
+  const translateNlq = useNlqTranslator();
+  const tab = useShellStore((s) => s.aiPanelTab);
+  const { setAiPanelTab } = useShellActions();
 
   const [catalogLoading, setCatalogLoading] = useState(false);
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -788,51 +503,40 @@ export function AIPanel({
       role: "assistant",
       kind: "text",
       content:
-        "Hi, I’m your local data copilot. Select a dataset, ask a question, and I’ll translate it into safe read-only DuckDB SQL.",
+        "Hi, I'm your local data copilot. Select a dataset, ask a question, and I'll translate it into safe read-only DuckDB SQL — grammar-constrained when the local model is downloaded, rule-based otherwise.",
     },
   ]);
 
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<"chat" | "insights">("chat");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!open) return;
-
     let cancelled = false;
 
     async function refreshCatalog() {
       setCatalogLoading(true);
       setCatalogError(null);
-
       try {
         const catalog = await listRegisteredDatasets();
-
         if (cancelled) return;
-
         replaceDatasetsFromCatalog(catalog);
-
         if (!activeDatasetId && catalog.length > 0) {
           setActiveDataset(catalog[0].id);
         }
       } catch (error) {
         if (!cancelled) {
-          setCatalogError(
-            error instanceof Error ? error.message : String(error),
-          );
+          setCatalogError(error instanceof Error ? error.message : String(error));
         }
       } finally {
-        if (!cancelled) {
-          setCatalogLoading(false);
-        }
+        if (!cancelled) setCatalogLoading(false);
       }
     }
 
     refreshCatalog();
-
     return () => {
       cancelled = true;
     };
@@ -844,9 +548,10 @@ export function AIPanel({
     }
   }, [open]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: messages.length is an intentional trigger to scroll on new messages; it is not read in the body.
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages.length]);
 
   const datasetOptions: DatasetOption[] = useMemo(
     () =>
@@ -862,30 +567,21 @@ export function AIPanel({
   );
 
   const activeDataset =
-    datasets.find((dataset) => dataset.id === activeDatasetId) ??
-    datasets[0] ??
-    null;
+    datasets.find((dataset) => dataset.id === activeDatasetId) ?? datasets[0] ?? null;
 
-  const ctx: TableCtx | null = activeDataset
-    ? datasetToCtx(activeDataset)
-    : null;
+  const ctx: TableCtx | null = activeDataset ? datasetToCtx(activeDataset) : null;
 
   const suggestions = useMemo(
     () =>
       ctx
         ? suggestQuestions({ tableName: ctx.tableName, columns: ctx.columns })
-        : [
-            "Import a dataset first",
-            "Show me row count",
-            "What columns are available?",
-          ],
+        : ["Import a dataset first", "Show me row count", "What columns are available?"],
     [ctx],
   );
 
   const handleSend = useCallback(
     async (text?: string) => {
       const question = (text ?? input).trim();
-
       if (!question || loading) return;
 
       setInput("");
@@ -894,13 +590,7 @@ export function AIPanel({
       setMessages((current) => [
         ...current,
         { id: uid(), role: "user", kind: "text", content: question },
-        {
-          id: uid(),
-          role: "assistant",
-          kind: "text",
-          content: "",
-          thinking: true,
-        },
+        { id: uid(), role: "assistant", kind: "text", content: "", thinking: true },
       ]);
 
       try {
@@ -911,34 +601,29 @@ export function AIPanel({
                 id: uid(),
                 role: "assistant",
                 kind: "error",
-                content:
-                  "No dataset is selected. Import a dataset first, then ask a question.",
+                content: "No dataset is selected. Import a dataset first, then ask a question.",
               },
             ]),
           );
           return;
         }
 
-        const nlqCtx = {
-          tableName: ctx.tableName,
-          columns: ctx.columns,
-        };
-
-        const { sql, explanation, confidence, chartSuggestion } = translateNLQ(
+        // Grammar-constrained NL→SQL via the provider registry, with the
+        // deterministic rule-based translator as the offline fallback.
+        const { sql, explanation, confidence, chartSuggestion, source } = await translateNlq(
           question,
-          nlqCtx,
+          { tableName: ctx.tableName, columns: ctx.columns },
         );
 
+        // Arrow IPC transport — decode rows off the JSON path.
         const start = performance.now();
-        const rows = await runReadOnlyQuery(sql);
+        const arrowBytes = await runReadOnlyQueryArrow(sql);
+        const table = decodeArrowIPC(arrowBytes);
+        const columns = arrowColumnNames(table);
+        const rows = arrowToRows(table) as Record<string, unknown>[];
         const durationMs = Math.round(performance.now() - start);
-        const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
 
-        const result: QueryResult = {
-          columns,
-          rows,
-          durationMs,
-        };
+        const result: AiQueryResult = { columns, rows, durationMs };
 
         addQueryHistory({
           id: uid(),
@@ -952,7 +637,7 @@ export function AIPanel({
 
         const chartOption =
           chartSuggestion && !["table", "number"].includes(chartSuggestion)
-            ? (buildChartFromResult(result, chartSuggestion) ?? undefined)
+            ? (buildAiChartOption(result, chartSuggestion) ?? undefined)
             : undefined;
 
         setMessages((current) =>
@@ -967,6 +652,7 @@ export function AIPanel({
               chartOption,
               chartSuggestion,
               confidence,
+              source,
             },
           ]),
         );
@@ -987,7 +673,7 @@ export function AIPanel({
         setLoading(false);
       }
     },
-    [input, loading, ctx, addQueryHistory],
+    [input, loading, ctx, addQueryHistory, translateNlq],
   );
 
   const clearChat = useCallback(() => {
@@ -1028,9 +714,7 @@ export function AIPanel({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <h2 className="text-sm font-bold text-foreground">
-                      AI Data Copilot
-                    </h2>
+                    <h2 className="text-sm font-bold text-foreground">AI Data Copilot</h2>
                     <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[10px] text-emerald-600 dark:text-emerald-300">
                       <ShieldCheck className="h-3 w-3" />
                       local
@@ -1044,6 +728,7 @@ export function AIPanel({
                 <button
                   type="button"
                   onClick={onClose}
+                  aria-label="Close AI panel"
                   className="flex h-8 w-8 flex-none items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                 >
                   <X className="h-4 w-4" />
@@ -1068,8 +753,7 @@ export function AIPanel({
                   ) : ctx ? (
                     <>
                       <Rows3 className="h-3 w-3" />
-                      {ctx.rowCount.toLocaleString()} rows ·{" "}
-                      {ctx.columns.length} columns
+                      {ctx.rowCount.toLocaleString()} rows · {ctx.columns.length} columns
                     </>
                   ) : (
                     <>
@@ -1091,15 +775,12 @@ export function AIPanel({
                         }
                       })
                       .catch((error) =>
-                        setCatalogError(
-                          error instanceof Error
-                            ? error.message
-                            : String(error),
-                        ),
+                        setCatalogError(error instanceof Error ? error.message : String(error)),
                       );
                   }}
                   className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
                   title="Refresh datasets"
+                  aria-label="Refresh datasets"
                 >
                   <RefreshCw className="h-3.5 w-3.5" />
                 </button>
@@ -1116,7 +797,7 @@ export function AIPanel({
                   <button
                     key={item}
                     type="button"
-                    onClick={() => setTab(item)}
+                    onClick={() => setAiPanelTab(item)}
                     className={cn(
                       "rounded-xl px-3 py-2 text-xs font-semibold transition-colors",
                       tab === item
@@ -1179,9 +860,7 @@ export function AIPanel({
                           }
                         }}
                         placeholder={
-                          ctx
-                            ? "Ask about your dataset…"
-                            : "Import or select a dataset first…"
+                          ctx ? "Ask about your dataset…" : "Import or select a dataset first…"
                         }
                         disabled={loading}
                         className="flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground disabled:opacity-40"
@@ -1196,6 +875,7 @@ export function AIPanel({
                       type="button"
                       onClick={() => handleSend()}
                       disabled={!input.trim() || loading || !ctx}
+                      aria-label="Send"
                       className="flex h-11 w-11 flex-none items-center justify-center rounded-2xl bg-primary text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-40"
                     >
                       <Send className="h-4 w-4" />
@@ -1227,13 +907,7 @@ export function AIPanel({
   );
 }
 
-export function AIToggle({
-  onClick,
-  active,
-}: {
-  onClick: () => void;
-  active: boolean;
-}) {
+export function AIToggle({ onClick, active }: { onClick: () => void; active: boolean }) {
   return (
     <motion.button
       type="button"

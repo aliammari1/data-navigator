@@ -704,7 +704,7 @@ export function buildTableData(data: Record<string, unknown>[]): {
       if (v === null || v === undefined) return "—";
       if (typeof v === "number" || typeof v === "bigint") return fmtVal(v);
       const s = String(v);
-      return s.length > 40 ? s.slice(0, 37) + "…" : s;
+      return s.length > 40 ? `${s.slice(0, 37)}…` : s;
     }),
   );
   return { headers, rows };

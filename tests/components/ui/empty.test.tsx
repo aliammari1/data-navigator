@@ -56,7 +56,7 @@ describe("EmptyMedia", () => {
     );
     const element = screen.getByTestId("media");
     expect(element).toHaveAttribute("data-variant", "icon");
-    expect(element).toHaveClass("rounded-xl", "bg-muted");
+    expect(element).toHaveClass("rounded-lg", "bg-muted");
   });
 
   it("should merge custom className", () => {

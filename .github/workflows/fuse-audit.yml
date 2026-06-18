@@ -1,0 +1,121 @@
+# Fuse drift audit for the packaged Electron binary.
+#
+# WHAT: package Data Navigator, then read the @electron/fuses wire baked into the
+# shipped binary and assert it still matches electron/security.ts →
+# PRODUCTION_FUSE_CONFIG (the single source of truth that forge.config.ts flips at
+# package time). This catches drift introduced by an Electron upgrade, a
+# forge.config.ts regression, or a fuse the packager silently failed to flip — the
+# build-time flip alone cannot prove the SHIPPED binary actually carries it.
+#
+# WHY scheduled/manual (not per-PR): a full Forge `package` on windows-latest is
+# heavy (native rebuild of better-sqlite3 / @duckdb / node-llama-cpp / sherpa /
+# sqlite-vec, plus the Next standalone build). Running it on every push/PR would
+# dominate CI minutes for a check whose inputs (electron version, forge.config.ts,
+# electron/security.ts) change rarely. So this is a best-effort job:
+#   - weekly on a schedule (keeps the audit fresh against dependabot Electron bumps),
+#   - on demand via workflow_dispatch,
+#   - and on PRs that actually touch the fuse-relevant files (path-filtered).
+#
+# Offline-product note: the multi-GB GGUF model is intentionally NOT downloaded.
+# forge.config.ts copies ./models only if it exists (copyDirIfExists); the fuse
+# audit does not need it, so this stays a model-less package.
+#
+# MANUAL FALLBACK: if this job is ever disabled for cost, run the audit locally:
+#   pnpm run electron:package
+#   node --import tsx scripts/verify-fuses.mjs
+name: Fuse Audit
+
+on:
+  schedule:
+    # Weekly, Tuesday 04:12 UTC. Offset from the Security workflow's Monday cron.
+    - cron: "12 4 * * 2"
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    # Only when something that affects the shipped fuses changes.
+    paths:
+      - "electron/security.ts"
+      - "forge.config.ts"
+      - "scripts/verify-fuses.mjs"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - ".github/workflows/fuse-audit.yml"
+
+concurrency:
+  group: fuse-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+# Least privilege: this job only reads the repo and builds locally.
+permissions: {}
+
+env:
+  CI: "true"
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  audit:
+    name: Audit packaged fuses
+    runs-on: windows-latest
+    timeout-minutes: 90
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+        with:
+          lfs: true
+
+      - name: Set up pnpm
+        # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+        with:
+          version: 10.25.0
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      # Cache Electron header/prebuilt-binary downloads (electron-rebuild / forge
+      # fetch the matching Electron native binaries during package).
+      - name: Cache Electron binaries
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/AppData/Local/electron/Cache
+            ~/AppData/Local/electron-builder/Cache
+          key: electron-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-${{ runner.os }}-
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # `electron:package` runs desktop:build then `electron-forge package`, which
+      # invokes the postPackage hook in forge.config.ts that flips the production
+      # fuses. Output lands under ./out/<ProductName>-win32-x64/.
+      - name: Package app (flips production fuses)
+        run: pnpm run electron:package
+        env:
+          NODE_ENV: production
+
+      # Read the wire from the shipped binary and compare to PRODUCTION_FUSE_CONFIG.
+      # The script auto-discovers the packaged exe under ./out and exits non-zero on
+      # any drift. `tsx` lets it import electron/security.ts directly (single source
+      # of truth, no duplicated fuse list in CI).
+      - name: Verify shipped fuses match PRODUCTION_FUSE_CONFIG
+        run: node --import tsx scripts/verify-fuses.mjs

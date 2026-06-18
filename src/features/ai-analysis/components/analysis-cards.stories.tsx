@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs";
 import { AnalysisCards } from "./analysis-cards";
-import { AlertTriangle, CheckCircle2, GitBranch, Layers, LineChart, TrendingUp } from "lucide-react";
+import { AlertTriangle, CheckCircle2, GitBranch, Layers, } from "lucide-react";
 
 const meta = {
   title: "Src/Features/AiAnalysis/Components/AnalysisCards",

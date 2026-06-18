@@ -7,9 +7,9 @@
 
 import { AlertTriangle, Filter } from "lucide-react";
 import { useEffect, useState } from "react";
-import * as ss from "simple-statistics";
 import { Drawer } from "vaul";
 import type { WidgetState } from "@/features/agent-canvas/core/types";
+import { getAnalysisProxy } from "@/platform/viz";
 import { cn } from "@/shared/utils";
 
 interface AnomalyInfo {
@@ -24,50 +24,81 @@ interface AnomalyInfo {
   stdev: number;
 }
 
-function detectOutliers(
+function quantileSorted(sorted: number[], p: number): number {
+  if (sorted.length === 0) return 0;
+  return sorted[Math.min(sorted.length - 1, Math.floor((sorted.length - 1) * p))];
+}
+
+/** Inline IQR fallback (identical rule to the worker) for no-Worker runtimes. */
+function inlineIqr(
+  vals: number[],
+  lower: number,
+  upper: number,
+  iqr: number,
+): { indices: number[]; scores: number[] } {
+  const indices: number[] = [];
+  const scores: number[] = [];
+  if (Math.abs(iqr) < 1e-12) return { indices, scores };
+  for (let i = 0; i < vals.length; i++) {
+    const v = vals[i];
+    if (v < lower || v > upper) {
+      indices.push(i);
+      scores.push(Math.round((Math.max(lower - v, v - upper) / iqr) * 1000) / 1000);
+    }
+  }
+  return { indices, scores };
+}
+
+/**
+ * Detect IQR outliers per numeric column using the SEEDED analysis worker
+ * (`getAnalysisProxy().detectAnomalies`, method "iqr") — off the main thread and
+ * deterministic, instead of the previous hand-rolled `simple-statistics` pass.
+ * The descriptive scalars (q1/q3/mean/stdev) are cheap deterministic summaries
+ * derived from the same values purely for labelling the distribution chart.
+ */
+async function detectOutliers(
   data: Record<string, unknown>[],
   numericCols: string[],
-): AnomalyInfo[] {
+): Promise<AnomalyInfo[]> {
+  const analysis = getAnalysisProxy();
   const infos: AnomalyInfo[] = [];
 
   for (const col of numericCols.slice(0, 3)) {
     const values = data
       .map((r, i) => ({ v: Number(r[col]), i }))
-      .filter((x) => !isNaN(x.v));
+      .filter((x) => !Number.isNaN(x.v));
 
     if (values.length < 4) continue;
 
     const vals = values.map((x) => x.v);
-    const q1 = ss.quantile(vals, 0.25);
-    const q3 = ss.quantile(vals, 0.75);
+    const sorted = [...vals].sort((a, b) => a - b);
+    const q1 = quantileSorted(sorted, 0.25);
+    const q3 = quantileSorted(sorted, 0.75);
     const iqr = q3 - q1;
     const lower = q1 - 1.5 * iqr;
     const upper = q3 + 1.5 * iqr;
-    const mean = ss.mean(vals);
-    const stdev = ss.standardDeviation(vals);
+    const mean = vals.reduce((s, v) => s + v, 0) / vals.length;
+    const stdev = Math.sqrt(
+      vals.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, vals.length - 1),
+    );
 
-    const outliers = values
-      .filter((x) => x.v < lower || x.v > upper)
-      .map((x) => ({
-        rowIndex: x.i,
-        value: x.v,
-        score: Math.max(lower - x.v, x.v - upper) / (iqr || 1),
+    // Worker-backed IQR anomaly detection (seeded, off main thread). When no
+    // module-worker exists (SSR/exotic runtime), the SAME IQR rule runs inline.
+    const { indices, scores } = analysis
+      ? await analysis.detectAnomalies(vals, { method: "iqr", threshold: 1.5 })
+      : inlineIqr(vals, lower, upper, iqr);
+
+    const outliers = indices
+      .map((localIdx, k) => ({
+        rowIndex: values[localIdx]?.i ?? localIdx,
+        value: vals[localIdx],
+        score: scores[k] ?? 0,
       }))
       .sort((a, b) => b.score - a.score)
       .slice(0, 10);
 
     if (outliers.length > 0) {
-      infos.push({
-        column: col,
-        outliers,
-        q1,
-        q3,
-        iqr,
-        lower,
-        upper,
-        mean,
-        stdev,
-      });
+      infos.push({ column: col, outliers, q1, q3, iqr, lower, upper, mean, stdev });
     }
   }
 
@@ -117,7 +148,7 @@ function DistributionBar({
       />
       {/* Bars */}
       {bins.map((count, i) => {
-        const pct = (i / BINS) * 100;
+        const _pct = (i / BINS) * 100;
         const center = min + (i / BINS) * range;
         const isOut = center < lower || center > upper;
         return (
@@ -146,13 +177,20 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
   const [selected, setSelected] = useState(0);
 
   useEffect(() => {
-    if (!widget.rawData?.length) return;
-    const numericCols = Object.keys(widget.rawData[0] ?? {}).filter((k) => {
-      const v = widget.rawData![0]![k];
-      return typeof v === "number" || (!isNaN(Number(v)) && v !== "");
+    const rawData = widget.rawData;
+    if (!rawData?.length) return;
+    let cancelled = false;
+    const firstRow = rawData[0] ?? {};
+    const numericCols = Object.keys(firstRow).filter((k) => {
+      const v = firstRow[k];
+      return typeof v === "number" || (!Number.isNaN(Number(v)) && v !== "");
     });
-    const detected = detectOutliers(widget.rawData, numericCols);
-    setInfos(detected);
+    void detectOutliers(rawData, numericCols).then((detected) => {
+      if (!cancelled) setInfos(detected);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [widget.rawData]);
 
   if (infos.length === 0) return null;
@@ -162,7 +200,7 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
 
   const allValues = (widget.rawData ?? [])
     .map((r) => Number(r[info?.column ?? ""] ?? NaN))
-    .filter((v) => !isNaN(v));
+    .filter((v) => !Number.isNaN(v));
 
   return (
     <>

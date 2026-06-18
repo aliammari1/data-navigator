@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
 
 export type DashboardRole = "owner" | "editor" | "viewer";
 
@@ -55,13 +56,7 @@ export function readDashboardAccess(): DashboardAccessState {
     const parsed = JSON.parse(
       localStorage.getItem(ACCESS_KEY) ?? "null",
     ) as Partial<DashboardAccessState> | null;
-    return {
-      role:
-        parsed?.role === "viewer" || parsed?.role === "editor" || parsed?.role === "owner"
-          ? parsed.role
-          : DEFAULT_ACCESS.role,
-      cacheMode: parsed?.cacheMode === "low-memory" ? "low-memory" : DEFAULT_ACCESS.cacheMode,
-    };
+    return coerceAccess(parsed);
   } catch {
     return DEFAULT_ACCESS;
   }
@@ -71,6 +66,20 @@ export function writeDashboardAccess(next: DashboardAccessState): void {
   if (typeof localStorage === "undefined") return;
   localStorage.setItem(ACCESS_KEY, JSON.stringify(next));
   globalThis.window.dispatchEvent(new CustomEvent(ACCESS_EVENT, { detail: next }));
+  // Best-effort durable mirror into drizzle settings. localStorage stays the
+  // synchronous source of truth; this adds durability + settings-backup inclusion.
+  void putAppSettingRemote("settings", ACCESS_KEY, next).catch(() => {});
+}
+
+/** Coerce an untrusted payload into a valid access state (defaults on bad input). */
+function coerceAccess(value: Partial<DashboardAccessState> | null): DashboardAccessState {
+  return {
+    role:
+      value?.role === "viewer" || value?.role === "editor" || value?.role === "owner"
+        ? value.role
+        : DEFAULT_ACCESS.role,
+    cacheMode: value?.cacheMode === "low-memory" ? "low-memory" : DEFAULT_ACCESS.cacheMode,
+  };
 }
 
 export function useDashboardAccess() {
@@ -83,6 +92,29 @@ export function useDashboardAccess() {
     return () => {
       globalThis.window.removeEventListener(ACCESS_EVENT, sync);
       globalThis.window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  // One-time cold restore: with no local working copy (fresh profile / cleared
+  // cache), pull the durable access prefs from drizzle settings and adopt them.
+  useEffect(() => {
+    let hasLocal = true;
+    try {
+      hasLocal = localStorage.getItem(ACCESS_KEY) !== null;
+    } catch {
+      hasLocal = true;
+    }
+    if (hasLocal) return;
+
+    let cancelled = false;
+    void getAppSettingRemote<Partial<DashboardAccessState>>("settings", ACCESS_KEY)
+      .then(({ value }) => {
+        if (cancelled || value == null) return;
+        writeDashboardAccess(coerceAccess(value));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
     };
   }, []);
 

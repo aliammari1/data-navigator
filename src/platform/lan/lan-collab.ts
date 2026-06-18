@@ -1,15 +1,25 @@
 /**
  * LAN collaboration over the local y-websocket relay.
  *
- * The relay is intentionally small: one PC hosts `scripts/lan-server.mjs`, and
- * peers join by IP address + pairing code. Yjs carries shared report state,
- * awareness carries live presence, and the HTTP sidecar exposes discovery,
- * audit, and room health.
+ * The relay is intentionally small: one PC hosts `scripts/lan-server.mjs` (or
+ * the in-app Electron-main Hocuspocus hub), and peers join by IP address +
+ * pairing code. Yjs carries shared report state, `y-protocols/awareness`
+ * carries live presence (auto-pruned ~30s after a peer stalls — no hand-rolled
+ * heartbeat), and discovery prefers Electron mDNS over IPC (the cross-origin
+ * isolated renderer cannot reliably do cross-origin HTTP fetches under
+ * COEP:require-corp — see architecture §8).
+ *
+ * Presence discipline: DURABLE identity (id/name/role/color) lives in awareness
+ * `user` (+ the doc); EPHEMERAL cursor/selection lives in awareness `cursor`
+ * ONLY — it is NOT written into the persisted `sharedPresence`/doc (that would
+ * bloat the doc + the IndexedDB update log).
  */
 
 "use client";
 
+import { Awareness } from "y-protocols/awareness";
 import {
+  ensureAppDocPersistence,
   sharedAudit,
   sharedLanRoom,
   sharedPresence,
@@ -110,6 +120,63 @@ const PALETTE = [
   "#06b6d4",
 ];
 
+// ─── Electron collab-hub bridge (mDNS discovery + in-app hub) ─────────────────
+// The Electron-main agent exposes `window.electronCollab` (see electron/preload).
+// Preferred over cross-origin HTTP fetch from the COEP:require-corp renderer.
+
+interface ElectronCollabStatus {
+  running: boolean;
+  port: number | null;
+  pairingCode: string | null;
+  room: string | null;
+  advertising: boolean;
+  discovering: boolean;
+  websocketUrls: string[];
+  ips: Array<{ name: string; address: string }>;
+  dbPath: string | null;
+  startedAt: string | null;
+}
+
+interface ElectronDiscoveredHub {
+  name: string;
+  host: string;
+  port: number;
+  url: string;
+  addresses: string[];
+  room?: string;
+  pairingRequired: boolean;
+}
+
+interface ElectronCollabBridge {
+  start(input?: {
+    port?: number;
+    pairingCode?: string;
+    room?: string;
+    advertise?: boolean;
+    discover?: boolean;
+  }): Promise<ElectronCollabStatus>;
+  stop(): Promise<{ stopped: boolean }>;
+  status(): Promise<ElectronCollabStatus>;
+  discover(): Promise<ElectronDiscoveredHub[]>;
+  getDiscovered(): Promise<ElectronDiscoveredHub[]>;
+  onDiscovered(
+    cb: (event: { type: "up" | "down"; hub: ElectronDiscoveredHub }) => void,
+  ): () => void;
+}
+
+function electronCollab(): ElectronCollabBridge | null {
+  if (typeof window === "undefined") return null;
+  return (
+    (window as unknown as { electronCollab?: ElectronCollabBridge })
+      .electronCollab ?? null
+  );
+}
+
+/** True when running inside Electron with the collab-hub IPC bridge available. */
+export function hasCollabHubBridge(): boolean {
+  return electronCollab() !== null;
+}
+
 function uid(): string {
   return `${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
@@ -127,7 +194,7 @@ function wsFromHttp(url: string): string {
   return url.replace(/^http:/, "ws:").replace(/^https:/, "wss:");
 }
 
-function joinUrl(opts: LANSettings): string {
+function _joinUrl(opts: LANSettings): string {
   const url = new URL(opts.url);
   url.pathname = `/${encodeURIComponent(opts.room)}`;
   url.searchParams.set("peerId", opts.peer.id);
@@ -189,20 +256,27 @@ export function saveLANSettings(settings: LANSettings): void {
 
 interface ProviderHandle {
   destroy(): void;
-  awareness?: {
-    setLocalStateField(k: string, v: unknown): void;
-    getStates(): Map<number, unknown>;
-    on(event: string, fn: () => void): void;
-    off(event: string, fn: () => void): void;
-  };
+  disconnect?(): void;
+  awareness?: Awareness;
   on?(ev: string, fn: (st: { status: string }) => void): void;
 }
 
 let provider: ProviderHandle | null = null;
+// A single shared Awareness bound to the app doc. It is reused by every provider
+// (BroadcastChannel + websocket) so presence multiplexes over the live socket
+// and auto-prunes on disconnect. Created lazily in the browser only.
+let sharedAwareness: Awareness | null = null;
 const watchers = new Set<() => void>();
 let status: LANStatus = "off";
 let peers: LANPeer[] = [];
 let activeSettings: LANSettings | null = null;
+
+/** Lazily create the shared Awareness for the app doc (browser only). */
+function getAwareness(): Awareness | null {
+  if (typeof window === "undefined") return null;
+  if (!sharedAwareness) sharedAwareness = new Awareness(ydoc);
+  return sharedAwareness;
+}
 
 export function getLANStatus(): LANStatus {
   return status;
@@ -226,7 +300,9 @@ export function subscribeLAN(fn: () => void): () => void {
 }
 
 function emit() {
-  watchers.forEach((fn) => fn());
+  watchers.forEach((fn) => {
+    fn();
+  });
 }
 
 function appendAudit(event: string, detail?: string) {
@@ -275,6 +351,12 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
   emit();
 
   try {
+    // Offline ordering invariant: load durable local content BEFORE connecting,
+    // so a remote peer's state never clobbers local-only offline edits.
+    await ensureAppDocPersistence();
+
+    const awareness = getAwareness();
+
     const mod = await import("y-websocket");
     const WebsocketProvider = (
       mod as unknown as {
@@ -289,6 +371,8 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
 
     provider = new WebsocketProvider(settings.url, settings.room, ydoc, {
       connect: true,
+      // Reuse the shared Awareness so presence rides this same socket.
+      awareness: awareness ?? undefined,
       params: {
         peerId: settings.peer.id,
         peerName: settings.peer.name,
@@ -308,8 +392,8 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
       emit();
     });
 
-    if (provider.awareness) {
-      provider.awareness.setLocalStateField("user", {
+    if (awareness) {
+      awareness.setLocalStateField("user", {
         id: settings.peer.id,
         name: settings.peer.name,
         role: settings.peer.role,
@@ -320,7 +404,7 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
             : "",
         lastSeenAt: Date.now(),
       });
-      provider.awareness.on("change", refreshPeers);
+      awareness.on("change", refreshPeers);
       refreshPeers();
     }
 
@@ -338,13 +422,14 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
 }
 
 function refreshPeers() {
-  if (!provider?.awareness) {
+  const awareness = sharedAwareness;
+  if (!awareness) {
     peers = [];
     emit();
     return;
   }
   const list: LANPeer[] = [];
-  for (const [, state] of provider.awareness.getStates()) {
+  for (const [, state] of awareness.getStates()) {
     const user = (state as { user?: LANPeer }).user;
     if (user) list.push({ ...user, active: true });
   }
@@ -356,7 +441,10 @@ export async function disconnectLAN(): Promise<void> {
   if (provider) {
     try {
       appendAudit("peer.disconnected");
-      provider.awareness?.off("change", refreshPeers);
+      sharedAwareness?.off("change", refreshPeers);
+      // Drop our local presence so remote peers prune us immediately rather
+      // than waiting for the 30s awareness timeout.
+      sharedAwareness?.setLocalState(null);
       provider.destroy();
     } catch {}
     provider = null;
@@ -367,25 +455,63 @@ export async function disconnectLAN(): Promise<void> {
   emit();
 }
 
-export function publishPresence(patch: Partial<LANPeer>) {
-  const settings = activeSettings ?? readLANSettings();
-  const next = {
-    ...settings.peer,
-    ...patch,
-    lastSeenAt: Date.now(),
-  };
-  sharedPresence.set(settings.peer.id, JSON.stringify(next));
-  provider?.awareness?.setLocalStateField("user", next);
+// rAF-throttled cursor writer: a flood of selection/scroll events coalesces to
+// at most one awareness write per frame, so remote peers don't re-render every
+// subscriber on a medium CPU.
+let pendingCursor: { page: string; selection?: string; at: number } | null =
+  null;
+let cursorRaf: number | null = null;
+
+function flushCursor() {
+  cursorRaf = null;
+  const next = pendingCursor;
+  pendingCursor = null;
+  if (next) sharedAwareness?.setLocalStateField("cursor", next);
 }
 
+/**
+ * Publish DURABLE identity changes (name/role/color/page). Writes the identity
+ * to awareness `user` AND mirrors the durable identity into the persisted
+ * `sharedPresence` Y.Map (which survives reload / is LAN-visible). Ephemeral
+ * cursor/selection is NOT written here — see `publishSelection`.
+ */
+export function publishPresence(patch: Partial<LANPeer>) {
+  const settings = activeSettings ?? readLANSettings();
+  // Strip ephemeral cursor/selection from the durable record we persist.
+  const { selection: _selection, ...durablePatch } = patch;
+  const durable: LANPeer = {
+    id: settings.peer.id,
+    name: settings.peer.name,
+    role: settings.peer.role,
+    color: settings.peer.color,
+    active: true,
+    ...durablePatch,
+    lastSeenAt: Date.now(),
+  };
+  // Durable identity → persisted doc (small, stable; safe for IndexedDB log).
+  sharedPresence.set(settings.peer.id, JSON.stringify(durable));
+  // Awareness `user` carries durable identity for live peer lists.
+  sharedAwareness?.setLocalStateField("user", durable);
+}
+
+/**
+ * Publish EPHEMERAL cursor/selection. Goes to awareness `cursor` ONLY (never
+ * the persisted doc) and is rAF-throttled. This is the high-frequency path.
+ */
 export function publishSelection(selection: string) {
-  publishPresence({
+  pendingCursor = {
     page:
       typeof location !== "undefined"
         ? `${location.pathname}${location.search}`
         : "",
     selection,
-  });
+    at: Date.now(),
+  };
+  if (cursorRaf !== null) return;
+  cursorRaf =
+    typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame(flushCursor)
+      : (setTimeout(flushCursor, 16) as unknown as number);
 }
 
 export function publishFileDrop(
@@ -431,7 +557,123 @@ export function subscribeLANRoom(fn: () => void): () => void {
   return () => sharedLanRoom.unobserve(fn);
 }
 
+/**
+ * A discovered LAN hub candidate (from Electron mDNS). This is the COEP-safe
+ * discovery path: the renderer never makes a cross-origin HTTP fetch, the main
+ * process does mDNS and hands back `ws://` candidates over IPC.
+ */
+export interface LANHubCandidate {
+  name: string;
+  host: string;
+  port: number;
+  /** ws:// URL ready to pass to connectLAN(). */
+  url: string;
+  room?: string;
+  pairingRequired: boolean;
+}
+
+/**
+ * Discover LAN hubs via Electron mDNS (preferred). Returns `ws://` candidates
+ * with no cross-origin HTTP fetch. Empty array when the bridge is unavailable
+ * (non-Electron / web build) — callers should fall back to `scanLANSubnet` or a
+ * manual "enter IP" field.
+ */
+export async function discoverHubs(): Promise<LANHubCandidate[]> {
+  const bridge = electronCollab();
+  if (!bridge) return [];
+  try {
+    const hubs = await bridge.discover();
+    return hubs.map((h) => ({
+      name: h.name,
+      host: h.host,
+      port: h.port,
+      url: h.url,
+      room: h.room,
+      pairingRequired: h.pairingRequired,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Subscribe to live mDNS hub up/down events from Electron. Returns an
+ * unsubscribe function; no-op (returns a no-op) when the bridge is unavailable.
+ */
+export function subscribeHubDiscovery(
+  fn: (event: { type: "up" | "down"; hub: LANHubCandidate }) => void,
+): () => void {
+  const bridge = electronCollab();
+  if (!bridge) return () => {};
+  return bridge.onDiscovered((event) =>
+    fn({
+      type: event.type,
+      hub: {
+        name: event.hub.name,
+        host: event.hub.host,
+        port: event.hub.port,
+        url: event.hub.url,
+        room: event.hub.room,
+        pairingRequired: event.hub.pairingRequired,
+      },
+    }),
+  );
+}
+
+/**
+ * Start (or reuse) the in-app Electron-main collab hub and return a ready-to-use
+ * `ws://localhost:<port>` URL + pairing code. Null when no Electron bridge.
+ * Lets a host spin up a LAN room without a separate `lan-server` terminal.
+ */
+export async function startInAppHub(input?: {
+  port?: number;
+  pairingCode?: string;
+  room?: string;
+}): Promise<{
+  url: string;
+  pairingCode: string;
+  room: string;
+  websocketUrls: string[];
+} | null> {
+  const bridge = electronCollab();
+  if (!bridge) return null;
+  const st = await bridge.start({
+    port: input?.port,
+    pairingCode: input?.pairingCode,
+    room: input?.room,
+    advertise: true,
+    discover: true,
+  });
+  if (!st.running || !st.port) return null;
+  const local = `ws://127.0.0.1:${st.port}`;
+  return {
+    url: st.websocketUrls[0] ?? local,
+    pairingCode: st.pairingCode ?? "",
+    room: st.room ?? input?.room ?? "telecom-default",
+    websocketUrls: st.websocketUrls,
+  };
+}
+
+/** Stop the in-app Electron-main collab hub (no-op without the bridge). */
+export async function stopInAppHub(): Promise<void> {
+  await electronCollab()?.stop();
+}
+
+/** Current in-app hub status (null without the bridge). */
+export async function getInAppHubStatus(): Promise<ElectronCollabStatus | null> {
+  const bridge = electronCollab();
+  if (!bridge) return null;
+  try {
+    return await bridge.status();
+  } catch {
+    return null;
+  }
+}
+
 export async function discoverLAN(url: string): Promise<LANDiscovery> {
+  // The HTTP sidecar fetch is a cross-origin request from the COEP:require-corp
+  // renderer; it only succeeds if the hub sends `Cross-Origin-Resource-Policy:
+  // cross-origin`. Prefer Electron mDNS discovery (discoverHubs) where possible.
   const res = await fetch(`${httpFromWs(url).replace(/\/$/, "")}/lan/status`, {
     cache: "no-store",
   });
@@ -448,6 +690,18 @@ export async function scanLANSubnet({
   timeoutMs?: number;
   limit?: number;
 }): Promise<LANScanResult[]> {
+  // Prefer Electron mDNS discovery: if any hub is already known, return it and
+  // skip the cross-origin 254-host brute force (which is CORP-blocked in the
+  // isolated renderer anyway). The subnet scan stays as the non-Electron / no-
+  // multicast fallback.
+  const hubs = await discoverHubs();
+  if (hubs.length > 0) {
+    return hubs.map((hub) => ({
+      url: hub.url,
+      status: "found" as const,
+    }));
+  }
+
   const parsed = new URL(sampleUrl);
   const host = parsed.hostname;
   const port = parsed.port || "1234";
@@ -503,6 +757,41 @@ export async function scanLANSubnet({
 export async function uploadLANFile(file: File): Promise<LANSharedFile> {
   const settings = activeSettings ?? readLANSettings();
   if (!settings.url) throw new Error("LAN URL is required before upload.");
+
+  // COEP gotcha: a cross-origin multipart POST from the isolated renderer is
+  // CORP-blocked in the packaged app. Inside Electron, prefer a pure-CRDT file
+  // announcement (metadata only) over the HTTP sidecar — peers fetch/transfer
+  // out-of-band. The HTTP path remains for the browser/web build + zero-config
+  // `lan-server.mjs` relay (which sends `CORP: cross-origin`).
+  if (hasCollabHubBridge()) {
+    const announced: LANSharedFile = {
+      id: uid(),
+      originalName: file.name,
+      storedName: file.name,
+      size: file.size,
+      type: file.type || "application/octet-stream",
+      room: settings.room,
+      peerId: settings.peer.id,
+      peerName: settings.peer.name,
+      receivedAt: new Date().toISOString(),
+    };
+    sharedLanRoom.set(
+      "fileDrop",
+      JSON.stringify({
+        id: announced.id,
+        by: settings.peer,
+        mode: "metadata",
+        name: announced.originalName,
+        size: announced.size,
+        type: announced.type,
+        at: Date.now(),
+        storedName: announced.storedName,
+      }),
+    );
+    appendAudit("file.announced", announced.originalName);
+    return announced;
+  }
+
   const res = await fetch(
     `${httpFromWs(settings.url).replace(/\/$/, "")}/lan/files`,
     {
