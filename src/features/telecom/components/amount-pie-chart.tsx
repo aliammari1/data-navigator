@@ -1,11 +1,10 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import ReactECharts from "echarts-for-react";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildRevenuePieOption } from "@/features/telecom/lib/chart-options";
-import type * as Types from "@/features/telecom/types";
-
 import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
+import type * as Types from "@/features/telecom/types";
 
 export const AmountPieChart = memo(function AmountPieChart({
   canals,
@@ -29,11 +28,5 @@ export const AmountPieChart = memo(function AmountPieChart({
 
   const option = useMemo(() => buildRevenuePieOption(grouped), [grouped]);
 
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 220 }}
-      opts={{ renderer: "canvas" }}
-    />
-  );
+  return <EChart option={option} height={220} />;
 });

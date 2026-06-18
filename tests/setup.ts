@@ -1,6 +1,11 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach, vi } from "vitest";
+import { afterEach, expect, vi } from "vitest";
+import * as axeMatchers from "vitest-axe/matchers";
+import "vitest-axe/extend-expect";
+
+// Accessibility assertions: `expect(await axe(container)).toHaveNoViolations()`.
+expect.extend(axeMatchers);
 
 // Mock matchMedia
 Object.defineProperty(window, "matchMedia", {

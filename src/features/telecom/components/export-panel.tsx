@@ -5,20 +5,18 @@ import {
   Download,
   FileSpreadsheet,
   FileText,
-  Presentation,
   XCircle,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KPI_FIELDS } from "@/features/telecom/constants";
 import { buildCanalCsv, buildKpiCsv } from "@/features/telecom/export/csv";
-import {
-  downloadBlob,
-  downloadTextFile,
-} from "@/features/telecom/export/download";
+import { downloadTextFile } from "@/features/telecom/export/download";
 import { generateTelecomDeckBrief } from "@/features/telecom/lib/deck-ai";
 import { fmtN } from "@/features/telecom/lib/format";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
+import { useAI } from "@/platform/ai/provider";
+import { saveBytes, warmExportWorker } from "@/platform/viz";
 import { cn } from "@/shared/utils";
 
 export function ExportPanel({
@@ -49,8 +47,13 @@ export function ExportPanel({
   const [open, setOpen] = useState(false);
   const [exportingXlsx, setExportingXlsx] = useState(false);
   const [exportingPdf, setExportingPdf] = useState(false);
-  const [exportingPpt, setExportingPpt] = useState(false);
+  const [_exportingPpt, _setExportingPpt] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  // Offline AI provider (llamacpp grammar-constrained JSON by default). Bound
+  // into the deck brief generator so the LLM lane routes through the unified
+  // provider registry — no direct web-llm / agent-canvas dependency.
+  const ai = useAI();
 
   // Section toggles — which datasets to include in the export
   const [inclCanals, setInclCanals] = useState(true);
@@ -134,16 +137,21 @@ export function ExportPanel({
 
   const getDeckBrief = useCallback(async () => {
     if (!kpi) return null;
-    return generateTelecomDeckBrief({
-      reportDate,
-      fileName,
-      kpi,
-      canals,
-      hourly,
-      statusData,
-      revenueGroups: revenueGroupRows,
-      selectedKpis: kpiRows().map(([label, value]) => ({ label, value })),
-    });
+    return generateTelecomDeckBrief(
+      {
+        reportDate,
+        fileName,
+        kpi,
+        canals,
+        hourly,
+        statusData,
+        revenueGroups: revenueGroupRows,
+        selectedKpis: kpiRows().map(([label, value]) => ({ label, value })),
+      },
+      // Route the deck narrative through the offline provider registry. If no
+      // provider is ready the generator falls back to the deterministic brief.
+      ai.generateStructured,
+    );
   }, [
     kpi,
     reportDate,
@@ -153,11 +161,14 @@ export function ExportPanel({
     statusData,
     revenueGroupRows,
     kpiRows,
+    ai.generateStructured,
   ]);
 
-  // Close on outside click
+  // Close on outside click; warm the off-main-thread export worker on open so
+  // the first heavy export does not pay the worker cold-start parse stall.
   useEffect(() => {
     if (!open) return;
+    warmExportWorker();
     const handler = (e: MouseEvent) => {
       if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
         setOpen(false);
@@ -557,11 +568,10 @@ export function ExportPanel({
           });
       }
 
-      const buffer = await wb.xlsx.writeBuffer();
-      const blob = new Blob([buffer], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      downloadBlob(blob, `telecom_report_${reportDate}.xlsx`);
+      const buffer = (await wb.xlsx.writeBuffer()) as ArrayBuffer;
+      // Save through the platform bridge: Electron fs save-dialog when available
+      // (off the renderer's blob path), browser <a download> fallback otherwise.
+      await saveBytes(buffer, `telecom_report_${reportDate}.xlsx`, "xlsx");
     } catch (err) {
       console.error("Excel export failed:", err);
     } finally {
@@ -1012,7 +1022,10 @@ export function ExportPanel({
         );
       }
 
-      doc.save(`telecom_report_${reportDate}.pdf`);
+      // Save through the platform bridge (Electron fs save-dialog / browser
+      // fallback) instead of jsPDF's renderer-side <a download>.
+      const pdfBytes = doc.output("arraybuffer") as ArrayBuffer;
+      await saveBytes(pdfBytes, `telecom_report_${reportDate}.pdf`, "pdf");
     } catch (err) {
       console.error("PDF export failed:", err);
     } finally {
@@ -1052,7 +1065,7 @@ export function ExportPanel({
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
-        className="flex items-center gap-1.5 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-300 text-indigo-700 dark:bg-indigo-600/15 dark:hover:bg-indigo-600/25 dark:border-indigo-500/25 dark:text-indigo-300 rounded-xl text-xs font-medium transition-colors"
+        className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/15 border border-primary/30 text-primary rounded-xl text-xs font-medium transition-colors"
       >
         <Download className="w-3.5 h-3.5" />
         Exporter
@@ -1157,7 +1170,7 @@ export function ExportPanel({
                     className={cn(
                       "flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-xs transition-colors text-left",
                       val && count > 0
-                        ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/30 dark:bg-indigo-500/10 dark:text-indigo-300"
+                        ? "border-primary/30 bg-primary/10 text-primary"
                         : "border-border bg-muted/40 text-muted-foreground",
                       count === 0 && "opacity-40 cursor-not-allowed",
                     )}
@@ -1166,7 +1179,7 @@ export function ExportPanel({
                       className={cn(
                         "w-3.5 h-3.5 rounded flex items-center justify-center border flex-none",
                         val && count > 0
-                          ? "bg-indigo-500 border-indigo-500"
+                          ? "bg-primary border-primary"
                           : "border-border bg-background",
                       )}
                     >

@@ -35,6 +35,7 @@ interface Props {
 export function ThoughtStream({ thoughts, className }: Props) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: thoughts.length is the intended trigger to auto-scroll when a new thought arrives
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thoughts.length]);

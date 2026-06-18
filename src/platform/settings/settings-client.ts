@@ -33,6 +33,34 @@ function settingPath(namespace: string, key: string): string {
   return `${SETTINGS_API_BASE}/${encodeURIComponent(namespace)}/${encodeURIComponent(key)}`;
 }
 
+/** Cold-restore readiness retry: the durable read is the one path that needs the
+ * local Next server already listening. On a fresh-profile / cold boot the server
+ * may not be up the instant hydration fires, so a connection-refused `fetch` is
+ * retried with bounded backoff instead of resolving to defaults. Only NETWORK
+ * errors are retried — an HTTP response (incl. 404/5xx) is returned as-is. */
+const READINESS_RETRIES = 4;
+const READINESS_BACKOFF_MS = 150;
+
+function delay(ms: number): Promise<void> {
+  return new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function fetchWithReadinessRetry(url: string): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= READINESS_RETRIES; attempt += 1) {
+    try {
+      return await fetch(url, { method: "GET" });
+    } catch (error) {
+      // TypeError === network/connection-refused (server not listening yet).
+      lastError = error;
+      if (attempt < READINESS_RETRIES) await delay(READINESS_BACKOFF_MS * 2 ** attempt);
+    }
+  }
+  throw lastError;
+}
+
 /**
  * Read a single setting from drizzle. Returns `{ value: null }` when the row is
  * missing (404) or the API is unavailable. Throws only on unexpected HTTP
@@ -44,7 +72,7 @@ export async function getAppSettingRemote<T = unknown>(
 ): Promise<AppSettingRemote<T>> {
   if (!canUseSettingsApi()) return { value: null, updatedAt: null };
 
-  const response = await fetch(settingPath(namespace, key), { method: "GET" });
+  const response = await fetchWithReadinessRetry(settingPath(namespace, key));
 
   if (response.status === 404) return { value: null, updatedAt: null };
 

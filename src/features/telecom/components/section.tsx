@@ -39,7 +39,7 @@ export function Section({
           <span className="text-muted-foreground">{icon}</span>
           <span className="text-sm font-bold text-foreground">{title}</span>
           {badge && (
-            <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300 font-semibold">
+            <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/10 text-primary font-semibold">
               {badge}
             </span>
           )}

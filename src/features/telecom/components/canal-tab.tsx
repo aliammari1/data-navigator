@@ -112,7 +112,7 @@ export const CanalTab = memo(function CanalTab({
             </div>
           </div>
           {(dateFrom || dateTo) && (
-            <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-medium tabular-nums">
+            <span className="text-[10px] text-primary font-medium tabular-nums">
               {dateFrom || "..."} {"->"} {dateTo || "..."}
             </span>
           )}
@@ -130,7 +130,7 @@ export const CanalTab = memo(function CanalTab({
             type="date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500/60"
+            className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
           <label
             className="text-xs text-muted-foreground"
@@ -143,7 +143,7 @@ export const CanalTab = memo(function CanalTab({
             type="date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-indigo-500/60"
+            className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
           {[
             {
@@ -184,7 +184,7 @@ export const CanalTab = memo(function CanalTab({
                 className={cn(
                   "inline-flex h-8 items-center gap-1.5 rounded-lg border px-2.5 text-[11px] font-medium transition-colors",
                   active
-                    ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/40 dark:bg-indigo-500/15 dark:text-indigo-300"
+                    ? "border-primary/40 bg-primary/10 text-primary"
                     : "border-border text-muted-foreground hover:bg-muted",
                 )}
               >
@@ -211,7 +211,7 @@ export const CanalTab = memo(function CanalTab({
             className={cn(
               "ml-auto flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors",
               compareOpen
-                ? "border-indigo-300 bg-indigo-50 text-indigo-700 dark:border-indigo-500/50 dark:bg-indigo-500/15 dark:text-indigo-300"
+                ? "border-primary/50 bg-primary/10 text-primary"
                 : "border-border/60 text-muted-foreground hover:text-foreground",
             )}
           >
@@ -231,8 +231,8 @@ export const CanalTab = memo(function CanalTab({
             transition={{ duration: 0.25 }}
             className="overflow-hidden"
           >
-            <div className="rounded-2xl border border-indigo-500/20 bg-indigo-500/5 p-4 space-y-3">
-              <div className="flex items-center gap-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300">
+            <div className="rounded-2xl border border-primary/20 bg-primary/5 p-4 space-y-3">
+              <div className="flex items-center gap-2 text-xs font-semibold text-primary">
                 <BarChart2 className="w-3.5 h-3.5" />
                 Comparaison des canaux
                 <span className="text-[10px] text-muted-foreground font-normal ml-1">

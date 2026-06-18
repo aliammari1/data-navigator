@@ -16,9 +16,7 @@ import {
   type AgentIntent,
   askAgent,
   computeRuleInsights,
-  ensureModel,
   generateNarrative,
-  modelReady,
 } from "@/features/telecom/lib/ai-agent";
 import {
   fetchAnomalies,
@@ -27,6 +25,7 @@ import {
   fetchTopAccounts,
 } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
+import { useAI } from "@/platform/ai/provider";
 
 export function AiAgentPanel({
   table,
@@ -41,16 +40,19 @@ export function AiAgentPanel({
   dateTo: string;
   onIntent?: (intent: AgentIntent) => void;
 }>) {
+  const ai = useAI();
   const [ctx, setCtx] = useState<AgentContext | null>(null);
   const [insights, setInsights] = useState<AgentInsight[]>([]);
   const [narrative, setNarrative] = useState<string>("");
   const [busy, setBusy] = useState(false);
-  const [model, setModel] = useState<{
-    loading: boolean;
-    progress: number;
-    text: string;
-    ready: boolean;
-  }>({ loading: false, progress: 0, text: "", ready: modelReady() });
+  // Derived model state from the unified provider runtime (warms on first use).
+  const model = {
+    loading: ai.progress.status === "loading",
+    progress:
+      ai.progress.status === "loading" ? (ai.progress.progress ?? 0) / 100 : 1,
+    text: ai.progress.message ?? "",
+    ready: ai.progress.status === "ready" || ai.progress.status === "inferring",
+  };
   const [q, setQ] = useState("");
   const [answer, setAnswer] = useState<{
     text: string;
@@ -93,24 +95,11 @@ export function AiAgentPanel({
   }, [table, dateFrom, dateTo]);
 
   const loadModel = async () => {
-    setModel({
-      loading: true,
-      progress: 0,
-      text: "Initialisation…",
-      ready: false,
-    });
     try {
-      await ensureModel((p, t) =>
-        setModel({ loading: true, progress: p, text: t, ready: false }),
-      );
-      setModel({ loading: false, progress: 1, text: "Prêt", ready: true });
+      // Warm the selected offline model; progress flows through ai.progress.
+      await ai.ensureReady();
     } catch (e) {
-      setModel({
-        loading: false,
-        progress: 0,
-        text: `Erreur: ${String((e as Error).message ?? e)}`,
-        ready: false,
-      });
+      console.error("[TelecomAgent] model warm failed", e);
     }
   };
 
@@ -121,7 +110,10 @@ export function AiAgentPanel({
     }
     setBusy(true);
     try {
-      const txt = await generateNarrative(final);
+      const txt = await generateNarrative(
+        final,
+        model.ready ? ai.generate : undefined,
+      );
       setNarrative(txt);
     } finally {
       setBusy(false);
@@ -134,7 +126,11 @@ export function AiAgentPanel({
     const c = ctx ?? (await buildContext());
     if (!c) return;
     setChatBusy(true);
-    const ans = await askAgent(q.trim(), c);
+    const ans = await askAgent(
+      q.trim(),
+      c,
+      model.ready ? ai.generateStructured : undefined,
+    );
     setAnswer(ans);
     if (ans.intent) onIntent?.(ans.intent);
     setChatBusy(false);
@@ -266,7 +262,7 @@ export function AiAgentPanel({
           <button
             type="submit"
             disabled={chatBusy || !q.trim()}
-            className="h-8 px-3 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
+            className="h-8 px-3 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1 disabled:opacity-50"
           >
             <Send className="w-3 h-3" />
             {chatBusy ? "…" : "Demander"}
@@ -274,12 +270,12 @@ export function AiAgentPanel({
         </form>
 
         {answer && (
-          <div className="rounded-xl border border-indigo-200 dark:border-indigo-500/30 bg-indigo-50/50 dark:bg-indigo-500/5 px-3 py-2">
+          <div className="rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
             <div className="text-xs text-foreground leading-relaxed whitespace-pre-line">
               {answer.text}
             </div>
             {answer.intent && (
-              <div className="text-[10px] text-indigo-600 dark:text-indigo-300 mt-1">
+              <div className="text-[10px] text-primary mt-1">
                 Action suggérée → {answer.intent.kind}
               </div>
             )}

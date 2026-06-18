@@ -1,11 +1,4 @@
-import {
-  Calendar,
-  CircleDot,
-  ExternalLink,
-  Hash,
-  ToggleLeft,
-  Type,
-} from "lucide-react";
+import { Calendar, CircleDot, ExternalLink, Hash, ToggleLeft, Type } from "lucide-react";
 import type React from "react";
 import type { ColType, FilterRule } from "./types";
 

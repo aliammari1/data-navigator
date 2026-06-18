@@ -206,7 +206,7 @@ export function DayAnalyticsTab({
           type="button"
           onClick={() => setAppliedDay(day)}
           disabled={!day || loading || day === appliedDay}
-          className="h-8 px-3 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold flex items-center gap-1 disabled:opacity-40"
+          className="h-8 px-3 rounded-md bg-primary hover:bg-primary/90 text-primary-foreground text-xs font-semibold flex items-center gap-1 disabled:opacity-40"
           title="Lancer l'analyse (pas de calcul automatique)"
         >
           <Zap className="w-3.5 h-3.5" /> Appliquer
@@ -392,13 +392,13 @@ function SnapshotsPanel({
           <div
             key={s.day}
             className={`px-3 py-2 flex items-center gap-3 hover:bg-muted/40 ${
-              activeDay === s.day ? "bg-indigo-50 dark:bg-indigo-500/10" : ""
+              activeDay === s.day ? "bg-primary/10" : ""
             }`}
           >
             <button
               type="button"
               onClick={() => onSelect(s.day)}
-              className="text-xs font-semibold text-foreground hover:text-indigo-600"
+              className="text-xs font-semibold text-foreground hover:text-primary"
             >
               {s.day}
             </button>

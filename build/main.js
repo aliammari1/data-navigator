@@ -1,11 +1,10 @@
 'use strict';
 
 var fs = require('fs/promises');
-var path = require('path');
+var path2 = require('path');
 var electron = require('electron');
 var fs3 = require('fs');
-var os2 = require('os');
-var startServer = require('next/dist/server/lib/start-server');
+var os4 = require('os');
 var betterAuth = require('better-auth');
 var crypto = require('better-auth/crypto');
 var z = require('zod');
@@ -17,6 +16,10 @@ var client = require('better-auth/client');
 var nodeApi = require('@duckdb/node-api');
 var nanoid = require('nanoid');
 var PQueue = require('p-queue');
+var apacheArrow = require('apache-arrow');
+var crypto$1 = require('crypto');
+var stream = require('stream');
+var promises = require('stream/promises');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
@@ -39,13 +42,14 @@ function _interopNamespace(e) {
 }
 
 var fs__default = /*#__PURE__*/_interopDefault(fs);
-var path__default = /*#__PURE__*/_interopDefault(path);
+var path2__default = /*#__PURE__*/_interopDefault(path2);
 var electron__default = /*#__PURE__*/_interopDefault(electron);
 var fs3__default = /*#__PURE__*/_interopDefault(fs3);
-var os2__default = /*#__PURE__*/_interopDefault(os2);
+var os4__default = /*#__PURE__*/_interopDefault(os4);
 var z__namespace = /*#__PURE__*/_interopNamespace(z);
 var Conf__default = /*#__PURE__*/_interopDefault(Conf);
 var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
+var crypto__default = /*#__PURE__*/_interopDefault(crypto$1);
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
@@ -57,6 +61,9 @@ var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
 var __propIsEnum = Object.prototype.propertyIsEnumerable;
+var __typeError = (msg) => {
+  throw TypeError(msg);
+};
 var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
 var __spreadValues = (a, b) => {
   for (var prop in b || (b = {}))
@@ -114,6 +121,10 @@ var __toESM = (mod, isNodeMode, target) => (target = mod != null ? __create(__ge
   __defProp(target, "default", { value: mod, enumerable: true }) ,
   mod
 ));
+var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot " + msg);
+var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
+var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
+var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), member.set(obj, value), value);
 
 // node_modules/.pnpm/process-nextick-args@2.0.1/node_modules/process-nextick-args/index.js
 var require_process_nextick_args = __commonJS({
@@ -954,9 +965,9 @@ var require_stream_duplex = __commonJS({
     module.exports = Duplex;
     var util = Object.create(require_util());
     util.inherits = require_inherits();
-    var Readable = require_stream_readable();
+    var Readable2 = require_stream_readable();
     var Writable = require_stream_writable();
-    util.inherits(Duplex, Readable);
+    util.inherits(Duplex, Readable2);
     {
       keys = objectKeys(Writable.prototype);
       for (v = 0; v < keys.length; v++) {
@@ -969,7 +980,7 @@ var require_stream_duplex = __commonJS({
     var v;
     function Duplex(options) {
       if (!(this instanceof Duplex)) return new Duplex(options);
-      Readable.call(this, options);
+      Readable2.call(this, options);
       Writable.call(this, options);
       if (options && options.readable === false) this.readable = false;
       if (options && options.writable === false) this.writable = false;
@@ -1257,10 +1268,10 @@ var require_string_decoder = __commonJS({
 var require_stream_readable = __commonJS({
   "node_modules/.pnpm/readable-stream@2.3.8/node_modules/readable-stream/lib/_stream_readable.js"(exports, module) {
     var pna = require_process_nextick_args();
-    module.exports = Readable;
+    module.exports = Readable2;
     var isArray = require_isarray();
     var Duplex;
-    Readable.ReadableState = ReadableState;
+    Readable2.ReadableState = ReadableState;
     __require("events").EventEmitter;
     var EElistenerCount = function(emitter, type) {
       return emitter.listeners(type).length;
@@ -1288,7 +1299,7 @@ var require_stream_readable = __commonJS({
     var BufferList = require_BufferList();
     var destroyImpl = require_destroy();
     var StringDecoder;
-    util.inherits(Readable, Stream);
+    util.inherits(Readable2, Stream);
     var kProxyEvents = ["error", "close", "destroy", "pause", "resume"];
     function prependListener(emitter, event, fn) {
       if (typeof emitter.prependListener === "function") return emitter.prependListener(event, fn);
@@ -1334,9 +1345,9 @@ var require_stream_readable = __commonJS({
         this.encoding = options.encoding;
       }
     }
-    function Readable(options) {
+    function Readable2(options) {
       Duplex = Duplex || require_stream_duplex();
-      if (!(this instanceof Readable)) return new Readable(options);
+      if (!(this instanceof Readable2)) return new Readable2(options);
       this._readableState = new ReadableState(options, this);
       this.readable = true;
       if (options) {
@@ -1345,7 +1356,7 @@ var require_stream_readable = __commonJS({
       }
       Stream.call(this);
     }
-    Object.defineProperty(Readable.prototype, "destroyed", {
+    Object.defineProperty(Readable2.prototype, "destroyed", {
       get: function() {
         if (this._readableState === void 0) {
           return false;
@@ -1359,13 +1370,13 @@ var require_stream_readable = __commonJS({
         this._readableState.destroyed = value;
       }
     });
-    Readable.prototype.destroy = destroyImpl.destroy;
-    Readable.prototype._undestroy = destroyImpl.undestroy;
-    Readable.prototype._destroy = function(err, cb) {
+    Readable2.prototype.destroy = destroyImpl.destroy;
+    Readable2.prototype._undestroy = destroyImpl.undestroy;
+    Readable2.prototype._destroy = function(err, cb) {
       this.push(null);
       cb(err);
     };
-    Readable.prototype.push = function(chunk, encoding) {
+    Readable2.prototype.push = function(chunk, encoding) {
       var state = this._readableState;
       var skipChunkCheck;
       if (!state.objectMode) {
@@ -1382,7 +1393,7 @@ var require_stream_readable = __commonJS({
       }
       return readableAddChunk(this, chunk, encoding, false, skipChunkCheck);
     };
-    Readable.prototype.unshift = function(chunk) {
+    Readable2.prototype.unshift = function(chunk) {
       return readableAddChunk(this, chunk, null, true, false);
     };
     function readableAddChunk(stream, chunk, encoding, addToFront, skipChunkCheck) {
@@ -1442,10 +1453,10 @@ var require_stream_readable = __commonJS({
     function needMoreData(state) {
       return !state.ended && (state.needReadable || state.length < state.highWaterMark || state.length === 0);
     }
-    Readable.prototype.isPaused = function() {
+    Readable2.prototype.isPaused = function() {
       return this._readableState.flowing === false;
     };
-    Readable.prototype.setEncoding = function(enc) {
+    Readable2.prototype.setEncoding = function(enc) {
       if (!StringDecoder) StringDecoder = require_string_decoder().StringDecoder;
       this._readableState.decoder = new StringDecoder(enc);
       this._readableState.encoding = enc;
@@ -1481,7 +1492,7 @@ var require_stream_readable = __commonJS({
       }
       return state.length;
     }
-    Readable.prototype.read = function(n) {
+    Readable2.prototype.read = function(n) {
       debug("read", n);
       n = parseInt(n, 10);
       var state = this._readableState;
@@ -1576,10 +1587,10 @@ var require_stream_readable = __commonJS({
       }
       state.readingMore = false;
     }
-    Readable.prototype._read = function(n) {
+    Readable2.prototype._read = function(n) {
       this.emit("error", new Error("_read() is not implemented"));
     };
-    Readable.prototype.pipe = function(dest, pipeOpts) {
+    Readable2.prototype.pipe = function(dest, pipeOpts) {
       var src = this;
       var state = this._readableState;
       switch (state.pipesCount) {
@@ -1684,7 +1695,7 @@ var require_stream_readable = __commonJS({
         }
       };
     }
-    Readable.prototype.unpipe = function(dest) {
+    Readable2.prototype.unpipe = function(dest) {
       var state = this._readableState;
       var unpipeInfo = { hasUnpiped: false };
       if (state.pipesCount === 0) return this;
@@ -1716,7 +1727,7 @@ var require_stream_readable = __commonJS({
       dest.emit("unpipe", this, unpipeInfo);
       return this;
     };
-    Readable.prototype.on = function(ev, fn) {
+    Readable2.prototype.on = function(ev, fn) {
       var res = Stream.prototype.on.call(this, ev, fn);
       if (ev === "data") {
         if (this._readableState.flowing !== false) this.resume();
@@ -1734,12 +1745,12 @@ var require_stream_readable = __commonJS({
       }
       return res;
     };
-    Readable.prototype.addListener = Readable.prototype.on;
+    Readable2.prototype.addListener = Readable2.prototype.on;
     function nReadingNextTick(self2) {
       debug("readable nexttick read 0");
       self2.read(0);
     }
-    Readable.prototype.resume = function() {
+    Readable2.prototype.resume = function() {
       var state = this._readableState;
       if (!state.flowing) {
         debug("resume");
@@ -1765,7 +1776,7 @@ var require_stream_readable = __commonJS({
       flow(stream);
       if (state.flowing && !state.reading) stream.read(0);
     }
-    Readable.prototype.pause = function() {
+    Readable2.prototype.pause = function() {
       debug("call pause flowing=%j", this._readableState.flowing);
       if (false !== this._readableState.flowing) {
         debug("pause");
@@ -1780,7 +1791,7 @@ var require_stream_readable = __commonJS({
       while (state.flowing && stream.read() !== null) {
       }
     }
-    Readable.prototype.wrap = function(stream) {
+    Readable2.prototype.wrap = function(stream) {
       var _this = this;
       var state = this._readableState;
       var paused = false;
@@ -1824,7 +1835,7 @@ var require_stream_readable = __commonJS({
       };
       return this;
     };
-    Object.defineProperty(Readable.prototype, "readableHighWaterMark", {
+    Object.defineProperty(Readable2.prototype, "readableHighWaterMark", {
       // making it explicit this property is not enumerable
       // because otherwise some prototype manipulation in
       // userland will fail
@@ -1833,7 +1844,7 @@ var require_stream_readable = __commonJS({
         return this._readableState.highWaterMark;
       }
     });
-    Readable._fromList = fromList;
+    Readable2._fromList = fromList;
     function fromList(n, state) {
       if (state.length === 0) return null;
       var ret;
@@ -2966,8 +2977,8 @@ var require_utils = __commonJS({
       var result = transform[inputType][outputType](input);
       return result;
     };
-    exports.resolve = function(path6) {
-      var parts = path6.split("/");
+    exports.resolve = function(path12) {
+      var parts = path12.split("/");
       var result = [];
       for (var index = 0; index < parts.length; index++) {
         var part = parts[index];
@@ -3516,11 +3527,11 @@ var require_ConvertWorker = __commonJS({
 // node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js
 var require_NodejsStreamOutputAdapter = __commonJS({
   "node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/lib/nodejs/NodejsStreamOutputAdapter.js"(exports, module) {
-    var Readable = require_readable().Readable;
+    var Readable2 = require_readable().Readable;
     var utils = require_utils();
-    utils.inherits(NodejsStreamOutputAdapter, Readable);
+    utils.inherits(NodejsStreamOutputAdapter, Readable2);
     function NodejsStreamOutputAdapter(helper, options, updateCb) {
-      Readable.call(this, options);
+      Readable2.call(this, options);
       this._helper = helper;
       var self2 = this;
       helper.on("data", function(data, meta) {
@@ -4953,7 +4964,7 @@ var require_deflate = __commonJS({
       s.pending_buf[s.pending++] = b >>> 8 & 255;
       s.pending_buf[s.pending++] = b & 255;
     }
-    function read_buf(strm, buf, start, size) {
+    function read_buf(strm, buf, start2, size) {
       var len = strm.avail_in;
       if (len > size) {
         len = size;
@@ -4962,11 +4973,11 @@ var require_deflate = __commonJS({
         return 0;
       }
       strm.avail_in -= len;
-      utils.arraySet(buf, strm.input, strm.next_in, len, start);
+      utils.arraySet(buf, strm.input, strm.next_in, len, start2);
       if (strm.state.wrap === 1) {
-        strm.adler = adler32(strm.adler, buf, len, start);
+        strm.adler = adler32(strm.adler, buf, len, start2);
       } else if (strm.state.wrap === 2) {
-        strm.adler = crc32(strm.adler, buf, len, start);
+        strm.adler = crc32(strm.adler, buf, len, start2);
       }
       strm.next_in += len;
       strm.total_in += len;
@@ -5817,16 +5828,16 @@ var require_deflate = __commonJS({
       return s.pending !== 0 ? Z_OK : Z_STREAM_END;
     }
     function deflateEnd(strm) {
-      var status;
+      var status2;
       if (!strm || !strm.state) {
         return Z_STREAM_ERROR;
       }
-      status = strm.state.status;
-      if (status !== INIT_STATE && status !== EXTRA_STATE && status !== NAME_STATE && status !== COMMENT_STATE && status !== HCRC_STATE && status !== BUSY_STATE && status !== FINISH_STATE) {
+      status2 = strm.state.status;
+      if (status2 !== INIT_STATE && status2 !== EXTRA_STATE && status2 !== NAME_STATE && status2 !== COMMENT_STATE && status2 !== HCRC_STATE && status2 !== BUSY_STATE && status2 !== FINISH_STATE) {
         return err(strm, Z_STREAM_ERROR);
       }
       strm.state = null;
-      return status === BUSY_STATE ? err(strm, Z_DATA_ERROR) : Z_OK;
+      return status2 === BUSY_STATE ? err(strm, Z_DATA_ERROR) : Z_OK;
     }
     function deflateSetDictionary(strm, dictionary) {
       var dictLength = dictionary.length;
@@ -6107,7 +6118,7 @@ var require_deflate2 = __commonJS({
       this.chunks = [];
       this.strm = new ZStream();
       this.strm.avail_out = 0;
-      var status = zlib_deflate.deflateInit2(
+      var status2 = zlib_deflate.deflateInit2(
         this.strm,
         opt.level,
         opt.method,
@@ -6115,8 +6126,8 @@ var require_deflate2 = __commonJS({
         opt.memLevel,
         opt.strategy
       );
-      if (status !== Z_OK) {
-        throw new Error(msg[status]);
+      if (status2 !== Z_OK) {
+        throw new Error(msg[status2]);
       }
       if (opt.header) {
         zlib_deflate.deflateSetHeader(this.strm, opt.header);
@@ -6130,9 +6141,9 @@ var require_deflate2 = __commonJS({
         } else {
           dict = opt.dictionary;
         }
-        status = zlib_deflate.deflateSetDictionary(this.strm, dict);
-        if (status !== Z_OK) {
-          throw new Error(msg[status]);
+        status2 = zlib_deflate.deflateSetDictionary(this.strm, dict);
+        if (status2 !== Z_OK) {
+          throw new Error(msg[status2]);
         }
         this._dict_set = true;
       }
@@ -6140,7 +6151,7 @@ var require_deflate2 = __commonJS({
     Deflate.prototype.push = function(data, mode) {
       var strm = this.strm;
       var chunkSize = this.options.chunkSize;
-      var status, _mode;
+      var status2, _mode;
       if (this.ended) {
         return false;
       }
@@ -6160,9 +6171,9 @@ var require_deflate2 = __commonJS({
           strm.next_out = 0;
           strm.avail_out = chunkSize;
         }
-        status = zlib_deflate.deflate(strm, _mode);
-        if (status !== Z_STREAM_END && status !== Z_OK) {
-          this.onEnd(status);
+        status2 = zlib_deflate.deflate(strm, _mode);
+        if (status2 !== Z_STREAM_END && status2 !== Z_OK) {
+          this.onEnd(status2);
           this.ended = true;
           return false;
         }
@@ -6173,12 +6184,12 @@ var require_deflate2 = __commonJS({
             this.onData(utils.shrinkBuf(strm.output, strm.next_out));
           }
         }
-      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== Z_STREAM_END);
+      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status2 !== Z_STREAM_END);
       if (_mode === Z_FINISH) {
-        status = zlib_deflate.deflateEnd(this.strm);
-        this.onEnd(status);
+        status2 = zlib_deflate.deflateEnd(this.strm);
+        this.onEnd(status2);
         this.ended = true;
-        return status === Z_OK;
+        return status2 === Z_OK;
       }
       if (_mode === Z_SYNC_FLUSH) {
         this.onEnd(Z_OK);
@@ -6190,8 +6201,8 @@ var require_deflate2 = __commonJS({
     Deflate.prototype.onData = function(chunk) {
       this.chunks.push(chunk);
     };
-    Deflate.prototype.onEnd = function(status) {
-      if (status === Z_OK) {
+    Deflate.prototype.onEnd = function(status2) {
+      if (status2 === Z_OK) {
         if (this.options.to === "string") {
           this.result = this.chunks.join("");
         } else {
@@ -6199,7 +6210,7 @@ var require_deflate2 = __commonJS({
         }
       }
       this.chunks = [];
-      this.err = status;
+      this.err = status2;
       this.msg = this.strm.msg;
     };
     function deflate(input, options) {
@@ -6232,7 +6243,7 @@ var require_inffast = __commonJS({
   "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inffast.js"(exports, module) {
     var BAD = 30;
     var TYPE = 12;
-    module.exports = function inflate_fast(strm, start) {
+    module.exports = function inflate_fast(strm, start2) {
       var state;
       var _in;
       var last;
@@ -6263,7 +6274,7 @@ var require_inffast = __commonJS({
       last = _in + (strm.avail_in - 5);
       _out = strm.next_out;
       output = strm.output;
-      beg = _out - (start - strm.avail_out);
+      beg = _out - (start2 - strm.avail_out);
       end = _out + (strm.avail_out - 257);
       dmax = state.dmax;
       wsize = state.wsize;
@@ -8109,12 +8120,12 @@ var require_inflate2 = __commonJS({
       this.chunks = [];
       this.strm = new ZStream();
       this.strm.avail_out = 0;
-      var status = zlib_inflate.inflateInit2(
+      var status2 = zlib_inflate.inflateInit2(
         this.strm,
         opt.windowBits
       );
-      if (status !== c.Z_OK) {
-        throw new Error(msg[status]);
+      if (status2 !== c.Z_OK) {
+        throw new Error(msg[status2]);
       }
       this.header = new GZheader();
       zlib_inflate.inflateGetHeader(this.strm, this.header);
@@ -8125,9 +8136,9 @@ var require_inflate2 = __commonJS({
           opt.dictionary = new Uint8Array(opt.dictionary);
         }
         if (opt.raw) {
-          status = zlib_inflate.inflateSetDictionary(this.strm, opt.dictionary);
-          if (status !== c.Z_OK) {
-            throw new Error(msg[status]);
+          status2 = zlib_inflate.inflateSetDictionary(this.strm, opt.dictionary);
+          if (status2 !== c.Z_OK) {
+            throw new Error(msg[status2]);
           }
         }
       }
@@ -8136,7 +8147,7 @@ var require_inflate2 = __commonJS({
       var strm = this.strm;
       var chunkSize = this.options.chunkSize;
       var dictionary = this.options.dictionary;
-      var status, _mode;
+      var status2, _mode;
       var next_out_utf8, tail, utf8str;
       var allowBufError = false;
       if (this.ended) {
@@ -8158,21 +8169,21 @@ var require_inflate2 = __commonJS({
           strm.next_out = 0;
           strm.avail_out = chunkSize;
         }
-        status = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);
-        if (status === c.Z_NEED_DICT && dictionary) {
-          status = zlib_inflate.inflateSetDictionary(this.strm, dictionary);
+        status2 = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);
+        if (status2 === c.Z_NEED_DICT && dictionary) {
+          status2 = zlib_inflate.inflateSetDictionary(this.strm, dictionary);
         }
-        if (status === c.Z_BUF_ERROR && allowBufError === true) {
-          status = c.Z_OK;
+        if (status2 === c.Z_BUF_ERROR && allowBufError === true) {
+          status2 = c.Z_OK;
           allowBufError = false;
         }
-        if (status !== c.Z_STREAM_END && status !== c.Z_OK) {
-          this.onEnd(status);
+        if (status2 !== c.Z_STREAM_END && status2 !== c.Z_OK) {
+          this.onEnd(status2);
           this.ended = true;
           return false;
         }
         if (strm.next_out) {
-          if (strm.avail_out === 0 || status === c.Z_STREAM_END || strm.avail_in === 0 && (_mode === c.Z_FINISH || _mode === c.Z_SYNC_FLUSH)) {
+          if (strm.avail_out === 0 || status2 === c.Z_STREAM_END || strm.avail_in === 0 && (_mode === c.Z_FINISH || _mode === c.Z_SYNC_FLUSH)) {
             if (this.options.to === "string") {
               next_out_utf8 = strings.utf8border(strm.output, strm.next_out);
               tail = strm.next_out - next_out_utf8;
@@ -8191,15 +8202,15 @@ var require_inflate2 = __commonJS({
         if (strm.avail_in === 0 && strm.avail_out === 0) {
           allowBufError = true;
         }
-      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== c.Z_STREAM_END);
-      if (status === c.Z_STREAM_END) {
+      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status2 !== c.Z_STREAM_END);
+      if (status2 === c.Z_STREAM_END) {
         _mode = c.Z_FINISH;
       }
       if (_mode === c.Z_FINISH) {
-        status = zlib_inflate.inflateEnd(this.strm);
-        this.onEnd(status);
+        status2 = zlib_inflate.inflateEnd(this.strm);
+        this.onEnd(status2);
         this.ended = true;
-        return status === c.Z_OK;
+        return status2 === c.Z_OK;
       }
       if (_mode === c.Z_SYNC_FLUSH) {
         this.onEnd(c.Z_OK);
@@ -8211,8 +8222,8 @@ var require_inflate2 = __commonJS({
     Inflate.prototype.onData = function(chunk) {
       this.chunks.push(chunk);
     };
-    Inflate.prototype.onEnd = function(status) {
-      if (status === c.Z_OK) {
+    Inflate.prototype.onEnd = function(status2) {
+      if (status2 === c.Z_OK) {
         if (this.options.to === "string") {
           this.result = this.chunks.join("");
         } else {
@@ -8220,7 +8231,7 @@ var require_inflate2 = __commonJS({
         }
       }
       this.chunks = [];
-      this.err = status;
+      this.err = status2;
       this.msg = this.strm.msg;
     };
     function inflate(input, options) {
@@ -8734,7 +8745,7 @@ var require_object = __commonJS({
     var defaults = require_defaults();
     var CompressedObject = require_compressedObject();
     var ZipObject = require_zipObject();
-    var generate = require_generate();
+    var generate2 = require_generate();
     var nodejsUtils = require_nodejsUtils();
     var NodejsStreamInputAdapter = require_NodejsStreamInputAdapter();
     var fileAdd = function(name, data, originalOptions) {
@@ -8782,18 +8793,18 @@ var require_object = __commonJS({
       var object2 = new ZipObject(name, zipObjectContent, o);
       this.files[name] = object2;
     };
-    var parentFolder = function(path6) {
-      if (path6.slice(-1) === "/") {
-        path6 = path6.substring(0, path6.length - 1);
+    var parentFolder = function(path12) {
+      if (path12.slice(-1) === "/") {
+        path12 = path12.substring(0, path12.length - 1);
       }
-      var lastSlash = path6.lastIndexOf("/");
-      return lastSlash > 0 ? path6.substring(0, lastSlash) : "";
+      var lastSlash = path12.lastIndexOf("/");
+      return lastSlash > 0 ? path12.substring(0, lastSlash) : "";
     };
-    var forceTrailingSlash = function(path6) {
-      if (path6.slice(-1) !== "/") {
-        path6 += "/";
+    var forceTrailingSlash = function(path12) {
+      if (path12.slice(-1) !== "/") {
+        path12 += "/";
       }
-      return path6;
+      return path12;
     };
     var folderAdd = function(name, createFolders) {
       createFolders = typeof createFolders !== "undefined" ? createFolders : defaults.createFolders;
@@ -8966,7 +8977,7 @@ var require_object = __commonJS({
             opts.platform = "DOS";
           }
           var comment = opts.comment || this.comment || "";
-          worker = generate.generateWorker(this, opts, comment);
+          worker = generate2.generateWorker(this, opts, comment);
         } catch (e) {
           worker = new GenericWorker("error");
           worker.error(e);
@@ -9813,23 +9824,23 @@ function crxToZip(buf) {
   return buf.slice(zipStartOffset, buf.length);
 }
 async function unzip(crxFilePath, destination) {
-  const filePath = path__default.default.resolve(crxFilePath);
+  const filePath = path2__default.default.resolve(crxFilePath);
   let dest;
   if (destination) {
     dest = destination;
   } else {
-    const extname = path__default.default.extname(crxFilePath);
-    const basename = path__default.default.basename(crxFilePath, extname);
-    const dirname = path__default.default.dirname(crxFilePath);
-    dest = path__default.default.resolve(dirname, basename);
+    const extname = path2__default.default.extname(crxFilePath);
+    const basename = path2__default.default.basename(crxFilePath, extname);
+    const dirname = path2__default.default.dirname(crxFilePath);
+    dest = path2__default.default.resolve(dirname, basename);
   }
   const buf = await fs__default.default.readFile(filePath);
   const { files } = await import_jszip.default.loadAsync(crxToZip(buf));
   return Promise.all(
     Object.keys(files).map(async (filename) => {
       const isFile = !files[filename].dir;
-      const fullPath = path__default.default.join(dest, filename);
-      const directory = isFile && path__default.default.dirname(fullPath) || fullPath;
+      const fullPath = path2__default.default.join(dest, filename);
+      const directory = isFile && path2__default.default.dirname(fullPath) || fullPath;
       await mkdirp(directory);
       if (isFile) {
         const content = await files[filename].async("nodebuffer");
@@ -9846,7 +9857,7 @@ var init_dist = __esm({
   }
 });
 
-// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.7.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
+// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   ANGULAR_DEVTOOLS: () => ANGULAR_DEVTOOLS,
@@ -9882,8 +9893,8 @@ function rmSync(path$1) {
 }
 function downloadFile(url, filePath) {
   return new Promise((resolve2, reject) => {
-    const request = electron.net.request(url);
-    request.on("response", (response) => {
+    const request2 = electron.net.request(url);
+    request2.on("response", (response) => {
       if (response.statusCode !== 200) {
         reject(/* @__PURE__ */ new Error(`File download failed, status code: ${response.statusCode}`));
         return;
@@ -9901,19 +9912,19 @@ function downloadFile(url, filePath) {
         fs3__default.default.unlink(filePath, () => reject(err));
       });
     });
-    request.on("error", reject);
-    request.end();
+    request2.on("error", reject);
+    request2.end();
   });
 }
 function changePermissions(dir, mode) {
   fs3__default.default.readdirSync(dir).forEach((file) => {
-    const filePath = path__default.default.join(dir, file);
+    const filePath = path2__default.default.join(dir, file);
     fs3__default.default.chmodSync(filePath, Number.parseInt(`${mode}`, 8));
     if (fs3__default.default.statSync(filePath).isDirectory()) changePermissions(filePath, mode);
   });
 }
 function getExtensionPath() {
-  return path__default.default.join(electron.app.getPath("userData"), "extensions");
+  return path2__default.default.join(electron.app.getPath("userData"), "extensions");
 }
 async function downloadExtension(extensionId, options) {
   const opts = Object.assign({
@@ -9924,9 +9935,9 @@ async function downloadExtension(extensionId, options) {
   const outPath = opts.outPath || getExtensionPath();
   const source = opts.source || (new Intl.NumberFormat().resolvedOptions().locale === "zh-CN" ? "npmmirror" : "unpkg");
   mkdirp2(outPath);
-  const unzipPath = path__default.default.join(outPath, extensionId);
+  const unzipPath = path2__default.default.join(outPath, extensionId);
   return new Promise((resolve2, reject) => {
-    const filePath = path__default.default.resolve(`${unzipPath}.crx`);
+    const filePath = path2__default.default.resolve(`${unzipPath}.crx`);
     const unzipExtension = () => {
       mkdirp2(unzipPath, true);
       src_default(filePath, unzipPath).then(() => {
@@ -9936,7 +9947,7 @@ async function downloadExtension(extensionId, options) {
           unzipPath
         });
       }).catch((err) => {
-        if (!fs3__default.default.existsSync(path__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
+        if (!fs3__default.default.existsSync(path2__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
       });
     };
     if (fs3__default.default.existsSync(filePath) && !opts.force) {
@@ -9949,7 +9960,7 @@ async function downloadExtension(extensionId, options) {
         unzipPath
       });
     }
-    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os2__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
+    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os4__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
     if ([
       "unpkg",
       "jsdelivr",
@@ -10011,7 +10022,7 @@ async function installExtension(extensionIds, options) {
 }
 var ANGULAR_DEVTOOLS, APOLLO_CLIENT_TOOLS, BACKBONE_DEBUGGER, EMBER_INSPECTOR, MOBX_DEVTOOLS, PREACT_DEVELOPER_TOOLS, REACT_DEVELOPER_TOOLS, REDUX_DEVTOOLS, SOLID_DEVTOOLS, SVELTE_DEVTOOLS, VUEJS_DEVTOOLS, VUEJS_DEVTOOLS_BETA, VUEJS_DEVTOOLS_V5, VUEJS_DEVTOOLS_V6, EXTENSIONS, src_default2;
 var init_dist2 = __esm({
-  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.7.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
+  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
     init_dist();
     ANGULAR_DEVTOOLS = "ienfalfjdbdpebioblfackkekamfmbnh";
     APOLLO_CLIENT_TOOLS = "jdkknkkbebbapilgoeccciglkfbmbnfm";
@@ -10047,6 +10058,15 @@ var init_dist2 = __esm({
   }
 });
 
+// src/platform/auth/auth-db-encryption.ts
+var ENCRYPT_AUTH_DB_FLAG = "DN_ENCRYPT_AUTH_DB";
+function isAuthDbEncryptionRequested(env2 = process.env) {
+  const raw = env2[ENCRYPT_AUTH_DB_FLAG];
+  if (raw === void 0) return false;
+  const normalized = raw.trim().toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "on" || normalized === "yes";
+}
+
 // src/platform/auth/electron-options.ts
 var _a, _b;
 var BETTER_AUTH_BASE_URL = (_b = (_a = process.env.NEXT_PUBLIC_BETTER_AUTH_URL) != null ? _a : process.env.BETTER_AUTH_URL) != null ? _b : "http://localhost:3000";
@@ -10055,10 +10075,10 @@ var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
 var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_17404b850b4e41aafeaadc9ab306f2d2/node_modules/@better-auth/electron/dist/version-ekzjMTDh.mjs
-var PACKAGE_VERSION = "1.6.14";
+// node_modules/.pnpm/@better-auth+electron@1.6.1_04ba92c9906047bc68e3abb2243983ca/node_modules/@better-auth/electron/dist/version-DMVLEsxG.mjs
+var PACKAGE_VERSION = "1.6.18";
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_17404b850b4e41aafeaadc9ab306f2d2/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_04ba92c9906047bc68e3abb2243983ca/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
 function isProcessType(type) {
   return typeof process !== "undefined" && process.type === type;
 }
@@ -10076,7 +10096,7 @@ function getChannelPrefixWithDelimiter(ns = "better-auth") {
   return ns.length > 0 ? ns + ":" : ns;
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/error/index.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/error/index.mjs
 var BetterAuthError = class extends Error {
   constructor(message, options) {
     super(message, options);
@@ -10137,10 +10157,10 @@ function base64Decode(data, alphabet) {
 }
 var base64 = {
   encode(data, options = {}) {
-    var _a2;
+    var _a3;
     const alphabet = getAlphabet(false);
     const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
-    return base64Encode(buffer, alphabet, (_a2 = options.padding) != null ? _a2 : true);
+    return base64Encode(buffer, alphabet, (_a3 = options.padding) != null ? _a3 : true);
   },
   decode(data) {
     if (typeof data !== "string") {
@@ -10153,10 +10173,10 @@ var base64 = {
 };
 var base64Url = {
   encode(data, options = {}) {
-    var _a2;
+    var _a3;
     const alphabet = getAlphabet(true);
     const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
-    return base64Encode(buffer, alphabet, (_a2 = options.padding) != null ? _a2 : true);
+    return base64Encode(buffer, alphabet, (_a3 = options.padding) != null ? _a3 : true);
   },
   decode(data) {
     const urlSafe = data.includes("-") || data.includes("_");
@@ -10185,16 +10205,16 @@ function createHash(algorithm, encoding) {
   };
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/env/env-impl.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/env/env-impl.mjs
 var _envShim = /* @__PURE__ */ Object.create(null);
 var _getEnv = (useShim) => {
-  var _a2, _b2;
-  return ((_a2 = globalThis.process) == null ? void 0 : _a2.env) || ((_b2 = globalThis.Deno) == null ? void 0 : _b2.env.toObject()) || globalThis.__env__ || (useShim ? _envShim : globalThis);
+  var _a3, _b2;
+  return ((_a3 = globalThis.process) == null ? void 0 : _a3.env) || ((_b2 = globalThis.Deno) == null ? void 0 : _b2.env.toObject()) || globalThis.__env__ || (useShim ? _envShim : globalThis);
 };
-new Proxy(_envShim, {
+var env = new Proxy(_envShim, {
   get(_, prop) {
-    var _a2;
-    return (_a2 = _getEnv()[prop]) != null ? _a2 : _envShim[prop];
+    var _a3;
+    return (_a3 = _getEnv()[prop]) != null ? _a3 : _envShim[prop];
   },
   has(_, prop) {
     return prop in _getEnv() || prop in _envShim;
@@ -10215,7 +10235,8 @@ new Proxy(_envShim, {
     return Object.keys(env2);
   }
 });
-var nodeENV = typeof process !== "undefined" && process.env && process.env.NODE_ENV || "";
+var _a2;
+var nodeENV = (_a2 = env.NODE_ENV) != null ? _a2 : "";
 var isDevelopment = () => nodeENV === "dev" || nodeENV === "development";
 function isValidIP(ip) {
   return z__namespace.ipv4().safeParse(ip).success || z__namespace.ipv6().safeParse(ip).success;
@@ -10224,14 +10245,14 @@ function isIPv6(ip) {
   return z__namespace.ipv6().safeParse(ip).success;
 }
 function extractIPv4FromMapped(ipv62) {
-  var _a2;
+  var _a3;
   const lower = ipv62.toLowerCase();
   if (lower.startsWith("::ffff:")) {
     const ipv4Part = lower.substring(7);
     if (z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
   }
   const parts = ipv62.split(":");
-  if (parts.length === 7 && ((_a2 = parts[5]) == null ? void 0 : _a2.toLowerCase()) === "ffff") {
+  if (parts.length === 7 && ((_a3 = parts[5]) == null ? void 0 : _a3.toLowerCase()) === "ffff") {
     const ipv4Part = parts[6];
     if (ipv4Part && z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
   }
@@ -10276,15 +10297,15 @@ function normalizeIPv6(ipv62, subnetPrefix) {
   return groups.join(":").toLowerCase();
 }
 function normalizeIP(ip, options = {}) {
-  var _a2;
+  var _a3;
   if (z__namespace.ipv4().safeParse(ip).success) return ip.toLowerCase();
   if (!isIPv6(ip)) return ip.toLowerCase();
   const ipv42 = extractIPv4FromMapped(ip);
   if (ipv42) return ipv42.toLowerCase();
-  return normalizeIPv6(ip, (_a2 = options.ipv6Subnet) != null ? _a2 : 64);
+  return normalizeIPv6(ip, (_a3 = options.ipv6Subnet) != null ? _a3 : 64);
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.14_@b_ffafbbff4411593c6c6f8ba348eef202/node_modules/@better-auth/core/dist/utils/host.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/utils/host.mjs
 var CLOUD_METADATA_HOSTS = /* @__PURE__ */ new Set([
   "metadata.google.internal",
   "metadata.goog",
@@ -10365,6 +10386,7 @@ function classifyIPv6(expanded) {
   if (firstByte === 254 && (secondByte & 192) === 128) return "linkLocal";
   if ((firstByte & 254) === 252) return "private";
   if (expanded.startsWith("2001:0db8:")) return "documentation";
+  if (expanded.startsWith("2001:0002:0000:")) return "benchmarking";
   if (expanded.startsWith("2002:")) {
     const embedded = extractEmbeddedIPv4(expanded, 1);
     if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
@@ -10375,12 +10397,15 @@ function classifyIPv6(expanded) {
     if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
     return "reserved";
   }
+  if (expanded.startsWith("0064:ff9b:0001:")) return "reserved";
   if (expanded.startsWith("2001:0000:")) {
     const embedded = extractEmbeddedIPv4(expanded, 6, { xor: true });
     if (embedded && classifyIPv4(embedded) !== "public") return "reserved";
     return "reserved";
   }
   if (expanded.startsWith("0100:0000:0000:0000:")) return "reserved";
+  if (expanded.startsWith("3fff:0")) return "documentation";
+  if (expanded.startsWith("5f00:")) return "reserved";
   return "public";
 }
 function classifyHost(host) {
@@ -10430,8 +10455,8 @@ function isPublicRoutableHost(host) {
 var { net } = electron__default.default;
 var DEFAULT_MAX_BYTES = 1024 * 1024 * 5;
 async function fetchUserImage(baseURL, url, options) {
-  var _a2, _b2, _c;
-  if (((_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.enabled) === false) return null;
+  var _a3, _b2, _c;
+  if (((_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.enabled) === false) return null;
   const decoded = await decodeDataImageUrl(url, options);
   if (decoded) return {
     stream: new ReadableStream({ start(controller) {
@@ -10505,14 +10530,14 @@ async function fetchUserImage(baseURL, url, options) {
   };
 }
 function normalizeUserOutput(user, options) {
-  var _a2, _b2;
+  var _a3, _b2;
   const result = __spreadValues({}, user);
-  if (result.image && ((_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.enabled) !== false) result.image = `${((_b2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _b2.scheme) || "user-image"}://${result.id}`;
+  if (result.image && ((_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.enabled) !== false) result.image = `${((_b2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _b2.scheme) || "user-image"}://${result.id}`;
   return result;
 }
 async function decodeDataImageUrl(url, options) {
-  var _a2, _b2, _c;
-  const maxSize = (_b2 = (_a2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a2.maxSize) != null ? _b2 : DEFAULT_MAX_BYTES;
+  var _a3, _b2, _c;
+  const maxSize = (_b2 = (_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.maxSize) != null ? _b2 : DEFAULT_MAX_BYTES;
   const maxBase64Size = Math.ceil(maxSize * 4 / 3);
   const lower = url.toLowerCase();
   if (!lower.startsWith("data:image/") || lower.startsWith("data:image/svg")) return null;
@@ -10551,19 +10576,19 @@ function detectImageType(bytes) {
 }
 var kElectron = /* @__PURE__ */ Symbol.for("better-auth:electron");
 (() => {
-  const _a2 = api.signInSocial().options.body.shape, { provider, idToken, loginHint } = _a2, signInSocialBody = __objRest(_a2, ["provider", "idToken", "loginHint"]);
+  const _a3 = api.signInSocial().options.body.shape, { provider, idToken, loginHint } = _a3, signInSocialBody = __objRest(_a3, ["provider", "idToken", "loginHint"]);
   return z__namespace.object(__spreadProps(__spreadValues({}, signInSocialBody), {
     provider: z__namespace.string().nonempty().optional()
   }));
 })();
 async function requestAuth(clientOptions, options, cfg) {
-  var _a2;
+  var _a3;
   if (!isProcessType("browser")) throw new BetterAuthError("`requestAuth` can only be called in the main process");
   const { randomBytes } = await import('crypto');
   const state = crypto.generateRandomString(16, "A-Z", "a-z", "0-9");
   const codeVerifier = base64Url.encode(randomBytes(32));
   const codeChallenge = base64Url.encode(await createHash("SHA-256").digest(codeVerifier));
-  ((_a2 = globalThis[kElectron]) != null ? _a2 : globalThis[kElectron] = /* @__PURE__ */ new Map()).set(state, codeVerifier);
+  ((_a3 = globalThis[kElectron]) != null ? _a3 : globalThis[kElectron] = /* @__PURE__ */ new Map()).set(state, codeVerifier);
   let url = null;
   if (cfg == null ? void 0 : cfg.provider) {
     const baseURL = betterAuth.getBaseURL(clientOptions == null ? void 0 : clientOptions.baseURL, clientOptions == null ? void 0 : clientOptions.basePath, void 0, true);
@@ -10584,10 +10609,10 @@ async function requestAuth(clientOptions, options, cfg) {
   await electron.shell.openExternal(url.toString(), { activate: true });
 }
 async function authenticate({ $fetch, options, token, getWindow, fetchOptions }) {
-  var _a2, _b2;
+  var _a3, _b2;
   if (!isProcessType("browser")) throw new BetterAuthError("`authenticate` can only be called in the main process.");
   const decoded = betterAuth.safeJSONParse(new TextDecoder().decode(base64Url.decode(decodeURIComponent(token))));
-  const codeVerifier = (_a2 = globalThis[kElectron]) == null ? void 0 : _a2.get(decoded == null ? void 0 : decoded.state);
+  const codeVerifier = (_a3 = globalThis[kElectron]) == null ? void 0 : _a3.get(decoded == null ? void 0 : decoded.state);
   (_b2 = globalThis[kElectron]) == null ? void 0 : _b2.delete(decoded == null ? void 0 : decoded.state);
   if (!codeVerifier) throw new BetterAuthError("Code verifier not found.");
   return await $fetch("/electron/token", __spreadProps(__spreadValues({}, fetchOptions), {
@@ -10598,8 +10623,8 @@ async function authenticate({ $fetch, options, token, getWindow, fetchOptions })
       code_verifier: codeVerifier
     }),
     onSuccess: async (ctx) => {
-      var _a3, _b3, _c, _d;
-      let user = (_b3 = (_a3 = ctx.data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+      var _a4, _b3, _c, _d;
+      let user = (_b3 = (_a4 = ctx.data) == null ? void 0 : _a4.user) != null ? _b3 : null;
       if (user !== null && typeof options.sanitizeUser === "function") try {
         user = await options.sanitizeUser(user);
       } catch (error) {
@@ -10621,7 +10646,7 @@ function withGetWindowFallback(win) {
   });
 }
 function setupMain($fetch, $store, getCookie2, opts, clientOptions, cfg) {
-  var _a2;
+  var _a3;
   if (!isProcessType("browser")) throw new BetterAuthError("setupMain can only be called in the main process.");
   const getWindow = withGetWindowFallback(cfg == null ? void 0 : cfg.getWindow);
   if (!cfg || cfg.csp === true) setupCSP(clientOptions, opts);
@@ -10632,7 +10657,7 @@ function setupMain($fetch, $store, getCookie2, opts, clientOptions, cfg) {
     getCookie: getCookie2,
     getWindow
   }, opts, clientOptions);
-  if (((_a2 = opts.userImageProxy) == null ? void 0 : _a2.enabled) !== false) setupUserImageProxy({
+  if (((_a3 = opts.userImageProxy) == null ? void 0 : _a3.enabled) !== false) setupUserImageProxy({
     $fetch,
     getCookie: getCookie2
   }, opts, clientOptions);
@@ -10670,7 +10695,7 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
   }]);
   let hasSetupProtocolClient = false;
   if (process == null ? void 0 : process.defaultApp) {
-    if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path.resolve(process.argv[1])]);
+    if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path2.resolve(process.argv[1])]);
   } else hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme);
   if (!hasSetupProtocolClient) console.error(`Failed to register protocol ${scheme} as default protocol client.`);
   if (!app$1.requestSingleInstanceLock()) app$1.quit();
@@ -10719,13 +10744,13 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
 function setupCSP(clientOptions, options) {
   app$1.whenReady().then(() => {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      var _a2, _b2, _c;
+      var _a3, _b2, _c;
       const origin = new URL((clientOptions == null ? void 0 : clientOptions.baseURL) || "", "http://localhost").origin;
       const cspKey = Object.keys(details.responseHeaders || {}).find((k) => k.toLowerCase() === "content-security-policy");
       if (!cspKey) return callback({ responseHeaders: __spreadProps(__spreadValues({}, details.responseHeaders || {}), {
         "content-security-policy": `connect-src 'self' ${origin}`
       }) });
-      const policy = ((_b2 = (_a2 = details.responseHeaders) == null ? void 0 : _a2[cspKey]) == null ? void 0 : _b2.toString()) || "";
+      const policy = ((_b2 = (_a3 = details.responseHeaders) == null ? void 0 : _a3[cspKey]) == null ? void 0 : _b2.toString()) || "";
       const csp = /* @__PURE__ */ new Map();
       for (let token of policy.split(";")) {
         token = token.trim();
@@ -10754,12 +10779,12 @@ function setupCSP(clientOptions, options) {
   });
 }
 function setupBridges(ctx, opts, clientOptions) {
-  var _a2, _b2;
+  var _a3, _b2;
   const prefix = getChannelPrefixWithDelimiter(opts.channelPrefix);
-  (_b2 = (_a2 = ctx.$store) == null ? void 0 : _a2.atoms.session) == null ? void 0 : _b2.subscribe(async (state) => {
-    var _a3, _b3, _c;
+  (_b2 = (_a3 = ctx.$store) == null ? void 0 : _a3.atoms.session) == null ? void 0 : _b2.subscribe(async (state) => {
+    var _a4, _b3, _c;
     if (state.isPending === true) return;
-    let user = (_b3 = (_a3 = state.data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+    let user = (_b3 = (_a4 = state.data) == null ? void 0 : _a4.user) != null ? _b3 : null;
     if (user !== null && typeof opts.sanitizeUser === "function") try {
       user = await opts.sanitizeUser(user);
     } catch (error) {
@@ -10770,14 +10795,14 @@ function setupBridges(ctx, opts, clientOptions) {
     (_c = webContents$1.getFocusedWebContents()) == null ? void 0 : _c.send(`${prefix}user-updated`, user);
   });
   ipcMain.handle(`${prefix}getUser`, async () => {
-    var _a3, _b3;
-    let user = (_b3 = (_a3 = (await ctx.$fetch("/get-session", {
+    var _a4, _b3;
+    let user = (_b3 = (_a4 = (await ctx.$fetch("/get-session", {
       method: "GET",
       headers: {
         cookie: ctx.getCookie(),
         "content-type": "application/json"
       }
-    })).data) == null ? void 0 : _a3.user) != null ? _b3 : null;
+    })).data) == null ? void 0 : _a4.user) != null ? _b3 : null;
     if (user !== null && typeof opts.sanitizeUser === "function") try {
       user = await opts.sanitizeUser(user);
     } catch (error) {
@@ -10808,8 +10833,8 @@ function setupBridges(ctx, opts, clientOptions) {
   });
 }
 function setupUserImageProxy(ctx, opts, clientOptions) {
-  var _a2, _b2, _c;
-  const hasAdminPlugin = (_b2 = (_a2 = clientOptions == null ? void 0 : clientOptions.plugins) == null ? void 0 : _a2.some((plugin) => plugin.id === "admin")) != null ? _b2 : false;
+  var _a3, _b2, _c;
+  const hasAdminPlugin = (_b2 = (_a3 = clientOptions == null ? void 0 : clientOptions.plugins) == null ? void 0 : _a3.some((plugin) => plugin.id === "admin")) != null ? _b2 : false;
   const scheme = ((_c = opts.userImageProxy) == null ? void 0 : _c.scheme) || "user-image";
   protocol.registerSchemesAsPrivileged([{
     scheme,
@@ -10821,10 +10846,10 @@ function setupUserImageProxy(ctx, opts, clientOptions) {
     }
   }]);
   app$1.whenReady().then(() => {
-    protocol.handle(scheme, async (request) => {
-      var _a3, _b3, _c2, _d;
+    protocol.handle(scheme, async (request2) => {
+      var _a4, _b3, _c2, _d;
       try {
-        const userId = new URL(request.url).hostname;
+        const userId = new URL(request2.url).hostname;
         if (!userId) return new Response(null, { status: 400 });
         const headers = {
           cookie: ctx.getCookie(),
@@ -10835,7 +10860,7 @@ function setupUserImageProxy(ctx, opts, clientOptions) {
           method: "GET",
           headers
         });
-        if (((_b3 = (_a3 = sessionResult.data) == null ? void 0 : _a3.user) == null ? void 0 : _b3.id) === userId) imageUrl = sessionResult.data.user.image;
+        if (((_b3 = (_a4 = sessionResult.data) == null ? void 0 : _a4.user) == null ? void 0 : _b3.id) === userId) imageUrl = sessionResult.data.user.image;
         else if (hasAdminPlugin) imageUrl = (_d = (_c2 = (await ctx.$fetch(`/admin/get-user?id=${encodeURIComponent(userId)}`, {
           method: "GET",
           headers
@@ -10886,7 +10911,7 @@ function getCookie(cookie) {
   return pairs.join("; ");
 }
 function hasSessionCookieChanged(prevCookie, newCookie) {
-  var _a2, _b2;
+  var _a3, _b2;
   if (!prevCookie) return true;
   try {
     const prev = JSON.parse(prevCookie);
@@ -10898,7 +10923,7 @@ function hasSessionCookieChanged(prevCookie, newCookie) {
     Object.keys(next).forEach((key) => {
       if (key.includes("session_token") || key.includes("session_data")) sessionKeys.add(key);
     });
-    for (const key of sessionKeys) if (((_a2 = prev[key]) == null ? void 0 : _a2.value) !== ((_b2 = next[key]) == null ? void 0 : _b2.value)) return true;
+    for (const key of sessionKeys) if (((_a3 = prev[key]) == null ? void 0 : _a3.value) !== ((_b2 = next[key]) == null ? void 0 : _b2.value)) return true;
     return false;
   } catch (e) {
     return true;
@@ -10921,8 +10946,8 @@ var storageAdapter = (storage2, sessionKeys) => {
   const memory = /* @__PURE__ */ new Map();
   return __spreadProps(__spreadValues({}, storage2), {
     getDecrypted: (name) => {
-      var _a2;
-      if (sessionKeys.has(name) && memory.has(name)) return (_a2 = memory.get(name)) != null ? _a2 : null;
+      var _a3;
+      if (sessionKeys.has(name) && memory.has(name)) return (_a3 = memory.get(name)) != null ? _a3 : null;
       if (!safeStorage.isEncryptionAvailable()) return null;
       const item = storage2.getItem(name);
       if (!item || typeof item !== "string") return null;
@@ -10957,6 +10982,16 @@ var electronClient = (options) => {
   const cookieName = `${opts.storagePrefix}.cookie`;
   const localCacheName = `${opts.storagePrefix}.local_cache`;
   const { getDecrypted, setEncrypted } = storageAdapter(opts.storage, /* @__PURE__ */ new Set([cookieName, localCacheName]));
+  const clearSessionCache = () => {
+    var _a3;
+    setEncrypted(cookieName, "{}");
+    (_a3 = store == null ? void 0 : store.atoms.session) == null ? void 0 : _a3.set(__spreadProps(__spreadValues({}, store.atoms.session.get()), {
+      data: null,
+      error: null,
+      isPending: false
+    }));
+    setEncrypted(localCacheName, "{}");
+  };
   if ((betterAuth.isDevelopment() || betterAuth.isTest()) && /^(?!\.)(?!.*\.\.)(?!.*\.$)[^.]+\.[^.]+$/.test(scheme)) console.warn("The provided scheme does not follow the reverse domain name notation. For example: `app.example.com` -> `com.example.app`.");
   return {
     id: "electron",
@@ -10965,7 +11000,6 @@ var electronClient = (options) => {
       id: "electron",
       name: "Electron",
       async init(url, options2) {
-        var _a2;
         if (!isProcessType("browser")) throw new Error("Requests must be made from the Electron main process");
         const cookie = getCookie(getDecrypted(cookieName) || "{}");
         options2 || (options2 = {});
@@ -10976,15 +11010,7 @@ var electronClient = (options) => {
           "electron-origin": `${scheme}:/`,
           "x-skip-oauth-proxy": "true"
         });
-        if (url.endsWith("/sign-out")) {
-          setEncrypted(cookieName, "{}");
-          (_a2 = store == null ? void 0 : store.atoms.session) == null ? void 0 : _a2.set(__spreadProps(__spreadValues({}, store.atoms.session.get()), {
-            data: null,
-            error: null,
-            isPending: false
-          }));
-          setEncrypted(localCacheName, "{}");
-        }
+        if (url.endsWith("/sign-out")) clearSessionCache();
         return {
           url,
           options: options2
@@ -11007,10 +11033,11 @@ var electronClient = (options) => {
             const data = context.data;
             setEncrypted(localCacheName, JSON.stringify(data));
           }
+          if (context.request.url.toString().includes("/sign-out")) clearSessionCache();
         },
         onError: async (context) => {
-          var _a2;
-          (_a2 = webContents.getFocusedWebContents()) == null ? void 0 : _a2.send(`${getChannelPrefixWithDelimiter(opts.channelPrefix)}error`, __spreadProps(__spreadValues({}, context.error), {
+          var _a3;
+          (_a3 = webContents.getFocusedWebContents()) == null ? void 0 : _a3.send(`${getChannelPrefixWithDelimiter(opts.channelPrefix)}error`, __spreadProps(__spreadValues({}, context.error), {
             path: context.request.url
           }));
         }
@@ -11076,6 +11103,275 @@ var authClient = client.createAuthClient({
     })
   ]
 });
+var DEFAULT_PORT = 1234;
+var SERVICE_TYPE = "dn-collab";
+var SERVICE_NAME = "Data Navigator LAN";
+var HUB_NAME = "data-navigator-hub";
+var server = null;
+var bonjour = null;
+var publishedService = null;
+var browser = null;
+var activePort = null;
+var activePairingCode = null;
+var activeRoom = null;
+var startedAt = null;
+var dbPath = null;
+var discovered = /* @__PURE__ */ new Map();
+var discoveryListener = null;
+function dataDir() {
+  return path2__default.default.join(electron.app.getPath("userData"), "data-navigator", "collab");
+}
+function lanAddresses() {
+  var _a3;
+  const nets = os4__default.default.networkInterfaces();
+  const lans = [];
+  for (const name of Object.keys(nets)) {
+    for (const net3 of (_a3 = nets[name]) != null ? _a3 : []) {
+      if (net3.family === "IPv4" && !net3.internal) {
+        lans.push({ name, address: net3.address });
+      }
+    }
+  }
+  return lans;
+}
+function websocketUrls(port) {
+  return lanAddresses().map((ip) => `ws://${ip.address}:${port}`);
+}
+function pickIpv4(addresses) {
+  return addresses == null ? void 0 : addresses.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
+}
+function serviceKey(svc) {
+  var _a3, _b2;
+  return `${(_b2 = (_a3 = svc.name) != null ? _a3 : svc.host) != null ? _b2 : "hub"}:${svc.port}`;
+}
+function toDiscoveredHub(svc) {
+  var _a3, _b2, _c, _d, _e, _f;
+  const ip = (_a3 = pickIpv4(svc.addresses)) != null ? _a3 : svc.host;
+  if (!ip) return null;
+  return {
+    name: (_b2 = svc.name) != null ? _b2 : SERVICE_NAME,
+    host: (_c = svc.host) != null ? _c : ip,
+    port: svc.port,
+    url: `ws://${ip}:${svc.port}`,
+    addresses: (_d = svc.addresses) != null ? _d : [],
+    room: (_e = svc.txt) == null ? void 0 : _e.room,
+    pairingRequired: ((_f = svc.txt) == null ? void 0 : _f.pairingRequired) === "1"
+  };
+}
+function setDiscoveryListener(listener) {
+  discoveryListener = listener;
+}
+async function start(input = {}) {
+  var _a3, _b2, _c;
+  if (server) {
+    return status();
+  }
+  const port = (_a3 = input.port) != null ? _a3 : DEFAULT_PORT;
+  const pairingCode = ((_b2 = input.pairingCode) == null ? void 0 : _b2.trim()) || String(Math.floor(1e5 + Math.random() * 9e5));
+  const room = (_c = input.room) != null ? _c : "telecom-default";
+  const { Server } = await import('@hocuspocus/server');
+  const { SQLite } = await import('@hocuspocus/extension-sqlite');
+  const fs5 = await import('fs/promises');
+  await fs5.mkdir(dataDir(), { recursive: true });
+  dbPath = path2__default.default.join(dataDir(), "collab-hub.sqlite");
+  const instance2 = new Server({
+    name: HUB_NAME,
+    port,
+    quiet: true,
+    extensions: [new SQLite({ database: dbPath })],
+    // v4: payload is web-standard. Read query params via URLSearchParams.get.
+    // Pairing-code gate = the existing lan-server.mjs contract.
+    async onAuthenticate(payload) {
+      const code = payload.requestParameters.get("pairingCode");
+      if (pairingCode && code !== pairingCode) {
+        throw new Error("Invalid pairing code");
+      }
+      const role = payload.requestParameters.get("role");
+      if (role === "viewer" || role === "reviewer") {
+        payload.connection.readOnly = true;
+      }
+      return { role, documentName: payload.documentName };
+    },
+    async onListen() {
+      if (input.advertise !== false) {
+        startAdvertising(port, room, Boolean(pairingCode));
+      }
+    }
+  });
+  await instance2.listen();
+  server = instance2;
+  activePort = port;
+  activePairingCode = pairingCode;
+  activeRoom = room;
+  startedAt = (/* @__PURE__ */ new Date()).toISOString();
+  if (input.discover) {
+    startDiscovery();
+  }
+  return status();
+}
+async function stop() {
+  stopDiscovery();
+  await stopAdvertising();
+  if (server) {
+    try {
+      await server.destroy();
+    } catch (error) {
+      console.warn("[collab-hub] server destroy error:", error);
+    }
+    server = null;
+  }
+  activePort = null;
+  activePairingCode = null;
+  activeRoom = null;
+  startedAt = null;
+  dbPath = null;
+  return { stopped: true };
+}
+function status() {
+  return {
+    running: server !== null,
+    port: activePort,
+    pairingCode: activePairingCode,
+    room: activeRoom,
+    advertising: publishedService !== null,
+    discovering: browser !== null,
+    websocketUrls: activePort ? websocketUrls(activePort) : [],
+    ips: lanAddresses(),
+    dbPath,
+    startedAt
+  };
+}
+async function discover() {
+  startDiscovery();
+  return [...discovered.values()];
+}
+function getDiscovered() {
+  return [...discovered.values()];
+}
+async function ensureBonjour() {
+  var _a3;
+  if (!bonjour) {
+    const mod = await import('bonjour-service');
+    const Ctor = (_a3 = mod.Bonjour) != null ? _a3 : mod.default;
+    if (!Ctor) throw new Error("bonjour-service: missing Bonjour export");
+    bonjour = new Ctor();
+  }
+  return bonjour;
+}
+function startAdvertising(port, room, pairingRequired) {
+  void (async () => {
+    try {
+      const inst = await ensureBonjour();
+      publishedService = inst.publish({
+        name: SERVICE_NAME,
+        type: SERVICE_TYPE,
+        port,
+        protocol: "tcp",
+        txt: { room, pairingRequired: pairingRequired ? "1" : "0" }
+      });
+    } catch (error) {
+      console.warn("[collab-hub] mDNS advertise failed:", error);
+    }
+  })();
+}
+async function stopAdvertising() {
+  if (!publishedService) return;
+  publishedService = null;
+  const inst = bonjour;
+  if (inst) {
+    await new Promise((resolve2) => {
+      try {
+        inst.unpublishAll(() => resolve2());
+      } catch (e) {
+        resolve2();
+      }
+    });
+  }
+}
+function startDiscovery() {
+  if (browser) return;
+  void (async () => {
+    try {
+      const inst = await ensureBonjour();
+      const b = inst.find({ type: SERVICE_TYPE });
+      browser = b;
+      b.on("up", (svc) => {
+        const hub = toDiscoveredHub(svc);
+        if (!hub) return;
+        discovered.set(serviceKey(svc), hub);
+        discoveryListener == null ? void 0 : discoveryListener({ type: "up", hub });
+      });
+      b.on("down", (svc) => {
+        const key = serviceKey(svc);
+        const hub = discovered.get(key);
+        discovered.delete(key);
+        if (hub) discoveryListener == null ? void 0 : discoveryListener({ type: "down", hub });
+      });
+    } catch (error) {
+      console.warn("[collab-hub] mDNS discovery failed:", error);
+    }
+  })();
+}
+function stopDiscovery() {
+  var _a3;
+  if (browser) {
+    try {
+      (_a3 = browser.stop) == null ? void 0 : _a3.call(browser);
+    } catch (e) {
+    }
+    browser = null;
+  }
+  discovered.clear();
+}
+async function dispose() {
+  await stop();
+  if (bonjour) {
+    try {
+      bonjour.destroy();
+    } catch (e) {
+    }
+    bonjour = null;
+  }
+}
+function normalizeColumnsForArrow(cols, _types) {
+  const out = {};
+  for (const [name, values] of Object.entries(cols)) {
+    out[name] = values.map((v) => normalizeValue(v));
+  }
+  return out;
+}
+function normalizeValue(v) {
+  if (v === null || v === void 0) return v;
+  if (typeof v === "bigint") {
+    if (v <= MAX_SAFE_BIGINT && v >= MIN_SAFE_BIGINT) {
+      return Number(v);
+    }
+    return v;
+  }
+  if (v instanceof Date) return v;
+  const t = typeof v;
+  if (t === "string" || t === "number" || t === "boolean") return v;
+  return stringifyComplex(v);
+}
+function stringifyComplex(v) {
+  try {
+    return JSON.stringify(v, bigintReplacer);
+  } catch (e) {
+    return String(v);
+  }
+}
+function bigintReplacer(_key, value) {
+  return typeof value === "bigint" ? value.toString() : value;
+}
+var MAX_SAFE_BIGINT = BigInt(Number.MAX_SAFE_INTEGER);
+var MIN_SAFE_BIGINT = BigInt(Number.MIN_SAFE_INTEGER);
+function encodeColumnsToArrowIPC(columns, types) {
+  const normalized = normalizeColumnsForArrow(columns);
+  const table = apacheArrow.tableFromArrays(normalized);
+  return apacheArrow.tableToIPC(table, "stream");
+}
+
+// electron/duckdb-service.ts
 var READ_CONN_COUNT = 3;
 var MAX_METRICS = 200;
 var DEFAULT_PREVIEW_LIMIT = 100;
@@ -11083,13 +11379,18 @@ var MAX_PREVIEW_LIMIT = 500;
 var DEFAULT_CSV_SAMPLE_SIZE = 20480;
 var MAX_CSV_SAMPLE_SIZE = 1e6;
 var DatasetIdSchema = z.z.string().regex(/^ds_[A-Za-z0-9_-]{8,32}$/, "Invalid dataset id");
+var CsvEncodingSchema = z.z.enum(["utf-8", "utf-16", "latin-1"]);
 var RegisterCSVPathDatasetSchema = z.z.object({
   filePath: z.z.string().min(1),
   displayName: z.z.string().min(1).max(255).optional(),
   hasHeader: z.z.boolean().optional(),
   delimiter: z.z.string().min(1).max(4).optional(),
   sampleSize: z.z.number().int().positive().max(MAX_CSV_SAMPLE_SIZE).optional(),
-  previewLimit: z.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional()
+  previewLimit: z.z.number().int().positive().max(MAX_PREVIEW_LIMIT).optional(),
+  /** Detected/overridden text encoding (the data-import cluster detects it). */
+  encoding: CsvEncodingSchema.optional(),
+  /** Capture coerced/skipped rows into reject_scans/reject_errors temp tables. */
+  storeRejects: z.z.boolean().optional()
 });
 var RegisterParquetPathDatasetSchema = z.z.object({
   filePath: z.z.string().min(1),
@@ -11107,6 +11408,42 @@ var DatasetOnlySchema = z.z.object({
 var ExportDatasetSchema = z.z.object({
   datasetId: DatasetIdSchema,
   targetPath: z.z.string().min(1)
+});
+var ColumnNameSchema = z.z.string().min(1).max(255);
+var CancelTokenSchema = z.z.string().min(1).max(128).optional();
+var ProfileDatasetSchema = z.z.object({
+  datasetId: DatasetIdSchema,
+  cancelToken: CancelTokenSchema
+});
+var ProfileColumnDetailSchema = z.z.object({
+  datasetId: DatasetIdSchema,
+  column: ColumnNameSchema,
+  topK: z.z.number().int().positive().max(100).optional(),
+  binCount: z.z.number().int().positive().max(200).optional(),
+  cancelToken: CancelTokenSchema
+});
+var CountRowsSchema = z.z.object({
+  datasetId: DatasetIdSchema,
+  where: z.z.string().max(1e4).optional(),
+  force: z.z.boolean().optional(),
+  cancelToken: CancelTokenSchema
+});
+var KeysetSortKeySchema = z.z.object({
+  column: ColumnNameSchema,
+  direction: z.z.enum(["ASC", "DESC"]).default("ASC")
+});
+var KeysetCursorSchema = z.z.object({
+  sortValues: z.z.array(z.z.unknown()),
+  rowid: z.z.number()
+});
+var KeysetPageSchema = z.z.object({
+  datasetId: DatasetIdSchema,
+  sortKeys: z.z.array(KeysetSortKeySchema).min(1).max(8),
+  limit: z.z.number().int().positive().max(1e5),
+  where: z.z.string().max(1e4).optional(),
+  cursor: KeysetCursorSchema.optional(),
+  columns: z.z.array(ColumnNameSchema).max(512).optional(),
+  cancelToken: CancelTokenSchema
 });
 var instance = null;
 var writeConn = null;
@@ -11128,10 +11465,10 @@ function pushMetric(metric) {
   }
 }
 async function measureRows(conn, sql) {
-  const start = performance.now();
+  const start2 = performance.now();
   const result = await conn.run(sql);
   const rows = await result.getRowObjectsJS();
-  const durationMs = Math.round(performance.now() - start);
+  const durationMs = Math.round(performance.now() - start2);
   pushMetric({
     sql: truncateSql(sql),
     durationMs,
@@ -11141,9 +11478,9 @@ async function measureRows(conn, sql) {
   return rows;
 }
 async function measureRun(conn, sql) {
-  const start = performance.now();
+  const start2 = performance.now();
   await conn.run(sql);
-  const durationMs = Math.round(performance.now() - start);
+  const durationMs = Math.round(performance.now() - start2);
   pushMetric({
     sql: truncateSql(sql),
     durationMs,
@@ -11158,19 +11495,19 @@ function enqueueRead(operation) {
   return readQueue.add(operation);
 }
 function getDuckDBRootDir() {
-  return path__default.default.join(electron.app.getPath("userData"), "data-navigator");
+  return path2__default.default.join(electron.app.getPath("userData"), "data-navigator");
 }
 function getDuckDBPath() {
-  return path__default.default.join(getDuckDBRootDir(), "data-navigator.duckdb");
+  return path2__default.default.join(getDuckDBRootDir(), "data-navigator.duckdb");
 }
 function getDatasetsDirPath() {
-  return path__default.default.join(getDuckDBRootDir(), "datasets");
+  return path2__default.default.join(getDuckDBRootDir(), "datasets");
 }
 async function ensureDirectory(dir) {
   await fs__default.default.mkdir(dir, { recursive: true });
 }
 async function assertReadableFile(filePath) {
-  const resolved = path__default.default.resolve(filePath);
+  const resolved = path2__default.default.resolve(filePath);
   const stat = await fs__default.default.stat(resolved);
   if (!stat.isFile()) {
     throw new Error(`Path is not a file: ${resolved}`);
@@ -11178,17 +11515,17 @@ async function assertReadableFile(filePath) {
   return resolved;
 }
 async function assertManagedCachePath(cachePath) {
-  const datasetsDir = path__default.default.resolve(getDatasetsDirPath());
-  const resolved = path__default.default.resolve(cachePath);
-  const relative = path__default.default.relative(datasetsDir, resolved);
-  const isInsideDatasetsDir = relative !== "" && !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
+  const datasetsDir = path2__default.default.resolve(getDatasetsDirPath());
+  const resolved = path2__default.default.resolve(cachePath);
+  const relative = path2__default.default.relative(datasetsDir, resolved);
+  const isInsideDatasetsDir = relative !== "" && !relative.startsWith("..") && !path2__default.default.isAbsolute(relative);
   if (!isInsideDatasetsDir) {
     throw new Error(`Refusing to access unmanaged cache path: ${resolved}`);
   }
   return resolved;
 }
 async function ensureParentDirectory(filePath) {
-  await fs__default.default.mkdir(path__default.default.dirname(path__default.default.resolve(filePath)), { recursive: true });
+  await fs__default.default.mkdir(path2__default.default.dirname(path2__default.default.resolve(filePath)), { recursive: true });
 }
 function quoteSqlString(value) {
   return `'${value.replaceAll("'", "''")}'`;
@@ -11196,17 +11533,41 @@ function quoteSqlString(value) {
 function quoteIdentifier(value) {
   return `"${value.replaceAll('"', '""')}"`;
 }
+function quoteSqlPathList(paths) {
+  return `[${paths.map((p) => quoteSqlString(p)).join(", ")}]`;
+}
+async function applyReadConnectionSandbox(conn, allowedDirs) {
+  const resolvedDirs = allowedDirs.filter((dir) => typeof dir === "string" && dir.length > 0).map((dir) => path2__default.default.resolve(dir));
+  if (resolvedDirs.length === 0) return;
+  const settings = [
+    // Views need to touch real parquet files on disk.
+    "SET enable_external_access = true",
+    // ...but only inside the managed cache/spill directories.
+    `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
+    // Freeze the configuration for this connection's lifetime.
+    "SET lock_configuration = true"
+  ];
+  for (const setting of settings) {
+    try {
+      await conn.run(setting);
+    } catch (error) {
+      console.warn(
+        `[duckdb] read-connection sandbox skipped (${setting.split("=")[0].trim()}): ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+}
 function makeDatasetId() {
   return `ds_${nanoid.nanoid(12)}`;
 }
-function datasetViewName(datasetId) {
-  return DatasetIdSchema.parse(datasetId);
+function datasetViewName(datasetId2) {
+  return DatasetIdSchema.parse(datasetId2);
 }
 function buildCsvOptions(options) {
-  var _a2, _b2;
+  var _a3, _b2;
   const parts = [
     "auto_detect = true",
-    `header = ${(_a2 = options.hasHeader) != null ? _a2 : true}`,
+    `header = ${(_a3 = options.hasHeader) != null ? _a3 : true}`,
     "strict_mode = false",
     "null_padding = true",
     `sample_size = ${(_b2 = options.sampleSize) != null ? _b2 : DEFAULT_CSV_SAMPLE_SIZE}`,
@@ -11215,13 +11576,19 @@ function buildCsvOptions(options) {
   if (options.delimiter) {
     parts.push(`delim = ${quoteSqlString(options.delimiter)}`);
   }
+  if (options.encoding) {
+    parts.push(`encoding = ${quoteSqlString(options.encoding)}`);
+  }
+  if (options.storeRejects) {
+    parts.push("store_rejects = true");
+  }
   return parts.join(", ");
 }
 function normalizeColumns(rows) {
   return rows.map((row) => {
-    var _a2, _b2;
+    var _a3, _b2;
     return {
-      name: String((_a2 = row.column_name) != null ? _a2 : row.name),
+      name: String((_a3 = row.column_name) != null ? _a3 : row.name),
       type: String((_b2 = row.column_type) != null ? _b2 : row.type),
       nullable: row.null !== "NO" && row.null !== false
     };
@@ -11317,9 +11684,9 @@ async function restoreDatasetViews() {
     }
   }
 }
-async function getDatasetById(conn, datasetId) {
-  var _a2;
-  const id = DatasetIdSchema.parse(datasetId);
+async function getDatasetById(conn, datasetId2) {
+  var _a3;
+  const id = DatasetIdSchema.parse(datasetId2);
   const rows = await measureRows(
     conn,
     `
@@ -11350,22 +11717,46 @@ async function getDatasetById(conn, datasetId) {
     sourcePath: String(row.source_path),
     cachePath: String(row.cache_path),
     sourceFormat: String(row.source_format),
-    rowCount: Number((_a2 = row.row_count) != null ? _a2 : 0),
+    rowCount: Number((_a3 = row.row_count) != null ? _a3 : 0),
     columns: parseColumns(row.schema_json),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
   };
 }
+function stripSqlWrapping(sql) {
+  let s = sql.trim();
+  const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
+  if (fence == null ? void 0 : fence[1]) s = fence[1].trim();
+  s = s.replace(/^(\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)+/i, "").trim();
+  s = s.replace(/;+\s*$/, "").trim();
+  return s;
+}
 function assertReadOnlySql(sql) {
-  const trimmed = sql.trim();
+  const trimmed = stripSqlWrapping(sql);
   const upper = trimmed.toUpperCase();
-  const allowed = upper.startsWith("SELECT") || upper.startsWith("WITH") || upper.startsWith("SHOW") || upper.startsWith("DESCRIBE") || upper.startsWith("SUMMARIZE") || upper.startsWith("EXPLAIN");
+  const allowed = upper.startsWith("SELECT") || upper.startsWith("WITH") || upper.startsWith("SHOW") || upper.startsWith("DESCRIBE") || upper.startsWith("DESC ") || upper.startsWith("SUMMARIZE") || upper.startsWith("EXPLAIN") || // DuckDB read-only shorthands the 1.5B model sometimes emits.
+  upper.startsWith("FROM") || upper.startsWith("TABLE") || upper.startsWith("VALUES") || upper.startsWith("PIVOT") || upper.startsWith("UNPIVOT");
   if (!allowed) {
-    throw new Error("Only read-only DuckDB queries are allowed from renderer.");
+    const preview = trimmed.slice(0, 200).replace(/\s+/g, " ");
+    throw new Error(
+      `Only read-only DuckDB queries are allowed from renderer. Got: ${preview || "<empty>"}`
+    );
   }
   const blocked = /\b(CREATE|DROP|ALTER|INSERT|UPDATE|DELETE|COPY|EXPORT|IMPORT|ATTACH|DETACH|INSTALL|LOAD|CALL|PRAGMA)\b/i;
   if (blocked.test(trimmed)) {
     throw new Error("Unsafe SQL statement blocked.");
+  }
+  const blockedFunctions = /\b(read_csv(_auto)?|read_parquet|parquet_scan|parquet_metadata|parquet_schema|parquet_file_metadata|parquet_kv_metadata|read_json(_auto|_objects)?|read_ndjson(_auto)?|read_text|read_blob|sniff_csv|glob|getenv)\s*\(/i;
+  if (blockedFunctions.test(trimmed)) {
+    throw new Error("Unsafe SQL function blocked (file/IO/env access).");
+  }
+  const fromStringLiteral = /\b(FROM|JOIN)\s+'/i;
+  if (fromStringLiteral.test(trimmed)) {
+    throw new Error("Unsafe SQL: string-literal table source blocked.");
+  }
+  const setConfig = /\bSET\s+(SESSION\s+|GLOBAL\s+|LOCAL\s+)?[A-Za-z_][\w]*\s*=/i;
+  if (setConfig.test(trimmed)) {
+    throw new Error("Unsafe SQL: SET configuration blocked.");
   }
   return trimmed;
 }
@@ -11374,7 +11765,7 @@ async function describeView(conn, viewName) {
   return normalizeColumns(rows);
 }
 async function countViewRows(conn, viewName) {
-  var _a2, _b2;
+  var _a3, _b2;
   const rows = await measureRows(
     conn,
     `
@@ -11382,21 +11773,53 @@ async function countViewRows(conn, viewName) {
       FROM ${quoteIdentifier(viewName)}
     `
   );
-  return Number((_b2 = (_a2 = rows[0]) == null ? void 0 : _a2.row_count) != null ? _b2 : 0);
+  return Number((_b2 = (_a3 = rows[0]) == null ? void 0 : _a3.row_count) != null ? _b2 : 0);
+}
+var REJECT_SAMPLE_LIMIT = 50;
+async function collectRejectSummary(conn) {
+  var _a3, _b2;
+  try {
+    const countRows2 = await measureRows(conn, "SELECT count(*) AS bad_rows FROM reject_errors");
+    const rejectedRowCount = Number((_b2 = (_a3 = countRows2[0]) == null ? void 0 : _a3.bad_rows) != null ? _b2 : 0);
+    if (rejectedRowCount === 0) {
+      return { rejectedRowCount: 0, sample: [] };
+    }
+    const sampleRows = await measureRows(
+      conn,
+      `
+        SELECT line, column_name, error_type, error_message
+        FROM reject_errors
+        ORDER BY line
+        LIMIT ${REJECT_SAMPLE_LIMIT}
+      `
+    );
+    const sample = sampleRows.map((row) => ({
+      line: row.line === null || row.line === void 0 ? null : Number(row.line),
+      columnName: row.column_name === null || row.column_name === void 0 ? null : String(row.column_name),
+      errorType: row.error_type === null || row.error_type === void 0 ? null : String(row.error_type),
+      errorMessage: row.error_message === null || row.error_message === void 0 ? null : String(row.error_message)
+    }));
+    return { rejectedRowCount, sample };
+  } catch (e) {
+    return { rejectedRowCount: 0, sample: [] };
+  }
 }
 async function ensureInit() {
   if (instance && writeConn) return;
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    var _a2, _b2, _c;
+    var _a3, _b2, _c;
     try {
       const rootDir = getDuckDBRootDir();
       const datasetsDir = getDatasetsDirPath();
-      const dbPath = getDuckDBPath();
+      const dbPath2 = getDuckDBPath();
       await ensureDirectory(rootDir);
       await ensureDirectory(datasetsDir);
-      const threads = String(Math.max(1, (_c = (_b2 = (_a2 = os2__default.default).availableParallelism) == null ? void 0 : _b2.call(_a2)) != null ? _c : 4));
-      instance = await nodeApi.DuckDBInstance.create(dbPath, {
+      const tmpSpillDir = path2__default.default.join(rootDir, "tmp");
+      await ensureDirectory(tmpSpillDir);
+      const cores = (_c = (_b2 = (_a3 = os4__default.default).availableParallelism) == null ? void 0 : _b2.call(_a3)) != null ? _c : 4;
+      const threads = String(Math.max(2, Math.min(cores - 1, 6)));
+      instance = await nodeApi.DuckDBInstance.create(dbPath2, {
         threads
       });
       writeConn = await instance.connect();
@@ -11404,14 +11827,27 @@ async function ensureInit() {
       for (let i = 0; i < READ_CONN_COUNT; i += 1) {
         readConns.push(await instance.connect());
       }
-      activeDbPath = dbPath;
+      activeDbPath = dbPath2;
       activeDatasetsDir = datasetsDir;
-      const pragmas = [`PRAGMA threads = ${threads}`, "PRAGMA enable_progress_bar = false"];
+      const pragmas = [
+        `PRAGMA threads = ${threads}`,
+        "PRAGMA enable_progress_bar = false",
+        // Cap RAM so a big scan can't OOM 8 GB; spill to disk past the limit.
+        "PRAGMA memory_limit = '4GB'",
+        `PRAGMA temp_directory = ${quoteSqlString(tmpSpillDir)}`,
+        "PRAGMA max_temp_directory_size = '20GB'",
+        // Cache Parquet footers across queries.
+        "PRAGMA enable_object_cache"
+      ];
       for (const pragma of pragmas) {
         await writeConn.run(pragma);
         for (const readConn of readConns) {
           await readConn.run(pragma);
         }
+      }
+      const readSandboxDirs = [datasetsDir, tmpSpillDir];
+      for (const readConn of readConns) {
+        await applyReadConnectionSandbox(readConn, readSandboxDirs);
       }
       await ensureDatasetCatalog();
       await restoreDatasetViews();
@@ -11434,7 +11870,7 @@ async function init() {
 async function registerCSVPathDataset(rawInput) {
   const input = RegisterCSVPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a2, _b2, _c, _d, _e;
+    var _a3, _b2, _c, _d, _e;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -11442,12 +11878,14 @@ async function registerCSVPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a2 = input.displayName) != null ? _a2 : path__default.default.basename(sourcePath);
-    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
+    const displayName = (_a3 = input.displayName) != null ? _a3 : path2__default.default.basename(sourcePath);
+    const cachePath = path2__default.default.join(datasetsDir, `${id}.parquet`);
     const csvOptions = buildCsvOptions({
       hasHeader: input.hasHeader,
       delimiter: input.delimiter,
-      sampleSize: input.sampleSize
+      sampleSize: input.sampleSize,
+      encoding: input.encoding,
+      storeRejects: input.storeRejects
     });
     await measureRun(
       conn,
@@ -11464,6 +11902,7 @@ async function registerCSVPathDataset(rawInput) {
         )
       `
     );
+    const rejects = input.storeRejects ? await collectRejectSummary(conn) : void 0;
     await measureRun(
       conn,
       `
@@ -11520,7 +11959,7 @@ async function registerCSVPathDataset(rawInput) {
         LIMIT ${previewLimit}
       `
     );
-    return {
+    return __spreadValues({
       id,
       displayName,
       viewName,
@@ -11532,13 +11971,13 @@ async function registerCSVPathDataset(rawInput) {
       createdAt: now,
       updatedAt: now,
       previewRows
-    };
+    }, rejects ? { rejects } : {});
   });
 }
 async function registerParquetPathDataset(rawInput) {
   const input = RegisterParquetPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a2, _b2;
+    var _a3, _b2;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -11546,8 +11985,8 @@ async function registerParquetPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a2 = input.displayName) != null ? _a2 : path__default.default.basename(sourcePath);
-    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
+    const displayName = (_a3 = input.displayName) != null ? _a3 : path2__default.default.basename(sourcePath);
+    const cachePath = path2__default.default.join(datasetsDir, `${id}.parquet`);
     await fs__default.default.copyFile(sourcePath, cachePath);
     await measureRun(
       conn,
@@ -11636,7 +12075,7 @@ async function listDatasets() {
       `
     );
     return rows.map((row) => {
-      var _a2;
+      var _a3;
       return {
         id: String(row.id),
         displayName: String(row.display_name),
@@ -11644,7 +12083,7 @@ async function listDatasets() {
         sourcePath: String(row.source_path),
         cachePath: String(row.cache_path),
         sourceFormat: String(row.source_format),
-        rowCount: Number((_a2 = row.row_count) != null ? _a2 : 0),
+        rowCount: Number((_a3 = row.row_count) != null ? _a3 : 0),
         columns: parseColumns(row.schema_json),
         createdAt: String(row.created_at),
         updatedAt: String(row.updated_at)
@@ -11655,11 +12094,11 @@ async function listDatasets() {
 async function previewDataset(rawInput) {
   const input = PreviewDatasetSchema.parse(rawInput);
   return enqueueRead(async () => {
-    var _a2, _b2;
+    var _a3, _b2;
     await ensureInit();
     const conn = getReadConnection();
     const viewName = datasetViewName(input.datasetId);
-    const limit = (_a2 = input.limit) != null ? _a2 : DEFAULT_PREVIEW_LIMIT;
+    const limit = (_a3 = input.limit) != null ? _a3 : DEFAULT_PREVIEW_LIMIT;
     const offset = (_b2 = input.offset) != null ? _b2 : 0;
     return measureRows(
       conn,
@@ -11700,7 +12139,7 @@ async function exportDataset(rawInput) {
     const sourceCachePath = await assertManagedCachePath(dataset.cachePath);
     await fs__default.default.access(sourceCachePath);
     await ensureParentDirectory(input.targetPath);
-    await fs__default.default.copyFile(sourceCachePath, path__default.default.resolve(input.targetPath));
+    await fs__default.default.copyFile(sourceCachePath, path2__default.default.resolve(input.targetPath));
   });
 }
 async function deleteDataset(rawInput) {
@@ -11713,6 +12152,7 @@ async function deleteDataset(rawInput) {
       return;
     }
     const cachePath = await assertManagedCachePath(dataset.cachePath);
+    invalidateCountCache(dataset.viewName);
     await measureRun(
       conn,
       `
@@ -11756,9 +12196,314 @@ async function runReadOnlyQuery(sql) {
     return measureRows(conn, safeSql);
   });
 }
+var cancelledTokens = /* @__PURE__ */ new Set();
+var activeTokenConns = /* @__PURE__ */ new Map();
+var QueryCancelledError = class extends Error {
+  constructor(token) {
+    super(`DuckDB query cancelled (token: ${token}).`);
+    this.name = "QueryCancelledError";
+    this.token = token;
+  }
+};
+function bindTokenConn(token, conn) {
+  let set = activeTokenConns.get(token);
+  if (!set) {
+    set = /* @__PURE__ */ new Set();
+    activeTokenConns.set(token, set);
+  }
+  set.add(conn);
+}
+function unbindTokenConn(token, conn) {
+  const set = activeTokenConns.get(token);
+  if (!set) return;
+  set.delete(conn);
+  if (set.size === 0) {
+    activeTokenConns.delete(token);
+  }
+}
+function cancelQueries(token) {
+  if (!token) return;
+  cancelledTokens.add(token);
+  const conns = activeTokenConns.get(token);
+  if (conns) {
+    for (const conn of conns) {
+      try {
+        conn.interrupt();
+      } catch (e) {
+      }
+    }
+  }
+}
+function resetCancelToken(token) {
+  cancelledTokens.delete(token);
+}
+function assertNotCancelled(token) {
+  if (token && cancelledTokens.has(token)) {
+    throw new QueryCancelledError(token);
+  }
+}
+async function runCancellableRead(token, body) {
+  return enqueueRead(async () => {
+    await ensureInit();
+    assertNotCancelled(token);
+    const conn = getReadConnection();
+    if (token) bindTokenConn(token, conn);
+    try {
+      return await body(conn);
+    } finally {
+      if (token) unbindTokenConn(token, conn);
+    }
+  });
+}
+async function measureArrow(conn, sql) {
+  const start2 = performance.now();
+  const reader = await conn.runAndReadAll(sql);
+  const cols = reader.getColumnsObjectJS();
+  reader.columnTypes();
+  const bytes = encodeColumnsToArrowIPC(cols);
+  const durationMs = Math.round(performance.now() - start2);
+  const firstCol = Object.values(cols)[0];
+  const rowCount = Array.isArray(firstCol) ? firstCol.length : 0;
+  pushMetric({
+    sql: truncateSql(sql),
+    durationMs,
+    timestamp: Date.now(),
+    rowCount
+  });
+  return bytes;
+}
+async function runReadOnlyQueryArrow(sql, cancelToken2) {
+  const safeSql = assertReadOnlySql(sql);
+  return runCancellableRead(cancelToken2, (conn) => measureArrow(conn, safeSql));
+}
+async function profileDataset(rawInput) {
+  const input = ProfileDatasetSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    const rows = await measureRows(
+      conn,
+      `
+        SELECT
+          column_name, column_type, min, max, approx_unique,
+          avg, std, q25, q50, q75, count, null_percentage
+        FROM (SUMMARIZE SELECT * FROM ${quoteIdentifier(viewName)})
+      `
+    );
+    return rows.map((row) => {
+      var _a3, _b2, _c, _d, _e;
+      return {
+        column_name: String((_a3 = row.column_name) != null ? _a3 : ""),
+        column_type: String((_b2 = row.column_type) != null ? _b2 : ""),
+        min: (_c = row.min) != null ? _c : null,
+        max: (_d = row.max) != null ? _d : null,
+        approx_unique: numOrNull(row.approx_unique),
+        avg: numOrNull(row.avg),
+        std: numOrNull(row.std),
+        q25: numOrNull(row.q25),
+        q50: numOrNull(row.q50),
+        q75: numOrNull(row.q75),
+        count: Number((_e = row.count) != null ? _e : 0),
+        null_percentage: numOrNull(row.null_percentage)
+      };
+    });
+  });
+}
+async function profileColumnDetail(rawInput) {
+  var _a3;
+  const input = ProfileColumnDetailSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+  const col = quoteIdentifier(input.column);
+  const binCount = (_a3 = input.binCount) != null ? _a3 : 20;
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    var _a4, _b2, _c, _d;
+    const distinctRows = await measureRows(
+      conn,
+      `SELECT approx_count_distinct(${col}) AS distinct_approx FROM ${quoteIdentifier(viewName)}`
+    );
+    const distinctApprox = Number((_b2 = (_a4 = distinctRows[0]) == null ? void 0 : _a4.distinct_approx) != null ? _b2 : 0);
+    const topRows = await measureRows(
+      conn,
+      `SELECT approx_top_k(${col}, ${(_c = input.topK) != null ? _c : 10}) AS top_values FROM ${quoteIdentifier(viewName)}`
+    );
+    const topValues = normalizeTopValues((_d = topRows[0]) == null ? void 0 : _d.top_values);
+    let histogram = [];
+    try {
+      const histRows = await measureRows(
+        conn,
+        `FROM histogram(${quoteIdentifier(viewName)}, ${col}, bin_count := ${binCount})`
+      );
+      histogram = histRows.map((row) => {
+        var _a5, _b3, _c2, _d2;
+        return {
+          bin: String((_b3 = (_a5 = row.bin) != null ? _a5 : row.x) != null ? _b3 : ""),
+          count: Number((_d2 = (_c2 = row.count) != null ? _c2 : row.y) != null ? _d2 : 0)
+        };
+      });
+    } catch (e) {
+      histogram = [];
+    }
+    return {
+      column: input.column,
+      distinctApprox,
+      topValues,
+      histogram
+    };
+  });
+}
+var countCache = /* @__PURE__ */ new Map();
+function countKey(viewName, where) {
+  return `${viewName}::${(where != null ? where : "").trim()}`;
+}
+function invalidateCountCache(viewName) {
+  for (const key of countCache.keys()) {
+    if (key.startsWith(`${viewName}::`)) {
+      countCache.delete(key);
+    }
+  }
+}
+async function countRows(rawInput) {
+  var _a3;
+  const input = CountRowsSchema.parse(rawInput);
+  const viewName = datasetViewName(input.datasetId);
+  const where = (_a3 = input.where) == null ? void 0 : _a3.trim();
+  const key = countKey(viewName, where);
+  if (!input.force) {
+    const cached = countCache.get(key);
+    if (cached) return cached.total;
+  }
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    var _a4, _b2;
+    const filter = where ? ` WHERE ${where}` : "";
+    const rows = await measureRows(
+      conn,
+      `SELECT count(*) AS total FROM ${quoteIdentifier(viewName)}${filter}`
+    );
+    const total = Number((_b2 = (_a4 = rows[0]) == null ? void 0 : _a4.total) != null ? _b2 : 0);
+    countCache.set(key, { total, cachedAt: Date.now() });
+    return total;
+  });
+}
+async function fetchKeysetPage(rawInput) {
+  const input = KeysetPageSchema.parse(rawInput);
+  return runCancellableRead(input.cancelToken, async (conn) => {
+    var _a3;
+    const dataset = await getDatasetById(conn, input.datasetId);
+    if (!dataset) {
+      throw new Error("Dataset not found.");
+    }
+    const cachePath = await assertManagedCachePath(dataset.cachePath);
+    const { sql, params } = buildKeysetPage(cachePath, input);
+    const start2 = performance.now();
+    const reader = params.length > 0 ? await conn.runAndReadAll(sql, params) : await conn.runAndReadAll(sql);
+    const cols = reader.getColumnsObjectJS();
+    const types = reader.columnTypes();
+    const durationMs = Math.round(performance.now() - start2);
+    const rowidCol = (_a3 = cols.rowid) != null ? _a3 : [];
+    const rowCount = rowidCol.length;
+    pushMetric({
+      sql: truncateSql(sql),
+      durationMs,
+      timestamp: Date.now(),
+      rowCount
+    });
+    const arrow = encodeColumnsToArrowIPC(cols, types);
+    let nextCursor = null;
+    if (rowCount === input.limit) {
+      const lastIdx = rowCount - 1;
+      const sortValues = input.sortKeys.map((k) => {
+        const colVals = cols[k.column];
+        return colVals ? toCursorValue(colVals[lastIdx]) : null;
+      });
+      nextCursor = {
+        sortValues,
+        rowid: Number(rowidCol[lastIdx])
+      };
+    }
+    return { arrow, nextCursor, rowCount };
+  });
+}
+function buildKeysetPage(cachePath, input) {
+  var _a3, _b2;
+  const limit = Math.max(1, Math.trunc(input.limit));
+  const inner = `(
+        SELECT *, file_row_number AS rowid
+        FROM read_parquet(${quoteSqlString(cachePath)}, file_row_number = true)
+      ) AS _kp`;
+  const projection = ((_a3 = input.columns) == null ? void 0 : _a3.length) ? `${input.columns.map(quoteIdentifier).join(", ")}, rowid` : "* EXCLUDE (file_row_number)";
+  const orderParts = input.sortKeys.map((k) => `${quoteIdentifier(k.column)} ${k.direction}`);
+  orderParts.push("rowid ASC");
+  const filters = [];
+  if ((_b2 = input.where) == null ? void 0 : _b2.trim()) {
+    filters.push(`(${input.where})`);
+  }
+  const params = [];
+  if (input.cursor) {
+    const { sortValues, rowid } = input.cursor;
+    const keyCount = input.sortKeys.length;
+    const orClauses = [];
+    for (let k = 0; k < keyCount; k += 1) {
+      const ands = [];
+      for (let i = 0; i < k; i += 1) {
+        params.push(sortValues[i]);
+        ands.push(`${quoteIdentifier(input.sortKeys[i].column)} = $${params.length}`);
+      }
+      params.push(sortValues[k]);
+      const strict = input.sortKeys[k].direction === "ASC" ? ">" : "<";
+      ands.push(`${quoteIdentifier(input.sortKeys[k].column)} ${strict} $${params.length}`);
+      orClauses.push(`(${ands.join(" AND ")})`);
+    }
+    const tieAnds = [];
+    for (let i = 0; i < keyCount; i += 1) {
+      params.push(sortValues[i]);
+      tieAnds.push(`${quoteIdentifier(input.sortKeys[i].column)} = $${params.length}`);
+    }
+    params.push(rowid);
+    tieAnds.push(`rowid > $${params.length}`);
+    orClauses.push(`(${tieAnds.join(" AND ")})`);
+    filters.push(`(${orClauses.join(" OR ")})`);
+  }
+  const whereSql = filters.length > 0 ? `
+      WHERE ${filters.join(" AND ")}` : "";
+  const sql = `
+      SELECT ${projection}
+      FROM ${inner}${whereSql}
+      ORDER BY ${orderParts.join(", ")}
+      LIMIT ${limit}
+  `.trim();
+  return { sql, params };
+}
+function numOrNull(value) {
+  if (value === null || value === void 0) return null;
+  const n = Number(value);
+  return Number.isNaN(n) ? null : n;
+}
+function toCursorValue(value) {
+  if (typeof value === "bigint") {
+    return value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER) ? Number(value) : value.toString();
+  }
+  if (value instanceof Date) return value.toISOString();
+  return value != null ? value : null;
+}
+function normalizeTopValues(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((entry) => {
+    var _a3, _b2, _c, _d;
+    if (entry && typeof entry === "object" && !Array.isArray(entry)) {
+      const rec = entry;
+      return {
+        value: (_c = (_b2 = (_a3 = rec.value) != null ? _a3 : rec.key) != null ? _b2 : rec[Object.keys(rec)[0]]) != null ? _c : null,
+        count: numOrNull((_d = rec.count) != null ? _d : rec.n)
+      };
+    }
+    return { value: entry != null ? entry : null, count: null };
+  });
+}
 async function close() {
   writeQueue.clear();
   readQueue.clear();
+  cancelledTokens.clear();
+  activeTokenConns.clear();
+  countCache.clear();
   readConns = [];
   writeConn = null;
   instance = null;
@@ -11772,10 +12517,1049 @@ electron.app.on("quit", () => {
     console.error("[duckdb-service] cleanup error:", error);
   });
 });
+
+// electron/ipc-concurrency.ts
+var ConcurrencyLimitError = class extends Error {
+  constructor(label, maxConcurrent, maxQueue) {
+    super(
+      `Too many concurrent "${label}" requests (limit ${maxConcurrent} in-flight, ${maxQueue} queued). Try again shortly.`
+    );
+    this.code = "E_CONCURRENCY_LIMIT";
+    this.name = "ConcurrencyLimitError";
+  }
+};
+var TaskTimeoutError = class extends Error {
+  constructor(label, timeoutMs) {
+    super(`Operation "${label}" timed out after ${timeoutMs}ms.`);
+    this.code = "E_TASK_TIMEOUT";
+    this.name = "TaskTimeoutError";
+  }
+};
+function createConcurrencyLimiter(options) {
+  const label = options.label;
+  const maxConcurrent = Math.max(1, Math.floor(options.maxConcurrent));
+  const maxQueue = Math.max(0, Math.floor(options.maxQueue));
+  let active = 0;
+  const queue = [];
+  function release() {
+    active -= 1;
+    const next = queue.shift();
+    if (next) {
+      next.start();
+    }
+  }
+  function launch(task) {
+    active += 1;
+    return (async () => {
+      try {
+        return await task();
+      } finally {
+        release();
+      }
+    })();
+  }
+  function run(task) {
+    if (active < maxConcurrent) {
+      return launch(task);
+    }
+    if (queue.length >= maxQueue) {
+      return Promise.reject(new ConcurrencyLimitError(label, maxConcurrent, maxQueue));
+    }
+    return new Promise((resolve2, reject) => {
+      queue.push({
+        start: () => {
+          launch(task).then(resolve2, reject);
+        }
+      });
+    });
+  }
+  function stats() {
+    return { label, active, queued: queue.length, maxConcurrent, maxQueue };
+  }
+  return { run, stats };
+}
+function withTimeout(task, options) {
+  var _a3, _b2;
+  const { label, timeoutMs } = options;
+  const setTimeoutFn = (_a3 = options.setTimeoutFn) != null ? _a3 : ((fn, ms) => setTimeout(fn, ms));
+  const clearTimeoutFn = (_b2 = options.clearTimeoutFn) != null ? _b2 : ((h) => clearTimeout(h));
+  const controller = new AbortController();
+  if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
+    return task(controller.signal);
+  }
+  return new Promise((resolve2, reject) => {
+    let settled = false;
+    const handle = setTimeoutFn(() => {
+      if (settled) return;
+      settled = true;
+      controller.abort();
+      reject(new TaskTimeoutError(label, timeoutMs));
+    }, timeoutMs);
+    const finish = () => {
+      if (handle !== void 0) clearTimeoutFn(handle);
+    };
+    task(controller.signal).then(
+      (value) => {
+        if (settled) return;
+        settled = true;
+        finish();
+        resolve2(value);
+      },
+      (error) => {
+        if (settled) return;
+        settled = true;
+        finish();
+        reject(error);
+      }
+    );
+  });
+}
+function runBounded(limiter, task, timeout) {
+  return limiter.run(() => withTimeout(task, timeout));
+}
+var DEFAULT_LLM_MODEL = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+var KNOWN_MODELS = [
+  {
+    id: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
+    family: "Qwen2.5",
+    sizeLabel: "1.5B"
+  },
+  {
+    id: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    label: "Qwen2.5 0.5B Instruct (GGUF q4)",
+    family: "Qwen2.5",
+    sizeLabel: "0.5B"
+  }
+];
+var DEFAULT_CONTEXT_SIZE = 4096;
+var DEFAULT_MAX_TOKENS = 512;
+var DEFAULT_STRUCTURED_MAX_TOKENS = 1536;
+function repairTruncatedJson(raw) {
+  let s = raw.trim();
+  const fence = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  if (fence == null ? void 0 : fence[1]) s = fence[1].trim();
+  const stack = [];
+  let inString = false;
+  let escaped = false;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (c === "\\") escaped = true;
+      else if (c === '"') inString = false;
+      continue;
+    }
+    if (c === '"') inString = true;
+    else if (c === "{") stack.push("}");
+    else if (c === "[") stack.push("]");
+    else if (c === "}" || c === "]") stack.pop();
+  }
+  if (escaped) s = s.slice(0, -1);
+  if (inString) s += '"';
+  s = s.replace(/,\s*$/, "");
+  while (stack.length) s += stack.pop();
+  return s;
+}
+var llamaPromise = null;
+var model = null;
+var loadedModelPath = null;
+var sharedContext = null;
+async function getSharedContext() {
+  if (sharedContext) return sharedContext;
+  sharedContext = await model.createContext({ contextSize: DEFAULT_CONTEXT_SIZE });
+  return sharedContext;
+}
+async function disposeSharedContext() {
+  clearWarmSessions();
+  if (sharedContext) {
+    try {
+      await sharedContext.dispose();
+    } catch (e) {
+    }
+    sharedContext = null;
+  }
+}
+var WARM_MAX = 2;
+var warmSessions = /* @__PURE__ */ new Map();
+function clearWarmSessions() {
+  for (const entry of warmSessions.values()) {
+    try {
+      entry.sequence.dispose();
+    } catch (e) {
+    }
+  }
+  warmSessions.clear();
+}
+function dropWarmSession(entry) {
+  for (const [key, value] of warmSessions) {
+    if (value === entry) {
+      warmSessions.delete(key);
+      break;
+    }
+  }
+  try {
+    entry.sequence.dispose();
+  } catch (e) {
+  }
+}
+async function getWarmSession(systemPrefix) {
+  const key = `${loadedModelPath != null ? loadedModelPath : ""}::${systemPrefix}`;
+  const existing = warmSessions.get(key);
+  if (existing) {
+    warmSessions.delete(key);
+    warmSessions.set(key, existing);
+    return existing;
+  }
+  try {
+    const { LlamaChatSession } = await import('node-llama-cpp');
+    const context = await getSharedContext();
+    const sequence = context.getSequence();
+    const session4 = new LlamaChatSession({
+      contextSequence: sequence,
+      systemPrompt: systemPrefix,
+      autoDisposeSequence: false
+    });
+    await session4.preloadPrompt("");
+    const entry = { session: session4, sequence, baseline: session4.getChatHistory() };
+    warmSessions.set(key, entry);
+    while (warmSessions.size > WARM_MAX) {
+      const oldest = warmSessions.keys().next().value;
+      if (oldest === void 0) break;
+      const old = warmSessions.get(oldest);
+      warmSessions.delete(oldest);
+      try {
+        old == null ? void 0 : old.sequence.dispose();
+      } catch (e) {
+      }
+    }
+    return entry;
+  } catch (e) {
+    return null;
+  }
+}
+var queueTail = Promise.resolve();
+function enqueue(task) {
+  const run = queueTail.then(task, task);
+  queueTail = run.then(
+    () => void 0,
+    () => void 0
+  );
+  return run;
+}
+function modelDir() {
+  return path2__default.default.join(electron.app.getPath("userData"), "models", "llm");
+}
+function modelPath(file) {
+  return path2__default.default.join(modelDir(), file);
+}
+function gpuExplicitlyEnabled() {
+  var _a3;
+  const value = (_a3 = process.env.DN_LLAMA_GPU) == null ? void 0 : _a3.trim().toLowerCase();
+  if (!value) return false;
+  return ["1", "true", "yes", "on", "auto", "vulkan", "cuda", "metal"].includes(value);
+}
+async function getLlamaInstance() {
+  if (!llamaPromise) {
+    llamaPromise = (async () => {
+      const { getLlama } = await import('node-llama-cpp');
+      if (!gpuExplicitlyEnabled()) {
+        return getLlama({ gpu: false });
+      }
+      try {
+        return await getLlama();
+      } catch (error) {
+        console.warn("[llama] GPU init failed, falling back to CPU:", error);
+        return getLlama({ gpu: false });
+      }
+    })();
+    llamaPromise.catch(() => {
+      llamaPromise = null;
+    });
+  }
+  return llamaPromise;
+}
+function abortError() {
+  const error = new Error("Llama generation aborted");
+  error.name = "AbortError";
+  return error;
+}
+async function ensureModel(file = DEFAULT_LLM_MODEL) {
+  const llama = await getLlamaInstance();
+  const target = modelPath(file);
+  if (!fs3.existsSync(target)) {
+    throw new Error(
+      `Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`
+    );
+  }
+  if (model && loadedModelPath === target) {
+    return { model: target };
+  }
+  if (model) {
+    await disposeSharedContext();
+    await model.dispose();
+    model = null;
+    loadedModelPath = null;
+  }
+  model = await llama.loadModel({ modelPath: target });
+  loadedModelPath = target;
+  return { model: target };
+}
+async function generate(input) {
+  return enqueue(async () => {
+    var _a3, _b2, _c, _d, _e, _f, _g, _h, _i, _j;
+    const start2 = Date.now();
+    await ensureModel();
+    if ((_a3 = input.signal) == null ? void 0 : _a3.aborted) throw abortError();
+    const effectivePrompt = input.systemPrefix ? `${input.systemPrefix}
+
+${input.prompt}` : input.prompt;
+    if (input.systemPrefix) {
+      const warm = await getWarmSession(input.systemPrefix);
+      if (warm) {
+        try {
+          warm.session.setChatHistory(warm.baseline);
+          const user = input.system ? `${input.system}
+
+${input.prompt}` : input.prompt;
+          let warmFinish = "stop";
+          let warmText = "";
+          try {
+            warmText = await warm.session.prompt(user, {
+              maxTokens: (_b2 = input.maxTokens) != null ? _b2 : DEFAULT_MAX_TOKENS,
+              temperature: (_c = input.temperature) != null ? _c : 0,
+              topP: input.topP,
+              signal: input.signal,
+              onTextChunk: (chunk) => {
+                var _a4;
+                return (_a4 = input.onToken) == null ? void 0 : _a4.call(input, chunk);
+              }
+            });
+          } catch (error) {
+            if ((_d = input.signal) == null ? void 0 : _d.aborted) warmFinish = "abort";
+            else throw error;
+          }
+          const warmCompletion = countTokens(warmText);
+          return {
+            text: warmText,
+            model: loadedModelPath != null ? loadedModelPath : "",
+            finishReason: warmFinish === "abort" ? "abort" : warmCompletion >= ((_e = input.maxTokens) != null ? _e : DEFAULT_MAX_TOKENS) ? "length" : "stop",
+            promptTokens: countTokens(`${input.systemPrefix}
+${user}`),
+            completionTokens: warmCompletion,
+            elapsedMs: Date.now() - start2
+          };
+        } catch (e) {
+          if ((_f = input.signal) == null ? void 0 : _f.aborted) throw abortError();
+          dropWarmSession(warm);
+        }
+      }
+    }
+    const context = await getSharedContext();
+    const sequence = context.getSequence();
+    try {
+      const { LlamaChatSession } = await import('node-llama-cpp');
+      const session4 = new LlamaChatSession({
+        contextSequence: sequence,
+        systemPrompt: input.system
+      });
+      let finishReason = "stop";
+      let text = "";
+      try {
+        text = await session4.prompt(effectivePrompt, {
+          maxTokens: (_g = input.maxTokens) != null ? _g : DEFAULT_MAX_TOKENS,
+          temperature: (_h = input.temperature) != null ? _h : 0,
+          topP: input.topP,
+          signal: input.signal,
+          onTextChunk: (chunk) => {
+            var _a4;
+            return (_a4 = input.onToken) == null ? void 0 : _a4.call(input, chunk);
+          }
+        });
+      } catch (error) {
+        if ((_i = input.signal) == null ? void 0 : _i.aborted) {
+          finishReason = "abort";
+        } else {
+          throw error;
+        }
+      }
+      const promptTokens = countTokens(
+        input.system ? `${input.system}
+${effectivePrompt}` : effectivePrompt
+      );
+      const completionTokens = countTokens(text);
+      return {
+        text,
+        model: loadedModelPath != null ? loadedModelPath : "",
+        finishReason: finishReason === "abort" ? "abort" : completionTokens >= ((_j = input.maxTokens) != null ? _j : DEFAULT_MAX_TOKENS) ? "length" : "stop",
+        promptTokens,
+        completionTokens,
+        elapsedMs: Date.now() - start2
+      };
+    } finally {
+      sequence.dispose();
+    }
+  });
+}
+async function generateStructured(input) {
+  return enqueue(async () => {
+    var _a3, _b2, _c, _d, _e, _f;
+    await ensureModel();
+    const llama = await getLlamaInstance();
+    if ((_a3 = input.signal) == null ? void 0 : _a3.aborted) throw abortError();
+    const grammar = await llama.createGrammarForJsonSchema(
+      input.jsonSchema
+    );
+    const effectivePrompt = input.systemPrefix ? `${input.systemPrefix}
+
+${input.prompt}` : input.prompt;
+    if (input.systemPrefix) {
+      const warm = await getWarmSession(input.systemPrefix);
+      if (warm) {
+        try {
+          warm.session.setChatHistory(warm.baseline);
+          const user = input.system ? `${input.system}
+
+${input.prompt}` : input.prompt;
+          const raw = await warm.session.prompt(user, {
+            grammar,
+            maxTokens: (_b2 = input.maxTokens) != null ? _b2 : DEFAULT_STRUCTURED_MAX_TOKENS,
+            temperature: (_c = input.temperature) != null ? _c : 0,
+            signal: input.signal
+          });
+          try {
+            return grammar.parse(raw);
+          } catch (parseErr) {
+            try {
+              return JSON.parse(repairTruncatedJson(raw));
+            } catch (e) {
+              throw parseErr;
+            }
+          }
+        } catch (e) {
+          if ((_d = input.signal) == null ? void 0 : _d.aborted) throw abortError();
+          dropWarmSession(warm);
+        }
+      }
+    }
+    const context = await getSharedContext();
+    const sequence = context.getSequence();
+    try {
+      const { LlamaChatSession } = await import('node-llama-cpp');
+      const session4 = new LlamaChatSession({
+        contextSequence: sequence,
+        systemPrompt: input.system
+      });
+      const raw = await session4.prompt(effectivePrompt, {
+        grammar,
+        maxTokens: (_e = input.maxTokens) != null ? _e : DEFAULT_STRUCTURED_MAX_TOKENS,
+        temperature: (_f = input.temperature) != null ? _f : 0,
+        signal: input.signal
+      });
+      try {
+        return grammar.parse(raw);
+      } catch (parseErr) {
+        try {
+          return JSON.parse(repairTruncatedJson(raw));
+        } catch (e) {
+          throw parseErr;
+        }
+      }
+    } finally {
+      sequence.dispose();
+    }
+  });
+}
+function listModels() {
+  return KNOWN_MODELS.map((m) => {
+    const p = modelPath(m.id);
+    return __spreadProps(__spreadValues({}, m), { path: p, present: fs3.existsSync(p) });
+  });
+}
+async function isAvailable(file = DEFAULT_LLM_MODEL) {
+  try {
+    if (!fs3.existsSync(modelPath(file))) return false;
+    await ensureModel(file);
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+async function dispose2() {
+  clearWarmSessions();
+  try {
+    if (model) {
+      await model.dispose();
+    }
+  } catch (error) {
+    console.warn("[llama] model dispose error:", error);
+  } finally {
+    model = null;
+    loadedModelPath = null;
+  }
+  try {
+    if (llamaPromise) {
+      const llama = await llamaPromise;
+      await llama.dispose();
+    }
+  } catch (e) {
+  } finally {
+    llamaPromise = null;
+  }
+}
+function countTokens(text) {
+  if (!text) return 0;
+  return Math.max(1, Math.ceil(text.length / 4));
+}
+var HF = "https://huggingface.co";
+var MODEL_DOWNLOADS = [
+  {
+    key: "qwen2.5-1.5b-instruct-q4_k_m",
+    file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    // Pinned-revision form (recommended for a verified release — swap `main` for the
+    // commit once hashes below are pinned so the URL and sha256 describe the SAME bytes):
+    //   ${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true
+    // HF commit at time of writing: 91cad51170dc346986eccefdc2dd33a9da36ead9 (2024-09-20).
+    url: `${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true`,
+    // INTEGRITY: empty sha256 → unverified (download proceeds + warns). Fill via
+    // `pnpm run models:hash` before a verified release. Do NOT guess these values.
+    sha256: "",
+    // TODO: paste sha256 from `pnpm run models:hash` (must match the pinned revision)
+    bytes: 0,
+    // TODO: paste exact byte length from `pnpm run models:hash` (≈1_117_320_736)
+    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
+    optional: false
+  },
+  {
+    key: "qwen2.5-0.5b-instruct-q4_k_m",
+    file: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+    // Pinned-revision form (see note above):
+    //   ${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true
+    // HF commit at time of writing: 9217f5db79a29953eb74d5343926648285ec7e67.
+    url: `${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true`,
+    sha256: "",
+    // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 0,
+    // TODO: paste exact byte length from `pnpm run models:hash` (≈398_000_000)
+    label: "Qwen2.5 0.5B Instruct (GGUF q4)",
+    optional: true
+  }
+];
+function llmDir() {
+  return path2__default.default.join(electron.app.getPath("userData"), "models", "llm");
+}
+function entryFor(key) {
+  const entry = MODEL_DOWNLOADS.find((m) => m.key === key);
+  if (!entry) throw new Error(`Unknown model key: ${key}`);
+  return entry;
+}
+function abortError2() {
+  const error = new Error("Model download aborted");
+  error.name = "AbortError";
+  return error;
+}
+function listModelPresence() {
+  const dir = llmDir();
+  return MODEL_DOWNLOADS.map((m) => {
+    const p = path2__default.default.join(dir, m.file);
+    const present = fs3.existsSync(p);
+    return {
+      key: m.key,
+      file: m.file,
+      label: m.label,
+      optional: m.optional,
+      present,
+      sizeBytes: present ? fs3.statSync(p).size : 0,
+      path: p
+    };
+  });
+}
+function isModelPresent(key) {
+  const entry = entryFor(key);
+  return fs3.existsSync(path2__default.default.join(llmDir(), entry.file));
+}
+async function downloadModel(input) {
+  var _a3, _b2, _c;
+  const entry = entryFor(input.key);
+  const dir = llmDir();
+  const dest = path2__default.default.join(dir, entry.file);
+  if (fs3.existsSync(dest)) {
+    const size2 = fs3.statSync(dest).size;
+    if (entry.bytes === 0 || size2 === entry.bytes) {
+      (_a3 = input.onProgress) == null ? void 0 : _a3.call(input, {
+        key: entry.key,
+        receivedBytes: size2,
+        totalBytes: size2,
+        percent: 100,
+        done: true
+      });
+      return {
+        key: entry.key,
+        file: entry.file,
+        label: entry.label,
+        optional: entry.optional,
+        present: true,
+        sizeBytes: size2,
+        path: dest
+      };
+    }
+  }
+  fs3.mkdirSync(dir, { recursive: true });
+  const res = await fetch(entry.url, {
+    redirect: "follow",
+    signal: input.signal,
+    headers: { "user-agent": "data-navigator/model-download" }
+  });
+  if (!res.ok || !res.body) {
+    throw new Error(`HTTP ${res.status} downloading ${entry.key}`);
+  }
+  const total = entry.bytes || Number(res.headers.get("content-length")) || 0;
+  const tmp = `${dest}.download`;
+  const hash = entry.sha256 ? crypto$1.createHash("sha256") : null;
+  let received = 0;
+  let lastEmit = 0;
+  const source = stream.Readable.fromWeb(res.body);
+  source.on("data", (chunk) => {
+    var _a4;
+    received += chunk.length;
+    hash == null ? void 0 : hash.update(chunk);
+    const now = Date.now();
+    if (now - lastEmit > 100) {
+      lastEmit = now;
+      (_a4 = input.onProgress) == null ? void 0 : _a4.call(input, {
+        key: entry.key,
+        receivedBytes: received,
+        totalBytes: total,
+        percent: total > 0 ? Math.floor(received / total * 100) : -1,
+        done: false
+      });
+    }
+  });
+  try {
+    await promises.pipeline(source, fs3.createWriteStream(tmp));
+  } catch (err) {
+    await fs.rm(tmp, { force: true });
+    if ((_b2 = input.signal) == null ? void 0 : _b2.aborted) throw abortError2();
+    throw err;
+  }
+  if (entry.bytes > 0 && received !== entry.bytes) {
+    await fs.rm(tmp, { force: true });
+    throw new Error(
+      `${entry.key}: byte mismatch (got ${received}, expected ${entry.bytes}) \u2014 deleted, refusing to install`
+    );
+  }
+  if (entry.sha256 && hash) {
+    const sha = hash.digest("hex");
+    if (sha !== entry.sha256) {
+      await fs.rm(tmp, { force: true });
+      throw new Error(
+        `${entry.key}: sha256 mismatch (got ${sha}, expected ${entry.sha256}) \u2014 deleted, refusing to install`
+      );
+    }
+  } else {
+    console.warn(
+      `[model-download] ${entry.key}: integrity UNVERIFIED \u2014 no sha256 pinned in the registry. The downloaded weights were NOT authenticated. Run \`pnpm run models:hash\` and paste the sha256/bytes into MODEL_DOWNLOADS before a verified release.`
+    );
+  }
+  await fs.rename(tmp, dest);
+  const size = fs3.statSync(dest).size;
+  (_c = input.onProgress) == null ? void 0 : _c.call(input, {
+    key: entry.key,
+    receivedBytes: size,
+    totalBytes: size,
+    percent: 100,
+    done: true
+  });
+  return {
+    key: entry.key,
+    file: entry.file,
+    label: entry.label,
+    optional: entry.optional,
+    present: true,
+    sizeBytes: size,
+    path: dest
+  };
+}
+async function deleteModel(key) {
+  const entry = entryFor(key);
+  const dest = path2__default.default.join(llmDir(), entry.file);
+  if (!fs3.existsSync(dest)) return { deleted: false };
+  await fs.rm(dest, { force: true });
+  return { deleted: true };
+}
+var AUTH_DB_KEY_ENV = "DN_AUTH_DB_KEY";
+var ENCRYPT_AUTH_DB_ENV = "DN_ENCRYPT_AUTH_DB";
+var WRAPPED_KEY_FILE_NAME = "auth-db-key.enc";
+var DEK_BYTES = 32;
+function getWrappedKeyPath(userDataDir) {
+  return path2__default.default.join(path2__default.default.resolve(userDataDir), WRAPPED_KEY_FILE_NAME);
+}
+function isEncryptionEnabledByFlag(env2 = process.env) {
+  const raw = env2[ENCRYPT_AUTH_DB_ENV];
+  if (raw === void 0) return true;
+  const normalized = raw.trim().toLowerCase();
+  return normalized !== "0" && normalized !== "false" && normalized !== "off";
+}
+function loadOrCreateWrappedDek(userDataDir, safeStorage2) {
+  if (!safeStorage2.isEncryptionAvailable()) {
+    return null;
+  }
+  const keyPath = getWrappedKeyPath(userDataDir);
+  if (fs3.existsSync(keyPath)) {
+    try {
+      const wrapped2 = fs3.readFileSync(keyPath);
+      const hex = safeStorage2.decryptString(wrapped2).trim();
+      if (/^[0-9a-f]{64}$/i.test(hex)) {
+        return hex.toLowerCase();
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+  const dekHex = crypto__default.default.randomBytes(DEK_BYTES).toString("hex");
+  const wrapped = safeStorage2.encryptString(dekHex);
+  fs3.mkdirSync(path2__default.default.dirname(keyPath), { recursive: true });
+  fs3.writeFileSync(keyPath, wrapped, { mode: 384 });
+  return dekHex;
+}
+function ensureAuthDbKeyEnv(userDataDir, safeStorage2, env2 = process.env) {
+  const existing = env2[AUTH_DB_KEY_ENV];
+  if (existing && /^[0-9a-f]{64}$/i.test(existing.trim())) {
+    return existing.trim().toLowerCase();
+  }
+  if (!isEncryptionEnabledByFlag(env2)) {
+    return null;
+  }
+  const dekHex = loadOrCreateWrappedDek(userDataDir, safeStorage2);
+  if (dekHex) {
+    env2[AUTH_DB_KEY_ENV] = dekHex;
+  }
+  return dekHex;
+}
+function normalizePath(filePath) {
+  return path2__default.default.resolve(filePath);
+}
+function isPathInside(childPath, parentPath) {
+  const child2 = normalizePath(childPath);
+  const parent = normalizePath(parentPath);
+  const relative = path2__default.default.relative(parent, child2);
+  return relative === "" || !relative.startsWith("..") && !path2__default.default.isAbsolute(relative);
+}
+function isAllowedAppOrigin(value) {
+  if (!value) return false;
+  try {
+    const url = new URL(value);
+    if (url.protocol === "file:") return true;
+    if (url.hostname === "localhost") return true;
+    if (url.hostname === "127.0.0.1") return true;
+    return false;
+  } catch (e) {
+    return false;
+  }
+}
+function wantsMicrophone(details) {
+  if (!details) return true;
+  if (Array.isArray(details.mediaTypes)) {
+    return details.mediaTypes.includes("audio");
+  }
+  if (details.mediaType) {
+    return details.mediaType === "audio" || details.mediaType === "unknown";
+  }
+  return true;
+}
+var _dataDir, _allowedReadPaths, _allowedWritePaths, _allowedDirectoryPaths;
+var PathAccessController = class {
+  constructor(dataDir2) {
+    __privateAdd(this, _dataDir);
+    __privateAdd(this, _allowedReadPaths, /* @__PURE__ */ new Set());
+    __privateAdd(this, _allowedWritePaths, /* @__PURE__ */ new Set());
+    __privateAdd(this, _allowedDirectoryPaths, /* @__PURE__ */ new Set());
+    __privateSet(this, _dataDir, normalizePath(dataDir2));
+  }
+  get dataDir() {
+    return __privateGet(this, _dataDir);
+  }
+  isInsideDataDir(filePath) {
+    return isPathInside(filePath, __privateGet(this, _dataDir));
+  }
+  /** Remember a user-selected file/dir for reads (e.g. from an open dialog). */
+  rememberReadPath(filePath) {
+    const resolved = normalizePath(filePath);
+    __privateGet(this, _allowedReadPaths).add(resolved);
+    __privateGet(this, _allowedDirectoryPaths).add(resolved);
+  }
+  /** Remember a user-selected save target for writes (e.g. from a save dialog). */
+  rememberSavePath(filePath) {
+    __privateGet(this, _allowedWritePaths).add(normalizePath(filePath));
+  }
+  /** Remember a user-selected directory (open-directory dialog). */
+  rememberDirectory(dirPath) {
+    __privateGet(this, _allowedDirectoryPaths).add(normalizePath(dirPath));
+  }
+  assertAllowedReadPath(filePath) {
+    const resolved = normalizePath(filePath);
+    if (__privateGet(this, _allowedReadPaths).has(resolved) || this.isInsideDataDir(resolved)) {
+      return resolved;
+    }
+    for (const allowedDir of __privateGet(this, _allowedDirectoryPaths)) {
+      if (isPathInside(resolved, allowedDir)) {
+        return resolved;
+      }
+    }
+    throw new Error(`Blocked read access to untrusted path: ${resolved}`);
+  }
+  assertAllowedWritePath(filePath) {
+    const resolved = normalizePath(filePath);
+    if (__privateGet(this, _allowedWritePaths).has(resolved) || this.isInsideDataDir(resolved)) {
+      return resolved;
+    }
+    throw new Error(`Blocked write access to untrusted path: ${resolved}`);
+  }
+  assertAllowedDeletePath(filePath) {
+    const resolved = normalizePath(filePath);
+    if (!this.isInsideDataDir(resolved)) {
+      throw new Error(`Blocked delete access outside app data dir: ${resolved}`);
+    }
+    return resolved;
+  }
+  assertAllowedDirectoryPath(dirPath) {
+    const resolved = normalizePath(dirPath);
+    if (__privateGet(this, _allowedDirectoryPaths).has(resolved) || this.isInsideDataDir(resolved)) {
+      return resolved;
+    }
+    throw new Error(`Blocked directory access to untrusted path: ${resolved}`);
+  }
+};
+_dataDir = new WeakMap();
+_allowedReadPaths = new WeakMap();
+_allowedWritePaths = new WeakMap();
+_allowedDirectoryPaths = new WeakMap();
+var CROSS_ORIGIN_ISOLATION_HEADERS = {
+  "Cross-Origin-Opener-Policy": ["same-origin"],
+  "Cross-Origin-Embedder-Policy": ["require-corp"],
+  "Cross-Origin-Resource-Policy": ["same-origin"]
+};
+function withCrossOriginIsolationHeaders(responseHeaders) {
+  const managed = /* @__PURE__ */ new Set([
+    "cross-origin-opener-policy",
+    "cross-origin-embedder-policy",
+    "cross-origin-resource-policy"
+  ]);
+  const next = {};
+  for (const [key, value] of Object.entries(responseHeaders != null ? responseHeaders : {})) {
+    if (!managed.has(key.toLowerCase())) {
+      next[key] = value;
+    }
+  }
+  for (const [key, value] of Object.entries(CROSS_ORIGIN_ISOLATION_HEADERS)) {
+    next[key] = [...value];
+  }
+  return next;
+}
+var CSP_CONNECT_SRC = [
+  "'self'",
+  "blob:",
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  "ws://localhost:3000",
+  "ws://127.0.0.1:3000",
+  // LAN collaboration peers are discovered dynamically (any host:port).
+  "ws:",
+  "wss:"
+].join(" ");
+function rendererCspDirectives(options) {
+  const scriptSrc = ["'self'", "'wasm-unsafe-eval'"];
+  if (!options.strict) scriptSrc.push("'unsafe-inline'");
+  if (options.dev) scriptSrc.push("'unsafe-eval'");
+  const styleSrc = options.strict ? ["'self'"] : ["'self'", "'unsafe-inline'"];
+  return [
+    "default-src 'self'",
+    "base-uri 'self'",
+    "object-src 'none'",
+    "frame-ancestors 'self'",
+    "form-action 'self'",
+    `script-src ${scriptSrc.join(" ")}`,
+    `style-src ${styleSrc.join(" ")}`,
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "media-src 'self' blob:",
+    "worker-src 'self' blob:",
+    "child-src 'self' blob:",
+    `connect-src ${CSP_CONNECT_SRC}`,
+    "manifest-src 'self'"
+  ].join("; ");
+}
+function buildRendererCsp(options) {
+  return {
+    enforce: rendererCspDirectives({ strict: false, dev: options.dev }),
+    reportOnly: rendererCspDirectives({ strict: true, dev: options.dev })
+  };
+}
+var STATIC_SECURITY_HEADERS = {
+  "X-Content-Type-Options": ["nosniff"],
+  "X-Frame-Options": ["SAMEORIGIN"],
+  "Referrer-Policy": ["no-referrer"],
+  "Permissions-Policy": [
+    "camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()"
+  ],
+  "X-DNS-Prefetch-Control": ["off"]
+};
+function withRendererSecurityHeaders(responseHeaders, options) {
+  const next = withCrossOriginIsolationHeaders(responseHeaders);
+  const managed = /* @__PURE__ */ new Set([
+    "content-security-policy",
+    "content-security-policy-report-only",
+    "x-content-type-options",
+    "x-frame-options",
+    "referrer-policy",
+    "permissions-policy",
+    "x-dns-prefetch-control",
+    "x-powered-by"
+  ]);
+  for (const key of Object.keys(next)) {
+    if (managed.has(key.toLowerCase())) delete next[key];
+  }
+  const csp = buildRendererCsp({ dev: options.dev });
+  {
+    next["Content-Security-Policy"] = [csp.enforce];
+  }
+  next["Content-Security-Policy-Report-Only"] = [csp.reportOnly];
+  for (const [key, value] of Object.entries(STATIC_SECURITY_HEADERS)) {
+    next[key] = [...value];
+  }
+  return next;
+}
+var LOOPBACK_HOSTNAMES = /* @__PURE__ */ new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+function isLoopbackHostname(hostname) {
+  if (!hostname) return false;
+  return LOOPBACK_HOSTNAMES.has(hostname.trim().toLowerCase());
+}
+function assertLoopbackHostname(hostname) {
+  if (!isLoopbackHostname(hostname)) {
+    throw new Error(
+      `Refusing to bind the embedded server to non-loopback host "${hostname}". Data Navigator is localhost-only; set BETTER_AUTH_BASE_URL to a loopback origin.`
+    );
+  }
+  return hostname;
+}
+var SECRET_FILE_NAME = "better-auth-secret";
+function loadOrCreateAuthSecret(userDataDir) {
+  const secretPath = path2__default.default.join(normalizePath(userDataDir), SECRET_FILE_NAME);
+  if (fs3.existsSync(secretPath)) {
+    const existing = fs3.readFileSync(secretPath, "utf8").trim();
+    if (existing.length >= 32) {
+      return existing;
+    }
+  }
+  const secret = crypto__default.default.randomBytes(32).toString("hex");
+  fs3.mkdirSync(path2__default.default.dirname(secretPath), { recursive: true });
+  fs3.writeFileSync(secretPath, secret, { encoding: "utf8", mode: 384 });
+  return secret;
+}
+function ensureAuthSecretEnv(userDataDir) {
+  const existing = process.env.BETTER_AUTH_SECRET;
+  if (existing && existing.trim().length >= 32) {
+    return existing;
+  }
+  const secret = loadOrCreateAuthSecret(userDataDir);
+  process.env.BETTER_AUTH_SECRET = secret;
+  return secret;
+}
+var PRODUCTION_FUSE_CONFIG = {
+  /** Disallow `ELECTRON_RUN_AS_NODE` — no arbitrary Node execution via the app. */
+  RunAsNode: false};
+function parseIpc(schema, input, channel) {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`).join("; ");
+    throw new Error(`Invalid IPC payload for "${channel}": ${detail}`);
+  }
+  return result.data;
+}
+var MAX_SQL_CHARS = 2e5;
+var MAX_PROMPT_CHARS = 1e6;
+var datasetId = z.z.string().min(1).max(512);
+var cancelToken = z.z.string().max(512).optional();
+var requestId = z.z.string().max(512).optional();
+var SqlSchema = z.z.string().min(1).max(MAX_SQL_CHARS);
+var RegisterCsvSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().optional(),
+  hasHeader: z.z.boolean().optional(),
+  delimiter: z.z.string().max(8).optional(),
+  sampleSize: z.z.number().optional(),
+  previewLimit: z.z.number().optional(),
+  encoding: z.z.enum(["utf-8", "utf-16", "latin-1"]).optional(),
+  storeRejects: z.z.boolean().optional()
+});
+var RegisterParquetSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().optional(),
+  previewLimit: z.z.number().optional()
+});
+var DatasetOnlySchema2 = z.z.object({ datasetId });
+var PreviewDatasetSchema2 = z.z.object({
+  datasetId,
+  limit: z.z.number().optional(),
+  offset: z.z.number().optional()
+});
+var ExportDatasetSchema2 = z.z.object({ datasetId, targetPath: z.z.string().min(1) });
+var ProfileDatasetSchema2 = z.z.object({ datasetId, cancelToken });
+var ProfileColumnDetailSchema2 = z.z.object({
+  datasetId,
+  column: z.z.string().min(1),
+  topK: z.z.number().optional(),
+  binCount: z.z.number().optional(),
+  cancelToken
+});
+var CountRowsSchema2 = z.z.object({
+  datasetId,
+  where: z.z.string().max(MAX_SQL_CHARS).optional(),
+  force: z.z.boolean().optional(),
+  cancelToken
+});
+var KeysetPageSchema2 = z.z.object({
+  datasetId,
+  sortKeys: z.z.array(z.z.object({ column: z.z.string().min(1), direction: z.z.enum(["ASC", "DESC"]).optional() })).max(64),
+  limit: z.z.number(),
+  where: z.z.string().max(MAX_SQL_CHARS).optional(),
+  cursor: z.z.object({ sortValues: z.z.array(z.z.unknown()), rowid: z.z.number() }).optional(),
+  columns: z.z.array(z.z.string()).max(4096).optional(),
+  cancelToken
+});
+var LlamaGenerateSchema = z.z.object({
+  requestId,
+  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
+  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  maxTokens: z.z.number().optional(),
+  temperature: z.z.number().optional(),
+  topP: z.z.number().optional()
+});
+var LlamaGenerateStructuredSchema = z.z.object({
+  requestId,
+  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
+  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  jsonSchema: z.z.record(z.z.string(), z.z.unknown()),
+  maxTokens: z.z.number().optional(),
+  temperature: z.z.number().optional()
+});
+var LlamaEnsureModelSchema = z.z.object({ file: z.z.string().max(512).optional() }).optional();
+var RequestIdSchema = z.z.string().min(1).max(512);
+var ModelKeySchema = z.z.string().min(1).max(256);
+var ModelDownloadSchema = z.z.object({ key: ModelKeySchema, requestId });
+var CollabStartSchema = z.z.object({
+  port: z.z.number().int().min(0).max(65535).optional(),
+  pairingCode: z.z.string().max(256).optional(),
+  room: z.z.string().max(256).optional(),
+  advertise: z.z.boolean().optional(),
+  discover: z.z.boolean().optional()
+}).optional();
 var DEFAULT_SAMPLE_RATE = 16e3;
 var DEFAULT_STT_ENGINE = "sherpa-whisper-tiny";
 var DEFAULT_TTS_ENGINE = "sherpa-kokoro";
-var DEFAULT_STT_MODEL_DIR = path__default.default.join(
+var DEFAULT_STT_MODEL_DIR = path2__default.default.join(
   process.cwd(),
   "public",
   "models",
@@ -11783,7 +13567,7 @@ var DEFAULT_STT_MODEL_DIR = path__default.default.join(
   "stt",
   "sherpa-onnx-whisper-tiny.en"
 );
-var DEFAULT_TTS_MODEL_DIR = path__default.default.join(
+var DEFAULT_TTS_MODEL_DIR = path2__default.default.join(
   process.cwd(),
   "public",
   "models",
@@ -11803,8 +13587,8 @@ var ttsModels = /* @__PURE__ */ new Map();
 function getSherpa() {
   sherpaModulePromise != null ? sherpaModulePromise : sherpaModulePromise = import('sherpa-onnx-node').then(
     (module) => {
-      var _a2;
-      return (_a2 = module.default) != null ? _a2 : module;
+      var _a3;
+      return (_a3 = module.default) != null ? _a3 : module;
     }
   );
   return sherpaModulePromise;
@@ -11818,7 +13602,7 @@ function normalizeTtsEngine(value) {
   return DEFAULT_TTS_ENGINE;
 }
 function normalizeModelDir(value, fallback) {
-  return path__default.default.resolve((value == null ? void 0 : value.trim()) || fallback);
+  return path2__default.default.resolve((value == null ? void 0 : value.trim()) || fallback);
 }
 function requireFile(filePath) {
   if (!fs3.existsSync(filePath)) {
@@ -11852,7 +13636,7 @@ function normalizeSampleRate(sampleRate) {
   }
   return Math.round(sampleRate);
 }
-function getWhisperModelConfig(modelDir) {
+function getWhisperModelConfig(modelDir2) {
   return {
     featConfig: {
       sampleRate: DEFAULT_SAMPLE_RATE,
@@ -11860,24 +13644,24 @@ function getWhisperModelConfig(modelDir) {
     },
     modelConfig: {
       whisper: {
-        encoder: requireFile(path__default.default.join(modelDir, "tiny.en-encoder.int8.onnx")),
-        decoder: requireFile(path__default.default.join(modelDir, "tiny.en-decoder.int8.onnx"))
+        encoder: requireFile(path2__default.default.join(modelDir2, "tiny.en-encoder.int8.onnx")),
+        decoder: requireFile(path2__default.default.join(modelDir2, "tiny.en-decoder.int8.onnx"))
       },
-      tokens: requireFile(path__default.default.join(modelDir, "tiny.en-tokens.txt")),
+      tokens: requireFile(path2__default.default.join(modelDir2, "tiny.en-tokens.txt")),
       numThreads: 2,
       provider: "cpu",
       debug: 0
     }
   };
 }
-function getKokoroModelConfig(modelDir) {
+function getKokoroModelConfig(modelDir2) {
   return {
     model: {
       kokoro: {
-        model: requireFile(path__default.default.join(modelDir, "model.onnx")),
-        voices: requireFile(path__default.default.join(modelDir, "voices.bin")),
-        tokens: requireFile(path__default.default.join(modelDir, "tokens.txt")),
-        dataDir: requireFile(path__default.default.join(modelDir, "espeak-ng-data"))
+        model: requireFile(path2__default.default.join(modelDir2, "model.onnx")),
+        voices: requireFile(path2__default.default.join(modelDir2, "voices.bin")),
+        tokens: requireFile(path2__default.default.join(modelDir2, "tokens.txt")),
+        dataDir: requireFile(path2__default.default.join(modelDir2, "espeak-ng-data"))
       },
       debug: false,
       numThreads: 2,
@@ -11886,8 +13670,8 @@ function getKokoroModelConfig(modelDir) {
     maxNumSentences: 1
   };
 }
-async function getRecognizer(modelDir) {
-  const key = path__default.default.resolve(modelDir);
+async function getRecognizer(modelDir2) {
+  const key = path2__default.default.resolve(modelDir2);
   let recognizer = recognizers.get(key);
   if (!recognizer) {
     recognizer = getSherpa().then(
@@ -11897,8 +13681,8 @@ async function getRecognizer(modelDir) {
   }
   return recognizer;
 }
-async function getTts(modelDir) {
-  const key = path__default.default.resolve(modelDir);
+async function getTts(modelDir2) {
+  const key = path2__default.default.resolve(modelDir2);
   let tts = ttsModels.get(key);
   if (!tts) {
     tts = getSherpa().then((sherpa) => sherpa.OfflineTts.createAsync(getKokoroModelConfig(key)));
@@ -11907,9 +13691,9 @@ async function getTts(modelDir) {
   return tts;
 }
 function getSpeakerId(voice) {
-  var _a2;
+  var _a3;
   if (!voice) return KOKORO_SPEAKER_IDS.af_sky;
-  return (_a2 = KOKORO_SPEAKER_IDS[voice]) != null ? _a2 : KOKORO_SPEAKER_IDS.af_sky;
+  return (_a3 = KOKORO_SPEAKER_IDS[voice]) != null ? _a3 : KOKORO_SPEAKER_IDS.af_sky;
 }
 function encodeWav(samples, sampleRate) {
   const numChannels = 1;
@@ -11944,37 +13728,37 @@ function writeAscii(view, offset, value) {
 }
 async function preloadStt(input = {}) {
   const engine = normalizeSttEngine(input.engine);
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
-  await getRecognizer(modelDir);
+  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
+  await getRecognizer(modelDir2);
   return {
     engine,
-    model: modelDir,
+    model: modelDir2,
     runtime: "cpu"
   };
 }
 async function transcribe(input) {
-  var _a2, _b2;
-  const start = Date.now();
+  var _a3, _b2;
+  const start2 = Date.now();
   const engine = normalizeSttEngine(input.engine);
   const sampleRate = normalizeSampleRate(input.sampleRate);
   const samples = normalizeAudioInput(input.audio);
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
-  const recognizer = await getRecognizer(modelDir);
+  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
+  const recognizer = await getRecognizer(modelDir2);
   const stream = recognizer.createStream();
   stream.acceptWaveform({
     sampleRate,
     samples
   });
   const result = await recognizer.decodeAsync(stream);
-  const text = ((_b2 = (_a2 = result.text) != null ? _a2 : recognizer.getResult(stream).text) != null ? _b2 : "").trim();
+  const text = ((_b2 = (_a3 = result.text) != null ? _a3 : recognizer.getResult(stream).text) != null ? _b2 : "").trim();
   return {
     text,
     engine,
-    model: modelDir,
+    model: modelDir2,
     runtime: "cpu",
     sampleRate,
     audioDurationMs: Math.round(samples.length / sampleRate * 1e3),
-    latencyMs: Date.now() - start,
+    latencyMs: Date.now() - start2,
     language: result.lang || input.language
   };
 }
@@ -11987,11 +13771,11 @@ async function preloadTts(input = {}) {
       runtime: "cpu"
     };
   }
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
-  await getTts(modelDir);
+  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
+  await getTts(modelDir2);
   return {
     engine,
-    model: modelDir,
+    model: modelDir2,
     runtime: "cpu"
   };
 }
@@ -12004,9 +13788,9 @@ async function speak(input) {
   if (!text) {
     throw new Error("No text was provided for Sherpa TTS.");
   }
-  const start = Date.now();
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
-  const tts = await getTts(modelDir);
+  const start2 = Date.now();
+  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
+  const tts = await getTts(modelDir2);
   const speed = typeof input.speed === "number" && Number.isFinite(input.speed) ? Math.min(2, Math.max(0.5, input.speed)) : 1;
   const sherpa = await getSherpa();
   const generationConfig = new sherpa.GenerationConfig({
@@ -12024,13 +13808,13 @@ async function speak(input) {
   return {
     jobId: `tts_${Date.now().toString(36)}`,
     engine,
-    model: modelDir,
+    model: modelDir2,
     runtime: "cpu",
     voice: input.voice || "af_sky",
     text,
     sampleRate: audio.sampleRate,
     durationMs: Math.round(audio.samples.length / audio.sampleRate * 1e3),
-    latencyMs: Date.now() - start,
+    latencyMs: Date.now() - start2,
     wav
   };
 }
@@ -12042,7 +13826,177 @@ function clearVoiceModels() {
   return { stt, tts };
 }
 
+// electron/workers/duckdb-utility-protocol.ts
+function isErrorResponse(value) {
+  return value.ok === false && value.kind === "error";
+}
+
+// electron/workers/duckdb-utility-broker.ts
+var REQUEST_TIMEOUT_MS = 12e4;
+var FORK_SPAWN_TIMEOUT_MS = 15e3;
+var UTILITY_MEMORY_LIMIT = "2GB";
+function getDuckDBRootDir2() {
+  return path2__default.default.join(electron.app.getPath("userData"), "data-navigator");
+}
+function getDatasetsDirPath2() {
+  return path2__default.default.join(getDuckDBRootDir2(), "datasets");
+}
+function getTmpSpillDir() {
+  return path2__default.default.join(getDuckDBRootDir2(), "tmp");
+}
+function getUtilityModulePath() {
+  return path2__default.default.join(__dirname, "workers", "duckdb.utility.js");
+}
+function isEnabled() {
+  return process.env.DN_DUCKDB_UTILITY === "1";
+}
+var child = null;
+var readyPromise = null;
+var nextId = 1;
+var pending = /* @__PURE__ */ new Map();
+function rejectAllPending(error) {
+  for (const [, entry] of pending) {
+    clearTimeout(entry.timer);
+    entry.reject(error);
+  }
+  pending.clear();
+}
+function teardown(error) {
+  rejectAllPending(error);
+  child = null;
+  readyPromise = null;
+}
+function onChildMessage(message) {
+  if (typeof message !== "object" || message === null) return;
+  const response = message;
+  if (typeof response.id !== "number") return;
+  const entry = pending.get(response.id);
+  if (!entry) return;
+  pending.delete(response.id);
+  clearTimeout(entry.timer);
+  entry.resolve(response);
+}
+function ensureSpawned() {
+  if (child && readyPromise) return readyPromise;
+  readyPromise = new Promise((resolve2, reject) => {
+    let settled = false;
+    const forked = electron.utilityProcess.fork(getUtilityModulePath(), [], {
+      serviceName: "data-navigator-duckdb",
+      // Keep the child lean; it must never inherit a debug/inspect posture.
+      stdio: "inherit"
+    });
+    child = forked;
+    const spawnTimer = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      teardown(new Error("DuckDB utility process failed to spawn in time."));
+      reject(new Error("DuckDB utility process failed to spawn in time."));
+    }, FORK_SPAWN_TIMEOUT_MS);
+    forked.on("spawn", () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(spawnTimer);
+      resolve2();
+    });
+    forked.on("message", onChildMessage);
+    forked.on("exit", (code) => {
+      const err = new Error(`DuckDB utility process exited (code ${code}).`);
+      if (!settled) {
+        settled = true;
+        clearTimeout(spawnTimer);
+        reject(err);
+      }
+      teardown(err);
+    });
+    forked.on("error", (type, location) => {
+      const err = new Error(`DuckDB utility process error (${type}) at ${location}.`);
+      if (!settled) {
+        settled = true;
+        clearTimeout(spawnTimer);
+        reject(err);
+      }
+      teardown(err);
+    });
+  });
+  return readyPromise;
+}
+function request(message) {
+  const id = nextId++;
+  const full = __spreadProps(__spreadValues({}, message), { id });
+  return new Promise((resolve2, reject) => {
+    const active = child;
+    if (!active) {
+      reject(new Error("DuckDB utility process not available."));
+      return;
+    }
+    const timer = setTimeout(() => {
+      pending.delete(id);
+      reject(new Error(`DuckDB utility request "${full.kind}" timed out.`));
+    }, REQUEST_TIMEOUT_MS);
+    pending.set(id, { resolve: resolve2, reject, timer });
+    active.postMessage(full);
+  });
+}
+var initialized = false;
+async function ensureInitialized() {
+  var _a3, _b2, _c;
+  await ensureSpawned();
+  if (initialized) return;
+  const cores = (_c = (_b2 = (_a3 = os4__default.default).availableParallelism) == null ? void 0 : _b2.call(_a3)) != null ? _c : 4;
+  const threads = Math.max(1, Math.min(cores - 1, 6));
+  const response = await request({
+    kind: "init",
+    userDataDir: electron.app.getPath("userData"),
+    datasetsDir: getDatasetsDirPath2(),
+    tmpSpillDir: getTmpSpillDir(),
+    threads,
+    memoryLimit: UTILITY_MEMORY_LIMIT
+  });
+  if (isErrorResponse(response)) {
+    throw new Error(`DuckDB utility init failed: ${response.message}`);
+  }
+  initialized = true;
+}
+async function runReadOnlyQuery2(sql) {
+  await ensureInitialized();
+  const response = await request({ kind: "runReadOnlyQuery", sql });
+  if (isErrorResponse(response)) {
+    throw new Error(response.message);
+  }
+  if (response.kind !== "runReadOnlyQuery") {
+    throw new Error(`Unexpected response kind: ${response.kind}`);
+  }
+  return response.rows;
+}
+function dispose3() {
+  const active = child;
+  initialized = false;
+  if (active) {
+    try {
+      active.kill();
+    } catch (e) {
+    }
+  }
+  teardown(new Error("DuckDB utility broker disposed."));
+}
+
 // electron/main.ts
+function bootLog(message) {
+  const line = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${message}
+`;
+  const nodeFs = __require("fs");
+  try {
+    nodeFs.appendFileSync(path2__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
+    return;
+  } catch (e) {
+  }
+  try {
+    const os5 = __require("os");
+    nodeFs.appendFileSync(path2__default.default.join(os5.tmpdir(), "data-navigator-boot.log"), line);
+  } catch (e) {
+  }
+}
+bootLog(`main.js loaded; isPackaged=${electron.app.isPackaged}`);
 var isDev = !electron.app.isPackaged;
 var mainWindow = null;
 authClient.setupMain({
@@ -12063,89 +14017,49 @@ if (process.platform === "linux") {
   electron.app.commandLine.appendSwitch("enable-features", "Vulkan");
 }
 electron.app.commandLine.appendSwitch("ignore-gpu-blocklist");
-var DATA_DIR = path__default.default.join(electron.app.getPath("userData"), "data-navigator");
+electron.app.enableSandbox();
+if (!electron.app.requestSingleInstanceLock()) {
+  electron.app.quit();
+} else {
+  electron.app.on("second-instance", () => {
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.focus();
+    }
+  });
+}
+if (electron.app.isPackaged) {
+  const hasDebugFlag = process.argv.some(
+    (arg) => arg.startsWith("--inspect") || arg.startsWith("--remote-debugging-port")
+  );
+  if (hasDebugFlag) {
+    console.error("[electron] refusing to run a packaged build with a debug flag");
+    electron.app.quit();
+  }
+}
+var DATA_DIR = path2__default.default.join(electron.app.getPath("userData"), "data-navigator");
+var pathAccess = new PathAccessController(DATA_DIR);
 async function ensureDataDir() {
   await fs__default.default.mkdir(DATA_DIR, { recursive: true });
 }
-function normalizePath(filePath) {
-  return path__default.default.resolve(filePath);
-}
-function isPathInside(childPath, parentPath) {
-  const child = normalizePath(childPath);
-  const parent = normalizePath(parentPath);
-  const relative = path__default.default.relative(parent, child);
-  return relative === "" || !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
-}
-function isInsideDataDir(filePath) {
-  return isPathInside(filePath, DATA_DIR);
-}
 async function ensureParentDirectory2(filePath) {
-  await fs__default.default.mkdir(path__default.default.dirname(normalizePath(filePath)), { recursive: true });
-}
-var allowedReadPaths = /* @__PURE__ */ new Set();
-var allowedWritePaths = /* @__PURE__ */ new Set();
-var allowedDirectoryPaths = /* @__PURE__ */ new Set();
-function rememberSavePath(filePath) {
-  allowedWritePaths.add(normalizePath(filePath));
+  await fs__default.default.mkdir(path2__default.default.dirname(path2__default.default.resolve(filePath)), { recursive: true });
 }
 function assertAllowedReadPath(filePath) {
-  const resolved = normalizePath(filePath);
-  if (allowedReadPaths.has(resolved) || isInsideDataDir(resolved)) {
-    return resolved;
-  }
-  for (const allowedDir of allowedDirectoryPaths) {
-    if (isPathInside(resolved, allowedDir)) {
-      return resolved;
-    }
-  }
-  throw new Error(`Blocked read access to untrusted path: ${resolved}`);
+  return pathAccess.assertAllowedReadPath(filePath);
 }
 function assertAllowedWritePath(filePath) {
-  const resolved = normalizePath(filePath);
-  if (allowedWritePaths.has(resolved) || isInsideDataDir(resolved)) {
-    return resolved;
-  }
-  throw new Error(`Blocked write access to untrusted path: ${resolved}`);
+  return pathAccess.assertAllowedWritePath(filePath);
 }
 function assertAllowedDeletePath(filePath) {
-  const resolved = normalizePath(filePath);
-  if (!isInsideDataDir(resolved)) {
-    throw new Error(`Blocked delete access outside app data dir: ${resolved}`);
-  }
-  return resolved;
+  return pathAccess.assertAllowedDeletePath(filePath);
 }
 function assertAllowedDirectoryPath(dirPath) {
-  const resolved = normalizePath(dirPath);
-  if (allowedDirectoryPaths.has(resolved) || isInsideDataDir(resolved)) {
-    return resolved;
-  }
-  throw new Error(`Blocked directory access to untrusted path: ${resolved}`);
-}
-function getStringProperty(input, key) {
-  if (!input || typeof input !== "object") {
-    throw new Error(`Expected object input with property "${key}".`);
-  }
-  const value = input[key];
-  if (typeof value !== "string" || value.trim() === "") {
-    throw new Error(`Expected non-empty string property "${key}".`);
-  }
-  return value;
-}
-function isAllowedAppOrigin(value) {
-  if (!value) return false;
-  try {
-    const url = new URL(value);
-    if (url.protocol === "file:") return true;
-    if (url.hostname === "localhost") return true;
-    if (url.hostname === "127.0.0.1") return true;
-    return false;
-  } catch (e) {
-    return false;
-  }
+  return pathAccess.assertAllowedDirectoryPath(dirPath);
 }
 function assertTrustedSender(event) {
-  var _a2;
-  const frameUrl = (_a2 = event.senderFrame) == null ? void 0 : _a2.url;
+  var _a3;
+  const frameUrl = (_a3 = event.senderFrame) == null ? void 0 : _a3.url;
   const webContentsUrl = event.sender.getURL();
   const url = frameUrl || webContentsUrl;
   if (!isAllowedAppOrigin(url)) {
@@ -12155,6 +14069,23 @@ function assertTrustedSender(event) {
 async function withTrustedSender(event, handler) {
   assertTrustedSender(event);
   return handler();
+}
+var HEAVY_QUERY_MAX_CONCURRENT = 4;
+var HEAVY_QUERY_MAX_QUEUE = 24;
+var HEAVY_QUERY_TIMEOUT_MS = 12e4;
+var heavyQueryLimiter = createConcurrencyLimiter({
+  label: "duckdb-heavy-query",
+  maxConcurrent: HEAVY_QUERY_MAX_CONCURRENT,
+  maxQueue: HEAVY_QUERY_MAX_QUEUE
+});
+async function withBoundedHeavyQuery(event, label, handler) {
+  return withTrustedSender(
+    event,
+    () => runBounded(heavyQueryLimiter, handler, {
+      label,
+      timeoutMs: HEAVY_QUERY_TIMEOUT_MS
+    })
+  );
 }
 async function installReactDevTools() {
   if (!isDev) return;
@@ -12216,7 +14147,7 @@ async function walkFilesRecursive(rootDir) {
   const out = [];
   const entries = await fs__default.default.readdir(rootDir, { withFileTypes: true });
   for (const entry of entries) {
-    const full = path__default.default.join(rootDir, entry.name);
+    const full = path2__default.default.join(rootDir, entry.name);
     if (entry.isDirectory()) {
       out.push(...await walkFilesRecursive(full));
       continue;
@@ -12252,14 +14183,14 @@ electron.ipcMain.handle(
 electron.ipcMain.handle(
   "fs:openDialog",
   async (event, options) => withTrustedSender(event, async () => {
-    var _a2;
+    var _a3;
     const result = await electron.dialog.showOpenDialog(options);
-    const opensDirectory = (_a2 = options.properties) == null ? void 0 : _a2.includes("openDirectory");
+    const opensDirectory = (_a3 = options.properties) == null ? void 0 : _a3.includes("openDirectory");
     for (const filePath of result.filePaths) {
       if (opensDirectory) {
-        allowedDirectoryPaths.add(normalizePath(filePath));
+        pathAccess.rememberDirectory(filePath);
       } else {
-        allowedReadPaths.add(normalizePath(filePath));
+        pathAccess.rememberReadPath(filePath);
       }
     }
     return {
@@ -12273,7 +14204,7 @@ electron.ipcMain.handle(
   async (event, options) => withTrustedSender(event, async () => {
     const result = await electron.dialog.showSaveDialog(options);
     if (result.filePath) {
-      rememberSavePath(result.filePath);
+      pathAccess.rememberSavePath(result.filePath);
     }
     return {
       canceled: result.canceled,
@@ -12291,21 +14222,17 @@ electron.ipcMain.handle(
 electron.ipcMain.handle(
   "duckdb:registerCSVPathDataset",
   async (event, input) => withTrustedSender(event, async () => {
-    const filePath = getStringProperty(input, "filePath");
-    const safePath = assertAllowedReadPath(filePath);
-    return registerCSVPathDataset(__spreadProps(__spreadValues({}, input), {
-      filePath: safePath
-    }));
+    const parsed = parseIpc(RegisterCsvSchema, input, "duckdb:registerCSVPathDataset");
+    const safePath = assertAllowedReadPath(parsed.filePath);
+    return registerCSVPathDataset(__spreadProps(__spreadValues({}, parsed), { filePath: safePath }));
   })
 );
 electron.ipcMain.handle(
   "duckdb:registerParquetPathDataset",
   async (event, input) => withTrustedSender(event, async () => {
-    const filePath = getStringProperty(input, "filePath");
-    const safePath = assertAllowedReadPath(filePath);
-    return registerParquetPathDataset(__spreadProps(__spreadValues({}, input), {
-      filePath: safePath
-    }));
+    const parsed = parseIpc(RegisterParquetSchema, input, "duckdb:registerParquetPathDataset");
+    const safePath = assertAllowedReadPath(parsed.filePath);
+    return registerParquetPathDataset(__spreadProps(__spreadValues({}, parsed), { filePath: safePath }));
   })
 );
 electron.ipcMain.handle(
@@ -12314,25 +14241,32 @@ electron.ipcMain.handle(
 );
 electron.ipcMain.handle(
   "duckdb:previewDataset",
-  async (event, input) => withTrustedSender(event, () => previewDataset(input))
+  async (event, input) => withTrustedSender(
+    event,
+    () => previewDataset(parseIpc(PreviewDatasetSchema2, input, "duckdb:previewDataset"))
+  )
 );
 electron.ipcMain.handle(
   "duckdb:summarizeDataset",
-  async (event, input) => withTrustedSender(event, () => summarizeDataset(input))
+  async (event, input) => withTrustedSender(
+    event,
+    () => summarizeDataset(parseIpc(DatasetOnlySchema2, input, "duckdb:summarizeDataset"))
+  )
 );
 electron.ipcMain.handle(
   "duckdb:exportDataset",
   async (event, input) => withTrustedSender(event, async () => {
-    const targetPath = getStringProperty(input, "targetPath");
-    const safeTargetPath = assertAllowedWritePath(targetPath);
-    return exportDataset(__spreadProps(__spreadValues({}, input), {
-      targetPath: safeTargetPath
-    }));
+    const parsed = parseIpc(ExportDatasetSchema2, input, "duckdb:exportDataset");
+    const safeTargetPath = assertAllowedWritePath(parsed.targetPath);
+    return exportDataset(__spreadProps(__spreadValues({}, parsed), { targetPath: safeTargetPath }));
   })
 );
 electron.ipcMain.handle(
   "duckdb:deleteDataset",
-  async (event, input) => withTrustedSender(event, () => deleteDataset(input))
+  async (event, input) => withTrustedSender(
+    event,
+    () => deleteDataset(parseIpc(DatasetOnlySchema2, input, "duckdb:deleteDataset"))
+  )
 );
 electron.ipcMain.handle(
   "duckdb:getStatus",
@@ -12349,42 +14283,47 @@ electron.ipcMain.handle(
     return { success: true };
   })
 );
-function wantsMicrophone(details) {
-  if (!details) return true;
-  if (Array.isArray(details.mediaTypes)) {
-    return details.mediaTypes.includes("audio");
-  }
-  if (details.mediaType) {
-    return details.mediaType === "audio" || details.mediaType === "unknown";
-  }
-  return true;
-}
 function installMediaPermissionHandlers() {
   electron.session.defaultSession.setPermissionCheckHandler(
     (_webContents, permission, requestingOrigin, details) => {
-      var _a2;
+      var _a3;
       if (permission !== "media") return false;
       const mediaDetails = details;
-      const origin = (_a2 = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a2 : requestingOrigin;
-      return isAllowedAppOrigin(origin) && wantsMicrophone(mediaDetails);
+      const origin = (_a3 = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a3 : requestingOrigin;
+      return isAllowedAppOrigin(origin);
     }
   );
   electron.session.defaultSession.setPermissionRequestHandler(
     (webContents2, permission, callback, details) => {
-      var _a2, _b2;
+      var _a3, _b2, _c, _d;
       if (permission !== "media") {
         callback(false);
         return;
       }
       const mediaDetails = details;
-      const pageUrl = (_b2 = (_a2 = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a2 : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b2 : webContents2.getURL();
-      const allowed = isAllowedAppOrigin(pageUrl) && wantsMicrophone(mediaDetails);
-      console.log("[electron] media permission request", {
-        pageUrl,
-        mediaDetails,
-        allowed
-      });
-      callback(allowed);
+      const pageUrl = (_b2 = (_a3 = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a3 : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b2 : webContents2.getURL();
+      if (!isAllowedAppOrigin(pageUrl)) {
+        callback(false);
+        return;
+      }
+      const types = (_c = mediaDetails == null ? void 0 : mediaDetails.mediaTypes) != null ? _c : [];
+      const wantsVideo = types.includes("video");
+      const wantsAudio = types.includes("audio") || wantsMicrophone(mediaDetails);
+      const what = wantsVideo && wantsAudio ? "la cam\xE9ra et le microphone" : wantsVideo ? "la cam\xE9ra" : "le microphone";
+      console.log("[electron] media permission request \u2192 prompting", { pageUrl, types });
+      const parent = (_d = electron.BrowserWindow.fromWebContents(webContents2)) != null ? _d : void 0;
+      const opts = {
+        type: "question",
+        buttons: ["Autoriser", "Refuser"],
+        defaultId: 0,
+        cancelId: 1,
+        noLink: true,
+        title: "Autorisation requise",
+        message: `Data Navigator souhaite acc\xE9der \xE0 ${what}.`,
+        detail: "Le traitement est 100 % local et hors ligne \u2014 aucune image ni aucun son ne quitte votre appareil. Vous pouvez r\xE9autoriser \xE0 tout moment."
+      };
+      const prompt = parent ? electron.dialog.showMessageBox(parent, opts) : electron.dialog.showMessageBox(opts);
+      prompt.then((r) => callback(r.response === 0)).catch(() => callback(false));
     }
   );
 }
@@ -12419,35 +14358,317 @@ electron.ipcMain.handle(
 );
 electron.ipcMain.handle(
   "duckdb:runReadOnlyQuery",
-  async (event, sql) => withTrustedSender(event, () => runReadOnlyQuery(sql))
+  async (event, sql) => withBoundedHeavyQuery(event, "duckdb:runReadOnlyQuery", async () => {
+    const safeSql = parseIpc(SqlSchema, sql, "duckdb:runReadOnlyQuery");
+    if (isEnabled()) {
+      try {
+        return await runReadOnlyQuery2(safeSql);
+      } catch (error) {
+        console.warn(
+          "[electron] duckdb utility read failed; falling back to in-main path:",
+          error instanceof Error ? error.message : String(error)
+        );
+      }
+    }
+    return runReadOnlyQuery(safeSql);
+  })
+);
+electron.ipcMain.handle(
+  "duckdb:runReadOnlyQueryArrow",
+  async (event, sql, cancelToken2) => withBoundedHeavyQuery(
+    event,
+    "duckdb:runReadOnlyQueryArrow",
+    () => runReadOnlyQueryArrow(
+      parseIpc(SqlSchema, sql, "duckdb:runReadOnlyQueryArrow"),
+      cancelToken2
+    )
+  )
+);
+electron.ipcMain.handle(
+  "duckdb:profileDataset",
+  async (event, input) => withBoundedHeavyQuery(
+    event,
+    "duckdb:profileDataset",
+    () => profileDataset(parseIpc(ProfileDatasetSchema2, input, "duckdb:profileDataset"))
+  )
+);
+electron.ipcMain.handle(
+  "duckdb:profileColumnDetail",
+  async (event, input) => withTrustedSender(
+    event,
+    () => profileColumnDetail(
+      parseIpc(ProfileColumnDetailSchema2, input, "duckdb:profileColumnDetail")
+    )
+  )
+);
+electron.ipcMain.handle(
+  "duckdb:countRows",
+  async (event, input) => withTrustedSender(
+    event,
+    () => countRows(parseIpc(CountRowsSchema2, input, "duckdb:countRows"))
+  )
+);
+electron.ipcMain.handle(
+  "duckdb:fetchKeysetPage",
+  async (event, input) => withBoundedHeavyQuery(
+    event,
+    "duckdb:fetchKeysetPage",
+    () => fetchKeysetPage(parseIpc(KeysetPageSchema2, input, "duckdb:fetchKeysetPage"))
+  )
+);
+electron.ipcMain.handle(
+  "duckdb:cancelQueries",
+  async (event, token) => withTrustedSender(event, () => {
+    cancelQueries(token);
+    return { success: true };
+  })
+);
+electron.ipcMain.handle(
+  "duckdb:resetCancelToken",
+  async (event, token) => withTrustedSender(event, () => {
+    resetCancelToken(token);
+    return { success: true };
+  })
+);
+var llamaAbortControllers = /* @__PURE__ */ new Map();
+electron.ipcMain.handle(
+  "llama:ensureModel",
+  async (event, input) => withTrustedSender(
+    event,
+    () => {
+      var _a3;
+      return ensureModel((_a3 = parseIpc(LlamaEnsureModelSchema, input, "llama:ensureModel")) == null ? void 0 : _a3.file);
+    }
+  )
+);
+electron.ipcMain.handle(
+  "llama:generate",
+  async (event, input) => withTrustedSender(event, () => {
+    parseIpc(LlamaGenerateSchema, input, "llama:generate");
+    const requestId2 = input == null ? void 0 : input.requestId;
+    const controller = new AbortController();
+    if (requestId2) llamaAbortControllers.set(requestId2, controller);
+    return generate({
+      system: input == null ? void 0 : input.system,
+      prompt: input == null ? void 0 : input.prompt,
+      systemPrefix: input == null ? void 0 : input.systemPrefix,
+      maxTokens: input == null ? void 0 : input.maxTokens,
+      temperature: input == null ? void 0 : input.temperature,
+      topP: input == null ? void 0 : input.topP,
+      signal: controller.signal,
+      onToken: requestId2 ? (chunk) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send("llama:token", { id: requestId2, chunk });
+        }
+      } : void 0
+    }).finally(() => {
+      if (requestId2) llamaAbortControllers.delete(requestId2);
+    });
+  })
+);
+electron.ipcMain.handle(
+  "llama:generateStructured",
+  async (event, input) => withTrustedSender(event, () => {
+    parseIpc(LlamaGenerateStructuredSchema, input, "llama:generateStructured");
+    const requestId2 = input == null ? void 0 : input.requestId;
+    const controller = new AbortController();
+    if (requestId2) llamaAbortControllers.set(requestId2, controller);
+    return generateStructured({
+      system: input == null ? void 0 : input.system,
+      prompt: input == null ? void 0 : input.prompt,
+      systemPrefix: input == null ? void 0 : input.systemPrefix,
+      jsonSchema: input == null ? void 0 : input.jsonSchema,
+      maxTokens: input == null ? void 0 : input.maxTokens,
+      temperature: input == null ? void 0 : input.temperature,
+      signal: controller.signal
+    }).finally(() => {
+      if (requestId2) llamaAbortControllers.delete(requestId2);
+    });
+  })
+);
+electron.ipcMain.handle(
+  "llama:abort",
+  async (event, requestId2) => withTrustedSender(event, () => {
+    parseIpc(RequestIdSchema, requestId2, "llama:abort");
+    const controller = llamaAbortControllers.get(requestId2);
+    if (controller) {
+      controller.abort();
+      llamaAbortControllers.delete(requestId2);
+      return true;
+    }
+    return false;
+  })
+);
+electron.ipcMain.handle(
+  "llama:listModels",
+  async (event) => withTrustedSender(event, () => listModels())
+);
+electron.ipcMain.handle(
+  "llama:isAvailable",
+  async (event, input) => withTrustedSender(
+    event,
+    () => {
+      var _a3;
+      return isAvailable((_a3 = parseIpc(LlamaEnsureModelSchema, input, "llama:isAvailable")) == null ? void 0 : _a3.file);
+    }
+  )
+);
+var modelDownloadAbortControllers = /* @__PURE__ */ new Map();
+electron.ipcMain.handle(
+  "models:listPresence",
+  async (event) => withTrustedSender(event, () => listModelPresence())
+);
+electron.ipcMain.handle(
+  "models:isPresent",
+  async (event, key) => withTrustedSender(
+    event,
+    () => isModelPresent(parseIpc(ModelKeySchema, key, "models:isPresent"))
+  )
+);
+electron.ipcMain.handle(
+  "models:download",
+  async (event, input) => withTrustedSender(event, () => {
+    parseIpc(ModelDownloadSchema, input, "models:download");
+    const requestId2 = input == null ? void 0 : input.requestId;
+    const controller = new AbortController();
+    if (requestId2) modelDownloadAbortControllers.set(requestId2, controller);
+    return downloadModel({
+      key: input == null ? void 0 : input.key,
+      requestId: requestId2,
+      signal: controller.signal,
+      onProgress: requestId2 ? (progress) => {
+        if (!event.sender.isDestroyed()) {
+          event.sender.send("models:progress", { id: requestId2, progress });
+        }
+      } : void 0
+    }).finally(() => {
+      if (requestId2) modelDownloadAbortControllers.delete(requestId2);
+    });
+  })
+);
+electron.ipcMain.handle(
+  "models:abort",
+  async (event, requestId2) => withTrustedSender(event, () => {
+    const controller = modelDownloadAbortControllers.get(requestId2);
+    if (controller) {
+      controller.abort();
+      modelDownloadAbortControllers.delete(requestId2);
+      return true;
+    }
+    return false;
+  })
+);
+electron.ipcMain.handle(
+  "models:delete",
+  async (event, key) => withTrustedSender(
+    event,
+    () => deleteModel(parseIpc(ModelKeySchema, key, "models:delete"))
+  )
+);
+electron.ipcMain.handle(
+  "collabHub:start",
+  async (event, input) => withTrustedSender(
+    event,
+    () => start(parseIpc(CollabStartSchema, input, "collabHub:start"))
+  )
+);
+electron.ipcMain.handle(
+  "collabHub:stop",
+  async (event) => withTrustedSender(event, () => stop())
+);
+electron.ipcMain.handle(
+  "collabHub:status",
+  async (event) => withTrustedSender(event, () => status())
+);
+electron.ipcMain.handle(
+  "collabHub:discover",
+  async (event) => withTrustedSender(event, () => discover())
+);
+electron.ipcMain.handle(
+  "collabHub:getDiscovered",
+  async (event) => withTrustedSender(event, () => getDiscovered())
 );
 async function createWindow() {
   await ensureDataDir();
   mainWindow = new electron.BrowserWindow({
     width: 1400,
     height: 900,
+    // Responsive floor: below this the sidebar/topbar have no fallback. Matches
+    // the redesign's design floor (blueprint §2). Hide the stock English menu
+    // (it also exposed DevTools/zoom). backgroundColor avoids a white flash
+    // before the dark dashboard paints (--surface-0).
+    minWidth: 1100,
+    minHeight: 720,
+    autoHideMenuBar: true,
+    backgroundColor: "#0b0e15",
     show: false,
     webPreferences: {
-      preload: path__default.default.join(__dirname, "preload.js"),
+      preload: path2__default.default.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      // Keep false if your existing preload bundle depends on Node APIs.
-      // Change to true only after confirming the preload still works.
-      sandbox: false
+      // Renderer sandbox ON (Chromium OS-level sandbox). The preload uses only
+      // contextBridge/ipcRenderer/webUtils, which remain available to sandboxed
+      // preloads. If auth/IPC ever regresses, reverting this line is step one.
+      sandbox: true,
+      // Explicit secure defaults (defense-in-depth — don't rely on version defaults).
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      webviewTag: false,
+      nodeIntegrationInSubFrames: false,
+      experimentalFeatures: false,
+      // Middle-click auxclick can open links in a new window and subvert the
+      // navigation guards below — disable it.
+      disableBlinkFeatures: "Auxclick",
+      // No spellcheck: its dictionary fetch is silent network egress, which
+      // breaks the offline/no-runtime-network guarantee.
+      spellcheck: false
     }
   });
   mainWindow.once("ready-to-show", () => {
     mainWindow == null ? void 0 : mainWindow.show();
   });
+  const isAllowedNavigation = (target) => {
+    if (isAllowedAppOrigin(target)) return true;
+    try {
+      return new URL(target).protocol === `${ELECTRON_AUTH_PROTOCOL}:`;
+    } catch (e) {
+      return false;
+    }
+  };
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith("https://")) void electron.shell.openExternal(url);
+    return { action: "deny" };
+  });
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!isAllowedNavigation(url)) {
+      event.preventDefault();
+      console.warn("[electron] blocked navigation to:", url);
+    }
+  });
+  mainWindow.webContents.on("will-redirect", (event, url) => {
+    if (!isAllowedNavigation(url)) {
+      event.preventDefault();
+      console.warn("[electron] blocked redirect to:", url);
+    }
+  });
+  mainWindow.webContents.on("will-attach-webview", (event) => {
+    event.preventDefault();
+  });
+  setDiscoveryListener((discoveryEvent) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("collab:discovered", discoveryEvent);
+    }
+  });
   if (isDev) {
     await installReactDevTools();
-    await mainWindow.loadURL("http://localhost:3000");
+    await mainWindow.loadURL("http://localhost:3000/dashboard");
     mainWindow.webContents.openDevTools();
   } else {
     try {
       const serverUrl = await startNextJSServer();
       console.log("[electron] Next.js server started at:", serverUrl);
-      await mainWindow.loadURL(serverUrl);
+      const dashboardUrl = new URL("/dashboard", serverUrl).toString();
+      await mainWindow.loadURL(dashboardUrl);
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
     }
@@ -12481,15 +14702,48 @@ async function createWindow() {
 }
 async function startNextJSServer() {
   try {
+    bootLog("startNextJSServer: begin");
     const authUrl = new URL(BETTER_AUTH_BASE_URL);
-    const hostname = authUrl.hostname;
+    const hostname = assertLoopbackHostname(authUrl.hostname);
     const nextJSPort = authUrl.port ? Number(authUrl.port) : 3e3;
-    const webDir = path__default.default.join(electron.app.getAppPath(), "app");
+    const webDir = path2__default.default.join(electron.app.getAppPath(), "app");
     process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
     process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
     process.env.APP_USER_DATA = electron.app.getPath("userData");
     process.env.PORT = nextJSPort.toString();
-    await startServer.startServer({
+    ensureAuthSecretEnv(electron.app.getPath("userData"));
+    if (isAuthDbEncryptionRequested()) {
+      const { safeStorage: safeStorage2 } = __require("electron");
+      ensureAuthDbKeyEnv(electron.app.getPath("userData"), safeStorage2);
+    }
+    const trustedOrigins = [
+      BETTER_AUTH_BASE_URL,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+      // Exact custom-protocol origin only — the `://*` wildcard widened trusted
+      // redirect targets (open-redirect sink for the OAuth callback).
+      `${ELECTRON_AUTH_PROTOCOL}://`
+    ];
+    process.env.BETTER_AUTH_TRUSTED_ORIGINS = Array.from(new Set(trustedOrigins)).join(",");
+    const standaloneStartServer = path2__default.default.join(
+      webDir,
+      "node_modules",
+      "next",
+      "dist",
+      "server",
+      "lib",
+      "start-server.js"
+    );
+    const startServerEntry = fs3.existsSync(standaloneStartServer) ? standaloneStartServer : "next/dist/server/lib/start-server";
+    bootLog(`webDir=${webDir}`);
+    bootLog(`appPath=${electron.app.getAppPath()}`);
+    bootLog(
+      `standaloneStartServer=${standaloneStartServer} exists=${fs3.existsSync(standaloneStartServer)}`
+    );
+    bootLog(`startServerEntry=${startServerEntry}`);
+    const { startServer } = __require(startServerEntry);
+    bootLog("required startServer OK");
+    await startServer({
       dir: webDir,
       isDev: false,
       hostname,
@@ -12499,33 +14753,67 @@ async function startNextJSServer() {
       keepAliveTimeout: 5e3,
       minimalMode: true
     });
+    bootLog(`startServer resolved; listening at ${BETTER_AUTH_BASE_URL}`);
     return BETTER_AUTH_BASE_URL;
   } catch (error) {
+    bootLog(
+      `ERROR: ${error instanceof Error ? `${error.message}
+${error.stack}` : String(error)}`
+    );
     console.error("[electron] Error starting Next.js server:", error);
     throw error;
   }
 }
 electron.app.whenReady().then(async () => {
+  if (electron.app.isPackaged && PRODUCTION_FUSE_CONFIG.RunAsNode === false && process.env.ELECTRON_RUN_AS_NODE) {
+    console.warn(
+      "[electron] ELECTRON_RUN_AS_NODE is set in a packaged build \u2014 fuses may not be enforced."
+    );
+  }
   installMediaPermissionHandlers();
   electron.session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-    const headers = __spreadValues({}, details.responseHeaders);
-    callback({ responseHeaders: headers });
+    callback({
+      responseHeaders: withRendererSecurityHeaders(details.responseHeaders, {
+        dev: isDev})
+    });
   });
   console.log(
     "[electron] microphone access status:",
     process.platform === "darwin" || process.platform === "win32" ? electron.systemPreferences.getMediaAccessStatus("microphone") : "unknown"
   );
-  await init();
+  bootLog("whenReady: before duckdbService.init()");
+  try {
+    await init();
+    bootLog("whenReady: duckdbService.init() OK");
+  } catch (error) {
+    bootLog(
+      `whenReady: duckdbService.init() FAILED: ${error instanceof Error ? `${error.message}
+${error.stack}` : String(error)}`
+    );
+  }
   await createWindow();
+  bootLog("whenReady: createWindow() returned");
   electron.app.on("activate", async () => {
     if (electron.BrowserWindow.getAllWindows().length === 0) {
       await createWindow();
     }
   });
+}).catch((error) => {
+  bootLog(
+    `whenReady: TOP-LEVEL REJECTION: ${error instanceof Error ? `${error.message}
+${error.stack}` : String(error)}`
+  );
 });
 electron.app.on("before-quit", () => {
+  dispose3();
   close().catch((error) => {
     console.error("[electron] DuckDB cleanup error:", error);
+  });
+  dispose2().catch((error) => {
+    console.error("[electron] llama cleanup error:", error);
+  });
+  dispose().catch((error) => {
+    console.error("[electron] collab-hub cleanup error:", error);
   });
 });
 electron.app.on("window-all-closed", () => {

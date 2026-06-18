@@ -1,0 +1,5 @@
+{
+  "component": "ArchiveSection",
+  "icons": ["ArrowUpRight", "ChevronDown", "FileClock", "Fingerprint", "History", "RotateCcw", "ScrollText"],
+  "lines": 1237
+}

@@ -56,7 +56,7 @@ export function FileDropZone({
                 onClick={() => setMode(value)}
                 className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
                   mode === value
-                    ? "bg-teal-700 text-white"
+                    ? "bg-primary text-primary-foreground"
                     : "text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
                 }`}
               >
@@ -70,7 +70,7 @@ export function FileDropZone({
             type="button"
             onClick={handleRun}
             disabled={running}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-700 hover:bg-teal-800 disabled:opacity-60 disabled:cursor-not-allowed px-4 py-3 text-sm font-semibold text-white transition-colors shadow-sm"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-primary hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors shadow-sm"
           >
             {running ? (
               <>

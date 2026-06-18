@@ -9,7 +9,7 @@ import {
   ShieldCheck,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   deleteLocalDataset,
@@ -62,7 +62,7 @@ export function StorageInfoPanel({
     [datasetId, tableName],
   );
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     const [storage, datasets] = await Promise.all([
       getStorageInfo(),
       listLocalDatasets().catch(() => []),
@@ -70,7 +70,7 @@ export function StorageInfoPanel({
 
     setInfo(storage);
     setDatasetCount(datasets.length);
-  }
+  }, []);
 
   useEffect(() => {
     refresh().catch(() => {
@@ -82,7 +82,7 @@ export function StorageInfoPanel({
         isPersistent: false,
       });
     });
-  }, []);
+  }, [refresh]);
 
   async function handlePersist() {
     setRequestingPersistence(true);
@@ -238,7 +238,7 @@ export function StorageInfoPanel({
           <div className="flex items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2 text-xs font-semibold text-foreground">
-                <Database className="h-3.5 w-3.5 text-indigo-500" />
+                <Database className="h-3.5 w-3.5 text-primary" />
                 Cache dataset DuckDB
               </div>
 

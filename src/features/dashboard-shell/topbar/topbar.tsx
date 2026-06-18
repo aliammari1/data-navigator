@@ -1,0 +1,247 @@
+"use client";
+
+import {
+  Brain,
+  ChevronRight,
+  Command,
+  LayoutGrid,
+  LogOut,
+  Monitor,
+  Moon,
+  Search,
+  Settings,
+  Sun,
+  UserCircle,
+} from "lucide-react";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { useTheme } from "@/components/theme-provider";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { useSettingsStore } from "@/core/stores/settings-store";
+import { useShellActions } from "@/features/dashboard-shell/shell/shell-store";
+import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
+import { AccessControlPill } from "@/features/dashboard-shell/topbar/access-control-pill";
+import { DatasetPicker } from "@/features/dashboard-shell/topbar/dataset-picker";
+import { ModelStatusPill } from "@/features/dashboard-shell/topbar/model-status-pill";
+import { NotificationsBell } from "@/features/dashboard-shell/topbar/notifications-bell";
+import { authClient } from "@/platform/auth/auth-client";
+import { cn } from "@/shared/utils";
+
+function userInitialsFrom(displayName: string): string {
+  return displayName
+    .split(/\s+/)
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+/**
+ * Dashboard topbar.
+ *
+ * Decomposed from the 1566-line monolith. Breadcrumbs are memoized on
+ * `pathname` (not rebuilt every render), the static mock `NOTIFS` array is gone
+ * (the bell now reads the durable activity-store), `showBreadcrumbs` uses a
+ * narrow selector, and the avatar is initials-only — no `<AvatarImage src>` that
+ * would trigger a network fetch of a remote URL in a no-internet Electron build.
+ * Keyboard shortcuts (Cmd+K) are owned centrally by `useShellShortcuts`.
+ */
+export function Topbar({
+  onCmdPalette,
+  onAiToggle,
+  user,
+}: {
+  onCmdPalette: () => void;
+  onAiToggle?: () => void;
+  user?: DashboardUser;
+}) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const showBreadcrumbs = useSettingsStore((s) => s.showBreadcrumbs);
+  const { theme, setTheme } = useTheme();
+  const { setDesktopMode } = useShellActions();
+  const [mounted, setMounted] = useState(false);
+  const [signingOut, setSigningOut] = useState(false);
+
+  const enterDesktop = () => {
+    setDesktopMode(true);
+    if (pathname !== "/dashboard") router.push("/dashboard");
+  };
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const crumbs = useMemo(() => {
+    const segments = pathname.split("/").filter(Boolean);
+    return segments.map((seg, i) => ({
+      label: seg.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+      href: `/${segments.slice(0, i + 1).join("/")}`,
+    }));
+  }, [pathname]);
+
+  const cycleTheme = () => {
+    setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark");
+  };
+
+  const ThemeIcon = !mounted ? Monitor : theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
+  const displayName = user?.name || user?.email || "Local user";
+  const userInitials = userInitialsFrom(displayName);
+
+  async function handleSignOut() {
+    setSigningOut(true);
+    try {
+      await authClient.signOut();
+      router.replace("/login");
+      router.refresh();
+    } finally {
+      setSigningOut(false);
+    }
+  }
+
+  return (
+    <header className="z-40 flex h-14 flex-none items-center gap-2 overflow-hidden border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
+      {showBreadcrumbs && (
+        <nav className="hidden min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground sm:flex">
+          {crumbs.map((crumb, i) => (
+            <span key={crumb.href} className="flex items-center gap-1 min-w-0">
+              {i > 0 && <ChevronRight className="w-3 h-3 flex-none text-muted-foreground" />}
+              <Link
+                href={crumb.href}
+                className={cn(
+                  "truncate hover:text-foreground transition-colors",
+                  i === crumbs.length - 1 ? "text-foreground font-medium" : "text-muted-foreground",
+                )}
+              >
+                {crumb.label}
+              </Link>
+            </span>
+          ))}
+        </nav>
+      )}
+
+      <div className="flex-1" />
+
+      <DatasetPicker />
+
+      <div className="hidden md:block">
+        <AccessControlPill />
+      </div>
+
+      {/* Search trigger → universal cmdk palette (folds in old GlobalDataSearch) */}
+      <button
+        type="button"
+        onClick={onCmdPalette}
+        className="flex items-center gap-2 rounded-xl border border-border bg-accent px-2.5 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:px-3"
+      >
+        <Search className="w-3.5 h-3.5" />
+        <span className="hidden md:inline">Search…</span>
+        <kbd className="hidden md:flex items-center gap-0.5 px-1.5 py-0.5 bg-accent rounded text-[10px] border border-border">
+          <Command className="w-2.5 h-2.5" />K
+        </kbd>
+      </button>
+
+      {/* Local model status affordance */}
+      <ModelStatusPill />
+
+      {/* Enter the windowed desktop workspace */}
+      <button
+        type="button"
+        onClick={enterDesktop}
+        aria-label="Mode bureau"
+        title="Mode bureau"
+        className="hidden h-8 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
+      >
+        <LayoutGrid className="w-4 h-4" />
+        Bureau
+      </button>
+
+      {/* Theme toggle */}
+      <button
+        type="button"
+        onClick={cycleTheme}
+        aria-label="Cycle theme"
+        className="hidden h-8 w-8 items-center justify-center rounded-xl bg-accent text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
+      >
+        <ThemeIcon className="w-4 h-4" />
+      </button>
+
+      <NotificationsBell />
+
+      {onAiToggle && (
+        <button
+          type="button"
+          onClick={onAiToggle}
+          className="hidden h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 transition-colors hover:bg-blue-500/20 hover:text-blue-300 sm:flex"
+          title="AI Assistant (Ctrl+\)"
+        >
+          <Brain className="w-4 h-4" />
+        </button>
+      )}
+
+      <Link
+        href="/dashboard/settings"
+        aria-label="Settings"
+        className="hidden h-8 w-8 items-center justify-center rounded-xl bg-accent text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
+      >
+        <Settings className="w-4 h-4" />
+      </Link>
+
+      <DropdownMenu>
+        <DropdownMenuTrigger className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Avatar className="size-8 rounded-xl">
+            <AvatarFallback className="rounded-xl bg-primary text-primary-foreground text-xs font-semibold">
+              {userInitials || "DN"}
+            </AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" sideOffset={8} className="w-64">
+          <DropdownMenuLabel>
+            <div className="flex items-center gap-3">
+              <Avatar className="size-9 rounded-xl">
+                <AvatarFallback className="rounded-xl text-xs font-semibold">
+                  {userInitials || "DN"}
+                </AvatarFallback>
+              </Avatar>
+              <div className="min-w-0">
+                <div className="truncate text-sm font-semibold text-foreground">{displayName}</div>
+                {user?.email ? (
+                  <div className="truncate text-xs text-muted-foreground">{user.email}</div>
+                ) : (
+                  <div className="text-xs text-amber-400">Local mode</div>
+                )}
+              </div>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator />
+          {user ? (
+            <>
+              <DropdownMenuItem disabled>
+                <UserCircle className="size-4" />
+                Signed in
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
+                <LogOut className="size-4" />
+                {signingOut ? "Signing out..." : "Sign out"}
+              </DropdownMenuItem>
+            </>
+          ) : (
+            <DropdownMenuItem onClick={() => router.push("/login")}>
+              <LogOut className="size-4 rotate-180" />
+              Sign in to enable sync
+            </DropdownMenuItem>
+          )}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </header>
+  );
+}

@@ -69,6 +69,9 @@ export interface ElectronFSBridge {
     canceled: boolean;
     filePath?: string;
   }>;
+
+  /** Resolve a dropped File to its on-disk path (Electron webUtils). */
+  getPathForFile(file: File): string;
 }
 
 // ─── DuckDB Dataset Bridge Types ──────────────────────────────────────────────
@@ -316,6 +319,27 @@ export async function openFileDialog(
 ): Promise<string[]> {
   const result = await fsBridge().openDialog(options);
   return result.canceled ? [] : result.filePaths;
+}
+
+/**
+ * Resolve dropped `File` objects to trusted on-disk paths via Electron
+ * `webUtils.getPathForFile` (File.path was removed in Electron 41). Returns the
+ * paths that resolved; entries that can't be resolved (e.g. web build) are
+ * skipped. Enables drag-and-drop import.
+ */
+export function getDroppedFilePaths(files: File[]): string[] {
+  if (!hasElectronFS()) return [];
+  const bridge = fsBridge();
+  const paths: string[] = [];
+  for (const file of files) {
+    try {
+      const path = bridge.getPathForFile(file);
+      if (path) paths.push(path);
+    } catch {
+      // ignore files that can't be resolved to a path
+    }
+  }
+  return paths;
 }
 
 export async function saveFileDialog(

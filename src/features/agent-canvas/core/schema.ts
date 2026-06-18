@@ -13,16 +13,21 @@
 
 import {
   listRegisteredDatasets,
+  profileDataset,
   type RegisteredDataset,
   runReadOnlyQuery,
 } from "@/platform/duckdb/duckdb";
-import { chat, isLoaded } from "./llm";
+import { aiReadySync, aiStructured } from "./ai-bridge";
+import { SummarySchema } from "./plan-schema";
 import type { ColumnProfile, ColumnSemantic, DataSchema } from "./types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface ResolvedSchema {
+  /** DuckDB view name to query. */
   tableName: string;
+  /** Registered dataset id, when resolved from the catalog (for profileDataset). */
+  datasetId?: string;
   displayName: string;
   rowCount: number;
   columns: Array<{
@@ -37,7 +42,7 @@ function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
 }
 
-function quoteSqlString(value: string): string {
+function _quoteSqlString(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
@@ -89,6 +94,7 @@ async function resolveSchema(
   if (dataset) {
     return {
       tableName: dataset.viewName,
+      datasetId: dataset.id,
       displayName: dataset.displayName,
       rowCount: dataset.rowCount,
       columns: dataset.columns.map((column) => ({
@@ -216,77 +222,43 @@ function detectCategory(cols: ColumnProfile[]): string {
 
 // ─── Profiling ────────────────────────────────────────────────────────────────
 
-async function profileColumn(input: {
-  tableName: string;
-  rowCount: number;
-  column: {
-    name: string;
-    type: string;
-  };
-}): Promise<ColumnProfile> {
-  const { tableName, rowCount, column } = input;
-  const quotedTable = quoteIdentifier(tableName);
-  const quotedColumn = quoteIdentifier(column.name);
-
-  try {
-    const rows = await runReadOnlyQuery(`
-      SELECT
-        COUNT(DISTINCT ${quotedColumn}) AS cardinality,
-        COUNT(*) - COUNT(${quotedColumn}) AS null_count,
-        MIN(TRY_CAST(${quotedColumn} AS DOUBLE)) AS min_val,
-        MAX(TRY_CAST(${quotedColumn} AS DOUBLE)) AS max_val,
-        AVG(TRY_CAST(${quotedColumn} AS DOUBLE)) AS avg_val
-      FROM ${quotedTable}
-    `);
-
-    const stats = rows[0] ?? {};
-    const cardinality = numberFrom(stats.cardinality, 0);
-    const nullCount = numberFrom(stats.null_count, 0);
-    const nullRate = rowCount > 0 ? nullCount / rowCount : 0;
-
-    const sampleRows = await runReadOnlyQuery(`
-      SELECT DISTINCT CAST(${quotedColumn} AS VARCHAR) AS value
-      FROM ${quotedTable}
-      WHERE ${quotedColumn} IS NOT NULL
-      LIMIT 6
-    `);
-
-    const sample = sampleRows
-      .map((row) => String(row.value ?? ""))
-      .filter(Boolean);
-
-    const semantic = inferSemantic(
-      column.name,
-      column.type,
-      cardinality,
-      rowCount,
-    );
-
-    return {
-      name: column.name,
-      duckType: column.type,
-      semantic,
-      cardinality,
-      nullRate,
-      sample,
-      min: optionalNumber(stats.min_val),
-      max: optionalNumber(stats.max_val),
-      avg: optionalNumber(stats.avg_val),
-    };
-  } catch {
-    return {
-      name: column.name,
-      duckType: column.type,
-      semantic: "text",
-      cardinality: 0,
-      nullRate: 0,
-      sample: [],
-    };
-  }
+/**
+ * One `SUMMARIZE` row as returned by DuckDB. Field presence varies by DuckDB
+ * version (and by column type), so every field is read defensively.
+ */
+interface SummarizeRow {
+  column_name?: unknown;
+  column_type?: unknown;
+  min?: unknown;
+  max?: unknown;
+  approx_unique?: unknown;
+  avg?: unknown;
+  null_percentage?: unknown;
 }
 
-async function profileColumnsSequentially(input: {
+/**
+ * Parse the `null_percentage` column from SUMMARIZE into a 0..1 rate. DuckDB
+ * emits this either as a percentage number (e.g. `12.5`) or a string with a
+ * trailing `%`, depending on version — handle both.
+ */
+function nullRateFromSummary(value: unknown): number {
+  if (value === null || value === undefined) return 0;
+  const numeric = Number(String(value).replace("%", "").trim());
+  if (!Number.isFinite(numeric)) return 0;
+  return Math.min(1, Math.max(0, numeric / 100));
+}
+
+/**
+ * Profile every column with a SINGLE `SUMMARIZE` over the table plus ONE
+ * bounded `USING SAMPLE` scan for example values, instead of two full-table
+ * scans per column. SUMMARIZE uses HyperLogLog for `approx_unique`, so column
+ * cardinality no longer requires a `COUNT(DISTINCT)` per column. This collapses
+ * O(2·columns) round-trips into 2 total and removes the dominant schema-phase
+ * stall on wide tables.
+ */
+async function profileColumnsBatched(input: {
   tableName: string;
+  datasetId?: string;
   rowCount: number;
   columns: Array<{
     name: string;
@@ -294,25 +266,72 @@ async function profileColumnsSequentially(input: {
   }>;
   emit: (text: string) => void;
 }): Promise<ColumnProfile[]> {
-  const profiles: ColumnProfile[] = [];
+  const { tableName, datasetId, rowCount, columns, emit } = input;
+  const quotedTable = quoteIdentifier(tableName);
 
-  for (let index = 0; index < input.columns.length; index += 1) {
-    const column = input.columns[index];
-
-    input.emit(
-      `Profiling column ${index + 1}/${input.columns.length}: ${column.name}`,
-    );
-
-    const profile = await profileColumn({
-      tableName: input.tableName,
-      rowCount: input.rowCount,
-      column,
-    });
-
-    profiles.push(profile);
+  // 1) ONE whole-dataset profile (min/max/avg/approx_unique/null%) in a single
+  //    SUMMARIZE scan. Prefer the foundation `profileDataset()` (runs in the
+  //    shared DuckDB worker, cached) when this is a registered dataset; fall
+  //    back to an inline SUMMARIZE for legacy raw-view callers. Either way it is
+  //    2 round-trips total, NOT O(2·columns).
+  emit(`Summarizing ${columns.length} columns…`);
+  const summaryByName = new Map<string, SummarizeRow>();
+  try {
+    const summaryRows: SummarizeRow[] = datasetId
+      ? ((await profileDataset({ datasetId })) as SummarizeRow[])
+      : ((await runReadOnlyQuery(
+          `SUMMARIZE SELECT * FROM ${quotedTable}`,
+        )) as SummarizeRow[]);
+    for (const row of summaryRows) {
+      const name = String(row.column_name ?? "");
+      if (name) summaryByName.set(name, row);
+    }
+  } catch {
+    // SUMMARIZE unavailable (rare) — fall back to empty stats; semantics are
+    // still inferable from the column type + sampled distinct values below.
   }
 
-  return profiles;
+  // 2) One bounded sample scan for representative distinct values per column.
+  emit(`Sampling representative values…`);
+  const sampleByName = new Map<string, string[]>();
+  try {
+    const sampledRows = await runReadOnlyQuery(
+      `SELECT * FROM ${quotedTable} USING SAMPLE 500 ROWS`,
+    );
+    for (const column of columns) {
+      const seen = new Set<string>();
+      for (const row of sampledRows) {
+        const value = row[column.name];
+        if (value === null || value === undefined) continue;
+        const text = String(value);
+        if (!text) continue;
+        seen.add(text);
+        if (seen.size >= 6) break;
+      }
+      sampleByName.set(column.name, Array.from(seen));
+    }
+  } catch {
+    // Sampling failed (e.g. tiny table without sampling support) — leave empty.
+  }
+
+  return columns.map((column) => {
+    const summary = summaryByName.get(column.name);
+    const cardinality = numberFrom(summary?.approx_unique, 0);
+    const nullRate = nullRateFromSummary(summary?.null_percentage);
+    const sample = sampleByName.get(column.name) ?? [];
+
+    return {
+      name: column.name,
+      duckType: column.type,
+      semantic: inferSemantic(column.name, column.type, cardinality, rowCount),
+      cardinality,
+      nullRate,
+      sample,
+      min: optionalNumber(summary?.min),
+      max: optionalNumber(summary?.max),
+      avg: optionalNumber(summary?.avg),
+    } satisfies ColumnProfile;
+  });
 }
 
 // ─── Main Analysis ────────────────────────────────────────────────────────────
@@ -330,8 +349,9 @@ export async function analyzeSchema(
     `Profiling ${columns.length} columns × ${rowCount.toLocaleString()} rows…`,
   );
 
-  const profiles = await profileColumnsSequentially({
+  const profiles = await profileColumnsBatched({
     tableName,
+    datasetId: resolved.datasetId,
     rowCount,
     columns,
     emit,
@@ -366,7 +386,7 @@ export async function analyzeSchema(
 
   let summary = `A ${category} dataset with ${rowCount.toLocaleString()} rows and ${columns.length} columns.`;
 
-  if (isLoaded()) {
+  if (aiReadySync()) {
     emit("Asking LLM to summarize the dataset…");
 
     try {
@@ -377,13 +397,16 @@ export async function analyzeSchema(
         )
         .join(", ");
 
-      summary = await chat(
+      // Structured output: the model returns { summary } — guaranteed valid by
+      // the provider grammar / Zod fallback, no string-quote scrubbing needed.
+      const result = await aiStructured(
         "You are a data analyst. Summarize the dataset in one sentence, max 25 words. Be specific about what the data represents.",
         `Dataset: ${resolved.displayName}. View: ${tableName}. Columns: ${columnList}. Row count: ${rowCount}.`,
-        { maxTokens: 60 },
+        SummarySchema,
+        { maxTokens: 80 },
       );
 
-      summary = summary.replace(/^["']|["']$/g, "").trim();
+      summary = result.summary.trim();
     } catch {
       // Keep deterministic heuristic summary.
     }

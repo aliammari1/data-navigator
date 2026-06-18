@@ -30,7 +30,10 @@ const DASHBOARD_ROUTES = [
     path: "/dashboard/collaborative",
     anchor: /collaborative|team|comment|workspace/i,
   },
-  { path: "/dashboard/browser", anchor: /browser|sql|duckdb|upload/i },
+  {
+    path: "/dashboard/data-browser",
+    anchor: /data browser|duckdb|sql|search rows/i,
+  },
   { path: "/dashboard/settings", anchor: /settings|theme|appearance/i },
   { path: "/dashboard/help", anchor: /help|documentation|features/i },
 ] as const;
@@ -199,7 +202,11 @@ test.describe("Complete user journey coverage", () => {
       /duckdb|electronduckdb|erreur|error|prêt|ready/i,
     );
 
-    await gotoPage(page, "/dashboard/browser", /browser|duckdb|données|sql/i);
+    await gotoPage(
+      page,
+      "/dashboard/data-browser",
+      /data browser|duckdb|sql|search rows/i,
+    );
 
     await gotoPage(
       page,
@@ -346,27 +353,42 @@ test.describe("Complete user journey coverage", () => {
     await expect(page.getByText("Journey chat ping")).toBeVisible();
   });
 
-  test("browser page journey opens available data browsing, filter, and column surfaces", async ({
+  test("data browser page journey opens available data browsing, SQL, filter, and column surfaces", async ({
     page,
   }) => {
-    await gotoPage(page, "/dashboard/browser");
+    // Generic SQL/DuckDB explorer (the legacy /dashboard/browser route was
+    // removed and now redirects to the telecom grid). This relocated coverage
+    // exercises the surviving data-browser explorer instead.
+    await gotoPage(page, "/dashboard/data-browser", /data browser|duckdb/i);
 
-    await expectUsablePage(page, /browser|sql|duckdb/i);
-    if (
-      await page
-        .getByRole("button", { name: /sql/i })
-        .isVisible()
-        .catch(() => false)
-    ) {
-      await page.getByRole("button", { name: /sql/i }).click();
-      await expect(page.locator("body")).toContainText(/sql editor|run query/i);
-      await page.getByRole("button", { name: /table/i }).click();
+    // Header is always present regardless of whether a dataset is catalogued.
+    await expect(page.locator("body")).toContainText(/data browser|duckdb/i);
+
+    // The SQL view toggle exposes the Monaco-backed SQL editor surface.
+    const sqlToggle = page.getByRole("button", { name: /^sql$/i }).first();
+    if (await sqlToggle.isVisible().catch(() => false)) {
+      await sqlToggle.click();
+      await expect(page.locator("body")).toContainText(
+        /sql editor|run query|write a sql query/i,
+      );
     }
-    await expect(page.locator("body")).toContainText(
-      /rechercher|filters|filtres|colonnes|columns|aucun résultat/i,
-    );
-    await page.getByRole("button", { name: /colonnes|columns/i }).click();
-    await expect(page.locator("body")).toContainText(/colonnes|columns/i);
+
+    // Column manager + filter panels are reachable via accessible icon buttons.
+    const columnsButton = page.getByRole("button", { name: /columns/i }).first();
+    if (await columnsButton.isVisible().catch(() => false)) {
+      await columnsButton.click();
+      await expect(page.locator("body")).toContainText(
+        /columns|search columns|show all/i,
+      );
+    }
+
+    const filtersButton = page.getByRole("button", { name: /filters/i }).first();
+    if (await filtersButton.isVisible().catch(() => false)) {
+      await filtersButton.click();
+      await expect(page.locator("body")).toContainText(
+        /filters|add rule|clear all/i,
+      );
+    }
   });
 
   test("help, settings, and documentation journeys cover discoverability and preferences", async ({

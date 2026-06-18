@@ -195,16 +195,24 @@ export function useTelecomAnalytics({
           rawStatuses,
         };
 
+        // Local-only desktop notification. Fully optional: degrade silently
+        // when the Notification API is absent or permission is not granted
+        // (offline-safe — the icon is a bundled same-origin asset, never CDN).
         if (
+          typeof Notification !== "undefined" &&
           document.hidden &&
           Notification.permission === "granted" &&
           kpiResult
         ) {
-          new Notification(`Rapport prêt — ${fileNameRef.current}`, {
-            body: `${fmtN(kpiResult.totalTransactions)} tx · ${fmtPct(kpiResult.successRate)} réussite`,
-            icon: "/icon-192.png",
-            tag: "telecom-ready",
-          });
+          try {
+            new Notification(`Rapport prêt — ${fileNameRef.current}`, {
+              body: `${fmtN(kpiResult.totalTransactions)} tx · ${fmtPct(kpiResult.successRate)} réussite`,
+              icon: "/icon-192.png",
+              tag: "telecom-ready",
+            });
+          } catch {
+            // Notification construction can throw on some platforms; ignore.
+          }
         }
 
         // F10 — broadcast analytics ready to other tabs
