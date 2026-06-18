@@ -1,12 +1,18 @@
 /**
- * F4 — Yjs Cross-Tab State Sync
- * Uses a lightweight BroadcastChannel provider (no y-indexeddb needed).
- * Syncs filter, activeTab, and columnMapping across all open tabs via CRDT.
+ * F4 — Yjs Cross-Tab State Sync + durable offline persistence.
+ *
+ * The singleton app `ydoc` syncs filter/tab/mapping/overview across same-origin
+ * tabs via a lightweight BroadcastChannel CRDT provider, AND now persists
+ * durably via y-indexeddb (so collab-hub annotations/approvals/audit and LAN
+ * room state survive reload). Call `ensureAppDocPersistence()` once at app
+ * startup and `await` it before reading the collab-hub shared types if you need
+ * the offline content loaded first.
  */
 
 "use client";
 
 import * as Y from "yjs";
+import { attachPersistence } from "./persistence";
 
 // ─── Yjs Document ─────────────────────────────────────────────────────────────
 
@@ -32,11 +38,39 @@ export const sharedOverview = ydoc.getMap<string>("overview");
 /** LAN room metadata: pairing state, selected report tab, active file drops. */
 export const sharedLanRoom = ydoc.getMap<string>("lan-room");
 
-/** Shared per-peer cursor/selection state keyed by peer id. */
+/**
+ * Shared per-peer DURABLE identity keyed by peer id (name/role/color/page).
+ * Ephemeral cursor/selection lives in `y-protocols/awareness`, NOT here — see
+ * `publishPresence` / `publishSelection` in `@/platform/lan/lan-collab`.
+ */
 export const sharedPresence = ydoc.getMap<string>("presence");
 
 /** Append-only LAN audit entries mirrored to connected browsers. */
 export const sharedAudit = ydoc.getArray<string>("audit");
+
+// ─── Durable persistence (y-indexeddb) ────────────────────────────────────────
+// The app doc carries collab-hub annotations/approvals/audit + LAN room state;
+// persisting it makes that content survive reload (the localStorage silos it
+// replaces are being removed). One IndexeddbPersistence keyed by a stable name.
+
+const APP_DOC_NAME = "collab-app-doc";
+
+let _appPersistenceReady: Promise<void> | null = null;
+
+/**
+ * Attach durable IndexedDB persistence to the singleton app doc (idempotent).
+ * Resolves once local content has loaded — gate UI on this before reading the
+ * collab-hub shared types if offline content must be present first. Resolves
+ * immediately under SSR / no-IndexedDB.
+ */
+export function ensureAppDocPersistence(): Promise<void> {
+  if (_appPersistenceReady) return _appPersistenceReady;
+  const persistence = attachPersistence(APP_DOC_NAME, ydoc);
+  _appPersistenceReady = persistence
+    ? persistence.whenSynced.then(() => undefined)
+    : Promise.resolve();
+  return _appPersistenceReady;
+}
 
 // ─── BroadcastChannel Provider ────────────────────────────────────────────────
 // Syncs Y.Doc updates across same-origin tabs with no server required.
@@ -50,6 +84,10 @@ export function startCollabSync(): () => void {
   if (typeof BroadcastChannel === "undefined") return () => {};
   if (_started) return () => {};
   _started = true;
+
+  // Attach durable persistence on the default boot path (fire-and-forget; the
+  // BroadcastChannel provider does not need to wait for it).
+  void ensureAppDocPersistence();
 
   _channel = new BroadcastChannel(CHANNEL_NAME);
 
@@ -88,6 +126,7 @@ export function useYMap<T extends Record<string, string>>(
   const [, forceUpdate] = useReducer((x: number) => x + 1, 0);
 
   // Hydrate defaults into the map only if it's completely empty
+  // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate-once-on-mount; ymap/defaultValues intentionally excluded to avoid re-running
   useEffect(() => {
     if (ymap.size === 0) {
       ydoc.transact(() => {
@@ -96,7 +135,6 @@ export function useYMap<T extends Record<string, string>>(
         }
       }, "init");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {

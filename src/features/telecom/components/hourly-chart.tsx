@@ -1,9 +1,9 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import ReactECharts from "echarts-for-react";
-import type * as Types from "@/features/telecom/types";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildHourlyChartOption } from "@/features/telecom/lib/chart-options";
+import type * as Types from "@/features/telecom/types";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 
 export const HourlyChart = memo(function HourlyChart({
@@ -17,11 +17,5 @@ export const HourlyChart = memo(function HourlyChart({
     () => buildHourlyChartOption(data, forecast),
     [data, forecast],
   );
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 200 }}
-      opts={{ renderer: "canvas" }}
-    />
-  );
+  return <EChart option={option} height={200} />;
 });

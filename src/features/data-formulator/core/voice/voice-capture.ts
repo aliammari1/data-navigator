@@ -33,6 +33,21 @@ const TARGET_SAMPLE_RATE = 16000;
 const SCRIPT_PROCESSOR_BUFFER_SIZE = 4096;
 const FRAME_DURATION_MS = 20;
 
+/** Gate noisy capture diagnostics out of production builds. */
+const VOICE_DEBUG = process.env.NODE_ENV !== "production";
+
+function debugLog(...args: unknown[]): void {
+  if (VOICE_DEBUG) {
+    console.log(...args);
+  }
+}
+
+function debugWarn(...args: unknown[]): void {
+  if (VOICE_DEBUG) {
+    console.warn(...args);
+  }
+}
+
 let audioContext: AudioContext | null = null;
 let micStream: MediaStream | null = null;
 let scriptNode: ScriptProcessorNode | null = null;
@@ -251,7 +266,7 @@ export async function startVoiceCapture(
       );
     }
 
-    console.log("[voice-capture] requesting microphone...");
+    debugLog("[voice-capture] requesting microphone...");
 
     micStream = await navigator.mediaDevices.getUserMedia({
       audio: {
@@ -264,7 +279,7 @@ export async function startVoiceCapture(
 
     const tracks = micStream.getAudioTracks();
 
-    console.log("[voice-capture] microphone stream granted", {
+    debugLog("[voice-capture] microphone stream granted", {
       trackCount: tracks.length,
       tracks: tracks.map((track) => ({
         label: track.label,
@@ -353,7 +368,7 @@ export async function startVoiceCapture(
       error: null,
     });
   } catch (error) {
-    console.error("[voice-capture] failed to start microphone", error);
+    debugWarn("[voice-capture] failed to start microphone", error);
 
     cleanupAudioGraph();
 
@@ -387,7 +402,7 @@ export function stopVoiceCapture(
   cleanupAudioGraph();
 
   if (chunks.length === 0) {
-    console.warn("[voice-capture] stopped with no captured chunks");
+    debugWarn("[voice-capture] stopped with no captured chunks");
 
     if (onStateChange) {
       onStateChange({
@@ -407,7 +422,7 @@ export function stopVoiceCapture(
   const totalLength = chunks.reduce((sum, chunk) => sum + chunk.length, 0);
 
   if (totalLength === 0) {
-    console.warn("[voice-capture] stopped with empty captured chunks");
+    debugWarn("[voice-capture] stopped with empty captured chunks");
 
     if (onStateChange) {
       onStateChange({
@@ -439,7 +454,7 @@ export function stopVoiceCapture(
    */
   const { rms, peak } = analyzePcm(result);
 
-  console.log("[voice-capture] captured PCM", {
+  debugLog("[voice-capture] captured PCM", {
     chunks: chunks.length,
     samples: result.length,
     sampleRate,

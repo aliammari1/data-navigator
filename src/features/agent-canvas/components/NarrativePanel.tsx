@@ -34,7 +34,6 @@ import {
 import { cn } from "@/shared/utils";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { TraceNode } from "@/features/agent-canvas/core/event-bus";
-import type { DashboardPlan } from "@/features/agent-canvas/core/types";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
   ssr: false,
@@ -95,7 +94,10 @@ function SortableWidgetItem({ id, title, chart }: SortableWidgetItemProps) {
 }
 
 function HITLEditor() {
-  const { plan, interrupt, setPlan, clearInterrupt } = useAgentStore();
+  const plan = useAgentStore((s) => s.plan);
+  const interrupt = useAgentStore((s) => s.interrupt);
+  const setPlan = useAgentStore((s) => s.setPlan);
+  const clearInterrupt = useAgentStore((s) => s.clearInterrupt);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
   );
@@ -273,7 +275,7 @@ function TraceNodeItem({
 }
 
 function TraceViewer() {
-  const { traceRoots } = useAgentStore();
+  const traceRoots = useAgentStore((s) => s.traceRoots);
 
   if (traceRoots.length === 0) {
     return (
@@ -295,7 +297,7 @@ function TraceViewer() {
 // ─── Main NarrativePanel ──────────────────────────────────────────────────────
 
 export function NarrativePanel() {
-  const { narrative } = useAgentStore();
+  const narrative = useAgentStore((s) => s.narrative);
   const [tab, setTab] = useState<TabId>("narrative");
 
   return (

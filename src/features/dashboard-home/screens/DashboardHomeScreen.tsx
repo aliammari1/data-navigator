@@ -2,45 +2,72 @@
 
 import {
   ArrowRight,
+  Brain,
   CheckCircle2,
-  Database,
+  Coins,
+  FileText,
+  Radio,
   RefreshCw,
-  Signal,
   Upload,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataStore } from "@/core/stores/data-store";
-import { OverviewTab } from "@/features/telecom/components/overview-tab";
-import { KPI_FIELDS } from "@/features/telecom/constants";
+import { KpiStat } from "@/design-system/kpi-stat";
+import { Rise, StaggerGrid, StaggerItem } from "@/design-system/motion-components";
+import { ActivityCard } from "@/features/dashboard-home/components/activity-card";
+import { GenericDatasetOverview } from "@/features/dashboard-home/components/generic-dataset-overview";
+import { HomeHero } from "@/features/dashboard-home/components/home-hero";
+import { QuickActions } from "@/features/dashboard-home/components/quick-actions";
+import { RecentDatasetsCard } from "@/features/dashboard-home/components/recent-datasets-card";
+import { TipCard } from "@/features/dashboard-home/components/tip-card";
+import { handleLauncherClick } from "@/features/dashboard-home/lib/open-app";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
-import {
-  getDatasetReportDate,
-  isTelecomDataset,
-} from "@/features/telecom/lib/dataset-detection";
-import { fmtN, fmtPct } from "@/features/telecom/lib/format";
-import { fetchDailyTrend as _fetchDailyTrend } from "@/features/telecom/lib/queries";
+import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/dataset-detection";
+import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { DEFAULT_MAPPING } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 
-const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
-  "assistant",
-  "revenueGroups",
-  "status",
-  "hourly",
-  "canalShare",
-  "canalAmount",
-  "successRate",
-  "canalTable",
-  "dailyTrend",
-];
-
+/**
+ * Accueil — warm "Édition du Jour" mission control.
+ *
+ * A PostHog-style overview reimagined as a paper/cream editorial briefing.
+ * Routes by dataset kind:
+ * - no datasets        → first-run empty state with import CTA
+ * - telecom dataset    → masthead hero + real KPI row + quick actions +
+ *                        recent datasets + activity + tip (summarises the
+ *                        report, links into it — never re-renders the heavy
+ *                        telecom OverviewTab)
+ * - any other dataset  → generic DuckDB SUMMARIZE-backed overview
+ */
 export default function DashboardHomeScreen() {
-  const router = useRouter();
+  const datasets = useDataStore((state) => state.datasets);
+  const activeDatasetId = useDataStore((state) => state.activeDatasetId);
 
+  const hasTelecom = useMemo(() => datasets.some(isTelecomDataset), [datasets]);
+
+  const activeDataset = useMemo(
+    () => datasets.find((dataset) => dataset.id === activeDatasetId) ?? null,
+    [datasets, activeDatasetId],
+  );
+
+  if (!datasets.length) return <MissionControlEmptyState />;
+
+  if (!hasTelecom) {
+    const target = activeDataset ?? datasets[0];
+    return <GenericDatasetOverview dataset={target} />;
+  }
+
+  if (activeDataset && !isTelecomDataset(activeDataset)) {
+    return <GenericDatasetOverview dataset={activeDataset} />;
+  }
+
+  return <MissionControl />;
+}
+
+function MissionControl() {
   const datasets = useDataStore((state) => state.datasets);
   const activeDatasetId = useDataStore((state) => state.activeDatasetId);
   const setActiveDataset = useDataStore((state) => state.setActiveDataset);
@@ -51,38 +78,19 @@ export default function DashboardHomeScreen() {
 
   const [activeTableName, setActiveTableName] = useState("");
   const [tableReady, setTableReady] = useState(false);
-
   const [statusMapping, setStatusMapping] = useState<Types.StatusMapping[]>([]);
-  const statusMappingRef = useRef<Types.StatusMapping[]>([]);
-
-  const [selectedKpis, setSelectedKpis] = useState<Set<keyof Types.KPISummary>>(
-    () => new Set(KPI_FIELDS.map((field) => field.key)),
-  );
-
-  const [selectedOverviewSections, setSelectedOverviewSections] = useState<
-    Set<Types.OverviewExportSectionKey>
-  >(() => new Set(DEFAULT_OVERVIEW_EXPORT_SECTIONS));
-
-  useEffect(() => {
-    statusMappingRef.current = statusMapping;
-  }, [statusMapping]);
 
   const telecomDatasets = useMemo(
     () =>
       datasets
         .filter(isTelecomDataset)
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-        ),
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [datasets],
   );
 
   const activeTelecomDataset = useMemo(() => {
     const active = datasets.find((dataset) => dataset.id === activeDatasetId);
-
     if (active && isTelecomDataset(active)) return active;
-
     return telecomDatasets[0] ?? null;
   }, [datasets, activeDatasetId, telecomDatasets]);
 
@@ -92,12 +100,6 @@ export default function DashboardHomeScreen() {
   }, []);
 
   const getTableName = useCallback(() => tableNameRef.current, []);
-
-  const fetchDailyTrend = useCallback(
-    (mapping: Types.ColumnMapping) =>
-      _fetchDailyTrend(tableNameRef.current, mapping),
-    [],
-  );
 
   const analytics = useTelecomAnalytics({
     getTableName,
@@ -111,31 +113,8 @@ export default function DashboardHomeScreen() {
     },
   });
 
-  const toggleKpi = useCallback((key: keyof Types.KPISummary) => {
-    setSelectedKpis((prev) => {
-      const next = new Set(prev);
-
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-
-      return next;
-    });
-  }, []);
-
-  const toggleOverviewSection = useCallback(
-    (key: Types.OverviewExportSectionKey) => {
-      setSelectedOverviewSections((prev) => {
-        const next = new Set(prev);
-
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
-
-        return next;
-      });
-    },
-    [],
-  );
-
+  // Sync active dataset + live table name into the analytics hook. Mount order
+  // and the setActiveDataset call are preserved (telecom runtime coupling, risk #1).
   useEffect(() => {
     if (!activeTelecomDataset) {
       setTableReady(false);
@@ -144,9 +123,7 @@ export default function DashboardHomeScreen() {
       return;
     }
 
-    const viewName =
-      activeTelecomDataset.viewName || activeTelecomDataset.tableName;
-
+    const viewName = activeTelecomDataset.viewName || activeTelecomDataset.tableName;
     if (!viewName) {
       setTableReady(false);
       setCurrentTableName("");
@@ -162,244 +139,294 @@ export default function DashboardHomeScreen() {
     fileNameRef.current = activeTelecomDataset.name;
     firstLoad.current = true;
     setTableReady(true);
-  }, [
-    activeDatasetId,
-    activeTelecomDataset?.id,
-    activeTelecomDataset?.name,
-    activeTelecomDataset?.tableName,
-    activeTelecomDataset?.viewName,
-    setActiveDataset,
-    setCurrentTableName,
-  ]);
+  }, [activeDatasetId, activeTelecomDataset, setActiveDataset, setCurrentTableName]);
 
-  useEffect(() => {
-    if (!tableReady || !activeTableName) return;
-
-    analytics.runAnalytics(DEFAULT_MAPPING, statusMappingRef.current);
-  }, [tableReady, activeTableName, analytics.refresh]); // eslint-disable-line react-hooks/exhaustive-deps
+  if (!activeTelecomDataset) return <MissionControlEmptyState />;
 
   const reportDate = getDatasetReportDate(activeTelecomDataset);
+  const freshness = relativeTime(activeTelecomDataset.updatedAt);
+  const kpi = analytics.kpi;
+  const loading = !tableReady || !activeTableName || !kpi;
 
-  if (!activeTelecomDataset) {
-    return <DashboardHomeEmptyState />;
-  }
+  const heroSubtitle = (
+    <>
+      <span className="font-mono text-foreground/80">{activeTelecomDataset.name}</span>
+      {reportDate ? <> · Données du {reportDate}</> : null}
+      {freshness ? <> · importées {freshness}</> : null}
+    </>
+  );
+
+  const openReport = handleLauncherClick("telecom", "/dashboard/telecom-report/overview");
 
   return (
-    <div className="dn-page flex-1 overflow-y-auto">
-      <div className="dn-sticky-header px-4 py-3 md:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-teal-700 to-emerald-600">
-              <Signal className="h-5 w-5 text-white" />
-            </div>
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-5 px-4 py-5 md:px-6">
+        {/* Masthead hero */}
+        <HomeHero subtitle={heroSubtitle} />
 
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold text-foreground">
-                Vue d'ensemble Télécom
-              </h1>
-
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="truncate font-mono">
-                  {activeTelecomDataset.name}
-                </span>
-
-                {reportDate && (
-                  <>
-                    <span>·</span>
-                    <span>{reportDate}</span>
-                  </>
-                )}
-
-                {analytics.kpi && (
-                  <>
-                    <span>·</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-300">
-                      {fmtN(analytics.kpi.totalTransactions)} tx
-                    </span>
-                    <span>·</span>
-                    <span
-                      className={
-                        analytics.kpi.successRate >= 90
-                          ? "text-emerald-600 dark:text-emerald-400"
-                          : "text-amber-600 dark:text-amber-400"
-                      }
-                    >
-                      {fmtPct(analytics.kpi.successRate)} réussite
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-
+        {/* Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-sm font-semibold text-foreground">Le rapport du jour</h2>
           <div className="flex flex-wrap items-center gap-2">
-            <TelecomDatasetPicker
-              datasets={telecomDatasets}
-              activeDatasetId={activeTelecomDataset.id}
-              onSelect={(id) => {
-                setActiveDataset(id);
-              }}
-            />
-
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => analytics.refresh()}
               disabled={!tableReady}
-              className="h-9 rounded-xl text-xs"
             >
-              <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-              Actualiser
+              <RefreshCw className="size-3.5" /> Actualiser
             </Button>
-
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => router.push("/dashboard/upload?context=telecom")}
-              className="h-9 rounded-xl bg-teal-700 text-xs font-bold text-white hover:bg-teal-800"
-            >
-              <Upload className="mr-1.5 h-3.5 w-3.5" />
-              Importer
+            <Button type="button" variant="outline" size="sm" asChild>
+              <a
+                href="/dashboard/upload"
+                onClick={handleLauncherClick("upload", "/dashboard/upload")}
+              >
+                <Upload className="size-3.5" /> Importer
+              </a>
             </Button>
-
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => router.push("/dashboard/telecom-report")}
-              className="h-9 rounded-xl text-xs"
-            >
-              Rapport complet
-              <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
+            <Button type="button" size="sm" asChild>
+              <a
+                href="/dashboard/telecom-report/overview"
+                onClick={handleLauncherClick("telecom", "/dashboard/telecom-report/overview")}
+              >
+                Ouvrir le rapport
+                <ArrowRight className="size-3.5" />
+              </a>
             </Button>
           </div>
         </div>
-      </div>
 
-      <main className="dn-page-shell-wide space-y-5">
-        {!tableReady && (
-          <DashboardLoadingState label="Préparation du dashboard…" />
-        )}
+        {/* KPI row — real telecom analytics */}
+        <StaggerGrid className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StaggerItem>
+            <KpiStat
+              label="Transactions"
+              numericValue={loading ? 0 : kpi.totalTransactions}
+              icon={<FileText />}
+              sub={reportDate ? `Rapport du ${reportDate}` : "Rapport actif"}
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KpiStat
+              label="Taux de réussite"
+              value={loading ? "—" : fmtPct(kpi.successRate)}
+              icon={<CheckCircle2 />}
+              trend={loading ? "neutral" : kpi.successRate >= 90 ? "up" : "down"}
+              trendValue={
+                loading ? undefined : kpi.successRate >= 90 ? "objectif atteint" : "sous l'objectif"
+              }
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KpiStat
+              label="Montant total"
+              value={loading ? "—" : fmtAmount(kpi.totalAmount)}
+              icon={<Coins />}
+              sub="TND"
+            />
+          </StaggerItem>
+          <StaggerItem>
+            <KpiStat
+              label="Abonnés uniques"
+              numericValue={loading ? 0 : kpi.uniqueCustomers}
+              icon={<Users />}
+              sub={loading ? undefined : `Pic à ${String(kpi.peakHour).padStart(2, "0")}:00`}
+            />
+          </StaggerItem>
+        </StaggerGrid>
 
-        {tableReady && !analytics.kpi && (
-          <DashboardLoadingState label="Analyse des transactions…" />
-        )}
+        {/* Report-of-the-day summary + recent datasets */}
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Rise className="lg:col-span-2">
+            <ReportOfTheDay
+              kpi={kpi}
+              loading={loading}
+              canalCount={analytics.canals?.length ?? 0}
+              onOpenReport={openReport}
+            />
+          </Rise>
+          <Rise>
+            <RecentDatasetsCard />
+          </Rise>
+        </div>
 
-        {tableReady && (
-          <OverviewTab
-            kpi={analytics.kpi}
-            canals={analytics.canals}
-            hourly={analytics.hourly}
-            statusData={analytics.statusData}
-            forecast={analytics.forecast}
-            m={DEFAULT_MAPPING}
-            selectedKpis={selectedKpis}
-            toggleKpi={toggleKpi}
-            selectedOverviewSections={selectedOverviewSections}
-            toggleOverviewSection={toggleOverviewSection}
-            fetchDailyTrend={fetchDailyTrend}
-          />
-        )}
-      </main>
-    </div>
-  );
-}
+        {/* Quick actions */}
+        <QuickActions />
 
-function DashboardHomeEmptyState() {
-  return (
-    <div className="dn-page flex-1 overflow-y-auto">
-      <div className="dn-page-shell">
-        <div className="mx-auto flex min-h-[70vh] max-w-xl flex-col items-center justify-center text-center">
-          <div className="flex h-20 w-20 items-center justify-center rounded-3xl border border-border bg-card text-muted-foreground">
-            <Database className="h-9 w-9" />
-          </div>
-
-          <h1 className="mt-6 text-2xl font-bold text-foreground">
-            Aucun rapport télécom disponible
-          </h1>
-
-          <p className="mt-2 max-w-md text-sm text-muted-foreground">
-            Importez un fichier de transactions télécom depuis Upload. Le
-            rapport sera chargé localement dans DuckDB, puis affiché ici comme
-            écran d'accueil.
-          </p>
-
-          <div className="mt-6 flex flex-wrap justify-center gap-3">
-            <Link href="/dashboard/upload?context=telecom">
-              <Button className="rounded-xl bg-teal-700 text-white hover:bg-teal-800">
-                <Upload className="mr-2 h-4 w-4" />
-                Importer un rapport
-              </Button>
-            </Link>
-
-            <Link href="/dashboard/telecom-report">
-              <Button variant="outline" className="rounded-xl">
-                Rapport Télécom
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
-          </div>
+        {/* Activity + tip */}
+        <div className="grid gap-3 lg:grid-cols-3">
+          <Rise className="lg:col-span-2">
+            <ActivityCard />
+          </Rise>
+          <Rise>
+            <TipCard />
+          </Rise>
         </div>
       </div>
     </div>
   );
 }
 
-function DashboardLoadingState({ label }: { label: string }) {
-  return (
-    <div className="flex flex-col items-center justify-center py-24">
-      <div className="relative h-14 w-14">
-        <div className="absolute inset-0 rounded-full border-2 border-teal-500/20" />
-        <div className="absolute inset-0 animate-spin rounded-full border-t-2 border-teal-600" />
-      </div>
-      <div className="mt-4 text-sm font-semibold text-muted-foreground">
-        {label}
-      </div>
-    </div>
-  );
-}
-
-function TelecomDatasetPicker({
-  datasets,
-  activeDatasetId,
-  onSelect,
+function ReportOfTheDay({
+  kpi,
+  loading,
+  canalCount,
+  onOpenReport,
 }: {
-  datasets: Array<{
-    id: string;
-    name: string;
-    tableName: string;
-    viewName?: string;
-    rowCount: number;
-  }>;
-  activeDatasetId: string;
-  onSelect: (id: string) => void;
+  kpi: Types.KPISummary | null;
+  loading: boolean;
+  canalCount: number;
+  onOpenReport: (event: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
-  if (datasets.length <= 1) {
-    return (
-      <Badge
-        variant="outline"
-        className="h-9 rounded-xl border-border bg-background px-3 text-xs text-muted-foreground"
-      >
-        <CheckCircle2 className="mr-1.5 h-3.5 w-3.5 text-teal-600" />
-        Rapport actif
-      </Badge>
-    );
-  }
-
   return (
-    <div className="flex items-center gap-2">
-      <select
-        value={activeDatasetId}
-        onChange={(event) => onSelect(event.target.value)}
-        className="h-9 max-w-72 rounded-xl border border-border bg-background px-3 text-xs text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      >
-        {datasets.map((dataset) => (
-          <option key={dataset.id} value={dataset.id}>
-            {dataset.name} · {dataset.rowCount.toLocaleString()} rows
-          </option>
-        ))}
-      </select>
+    <div className="flex h-full flex-col gap-4 rounded-2xl border border-border bg-card p-5 shadow-sm">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <span className="flex size-9 items-center justify-center rounded-xl border border-orange-500/25 bg-orange-500/10 text-orange-600 dark:text-orange-300">
+            <Radio className="size-4" />
+          </span>
+          <h2 className="text-sm font-semibold text-foreground">Rapport du jour</h2>
+        </div>
+        <Button asChild variant="ghost" size="sm">
+          <a href="/dashboard/telecom-report/overview" onClick={onOpenReport}>
+            Détails <ArrowRight className="size-3.5" />
+          </a>
+        </Button>
+      </div>
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <MiniStat
+          label="Réussies"
+          value={loading || !kpi ? "—" : fmtN(kpi.successCount)}
+          tone="positive"
+        />
+        <MiniStat
+          label="Échecs"
+          value={loading || !kpi ? "—" : fmtN(kpi.declinedCount)}
+          tone="negative"
+        />
+        <MiniStat label="En attente" value={loading || !kpi ? "—" : fmtN(kpi.instanceCount)} />
+        <MiniStat label="Canaux" value={loading ? "—" : fmtN(canalCount)} />
+      </div>
+      <p className="mt-auto text-sm leading-relaxed text-muted-foreground">
+        {loading || !kpi
+          ? "Analyse des transactions en cours…"
+          : `${fmtN(kpi.totalTransactions)} transactions traitées, ${fmtPct(
+              kpi.successRate,
+            )} de réussite. Code d'erreur principal : ${kpi.topErrorCode || "—"}.`}
+      </p>
     </div>
   );
 }
+
+function MiniStat({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string;
+  tone?: "positive" | "negative";
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-background/50 p-3">
+      <div className="text-xs uppercase tracking-[0.06em] text-muted-foreground">{label}</div>
+      <div
+        className={
+          tone === "positive"
+            ? "mt-1 font-mono text-lg font-semibold tabular-nums text-positive"
+            : tone === "negative"
+              ? "mt-1 font-mono text-lg font-semibold tabular-nums text-negative"
+              : "mt-1 font-mono text-lg font-semibold tabular-nums text-foreground"
+        }
+      >
+        {value}
+      </div>
+    </div>
+  );
+}
+
+function MissionControlEmptyState() {
+  return (
+    <div className="flex min-h-full flex-1 flex-col items-center justify-center overflow-y-auto px-6 py-16 text-center">
+      <div className="flex items-center gap-2">
+        <span className="flex size-6 items-center justify-center rounded-full bg-amber-500 font-serif text-xs font-bold text-white">
+          é
+        </span>
+        <p className="font-mono text-xs uppercase tracking-[0.18em] text-amber-700 dark:text-amber-300">
+          L'Édition du Jour
+        </p>
+      </div>
+      <h1 className="mt-4 max-w-2xl font-[family-name:var(--font-display)] text-4xl font-semibold leading-tight tracking-tight text-foreground md:text-5xl">
+        Votre rapport, entièrement hors ligne
+      </h1>
+      <p className="mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
+        Importez votre fichier DailyTransactions : tout est analysé localement dans DuckDB, sans
+        connexion. Importez, analysez, exportez.
+      </p>
+
+      <StaggerGrid className="mt-10 grid w-full max-w-3xl gap-3 sm:grid-cols-3">
+        {[
+          {
+            n: "1",
+            icon: Upload,
+            title: "Importer",
+            text: "Glissez votre fichier DailyTransactions.",
+          },
+          {
+            n: "2",
+            icon: Brain,
+            title: "Analyser",
+            text: "KPIs, anomalies et prévisions locales.",
+          },
+          {
+            n: "3",
+            icon: FileText,
+            title: "Exporter",
+            text: "Rapports et présentations partageables.",
+          },
+        ].map((step) => (
+          <StaggerItem key={step.n}>
+            <div className="flex h-full flex-col items-center gap-2 rounded-2xl border border-border bg-card p-5 text-center shadow-sm">
+              <span className="flex size-10 items-center justify-center rounded-xl border border-amber-500/25 bg-amber-500/10 text-amber-600 [&_svg]:size-5 dark:text-amber-300">
+                <step.icon aria-hidden="true" />
+              </span>
+              <h3 className="text-sm font-semibold text-foreground">{step.title}</h3>
+              <p className="text-xs leading-relaxed text-muted-foreground">{step.text}</p>
+            </div>
+          </StaggerItem>
+        ))}
+      </StaggerGrid>
+
+      <div className="mt-9 flex flex-wrap items-center justify-center gap-3">
+        <Button asChild size="lg">
+          <Link href="/dashboard/upload">
+            <Upload className="size-4" /> Importer un fichier DailyTransactions
+          </Link>
+        </Button>
+        <Button asChild variant="outline" size="lg">
+          <Link href="/dashboard/help">Visite guidée</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/** Compact French relative time ("il y a 2 h", "il y a 3 j"). */
+function relativeTime(input: string | number | Date | undefined): string | null {
+  if (!input) return null;
+  const then = new Date(input).getTime();
+  if (Number.isNaN(then)) return null;
+  const diffMs = Date.now() - then;
+  if (diffMs < 0) return null;
+  const min = Math.round(diffMs / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `il y a ${min} min`;
+  const h = Math.round(min / 60);
+  if (h < 24) return `il y a ${h} h`;
+  const d = Math.round(h / 24);
+  return `il y a ${d} j`;
+}
+
+// Re-exported for callers/tests that imported the empty state by its old name.
+export { MissionControlEmptyState as DashboardHomeEmptyState };

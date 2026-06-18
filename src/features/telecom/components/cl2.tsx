@@ -38,7 +38,7 @@ export function CL2({
       className={cn(
         "rounded-xl border overflow-hidden transition-colors duration-200",
         open
-          ? "border-indigo-500/25 bg-indigo-500/5"
+          ? "border-primary/25 bg-primary/5"
           : "border-border/60 bg-muted/20",
       )}
     >
@@ -51,7 +51,7 @@ export function CL2({
           <div
             className={cn(
               "w-1.5 h-5 rounded-full transition-colors duration-200 flex-none",
-              open ? "bg-indigo-500" : "bg-indigo-500/40",
+              open ? "bg-primary" : "bg-primary/40",
             )}
           />
           <span className="text-sm font-semibold text-foreground">{title}</span>
@@ -72,7 +72,7 @@ export function CL2({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 py-3 space-y-2.5 border-t border-indigo-500/15">
+            <div className="px-4 py-3 space-y-2.5 border-t border-primary/15">
               {summaryGroups &&
                 summaryGroups.length > 1 &&
                 fetchSpecChannelStats && (

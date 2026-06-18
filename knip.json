@@ -1,0 +1,96 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/app/**/{page,layout,template,loading,error,not-found,global-error,route,default,sitemap,robots,manifest,opengraph-image,icon,apple-icon}.{ts,tsx}",
+    "src/app/**/middleware.ts",
+    "middleware.ts",
+    "electron/main.ts",
+    "electron/preload.ts",
+    "src/workers/*.worker.ts",
+    "src/features/**/workers/*.worker.ts",
+    "src/features/**/worker/*.worker.ts",
+    "src/features/**/core/**/*.worker.ts",
+    "src/features/data-formulator/core/voice/voice-command-router.ts",
+    "esbuild.workers.mjs",
+    "scripts/**/*.{ts,mjs}",
+    "src/**/*.stories.{ts,tsx}",
+    "src/db/schema.ts",
+    "drizzle.config.ts",
+    "forge.config.ts",
+    "tsup.config.ts",
+    "next.config.ts",
+    "postcss.config.mjs",
+    "tailwind.config.ts",
+    "vitest.config.ts",
+    "playwright.config.ts",
+    "playwright.storybook.config.ts",
+    ".storybook/{main,preview,test-runner}.{ts,tsx}"
+  ],
+  "project": [
+    "src/**/*.{ts,tsx}",
+    "electron/**/*.ts",
+    "scripts/**/*.{ts,mjs}",
+    ".storybook/**/*.{ts,tsx}",
+    "!src/**/*.stories.{ts,tsx}",
+    "!src/**/*.test.{ts,tsx}",
+    "!src/**/*.spec.{ts,tsx}",
+    "!src/**/*.bench.{ts,tsx}",
+    "!src/**/*.d.ts"
+  ],
+  "ignore": [
+    ".next/**",
+    "out/**",
+    "dist/**",
+    "build/**",
+    "storybook-static/**",
+    "coverage/**",
+    "drizzle/**",
+    "public/**",
+    "src/**/*.d.ts",
+    "next-env.d.ts"
+  ],
+  "ignoreBinaries": [
+    "depcruise",
+    "lhci",
+    "test-storybook",
+    "electron-forge",
+    "powershell"
+  ],
+  "ignoreDependencies": [
+    "@huggingface/transformers",
+    "onnxruntime-web",
+    "onnxruntime-node",
+    "sharp"
+  ],
+  "rules": {
+    "files": "error",
+    "exports": "error",
+    "types": "error",
+    "duplicates": "error",
+    "dependencies": "warn",
+    "devDependencies": "warn",
+    "unlisted": "error",
+    "binaries": "warn",
+    "unresolved": "error",
+    "enumMembers": "warn"
+  },
+  "next": {
+    "entry": [
+      "src/app/**/{page,layout,template,loading,error,not-found,global-error,route,default}.{ts,tsx}"
+    ]
+  },
+  "playwright": {
+    "config": ["playwright.config.ts", "playwright.storybook.config.ts"]
+  },
+  "storybook": {
+    "config": [".storybook/main.ts"],
+    "entry": [
+      ".storybook/{main,preview,test-runner}.{ts,tsx}",
+      "src/**/*.stories.{ts,tsx}"
+    ]
+  },
+  "vitest": {
+    "config": ["vitest.config.ts"],
+    "entry": ["src/**/*.{test,spec,bench}.{ts,tsx}"]
+  }
+}

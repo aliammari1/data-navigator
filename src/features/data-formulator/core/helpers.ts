@@ -10,7 +10,18 @@ export function inferType(dbType: string): ColType {
 }
 
 export function genId(): string {
-  return Math.random().toString(36).slice(2, 10);
+  // Collision-resistant identifier. Prefer the platform crypto RNG (available in
+  // both the renderer and workers) over `Math.random`, which is neither uniform
+  // nor collision-safe for the volume of encoding/card/derived-field ids minted
+  // here. Falls back only when `crypto` is somehow unavailable.
+  const c = typeof globalThis !== "undefined" ? globalThis.crypto : undefined;
+  if (c?.randomUUID) return c.randomUUID().replace(/-/g, "").slice(0, 12);
+  if (c?.getRandomValues) {
+    const buf = new Uint8Array(8);
+    c.getRandomValues(buf);
+    return Array.from(buf, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 }
 
 export function fmtVal(v: unknown): string {

@@ -43,6 +43,8 @@ import {
   fetchDailyTrend as _fetchDailyTrend,
   fetchDestinationsForGroup as _fetchDestinationsForGroup,
   fetchFiltered as _fetchFiltered,
+  fetchFilteredCount as _fetchFilteredCount,
+  fetchFilteredPage as _fetchFilteredPage,
   fetchOperators as _fetchOperators,
   fetchOperatorsForGroup as _fetchOperatorsForGroup,
   fetchRegions as _fetchRegions,
@@ -67,6 +69,7 @@ import {
 } from "@/platform/storage/app-db";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
+import { TelecomTabStrip } from "./telecom-tab-strip";
 
 const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
   "assistant",
@@ -143,6 +146,20 @@ export interface TelecomReportRuntimeValue {
     sortCol: string,
     sortDir: Types.SortDir,
   ) => Promise<{ rows: Types.RawRow[]; total: number }>;
+  fetchFilteredCount: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+  ) => Promise<number>;
+  fetchFilteredPage: (
+    m: Types.ColumnMapping,
+    f: Types.FilterState,
+    sm: Types.StatusMapping[],
+    limit: number,
+    offset: number,
+    sortCol: string,
+    sortDir: Types.SortDir,
+  ) => Promise<Types.RawRow[]>;
   fetchCustomerProfile: (
     m: Types.ColumnMapping,
     msisdn: string,
@@ -344,6 +361,35 @@ export function TelecomReportRuntimeProvider({
       sortDir: Types.SortDir,
     ) =>
       _fetchFiltered(
+        tableNameRef.current,
+        m,
+        f,
+        sm,
+        limit,
+        offset,
+        sortCol,
+        sortDir,
+      ),
+    [],
+  );
+
+  const fetchFilteredCount = useCallback(
+    (m: Types.ColumnMapping, f: Types.FilterState, sm: Types.StatusMapping[]) =>
+      _fetchFilteredCount(tableNameRef.current, m, f, sm),
+    [],
+  );
+
+  const fetchFilteredPage = useCallback(
+    (
+      m: Types.ColumnMapping,
+      f: Types.FilterState,
+      sm: Types.StatusMapping[],
+      limit: number,
+      offset: number,
+      sortCol: string,
+      sortDir: Types.SortDir,
+    ) =>
+      _fetchFilteredPage(
         tableNameRef.current,
         m,
         f,
@@ -663,6 +709,8 @@ export function TelecomReportRuntimeProvider({
     fetchCanalHourlyMatrix,
     fetchDailyTrend,
     fetchFiltered,
+    fetchFilteredCount,
+    fetchFilteredPage,
     fetchCustomerProfile,
     fetchServiceCodeRows,
     runCustomKPIExpr,
@@ -684,8 +732,8 @@ export function TelecomReportRuntimeProvider({
       <div className="sticky top-0 z-30 flex-none border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-teal-700 to-emerald-600">
-              <Signal className="h-5 w-5 text-white" />
+            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/80">
+              <Signal className="h-5 w-5 text-primary-foreground" />
             </div>
 
             <div className="min-w-0">
@@ -740,7 +788,7 @@ export function TelecomReportRuntimeProvider({
                 {kpi && (
                   <>
                     <span>·</span>
-                    <span className="font-semibold text-teal-700 dark:text-teal-300">
+                    <span className="font-semibold text-primary">
                       {fmtN(kpi.totalTransactions)} tx
                     </span>
                   </>
@@ -770,7 +818,7 @@ export function TelecomReportRuntimeProvider({
                 type="button"
                 onClick={handlePersistAnalytics}
                 disabled={persistingSnapshot}
-                className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100 disabled:opacity-50 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300 dark:hover:bg-teal-500/20"
+                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15 disabled:opacity-50"
               >
                 <Database className="h-3.5 w-3.5" />
                 {persistingSnapshot ? "Sauvegarde…" : "Persister"}
@@ -783,7 +831,7 @@ export function TelecomReportRuntimeProvider({
                 <button
                   type="button"
                   onClick={() => Notification.requestPermission()}
-                  className="flex items-center gap-1.5 rounded-xl border border-teal-200 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/20 dark:bg-teal-500/10 dark:text-teal-300 dark:hover:bg-teal-500/20"
+                  className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
                 >
                   <Activity className="h-3.5 w-3.5" />
                   Notifications
@@ -797,7 +845,7 @@ export function TelecomReportRuntimeProvider({
                   (installPrompt as BeforeInstallPromptEvent).prompt?.();
                   setInstallPrompt(null);
                 }}
-                className="flex items-center gap-1.5 rounded-xl border border-teal-300 bg-teal-50 px-3 py-2 text-xs font-medium text-teal-700 transition-colors hover:bg-teal-100 dark:border-teal-500/25 dark:bg-teal-600/15 dark:text-teal-300 dark:hover:bg-teal-600/25"
+                className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
               >
                 <HardDrive className="h-3.5 w-3.5" />
                 Installer
@@ -808,7 +856,7 @@ export function TelecomReportRuntimeProvider({
               type="button"
               onClick={goToTelecomUpload}
               disabled={!access.permissions.canUpload}
-              className="flex items-center gap-1.5 rounded-xl border-transparent bg-teal-700 px-3 py-2 text-xs font-medium text-white transition-colors hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+              className="flex items-center gap-1.5 rounded-xl border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Upload className="h-3.5 w-3.5" />
               Importer
@@ -842,13 +890,17 @@ export function TelecomReportRuntimeProvider({
             )}
           </div>
         </div>
+
+        <div className="mt-3 border-b border-border">
+          <TelecomTabStrip />
+        </div>
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-6">
         {!reportContentVisible && (
           <div className="space-y-5">
             <div className="rounded-2xl border border-dashed border-border bg-muted/30 p-8 text-center">
-              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-teal-600/10 text-teal-700 dark:text-teal-300">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
                 <Upload className="h-5 w-5" />
               </div>
 
@@ -865,7 +917,7 @@ export function TelecomReportRuntimeProvider({
                 type="button"
                 onClick={goToTelecomUpload}
                 disabled={!access.permissions.canUpload}
-                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-teal-700 px-4 py-2 text-xs font-bold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
                 Ouvrir Upload
@@ -877,10 +929,10 @@ export function TelecomReportRuntimeProvider({
         {reportContentVisible && (
           <TelecomReportRuntimeContext.Provider value={runtimeValue}>
             {sharedOverviewMode && remoteOverview && (
-              <div className="rounded-2xl border border-cyan-500/25 bg-cyan-500/8 p-4">
+              <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-600 text-white">
+                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
                       <Radio className="h-4 w-4" />
                     </div>
 
@@ -961,7 +1013,7 @@ export function TelecomLoadingPanel({ label }: { label: string }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 py-20">
       <div className="relative h-12 w-12">
-        <div className="absolute inset-0 animate-spin rounded-full border-t-2 border-indigo-500" />
+        <div className="absolute inset-0 animate-spin rounded-full border-t-2 border-primary" />
       </div>
 
       <span className="text-xs text-muted-foreground">{label}</span>
@@ -991,7 +1043,7 @@ function TelecomDatasetPicker({
       <button
         type="button"
         onClick={onUpload}
-        className="inline-flex items-center gap-2 rounded-xl bg-teal-700 px-3 py-2 text-xs font-bold text-white hover:bg-teal-800"
+        className="inline-flex items-center gap-2 rounded-xl bg-primary px-3 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90"
       >
         <Upload className="h-4 w-4" />
         Charger un rapport

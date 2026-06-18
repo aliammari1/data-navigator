@@ -1,22 +1,29 @@
 "use client";
 /**
- * LangGraph StateGraph v3 — full agentic pipeline.
+ * LangGraph StateGraph — full agentic pipeline.
  *
  * Graph topology:
  *   START → schema_node → react_sql_loop → planner_node
  *         → [INTERRUPT: human review]
  *         → critique_node ←┐ (up to 3 cycles)
  *         → revise_node ───┘
- *         → sql_fan_out (parallel via Send)
+ *         → sql_fan_out (sequential — single LLM worker)
  *         → narrator_node → END
  *
- * Emits AG-UI events via publishEvent().
+ * Architecture note: `AgentState` holds ONLY serializable data — no callback
+ * closures. UI callbacks live in a thread-scoped sink registry (`SINKS`), so the
+ * `MemorySaver` checkpointer can actually round-trip state for pause / replay /
+ * crash-recovery. The graph emits AG-UI events via publishEvent() and pushes
+ * data to the registered sink; the React layer reads both. Resume is driven by
+ * `Command({ resume })`, the correct LangGraph interrupt-resume primitive.
  */
 
 import {
   Annotation,
+  Command,
   END,
   interrupt,
+  isGraphInterrupt,
   MemorySaver,
   START,
   StateGraph,
@@ -25,7 +32,7 @@ import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import type { AGUIThreadContext } from "./ag-ui-types";
 import { makeCtx, makeEvent } from "./ag-ui-types";
 import { buildEChartsOption, buildKPICards, buildTableData } from "./charts";
-import { buildTraceTree, publishEvent } from "./event-bus";
+import { publishEvent } from "./event-bus";
 import { buildPlan } from "./planner";
 import { analyzeSchema } from "./schema";
 import { generateInsight, generateSQL } from "./sql";
@@ -38,9 +45,29 @@ import type {
   WidgetState,
 } from "./types";
 
-// ─── Graph state schema ───────────────────────────────────────────────────────
+// ─── Thread-scoped UI sinks (kept OUT of graph state) ─────────────────────────
+
+interface PipelineSink {
+  ctx: AGUIThreadContext;
+  onWidget: (w: WidgetState) => void;
+  onThought: (t: AgentThought) => void;
+  onPlan: (p: DashboardPlan) => void;
+  onNarrative: (n: string) => void;
+  onInterrupt: (reason: string, payload: unknown) => void;
+  onDone: () => void;
+  onError?: (message: string) => void;
+}
+
+const SINKS = new Map<string, PipelineSink>();
+
+function sinkFor(state: State): PipelineSink | undefined {
+  return state.threadId ? SINKS.get(state.threadId) : undefined;
+}
+
+// ─── Graph state schema (DATA ONLY — fully serializable) ──────────────────────
 
 const AgentState = Annotation.Root({
+  threadId: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
   tableName: Annotation<string>,
   schema: Annotation<DataSchema | null>({
     reducer: (_, b) => b,
@@ -62,39 +89,25 @@ const AgentState = Annotation.Root({
     default: () => [],
   }),
   error: Annotation<string>({ reducer: (_, b) => b, default: () => "" }),
-  ctx: Annotation<AGUIThreadContext | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onWidget: Annotation<((w: WidgetState) => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onThought: Annotation<((t: AgentThought) => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onPlan: Annotation<((p: DashboardPlan) => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onNarrative: Annotation<((n: string) => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onInterrupt: Annotation<((reason: string, payload: unknown) => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
-  onDone: Annotation<(() => void) | null>({
-    reducer: (_, b) => b,
-    default: () => null,
-  }),
 });
 
 type State = typeof AgentState.State;
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+
+// Upstream nodes (schema_analysis / planner) always populate these channels
+// before the nodes below run, so these guards are defensive narrowing rather
+// than expected runtime paths. They replace non-null assertions while keeping
+// the same crash-on-misuse behavior an `x!` deref would have produced.
+function requireSchema(state: State): DataSchema {
+  if (!state.schema) throw new Error("pipeline: schema not analyzed yet");
+  return state.schema;
+}
+
+function requirePlan(state: State): DashboardPlan {
+  if (!state.plan) throw new Error("pipeline: plan not built yet");
+  return state.plan;
+}
 
 let _seq = 0;
 function mkThought(
@@ -112,10 +125,11 @@ function emitThought(
   text: string,
 ): AgentThought {
   const t = mkThought(agent, kind, text);
-  state.onThought?.(t);
-  if (state.ctx) {
+  const sink = sinkFor(state);
+  sink?.onThought(t);
+  if (sink) {
     publishEvent(
-      makeEvent(state.ctx, {
+      makeEvent(sink.ctx, {
         type: "TEXT_MESSAGE_CONTENT",
         delta: `[${agent}] ${text}`,
       }),
@@ -125,16 +139,18 @@ function emitThought(
 }
 
 function emitStepStart(state: State, nodeName: string) {
-  if (!state.ctx) return;
+  const sink = sinkFor(state);
+  if (!sink) return;
   publishEvent(
-    makeEvent(state.ctx, { type: "STEP_STARTED", nodeName, phase: nodeName }),
+    makeEvent(sink.ctx, { type: "STEP_STARTED", nodeName, phase: nodeName }),
   );
 }
 
 function emitStepEnd(state: State, nodeName: string, duration: number) {
-  if (!state.ctx) return;
+  const sink = sinkFor(state);
+  if (!sink) return;
   publishEvent(
-    makeEvent(state.ctx, { type: "STEP_FINISHED", nodeName, duration }),
+    makeEvent(sink.ctx, { type: "STEP_FINISHED", nodeName, duration }),
   );
 }
 
@@ -146,17 +162,17 @@ async function schemaNode(state: State): Promise<Partial<State>> {
   const thoughts: AgentThought[] = [];
 
   const schema = await analyzeSchema(state.tableName, (text) => {
-    const t = emitThought(state, "SchemaAgent", "think", text);
-    thoughts.push(t);
+    thoughts.push(emitThought(state, "SchemaAgent", "think", text));
   });
 
-  const t = emitThought(
-    state,
-    "SchemaAgent",
-    "ok",
-    `Schema ready: ${schema.category} | ${schema.dimensions.length} dims | ${schema.metrics.length} metrics`,
+  thoughts.push(
+    emitThought(
+      state,
+      "SchemaAgent",
+      "ok",
+      `Schema ready: ${schema.category} | ${schema.dimensions.length} dims | ${schema.metrics.length} metrics`,
+    ),
   );
-  thoughts.push(t);
   emitStepEnd(state, "schema", Date.now() - t0);
   return { schema, thoughts };
 }
@@ -165,9 +181,10 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
   const t0 = Date.now();
   emitStepStart(state, "react_sql_loop");
   const thoughts: AgentThought[] = [];
-  const schema = state.schema!;
+  const schema = requireSchema(state);
+  const sink = sinkFor(state);
 
-  // ReAct: up to 6 exploration queries
+  // ReAct: a few read-only exploration queries to ground later steps.
   const explorations = [
     `SELECT COUNT(*) as total, ${schema.dimensions[0] ? `COUNT(DISTINCT "${schema.dimensions[0]}")` : "1"} as dim_count FROM "${state.tableName}"`,
     schema.metrics[0]
@@ -180,9 +197,9 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
 
   for (const sql of explorations) {
     try {
-      if (state.ctx) {
+      if (sink) {
         publishEvent(
-          makeEvent(state.ctx, {
+          makeEvent(sink.ctx, {
             type: "TOOL_CALL_START",
             toolCallId: `explore-${Date.now()}`,
             toolName: "query_data",
@@ -191,13 +208,14 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
         );
       }
       const rows = await runReadOnlyQuery(sql);
-      const t = emitThought(
-        state,
-        "ReActAgent",
-        "exec",
-        `query_data → ${rows.length} rows`,
+      thoughts.push(
+        emitThought(
+          state,
+          "ReActAgent",
+          "exec",
+          `query_data → ${rows.length} rows`,
+        ),
       );
-      thoughts.push(t);
     } catch {
       /* skip failed explorations */
     }
@@ -211,40 +229,38 @@ async function plannerNode(state: State): Promise<Partial<State>> {
   const t0 = Date.now();
   emitStepStart(state, "planner");
   const thoughts: AgentThought[] = [];
+  const sink = sinkFor(state);
 
-  const plan = await buildPlan(state.schema!, (text) => {
-    const t = emitThought(state, "PlannerAgent", "plan", text);
-    thoughts.push(t);
+  const plan = await buildPlan(requireSchema(state), (text) => {
+    thoughts.push(emitThought(state, "PlannerAgent", "plan", text));
   });
 
-  state.onPlan?.(plan);
-  if (state.ctx) {
+  sink?.onPlan(plan);
+  if (sink) {
     publishEvent(
-      makeEvent(state.ctx, {
-        type: "STATE_SNAPSHOT",
-        snapshot: { plan },
-      }),
+      makeEvent(sink.ctx, { type: "STATE_SNAPSHOT", snapshot: { plan } }),
     );
   }
 
-  const t = emitThought(
-    state,
-    "PlannerAgent",
-    "ok",
-    `Plan: "${plan.title}" — ${plan.widgets.length} widgets`,
+  thoughts.push(
+    emitThought(
+      state,
+      "PlannerAgent",
+      "ok",
+      `Plan: "${plan.title}" — ${plan.widgets.length} widgets`,
+    ),
   );
-  thoughts.push(t);
   emitStepEnd(state, "planner", Date.now() - t0);
   return { plan, thoughts };
 }
 
 async function humanInterruptNode(state: State): Promise<Partial<State>> {
-  // Pause graph for human review
-  const plan = state.plan!;
-  state.onInterrupt?.("plan-review", plan);
-  if (state.ctx) {
+  const plan = requirePlan(state);
+  const sink = sinkFor(state);
+  sink?.onInterrupt("plan-review", plan);
+  if (sink) {
     publishEvent(
-      makeEvent(state.ctx, {
+      makeEvent(sink.ctx, {
         type: "INTERRUPT",
         reason: "plan-review",
         payload: plan,
@@ -252,7 +268,7 @@ async function humanInterruptNode(state: State): Promise<Partial<State>> {
     );
   }
 
-  // LangGraph interrupt() — graph pauses here until resumed
+  // LangGraph interrupt() — graph pauses here until resumed with a Command.
   const decision = interrupt({ reason: "plan-review", plan }) as {
     action: "approve" | "revise";
     plan?: DashboardPlan;
@@ -271,13 +287,11 @@ async function critiqueNode(state: State): Promise<Partial<State>> {
 
   const count = state.critiqueCount ?? 0;
   if (count >= 3 || state.approved) {
-    // Max critiques reached → approve
     emitStepEnd(state, "critique", Date.now() - t0);
     return { approved: true, critiqueCount: count, thoughts };
   }
 
-  // Simple rule-based critique
-  const plan = state.plan!;
+  const plan = requirePlan(state);
   const issues: string[] = [];
 
   if (plan.widgets.length < 3)
@@ -288,24 +302,21 @@ async function critiqueNode(state: State): Promise<Partial<State>> {
     issues.push("Add at least one trend chart");
 
   if (issues.length === 0) {
-    const t = emitThought(
-      state,
-      "CritiqueAgent",
-      "ok",
-      "Plan passes quality check",
+    thoughts.push(
+      emitThought(state, "CritiqueAgent", "ok", "Plan passes quality check"),
     );
-    thoughts.push(t);
     emitStepEnd(state, "critique", Date.now() - t0);
     return { approved: true, critiqueCount: count + 1, thoughts };
   }
 
-  const t = emitThought(
-    state,
-    "CritiqueAgent",
-    "warn",
-    `Issues: ${issues.join("; ")}`,
+  thoughts.push(
+    emitThought(
+      state,
+      "CritiqueAgent",
+      "warn",
+      `Issues: ${issues.join("; ")}`,
+    ),
   );
-  thoughts.push(t);
   emitStepEnd(state, "critique", Date.now() - t0);
   return { approved: false, critiqueCount: count + 1, thoughts };
 }
@@ -314,10 +325,10 @@ async function reviseNode(state: State): Promise<Partial<State>> {
   const t0 = Date.now();
   emitStepStart(state, "revise");
   const thoughts: AgentThought[] = [];
-  const plan = state.plan!;
-  const schema = state.schema!;
+  const plan = requirePlan(state);
+  const schema = requireSchema(state);
+  const sink = sinkFor(state);
 
-  // Auto-revise: ensure KPI grid + at least one bar chart
   const hasKPI = plan.widgets.some((w) => w.chartType === "kpi-grid");
   const hasBar = plan.widgets.some((w) => w.chartType === "bar");
 
@@ -352,48 +363,48 @@ async function reviseNode(state: State): Promise<Partial<State>> {
     widgets: [...additions, ...plan.widgets],
   };
 
-  const t = emitThought(
-    state,
-    "ReviseAgent",
-    "ok",
-    `Revised plan: +${additions.length} widgets`,
+  thoughts.push(
+    emitThought(
+      state,
+      "ReviseAgent",
+      "ok",
+      `Revised plan: +${additions.length} widgets`,
+    ),
   );
-  thoughts.push(t);
-  state.onPlan?.(revised);
+  sink?.onPlan(revised);
   emitStepEnd(state, "revise", Date.now() - t0);
   return { plan: revised, thoughts };
 }
 
-async function buildWidgetNode(
+async function buildWidget(
   state: State,
   spec: WidgetSpec,
-): Promise<Partial<State>> {
-  const schema = state.schema!;
+): Promise<{ widget: WidgetState; thoughts: AgentThought[] }> {
+  const schema = requireSchema(state);
   const thoughts: AgentThought[] = [];
+  const sink = sinkFor(state);
 
-  // Mark querying
-  state.onWidget?.({ spec, status: "querying" });
+  sink?.onWidget({ spec, status: "querying" });
 
-  // SQL generation
+  // SQL generation (grammar-aware via the provider registry; EXPLAIN-validated).
   let sql = "";
   try {
     sql = await generateSQL(spec, schema, (text) => {
-      const t = emitThought(state, `Widget[${spec.id}]`, "sql", text);
-      thoughts.push(t);
+      thoughts.push(emitThought(state, `Widget[${spec.id}]`, "sql", text));
     });
   } catch (err) {
     const w: WidgetState = { spec, status: "error", error: String(err) };
-    state.onWidget?.(w);
-    return { widgets: [...state.widgets, w], thoughts };
+    sink?.onWidget(w);
+    return { widget: w, thoughts };
   }
 
-  // Execute
+  // Execute (read-only; DuckDB worker).
   let rawData: Record<string, unknown>[] = [];
   try {
     rawData = await runReadOnlyQuery(sql);
-    if (state.ctx) {
+    if (sink) {
       publishEvent(
-        makeEvent(state.ctx, {
+        makeEvent(sink.ctx, {
           type: "TOOL_CALL_END",
           toolCallId: `sql-${spec.id}`,
           result: { rows: rawData.length },
@@ -402,12 +413,11 @@ async function buildWidgetNode(
     }
   } catch (err) {
     const w: WidgetState = { spec, status: "error", sql, error: String(err) };
-    state.onWidget?.(w);
-    return { widgets: [...state.widgets, w], thoughts };
+    sink?.onWidget(w);
+    return { widget: w, thoughts };
   }
 
-  // Build chart
-  state.onWidget?.({ spec, status: "building", sql, rawData });
+  sink?.onWidget({ spec, status: "building", sql, rawData });
 
   let echartsOption: Record<string, unknown> | undefined;
   let kpis: WidgetState["kpis"];
@@ -429,31 +439,8 @@ async function buildWidgetNode(
     /* partial build ok */
   }
 
-  // Insight
-  let insight = "";
-  generateInsight(spec, rawData, (text) => {
-    const t = emitThought(state, `Widget[${spec.id}]`, "insight", text);
-    thoughts.push(t);
-  })
-    .then((ins) => {
-      if (ins) {
-        insight = ins;
-        state.onWidget?.({
-          spec,
-          status: "done",
-          sql,
-          rawData,
-          echartsOption,
-          kpis,
-          tableHeaders,
-          tableRows,
-          insight,
-        });
-      }
-    })
-    .catch(() => {});
-
-  const w: WidgetState = {
+  // Emit the finished widget ONCE so the canvas renders it immediately.
+  const base: WidgetState = {
     spec,
     status: "done",
     sql,
@@ -462,10 +449,19 @@ async function buildWidgetNode(
     kpis,
     tableHeaders,
     tableRows,
-    insight,
   };
-  state.onWidget?.(w);
-  return { widgets: [...state.widgets, w], thoughts };
+  sink?.onWidget(base);
+
+  // Insight is a clearly-separated AWAITED enrich step (no fire-and-forget
+  // `.then()` double-render). It serializes on the single LLM worker anyway.
+  const insight = await generateInsight(spec, rawData, (text) => {
+    thoughts.push(emitThought(state, `Widget[${spec.id}]`, "insight", text));
+  }).catch(() => "");
+
+  const w: WidgetState = insight ? { ...base, insight } : base;
+  if (insight) sink?.onWidget(w);
+
+  return { widget: w, thoughts };
 }
 
 async function sqlFanOutNode(state: State): Promise<Partial<State>> {
@@ -475,25 +471,17 @@ async function sqlFanOutNode(state: State): Promise<Partial<State>> {
   const widgets: WidgetState[] = [];
   const allThoughts: AgentThought[] = [];
 
-  // Build all widgets in parallel (concurrency 3)
+  // Build widgets SEQUENTIALLY. Both SQL-gen and insight-gen are LLM-bound and
+  // there is exactly ONE global LLM worker, so they serialize on it regardless;
+  // an unbounded `Promise.all` only thrashes the worker and the main thread
+  // (6-9 simultaneous chart mounts). CONC=1 here is both correct and faster.
   const specs = state.plan?.widgets ?? [];
-  const queue = [...specs];
-  const CONC = 3;
-
-  const tasks: Promise<void>[] = [];
-
-  async function processOne(spec: WidgetSpec) {
-    const result = await buildWidgetNode(state, spec);
-    if (result.widgets) widgets.push(...result.widgets);
-    if (result.thoughts) allThoughts.push(...result.thoughts);
+  for (const spec of specs) {
+    const { widget, thoughts } = await buildWidget(state, spec);
+    widgets.push(widget);
+    allThoughts.push(...thoughts);
   }
 
-  while (queue.length) {
-    const batch = queue.splice(0, CONC);
-    await Promise.all(batch.map(processOne));
-  }
-
-  void tasks;
   emitStepEnd(state, "sql_fan_out", Date.now() - t0);
   return { widgets, thoughts: allThoughts };
 }
@@ -502,6 +490,7 @@ async function narratorNode(state: State): Promise<Partial<State>> {
   const t0 = Date.now();
   emitStepStart(state, "narrator");
   const thoughts: AgentThought[] = [];
+  const sink = sinkFor(state);
 
   const done = state.widgets.filter((w) => w.status === "done").length;
   const total = state.widgets.length;
@@ -526,18 +515,14 @@ async function narratorNode(state: State): Promise<Partial<State>> {
       .map((w) => `- **${w.spec.title}**: ${w.insight}`),
   ].join("\n");
 
-  state.onNarrative?.(summary);
-  const t = emitThought(
-    state,
-    "NarratorAgent",
-    "ok",
-    "Executive narrative ready",
+  sink?.onNarrative(summary);
+  thoughts.push(
+    emitThought(state, "NarratorAgent", "ok", "Executive narrative ready"),
   );
-  thoughts.push(t);
 
-  if (state.ctx) {
+  if (sink) {
     publishEvent(
-      makeEvent(state.ctx, {
+      makeEvent(sink.ctx, {
         type: "RUN_FINISHED",
         totalTokens: 0,
         totalDuration: Date.now() - t0,
@@ -545,7 +530,6 @@ async function narratorNode(state: State): Promise<Partial<State>> {
     );
   }
 
-  state.onDone?.();
   emitStepEnd(state, "narrator", Date.now() - t0);
   return { narrative: summary, thoughts };
 }
@@ -585,7 +569,11 @@ function buildGraph() {
   g.addEdge("sql_fan_out", "narrator");
   g.addEdge("narrator", END);
 
-  return g.compile({ checkpointer, interruptBefore: ["human_interrupt"] });
+  // No `interruptBefore`: the `human_interrupt` node runs (firing the UI prompt
+  // + INTERRUPT event), THEN its dynamic `interrupt()` pauses the graph. This is
+  // the correct modern pattern — `interruptBefore` would have skipped the node
+  // body, so the review prompt never fired before the pause.
+  return g.compile({ checkpointer });
 }
 
 let _graph: ReturnType<typeof buildGraph> | null = null;
@@ -606,6 +594,7 @@ export interface PipelineOptions {
   onNarrative: (n: string) => void;
   onInterrupt: (reason: string, payload: unknown) => void;
   onDone: () => void;
+  onError?: (message: string) => void;
   threadId?: string;
 }
 
@@ -615,6 +604,52 @@ export interface PipelineHandle {
     decision: "approve" | "revise",
     plan?: DashboardPlan,
   ) => Promise<void>;
+  dispose: () => void;
+}
+
+// The exact input the compiled graph accepts: its inferred `UpdateType`
+// (a partial of the channel keys) OR a resume `CommandInstance`. Deriving it
+// from the graph's own `stream` signature keeps it in lock-step with the
+// annotation, so a plain `Partial<State>` (e.g. `{ threadId, tableName }`) and
+// `new Command({ resume })` both type-check without widening the call site.
+type GraphInput = Parameters<ReturnType<typeof buildGraph>["stream"]>[0];
+
+/**
+ * Drive the graph to completion (or to the first interrupt), translating
+ * checkpoints into UI calls via the thread-scoped sink. Returns once the run
+ * pauses at the human-review interrupt or finishes.
+ */
+async function drive(
+  graph: ReturnType<typeof buildGraph>,
+  input: GraphInput,
+  config: { configurable: { thread_id: string } },
+  sink: PipelineSink,
+): Promise<"interrupted" | "done"> {
+  try {
+    // streamMode "updates" surfaces each node's delta; we only need to pump the
+    // graph — the per-node sink calls already pushed the data to the UI.
+    const stream = await graph.stream(input, {
+      ...config,
+      streamMode: "updates",
+    });
+    // Pump the graph to completion (or first interrupt). The per-node sink calls
+    // already pushed data to the UI; we only need to drain the stream here.
+    for await (const _ of stream) {
+      // intentionally empty — side effects happen in nodes
+    }
+  } catch (err) {
+    if (!isGraphInterrupt(err)) {
+      sink.onError?.(String(err));
+      throw err;
+    }
+  }
+
+  // If the graph is paused at an interrupt, getState().next is non-empty.
+  const snapshot = await graph.getState(config);
+  if (snapshot.next && snapshot.next.length > 0) return "interrupted";
+
+  sink.onDone();
+  return "done";
 }
 
 export async function runPipeline(
@@ -623,6 +658,18 @@ export async function runPipeline(
   const ctx = makeCtx(opts.model);
   const threadId = opts.threadId ?? ctx.threadId;
   const graph = getGraph();
+
+  const sink: PipelineSink = {
+    ctx,
+    onWidget: opts.onWidget,
+    onThought: opts.onThought,
+    onPlan: opts.onPlan,
+    onNarrative: opts.onNarrative,
+    onInterrupt: opts.onInterrupt,
+    onDone: opts.onDone,
+    onError: opts.onError,
+  };
+  SINKS.set(threadId, sink);
 
   publishEvent(
     makeEvent(ctx, {
@@ -634,31 +681,24 @@ export async function runPipeline(
 
   const config = { configurable: { thread_id: threadId } };
 
-  const input: Partial<typeof AgentState.State> = {
-    tableName: opts.tableName,
-    ctx,
-    onWidget: opts.onWidget,
-    onThought: opts.onThought,
-    onPlan: opts.onPlan,
-    onNarrative: opts.onNarrative,
-    onInterrupt: opts.onInterrupt,
-    onDone: opts.onDone,
-  };
-
-  // Run until first interrupt (plan-review)
-  void graph.invoke(input, config).catch(console.error);
+  // Run until the first interrupt (plan-review). Errors surface via onError.
+  void drive(graph, { threadId, tableName: opts.tableName }, config, sink).catch(
+    () => {},
+  );
 
   return {
     threadId,
     resume: async (decision, plan) => {
-      await graph.invoke(
-        {
-          ...input,
-          approved: decision === "approve",
-          plan: plan ?? undefined,
-        },
+      // Correct LangGraph resume: feed a Command back into the interrupted node.
+      await drive(
+        graph,
+        new Command({ resume: { action: decision, plan } }),
         config,
+        sink,
       );
+    },
+    dispose: () => {
+      SINKS.delete(threadId);
     },
   };
 }

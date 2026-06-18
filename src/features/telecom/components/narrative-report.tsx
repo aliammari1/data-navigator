@@ -37,7 +37,7 @@ export function NarrativeReport({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <Brain className="w-3.5 h-3.5 text-indigo-500 dark:text-indigo-400" />
+          <Brain className="w-3.5 h-3.5 text-primary" />
           <span>
             "Résumé exécutif généré automatiquement · "mis à jour avec les
             données

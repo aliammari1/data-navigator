@@ -35,9 +35,24 @@ export interface RegisteredDataset {
   updatedAt: string;
 }
 
+export interface RejectError {
+  line: number | null;
+  columnName: string | null;
+  errorType: string | null;
+  errorMessage: string | null;
+}
+
+export interface RejectSummary {
+  rejectedRowCount: number;
+  sample: RejectError[];
+}
+
 export interface RegisteredDatasetWithPreview extends RegisteredDataset {
   previewRows: Record<string, unknown>[];
+  rejects?: RejectSummary;
 }
+
+export type CsvEncoding = "utf-8" | "utf-16" | "latin-1";
 
 export interface RegisterCSVPathDatasetInput {
   filePath: string;
@@ -46,6 +61,76 @@ export interface RegisterCSVPathDatasetInput {
   delimiter?: string;
   sampleSize?: number;
   previewLimit?: number;
+  encoding?: CsvEncoding;
+  storeRejects?: boolean;
+}
+
+export interface SummarizeRow {
+  column_name: string;
+  column_type: string;
+  min: unknown;
+  max: unknown;
+  approx_unique: number | null;
+  avg: number | null;
+  std: number | null;
+  q25: number | null;
+  q50: number | null;
+  q75: number | null;
+  count: number;
+  null_percentage: number | null;
+}
+
+export interface ColumnDetail {
+  column: string;
+  distinctApprox: number;
+  topValues: Array<{ value: unknown; count: number | null }>;
+  histogram: Array<{ bin: string; count: number }>;
+}
+
+export interface ProfileDatasetInput {
+  datasetId: string;
+  cancelToken?: string;
+}
+
+export interface ProfileColumnDetailInput {
+  datasetId: string;
+  column: string;
+  topK?: number;
+  binCount?: number;
+  cancelToken?: string;
+}
+
+export interface CountRowsInput {
+  datasetId: string;
+  where?: string;
+  force?: boolean;
+  cancelToken?: string;
+}
+
+export interface KeysetSortKey {
+  column: string;
+  direction?: "ASC" | "DESC";
+}
+
+export interface KeysetCursor {
+  sortValues: unknown[];
+  rowid: number;
+}
+
+export interface KeysetPageInput {
+  datasetId: string;
+  sortKeys: KeysetSortKey[];
+  limit: number;
+  where?: string;
+  cursor?: KeysetCursor;
+  columns?: string[];
+  cancelToken?: string;
+}
+
+export interface KeysetPageResult {
+  arrow: Uint8Array;
+  nextCursor: KeysetCursor | null;
+  rowCount: number;
 }
 
 export interface RegisterParquetPathDatasetInput {
@@ -154,3 +239,102 @@ export async function runReadOnlyQuery(
 ): Promise<Record<string, unknown>[]> {
   return sharedDuckDB.runReadOnlyQuery(sql);
 }
+
+// ─── Arrow IPC transport (large windows / exports / worker hand-off) ──────────
+
+/**
+ * Run a read-only query and return Arrow IPC stream bytes (transferable).
+ * Decode with {@link decodeArrowIPC} from `./arrow-ipc` — ideally inside a
+ * worker. Pass `cancelToken` to tie the scan to a cancellable group.
+ */
+export async function runReadOnlyQueryArrow(
+  sql: string,
+  cancelToken?: string,
+): Promise<Uint8Array> {
+  return sharedDuckDB.runReadOnlyQueryArrow(sql, cancelToken);
+}
+
+// ─── Single-scan profiling pushdown ───────────────────────────────────────────
+
+/** Whole-dataset profile in one SUMMARIZE scan (approximate, cheap). */
+export async function profileDataset(
+  input: ProfileDatasetInput,
+): Promise<SummarizeRow[]> {
+  return sharedDuckDB.profileDataset(input);
+}
+
+/** Per-selected-column detail (distinct/top-K/histogram). Call lazily. */
+export async function profileColumnDetail(
+  input: ProfileColumnDetailInput,
+): Promise<ColumnDetail> {
+  return sharedDuckDB.profileColumnDetail(input);
+}
+
+// ─── Cached COUNT(*) ──────────────────────────────────────────────────────────
+
+/** Filter-aware COUNT(*), cached per (view, where). */
+export async function countRows(input: CountRowsInput): Promise<number> {
+  return sharedDuckDB.countRows(input);
+}
+
+// ─── Keyset / seek pagination ─────────────────────────────────────────────────
+
+/**
+ * Fetch one keyset/seek page as Arrow IPC plus the cursor for the next page.
+ * O(window) regardless of depth. Feed `result.nextCursor` back in as `cursor`.
+ */
+export async function fetchKeysetPage(
+  input: KeysetPageInput,
+): Promise<KeysetPageResult> {
+  return sharedDuckDB.fetchKeysetPage(input);
+}
+
+// ─── Cancellation ─────────────────────────────────────────────────────────────
+
+/** Cancel queued + in-flight scans grouped under `token`. */
+export async function cancelQueries(token: string): Promise<void> {
+  return sharedDuckDB.cancelQueries(token);
+}
+
+/** Reset a cancel token id so it can be reused for a fresh batch. */
+export async function resetCancelToken(token: string): Promise<void> {
+  return sharedDuckDB.resetCancelToken(token);
+}
+
+// ─── Re-exports: Arrow decode + SQL builders ──────────────────────────────────
+
+export {
+  type ArrowColumn,
+  type ArrowIpcBytes,
+  type ArrowTable,
+  arrowColumnNames,
+  arrowRowAt,
+  arrowRowCount,
+  arrowToColumns,
+  arrowToRows,
+  arrowTransferList,
+  asUint8Array,
+  decodeArrowIPC,
+  type DecodeArrowOptions,
+  getArrowColumn,
+} from "./arrow-ipc";
+export {
+  buildApproxCountDistinctSQL,
+  buildApproxQuantileSQL,
+  buildApproxTopKSQL,
+  buildCorrelationCrosstabSQL,
+  buildCountSQL,
+  buildHistogramAggregateSQL,
+  buildHistogramTableSQL,
+  buildKeysetPageSQL,
+  buildOffsetPageSQL,
+  buildQuantileContSQL,
+  buildReservoirSampleSQL,
+  buildShapeSQL,
+  buildSummarizeSQL,
+  type CorrelationCrosstab,
+  countCacheKey,
+  type KeysetPageQuery,
+  quoteIdent,
+  quoteLiteral,
+} from "./pushdown";

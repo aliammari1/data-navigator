@@ -1,77 +1,25 @@
 /**
  * Offline statistical insights engine.
- * Powered by simple-statistics for robust math — zero network calls.
+ * Powered by simple-statistics for robust math.
+ * LLM layer uses the on-device engine when available; falls back to rule-based results.
  */
 
 import * as ss from "simple-statistics";
 import type { ColMeta } from "@/core/stores/data-store";
+import { generateText, isLLMReady } from "@/platform/ai/llm-engine";
 
-// ─── Anomaly detection ────────────────────────────────────────────────────────
+// ─── Correlation helper ───────────────────────────────────────────────────────
 
-export interface Anomaly {
-  columnName: string;
-  value: number;
-  rowIndex: number;
-  zScore: number;
-  method: "zscore" | "iqr";
-  severity: "low" | "medium" | "high";
-}
-
-export function detectAnomalies(
-  values: number[],
-  columnName: string,
-): Anomaly[] {
-  if (values.length < 4) return [];
-
-  const m = ss.mean(values);
-  const std = ss.sampleStandardDeviation(values);
-  const iqr = ss.interquartileRange(values);
-  const q1 = ss.quantile(values, 0.25);
-  const q3 = ss.quantile(values, 0.75);
-  const lowerBound = q1 - 1.5 * iqr;
-  const upperBound = q3 + 1.5 * iqr;
-
-  const anomalies: Anomaly[] = [];
-  for (let i = 0; i < values.length; i++) {
-    const v = values[i];
-    const z = std > 0 ? Math.abs(ss.zScore(v, m, std)) : 0;
-    const isIQR = v < lowerBound || v > upperBound;
-
-    if (z > 3 || (isIQR && z > 2)) {
-      anomalies.push({
-        columnName,
-        value: v,
-        rowIndex: i,
-        zScore: z,
-        method: z > 3 ? "zscore" : "iqr",
-        severity: z > 4 ? "high" : z > 3.5 ? "medium" : "low",
-      });
-    }
-  }
-
-  return anomalies.sort((a, b) => b.zScore - a.zScore).slice(0, 20);
-}
-
-// ─── Correlation matrix ────────────────────────────────────────────────────────
-
-export function pearsonCorr(xs: number[], ys: number[]): number {
+function pearsonCorr(xs: number[], ys: number[]): number {
   const n = Math.min(xs.length, ys.length);
   if (n < 2) return 0;
-  return ss.sampleCorrelation(xs.slice(0, n), ys.slice(0, n));
-}
-
-export function buildCorrelationMatrix(
-  data: Record<string, number[]>,
-  cols: string[],
-): number[][] {
-  return cols.map((a) =>
-    cols.map((b) => {
-      if (a === b) return 1;
-      const xs = data[a] ?? [];
-      const ys = data[b] ?? [];
-      return Number(pearsonCorr(xs, ys).toFixed(3));
-    }),
-  );
+  const a = xs.slice(0, n);
+  const b = ys.slice(0, n);
+  // A constant (zero-variance) series has no linear relationship and makes
+  // sampleCorrelation divide by a zero standard deviation → NaN. Return 0.
+  if (ss.variance(a) === 0 || ss.variance(b) === 0) return 0;
+  const r = ss.sampleCorrelation(a, b);
+  return Number.isFinite(r) ? r : 0;
 }
 
 // ─── Linear regression / forecast ─────────────────────────────────────────────
@@ -101,7 +49,9 @@ export function linearForecast(values: number[], steps = 6): Forecast {
   const pairs: [number, number][] = values.map((y, i) => [i, y]);
   const reg = ss.linearRegression(pairs);
   const line = ss.linearRegressionLine(reg);
-  const r2 = Math.max(0, Math.min(1, ss.rSquared(pairs, line)));
+  // rSquared is 0/0 = NaN when the series is constant; coerce NaN → 0.
+  const rawR2 = ss.rSquared(pairs, line);
+  const r2 = Number.isFinite(rawR2) ? Math.max(0, Math.min(1, rawR2)) : 0;
 
   const historical = values.map((y, x) => ({ x, y }));
   const predicted = Array.from({ length: steps }, (_, i) => ({
@@ -126,144 +76,11 @@ export function linearForecast(values: number[], steps = 6): Forecast {
   };
 }
 
-// ─── K-means clustering (simple-statistics ckmeans + manual k-means) ──────────
-
-export interface Cluster {
-  centroid: number[];
-  points: number[][];
-  size: number;
-  label: string;
-}
-
-export function kMeans(
-  points: number[][],
-  k: number,
-  maxIter = 100,
-): Cluster[] {
-  if (points.length < k) return [];
-
-  // For 1D data, use ckmeans for optimal clustering
-  if (points[0].length === 1) {
-    const flat = points.map((p) => p[0]);
-    const groups = ss.ckmeans(flat, k);
-    const LABELS = [
-      "High Value",
-      "Mid Value",
-      "Low Value",
-      "Cluster D",
-      "Cluster E",
-      "Cluster F",
-    ];
-    return groups
-      .map((g, j) => ({
-        centroid: [ss.mean(g)],
-        points: g.map((v) => [v]),
-        size: g.length,
-        label: LABELS[j] ?? `Cluster ${j + 1}`,
-      }))
-      .sort((a, b) => b.centroid[0] - a.centroid[0]);
-  }
-
-  // Multi-dimensional k-means with k-means++ init
-  const dist = (a: number[], b: number[]) =>
-    Math.sqrt(a.reduce((s, v, i) => s + (v - (b[i] ?? 0)) ** 2, 0));
-
-  const centroids: number[][] = [
-    points[Math.floor(Math.random() * points.length)],
-  ];
-  while (centroids.length < k) {
-    const dists = points.map((p) =>
-      Math.min(...centroids.map((c) => dist(p, c))),
-    );
-    const total = dists.reduce((a, b) => a + b, 0);
-    let r = Math.random() * total;
-    for (let i = 0; i < points.length; i++) {
-      r -= dists[i];
-      if (r <= 0) {
-        centroids.push(points[i]);
-        break;
-      }
-    }
-    if (centroids.length < k)
-      centroids.push(points[points.length - centroids.length]);
-  }
-
-  let assignments = new Array(points.length).fill(0);
-
-  for (let iter = 0; iter < maxIter; iter++) {
-    const newAssign = points.map((p) => {
-      let best = 0;
-      let bestD = Infinity;
-      for (let j = 0; j < k; j++) {
-        const d = dist(p, centroids[j]);
-        if (d < bestD) {
-          bestD = d;
-          best = j;
-        }
-      }
-      return best;
-    });
-
-    let changed = false;
-    for (let i = 0; i < points.length; i++) {
-      if (newAssign[i] !== assignments[i]) {
-        changed = true;
-        break;
-      }
-    }
-    assignments = newAssign;
-    if (!changed) break;
-
-    for (let j = 0; j < k; j++) {
-      const clusterPts = points.filter((_, i) => assignments[i] === j);
-      if (clusterPts.length === 0) continue;
-      const dims = points[0].length;
-      centroids[j] = Array.from({ length: dims }, (_, d) =>
-        ss.mean(clusterPts.map((p) => p[d])),
-      );
-    }
-  }
-
-  const LABELS = [
-    "High Value",
-    "Mid Value",
-    "Low Value",
-    "Cluster D",
-    "Cluster E",
-    "Cluster F",
-  ];
-  return Array.from({ length: k }, (_, j) => ({
-    centroid: centroids[j],
-    points: points.filter((_, i) => assignments[i] === j),
-    size: points.filter((_, i) => assignments[i] === j).length,
-    label: LABELS[j] ?? `Cluster ${j + 1}`,
-  })).sort((a, b) => b.centroid[0] - a.centroid[0]);
-}
-
 // ─── Additional stats helpers (powered by simple-statistics) ──────────────────
 
-export function computeSkewness(values: number[]): number {
+function computeSkewness(values: number[]): number {
   if (values.length < 3) return 0;
   return ss.sampleSkewness(values);
-}
-
-export function computeKurtosis(values: number[]): number {
-  if (values.length < 4) return 0;
-  return ss.sampleKurtosis(values);
-}
-
-export function computeMedian(values: number[]): number {
-  return ss.median(values);
-}
-
-export function computeQuantiles(values: number[]): {
-  q1: number;
-  q3: number;
-  iqr: number;
-} {
-  const q1 = ss.quantile(values, 0.25);
-  const q3 = ss.quantile(values, 0.75);
-  return { q1, q3, iqr: q3 - q1 };
 }
 
 // ─── Auto-insight generator ───────────────────────────────────────────────────
@@ -283,13 +100,146 @@ export interface Insight {
   columnName?: string;
 }
 
-export function generateInsights(
-  _cols: ColMeta[],
-  _rowCount: number,
-  _numericData?: Record<string, number[]>,
+// ─── Rule-based insight fallback ─────────────────────────────────────────────
+
+function ruleBasedInsights(
+  cols: ColMeta[],
+  rowCount: number,
+  numericData: Record<string, number[]>,
 ): Insight[] {
-  // Disabled per Moudir AI plan: insights must come from edge AI, not deterministic rules.
-  return [];
+  const insights: Insight[] = [];
+
+  // Quality: high null rate
+  for (const col of cols) {
+    if (col.nullCount > 0) {
+      const nullPct = (col.nullCount / rowCount) * 100;
+      if (nullPct >= 20) {
+        insights.push({
+          type: "quality",
+          severity: nullPct >= 50 ? "critical" : "warning",
+          title: `High missing-value rate in "${col.name}"`,
+          description: `${nullPct.toFixed(1)}% of values are null. Consider imputation or exclusion.`,
+          value: `${nullPct.toFixed(1)}%`,
+          columnName: col.name,
+        });
+      }
+    }
+  }
+
+  // Distribution: skewness
+  for (const [colName, values] of Object.entries(numericData)) {
+    if (values.length < 4) continue;
+    const skew = computeSkewness(values);
+    if (Math.abs(skew) > 1) {
+      insights.push({
+        type: "distribution",
+        severity: "info",
+        title: `Skewed distribution in "${colName}"`,
+        description: `Skewness of ${skew.toFixed(2)} — ${skew > 0 ? "right" : "left"}-skewed data. Log transformation may help.`,
+        value: skew,
+        columnName: colName,
+      });
+    }
+  }
+
+  // Trend: linear regression slope
+  for (const [colName, values] of Object.entries(numericData)) {
+    if (values.length < 5) continue;
+    const forecast = linearForecast(values, 0);
+    if (forecast.trend !== "flat" && forecast.r2 > 0.5) {
+      insights.push({
+        type: "trend",
+        severity: "info",
+        title: `${forecast.trend === "up" ? "Upward" : "Downward"} trend in "${colName}"`,
+        description: `R² = ${forecast.r2.toFixed(2)}, slope = ${forecast.slope.toFixed(3)}. The series shows a consistent ${forecast.trend}ward direction.`,
+        value: forecast.slope,
+        columnName: colName,
+      });
+    }
+  }
+
+  // Correlation: high pearson pairs
+  const numColNames = Object.keys(numericData);
+  for (let i = 0; i < numColNames.length; i++) {
+    for (let j = i + 1; j < numColNames.length; j++) {
+      const a = numericData[numColNames[i]] ?? [];
+      const b = numericData[numColNames[j]] ?? [];
+      if (a.length < 4 || b.length < 4) continue;
+      const r = pearsonCorr(a, b);
+      if (Math.abs(r) > 0.8) {
+        insights.push({
+          type: "correlation",
+          severity: "info",
+          title: `Strong correlation between "${numColNames[i]}" and "${numColNames[j]}"`,
+          description: `Pearson r = ${r.toFixed(2)}. These columns are highly ${r > 0 ? "positively" : "negatively"} correlated.`,
+          value: r,
+        });
+      }
+    }
+  }
+
+  return insights.slice(0, 5);
+}
+
+export async function generateInsights(
+  cols: ColMeta[],
+  rowCount: number,
+  numericData?: Record<string, number[]>,
+): Promise<Insight[]> {
+  const _numericData = numericData ?? {};
+
+  // Compute basic stats for each numeric column
+  const statsSummary: Record<
+    string,
+    { mean: number; stddev: number; skewness: number; nullPct: number }
+  > = {};
+  for (const [colName, values] of Object.entries(_numericData)) {
+    if (values.length < 2) continue;
+    const nullCol = cols.find((c) => c.name === colName);
+    statsSummary[colName] = {
+      mean: Number(ss.mean(values).toFixed(3)),
+      stddev: Number(ss.sampleStandardDeviation(values).toFixed(3)),
+      skewness:
+        values.length >= 3
+          ? Number(ss.sampleSkewness(values).toFixed(3))
+          : 0,
+      nullPct:
+        nullCol && rowCount > 0
+          ? Number(((nullCol.nullCount / rowCount) * 100).toFixed(1))
+          : 0,
+    };
+  }
+
+  if (!isLLMReady()) {
+    return ruleBasedInsights(cols, rowCount, _numericData);
+  }
+
+  try {
+    const colNames = cols.map((c) => `${c.name}(${c.type})`).join(", ");
+    const statsJson = JSON.stringify(statsSummary);
+
+    const userPrompt = `Dataset: ${rowCount} rows, columns: ${colNames}. Stats: ${statsJson}`;
+
+    const raw = await generateText(userPrompt, {
+      systemPrompt:
+        'You are a data analyst. Given dataset stats, return 3-5 insights as a JSON array only — no prose, no markdown fences. Schema: [{type, severity, title, description}]. Types: trend|anomaly|correlation|distribution|quality. Severities: info|warning|critical. Be concise.',
+      maxTokens: 600,
+      temperature: 0.3,
+    });
+
+    // Extract JSON array from the response
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("No JSON array in LLM response");
+
+    const parsed = JSON.parse(jsonMatch[0]) as Insight[];
+    if (!Array.isArray(parsed) || parsed.length === 0)
+      throw new Error("Empty or invalid array");
+
+    return parsed;
+  } catch {
+    // LLM failed — return rule-based results so the UI is never empty
+    return ruleBasedInsights(cols, rowCount, _numericData);
+  }
 }
 // ─── Chart type recommender ───────────────────────────────────────────────────
 
@@ -303,10 +253,98 @@ export interface ChartRecommendation {
   confidence: number; // 0-1
 }
 
-export function recommendCharts(
-  _cols: ColMeta[],
-  _rowCount: number,
+// ─── Rule-based chart-recommendation fallback ────────────────────────────────
+
+function ruleBasedCharts(
+  cols: ColMeta[],
+  rowCount: number,
 ): ChartRecommendation[] {
-  // Disabled per Moudir AI plan: no rule-based chart generation.
-  return [];
+  const recs: ChartRecommendation[] = [];
+  const nums = cols.filter((c) => c.type === "number");
+  const strs = cols.filter((c) => c.type === "string");
+  const dates = cols.filter((c) => c.type === "date");
+
+  if (nums.length > 0 && strs.length > 0) {
+    recs.push({
+      type: "bar",
+      title: `${nums[0].name} by ${strs[0].name}`,
+      reason: "Compare a numeric metric across a categorical dimension.",
+      xCol: strs[0].name,
+      yCol: nums[0].name,
+      confidence: 0.85,
+    });
+  }
+
+  if (dates.length > 0 && nums.length > 0) {
+    recs.push({
+      type: "line",
+      title: `${nums[0].name} over time`,
+      reason: "Visualise the trend of a numeric metric over a date column.",
+      xCol: dates[0].name,
+      yCol: nums[0].name,
+      confidence: 0.9,
+    });
+  }
+
+  if (nums.length >= 2) {
+    recs.push({
+      type: "scatter",
+      title: `${nums[0].name} vs ${nums[1].name}`,
+      reason: "Explore correlation between two numeric columns.",
+      xCol: nums[0].name,
+      yCol: nums[1].name,
+      confidence: 0.75,
+    });
+  }
+
+  if (strs.length > 0 && rowCount > 0 && rowCount < 20000) {
+    recs.push({
+      type: "pie",
+      title: `Distribution of ${strs[0].name}`,
+      reason: "Show the proportional breakdown of a categorical column.",
+      xCol: strs[0].name,
+      confidence: 0.7,
+    });
+  }
+
+  return recs.slice(0, 3);
+}
+
+export async function recommendCharts(
+  cols: ColMeta[],
+  rowCount?: number,
+): Promise<ChartRecommendation[]> {
+  if (!isLLMReady()) {
+    return ruleBasedCharts(cols, rowCount ?? 0);
+  }
+
+  try {
+    const colSchema = cols
+      .map((c) => {
+        const extras: string[] = [];
+        if (c.distinctCount) extras.push(`${c.distinctCount} distinct`);
+        return `${c.name}(${c.type}${extras.length ? `, ${extras.join(", ")}` : ""})`;
+      })
+      .join("; ");
+
+    const userPrompt = `Columns: ${colSchema}. Row count: ${rowCount ?? "unknown"}.`;
+
+    const raw = await generateText(userPrompt, {
+      systemPrompt:
+        'You are a data visualisation expert. Given column schema, recommend 2-3 chart types as a JSON array only — no prose, no markdown fences. Schema: [{type, title, reason, xCol, yCol, confidence}]. type must be one of: bar|line|scatter|pie|heatmap|histogram|box. confidence is 0-1.',
+      maxTokens: 400,
+      temperature: 0.3,
+    });
+
+    const jsonMatch = raw.match(/\[[\s\S]*\]/);
+    if (!jsonMatch) throw new Error("No JSON array in LLM response");
+
+    const parsed = JSON.parse(jsonMatch[0]) as ChartRecommendation[];
+    if (!Array.isArray(parsed) || parsed.length === 0)
+      throw new Error("Empty or invalid array");
+
+    return parsed;
+  } catch {
+    return ruleBasedCharts(cols, rowCount ?? 0);
+  }
 }

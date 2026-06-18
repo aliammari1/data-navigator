@@ -1,16 +1,19 @@
 import type { Metadata, Viewport } from "next";
-import { Fira_Code, Poppins } from "next/font/google";
+import { Fira_Code, Fraunces, JetBrains_Mono, Poppins } from "next/font/google";
 import { QueryProvider } from "@/components/query-provider";
 import { SWRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/shared/utils";
 import "./globals.css";
-import "@/design/tokens.css";
 
+// Poppins — the standard UI sans for the whole app (chrome, headings, KPI
+// numbers, labels). Self-hosted by next/font so it works fully offline. Static
+// weights (Poppins is not a variable font on Google Fonts); 800/900 cover the
+// font-black KPI values.
 const poppins = Poppins({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800"],
+  weight: ["400", "500", "600", "700", "800", "900"],
   variable: "--font-data-navigator-sans",
   display: "swap",
 });
@@ -22,15 +25,40 @@ const firaCode = Fira_Code({
   display: "swap",
 });
 
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  style: ["normal", "italic"],
+  axes: ["SOFT", "WONK", "opsz"],
+  variable: "--font-edition-serif",
+  display: "swap",
+});
+
+// Developer "nerd"-style font for the desktop chrome (menu bar, dock, spotlight,
+// window titles). Self-hosted by next/font so it works fully offline.
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-nerd",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  title: "DataNavigator — Offline-first data analytics",
+  title: "Data Navigator — Offline-first data analytics",
   description:
-    "Query, transform and visualise data entirely in your browser. DuckDB WASM · Offline AI · No backend required.",
+    "Query, transform and visualise data entirely on-device. DuckDB performance, embedded AI, no backend required.",
+  applicationName: "Data Navigator",
   manifest: "/manifest.json",
+  openGraph: {
+    title: "Data Navigator — Offline-first data analytics",
+    description:
+      "Query, transform and visualise data entirely on-device. DuckDB performance, embedded AI, no backend required.",
+    siteName: "Data Navigator",
+    type: "website",
+  },
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1E40AF",
+  themeColor: "#0b1a22",
 };
 
 export default function RootLayout({
@@ -40,15 +68,30 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="fr"
+      data-scroll-behavior="smooth"
       suppressHydrationWarning
-      className={cn("h-full antialiased dark", poppins.variable, firaCode.variable, "font-sans")}
+      className={cn(
+        "h-full antialiased dark",
+        poppins.variable,
+        firaCode.variable,
+        fraunces.variable,
+        jetbrainsMono.variable,
+        "font-sans",
+      )}
     >
-      <body
-        className="min-h-full flex flex-col bg-background text-foreground"
-        style={{ scrollBehavior: "smooth" }}
-      >
-        <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>
+      <head>
+        {/* Pre-paint theme resolution — set the .dark/.light class from the
+            stored preference or the OS (follow-system default) before first
+            paint, so there's no flash. ThemeProvider takes over on hydrate. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');var d=t==='light'?false:t==='dark'?true:window.matchMedia('(prefers-color-scheme: dark)').matches;var c=document.documentElement.classList;c.remove('light','dark');c.add(d?'dark':'light');document.documentElement.style.colorScheme=d?'dark':'light';}catch(e){}})();`,
+          }}
+        />
+      </head>
+      <body className="min-h-full flex flex-col bg-background text-foreground">
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
           <QueryProvider>
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>

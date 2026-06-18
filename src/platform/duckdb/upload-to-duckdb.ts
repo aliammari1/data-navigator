@@ -16,8 +16,10 @@
  */
 
 import {
+  type CsvEncoding,
   type RegisteredDatasetColumn,
   type RegisteredDatasetWithPreview,
+  type RejectSummary,
   registerCSVPathDataset,
   registerParquetPathDataset,
 } from "@/platform/duckdb/duckdb";
@@ -68,6 +70,13 @@ export interface LoadedUploadTable {
    * Makes it explicit that the stats in `columns` are based only on preview rows.
    */
   metadataSource: "preview";
+
+  /**
+   * Rejected/coerced rows captured when `storeRejects` was enabled on a CSV
+   * import. Present only for CSV imports run with `storeRejects: true`; surface
+   * in a data-quality panel.
+   */
+  rejects?: RejectSummary;
 }
 
 export interface LoadUploadPathOptions {
@@ -87,6 +96,17 @@ export interface LoadUploadPathOptions {
   delimiter?: string;
   sampleSize?: number;
   previewLimit?: number;
+
+  /**
+   * Text encoding for CSV-like imports. The data-import cluster detects this
+   * (chardet/BOM sniff); this layer just plumbs it to `read_csv(encoding=…)`.
+   */
+  encoding?: CsvEncoding;
+
+  /**
+   * Capture coerced/skipped rows into a reject summary surfaced on the result.
+   */
+  storeRejects?: boolean;
 }
 
 export interface LoadUploadFileOptions {
@@ -258,6 +278,7 @@ function toLoadedUploadTable(
     columns: buildPreviewColumnMetadata(dataset.columns, previewRows),
     previewRows,
     metadataSource: "preview",
+    ...(dataset.rejects ? { rejects: dataset.rejects } : {}),
   };
 }
 
@@ -286,6 +307,8 @@ export async function loadUploadPathToDuckDB(
       delimiter: inferDelimiter(format, options.delimiter),
       sampleSize: options.sampleSize,
       previewLimit,
+      encoding: options.encoding,
+      storeRejects: options.storeRejects,
     });
 
     return toLoadedUploadTable(dataset, format, previewLimit);

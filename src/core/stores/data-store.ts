@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { useShallow } from "zustand/react/shallow";
 import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
 import type { SupportedExtensions } from "@/shared/types";
 
@@ -409,7 +410,41 @@ export const useDataStore = create<DataStore>()(
     }),
     {
       name: "data-navigator-datasets",
+      version: 1,
       storage: createJSONStorage(() => localStorage),
+
+      // Map any legacy persisted shape to the current Dataset shape: backfill
+      // viewName from tableName, strip column samples, default qualityScore,
+      // and coerce activeDatasetId to a still-present id.
+      migrate: (persisted, _version) => {
+        const prev = (persisted ?? {}) as {
+          datasets?: unknown[];
+          activeDatasetId?: string | null;
+          queryHistory?: QueryHistoryItem[];
+          savedCharts?: SavedChart[];
+          transforms?: DataTransform[];
+        };
+
+        const datasets = Array.isArray(prev.datasets)
+          ? prev.datasets.map((raw) => migrateDataset(raw))
+          : [];
+
+        const ids = new Set(datasets.map((dataset) => dataset.id));
+        const activeDatasetId =
+          prev.activeDatasetId && ids.has(prev.activeDatasetId)
+            ? prev.activeDatasetId
+            : (datasets[0]?.id ?? null);
+
+        return {
+          datasets,
+          activeDatasetId,
+          queryHistory: Array.isArray(prev.queryHistory)
+            ? prev.queryHistory
+            : [],
+          savedCharts: Array.isArray(prev.savedCharts) ? prev.savedCharts : [],
+          transforms: Array.isArray(prev.transforms) ? prev.transforms : [],
+        };
+      },
 
       // Keep localStorage lean. Do not persist loadedTableNames because DuckDB
       // main-process init restores views from the catalog.
@@ -429,6 +464,92 @@ export const useDataStore = create<DataStore>()(
     },
   ),
 );
+
+// ─── Migration ────────────────────────────────────────────────────────────────
+
+/**
+ * Coerce an unknown persisted dataset record to the current Dataset shape.
+ * Backfills viewName from tableName, ensures column samples are empty, and
+ * defaults qualityScore via computeQualityScore when missing.
+ */
+function migrateDataset(raw: unknown): Dataset {
+  const d = (raw ?? {}) as Partial<Dataset> & Record<string, unknown>;
+
+  const columns: ColMeta[] = Array.isArray(d.columns)
+    ? d.columns.map((col) => {
+        const c = (col ?? {}) as Partial<ColMeta>;
+        return {
+          name: c.name ?? "",
+          type: c.type ?? "unknown",
+          nullCount: c.nullCount ?? 0,
+          distinctCount: c.distinctCount ?? 0,
+          min: c.min,
+          max: c.max,
+          mean: c.mean,
+          stddev: c.stddev,
+          sample: [],
+        };
+      })
+    : [];
+
+  const tableName = d.tableName ?? d.viewName ?? "";
+  const viewName = d.viewName ?? tableName;
+  const rowCount = d.rowCount ?? 0;
+
+  return {
+    id: d.id ?? "",
+    name: d.name ?? "",
+    tableName,
+    viewName,
+    sourcePath: d.sourcePath,
+    cachePath: d.cachePath,
+    source: d.source ?? "catalog",
+    format: (d.format ?? "csv") as DatasetFormat,
+    rowCount,
+    colCount: d.colCount ?? columns.length,
+    sizeBytes: d.sizeBytes ?? 0,
+    columns,
+    tags: Array.isArray(d.tags) ? d.tags : [],
+    description: d.description ?? "",
+    createdAt: d.createdAt ?? new Date().toISOString(),
+    updatedAt: d.updatedAt ?? new Date().toISOString(),
+    parentId: d.parentId,
+    transformSql: d.transformSql,
+    qualityScore:
+      typeof d.qualityScore === "number"
+        ? d.qualityScore
+        : computeQualityScore(columns, rowCount),
+  };
+}
+
+// ─── Selector hooks ───────────────────────────────────────────────────────────
+// Narrow slices so wholesale consumers (ai-analysis, sidebar-nav, parsed-data)
+// can subscribe only what they read instead of the whole store.
+
+export const useDatasets = () => useDataStore((s) => s.datasets);
+export const useActiveDatasetId = () => useDataStore((s) => s.activeDatasetId);
+export const useQueryHistory = () => useDataStore((s) => s.queryHistory);
+export const useSavedCharts = () => useDataStore((s) => s.savedCharts);
+
+export const useDataActions = () =>
+  useDataStore(
+    useShallow((s) => ({
+      markTableLoaded: s.markTableLoaded,
+      markDatasetViewLoaded: s.markDatasetViewLoaded,
+      addDataset: s.addDataset,
+      upsertDataset: s.upsertDataset,
+      updateDataset: s.updateDataset,
+      removeDataset: s.removeDataset,
+      setActiveDataset: s.setActiveDataset,
+      replaceDatasetsFromCatalog: s.replaceDatasetsFromCatalog,
+      upsertDatasetFromCatalog: s.upsertDatasetFromCatalog,
+      addQueryHistory: s.addQueryHistory,
+      clearQueryHistory: s.clearQueryHistory,
+      saveChart: s.saveChart,
+      removeChart: s.removeChart,
+      addTransform: s.addTransform,
+    })),
+  );
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

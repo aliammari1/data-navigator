@@ -1,0 +1,31 @@
+name: OSV-Scanner
+
+# Supply-chain vulnerability gate over the pnpm lockfile. Complements
+# `pnpm audit` (security.yml) — OSV covers more advisories and scans the
+# resolved lockfile directly. Self-contained (Go install) to avoid depending on
+# a third-party action's exact ref.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: "30 6 * * 1" # Mondays 06:30 UTC
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    name: OSV lockfile scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install osv-scanner
+        run: go install github.com/google/osv-scanner/v2/cmd/osv-scanner@v2
+      - name: Scan lockfile (fail on known vulnerabilities)
+        run: osv-scanner scan source --lockfile=pnpm-lock.yaml
