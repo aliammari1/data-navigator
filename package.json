@@ -118,6 +118,7 @@
     "@tanstack/db": "^0.6.8",
     "@tanstack/react-form": "^1.33.0",
     "@tanstack/react-query": "^5.101.0",
+    "@tanstack/react-query-devtools": "^5.101.0",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.2",
     "@types/leaflet": "^1.9.21",
@@ -226,6 +227,7 @@
     "vaul": "^1.1.2",
     "vega": "^6.2.0",
     "vega-lite": "^6.4.3",
+    "web-vitals": "^5.3.0",
     "webgazer": "^3.5.3",
     "ws": "^8.18.0",
     "xstate": "^5.32.0",
@@ -268,7 +270,6 @@
     "@stryker-mutator/core": "^9.6.1",
     "@stryker-mutator/vitest-runner": "^9.6.1",
     "@tailwindcss/postcss": "^4.3.0",
-    "@tanstack/react-query-devtools": "^5.101.0",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -307,7 +308,6 @@
     "nodejs-polars": "^0.25.1",
     "publint": "^0.3.21",
     "react-scan": "^0.5.7",
-    "sherif": "^1.11.1",
     "size-limit": "^12.1.0",
     "sonda": "^0.13.0",
     "sql.js": "^1.14.1",
@@ -318,8 +318,7 @@
     "typescript": "^6.0.3",
     "vitest": "^4.1.8",
     "vitest-axe": "^0.1.0",
-    "wait-on": "^9.0.10",
-    "web-vitals": "^5.3.0"
+    "wait-on": "^9.0.10"
   },
   "packageManager": "pnpm@10.25.0+sha512.5e82639027af37cf832061bcc6d639c219634488e0f2baebe785028a793de7b525ffcd3f7ff574f5e9860654e098fe852ba8ac5dd5cefe1767d23a020a92f501",
   "msw": {
