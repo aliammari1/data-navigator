@@ -20,7 +20,7 @@ import {
   useEdgesState,
   useNodesState,
 } from "@xyflow/react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import "@xyflow/react/dist/style.css";
 import { motion } from "motion/react";
 import { Drawer } from "vaul";
@@ -185,9 +185,15 @@ function buildEdges(animated: boolean): Edge[] {
 // ─── Stats ticker strip ───────────────────────────────────────────────────────
 
 function StatsStrip() {
-  const { tokenCount, toolCallCnt, widgets, startTime, running } =
-    useAgentStore();
-  const done = widgets.filter((w) => w.status === "done").length;
+  // Narrow selectors keep this strip off the per-thought re-render path.
+  const tokenCount = useAgentStore((s) => s.tokenCount);
+  const toolCallCnt = useAgentStore((s) => s.toolCallCnt);
+  const doneCount = useAgentStore(
+    (s) => s.widgets.filter((w) => w.status === "done").length,
+  );
+  const startTime = useAgentStore((s) => s.startTime);
+  const running = useAgentStore((s) => s.running);
+  const done = doneCount;
 
   const elapsed = startTime ? Math.floor((Date.now() - startTime) / 1000) : 0;
 
@@ -218,7 +224,7 @@ function AgentLogDrawer({
   open: boolean;
   onClose: () => void;
 }) {
-  const { thoughts } = useAgentStore();
+  const thoughts = useAgentStore((s) => s.thoughts);
 
   return (
     <Drawer.Root open={open} onOpenChange={(v) => !v && onClose()}>
@@ -273,23 +279,18 @@ function AgentLogDrawer({
 // ─── Main component ───────────────────────────────────────────────────────────
 
 export function AgentFlowGraph() {
-  const { flowNodes: storeNodes, running } = useAgentStore();
+  const storeNodes = useAgentStore((s) => s.flowNodes);
+  const running = useAgentStore((s) => s.running);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<string | null>(null);
+  const [_selectedNode, setSelectedNode] = useState<string | null>(null);
 
   const displayNodes = storeNodes.length > 0 ? storeNodes : DEFAULT_FLOW_NODES;
 
-  const initialNodes: Node[] = useMemo(
-    () => computeLayout(displayNodes),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional one-time initial layout; store changes are applied via the sync effect below
+  const initialNodes: Node[] = useMemo(() => computeLayout(displayNodes), []);
 
-  const initialEdges: Edge[] = useMemo(
-    () => buildEdges(running),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  );
+  // biome-ignore lint/correctness/useExhaustiveDependencies: intentional one-time initial edges; running changes are applied via the sync effect below
+  const initialEdges: Edge[] = useMemo(() => buildEdges(running), []);
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
@@ -315,14 +316,12 @@ export function AgentFlowGraph() {
         };
       }),
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [storeNodes]);
+  }, [displayNodes, setNodes]);
 
   // Animate edges when running
   useEffect(() => {
     setEdges(buildEdges(running));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [running]);
+  }, [running, setEdges]);
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -345,6 +344,7 @@ export function AgentFlowGraph() {
           minZoom={0.3}
           maxZoom={2}
           colorMode="dark"
+          onlyRenderVisibleElements
           proOptions={{ hideAttribution: true }}
         >
           <Background color="#1e293b" gap={16} size={0.5} />

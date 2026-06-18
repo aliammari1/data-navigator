@@ -4,20 +4,12 @@ import {
   Activity,
   AlertCircle,
   AlertTriangle,
-  ArrowDownRight,
-  ArrowUpRight,
   BarChart3,
   Brain,
-  CheckCircle2,
-  ChevronDown,
   ChevronRight,
-  ChevronUp,
-  Clock,
   Cpu,
   Database,
   Download,
-  Eye,
-  Filter,
   Flame,
   FlaskConical,
   GitBranch,
@@ -25,72 +17,35 @@ import {
   Info,
   Layers,
   Lightbulb,
-  LineChart,
-  Minus,
   Network,
   Play,
-  Radar as RadarIcon,
   RefreshCw,
   ScatterChart,
   Search,
   Sigma,
   Sparkles,
-  Star,
   Target,
-  TrendingDown,
   TrendingUp,
-  TriangleAlert,
   Upload,
-  XCircle,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { type ColMeta, useDataStore } from "@/core/stores/data-store";
-import {
-  buildCorrelationMatrix,
-  computeKurtosis,
-  computeSkewness,
-  pearsonCorr,
-} from "@/platform/ai/insights";
-import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
-
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+import { useDataStore } from "@/core/stores/data-store";
+import type { EChartsOption } from "@/platform/viz";
 
 import {
   InsightCard,
   SeverityBadge,
   StatCard,
 } from "@/features/ai-analysis/components/analysis-cards";
-import {
-  buildHistogram,
-  correlationStrength,
-  detectIQRAnomalies,
-  detectZScoreAnomalies,
-  linearRegression,
-  mean,
-  pearsonCorrelation,
-  stdDev,
-} from "@/features/ai-analysis/model/stats";
-import type {
-  AnalysisState,
-  Anomaly,
-  ClusterGroup,
-  ColStat,
-  Correlation,
-  ForecastPoint,
-  Insight,
-} from "@/features/ai-analysis/model/types";
-
-function quoteIdentifier(value: string): string {
-  return `"${value.replace('"', '""')}"`;
-}
-
-function tableNameFromShowTables(row: Record<string, unknown>): string {
-  return String(row.name ?? row.table_name ?? Object.values(row)[0] ?? "");
-}
+import { AnalysisChart } from "@/features/ai-analysis/components/AnalysisChart";
+import { ForecastChart } from "@/features/ai-analysis/components/ForecastChart";
+import { VirtualList } from "@/features/ai-analysis/components/VirtualList";
+import { useAnalysis } from "@/features/ai-analysis/hooks/useAnalysis";
+import { exportAnalysisReport } from "@/features/ai-analysis/model/export-report";
+import { linearRegression, mean } from "@/features/ai-analysis/model/stats";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -103,24 +58,10 @@ export default function AiAnalysisScreen() {
     | "patterns"
     | "explain"
   >("insights");
-  const [analysisState, setAnalysisState] = useState<AnalysisState>({
-    status: "idle",
-    progress: 0,
-    stage: "",
-  });
-  const [colStats, setColStats] = useState<ColStat[]>([]);
-  const [anomalies, setAnomalies] = useState<Anomaly[]>([]);
-  const [correlations, setCorrelations] = useState<Correlation[]>([]);
-  const [forecasts, setForecasts] = useState<ForecastPoint[]>([]);
-  const [insights, setInsights] = useState<Insight[]>([]);
-  const [clusters, setClusters] = useState<ClusterGroup[]>([]);
   const [selectedCol, setSelectedCol] = useState<string>("");
-  const [resolvedTableName, setResolvedTableName] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [severityFilter, setSeverityFilter] = useState<string>("all");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
-  const [rowCount, setRowCount] = useState(0);
-  const [tableLoaded, setTableLoaded] = useState(false);
 
   // ─── Data store integration ─────────────────────────────────────────────────
 
@@ -128,7 +69,6 @@ export default function AiAnalysisScreen() {
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const preferredTableName =
     activeDataset?.tableName ?? loadedTableNames[0] ?? "";
-  const tableName = resolvedTableName || preferredTableName;
 
   const numericCols = useMemo(
     () =>
@@ -152,6 +92,35 @@ export default function AiAnalysisScreen() {
     [activeDataset],
   );
 
+  // ─── Analysis lifecycle (off-main-thread worker + SQL pushdown + LLM) ────────
+
+  const {
+    state: analysisState,
+    tableLoaded,
+    resolvedTableName,
+    rowCount,
+    colStats,
+    anomalies,
+    correlations,
+    forecasts,
+    clusters,
+    forecastMeta,
+    insights,
+    narrating,
+    narrated,
+    aiAvailable,
+    runAnalysis,
+    acknowledgeInsight,
+  } = useAnalysis({
+    preferredTableName,
+    numericCols,
+    catCols,
+    dateCols,
+    hasDataset: Boolean(activeDataset),
+  });
+
+  const tableName = resolvedTableName || preferredTableName;
+
   // Auto-set selectedCol to first numeric col
   useEffect(() => {
     if (
@@ -162,609 +131,31 @@ export default function AiAnalysisScreen() {
     }
   }, [numericCols, selectedCol]);
 
-  // ─── Load data ──────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    let cancelled = false;
-    async function init() {
-      try {
-        let nextTableName = preferredTableName;
-        const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
-        const tableNames = tables.map(tableNameFromShowTables).filter(Boolean);
-        if (
-          tableNames.length > 0 &&
-          (!nextTableName || !tableNames.includes(nextTableName))
-        ) {
-          nextTableName = tableNames[0] ?? "";
-        }
-
-        if (!nextTableName) {
-          if (!cancelled) {
-            setResolvedTableName("");
-            setTableLoaded(false);
-            setRowCount(0);
-          }
-          return;
-        }
-
-        const countRes = await runReadOnlyQuery(
-          `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(nextTableName)}`,
-        );
-        if (!cancelled) {
-          setResolvedTableName(nextTableName);
-          setTableLoaded(true);
-          setRowCount(Number(countRes[0]?.cnt ?? 0));
-        }
-      } catch (e) {
-        console.error("DuckDB init error:", e);
-        if (!cancelled) setTableLoaded(false);
-      }
-    }
-    init();
-    return () => {
-      cancelled = true;
-    };
-  }, [preferredTableName]);
-
-  // ─── Run full analysis ────────────────────────────────────────────────────
-
-  const runAnalysis = useCallback(async () => {
-    if (!tableLoaded || !tableName || numericCols.length === 0) return;
-    const tableSql = quoteIdentifier(tableName);
-    setAnalysisState({
-      status: "running",
-      progress: 0,
-      stage: "Loading data...",
-    });
-
-    try {
-      // Stage 1: Column stats
-      setAnalysisState({
-        status: "running",
-        progress: 10,
-        stage: "Computing column statistics...",
-      });
-
-      const statsResults: ColStat[] = [];
-
-      for (const col of numericCols) {
-        const colSql = quoteIdentifier(col);
-        const res = await runReadOnlyQuery(`
-          SELECT
-            COUNT(*) as total,
-            COUNT(${colSql}) as non_null,
-            MIN(${colSql}) as min_val,
-            MAX(${colSql}) as max_val,
-            AVG(${colSql}) as avg_val,
-            STDDEV_SAMP(${colSql}) as std_val,
-            MEDIAN(${colSql}) as median_val,
-            COUNT(DISTINCT ${colSql}) as distinct_count
-          FROM ${tableSql}
-        `);
-        const r = res[0] as Record<string, number>;
-        const sample = await runReadOnlyQuery(
-          `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 2000`,
-        );
-        const vals = sample.map((row) =>
-          Number((row as Record<string, unknown>)[col]),
-        );
-        const hist = buildHistogram(vals, 20);
-        const skew = computeSkewness(vals);
-        const kurt = computeKurtosis(vals);
-        statsResults.push({
-          name: col,
-          type: "numeric",
-          min: r.min_val,
-          max: r.max_val,
-          avg: r.avg_val,
-          stddev: r.std_val,
-          median: r.median_val,
-          nullCount: Number(r.total) - Number(r.non_null),
-          distinctCount: Number(r.distinct_count),
-          rowCount: Number(r.total),
-          histogram: hist,
-          skewness: skew,
-          kurtosis: kurt,
-        });
-      }
-
-      for (const col of catCols) {
-        const colSql = quoteIdentifier(col);
-        const res = await runReadOnlyQuery(`
-          SELECT
-            COUNT(*) as total,
-            COUNT(${colSql}) as non_null,
-            COUNT(DISTINCT ${colSql}) as distinct_count
-          FROM ${tableSql}
-        `);
-        const r = res[0] as Record<string, number>;
-        const topRes = await runReadOnlyQuery(`
-          SELECT ${colSql} as val, COUNT(*) as cnt
-          FROM ${tableSql}
-          GROUP BY ${colSql}
-          ORDER BY cnt DESC
-          LIMIT 10
-        `);
-        statsResults.push({
-          name: col,
-          type: "categorical",
-          nullCount: Number(r.total) - Number(r.non_null),
-          distinctCount: Number(r.distinct_count),
-          rowCount: Number(r.total),
-          topValues: topRes.map((row) => {
-            const rv = row as Record<string, unknown>;
-            return { value: String(rv.val ?? ""), count: Number(rv.cnt) };
-          }),
-        });
-      }
-
-      setColStats(statsResults);
-
-      // Stage 2: Anomaly detection
-      setAnalysisState({
-        status: "running",
-        progress: 30,
-        stage: "Detecting anomalies...",
-      });
-
-      const newAnomalies: Anomaly[] = [];
-      const numStats = statsResults.filter((s) => s.type === "numeric");
-
-      for (const stat of numStats) {
-        const statSql = quoteIdentifier(stat.name);
-        const sample = await runReadOnlyQuery(
-          `SELECT ${statSql} FROM ${tableSql} WHERE ${statSql} IS NOT NULL LIMIT 3000`,
-        );
-        const vals = sample.map((row) =>
-          Number((row as Record<string, unknown>)[stat.name]),
-        );
-
-        const zscore = detectZScoreAnomalies(vals, 3.0);
-        if (zscore.length > 0) {
-          const score = Math.min(zscore.length / vals.length, 1);
-          newAnomalies.push({
-            id: `zscore_${stat.name}`,
-            column: stat.name,
-            type: "outlier",
-            description: `${zscore.length} statistical outliers detected (Z-score > 3σ). Values deviate significantly from the mean of ${stat.avg?.toFixed(2)}.`,
-            severity:
-              zscore.length > 50
-                ? "critical"
-                : zscore.length > 20
-                  ? "warning"
-                  : "info",
-            affectedRows: zscore.length,
-            score,
-            values: zscore.slice(0, 5).map((z) => vals[z.idx]),
-            threshold: (stat.avg ?? 0) + 3 * (stat.stddev ?? 0),
-          });
-        }
-
-        const iqr = detectIQRAnomalies(vals);
-        if (iqr.length > 0 && iqr.length !== zscore.length) {
-          newAnomalies.push({
-            id: `iqr_${stat.name}`,
-            column: stat.name,
-            type: "outlier",
-            description: `${iqr.length} IQR outliers detected. Values fall outside 1.5× interquartile range.`,
-            severity: iqr.length > 100 ? "warning" : "info",
-            affectedRows: iqr.length,
-            score: Math.min(iqr.length / vals.length, 1),
-          });
-        }
-
-        if (stat.skewness !== undefined && Math.abs(stat.skewness) > 2) {
-          newAnomalies.push({
-            id: `skew_${stat.name}`,
-            column: stat.name,
-            type: "distribution_shift",
-            description: `Column "${stat.name}" is highly skewed (skewness=${stat.skewness.toFixed(2)}). Distribution is not normal.`,
-            severity: Math.abs(stat.skewness) > 5 ? "warning" : "info",
-            affectedRows: 0,
-            score: Math.min(Math.abs(stat.skewness) / 10, 1),
-          });
-        }
-
-        if (stat.nullCount > 0) {
-          const nullRate = stat.nullCount / stat.rowCount;
-          newAnomalies.push({
-            id: `null_${stat.name}`,
-            column: stat.name,
-            type: "missing",
-            description: `${stat.nullCount} null values (${(nullRate * 100).toFixed(1)}% missing) in column "${stat.name}".`,
-            severity:
-              nullRate > 0.1
-                ? "critical"
-                : nullRate > 0.05
-                  ? "warning"
-                  : "info",
-            affectedRows: stat.nullCount,
-            score: nullRate,
-          });
-        }
-      }
-
-      setAnomalies(newAnomalies);
-
-      // Stage 3: Correlations
-      setAnalysisState({
-        status: "running",
-        progress: 55,
-        stage: "Computing correlations...",
-      });
-
-      const corrData: Record<string, number[]> = {};
-      for (const col of numericCols) {
-        const colSql = quoteIdentifier(col);
-        const rows = await runReadOnlyQuery(
-          `SELECT ${colSql} FROM ${tableSql} WHERE ${colSql} IS NOT NULL LIMIT 3000`,
-        );
-        corrData[col] = rows.map((r) =>
-          Number((r as Record<string, unknown>)[col]),
-        );
-      }
-
-      const newCorr: Correlation[] = [];
-      for (let i = 0; i < numericCols.length; i++) {
-        for (let j = i + 1; j < numericCols.length; j++) {
-          const a = numericCols[i];
-          const b = numericCols[j];
-          const r = pearsonCorrelation(corrData[a], corrData[b]);
-          const strength = correlationStrength(r);
-          if (strength !== "none") {
-            newCorr.push({
-              col1: a,
-              col2: b,
-              pearson: r,
-              strength,
-              direction: r > 0 ? "positive" : r < 0 ? "negative" : "none",
-            });
-          }
-        }
-      }
-      newCorr.sort((a, b) => Math.abs(b.pearson) - Math.abs(a.pearson));
-      setCorrelations(newCorr);
-
-      // Stage 4: Forecast
-      setAnalysisState({
-        status: "running",
-        progress: 70,
-        stage: "Generating forecasts...",
-      });
-
-      const forecastPoints: ForecastPoint[] = [];
-      const forecastDateCol = dateCols[0];
-      const forecastMetricCol = numericCols[0];
-
-      if (forecastDateCol && forecastMetricCol) {
-        const forecastDateSql = quoteIdentifier(forecastDateCol);
-        const forecastMetricSql = quoteIdentifier(forecastMetricCol);
-        const revenueByMonth = await runReadOnlyQuery(`
-          SELECT
-            strftime(${forecastDateSql}, '%Y-%m') as period,
-            AVG(${forecastMetricSql}) as avg_metric,
-            COUNT(*) as cnt
-          FROM ${tableSql}
-          WHERE ${forecastDateSql} IS NOT NULL
-          GROUP BY period
-          ORDER BY period
-          LIMIT 24
-        `);
-
-        const metricRows = revenueByMonth as Array<Record<string, unknown>>;
-
-        if (metricRows.length >= 4) {
-          const xs = metricRows.map((_, i) => i);
-          const ys = metricRows.map((r) => Number(r.avg_metric));
-          const reg = linearRegression(xs, ys);
-          const s = stdDev(ys);
-
-          metricRows.forEach((r, i) => {
-            forecastPoints.push({
-              period: String(r.period),
-              actual: Number(r.avg_metric),
-              predicted: reg.slope * i + reg.intercept,
-              lower: reg.slope * i + reg.intercept - 1.96 * s,
-              upper: reg.slope * i + reg.intercept + 1.96 * s,
-            });
-          });
-
-          const lastPeriod = metricRows[metricRows.length - 1].period as string;
-          const [lastYear, lastMonthStr] = String(lastPeriod).split("-");
-          let yr = Number(lastYear);
-          let mo = Number(lastMonthStr);
-          for (let k = 1; k <= 6; k++) {
-            mo++;
-            if (mo > 12) {
-              mo = 1;
-              yr++;
-            }
-            const fi = xs.length + k - 1;
-            const pred = reg.slope * fi + reg.intercept;
-            forecastPoints.push({
-              period: `${yr}-${String(mo).padStart(2, "0")} (forecast)`,
-              predicted: pred,
-              lower: pred - 1.96 * s,
-              upper: pred + 1.96 * s,
-            });
-          }
-        }
-      } else if (numericCols.length >= 1) {
-        // No date column — fallback: use row index as time proxy
-        const forecastMetricSql = quoteIdentifier(forecastMetricCol);
-        const sample = await runReadOnlyQuery(
-          `SELECT ${forecastMetricSql} FROM ${tableSql} WHERE ${forecastMetricSql} IS NOT NULL LIMIT 100`,
-        );
-        const vals = sample.map((r) =>
-          Number((r as Record<string, unknown>)[forecastMetricCol]),
-        );
-        if (vals.length >= 4) {
-          const xs = vals.map((_, i) => i);
-          const reg = linearRegression(xs, vals);
-          const s = stdDev(vals);
-          vals.forEach((v, i) => {
-            forecastPoints.push({
-              period: `Row ${i + 1}`,
-              actual: v,
-              predicted: reg.slope * i + reg.intercept,
-              lower: reg.slope * i + reg.intercept - 1.96 * s,
-              upper: reg.slope * i + reg.intercept + 1.96 * s,
-            });
-          });
-          for (let k = 1; k <= 6; k++) {
-            const fi = vals.length + k - 1;
-            const pred = reg.slope * fi + reg.intercept;
-            forecastPoints.push({
-              period: `Row ${fi + 1} (forecast)`,
-              predicted: pred,
-              lower: pred - 1.96 * s,
-              upper: pred + 1.96 * s,
-            });
-          }
-        }
-      }
-
-      setForecasts(forecastPoints);
-
-      // Stage 5: Patterns / Clustering
-      setAnalysisState({
-        status: "running",
-        progress: 82,
-        stage: "Discovering patterns...",
-      });
-
-      const groupCol = catCols[0];
-      const metricCols = numericCols.slice(0, 3);
-      const newClusters: ClusterGroup[] = [];
-
-      if (groupCol && metricCols.length > 0) {
-        const groupSql = quoteIdentifier(groupCol);
-        const avgSelects = metricCols
-          .map(
-            (c) =>
-              `AVG(${quoteIdentifier(c)}) as ${quoteIdentifier(`avg_${c}`)}`,
-          )
-          .join(", ");
-        const clusterRes = await runReadOnlyQuery(`
-          SELECT
-            ${groupSql},
-            ${avgSelects},
-            COUNT(*) as cnt
-          FROM ${tableSql}
-          GROUP BY ${groupSql}
-          ORDER BY cnt DESC
-          LIMIT 20
-        `);
-
-        const clusterColors = [
-          "#1E40AF",
-          "#22c55e",
-          "#f59e0b",
-          "#ef4444",
-          "#F59E0B",
-          "#06b6d4",
-          "#ec4899",
-          "#84cc16",
-        ];
-        clusterRes.forEach((row, i) => {
-          const r = row as Record<string, unknown>;
-          const centroid: Record<string, number> = {};
-          const chars: string[] = [];
-          for (const mc of metricCols) {
-            const val = Number(r[`avg_${mc}`]);
-            centroid[mc] = val;
-            const stat = statsResults.find((s) => s.name === mc);
-            if (stat?.avg !== undefined) {
-              const diff = val - stat.avg;
-              if (diff > stat.avg * 0.2) chars.push(`High ${mc}`);
-              else if (diff < -stat.avg * 0.2) chars.push(`Low ${mc}`);
-            }
-          }
-          newClusters.push({
-            id: i,
-            label: String(r[groupCol]),
-            size: Number(r.cnt),
-            centroid,
-            characteristics: chars.length > 0 ? chars : ["Average"],
-            color: clusterColors[i % clusterColors.length],
-          });
-        });
-      }
-      setClusters(newClusters);
-
-      // Stage 6: Generate insights
-      setAnalysisState({
-        status: "running",
-        progress: 92,
-        stage: "Generating insights...",
-      });
-
-      const newInsights: Insight[] = [];
-
-      // Metric trend insight
-      if (forecastPoints.length > 4 && forecastMetricCol) {
-        const actuals = forecastPoints.filter((f) => f.actual !== undefined);
-        const firstVal = actuals[0].actual ?? 0;
-        const lastVal = actuals[actuals.length - 1].actual ?? 0;
-        const pct = firstVal > 0 ? ((lastVal - firstVal) / firstVal) * 100 : 0;
-        newInsights.push({
-          id: `trend_${forecastMetricCol}`,
-          category: "trend",
-          title: `${forecastMetricCol} ${pct >= 0 ? "Growth" : "Decline"} Detected`,
-          description: `Average ${forecastMetricCol} has ${pct >= 0 ? "increased" : "decreased"} by ${Math.abs(pct).toFixed(1)}% over the observed period. Linear trend R² = ${linearRegression(
-            actuals.map((_, i) => i),
-            actuals.map((f) => f.actual ?? 0),
-          ).r2.toFixed(3)}.`,
-          severity: Math.abs(pct) > 20 ? "warning" : "info",
-          confidence: 0.87,
-          impact: Math.abs(pct) > 15 ? "high" : "medium",
-          metric: forecastMetricCol,
-          value: `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}%`,
-          change: pct,
-          acknowledged: false,
-        });
-      }
-
-      // Top correlation insight
-      if (newCorr.length > 0) {
-        const top = newCorr[0];
-        newInsights.push({
-          id: "corr_top",
-          category: "correlation",
-          title: `Strong Correlation: ${top.col1} ↔ ${top.col2}`,
-          description: `Pearson r=${top.pearson.toFixed(3)} indicates a ${top.strength} ${top.direction} relationship. Changes in ${top.col1} explain ${(top.pearson ** 2 * 100).toFixed(1)}% of variance in ${top.col2}.`,
-          severity: "info",
-          confidence: 0.93,
-          impact: top.strength === "very_strong" ? "high" : "medium",
-          metric: `${top.col1} vs ${top.col2}`,
-          value: `r = ${top.pearson.toFixed(3)}`,
-          acknowledged: false,
-        });
-      }
-
-      // Critical anomalies
-      const critAnoms = newAnomalies.filter((a) => a.severity === "critical");
-      if (critAnoms.length > 0) {
-        newInsights.push({
-          id: "anomaly_critical",
-          category: "anomaly",
-          title: `${critAnoms.length} Critical Anomalies Detected`,
-          description: `Critical issues found in columns: ${critAnoms.map((a) => a.column).join(", ")}. Immediate review recommended.`,
-          severity: "critical",
-          confidence: 0.91,
-          impact: "high",
-          acknowledged: false,
-        });
-      }
-
-      // Data quality
-      const nullCols = statsResults.filter(
-        (s) => s.nullCount > s.rowCount * 0.05,
-      );
-      if (nullCols.length > 0) {
-        newInsights.push({
-          id: "quality_nulls",
-          category: "quality",
-          title: "Data Completeness Issue",
-          description: `${nullCols.length} columns have >5% missing values: ${nullCols.map((c) => c.name).join(", ")}. Consider imputation or data collection improvements.`,
-          severity: "warning",
-          confidence: 1.0,
-          impact: "medium",
-          metric: "completeness",
-          value: `${nullCols.length} affected columns`,
-          acknowledged: false,
-        });
-      }
-
-      // Top performing cluster
-      if (newClusters.length > 0 && metricCols.length > 0) {
-        const top = newClusters[0];
-        const metricSummary = metricCols
-          .map((mc) => `${mc}: ${top.centroid[mc]?.toFixed(2) ?? "N/A"}`)
-          .join(", ");
-        newInsights.push({
-          id: "pattern_top",
-          category: "pattern",
-          title: `Top Segment: ${top.label}`,
-          description: `${top.label} leads with ${metricSummary}. Contains ${top.size.toLocaleString()} rows.`,
-          severity: "success",
-          confidence: 0.85,
-          impact: "high",
-          metric: groupCol,
-          value: top.label,
-          acknowledged: false,
-        });
-      }
-
-      // Forecast insight
-      const futurePts = forecastPoints.filter((f) => f.actual === undefined);
-      if (futurePts.length > 0) {
-        const lastFuture = futurePts[futurePts.length - 1];
-        const lastActual = forecastPoints.findLast(
-          (f) => f.actual !== undefined,
-        );
-        const delta = lastActual
-          ? lastFuture.predicted - (lastActual.actual ?? lastActual.predicted)
-          : 0;
-        newInsights.push({
-          id: `forecast_${forecastMetricCol}`,
-          category: "forecast",
-          title: `6-Period ${forecastMetricCol ?? "Metric"} Forecast`,
-          description: `Model predicts ${delta >= 0 ? "+" : ""}${delta.toFixed(0)} change in avg ${forecastMetricCol ?? "metric"} over next 6 periods. 95% confidence interval: [${lastFuture.lower.toFixed(0)}, ${lastFuture.upper.toFixed(0)}].`,
-          severity: delta < 0 ? "warning" : "info",
-          confidence: 0.78,
-          impact: "high",
-          metric: `${forecastMetricCol ?? "metric"} forecast`,
-          value: `${lastFuture.predicted.toFixed(0)}`,
-          acknowledged: false,
-        });
-      }
-
-      setInsights(newInsights);
-      setAnalysisState({
-        status: "done",
-        progress: 100,
-        stage: "Analysis complete",
-      });
-    } catch (err) {
-      console.error("Analysis error:", err);
-      setAnalysisState({ status: "error", progress: 0, stage: String(err) });
-    }
-  }, [tableLoaded, tableName, numericCols, catCols, dateCols]);
-
-  // Auto-run when data is ready
-  useEffect(() => {
-    if (tableLoaded) runAnalysis();
-  }, [tableLoaded, runAnalysis]);
-
   // ─── Chart configs ──────────────────────────────────────────────────────────
 
   const correlationHeatmap = useMemo(() => {
     const cols = numericCols;
     if (cols.length === 0) return null;
-    const matrix: number[][] = [];
-    for (let i = 0; i < cols.length; i++) {
-      matrix[i] = [];
-      for (let j = 0; j < cols.length; j++) {
-        if (i === j) {
-          matrix[i][j] = 1;
-        } else {
-          const found = correlations.find(
-            (c) =>
-              (c.col1 === cols[i] && c.col2 === cols[j]) ||
-              (c.col1 === cols[j] && c.col2 === cols[i]),
-          );
-          matrix[i][j] = found ? found.pearson : 0;
-        }
-      }
+
+    // O(pairs) lookup instead of an O(cols^2) `.find()` per cell.
+    const lookup = new Map<string, number>();
+    for (const c of correlations) {
+      lookup.set(`${c.col1} ${c.col2}`, c.pearson);
+      lookup.set(`${c.col2} ${c.col1}`, c.pearson);
     }
 
     const data: [number, number, number][] = [];
     for (let i = 0; i < cols.length; i++) {
       for (let j = 0; j < cols.length; j++) {
-        data.push([i, j, parseFloat(matrix[i][j].toFixed(3))]);
+        const r =
+          i === j ? 1 : (lookup.get(`${cols[i]} ${cols[j]}`) ?? 0);
+        data.push([i, j, parseFloat(r.toFixed(3))]);
       }
     }
+
+    // For wide matrices, per-cell labels become unreadable AND expensive to lay
+    // out on the main thread — rely on the tooltip instead (plan §2.4).
+    const showCellLabels = cols.length <= 12;
 
     return {
       backgroundColor: "transparent",
@@ -794,7 +185,7 @@ export default function AiAnalysisScreen() {
           type: "heatmap",
           data,
           label: {
-            show: true,
+            show: showCellLabels,
             color: "#fff",
             fontSize: 10,
             formatter: (p: { data: [number, number, number] }) =>
@@ -806,78 +197,33 @@ export default function AiAnalysisScreen() {
     };
   }, [correlations, numericCols]);
 
-  const forecastChart = useMemo(() => {
-    const future = forecasts.filter((f) => f.actual === undefined);
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        axisPointer: { type: "cross" },
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
+  // Forecast model metrics — memoised so they are not recomputed on every
+  // re-render (tab switch, hover); only when the forecast series changes.
+  const forecastMetrics = useMemo(() => {
+    const actual = forecasts.filter((f) => f.actual !== undefined);
+    if (actual.length === 0) return null;
+    const xs = actual.map((_, i) => i);
+    const ys = actual.map((f) => f.actual ?? 0);
+    const reg = linearRegression(xs, ys);
+    const residuals = ys.map((y, i) => y - (reg.slope * i + reg.intercept));
+    const rmse = Math.sqrt(mean(residuals.map((r) => r ** 2)));
+    const mae = mean(residuals.map((r) => Math.abs(r)));
+    return [
+      {
+        label: "R² (Coefficient of Determination)",
+        value: reg.r2.toFixed(4),
+        good: reg.r2 > 0.7,
       },
-      legend: {
-        data: ["Actual", "Predicted", "Confidence Band"],
-        textStyle: { color: "#94a3b8" },
-        top: 5,
+      { label: "Slope (trend per period)", value: reg.slope.toFixed(3), good: true },
+      { label: "Intercept (baseline)", value: reg.intercept.toFixed(2), good: true },
+      { label: "RMSE", value: rmse.toFixed(2), good: rmse < 50 },
+      { label: "MAE", value: mae.toFixed(2), good: mae < 40 },
+      {
+        label: "Data points",
+        value: actual.length.toString(),
+        good: actual.length >= 6,
       },
-      grid: { top: 50, bottom: 40, left: 60, right: 30 },
-      xAxis: {
-        type: "category",
-        data: forecasts.map((f) => f.period.replace(" (forecast)", "")),
-        axisLabel: { color: "#94a3b8", rotate: 30, fontSize: 10 },
-        axisLine: { lineStyle: { color: "#334155" } },
-      },
-      yAxis: {
-        type: "value",
-        axisLabel: {
-          color: "#94a3b8",
-          formatter: (v: number) => `$${v.toFixed(0)}`,
-        },
-        splitLine: { lineStyle: { color: "#1e293b" } },
-      },
-      series: [
-        {
-          name: "Confidence Band",
-          type: "line",
-          data: forecasts.map((f) => [f.upper, f.lower]),
-          lineStyle: { opacity: 0 },
-          areaStyle: { color: "rgba(99,102,241,0.1)", origin: "start" },
-          stack: "confidence",
-          symbol: "none",
-          z: 1,
-        },
-        {
-          name: "Actual",
-          type: "line",
-          data: forecasts.map((f) => f.actual ?? null),
-          lineStyle: { color: "#22c55e", width: 2 },
-          itemStyle: { color: "#22c55e" },
-          symbol: "circle",
-          symbolSize: 5,
-          z: 3,
-        },
-        {
-          name: "Predicted",
-          type: "line",
-          data: forecasts.map((f) => parseFloat(f.predicted.toFixed(2))),
-          lineStyle: {
-            color: "#1E40AF",
-            width: 2,
-            type:
-              future.length > 0
-                ? forecasts.findIndex((f) => f.actual === undefined) > -1
-                  ? "solid"
-                  : "dashed"
-                : "solid",
-          },
-          itemStyle: { color: "#1E40AF" },
-          symbol: "none",
-          z: 2,
-        },
-      ],
-    };
+    ];
   }, [forecasts]);
 
   const clusterScatterChart = useMemo(() => {
@@ -1040,12 +386,6 @@ export default function AiAnalysisScreen() {
     });
   }, [insights, searchQuery, severityFilter, categoryFilter]);
 
-  const acknowledgeInsight = useCallback((id: string) => {
-    setInsights((prev) =>
-      prev.map((ins) => (ins.id === id ? { ...ins, acknowledged: true } : ins)),
-    );
-  }, []);
-
   const isRunning = analysisState.status === "running";
 
   const summaryStats = useMemo(
@@ -1064,9 +404,72 @@ export default function AiAnalysisScreen() {
     [anomalies, correlations, insights],
   );
 
+  // Numeric columns first, then categorical — one stable array for the virtualized
+  // column-statistics list in the Explain tab.
+  const orderedColStats = useMemo(
+    () => [
+      ...colStats.filter((s) => s.type === "numeric"),
+      ...colStats.filter((s) => s.type === "categorical"),
+    ],
+    [colStats],
+  );
+
+  const [exporting, setExporting] = useState(false);
+
+  // Export a real, off-main-thread report (XLSX by default; charts embedded as
+  // crisp vector SVG → resvg PNG for narrative formats), saved via the Electron
+  // fs dialog or a browser download.
+  const handleExport = useCallback(
+    async (kind: "xlsx" | "pdf" = "xlsx") => {
+      if (exporting) return;
+      setExporting(true);
+      try {
+        await exportAnalysisReport(
+          {
+            datasetName: activeDataset?.name ?? tableName ?? "dataset",
+            rowCount,
+            insights,
+            anomalies,
+            correlations,
+            colStats,
+            forecastMeta,
+            charts: [
+              ...(correlationHeatmap
+                ? [{ title: "Correlation heatmap", option: (correlationHeatmap as unknown as EChartsOption), width: 720, height: 360 }]
+                : []),
+              ...(clusterScatterChart
+                ? [{ title: "Segments", option: clusterScatterChart as EChartsOption, width: 720, height: 360 }]
+                : []),
+              { title: "Anomaly severity", option: anomalyDistChart as EChartsOption, width: 480, height: 300 },
+            ],
+          },
+          kind,
+        );
+      } catch (err) {
+        console.error("[ai-analysis] export failed:", err);
+      } finally {
+        setExporting(false);
+      }
+    },
+    [
+      exporting,
+      activeDataset?.name,
+      tableName,
+      rowCount,
+      insights,
+      anomalies,
+      correlations,
+      colStats,
+      forecastMeta,
+      correlationHeatmap,
+      clusterScatterChart,
+      anomalyDistChart,
+    ],
+  );
+
   return (
-    <div className="dn-page">
-      <div className="dn-page-shell-wide">
+    <div className="">
+      <div className="">
       {/* No dataset or stale table guard */}
       {!activeDataset ? (
         <div className="flex flex-col items-center justify-center py-32 text-muted-foreground">
@@ -1128,6 +531,24 @@ export default function AiAnalysisScreen() {
                   {activeDataset.name} · {rowCount.toLocaleString()} rows
                 </span>
               )}
+              {narrating ? (
+                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-violet-500/15 border border-violet-500/25 rounded-lg text-violet-300">
+                  <Sparkles className="w-3 h-3 animate-pulse" />
+                  Narrating insights…
+                </span>
+              ) : narrated ? (
+                <span className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-violet-500/15 border border-violet-500/25 rounded-lg text-violet-300">
+                  <Sparkles className="w-3 h-3" />
+                  LLM-narrated
+                </span>
+              ) : (
+                aiAvailable && (
+                  <span className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 bg-card border border-border rounded-lg text-muted-foreground">
+                    <Brain className="w-3 h-3" />
+                    AI ready
+                  </span>
+                )
+              )}
               <button
                 type="button"
                 disabled={isRunning || !tableLoaded}
@@ -1146,21 +567,21 @@ export default function AiAnalysisScreen() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  const data = { insights, anomalies, correlations, colStats };
-                  const blob = new Blob([JSON.stringify(data, null, 2)], {
-                    type: "application/json",
-                  });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement("a");
-                  a.href = url;
-                  a.download = "analysis_report.json";
-                  a.click();
-                  URL.revokeObjectURL(url);
-                }}
-                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/80 rounded-lg text-sm text-foreground transition-colors"
+                disabled={exporting || analysisState.status !== "done"}
+                onClick={() => void handleExport("xlsx")}
+                title="Export analysis report (XLSX)"
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm text-foreground transition-colors"
               >
-                <Download className="w-4 h-4" /> Export
+                <Download className="w-4 h-4" /> {exporting ? "Exporting…" : "Export XLSX"}
+              </button>
+              <button
+                type="button"
+                disabled={exporting || analysisState.status !== "done"}
+                onClick={() => void handleExport("pdf")}
+                title="Export narrative report with charts (PDF)"
+                className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent/80 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm text-foreground transition-colors"
+              >
+                <Download className="w-4 h-4" /> PDF
               </button>
             </div>
           </div>
@@ -1350,15 +771,21 @@ export default function AiAnalysisScreen() {
                     </div>
                   )}
 
-                <div className="space-y-2">
-                  {filteredInsights.map((insight) => (
-                    <InsightCard
-                      key={insight.id}
-                      insight={insight}
-                      onAcknowledge={acknowledgeInsight}
-                    />
-                  ))}
-                </div>
+                {filteredInsights.length > 0 && (
+                  <VirtualList
+                    items={filteredInsights}
+                    getKey={(insight) => insight.id}
+                    estimateSize={120}
+                    renderItem={(insight) => (
+                      <div className="pb-2">
+                        <InsightCard
+                          insight={insight}
+                          onAcknowledge={acknowledgeInsight}
+                        />
+                      </div>
+                    )}
+                  />
+                )}
               </motion.div>
             )}
 
@@ -1381,84 +808,84 @@ export default function AiAnalysisScreen() {
                       No anomalies detected yet
                     </div>
                   )}
-                  {anomalies.map((anom, idx) => (
-                    <motion.div
-                      key={anom.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: idx * 0.05 }}
-                      className={`bg-card border rounded-xl p-4 ${
-                        anom.severity === "critical"
-                          ? "border-red-500/30 bg-red-500/5"
-                          : anom.severity === "warning"
-                            ? "border-yellow-500/30 bg-yellow-500/5"
-                            : "border-border"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`text-xs px-2 py-0.5 rounded font-mono ${
-                              anom.type === "outlier"
-                                ? "bg-red-500/20 text-red-300"
-                                : anom.type === "missing"
-                                  ? "bg-yellow-500/20 text-yellow-300"
-                                  : anom.type === "distribution_shift"
-                                    ? "bg-purple-500/20 text-purple-300"
-                                    : "bg-blue-500/20 text-blue-300"
-                            }`}
-                          >
-                            {anom.type}
-                          </span>
-                          <span className="text-foreground font-mono text-sm">
-                            {anom.column}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <SeverityBadge severity={anom.severity} />
-                          {anom.affectedRows > 0 && (
-                            <span className="text-xs text-muted-foreground">
-                              {anom.affectedRows.toLocaleString()} rows
-                            </span>
+                  {anomalies.length > 0 && (
+                    <VirtualList
+                      items={anomalies}
+                      getKey={(anom) => anom.id}
+                      estimateSize={150}
+                      maxHeight={560}
+                      renderItem={(anom) => (
+                        <div
+                          className={`mb-3 bg-card border rounded-xl p-4 ${
+                            anom.severity === "critical"
+                              ? "border-red-500/30 bg-red-500/5"
+                              : anom.severity === "warning"
+                                ? "border-yellow-500/30 bg-yellow-500/5"
+                                : "border-border"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`text-xs px-2 py-0.5 rounded font-mono ${
+                                  anom.type === "outlier"
+                                    ? "bg-red-500/20 text-red-300"
+                                    : anom.type === "missing"
+                                      ? "bg-yellow-500/20 text-yellow-300"
+                                      : anom.type === "distribution_shift"
+                                        ? "bg-purple-500/20 text-purple-300"
+                                        : "bg-blue-500/20 text-blue-300"
+                                }`}
+                              >
+                                {anom.type}
+                              </span>
+                              <span className="text-foreground font-mono text-sm">
+                                {anom.column}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <SeverityBadge severity={anom.severity} />
+                              {anom.affectedRows > 0 && (
+                                <span className="text-xs text-muted-foreground">
+                                  {anom.affectedRows.toLocaleString()} rows
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <p className="text-sm text-foreground">{anom.description}</p>
+                          {anom.values && anom.values.length > 0 && (
+                            <div className="mt-2 flex gap-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">
+                                Sample values:
+                              </span>
+                              {anom.values.map((v) => (
+                                <span
+                                  key={v.toFixed(6)}
+                                  className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-foreground"
+                                >
+                                  {v.toFixed(2)}
+                                </span>
+                              ))}
+                            </div>
                           )}
-                        </div>
-                      </div>
-                      <p className="text-sm text-foreground">
-                        {anom.description}
-                      </p>
-                      {anom.values && anom.values.length > 0 && (
-                        <div className="mt-2 flex gap-1 flex-wrap">
-                          <span className="text-xs text-muted-foreground">
-                            Sample values:
-                          </span>
-                          {anom.values.map((v) => (
-                            <span
-                              key={v.toFixed(6)}
-                              className="text-xs font-mono bg-muted px-1.5 py-0.5 rounded text-foreground"
-                            >
-                              {v.toFixed(2)}
-                            </span>
-                          ))}
+                          <div className="mt-2">
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>Anomaly score:</span>
+                              <div className="flex-1 h-1 bg-accent rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full bg-linear-to-r from-green-500 via-yellow-500 to-red-500"
+                                  style={{ width: `${Math.min(anom.score * 100, 100)}%` }}
+                                />
+                              </div>
+                              <span className="font-mono">
+                                {(anom.score * 100).toFixed(1)}%
+                              </span>
+                            </div>
+                          </div>
                         </div>
                       )}
-                      <div className="mt-2">
-                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                          <span>Anomaly score:</span>
-                          <div className="flex-1 h-1 bg-accent rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full bg-linear-to-r from-green-500 via-yellow-500 to-red-500"
-                              style={{
-                                width: `${Math.min(anom.score * 100, 100)}%`,
-                              }}
-                            />
-                          </div>
-                          <span className="font-mono">
-                            {(anom.score * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
+                    />
+                  )}
                 </div>
 
                 <div className="space-y-4">
@@ -1468,9 +895,9 @@ export default function AiAnalysisScreen() {
                       Severity Distribution
                     </h3>
                     {anomalies.length > 0 ? (
-                      <ReactECharts
-                        option={anomalyDistChart}
-                        style={{ height: 200 }}
+                      <AnalysisChart
+                        option={anomalyDistChart as EChartsOption}
+                        height={200}
                       />
                     ) : (
                       <div className="h-32 flex items-center justify-center text-muted-foreground text-sm">
@@ -1528,9 +955,9 @@ export default function AiAnalysisScreen() {
                       <h3 className="text-sm font-semibold text-foreground mb-2 font-mono">
                         {selectedCol} distribution
                       </h3>
-                      <ReactECharts
-                        option={histogramChart}
-                        style={{ height: 160 }}
+                      <AnalysisChart
+                        option={histogramChart as EChartsOption}
+                        height={160}
                       />
                       {selectedColStat.skewness !== undefined && (
                         <div className="flex gap-4 mt-2 text-xs text-muted-foreground">
@@ -1573,10 +1000,10 @@ export default function AiAnalysisScreen() {
                       <Flame className="w-4 h-4 text-orange-400" />
                       Correlation Heatmap
                     </h2>
-                    {correlations.length > 0 ? (
-                      <ReactECharts
-                        option={correlationHeatmap}
-                        style={{ height: 300 }}
+                    {correlations.length > 0 && correlationHeatmap ? (
+                      <AnalysisChart
+                        option={(correlationHeatmap as unknown as EChartsOption)}
+                        height={300}
                       />
                     ) : (
                       <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
@@ -1590,55 +1017,54 @@ export default function AiAnalysisScreen() {
                       <ScatterChart className="w-4 h-4 text-purple-400" />
                       Top Correlations
                     </h2>
-                    <div className="space-y-2 max-h-72 overflow-y-auto">
-                      {correlations.slice(0, 15).map((corr, idx) => (
-                        <motion.div
-                          key={`${corr.col1}_${corr.col2}`}
-                          initial={{ opacity: 0, x: -5 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          transition={{ delay: idx * 0.04 }}
-                          className="flex items-center gap-3 p-2 rounded-lg bg-muted hover:bg-accent"
-                        >
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-1 text-xs">
-                              <span className="font-mono text-foreground">
-                                {corr.col1}
-                              </span>
-                              <span className="text-muted-foreground">↔</span>
-                              <span className="font-mono text-foreground">
-                                {corr.col2}
-                              </span>
+                    {correlations.length === 0 ? (
+                      <div className="text-center py-8 text-muted-foreground text-sm">
+                        No significant correlations found
+                      </div>
+                    ) : (
+                      <VirtualList
+                        items={correlations}
+                        getKey={(corr) => `${corr.col1}_${corr.col2}`}
+                        estimateSize={56}
+                        maxHeight={288}
+                        renderItem={(corr) => (
+                          <div className="mb-2 flex items-center gap-3 p-2 rounded-lg bg-muted hover:bg-accent">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1 text-xs">
+                                <span className="font-mono text-foreground">
+                                  {corr.col1}
+                                </span>
+                                <span className="text-muted-foreground">↔</span>
+                                <span className="font-mono text-foreground">
+                                  {corr.col2}
+                                </span>
+                              </div>
+                              <div className="mt-1 h-1 bg-accent rounded-full overflow-hidden">
+                                <div
+                                  className="h-full rounded-full"
+                                  style={{
+                                    width: `${Math.abs(corr.pearson) * 100}%`,
+                                    backgroundColor:
+                                      corr.pearson > 0 ? "#22c55e" : "#ef4444",
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div className="mt-1 h-1 bg-accent rounded-full overflow-hidden">
+                            <div className="text-right shrink-0">
                               <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${Math.abs(corr.pearson) * 100}%`,
-                                  backgroundColor:
-                                    corr.pearson > 0 ? "#22c55e" : "#ef4444",
-                                }}
-                              />
+                                className={`text-sm font-mono font-bold ${corr.pearson > 0 ? "text-green-400" : "text-red-400"}`}
+                              >
+                                {corr.pearson > 0 ? "+" : ""}
+                                {corr.pearson.toFixed(3)}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {corr.strength}
+                              </div>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <div
-                              className={`text-sm font-mono font-bold ${corr.pearson > 0 ? "text-green-400" : "text-red-400"}`}
-                            >
-                              {corr.pearson > 0 ? "+" : ""}
-                              {corr.pearson.toFixed(3)}
-                            </div>
-                            <div className="text-xs text-muted-foreground">
-                              {corr.strength}
-                            </div>
-                          </div>
-                        </motion.div>
-                      ))}
-                      {correlations.length === 0 && (
-                        <div className="text-center py-8 text-muted-foreground text-sm">
-                          No significant correlations found
-                        </div>
-                      )}
-                    </div>
+                        )}
+                      />
+                    )}
                   </div>
                 </div>
 
@@ -1706,7 +1132,13 @@ export default function AiAnalysisScreen() {
                   <div className="flex items-center justify-between mb-3">
                     <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                       <TrendingUp className="w-4 h-4 text-green-400" />
-                      {numericCols[0] ?? "Metric"} Forecast (Linear Regression)
+                      {forecastMeta.metricCol ?? numericCols[0] ?? "Metric"}{" "}
+                      Forecast
+                      {forecastMeta.dateCol
+                        ? ` · by ${forecastMeta.dateCol}`
+                        : forecastMeta.method !== "none"
+                          ? " · index proxy"
+                          : ""}
                     </h2>
                     {forecasts.length > 0 && (
                       <div className="flex gap-3 text-xs text-muted-foreground">
@@ -1726,10 +1158,7 @@ export default function AiAnalysisScreen() {
                     )}
                   </div>
                   {forecasts.length > 0 ? (
-                    <ReactECharts
-                      option={forecastChart}
-                      style={{ height: 320 }}
-                    />
+                    <ForecastChart points={forecasts} height={320} />
                   ) : (
                     <div className="h-64 flex items-center justify-center text-muted-foreground text-sm">
                       Run analysis to generate forecast
@@ -1769,71 +1198,25 @@ export default function AiAnalysisScreen() {
                       <Sigma className="w-4 h-4 text-indigo-400" />
                       Model Metrics
                     </h3>
-                    {forecasts.length > 0 &&
-                      (() => {
-                        const actual = forecasts.filter(
-                          (f) => f.actual !== undefined,
-                        );
-                        const xs = actual.map((_, i) => i);
-                        const ys = actual.map((f) => f.actual ?? 0);
-                        const reg = linearRegression(xs, ys);
-                        const residuals = ys.map(
-                          (y, i) => y - (reg.slope * i + reg.intercept),
-                        );
-                        const mse = mean(residuals.map((r) => r ** 2));
-                        const rmse = Math.sqrt(mse);
-                        const mae = mean(residuals.map((r) => Math.abs(r)));
-                        return (
-                          <div className="space-y-2">
-                            {[
-                              {
-                                label: "R² (Coefficient of Determination)",
-                                value: reg.r2.toFixed(4),
-                                good: reg.r2 > 0.7,
-                              },
-                              {
-                                label: "Slope (trend per period)",
-                                value: reg.slope.toFixed(3),
-                                good: true,
-                              },
-                              {
-                                label: "Intercept (baseline)",
-                                value: reg.intercept.toFixed(2),
-                                good: true,
-                              },
-                              {
-                                label: "RMSE",
-                                value: rmse.toFixed(2),
-                                good: rmse < 50,
-                              },
-                              {
-                                label: "MAE",
-                                value: mae.toFixed(2),
-                                good: mae < 40,
-                              },
-                              {
-                                label: "Data points",
-                                value: actual.length.toString(),
-                                good: actual.length >= 6,
-                              },
-                            ].map((item) => (
-                              <div
-                                key={item.label}
-                                className="flex items-center justify-between text-sm"
-                              >
-                                <span className="text-muted-foreground">
-                                  {item.label}
-                                </span>
-                                <span
-                                  className={`font-mono font-semibold ${item.good ? "text-green-400" : "text-yellow-400"}`}
-                                >
-                                  {item.value}
-                                </span>
-                              </div>
-                            ))}
+                    {forecastMetrics && (
+                      <div className="space-y-2">
+                        {forecastMetrics.map((item) => (
+                          <div
+                            key={item.label}
+                            className="flex items-center justify-between text-sm"
+                          >
+                            <span className="text-muted-foreground">
+                              {item.label}
+                            </span>
+                            <span
+                              className={`font-mono font-semibold ${item.good ? "text-green-400" : "text-yellow-400"}`}
+                            >
+                              {item.value}
+                            </span>
                           </div>
-                        );
-                      })()}
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="bg-card border border-border rounded-xl p-4">
@@ -1843,12 +1226,12 @@ export default function AiAnalysisScreen() {
                     </h3>
                     <ul className="space-y-2 text-sm text-muted-foreground">
                       {[
-                        "Linear trend continuation (OLS regression)",
-                        "Homoscedastic residuals assumed",
-                        "No seasonality adjustments applied",
-                        "95% confidence interval based on residual std dev",
-                        "6-period horizon (higher uncertainty)",
-                        "Model retrained on full historical dataset",
+                        `Model: ${forecastMeta.method}`,
+                        "Level, trend (and seasonality when ≥2 full seasons) smoothed",
+                        "95% confidence interval based on in-sample residual std dev",
+                        "Homoscedastic residuals assumed for the CI band",
+                        "6-period horizon (uncertainty widens with distance)",
+                        "Fitted off the full aggregated/sampled series in a worker",
                       ].map((item) => (
                         <li key={item} className="flex items-start gap-2">
                           <ChevronRight className="w-3 h-3 mt-0.5 text-indigo-400 shrink-0" />
@@ -1878,9 +1261,9 @@ export default function AiAnalysisScreen() {
                       {numericCols[1] ?? numericCols[0] ?? "metric"})
                     </h2>
                     {clusterScatterChart ? (
-                      <ReactECharts
-                        option={clusterScatterChart}
-                        style={{ height: 300 }}
+                      <AnalysisChart
+                        option={clusterScatterChart as EChartsOption}
+                        height={300}
                       />
                     ) : (
                       <div className="h-48 flex items-center justify-center text-muted-foreground text-sm">
@@ -1894,15 +1277,13 @@ export default function AiAnalysisScreen() {
                       <Layers className="w-4 h-4 text-yellow-400" />
                       Segments ({clusters.length})
                     </h2>
-                    <div className="space-y-2 max-h-80 overflow-y-auto">
-                      {clusters.map((cluster, idx) => (
-                        <motion.div
-                          key={cluster.id}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.06 }}
-                          className="p-3 rounded-xl bg-muted border border-border hover:bg-accent transition-colors"
-                        >
+                    <VirtualList
+                      items={clusters}
+                      getKey={(cluster) => String(cluster.id)}
+                      estimateSize={110}
+                      maxHeight={320}
+                      renderItem={(cluster) => (
+                        <div className="mb-2 p-3 rounded-xl bg-muted border border-border hover:bg-accent transition-colors">
                           <div className="flex items-center gap-2 mb-2">
                             <span
                               className="w-3 h-3 rounded-full shrink-0"
@@ -1934,9 +1315,9 @@ export default function AiAnalysisScreen() {
                                 </span>
                               ))}
                           </div>
-                        </motion.div>
-                      ))}
-                    </div>
+                        </div>
+                      )}
+                    />
                   </div>
                 </div>
 
@@ -2020,40 +1401,39 @@ export default function AiAnalysisScreen() {
                     <div className="space-y-3">
                       {[
                         {
-                          name: "Z-Score Outlier Detection",
-                          desc: "Identifies values deviating >3 standard deviations from the mean. Best for normally distributed data.",
-                          formula: "z = (x - μ) / σ",
+                          name: "Generalized ESD (S-H-ESD)",
+                          desc: "Rosner's iterative test on a reservoir sample: removes the most extreme residual each step and compares to the Student-t critical value λ. Detects multiple outliers without prior count.",
+                          formula: "Rᵢ = max|xᵢ-x̄|/s ;  λᵢ = (n-i)·t_{p,n-i-1} / √[(n-i-1+t²)(n-i+1)]",
                           tag: "anomaly",
                         },
                         {
                           name: "IQR Fence Method",
-                          desc: "Flags values outside Q1 - 1.5×IQR and Q3 + 1.5×IQR. Robust to non-normal distributions.",
+                          desc: "Flags values outside Q1 - 1.5×IQR and Q3 + 1.5×IQR (quartiles from DuckDB quantile_cont). Robust to non-normal distributions.",
                           formula: "fence = Q1 ± 1.5 × (Q3 - Q1)",
                           tag: "anomaly",
                         },
                         {
                           name: "Pearson Correlation",
-                          desc: "Measures linear correlation between two continuous variables. Range: [-1, 1].",
+                          desc: "Native DuckDB corr() over the full table — pairwise-complete, no sampling bias, no misaligned pairs. Range: [-1, 1].",
                           formula: "r = Σ(xi-x̄)(yi-ȳ) / √[Σ(xi-x̄)²·Σ(yi-ȳ)²]",
                           tag: "correlation",
                         },
                         {
-                          name: "Ordinary Least Squares",
-                          desc: "Fits a line that minimizes sum of squared residuals for time series forecasting.",
-                          formula: "ŷ = β₀ + β₁x, minimize Σ(yi - ŷi)²",
+                          name: "Holt-Winters (additive)",
+                          desc: "Triple exponential smoothing of level, trend and seasonality (falls back to Holt linear / OLS with too few periods). Seeded worker kernel.",
+                          formula: "ŷ_{t+h} = ℓ_t + h·b_t + s_{t+h-m(k+1)}",
                           tag: "forecast",
                         },
                         {
-                          name: "Skewness",
-                          desc: "Measures asymmetry of a distribution. >2 indicates significant right skew.",
-                          formula: "g₁ = [n/((n-1)(n-2))] × Σ[(xi-x̄)/s]³",
-                          tag: "distribution",
+                          name: "Seeded k-means (k-means++)",
+                          desc: "Standardised per-row feature vectors from a reservoir sample, clustered with a deterministic (seed 42) k-means++ kernel — reproducible segments, not a relabelled GROUP BY.",
+                          formula: "argmin Σ_k Σ_{x∈Cₖ} ‖x - μₖ‖²",
+                          tag: "pattern",
                         },
                         {
-                          name: "Excess Kurtosis",
-                          desc: "Measures tail heaviness. Positive kurtosis = heavier tails than normal (leptokurtic).",
-                          formula:
-                            "g₂ = [(n(n+1))/((n-1)(n-2)(n-3))] × Σ[(xi-x̄)/s]⁴ - 3(n-1)²/((n-2)(n-3))",
+                          name: "Skewness & Excess Kurtosis",
+                          desc: "Distribution shape moments computed natively in DuckDB (skewness()/kurtosis()) in the single-pass aggregate — |g₁|>2 flags strong asymmetry.",
+                          formula: "g₁ = m₃/m₂^{3/2} ;  g₂ = m₄/m₂² − 3",
                           tag: "distribution",
                         },
                       ].map((method) => (
@@ -2096,14 +1476,14 @@ export default function AiAnalysisScreen() {
                         <Activity className="w-4 h-4 text-green-400" />
                         Column Statistics
                       </h2>
-                      <div className="space-y-2 max-h-64 overflow-y-auto">
-                        {colStats
-                          .filter((s) => s.type === "numeric")
-                          .map((stat) => (
-                            <div
-                              key={stat.name}
-                              className="bg-muted rounded-lg p-3"
-                            >
+                      <VirtualList
+                        items={orderedColStats}
+                        getKey={(stat) => stat.name}
+                        estimateSize={84}
+                        maxHeight={256}
+                        renderItem={(stat) =>
+                          stat.type === "numeric" ? (
+                            <div className="mb-2 bg-muted rounded-lg p-3">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-sm font-mono text-foreground">
                                   {stat.name}
@@ -2153,14 +1533,8 @@ export default function AiAnalysisScreen() {
                                 </span>
                               </div>
                             </div>
-                          ))}
-                        {colStats
-                          .filter((s) => s.type === "categorical")
-                          .map((stat) => (
-                            <div
-                              key={stat.name}
-                              className="bg-muted rounded-lg p-3"
-                            >
+                          ) : (
+                            <div className="mb-2 bg-muted rounded-lg p-3">
                               <div className="flex items-center justify-between mb-1">
                                 <span className="text-sm font-mono text-foreground">
                                   {stat.name}
@@ -2186,8 +1560,9 @@ export default function AiAnalysisScreen() {
                                 </span>
                               </div>
                             </div>
-                          ))}
-                      </div>
+                          )
+                        }
+                      />
                     </div>
 
                     <div className="bg-card border border-border rounded-xl p-4">
@@ -2197,12 +1572,12 @@ export default function AiAnalysisScreen() {
                       </h2>
                       <ul className="space-y-2 text-xs text-muted-foreground">
                         {[
-                          "All statistics computed in-browser via DuckDB WASM (no server round-trips)",
-                          `${rowCount.toLocaleString()} row dataset processed using columnar SQL aggregations`,
-                          "Pearson correlations sampled to 3,000 rows for O(n) performance",
-                          "Distribution histograms binned in 20 equal-width buckets",
-                          "Statistical functions powered by simple-statistics library",
-                          `Anomaly detection runs Z-score + IQR across ${numericCols.length} numeric columns`,
+                          "Statistics pushed down to DuckDB (min/max/avg/stddev, quantiles, skewness, kurtosis) — computed in one columnar pass per group, no per-row JS pull",
+                          `${rowCount.toLocaleString()} rows processed across ${numericCols.length} numeric and ${catCols.length} categorical columns`,
+                          "Pearson correlations computed natively via DuckDB corr() over the full table — no sampling bias, no misaligned pairs",
+                          `Distribution histograms binned in SQL with width_bucket (${20} buckets)`,
+                          "Outlier detection uses Tukey/IQR fences on SQL-computed quartiles; k-means clusters a reservoir sample",
+                          "Pipeline runs off the main thread in a Comlink worker; insights narrated by the offline AI provider when available",
                         ].map((note) => (
                           <li key={note} className="flex items-start gap-2">
                             <ChevronRight className="w-3 h-3 mt-0.5 text-green-400 shrink-0" />

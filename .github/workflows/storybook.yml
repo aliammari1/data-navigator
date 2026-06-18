@@ -1,3 +1,9 @@
+# Facts: rewrites the Storybook CI gate to build Storybook, run the test-runner
+# interaction/a11y suite (test:storybook:ci) and Playwright visual-regression
+# (test:vr), and upload the static build plus VR diff/report artifacts. Caches the
+# pnpm store (setup-node) and Playwright browsers. Least-privilege permissions,
+# cancel-in-progress concurrency, SHA-pinned third-party actions. No model
+# downloads; heavy runtime assets are stripped from the uploaded artifact.
 name: Storybook
 
 on:
@@ -11,22 +17,27 @@ on:
       - "features/**"
       - "components/**"
       - ".storybook/**"
+      - "tests/visual/**"
       - "package.json"
       - "pnpm-lock.yaml"
       - "src/**/*.stories.*"
       - "src/**/*.mdx"
+      - "playwright.storybook.config.ts"
       - ".github/workflows/storybook.yml"
   workflow_dispatch:
 
+# Least-privilege by default: grant nothing at the workflow level and let each
+# job opt into the minimum it needs.
+permissions: {}
+
+# Cancel superseded runs on the same ref. The per-workflow literal prefix plus
+# github.ref is enough to scope the group; github.workflow is redundant here.
 concurrency:
-  group: storybook-${{ github.workflow }}-${{ github.ref }}
+  group: storybook-${{ github.ref }}
   cancel-in-progress: true
 
-permissions:
-  contents: read
-
 env:
-  CI: true
+  CI: "true"
   NEXT_TELEMETRY_DISABLED: "1"
   STORYBOOK_FIGMA_FILE_URL: ${{ vars.STORYBOOK_FIGMA_FILE_URL }}
   STORYBOOK_FIGMA_BUTTON_NODE_ID: ${{ vars.STORYBOOK_FIGMA_BUTTON_NODE_ID }}
@@ -36,42 +47,115 @@ jobs:
   storybook:
     name: Build and test Storybook
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    permissions:
+      contents: read
 
     steps:
       - name: Checkout repository
+        # First-party action: major tag is acceptable.
         uses: actions/checkout@v6
         with:
+          # Stories reference LFS-tracked assets (fonts/models/vad); pull them so
+          # Storybook builds and VR snapshots render deterministically.
           lfs: true
 
+      # NOTE: the cross-cutting plan provisions a local composite action at
+      # ./.github/actions/setup (pnpm + node + install + pnpm-store/Next caches).
+      # Once it lands, the four steps below can collapse to:
+      #   - uses: ./.github/actions/setup
+      #     with: { node-version: "24" }
+      # Until then the setup is inlined here so this workflow is self-contained.
       - name: Set up pnpm
-        uses: pnpm/action-setup@v4
+        # Third-party action: pinned to a commit SHA for supply-chain safety.
+        uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
         with:
           version: 10.25.0
           run_install: false
 
       - name: Set up Node.js
+        # First-party action: major tag is acceptable. Caches the pnpm store
+        # (not node_modules) keyed on the lockfile.
         uses: actions/setup-node@v6
         with:
-          node-version: 24
+          node-version: "24"
           cache: pnpm
           cache-dependency-path: pnpm-lock.yaml
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Audit story quality
+        run: pnpm run check:stories
+
       - name: Build Storybook
+        # build:storybook also runs check:storybook-figma + check:stories.
         run: pnpm run build:storybook
 
+      # Cache the Playwright browser binaries so we don't re-download Chromium on
+      # every run. Keyed on the resolved @playwright/test version in the lockfile
+      # so the cache invalidates when the browser version changes.
+      - name: Resolve Playwright version
+        id: pw
+        run: echo "version=$(pnpm exec playwright --version | tr -d 'A-Za-z ')" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        # First-party action: major tag is acceptable.
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          restore-keys: |
+            playwright-${{ runner.os }}-
+
+      - name: Install Playwright (Chromium) + OS deps
+        # On a cache hit the browser binaries are already present, so only pull
+        # the OS-level system dependencies; on a miss, install the full browser.
+        run: |
+          if [ "${{ steps.playwright-cache.outputs.cache-hit }}" = "true" ]; then
+            pnpm exec playwright install-deps chromium
+          else
+            pnpm exec playwright install --with-deps chromium
+          fi
+
+      - name: Interaction + accessibility tests (Storybook test-runner)
+        run: pnpm run test:storybook:ci
+
+      - name: Visual-regression tests (Playwright)
+        # Compares the built Storybook against committed baselines in
+        # tests/visual/__screenshots__. The VR config serves storybook-static
+        # itself via its own webServer block.
+        run: pnpm run test:vr
+
       - name: Remove heavy runtime assets from Storybook artifact
+        # Strip LFS/model payloads so the uploaded artifact stays small. Runs even
+        # if VR fails so the static build is still available for download.
+        if: ${{ always() }}
         run: |
           rm -rf storybook-static/models
           rm -rf storybook-static/vad
 
       - name: Upload Storybook static build
+        # First-party action: major tag is acceptable.
         uses: actions/upload-artifact@v5
+        if: ${{ always() }}
         with:
           name: storybook-static
           path: storybook-static
           if-no-files-found: error
+          retention-days: 7
+
+      - name: Upload visual-regression report and diffs
+        # On VR failure these contain the expected/actual/diff PNGs and the HTML
+        # report needed to triage the regression. Uploaded on failure only to
+        # avoid noise on green runs.
+        uses: actions/upload-artifact@v5
+        if: ${{ failure() }}
+        with:
+          name: visual-regression-diffs
+          path: |
+            playwright-report-vr
+            test-results
+          if-no-files-found: ignore
           retention-days: 7

@@ -24,12 +24,14 @@ import {
   ResizableHandle as PanelResizeHandle,
 } from "@/components/ui/resizable";
 import { makeCtx, makeEvent } from "@/features/agent-canvas/core/ag-ui-types";
+import { resetAI } from "@/features/agent-canvas/core/ai-bridge";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import {
   buildTraceTree,
   clearEventLog,
   getEventLog,
   publishEvent,
+  subscribeEvents,
 } from "@/features/agent-canvas/core/event-bus";
 import { runPipeline } from "@/features/agent-canvas/core/pipeline";
 import type {
@@ -76,6 +78,13 @@ const NarrativePanel = dynamic(
     })),
   { ssr: false },
 );
+const SqlIdePanel = dynamic(
+  () =>
+    import("@/features/agent-canvas/components/SqlIdePanel").then((m) => ({
+      default: m.SqlIdePanel,
+    })),
+  { ssr: false },
+);
 
 // ─── Panel toggle button ─────────────────────────────────────────────────────
 
@@ -110,7 +119,11 @@ function PanelToggle({
 // ─── Build status bar ────────────────────────────────────────────────────────
 
 function BuildStatus() {
-  const { phase, widgets, running, plan } = useAgentStore();
+  // Narrow selectors: this status bar should not re-render the whole IDE tree.
+  const phase = useAgentStore((s) => s.phase);
+  const widgets = useAgentStore((s) => s.widgets);
+  const running = useAgentStore((s) => s.running);
+  const planTitle = useAgentStore((s) => s.plan?.title);
   const done = widgets.filter((w) => w.status === "done").length;
   const total = widgets.length;
 
@@ -129,7 +142,7 @@ function BuildStatus() {
           ))}
         </div>
       )}
-      <span className="text-slate-400">{plan?.title ?? "Building…"}</span>
+      <span className="text-slate-400">{planTitle ?? "Building…"}</span>
       {total > 0 && (
         <>
           <span className="text-slate-600">·</span>
@@ -151,13 +164,23 @@ function BuildStatus() {
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 export default function AgentCanvasScreen() {
-  const store = useAgentStore();
+  // Render-time reads use narrow selectors; mutations use the stable action
+  // refs via getState() so callbacks don't re-create on every store change
+  // (the previous `const store = useAgentStore()` re-rendered the whole IDE
+  // shell on every one of the hundreds of per-run events).
+  const step = useAgentStore((s) => s.step);
+  const model = useAgentStore((s) => s.model);
+  const fileName = useAgentStore((s) => s.fileName);
+  const widgetCount = useAgentStore((s) => s.widgets.length);
+  const setModel = useAgentStore((s) => s.setModel);
+  const pushEvent = useAgentStore((s) => s.pushEvent);
   const pipelineRef = useRef<{
     threadId: string;
     resume: (
       decision: "approve" | "revise",
       plan?: DashboardPlan,
     ) => Promise<void>;
+    dispose: () => void;
   } | null>(null);
 
   const [showSql, setShowSql] = useState(true);
@@ -166,90 +189,77 @@ export default function AgentCanvasScreen() {
 
   // ── Pipeline callbacks ────────────────────────────────────────────────────
 
-  const handleWidget = useCallback(
-    (w: WidgetState) => {
-      store.upsertWidget(w);
-      if (w.status === "done" || w.status === "error") {
-        const log = getEventLog();
-        store.setTraceRoots(buildTraceTree(log));
-      }
-    },
-    [store],
-  );
+  const handleWidget = useCallback((w: WidgetState) => {
+    const s = useAgentStore.getState();
+    s.upsertWidget(w);
+    if (w.status === "done" || w.status === "error") {
+      s.setTraceRoots(buildTraceTree(getEventLog()));
+    }
+  }, []);
 
-  const handleThought = useCallback(
-    (t: AgentThought) => {
-      store.addThought(t);
-    },
-    [store],
-  );
+  const handleThought = useCallback((t: AgentThought) => {
+    useAgentStore.getState().addThought(t);
+  }, []);
 
-  const handlePlan = useCallback(
-    (p: DashboardPlan) => {
-      store.setPlan(p);
-      store.setPhase("build");
-      // Seed widgets as pending
-      for (const spec of p.widgets) {
-        store.upsertWidget({ spec, status: "pending" });
-      }
-    },
-    [store],
-  );
+  const handlePlan = useCallback((p: DashboardPlan) => {
+    const s = useAgentStore.getState();
+    s.setPlan(p);
+    s.setPhase("build");
+    // Seed widgets as pending
+    for (const spec of p.widgets) {
+      s.upsertWidget({ spec, status: "pending" });
+    }
+  }, []);
 
-  const handleNarrative = useCallback(
-    (n: string) => {
-      store.setNarrative(n);
-    },
-    [store],
-  );
+  const handleNarrative = useCallback((n: string) => {
+    useAgentStore.getState().setNarrative(n);
+  }, []);
 
-  const handleInterrupt = useCallback(
-    (reason: string, payload: unknown) => {
-      store.setInterrupt({
-        active: true,
-        reason,
-        payload,
-        resolve: (decision, edits) => {
-          if (pipelineRef.current) {
-            pipelineRef.current.resume(
-              decision,
-              decision === "revise" ? (edits as DashboardPlan) : undefined,
-            );
-          }
-        },
-      });
-    },
-    [store],
-  );
+  const handleInterrupt = useCallback((reason: string, payload: unknown) => {
+    useAgentStore.getState().setInterrupt({
+      active: true,
+      reason,
+      payload,
+      resolve: (decision, edits) => {
+        if (pipelineRef.current) {
+          pipelineRef.current.resume(
+            decision,
+            decision === "revise" ? (edits as DashboardPlan) : undefined,
+          );
+        }
+      },
+    });
+  }, []);
 
   const handleDone = useCallback(() => {
-    store.setPhase("done");
-    store.setRunning(false);
-    store.setStep("done");
-    const log = getEventLog();
-    store.setTraceRoots(buildTraceTree(log));
-  }, [store]);
+    const s = useAgentStore.getState();
+    s.setPhase("done");
+    s.setRunning(false);
+    s.setStep("done");
+    s.setTraceRoots(buildTraceTree(getEventLog()));
+  }, []);
 
   // ── Start pipeline ────────────────────────────────────────────────────────
 
   const startPipeline = useCallback(
     async (tableName: string) => {
+      const s = useAgentStore.getState();
       clearEventLog();
-      store.setRunning(true);
-      store.setPhase("schema");
+      s.setRunning(true);
+      s.setPhase("schema");
 
-      const ctx = makeCtx(store.model);
-      store.setThreadId(ctx.threadId);
+      const ctx = makeCtx(s.model);
+      s.setThreadId(ctx.threadId);
       publishEvent(
         makeEvent(ctx, {
           type: "RUN_STARTED",
-          model: store.model,
+          model: s.model,
           input: { tableName },
         }),
       );
 
       // Set up flow nodes
-      store.setFlowNodes([
+      s.setFlowNodes([
         { id: "schema", label: "Schema", status: "running", type: "schema" },
         {
           id: "react_sql_loop",
@@ -273,23 +283,29 @@ export default function AgentCanvasScreen() {
       try {
         const handle = await runPipeline({
           tableName,
-          model: store.model,
+          model: s.model,
           onWidget: handleWidget,
           onThought: handleThought,
           onPlan: handlePlan,
           onNarrative: handleNarrative,
           onInterrupt: handleInterrupt,
           onDone: handleDone,
+          onError: (message) => {
+            const st = useAgentStore.getState();
+            st.setError(message);
+            st.setRunning(false);
+            st.setPhase("error");
+          },
         });
         pipelineRef.current = handle;
       } catch (err) {
-        store.setError(String(err));
-        store.setRunning(false);
-        store.setPhase("error");
+        const st = useAgentStore.getState();
+        st.setError(String(err));
+        st.setRunning(false);
+        st.setPhase("error");
       }
     },
     [
-      store,
       handleWidget,
       handleThought,
       handlePlan,
@@ -303,33 +319,31 @@ export default function AgentCanvasScreen() {
 
   const handleReady = useCallback(
     (tableName: string, fileName: string) => {
-      store.setTableName(tableName, fileName);
-      store.setStep("build");
+      const s = useAgentStore.getState();
+      s.setTableName(tableName, fileName);
+      s.setStep("build");
       startPipeline(tableName);
     },
-    [store, startPipeline],
+    [startPipeline],
   );
 
   // ── Reset ─────────────────────────────────────────────────────────────────
 
   const handleReset = useCallback(() => {
+    pipelineRef.current?.dispose();
     pipelineRef.current = null;
-    store.reset();
+    resetAI();
+    useAgentStore.getState().reset();
     clearEventLog();
-  }, [store]);
+  }, []);
 
-  // Subscribe to AG-UI events → push to store ticker
-  useEffect(() => {
-    const {
-      subscribeEvents,
-    } = require("@/features/agent-canvas/core/event-bus");
-    return subscribeEvents(store.pushEvent);
-  }, [store]);
+  // Subscribe to AG-UI events → push to store ticker (stable action ref).
+  useEffect(() => subscribeEvents(pushEvent), [pushEvent]);
 
-  const isSetup = store.step === "setup";
+  const isSetup = step === "setup";
 
   return (
-    <div className="dn-page flex h-full min-h-full flex-col overflow-hidden text-foreground">
+    <div className=" flex h-full min-h-full flex-col overflow-hidden text-foreground">
       <AnimatePresence mode="wait">
         {isSetup ? (
           <motion.div
@@ -342,8 +356,8 @@ export default function AgentCanvasScreen() {
           >
             <SetupScreen
               onReady={handleReady}
-              model={store.model}
-              onModelChange={store.setModel}
+              model={model}
+              onModelChange={setModel}
             />
           </motion.div>
         ) : (
@@ -357,7 +371,7 @@ export default function AgentCanvasScreen() {
             <TopBar onReset={handleReset} />
 
             {/* Panel visibility toggles + build status */}
-            <div className="dn-sticky-header flex shrink-0 items-center justify-between px-3 py-1">
+            <div className=" flex shrink-0 items-center justify-between px-3 py-1">
               <div className="flex items-center gap-1">
                 <PanelToggle
                   label="SQL IDE"
@@ -379,10 +393,8 @@ export default function AgentCanvasScreen() {
                 />
               </div>
               <div className="flex items-center gap-2 text-[10px] text-slate-600">
-                {store.fileName && <span>{store.fileName}</span>}
-                {store.widgets.length > 0 && (
-                  <span>{store.widgets.length} widgets</span>
-                )}
+                {fileName && <span>{fileName}</span>}
+                {widgetCount > 0 && <span>{widgetCount} widgets</span>}
               </div>
             </div>
 
@@ -421,7 +433,9 @@ export default function AgentCanvasScreen() {
                             SQL IDE
                           </span>
                         </div>
-                        <div className="flex-1 min-h-0 overflow-hidden"></div>
+                        <div className="flex-1 min-h-0 overflow-hidden">
+                          <SqlIdePanel />
+                        </div>
                       </div>
                     </Panel>
                   </>

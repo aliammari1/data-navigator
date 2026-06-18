@@ -85,13 +85,6 @@ export {
   SPEC_SUCCESS_FILTER,
 };
 
-const enrichmentKeys = new Map<string, string>();
-const enrichmentInFlight = new Map<string, Promise<boolean>>();
-
-function enrichmentKey(m: ColumnMapping, sm: StatusMapping[]): string {
-  return JSON.stringify({ mapping: m, statuses: sm });
-}
-
 export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
   const c = qc(dateColumn);
 
@@ -755,16 +748,16 @@ export async function fetchCanalRows(
   }
 }
 
-export async function fetchFiltered(
-  tableName: string,
+/**
+ * Build the WHERE clause for the raw-data grid from a FilterState.
+ * Returns "" when no filter is active (full table). The clause is invariant
+ * across pagination and sorting, which lets the count be cached separately.
+ */
+function buildFilteredWhere(
   m: ColumnMapping,
   f: FilterState,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  limit = 50,
-  offset = 0,
-  sortCol = "",
-  sortDir: SortDir = "desc",
-): Promise<{ rows: RawRow[]; total: number }> {
+): string {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const reg = qc(m.region);
@@ -789,7 +782,69 @@ export async function fetchFiltered(
       `(CAST(${ms} AS VARCHAR) LIKE ${s} OR CAST(${sn2} AS VARCHAR) LIKE ${s})`,
     );
   }
-  const where = conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
+  return conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
+}
+
+/**
+ * Count rows matching the filter. The result is invariant across page/sort
+ * for the same filter, so callers should cache it by filter hash and avoid
+ * re-running it on every pagination/sort change (it is a full filtered scan).
+ */
+export async function fetchFilteredCount(
+  tableName: string,
+  m: ColumnMapping,
+  f: FilterState,
+  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+): Promise<number> {
+  const where = buildFilteredWhere(m, f, sm);
+  try {
+    const cnt = await runReadOnlyQuery(
+      `SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`,
+    );
+    return safeNum(cnt[0]?.cnt);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Fetch one page of filtered rows. No COUNT — pagination/sort never trigger a
+ * full-table count scan; pair with `fetchFilteredCount` (cached by filter).
+ */
+export async function fetchFilteredPage(
+  tableName: string,
+  m: ColumnMapping,
+  f: FilterState,
+  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  limit = 50,
+  offset = 0,
+  sortCol = "",
+  sortDir: SortDir = "desc",
+): Promise<RawRow[]> {
+  const where = buildFilteredWhere(m, f, sm);
+  const orderBy = sortCol
+    ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}`
+    : "";
+  try {
+    return await runReadOnlyQuery(
+      `SELECT * FROM ${qc(tableName)} ${where} ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
+    );
+  } catch {
+    return [];
+  }
+}
+
+export async function fetchFiltered(
+  tableName: string,
+  m: ColumnMapping,
+  f: FilterState,
+  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  limit = 50,
+  offset = 0,
+  sortCol = "",
+  sortDir: SortDir = "desc",
+): Promise<{ rows: RawRow[]; total: number }> {
+  const where = buildFilteredWhere(m, f, sm);
   const orderBy = sortCol
     ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}`
     : "";
@@ -850,6 +905,12 @@ export async function fetchSpecChannelStats(
   dateTo: string,
   m?: ColumnMapping,
 ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> {
+  if (channels.length === 0) {
+    return {
+      rows: [],
+      total: { canal: "TOTAL (tous canaux)", nombre: 0, montant: 0 },
+    };
+  }
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
@@ -857,30 +918,44 @@ export async function fetchSpecChannelStats(
     statusExpr,
     SPEC_STATUS_CODES.success,
   );
-  const rows = await Promise.all(
-    channels.map(async (ch) => {
-      try {
-        const res = await runReadOnlyQuery(`
-          SELECT COUNT(*) AS n, COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)),0) AS m
-          FROM ${qc(tableName)}
-          WHERE ${successFilter} AND (${ch.condition})${df}
-        `);
-        return {
-          canal: ch.name,
-          nombre: safeNum(res[0]?.n),
-          montant: safeNum(res[0]?.m),
-        };
-      } catch {
-        return { canal: ch.name, nombre: 0, montant: 0 };
-      }
-    }),
-  );
-  const tn = rows.reduce((s, r) => s + r.nombre, 0);
-  const tm = rows.reduce((s, r) => s + r.montant, 0);
-  return {
-    rows,
-    total: { canal: "TOTAL (tous canaux)", nombre: tn, montant: tm },
-  };
+  // Single-pass conditional aggregation: one table scan with per-channel
+  // COUNT/SUM FILTER columns instead of one COUNT query per channel.
+  const cols = channels
+    .map(
+      (ch, i) =>
+        `COUNT(*) FILTER (WHERE (${ch.condition})) AS n_${i},
+         COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)) FILTER (WHERE (${ch.condition})), 0) AS m_${i}`,
+    )
+    .join(",\n");
+  try {
+    const res = await runReadOnlyQuery(`
+      SELECT ${cols}
+      FROM ${qc(tableName)}
+      WHERE ${successFilter}${df}
+    `);
+    const row = res[0] ?? {};
+    const rows: SpecChRow[] = channels.map((ch, i) => ({
+      canal: ch.name,
+      nombre: safeNum(row[`n_${i}`]),
+      montant: safeNum(row[`m_${i}`]),
+    }));
+    const tn = rows.reduce((s, r) => s + r.nombre, 0);
+    const tm = rows.reduce((s, r) => s + r.montant, 0);
+    return {
+      rows,
+      total: { canal: "TOTAL (tous canaux)", nombre: tn, montant: tm },
+    };
+  } catch {
+    const rows: SpecChRow[] = channels.map((ch) => ({
+      canal: ch.name,
+      nombre: 0,
+      montant: 0,
+    }));
+    return {
+      rows,
+      total: { canal: "TOTAL (tous canaux)", nombre: 0, montant: 0 },
+    };
+  }
 }
 
 export async function fetchSpecStatusStats(
@@ -918,17 +993,26 @@ export async function fetchSpecStatusStats(
     ],
   ] as const;
 
+  // Single-pass: one scan with a COUNT FILTER per status case instead of
+  // one COUNT query (and one full scan) per status.
+  const scopeClause = scope ? scope.replace(/^AND /, " AND ") : "";
+  const cols = statusCases
+    .map(
+      ([, filter], i) =>
+        `COUNT(*) FILTER (WHERE (${filter})${scopeClause}) AS n_${i}`,
+    )
+    .join(",\n");
   try {
-    const results = await Promise.all(
-      statusCases.map(async ([status, filter]) => {
-        const res = await runReadOnlyQuery(`
-          SELECT COUNT(*) AS n
-          FROM ${qc(tableName)}
-          WHERE ${filter} ${scope}${df}
-        `);
-        return { status, nombre: safeNum(res[0]?.n) };
-      }),
-    );
+    const res = await runReadOnlyQuery(`
+      SELECT ${cols}
+      FROM ${qc(tableName)}
+      WHERE 1=1${df}
+    `);
+    const row = res[0] ?? {};
+    const results = statusCases.map(([status], i) => ({
+      status,
+      nombre: safeNum(row[`n_${i}`]),
+    }));
     const total = results.reduce((s, r) => s + r.nombre, 0);
     return {
       rows: results,
@@ -1053,9 +1137,16 @@ export function dailyAggTableName(tableName: string): string {
 }
 
 /**
- * Create (or replace) an enriched view with pre-computed status, canal,
- * date/hour/day, and amount columns. Downstream queries reference this view
- * instead of rebuilding CASE expressions every time.
+ * Materialize an enriched TABLE with pre-computed status, canal, date/hour/day,
+ * and amount columns. Downstream aggregate queries reference this physical table
+ * (pre-typed integer/double/varchar columns) instead of rebuilding the heavy
+ * status/canal CASE + TRY_STRPTIME date parsing on every tab switch.
+ *
+ * This is the single biggest perf win in the telecom plan (sec 2.1): the
+ * enriched layer used to be a VIEW, so every KPI/period/canal/hourly query
+ * re-evaluated `statusNorm` (long CASE), `canalCaseExpr` (10-branch CASE), and
+ * date/hour parsing over the FULL table. Materializing it once per enrichment
+ * fingerprint turns those into a columnar scan over already-typed columns.
  */
 export async function createTelecomEnrichedView(
   tableName: string,
@@ -1071,8 +1162,12 @@ export async function createTelecomEnrichedView(
 
   const cn = canalCaseExpr(m);
 
+  // Materialized TABLE (not VIEW): the derived columns are computed once and
+  // stored physically so every aggregate downstream scans typed columns with
+  // no per-row string/date re-parsing. Keeping `*` preserves the raw columns the
+  // Raw Data grid + drill-down panels read directly from the enriched source.
   await runReadOnlyQuery(`
-    CREATE OR REPLACE VIEW ${qc(viewName)} AS
+    CREATE OR REPLACE TABLE ${qc(viewName)} AS
     SELECT
       *,
       ${sn}                              AS _status_norm,
@@ -1089,30 +1184,25 @@ export async function createTelecomEnrichedView(
 }
 
 export async function ensureTelecomEnrichedView(
-  tableName: string,
-  m: ColumnMapping,
-  sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  _tableName: string,
+  _m: ColumnMapping,
+  _sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
 ): Promise<boolean> {
-  const viewName = enrichedViewName(tableName);
-  const key = enrichmentKey(m, sm);
-  if (enrichmentKeys.get(viewName) === key) return true;
-
-  const inFlightKey = `${viewName}:${key}`;
-  const existing = enrichmentInFlight.get(inFlightKey);
-  if (existing) return existing;
-
-  const pending = createTelecomEnrichedView(tableName, m, sm)
-    .then(() => {
-      enrichmentKeys.set(viewName, key);
-      return true;
-    })
-    .catch(() => false)
-    .finally(() => {
-      enrichmentInFlight.delete(inFlightKey);
-    });
-
-  enrichmentInFlight.set(inFlightKey, pending);
-  return pending;
+  // The renderer DuckDB channel is read-only BY DESIGN (it rejects every
+  // CREATE/DROP/... — see electron/duckdb-service.ts:assertReadOnlySql and the
+  // data-transform CTE compiler). `createTelecomEnrichedView` issues a
+  // `CREATE OR REPLACE TABLE`, so it could NEVER succeed: it failed on every
+  // single call, never cached, and re-fired the rejected write on every KPI /
+  // canal / period / hourly poll — spamming the main process with errors while
+  // the inline-CTE fallback below silently did the real work.
+  //
+  // We therefore skip the impossible materialization and always use the inline
+  // fallback. Re-materializing for the perf win requires a *sanctioned* internal
+  // write IPC (a trusted main-process channel that only allows `<table>_enriched`
+  // / `_daily` derived tables); until that exists, correctness via the fallback
+  // beats a hot error loop. `createTelecomEnrichedView` is retained for that
+  // future write path.
+  return false;
 }
 
 /**

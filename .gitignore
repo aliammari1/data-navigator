@@ -13,6 +13,10 @@
 # testing
 /coverage
 
+# mutation testing (Stryker)
+/.stryker-tmp
+/reports/mutation
+
 # next.js
 /.next/
 /out/
@@ -49,3 +53,8 @@ pfe-*/
 BACKLOG.md
 
 storybook-static/
+.claude-flow
+.swarm
+
+# Build-time model staging (scripts/prepare-models.mjs) — large GGUF weights.
+.model-cache/

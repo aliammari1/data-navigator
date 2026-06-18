@@ -24,11 +24,15 @@ import * as awarenessProtocol from "y-protocols/awareness";
 import * as syncProtocol from "y-protocols/sync";
 import * as Y from "yjs";
 
-const HOST = process.env.HOST ?? "0.0.0.0";
+// Localhost-only by default (secure default). Set HOST explicitly to a LAN/mesh
+// interface address to opt into LAN collaboration — never default to 0.0.0.0.
+const HOST = process.env.HOST ?? "127.0.0.1";
 const REQUESTED_PORT = Number(process.env.PORT ?? 1234);
 const PORT_SCAN_LIMIT = Number(process.env.PORT_SCAN_LIMIT ?? 24);
-const PAIRING_CODE =
-  process.env.PAIRING_CODE ?? String(Math.floor(100000 + Math.random() * 900000));
+// CSPRNG pairing code — Math.random() (V8 xorshift128+) is predictable and must
+// never gate access. crypto.randomInt yields a uniform, unpredictable 6-digit code.
+const PAIRING_CODE = process.env.PAIRING_CODE ?? String(crypto.randomInt(100000, 1000000));
+const MAX_INBOX_FILES = Number(process.env.MAX_INBOX_FILES ?? 200);
 const SESSION_NAME = process.env.SESSION_NAME ?? "Data Navigator LAN";
 const ALLOW_GUESTS = process.env.ALLOW_GUESTS !== "0";
 const MAX_FILE_BYTES = Number(process.env.MAX_FILE_BYTES ?? 512 * 1024 * 1024);
@@ -69,6 +73,24 @@ function safeFileName(name) {
       .slice(0, 180) || "upload.bin"
   );
 }
+
+/**
+ * Constant-time pairing-code comparison. Plain `===` is a timing oracle; this
+ * compares fixed-length buffers via crypto.timingSafeEqual and fails closed on
+ * length mismatch without leaking length through an early return.
+ */
+function safeCodeEqual(a, b) {
+  const ab = Buffer.from(String(a ?? ""), "utf8");
+  const bb = Buffer.from(String(b ?? ""), "utf8");
+  if (ab.length !== bb.length) {
+    crypto.timingSafeEqual(ab, ab); // keep timing ~constant, then fail closed
+    return false;
+  }
+  return crypto.timingSafeEqual(ab, bb);
+}
+
+// Files persisted to the inbox this session (disk-exhaustion guard).
+let inboxFileCount = 0;
 
 class Room {
   constructor(name) {
@@ -167,7 +189,7 @@ function setupConn(conn, req) {
     : "viewer";
   const room = getRoom(roomName);
   const trusted = room.trustedPeers.get(peerId);
-  const codeOk = pairingCode === PAIRING_CODE;
+  const codeOk = safeCodeEqual(pairingCode, PAIRING_CODE);
   if (!trusted && !codeOk) {
     addAudit("pairing.rejected", { room: roomName, peerId, peerName, role });
     conn.close(4401, "Pairing code required");
@@ -332,7 +354,7 @@ const server = http.createServer((req, res) => {
   }
   if (url.pathname === "/lan/files" && req.method === "POST") {
     const pairingCode = req.headers["x-pairing-code"];
-    if (pairingCode !== PAIRING_CODE) {
+    if (!safeCodeEqual(pairingCode, PAIRING_CODE)) {
       addAudit("file.rejected_pairing", {
         peerId: req.headers["x-peer-id"],
         peerName: req.headers["x-peer-name"],
@@ -342,6 +364,20 @@ const server = http.createServer((req, res) => {
         "access-control-allow-origin": "*",
       });
       res.end(JSON.stringify({ ok: false, error: "Pairing code required" }));
+      return;
+    }
+
+    if (inboxFileCount >= MAX_INBOX_FILES) {
+      addAudit("file.rejected_quota", {
+        peerId: req.headers["x-peer-id"],
+        peerName: req.headers["x-peer-name"],
+        count: inboxFileCount,
+      });
+      res.writeHead(507, {
+        "content-type": "application/json",
+        "access-control-allow-origin": "*",
+      });
+      res.end(JSON.stringify({ ok: false, error: "Inbox file limit reached" }));
       return;
     }
 
@@ -365,6 +401,7 @@ const server = http.createServer((req, res) => {
     req.pipe(out);
     out.on("finish", () => {
       if (rejected) return;
+      inboxFileCount += 1;
       const entry = {
         id: crypto.randomUUID(),
         originalName,
@@ -405,7 +442,13 @@ const server = http.createServer((req, res) => {
   res.end(`${SESSION_NAME} — OK\nPairing code: ${PAIRING_CODE}\n`);
 });
 
-const wss = new WebSocketServer({ noServer: true });
+const wss = new WebSocketServer({
+  noServer: true,
+  // DoS hardening: cap message size and disable compression (perMessageDeflate
+  // has known memory-amplification issues — OWASP WebSocket guidance).
+  maxPayload: 64 * 1024 * 1024,
+  perMessageDeflate: false,
+});
 wss.on("connection", setupConn);
 
 server.on("upgrade", (req, socket, head) => {

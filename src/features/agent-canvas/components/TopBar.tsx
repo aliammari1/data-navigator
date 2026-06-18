@@ -10,6 +10,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { AgentPhase } from "@/features/agent-canvas/core/types";
+import { useShallowSelector } from "@/platform/storage";
 import { cn } from "@/shared/utils";
 
 const PHASE_COLOR: Record<AgentPhase, string> = {
@@ -50,19 +51,25 @@ interface Props {
 }
 
 export function TopBar({ onReset }: Props) {
-  const {
-    phase,
-    model,
-    threadId,
-    eventTicker,
-    tokenCount,
-    toolCallCnt,
-    startTime,
-    running,
-  } = useAgentStore();
+  // Shallow-scoped selector: the ticker must update on events, but unrelated
+  // store churn (thoughts/widgets arrays) should not re-render the whole header.
+  const { phase, model, threadId, eventTicker, tokenCount, toolCallCnt, startTime, running } =
+    useAgentStore(
+      useShallowSelector((s) => ({
+        phase: s.phase,
+        model: s.model,
+        threadId: s.threadId,
+        eventTicker: s.eventTicker,
+        tokenCount: s.tokenCount,
+        toolCallCnt: s.toolCallCnt,
+        startTime: s.startTime,
+        running: s.running,
+      })),
+    );
   const tickerRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll ticker
+  // biome-ignore lint/correctness/useExhaustiveDependencies: eventTicker.length is the intended trigger to re-scroll the ticker when a new event arrives
   useEffect(() => {
     if (tickerRef.current) {
       tickerRef.current.scrollLeft = tickerRef.current.scrollWidth;

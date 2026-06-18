@@ -1,17 +1,20 @@
 "use client";
 
-import { produce } from "immer";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Activity,
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  Clock,
   Database,
   FileCheck,
   FolderOpen,
   HardDrive,
   Hash,
+  History,
   Info,
+  Languages,
   Layers,
   Loader2,
   MousePointerClick,
@@ -19,80 +22,76 @@ import {
   XCircle,
   Zap,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
-import type { Dataset } from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
 import {
-  columnInfoToColMeta,
-  computeQualityScores,
-  detectFileType,
+  fileNameFromPath,
+  importBatch,
+  type ImportPipelineContext,
+  isSupportedImportPath,
+} from "@/features/data-import/lib/import-pipeline";
+import {
+  type ImportHistoryEntry,
+  useImportHistory,
+} from "@/features/data-import/lib/use-import-history";
+import {
   formatBytes,
   getFileIcon,
   StatusStep,
 } from "@/features/data-import/model/helpers";
-import type {
-  ColumnInfo,
-  ParsedFileInfo,
-  UploadSettings,
-  UploadStatus,
-  ValidationIssue,
+import { useImportSession } from "@/features/data-import/model/import-session-store";
+import {
+  ENCODING_LABELS,
+  ENCODING_OPTIONS,
+  type ImportEncoding,
+  type ParsedFileInfo,
+  type UploadStatus,
+  type ValidationIssue,
 } from "@/features/data-import/model/types";
 import {
-  getTelecomDatasetProfile,
+  isTelecomDataset,
   TELECOM_REQUIRED_COLUMNS,
 } from "@/features/telecom/lib/dataset-detection";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import {
-  loadUploadPathToDuckDB,
-  sanitizeUploadTableName,
-  type UploadFileFormat,
-} from "@/platform/duckdb/upload-to-duckdb";
-import {
+  getDroppedFilePaths,
   isElectron,
   listLocalFilesRecursive,
   openFileDialog,
 } from "@/platform/electron/electron-fs";
-import { cn } from "@/shared/utils";
+import { cn } from "@/lib/utils";
 
 type DropzoneRootGetter = ReturnType<typeof useDropzone>["getRootProps"];
 type DropzoneInputGetter = ReturnType<typeof useDropzone>["getInputProps"];
 
-function makeUploadTableName(fileName: string, id: string) {
-  return `${sanitizeUploadTableName(fileName)}_${id.slice(-6)}`;
-}
-
-function fileNameFromPath(filePath: string): string {
-  const parts = filePath.split(/[/\\]/);
-  return parts[parts.length - 1] ?? filePath;
-}
-
-function isSupportedImportPath(filePath: string): boolean {
-  const lower = filePath.toLowerCase();
-
-  return (
-    lower.endsWith(".csv") ||
-    lower.endsWith(".tsv") ||
-    lower.endsWith(".txt") ||
-    lower.endsWith(".parquet") ||
-    lower.endsWith(".pq")
-  );
-}
-
-function getExtensionFromPath(filePath: string) {
-  const fileName = fileNameFromPath(filePath);
-  return fileName.split(".").pop()?.toLowerCase() || "csv";
-}
+const IN_PROGRESS_STATUSES: UploadStatus[] = [
+  "reading",
+  "parsing",
+  "validating",
+  "loading_db",
+];
 
 function getDisplaySize(size: number) {
   return size > 0 ? formatBytes(size) : "Fichier local";
+}
+
+/**
+ * A short, uppercase format label for a session row. `detectFileType` returns
+ * `unknown` for ambiguous extensions (e.g. `.txt`); fall back to the real file
+ * extension so the row reads `TXT` instead of `UNKNOWN`.
+ */
+function getFormatLabel(file: ParsedFileInfo) {
+  if (file.fileType !== "unknown") return file.fileType.toUpperCase();
+  const ext = file.name.split(".").pop();
+  return ext ? ext.toUpperCase() : "FICHIER";
 }
 
 function getStatusLabel(status: ParsedFileInfo["status"]) {
@@ -119,20 +118,17 @@ function getIssueIcon(severity: ValidationIssue["severity"]) {
   if (severity === "warning") {
     return <AlertTriangle className="h-3.5 w-3.5" />;
   }
-
   return <Info className="h-3.5 w-3.5" />;
 }
 
 function getIssueClassName(severity: ValidationIssue["severity"]) {
   if (severity === "error") {
-    return "border-red-500/25 bg-red-500/10 text-red-700 dark:text-red-300";
+    return "border-destructive/25 bg-destructive/10 text-destructive";
   }
-
   if (severity === "warning") {
-    return "border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+    return "border-warning/25 bg-warning/10 text-warning";
   }
-
-  return "border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300";
+  return "border-primary/25 bg-primary/10 text-primary";
 }
 
 function getStepStatus(
@@ -161,65 +157,16 @@ function getStepStatus(
   return "pending";
 }
 
-function toColumnInfoType(type: string): ColumnInfo["type"] {
-  const normalized = type.toLowerCase();
+// ─── Narrow store selectors (kill O(N) re-renders) ────────────────────────────
 
-  if (
-    normalized.includes("int") ||
-    normalized.includes("double") ||
-    normalized.includes("float") ||
-    normalized.includes("decimal") ||
-    normalized.includes("numeric") ||
-    normalized.includes("real")
-  ) {
-    return "number";
-  }
-
-  if (
-    normalized.includes("date") ||
-    normalized.includes("time") ||
-    normalized.includes("timestamp")
-  ) {
-    return "date";
-  }
-
-  if (normalized.includes("bool")) {
-    return "boolean";
-  }
-
-  if (normalized === "mixed") {
-    return "mixed";
-  }
-
-  return "string";
+/** Subscribe only to the ordered list of file ids. */
+function useFileOrder(): string[] {
+  return useImportSession((state) => state.order);
 }
 
-function buildValidationIssues(
-  loaded: Awaited<ReturnType<typeof loadUploadPathToDuckDB>>,
-  columns: ColumnInfo[],
-): ValidationIssue[] {
-  const issues: ValidationIssue[] = [];
-
-  if (loaded.rowCount === 0) {
-    issues.push({
-      severity: "error",
-      message: "File is empty or has no parseable data.",
-    });
-  }
-
-  const highNullCols = columns.filter(
-    (column) => column.nullCount / Math.max(1, loaded.previewRows.length) > 0.3,
-  );
-
-  if (highNullCols.length > 0) {
-    issues.push({
-      severity: "warning",
-      message: `${highNullCols.length} column(s) have >30% null values in the preview sample.`,
-      column: highNullCols.map((column) => column.name).join(", "),
-    });
-  }
-
-  return issues;
+/** Subscribe to a single file by id — only this row re-renders on its update. */
+function useFile(id: string): ParsedFileInfo | undefined {
+  return useImportSession((state) => state.files[id]);
 }
 
 export default function DataImportScreen() {
@@ -232,33 +179,45 @@ export default function DataImportScreen() {
   const setAppContext = useAppContextStore((state) => state.setContext);
   const addActivity = useActivityStore((state) => state.addEvent);
 
-  const [files, setFiles] = useState<ParsedFileInfo[]>([]);
+  const order = useFileOrder();
+  const files = useImportSession((state) => state.files);
+  const reset = useImportSession((state) => state.reset);
+
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [electronAvailable, setElectronAvailable] = useState(false);
   const [dropNotice, setDropNotice] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  // `auto` defers to the main-process encoding detector (chardet + BOM sniff);
+  // an explicit choice forces DuckDB `read_csv(encoding=…)` for Latin-1/UTF-16
+  // exports that would otherwise mojibake.
+  const [encoding, setEncoding] = useState<ImportEncoding>("auto");
 
-  const [settings] = useState<UploadSettings>({
-    hasHeader: true,
-    encoding: "UTF-8",
-    skipEmptyLines: true,
-    trimWhitespace: true,
-    maxRows: null,
-    autoDetectTypes: true,
-    loadToDuckDB: true,
-  });
+  const {
+    history,
+    loading: historyLoading,
+    refresh: refreshHistory,
+  } = useImportHistory();
+
+  // Clear the in-memory session list when the screen mounts so a reload starts
+  // fresh; persisted history is shown separately from the catalog.
+  useEffect(() => {
+    reset();
+    setElectronAvailable(isElectron());
+  }, [reset]);
+
+  const orderedFiles = useMemo(
+    () => order.map((id) => files[id]).filter(Boolean) as ParsedFileInfo[],
+    [order, files],
+  );
 
   const selectedFile =
-    files.find((file) => file.id === selectedFileId) ?? files[0] ?? null;
+    (selectedFileId ? files[selectedFileId] : undefined) ??
+    orderedFiles[0] ??
+    null;
 
-  const completedFiles = files.filter((file) => file.status === "done");
-
-  useEffect(() => {
-    setElectronAvailable(isElectron());
-  }, []);
-
-  const getUploadSuccessPath = useCallback(
-    () => (isTelecomMode ? "/dashboard/telecom-report" : "/dashboard/parsed"),
-    [isTelecomMode],
+  const completedFiles = useMemo(
+    () => orderedFiles.filter((file) => file.status === "done"),
+    [orderedFiles],
   );
 
   const totalStorageUsed = useMemo(
@@ -268,180 +227,63 @@ export default function DataImportScreen() {
 
   const latestCompletedFile = completedFiles[0] ?? null;
 
-  const processFilePath = useCallback(
-    async (filePath: string) => {
-      if (!access.permissions.canUpload) return;
+  // Route by DETECTION, not the legacy ?context fork: if the file we just
+  // imported is a telecom dataset (tags set by getTelecomDatasetProfile during
+  // the pipeline), open the report; otherwise go to the data profile (§3).
+  const getUploadSuccessPath = useCallback(() => {
+    const state = useDataStore.getState();
+    const active = state.datasets.find((d) => d.id === state.activeDatasetId);
+    if (active && isTelecomDataset(active)) return "/dashboard/telecom-report";
+    return "/dashboard/parsed";
+  }, []);
 
-      const fileName = fileNameFromPath(filePath);
-      const id = `file_${Date.now()}_${Math.random().toString(36).slice(2)}`;
-      const fileType = detectFileType(fileName);
-
-      const initial: ParsedFileInfo = {
-        id,
-        name: fileName,
-        size: 0,
-        fileType,
-        status: "reading",
-        progress: 0,
-        rowCount: 0,
-        columnCount: 0,
-        columns: [],
-        previewRows: [],
-        issues: [],
-        parseTime: 0,
-        dbTableName: null,
-        uploadedAt: new Date(),
-        hasHeader: settings.hasHeader,
-        encoding: settings.encoding,
-        skipEmptyLines: settings.skipEmptyLines,
-        completeness: 0,
-        accuracy: 0,
-        consistency: 0,
-        uniqueness: 0,
-      };
-
-      setFiles((prev) => [initial, ...prev]);
-      setSelectedFileId(id);
-      setDropNotice(null);
-
-      const update = (patch: Partial<ParsedFileInfo>) =>
-        setFiles((prev) =>
-          produce(prev, (draft) => {
-            const target = draft.find((item) => item.id === id);
-            if (target) Object.assign(target, patch);
-          }),
-        );
-
-      try {
-        const t0 = performance.now();
-
-        update({ status: "reading", progress: 10 });
-        await new Promise((resolve) => setTimeout(resolve, 80));
-
-        update({ status: "loading_db", progress: 35 });
-
-        const tableName = makeUploadTableName(fileName, id);
-        const extension = getExtensionFromPath(filePath);
-
-        const loaded = await loadUploadPathToDuckDB(filePath, {
-          tableName,
-          fileExtension: extension as UploadFileFormat,
-          hasHeader: settings.hasHeader,
-          previewLimit: 100,
-        });
-
-        update({ status: "validating", progress: 75 });
-
-        const columns: ColumnInfo[] = loaded.columns.map((column) => ({
-          name: column.name,
-          type: toColumnInfoType(column.type),
-          nullCount: column.nullCount,
-          uniqueCount: column.distinctCount,
-          sampleValues: column.sample,
-          min: column.min,
-          max: column.max,
-          avg: column.mean,
-        }));
-
-        const issues = buildValidationIssues(loaded, columns);
-        const quality = computeQualityScores(
-          columns,
-          Math.max(loaded.previewRows.length, 1),
-        );
-
-        const dsCols = columnInfoToColMeta(columns);
-        const telecomProfile = getTelecomDatasetProfile({
-          columns: dsCols,
-          fileName,
-          telecomMode: isTelecomMode,
-        });
-
-        if (isTelecomMode && !telecomProfile.compatible) {
-          issues.push({
-            severity: "warning",
-            message:
-              "This file was uploaded in Telecom mode, but it is missing one or more required telecom columns.",
-            column: TELECOM_REQUIRED_COLUMNS.join(", "),
-          });
-        }
-
-        const ds: Dataset = {
-          id: loaded.datasetId,
-          name: loaded.displayName,
-          tableName: loaded.tableName,
-          viewName: loaded.tableName,
-          sourcePath: filePath,
-          source: "upload",
-          format: loaded.format,
-          rowCount: loaded.rowCount,
-          colCount: loaded.colCount,
-          sizeBytes: 0,
-          columns: dsCols,
-          tags: telecomProfile.tags,
-          description: telecomProfile.description,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          qualityScore: quality.completeness,
-        };
-
-        addDataset(ds);
-        setActiveDataset(ds.id);
-
-        setAppContext({
-          activeDomain: isTelecomMode ? "telecom" : "general",
-          activeDatasetId: ds.id,
-          activeTableName: loaded.tableName,
-        });
-
-        addActivity({
-          type: "dataset_uploaded",
-          message: `Imported dataset ${ds.name}`,
-          datasetId: ds.id,
-          tableName: loaded.tableName,
-          metadata: {
-            rows: loaded.rowCount,
-            cols: loaded.colCount,
-            format: loaded.format,
-            telecomMode: isTelecomMode,
-            sourcePath: filePath,
-          },
-        });
-
-        update({
-          status: "done",
-          progress: 100,
-          rowCount: loaded.rowCount,
-          columnCount: loaded.colCount,
-          columns,
-          previewRows: loaded.previewRows.slice(0, 50),
-          issues,
-          parseTime: Math.round(performance.now() - t0),
-          dbTableName: loaded.tableName,
-          ...quality,
-        });
-
-        router.push(getUploadSuccessPath());
-      } catch (error) {
-        update({
-          status: "error",
-          error: error instanceof Error ? error.message : String(error),
-          progress: 0,
-        });
-      }
-    },
-    [
-      access.permissions.canUpload,
-      settings.hasHeader,
-      settings.encoding,
-      settings.skipEmptyLines,
+  const pipelineContext = useMemo<ImportPipelineContext>(
+    () => ({
+      isTelecomMode,
+      canUpload: access.permissions.canUpload,
+      encoding,
       addDataset,
       setActiveDataset,
       setAppContext,
       addActivity,
+    }),
+    [
       isTelecomMode,
-      getUploadSuccessPath,
-      router,
+      access.permissions.canUpload,
+      encoding,
+      addDataset,
+      setActiveDataset,
+      setAppContext,
+      addActivity,
     ],
+  );
+
+  const runImport = useCallback(
+    async (paths: string[]) => {
+      if (paths.length === 0) return;
+
+      setDropNotice(null);
+      setImporting(true);
+
+      // Select the first queued file so the pipeline card tracks progress.
+      const firstId = useImportSession.getState().order[0];
+
+      try {
+        const { doneIds } = await importBatch(paths, pipelineContext);
+        const focusId = doneIds[0] ?? firstId ?? null;
+        if (focusId) setSelectedFileId(focusId);
+
+        await refreshHistory();
+
+        // Navigate exactly once, after the whole batch settles — never per file.
+        if (doneIds.length > 0) {
+          router.push(getUploadSuccessPath());
+        }
+      } finally {
+        setImporting(false);
+      }
+    },
+    [pipelineContext, refreshHistory, router, getUploadSuccessPath],
   );
 
   const importFromFiles = useCallback(async () => {
@@ -475,10 +317,8 @@ export default function DataImportScreen() {
       return;
     }
 
-    for (const filePath of supported) {
-      await processFilePath(filePath);
-    }
-  }, [access.permissions.canUpload, processFilePath]);
+    await runImport(supported);
+  }, [access.permissions.canUpload, runImport]);
 
   const importFromFolder = useCallback(async () => {
     if (!access.permissions.canUpload || !isElectron()) return;
@@ -501,24 +341,40 @@ export default function DataImportScreen() {
       return;
     }
 
-    for (const filePath of supported) {
-      try {
-        await processFilePath(filePath);
-      } catch {
-        // Skip unreadable files and continue the batch.
-      }
-    }
-  }, [access.permissions.canUpload, processFilePath]);
+    await runImport(supported);
+  }, [access.permissions.canUpload, runImport]);
 
-  const onDrop = useCallback(() => {
-    setDropNotice(
-      "For reliable local access, use the native file picker. Drag-and-drop File objects do not expose trusted filesystem paths to DuckDB.",
-    );
-  }, []);
+  // Real drag-and-drop: resolve dropped files to trusted on-disk paths via
+  // Electron webUtils, then run the same pipeline as the native picker (§3).
+  const onDrop = useCallback(
+    (accepted: File[]) => {
+      if (!access.permissions.canUpload || accepted.length === 0) return;
+
+      if (!isElectron()) {
+        setDropNotice(
+          "Le glisser-déposer nécessite l'application de bureau pour donner à DuckDB un accès fiable au fichier. Utilisez le sélecteur natif.",
+        );
+        return;
+      }
+
+      const paths = getDroppedFilePaths(accepted);
+      const supported = paths.filter(isSupportedImportPath);
+
+      if (supported.length === 0) {
+        setDropNotice(
+          "Aucun fichier pris en charge. Formats acceptés : CSV, TSV, TXT, Parquet.",
+        );
+        return;
+      }
+
+      void runImport(supported);
+    },
+    [access.permissions.canUpload, runImport],
+  );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    disabled: !access.permissions.canUpload,
+    disabled: !access.permissions.canUpload || importing,
     noClick: true,
     noKeyboard: true,
     accept: {
@@ -529,12 +385,12 @@ export default function DataImportScreen() {
   });
 
   return (
-    <div className="dn-page flex flex-col">
-      <div className="dn-sticky-header px-4 py-3 md:px-6">
+    <div className=" flex flex-col">
+      <div className=" px-4 py-3 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl bg-linear-to-br from-teal-700 to-emerald-600 shadow-sm">
-              <Upload className="h-5 w-5 text-white" />
+            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl border border-primary/25 bg-primary/15 text-primary shadow-[var(--shadow-1)]">
+              <Upload className="h-5 w-5" />
             </div>
 
             <div className="min-w-0">
@@ -553,7 +409,7 @@ export default function DataImportScreen() {
             {completedFiles.length > 0 && (
               <Badge
                 variant="outline"
-                className="hidden border-emerald-500/25 bg-emerald-500/10 text-xs text-emerald-700 dark:text-emerald-300 sm:inline-flex"
+                className="hidden border-[color-mix(in_oklab,var(--positive)_25%,transparent)] bg-[color-mix(in_oklab,var(--positive)_10%,transparent)] text-xs text-positive sm:inline-flex"
               >
                 <CheckCircle2 className="mr-1 h-3 w-3" />
                 {completedFiles.length} prêt
@@ -580,7 +436,7 @@ export default function DataImportScreen() {
                   size="sm"
                   variant="outline"
                   onClick={importFromFolder}
-                  disabled={!access.permissions.canUpload}
+                  disabled={!access.permissions.canUpload || importing}
                   className="h-9 rounded-xl text-xs"
                 >
                   <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -591,10 +447,14 @@ export default function DataImportScreen() {
                   type="button"
                   size="sm"
                   onClick={importFromFiles}
-                  disabled={!access.permissions.canUpload}
-                  className="h-9 rounded-xl bg-teal-700 text-xs font-bold text-white hover:bg-teal-800"
+                  disabled={!access.permissions.canUpload || importing}
+                  className="h-9 rounded-xl text-xs font-bold"
                 >
-                  <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+                  {importing ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+                  )}
                   Fichier local
                 </Button>
               </>
@@ -604,7 +464,7 @@ export default function DataImportScreen() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className="dn-page-shell grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className=" grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-6">
             {isTelecomMode && <TelecomUploadNotice />}
 
@@ -619,19 +479,32 @@ export default function DataImportScreen() {
             />
 
             <UploadedFilesPanel
-              files={files}
+              order={order}
+              count={order.length}
               selectedFileId={selectedFile?.id ?? null}
-              onSelect={(file) => setSelectedFileId(file.id)}
+              onSelect={setSelectedFileId}
               onOpenTelecom={() => router.push("/dashboard/telecom-report")}
               isTelecomMode={isTelecomMode}
+              hasDone={completedFiles.length > 0}
+            />
+
+            <ImportHistoryPanel
+              history={history}
+              loading={historyLoading}
             />
           </section>
 
           <aside className="space-y-4">
+            <ImportSettingsCard
+              encoding={encoding}
+              onEncodingChange={setEncoding}
+              disabled={importing || !access.permissions.canUpload}
+            />
+
             <UploadPipelineCard selectedFile={selectedFile} />
 
             <UploadSummaryCard
-              files={files}
+              files={orderedFiles}
               totalStorageUsed={totalStorageUsed}
             />
 
@@ -640,8 +513,8 @@ export default function DataImportScreen() {
             ) : null}
 
             {latestCompletedFile?.status === "done" && isTelecomMode && (
-              <div className="rounded-2xl border border-teal-500/25 bg-teal-500/10 p-4">
-                <div className="text-sm font-bold text-teal-700 dark:text-teal-300">
+              <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
+                <div className="text-sm font-bold text-primary">
                   Rapport prêt
                 </div>
                 <p className="mt-1 text-xs text-muted-foreground">
@@ -651,7 +524,7 @@ export default function DataImportScreen() {
                 <Button
                   type="button"
                   onClick={() => router.push("/dashboard/telecom-report")}
-                  className="mt-4 h-9 w-full rounded-xl bg-teal-700 text-xs font-bold text-white hover:bg-teal-800"
+                  className="mt-4 h-9 w-full rounded-xl text-xs font-bold"
                 >
                   Ouvrir le rapport
                   <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
@@ -667,8 +540,8 @@ export default function DataImportScreen() {
 
 function TelecomUploadNotice() {
   return (
-    <div className="rounded-2xl border border-teal-500/25 bg-teal-500/10 p-4">
-      <div className="flex items-center gap-2 text-sm font-bold text-teal-700 dark:text-teal-300">
+    <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
+      <div className="flex items-center gap-2 text-sm font-bold text-primary">
         <Database className="h-4 w-4" />
         Mode rapport télécom
       </div>
@@ -716,24 +589,24 @@ function UploadDropzone({
       className={cn(
         "group relative overflow-hidden rounded-3xl border p-10 transition-all",
         isDragActive
-          ? "border-teal-500 bg-teal-500/10"
+          ? "border-primary bg-primary/10"
           : canUpload
-            ? "border-border bg-card hover:border-teal-500/50 hover:bg-muted/20"
+            ? "border-border bg-card hover:border-primary/50 hover:bg-muted/20"
             : "border-border bg-muted/20 opacity-70",
       )}
     >
       <input {...getInputProps()} />
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(20,184,166,0.12),transparent_35%)]" />
+      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_35%)]" />
 
       <div className="relative flex min-h-80 flex-col items-center justify-center text-center">
         <motion.div
           animate={isDragActive ? { scale: 1.06, y: -4 } : { scale: 1, y: 0 }}
           className={cn(
-            "flex h-20 w-20 items-center justify-center rounded-3xl border shadow-sm transition-colors",
+            "flex h-20 w-20 items-center justify-center rounded-3xl border shadow-[var(--shadow-1)] transition-colors",
             isDragActive
-              ? "border-teal-500/40 bg-teal-500/20 text-teal-700 dark:text-teal-300"
-              : "border-border bg-background text-muted-foreground group-hover:text-teal-700 dark:group-hover:text-teal-300",
+              ? "border-primary/40 bg-primary/20 text-primary"
+              : "border-border bg-background text-muted-foreground group-hover:text-primary",
           )}
         >
           <Upload className="h-8 w-8" />
@@ -747,7 +620,7 @@ function UploadDropzone({
 
         <p className="mt-2 max-w-lg text-sm text-muted-foreground">
           {canUpload
-            ? "Utilisez le sélecteur natif pour donner à DuckDB un chemin local fiable. Les fichiers restent sur votre machine."
+            ? "Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur votre machine et sont lus directement par DuckDB."
             : "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."}
         </p>
 
@@ -760,7 +633,7 @@ function UploadDropzone({
                 onBrowse();
               }}
               disabled={!electronAvailable}
-              className="rounded-xl bg-teal-700 px-5 text-xs font-bold text-white hover:bg-teal-800"
+              className="rounded-xl px-5 text-xs font-bold"
             >
               <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
               Sélectionner un fichier local
@@ -769,14 +642,14 @@ function UploadDropzone({
         )}
 
         {!electronAvailable && (
-          <div className="mt-4 max-w-md rounded-xl border border-amber-500/25 bg-amber-500/10 px-4 py-3 text-xs text-amber-700 dark:text-amber-300">
+          <div className="mt-4 max-w-md rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">
             L'import optimisé nécessite Electron, car DuckDB doit lire le
             fichier directement depuis le disque.
           </div>
         )}
 
         {dropNotice && (
-          <div className="mt-4 max-w-md rounded-xl border border-blue-500/25 bg-blue-500/10 px-4 py-3 text-xs text-blue-700 dark:text-blue-300">
+          <div className="mt-4 max-w-md rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-xs text-primary">
             {dropNotice}
           </div>
         )}
@@ -797,20 +670,38 @@ function UploadDropzone({
   );
 }
 
+const FILE_ROW_HEIGHT = 76;
+const VIRTUALIZE_THRESHOLD = 12;
+
 function UploadedFilesPanel({
-  files,
+  order,
+  count,
   selectedFileId,
   onSelect,
   onOpenTelecom,
   isTelecomMode,
+  hasDone,
 }: {
-  files: ParsedFileInfo[];
+  order: string[];
+  count: number;
   selectedFileId: string | null;
-  onSelect: (file: ParsedFileInfo) => void;
+  onSelect: (id: string) => void;
   onOpenTelecom: () => void;
   isTelecomMode: boolean;
+  hasDone: boolean;
 }) {
-  if (files.length === 0) {
+  const parentRef = useRef<HTMLDivElement>(null);
+  const shouldVirtualize = order.length > VIRTUALIZE_THRESHOLD;
+
+  const virtualizer = useVirtualizer({
+    count: order.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: useCallback(() => FILE_ROW_HEIGHT, []),
+    overscan: 6,
+    enabled: shouldVirtualize,
+  });
+
+  if (count === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-5">
         <div className="flex items-center gap-3">
@@ -838,11 +729,11 @@ function UploadedFilesPanel({
             Imports de la session
           </div>
           <div className="text-xs text-muted-foreground">
-            {files.length} fichier{files.length > 1 ? "s" : ""}
+            {count} fichier{count > 1 ? "s" : ""}
           </div>
         </div>
 
-        {isTelecomMode && files.some((file) => file.status === "done") && (
+        {isTelecomMode && hasDone && (
           <Button
             type="button"
             variant="outline"
@@ -855,61 +746,122 @@ function UploadedFilesPanel({
         )}
       </div>
 
-      <div className="divide-y divide-border">
-        <AnimatePresence initial={false}>
-          {files.map((file) => (
-            <motion.button
-              key={file.id}
-              type="button"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              onClick={() => onSelect(file)}
-              className={cn(
-                "flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/40",
-                selectedFileId === file.id && "bg-teal-500/5",
-              )}
-            >
-              <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-border bg-background">
-                {getFileIcon(file.fileType)}
-              </div>
-
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-foreground">
-                  {file.name}
+      {shouldVirtualize ? (
+        <div
+          ref={parentRef}
+          className="max-h-[28rem] overflow-y-auto"
+          style={{ contain: "strict" }}
+        >
+          <div
+            style={{
+              height: virtualizer.getTotalSize(),
+              position: "relative",
+              width: "100%",
+            }}
+          >
+            {virtualizer.getVirtualItems().map((virtualRow) => {
+              const id = order[virtualRow.index];
+              return (
+                <div
+                  key={id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{
+                    position: "absolute",
+                    top: 0,
+                    left: 0,
+                    width: "100%",
+                    transform: `translateY(${virtualRow.start}px)`,
+                  }}
+                  className="border-b border-border"
+                >
+                  <FileRow
+                    id={id}
+                    selected={selectedFileId === id}
+                    onSelect={onSelect}
+                  />
                 </div>
-                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                  <span>{getDisplaySize(file.size)}</span>
-                  <span>·</span>
-                  <span>{file.fileType.toUpperCase()}</span>
-                  {file.status === "done" && (
-                    <>
-                      <span>·</span>
-                      <span>{file.rowCount.toLocaleString()} lignes</span>
-                      <span>·</span>
-                      <span>{file.columnCount} colonnes</span>
-                    </>
-                  )}
-                </div>
-
-                {["reading", "parsing", "validating", "loading_db"].includes(
-                  file.status,
-                ) && <Progress value={file.progress} className="mt-2 h-1" />}
-              </div>
-
-              <FileStatusBadge file={file} />
-            </motion.button>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {order.map((id) => (
+            <FileRow
+              key={id}
+              id={id}
+              selected={selectedFileId === id}
+              onSelect={onSelect}
+            />
           ))}
-        </AnimatePresence>
-      </div>
+        </div>
+      )}
     </div>
+  );
+}
+
+/**
+ * A single import row. Subscribes ONLY to its own file slice, so a progress
+ * update for one file re-renders just this row — not the whole list.
+ */
+function FileRow({
+  id,
+  selected,
+  onSelect,
+}: {
+  id: string;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const file = useFile(id);
+  if (!file) return null;
+
+  const inProgress = IN_PROGRESS_STATUSES.includes(file.status);
+
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(file.id)}
+      className={cn(
+        "flex w-full items-center gap-3 px-5 py-4 text-left transition-colors hover:bg-muted/40",
+        selected && "bg-primary/5",
+      )}
+    >
+      <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl border border-border bg-background">
+        {getFileIcon(file.fileType)}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-semibold text-foreground">
+          {file.name}
+        </div>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+          <span>{getDisplaySize(file.size)}</span>
+          <span>·</span>
+          <span>{getFormatLabel(file)}</span>
+          {file.status === "done" && (
+            <>
+              <span>·</span>
+              <span>{file.rowCount.toLocaleString()} lignes</span>
+              <span>·</span>
+              <span>{file.columnCount} colonnes</span>
+            </>
+          )}
+        </div>
+
+        {inProgress && <Progress value={file.progress} className="mt-2 h-1" />}
+      </div>
+
+      <FileStatusBadge file={file} />
+    </button>
   );
 }
 
 function FileStatusBadge({ file }: { file: ParsedFileInfo }) {
   if (file.status === "done") {
     return (
-      <Badge className="border-emerald-500/25 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/10 dark:text-emerald-300">
+      <Badge className="border-[color-mix(in_oklab,var(--positive)_25%,transparent)] bg-[color-mix(in_oklab,var(--positive)_10%,transparent)] text-positive hover:bg-[color-mix(in_oklab,var(--positive)_10%,transparent)]">
         <CheckCircle2 className="mr-1 h-3 w-3" />
         Prêt
       </Badge>
@@ -918,7 +870,7 @@ function FileStatusBadge({ file }: { file: ParsedFileInfo }) {
 
   if (file.status === "error") {
     return (
-      <Badge className="border-red-500/25 bg-red-500/10 text-red-700 hover:bg-red-500/10 dark:text-red-300">
+      <Badge className="border-destructive/25 bg-destructive/10 text-destructive hover:bg-destructive/10">
         <XCircle className="mr-1 h-3 w-3" />
         Erreur
       </Badge>
@@ -928,11 +880,138 @@ function FileStatusBadge({ file }: { file: ParsedFileInfo }) {
   return (
     <Badge
       variant="outline"
-      className="border-blue-500/25 bg-blue-500/10 text-blue-700 dark:text-blue-300"
+      className="border-primary/25 bg-primary/10 text-primary"
     >
       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
       {getStatusLabel(file.status)}
     </Badge>
+  );
+}
+
+function ImportHistoryPanel({
+  history,
+  loading,
+}: {
+  history: ImportHistoryEntry[];
+  loading: boolean;
+}) {
+  if (!loading && history.length === 0) return null;
+
+  return (
+    <div className="rounded-2xl border border-border bg-card">
+      <div className="flex items-center gap-2 border-b border-border px-5 py-4">
+        <History className="h-4 w-4 text-muted-foreground" />
+        <div>
+          <div className="text-sm font-bold text-foreground">
+            Datasets enregistrés
+          </div>
+          <div className="text-xs text-muted-foreground">
+            Catalogue DuckDB local · persiste après rechargement
+          </div>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center gap-2 px-5 py-6 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Chargement du catalogue…
+        </div>
+      ) : (
+        <div className="divide-y divide-border">
+          {history.slice(0, 12).map((entry) => (
+            <div
+              key={entry.id}
+              className="flex items-center gap-3 px-5 py-3"
+            >
+              <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-border bg-background text-muted-foreground">
+                <Database className="h-4 w-4" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm font-semibold text-foreground">
+                  {entry.name}
+                </div>
+                <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
+                  <span>{entry.rows.toLocaleString()} lignes</span>
+                  <span>·</span>
+                  <span>{entry.cols} colonnes</span>
+                  <span>·</span>
+                  <span>{entry.format.toUpperCase()}</span>
+                </div>
+              </div>
+              <Badge
+                variant="outline"
+                className="border-border bg-background text-[10px] text-muted-foreground"
+              >
+                <Clock className="mr-1 h-3 w-3" />
+                {new Date(entry.createdAt).toLocaleDateString()}
+              </Badge>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ImportSettingsCard({
+  encoding,
+  onEncodingChange,
+  disabled,
+}: {
+  encoding: ImportEncoding;
+  onEncodingChange: (encoding: ImportEncoding) => void;
+  disabled: boolean;
+}) {
+  const selectId = "data-import-encoding";
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-5">
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+          <Languages className="h-4 w-4" />
+        </div>
+        <div>
+          <div className="text-sm font-bold text-foreground">Encodage CSV</div>
+          <div className="text-xs text-muted-foreground">
+            Pour les exports Latin-1 / UTF-16
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <label
+          htmlFor={selectId}
+          className="text-[11px] font-medium text-muted-foreground"
+        >
+          Encodage du fichier
+        </label>
+        <select
+          id={selectId}
+          value={encoding}
+          disabled={disabled}
+          onChange={(event) =>
+            onEncodingChange(event.target.value as ImportEncoding)
+          }
+          className={cn(
+            "mt-1.5 h-9 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground",
+            "focus:outline-none focus:ring-2 focus:ring-ring",
+            disabled && "cursor-not-allowed opacity-60",
+          )}
+        >
+          {ENCODING_OPTIONS.map((option) => (
+            <option key={option} value={option}>
+              {ENCODING_LABELS[option]}
+            </option>
+          ))}
+        </select>
+
+        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+          {encoding === "auto"
+            ? "DuckDB détecte l'encodage à la lecture (BOM + analyse du début de fichier)."
+            : `Force read_csv(encoding) pour éviter le mojibake des valeurs accentuées.`}
+        </p>
+      </div>
+    </div>
   );
 }
 
@@ -944,7 +1023,7 @@ function UploadPipelineCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-500/10 text-teal-700 dark:text-teal-300">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Activity className="h-4 w-4" />
         </div>
         <div>
@@ -970,7 +1049,33 @@ function UploadPipelineCard({
             <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
               <span>{getDisplaySize(selectedFile.size)}</span>
               <span>·</span>
-              <span>{selectedFile.fileType.toUpperCase()}</span>
+              <span>{getFormatLabel(selectedFile)}</span>
+              {selectedFile.status === "done" && (
+                <>
+                  <span>·</span>
+                  <span>
+                    {selectedFile.metadataSource === "full"
+                      ? "Stats complètes"
+                      : "Stats aperçu"}
+                  </span>
+                  {selectedFile.encoding !== "auto" && (
+                    <>
+                      <span>·</span>
+                      <span className="uppercase">{selectedFile.encoding}</span>
+                    </>
+                  )}
+                  {selectedFile.rejectCount !== undefined &&
+                    selectedFile.rejectCount > 0 && (
+                      <>
+                        <span>·</span>
+                        <span className="text-warning">
+                          {selectedFile.rejectCount} rejet
+                          {selectedFile.rejectCount > 1 ? "s" : ""}
+                        </span>
+                      </>
+                    )}
+                </>
+              )}
             </div>
 
             {selectedFile.status !== "done" &&
@@ -993,7 +1098,7 @@ function UploadPipelineCard({
             },
             {
               step: "validating" as UploadStatus,
-              label: "Validation et profilage",
+              label: "Profilage complet (DuckDB)",
             },
             {
               step: "loading_db" as UploadStatus,
@@ -1017,7 +1122,7 @@ function UploadPipelineCard({
           ))}
 
           {selectedFile.status === "error" && (
-            <div className="rounded-xl border border-red-500/25 bg-red-500/10 p-3 text-xs text-red-700 dark:text-red-300">
+            <div className="rounded-xl border border-destructive/25 bg-destructive/10 p-3 text-xs text-destructive">
               {selectedFile.error}
             </div>
           )}
@@ -1135,9 +1240,7 @@ function ValidationIssuesCard({ issues }: { issues: ValidationIssue[] }) {
               getIssueClassName(issue.severity),
             )}
           >
-            <div className="mt-0.5 flex-none">
-              {getIssueIcon(issue.severity)}
-            </div>
+            <div className="mt-0.5 flex-none">{getIssueIcon(issue.severity)}</div>
             <div className="min-w-0">
               <div>{issue.message}</div>
               {issue.column && (
@@ -1152,3 +1255,6 @@ function ValidationIssuesCard({ issues }: { issues: ValidationIssue[] }) {
     </div>
   );
 }
+
+// Re-export so the helper remains importable where the screen used to own it.
+export { fileNameFromPath };

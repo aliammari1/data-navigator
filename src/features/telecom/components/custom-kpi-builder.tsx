@@ -160,7 +160,7 @@ export function CustomKPIBuilder({
                     (kpi.sqlExpr.length > 40 ? "…" : "")
                 }
                 icon={
-                  <FlaskConical className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+                  <FlaskConical className="w-4 h-4 text-primary" />
                 }
                 color={kpi.colorClass}
                 size="sm"
@@ -188,7 +188,7 @@ export function CustomKPIBuilder({
 
       <div className="rounded-xl border border-border bg-muted/40 p-5 space-y-4">
         <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <FlaskConical className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />{" "}
+          <FlaskConical className="w-4 h-4 text-primary" />{" "}
           New Custom KPI
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -326,7 +326,7 @@ export function CustomKPIBuilder({
               }}
               className="flex items-center gap-1.5 px-2.5 py-1.5 bg-muted/50 hover:bg-accent border border-border rounded-lg text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
-              <Sparkles className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+              <Sparkles className="w-3 h-3 text-primary" />
               {ex.label}
             </button>
           ))}

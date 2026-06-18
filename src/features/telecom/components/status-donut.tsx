@@ -1,7 +1,7 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import ReactECharts from "echarts-for-react";
+import { EChart } from "@/features/telecom/components/echart";
 import { buildStatusDonutOption } from "@/features/telecom/lib/chart-options";
 import type * as Types from "@/features/telecom/types";
 
@@ -13,11 +13,5 @@ export const StatusDonut = memo(function StatusDonut({
   total: number;
 }) {
   const option = useMemo(() => buildStatusDonutOption(data), [data]);
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: 220 }}
-      opts={{ renderer: "canvas" }}
-    />
-  );
+  return <EChart option={option} height={220} />;
 });

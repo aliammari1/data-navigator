@@ -1,5 +1,5 @@
-import WorkbenchScreen from "@/features/data-formulator/screens/DataFormulatorScreen";
+import MoudirSwarmScreen from "@/features/data-formulator/screens/MoudirSwarmScreen";
 
 export default function Page() {
-  return <WorkbenchScreen />;
+  return <MoudirSwarmScreen />;
 }

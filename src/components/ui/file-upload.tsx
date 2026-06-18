@@ -93,7 +93,7 @@ export const FileUpload = ({
               files.map((file, idx) => (
                 <motion.div
                   key={file.name + file.lastModified}
-                  layoutId={idx === 0 ? "file-upload" : "file-upload-" + idx}
+                  layoutId={idx === 0 ? "file-upload" : `file-upload-${idx}`}
                   className={cn(
                     "relative z-40 mx-auto mt-4 flex w-full flex-col items-start justify-start overflow-hidden rounded-xl border border-border bg-card p-4 md:h-24",
                     "shadow-sm",

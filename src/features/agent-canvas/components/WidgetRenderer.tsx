@@ -6,14 +6,13 @@
  * visx sparklines + box plots, react-countup KPI cards.
  */
 
-import { lazy, Suspense, useMemo } from "react";
+import { useMemo } from "react";
 import CountUp from "react-countup";
 import type { KPICard, WidgetState } from "@/features/agent-canvas/core/types";
+import type { EChartsOption } from "@/platform/viz";
 import { cn } from "@/shared/utils";
-
-// ─── Lazy heavy charts ────────────────────────────────────────────────────────
-
-const ReactECharts = lazy(() => import("echarts-for-react"));
+import { AgentChart } from "./AgentChart";
+import { VirtualDataTable } from "./VirtualDataTable";
 
 // ─── KPI Grid with react-countup ─────────────────────────────────────────────
 
@@ -464,7 +463,7 @@ function buildSpecialEChartsOption(
 
 function parseNumber(value: string): number | null {
   const n = parseFloat(value.replace(/[^0-9.-]/g, ""));
-  return isNaN(n) ? null : n;
+  return Number.isNaN(n) ? null : n;
 }
 
 function KPIGrid({ cards }: { cards: KPICard[] }) {
@@ -529,45 +528,9 @@ function KPIGrid({ cards }: { cards: KPICard[] }) {
 // ─── Data Table ───────────────────────────────────────────────────────────────
 
 function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
-  return (
-    <div className="overflow-auto h-full rounded-lg border border-slate-700/40">
-      <table className="min-w-full text-xs">
-        <thead className="sticky top-0 bg-slate-800/90 backdrop-blur-sm">
-          <tr>
-            {headers.map((h) => (
-              <th
-                key={h}
-                className="text-left px-3 py-2 text-slate-400 font-medium whitespace-nowrap border-b border-slate-700/40"
-              >
-                {h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.slice(0, 200).map((row, i) => (
-            <tr
-              key={i}
-              className={cn(
-                "hover:bg-slate-700/30 transition-colors",
-                i % 2 === 0 ? "" : "bg-slate-800/20",
-              )}
-            >
-              {row.map((cell, j) => (
-                <td
-                  key={j}
-                  className="px-3 py-1.5 text-slate-300 whitespace-nowrap max-w-45 truncate"
-                  title={cell}
-                >
-                  {cell}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  // Row + column virtualized — no raw <tr>/<td> DOM explosion on wide/large
+  // result sets (the agent emits SELECT * data-tables for many columns).
+  return <VirtualDataTable headers={headers} rows={rows} />;
 }
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
@@ -612,9 +575,6 @@ function Skeleton({
     </div>
   );
 }
-
-const ECHARTS_OPTS = { renderer: "canvas" as const };
-const ECHARTS_STYLE = { height: "100%", width: "100%" };
 
 // ─── Main renderer ────────────────────────────────────────────────────────────
 
@@ -667,20 +627,11 @@ export function WidgetRenderer({ widget, height = "100%", className }: Props) {
     );
   }
 
-  // ECharts
+  // ECharts — rendered off the main thread via the OffscreenCanvas worker.
   if (chartOpts) {
     return (
       <div className={cn("h-full w-full", className)} style={{ height }}>
-        <Suspense fallback={<Skeleton status="building" />}>
-          <ReactECharts
-            option={chartOpts as Record<string, unknown>}
-            style={ECHARTS_STYLE}
-            opts={ECHARTS_OPTS}
-            notMerge
-            lazyUpdate
-            theme="dark"
-          />
-        </Suspense>
+        <AgentChart option={chartOpts as unknown as EChartsOption} />
       </div>
     );
   }

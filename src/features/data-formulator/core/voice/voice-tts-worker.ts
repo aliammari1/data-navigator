@@ -25,11 +25,17 @@
  */
 
 import {
+  chunkText,
+  type KokoroTtsInstance,
+  loadKokoroModel,
+  normalizeText,
+  splitIntoSentences,
+} from "@/platform/ai/kokoro-tts";
+import {
   getDefaultPrecisionForRuntime,
   getRuntimeOrder,
   getTtsModel,
   KOKORO_VOICES,
-  type KokoroVoiceId,
   normalizeTtsEngine,
   normalizeVoiceRuntime,
   type SpeakMode,
@@ -55,23 +61,6 @@ type TtsJobStatus =
   | "failed";
 
 type TtsOutputFormat = "pcm" | "wav" | "both";
-
-type KokoroTtsInstance = {
-  generate: (
-    text: string,
-    options?: Record<string, unknown>,
-  ) => Promise<unknown>;
-  list_voices?: () => unknown;
-};
-
-type KokoroModule = {
-  KokoroTTS: {
-    from_pretrained: (
-      modelId: string,
-      options?: Record<string, unknown>,
-    ) => Promise<KokoroTtsInstance>;
-  };
-};
 
 type LoadedTtsModel = {
   key: string;
@@ -224,7 +213,6 @@ type VoiceTtsResponse =
 const workerSelf = self as unknown as DedicatedWorkerGlobalScope;
 
 const DEFAULT_SAMPLE_RATE = 24_000;
-const DEFAULT_MAX_CHARS_PER_CHUNK = 220;
 const DEFAULT_SUMMARY_MAX_CHARS = 420;
 const DEFAULT_SENTENCE_GAP_MS = 80;
 
@@ -412,10 +400,6 @@ async function resolveRuntimeOrder(
   return order;
 }
 
-async function importKokoroModule(): Promise<KokoroModule> {
-  return (await import("kokoro-js")) as unknown as KokoroModule;
-}
-
 /* ------------------------------------------------------------------ */
 /*  Cancellation                                                       */
 /* ------------------------------------------------------------------ */
@@ -513,27 +497,48 @@ async function loadTtsModel({
   localModelPath?: string;
   dtype?: VoiceModelPrecision;
 }): Promise<LoadedTtsModel> {
-  const model = getTtsModel(engine);
+  /**
+   * Graceful degradation: any engine without a real browser adapter (today only
+   * Kokoro is implemented) falls back to Kokoro instead of throwing and killing
+   * the speak pipeline. Piper is registered but has no adapter yet.
+   */
+  let effectiveEngine = engine;
 
   if (engine === "piper") {
-    throw new Error(
-      "Piper engine is registered but no Piper browser adapter is configured yet. Add a Piper ONNX adapter before selecting Piper.",
+    console.warn(
+      "[voice-tts] Piper has no browser adapter yet; falling back to Kokoro.",
     );
+    postStatus({
+      status: "loading-model",
+      detail: "Piper voice unavailable. Using Kokoro instead.",
+      engine,
+      runtime,
+    });
+    effectiveEngine = "kokoro";
+  } else if (engine !== "kokoro") {
+    console.warn(
+      `[voice-tts] Unsupported TTS engine "${engine}"; falling back to Kokoro.`,
+    );
+    postStatus({
+      status: "loading-model",
+      detail: `Voice engine "${engine}" unavailable. Using Kokoro instead.`,
+      engine,
+      runtime,
+    });
+    effectiveEngine = "kokoro";
   }
 
-  if (engine !== "kokoro") {
-    throw new Error(`Unsupported TTS engine: ${engine}`);
-  }
+  const model = getTtsModel(effectiveEngine);
 
   if (!model.modelId) {
-    throw new Error(`TTS model "${engine}" does not define a modelId.`);
+    throw new Error(`TTS model "${effectiveEngine}" does not define a modelId.`);
   }
 
   const precision =
     dtype ?? getDefaultPrecisionForRuntime(model, runtime) ?? "q8";
 
   const key = createModelKey({
-    engine,
+    engine: effectiveEngine,
     runtime,
     precision,
     localModelPath,
@@ -556,32 +561,31 @@ async function loadTtsModel({
     postStatus({
       status: "loading-model",
       detail: `Loading ${model.label} with ${runtime.toUpperCase()}.`,
-      engine,
+      engine: effectiveEngine,
       runtime,
       model: model.modelId,
       progress: 5,
     });
 
-    const kokoro = await importKokoroModule();
-
     postStatus({
       status: "loading-model",
       detail: "Initializing Kokoro TTS.",
-      engine,
+      engine: effectiveEngine,
       runtime,
       model: model.modelId,
       progress: 35,
     });
 
-    const instance = await kokoro.KokoroTTS.from_pretrained(model.modelId, {
+    const instance = await loadKokoroModel({
+      modelId: model.modelId,
       dtype: precision,
       device: runtime,
-      ...(localModelPath ? { localModelPath } : {}),
+      localModelPath,
     });
 
     const loaded: LoadedTtsModel = {
       key,
-      engine,
+      engine: effectiveEngine,
       modelId: model.modelId,
       runtime,
       precision,
@@ -594,7 +598,7 @@ async function loadTtsModel({
 
     post({
       type: "MODEL_LOADED",
-      engine,
+      engine: effectiveEngine,
       model: loaded.modelId,
       runtime,
       precision,
@@ -641,14 +645,6 @@ function unloadMatchingModels({
 /*  Text preparation                                                   */
 /* ------------------------------------------------------------------ */
 
-function normalizeText(text: string): string {
-  return text
-    .normalize("NFKC")
-    .trim()
-    .replace(/[\u200B-\u200D\uFEFF]/g, "")
-    .replace(/\s+/g, " ");
-}
-
 function summarizeForSpeech(text: string, maxChars: number): string {
   const normalized = normalizeText(text);
 
@@ -660,80 +656,13 @@ function summarizeForSpeech(text: string, maxChars: number): string {
   let result = "";
 
   for (const sentence of sentences) {
-    if ((result + " " + sentence).trim().length > maxChars) break;
+    if ((`${result} ${sentence}`).trim().length > maxChars) break;
     result = `${result} ${sentence}`.trim();
   }
 
   if (result) return result;
 
   return `${normalized.slice(0, Math.max(80, maxChars - 1)).trim()}…`;
-}
-
-function splitIntoSentences(text: string): string[] {
-  const normalized = normalizeText(text);
-
-  if (!normalized) return [];
-
-  const parts = normalized
-    .split(/(?<=[.!?؟])\s+/u)
-    .map((part) => part.trim())
-    .filter(Boolean);
-
-  if (parts.length > 0) {
-    return parts;
-  }
-
-  return [normalized];
-}
-
-function chunkText(
-  text: string,
-  maxChars = DEFAULT_MAX_CHARS_PER_CHUNK,
-): string[] {
-  const sentences = splitIntoSentences(text);
-  const chunks: string[] = [];
-
-  let current = "";
-
-  for (const sentence of sentences) {
-    if (!current) {
-      current = sentence;
-      continue;
-    }
-
-    if ((current + " " + sentence).length <= maxChars) {
-      current = `${current} ${sentence}`;
-      continue;
-    }
-
-    chunks.push(current);
-    current = sentence;
-  }
-
-  if (current) {
-    chunks.push(current);
-  }
-
-  return chunks.flatMap((chunk) => {
-    if (chunk.length <= maxChars) return [chunk];
-
-    const pieces: string[] = [];
-    let remaining = chunk;
-
-    while (remaining.length > maxChars) {
-      const splitIndex = Math.max(
-        remaining.lastIndexOf(" ", maxChars),
-        Math.floor(maxChars * 0.75),
-      );
-
-      pieces.push(remaining.slice(0, splitIndex).trim());
-      remaining = remaining.slice(splitIndex).trim();
-    }
-
-    if (remaining) pieces.push(remaining);
-
-    return pieces;
-  });
 }
 
 function prepareSpeechText({
@@ -903,6 +832,10 @@ async function synthesizeWithKokoro({
       voice,
       speed,
     });
+
+    // The synth of this chunk may have run while a STOP arrived. Drop the
+    // result instead of accumulating audio the user already cancelled.
+    assertNotCancelled(jobId);
 
     const generated = extractGeneratedAudio(result);
     outputSampleRate = generated.sampleRate;
@@ -1100,6 +1033,9 @@ async function handleSpeak(
     const wav = includeWav
       ? encodeWav(synthesis.audio, synthesis.sampleRate)
       : undefined;
+
+    // Final guard: do not deliver audio for a job the user already stopped.
+    assertNotCancelled(jobId);
 
     const latencyMs = Math.round(nowMs() - start);
 

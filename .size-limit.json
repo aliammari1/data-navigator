@@ -1,0 +1,104 @@
+[
+  {
+    "name": "Next client chunks (gzip)",
+    "path": ".next/static/chunks/*.js",
+    "limit": "1800 kB",
+    "gzip": true
+  },
+  {
+    "name": "Next framework + main runtime (gzip)",
+    "path": [
+      ".next/static/chunks/framework-*.js",
+      ".next/static/chunks/main-*.js",
+      ".next/static/chunks/webpack-*.js"
+    ],
+    "limit": "320 kB",
+    "gzip": true
+  },
+
+  {
+    "name": "route: /dashboard shell (first load)",
+    "path": ".next/static/chunks/app/dashboard/layout-*.js",
+    "limit": "260 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/data-browser",
+    "path": ".next/static/chunks/app/dashboard/data-browser/page-*.js",
+    "limit": "320 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/analytics-theater",
+    "path": ".next/static/chunks/app/dashboard/analytics-theater/page-*.js",
+    "limit": "360 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/geo-analysis",
+    "path": ".next/static/chunks/app/dashboard/geo-analysis/page-*.js",
+    "limit": "420 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/report-studio",
+    "path": ".next/static/chunks/app/dashboard/report-studio/page-*.js",
+    "limit": "400 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/agent-canvas",
+    "path": ".next/static/chunks/app/dashboard/agent-canvas/page-*.js",
+    "limit": "360 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/deep-analytics",
+    "path": ".next/static/chunks/app/dashboard/deep-analytics/page-*.js",
+    "limit": "320 kB",
+    "gzip": true
+  },
+  {
+    "name": "route: /dashboard/ai-analysis",
+    "path": ".next/static/chunks/app/dashboard/ai-analysis/page-*.js",
+    "limit": "300 kB",
+    "gzip": true
+  },
+
+  {
+    "name": "worker: inference / embeddings (Lane B, gzip)",
+    "path": ".next/static/chunks/**/inference.worker*.js",
+    "limit": "300 kB",
+    "gzip": true
+  },
+  {
+    "name": "worker: chart (OffscreenCanvas echarts, time budget)",
+    "path": "public/workers/chart.worker.js",
+    "limit": "500 ms",
+    "gzip": true
+  },
+  {
+    "name": "worker: parse (CSV/Parquet, time budget)",
+    "path": "public/workers/parse.worker.js",
+    "limit": "350 ms",
+    "gzip": true
+  },
+  {
+    "name": "worker: analysis (time budget)",
+    "path": "public/workers/analysis.worker.js",
+    "limit": "350 ms",
+    "gzip": true
+  },
+  {
+    "name": "worker: export (docx/xlsx/pdf, gzip)",
+    "path": "public/workers/export.worker.js",
+    "limit": "600 kB",
+    "gzip": true
+  },
+  {
+    "name": "worker: layout / vector graph (time budget)",
+    "path": "public/workers/layout.worker.js",
+    "limit": "300 ms",
+    "gzip": true
+  }
+]

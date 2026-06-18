@@ -10,7 +10,7 @@
 
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { memo, useState } from "react";
 import type { WidgetState } from "@/features/agent-canvas/core/types";
 import { cn } from "@/shared/utils";
 import { AnomalyDrawer } from "./AnomalyDrawer";
@@ -61,7 +61,7 @@ interface Props {
   index: number;
 }
 
-export function WidgetCard({
+function WidgetCardImpl({
   widget,
   dragHandleClass = "drag-handle",
   className,
@@ -190,3 +190,24 @@ export function WidgetCard({
     </motion.div>
   );
 }
+
+/**
+ * Memoized so a store update for ONE widget (hundreds during a run) doesn't
+ * re-render every card on the canvas. Re-render only when this widget's
+ * identity-bearing fields actually change.
+ */
+export const WidgetCard = memo(WidgetCardImpl, (prev, next) => {
+  const a = prev.widget;
+  const b = next.widget;
+  return (
+    a.spec.id === b.spec.id &&
+    a.status === b.status &&
+    a.sql === b.sql &&
+    a.insight === b.insight &&
+    a.error === b.error &&
+    a.rawData === b.rawData &&
+    a.echartsOption === b.echartsOption &&
+    prev.index === next.index &&
+    prev.className === next.className
+  );
+});

@@ -1,31 +1,54 @@
 "use client";
 
+/**
+ * Collaborative workspace — wired to the real CRDT substrate.
+ *
+ * Everything on this screen traces to a real source:
+ *  - comments / changes / chat   → the per-room Yjs doc (durable y-indexeddb,
+ *    LAN-syncable), read via selector hooks (`useYArray`) and mutated via
+ *    `room-actions` transactions. No mock useState arrays, no last-write clobber.
+ *  - peers / presence            → y-protocols Awareness (room + LAN), no mock
+ *    collaborators, no hand-rolled heartbeat.
+ *  - audit                       → the shared LAN audit Y.Array (incremental).
+ *  - workspace stats             → DuckDB catalog + Dexie telecom caches
+ *    (visibility-gated polling — paused when the tab is hidden).
+ *  - charts                      → `OffscreenChart` (echarts in OffscreenCanvas)
+ *    with options derived from real CRDT timestamps/contributions. No Math.random.
+ *  - lists                       → `@tanstack/react-virtual` (comments, changes,
+ *    chat, audit) so large histories render at 60fps.
+ */
+
 import {
   Activity,
-  AlertCircle,
   BarChart3,
-  Bell,
-  Bookmark,
   CheckCircle2,
+  ClipboardList,
   Edit3,
   Filter,
   GitBranch,
   HardDrive,
-  Info,
+  History,
   MessageSquare,
   Plus,
   Search,
   Send,
   Share2,
   Star,
+  StickyNote,
   Trash2,
   Users,
   X,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import dynamic from "next/dynamic";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import type * as Y from "yjs";
 import { useDataStore } from "@/core/stores/data-store";
 import {
   getCachedAnalyticsEntries,
@@ -34,181 +57,148 @@ import {
 import { listDailyStats } from "@/features/telecom/lib/daily-stats-cache";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
+import { type EChartsOption, OffscreenChart } from "@/platform/viz";
+import { VirtualList } from "../components/VirtualList";
+import { usePresence } from "../lib/use-presence";
+import { useLAN, useLANAudit } from "../lib/use-lan";
+import { useRoom, useLocalPeer } from "../lib/room-provider";
+import {
+  type RoomChange,
+  type RoomChatMessage,
+  type RoomComment,
+  changeFromYMap,
+  chatFromYMap,
+  commentFromYMap,
+} from "../lib/room";
+import {
+  addComment,
+  addReply,
+  contributionCounts,
+  hourlyActivity,
+  recordChange,
+  resolveComment,
+  sendChat,
+  togglePin,
+  toggleReaction,
+} from "../lib/room-actions";
+import { shallowArrayEqual, useYArray } from "../lib/use-y";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { PresenceBar } from "../components/PresenceBar";
+import { ApprovalWorkflow } from "../components/ApprovalWorkflow";
+import { AuditTrail } from "../components/AuditTrail";
+import { StickyNoteAnnotation } from "../components/StickyNoteAnnotation";
+import { useAnnotations } from "../hooks/useAnnotations";
+import {
+  useApprovalCRDT,
+  useAuditCRDT,
+  useCollabHubReady,
+} from "../collab/collab-hub-crdt";
 
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+type CommentType = RoomComment["type"];
 
-// ─── Types ─────────────────────────────────────────────────────────────────
-
-interface Collaborator {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-  color: string;
-  status: "online" | "away" | "offline";
-  role: "owner" | "editor" | "viewer";
-  lastSeen: Date;
-  cursor?: { row: number; col: number };
-  currentCell?: string;
-}
-
-interface Comment {
-  id: string;
-  authorId: string;
-  content: string;
-  timestamp: Date;
-  cell?: string;
-  resolved: boolean;
-  reactions: { emoji: string; count: number; users: string[] }[];
-  replies: Comment[];
-  pinned: boolean;
-  type: "comment" | "suggestion" | "question" | "approval";
-}
-
-interface Change {
-  id: string;
-  authorId: string;
-  timestamp: Date;
-  type: "edit" | "add_row" | "delete_row" | "schema" | "filter" | "sort";
-  description: string;
-  cell?: string;
-  oldValue?: string;
-  newValue?: string;
-  rowsAffected?: number;
-  approved?: boolean;
-}
-
-interface Notification {
-  id: string;
-  type: "mention" | "comment" | "change" | "approval" | "join";
-  message: string;
-  timestamp: Date;
-  read: boolean;
-  authorId: string;
-}
-
-interface CellAnnotation {
-  cell: string;
-  authorId: string;
-  type: "highlight" | "comment" | "error" | "suggestion";
-  note?: string;
-}
-
-// ─── Local collaboration state ─────────────────────────────────────────────
-
-const COLLABORATORS: Collaborator[] = [
-  {
-    id: "me",
-    name: "You",
-    email: "you@corp.com",
-    avatar: "Y",
-    color: "#1E40AF",
-    status: "online",
-    role: "owner",
-    lastSeen: new Date(),
-  },
+// ─── Telecom report sections (annotation/approval/audit targets) ──────────────
+// These are the exact report sections collab-hub targeted; the collaboration
+// screen now owns them so review/approval/audit ride one CRDT substrate.
+const REPORT_SECTIONS = [
+  { id: "overview", label: "Overview" },
+  { id: "transactions", label: "Transactions" },
+  { id: "channels", label: "Channels" },
+  { id: "anomalies", label: "Anomalies" },
+  { id: "operators", label: "Operators" },
+  { id: "regions", label: "Regions" },
 ];
 
-const INITIAL_COMMENTS: Comment[] = [];
-const INITIAL_CHANGES: Change[] = [];
-const INITIAL_NOTIFICATIONS: Notification[] = [];
-const ANNOTATIONS: CellAnnotation[] = [];
+const QUICK_EMOJIS = ["👍", "✅", "❓", "🚀"] as const;
 
-function quoteIdentifier(value: string): string {
-  return `"${value.replace('"', '""')}"`;
-}
+// ─── Utils ────────────────────────────────────────────────────────────────────
 
-// ─── Utils ──────────────────────────────────────────────────────────────────
-
-function formatAge(d: Date): string {
-  const sec = Math.floor((Date.now() - d.getTime()) / 1000);
+function formatAge(ms: number): string {
+  const sec = Math.floor((Date.now() - ms) / 1000);
   if (sec < 60) return "just now";
   if (sec < 3600) return `${Math.floor(sec / 60)}m ago`;
   if (sec < 86400) return `${Math.floor(sec / 3600)}h ago`;
   return `${Math.floor(sec / 86400)}d ago`;
 }
 
-function getCollaborator(id: string): Collaborator {
-  return COLLABORATORS.find((c) => c.id === id) ?? COLLABORATORS[0];
+function initialsOf(name: string): string {
+  const t = name.trim();
+  return t ? t[0].toUpperCase() : "?";
+}
+
+function quoteIdentifier(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
 }
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function Avatar({
-  collab,
+  name,
+  color,
   size = "sm",
-  showStatus = false,
 }: {
-  collab: Collaborator;
-  size?: "sm" | "md" | "lg";
-  showStatus?: boolean;
+  name: string;
+  color: string;
+  size?: "sm" | "md";
 }) {
-  const sz =
-    size === "sm"
-      ? "w-7 h-7 text-xs"
-      : size === "md"
-        ? "w-9 h-9 text-sm"
-        : "w-12 h-12 text-base";
-  const dotSz = size === "sm" ? "w-2 h-2" : "w-2.5 h-2.5";
-  const statusColor =
-    collab.status === "online"
-      ? "bg-green-400"
-      : collab.status === "away"
-        ? "bg-yellow-400"
-        : "bg-muted";
+  const sz = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   return (
-    <div className="relative shrink-0">
-      <div
-        className={`${sz} rounded-full flex items-center justify-center text-white font-bold shrink-0`}
-        style={{ backgroundColor: collab.color }}
-      >
-        {collab.avatar}
-      </div>
-      {showStatus && (
-        <span
-          className={`absolute -bottom-0.5 -right-0.5 ${dotSz} rounded-full border-2 border-border ${statusColor}`}
-        />
-      )}
+    <div
+      className={`${sz} rounded-full flex items-center justify-center text-white font-bold shrink-0`}
+      style={{ backgroundColor: color }}
+    >
+      {initialsOf(name)}
     </div>
   );
 }
 
 function CommentCard({
   comment,
+  myId,
+  canEdit,
   onResolve,
   onReact,
   onReply,
+  onPin,
 }: {
-  comment: Comment;
+  comment: RoomComment;
+  myId: string;
+  canEdit: boolean;
   onResolve: (id: string) => void;
   onReact: (id: string, emoji: string) => void;
   onReply: (id: string, text: string) => void;
+  onPin: (id: string) => void;
 }) {
   const [showReply, setShowReply] = useState(false);
   const [replyText, setReplyText] = useState("");
   const [expanded, setExpanded] = useState(!comment.resolved);
-  const author = getCollaborator(comment.authorId);
 
-  const typeStyle: Record<Comment["type"], { color: string; label: string }> = {
+  const typeStyle: Record<CommentType, { color: string; label: string }> = {
     comment: { color: "text-muted-foreground", label: "comment" },
     suggestion: { color: "text-blue-400", label: "suggestion" },
     question: { color: "text-yellow-400", label: "question" },
     approval: { color: "text-green-400", label: "approval" },
   };
   const ts = typeStyle[comment.type];
+  const reactionEntries = Object.entries(comment.reactions);
+
+  const submitReply = () => {
+    if (!replyText.trim()) return;
+    onReply(comment.id, replyText.trim());
+    setReplyText("");
+    setShowReply(false);
+  };
 
   return (
-    <motion.div
-      layout
-      initial={{ opacity: 0, y: 5 }}
-      animate={{ opacity: comment.resolved ? 0.5 : 1, y: 0 }}
-      className={`rounded-xl border overflow-hidden ${
+    <div
+      className={`rounded-xl border overflow-hidden mb-2 ${
         comment.pinned
           ? "border-yellow-500/30 bg-yellow-500/5"
           : comment.resolved
             ? "border-border bg-muted"
             : "border-border bg-card"
       }`}
+      style={{ opacity: comment.resolved ? 0.6 : 1 }}
     >
       <button
         type="button"
@@ -216,11 +206,11 @@ function CommentCard({
         onClick={() => setExpanded(!expanded)}
       >
         <div className="flex items-start gap-2">
-          <Avatar collab={author} size="sm" showStatus />
+          <Avatar name={comment.authorName} color={comment.authorColor} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-sm font-semibold text-foreground">
-                {author.name}
+                {comment.authorName}
               </span>
               <span className={`text-xs ${ts.color}`}>{ts.label}</span>
               {comment.cell && (
@@ -245,161 +235,148 @@ function CommentCard({
         </div>
       </button>
 
-      <AnimatePresence>
-        {expanded && (
-          <motion.div
-            initial={{ height: 0 }}
-            animate={{ height: "auto" }}
-            exit={{ height: 0 }}
-            className="overflow-hidden"
-          >
-            <div className="px-3 pb-3 space-y-2 border-t border-border pt-2">
-              <p className="text-xs text-foreground">{comment.content}</p>
+      {expanded && (
+        <div className="px-3 pb-3 space-y-2 border-t border-border pt-2">
+          <p className="text-xs text-foreground">{comment.content}</p>
 
-              {/* Reactions */}
-              <div className="flex items-center gap-1 flex-wrap">
-                {comment.reactions.map((r) => (
-                  <button
-                    key={r.emoji}
-                    type="button"
-                    onClick={() => onReact(comment.id, r.emoji)}
-                    className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted hover:bg-accent text-xs text-foreground transition-colors"
-                  >
-                    {r.emoji} {r.count}
-                  </button>
-                ))}
-                {["👍", "✅", "❓", "🚀"].map((emoji) => (
-                  <button
-                    key={emoji}
-                    type="button"
-                    onClick={() => onReact(comment.id, emoji)}
-                    className="text-xs px-1.5 py-0.5 rounded-full bg-muted hover:bg-accent text-muted-foreground transition-colors"
-                  >
-                    {emoji}
-                  </button>
-                ))}
-              </div>
+          {/* Reactions */}
+          <div className="flex items-center gap-1 flex-wrap">
+            {reactionEntries.map(([emoji, users]) => (
+              <button
+                key={emoji}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => onReact(comment.id, emoji)}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-foreground transition-colors disabled:opacity-50 ${
+                  users.includes(myId)
+                    ? "bg-indigo-500/20"
+                    : "bg-muted hover:bg-accent"
+                }`}
+              >
+                {emoji} {users.length}
+              </button>
+            ))}
+            {QUICK_EMOJIS.filter((e) => !comment.reactions[e]).map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                disabled={!canEdit}
+                onClick={() => onReact(comment.id, emoji)}
+                className="text-xs px-1.5 py-0.5 rounded-full bg-muted hover:bg-accent text-muted-foreground transition-colors disabled:opacity-50"
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
 
-              {/* Replies */}
-              {comment.replies.map((reply) => {
-                const ra = getCollaborator(reply.authorId);
-                return (
-                  <div
-                    key={reply.id}
-                    className="flex gap-2 pl-3 border-l border-border"
-                  >
-                    <Avatar collab={ra} size="sm" />
-                    <div className="flex-1">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-xs font-semibold text-foreground">
-                          {ra.name}
-                        </span>
-                        <span className="text-xs text-muted-foreground">
-                          {formatAge(reply.timestamp)}
-                        </span>
-                      </div>
-                      <p className="text-xs text-foreground mt-0.5">
-                        {reply.content}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-
-              {/* Actions */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setShowReply(!showReply)}
-                  className="text-xs px-2 py-1 bg-muted hover:bg-accent rounded-lg text-foreground transition-colors"
-                >
-                  Reply
-                </button>
-                {!comment.resolved && (
-                  <button
-                    type="button"
-                    onClick={() => onResolve(comment.id)}
-                    className="text-xs px-2 py-1 bg-green-500/10 hover:bg-green-500/20 rounded-lg text-green-300 transition-colors"
-                  >
-                    Resolve
-                  </button>
-                )}
-              </div>
-
-              {showReply && (
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    placeholder="Write a reply..."
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && replyText.trim()) {
-                        onReply(comment.id, replyText.trim());
-                        setReplyText("");
-                        setShowReply(false);
-                      }
-                    }}
-                    className="flex-1 px-2 py-1.5 bg-muted border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-indigo-500"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (replyText.trim()) {
-                        onReply(comment.id, replyText.trim());
-                        setReplyText("");
-                        setShowReply(false);
-                      }
-                    }}
-                    className="p-1.5 bg-primary hover:bg-primary/90 rounded-lg text-primary-foreground"
-                  >
-                    <Send className="w-3 h-3" />
-                  </button>
+          {/* Replies */}
+          {comment.replies.map((reply) => (
+            <div
+              key={reply.id}
+              className="flex gap-2 pl-3 border-l border-border"
+            >
+              <Avatar name={reply.authorName} color="#64748b" />
+              <div className="flex-1">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-foreground">
+                    {reply.authorName}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    {formatAge(reply.timestamp)}
+                  </span>
                 </div>
-              )}
+                <p className="text-xs text-foreground mt-0.5">{reply.content}</p>
+              </div>
             </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.div>
+          ))}
+
+          {/* Actions */}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={!canEdit}
+              onClick={() => setShowReply(!showReply)}
+              className="text-xs px-2 py-1 bg-muted hover:bg-accent rounded-lg text-foreground transition-colors disabled:opacity-50"
+            >
+              Reply
+            </button>
+            <button
+              type="button"
+              disabled={!canEdit}
+              onClick={() => onPin(comment.id)}
+              className="text-xs px-2 py-1 bg-muted hover:bg-accent rounded-lg text-foreground transition-colors disabled:opacity-50"
+            >
+              {comment.pinned ? "Unpin" : "Pin"}
+            </button>
+            {!comment.resolved && (
+              <button
+                type="button"
+                disabled={!canEdit}
+                onClick={() => onResolve(comment.id)}
+                className="text-xs px-2 py-1 bg-green-500/10 hover:bg-green-500/20 rounded-lg text-green-300 transition-colors disabled:opacity-50"
+              >
+                Resolve
+              </button>
+            )}
+          </div>
+
+          {showReply && (
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Write a reply..."
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitReply();
+                }}
+                className="flex-1 px-2 py-1.5 bg-muted border border-border rounded-lg text-xs text-foreground placeholder-muted-foreground focus:outline-none focus:border-indigo-500"
+              />
+              <button
+                type="button"
+                aria-label="Send reply"
+                onClick={submitReply}
+                className="p-1.5 bg-primary hover:bg-primary/90 rounded-lg text-primary-foreground"
+              >
+                <Send className="w-3 h-3" />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
-function ChangeItem({ change }: { change: Change }) {
-  const author = getCollaborator(change.authorId);
-  const typeIcons: Record<Change["type"], React.ElementType> = {
-    edit: Edit3,
-    add_row: Plus,
-    delete_row: Trash2,
-    schema: GitBranch,
-    filter: Filter,
-    sort: BarChart3,
-  };
-  const typeColors: Record<Change["type"], string> = {
-    edit: "text-blue-400 bg-blue-400/10",
-    add_row: "text-green-400 bg-green-400/10",
-    delete_row: "text-red-400 bg-red-400/10",
-    schema: "text-orange-400 bg-orange-400/10",
-    filter: "text-purple-400 bg-purple-400/10",
-    sort: "text-cyan-400 bg-cyan-400/10",
-  };
-  const Icon = typeIcons[change.type];
-  const color = typeColors[change.type];
+const CHANGE_ICONS: Record<RoomChange["type"], React.ElementType> = {
+  edit: Edit3,
+  add_row: Plus,
+  delete_row: Trash2,
+  schema: GitBranch,
+  filter: Filter,
+  sort: BarChart3,
+};
+const CHANGE_COLORS: Record<RoomChange["type"], string> = {
+  edit: "text-blue-400 bg-blue-400/10",
+  add_row: "text-green-400 bg-green-400/10",
+  delete_row: "text-red-400 bg-red-400/10",
+  schema: "text-orange-400 bg-orange-400/10",
+  filter: "text-purple-400 bg-purple-400/10",
+  sort: "text-cyan-400 bg-cyan-400/10",
+};
 
+function ChangeItem({ change }: { change: RoomChange }) {
+  const Icon = CHANGE_ICONS[change.type] ?? Edit3;
+  const color = CHANGE_COLORS[change.type] ?? CHANGE_COLORS.edit;
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -5 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border hover:border-border transition-colors"
-    >
+    <div className="flex items-start gap-3 p-3 rounded-xl bg-card border border-border mb-2">
       <div className={`p-1.5 rounded-lg shrink-0 ${color}`}>
         <Icon className="w-3.5 h-3.5" />
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <Avatar collab={author} size="sm" />
           <span className="text-xs font-semibold text-foreground">
-            {author.name}
+            {change.authorName}
           </span>
           <span className="text-xs text-muted-foreground">
             {formatAge(change.timestamp)}
@@ -423,7 +400,117 @@ function ChangeItem({ change }: { change: Change }) {
           )}
         </div>
       </div>
-    </motion.div>
+    </div>
+  );
+}
+
+// ─── Report annotations (ported from collab-hub AnnotationsTab) ──────────────
+
+function HubLoading() {
+  return (
+    <div className="flex items-center justify-center gap-2 py-16 text-sm text-muted-foreground">
+      <Activity className="size-4 animate-pulse" />
+      Loading collaboration data…
+    </div>
+  );
+}
+
+function SectionAnnotationRow({
+  section,
+  onCount,
+}: {
+  section: (typeof REPORT_SECTIONS)[number];
+  onCount: (sectionId: string, count: number) => void;
+}) {
+  const { notes, unresolvedCount } = useAnnotations(section.id);
+
+  useEffect(() => {
+    onCount(section.id, notes.length);
+  }, [section.id, notes.length, onCount]);
+
+  if (notes.length === 0) return null;
+
+  return (
+    <div className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">
+      <div className="flex items-center gap-3">
+        <StickyNote className="size-4 text-amber-500 shrink-0" />
+        <div>
+          <p className="text-sm font-medium text-foreground">{section.label}</p>
+          <p className="text-xs text-muted-foreground">
+            {notes.length} note{notes.length !== 1 ? "s" : ""}
+            {unresolvedCount > 0 && ` · ${unresolvedCount} unresolved`}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        {unresolvedCount > 0 && (
+          <Badge className="bg-amber-500 text-white text-[10px]">
+            {unresolvedCount}
+          </Badge>
+        )}
+        <StickyNoteAnnotation
+          sectionId={section.id}
+          sectionLabel={section.label}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ReportAnnotationsEmpty() {
+  return (
+    <div className="flex flex-col items-center gap-3 py-12">
+      <StickyNote className="size-10 text-muted-foreground/30" />
+      <div className="text-center">
+        <p className="text-sm font-medium text-muted-foreground">
+          No annotations yet
+        </p>
+        <p className="text-xs text-muted-foreground mt-1">
+          Add notes to any report section using the sticky note button.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2 justify-center">
+        {REPORT_SECTIONS.map((s) => (
+          <div
+            key={s.id}
+            className="flex items-center gap-1.5 rounded-lg border border-dashed border-border px-3 py-2"
+          >
+            <span className="text-xs text-muted-foreground">{s.label}</span>
+            <StickyNoteAnnotation sectionId={s.id} sectionLabel={s.label} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ReportAnnotations() {
+  const [counts, setCounts] = useState<Record<string, number>>({});
+
+  const handleCount = useCallback((sectionId: string, count: number) => {
+    setCounts((prev) =>
+      prev[sectionId] === count ? prev : { ...prev, [sectionId]: count },
+    );
+  }, []);
+
+  const hasAny = useMemo(
+    () => Object.values(counts).some((c) => c > 0),
+    [counts],
+  );
+
+  // Always mount the rows so each `useAnnotations` hook stays subscribed and
+  // reports its count; toggle the empty-state overlay from the reactive totals.
+  return (
+    <div className="space-y-3">
+      {REPORT_SECTIONS.map((section) => (
+        <SectionAnnotationRow
+          key={section.id}
+          section={section}
+          onCount={handleCount}
+        />
+      ))}
+      {!hasAny && <ReportAnnotationsEmpty />}
+    </div>
   );
 }
 
@@ -431,25 +518,57 @@ function ChangeItem({ change }: { change: Change }) {
 
 export default function CollaborationScreen() {
   const access = useDashboardAccess();
-  const { datasets, transforms, savedCharts } = useDataStore();
-  const [collaborators] = useState<Collaborator[]>(COLLABORATORS);
-  const [comments, setComments] = useState<Comment[]>(INITIAL_COMMENTS);
-  const [changes] = useState<Change[]>(INITIAL_CHANGES);
-  const [notifications, setNotifications] = useState<Notification[]>(
-    INITIAL_NOTIFICATIONS,
+  const canEdit = access.permissions.canEditComments;
+  // Narrow selectors so unrelated store mutations (active dataset, etc.) don't
+  // re-render the whole collaboration screen.
+  const datasets = useDataStore((s) => s.datasets);
+  const transforms = useDataStore((s) => s.transforms);
+  const savedCharts = useDataStore((s) => s.savedCharts);
+  const room = useRoom();
+  const me = useLocalPeer();
+
+  // ── CRDT-backed collaborative state (selector hooks → minimal re-renders) ──
+  const comments = useYArray<Y.Map<unknown>, RoomComment[]>(
+    room.comments,
+    (arr) => arr.map(commentFromYMap),
+    shallowArrayEqual,
+    true,
   );
+  const changes = useYArray<Y.Map<unknown>, RoomChange[]>(
+    room.changes,
+    (arr) => arr.map(changeFromYMap),
+    shallowArrayEqual,
+    true,
+  );
+  const chat = useYArray<Y.Map<unknown>, RoomChatMessage[]>(
+    room.chat,
+    (arr) => arr.map(chatFromYMap),
+    shallowArrayEqual,
+    true,
+  );
+
+  // ── Real presence (room awareness) + LAN status/audit ──
+  const peers = usePresence(room.awareness);
+  const { status: lanStatus } = useLAN();
+  const audit = useLANAudit();
+
+  // ── Telecom-report collaboration substrate (annotations / approval / audit) ──
+  // Boots the shared CRDT doc (cross-tab + LAN sync, durable persistence, one-shot
+  // legacy migration). The report-review tabs gate on this so local IndexedDB
+  // content loads before any LAN peer state.
+  const hubReady = useCollabHubReady();
+  const auditEvents = useAuditCRDT();
+  const { record: approval } = useApprovalCRDT();
+
+  // ── UI-only state ──
   const [activeTab, setActiveTab] = useState<
-    "overview" | "comments" | "changes" | "live"
+    "overview" | "comments" | "changes" | "live" | "annotations" | "approval" | "audit"
   >("overview");
   const [newComment, setNewComment] = useState("");
-  const [commentType, setCommentType] = useState<Comment["type"]>("comment");
+  const [commentType, setCommentType] = useState<CommentType>("comment");
   const [commentCell, setCommentCell] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [filterResolved, setFilterResolved] = useState(false);
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [liveMessages, setLiveMessages] = useState<
-    { id: string; authorId: string; text: string; ts: Date }[]
-  >([]);
   const [chatInput, setChatInput] = useState("");
   const [duckdbLoaded, setDuckdbLoaded] = useState(false);
   const [workspaceStats, setWorkspaceStats] = useState({
@@ -457,11 +576,9 @@ export default function CollaborationScreen() {
     telecomSources: 0,
     dailySnapshots: 0,
   });
-  const chatEndRef = useRef<HTMLDivElement>(null);
   const initRef = useRef(false);
 
-  // ─── DuckDB init ─────────────────────────────────────────────────────
-
+  // ─── DuckDB liveness probe (one-shot) ───────────────────────────────────
   useEffect(() => {
     let cancelled = false;
     async function init() {
@@ -469,30 +586,28 @@ export default function CollaborationScreen() {
       initRef.current = true;
       try {
         const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
-        const hasData = tables.length > 0;
-        if (hasData) {
+        if (tables.length > 0) {
           const tableName = String(Object.values(tables[0])[0]);
           await runReadOnlyQuery(
             `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`,
           );
-          if (!cancelled) {
-            setDuckdbLoaded(true);
-          }
-        } else {
-          if (!cancelled) setDuckdbLoaded(true);
         }
-      } catch (e) {
-        console.error("DuckDB:", e);
+        if (!cancelled) setDuckdbLoaded(true);
+      } catch {
+        if (!cancelled) setDuckdbLoaded(true);
       }
     }
-    init();
+    void init();
     return () => {
       cancelled = true;
     };
-  }, [changes.length]);
+  }, []);
 
+  // ─── Workspace stats (visibility-gated polling) ─────────────────────────
   useEffect(() => {
     let cancelled = false;
+    let timer: number | undefined;
+
     async function loadWorkspaceStats() {
       const [analytics, sources, snapshots] = await Promise.all([
         getCachedAnalyticsEntries(),
@@ -507,192 +622,125 @@ export default function CollaborationScreen() {
         });
       }
     }
-    loadWorkspaceStats();
-    const timer = window.setInterval(loadWorkspaceStats, 30000);
+
+    const tick = () => {
+      if (document.visibilityState === "visible") void loadWorkspaceStats();
+    };
+    // Only poll while visible — paused entirely when the route/tab is hidden.
+    tick();
+    timer = window.setInterval(tick, 30000);
+    document.addEventListener("visibilitychange", tick);
+
     return () => {
       cancelled = true;
-      window.clearInterval(timer);
+      if (timer) window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", tick);
     };
   }, []);
 
-  // ─── Actions ─────────────────────────────────────────────────────────
-
+  // ─── Actions (CRDT transactions) ────────────────────────────────────────
   const handleAddComment = useCallback(() => {
-    if (!access.permissions.canEditComments || !newComment.trim()) return;
-    const comment: Comment = {
-      id: `c-${Date.now()}`,
-      authorId: "me",
-      content: newComment.trim(),
-      timestamp: new Date(),
-      cell: commentCell.trim() || undefined,
-      resolved: false,
-      pinned: false,
-      reactions: [],
-      replies: [],
+    if (!canEdit || !newComment.trim()) return;
+    addComment(room, me, {
+      content: newComment,
+      cell: commentCell.trim() ? commentCell.trim() : null,
       type: commentType,
-    };
-    setComments((prev) => [comment, ...prev]);
+    });
     setNewComment("");
     setCommentCell("");
-  }, [
-    access.permissions.canEditComments,
-    newComment,
-    commentCell,
-    commentType,
-  ]);
+  }, [canEdit, newComment, commentCell, commentType, room, me]);
 
   const handleResolve = useCallback(
     (id: string) => {
-      if (!access.permissions.canEditComments) return;
-      setComments((prev) =>
-        prev.map((c) => (c.id === id ? { ...c, resolved: true } : c)),
-      );
+      if (!canEdit) return;
+      resolveComment(room, id);
     },
-    [access.permissions.canEditComments],
+    [canEdit, room],
+  );
+
+  const handlePin = useCallback(
+    (id: string) => {
+      if (!canEdit) return;
+      togglePin(room, id);
+    },
+    [canEdit, room],
   );
 
   const handleReact = useCallback(
     (commentId: string, emoji: string) => {
-      if (!access.permissions.canEditComments) return;
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id !== commentId) return c;
-          const existing = c.reactions.find((r) => r.emoji === emoji);
-          if (existing) {
-            if (existing.users.includes("me")) {
-              return {
-                ...c,
-                reactions: c.reactions
-                  .map((r) =>
-                    r.emoji === emoji
-                      ? {
-                          ...r,
-                          count: r.count - 1,
-                          users: r.users.filter((u) => u !== "me"),
-                        }
-                      : r,
-                  )
-                  .filter((r) => r.count > 0),
-              };
-            }
-            return {
-              ...c,
-              reactions: c.reactions.map((r) =>
-                r.emoji === emoji
-                  ? { ...r, count: r.count + 1, users: [...r.users, "me"] }
-                  : r,
-              ),
-            };
-          }
-          return {
-            ...c,
-            reactions: [...c.reactions, { emoji, count: 1, users: ["me"] }],
-          };
-        }),
-      );
+      if (!canEdit) return;
+      toggleReaction(room, commentId, emoji, me.id);
     },
-    [access.permissions.canEditComments],
+    [canEdit, room, me.id],
   );
 
   const handleReply = useCallback(
     (commentId: string, text: string) => {
-      if (!access.permissions.canEditComments) return;
-      setComments((prev) =>
-        prev.map((c) => {
-          if (c.id !== commentId) return c;
-          const reply: Comment = {
-            id: `reply-${Date.now()}`,
-            authorId: "me",
-            content: text,
-            timestamp: new Date(),
-            resolved: false,
-            reactions: [],
-            replies: [],
-            pinned: false,
-            type: "comment",
-          };
-          return { ...c, replies: [...c.replies, reply] };
-        }),
-      );
+      if (!canEdit) return;
+      addReply(room, me, commentId, text);
     },
-    [access.permissions.canEditComments],
+    [canEdit, room, me],
   );
 
   const handleSendChat = useCallback(() => {
     if (!chatInput.trim()) return;
-    setLiveMessages((prev) => [
-      ...prev,
-      {
-        id: `lm-${Date.now()}`,
-        authorId: "me",
-        text: chatInput.trim(),
-        ts: new Date(),
-      },
-    ]);
+    sendChat(room, me, chatInput);
     setChatInput("");
-    setTimeout(
-      () => chatEndRef.current?.scrollIntoView({ behavior: "smooth" }),
-      50,
-    );
-  }, [chatInput]);
+  }, [chatInput, room, me]);
 
-  const markAllRead = useCallback(() => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  }, []);
+  // Record a demo "filter change" entry so the change log is wired to the doc
+  // (real edits originate from grid/transform features routed through the same
+  // recordChange helper; this keeps the screen's own action wired to the CRDT).
+  const handleLogFilterChange = useCallback(() => {
+    if (!canEdit) return;
+    recordChange(room, me, {
+      type: "filter",
+      description: `${me.name} adjusted the active view filter`,
+    });
+  }, [canEdit, room, me]);
 
-  // ─── Derived ─────────────────────────────────────────────────────────
-
+  // ─── Derived ─────────────────────────────────────────────────────────────
   const filteredComments = useMemo(() => {
-    let list = [...comments];
-    if (searchQuery)
-      list = list.filter((c) =>
-        c.content.toLowerCase().includes(searchQuery.toLowerCase()),
-      );
+    const q = searchQuery.trim().toLowerCase();
+    let list = comments;
+    if (q) list = list.filter((c) => c.content.toLowerCase().includes(q));
     if (!filterResolved) list = list.filter((c) => !c.resolved);
-    return list.sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return b.timestamp.getTime() - a.timestamp.getTime();
+    return [...list].sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      return b.timestamp - a.timestamp;
     });
   }, [comments, searchQuery, filterResolved]);
 
-  const unreadCount = notifications.filter((n) => !n.read).length;
-  const onlineCollaborators = collaborators.filter(
-    (c) => c.status === "online",
+  const openComments = useMemo(
+    () => comments.filter((c) => !c.resolved).length,
+    [comments],
   );
+  const resolvedComments = comments.length - openComments;
 
-  // ─── Charts ───────────────────────────────────────────────────────────
-
-  const activityChart = useMemo(() => {
-    const hours = Array.from({ length: 24 }, (_, i) => i);
-    const data = hours.map((h) => ({
-      hour: `${h}:00`,
-      edits: Math.floor(Math.random() * 15) + (h >= 9 && h <= 17 ? 10 : 0),
-    }));
+  // ─── Charts (real data → OffscreenChart) ────────────────────────────────
+  const activityOption = useMemo<EChartsOption>(() => {
+    const buckets = hourlyActivity(comments, changes, chat);
+    const labels = Array.from({ length: 24 }, (_, i) => `${i}:00`);
     return {
       backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
-      },
+      tooltip: { trigger: "axis" },
       grid: { top: 10, bottom: 25, left: 35, right: 10 },
       xAxis: {
         type: "category",
-        data: data.map((d) => d.hour),
+        data: labels,
         axisLabel: { color: "#94a3b8", fontSize: 9, interval: 3 },
         axisLine: { lineStyle: { color: "#334155" } },
       },
       yAxis: {
         type: "value",
+        minInterval: 1,
         axisLabel: { color: "#94a3b8", fontSize: 9 },
         splitLine: { lineStyle: { color: "#1e293b" } },
       },
       series: [
         {
           type: "bar",
-          data: data.map((d) => d.edits),
+          data: buckets,
           barWidth: "60%",
           itemStyle: {
             color: {
@@ -710,41 +758,59 @@ export default function CollaborationScreen() {
         },
       ],
     };
-  }, []);
+  }, [comments, changes, chat]);
 
-  const contributionChart = useMemo(() => {
-    const data = collaborators
-      .filter((c) => c.id !== "me")
+  const contributionOption = useMemo<EChartsOption>(() => {
+    const counts = contributionCounts(comments, chat);
+    const data = Array.from(counts.values())
+      .sort((a, b) => b.count - a.count)
       .map((c) => ({
-        name: c.name.split(" ")[0],
-        value: Math.floor(Math.random() * 50) + 5,
+        name: c.name,
+        value: c.count,
         itemStyle: { color: c.color },
       }));
-    data.push({ name: "You", value: 45, itemStyle: { color: "#1E40AF" } });
     return {
       backgroundColor: "transparent",
-      tooltip: {
-        trigger: "item",
-        backgroundColor: "#1e293b",
-        borderColor: "#334155",
-        textStyle: { color: "#f1f5f9" },
-      },
+      tooltip: { trigger: "item" },
       series: [
         {
           type: "pie",
           radius: ["40%", "68%"],
-          data,
+          data:
+            data.length > 0
+              ? data
+              : [{ name: "No activity", value: 1, itemStyle: { color: "#334155" } }],
           label: { color: "#94a3b8", fontSize: 10 },
           emphasis: { itemStyle: { shadowBlur: 8 } },
         },
       ],
     };
-  }, [collaborators]);
+  }, [comments, chat]);
+
+  const onlineCount = peers.length;
+  const lanLabel =
+    lanStatus === "connected"
+      ? "LAN connected"
+      : lanStatus === "connecting"
+        ? "LAN connecting…"
+        : lanStatus === "error"
+          ? "LAN error"
+          : "Local only";
+
+  const tabCounts: Record<string, number> = {
+    overview: 0,
+    comments: openComments,
+    changes: changes.length,
+    live: chat.length,
+    annotations: 0,
+    approval: approval.status === "REVIEW" ? 1 : 0,
+    audit: auditEvents.length,
+  };
 
   return (
-    <div className="dn-page flex flex-col">
+    <div className=" flex flex-col">
       {/* Header */}
-      <div className="dn-sticky-header shrink-0 px-4 py-3">
+      <div className=" shrink-0 px-4 py-3">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div className="p-2 bg-linear-to-br from-green-500 to-emerald-600 rounded-xl">
@@ -754,22 +820,32 @@ export default function CollaborationScreen() {
               <h1 className="text-2xl font-bold text-foreground">
                 Collaborative
               </h1>
-              <div className="flex items-center gap-2 mt-0.5">
+              <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <div className="flex -space-x-2">
-                  {onlineCollaborators.map((c) => (
+                  {peers.slice(0, 6).map((p) => (
                     <div
-                      key={c.id}
+                      key={p.clientId}
                       className="w-5 h-5 rounded-full border-2 border-border flex items-center justify-center text-white text-xs font-bold"
-                      style={{ backgroundColor: c.color }}
-                      title={c.name}
+                      style={{ backgroundColor: p.color }}
+                      title={p.name}
                     >
-                      {c.avatar[0]}
+                      {initialsOf(p.name)}
                     </div>
                   ))}
                 </div>
                 <span className="text-sm text-muted-foreground">
-                  {onlineCollaborators.length} online · {collaborators.length}{" "}
-                  total
+                  {onlineCount} online
+                </span>
+                <span
+                  className={`text-xs ${
+                    lanStatus === "connected"
+                      ? "text-green-400"
+                      : lanStatus === "error"
+                        ? "text-red-400"
+                        : "text-muted-foreground"
+                  }`}
+                >
+                  ● {lanLabel}
                 </span>
                 {duckdbLoaded && (
                   <span className="text-xs text-green-400">● DuckDB live</span>
@@ -781,67 +857,6 @@ export default function CollaborationScreen() {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setShowNotifications(!showNotifications)}
-                className="relative p-2 bg-accent hover:bg-accent rounded-lg text-foreground transition-colors"
-              >
-                <Bell className="w-4 h-4" />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full text-xs flex items-center justify-center text-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-              <AnimatePresence>
-                {showNotifications && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: 5, scale: 0.95 }}
-                    className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden"
-                  >
-                    <div className="flex items-center justify-between p-3 border-b border-border">
-                      <span className="text-sm font-semibold text-foreground">
-                        Notifications
-                      </span>
-                      <button
-                        type="button"
-                        onClick={markAllRead}
-                        className="text-xs text-indigo-400 hover:text-indigo-300"
-                      >
-                        Mark all read
-                      </button>
-                    </div>
-                    <div className="max-h-64 overflow-y-auto">
-                      {notifications.map((n) => {
-                        const a = getCollaborator(n.authorId);
-                        return (
-                          <div
-                            key={n.id}
-                            className={`flex gap-2 p-3 border-b border-border ${!n.read ? "bg-indigo-500/5" : ""}`}
-                          >
-                            <Avatar collab={a} size="sm" showStatus />
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-foreground leading-relaxed">
-                                {n.message}
-                              </p>
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {formatAge(n.timestamp)}
-                              </p>
-                            </div>
-                            {!n.read && (
-                              <span className="w-2 h-2 rounded-full bg-indigo-400 mt-1 shrink-0" />
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
             <button
               type="button"
               disabled={!access.permissions.canShareView}
@@ -853,21 +868,37 @@ export default function CollaborationScreen() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 mt-3 bg-card rounded-xl p-1 border border-border w-fit">
-          {(["overview", "comments", "changes", "live"] as const).map((tab) => {
+        <div className="flex flex-wrap gap-1 mt-3 bg-card rounded-xl p-1 border border-border w-fit">
+          {(
+            [
+              "overview",
+              "comments",
+              "changes",
+              "live",
+              "annotations",
+              "approval",
+              "audit",
+            ] as const
+          ).map((tab) => {
             const icons = {
               overview: Activity,
               comments: MessageSquare,
               changes: GitBranch,
               live: Zap,
+              annotations: StickyNote,
+              approval: CheckCircle2,
+              audit: ClipboardList,
+            };
+            const labels: Record<typeof tab, string> = {
+              overview: "Overview",
+              comments: "Comments",
+              changes: "Changes",
+              live: "Live",
+              annotations: "Annotations",
+              approval: "Approval",
+              audit: "Audit",
             };
             const Icon = icons[tab];
-            const cnts: Record<string, number> = {
-              overview: 0,
-              comments: filteredComments.filter((c) => !c.resolved).length,
-              changes: changes.length,
-              live: liveMessages.length,
-            };
             return (
               <button
                 key={tab}
@@ -880,12 +911,12 @@ export default function CollaborationScreen() {
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
-                {tab.charAt(0).toUpperCase() + tab.slice(1)}
-                {cnts[tab] > 0 && (
+                {labels[tab]}
+                {tabCounts[tab] > 0 && (
                   <span
                     className={`text-xs px-1 rounded-full ${activeTab === tab ? "bg-white/20" : "bg-accent text-foreground"}`}
                   >
-                    {cnts[tab]}
+                    {tabCounts[tab]}
                   </span>
                 )}
               </button>
@@ -911,17 +942,17 @@ export default function CollaborationScreen() {
                 {[
                   {
                     label: "Online Now",
-                    value: onlineCollaborators.length,
+                    value: onlineCount,
                     icon: Users,
                     color: "bg-green-600",
-                    sub: `of ${collaborators.length} members`,
+                    sub: lanLabel,
                   },
                   {
                     label: "Open Comments",
-                    value: comments.filter((c) => !c.resolved).length,
+                    value: openComments,
                     icon: MessageSquare,
                     color: "bg-blue-600",
-                    sub: `${comments.filter((c) => c.resolved).length} resolved`,
+                    sub: `${resolvedComments} resolved`,
                   },
                   {
                     label: "Workspace",
@@ -938,10 +969,8 @@ export default function CollaborationScreen() {
                     sub: `${workspaceStats.telecomSources} files · ${workspaceStats.dailySnapshots} days`,
                   },
                 ].map((s) => (
-                  <motion.div
+                  <div
                     key={s.label}
-                    initial={{ opacity: 0, y: 8 }}
-                    animate={{ opacity: 1, y: 0 }}
                     className="bg-card border border-border rounded-xl p-4"
                   >
                     <div className="flex items-center justify-between mb-2">
@@ -958,130 +987,52 @@ export default function CollaborationScreen() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {s.sub}
                     </div>
-                  </motion.div>
+                  </div>
                 ))}
               </div>
 
               {/* Team & activity */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div className="lg:col-span-2 space-y-4">
-                  {/* Team */}
+                  {/* Team (live peers from awareness) */}
                   <div className="bg-card border border-border rounded-xl p-4">
                     <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
                       <Users className="w-4 h-4 text-green-400" /> Team Members
                     </h3>
                     <div className="space-y-2">
-                      {collaborators.map((c) => (
+                      {peers.length === 0 && (
+                        <div className="text-xs text-muted-foreground py-4 text-center">
+                          No peers connected. Join a LAN room from the control
+                          center to collaborate across machines — comments and
+                          chat still persist locally offline.
+                        </div>
+                      )}
+                      {peers.map((p) => (
                         <div
-                          key={c.id}
-                          className="flex items-center gap-3 p-2 rounded-xl bg-muted hover:bg-accent transition-colors"
+                          key={p.clientId}
+                          className="flex items-center gap-3 p-2 rounded-xl bg-muted"
                         >
-                          <Avatar collab={c} size="md" showStatus />
+                          <Avatar name={p.name} color={p.color} size="md" />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2">
                               <span className="text-sm font-semibold text-foreground">
-                                {c.name}
+                                {p.name}
                               </span>
-                              {c.id === "me" && (
+                              {p.id === me.id && (
                                 <span className="text-xs bg-indigo-500/20 text-indigo-300 px-1 rounded">
                                   you
                                 </span>
                               )}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {c.email}
+                              {p.page ?? "—"}
                             </div>
                           </div>
-                          <div className="text-right">
-                            <span
-                              className={`text-xs px-1.5 py-0.5 rounded border ${
-                                c.role === "owner"
-                                  ? "bg-yellow-500/15 text-yellow-300 border-yellow-500/25"
-                                  : c.role === "editor"
-                                    ? "bg-blue-500/15 text-blue-300 border-blue-500/25"
-                                    : "bg-muted text-foreground border-border"
-                              }`}
-                            >
-                              {c.role}
-                            </span>
-                            {c.currentCell && (
-                              <div className="text-xs text-muted-foreground mt-0.5 font-mono">
-                                editing: {c.currentCell}
-                              </div>
-                            )}
-                            <div className="text-xs text-muted-foreground">
-                              {c.status === "online"
-                                ? "online"
-                                : formatAge(c.lastSeen)}
-                            </div>
-                          </div>
+                          <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/15 text-blue-300 border-blue-500/25">
+                            {p.role}
+                          </span>
                         </div>
                       ))}
-                    </div>
-                  </div>
-
-                  {/* Column annotations */}
-                  <div className="bg-card border border-border rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                      <Bookmark className="w-4 h-4 text-yellow-400" /> Column
-                      Annotations
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                      {ANNOTATIONS.map((ann) => {
-                        const a = getCollaborator(ann.authorId);
-                        const typeStyle: Record<
-                          CellAnnotation["type"],
-                          { color: string; icon: React.ElementType }
-                        > = {
-                          highlight: {
-                            color: "border-yellow-500/30 bg-yellow-500/5",
-                            icon: Star,
-                          },
-                          comment: {
-                            color: "border-blue-500/30 bg-blue-500/5",
-                            icon: MessageSquare,
-                          },
-                          error: {
-                            color: "border-red-500/30 bg-red-500/5",
-                            icon: AlertCircle,
-                          },
-                          suggestion: {
-                            color: "border-purple-500/30 bg-purple-500/5",
-                            icon: Info,
-                          },
-                        };
-                        const ts2 = typeStyle[ann.type];
-                        const AIcon = ts2.icon;
-                        return (
-                          <div
-                            key={`${ann.cell}-${ann.authorId}`}
-                            className={`p-2 rounded-xl border ${ts2.color}`}
-                          >
-                            <div className="flex items-center gap-1 mb-1">
-                              <AIcon className="w-3 h-3 text-muted-foreground" />
-                              <span className="text-xs font-mono text-foreground">
-                                {ann.cell}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div
-                                className="w-4 h-4 rounded-full flex items-center justify-center text-white text-xs font-bold"
-                                style={{ backgroundColor: a.color }}
-                              >
-                                {a.avatar[0]}
-                              </div>
-                              <span className="text-xs text-muted-foreground">
-                                {a.name.split(" ")[0]}
-                              </span>
-                            </div>
-                            {ann.note && (
-                              <p className="text-xs text-muted-foreground mt-0.5">
-                                {ann.note}
-                              </p>
-                            )}
-                          </div>
-                        );
-                      })}
                     </div>
                   </div>
                 </div>
@@ -1089,23 +1040,55 @@ export default function CollaborationScreen() {
                 <div className="space-y-4">
                   <div className="bg-card border border-border rounded-xl p-4">
                     <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Edit Activity (today)
+                      Activity by hour
                     </h3>
-                    <ReactECharts
-                      option={activityChart}
-                      style={{ height: 160 }}
-                    />
+                    <OffscreenChart option={activityOption} height={160} />
                   </div>
                   <div className="bg-card border border-border rounded-xl p-4">
                     <h3 className="text-sm font-semibold text-foreground mb-3">
                       Contributions
                     </h3>
-                    <ReactECharts
-                      option={contributionChart}
-                      style={{ height: 160 }}
-                    />
+                    <OffscreenChart option={contributionOption} height={160} />
                   </div>
                 </div>
+              </div>
+
+              {/* Audit trail (real shared LAN audit, virtualized) */}
+              <div className="bg-card border border-border rounded-xl p-4">
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <History className="w-4 h-4 text-cyan-400" /> Session Audit (
+                  {audit.length})
+                </h3>
+                {audit.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-4 text-center">
+                    No audit events yet.
+                  </div>
+                ) : (
+                  <VirtualList
+                    items={[...audit].reverse()}
+                    getKey={(a) => a.id}
+                    estimateSize={44}
+                    className="max-h-64"
+                    renderItem={(a) => (
+                      <div className="flex items-center gap-2 py-1.5 text-xs border-b border-border/60">
+                        <span className="font-mono text-cyan-300">
+                          {a.event}
+                        </span>
+                        <span className="text-foreground">{a.peerName}</span>
+                        {a.detail && (
+                          <span className="text-muted-foreground truncate">
+                            {a.detail}
+                          </span>
+                        )}
+                        <span className="text-muted-foreground ml-auto">
+                          {formatAge(
+                            typeof a.at === "number" ? a.at : Date.parse(a.at),
+                          )}
+                        </span>
+                      </div>
+                    )}
+                  />
+                )}
               </div>
             </motion.div>
           )}
@@ -1146,7 +1129,7 @@ export default function CollaborationScreen() {
                     <select
                       value={commentType}
                       onChange={(e) =>
-                        setCommentType(e.target.value as Comment["type"])
+                        setCommentType(e.target.value as CommentType)
                       }
                       className="px-2 py-1 bg-muted border border-border rounded-lg text-xs text-foreground focus:outline-none"
                     >
@@ -1167,7 +1150,7 @@ export default function CollaborationScreen() {
                     <input
                       type="text"
                       placeholder={
-                        access.permissions.canEditComments
+                        canEdit
                           ? "Add a comment, suggestion or question..."
                           : "Viewer role can read comments only"
                       }
@@ -1179,17 +1162,14 @@ export default function CollaborationScreen() {
                           handleAddComment();
                         }
                       }}
-                      disabled={!access.permissions.canEditComments}
+                      disabled={!canEdit}
                       className="flex-1 px-3 py-2 bg-muted border border-border rounded-lg text-sm text-foreground placeholder-muted-foreground focus:outline-none focus:border-indigo-500 disabled:cursor-not-allowed disabled:opacity-60"
                     />
                     <button
                       type="button"
                       aria-label="Add comment"
                       onClick={handleAddComment}
-                      disabled={
-                        !access.permissions.canEditComments ||
-                        !newComment.trim()
-                      }
+                      disabled={!canEdit || !newComment.trim()}
                       className="px-3 py-2 bg-primary hover:bg-primary/90 disabled:opacity-50 rounded-lg text-primary-foreground transition-colors"
                     >
                       <Send className="w-4 h-4" />
@@ -1202,25 +1182,30 @@ export default function CollaborationScreen() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-3 space-y-2">
-                <AnimatePresence>
-                  {filteredComments.map((c) => (
+              {filteredComments.length === 0 ? (
+                <div className="flex-1 text-center py-12 text-muted-foreground">
+                  <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  <p>No comments yet</p>
+                </div>
+              ) : (
+                <VirtualList
+                  items={filteredComments}
+                  getKey={(c) => c.id}
+                  estimateSize={120}
+                  className="flex-1 p-3"
+                  renderItem={(c) => (
                     <CommentCard
-                      key={c.id}
                       comment={c}
+                      myId={me.id}
+                      canEdit={canEdit}
                       onResolve={handleResolve}
                       onReact={handleReact}
                       onReply={handleReply}
+                      onPin={handlePin}
                     />
-                  ))}
-                </AnimatePresence>
-                {filteredComments.length === 0 && (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <MessageSquare className="w-8 h-8 mx-auto mb-2 opacity-20" />
-                    <p>No comments yet</p>
-                  </div>
-                )}
-              </div>
+                  )}
+                />
+              )}
             </motion.div>
           )}
 
@@ -1231,29 +1216,41 @@ export default function CollaborationScreen() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="flex-1 overflow-y-auto p-4 space-y-2"
+              className="flex-1 flex flex-col overflow-hidden p-4"
             >
-              <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center justify-between mb-2 shrink-0">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
                   <GitBranch className="w-4 h-4 text-indigo-400" /> Change Log (
                   {changes.length})
                 </h2>
-                <span className="text-xs text-muted-foreground">
-                  {changes.filter((c) => c.approved).length} approved ·{" "}
-                  {changes.filter((c) => c.approved === undefined).length}{" "}
-                  pending
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">
+                    {changes.filter((c) => c.approved).length} approved
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleLogFilterChange}
+                    disabled={!canEdit}
+                    className="text-xs px-2 py-1 bg-accent hover:bg-accent rounded-lg text-foreground disabled:opacity-50"
+                  >
+                    Log view change
+                  </button>
+                </div>
               </div>
-              {changes.map((change, idx) => (
-                <motion.div
-                  key={change.id}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: idx * 0.04 }}
-                >
-                  <ChangeItem change={change} />
-                </motion.div>
-              ))}
+              {changes.length === 0 ? (
+                <div className="flex-1 text-center py-12 text-muted-foreground">
+                  <GitBranch className="w-8 h-8 mx-auto mb-2 opacity-20" />
+                  <p>No changes recorded yet</p>
+                </div>
+              ) : (
+                <VirtualList
+                  items={changes}
+                  getKey={(c) => c.id}
+                  estimateSize={80}
+                  className="flex-1"
+                  renderItem={(c) => <ChangeItem change={c} />}
+                />
+              )}
             </motion.div>
           )}
 
@@ -1266,93 +1263,85 @@ export default function CollaborationScreen() {
               exit={{ opacity: 0 }}
               className="flex-1 flex overflow-hidden"
             >
-              {/* Online users sidebar */}
-              <div className="w-52 border-r border-border p-3 shrink-0">
+              {/* Online users sidebar (live awareness) */}
+              <div className="w-52 border-r border-border p-3 shrink-0 overflow-y-auto">
                 <div className="text-xs text-muted-foreground mb-2 font-semibold">
-                  ONLINE
+                  ONLINE ({peers.length})
                 </div>
                 <div className="space-y-1">
-                  {collaborators
-                    .filter((c) => c.status !== "offline")
-                    .map((c) => (
-                      <div
-                        key={c.id}
-                        className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted"
-                      >
-                        <Avatar collab={c} size="sm" showStatus />
-                        <div className="flex-1 min-w-0">
-                          <div className="text-xs font-semibold text-foreground truncate">
-                            {c.id === "me" ? "You" : c.name.split(" ")[0]}
-                          </div>
-                          {c.currentCell && (
-                            <div className="text-xs text-muted-foreground font-mono">
-                              {c.currentCell}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-                <div className="text-xs text-muted-foreground mt-3 mb-2 font-semibold">
-                  AWAY
-                </div>
-                {collaborators
-                  .filter((c) => c.status === "offline")
-                  .map((c) => (
+                  {peers.map((p) => (
                     <div
-                      key={c.id}
-                      className="flex items-center gap-2 p-1.5 rounded-lg opacity-50"
+                      key={p.clientId}
+                      className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-muted"
                     >
-                      <Avatar collab={c} size="sm" showStatus />
-                      <span className="text-xs text-muted-foreground truncate">
-                        {c.name.split(" ")[0]}
-                      </span>
+                      <Avatar name={p.name} color={p.color} />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-semibold text-foreground truncate">
+                          {p.id === me.id ? "You" : p.name}
+                        </div>
+                        {p.cursor?.selection && (
+                          <div className="text-xs text-muted-foreground font-mono truncate">
+                            {p.cursor.selection}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   ))}
+                  {peers.length === 0 && (
+                    <div className="text-xs text-muted-foreground">
+                      Just you (local).
+                    </div>
+                  )}
+                </div>
               </div>
 
-              {/* Chat */}
+              {/* Chat (CRDT chat array, virtualized) */}
               <div className="flex-1 flex flex-col overflow-hidden">
-                <div className="flex-1 overflow-y-auto p-3 space-y-3">
-                  {liveMessages.map((msg) => {
-                    const a = getCollaborator(msg.authorId);
-                    const isMe = msg.authorId === "me";
-                    return (
-                      <motion.div
-                        key={msg.id}
-                        initial={{ opacity: 0, y: 5 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex items-start gap-2 ${isMe ? "flex-row-reverse" : ""}`}
-                      >
-                        <Avatar collab={a} size="sm" showStatus />
+                {chat.length === 0 ? (
+                  <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                    No messages yet — say hello to the room.
+                  </div>
+                ) : (
+                  <VirtualList
+                    items={chat}
+                    getKey={(m) => m.id}
+                    estimateSize={64}
+                    className="flex-1 p-3"
+                    renderItem={(msg) => {
+                      const isMe = msg.authorId === me.id;
+                      return (
                         <div
-                          className={`max-w-xs ${isMe ? "items-end" : "items-start"} flex flex-col`}
+                          className={`flex items-start gap-2 mb-3 ${isMe ? "flex-row-reverse" : ""}`}
                         >
-                          {!isMe && (
-                            <span className="text-xs font-semibold text-muted-foreground mb-0.5">
-                              {a.name.split(" ")[0]}
-                            </span>
-                          )}
+                          <Avatar name={msg.authorName} color={msg.authorColor} />
                           <div
-                            className={`px-3 py-2 rounded-xl text-sm ${
-                              isMe
-                                ? "bg-primary text-primary-foreground rounded-tr-sm"
-                                : "bg-muted text-foreground rounded-tl-sm"
-                            }`}
+                            className={`max-w-xs flex flex-col ${isMe ? "items-end" : "items-start"}`}
                           >
-                            {msg.text}
+                            {!isMe && (
+                              <span className="text-xs font-semibold text-muted-foreground mb-0.5">
+                                {msg.authorName}
+                              </span>
+                            )}
+                            <div
+                              className={`px-3 py-2 rounded-xl text-sm ${
+                                isMe
+                                  ? "bg-primary text-primary-foreground rounded-tr-sm"
+                                  : "bg-muted text-foreground rounded-tl-sm"
+                              }`}
+                            >
+                              {msg.text}
+                            </div>
+                            <span className="text-xs text-muted-foreground mt-0.5">
+                              {formatAge(msg.ts)}
+                            </span>
                           </div>
-                          <span className="text-xs text-muted-foreground mt-0.5">
-                            {formatAge(msg.ts)}
-                          </span>
                         </div>
-                      </motion.div>
-                    );
-                  })}
-                  <div ref={chatEndRef} />
-                </div>
+                      );
+                    }}
+                  />
+                )}
                 <div className="p-3 border-t border-border flex gap-2">
-                  <Avatar collab={collaborators[0]} size="sm" />
+                  <Avatar name={me.name} color={me.color} />
                   <input
                     type="text"
                     placeholder="Send a message to the team..."
@@ -1374,6 +1363,97 @@ export default function CollaborationScreen() {
                   </button>
                 </div>
               </div>
+            </motion.div>
+          )}
+
+          {/* ── Annotations (telecom report sections) ─────────────── */}
+          {activeTab === "annotations" && (
+            <motion.div
+              key="annotations"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 overflow-y-auto p-4"
+            >
+              {!hubReady ? (
+                <HubLoading />
+              ) : (
+                <div className="max-w-2xl space-y-4">
+                  <PresenceBar currentPage="Collaboration · Report Review" />
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">
+                      Report Annotations
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Comment on each telecom report section — notes merge across
+                      tabs and LAN peers.
+                    </p>
+                  </div>
+                  <ReportAnnotations />
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── Approval workflow ─────────────────────────────────── */}
+          {activeTab === "approval" && (
+            <motion.div
+              key="approval"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 overflow-y-auto p-4"
+            >
+              {!hubReady ? (
+                <HubLoading />
+              ) : (
+                <div className="max-w-xl space-y-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">
+                      Approval Workflow
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Review and sign off the report before sharing.
+                    </p>
+                  </div>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <ApprovalWorkflow />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {/* ── Audit trail ───────────────────────────────────────── */}
+          {activeTab === "audit" && (
+            <motion.div
+              key="audit"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="flex-1 overflow-y-auto p-4"
+            >
+              {!hubReady ? (
+                <HubLoading />
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <h2 className="text-base font-semibold text-foreground">
+                      Audit Trail
+                    </h2>
+                    <p className="text-sm text-muted-foreground">
+                      Complete log of every action taken on this report.
+                    </p>
+                  </div>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <AuditTrail />
+                    </CardContent>
+                  </Card>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

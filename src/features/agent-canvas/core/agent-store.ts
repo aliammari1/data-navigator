@@ -245,6 +245,7 @@ export const useAgentStore = create<AgentStoreState>()(
     setRunning: (r) =>
       set((s) => {
         s.running = r;
+        if (r && !s.startTime) s.startTime = Date.now();
       }),
 
     upsertWidget: (w) =>
@@ -258,12 +259,6 @@ export const useAgentStore = create<AgentStoreState>()(
       set((s) => {
         s.thoughts.push(t);
         if (s.thoughts.length > 200) s.thoughts.shift();
-      }),
-
-    setRunning_start: () =>
-      set((s) => {
-        s.startTime = Date.now();
-        s.running = true;
       }),
 
     reset: () =>

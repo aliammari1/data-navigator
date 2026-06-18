@@ -1,8 +1,8 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
 import { Loader2 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
+import { EChart } from "@/features/telecom/components/echart";
 import { CHART_PALETTE } from "@/features/telecom/lib/canal-config";
 import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 import {
@@ -21,13 +21,7 @@ const MemoDonutChart = memo(function MemoDonutChart({
   data: Array<{ label: string; nombre: number; montant: number; color: string }>;
 }) {
   const option = useMemo(() => buildGroupSummaryDonutOption(data), [data]);
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: "170px" }}
-      opts={{ renderer: "canvas" }}
-    />
-  );
+  return <EChart option={option} height={170} />;
 });
 
 const MemoHbarChart = memo(function MemoHbarChart({
@@ -36,13 +30,7 @@ const MemoHbarChart = memo(function MemoHbarChart({
   data: Array<{ label: string; nombre: number; montant: number; color: string }>;
 }) {
   const option = useMemo(() => buildGroupSummaryHbarOption(data), [data]);
-  return (
-    <ReactECharts
-      option={option}
-      style={{ height: `${data.length * 28 + 20}px` }}
-      opts={{ renderer: "canvas" }}
-    />
-  );
+  return <EChart option={option} height={data.length * 28 + 20} />;
 });
 
 type FetchSpecChannelStats = (

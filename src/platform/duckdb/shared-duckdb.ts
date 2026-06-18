@@ -38,9 +38,24 @@ export interface RegisteredDataset {
   updatedAt: string;
 }
 
+export interface RejectError {
+  line: number | null;
+  columnName: string | null;
+  errorType: string | null;
+  errorMessage: string | null;
+}
+
+export interface RejectSummary {
+  rejectedRowCount: number;
+  sample: RejectError[];
+}
+
 export interface RegisteredDatasetWithPreview extends RegisteredDataset {
   previewRows: Record<string, unknown>[];
+  rejects?: RejectSummary;
 }
+
+export type CsvEncoding = "utf-8" | "utf-16" | "latin-1";
 
 export interface RegisterCSVPathDatasetInput {
   filePath: string;
@@ -49,6 +64,78 @@ export interface RegisterCSVPathDatasetInput {
   delimiter?: string;
   sampleSize?: number;
   previewLimit?: number;
+  encoding?: CsvEncoding;
+  storeRejects?: boolean;
+}
+
+// ─── Pushdown / pagination / cancellation types ───────────────────────────────
+
+export interface SummarizeRow {
+  column_name: string;
+  column_type: string;
+  min: unknown;
+  max: unknown;
+  approx_unique: number | null;
+  avg: number | null;
+  std: number | null;
+  q25: number | null;
+  q50: number | null;
+  q75: number | null;
+  count: number;
+  null_percentage: number | null;
+}
+
+export interface ColumnDetail {
+  column: string;
+  distinctApprox: number;
+  topValues: Array<{ value: unknown; count: number | null }>;
+  histogram: Array<{ bin: string; count: number }>;
+}
+
+export interface ProfileDatasetInput {
+  datasetId: string;
+  cancelToken?: string;
+}
+
+export interface ProfileColumnDetailInput {
+  datasetId: string;
+  column: string;
+  topK?: number;
+  binCount?: number;
+  cancelToken?: string;
+}
+
+export interface CountRowsInput {
+  datasetId: string;
+  where?: string;
+  force?: boolean;
+  cancelToken?: string;
+}
+
+export interface KeysetSortKey {
+  column: string;
+  direction?: "ASC" | "DESC";
+}
+
+export interface KeysetCursor {
+  sortValues: unknown[];
+  rowid: number;
+}
+
+export interface KeysetPageInput {
+  datasetId: string;
+  sortKeys: KeysetSortKey[];
+  limit: number;
+  where?: string;
+  cursor?: KeysetCursor;
+  columns?: string[];
+  cancelToken?: string;
+}
+
+export interface KeysetPageResult {
+  arrow: Uint8Array;
+  nextCursor: KeysetCursor | null;
+  rowCount: number;
 }
 
 export interface RegisterParquetPathDatasetInput {
@@ -128,6 +215,20 @@ interface DuckDBBridgeApi {
   clearQueryMetrics(): Promise<void>;
 
   runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]>;
+
+  runReadOnlyQueryArrow(sql: string, cancelToken?: string): Promise<Uint8Array>;
+
+  profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]>;
+
+  profileColumnDetail(input: ProfileColumnDetailInput): Promise<ColumnDetail>;
+
+  countRows(input: CountRowsInput): Promise<number>;
+
+  fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult>;
+
+  cancelQueries(token: string): Promise<{ success: boolean }>;
+
+  resetCancelToken(token: string): Promise<{ success: boolean }>;
 }
 
 // ─── Timeout helper ───────────────────────────────────────────────────────────
@@ -250,6 +351,20 @@ export interface SharedDuckDB {
   clearQueryMetrics(): Promise<void>;
 
   runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]>;
+
+  runReadOnlyQueryArrow(sql: string, cancelToken?: string): Promise<Uint8Array>;
+
+  profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]>;
+
+  profileColumnDetail(input: ProfileColumnDetailInput): Promise<ColumnDetail>;
+
+  countRows(input: CountRowsInput): Promise<number>;
+
+  fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult>;
+
+  cancelQueries(token: string): Promise<void>;
+
+  resetCancelToken(token: string): Promise<void>;
 }
 
 // ─── SharedDuckDB implementation ──────────────────────────────────────────────
@@ -411,6 +526,82 @@ export const sharedDuckDB: SharedDuckDB = {
       (bridge) => bridge.runReadOnlyQuery(sql),
       60_000,
       "Read-only query timed out",
+    );
+  },
+
+  async runReadOnlyQueryArrow(
+    sql: string,
+    cancelToken?: string,
+  ): Promise<Uint8Array> {
+    await ensureReady();
+
+    return ipc(
+      (bridge) => bridge.runReadOnlyQueryArrow(sql, cancelToken),
+      60_000,
+      "Arrow read-only query timed out",
+    );
+  },
+
+  async profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]> {
+    await ensureReady();
+
+    return ipc(
+      (bridge) => bridge.profileDataset(input),
+      60_000,
+      "Profile dataset timed out",
+    );
+  },
+
+  async profileColumnDetail(
+    input: ProfileColumnDetailInput,
+  ): Promise<ColumnDetail> {
+    await ensureReady();
+
+    return ipc(
+      (bridge) => bridge.profileColumnDetail(input),
+      60_000,
+      "Profile column detail timed out",
+    );
+  },
+
+  async countRows(input: CountRowsInput): Promise<number> {
+    await ensureReady();
+
+    return ipc(
+      (bridge) => bridge.countRows(input),
+      60_000,
+      "Count rows timed out",
+    );
+  },
+
+  async fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult> {
+    await ensureReady();
+
+    return ipc(
+      (bridge) => bridge.fetchKeysetPage(input),
+      60_000,
+      "Keyset page query timed out",
+    );
+  },
+
+  async cancelQueries(token: string): Promise<void> {
+    // Best-effort: cancellation should be quick and must not block on init.
+    await ensureReady();
+
+    await ipc(
+      (bridge) => bridge.cancelQueries(token),
+      10_000,
+      "Cancel queries timed out",
+    );
+  },
+
+  async resetCancelToken(token: string): Promise<void> {
+    await ensureReady();
+
+    await ipc(
+      (bridge) => bridge.resetCancelToken(token),
+      10_000,
+      "Reset cancel token timed out",
     );
   },
 };
