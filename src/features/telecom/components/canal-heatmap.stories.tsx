@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { CanalHourCell, ColumnMapping } from "@/features/telecom/types";
 import { CanalHeatmap } from "./canal-heatmap";
