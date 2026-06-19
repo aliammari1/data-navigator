@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MAX_CHARS_PER_CHUNK,
   chunkText,
