@@ -271,14 +271,15 @@ export function useModelStatus(lanes: ModelLane[] = ["llm", "embed"]): UseModelS
     new Map(),
   );
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal list per call site; keyed off its joined value to avoid rebuilds on new array references.
   const refresh = useCallback(async () => {
     const wanted = MODEL_MANIFEST.filter((m) => lanes.includes(m.lane));
     const next = await Promise.all(wanted.map(probeEntry));
     setRecords(next);
     setLoading(false);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal list per call site.
   }, [lanes.join(",")]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal per call site; keyed off its joined value to avoid rebuilds on new array references.
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -295,7 +296,6 @@ export function useModelStatus(lanes: ModelLane[] = ["llm", "embed"]): UseModelS
       for (const { unsubscribe } of captured.values()) unsubscribe();
       captured.clear();
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: lanes is a stable literal per call site.
   }, [lanes.join(",")]);
 
   const setDownload = useCallback((key: string, patch: Partial<DownloadState>) => {
