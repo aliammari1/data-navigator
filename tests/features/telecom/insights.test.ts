@@ -11,7 +11,6 @@ import type {
   CanalSummary,
   HourlyRow,
   KPISummary,
-  StatusRow,
 } from "@/features/telecom/types";
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
