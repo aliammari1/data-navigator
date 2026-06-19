@@ -29,8 +29,18 @@ const mapping: ColumnMapping = {
 
 const rows: ServiceCodeRow[] = [
   { serviceCode: "BILL_PAY_FIXE", category: "Facture", count: 8200, matchedCanal: "Bill Payment" },
-  { serviceCode: "BILL_PAY_MOBILE", category: "Facture", count: 3100, matchedCanal: "Bill Payment" },
-  { serviceCode: "RECHARGE_TTCASH_MOBILE", category: "Recharge", count: 6400, matchedCanal: "Mobile by TTCASH" },
+  {
+    serviceCode: "BILL_PAY_MOBILE",
+    category: "Facture",
+    count: 3100,
+    matchedCanal: "Bill Payment",
+  },
+  {
+    serviceCode: "RECHARGE_TTCASH_MOBILE",
+    category: "Recharge",
+    count: 6400,
+    matchedCanal: "Mobile by TTCASH",
+  },
   { serviceCode: "RECHARGE_SABBA", category: "Data", count: 4100, matchedCanal: "Internet Sabba" },
   { serviceCode: "UNKNOWN_SVC_42", category: "", count: 320, matchedCanal: "Other" },
   { serviceCode: "LEGACY_TOPUP", category: "Inconnu", count: 95, matchedCanal: "Other" },

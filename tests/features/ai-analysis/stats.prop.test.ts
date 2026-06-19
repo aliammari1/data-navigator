@@ -123,10 +123,7 @@ describe("pearsonCorrelation — bounded in [-1, 1] (fuzzed)", () => {
     (xs) => {
       const ys = xs.map((v, i) => v * 2 + i);
       fc.pre(hasVariance(xs) && hasVariance(ys));
-      expect(pearsonCorrelation(xs, ys)).toBeCloseTo(
-        pearsonCorrelation(ys, xs),
-        9,
-      );
+      expect(pearsonCorrelation(xs, ys)).toBeCloseTo(pearsonCorrelation(ys, xs), 9);
     },
   );
 

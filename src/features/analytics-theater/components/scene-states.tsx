@@ -29,9 +29,7 @@ export function SceneEmptyState({
       </div>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-sm text-xs leading-snug text-muted-foreground">
-          {description}
-        </p>
+        <p className="mt-1 max-w-sm text-xs leading-snug text-muted-foreground">{description}</p>
       )}
       {action && <div className="mt-4">{action}</div>}
     </div>
@@ -69,16 +67,10 @@ export function SceneErrorState({
       </div>
       <h3 className="text-sm font-semibold text-foreground">{title}</h3>
       {description && (
-        <p className="mt-1 max-w-md text-xs leading-snug text-muted-foreground">
-          {description}
-        </p>
+        <p className="mt-1 max-w-md text-xs leading-snug text-muted-foreground">{description}</p>
       )}
       {retry && (
-        <button
-          type="button"
-          onClick={retry}
-          className="mt-4 text-xs text-primary hover:underline"
-        >
+        <button type="button" onClick={retry} className="mt-4 text-xs text-primary hover:underline">
           Retry
         </button>
       )}

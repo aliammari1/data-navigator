@@ -31,12 +31,8 @@ export const Default: Story = {};
 export const LoadsQuickExample: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /MSISDNs Uniques/i }),
-    );
-    await expect(canvas.getByLabelText(/KPI Label/i)).toHaveValue(
-      "MSISDNs Uniques",
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /MSISDNs Uniques/i }));
+    await expect(canvas.getByLabelText(/KPI Label/i)).toHaveValue("MSISDNs Uniques");
   },
 };
 
@@ -46,17 +42,12 @@ export const LoadsQuickExample: Story = {
 export const RunsAndAddsKPI: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.type(
-      canvas.getByLabelText(/KPI Label/i),
-      "Tx Haute Valeur",
-    );
+    await userEvent.type(canvas.getByLabelText(/KPI Label/i), "Tx Haute Valeur");
     await userEvent.type(
       canvas.getByLabelText(/Expression SQL/i),
       'COUNT(*) FILTER (WHERE TRY_CAST("ORIGINAL_AMOUNT" AS DOUBLE) > 1000)',
     );
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Exécuter & Ajouter KPI/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Exécuter & Ajouter KPI/i }));
     await expect(args.runCustomKPIExpr).toHaveBeenCalledTimes(1);
   },
 };
@@ -67,8 +58,6 @@ export const RunsAndAddsKPI: Story = {
 export const SubmitDisabledWhenEmpty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole("button", { name: /Exécuter & Ajouter KPI/i }),
-    ).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: /Exécuter & Ajouter KPI/i })).toBeDisabled();
   },
 };

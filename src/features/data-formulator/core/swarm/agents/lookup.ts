@@ -50,7 +50,14 @@ export async function runLookup(
     const prompt =
       attempt === 0
         ? basePrompt
-        : [basePrompt, "", `Your previous SQL failed: ${lastError}`, "Failing SQL:", lastSql, "Return corrected SQL."].join("\n");
+        : [
+            basePrompt,
+            "",
+            `Your previous SQL failed: ${lastError}`,
+            "Failing SQL:",
+            lastSql,
+            "Return corrected SQL.",
+          ].join("\n");
 
     const parsed = await scheduler.generateStructured(
       {

@@ -32,7 +32,10 @@ test.describe("Storybook visual regression", () => {
 
   test.beforeAll(async ({ request, baseURL }) => {
     const res = await request.get(`${baseURL}/index.json`);
-    expect(res.ok(), "storybook index.json should be reachable — did you run build:storybook?").toBeTruthy();
+    expect(
+      res.ok(),
+      "storybook index.json should be reachable — did you run build:storybook?",
+    ).toBeTruthy();
     const index = (await res.json()) as StoryIndex;
     entries = Object.values(index.entries).filter(
       (e) => e.type === "story" && !(e.tags ?? []).includes(SKIP_TAG),

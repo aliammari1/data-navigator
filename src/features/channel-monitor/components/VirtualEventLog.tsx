@@ -41,9 +41,7 @@ export function VirtualEventLog({
 
   if (events.length === 0) {
     return (
-      <div className="text-center text-slate-500 py-8">
-        No events match the current filter
-      </div>
+      <div className="text-center text-slate-500 py-8">No events match the current filter</div>
     );
   }
 
@@ -76,10 +74,7 @@ export function VirtualEventLog({
               }}
             >
               <span
-                className={cn(
-                  "size-2 rounded-full mt-1.5 shrink-0",
-                  severityDot(ev.severity),
-                )}
+                className={cn("size-2 rounded-full mt-1.5 shrink-0", severityDot(ev.severity))}
               />
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -91,9 +86,7 @@ export function VirtualEventLog({
                   >
                     {ev.severity.toUpperCase()}
                   </span>
-                  <span className="text-slate-200 text-xs font-medium truncate">
-                    {ev.label}
-                  </span>
+                  <span className="text-slate-200 text-xs font-medium truncate">{ev.label}</span>
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5 truncate">
                   {channelLabel(ev.channel)}

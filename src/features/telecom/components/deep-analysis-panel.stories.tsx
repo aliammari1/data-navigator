@@ -1,12 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone } from "lucide-react";
 
-import type {
-  CanalSummary,
-  HourlyRow,
-  KPISummary,
-  StatusRow,
-} from "@/features/telecom/types";
+import type { CanalSummary, HourlyRow, KPISummary, StatusRow } from "@/features/telecom/types";
 import { DeepAnalysisPanel } from "./deep-analysis-panel";
 
 const kpi: KPISummary = {
@@ -104,7 +99,9 @@ export const Default: Story = {};
 
 export const HealthyMetrics: Story = {
   args: {
-    canals: [{ ...baseCanal, key: "bill_payment", label: "Bill Payment", icon: FileText, successRate: 97 }],
+    canals: [
+      { ...baseCanal, key: "bill_payment", label: "Bill Payment", icon: FileText, successRate: 97 },
+    ],
     kpi: { ...kpi, successRate: 97.2, declinedCount: 420 },
   },
 };

@@ -48,13 +48,7 @@ function findStories(dir = resolve(ROOT, "src"), out = []) {
 function resolveModule(fromFile, importPath) {
   if (!importPath.startsWith(".")) return null; // package import — skip.
   const base = resolve(dirname(fromFile), importPath);
-  const candidates = [
-    base,
-    `${base}.tsx`,
-    `${base}.ts`,
-    `${base}/index.tsx`,
-    `${base}/index.ts`,
-  ];
+  const candidates = [base, `${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`];
   return candidates.find((c) => existsSync(c)) ?? null;
 }
 
@@ -93,9 +87,7 @@ for (const file of findStories()) {
   const importRe = new RegExp(
     `import\\s+(?:type\\s+)?\\{[^}]*\\b${componentName}\\b[^}]*\\}\\s+from\\s+["']([^"']+)["']`,
   );
-  const defaultImportRe = new RegExp(
-    `import\\s+${componentName}\\s+from\\s+["']([^"']+)["']`,
-  );
+  const defaultImportRe = new RegExp(`import\\s+${componentName}\\s+from\\s+["']([^"']+)["']`);
   const imp = src.match(importRe) ?? src.match(defaultImportRe);
   if (!imp) {
     errors.push(`${rel}: \`${componentName}\` used as meta.component but is not imported.`);
@@ -147,4 +139,6 @@ if (failed) {
   console.error(`\nStorybook audit failed.`);
   process.exit(1);
 }
-console.log(`\nStorybook audit passed${incomplete.length ? ` (${incomplete.length} warnings)` : ""}.`);
+console.log(
+  `\nStorybook audit passed${incomplete.length ? ` (${incomplete.length} warnings)` : ""}.`,
+);

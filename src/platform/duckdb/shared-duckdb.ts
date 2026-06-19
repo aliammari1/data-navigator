@@ -188,9 +188,7 @@ export interface DuckDBStatus {
 interface DuckDBBridgeApi {
   init(): Promise<{ success: boolean }>;
 
-  registerCSVPathDataset(
-    input: RegisterCSVPathDatasetInput,
-  ): Promise<RegisteredDatasetWithPreview>;
+  registerCSVPathDataset(input: RegisterCSVPathDatasetInput): Promise<RegisteredDatasetWithPreview>;
 
   registerParquetPathDataset(
     input: RegisterParquetPathDatasetInput,
@@ -198,9 +196,7 @@ interface DuckDBBridgeApi {
 
   listDatasets(): Promise<RegisteredDataset[]>;
 
-  previewDataset(
-    input: PreviewDatasetInput,
-  ): Promise<Record<string, unknown>[]>;
+  previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]>;
 
   summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]>;
 
@@ -233,11 +229,7 @@ interface DuckDBBridgeApi {
 
 // ─── Timeout helper ───────────────────────────────────────────────────────────
 
-function withTimeout<T>(
-  promise: Promise<T>,
-  timeoutMs: number,
-  message: string,
-): Promise<T> {
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer: ReturnType<typeof setTimeout> = setTimeout(() => {
       reject(new Error(message));
@@ -278,9 +270,7 @@ function hasDuckDBBridge(): boolean {
 
 function getBridge(): DuckDBBridgeApi {
   if (!hasDuckDBBridge()) {
-    throw new Error(
-      "DuckDB bridge is unavailable. Are you running in Electron?",
-    );
+    throw new Error("DuckDB bridge is unavailable. Are you running in Electron?");
   }
 
   return duckdbBridge() as unknown as DuckDBBridgeApi;
@@ -324,9 +314,7 @@ export interface SharedDuckDB {
   init(): Promise<void>;
   reset(): void;
 
-  registerCSVPathDataset(
-    input: RegisterCSVPathDatasetInput,
-  ): Promise<RegisteredDatasetWithPreview>;
+  registerCSVPathDataset(input: RegisterCSVPathDatasetInput): Promise<RegisteredDatasetWithPreview>;
 
   registerParquetPathDataset(
     input: RegisterParquetPathDatasetInput,
@@ -334,9 +322,7 @@ export interface SharedDuckDB {
 
   listDatasets(): Promise<RegisteredDataset[]>;
 
-  previewDataset(
-    input: PreviewDatasetInput,
-  ): Promise<Record<string, unknown>[]>;
+  previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]>;
 
   summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]>;
 
@@ -386,11 +372,7 @@ export const sharedDuckDB: SharedDuckDB = {
     if (ready) return;
     if (initPromise) return initPromise;
 
-    initPromise = ipc(
-      (bridge) => bridge.init(),
-      60_000,
-      "DuckDB init timed out",
-    )
+    initPromise = ipc((bridge) => bridge.init(), 60_000, "DuckDB init timed out")
       .then(() => {
         ready = true;
       })
@@ -438,101 +420,58 @@ export const sharedDuckDB: SharedDuckDB = {
   async listDatasets(): Promise<RegisteredDataset[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.listDatasets(),
-      30_000,
-      "List datasets timed out",
-    );
+    return ipc((bridge) => bridge.listDatasets(), 30_000, "List datasets timed out");
   },
 
-  async previewDataset(
-    input: PreviewDatasetInput,
-  ): Promise<Record<string, unknown>[]> {
+  async previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.previewDataset(input),
-      30_000,
-      "Preview dataset timed out",
-    );
+    return ipc((bridge) => bridge.previewDataset(input), 30_000, "Preview dataset timed out");
   },
 
-  async summarizeDataset(
-    input: DatasetOnlyInput,
-  ): Promise<Record<string, unknown>[]> {
+  async summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.summarizeDataset(input),
-      60_000,
-      "Summarize dataset timed out",
-    );
+    return ipc((bridge) => bridge.summarizeDataset(input), 60_000, "Summarize dataset timed out");
   },
 
   async exportDataset(input: ExportDatasetInput): Promise<void> {
     await ensureReady();
 
-    await ipc(
-      (bridge) => bridge.exportDataset(input),
-      60_000,
-      "Export dataset timed out",
-    );
+    await ipc((bridge) => bridge.exportDataset(input), 60_000, "Export dataset timed out");
   },
 
   async deleteDataset(input: DatasetOnlyInput): Promise<void> {
     await ensureReady();
 
-    await ipc(
-      (bridge) => bridge.deleteDataset(input),
-      30_000,
-      "Delete dataset timed out",
-    );
+    await ipc((bridge) => bridge.deleteDataset(input), 30_000, "Delete dataset timed out");
   },
 
   async getStatus(): Promise<DuckDBStatus> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.getStatus(),
-      30_000,
-      "Get DuckDB status timed out",
-    );
+    return ipc((bridge) => bridge.getStatus(), 30_000, "Get DuckDB status timed out");
   },
 
   async getQueryMetrics(): Promise<QueryMetric[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.getQueryMetrics(),
-      30_000,
-      "Get query metrics timed out",
-    );
+    return ipc((bridge) => bridge.getQueryMetrics(), 30_000, "Get query metrics timed out");
   },
 
   async clearQueryMetrics(): Promise<void> {
     await ensureReady();
 
-    await ipc(
-      (bridge) => bridge.clearQueryMetrics(),
-      30_000,
-      "Clear query metrics timed out",
-    );
+    await ipc((bridge) => bridge.clearQueryMetrics(), 30_000, "Clear query metrics timed out");
   },
 
   async runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.runReadOnlyQuery(sql),
-      60_000,
-      "Read-only query timed out",
-    );
+    return ipc((bridge) => bridge.runReadOnlyQuery(sql), 60_000, "Read-only query timed out");
   },
 
-  async runReadOnlyQueryArrow(
-    sql: string,
-    cancelToken?: string,
-  ): Promise<Uint8Array> {
+  async runReadOnlyQueryArrow(sql: string, cancelToken?: string): Promise<Uint8Array> {
     await ensureReady();
 
     return ipc(
@@ -545,16 +484,10 @@ export const sharedDuckDB: SharedDuckDB = {
   async profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.profileDataset(input),
-      60_000,
-      "Profile dataset timed out",
-    );
+    return ipc((bridge) => bridge.profileDataset(input), 60_000, "Profile dataset timed out");
   },
 
-  async profileColumnDetail(
-    input: ProfileColumnDetailInput,
-  ): Promise<ColumnDetail> {
+  async profileColumnDetail(input: ProfileColumnDetailInput): Promise<ColumnDetail> {
     await ensureReady();
 
     return ipc(
@@ -567,42 +500,26 @@ export const sharedDuckDB: SharedDuckDB = {
   async countRows(input: CountRowsInput): Promise<number> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.countRows(input),
-      60_000,
-      "Count rows timed out",
-    );
+    return ipc((bridge) => bridge.countRows(input), 60_000, "Count rows timed out");
   },
 
   async fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult> {
     await ensureReady();
 
-    return ipc(
-      (bridge) => bridge.fetchKeysetPage(input),
-      60_000,
-      "Keyset page query timed out",
-    );
+    return ipc((bridge) => bridge.fetchKeysetPage(input), 60_000, "Keyset page query timed out");
   },
 
   async cancelQueries(token: string): Promise<void> {
     // Best-effort: cancellation should be quick and must not block on init.
     await ensureReady();
 
-    await ipc(
-      (bridge) => bridge.cancelQueries(token),
-      10_000,
-      "Cancel queries timed out",
-    );
+    await ipc((bridge) => bridge.cancelQueries(token), 10_000, "Cancel queries timed out");
   },
 
   async resetCancelToken(token: string): Promise<void> {
     await ensureReady();
 
-    await ipc(
-      (bridge) => bridge.resetCancelToken(token),
-      10_000,
-      "Reset cancel token timed out",
-    );
+    await ipc((bridge) => bridge.resetCancelToken(token), 10_000, "Reset cancel token timed out");
   },
 };
 

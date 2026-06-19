@@ -39,9 +39,7 @@ export function UploadZone({ onLoaded }: Readonly<Props>) {
 
         const delimiter = "|";
 
-        setProgress(
-          `Loading ${ext.toUpperCase() || "file"} (delimiter="${delimiter}")…`,
-        );
+        setProgress(`Loading ${ext.toUpperCase() || "file"} (delimiter="${delimiter}")…`);
 
         await loadUploadFileToDuckDB(file, {
           tableName,
@@ -96,13 +94,7 @@ export function UploadZone({ onLoaded }: Readonly<Props>) {
             : "border-slate-700 bg-slate-800/30 hover:border-violet-500 hover:bg-violet-500/5",
       )}
     >
-      <input
-        ref={inputRef}
-        type="file"
-        accept=".csv"
-        className="hidden"
-        onChange={onFile}
-      />
+      <input ref={inputRef} type="file" accept=".csv" className="hidden" onChange={onFile} />
 
       {isLoading ? (
         <>
@@ -115,9 +107,7 @@ export function UploadZone({ onLoaded }: Readonly<Props>) {
             ✓
           </div>
           <p className="text-sm text-emerald-300">{progress}</p>
-          <p className="text-xs text-slate-500">
-            Click to load a different file
-          </p>
+          <p className="text-xs text-slate-500">Click to load a different file</p>
         </>
       ) : (
         <>
@@ -125,15 +115,11 @@ export function UploadZone({ onLoaded }: Readonly<Props>) {
             ↑
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-slate-200">
-              Drop your data file here
-            </p>
+            <p className="text-sm font-medium text-slate-200">Drop your data file here</p>
             <p className="text-xs text-slate-500 mt-1">CSV up to 500 MB</p>
           </div>
           {state === "error" && (
-            <p className="text-xs text-red-400 bg-red-900/20 rounded-lg px-3 py-2 mt-2">
-              {error}
-            </p>
+            <p className="text-xs text-red-400 bg-red-900/20 rounded-lg px-3 py-2 mt-2">{error}</p>
           )}
         </>
       )}

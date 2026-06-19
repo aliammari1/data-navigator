@@ -66,9 +66,7 @@ export function useDatasetByTable(tableName: string | null) {
   const getDatasetByTable = useDataStore((s) => s.getDatasetByTable);
 
   return useQuery({
-    queryKey: tableName
-      ? queryKeys.datasets.byTable(tableName)
-      : ["datasets", "null-table"],
+    queryKey: tableName ? queryKeys.datasets.byTable(tableName) : ["datasets", "null-table"],
     queryFn: () => (tableName ? (getDatasetByTable(tableName) ?? null) : null),
     enabled: !!tableName,
     staleTime: Infinity,
@@ -116,10 +114,7 @@ export function useAddDataset() {
       // Invalidate dataset lists and set the new dataset detail
       queryClient.invalidateQueries({ queryKey: queryKeys.datasets.lists() });
       queryClient.setQueryData(queryKeys.datasets.detail(dataset.id), dataset);
-      queryClient.setQueryData(
-        queryKeys.datasets.byTable(dataset.tableName),
-        dataset,
-      );
+      queryClient.setQueryData(queryKeys.datasets.byTable(dataset.tableName), dataset);
     },
   });
 }
@@ -132,13 +127,7 @@ export function useUpdateDataset() {
   const updateDataset = useDataStore((s) => s.updateDataset);
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      patch,
-    }: {
-      id: string;
-      patch: Partial<Dataset>;
-    }) => {
+    mutationFn: async ({ id, patch }: { id: string; patch: Partial<Dataset> }) => {
       updateDataset(id, patch);
       return { id, patch };
     },

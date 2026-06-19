@@ -110,8 +110,6 @@ export const EmptyRunning: Story = {
   decorators: [withStore({ widgets: [], running: true })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/agent building widgets/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/agent building widgets/i)).toBeInTheDocument();
   },
 };

@@ -21,10 +21,7 @@ declare const self: DedicatedWorkerGlobalScope & {
 };
 
 interface PyodideInstance {
-  runPythonAsync: (
-    code: string,
-    opts?: { globals?: unknown },
-  ) => Promise<unknown>;
+  runPythonAsync: (code: string, opts?: { globals?: unknown }) => Promise<unknown>;
   loadPackagesFromImports: (code: string) => Promise<void>;
   loadPackage: (names: string[]) => Promise<void>;
   globals: {
@@ -140,10 +137,7 @@ async function ensurePyodide(reqId: string): Promise<PyodideInstance> {
   return pyodide;
 }
 
-async function ensureScientific(
-  py: PyodideInstance,
-  reqId: string,
-): Promise<void> {
+async function ensureScientific(py: PyodideInstance, reqId: string): Promise<void> {
   if (!scientificPromise) {
     scientificPromise = (async () => {
       post({
@@ -158,26 +152,17 @@ async function ensureScientific(
   await scientificPromise;
 }
 
-function configureStreams(
-  py: PyodideInstance,
-  reqId: string,
-  sessionId: string,
-): void {
+function configureStreams(py: PyodideInstance, reqId: string, sessionId: string): void {
   activeSession.id = sessionId;
   py.setStdout({
-    batched: (s) =>
-      post({ id: reqId, type: "STDOUT", sessionId, text: `${s}\n` }),
+    batched: (s) => post({ id: reqId, type: "STDOUT", sessionId, text: `${s}\n` }),
   });
   py.setStderr({
-    batched: (s) =>
-      post({ id: reqId, type: "STDERR", sessionId, text: `${s}\n` }),
+    batched: (s) => post({ id: reqId, type: "STDERR", sessionId, text: `${s}\n` }),
   });
 }
 
-function getSession(
-  sessionId: string,
-  py: PyodideInstance,
-): { ns: PythonNamespace } {
+function getSession(sessionId: string, py: PyodideInstance): { ns: PythonNamespace } {
   let s = sessions.get(sessionId);
   if (!s) {
     const ns = py.toPy({}) as PythonNamespace;
@@ -187,26 +172,19 @@ function getSession(
   return s;
 }
 
-function setSessionValue(
-  session: { ns: PythonNamespace },
-  key: string,
-  value: unknown,
-): void {
+function setSessionValue(session: { ns: PythonNamespace }, key: string, value: unknown): void {
   if (typeof session.ns.set === "function") {
     session.ns.set(key, value);
     return;
   }
-  throw new Error(
-    "Pyodide session namespace does not support variable binding.",
-  );
+  throw new Error("Pyodide session namespace does not support variable binding.");
 }
 
 function safeJSON(value: unknown): unknown {
   if (value === null || value === undefined) return null;
   const t = typeof value;
   if (t === "string" || t === "number" || t === "boolean") return value;
-  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value))
-    return "<binary>";
+  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return "<binary>";
   try {
     return JSON.parse(JSON.stringify(value));
   } catch {

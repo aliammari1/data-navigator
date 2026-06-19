@@ -20,12 +20,7 @@ export const INSIGHT_CATEGORIES = [
   "forecast",
 ] as const;
 
-export const INSIGHT_SEVERITIES = [
-  "critical",
-  "warning",
-  "info",
-  "success",
-] as const;
+export const INSIGHT_SEVERITIES = ["critical", "warning", "info", "success"] as const;
 
 export const INSIGHT_IMPACTS = ["high", "medium", "low"] as const;
 

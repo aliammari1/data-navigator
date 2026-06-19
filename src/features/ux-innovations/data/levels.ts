@@ -22,7 +22,13 @@ export const LEVELS: LevelDef[] = [
   { name: "Silver", min: 100, max: 499, color: "text-slate-300", icon: Medal },
   { name: "Gold", min: 500, max: 1499, color: "text-yellow-400", icon: Trophy },
   { name: "Platinum", min: 1500, max: 4999, color: "text-cyan-300", icon: Award },
-  { name: "Diamond", min: 5000, max: Number.POSITIVE_INFINITY, color: "text-violet-300", icon: Gem },
+  {
+    name: "Diamond",
+    min: 5000,
+    max: Number.POSITIVE_INFINITY,
+    color: "text-violet-300",
+    icon: Gem,
+  },
 ];
 
 export interface LevelInfo {

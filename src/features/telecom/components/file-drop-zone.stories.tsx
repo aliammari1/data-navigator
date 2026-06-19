@@ -40,9 +40,7 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The upload affordance is present before any file is queued.
-    await expect(
-      canvas.getByText(/gliss|dépos|upload|fichier/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/gliss|dépos|upload|fichier/i)).toBeInTheDocument();
   },
 };
 

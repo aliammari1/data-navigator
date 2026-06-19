@@ -17,8 +17,7 @@ export function useMotionPrefs(): { reduced: boolean } {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
     const root = document.documentElement;
 
-    const compute = () =>
-      setReduced(media.matches || root.dataset.animations === "off");
+    const compute = () => setReduced(media.matches || root.dataset.animations === "off");
 
     compute();
     media.addEventListener("change", compute);

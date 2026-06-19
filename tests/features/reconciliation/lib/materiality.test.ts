@@ -21,10 +21,7 @@ describe("fitMateriality", () => {
   });
 
   it("ignores null and non-finite variance%% samples when counting", () => {
-    const model = fitMateriality(
-      [1, 2, null, Number.NaN, Number.POSITIVE_INFINITY],
-      5,
-    );
+    const model = fitMateriality([1, 2, null, Number.NaN, Number.POSITIVE_INFINITY], 5);
     // only the two finite samples survive → below the 4-sample minimum
     expect(model.sampleSize).toBe(2);
   });

@@ -129,10 +129,7 @@ function buildBar(
   return {
     ...BASE,
     tooltip: { ...TTP, trigger: "axis", axisPointer: { type: "shadow" } },
-    legend:
-      mets.length > 1
-        ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 }
-        : undefined,
+    legend: mets.length > 1 ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 } : undefined,
     grid: {
       top: mets.length > 1 ? 32 : 16,
       right: 16,
@@ -167,9 +164,7 @@ function buildStackedBar(
   if (!seriesCol || !met) return buildBar(data, spec, horizontal);
 
   const categories = [...new Set(data.map((r) => String(r[dim] ?? "")))];
-  const seriesKeys = [
-    ...new Set(data.map((r) => String(r[seriesCol] ?? ""))),
-  ].slice(0, 10);
+  const seriesKeys = [...new Set(data.map((r) => String(r[seriesCol] ?? "")))].slice(0, 10);
 
   const series = seriesKeys.map((sk, i) => ({
     name: sk,
@@ -177,8 +172,7 @@ function buildStackedBar(
     stack: "total",
     data: categories.map((cat) => {
       const row = data.find(
-        (r) =>
-          String(r[dim] ?? "") === cat && String(r[seriesCol] ?? "") === sk,
+        (r) => String(r[dim] ?? "") === cat && String(r[seriesCol] ?? "") === sk,
       );
       return row ? toNum(row[met]) : 0;
     }),
@@ -265,10 +259,7 @@ function buildLine(
   return {
     ...BASE,
     tooltip: { ...TTP, trigger: "axis" },
-    legend:
-      mets.length > 1
-        ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 }
-        : undefined,
+    legend: mets.length > 1 ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 } : undefined,
     grid: {
       top: mets.length > 1 ? 32 : 16,
       right: 16,
@@ -338,10 +329,7 @@ function buildPie(
   };
 }
 
-function buildScatter(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildScatter(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const mets = pickMetrics(spec, cols, 2);
   const xCol = mets[0] ?? cols.numCols[0] ?? "";
@@ -387,10 +375,7 @@ function buildScatter(
   };
 }
 
-function buildHeatmap(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildHeatmap(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const rowC =
     spec.dimensions[0] && cols.allCols.includes(spec.dimensions[0])
@@ -402,19 +387,9 @@ function buildHeatmap(
       : (cols.catCols[1] ?? "");
   const met = pickMetrics(spec, cols, 1)[0] ?? "";
 
-  const rows = [...new Set(data.map((r) => String(r[rowC] ?? "")))].slice(
-    0,
-    20,
-  );
-  const colsU = [...new Set(data.map((r) => String(r[colC] ?? "")))].slice(
-    0,
-    20,
-  );
-  const vals = data.map((r) => [
-    String(r[rowC] ?? ""),
-    String(r[colC] ?? ""),
-    toNum(r[met]),
-  ]);
+  const rows = [...new Set(data.map((r) => String(r[rowC] ?? "")))].slice(0, 20);
+  const colsU = [...new Set(data.map((r) => String(r[colC] ?? "")))].slice(0, 20);
+  const vals = data.map((r) => [String(r[rowC] ?? ""), String(r[colC] ?? ""), toNum(r[met])]);
   const max = Math.max(...vals.map((v) => v[2] as number), 1);
 
   return {
@@ -454,10 +429,7 @@ function buildHeatmap(
   };
 }
 
-function buildTreemap(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildTreemap(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const dim = pickDim(spec, cols);
   const met = pickMetrics(spec, cols, 1)[0] ?? "";
@@ -472,8 +444,7 @@ function buildTreemap(
     ...BASE,
     tooltip: {
       ...TTP,
-      formatter: (p: { name: string; value: number }) =>
-        `${p.name}: ${fmtVal(p.value)}`,
+      formatter: (p: { name: string; value: number }) => `${p.name}: ${fmtVal(p.value)}`,
     },
     series: [
       {
@@ -491,18 +462,13 @@ function buildTreemap(
   };
 }
 
-function buildRadar(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildRadar(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const dim = pickDim(spec, cols);
   const mets = pickMetrics(spec, cols, 6);
   if (mets.length < 2) return buildBar(data, spec, false);
 
-  const maxPerMet = mets.map((m) =>
-    Math.max(...data.map((r) => toNum(r[m])), 1),
-  );
+  const maxPerMet = mets.map((m) => Math.max(...data.map((r) => toNum(r[m])), 1));
   const indicators = mets.map((m, i) => ({
     name: fmtLabel(m),
     max: maxPerMet[i],
@@ -535,10 +501,7 @@ function buildRadar(
   };
 }
 
-function buildGauge(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildGauge(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const met = pickMetrics(spec, cols, 1)[0] ?? "";
   const raw = data[0] ? toNum(data[0][met] ?? Object.values(data[0])[0]) : 0;
@@ -584,17 +547,12 @@ function buildGauge(
   };
 }
 
-function buildFunnel(
-  data: Record<string, unknown>[],
-  spec: WidgetSpec,
-): Record<string, unknown> {
+function buildFunnel(data: Record<string, unknown>[], spec: WidgetSpec): Record<string, unknown> {
   const cols = classifyCols(data[0]);
   const dim = pickDim(spec, cols);
   const met = pickMetrics(spec, cols, 1)[0] ?? "";
 
-  const sorted = [...data]
-    .sort((a, b) => toNum(b[met]) - toNum(a[met]))
-    .slice(0, 10);
+  const sorted = [...data].sort((a, b) => toNum(b[met]) - toNum(a[met])).slice(0, 10);
   const fData = sorted.map((r, i) => ({
     name: String(r[dim] ?? `Stage ${i + 1}`),
     value: toNum(r[met] ?? 0),
@@ -606,8 +564,7 @@ function buildFunnel(
     tooltip: {
       ...TTP,
       trigger: "item",
-      formatter: (p: { name: string; value: number }) =>
-        `${p.name}: ${fmtVal(p.value)}`,
+      formatter: (p: { name: string; value: number }) => `${p.name}: ${fmtVal(p.value)}`,
     },
     series: [
       {
@@ -634,16 +591,11 @@ function buildFunnel(
 
 function kpiColorClass(key: string): string {
   const k = key.toLowerCase();
-  if (k.match(/success|ok|complete|done|pass/))
-    return "border-emerald-500/20 bg-emerald-500/5";
-  if (k.match(/fail|error|decline|reject|cancel/))
-    return "border-red-500/20 bg-red-500/5";
-  if (k.match(/warn|pending|hold|wait|instance/))
-    return "border-amber-500/20 bg-amber-500/5";
-  if (k.match(/count|total|record|row/))
-    return "border-blue-500/20 bg-blue-500/5";
-  if (k.match(/rate|pct|percent|ratio|score/))
-    return "border-violet-500/20 bg-violet-500/5";
+  if (k.match(/success|ok|complete|done|pass/)) return "border-emerald-500/20 bg-emerald-500/5";
+  if (k.match(/fail|error|decline|reject|cancel/)) return "border-red-500/20 bg-red-500/5";
+  if (k.match(/warn|pending|hold|wait|instance/)) return "border-amber-500/20 bg-amber-500/5";
+  if (k.match(/count|total|record|row/)) return "border-blue-500/20 bg-blue-500/5";
+  if (k.match(/rate|pct|percent|ratio|score/)) return "border-violet-500/20 bg-violet-500/5";
   if (k.match(/amount|revenue|profit|cost|price|value|sum/))
     return "border-amber-500/20 bg-amber-500/5";
   if (k.match(/avg|mean|median/)) return "border-cyan-500/20 bg-cyan-500/5";
@@ -669,10 +621,7 @@ function kpiFormatValue(key: string, raw: unknown): string {
   const k = key.toLowerCase();
 
   // Rate/percentage (0–1 range → %)
-  if (
-    (k.match(/rate|ratio|pct|percent|score/) || (n > 0 && n <= 1)) &&
-    !k.match(/id|count/)
-  ) {
+  if ((k.match(/rate|ratio|pct|percent|score/) || (n > 0 && n <= 1)) && !k.match(/id|count/)) {
     if (n <= 1) return `${(n * 100).toFixed(1)}%`;
     return `${n.toFixed(1)}%`;
   }

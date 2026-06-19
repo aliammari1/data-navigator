@@ -8,11 +8,7 @@
 // Dexie upsert is idempotent.
 
 import type { ActivityEvent } from "@/core/stores/activity-store";
-import type {
-  Dataset,
-  DataTransform,
-  QueryHistoryItem,
-} from "@/core/stores/data-store";
+import type { Dataset, DataTransform, QueryHistoryItem } from "@/core/stores/data-store";
 
 import type { HistoryRow } from "../model/types";
 

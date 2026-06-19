@@ -38,9 +38,7 @@ interface FileSystemSyncAccessHandle {
   flush(): void;
   close(): void;
 }
-declare const WorkerGlobalScope:
-  | { prototype: object; new (): object }
-  | undefined;
+declare const WorkerGlobalScope: { prototype: object; new (): object } | undefined;
 
 // ─── Capability detection ─────────────────────────────────────────────────────
 
@@ -84,10 +82,7 @@ async function getRoot(): Promise<FileSystemDirectoryHandle> {
  * Resolve a directory handle for a "/"-separated path, creating segments when
  * `create` is true. `""` / `"/"` resolves to the OPFS root.
  */
-export async function getDir(
-  path = "",
-  create = false,
-): Promise<FileSystemDirectoryHandle> {
+export async function getDir(path = "", create = false): Promise<FileSystemDirectoryHandle> {
   let dir = await getRoot();
   const segments = path.split("/").filter(Boolean);
   for (const segment of segments) {
@@ -104,10 +99,7 @@ function splitPath(filePath: string): { dirPath: string; name: string } {
   return { dirPath: clean.slice(0, idx), name: clean.slice(idx + 1) };
 }
 
-async function getFileHandle(
-  filePath: string,
-  create = false,
-): Promise<FileSystemFileHandle> {
+async function getFileHandle(filePath: string, create = false): Promise<FileSystemFileHandle> {
   const { dirPath, name } = splitPath(filePath);
   const dir = await getDir(dirPath, create);
   return dir.getFileHandle(name, { create });
@@ -252,9 +244,7 @@ export class OPFSSyncFile {
 
   static async open(filePath: string, create = true): Promise<OPFSSyncFile> {
     if (!isSyncAccessAvailable()) {
-      throw new Error(
-        "createSyncAccessHandle requires a Worker context with OPFS support",
-      );
+      throw new Error("createSyncAccessHandle requires a Worker context with OPFS support");
     }
     const fileHandle = await getFileHandle(filePath, create);
     // createSyncAccessHandle is worker-only and absent from the DOM lib used by
@@ -318,10 +308,7 @@ export class OPFSBlobStore {
   }
 
   /** Whole-file write via a sync handle (fast path). Truncates first. */
-  async writeAll(
-    name: string,
-    data: ArrayBuffer | ArrayBufferView,
-  ): Promise<void> {
+  async writeAll(name: string, data: ArrayBuffer | ArrayBufferView): Promise<void> {
     const view =
       data instanceof ArrayBuffer
         ? new Uint8Array(data)
@@ -370,11 +357,7 @@ export class OPFSBlobStore {
   }
 
   /** Random range read (e.g. PMTiles range requests) — worker-only. */
-  async readRange(
-    name: string,
-    offset: number,
-    length: number,
-  ): Promise<ArrayBuffer> {
+  async readRange(name: string, offset: number, length: number): Promise<ArrayBuffer> {
     const file = await OPFSSyncFile.open(this.key(name), false);
     try {
       return file.read(offset, length);

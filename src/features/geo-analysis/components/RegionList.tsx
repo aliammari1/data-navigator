@@ -24,12 +24,7 @@ export interface RegionListProps {
 
 const ROW_HEIGHT = 40;
 
-export function RegionList({
-  regions,
-  selectedRegion,
-  onSelect,
-  height = 320,
-}: RegionListProps) {
+export function RegionList({ regions, selectedRegion, onSelect, height = 320 }: RegionListProps) {
   const parentRef = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useVirtualizer({
@@ -69,9 +64,7 @@ export function RegionList({
               <span className="w-6 shrink-0 text-right font-mono text-[10px] text-muted-foreground">
                 #{region.rank}
               </span>
-              <span className="min-w-0 flex-1 truncate font-medium">
-                {region.name}
-              </span>
+              <span className="min-w-0 flex-1 truncate font-medium">{region.name}</span>
               <span className="shrink-0 tabular-nums text-muted-foreground">
                 {fmtN(region.transactions)}
               </span>

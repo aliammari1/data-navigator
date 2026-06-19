@@ -20,12 +20,7 @@ export interface ForecastPoint {
   isForecast: true;
 }
 
-function holtWinters(
-  values: number[],
-  horizon: number,
-  alpha = 0.3,
-  beta = 0.1,
-): number[] {
+function holtWinters(values: number[], horizon: number, alpha = 0.3, beta = 0.1): number[] {
   const n = values.length;
   if (n === 0) return [];
 

@@ -34,12 +34,7 @@ import type { DiffConfig } from "../lib/recon-sql";
 import { useDiffPage, useDiffSummary } from "../lib/use-reconciliation";
 import { useAnnotationsStore } from "../stores/annotations-store";
 
-const STEPS = [
-  "Select sources",
-  "Diff & summary",
-  "Investigate",
-  "Finalize",
-] as const;
+const STEPS = ["Select sources", "Diff & summary", "Investigate", "Finalize"] as const;
 
 const PAGE_LIMIT = 500;
 
@@ -71,13 +66,14 @@ export function ReconciliationWizard() {
 
   const rows = pageQuery.data ?? [];
   const materiality = useMemo(
-    () => fitMateriality(rows.map((r) => r.primaryVariancePct), tolerancePct),
+    () =>
+      fitMateriality(
+        rows.map((r) => r.primaryVariancePct),
+        tolerancePct,
+      ),
     [rows, tolerancePct],
   );
-  const measureLabels = useMemo(
-    () => cfg?.measures.map((m) => m.label) ?? [],
-    [cfg],
-  );
+  const measureLabels = useMemo(() => cfg?.measures.map((m) => m.label) ?? [], [cfg]);
 
   const handleSourcesReady = useCallback(
     (
@@ -159,9 +155,7 @@ export function ReconciliationWizard() {
                 </span>
                 {label}
               </button>
-              {i < STEPS.length - 1 && (
-                <span className="h-px w-4 bg-slate-700" aria-hidden />
-              )}
+              {i < STEPS.length - 1 && <span className="h-px w-4 bg-slate-700" aria-hidden />}
             </li>
           );
         })}
@@ -177,10 +171,7 @@ export function ReconciliationWizard() {
 
       {step === 1 && cfg && (
         <div className="space-y-5">
-          <DiffSummaryCards
-            summary={summaryQuery.data ?? null}
-            loading={summaryQuery.isLoading}
-          />
+          <DiffSummaryCards summary={summaryQuery.data ?? null} loading={summaryQuery.isLoading} />
           <ReconciliationDiffGrid
             rows={rows}
             measureLabels={measureLabels}
@@ -219,11 +210,7 @@ export function ReconciliationWizard() {
               setRunsRefresh((n) => n + 1);
             }}
           />
-          <NavRow
-            onBack={() => setStep(2)}
-            onNext={startOver}
-            nextLabel="New reconciliation"
-          />
+          <NavRow onBack={() => setStep(2)} onNext={startOver} nextLabel="New reconciliation" />
         </div>
       )}
 

@@ -15,24 +15,9 @@
 
 "use client";
 
-import {
-  createContext,
-  type ReactNode,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-import {
-  connectRoomLAN,
-  disconnectRoomLAN,
-  setAwarenessUser,
-} from "@/platform/collab";
-import {
-  getLANPeers,
-  readLANSettings,
-  subscribeLAN,
-} from "@/platform/lan/lan-collab";
+import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
+import { connectRoomLAN, disconnectRoomLAN, setAwarenessUser } from "@/platform/collab";
+import { getLANPeers, readLANSettings, subscribeLAN } from "@/platform/lan/lan-collab";
 import { acquireRoom, releaseRoom, type RoomDoc } from "./room";
 import type { LocalPeer } from "./room-actions";
 
@@ -66,13 +51,7 @@ function RoomSkeleton() {
   );
 }
 
-export function RoomProvider({
-  roomId,
-  children,
-}: {
-  roomId: string;
-  children: ReactNode;
-}) {
+export function RoomProvider({ roomId, children }: { roomId: string; children: ReactNode }) {
   const room = useMemo(() => acquireRoom(roomId), [roomId]);
   useEffect(() => () => releaseRoom(roomId), [roomId]);
 
@@ -108,11 +87,7 @@ export function RoomProvider({
         color: me?.color ?? s.peer.color,
       };
       setPeer((prev) =>
-        prev.id === next.id &&
-        prev.name === next.name &&
-        prev.color === next.color
-          ? prev
-          : next,
+        prev.id === next.id && prev.name === next.name && prev.color === next.color ? prev : next,
       );
     });
   }, []);

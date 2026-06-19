@@ -64,12 +64,7 @@ function linearForecast(hourly: HourlyRow[], horizon: number): ForecastPoint[] {
   });
 }
 
-function holtWintersForecast(
-  values: number[],
-  horizon: number,
-  alpha = 0.3,
-  beta = 0.1,
-): number[] {
+function holtWintersForecast(values: number[], horizon: number, alpha = 0.3, beta = 0.1): number[] {
   const n = values.length;
   if (n === 0) return [];
 
@@ -85,10 +80,7 @@ function holtWintersForecast(
   return Array.from({ length: horizon }, (_, i) => level + trend * (i + 1));
 }
 
-function holtWintersForecastPoints(
-  hourly: HourlyRow[],
-  horizon: number,
-): ForecastPoint[] {
+function holtWintersForecastPoints(hourly: HourlyRow[], horizon: number): ForecastPoint[] {
   const rows = hourly.slice(-24);
   const n = rows.length;
 

@@ -76,9 +76,7 @@ export function stepToSQL(step: TransformStep, source: string): string {
       return `SELECT ${str(c.columns, "*")} FROM ${source}`;
     case "rename":
     case "derive": {
-      const alias = quoteIdent(
-        str(c.alias, step.type === "rename" ? "new_col" : "derived"),
-      );
+      const alias = quoteIdent(str(c.alias, step.type === "rename" ? "new_col" : "derived"));
       return `SELECT *, ${str(c.expression, "1")} AS ${alias} FROM ${source}`;
     }
     case "aggregate": {
@@ -154,10 +152,7 @@ export interface CompiledPipeline {
 /**
  * Compile the enabled steps into one nested-CTE SELECT over `sourceTable`.
  */
-export function buildCTE(
-  steps: TransformStep[],
-  sourceTable: string,
-): CompiledPipeline {
+export function buildCTE(steps: TransformStep[], sourceTable: string): CompiledPipeline {
   const enabled = steps.filter((s) => s.enabled);
   const sourceRef = quoteIdent(sourceTable);
   if (enabled.length === 0) {

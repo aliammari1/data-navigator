@@ -50,9 +50,7 @@ export function HelpFeedback() {
       });
       window.setTimeout(() => setJustSaved(false), 4000);
     } catch (error) {
-      toast.error(
-        `Could not save feedback: ${String(error).slice(0, 120)}`,
-      );
+      toast.error(`Could not save feedback: ${String(error).slice(0, 120)}`);
     } finally {
       setSaving(false);
     }
@@ -67,9 +65,7 @@ export function HelpFeedback() {
           <MessageSquarePlus className="w-4 h-4 text-indigo-400" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-foreground">
-            Found a bug or have a request?
-          </p>
+          <p className="text-sm font-semibold text-foreground">Found a bug or have a request?</p>
           <p className="text-xs text-muted-foreground flex items-center gap-1">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
             Saved locally — nothing is sent over the network.

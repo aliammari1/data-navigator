@@ -44,9 +44,7 @@ export const Default: Story = {};
 export const ExpandsOnClick: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Recharge Voix/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Recharge Voix/i }));
     await expect(canvas.getByText(/Lignes fixes et mobiles/i)).toBeVisible();
   },
 };

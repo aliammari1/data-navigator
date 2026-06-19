@@ -107,9 +107,7 @@ export const ErrorPhase: Story = {
       threadId: "thread-fail0001",
       running: false,
       error: "Pipeline failed during build phase",
-      eventTicker: [
-        { type: "RUN_ERROR", messageId: "e1" },
-      ] as unknown as AGUIEvent[],
+      eventTicker: [{ type: "RUN_ERROR", messageId: "e1" }] as unknown as AGUIEvent[],
     }),
   ],
 };

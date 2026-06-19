@@ -156,11 +156,9 @@ const meta = {
     statusData,
     forecast: [],
     m: mapping,
-    selectedKpis: new Set([
-      "totalTransactions",
-      "successCount",
-      "declinedCount",
-    ]) as Set<keyof KPISummary>,
+    selectedKpis: new Set(["totalTransactions", "successCount", "declinedCount"]) as Set<
+      keyof KPISummary
+    >,
     toggleKpi: fn(),
     selectedOverviewSections: new Set(allSections),
     toggleOverviewSection: fn(),

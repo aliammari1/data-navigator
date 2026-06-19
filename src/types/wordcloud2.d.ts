@@ -12,7 +12,13 @@ declare module "wordcloud2/src/wordcloud2.js" {
     /** Static color, or `(word, weight, fontSize, distance, theta) => color`. */
     color?:
       | string
-      | ((word: string, weight: number, fontSize: number, distance: number, theta: number) => string);
+      | ((
+          word: string,
+          weight: number,
+          fontSize: number,
+          distance: number,
+          theta: number,
+        ) => string);
     backgroundColor?: string;
     gridSize?: number;
     /** Maps a list weight to a font size (number multiplier or fn). */

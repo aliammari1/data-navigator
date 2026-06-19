@@ -149,18 +149,15 @@ export const BILL_PAYMENT_CHANNELS: ChannelDef[] = [
 export const RECHARGE_VOICE_FIXED_TTCASH: ChannelDef[] = [
   {
     name: "Espaces TT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
   },
   {
     name: "USSD 136",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
   },
   {
     name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   {
     name: "ATB",
@@ -221,8 +218,7 @@ export const RECHARGE_VOICE_FIXED_VOUCHER: ChannelDef[] = [
   },
   {
     name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 108 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    condition: "TRY_CAST(BRAND_D AS INT) = 108 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 122" },
   { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 136" },
@@ -319,8 +315,7 @@ export const RECHARGE_VOICE_MOBILE_VOUCHER: ChannelDef[] = [
   },
   {
     name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 109 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    condition: "TRY_CAST(BRAND_D AS INT) = 109 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 121" },
   { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 135" },
@@ -331,18 +326,15 @@ export const RECHARGE_VOICE_MOBILE_VOUCHER: ChannelDef[] = [
 export const RECHARGE_DATA_SABBA: ChannelDef[] = [
   {
     name: "USSD 236",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
   },
   {
     name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
   {
     name: "ESPACES TT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
   },
   { name: "PORTAIL TT", condition: "TRY_CAST(BRAND_D AS INT) = 137" },
   { name: "MYTT", condition: "TRY_CAST(BRAND_D AS INT) = 123" },
@@ -373,8 +365,7 @@ export const RECHARGE_DATA_SABBA: ChannelDef[] = [
   },
   {
     name: "TOPNET",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 5",
+    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 5",
   },
 ];
 
@@ -444,8 +435,7 @@ export const EVOUCHER_ON_DEMAND_GENERATION: ChannelDef[] = [
   },
   {
     name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    condition: "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
   },
 ];
 
@@ -562,18 +552,10 @@ export interface StatusSummary {
 
 export async function getStatusSummary(): Promise<StatusSummary> {
   const [success, refund, instance, declined, total] = await Promise.all([
-    runReadOnlyQuery(
-      `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${successFilter}`,
-    ),
-    runReadOnlyQuery(
-      `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${refundFilter}`,
-    ),
-    runReadOnlyQuery(
-      `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${instanceFilter}`,
-    ),
-    runReadOnlyQuery(
-      `SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${declinedFilter}`,
-    ),
+    runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${successFilter}`),
+    runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${refundFilter}`),
+    runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${instanceFilter}`),
+    runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}" WHERE ${declinedFilter}`),
     runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM "${REPORT_TABLE}"`),
   ]);
   return {
@@ -690,9 +672,7 @@ export async function loadReportCSV(
     columns: dataset.columns.map((column) => column.name),
   };
 }
-export async function getTopTransactionsByAmount(
-  limit = 20,
-): Promise<Record<string, unknown>[]> {
+export async function getTopTransactionsByAmount(limit = 20): Promise<Record<string, unknown>[]> {
   return runReadOnlyQuery(`
     SELECT TRANSACTION_ID, TRANSACTION_DATE, ORIGINAL_AMOUNT, ACCOUNT_NAME, CUSTOMER_NAME, TRANSACTION_STATUS, BRAND_NAME, CHANNEL
     FROM "${REPORT_TABLE}"

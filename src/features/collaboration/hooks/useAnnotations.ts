@@ -16,10 +16,7 @@
  * and the screen consume it without edits.
  */
 
-import {
-  type AnnotationsApi,
-  useAnnotationsCRDT,
-} from "../collab/collab-hub-crdt";
+import { type AnnotationsApi, useAnnotationsCRDT } from "../collab/collab-hub-crdt";
 
 // Re-export the canonical CRDT view-model types under the names the UI imports.
 export type {

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  validateFragment,
-  validateSql,
-} from "@/features/data-transform/engine/validate";
+import { validateFragment, validateSql } from "@/features/data-transform/engine/validate";
 
 describe("validateSql", () => {
   it("treats empty / whitespace input as valid", () => {

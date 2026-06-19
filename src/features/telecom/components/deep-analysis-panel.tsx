@@ -1,12 +1,5 @@
 "use client";
-import {
-  Activity,
-  AlertTriangle,
-  BarChart2,
-  Brain,
-  Sparkles,
-  TrendingUp,
-} from "lucide-react";
+import { Activity, AlertTriangle, BarChart2, Brain, Sparkles, TrendingUp } from "lucide-react";
 import { motion } from "motion/react";
 import { useMemo } from "react";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
@@ -67,19 +60,12 @@ export function DeepAnalysisPanel({
   return (
     <div className="space-y-6">
       <Section title="Synthèse Exécutive" icon={<Brain className="w-4 h-4" />}>
-        <NarrativeReport
-          kpi={kpi}
-          canals={canals}
-          hourly={hourly}
-          reportDate={reportDate}
-        />
+        <NarrativeReport kpi={kpi} canals={canals} hourly={hourly} reportDate={reportDate} />
       </Section>
 
       <Section
         title="Assistant métier du rapport"
-        icon={
-          <Sparkles className="w-4 h-4 text-primary" />
-        }
+        icon={<Sparkles className="w-4 h-4 text-primary" />}
         badge={`${insights.length} contrôles`}
       >
         <AIInsightsPanel insights={insights} loading={false} />
@@ -88,9 +74,7 @@ export function DeepAnalysisPanel({
       <Section
         title="Détection d'Anomalies Horaires"
         icon={<Activity className="w-4 h-4" />}
-        badge={
-          anomalies.length > 0 ? `${anomalies.length} anomalies` : "Normal"
-        }
+        badge={anomalies.length > 0 ? `${anomalies.length} anomalies` : "Normal"}
       >
         <div className="space-y-4">
           {anomalies.length > 0 && (
@@ -115,9 +99,7 @@ export function DeepAnalysisPanel({
                       )}
                     >
                       {a.hour.toString().padStart(2, "0")}:00 —{" "}
-                      {a.type === "spike"
-                        ? "Pic de Trafic"
-                        : "Baisse Inhabituelle"}
+                      {a.type === "spike" ? "Pic de Trafic" : "Baisse Inhabituelle"}
                     </span>
                     <span className="text-[10px] font-mono text-muted-foreground">
                       z={a.zScore.toFixed(2)}
@@ -125,9 +107,7 @@ export function DeepAnalysisPanel({
                   </div>
                   <div className="text-[10px] text-muted-foreground">
                     {Math.abs(a.zScore).toFixed(1)}σ de la moyenne horaire ·{" "}
-                    {a.type === "spike"
-                      ? "risque de capacité"
-                      : "interruption de service ?"}
+                    {a.type === "spike" ? "risque de capacité" : "interruption de service ?"}
                   </div>
                 </div>
               ))}
@@ -136,16 +116,15 @@ export function DeepAnalysisPanel({
           <AnomalyTimelineChart hourly={hourly} anomalies={anomalies} />
           <div className="flex items-center gap-4 text-[10px] text-muted-foreground pt-1">
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" />{" "}
-              Pic (&gt;1.8σ au-dessus de la moyenne)
+              <span className="w-3 h-3 rounded-sm bg-amber-500 inline-block" /> Pic (&gt;1.8σ
+              au-dessus de la moyenne)
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-violet-500 inline-block" />{" "}
-              Chute (&gt;1.8σ en dessous de la moyenne)
+              <span className="w-3 h-3 rounded-sm bg-violet-500 inline-block" /> Chute (&gt;1.8σ en
+              dessous de la moyenne)
             </div>
             <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block" />{" "}
-              Normal
+              <span className="w-3 h-3 rounded-sm bg-blue-400 inline-block" /> Normal
             </div>
           </div>
         </div>
@@ -157,9 +136,7 @@ export function DeepAnalysisPanel({
       >
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
           <div className="rounded-xl border border-primary/20 bg-primary/5 p-4">
-            <div className="text-[10px] text-muted-foreground mb-1">
-              Direction de la Tendance
-            </div>
+            <div className="text-[10px] text-muted-foreground mb-1">Direction de la Tendance</div>
             <div
               className={cn(
                 "text-sm font-semibold",
@@ -170,20 +147,12 @@ export function DeepAnalysisPanel({
                     : "text-emerald-600 dark:text-emerald-400",
               )}
             >
-              {trend.slope > 0
-                ? "En hausse"
-                : trend.slope < 0
-                  ? "En baisse"
-                  : "Stable"}
+              {trend.slope > 0 ? "En hausse" : trend.slope < 0 ? "En baisse" : "Stable"}
             </div>
-            <div className="text-[10px] text-muted-foreground mt-1">
-              {trendLabel}
-            </div>
+            <div className="text-[10px] text-muted-foreground mt-1">{trendLabel}</div>
           </div>
           <div className="rounded-xl border border-border bg-muted/40 p-4">
-            <div className="text-[10px] text-muted-foreground mb-1">
-              Pente (tx/heure)
-            </div>
+            <div className="text-[10px] text-muted-foreground mb-1">Pente (tx/heure)</div>
             <div className="text-sm font-bold text-foreground">
               {trend.slope > 0 ? "+" : ""}
               {trend.slope.toFixed(1)}
@@ -193,9 +162,7 @@ export function DeepAnalysisPanel({
             </div>
           </div>
           <div className="rounded-xl border border-border bg-muted/40 p-4">
-            <div className="text-[10px] text-muted-foreground mb-1">
-              Charge de Base (06:00)
-            </div>
+            <div className="text-[10px] text-muted-foreground mb-1">Charge de Base (06:00)</div>
             <div className="text-sm font-bold text-foreground">
               {fmtN(Math.round(trend.intercept + 6 * trend.slope))}
             </div>
@@ -210,9 +177,7 @@ export function DeepAnalysisPanel({
         title="Modèle de Score de Risque Canal"
         icon={<AlertTriangle className="w-4 h-4" />}
         badge={
-          criticalCanals.length > 0
-            ? `${criticalCanals.length} critique(s)`
-            : "Tout est normal"
+          criticalCanals.length > 0 ? `${criticalCanals.length} critique(s)` : "Tout est normal"
         }
       >
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
@@ -228,9 +193,7 @@ export function DeepAnalysisPanel({
                   const Icon = cfg.icon;
                   return (
                     <div key={c.key} className="flex items-center gap-3">
-                      <Icon
-                        className={cn("w-3.5 h-3.5 flex-none", cfg.color)}
-                      />
+                      <Icon className={cn("w-3.5 h-3.5 flex-none", cfg.color)} />
                       <span className="text-xs text-muted-foreground w-28 truncate flex-none">
                         {cfg.shortLabel}
                       </span>
@@ -267,22 +230,18 @@ export function DeepAnalysisPanel({
             </div>
             <div className="mt-4 space-y-1 text-[10px] text-muted-foreground">
               <div>
-                Score = Pénalité d&apos;échec (×0.5) + Pénalité de remboursement
-                (×2) + Pénalité d&apos;instance (×1.5) + Pénalité de
-                concentration
+                Score = Pénalité d&apos;échec (×0.5) + Pénalité de remboursement (×2) + Pénalité
+                d&apos;instance (×1.5) + Pénalité de concentration
               </div>
               <div className="flex gap-4 mt-1">
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />{" "}
-                  0–19 Faible
+                  <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" /> 0–19 Faible
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />{" "}
-                  20–39 Moyen
+                  <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" /> 20–39 Moyen
                 </span>
                 <span className="flex items-center gap-1">
-                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" />{" "}
-                  40+ Élevé
+                  <span className="w-2 h-2 rounded-full bg-red-500 inline-block" /> 40+ Élevé
                 </span>
               </div>
             </div>
@@ -340,9 +299,7 @@ export function DeepAnalysisPanel({
                       >
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2">
-                            <Icon
-                              className={cn("w-3.5 h-3.5 flex-none", cfg.color)}
-                            />
+                            <Icon className={cn("w-3.5 h-3.5 flex-none", cfg.color)} />
                             <span className="text-foreground font-medium whitespace-nowrap">
                               {cfg.shortLabel}
                             </span>
@@ -390,9 +347,7 @@ export function DeepAnalysisPanel({
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-red-600 dark:text-red-400 tabular-nums">
-                          {fmtPct(
-                            c.total > 0 ? (c.declined / c.total) * 100 : 0,
-                          )}
+                          {fmtPct(c.total > 0 ? (c.declined / c.total) * 100 : 0)}
                         </td>
                         <td className="px-3 py-2.5 text-violet-600 dark:text-violet-400 tabular-nums">
                           {fmtPct(c.total > 0 ? (c.refund / c.total) * 100 : 0)}

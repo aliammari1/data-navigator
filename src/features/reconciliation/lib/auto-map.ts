@@ -55,9 +55,7 @@ export function suggestColumnMapping(
     ignoreLocation: true,
   });
 
-  const actualByLower = new Map(
-    actualCols.map((c) => [c.name.toLowerCase(), c.name] as const),
-  );
+  const actualByLower = new Map(actualCols.map((c) => [c.name.toLowerCase(), c.name] as const));
 
   return expectedCols.map((exp) => {
     const exact = actualByLower.get(exp.name.toLowerCase());

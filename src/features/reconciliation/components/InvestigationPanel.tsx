@@ -18,10 +18,7 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertTriangle, Flag, Sparkles } from "lucide-react";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { cn } from "@/shared/utils";
 import { type DiffConfig } from "../lib/recon-sql";
 import { REASON_CODES, useHypotheses } from "../lib/use-hypotheses";
@@ -35,9 +32,7 @@ import {
 const CARD_HEIGHT = 168;
 
 function fmtSigned(n: number): string {
-  const s = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(
-    Math.abs(n),
-  );
+  const s = new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(Math.abs(n));
   return n > 0 ? `+${s}` : n < 0 ? `−${s}` : s;
 }
 
@@ -68,8 +63,7 @@ export function InvestigationPanel({ cfg, maxRows = 50 }: InvestigationPanelProp
         if (!cancelled) setRows(r);
       })
       .catch((e) => {
-        if (!cancelled)
-          setError(e instanceof Error ? e.message : "Failed to load material rows.");
+        if (!cancelled) setError(e instanceof Error ? e.message : "Failed to load material rows.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -87,21 +81,15 @@ export function InvestigationPanel({ cfg, maxRows = 50 }: InvestigationPanelProp
     overscan: 6,
   });
 
-  const aiReady = useMemo(
-    () => availability.some((a) => a.available),
-    [availability],
-  );
+  const aiReady = useMemo(() => availability.some((a) => a.available), [availability]);
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-semibold text-slate-200">
-            Material discrepancies
-          </h3>
+          <h3 className="text-sm font-semibold text-slate-200">Material discrepancies</h3>
           <p className="text-xs text-slate-500">
-            Top {rows.length} by absolute variance — assign a reason or run the
-            on-device model.
+            Top {rows.length} by absolute variance — assign a reason or run the on-device model.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -151,9 +139,7 @@ export function InvestigationPanel({ cfg, maxRows = 50 }: InvestigationPanelProp
             No material discrepancies — datasets reconcile within tolerance.
           </div>
         ) : (
-          <div
-            style={{ height: virtualizer.getTotalSize(), position: "relative" }}
-          >
+          <div style={{ height: virtualizer.getTotalSize(), position: "relative" }}>
             {virtualizer.getVirtualItems().map((vi) => {
               const row = rows[vi.index];
               return (
@@ -216,9 +202,7 @@ const DiscrepancyCard = memo(function DiscrepancyCard({ row }: { row: DiffRow })
         </div>
         <button
           type="button"
-          onClick={() =>
-            setAnnotation(row.key, { escalated: !annotation.escalated })
-          }
+          onClick={() => setAnnotation(row.key, { escalated: !annotation.escalated })}
           className={cn(
             "flex shrink-0 items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors",
             annotation.escalated
@@ -239,9 +223,7 @@ const DiscrepancyCard = memo(function DiscrepancyCard({ row }: { row: DiffRow })
               ({Math.round(annotation.confidence * 100)}% conf)
             </span>
           )}
-          <p className="mt-0.5 leading-snug text-slate-400">
-            {annotation.hypothesis}
-          </p>
+          <p className="mt-0.5 leading-snug text-slate-400">{annotation.hypothesis}</p>
         </div>
       )}
 

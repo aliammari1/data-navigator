@@ -89,18 +89,10 @@ export interface FormulatorChartProps {
   className?: string;
 }
 
-export function FormulatorChart({
-  spec,
-  result,
-  height,
-  className,
-}: FormulatorChartProps) {
+export function FormulatorChart({ spec, result, height, className }: FormulatorChartProps) {
   const data = result?.data ?? [];
 
-  const option = useMemo(
-    () => (data.length ? buildOption(spec, data) : null),
-    [spec, data],
-  );
+  const option = useMemo(() => (data.length ? buildOption(spec, data) : null), [spec, data]);
 
   if (data.length === 0 || !option) return null;
 

@@ -34,27 +34,18 @@ function HistoryRowViewInner({ row, now }: HistoryRowViewProps) {
               {row.source}
             </span>
             <span className="text-[11px] text-muted-foreground">{row.type}</span>
-            <span
-              className="ml-auto text-[11px] text-muted-foreground"
-              title={clockTime(row._ts)}
-            >
+            <span className="ml-auto text-[11px] text-muted-foreground" title={clockTime(row._ts)}>
               {formatAgo(row._ts, now)}
             </span>
           </div>
-          <p className="mt-1.5 break-words text-sm text-foreground">
-            {row.message}
-          </p>
+          <p className="mt-1.5 break-words text-sm text-foreground">{row.message}</p>
           {(row.table || row.dataset) && (
             <div className="mt-1.5 flex flex-wrap gap-2 text-[11px] text-muted-foreground">
               {row.table && (
-                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">
-                  {row.table}
-                </span>
+                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">{row.table}</span>
               )}
               {row.dataset && (
-                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">
-                  {row.dataset}
-                </span>
+                <span className="rounded-md bg-muted px-1.5 py-0.5 font-mono">{row.dataset}</span>
               )}
             </div>
           )}

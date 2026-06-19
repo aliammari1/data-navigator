@@ -89,8 +89,7 @@ export const GLOBAL_TOUR: TourDefinition = {
       element: '[href="/dashboard/forecast"]',
       popover: {
         title: "Forecasting",
-        description:
-          "Holt-Winters and STL run locally in a worker — no cloud, no API key.",
+        description: "Holt-Winters and STL run locally in a worker — no cloud, no API key.",
         side: "right",
         align: "start",
       },

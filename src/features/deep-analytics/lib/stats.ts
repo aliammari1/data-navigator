@@ -18,9 +18,9 @@ import * as ss from "simple-statistics";
 function logGamma(x: number): number {
   const g = 7;
   const c = [
-    0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-    771.32342877765313, -176.61502916214059, 12.507343278686905,
-    -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+    1.5056327351493116e-7,
   ];
   if (x < 0.5) {
     return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
@@ -41,9 +41,7 @@ function incompleteBeta(x: number, a: number, b: number): number {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
 
-  const lbeta =
-    logGamma(a + b) - logGamma(a) - logGamma(b) +
-    a * Math.log(x) + b * Math.log(1 - x);
+  const lbeta = logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x);
   const front = Math.exp(lbeta) / a;
 
   // Lentz's algorithm for the continued fraction.
@@ -60,8 +58,7 @@ function incompleteBeta(x: number, a: number, b: number): number {
     } else if (i % 2 === 0) {
       numerator = (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m));
     } else {
-      numerator =
-        -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
+      numerator = -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
     }
 
     d = 1 + numerator * d;
@@ -109,11 +106,7 @@ export interface TwoSampleResult {
  * Welch's two-sample t-test (unequal variances). Returns a real p-value and a
  * 95% confidence interval for the difference of means.
  */
-export function welchTTest(
-  a: number[],
-  b: number[],
-  alpha = 0.05,
-): TwoSampleResult | null {
+export function welchTTest(a: number[], b: number[], alpha = 0.05): TwoSampleResult | null {
   const cleanA = a.filter((v) => Number.isFinite(v));
   const cleanB = b.filter((v) => Number.isFinite(v));
   if (cleanA.length < 2 || cleanB.length < 2) return null;
@@ -132,9 +125,7 @@ export function welchTTest(
   if (se === 0) return null;
 
   const t = (meanA - meanB) / se;
-  const df =
-    (sA + sB) ** 2 /
-    ((sA * sA) / (nA - 1) + (sB * sB) / (nB - 1));
+  const df = (sA + sB) ** 2 / ((sA * sA) / (nA - 1) + (sB * sB) / (nB - 1));
 
   const p = studentTTwoSidedP(t, df);
 
@@ -161,9 +152,7 @@ export interface SignificanceBadge {
 }
 
 /** Human-readable significance label derived from a real p-value. */
-export function significanceFromP(
-  p: number | null | undefined,
-): SignificanceBadge {
+export function significanceFromP(p: number | null | undefined): SignificanceBadge {
   if (p === null || p === undefined || !Number.isFinite(p)) {
     return { label: "Insufficient data", color: "text-slate-400" };
   }

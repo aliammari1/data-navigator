@@ -34,9 +34,30 @@ const mapping: ColumnMapping = {
 };
 
 const operators: OperatorRow[] = [
-  { operator: "Ooredoo", total: 12_400, success: 11_980, amount: 248_100, successRate: 96.6, accountType: "source" },
-  { operator: "Orange", total: 8_100, success: 7_540, amount: 121_500, successRate: 93.1, accountType: "source" },
-  { operator: "Tunisie Telecom", total: 4_300, success: 3_650, amount: 64_500, successRate: 84.9, accountType: "destination" },
+  {
+    operator: "Ooredoo",
+    total: 12_400,
+    success: 11_980,
+    amount: 248_100,
+    successRate: 96.6,
+    accountType: "source",
+  },
+  {
+    operator: "Orange",
+    total: 8_100,
+    success: 7_540,
+    amount: 121_500,
+    successRate: 93.1,
+    accountType: "source",
+  },
+  {
+    operator: "Tunisie Telecom",
+    total: 4_300,
+    success: 3_650,
+    amount: 64_500,
+    successRate: 84.9,
+    accountType: "destination",
+  },
 ];
 
 const regions: RegionRow[] = [

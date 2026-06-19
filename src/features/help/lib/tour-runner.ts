@@ -18,11 +18,7 @@
 import { driver, type Driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
-import {
-  isAnchorlessStep,
-  type TourDefinition,
-  type TourStepDef,
-} from "../data/tours";
+import { isAnchorlessStep, type TourDefinition, type TourStepDef } from "../data/tours";
 import { saveTourProgress } from "./onboarding-db";
 
 /** Navigate the App Router to `href` (injected so this stays framework-light). */
@@ -47,10 +43,8 @@ function waitForSelector(selector: string, timeoutMs = 4000): Promise<boolean> {
   if (document.querySelector(selector)) return Promise.resolve(true);
 
   return new Promise((resolve) => {
-    const start =
-      typeof performance !== "undefined" ? performance.now() : Date.now();
-    const now = () =>
-      typeof performance !== "undefined" ? performance.now() : Date.now();
+    const start = typeof performance !== "undefined" ? performance.now() : Date.now();
+    const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
     const id = window.setInterval(() => {
       if (document.querySelector(selector)) {
         window.clearInterval(id);

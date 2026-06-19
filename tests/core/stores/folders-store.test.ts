@@ -73,9 +73,7 @@ describe("useFoldersStore — folders", () => {
     const { result } = renderHook(() => useFoldersStore());
 
     act(() => {
-      result.current.addFolder(
-        folderInput({ id: "child", parentId: "root", color: "#2f6bff" }),
-      );
+      result.current.addFolder(folderInput({ id: "child", parentId: "root", color: "#2f6bff" }));
     });
 
     const [folder] = result.current.folders;
@@ -109,9 +107,7 @@ describe("useFoldersStore — folders", () => {
       result.current.renameFolder("a", "New A");
     });
 
-    const byId = Object.fromEntries(
-      result.current.folders.map((f) => [f.id, f.name]),
-    );
+    const byId = Object.fromEntries(result.current.folders.map((f) => [f.id, f.name]));
     expect(byId).toEqual({ a: "New A", b: "Old B" });
   });
 

@@ -16,19 +16,19 @@
  * (offline wasm). Never DOM-screenshot a chart.
  */
 
-import * as Comlink from 'comlink'
-import { svgToPng } from '@/workers/resvg-raster'
-import { renderHourlyChartSvg } from '../lib/charts'
-import type { DocxOptions, PDFOptions, PptxTemplate, ReportData } from '../lib/types'
+import * as Comlink from "comlink";
+import { svgToPng } from "@/workers/resvg-raster";
+import { renderHourlyChartSvg } from "../lib/charts";
+import type { DocxOptions, PDFOptions, PptxTemplate, ReportData } from "../lib/types";
 
 /** Render + rasterize the hourly chart once; reused across DOCX/PPTX. */
 async function chartPngFor(data: ReportData): Promise<Uint8Array | null> {
-  const svg = renderHourlyChartSvg(data, data.primaryColor)
-  if (!svg) return null
+  const svg = renderHourlyChartSvg(data, data.primaryColor);
+  if (!svg) return null;
   try {
-    return await svgToPng(svg, 1200)
+    return await svgToPng(svg, 1200);
   } catch {
-    return null
+    return null;
   }
 }
 
@@ -39,33 +39,33 @@ const api = {
     selectedChannels: string[],
   ): Promise<ArrayBuffer> {
     const [{ buildPptx }, png] = await Promise.all([
-      import('../lib/pptx-generator'),
+      import("../lib/pptx-generator"),
       chartPngFor(data),
-    ])
-    return buildPptx(data, template, selectedChannels, png)
+    ]);
+    return buildPptx(data, template, selectedChannels, png);
   },
 
   async docx(data: ReportData, options: DocxOptions): Promise<ArrayBuffer> {
     const [{ buildDocx }, png] = await Promise.all([
-      import('../lib/docx-generator'),
+      import("../lib/docx-generator"),
       chartPngFor(data),
-    ])
-    return buildDocx(data, options, png)
+    ]);
+    return buildDocx(data, options, png);
   },
 
   async pdf(data: ReportData, options: PDFOptions): Promise<ArrayBuffer> {
-    const { buildPdf } = await import('../lib/pdf-report')
+    const { buildPdf } = await import("../lib/pdf-report");
     // PDF prefers the crisp vector SVG (no rasterization needed).
-    const svg = options.includeCharts ? renderHourlyChartSvg(data, data.primaryColor) : null
-    return buildPdf(data, options, svg)
+    const svg = options.includeCharts ? renderHourlyChartSvg(data, data.primaryColor) : null;
+    return buildPdf(data, options, svg);
   },
 
   async xlsx(data: ReportData): Promise<ArrayBuffer> {
-    const { buildXlsx } = await import('../lib/xlsx-generator')
-    return buildXlsx(data)
+    const { buildXlsx } = await import("../lib/xlsx-generator");
+    return buildXlsx(data);
   },
-}
+};
 
-export type ReportExportApi = typeof api
+export type ReportExportApi = typeof api;
 
-Comlink.expose(api)
+Comlink.expose(api);

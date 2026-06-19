@@ -27,10 +27,7 @@ export function SparklineCell({
     return toAlignedData(x, [Float64Array.from(values)]);
   }, [values]);
 
-  const opts = useMemo(
-    () => buildSparklineOptions(width, height, stroke),
-    [width, height, stroke],
-  );
+  const opts = useMemo(() => buildSparklineOptions(width, height, stroke), [width, height, stroke]);
 
   const ref = useUPlot(opts, data);
 

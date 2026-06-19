@@ -11,12 +11,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { cn } from "@/shared/utils";
-import {
-  fmtAmount,
-  fmtDuration,
-  fmtN,
-  fmtPct,
-} from "@/features/telecom/lib/format";
+import { fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
 import { KPICard } from "./kpi-card";
 
@@ -65,8 +60,7 @@ export function CustomKPIBuilder({
   const [newLabel, setNewLabel] = useState("");
   const [newDesc, setNewDesc] = useState("");
   const [newExpr, setNewExpr] = useState("");
-  const [newFormat, setNewFormat] =
-    useState<Types.CustomKPI["format"]>("number");
+  const [newFormat, setNewFormat] = useState<Types.CustomKPI["format"]>("number");
   const [newColor, setNewColor] = useState(KPI_COLOR_PRESETS[0].value);
   const [runErr, setRunErr] = useState("");
   const [running, setRunning] = useState(false);
@@ -74,20 +68,14 @@ export function CustomKPIBuilder({
   const runKpi = async (id: string) => {
     const kpi = kpis.find((k) => k.id === id);
     if (!kpi) return;
-    setKpis((prev) =>
-      prev.map((k) => (k.id === id ? { ...k, loading: true, error: "" } : k)),
-    );
+    setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, loading: true, error: "" } : k)));
     try {
       const result = await runCustomKPIExpr(kpi.sqlExpr);
-      setKpis((prev) =>
-        prev.map((k) => (k.id === id ? { ...k, loading: false, result } : k)),
-      );
+      setKpis((prev) => prev.map((k) => (k.id === id ? { ...k, loading: false, result } : k)));
     } catch (e) {
       setKpis((prev) =>
         prev.map((k) =>
-          k.id === id
-            ? { ...k, loading: false, result: null, error: String(e) }
-            : k,
+          k.id === id ? { ...k, loading: false, result: null, error: String(e) } : k,
         ),
       );
     }
@@ -124,8 +112,7 @@ export function CustomKPIBuilder({
     }
   };
 
-  const removeKpi = (id: string) =>
-    setKpis((prev) => prev.filter((k) => k.id !== id));
+  const removeKpi = (id: string) => setKpis((prev) => prev.filter((k) => k.id !== id));
 
   const fmtResult = (kpi: Types.CustomKPI): string => {
     if (kpi.result === null) return "Erreur";
@@ -147,21 +134,15 @@ export function CustomKPIBuilder({
                   kpi.loading ? (
                     <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
                   ) : kpi.error ? (
-                    <span className="text-xs text-red-600 dark:text-red-400 font-mono">
-                      Error
-                    </span>
+                    <span className="text-xs text-red-600 dark:text-red-400 font-mono">Error</span>
                   ) : (
                     <span>{fmtResult(kpi)}</span>
                   )
                 }
                 sub={
-                  kpi.description ||
-                  kpi.sqlExpr.slice(0, 40) +
-                    (kpi.sqlExpr.length > 40 ? "…" : "")
+                  kpi.description || kpi.sqlExpr.slice(0, 40) + (kpi.sqlExpr.length > 40 ? "…" : "")
                 }
-                icon={
-                  <FlaskConical className="w-4 h-4 text-primary" />
-                }
+                icon={<FlaskConical className="w-4 h-4 text-primary" />}
                 color={kpi.colorClass}
                 size="sm"
               />
@@ -188,8 +169,7 @@ export function CustomKPIBuilder({
 
       <div className="rounded-xl border border-border bg-muted/40 p-5 space-y-4">
         <div className="flex items-center gap-2 text-xs font-bold text-foreground">
-          <FlaskConical className="w-4 h-4 text-primary" />{" "}
-          New Custom KPI
+          <FlaskConical className="w-4 h-4 text-primary" /> New Custom KPI
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -255,9 +235,7 @@ export function CustomKPIBuilder({
             <select
               id="kpi-format"
               value={newFormat}
-              onChange={(e) =>
-                setNewFormat(e.target.value as Types.CustomKPI["format"])
-              }
+              onChange={(e) => setNewFormat(e.target.value as Types.CustomKPI["format"])}
               className="bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"
             >
               <option value="number">Number</option>
@@ -279,9 +257,7 @@ export function CustomKPIBuilder({
                   title={p.label}
                   className={cn(
                     "w-6 h-6 rounded-full border-2 transition-all",
-                    newColor === p.value
-                      ? "border-foreground scale-125"
-                      : "border-border",
+                    newColor === p.value ? "border-foreground scale-125" : "border-border",
                     p.value.split(" ")[1],
                   )}
                 />

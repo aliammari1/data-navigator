@@ -63,9 +63,7 @@ export function UserManagementPanel({
       <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
         <Shield className="w-3.5 h-3.5 text-primary" />
         <span className="text-xs font-semibold">Gestion des Utilisateurs</span>
-        <span className="text-[10px] text-muted-foreground ml-2">
-          {users.length} compte(s)
-        </span>
+        <span className="text-[10px] text-muted-foreground ml-2">{users.length} compte(s)</span>
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
@@ -94,8 +92,8 @@ export function UserManagementPanel({
 
       {!isAdmin && (
         <div className="p-3 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-500/10 border-b border-amber-200 dark:border-amber-500/25">
-          Mode utilisateur simple : création de comptes désactivée. Passez en
-          mode Admin pour gérer les comptes.
+          Mode utilisateur simple : création de comptes désactivée. Passez en mode Admin pour gérer
+          les comptes.
         </div>
       )}
 
@@ -120,9 +118,7 @@ export function UserManagementPanel({
           />
           <select
             value={draft.role}
-            onChange={(e) =>
-              setDraft({ ...draft, role: e.target.value as "admin" | "user" })
-            }
+            onChange={(e) => setDraft({ ...draft, role: e.target.value as "admin" | "user" })}
             className="h-8 px-2 rounded-md border border-border bg-background text-xs"
           >
             <option value="user">Utilisateur Simple</option>
@@ -135,9 +131,7 @@ export function UserManagementPanel({
             <Plus className="w-3.5 h-3.5" /> Créer
           </button>
           {error && (
-            <div className="md:col-span-4 text-[10px] text-red-600 dark:text-red-400">
-              {error}
-            </div>
+            <div className="md:col-span-4 text-[10px] text-red-600 dark:text-red-400">{error}</div>
           )}
         </form>
       )}
@@ -145,24 +139,19 @@ export function UserManagementPanel({
       <table className="w-full text-xs">
         <thead className="bg-muted/30">
           <tr className="border-b border-border">
-            {["Utilisateur", "Rôle", "Créé", "Dernier login", "Statut", ""].map(
-              (h) => (
-                <th
-                  key={h}
-                  className="px-3 py-2 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
-                >
-                  {h}
-                </th>
-              ),
-            )}
+            {["Utilisateur", "Rôle", "Créé", "Dernier login", "Statut", ""].map((h) => (
+              <th
+                key={h}
+                className="px-3 py-2 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
+              >
+                {h}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
           {users.map((u) => (
-            <tr
-              key={u.id}
-              className="border-b border-border last:border-0 hover:bg-muted/40"
-            >
+            <tr key={u.id} className="border-b border-border last:border-0 hover:bg-muted/40">
               <td className="px-3 py-2">
                 <div className="flex items-center gap-2">
                   {u.role === "admin" ? (
@@ -171,12 +160,8 @@ export function UserManagementPanel({
                     <UserIcon className="w-3 h-3 text-blue-500" />
                   )}
                   <div>
-                    <div className="text-foreground font-medium">
-                      {u.fullName}
-                    </div>
-                    <div className="text-[10px] text-muted-foreground font-mono">
-                      @{u.username}
-                    </div>
+                    <div className="text-foreground font-medium">{u.fullName}</div>
+                    <div className="text-[10px] text-muted-foreground font-mono">@{u.username}</div>
                   </div>
                   {me?.id === u.id && (
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary border border-primary/20">
@@ -201,18 +186,14 @@ export function UserManagementPanel({
                     <option value="admin">Admin</option>
                   </select>
                 ) : (
-                  <span className="text-[10px] text-muted-foreground">
-                    {u.role}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">{u.role}</span>
                 )}
               </td>
               <td className="px-3 py-2 text-[10px] text-muted-foreground">
                 {new Date(u.createdAt).toLocaleDateString("fr-FR")}
               </td>
               <td className="px-3 py-2 text-[10px] text-muted-foreground">
-                {u.lastLoginAt
-                  ? new Date(u.lastLoginAt).toLocaleString("fr-FR")
-                  : "—"}
+                {u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleString("fr-FR") : "—"}
               </td>
               <td className="px-3 py-2">
                 <span

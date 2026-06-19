@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  type ComponentType,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Activity, Database, Table2, Zap } from "lucide-react";
 
@@ -23,8 +16,7 @@ const HEADER_SIZE = 36;
 const ROW_SIZE = 84;
 
 export default function HistoryScreen() {
-  const { qRaw, setQRaw, source, setSource, counts, rows, groups } =
-    useHistory();
+  const { qRaw, setQRaw, source, setSource, counts, rows, groups } = useHistory();
   const [exporting, setExporting] = useState<HistoryExportFormat | null>(null);
 
   // Durable write-through mirror: keep a real, queryable, exportable audit log
@@ -91,11 +83,7 @@ export default function HistoryScreen() {
           <SummaryCard label="Datasets" value={counts.datasets} icon={Database} />
           <SummaryCard label="Transforms" value={counts.transforms} icon={Zap} />
           <SummaryCard label="Queries" value={counts.queries} icon={Table2} />
-          <SummaryCard
-            label="Activities"
-            value={counts.activities}
-            icon={Activity}
-          />
+          <SummaryCard label="Activities" value={counts.activities} icon={Activity} />
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-4 md:p-5">
@@ -119,8 +107,7 @@ export default function HistoryScreen() {
               >
                 {virtualizer.getVirtualItems().map((vi) => {
                   const item = flat[vi.index];
-                  const itemKey =
-                    item.kind === "header" ? `h_${item.key}` : item.row.id;
+                  const itemKey = item.kind === "header" ? `h_${item.key}` : item.row.id;
                   return (
                     <div
                       key={itemKey}

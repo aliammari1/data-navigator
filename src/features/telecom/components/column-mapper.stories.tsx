@@ -85,9 +85,7 @@ export const Default: Story = {};
 export const AppliesMapping: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Appliquer le Mapping/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Appliquer le Mapping/i }));
     await expect(args.onChange).toHaveBeenCalledTimes(1);
     await expect(args.onClose).toHaveBeenCalledTimes(1);
   },
@@ -102,9 +100,7 @@ export const MissingRequiredField: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole("button", { name: /Appliquer le Mapping/i }),
-    ).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: /Appliquer le Mapping/i })).toBeDisabled();
   },
 };
 

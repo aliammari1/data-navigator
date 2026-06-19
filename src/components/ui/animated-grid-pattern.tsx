@@ -12,8 +12,7 @@ import { motion } from "motion/react";
 
 import { cn } from "@/shared/utils";
 
-export interface AnimatedGridPatternProps
-  extends ComponentPropsWithoutRef<"svg"> {
+export interface AnimatedGridPatternProps extends ComponentPropsWithoutRef<"svg"> {
   width?: number;
   height?: number;
   x?: number;
@@ -102,10 +101,7 @@ export function AnimatedGridPattern({
           setDimensions((currentDimensions) => {
             const nextWidth = entry.contentRect.width;
             const nextHeight = entry.contentRect.height;
-            if (
-              currentDimensions.width === nextWidth &&
-              currentDimensions.height === nextHeight
-            ) {
+            if (currentDimensions.width === nextWidth && currentDimensions.height === nextHeight) {
               return currentDimensions;
             }
             return { width: nextWidth, height: nextHeight };
@@ -134,19 +130,8 @@ export function AnimatedGridPattern({
       {...props}
     >
       <defs>
-        <pattern
-          id={id}
-          width={width}
-          height={height}
-          patternUnits="userSpaceOnUse"
-          x={x}
-          y={y}
-        >
-          <path
-            d={`M.5 ${height}V.5H${width}`}
-            fill="none"
-            strokeDasharray={strokeDasharray}
-          />
+        <pattern id={id} width={width} height={height} patternUnits="userSpaceOnUse" x={x} y={y}>
+          <path d={`M.5 ${height}V.5H${width}`} fill="none" strokeDasharray={strokeDasharray} />
         </pattern>
       </defs>
       <rect width="100%" height="100%" fill={`url(#${id})`} />

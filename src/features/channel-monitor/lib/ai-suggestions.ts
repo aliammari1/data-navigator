@@ -22,10 +22,7 @@ export const ThresholdSuggestionSchema = z.object({
     .number()
     .min(0)
     .describe("Alert when hourly transaction volume exceeds this value"),
-  failuresAbove: z
-    .number()
-    .min(0)
-    .describe("Alert when hourly failure count exceeds this value"),
+  failuresAbove: z.number().min(0).describe("Alert when hourly failure count exceeds this value"),
   rationale: z.string().min(4).max(600).describe("Brief justification for the thresholds"),
 });
 

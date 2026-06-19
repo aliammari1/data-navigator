@@ -238,9 +238,7 @@ export function buildReconciliationActualsSql(params: {
 
   const v = quoteIdent(view);
   const cat = quoteIdent(categoryCol);
-  const revenueExpr = amountCol
-    ? `SUM(CAST(${quoteIdent(amountCol)} AS DOUBLE))`
-    : "COUNT(*)";
+  const revenueExpr = amountCol ? `SUM(CAST(${quoteIdent(amountCol)} AS DOUBLE))` : "COUNT(*)";
 
   return `
     SELECT

@@ -39,9 +39,7 @@ export function buildRecipePrompt(input: RecipePromptInput): {
   system: string;
   prompt: string;
 } {
-  const schema = input.columns
-    .map((c) => `  - ${c.name} (${c.type})`)
-    .join("\n");
+  const schema = input.columns.map((c) => `  - ${c.name} (${c.type})`).join("\n");
   const prompt = [
     `Table: "${input.tableName}" (${input.sourceRowCount.toLocaleString()} rows)`,
     "Columns:",

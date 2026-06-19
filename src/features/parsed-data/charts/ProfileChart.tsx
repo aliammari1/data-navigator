@@ -23,12 +23,6 @@ export function ProfileChart({
   style?: CSSProperties;
 }) {
   return (
-    <ReactECharts
-      option={option}
-      style={style}
-      notMerge
-      lazyUpdate
-      opts={{ renderer: "canvas" }}
-    />
+    <ReactECharts option={option} style={style} notMerge lazyUpdate opts={{ renderer: "canvas" }} />
   );
 }

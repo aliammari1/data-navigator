@@ -69,23 +69,20 @@ describe("eval harness (deterministic)", () => {
 });
 
 describe("eval harness (live, model-gated)", () => {
-  liveIt(
-    "loads the local engine and generates non-empty text",
-    async () => {
-      const engine = await loadLocalEngine();
-      try {
-        await engine.ensureModel();
-        const { text } = await engine.generate({
-          prompt: "Reply with the single word: ok",
-          maxTokens: 8,
-          temperature: 0,
-        });
-        const score = text.trim().length > 0 ? 1 : 0;
-        report("smoke.live.nonEmpty", score);
-        assertAtLeast(score, 1, "smoke.live.nonEmpty");
-      } finally {
-        await engine.dispose();
-      }
-    },
-  );
+  liveIt("loads the local engine and generates non-empty text", async () => {
+    const engine = await loadLocalEngine();
+    try {
+      await engine.ensureModel();
+      const { text } = await engine.generate({
+        prompt: "Reply with the single word: ok",
+        maxTokens: 8,
+        temperature: 0,
+      });
+      const score = text.trim().length > 0 ? 1 : 0;
+      report("smoke.live.nonEmpty", score);
+      assertAtLeast(score, 1, "smoke.live.nonEmpty");
+    } finally {
+      await engine.dispose();
+    }
+  });
 });

@@ -49,9 +49,7 @@ export function SpecChannelTable({
     // Add timeout to prevent infinite hanging
     const timeoutId = setTimeout(() => {
       if (!cancelled) {
-        console.error(
-          "[SpecChannelTable] TIMEOUT - table may not exist or query is too slow",
-        );
+        console.error("[SpecChannelTable] TIMEOUT - table may not exist or query is too slow");
         setLoading(false);
       }
     }, 30000); // 10 second timeout
@@ -91,9 +89,7 @@ export function SpecChannelTable({
   const activeChannels = data.rows.filter((r) => r.nombre > 0).length;
   const topChannel = sorted[0];
   const top3Share =
-    (sorted.slice(0, 3).reduce((a, r) => a + r.nombre, 0) /
-      Math.max(data.total.nombre, 1)) *
-    100;
+    (sorted.slice(0, 3).reduce((a, r) => a + r.nombre, 0) / Math.max(data.total.nombre, 1)) * 100;
 
   const hasData = data.total.nombre > 0;
 
@@ -109,9 +105,7 @@ export function SpecChannelTable({
         const p = params[0];
         const row = data.rows.find((r) => r.canal === p.name);
         const pct =
-          data.total.nombre > 0
-            ? ((p.value / data.total.nombre) * 100).toFixed(1)
-            : "0.0";
+          data.total.nombre > 0 ? ((p.value / data.total.nombre) * 100).toFixed(1) : "0.0";
         return `<b>${p.name}</b><br/>Transactions : <b>${fmtN(p.value)}</b> (${pct}%)<br/>Montant : <b>${fmtAmount(row?.montant ?? 0)} DT</b>`;
       },
     },
@@ -165,8 +159,7 @@ export function SpecChannelTable({
           position: "right",
           color: "#a6adc8",
           fontSize: 9,
-          formatter: (p: { value: number }) =>
-            p.value > 0 ? fmtN(p.value) : "",
+          formatter: (p: { value: number }) => (p.value > 0 ? fmtN(p.value) : ""),
         },
       },
     ],
@@ -222,28 +215,14 @@ export function SpecChannelTable({
               bg: "bg-violet-500/8",
             },
           ].map((k) => (
-            <div
-              key={k.label}
-              className={cn(
-                "rounded-xl border p-3 space-y-0.5",
-                k.border,
-                k.bg,
-              )}
-            >
+            <div key={k.label} className={cn("rounded-xl border p-3 space-y-0.5", k.border, k.bg)}>
               <div
-                className={cn(
-                  "text-base font-bold leading-tight tabular-nums truncate",
-                  k.color,
-                )}
+                className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}
               >
                 {k.value}
               </div>
               <div className="text-[10px] text-muted-foreground">{k.label}</div>
-              {k.sub && (
-                <div className="text-[9px] text-muted-foreground/50">
-                  {k.sub}
-                </div>
-              )}
+              {k.sub && <div className="text-[9px] text-muted-foreground/50">{k.sub}</div>}
             </div>
           ))}
         </div>
@@ -253,13 +232,9 @@ export function SpecChannelTable({
       {hasData && sorted.filter((r) => r.nombre > 0).length >= 2 && (
         <div className="rounded-xl border border-border/50 bg-muted/10 overflow-hidden">
           <div className="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-            <BarChart2 className="w-3 h-3" /> Distribution des transactions par
-            canal
+            <BarChart2 className="w-3 h-3" /> Distribution des transactions par canal
           </div>
-          <EChart
-            option={chartOption}
-            height={Math.max(sorted.length * 30 + 24, 80)}
-          />
+          <EChart option={chartOption} height={Math.max(sorted.length * 30 + 24, 80)} />
         </div>
       )}
 
@@ -268,9 +243,7 @@ export function SpecChannelTable({
         <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/50 bg-muted/40">
-              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">
-                CANAL
-              </th>
+              <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">CANAL</th>
               <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">
                 Nombre Total
               </th>
@@ -317,9 +290,7 @@ export function SpecChannelTable({
           </tbody>
           <tfoot>
             <tr className="bg-muted/50 border-t-2 border-border">
-              <td className="px-3 py-2.5 font-bold text-foreground">
-                {data.total.canal}
-              </td>
+              <td className="px-3 py-2.5 font-bold text-foreground">{data.total.canal}</td>
               <td className="px-3 py-2.5 text-right tabular-nums font-bold text-foreground">
                 {fmtN(data.total.nombre)}
               </td>
@@ -337,8 +308,7 @@ export function SpecChannelTable({
         <div className="flex items-start gap-2 px-3 py-2.5 rounded-lg bg-amber-50 border border-amber-200 text-xs text-amber-700 dark:bg-amber-500/8 dark:border-amber-500/20 dark:text-amber-300">
           <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-none" />
           <span>
-            {data.rows.length - activeChannels} canal(aux) sans transactions sur
-            cette période.
+            {data.rows.length - activeChannels} canal(aux) sans transactions sur cette période.
           </span>
         </div>
       )}
@@ -351,9 +321,8 @@ export function SpecChannelTable({
               .slice(0, 3)
               .map((r) => r.canal)
               .join(", ")}
-            ) représentent{" "}
-            <strong className="text-indigo-200">{top3Share.toFixed(1)}%</strong>{" "}
-            des transactions.
+            ) représentent <strong className="text-indigo-200">{top3Share.toFixed(1)}%</strong> des
+            transactions.
           </span>
         </div>
       )}

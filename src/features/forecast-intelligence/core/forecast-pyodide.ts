@@ -42,9 +42,7 @@ let smInitPromise: Promise<boolean> | null = null;
  * outcome. Returns false (rather than throwing) on any failure so callers can
  * silently fall back to the sklearn trend path.
  */
-async function ensureStatsmodels(
-  onProgress?: (s: string) => void,
-): Promise<boolean> {
+async function ensureStatsmodels(onProgress?: (s: string) => void): Promise<boolean> {
   if (statsmodelsReady !== null) return statsmodelsReady;
   if (smInitPromise) return smInitPromise;
 
@@ -63,10 +61,10 @@ async function ensureStatsmodels(
         ["numpy", "scipy", "pandas", "statsmodels"],
         onProgress,
       );
-      const { stderr } = await runPython(
-        "import statsmodels.api as sm",
-        { sessionId: FORECAST_SESSION, onProgress },
-      );
+      const { stderr } = await runPython("import statsmodels.api as sm", {
+        sessionId: FORECAST_SESSION,
+        onProgress,
+      });
       if (stderr?.trim()) onProgress?.(`statsmodels warnings: ${stderr.trim()}`);
       statsmodelsReady = true;
       onProgress?.("statsmodels ready");
@@ -195,9 +193,7 @@ export async function forecastSeriesPyodide(
       beta: options.beta ?? 0.1,
       // Effective band multiplier: explicit `ci` wins, else derive z from the
       // coverage level (matches the pure engine's decoupled convention).
-      ci:
-        options.ci ??
-        normalQuantile(0.5 + Math.min(0.999999, Math.max(0.5, ciLevel)) / 2),
+      ci: options.ci ?? normalQuantile(0.5 + Math.min(0.999999, Math.max(0.5, ciLevel)) / 2),
       ciLevel,
       anomalyZ: options.anomalyZ ?? 3,
     };
@@ -213,12 +209,7 @@ export async function forecastSeriesPyodide(
     const sm = await holtWintersStatsmodels(values, opts, onProgress);
     if (sm) {
       const fitted = padFitted(sm.fitted, values);
-      const forecast = buildBandedForecast(
-        sm.forecast,
-        sm.residualStd,
-        opts.ci,
-        lastDate,
-      );
+      const forecast = buildBandedForecast(sm.forecast, sm.residualStd, opts.ci, lastDate);
       return assemble(history, fitted, forecast, sm.residualStd, sm.level, sm.trend, values, opts);
     }
 
@@ -226,28 +217,12 @@ export async function forecastSeriesPyodide(
     const trend = await linearTrendSklearn(values, opts.horizon);
     if (trend) {
       // Reconstruct in-sample fit from the regression line for honest residuals.
-      const fitted = values.map(
-        (_, t) => trend.intercept + trend.slope * t,
-      );
+      const fitted = values.map((_, t) => trend.intercept + trend.slope * t);
       const residuals = values.map((y, t) => y - fitted[t]!);
       const residualStd = sampleStd(residuals);
-      const forecast = buildBandedForecast(
-        trend.forecast,
-        residualStd,
-        opts.ci,
-        lastDate,
-      );
+      const forecast = buildBandedForecast(trend.forecast, residualStd, opts.ci, lastDate);
       const level = fitted[n - 1]!;
-      return assemble(
-        history,
-        fitted,
-        forecast,
-        residualStd,
-        level,
-        trend.slope,
-        values,
-        opts,
-      );
+      return assemble(history, fitted, forecast, residualStd, level, trend.slope, values, opts);
     }
 
     // Neither python path was available.

@@ -7,12 +7,7 @@ import { useActivityStore } from "@/core/stores/activity-store";
 import { useDataStore } from "@/core/stores/data-store";
 
 import { dayKey, dayLabel, toTimestamp } from "../model/format";
-import type {
-  HistoryDayGroup,
-  HistoryRow,
-  HistorySource,
-  IndexedHistoryRow,
-} from "../model/types";
+import type { HistoryDayGroup, HistoryRow, HistorySource, IndexedHistoryRow } from "../model/types";
 import { buildRows } from "./normalize";
 
 export type SourceFilter = "all" | HistorySource;
@@ -49,8 +44,7 @@ function indexRow(row: HistoryRow): IndexedHistoryRow {
     ...row,
     _ts: safeTs,
     _day: dayKey(safeTs),
-    _hay:
-      `${row.message} ${row.type} ${row.table ?? ""} ${row.dataset ?? ""}`.toLowerCase(),
+    _hay: `${row.message} ${row.type} ${row.table ?? ""} ${row.dataset ?? ""}`.toLowerCase(),
   };
 }
 
@@ -92,19 +86,14 @@ export function useHistory(): UseHistoryResult {
   // is shared with the durable Dexie mirror via `buildRows` so ids/messages/
   // sources never drift between the live read path and the persisted log.
   const indexed = useMemo<IndexedHistoryRow[]>(() => {
-    const all = buildRows({ datasets, transforms, queryHistory, events }).map(
-      indexRow,
-    );
+    const all = buildRows({ datasets, transforms, queryHistory, events }).map(indexRow);
     all.sort((a, b) => b._ts - a._ts);
     return all;
   }, [datasets, events, queryHistory, transforms]);
 
   // Source filter first (cheap, narrows the fuzzy haystack).
   const sourceFiltered = useMemo<IndexedHistoryRow[]>(
-    () =>
-      source === "all"
-        ? indexed
-        : indexed.filter((r) => r.source === source),
+    () => (source === "all" ? indexed : indexed.filter((r) => r.source === source)),
     [indexed, source],
   );
 

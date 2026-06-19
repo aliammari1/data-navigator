@@ -13,26 +13,11 @@
 
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
-import {
-  mean as ssMean,
-  sampleStandardDeviation,
-} from "simple-statistics";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { mean as ssMean, sampleStandardDeviation } from "simple-statistics";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtCompact, fmtN } from "@/features/telecom/lib/format";
 import { useForecastData } from "../data/use-forecast-data";
-import {
-  cn,
-  LoadingState,
-  NoDatasetState,
-  NotEnoughDataState,
-  riskColor,
-} from "./shared";
+import { cn, LoadingState, NoDatasetState, NotEnoughDataState, riskColor } from "./shared";
 
 interface ChannelRisk {
   name: string;
@@ -62,8 +47,7 @@ export default function RiskAssessmentTab() {
       const failureRate = ch.total > 0 ? ch.declined / ch.total : 0;
       const refundRate = ch.total > 0 ? ch.refund / ch.total : 0;
       // Weighted blend → 0–100. Failure dominates, refunds and volatility add.
-      const raw =
-        failureRate * 55 + cv * 25 + refundRate * 20 * 5;
+      const raw = failureRate * 55 + cv * 25 + refundRate * 20 * 5;
       const riskScore = Math.min(100, Math.max(0, raw * 100));
       return {
         name: ch.label,
@@ -135,8 +119,7 @@ export default function RiskAssessmentTab() {
 
   if (data.noDataset) return <NoDatasetState what="risk assessment" />;
   if (data.isLoading) return <LoadingState />;
-  if (channelRisks.length === 0)
-    return <NotEnoughDataState what="Risk assessment" />;
+  if (channelRisks.length === 0) return <NotEnoughDataState what="Risk assessment" />;
 
   return (
     <div className="space-y-6">
@@ -147,8 +130,8 @@ export default function RiskAssessmentTab() {
             <p className="text-sm font-semibold text-red-300">High Risk Alert</p>
             <p className="text-xs text-red-400/80 mt-0.5">
               {highRiskChannels.map((c) => c.name).join(", ")}{" "}
-              {highRiskChannels.length === 1 ? "scores" : "score"} above 70 —
-              immediate attention recommended.
+              {highRiskChannels.length === 1 ? "scores" : "score"} above 70 — immediate attention
+              recommended.
             </p>
           </div>
         </div>
@@ -156,17 +139,13 @@ export default function RiskAssessmentTab() {
 
       <Card className="bg-slate-900/60 ring-slate-700/40">
         <CardHeader>
-          <CardTitle className="text-slate-200">
-            Risk Matrix: Volume vs Risk Score
-          </CardTitle>
+          <CardTitle className="text-slate-200">Risk Matrix: Volume vs Risk Score</CardTitle>
           <CardDescription className="text-slate-500">
             Green (&lt;30) · Yellow (30–60) · Red (&gt;60)
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {scatterOption && (
-            <ReactECharts option={scatterOption} style={{ height: 320 }} />
-          )}
+          {scatterOption && <ReactECharts option={scatterOption} style={{ height: 320 }} />}
         </CardContent>
       </Card>
 
@@ -218,9 +197,7 @@ export default function RiskAssessmentTab() {
           return (
             <Card key={ch.name} className={cn("ring-1", color.bg, color.border)}>
               <CardHeader>
-                <CardTitle className={cn("text-sm", color.text)}>
-                  {ch.name}
-                </CardTitle>
+                <CardTitle className={cn("text-sm", color.text)}>{ch.name}</CardTitle>
                 <CardDescription className="text-slate-500 text-xs">
                   Volume: {fmtN(ch.volume)} txns
                 </CardDescription>
@@ -230,21 +207,15 @@ export default function RiskAssessmentTab() {
                 <div className="mt-2 space-y-1 text-xs text-slate-400">
                   <div className="flex justify-between">
                     <span>Failure Rate</span>
-                    <span className="text-slate-300">
-                      {(ch.failureRate * 100).toFixed(1)}%
-                    </span>
+                    <span className="text-slate-300">{(ch.failureRate * 100).toFixed(1)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Volatility</span>
-                    <span className="text-slate-300">
-                      {(ch.volatility * 100).toFixed(0)}%
-                    </span>
+                    <span className="text-slate-300">{(ch.volatility * 100).toFixed(0)}%</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Refund Rate</span>
-                    <span className="text-slate-300">
-                      {(ch.refundRate * 100).toFixed(1)}%
-                    </span>
+                    <span className="text-slate-300">{(ch.refundRate * 100).toFixed(1)}%</span>
                   </div>
                 </div>
               </CardContent>

@@ -222,21 +222,15 @@ export async function summarizeRegisteredDataset(
 
 // ─── Dataset Export / Delete ──────────────────────────────────────────────────
 
-export async function exportRegisteredDataset(
-  input: ExportDatasetInput,
-): Promise<void> {
+export async function exportRegisteredDataset(input: ExportDatasetInput): Promise<void> {
   await sharedDuckDB.exportDataset(input);
 }
 
-export async function deleteRegisteredDataset(
-  input: DatasetOnlyInput,
-): Promise<void> {
+export async function deleteRegisteredDataset(input: DatasetOnlyInput): Promise<void> {
   await sharedDuckDB.deleteDataset(input);
 }
 
-export async function runReadOnlyQuery(
-  sql: string,
-): Promise<Record<string, unknown>[]> {
+export async function runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]> {
   return sharedDuckDB.runReadOnlyQuery(sql);
 }
 
@@ -257,16 +251,12 @@ export async function runReadOnlyQueryArrow(
 // ─── Single-scan profiling pushdown ───────────────────────────────────────────
 
 /** Whole-dataset profile in one SUMMARIZE scan (approximate, cheap). */
-export async function profileDataset(
-  input: ProfileDatasetInput,
-): Promise<SummarizeRow[]> {
+export async function profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]> {
   return sharedDuckDB.profileDataset(input);
 }
 
 /** Per-selected-column detail (distinct/top-K/histogram). Call lazily. */
-export async function profileColumnDetail(
-  input: ProfileColumnDetailInput,
-): Promise<ColumnDetail> {
+export async function profileColumnDetail(input: ProfileColumnDetailInput): Promise<ColumnDetail> {
   return sharedDuckDB.profileColumnDetail(input);
 }
 
@@ -283,9 +273,7 @@ export async function countRows(input: CountRowsInput): Promise<number> {
  * Fetch one keyset/seek page as Arrow IPC plus the cursor for the next page.
  * O(window) regardless of depth. Feed `result.nextCursor` back in as `cursor`.
  */
-export async function fetchKeysetPage(
-  input: KeysetPageInput,
-): Promise<KeysetPageResult> {
+export async function fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult> {
   return sharedDuckDB.fetchKeysetPage(input);
 }
 

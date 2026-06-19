@@ -62,9 +62,7 @@ export function LanStatusDock() {
         <span className="font-medium">LAN</span>
         <span className="inline-flex items-center gap-1 text-muted-foreground">
           {online ? (
-            <Wifi
-              className={cn("h-3 w-3", connected ? "text-emerald-500" : "text-amber-500")}
-            />
+            <Wifi className={cn("h-3 w-3", connected ? "text-emerald-500" : "text-amber-500")} />
           ) : (
             <WifiOff className="h-3 w-3" />
           )}

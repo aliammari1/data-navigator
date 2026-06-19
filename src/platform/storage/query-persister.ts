@@ -110,9 +110,7 @@ export async function restoreQueryClient(
   try {
     const state = blob.compressed
       ? ((await decompress(blob.bytes)) as DehydratedState)
-      : (JSON.parse(
-          new TextDecoder().decode(blob.bytes),
-        ) as DehydratedState);
+      : (JSON.parse(new TextDecoder().decode(blob.bytes)) as DehydratedState);
     hydrate(client, state);
     return true;
   } catch {
@@ -130,8 +128,7 @@ async function writeSnapshot(
     Pick<QueryPersistOptions, "shouldDehydrateQuery">,
 ): Promise<void> {
   const state = dehydrate(client, {
-    shouldDehydrateQuery:
-      opts.shouldDehydrateQuery ?? defaultShouldDehydrateQuery,
+    shouldDehydrateQuery: opts.shouldDehydrateQuery ?? defaultShouldDehydrateQuery,
   });
 
   let bytes: ArrayBuffer;
@@ -140,8 +137,7 @@ async function writeSnapshot(
     bytes = await compress(state);
     compressed = true;
   } else {
-    bytes = new TextEncoder().encode(JSON.stringify(state))
-      .buffer as ArrayBuffer;
+    bytes = new TextEncoder().encode(JSON.stringify(state)).buffer as ArrayBuffer;
   }
 
   await queryCacheDb.snapshots.put({

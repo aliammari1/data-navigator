@@ -40,9 +40,7 @@ export const Default: Story = {};
 export const ExpandsOnClick: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Lignes Fixes/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Lignes Fixes/i }));
     await expect(canvas.getByText(/Détail des transactions/i)).toBeVisible();
   },
 };

@@ -192,9 +192,7 @@ export const ForecastPanel = memo(function ForecastPanel({
           <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
             <TrendingUp className="h-5 w-5" />
           </div>
-          <h3 className="text-sm font-semibold text-foreground">
-            Not enough data to forecast
-          </h3>
+          <h3 className="text-sm font-semibold text-foreground">Not enough data to forecast</h3>
           <p className="mt-1 max-w-sm text-xs leading-snug text-muted-foreground">
             Provide at least two observations to project a trend.
           </p>
@@ -212,9 +210,7 @@ export const ForecastPanel = memo(function ForecastPanel({
           <span
             className={cn(
               "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium",
-              trendUp
-                ? "bg-success/10 text-success"
-                : "bg-destructive/10 text-destructive",
+              trendUp ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive",
             )}
           >
             {trendUp ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -415,11 +411,7 @@ function Metric({
       <p
         className={cn(
           "mt-0.5 text-lg font-bold tabular-nums",
-          tone === "up"
-            ? "text-success"
-            : tone === "down"
-              ? "text-destructive"
-              : "text-foreground",
+          tone === "up" ? "text-success" : tone === "down" ? "text-destructive" : "text-foreground",
         )}
       >
         {value}
@@ -433,10 +425,7 @@ function Metric({
 
 type CalloutSeverity = "info" | "success" | "warning" | "danger" | "accent";
 
-const CALLOUT_TONE: Record<
-  CalloutSeverity,
-  { wrap: string; fg: string; icon: ReactNode }
-> = {
+const CALLOUT_TONE: Record<CalloutSeverity, { wrap: string; fg: string; icon: ReactNode }> = {
   info: {
     wrap: "border-primary/30 bg-primary/10",
     fg: "text-primary",
@@ -481,11 +470,7 @@ function Callout({
   const tone = CALLOUT_TONE[severity];
   return (
     <div
-      className={cn(
-        "flex items-start gap-2.5 rounded-lg border px-3 py-2.5",
-        tone.wrap,
-        className,
-      )}
+      className={cn("flex items-start gap-2.5 rounded-lg border px-3 py-2.5", tone.wrap, className)}
     >
       <div className={cn("mt-0.5 flex-none", tone.fg)}>{icon ?? tone.icon}</div>
       <div className="min-w-0 flex-1">

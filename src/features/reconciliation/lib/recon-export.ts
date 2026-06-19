@@ -19,11 +19,7 @@ import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { getExportProxy, saveBytes } from "@/platform/viz";
 import type { ReportDocument, TableSection } from "@/workers/export-types";
 import { buildPageSQL, type DiffConfig } from "./recon-sql";
-import {
-  type DiffRow,
-  type DiffSummary,
-  mapDiffRow,
-} from "./use-reconciliation";
+import { type DiffRow, type DiffSummary, mapDiffRow } from "./use-reconciliation";
 import type { RowAnnotation } from "../stores/annotations-store";
 
 /** Hard cap on rows embedded in a single export document (memory safety). */
@@ -31,9 +27,7 @@ const MAX_EXPORT_ROWS = 50_000;
 const PAGE_SIZE = 5_000;
 
 /** Page through changed/added/removed rows from DuckDB without materializing all of them. */
-async function* streamDiffRows(
-  cfg: DiffConfig,
-): AsyncGenerator<DiffRow, void, unknown> {
+async function* streamDiffRows(cfg: DiffConfig): AsyncGenerator<DiffRow, void, unknown> {
   let offset = 0;
   while (offset < MAX_EXPORT_ROWS) {
     const rows = await runReadOnlyQuery(
@@ -51,10 +45,7 @@ function fmt(n: number | null): string {
   return new Intl.NumberFormat("en-US", { maximumFractionDigits: 2 }).format(n);
 }
 
-function buildSummarySection(
-  summary: DiffSummary,
-  measureLabels: string[],
-): TableSection {
+function buildSummarySection(summary: DiffSummary, measureLabels: string[]): TableSection {
   const rows: (string | number)[][] = [
     ["Rows total", summary.rowsTotal],
     ["Changed", summary.rowsChanged],

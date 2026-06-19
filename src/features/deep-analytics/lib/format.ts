@@ -26,10 +26,7 @@ export function fmtBucket(value: unknown): string {
 }
 
 /** Pick the first matching column name from a list, by case-insensitive regex. */
-export function pickColumn(
-  columns: string[],
-  patterns: RegExp[],
-): string | undefined {
+export function pickColumn(columns: string[], patterns: RegExp[]): string | undefined {
   for (const pattern of patterns) {
     const hit = columns.find((c) => pattern.test(c));
     if (hit) return hit;

@@ -11,20 +11,13 @@
  */
 
 import * as Comlink from "comlink";
-import {
-  type SqlValidation,
-  validateFragment,
-  validateSql,
-} from "../engine/validate";
+import { type SqlValidation, validateFragment, validateSql } from "../engine/validate";
 
 const api = {
   validateSql(sql: string): SqlValidation {
     return validateSql(sql);
   },
-  validateFragment(
-    fragment: string,
-    kind: "where" | "projection" | "groupby",
-  ): SqlValidation {
+  validateFragment(fragment: string, kind: "where" | "projection" | "groupby"): SqlValidation {
     return validateFragment(fragment, kind);
   },
 };

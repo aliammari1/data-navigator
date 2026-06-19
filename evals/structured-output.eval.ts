@@ -30,21 +30,14 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { accuracy, assertAtLeast, mean, report } from "./_harness";
 import { liveIt, loadLocalEngine } from "./_model";
-import {
-  extractJsonBlock,
-  parseStructured,
-  repairJson,
-} from "@/platform/ai/provider/structured";
+import { extractJsonBlock, parseStructured, repairJson } from "@/platform/ai/provider/structured";
 import {
   NEGATIVE_CASES,
   POSITIVE_CASES,
   STRUCTURED_CASES,
   type StructuredCase,
 } from "./fixtures/structured-corpus";
-import {
-  EQUIVALENT_RECOVERY_PAIRS,
-  STRUCTURED_GOLD,
-} from "./fixtures/structured-gold";
+import { EQUIVALENT_RECOVERY_PAIRS, STRUCTURED_GOLD } from "./fixtures/structured-gold";
 
 /** Run one corpus case; `true` when the OBSERVED outcome matches `shouldRecover`. */
 function outcomeMatchesExpectation(testCase: StructuredCase): boolean {
@@ -119,7 +112,7 @@ describe("structured-output recovery (deterministic)", () => {
     // Fenced block.
     expect(extractJsonBlock('```json\n{"a":1}\n```')).toBe('{"a":1}');
     // Array root chosen when it appears first.
-    expect(extractJsonBlock('prose [1,2,3] more')).toBe("[1,2,3]");
+    expect(extractJsonBlock("prose [1,2,3] more")).toBe("[1,2,3]");
     // Braces inside strings don't break balance.
     expect(extractJsonBlock('{"k":"a}b"} tail')).toBe('{"k":"a}b"}');
     // No JSON at all.
@@ -232,64 +225,61 @@ describe("structured-output live conformance (model-gated)", () => {
     { text: "Great value and fast shipping, highly recommend." },
   ];
 
-  liveIt(
-    "emits schema-valid JSON, measuring first-pass and repaired conformance",
-    async () => {
-      const engine = await loadLocalEngine();
-      try {
-        await engine.ensureModel();
+  liveIt("emits schema-valid JSON, measuring first-pass and repaired conformance", async () => {
+    const engine = await loadLocalEngine();
+    try {
+      await engine.ensureModel();
 
-        const system =
-          "You output ONLY a single JSON object and nothing else — no prose, no code fences. " +
-          'Shape: {"sentiment": "positive"|"negative"|"neutral", "score": <number 0..1>}.';
+      const system =
+        "You output ONLY a single JSON object and nothing else — no prose, no code fences. " +
+        'Shape: {"sentiment": "positive"|"negative"|"neutral", "score": <number 0..1>}.';
 
-        const firstPass: number[] = [];
-        const withRepair: number[] = [];
+      const firstPass: number[] = [];
+      const withRepair: number[] = [];
 
-        for (const { text } of livePrompts) {
-          const { text: raw } = await engine.generate({
-            system,
-            prompt: `Classify the sentiment of this text:\n"${text}"\nReturn ONLY the JSON object.`,
-            maxTokens: 64,
-            temperature: 0,
-          });
+      for (const { text } of livePrompts) {
+        const { text: raw } = await engine.generate({
+          system,
+          prompt: `Classify the sentiment of this text:\n"${text}"\nReturn ONLY the JSON object.`,
+          maxTokens: 64,
+          temperature: 0,
+        });
 
-          // First-pass: strict JSON.parse on the raw output, no repair.
-          let firstPassOk = 0;
-          try {
-            liveSchema.parse(JSON.parse(raw.trim()));
-            firstPassOk = 1;
-          } catch {
-            firstPassOk = 0;
-          }
-          firstPass.push(firstPassOk);
-
-          // With repair: the production parseStructured lane.
-          let repairedOk = 0;
-          try {
-            parseStructured(raw, liveSchema, { label: "live.sentiment" });
-            repairedOk = 1;
-          } catch {
-            repairedOk = 0;
-          }
-          withRepair.push(repairedOk);
+        // First-pass: strict JSON.parse on the raw output, no repair.
+        let firstPassOk = 0;
+        try {
+          liveSchema.parse(JSON.parse(raw.trim()));
+          firstPassOk = 1;
+        } catch {
+          firstPassOk = 0;
         }
+        firstPass.push(firstPassOk);
 
-        const firstPassRate = mean(firstPass);
-        const repairedRate = mean(withRepair);
-        report("structured.live.firstPassConformance", firstPassRate);
-        report("structured.live.repairedConformance", repairedRate);
-
-        // Repair can only help, never hurt: the recovered rate must dominate.
-        expect(repairedRate).toBeGreaterThanOrEqual(firstPassRate);
-
-        // Conservative live gate: at least half of repaired outputs conform.
-        // (First-pass conformance is reported but not gated — small models are
-        // noisy and the production path always runs through repair.)
-        assertAtLeast(repairedRate, 0.5, "structured.live.repairedConformance");
-      } finally {
-        await engine.dispose();
+        // With repair: the production parseStructured lane.
+        let repairedOk = 0;
+        try {
+          parseStructured(raw, liveSchema, { label: "live.sentiment" });
+          repairedOk = 1;
+        } catch {
+          repairedOk = 0;
+        }
+        withRepair.push(repairedOk);
       }
-    },
-  );
+
+      const firstPassRate = mean(firstPass);
+      const repairedRate = mean(withRepair);
+      report("structured.live.firstPassConformance", firstPassRate);
+      report("structured.live.repairedConformance", repairedRate);
+
+      // Repair can only help, never hurt: the recovered rate must dominate.
+      expect(repairedRate).toBeGreaterThanOrEqual(firstPassRate);
+
+      // Conservative live gate: at least half of repaired outputs conform.
+      // (First-pass conformance is reported but not gated — small models are
+      // noisy and the production path always runs through repair.)
+      assertAtLeast(repairedRate, 0.5, "structured.live.repairedConformance");
+    } finally {
+      await engine.dispose();
+    }
+  });
 });

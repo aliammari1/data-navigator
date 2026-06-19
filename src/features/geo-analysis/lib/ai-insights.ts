@@ -51,11 +51,7 @@ export const GeoInsightSchema = z.object({
     .min(4)
     .max(400)
     .describe("A single observation about channel distribution across regions"),
-  recommendation: z
-    .string()
-    .min(4)
-    .max(400)
-    .describe("One concrete, actionable recommendation"),
+  recommendation: z.string().min(4).max(400).describe("One concrete, actionable recommendation"),
 });
 
 export type GeoInsight = z.infer<typeof GeoInsightSchema>;
@@ -101,9 +97,7 @@ export function buildGeoInsightPrompt(ctx: GeoInsightContext): {
 
   const anomalyLine =
     ctx.anomalousRegions.length > 0
-      ? `Statistically anomalous success rates detected in: ${ctx.anomalousRegions.join(
-          ", ",
-        )}.`
+      ? `Statistically anomalous success rates detected in: ${ctx.anomalousRegions.join(", ")}.`
       : "No statistically anomalous success rates detected.";
 
   return {

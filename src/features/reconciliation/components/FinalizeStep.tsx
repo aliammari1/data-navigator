@@ -10,21 +10,11 @@
  * report store), which also backs "Use Previous Report".
  */
 
-import {
-  CheckCircle2,
-  Download,
-  FileSpreadsheet,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { CheckCircle2, Download, FileSpreadsheet, Loader2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { exportReconciliation } from "../lib/recon-export";
-import {
-  hashRun,
-  type ReconRunRecord,
-  saveReconRun,
-} from "../lib/recon-persistence";
+import { hashRun, type ReconRunRecord, saveReconRun } from "../lib/recon-persistence";
 import type { DiffConfig } from "../lib/recon-sql";
 import type { DiffSummary } from "../lib/use-reconciliation";
 import { useAnnotationsStore } from "../stores/annotations-store";
@@ -111,9 +101,7 @@ export function FinalizeStep({
     }
   };
 
-  const escalatedCount = Object.values(annotations).filter(
-    (a) => a.escalated,
-  ).length;
+  const escalatedCount = Object.values(annotations).filter((a) => a.escalated).length;
   const annotatedCount = Object.values(annotations).filter(
     (a) => a.reasonCode && a.reasonCode !== "Unknown",
   ).length;
@@ -162,8 +150,8 @@ export function FinalizeStep({
       <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
         <h3 className="mb-1 text-sm font-semibold text-slate-200">Sign-off</h3>
         <p className="mb-3 text-xs text-slate-500">
-          Persists an immutable, content-hashed snapshot (config + summary +
-          annotations) to the local report store. Backs "Use Previous Report".
+          Persists an immutable, content-hashed snapshot (config + summary + annotations) to the
+          local report store. Backs "Use Previous Report".
         </p>
         {signedOff ? (
           <div className="flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-sm text-emerald-300">
@@ -182,9 +170,7 @@ export function FinalizeStep({
         )}
       </div>
 
-      {message && (
-        <p className="text-xs text-slate-400">{message}</p>
-      )}
+      {message && <p className="text-xs text-slate-400">{message}</p>}
     </div>
   );
 }

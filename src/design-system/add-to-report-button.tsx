@@ -3,10 +3,7 @@
 import { Check, FilePlus2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  type ReportDraftItem,
-  useReportDraftActions,
-} from "@/core/stores/report-draft-store";
+import { type ReportDraftItem, useReportDraftActions } from "@/core/stores/report-draft-store";
 import { cn } from "@/lib/utils";
 
 /**

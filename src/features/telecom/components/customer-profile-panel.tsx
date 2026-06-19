@@ -5,12 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { EChart } from "@/features/telecom/components/echart";
 import { buildCustomerHourlyOption } from "@/features/telecom/lib/chart-options";
-import {
-  fmtAmount,
-  fmtN,
-  fmtPct,
-  safeNum,
-} from "@/features/telecom/lib/format";
+import { fmtAmount, fmtN, fmtPct, safeNum } from "@/features/telecom/lib/format";
 import { BUILTIN_STATUS_CODES } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
@@ -29,9 +24,7 @@ export function CustomerProfilePanel({
     msisdn: string,
   ) => Promise<Types.CustomerProfileData | null>;
 }) {
-  const [profile, setProfile] = useState<Types.CustomerProfileData | null>(
-    null,
-  );
+  const [profile, setProfile] = useState<Types.CustomerProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [txPage, setTxPage] = useState(0);
   const TX_PAGE = 10;
@@ -82,12 +75,8 @@ export function CustomerProfilePanel({
                 <Users className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
               </div>
               <div>
-                <div className="text-sm font-bold text-foreground font-mono">
-                  {msisdn}
-                </div>
-                <div className="text-[10px] text-muted-foreground">
-                  Profil client
-                </div>
+                <div className="text-sm font-bold text-foreground font-mono">{msisdn}</div>
+                <div className="text-[10px] text-muted-foreground">Profil client</div>
               </div>
             </div>
             <button
@@ -102,8 +91,7 @@ export function CustomerProfilePanel({
           <div className="flex-1 p-5 space-y-5">
             {loading && (
               <div className="flex items-center gap-2 py-10 justify-center text-xs text-muted-foreground">
-                <Loader2 className="w-4 h-4 animate-spin" /> Chargement du
-                profil…
+                <Loader2 className="w-4 h-4 animate-spin" /> Chargement du profil…
               </div>
             )}
 
@@ -127,9 +115,7 @@ export function CustomerProfilePanel({
                     {
                       label: "Taux de succès",
                       value: fmtPct(
-                        profile.total > 0
-                          ? (profile.success / profile.total) * 100
-                          : 0,
+                        profile.total > 0 ? (profile.success / profile.total) * 100 : 0,
                       ),
                       color:
                         profile.success / profile.total >= 0.9
@@ -150,21 +136,11 @@ export function CustomerProfilePanel({
                       bg: "bg-violet-500/10 border-violet-500/20",
                     },
                   ].map((k) => (
-                    <div
-                      key={k.label}
-                      className={cn("rounded-xl border p-3", k.bg)}
-                    >
-                      <div
-                        className={cn(
-                          "text-lg font-bold tabular-nums truncate",
-                          k.color,
-                        )}
-                      >
+                    <div key={k.label} className={cn("rounded-xl border p-3", k.bg)}>
+                      <div className={cn("text-lg font-bold tabular-nums truncate", k.color)}>
                         {k.value}
                       </div>
-                      <div className="text-[10px] text-muted-foreground">
-                        {k.label}
-                      </div>
+                      <div className="text-[10px] text-muted-foreground">{k.label}</div>
                     </div>
                   ))}
                 </div>
@@ -217,13 +193,8 @@ export function CustomerProfilePanel({
                       color: "#89dceb",
                     },
                   ].map((s) => (
-                    <div
-                      key={s.label}
-                      className="flex items-center gap-2 text-xs"
-                    >
-                      <span className="w-16 text-muted-foreground">
-                        {s.label}
-                      </span>
+                    <div key={s.label} className="flex items-center gap-2 text-xs">
+                      <span className="w-16 text-muted-foreground">{s.label}</span>
                       <div className="flex-1 h-1.5 rounded-full bg-muted/60 overflow-hidden">
                         <div
                           className="h-full rounded-full"
@@ -238,9 +209,7 @@ export function CustomerProfilePanel({
                         {fmtN(s.val)}
                       </span>
                       <span className="w-10 text-right tabular-nums text-muted-foreground">
-                        {profile.total > 0
-                          ? fmtPct((s.val / profile.total) * 100)
-                          : "—"}
+                        {profile.total > 0 ? fmtPct((s.val / profile.total) * 100) : "—"}
                       </span>
                     </div>
                   ))}
@@ -253,10 +222,7 @@ export function CustomerProfilePanel({
                       <Clock className="w-3 h-3" /> Activité horaire
                     </div>
                     <EChart
-                      option={buildCustomerHourlyOption(
-                        profile.hourly,
-                        profile.peakHour,
-                      )}
+                      option={buildCustomerHourlyOption(profile.hourly, profile.peakHour)}
                       height={100}
                     />
                   </div>
@@ -307,13 +273,11 @@ export function CustomerProfilePanel({
                       <tbody>
                         {pageTx.map((row, rowIdx) => {
                           const st = String(row[m.status] ?? "");
-                          const isSuccess =
-                            BUILTIN_STATUS_CODES.success.includes(
-                              st.toUpperCase().trim(),
-                            );
+                          const isSuccess = BUILTIN_STATUS_CODES.success.includes(
+                            st.toUpperCase().trim(),
+                          );
                           const isDeclined =
-                            st.toUpperCase().startsWith("DC") ||
-                            st.toUpperCase().startsWith("SDL");
+                            st.toUpperCase().startsWith("DC") || st.toUpperCase().startsWith("SDL");
                           // Stable, deterministic key (no Math.random): prefer a
                           // real id, else fall back to the row's page index.
                           const rowKey = String(
@@ -328,10 +292,7 @@ export function CustomerProfilePanel({
                               className="border-b border-border/30 last:border-0 hover:bg-muted/20"
                             >
                               <td className="px-2.5 py-1.5 text-muted-foreground font-mono text-[10px]">
-                                {String(row[m.transactionDate] ?? "").slice(
-                                  0,
-                                  16,
-                                )}
+                                {String(row[m.transactionDate] ?? "").slice(0, 16)}
                               </td>
                               <td className="px-2.5 py-1.5">
                                 <span
@@ -351,9 +312,7 @@ export function CustomerProfilePanel({
                                 {fmtAmount(safeNum(row[m.amount]))}
                               </td>
                               <td className="px-2.5 py-1.5 text-muted-foreground text-[10px] truncate max-w-28">
-                                {String(
-                                  row[m.canal] ?? row[m.serviceCode] ?? "—",
-                                )}
+                                {String(row[m.canal] ?? row[m.serviceCode] ?? "—")}
                               </td>
                             </tr>
                           );

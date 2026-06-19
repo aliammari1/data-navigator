@@ -37,9 +37,7 @@ export function TelecomTabStrip() {
     >
       {TELECOM_TABS.map(({ seg, label }) => {
         const href = `${TELECOM_BASE}/${seg}`;
-        const active =
-          pathname === href ||
-          (seg === "overview" && pathname === TELECOM_BASE);
+        const active = pathname === href || (seg === "overview" && pathname === TELECOM_BASE);
 
         return (
           <Link

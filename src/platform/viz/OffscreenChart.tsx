@@ -59,9 +59,7 @@ export function OffscreenChart({
   // the worker — render the main-thread fallback for those instead.
   const cloneable = useMemo(() => !hasFunctionValue(option), [option]);
   const useFallback =
-    typeof window !== "undefined" &&
-    !!fallback &&
-    (!getChartProxy() || !cloneable);
+    typeof window !== "undefined" && !!fallback && (!getChartProxy() || !cloneable);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: height/theme seed the one-time init; the canvas can only be transferred once on mount, and live updates flow through resize/setOption.
   useEffect(() => {
@@ -90,8 +88,7 @@ export function OffscreenChart({
       }
       transferredRef.current = true;
       const rect = canvas.getBoundingClientRect();
-      const dpr =
-        typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
+      const dpr = typeof window !== "undefined" ? window.devicePixelRatio || 1 : 1;
       void proxy.init(
         id,
         Comlink.transfer(off, [off]),
