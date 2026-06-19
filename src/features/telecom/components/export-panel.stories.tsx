@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 

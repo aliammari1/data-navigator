@@ -79,7 +79,7 @@ The canonical reference is
 [`src/features/telecom/components/kpi-card.stories.tsx`](../src/features/telecom/components/kpi-card.stories.tsx).
 
 ```tsx
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { Widget } from "./widget";
 

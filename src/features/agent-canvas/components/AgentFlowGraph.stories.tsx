@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { FlowNode } from "@/features/agent-canvas/core/agent-store";
 
