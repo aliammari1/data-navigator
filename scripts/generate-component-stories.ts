@@ -60,7 +60,7 @@ function makeStory(componentFile: string) {
   const componentName = getComponentName(componentFile);
   const title = toStoryTitle(componentFile);
 
-  return `import type { Meta, StoryObj } from "@storybook/nextjs";
+  return `import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import { ${componentName} } from "./${baseName}";
 

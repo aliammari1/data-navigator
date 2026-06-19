@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone, Tag, Wifi, Zap } from "lucide-react";
 
 import type { CanalSummary } from "@/features/telecom/types";

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { AnalysisCards } from "./analysis-cards";
 import { AlertTriangle, CheckCircle2, GitBranch, Layers, } from "lucide-react";
 

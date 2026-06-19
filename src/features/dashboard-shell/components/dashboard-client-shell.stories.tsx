@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { DashboardUser } from "@/features/dashboard-shell/components/sidebar-nav";
 import { DashboardClientShell } from "./dashboard-client-shell";
 

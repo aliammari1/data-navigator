@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
