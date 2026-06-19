@@ -49,6 +49,7 @@ export function IconContextMenu({
   const y = Math.min(menu.y, vh - (menu.items.length * 34 + 16));
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: container-level event shims (preventDefault/stopPropagation), not user interactions; the interactive items are the child buttons
     <div
       style={{ left: x, top: y }}
       className="fixed z-[var(--z-modal)] min-w-52 rounded-lg border border-[var(--win-border)] bg-[var(--win-acrylic)] p-1 shadow-2xl backdrop-blur-xl"

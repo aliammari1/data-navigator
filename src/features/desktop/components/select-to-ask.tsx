@@ -226,6 +226,7 @@ export function SelectToAsk() {
   const showPopover = explain.status !== "idle";
 
   return (
+    // biome-ignore lint/a11y/noStaticElementInteractions: positioned wrapper intercepts mousedown only to preserve the native text selection; it is not an interactive control.
     <div
       ref={rootRef}
       className="fixed z-[var(--z-modal)]"

@@ -26,7 +26,8 @@
       "!!**/test-results",
       "!!drizzle/meta",
       "!!**/*.lock",
-      "!!pnpm-lock.yaml"
+      "!!pnpm-lock.yaml",
+      "!!**/*.svg"
     ]
   },
 
@@ -47,7 +48,7 @@
       "test": "recommended"
     },
     "rules": {
-      "recommended": true,
+      "preset": "recommended",
 
       "a11y": {
         "useSemanticElements": "off",
@@ -144,13 +145,7 @@
       }
     },
     {
-      "includes": [
-        "tests/**",
-        "**/*.test.ts",
-        "**/*.test.tsx",
-        "**/*.spec.ts",
-        "**/*.spec.tsx"
-      ],
+      "includes": ["tests/**", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
       "linter": {
         "rules": {
           "correctness": {
@@ -169,6 +164,16 @@
           "correctness": {
             "noUnusedImports": "warn",
             "noUnusedVariables": "warn"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["evals/**", "**/*.eval.ts"],
+      "linter": {
+        "rules": {
+          "suspicious": {
+            "noExportsInTest": "off"
           }
         }
       }
