@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   FIRE_COOLDOWN_MS,
   evaluateRules,

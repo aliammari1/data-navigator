@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import { summarizeDataset } from "@/platform/electron/electron-fs";
 import {
   fetchFullTableColumnInfo,
