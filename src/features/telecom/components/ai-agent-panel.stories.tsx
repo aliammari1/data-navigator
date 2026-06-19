@@ -68,9 +68,7 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/Agent IA · 100% offline/i)).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: /Analyser maintenant/i }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Analyser maintenant/i })).toBeInTheDocument();
   },
 };
 

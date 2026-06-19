@@ -126,9 +126,7 @@ export default function SunburstScene() {
       onRetry={scene.refetch}
     >
       <div className="space-y-4">
-        {scene.note && (
-          <p className="text-xs text-muted-foreground">{scene.note}</p>
-        )}
+        {scene.note && <p className="text-xs text-muted-foreground">{scene.note}</p>}
 
         <div className="flex items-center gap-1 text-sm text-muted-foreground">
           {breadcrumb.map((b, i) => (

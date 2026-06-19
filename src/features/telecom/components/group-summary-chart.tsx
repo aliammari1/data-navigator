@@ -116,9 +116,7 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 px-4 py-2.5 border-b border-border/30 bg-muted/20">
         <div className="flex items-center gap-1.5 text-xs">
           <span className="text-muted-foreground">Total</span>
-          <span className="font-bold text-foreground tabular-nums">
-            {fmtN(totalN)} tx
-          </span>
+          <span className="font-bold text-foreground tabular-nums">{fmtN(totalN)} tx</span>
         </div>
         <div className="w-px h-3 bg-border" />
         <div className="flex items-center gap-1.5 text-xs">
@@ -139,9 +137,7 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
               />
               <span>
                 {d.label}:{" "}
-                <span className="text-foreground font-semibold tabular-nums">
-                  {fmtN(d.nombre)}
-                </span>
+                <span className="text-foreground font-semibold tabular-nums">{fmtN(d.nombre)}</span>
               </span>
             </div>
           ))}
@@ -151,13 +147,7 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
       {/* Chart */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-0 divide-x divide-border/30">
         {/* Donut or hbar */}
-        <div>
-          {useDonut ? (
-            <MemoDonutChart data={data} />
-          ) : (
-            <MemoHbarChart data={data} />
-          )}
-        </div>
+        <div>{useDonut ? <MemoDonutChart data={data} /> : <MemoHbarChart data={data} />}</div>
 
         {/* Mini comparison table */}
         <div className="px-4 py-3 flex flex-col justify-center">
@@ -175,9 +165,7 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
                         className="w-2 h-2 rounded-full flex-none"
                         style={{ backgroundColor: d.color }}
                       />
-                      <span className="text-foreground truncate">
-                        {d.label}
-                      </span>
+                      <span className="text-foreground truncate">{d.label}</span>
                     </div>
                     <span className="text-muted-foreground tabular-nums ml-2 flex-none">
                       {pct.toFixed(1)}%

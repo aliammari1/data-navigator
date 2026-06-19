@@ -123,23 +123,14 @@ function usePresence(username: string, currentPage: string) {
   }, [username, currentPage, status]);
 
   // Other peers = everyone in awareness except ourselves (matched by peer id).
-  const others = useMemo(
-    () => peers.filter((p) => p.id !== me.id),
-    [peers, me.id],
-  );
+  const others = useMemo(() => peers.filter((p) => p.id !== me.id), [peers, me.id]);
 
   return { me, peers: others, connected: status === "connected" };
 }
 
 // ─── User avatar with tooltip ─────────────────────────────────────────────────
 
-function PresenceAvatar({
-  user,
-  isMe,
-}: {
-  user: LANPeer;
-  isMe?: boolean;
-}) {
+function PresenceAvatar({ user, isMe }: { user: LANPeer; isMe?: boolean }) {
   const [showTip, setShowTip] = useState(false);
   const status = statusFromLastSeen(user.lastSeenAt);
 
@@ -188,9 +179,7 @@ function PresenceAvatar({
             <p className="text-muted-foreground capitalize">
               {status} · {user.role}
             </p>
-            {user.page && (
-              <p className="text-muted-foreground truncate max-w-40">{user.page}</p>
-            )}
+            {user.page && <p className="text-muted-foreground truncate max-w-40">{user.page}</p>}
           </motion.div>
         )}
       </AnimatePresence>
@@ -200,13 +189,7 @@ function PresenceAvatar({
 
 // ─── Set Name popover ─────────────────────────────────────────────────────────
 
-function SetNamePopover({
-  current,
-  onSave,
-}: {
-  current: string;
-  onSave: (name: string) => void;
-}) {
+function SetNamePopover({ current, onSave }: { current: string; onSave: (name: string) => void }) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState(current);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -263,12 +246,7 @@ function SetNamePopover({
                 <Check className="size-3" />
                 Save
               </Button>
-              <Button
-                size="xs"
-                variant="outline"
-                className="h-7"
-                onClick={() => setOpen(false)}
-              >
+              <Button size="xs" variant="outline" className="h-7" onClick={() => setOpen(false)}>
                 Cancel
               </Button>
             </div>
@@ -290,11 +268,10 @@ export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
   const setUsername = useCollabHubStore.use.setUsername();
   const { me, peers, connected } = usePresence(username, currentPage);
 
-  const allUsers = useMemo<LANPeer[]>(() => [{ ...me, name: username }, ...peers], [
-    me,
-    username,
-    peers,
-  ]);
+  const allUsers = useMemo<LANPeer[]>(
+    () => [{ ...me, name: username }, ...peers],
+    [me, username, peers],
+  );
   const activeCount = useMemo(
     () => allUsers.filter((u) => statusFromLastSeen(u.lastSeenAt) === "active").length,
     [allUsers],
@@ -349,8 +326,7 @@ export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
         <Users className="size-4 text-muted-foreground" />
         <span className="font-medium">{allUsers.length}</span>
         <span className="text-muted-foreground">
-          {allUsers.length === 1 ? "person" : "people"}{" "}
-          {connected ? "in session" : "viewing"}
+          {allUsers.length === 1 ? "person" : "people"} {connected ? "in session" : "viewing"}
         </span>
         {activeCount > 0 && (
           <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">

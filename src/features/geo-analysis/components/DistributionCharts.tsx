@@ -125,11 +125,7 @@ export function HeatmapChart({ matrix, onSelectRegion, height = 420 }: HeatmapCh
   );
 
   return (
-    <ReactECharts
-      option={option}
-      style={{ height }}
-      onEvents={events as Record<string, unknown>}
-    />
+    <ReactECharts option={option} style={{ height }} onEvents={events as Record<string, unknown>} />
   );
 }
 

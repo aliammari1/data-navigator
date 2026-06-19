@@ -87,9 +87,7 @@ export function TopBar({ onReset }: Props) {
         <div className="w-6 h-6 rounded-lg bg-violet-600/20 border border-violet-500/30 flex items-center justify-center">
           <Brain className="w-3.5 h-3.5 text-violet-400" />
         </div>
-        <span className="text-xs font-bold text-white hidden sm:block">
-          Agent Canvas
-        </span>
+        <span className="text-xs font-bold text-white hidden sm:block">Agent Canvas</span>
       </div>
 
       {/* Thread ID */}

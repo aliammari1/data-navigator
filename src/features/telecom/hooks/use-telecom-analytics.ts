@@ -20,10 +20,7 @@ import {
   STATUS_AUTO_SEMANTIC_BY_CODE,
 } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
-import {
-  type ForecastPoint,
-  forecastNextHours,
-} from "@/platform/browser/forecast-onnx";
+import { type ForecastPoint, forecastNextHours } from "@/platform/browser/forecast-onnx";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface UseTelecomAnalyticsParams {
@@ -63,10 +60,7 @@ export interface UseTelecomAnalyticsReturn {
   rawStatuses: Types.RawStatusRow[];
   setRawStatuses: (v: Types.RawStatusRow[]) => void;
   refresh: () => Promise<void>;
-  runAnalytics: (
-    m: Types.ColumnMapping,
-    sm: Types.StatusMapping[],
-  ) => Promise<void>;
+  runAnalytics: (m: Types.ColumnMapping, sm: Types.StatusMapping[]) => Promise<void>;
 }
 
 interface TelecomAnalyticsPayload {
@@ -149,18 +143,16 @@ export function useTelecomAnalytics({
         ]);
 
         const total = kpiResult?.totalTransactions ?? 0;
-        const [rawCanalsResult, operatorsResult, regionsResult] =
-          await Promise.all([
-            fetchRawCanalSummaries(table, m, total, sm),
-            _fetchOperators(table, m, sm),
-            _fetchRegions(table, m, sm),
-          ]);
+        const [rawCanalsResult, operatorsResult, regionsResult] = await Promise.all([
+          fetchRawCanalSummaries(table, m, total, sm),
+          _fetchOperators(table, m, sm),
+          _fetchRegions(table, m, sm),
+        ]);
         const canalsResult = enrichCanalSummaries(rawCanalsResult);
 
         const forecastResult = await forecastNextHours(hourlyResult, 4);
         let rawStatuses: Types.RawStatusRow[] =
-          queryClient.getQueryData<TelecomAnalyticsPayload>(analyticsQueryKey)
-            ?.rawStatuses ?? [];
+          queryClient.getQueryData<TelecomAnalyticsPayload>(analyticsQueryKey)?.rawStatuses ?? [];
 
         if (firstLoad.current) {
           firstLoad.current = false;
@@ -229,13 +221,7 @@ export function useTelecomAnalytics({
         return EMPTY_ANALYTICS;
       }
     },
-    [
-      analyticsQueryKey,
-      fileNameRef,
-      firstLoad,
-      onStatusMappingAdditions,
-      queryClient,
-    ],
+    [analyticsQueryKey, fileNameRef, firstLoad, onStatusMappingAdditions, queryClient],
   );
 
   const query = useQuery({
@@ -251,13 +237,10 @@ export function useTelecomAnalytics({
 
   const patchAnalytics = useCallback(
     (patch: Partial<TelecomAnalyticsPayload>) => {
-      queryClient.setQueryData<TelecomAnalyticsPayload>(
-        analyticsQueryKey,
-        (prev) => ({
-          ...(prev ?? EMPTY_ANALYTICS),
-          ...patch,
-        }),
-      );
+      queryClient.setQueryData<TelecomAnalyticsPayload>(analyticsQueryKey, (prev) => ({
+        ...(prev ?? EMPTY_ANALYTICS),
+        ...patch,
+      }));
     },
     [analyticsQueryKey, queryClient],
   );
@@ -269,13 +252,7 @@ export function useTelecomAnalytics({
   const runAnalytics = useCallback(
     async (m: Types.ColumnMapping, sm: Types.StatusMapping[]) => {
       await queryClient.fetchQuery({
-        queryKey: [
-          "telecom",
-          "analytics",
-          getTableName(),
-          stableHash(m),
-          stableHash(sm),
-        ],
+        queryKey: ["telecom", "analytics", getTableName(), stableHash(m), stableHash(sm)],
         queryFn: () => computeAnalytics(getTableName(), m, sm),
         staleTime: Infinity,
       });

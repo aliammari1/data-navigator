@@ -14,21 +14,10 @@
 import ReactECharts from "echarts-for-react";
 import { useMemo } from "react";
 import { mean } from "simple-statistics";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { fmtCompact, fmtN } from "@/features/telecom/lib/format";
 import { useForecastData } from "../data/use-forecast-data";
-import {
-  cn,
-  LoadingState,
-  NoDatasetState,
-  NotEnoughDataState,
-} from "./shared";
+import { cn, LoadingState, NoDatasetState, NotEnoughDataState } from "./shared";
 
 const DOW_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const REORDERED_DOW = [1, 2, 3, 4, 5, 6, 0]; // Mon–Sun
@@ -51,17 +40,14 @@ export default function PatternDetectorTab() {
     }
     const dowAverages = sums.map((s, i) => (counts[i] ? s / counts[i] : 0));
     const presentDows = REORDERED_DOW.filter((i) => counts[i] > 0);
-    const dowMean = presentDows.length
-      ? mean(presentDows.map((i) => dowAverages[i]!))
-      : 0;
+    const dowMean = presentDows.length ? mean(presentDows.map((i) => dowAverages[i]!)) : 0;
 
     const maxDowIdx = presentDows.reduce(
       (m, i) => (dowAverages[i]! > (dowAverages[m] ?? 0) ? i : m),
       presentDows[0] ?? 1,
     );
     const minDowIdx = presentDows.reduce(
-      (m, i) =>
-        dowAverages[i]! < (dowAverages[m] ?? Number.POSITIVE_INFINITY) ? i : m,
+      (m, i) => (dowAverages[i]! < (dowAverages[m] ?? Number.POSITIVE_INFINITY) ? i : m),
       presentDows[0] ?? 1,
     );
 
@@ -73,30 +59,21 @@ export default function PatternDetectorTab() {
     const weekendMean = weekendPresent.length
       ? mean(weekendPresent.map((d) => dowAverages[d]!))
       : 0;
-    const weekendDip =
-      weekdayMean > 0 ? ((weekdayMean - weekendMean) / weekdayMean) * 100 : 0;
+    const weekendDip = weekdayMean > 0 ? ((weekdayMean - weekendMean) / weekdayMean) * 100 : 0;
 
     // ── Hour-of-day from the REAL hourly aggregate ───────────────────────────
     const hourTotals = new Array(24).fill(0);
     for (const h of data.hourly) {
       if (h.hour >= 0 && h.hour < 24) hourTotals[h.hour] = h.total;
     }
-    const peakHour =
-      data.hourly.length > 0
-        ? hourTotals.indexOf(Math.max(...hourTotals))
-        : -1;
+    const peakHour = data.hourly.length > 0 ? hourTotals.indexOf(Math.max(...hourTotals)) : -1;
 
     // ── Month-end effect from the REAL tail of the series ────────────────────
     const tail = Math.min(3, Math.floor(data.daily.length / 2));
-    const lastAvg = tail
-      ? mean(data.daily.slice(-tail).map((d) => d.total))
-      : 0;
+    const lastAvg = tail ? mean(data.daily.slice(-tail).map((d) => d.total)) : 0;
     const headRows = data.daily.slice(0, data.daily.length - tail);
-    const headAvg = headRows.length
-      ? mean(headRows.map((d) => d.total))
-      : lastAvg;
-    const monthEndSurge =
-      headAvg > 0 ? ((lastAvg - headAvg) / headAvg) * 100 : 0;
+    const headAvg = headRows.length ? mean(headRows.map((d) => d.total)) : lastAvg;
+    const monthEndSurge = headAvg > 0 ? ((lastAvg - headAvg) / headAvg) * 100 : 0;
 
     return {
       dowAverages,
@@ -142,11 +119,7 @@ export default function PatternDetectorTab() {
             value: Math.round(stats.dowAverages[i] ?? 0),
             itemStyle: {
               color:
-                i === stats.maxDowIdx
-                  ? "#10b981"
-                  : i === stats.minDowIdx
-                    ? "#ef4444"
-                    : "#3b82f6",
+                i === stats.maxDowIdx ? "#10b981" : i === stats.minDowIdx ? "#ef4444" : "#3b82f6",
               borderRadius: [4, 4, 0, 0],
             },
           })),
@@ -278,16 +251,13 @@ export default function PatternDetectorTab() {
             </div>
           </CardHeader>
           <CardContent>
-            {dowChartOption && (
-              <ReactECharts option={dowChartOption} style={{ height: 220 }} />
-            )}
+            {dowChartOption && <ReactECharts option={dowChartOption} style={{ height: 220 }} />}
             <p className="text-xs text-slate-400 mt-2">
               {DOW_LABELS[stats.maxDowIdx]}s are{" "}
               <span className="text-emerald-400 font-semibold">
                 {stats.dowMean > 0
                   ? (
-                      (((stats.dowAverages[stats.maxDowIdx] ?? 0) -
-                        stats.dowMean) /
+                      (((stats.dowAverages[stats.maxDowIdx] ?? 0) - stats.dowMean) /
                         stats.dowMean) *
                       100
                     ).toFixed(0)
@@ -306,9 +276,7 @@ export default function PatternDetectorTab() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {trendChartOption && (
-              <ReactECharts option={trendChartOption} style={{ height: 240 }} />
-            )}
+            {trendChartOption && <ReactECharts option={trendChartOption} style={{ height: 240 }} />}
           </CardContent>
         </Card>
       </div>
@@ -334,19 +302,9 @@ export default function PatternDetectorTab() {
   );
 }
 
-function PatternCard({
-  icon,
-  text,
-  color,
-}: {
-  icon: string;
-  text: string;
-  color: string;
-}) {
+function PatternCard({ icon, text, color }: { icon: string; text: string; color: string }) {
   return (
-    <div
-      className={cn("rounded-xl border p-4 text-sm text-slate-300", color)}
-    >
+    <div className={cn("rounded-xl border p-4 text-sm text-slate-300", color)}>
       <span className="mr-2">{icon}</span>
       {text}
     </div>

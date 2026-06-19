@@ -3,11 +3,7 @@
 import { useMemo, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  type EChartsOption,
-  OffscreenChart,
-  warmExportWorker,
-} from "@/platform/viz";
+import { type EChartsOption, OffscreenChart, warmExportWorker } from "@/platform/viz";
 import { cn } from "@/shared/utils";
 import { CHANNELS, channelLabel } from "../lib/channels";
 import { exportAlertHistory } from "../lib/export-report";

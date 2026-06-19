@@ -110,10 +110,7 @@ export class InferenceScheduler {
       this.providerPromise = (async () => {
         const provider = await pickDefaultProvider(this.preferProvider);
         if (!(await provider.isAvailable())) {
-          throw new AIUnavailableError(
-            provider.id,
-            "no offline model is ready",
-          );
+          throw new AIUnavailableError(provider.id, "no offline model is ready");
         }
         return provider;
       })();
@@ -175,10 +172,7 @@ export class InferenceScheduler {
    * lanes use prompt-grounding + Zod repair inside the provider. Throws on
    * irrecoverable output — callers handle the failure visibly.
    */
-  generateStructured<T>(
-    req: Omit<AIGenerateRequest, "signal">,
-    schema: ZodType<T>,
-  ): Promise<T> {
+  generateStructured<T>(req: Omit<AIGenerateRequest, "signal">, schema: ZodType<T>): Promise<T> {
     return this.llmLane(async () => {
       const provider = await this.provider();
       const startedAt = performance.now();
@@ -202,9 +196,7 @@ export class InferenceScheduler {
             if (this.controller.signal.aborted) throw error;
           }
         }
-        throw lastError instanceof Error
-          ? lastError
-          : new Error(String(lastError));
+        throw lastError instanceof Error ? lastError : new Error(String(lastError));
       } finally {
         this.stats.llmCalls += 1;
         this.stats.llmMs += performance.now() - startedAt;

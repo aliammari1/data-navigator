@@ -5,29 +5,18 @@ import type { ColMeta } from "@/core/stores/data-store";
 // translateNLQWithLLM depends on the on-device inference engine. We never invoke
 // a real model: isLLMReady / generateText are vi.fn()s controlled per-test.
 const isLLMReady = vi.fn<() => boolean>(() => false);
-const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(
-  async () => "",
-);
+const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
 
 vi.mock("@/platform/ai/llm-engine", () => ({
   isLLMReady: () => isLLMReady(),
   generateText: (prompt: string, opts?: unknown) => generateText(prompt, opts),
 }));
 
-import {
-  explainSQL,
-  suggestQuestions,
-  translateNLQ,
-  translateNLQWithLLM,
-} from "@/platform/ai/nlq";
+import { explainSQL, suggestQuestions, translateNLQ, translateNLQWithLLM } from "@/platform/ai/nlq";
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
-function col(
-  name: string,
-  type: ColMeta["type"],
-  extra: Partial<ColMeta> = {},
-): ColMeta {
+function col(name: string, type: ColMeta["type"], extra: Partial<ColMeta> = {}): ColMeta {
   return {
     name,
     type,
@@ -171,10 +160,7 @@ describe("translateNLQ sum-by pattern", () => {
 
 describe("translateNLQ conditional breakdown pattern", () => {
   it("emits a FILTER expression with the parsed operator and value", () => {
-    const result = translateNLQ(
-      "breakdown of region where revenue > 100",
-      ctx,
-    );
+    const result = translateNLQ("breakdown of region where revenue > 100", ctx);
 
     expect(result.sql).toContain("FILTER (WHERE");
     expect(result.sql).toContain("> 100");
@@ -184,10 +170,7 @@ describe("translateNLQ conditional breakdown pattern", () => {
   });
 
   it("supports compound operators like >=", () => {
-    const result = translateNLQ(
-      "distribution of region having revenue >= 50",
-      ctx,
-    );
+    const result = translateNLQ("distribution of region having revenue >= 50", ctx);
     expect(result.sql).toContain(">= 50");
   });
 });
@@ -233,10 +216,7 @@ describe("translateNLQ trend pattern", () => {
 
 describe("translateNLQ correlation pattern", () => {
   it("selects the two named numeric columns for a scatter plot", () => {
-    const result = translateNLQ(
-      "correlation between revenue and quantity",
-      ctx,
-    );
+    const result = translateNLQ("correlation between revenue and quantity", ctx);
 
     expect(result.sql).toContain('"revenue"');
     expect(result.sql).toContain('"quantity"');
@@ -245,10 +225,7 @@ describe("translateNLQ correlation pattern", () => {
   });
 
   it("falls back to the first two numeric columns at medium confidence when names are unknown", () => {
-    const result = translateNLQ(
-      "correlation between foo and bar",
-      ctx,
-    );
+    const result = translateNLQ("correlation between foo and bar", ctx);
     expect(result.chartSuggestion).toBe("scatter");
     expect(result.confidence).toBe("medium");
     expect(result.sql).toContain('"revenue"');

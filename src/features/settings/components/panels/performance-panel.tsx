@@ -13,21 +13,16 @@ import {
 } from "../controls";
 
 export function PerformancePanel() {
-  const {
-    duckdbWorkers,
-    maxMemoryMB,
-    enableWASMStreaming,
-    cacheQueries,
-    virtualizeThreshold,
-  } = useSettingsStore(
-    useShallow((s) => ({
-      duckdbWorkers: s.performance.duckdbWorkers,
-      maxMemoryMB: s.performance.maxMemoryMB,
-      enableWASMStreaming: s.performance.enableWASMStreaming,
-      cacheQueries: s.performance.cacheQueries,
-      virtualizeThreshold: s.performance.virtualizeThreshold,
-    })),
-  );
+  const { duckdbWorkers, maxMemoryMB, enableWASMStreaming, cacheQueries, virtualizeThreshold } =
+    useSettingsStore(
+      useShallow((s) => ({
+        duckdbWorkers: s.performance.duckdbWorkers,
+        maxMemoryMB: s.performance.maxMemoryMB,
+        enableWASMStreaming: s.performance.enableWASMStreaming,
+        cacheQueries: s.performance.cacheQueries,
+        virtualizeThreshold: s.performance.virtualizeThreshold,
+      })),
+    );
   const setPerformance = useSettingsStore((s) => s.setPerformance);
 
   return (
@@ -35,8 +30,8 @@ export function PerformancePanel() {
       <div className="flex items-start gap-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-xs text-amber-200/90">
         <Info className="w-4 h-4 flex-none mt-0.5 text-amber-400" />
         <span>
-          Worker-pool and memory limits are read when the DuckDB engine starts.
-          Changes here apply on the next reload.
+          Worker-pool and memory limits are read when the DuckDB engine starts. Changes here apply
+          on the next reload.
         </span>
       </div>
 

@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  AlertTriangle,
-  Brain,
-  Cpu,
-  MessageSquare,
-  Send,
-  Sparkles,
-  WifiOff,
-} from "lucide-react";
+import { AlertTriangle, Brain, Cpu, MessageSquare, Send, Sparkles, WifiOff } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   type AgentContext,
@@ -48,8 +40,7 @@ export function AiAgentPanel({
   // Derived model state from the unified provider runtime (warms on first use).
   const model = {
     loading: ai.progress.status === "loading",
-    progress:
-      ai.progress.status === "loading" ? (ai.progress.progress ?? 0) / 100 : 1,
+    progress: ai.progress.status === "loading" ? (ai.progress.progress ?? 0) / 100 : 1,
     text: ai.progress.message ?? "",
     ready: ai.progress.status === "ready" || ai.progress.status === "inferring",
   };
@@ -110,10 +101,7 @@ export function AiAgentPanel({
     }
     setBusy(true);
     try {
-      const txt = await generateNarrative(
-        final,
-        model.ready ? ai.generate : undefined,
-      );
+      const txt = await generateNarrative(final, model.ready ? ai.generate : undefined);
       setNarrative(txt);
     } finally {
       setBusy(false);
@@ -126,11 +114,7 @@ export function AiAgentPanel({
     const c = ctx ?? (await buildContext());
     if (!c) return;
     setChatBusy(true);
-    const ans = await askAgent(
-      q.trim(),
-      c,
-      model.ready ? ai.generateStructured : undefined,
-    );
+    const ans = await askAgent(q.trim(), c, model.ready ? ai.generateStructured : undefined);
     setAnswer(ans);
     if (ans.intent) onIntent?.(ans.intent);
     setChatBusy(false);
@@ -179,9 +163,7 @@ export function AiAgentPanel({
 
       {model.loading && (
         <div className="px-4 py-2 border-b border-border bg-violet-50/40 dark:bg-violet-500/5">
-          <div className="text-[10px] text-violet-700 dark:text-violet-300 mb-1">
-            {model.text}
-          </div>
+          <div className="text-[10px] text-violet-700 dark:text-violet-300 mb-1">{model.text}</div>
           <div className="h-1 rounded-full bg-muted overflow-hidden">
             <div
               className="h-full bg-violet-500 transition-all"
@@ -219,19 +201,12 @@ export function AiAgentPanel({
         {insights.length > 0 && (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             {insights.map((ins) => (
-              <div
-                key={ins.id}
-                className={`rounded-xl border px-3 py-2 ${sevColor(ins.severity)}`}
-              >
+              <div key={ins.id} className={`rounded-xl border px-3 py-2 ${sevColor(ins.severity)}`}>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <AlertTriangle className="w-3 h-3" />
-                  <div className="text-[11px] font-semibold leading-tight">
-                    {ins.title}
-                  </div>
+                  <div className="text-[11px] font-semibold leading-tight">{ins.title}</div>
                 </div>
-                <div className="text-[10px] opacity-80 leading-relaxed">
-                  {ins.body}
-                </div>
+                <div className="text-[10px] opacity-80 leading-relaxed">{ins.body}</div>
               </div>
             ))}
           </div>

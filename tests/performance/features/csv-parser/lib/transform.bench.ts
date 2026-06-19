@@ -1,13 +1,6 @@
 import { bench, describe } from "vitest";
-import {
-  compileFilter,
-  type RowRecord,
-} from "@/features/csv-parser/lib/filter";
-import {
-  castValue,
-  detectType,
-  profileColumn,
-} from "@/features/csv-parser/lib/profile";
+import { compileFilter, type RowRecord } from "@/features/csv-parser/lib/filter";
+import { castValue, detectType, profileColumn } from "@/features/csv-parser/lib/profile";
 
 /**
  * Performance benchmarks for the in-memory transform hot paths that run inside

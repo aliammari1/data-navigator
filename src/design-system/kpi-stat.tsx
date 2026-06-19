@@ -113,11 +113,7 @@ export function KpiStat({
 
       {sub || trendValue ? (
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-          {sub ? (
-            <span className="text-xs leading-tight text-muted-foreground">
-              {sub}
-            </span>
-          ) : null}
+          {sub ? <span className="text-xs leading-tight text-muted-foreground">{sub}</span> : null}
           {trendValue ? (
             <span
               className={cn(

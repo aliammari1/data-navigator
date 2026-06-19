@@ -38,9 +38,7 @@ export const TogglesControlCenter: Story = {
     const canvas = within(canvasElement);
     const toggle = canvas.getByRole("button", { name: /lan/i });
     await userEvent.click(toggle);
-    await expect(
-      canvas.getByText(/share with nearby devices/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/share with nearby devices/i)).toBeInTheDocument();
     // Clicking again collapses the control center.
     await userEvent.click(toggle);
   },

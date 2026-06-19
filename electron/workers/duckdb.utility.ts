@@ -158,9 +158,7 @@ async function initEngine(req: InitRequest): Promise<boolean> {
   if (instance && readConn) return true;
 
   const cores = os.availableParallelism?.() ?? 4;
-  const threads = String(
-    Math.max(1, Math.min(req.threads > 0 ? req.threads : cores - 1, 6)),
-  );
+  const threads = String(Math.max(1, Math.min(req.threads > 0 ? req.threads : cores - 1, 6)));
 
   // In-memory instance: the utility scaffold reads managed Parquet files
   // directly and never co-opens the main read-write `.duckdb` catalog file.
@@ -188,10 +186,7 @@ async function initEngine(req: InitRequest): Promise<boolean> {
   }
 
   // Narrow filesystem access to ONLY the managed datasets + spill dirs.
-  const sandboxApplied = await applyReadConnectionSandbox(readConn, [
-    datasetsDir,
-    req.tmpSpillDir,
-  ]);
+  const sandboxApplied = await applyReadConnectionSandbox(readConn, [datasetsDir, req.tmpSpillDir]);
 
   return sandboxApplied;
 }

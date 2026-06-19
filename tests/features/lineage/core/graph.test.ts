@@ -79,11 +79,7 @@ describe("bfs", () => {
   });
 
   it("collects all forward-reachable nodes, excluding the start", () => {
-    const { fwd } = buildAdjacency([
-      edge("a", "b"),
-      edge("b", "c"),
-      edge("c", "d"),
-    ]);
+    const { fwd } = buildAdjacency([edge("a", "b"), edge("b", "c"), edge("c", "d")]);
     const reached = bfs("a", fwd);
     expect([...reached].sort()).toEqual(["b", "c", "d"]);
     expect(reached.has("a")).toBe(false);
@@ -95,11 +91,7 @@ describe("bfs", () => {
   });
 
   it("terminates on cycles without revisiting nodes", () => {
-    const { fwd } = buildAdjacency([
-      edge("a", "b"),
-      edge("b", "c"),
-      edge("c", "a"),
-    ]);
+    const { fwd } = buildAdjacency([edge("a", "b"), edge("b", "c"), edge("c", "a")]);
     const reached = bfs("a", fwd);
     // a → b → c → (back to a, already seen) ; start excluded from the result
     expect([...reached].sort()).toEqual(["b", "c"]);
@@ -170,11 +162,7 @@ describe("indexColumnLineage", () => {
   ): ColumnLineage => ({ sourceNode, sourceCol, targetNode, targetCol, transform });
 
   it("groups lineage by target node (incoming) and source node (outgoing)", () => {
-    const lineage = [
-      cl("A", "x", "B", "x"),
-      cl("A", "y", "B", "y"),
-      cl("B", "x", "C", "x"),
-    ];
+    const lineage = [cl("A", "x", "B", "x"), cl("A", "y", "B", "y"), cl("B", "x", "C", "x")];
     const { incoming, outgoing } = indexColumnLineage(lineage);
     expect(incoming.get("B")).toHaveLength(2);
     expect(incoming.get("C")).toHaveLength(1);
@@ -220,16 +208,11 @@ describe("traceColumnUpstream", () => {
     const lineage = [cl("A", "raw", "B", "*", "passthrough")];
     const { incoming } = indexColumnLineage(lineage);
     const hops = traceColumnUpstream("B", "anything", incoming);
-    expect(hops).toEqual([
-      { node: "A", column: "raw", transform: "passthrough", depth: 1 },
-    ]);
+    expect(hops).toEqual([{ node: "A", column: "raw", transform: "passthrough", depth: 1 }]);
   });
 
   it("ignores lineage entries whose targetCol does not match", () => {
-    const lineage = [
-      cl("A", "x", "B", "x"),
-      cl("A", "y", "B", "y"),
-    ];
+    const lineage = [cl("A", "x", "B", "x"), cl("A", "y", "B", "y")];
     const { incoming } = indexColumnLineage(lineage);
     const hops = traceColumnUpstream("B", "x", incoming);
     expect(hops).toEqual([{ node: "A", column: "x", transform: undefined, depth: 1 }]);

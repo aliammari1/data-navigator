@@ -21,10 +21,7 @@ import { z } from "zod";
 import { useAI } from "@/platform/ai/provider";
 import type { DiffConfig } from "./recon-sql";
 import { fetchMaterialRows } from "./use-reconciliation";
-import {
-  type RowAnnotation,
-  useAnnotationsStore,
-} from "../stores/annotations-store";
+import { type RowAnnotation, useAnnotationsStore } from "../stores/annotations-store";
 
 /** Reason codes the model must choose from (mirrors the reviewer dropdown). */
 export const REASON_CODES = [
@@ -57,9 +54,17 @@ const SYSTEM_PROMPT =
   "write one concise paragraph explaining the most plausible cause. Be specific " +
   "and quantitative. Never invent data not present in the prompt.";
 
-function buildPrompt(
-  row: { key: string; measures: { label: string; expected: number | null; actual: number | null; variance: number; variancePct: number | null }[]; status: string },
-): string {
+function buildPrompt(row: {
+  key: string;
+  measures: {
+    label: string;
+    expected: number | null;
+    actual: number | null;
+    variance: number;
+    variancePct: number | null;
+  }[];
+  status: string;
+}): string {
   const lines = row.measures.map((m) => {
     const pct = m.variancePct === null ? "n/a" : `${m.variancePct.toFixed(1)}%`;
     return `- ${m.label}: expected ${m.expected ?? "∅"}, actual ${m.actual ?? "∅"} (Δ ${m.variance >= 0 ? "+" : ""}${m.variance}, ${pct})`;

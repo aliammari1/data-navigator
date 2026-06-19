@@ -152,10 +152,7 @@ export async function pruneHistory(maxRows = 50_000): Promise<number> {
     const total = await historyDB.events.count();
     if (total <= maxRows) return 0;
     const excess = total - maxRows;
-    const oldest = await historyDB.events
-      .orderBy("ts")
-      .limit(excess)
-      .primaryKeys();
+    const oldest = await historyDB.events.orderBy("ts").limit(excess).primaryKeys();
     await historyDB.events.bulkDelete(oldest);
     return oldest.length;
   } catch {

@@ -43,11 +43,7 @@ export const DatasetInsightSchema = z.object({
     .describe("Null-heavy columns, id-like columns, constant columns, etc."),
   suggestedNextSteps: z
     .array(
-      z
-        .string()
-        .min(4)
-        .max(180)
-        .describe("An actionable next analysis the user could run in-app"),
+      z.string().min(4).max(180).describe("An actionable next analysis the user could run in-app"),
     )
     .min(1)
     .max(3)

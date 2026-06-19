@@ -29,11 +29,7 @@ export const AccentColorSchema = z.enum([
 ]);
 export type AccentColorValue = z.infer<typeof AccentColorSchema>;
 
-export const DensityModeSchema = z.enum([
-  "compact",
-  "comfortable",
-  "spacious",
-]);
+export const DensityModeSchema = z.enum(["compact", "comfortable", "spacious"]);
 export type DensityModeValue = z.infer<typeof DensityModeSchema>;
 
 export const ThemeSchema = z.enum(["light", "dark", "system"]);
@@ -81,10 +77,7 @@ export type NumericFieldName = keyof typeof NumericFields;
  * Falls back to the field default when the value is invalid/out-of-range, so the
  * store can never hold `NaN`/out-of-range numbers.
  */
-export function clampNumericSetting(
-  field: NumericFieldName,
-  raw: string | number,
-): number {
+export function clampNumericSetting(field: NumericFieldName, raw: string | number): number {
   const { schema, fallback } = NumericFields[field];
   const parsed = schema.safeParse(raw);
   return parsed.success ? parsed.data : fallback;
@@ -100,9 +93,7 @@ export function parseNumericSetting(
   raw: string | number,
 ): { success: true; value: number } | { success: false } {
   const parsed = NumericFields[field].schema.safeParse(raw);
-  return parsed.success
-    ? { success: true, value: parsed.data }
-    : { success: false };
+  return parsed.success ? { success: true, value: parsed.data } : { success: false };
 }
 
 const NullDisplaySchema = z.string().max(8);
@@ -111,9 +102,7 @@ export function parseNullDisplay(
   raw: string,
 ): { success: true; value: string } | { success: false } {
   const parsed = NullDisplaySchema.safeParse(raw);
-  return parsed.success
-    ? { success: true, value: parsed.data }
-    : { success: false };
+  return parsed.success ? { success: true, value: parsed.data } : { success: false };
 }
 
 /**
@@ -153,6 +142,4 @@ export const SettingsExportEnvelopeSchema = z
   })
   .passthrough();
 
-export type SettingsExportEnvelope = z.infer<
-  typeof SettingsExportEnvelopeSchema
->;
+export type SettingsExportEnvelope = z.infer<typeof SettingsExportEnvelopeSchema>;

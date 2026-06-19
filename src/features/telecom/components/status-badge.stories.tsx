@@ -33,14 +33,7 @@ const meta = {
   argTypes: {
     status: {
       control: "select",
-      options: [
-        "SUCCESS",
-        "DECLINED",
-        "INSTANCE",
-        "REFUND",
-        "SUBMITTED",
-        "OTHER",
-      ],
+      options: ["SUCCESS", "DECLINED", "INSTANCE", "REFUND", "SUBMITTED", "OTHER"],
     },
     mapping: { control: false },
   },

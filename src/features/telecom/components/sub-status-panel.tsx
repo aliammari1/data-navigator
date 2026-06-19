@@ -1,19 +1,9 @@
 "use client";
 
-import {
-  AlertTriangle,
-  CheckCircle2,
-  Clock,
-  RefreshCw,
-  Send,
-  XCircle,
-} from "lucide-react";
+import { AlertTriangle, CheckCircle2, Clock, RefreshCw, Send, XCircle } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
-import {
-  fetchSubStatusBreakdown,
-  type SubStatusRow,
-} from "@/features/telecom/lib/period-queries";
+import { fetchSubStatusBreakdown, type SubStatusRow } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
 
 const PARENT_META: Record<
@@ -73,14 +63,12 @@ export function SubStatusPanel({
 
     setLoading(true);
 
-    fetchSubStatusBreakdown(table, mapping, dateFrom, dateTo).then(
-      (nextRows) => {
-        if (!cancelled) {
-          setRows(nextRows);
-          setLoading(false);
-        }
-      },
-    );
+    fetchSubStatusBreakdown(table, mapping, dateFrom, dateTo).then((nextRows) => {
+      if (!cancelled) {
+        setRows(nextRows);
+        setLoading(false);
+      }
+    });
 
     return () => {
       cancelled = true;
@@ -111,9 +99,7 @@ export function SubStatusPanel({
   if (loading && rows.length === 0) {
     return (
       <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="text-xs text-muted-foreground animate-pulse">
-          Calcul des sous-statuts…
-        </div>
+        <div className="text-xs text-muted-foreground animate-pulse">Calcul des sous-statuts…</div>
       </div>
     );
   }
@@ -136,9 +122,7 @@ export function SubStatusPanel({
             <div key={key} className={`rounded-xl border p-3 ${meta.bg}`}>
               <div className="flex items-center gap-2 mb-1">
                 <Icon className={`w-3.5 h-3.5 ${meta.color}`} />
-                <span className="text-[11px] font-semibold text-foreground">
-                  {meta.label}
-                </span>
+                <span className="text-[11px] font-semibold text-foreground">{meta.label}</span>
               </div>
               <div className="text-xl font-black tabular-nums">{fmtN(t.n)}</div>
               <div className="text-[10px] text-muted-foreground tabular-nums">
@@ -152,9 +136,7 @@ export function SubStatusPanel({
       <div className="rounded-2xl border border-border bg-card overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
           <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-          <span className="text-xs font-semibold">
-            Détail par sous-statut (per spec)
-          </span>
+          <span className="text-xs font-semibold">Détail par sous-statut (per spec)</span>
           <span className="text-[10px] text-muted-foreground ml-auto">
             {rows.length} codes actifs
           </span>
@@ -166,24 +148,15 @@ export function SubStatusPanel({
             if (list.length === 0) return null;
             return (
               <div key={parent} className="p-3 space-y-1.5">
-                <div
-                  className={`text-[10px] uppercase font-bold tracking-wide ${meta.color}`}
-                >
+                <div className={`text-[10px] uppercase font-bold tracking-wide ${meta.color}`}>
                   {meta.label}
                 </div>
                 {list.map((r) => (
-                  <div
-                    key={r.code}
-                    className="flex items-center justify-between text-xs gap-2"
-                  >
+                  <div key={r.code} className="flex items-center justify-between text-xs gap-2">
                     <span className="font-mono text-foreground">{r.code}</span>
                     <div className="flex items-center gap-3 text-muted-foreground tabular-nums">
-                      <span className="text-foreground font-medium">
-                        {fmtN(r.count)}
-                      </span>
-                      <span className="text-[10px] w-12 text-right">
-                        {fmtPct(r.share)}
-                      </span>
+                      <span className="text-foreground font-medium">{fmtN(r.count)}</span>
+                      <span className="text-[10px] w-12 text-right">{fmtPct(r.share)}</span>
                     </div>
                   </div>
                 ))}

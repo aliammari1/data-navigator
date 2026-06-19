@@ -55,8 +55,7 @@ export function buildCalendarOption(
       backgroundColor: "transparent",
       tooltip: {
         ...baseTooltip,
-        formatter: (p: { data: [string, number] }) =>
-          `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
+        formatter: (p: { data: [string, number] }) => `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
       },
       visualMap: {
         min,
@@ -148,10 +147,7 @@ export function buildSankeyOption(rows: Rows): { option: Option; total: number }
 
 // ─── Gantt / hourly heatmap ──────────────────────────────────────────────────
 
-const HOURS = Array.from(
-  { length: 24 },
-  (_, h) => `${String(h).padStart(2, "0")}:00`,
-);
+const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 export function buildGanttOption(rows: Rows): { option: Option; rowCount: number } {
   const categories: string[] = [];

@@ -34,10 +34,7 @@ const registry = new Map<string, IndexeddbPersistence>();
  * Best-effort requests durable storage (`navigator.storage.persist()`), which
  * generally returns true under Electron's trusted app origin.
  */
-export function attachPersistence(
-  docName: string,
-  doc: Y.Doc,
-): IndexeddbPersistence | null {
+export function attachPersistence(docName: string, doc: Y.Doc): IndexeddbPersistence | null {
   if (!hasIndexedDB()) return null;
   const existing = registry.get(docName);
   if (existing) return existing;

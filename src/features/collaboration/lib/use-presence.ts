@@ -12,11 +12,7 @@
 "use client";
 
 import { useCallback, useRef, useSyncExternalStore } from "react";
-import {
-  type CollabPeer,
-  readPeers,
-  subscribePeers,
-} from "@/platform/collab";
+import { type CollabPeer, readPeers, subscribePeers } from "@/platform/collab";
 import type { Awareness } from "y-protocols/awareness";
 
 function samePeers(a: CollabPeer[], b: CollabPeer[]): boolean {

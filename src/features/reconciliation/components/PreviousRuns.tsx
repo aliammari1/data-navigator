@@ -51,16 +51,10 @@ export function PreviousRuns({ onResume, refreshKey = 0 }: PreviousRunsProps) {
   };
 
   if (loading) {
-    return (
-      <p className="px-1 py-2 text-xs text-slate-500">Loading previous runs…</p>
-    );
+    return <p className="px-1 py-2 text-xs text-slate-500">Loading previous runs…</p>;
   }
   if (runs.length === 0) {
-    return (
-      <p className="px-1 py-2 text-xs text-slate-500">
-        No previous reconciliation runs yet.
-      </p>
-    );
+    return <p className="px-1 py-2 text-xs text-slate-500">No previous reconciliation runs yet.</p>;
   }
 
   return (
@@ -77,9 +71,7 @@ export function PreviousRuns({ onResume, refreshKey = 0 }: PreviousRunsProps) {
           >
             <div className="min-w-0">
               <div className="flex items-center gap-2">
-                <span className="truncate text-sm text-slate-200">
-                  {run.name}
-                </span>
+                <span className="truncate text-sm text-slate-200">{run.name}</span>
                 {run.signedOff &&
                   (intact ? (
                     <ShieldCheck className="size-3.5 text-emerald-400" />

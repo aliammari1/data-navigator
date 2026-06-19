@@ -19,9 +19,7 @@ export default function ConfigPage() {
     <div className="space-y-4">
       <UserManagementPanel
         currentRole={report.telecomRole}
-        onRoleChange={(role) =>
-          report.access.setRole(role === "admin" ? "owner" : "viewer")
-        }
+        onRoleChange={(role) => report.access.setRole(role === "admin" ? "owner" : "viewer")}
       />
       <LanCollabPanel />
       <ConfigTab

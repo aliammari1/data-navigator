@@ -49,9 +49,7 @@ describe("normalizeSeries", () => {
   });
 
   it("coerces numeric-like values to numbers", () => {
-    const clean = normalizeSeries([
-      { date: "a", value: "5" as unknown as number },
-    ]);
+    const clean = normalizeSeries([{ date: "a", value: "5" as unknown as number }]);
     expect(clean[0]!.value).toBe(5);
   });
 });
@@ -142,9 +140,7 @@ describe("forecastSeries — seasonality recovery", () => {
 describe("forecastSeries — confidence band", () => {
   it("produces a band that widens monotonically with horizon", () => {
     // Noisy series so residual std > 0.
-    const values = Array.from({ length: 40 }, (_, t) =>
-      100 + 2 * t + (t % 3 === 0 ? 15 : -10),
-    );
+    const values = Array.from({ length: 40 }, (_, t) => 100 + 2 * t + (t % 3 === 0 ? 15 : -10));
     const r = forecastSeries(toSeries(values), { horizon: 10, seasonLength: 1 });
 
     expect(r.residualStd).toBeGreaterThan(0);
@@ -265,9 +261,7 @@ describe("forecastSeries — edge cases", () => {
   });
 
   it("treats a series with missing points as equally spaced survivors", () => {
-    const dirty: SeriesPoint[] = toSeries(
-      Array.from({ length: 20 }, (_, t) => 100 + t),
-    );
+    const dirty: SeriesPoint[] = toSeries(Array.from({ length: 20 }, (_, t) => 100 + t));
     // Punch holes — these get dropped, not interpolated.
     dirty[5]!.value = Number.NaN;
     dirty[11]!.value = Number.NaN;
@@ -282,9 +276,7 @@ describe("forecastSeries — edge cases", () => {
     const s = toSeries(values);
     const a = forecastSeries(s, { horizon: 5, seasonLength: 7 });
     const b = forecastSeries(s, { horizon: 5, seasonLength: 7 });
-    expect(a.forecast.map((p) => p.value)).toEqual(
-      b.forecast.map((p) => p.value),
-    );
+    expect(a.forecast.map((p) => p.value)).toEqual(b.forecast.map((p) => p.value));
     expect(a.residualStd).toBe(b.residualStd);
   });
 

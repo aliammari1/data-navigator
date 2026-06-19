@@ -28,7 +28,10 @@ export function Taskbar({ clock, date }: { clock: string; date: string }) {
     }
   }
   const pinnedIds = new Set(PINNED_APPS.map((a) => a.id));
-  const extras = [...running.keys()].filter((id) => !pinnedIds.has(id)).map(getApp).filter(Boolean);
+  const extras = [...running.keys()]
+    .filter((id) => !pinnedIds.has(id))
+    .map(getApp)
+    .filter(Boolean);
   const items = [...PINNED_APPS, ...extras.filter((a): a is NonNullable<typeof a> => Boolean(a))];
 
   const onClick = (appId: string) => {

@@ -12,8 +12,7 @@ export function AlertBanner({
   kpi: Types.KPISummary;
   canals: Types.CanalSummary[];
 }) {
-  const alerts: Array<{ level: "critical" | "warning" | "info"; msg: string }> =
-    [];
+  const alerts: Array<{ level: "critical" | "warning" | "info"; msg: string }> = [];
 
   if (kpi.successRate < 80)
     alerts.push({
@@ -45,11 +44,7 @@ export function AlertBanner({
       });
   }
 
-  if (
-    kpi.topErrorCode &&
-    kpi.topErrorCode !== "N/A" &&
-    kpi.topErrorCode !== "null"
-  )
+  if (kpi.topErrorCode && kpi.topErrorCode !== "N/A" && kpi.topErrorCode !== "null")
     alerts.push({
       level: "info",
       msg: `Code d'erreur le plus fréquent : ${kpi.topErrorCode}`,

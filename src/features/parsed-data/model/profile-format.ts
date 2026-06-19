@@ -1,11 +1,4 @@
-import {
-  AlertCircle,
-  Calendar,
-  Hash,
-  Sigma,
-  ToggleLeft,
-  Type,
-} from "lucide-react";
+import { AlertCircle, Calendar, Hash, Sigma, ToggleLeft, Type } from "lucide-react";
 import type { ColProfile } from "./types";
 // ─── Utility ───────────────────────────────────────────────────────────────
 

@@ -196,11 +196,7 @@ export async function generateWithOllamaStructured<T = Record<string, unknown>>(
   // construction; the agents already hand us a JSON Schema, so feed it straight
   // through. This deletes the prompt-grounding + regex-repair brute force on the
   // primary (Electron) path entirely.
-  if (
-    provider.id === "llamacpp" &&
-    typeof window !== "undefined" &&
-    window.electronLlama
-  ) {
+  if (provider.id === "llamacpp" && typeof window !== "undefined" && window.electronLlama) {
     const out = await window.electronLlama.generateStructured({
       system: systemPrompt || undefined,
       prompt: userPrompt,
@@ -214,18 +210,14 @@ export async function generateWithOllamaStructured<T = Record<string, unknown>>(
   // FALLBACK — prompt-only providers (transformers.js Web Worker). Ground the
   // request with the schema and parse defensively with the shared platform
   // helpers (no bespoke regex loop).
-  const groundedPrompt = [
-    userPrompt,
-    "",
-    buildJsonInstruction(safeJsonStringify(schema)),
-  ].join("\n");
+  const groundedPrompt = [userPrompt, "", buildJsonInstruction(safeJsonStringify(schema))].join(
+    "\n",
+  );
 
   const response = await provider.generate({
     model,
     system:
-      [systemPrompt, "Return only valid JSON. Do not wrap it in Markdown."].join(
-        "\n",
-      ) || undefined,
+      [systemPrompt, "Return only valid JSON. Do not wrap it in Markdown."].join("\n") || undefined,
     prompt: groundedPrompt,
     maxTokens: 1024,
     temperature: options?.temperature ?? 0,

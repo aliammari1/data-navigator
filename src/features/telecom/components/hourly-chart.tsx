@@ -13,9 +13,6 @@ export const HourlyChart = memo(function HourlyChart({
   data: Types.HourlyRow[];
   forecast?: ForecastPoint[];
 }) {
-  const option = useMemo(
-    () => buildHourlyChartOption(data, forecast),
-    [data, forecast],
-  );
+  const option = useMemo(() => buildHourlyChartOption(data, forecast), [data, forecast]);
   return <EChart option={option} height={200} />;
 });

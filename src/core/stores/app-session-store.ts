@@ -11,11 +11,7 @@ interface TelecomSessionState {
   setTableName: (tableName: string) => void;
   setFileName: (fileName: string) => void;
   setReportDate: (reportDate: string) => void;
-  setSession: (next: {
-    tableName?: string;
-    fileName?: string;
-    reportDate?: string;
-  }) => void;
+  setSession: (next: { tableName?: string; fileName?: string; reportDate?: string }) => void;
 }
 
 export const useTelecomSessionStore = create<TelecomSessionState>()(
@@ -49,8 +45,7 @@ export const useTelecomSessionStore = create<TelecomSessionState>()(
         return {
           tableName,
           fileName: typeof prev.fileName === "string" ? prev.fileName : "",
-          reportDate:
-            typeof prev.reportDate === "string" ? prev.reportDate : "",
+          reportDate: typeof prev.reportDate === "string" ? prev.reportDate : "",
         };
       },
       partialize: (s) => ({

@@ -72,10 +72,7 @@ describe("stepToSQL", () => {
   });
 
   it("appends a derived column with a quoted alias for derive steps", () => {
-    const sql = stepToSQL(
-      step("derive", { expression: "a + b", alias: "sum_ab" }),
-      "src",
-    );
+    const sql = stepToSQL(step("derive", { expression: "a + b", alias: "sum_ab" }), "src");
     expect(sql).toBe('SELECT *, a + b AS "sum_ab" FROM src');
   });
 
@@ -98,10 +95,7 @@ describe("stepToSQL", () => {
   });
 
   it("aggregates without a GROUP BY clause when groupBy is blank", () => {
-    const sql = stepToSQL(
-      step("aggregate", { groupBy: "  ", agg: "COUNT(*) AS n" }),
-      "src",
-    );
+    const sql = stepToSQL(step("aggregate", { groupBy: "  ", agg: "COUNT(*) AS n" }), "src");
     expect(sql).toBe("SELECT COUNT(*) AS n FROM src");
   });
 
@@ -116,18 +110,12 @@ describe("stepToSQL", () => {
   });
 
   it("honours a DESC direction case-insensitively", () => {
-    const sql = stepToSQL(
-      step("sort", { column: "name", direction: "desc" }),
-      "src",
-    );
+    const sql = stepToSQL(step("sort", { column: "name", direction: "desc" }), "src");
     expect(sql).toBe('SELECT * FROM src ORDER BY "name" DESC');
   });
 
   it("treats any non-DESC direction as ASC", () => {
-    const sql = stepToSQL(
-      step("sort", { column: "name", direction: "garbage" }),
-      "src",
-    );
+    const sql = stepToSQL(step("sort", { column: "name", direction: "garbage" }), "src");
     expect(sql).toBe('SELECT * FROM src ORDER BY "name" ASC');
   });
 
@@ -137,43 +125,28 @@ describe("stepToSQL", () => {
   });
 
   it("emits SELECT DISTINCT for deduplicate steps", () => {
-    expect(stepToSQL(step("deduplicate"), "src")).toBe(
-      "SELECT DISTINCT * FROM src",
-    );
+    expect(stepToSQL(step("deduplicate"), "src")).toBe("SELECT DISTINCT * FROM src");
   });
 
   it("floors a positive numeric limit", () => {
-    expect(stepToSQL(step("limit", { count: 25.9 }), "src")).toBe(
-      "SELECT * FROM src LIMIT 25",
-    );
+    expect(stepToSQL(step("limit", { count: 25.9 }), "src")).toBe("SELECT * FROM src LIMIT 25");
   });
 
   it("falls back to a 1000-row limit for non-numeric counts", () => {
-    expect(stepToSQL(step("limit", { count: "abc" }), "src")).toBe(
-      "SELECT * FROM src LIMIT 1000",
-    );
+    expect(stepToSQL(step("limit", { count: "abc" }), "src")).toBe("SELECT * FROM src LIMIT 1000");
   });
 
   it("falls back to a 1000-row limit for a negative count", () => {
-    expect(stepToSQL(step("limit", { count: -5 }), "src")).toBe(
-      "SELECT * FROM src LIMIT 1000",
-    );
+    expect(stepToSQL(step("limit", { count: -5 }), "src")).toBe("SELECT * FROM src LIMIT 1000");
   });
 
   it("allows an explicit zero-row limit", () => {
-    expect(stepToSQL(step("limit", { count: 0 }), "src")).toBe(
-      "SELECT * FROM src LIMIT 0",
-    );
+    expect(stepToSQL(step("limit", { count: 0 }), "src")).toBe("SELECT * FROM src LIMIT 0");
   });
 
   it("builds a LEFT JOIN by default with quoted table and keys", () => {
-    const sql = stepToSQL(
-      step("join", { table: "other", leftKey: "id", rightKey: "fk" }),
-      "src",
-    );
-    expect(sql).toBe(
-      'SELECT t1.*, t2.* FROM src t1 LEFT JOIN "other" t2 ON t1."id" = t2."fk"',
-    );
+    const sql = stepToSQL(step("join", { table: "other", leftKey: "id", rightKey: "fk" }), "src");
+    expect(sql).toBe('SELECT t1.*, t2.* FROM src t1 LEFT JOIN "other" t2 ON t1."id" = t2."fk"');
   });
 
   it("maps the joinType keyword to the SQL join keyword", () => {
@@ -203,24 +176,16 @@ describe("stepToSQL", () => {
   });
 
   it("reuses the left key as the right key when rightKey is absent", () => {
-    const sql = stepToSQL(
-      step("join", { table: "other", leftKey: "id" }),
-      "src",
-    );
+    const sql = stepToSQL(step("join", { table: "other", leftKey: "id" }), "src");
     expect(sql).toContain('ON t1."id" = t2."id"');
   });
 
   it("returns a passthrough SELECT when a join is missing required config", () => {
-    expect(stepToSQL(step("join", { table: "other" }), "src")).toBe(
-      "SELECT * FROM src",
-    );
+    expect(stepToSQL(step("join", { table: "other" }), "src")).toBe("SELECT * FROM src");
   });
 
   it("builds a DuckDB PIVOT with quoted ON column", () => {
-    const sql = stepToSQL(
-      step("pivot", { onColumn: "month", usingAgg: "SUM(amt)" }),
-      "src",
-    );
+    const sql = stepToSQL(step("pivot", { onColumn: "month", usingAgg: "SUM(amt)" }), "src");
     expect(sql).toBe('SELECT * FROM (PIVOT src ON "month" USING SUM(amt))');
   });
 
@@ -229,9 +194,7 @@ describe("stepToSQL", () => {
       step("pivot", { onColumn: "month", usingAgg: "SUM(amt)", groupBy: "region" }),
       "src",
     );
-    expect(sql).toBe(
-      'SELECT * FROM (PIVOT src ON "month" USING SUM(amt) GROUP BY region)',
-    );
+    expect(sql).toBe('SELECT * FROM (PIVOT src ON "month" USING SUM(amt) GROUP BY region)');
   });
 
   it("defaults the pivot aggregation to COUNT(*)", () => {
@@ -244,10 +207,7 @@ describe("stepToSQL", () => {
   });
 
   it("returns a passthrough SELECT for an unknown step type", () => {
-    const sql = stepToSQL(
-      step("mystery" as unknown as TransformStep["type"]),
-      "src",
-    );
+    const sql = stepToSQL(step("mystery" as unknown as TransformStep["type"]), "src");
     expect(sql).toBe("SELECT * FROM src");
   });
 });
@@ -261,19 +221,13 @@ describe("buildCTE", () => {
   });
 
   it("ignores disabled steps", () => {
-    const out = buildCTE(
-      [step("deduplicate", {}, { id: "a", enabled: false })],
-      "t",
-    );
+    const out = buildCTE([step("deduplicate", {}, { id: "a", enabled: false })], "t");
     expect(out.hasSteps).toBe(false);
     expect(out.sql).toBe('SELECT * FROM "t"');
   });
 
   it("chains a single step off the quoted source table", () => {
-    const out = buildCTE(
-      [step("filter", { condition: "x > 0" }, { id: "abc" })],
-      "t",
-    );
+    const out = buildCTE([step("filter", { condition: "x > 0" }, { id: "abc" })], "t");
     expect(out.hasSteps).toBe(true);
     expect(out.stepCtes).toEqual([{ id: "abc", name: "s_abc" }]);
     expect(out.sql).toContain('s_abc AS (\n  SELECT * FROM "t" WHERE x > 0\n)');
@@ -307,9 +261,7 @@ describe("buildCountQuery", () => {
   it("counts the source directly when there are no enabled steps", () => {
     const compiled = buildCTE([], "t");
     const q = buildCountQuery([], "t", compiled);
-    expect(q).toBe(
-      `SELECT '__source__' AS step_id, COUNT(*) AS n FROM "t"`,
-    );
+    expect(q).toBe(`SELECT '__source__' AS step_id, COUNT(*) AS n FROM "t"`);
   });
 
   it("emits a UNION ALL count for the source and every enabled step", () => {
@@ -341,16 +293,12 @@ describe("buildReadableSQL", () => {
     const out = buildReadableSQL([], "transactions", 12345);
     expect(out).toContain("-- Transform Pipeline");
     expect(out).toContain("-- Source: transactions (12,345 rows)");
-    expect(out.trimEnd().endsWith(';')).toBe(true);
+    expect(out.trimEnd().endsWith(";")).toBe(true);
     expect(out).toContain('SELECT * FROM "transactions"');
   });
 
   it("includes the nested CTE for a pipeline with steps", () => {
-    const out = buildReadableSQL(
-      [step("filter", { condition: "x > 0" }, { id: "one" })],
-      "t",
-      10,
-    );
+    const out = buildReadableSQL([step("filter", { condition: "x > 0" }, { id: "one" })], "t", 10);
     expect(out).toContain("WITH s_one AS");
     expect(out).toContain("SELECT * FROM s_one;");
   });

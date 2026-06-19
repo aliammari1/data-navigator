@@ -14,14 +14,7 @@ import type { ChartSpec, QueryResult } from "./core/types";
 
 export interface ExplorationStep {
   id: string;
-  type:
-    | "nlQuery"
-    | "chartCreate"
-    | "chartEdit"
-    | "derive"
-    | "filter"
-    | "agentAction"
-    | "insight";
+  type: "nlQuery" | "chartCreate" | "chartEdit" | "derive" | "filter" | "agentAction" | "insight";
   timestamp: number;
   prompt?: string;
   chartSpec?: ChartSpec;
@@ -151,9 +144,7 @@ export const useFormulatorStore = create<FormulatorStore>()(
 
           // If parent specified, add to parent's children
           if (cleanStep.parentId) {
-            const parent = thread.steps.find(
-              (s) => s.id === cleanStep.parentId,
-            );
+            const parent = thread.steps.find((s) => s.id === cleanStep.parentId);
             if (parent) {
               parent.childrenIds.push(newStep.id);
             }
@@ -211,8 +202,7 @@ export const useFormulatorStore = create<FormulatorStore>()(
             ...state.threads,
             [id]: {
               id,
-              name:
-                name ?? `Exploration ${Object.keys(state.threads).length + 1}`,
+              name: name ?? `Exploration ${Object.keys(state.threads).length + 1}`,
               steps: [],
               createdAt: Date.now(),
             },
@@ -238,8 +228,7 @@ export const useFormulatorStore = create<FormulatorStore>()(
           const { [id]: _, ...rest } = state.threads;
           return {
             threads: rest,
-            activeThreadId:
-              state.activeThreadId === id ? null : state.activeThreadId,
+            activeThreadId: state.activeThreadId === id ? null : state.activeThreadId,
           };
         }),
 
@@ -251,14 +240,12 @@ export const useFormulatorStore = create<FormulatorStore>()(
       },
       setAgentRunning: (running) =>
         set((state) => ({ agent: { ...state.agent, isRunning: running } })),
-      setAgentGoal: (goal) =>
-        set((state) => ({ agent: { ...state.agent, currentGoal: goal } })),
+      setAgentGoal: (goal) => set((state) => ({ agent: { ...state.agent, currentGoal: goal } })),
       setAgentPlan: (plan) =>
         set((state) => ({
           agent: { ...state.agent, currentPlan: plan, planStep: 0 },
         })),
-      setAgentPlanStep: (step) =>
-        set((state) => ({ agent: { ...state.agent, planStep: step } })),
+      setAgentPlanStep: (step) => set((state) => ({ agent: { ...state.agent, planStep: step } })),
       addAgentLog: (message, type = "info") =>
         set((state) => ({
           agent: {
@@ -266,13 +253,11 @@ export const useFormulatorStore = create<FormulatorStore>()(
             logs: [...state.agent.logs, { ts: Date.now(), message, type }],
           },
         })),
-      clearAgentLogs: () =>
-        set((state) => ({ agent: { ...state.agent, logs: [] } })),
+      clearAgentLogs: () => set((state) => ({ agent: { ...state.agent, logs: [] } })),
 
       // Settings
       settings: DEFAULT_SETTINGS,
-      updateSettings: (patch) =>
-        set((state) => ({ settings: { ...state.settings, ...patch } })),
+      updateSettings: (patch) => set((state) => ({ settings: { ...state.settings, ...patch } })),
 
       // UI
       sidebarOpen: true,

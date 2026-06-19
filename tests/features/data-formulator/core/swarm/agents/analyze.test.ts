@@ -28,9 +28,7 @@ function makeCtx(overrides: Partial<SwarmContext> = {}): SwarmContext {
 const validPlan = {
   goal: "Understand channel revenue",
   reasoning: "Group revenue by channel and look for dips.",
-  sqlSpecs: [
-    { id: "s1", purpose: "Revenue per channel", sql: "SELECT channel FROM t" },
-  ],
+  sqlSpecs: [{ id: "s1", purpose: "Revenue per channel", sql: "SELECT channel FROM t" }],
   chartSpecs: [{ usesSqlId: "s1", type: "bar", x: "channel", y: "amount" }],
   anomalyChecks: [{ usesSqlId: "s1", kind: "dip" }],
 };
@@ -69,17 +67,12 @@ describe("runAnalysisPlan", () => {
 
   it("embeds the dataset grounding block and the user's question in the prompt", async () => {
     const { scheduler, generateStructured } = schedulerReturning(validPlan);
-    await runAnalysisPlan(
-      scheduler,
-      makeCtx({ userPrompt: "Why did USSD drop?" }),
-    );
+    await runAnalysisPlan(scheduler, makeCtx({ userPrompt: "Why did USSD drop?" }));
 
     const [req] = generateStructured.mock.calls[0];
     expect(req.prompt).toContain('DuckDB view (query this exact name): "tx_view"');
     expect(req.prompt).toContain("Question: Why did USSD drop?");
-    expect(req.prompt).toContain(
-      "Produce the analysis plan now: reasoning first, then the specs.",
-    );
+    expect(req.prompt).toContain("Produce the analysis plan now: reasoning first, then the specs.");
     // A grounding systemPrefix is passed for prompt-cache reuse.
     expect(req.systemPrefix).toContain('"tx_view"');
   });
@@ -139,9 +132,7 @@ describe("analysisPlanSchema", () => {
   it("treats the chart series field as optional", () => {
     const parsed = analysisPlanSchema.parse({
       ...validPlan,
-      chartSpecs: [
-        { usesSqlId: "s1", type: "line", x: "channel", y: "amount", series: "region" },
-      ],
+      chartSpecs: [{ usesSqlId: "s1", type: "line", x: "channel", y: "amount", series: "region" }],
     });
     expect(parsed.chartSpecs[0].series).toBe("region");
   });

@@ -7,12 +7,7 @@ import { SceneShell } from "../components/SceneShell";
 import { TheaterChart } from "../components/TheaterChart";
 import { useSceneData } from "../hooks/use-scene-data";
 import { asNum, asStr, buildGanttSql } from "../lib/queries";
-import {
-  AXIS_LINE,
-  TEXT_COLOR,
-  TOOLTIP_BG,
-  TOOLTIP_BORDER,
-} from "../lib/theme";
+import { AXIS_LINE, TEXT_COLOR, TOOLTIP_BG, TOOLTIP_BORDER } from "../lib/theme";
 
 const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
@@ -50,10 +45,7 @@ function buildMatrix(rows: Record<string, unknown>[]): {
 export default function GanttScene() {
   const scene = useSceneData(buildGanttSql);
 
-  const { categories, data, max } = useMemo(
-    () => buildMatrix(scene.rows),
-    [scene.rows],
-  );
+  const { categories, data, max } = useMemo(() => buildMatrix(scene.rows), [scene.rows]);
 
   const option = useMemo(
     () => ({
@@ -120,9 +112,7 @@ export default function GanttScene() {
       onRetry={scene.refetch}
     >
       <div className="space-y-4">
-        {scene.note && (
-          <p className="text-xs text-muted-foreground">{scene.note}</p>
-        )}
+        {scene.note && <p className="text-xs text-muted-foreground">{scene.note}</p>}
         <Card>
           <CardContent className="pt-4">
             <TheaterChart option={option} height={Math.max(280, categories.length * 34 + 90)} />

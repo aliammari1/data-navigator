@@ -210,17 +210,20 @@ function round(v: number | undefined): number | null {
 export interface NarrateDeps {
   /** `useAI().generateStructured` bound to the active offline provider. */
   generateStructured: <T>(
-    req: { system?: string; prompt: string; maxTokens?: number; temperature?: number; signal?: AbortSignal },
+    req: {
+      system?: string;
+      prompt: string;
+      maxTokens?: number;
+      temperature?: number;
+      signal?: AbortSignal;
+    },
     schema: ZodType<T>,
   ) => Promise<T>;
   schema: ZodType<LlmInsightResponse>;
   signal?: AbortSignal;
 }
 
-export async function narrateInsights(
-  facts: AnalysisFacts,
-  deps: NarrateDeps,
-): Promise<Insight[]> {
+export async function narrateInsights(facts: AnalysisFacts, deps: NarrateDeps): Promise<Insight[]> {
   const factJson = JSON.stringify(compactFacts(facts));
   const prompt =
     `Here are computed statistics from a dataset (all numbers are exact):\n${factJson}\n\n` +

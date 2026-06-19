@@ -54,9 +54,7 @@ export async function runPipeline({
   const enabled = steps.filter((s) => s.enabled);
 
   // ── IPC 1: all per-step counts in one round-trip ──────────────────────────
-  const countRows = await runReadOnlyQuery(
-    buildCountQuery(steps, sourceTable, compiled),
-  );
+  const countRows = await runReadOnlyQuery(buildCountQuery(steps, sourceTable, compiled));
   const countById = new Map<string, number>();
   for (const row of countRows) {
     countById.set(String(row.step_id), Number(row.n ?? 0));

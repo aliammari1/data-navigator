@@ -8,10 +8,7 @@
  * langchain-sandbox runtime later is a one-file change.
  */
 
-import type {
-  SandboxRequest,
-  SandboxResponse,
-} from "@/workers/python-sandbox.worker";
+import type { SandboxRequest, SandboxResponse } from "@/workers/python-sandbox.worker";
 
 let _worker: Worker | null = null;
 let _readyPromise: Promise<void> | null = null;
@@ -86,9 +83,7 @@ function send<T>(
   });
 }
 
-export function ensureSandboxReady(
-  onProgress?: (s: string) => void,
-): Promise<void> {
+export function ensureSandboxReady(onProgress?: (s: string) => void): Promise<void> {
   if (!_readyPromise) {
     _readyPromise = send<void>({ id: nextId(), type: "INIT" }, { onProgress });
   }
@@ -114,16 +109,10 @@ export async function installPackages(
   onProgress?: (s: string) => void,
 ): Promise<void> {
   await ensureSandboxReady(onProgress);
-  await send<unknown>(
-    { id: nextId(), type: "INSTALL", sessionId, packages },
-    { onProgress },
-  );
+  await send<unknown>({ id: nextId(), type: "INSTALL", sessionId, packages }, { onProgress });
 }
 
-export async function runPython(
-  code: string,
-  opts: RunOptions,
-): Promise<RunResult> {
+export async function runPython(code: string, opts: RunOptions): Promise<RunResult> {
   await ensureSandboxReady(opts.onProgress);
   const start = performance.now();
   let stdout = "";

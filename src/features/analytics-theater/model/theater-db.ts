@@ -53,10 +53,7 @@ export async function saveTheater(theater: Theater): Promise<void> {
 /** List theaters for a dataset, most-recently-updated first. */
 export async function listTheaters(datasetId: string): Promise<Theater[]> {
   if (!datasetId) return [];
-  const rows = await db()
-    .theaters.where("datasetId")
-    .equals(datasetId)
-    .toArray();
+  const rows = await db().theaters.where("datasetId").equals(datasetId).toArray();
   return rows.sort((a, b) => b.updatedAt - a.updatedAt);
 }
 

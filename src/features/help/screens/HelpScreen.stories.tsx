@@ -51,9 +51,7 @@ export const Search: Story = {
     // Intentionally misspelled to exercise fuse.js typo tolerance.
     await userEvent.type(search, "uplaod");
     await expect(search).toHaveValue("uplaod");
-    await expect(
-      await canvas.findByRole("button", { name: /Upload/i }),
-    ).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: /Upload/i })).toBeInTheDocument();
   },
 };
 
@@ -82,8 +80,6 @@ export const GuidedTour: Story = {
     const screen = within(document.body);
     const start = canvas.getByRole("button", { name: /^start$/i });
     await userEvent.click(start);
-    await expect(
-      await screen.findByText(/Welcome to DataNavigator/i),
-    ).toBeInTheDocument();
+    await expect(await screen.findByText(/Welcome to DataNavigator/i)).toBeInTheDocument();
   },
 };

@@ -51,9 +51,7 @@ const OPERATORS = ["Op-A", "Op-B", "Op-C"];
 function median(values) {
   const sorted = [...values].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1] + sorted[mid]) / 2
-    : sorted[mid];
+  return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
 /** Time a (possibly async) thunk in ms. */
@@ -90,8 +88,7 @@ function generateCsv(rows) {
     const channel = CHANNELS[i % CHANNELS.length];
     // ~70% success: indices 0..6 of a 10-wide cycle map to success.
     const statusCycle = i % 10;
-    const status =
-      statusCycle < 7 ? "success" : STATUSES[1 + (statusCycle % 3)];
+    const status = statusCycle < 7 ? "success" : STATUSES[1 + (statusCycle % 3)];
     // Deterministic amount in [1, 1000] with two decimals.
     const amountCents = ((i * 37 + 13) % 100_000) + 1; // 1..100000 cents
     const amount = (amountCents / 100).toFixed(2);
@@ -305,15 +302,11 @@ function duckCurrentEngine(file) {
       },
       async q1({ conn }) {
         // Per-row TRY_CAST(amount AS DOUBLE) — exactly the renderer pattern.
-        const r = await conn.runAndReadAll(
-          DUCK_Q1("t", "TRY_CAST(amount AS DOUBLE)"),
-        );
+        const r = await conn.runAndReadAll(DUCK_Q1("t", "TRY_CAST(amount AS DOUBLE)"));
         return duckRowsToObjects(r);
       },
       async q2({ conn }) {
-        const r = await conn.runAndReadAll(
-          DUCK_Q2("t", "TRY_CAST(amount AS DOUBLE)"),
-        );
+        const r = await conn.runAndReadAll(DUCK_Q2("t", "TRY_CAST(amount AS DOUBLE)"));
         return duckRowsToObjects(r);
       },
       async dispose({ conn, instance }) {
@@ -334,9 +327,7 @@ function duckTypedEngine(file) {
         const instance = await DuckDBInstance.create(":memory:");
         const conn = await instance.connect();
         // Normal DuckDB: native type inference into a typed columnar table.
-        await conn.run(
-          `CREATE TABLE t AS SELECT * FROM read_csv_auto('${csv}', header = true)`,
-        );
+        await conn.run(`CREATE TABLE t AS SELECT * FROM read_csv_auto('${csv}', header = true)`);
         return { instance, conn };
       },
       async q1({ conn }) {
@@ -407,13 +398,11 @@ function parseCsvRows(text) {
   return rows;
 }
 
-const SQLITE_Q1 =
-  `SELECT channel, COUNT(*) AS total,
+const SQLITE_Q1 = `SELECT channel, COUNT(*) AS total,
           SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success,
           SUM(amount) AS amount_total
    FROM t GROUP BY channel ORDER BY channel`;
-const SQLITE_Q2 =
-  `SELECT COUNT(*) AS c FROM t
+const SQLITE_Q2 = `SELECT COUNT(*) AS c FROM t
    WHERE status = 'success' AND amount > ${AMOUNT_THRESHOLD}`;
 
 function nodeSqliteEngine(file) {
@@ -428,9 +417,7 @@ function nodeSqliteEngine(file) {
         db.exec(
           "CREATE TABLE t(channel TEXT, status TEXT, amount REAL, region TEXT, operator TEXT, hour INTEGER, customer_id TEXT)",
         );
-        const insert = db.prepare(
-          "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)",
-        );
+        const insert = db.prepare("INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)");
         const rows = parseCsvRows(text);
         db.exec("BEGIN");
         for (const f of rows) {
@@ -465,21 +452,11 @@ function betterSqliteEngine(file) {
         db.exec(
           "CREATE TABLE t(channel TEXT, status TEXT, amount REAL, region TEXT, operator TEXT, hour INTEGER, customer_id TEXT)",
         );
-        const insert = db.prepare(
-          "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)",
-        );
+        const insert = db.prepare("INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)");
         const rows = parseCsvRows(text);
         const insertMany = db.transaction((all) => {
           for (const f of all) {
-            insert.run(
-              f[0],
-              f[1],
-              Number(f[2]),
-              f[3],
-              f[4],
-              Number(f[5]),
-              f[6],
-            );
+            insert.run(f[0], f[1], Number(f[2]), f[3], f[4], Number(f[5]), f[6]);
           }
         });
         insertMany(rows);
@@ -511,9 +488,7 @@ function sqlJsEngine(file) {
         db.run(
           "CREATE TABLE t(channel TEXT, status TEXT, amount REAL, region TEXT, operator TEXT, hour INTEGER, customer_id TEXT)",
         );
-        const insert = db.prepare(
-          "INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)",
-        );
+        const insert = db.prepare("INSERT INTO t VALUES (?, ?, ?, ?, ?, ?, ?)");
         const rows = parseCsvRows(text);
         db.run("BEGIN");
         for (const f of rows) {
@@ -527,9 +502,7 @@ function sqlJsEngine(file) {
         const res = db.exec(SQLITE_Q1);
         if (!res.length) return [];
         const { columns, values } = res[0];
-        return values.map((v) =>
-          Object.fromEntries(columns.map((c, idx) => [c, v[idx]])),
-        );
+        return values.map((v) => Object.fromEntries(columns.map((c, idx) => [c, v[idx]])));
       },
       async q2({ db }) {
         const res = db.exec(SQLITE_Q2);
@@ -620,9 +593,7 @@ function arqueroEngine(file) {
         // threshold via params() so it's available inside the predicate.
         const filtered = table
           .params({ thr: AMOUNT_THRESHOLD })
-          .filter(
-            (d, $) => d.status === "success" && d.amount > $.thr,
-          );
+          .filter((d, $) => d.status === "success" && d.amount > $.thr);
         return [{ c: filtered.numRows() }];
       },
     };
@@ -641,21 +612,15 @@ async function main() {
   };
 
   console.log("");
-  console.log(
-    "Embedded analytical engine benchmark — DuckDB vs the field",
-  );
-  console.log(
-    `Node ${machine.node} | ${machine.platform} | ${machine.cpus}`,
-  );
+  console.log("Embedded analytical engine benchmark — DuckDB vs the field");
+  console.log(`Node ${machine.node} | ${machine.platform} | ${machine.cpus}`);
   console.log(
     `Rows: ${ROWS.toLocaleString("en-US")} | repeats: ${REPEAT} (median) | Q2 threshold: amount > ${AMOUNT_THRESHOLD}`,
   );
 
   console.log("Generating deterministic CSV...");
   const { file, bytes, expected, cleanup } = generateCsv(ROWS);
-  console.log(
-    `CSV: ${file} (${(bytes / 1024 / 1024).toFixed(1)} MiB)`,
-  );
+  console.log(`CSV: ${file} (${(bytes / 1024 / 1024).toFixed(1)} MiB)`);
   console.log(
     `Ground truth Q1 (per channel): ${expected.q1
       .map((r) => `${r.channel}=${r.total}`)
@@ -691,14 +656,8 @@ async function main() {
       );
     } catch (err) {
       const msg = err?.message ?? String(err);
-      const missing =
-        /Cannot find (module|package)|ERR_MODULE_NOT_FOUND|not installed/i.test(
-          msg,
-        );
-      const isOom =
-        /out of memory|heap|allocation failed|Array buffer allocation/i.test(
-          msg,
-        );
+      const missing = /Cannot find (module|package)|ERR_MODULE_NOT_FOUND|not installed/i.test(msg);
+      const isOom = /out of memory|heap|allocation failed|Array buffer allocation/i.test(msg);
       const reason = missing
         ? "skipped (not installed)"
         : isOom

@@ -30,8 +30,10 @@ function ensureLimit(sql: string, limit = 1000): string {
 }
 
 function looksReadOnly(sql: string): boolean {
-  return /^\s*(?:select|with)\b/i.test(sql) &&
-    !/\b(?:insert|update|delete|drop|alter|create|attach|copy|pragma|call)\b/i.test(sql);
+  return (
+    /^\s*(?:select|with)\b/i.test(sql) &&
+    !/\b(?:insert|update|delete|drop|alter|create|attach|copy|pragma|call)\b/i.test(sql)
+  );
 }
 
 /**

@@ -87,8 +87,7 @@ export function AchievementSystem() {
   const handleView = useCallback((def: AchievementDef) => setSelectedDef(def), []);
 
   const selectedProgress = useMemo(
-    () =>
-      selectedDef ? progressFor(selectedDef.id, metrics, xp, unlockedCount) : undefined,
+    () => (selectedDef ? progressFor(selectedDef.id, metrics, xp, unlockedCount) : undefined),
     [selectedDef, metrics, xp, unlockedCount],
   );
 

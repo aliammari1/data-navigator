@@ -29,8 +29,7 @@ import { ydoc } from "./collab";
 export const yApprovals = ydoc.getMap<Y.Map<unknown>>("collabhub:approvals");
 
 /** Annotations: sectionId -> ordered Y.Array of note Y.Maps (replies nested). */
-export const yAnnotations =
-  ydoc.getMap<Y.Array<Y.Map<unknown>>>("collabhub:annotations");
+export const yAnnotations = ydoc.getMap<Y.Array<Y.Map<unknown>>>("collabhub:annotations");
 
 /** Append-only audit JSON strings (mirrors the sharedAudit pattern). */
 export const yAudit = ydoc.getArray<string>("collabhub:audit");
@@ -79,13 +78,7 @@ export interface ApprovalRecord {
   sharedUrl?: string;
 }
 
-export type AuditEventType =
-  | "data"
-  | "export"
-  | "annotation"
-  | "approval"
-  | "filter"
-  | "system";
+export type AuditEventType = "data" | "export" | "annotation" | "approval" | "filter" | "system";
 
 export interface CollabAuditEvent {
   id: string;
@@ -188,10 +181,7 @@ export function addAnnotation(
   return id;
 }
 
-function findNote(
-  arr: Y.Array<Y.Map<unknown>>,
-  noteId: string,
-): Y.Map<unknown> | null {
+function findNote(arr: Y.Array<Y.Map<unknown>>, noteId: string): Y.Map<unknown> | null {
   for (const m of arr.toArray()) {
     if (m.get("id") === noteId) return m;
   }
@@ -326,9 +316,7 @@ export function readApproval(
 }
 
 /** Read every approval record. */
-export function readApprovals(
-  map: Y.Map<Y.Map<unknown>> = yApprovals,
-): ApprovalRecord[] {
+export function readApprovals(map: Y.Map<Y.Map<unknown>> = yApprovals): ApprovalRecord[] {
   const out: ApprovalRecord[] = [];
   for (const [, m] of map.entries()) out.push(approvalFromYMap(m));
   return out;
@@ -410,9 +398,7 @@ export function appendAuditEvent(
 }
 
 /** Read audit events as plain objects (newest-first). */
-export function readAuditEvents(
-  arr: Y.Array<string> = yAudit,
-): CollabAuditEvent[] {
+export function readAuditEvents(arr: Y.Array<string> = yAudit): CollabAuditEvent[] {
   const out: CollabAuditEvent[] = [];
   for (const raw of arr.toArray()) {
     try {
@@ -425,10 +411,7 @@ export function readAuditEvents(
 }
 
 /** Observe audit changes. */
-export function observeAuditEvents(
-  cb: () => void,
-  arr: Y.Array<string> = yAudit,
-): () => void {
+export function observeAuditEvents(cb: () => void, arr: Y.Array<string> = yAudit): () => void {
   arr.observe(cb);
   return () => arr.unobserve(cb);
 }

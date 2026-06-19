@@ -91,7 +91,10 @@ function inlineGesd(
     .filter((s) => s.z > 3)
     .sort((a, b) => b.z - a.z)
     .slice(0, max);
-  return { indices: scored.map((s) => s.i), scores: scored.map((s) => Math.round(s.z * 1000) / 1000) };
+  return {
+    indices: scored.map((s) => s.i),
+    scores: scored.map((s) => Math.round(s.z * 1000) / 1000),
+  };
 }
 
 function inlineHoltWinters(

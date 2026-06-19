@@ -151,11 +151,7 @@ export const FileUpload = ({
                             : file.type || "application/octet-stream"}
                     </motion.p>
 
-                    <motion.p
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      layout
-                    >
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} layout>
                       modifié {new Date(file.lastModified).toLocaleDateString()}
                     </motion.p>
                   </div>
@@ -232,9 +228,7 @@ export function GridPattern() {
         <div
           key={id}
           className={`flex h-10 w-10 shrink-0 rounded-xs ${
-            even
-              ? "bg-card"
-              : "bg-card shadow-[0px_0px_1px_3px_hsl(var(--background))_inset]"
+            even ? "bg-card" : "bg-card shadow-[0px_0px_1px_3px_hsl(var(--background))_inset]"
           }`}
         />
       ))}

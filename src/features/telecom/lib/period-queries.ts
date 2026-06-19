@@ -314,10 +314,7 @@ export async function fetchDayBuckets(
   }
 }
 
-export async function fetchAvailableDays(
-  table: string,
-  m?: ColumnMapping,
-): Promise<string[]> {
+export async function fetchAvailableDays(table: string, m?: ColumnMapping): Promise<string[]> {
   const dayExpr = transactionDayExpr(m?.transactionDate ?? "TRANSACTION_DATE");
 
   try {
@@ -328,9 +325,7 @@ export async function fetchAvailableDays(
       ORDER BY 1 DESC
     `);
 
-    return rows
-      .map((r) => String(r.day ?? "").slice(0, 10))
-      .filter((d) => d.length === 10);
+    return rows.map((r) => String(r.day ?? "").slice(0, 10)).filter((d) => d.length === 10);
   } catch {
     return [];
   }
@@ -462,9 +457,7 @@ export async function fetchAnomalies(
     const anomalies: RowAnomaly[] = [];
     for (const [canal, list] of byCanal) {
       if (list.length < 3) continue;
-      const rates = list.map((c) =>
-        c.total > 0 ? (c.success / c.total) * 100 : 0,
-      );
+      const rates = list.map((c) => (c.total > 0 ? (c.success / c.total) * 100 : 0));
       const totals = list.map((c) => c.total);
       const meanR = avg(rates);
       const sdR = stddev(rates, meanR);
@@ -476,8 +469,7 @@ export async function fetchAnomalies(
         const zRate = sdR > 0 ? (r - meanR) / sdR : 0;
         const zVol = sdT > 0 ? (cell.total - meanT) / sdT : 0;
         const reasons: string[] = [];
-        if (zRate <= -2)
-          reasons.push(`Taux réussite chute (z=${zRate.toFixed(2)})`);
+        if (zRate <= -2) reasons.push(`Taux réussite chute (z=${zRate.toFixed(2)})`);
         if (zVol >= 2.5) reasons.push(`Pic de volume (z=${zVol.toFixed(2)})`);
         if (zVol <= -2.5) reasons.push(`Volume anormalement bas`);
         if (reasons.length > 0) {
@@ -513,9 +505,7 @@ function stddev(xs: number[], mean: number): number {
 
 export async function fetchRowCount(table: string): Promise<number> {
   try {
-    const rows = await runReadOnlyQuery(
-      `SELECT COUNT(*) AS n FROM ${qc(table)}`,
-    );
+    const rows = await runReadOnlyQuery(`SELECT COUNT(*) AS n FROM ${qc(table)}`);
     return safeNum(rows[0]?.n);
   } catch {
     return 0;

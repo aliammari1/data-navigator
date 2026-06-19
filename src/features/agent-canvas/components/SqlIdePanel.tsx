@@ -96,10 +96,7 @@ export function SqlIdePanel() {
     setActiveSQLTab(id);
   }, [sqlTabs.length, tableName, addSQLTab, setActiveSQLTab]);
 
-  const grid = useMemo(
-    () => toGrid(active?.results ?? []),
-    [active?.results],
-  );
+  const grid = useMemo(() => toGrid(active?.results ?? []), [active?.results]);
 
   if (!active) {
     return (
@@ -125,13 +122,9 @@ export function SqlIdePanel() {
                 : "text-slate-500 hover:text-slate-300",
             )}
           >
-            {t.running && (
-              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />
-            )}
+            {t.running && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-amber-400" />}
             {t.label}
-            {sqlTabs.length > 1 && t.id === active.id && (
-              <X className="h-2.5 w-2.5 opacity-50" />
-            )}
+            {sqlTabs.length > 1 && t.id === active.id && <X className="h-2.5 w-2.5 opacity-50" />}
           </button>
         ))}
         <button
@@ -190,9 +183,7 @@ export function SqlIdePanel() {
       {/* History footer */}
       {sqlHistory.length > 0 && (
         <div className="shrink-0 border-t border-slate-800 px-2 py-1">
-          <p className="mb-0.5 text-[9px] uppercase tracking-wide text-slate-600">
-            History
-          </p>
+          <p className="mb-0.5 text-[9px] uppercase tracking-wide text-slate-600">History</p>
           <div className="flex flex-col gap-0.5 max-h-16 overflow-y-auto">
             {sqlHistory.slice(0, 8).map((h) => (
               <button

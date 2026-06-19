@@ -87,15 +87,11 @@ function openIDB(): Promise<IDBDatabase> {
   });
 }
 
-export async function getCachedAnalytics(
-  file: File,
-): Promise<CachedAnalytics | null> {
+export async function getCachedAnalytics(file: File): Promise<CachedAnalytics | null> {
   return getCachedAnalyticsForKey(getTelecomFileKey(file));
 }
 
-export async function getCachedAnalyticsForKey(
-  key: string,
-): Promise<CachedAnalytics | null> {
+export async function getCachedAnalyticsForKey(key: string): Promise<CachedAnalytics | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await openIDB();
@@ -129,9 +125,7 @@ export async function getCachedAnalyticsForKey(
   }
 }
 
-export async function getCachedAnalyticsEntries(): Promise<
-  CachedAnalyticsMeta[]
-> {
+export async function getCachedAnalyticsEntries(): Promise<CachedAnalyticsMeta[]> {
   if (typeof indexedDB === "undefined") return [];
   try {
     const db = await openIDB();
@@ -147,9 +141,7 @@ export async function getCachedAnalyticsEntries(): Promise<
         const entries = await Promise.all(
           rawEntries.map(async (raw) => {
             try {
-              const data = (await decompress(
-                raw.compressed,
-              )) as CachedAnalytics;
+              const data = (await decompress(raw.compressed)) as CachedAnalytics;
               const kpi = data.kpi as {
                 totalTransactions?: number;
                 successRate?: number;
@@ -197,9 +189,7 @@ export async function setCachedAnalyticsForKey(
     const compressed = await compress(payload);
     return new Promise((resolve, reject) => {
       const tx = db.transaction(STORE_NAME, "readwrite");
-      const req = tx
-        .objectStore(STORE_NAME)
-        .put({ key, compressed, savedAt: Date.now() });
+      const req = tx.objectStore(STORE_NAME).put({ key, compressed, savedAt: Date.now() });
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     });
@@ -225,9 +215,7 @@ export async function deleteCachedAnalyticsForKey(key: string): Promise<void> {
   } catch {}
 }
 
-export async function cacheTelecomSourceFile(
-  file: File,
-): Promise<string | null> {
+export async function cacheTelecomSourceFile(file: File): Promise<string | null> {
   if (typeof indexedDB === "undefined") return null;
   const key = getTelecomFileKey(file);
   const meta: CachedTelecomSourceFileMeta = {
@@ -261,9 +249,7 @@ export async function cacheTelecomSourceFile(
   }
 }
 
-export async function getCachedTelecomSourceFiles(): Promise<
-  CachedTelecomSourceFileMeta[]
-> {
+export async function getCachedTelecomSourceFiles(): Promise<CachedTelecomSourceFileMeta[]> {
   if (typeof indexedDB === "undefined") return [];
   try {
     const fromLocal = readLatestSourceMeta();
@@ -271,20 +257,16 @@ export async function getCachedTelecomSourceFiles(): Promise<
 
     const db = await openIDB();
     if (db.objectStoreNames.contains(SOURCE_META_STORE_NAME)) {
-      const metaEntries = await new Promise<CachedTelecomSourceFileMeta[]>(
-        (resolve) => {
-          const tx = db.transaction(SOURCE_META_STORE_NAME, "readonly");
-          const req = tx.objectStore(SOURCE_META_STORE_NAME).getAll();
-          req.onsuccess = () => {
-            resolve(
-              (req.result as CachedTelecomSourceFileMeta[]).sort(
-                (a, b) => b.savedAt - a.savedAt,
-              ),
-            );
-          };
-          req.onerror = () => resolve([]);
-        },
-      );
+      const metaEntries = await new Promise<CachedTelecomSourceFileMeta[]>((resolve) => {
+        const tx = db.transaction(SOURCE_META_STORE_NAME, "readonly");
+        const req = tx.objectStore(SOURCE_META_STORE_NAME).getAll();
+        req.onsuccess = () => {
+          resolve(
+            (req.result as CachedTelecomSourceFileMeta[]).sort((a, b) => b.savedAt - a.savedAt),
+          );
+        };
+        req.onerror = () => resolve([]);
+      });
       if (metaEntries.length > 0) return metaEntries;
     }
 
@@ -307,9 +289,7 @@ function readLatestSourceMeta(): CachedTelecomSourceFileMeta | null {
   }
 }
 
-async function putTelecomSourceFileMeta(
-  meta: CachedTelecomSourceFileMeta,
-): Promise<void> {
+async function putTelecomSourceFileMeta(meta: CachedTelecomSourceFileMeta): Promise<void> {
   if (typeof indexedDB === "undefined") return;
   try {
     const db = await openIDB();
@@ -324,9 +304,7 @@ async function putTelecomSourceFileMeta(
   } catch {}
 }
 
-export async function getCachedTelecomSourceFile(
-  key: string,
-): Promise<File | null> {
+export async function getCachedTelecomSourceFile(key: string): Promise<File | null> {
   if (typeof indexedDB === "undefined") return null;
   try {
     const db = await openIDB();
@@ -357,9 +335,7 @@ export async function getCachedTelecomSourceFile(
   }
 }
 
-async function pruneTelecomSourceFiles(
-  maxFiles = MAX_SOURCE_FILES,
-): Promise<void> {
+async function pruneTelecomSourceFiles(maxFiles = MAX_SOURCE_FILES): Promise<void> {
   const entries = await getCachedTelecomSourceFiles();
   const stale = entries.slice(maxFiles);
   if (stale.length === 0 || typeof indexedDB === "undefined") return;

@@ -74,9 +74,7 @@ export function ShellOverviewScreen() {
     {
       icon: HardDrive,
       label: "Durable storage",
-      value: storage
-        ? `${storage.usedMB} / ${storage.quotaMB || "?"} MB`
-        : "Estimating…",
+      value: storage ? `${storage.usedMB} / ${storage.quotaMB || "?"} MB` : "Estimating…",
       hint: storage?.isPersistent ? "Pinned (persist granted)" : "Not pinned",
       tone: "text-amber-400",
     },
@@ -94,10 +92,7 @@ export function ShellOverviewScreen() {
         {cards.map((card) => {
           const Icon = card.icon;
           return (
-            <div
-              key={card.label}
-              className="rounded-2xl border border-border bg-card p-4"
-            >
+            <div key={card.label} className="rounded-2xl border border-border bg-card p-4">
               <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 flex-none items-center justify-center rounded-xl bg-accent">
                   <Icon className={cn("h-5 w-5", card.tone)} />

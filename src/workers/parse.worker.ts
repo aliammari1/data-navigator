@@ -27,12 +27,7 @@ import { tableFromIPC } from "@uwdata/flechette";
 import Papa from "papaparse";
 import { inferSchema, initParser } from "udsv";
 import { castValue, detectType, mapUdsvType } from "./parse-cast";
-import type {
-  ParseColumn,
-  ParseResult,
-  ParseStringOptions,
-  RejectRow,
-} from "./parse-types";
+import type { ParseColumn, ParseResult, ParseStringOptions, RejectRow } from "./parse-types";
 
 // ─── uDSV whole-string parse (CSP-safe: stringCols + manual cast) ────────────
 
@@ -229,7 +224,11 @@ const api = {
   },
 
   /** Decode Arrow IPC into columnar typed arrays (preferred — no row objects). */
-  decodeArrowColumns(buffer: ArrayBuffer): { columns: string[]; data: unknown[][]; rowCount: number } {
+  decodeArrowColumns(buffer: ArrayBuffer): {
+    columns: string[];
+    data: unknown[][];
+    rowCount: number;
+  } {
     const table = tableFromIPC(buffer);
     const columns = table.schema.fields.map((f: { name: string }) => f.name);
     // toColumns() returns { [name]: array } — one pass, no per-column lookup.

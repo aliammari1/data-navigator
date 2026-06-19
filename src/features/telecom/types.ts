@@ -173,13 +173,7 @@ export interface RawStatusRow {
   amount: number;
 }
 
-export type StatusSemantic =
-  | "success"
-  | "declined"
-  | "refund"
-  | "instance"
-  | "submitted"
-  | "other";
+export type StatusSemantic = "success" | "declined" | "refund" | "instance" | "submitted" | "other";
 
 export interface StatusMapping {
   rawCode: string;

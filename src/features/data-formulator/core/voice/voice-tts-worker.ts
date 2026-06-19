@@ -292,9 +292,7 @@ function nowMs(): number {
 }
 
 function createJobId(): string {
-  return `tts_${Date.now().toString(36)}_${Math.random()
-    .toString(36)
-    .slice(2, 8)}`;
+  return `tts_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -377,15 +375,11 @@ async function isWebGpuAvailable(): Promise<boolean> {
   }
 }
 
-async function resolveRuntimeOrder(
-  runtime: VoiceRuntime,
-): Promise<ConcreteRuntime[]> {
+async function resolveRuntimeOrder(runtime: VoiceRuntime): Promise<ConcreteRuntime[]> {
   const order = getRuntimeOrder(runtime);
 
   if (runtime === "webgpu" && !(await isWebGpuAvailable())) {
-    throw new Error(
-      "WebGPU was requested but is not available in this browser.",
-    );
+    throw new Error("WebGPU was requested but is not available in this browser.");
   }
 
   if (runtime === "auto") {
@@ -481,9 +475,7 @@ async function loadTtsModelWithFallback({
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Could not load TTS model.");
+  throw lastError instanceof Error ? lastError : new Error("Could not load TTS model.");
 }
 
 async function loadTtsModel({
@@ -505,9 +497,7 @@ async function loadTtsModel({
   let effectiveEngine = engine;
 
   if (engine === "piper") {
-    console.warn(
-      "[voice-tts] Piper has no browser adapter yet; falling back to Kokoro.",
-    );
+    console.warn("[voice-tts] Piper has no browser adapter yet; falling back to Kokoro.");
     postStatus({
       status: "loading-model",
       detail: "Piper voice unavailable. Using Kokoro instead.",
@@ -516,9 +506,7 @@ async function loadTtsModel({
     });
     effectiveEngine = "kokoro";
   } else if (engine !== "kokoro") {
-    console.warn(
-      `[voice-tts] Unsupported TTS engine "${engine}"; falling back to Kokoro.`,
-    );
+    console.warn(`[voice-tts] Unsupported TTS engine "${engine}"; falling back to Kokoro.`);
     postStatus({
       status: "loading-model",
       detail: `Voice engine "${engine}" unavailable. Using Kokoro instead.`,
@@ -534,8 +522,7 @@ async function loadTtsModel({
     throw new Error(`TTS model "${effectiveEngine}" does not define a modelId.`);
   }
 
-  const precision =
-    dtype ?? getDefaultPrecisionForRuntime(model, runtime) ?? "q8";
+  const precision = dtype ?? getDefaultPrecisionForRuntime(model, runtime) ?? "q8";
 
   const key = createModelKey({
     engine: effectiveEngine,
@@ -656,7 +643,7 @@ function summarizeForSpeech(text: string, maxChars: number): string {
   let result = "";
 
   for (const sentence of sentences) {
-    if ((`${result} ${sentence}`).trim().length > maxChars) break;
+    if (`${result} ${sentence}`.trim().length > maxChars) break;
     result = `${result} ${sentence}`.trim();
   }
 
@@ -681,10 +668,7 @@ function prepareSpeechText({
   if (speakMode === "off") return "";
 
   if (speakMode === "summary") {
-    return summarizeForSpeech(
-      normalized,
-      summaryMaxChars ?? DEFAULT_SUMMARY_MAX_CHARS,
-    );
+    return summarizeForSpeech(normalized, summaryMaxChars ?? DEFAULT_SUMMARY_MAX_CHARS);
   }
 
   return normalized;
@@ -852,9 +836,7 @@ async function synthesizeWithKokoro({
     });
 
     if (index < chunks.length - 1) {
-      audioChunks.push(
-        createSilence(generated.sampleRate, DEFAULT_SENTENCE_GAP_MS),
-      );
+      audioChunks.push(createSilence(generated.sampleRate, DEFAULT_SENTENCE_GAP_MS));
     }
   }
 
@@ -945,9 +927,7 @@ async function handleLoadModel(
   });
 }
 
-async function handleSpeak(
-  request: Extract<VoiceTtsRequest, { type: "SPEAK" }>,
-): Promise<void> {
+async function handleSpeak(request: Extract<VoiceTtsRequest, { type: "SPEAK" }>): Promise<void> {
   const jobId = request.jobId || createJobId();
   activeJobId = jobId;
   cancelledJobIds.delete(jobId);
@@ -1030,9 +1010,7 @@ async function handleSpeak(
     const includePcm = outputFormat === "pcm" || outputFormat === "both";
     const includeWav = outputFormat === "wav" || outputFormat === "both";
 
-    const wav = includeWav
-      ? encodeWav(synthesis.audio, synthesis.sampleRate)
-      : undefined;
+    const wav = includeWav ? encodeWav(synthesis.audio, synthesis.sampleRate) : undefined;
 
     // Final guard: do not deliver audio for a job the user already stopped.
     assertNotCancelled(jobId);
@@ -1120,18 +1098,12 @@ function handleStop(request: Extract<VoiceTtsRequest, { type: "STOP" }>): void {
   });
 }
 
-function handleUnloadModel(
-  request: Extract<VoiceTtsRequest, { type: "UNLOAD_MODEL" }>,
-): void {
+function handleUnloadModel(request: Extract<VoiceTtsRequest, { type: "UNLOAD_MODEL" }>): void {
   const engine = request.engine ? resolveEngine(request.engine) : undefined;
-  const runtimeValue = request.runtime
-    ? resolveRuntime(request.runtime)
-    : undefined;
+  const runtimeValue = request.runtime ? resolveRuntime(request.runtime) : undefined;
 
   const runtime =
-    runtimeValue && runtimeValue !== "auto"
-      ? (runtimeValue as ConcreteRuntime)
-      : undefined;
+    runtimeValue && runtimeValue !== "auto" ? (runtimeValue as ConcreteRuntime) : undefined;
 
   const cleared = unloadMatchingModels({
     engine,
@@ -1178,9 +1150,7 @@ function handleGetStatus(): void {
   });
 }
 
-function handleListVoices(
-  request: Extract<VoiceTtsRequest, { type: "LIST_VOICES" }>,
-): void {
+function handleListVoices(request: Extract<VoiceTtsRequest, { type: "LIST_VOICES" }>): void {
   const engine = resolveEngine(request.engine);
 
   if (engine === "kokoro") {
@@ -1209,74 +1179,65 @@ function handleListVoices(
 /*  Message handler                                                    */
 /* ------------------------------------------------------------------ */
 
-workerSelf.addEventListener(
-  "message",
-  async (event: MessageEvent<VoiceTtsRequest>) => {
-    const request = event.data;
+workerSelf.addEventListener("message", async (event: MessageEvent<VoiceTtsRequest>) => {
+  const request = event.data;
 
-    try {
-      if (!request || typeof request.type !== "string") {
-        throw new Error("Invalid TTS worker request.");
-      }
-
-      switch (request.type) {
-        case "LOAD_MODEL": {
-          await handleLoadModel(request);
-          return;
-        }
-
-        case "SPEAK": {
-          await handleSpeak(request);
-          return;
-        }
-
-        case "STOP": {
-          handleStop(request);
-          return;
-        }
-
-        case "UNLOAD_MODEL": {
-          handleUnloadModel(request);
-          return;
-        }
-
-        case "GET_STATUS": {
-          handleGetStatus();
-          return;
-        }
-
-        case "LIST_VOICES": {
-          handleListVoices(request);
-          return;
-        }
-
-        default: {
-          const unknownRequest = request as { type?: string };
-          throw new Error(
-            `Unknown TTS request type: ${unknownRequest.type ?? "unknown"}`,
-          );
-        }
-      }
-    } catch (error) {
-      const engine =
-        "engine" in request ? resolveEngine(request.engine) : undefined;
-
-      const runtimeValue =
-        "runtime" in request ? resolveRuntime(request.runtime) : undefined;
-
-      postError({
-        error,
-        status: "failed",
-        jobId: "jobId" in request ? request.jobId : undefined,
-        engine,
-        runtime:
-          runtimeValue && runtimeValue !== "auto"
-            ? (runtimeValue as ConcreteRuntime)
-            : undefined,
-      });
+  try {
+    if (!request || typeof request.type !== "string") {
+      throw new Error("Invalid TTS worker request.");
     }
-  },
-);
+
+    switch (request.type) {
+      case "LOAD_MODEL": {
+        await handleLoadModel(request);
+        return;
+      }
+
+      case "SPEAK": {
+        await handleSpeak(request);
+        return;
+      }
+
+      case "STOP": {
+        handleStop(request);
+        return;
+      }
+
+      case "UNLOAD_MODEL": {
+        handleUnloadModel(request);
+        return;
+      }
+
+      case "GET_STATUS": {
+        handleGetStatus();
+        return;
+      }
+
+      case "LIST_VOICES": {
+        handleListVoices(request);
+        return;
+      }
+
+      default: {
+        const unknownRequest = request as { type?: string };
+        throw new Error(`Unknown TTS request type: ${unknownRequest.type ?? "unknown"}`);
+      }
+    }
+  } catch (error) {
+    const engine = "engine" in request ? resolveEngine(request.engine) : undefined;
+
+    const runtimeValue = "runtime" in request ? resolveRuntime(request.runtime) : undefined;
+
+    postError({
+      error,
+      status: "failed",
+      jobId: "jobId" in request ? request.jobId : undefined,
+      engine,
+      runtime:
+        runtimeValue && runtimeValue !== "auto" ? (runtimeValue as ConcreteRuntime) : undefined,
+    });
+  }
+});
 
 postStatus({
   status: "idle",

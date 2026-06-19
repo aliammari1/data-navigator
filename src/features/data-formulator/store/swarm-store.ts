@@ -105,8 +105,7 @@ const EMPTY: Pick<
 export const useSwarmStore = create<SwarmState>((set) => ({
   ...EMPTY,
 
-  begin: (prompt, startedAt) =>
-    set({ ...EMPTY, prompt, phase: "planning", startedAt }),
+  begin: (prompt, startedAt) => set({ ...EMPTY, prompt, phase: "planning", startedAt }),
 
   reset: () => set({ ...EMPTY }),
 
@@ -138,12 +137,9 @@ export const useSwarmStore = create<SwarmState>((set) => ({
       if (!run) return state;
       const now = Date.now();
       const startedAt =
-        run.startedAt ??
-        (status === "thinking" || status === "running" ? now : undefined);
+        run.startedAt ?? (status === "thinking" || status === "running" ? now : undefined);
       const finishedAt =
-        status === "done" || status === "failed" || status === "skipped"
-          ? now
-          : run.finishedAt;
+        status === "done" || status === "failed" || status === "skipped" ? now : run.finishedAt;
       return {
         runs: { ...state.runs, [taskId]: { ...run, status, startedAt, finishedAt } },
       };
@@ -187,8 +183,7 @@ export const useSwarmStore = create<SwarmState>((set) => ({
       return { runs, artifacts: [...state.artifacts, artifact] };
     }),
 
-  appendAnswerToken: (token) =>
-    set((state) => ({ answerStream: state.answerStream + token })),
+  appendAnswerToken: (token) => set((state) => ({ answerStream: state.answerStream + token })),
 
   setVerdict: (taskId, verdict) =>
     set((state) => {

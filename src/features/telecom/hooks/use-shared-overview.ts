@@ -20,9 +20,7 @@ export interface SharedOverviewSnapshot {
   forecast: ForecastPoint[];
 }
 
-function rehydrateCanals(
-  canals: Array<Omit<Types.CanalSummary, "icon">>,
-): Types.CanalSummary[] {
+function rehydrateCanals(canals: Array<Omit<Types.CanalSummary, "icon">>): Types.CanalSummary[] {
   return canals.map((canal) => ({
     ...canal,
     icon: CANAL_CONFIG[canal.key]?.icon ?? CANAL_CONFIG.bill_payment.icon,

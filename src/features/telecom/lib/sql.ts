@@ -26,9 +26,7 @@ export { BUILTIN_STATUS_CODES, SEMANTIC_TO_CATEGORY };
 /** Safe SQL identifier quoting. Rejects identifiers containing dangerous characters. */
 export function qc(col: string): string {
   if (!col || typeof col !== "string") {
-    throw new TypeError(
-      "Invalid column identifier: must be a non-empty string",
-    );
+    throw new TypeError("Invalid column identifier: must be a non-empty string");
   }
   // Reject identifiers that could be used for SQL injection
   if (/[;\\]|--|\/\*|\*\//.test(col)) {
@@ -74,17 +72,12 @@ export function statusNorm(
 ): string {
   const s = qc(m.status);
   const v = `UPPER(TRIM(CAST(${s} AS VARCHAR)))`;
-  const configuredCodes = new Set(
-    sm.map((e) => e.rawCode.trim().toUpperCase()),
-  );
+  const configuredCodes = new Set(sm.map((e) => e.rawCode.trim().toUpperCase()));
   const whenClauses = sm
     .filter((e) => e.rawCode.trim())
     .map((e) => {
       const code = e.rawCode.trim().toUpperCase();
-      const cat =
-        e.semantic === "other"
-          ? "OTHER"
-          : (SEMANTIC_TO_CATEGORY[e.semantic] ?? "OTHER");
+      const cat = e.semantic === "other" ? "OTHER" : (SEMANTIC_TO_CATEGORY[e.semantic] ?? "OTHER");
       return `WHEN ${v} = ${sqlLiteral(code)} THEN ${sqlLiteral(cat)}`;
     });
 

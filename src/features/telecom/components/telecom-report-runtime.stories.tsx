@@ -38,8 +38,6 @@ export const ShowsLabel: Story = {
   args: { label: "Chargement du rapport du 2024-06-01…" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/Chargement du rapport du 2024-06-01/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/Chargement du rapport du 2024-06-01/i)).toBeVisible();
   },
 };

@@ -36,10 +36,7 @@ export function useLLMEngine(): {
 }
 
 export function useLLMGenerate(): {
-  generate: (
-    prompt: string,
-    opts?: { systemPrompt?: string },
-  ) => Promise<string>;
+  generate: (prompt: string, opts?: { systemPrompt?: string }) => Promise<string>;
   loading: boolean;
   error: string | null;
 } {
@@ -47,10 +44,7 @@ export function useLLMGenerate(): {
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(
-    async (
-      prompt: string,
-      opts?: { systemPrompt?: string },
-    ): Promise<string> => {
+    async (prompt: string, opts?: { systemPrompt?: string }): Promise<string> => {
       setLoading(true);
       setError(null);
       try {

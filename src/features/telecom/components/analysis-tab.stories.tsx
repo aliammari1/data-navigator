@@ -61,9 +61,30 @@ const hourly: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => {
 });
 
 const operators: OperatorRow[] = [
-  { operator: "Tunisie Telecom", total: 9200, success: 8740, amount: 6_900_000, successRate: 95, accountType: "source" },
-  { operator: "Ooredoo", total: 7400, success: 6810, amount: 5_300_000, successRate: 92, accountType: "source" },
-  { operator: "Orange Tunisie", total: 5100, success: 4590, amount: 3_800_000, successRate: 90, accountType: "source" },
+  {
+    operator: "Tunisie Telecom",
+    total: 9200,
+    success: 8740,
+    amount: 6_900_000,
+    successRate: 95,
+    accountType: "source",
+  },
+  {
+    operator: "Ooredoo",
+    total: 7400,
+    success: 6810,
+    amount: 5_300_000,
+    successRate: 92,
+    accountType: "source",
+  },
+  {
+    operator: "Orange Tunisie",
+    total: 5100,
+    success: 4590,
+    amount: 3_800_000,
+    successRate: 90,
+    accountType: "source",
+  },
 ];
 
 const regions: RegionRow[] = [

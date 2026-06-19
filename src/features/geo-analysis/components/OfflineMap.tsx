@@ -78,24 +78,22 @@ function computeBounds(regions: GeoRegion[]): Bounds {
   };
 }
 
-export function OfflineMap({
-  regions,
-  selectedRegion,
-  onSelect,
-  height = 500,
-}: OfflineMapProps) {
+export function OfflineMap({ regions, selectedRegion, onSelect, height = 500 }: OfflineMapProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState({ width: 800, height });
   const [zoom, setZoom] = useState(1);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [hover, setHover] = useState<{ region: GeoRegion; x: number; y: number } | null>(null);
-  const dragRef = useRef<{ startX: number; startY: number; panX: number; panY: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{
+    startX: number;
+    startY: number;
+    panX: number;
+    panY: number;
+    moved: boolean;
+  } | null>(null);
 
-  const mapped = useMemo(
-    () => regions.filter((r) => r.lon !== null && r.lat !== null),
-    [regions],
-  );
+  const mapped = useMemo(() => regions.filter((r) => r.lon !== null && r.lat !== null), [regions]);
   const bounds = useMemo(() => computeBounds(mapped), [mapped]);
 
   const maxTransactions = useMemo(
@@ -275,14 +273,14 @@ export function OfflineMap({
   };
 
   return (
-    <div
-      ref={containerRef}
-      className="relative w-full select-none"
-      style={{ height }}
-    >
+    <div ref={containerRef} className="relative w-full select-none" style={{ height }}>
       <canvas
         ref={canvasRef}
-        style={{ width: size.width, height: size.height, cursor: dragRef.current ? "grabbing" : "grab" }}
+        style={{
+          width: size.width,
+          height: size.height,
+          cursor: dragRef.current ? "grabbing" : "grab",
+        }}
         onMouseMove={handleMove}
         onMouseDown={handleDown}
         onMouseUp={handleUp}

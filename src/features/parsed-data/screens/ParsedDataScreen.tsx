@@ -56,16 +56,10 @@ import {
 } from "@/features/parsed-data/charts/options";
 import { ProfileChart } from "@/features/parsed-data/charts/ProfileChart";
 import { ColumnList } from "@/features/parsed-data/components/ColumnList";
-import {
-  ColumnDetailPanel,
-  type DetailTab,
-} from "@/features/parsed-data/components/ColumnDetail";
+import { ColumnDetailPanel, type DetailTab } from "@/features/parsed-data/components/ColumnDetail";
 import { QualityRing } from "@/features/parsed-data/components/profile-cards";
 import { csvEscape } from "@/features/parsed-data/model/format";
-import {
-  qualityColor,
-  qualityLabel,
-} from "@/features/parsed-data/model/profile-format";
+import { qualityColor, qualityLabel } from "@/features/parsed-data/model/profile-format";
 import type {
   ProfileQualityFilter,
   ProfileQuery,
@@ -98,10 +92,30 @@ function DatasetEmptyState() {
 }
 
 const PARSED_NEXT_STEPS = [
-  { icon: Brain, label: "Analyser (IA)", hint: "Insights et anomalies", href: "/dashboard/ai-analysis" },
-  { icon: Microscope, label: "Analyses approfondies", hint: "Cohortes, clustering", href: "/dashboard/deep-analytics" },
-  { icon: Layers, label: "Transformer", hint: "Nettoyer et enrichir", href: "/dashboard/transform" },
-  { icon: FileText, label: "Créer un rapport", hint: "Studio de Rapports", href: "/dashboard/report-studio" },
+  {
+    icon: Brain,
+    label: "Analyser (IA)",
+    hint: "Insights et anomalies",
+    href: "/dashboard/ai-analysis",
+  },
+  {
+    icon: Microscope,
+    label: "Analyses approfondies",
+    hint: "Cohortes, clustering",
+    href: "/dashboard/deep-analytics",
+  },
+  {
+    icon: Layers,
+    label: "Transformer",
+    hint: "Nettoyer et enrichir",
+    href: "/dashboard/transform",
+  },
+  {
+    icon: FileText,
+    label: "Créer un rapport",
+    hint: "Studio de Rapports",
+    href: "/dashboard/report-studio",
+  },
 ];
 
 function MetricCard({
@@ -119,12 +133,8 @@ function MetricCard({
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <div className="text-xs font-medium text-muted-foreground">
-            {label}
-          </div>
-          <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">
-            {value}
-          </div>
+          <div className="text-xs font-medium text-muted-foreground">{label}</div>
+          <div className="mt-1 text-2xl font-bold tabular-nums text-foreground">{value}</div>
         </div>
         <div className={cn("rounded-2xl p-3", tone)}>
           <Icon className="h-5 w-5" />
@@ -134,12 +144,7 @@ function MetricCard({
   );
 }
 
-const SORT_KEYS: ReadonlyArray<ProfileSortKey> = [
-  "quality",
-  "name",
-  "nullRate",
-  "distinctCount",
-];
+const SORT_KEYS: ReadonlyArray<ProfileSortKey> = ["quality", "name", "nullRate", "distinctCount"];
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -193,11 +198,8 @@ export default function ParsedDataScreen() {
   // ── Filter / sort query (debounced + off-main-thread) ──
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<ProfileTypeFilter>("all");
-  const [qualityFilter, setQualityFilter] =
-    useState<ProfileQualityFilter>("all");
-  const [sortBy, setSortBy] = useState<ProfileSortKey>(
-    defaultProfileQuery.sortBy,
-  );
+  const [qualityFilter, setQualityFilter] = useState<ProfileQualityFilter>("all");
+  const [sortBy, setSortBy] = useState<ProfileSortKey>(defaultProfileQuery.sortBy);
   const [sortAsc, setSortAsc] = useState(defaultProfileQuery.sortAsc);
 
   const query: ProfileQuery = useMemo(
@@ -210,17 +212,12 @@ export default function ParsedDataScreen() {
   // ── Derived metrics ──
   const overallScore = useMemo(() => {
     if (profiles.length === 0) return 0;
-    return (
-      profiles.reduce((sum, profile) => sum + profileScore(profile), 0) /
-      profiles.length
-    );
+    return profiles.reduce((sum, profile) => sum + profileScore(profile), 0) / profiles.length;
   }, [profiles]);
 
   const numericColumnsCount = useMemo(
     () =>
-      profiles.filter(
-        (profile) => profile.type === "integer" || profile.type === "float",
-      ).length,
+      profiles.filter((profile) => profile.type === "integer" || profile.type === "float").length,
     [profiles],
   );
 
@@ -231,10 +228,7 @@ export default function ParsedDataScreen() {
 
   // ── Pure chart options (notMerge/lazyUpdate via ProfileChart) ──
   const typeMix = useMemo(() => typeMixOption(profiles), [profiles]);
-  const overviewChart = useMemo(
-    () => overviewQualityOption(profiles),
-    [profiles],
-  );
+  const overviewChart = useMemo(() => overviewQualityOption(profiles), [profiles]);
   const heatmapChart = useMemo(() => nullHeatmapOption(profiles), [profiles]);
 
   // ── CSV export (local; SUMMARIZE-derived numbers) ──
@@ -272,9 +266,7 @@ export default function ParsedDataScreen() {
       profile.validity.toFixed(4),
     ]);
 
-    const csv = [header, ...rows]
-      .map((row) => row.map(csvEscape).join(","))
-      .join("\n");
+    const csv = [header, ...rows].map((row) => row.map(csvEscape).join(",")).join("\n");
 
     const blob = new Blob([csv], { type: "text/csv" });
     const url = URL.createObjectURL(blob);
@@ -308,9 +300,7 @@ export default function ParsedDataScreen() {
 
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-xl font-bold text-foreground">
-                  Profil des données
-                </h1>
+                <h1 className="truncate text-xl font-bold text-foreground">Profil des données</h1>
                 <span
                   className="rounded-full px-2 py-0.5 text-xs font-semibold"
                   style={{
@@ -437,12 +427,8 @@ export default function ParsedDataScreen() {
           <div className="rounded-3xl border border-border bg-card p-4">
             <div className="mb-4 flex items-center justify-between gap-2">
               <div>
-                <h2 className="text-sm font-bold text-foreground">
-                  Column Explorer
-                </h2>
-                <p className="text-xs text-muted-foreground">
-                  Search, filter and inspect columns.
-                </p>
+                <h2 className="text-sm font-bold text-foreground">Column Explorer</h2>
+                <p className="text-xs text-muted-foreground">Search, filter and inspect columns.</p>
               </div>
               <SlidersHorizontal className="h-4 w-4 text-muted-foreground" />
             </div>
@@ -462,9 +448,7 @@ export default function ParsedDataScreen() {
               <div className="grid grid-cols-2 gap-2">
                 <select
                   value={typeFilter}
-                  onChange={(event) =>
-                    setTypeFilter(event.target.value as ProfileTypeFilter)
-                  }
+                  onChange={(event) => setTypeFilter(event.target.value as ProfileTypeFilter)}
                   className="h-9 rounded-xl border border-border bg-background px-2 text-xs text-foreground outline-none"
                 >
                   <option value="all">All types</option>
@@ -478,9 +462,7 @@ export default function ParsedDataScreen() {
 
                 <select
                   value={qualityFilter}
-                  onChange={(event) =>
-                    setQualityFilter(event.target.value as ProfileQualityFilter)
-                  }
+                  onChange={(event) => setQualityFilter(event.target.value as ProfileQualityFilter)}
                   className="h-9 rounded-xl border border-border bg-background px-2 text-xs text-foreground outline-none"
                 >
                   <option value="all">All quality</option>
@@ -512,11 +494,7 @@ export default function ParsedDataScreen() {
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    {sort === "nullRate"
-                      ? "nulls"
-                      : sort === "distinctCount"
-                        ? "distinct"
-                        : sort}
+                    {sort === "nullRate" ? "nulls" : sort === "distinctCount" ? "distinct" : sort}
                     {sortBy === sort ? (sortAsc ? " ↑" : " ↓") : ""}
                   </button>
                 ))}
@@ -537,12 +515,9 @@ export default function ParsedDataScreen() {
             <div className="rounded-3xl border border-border bg-card p-5">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <h2 className="text-sm font-bold text-foreground">
-                    Dataset Quality Overview
-                  </h2>
+                  <h2 className="text-sm font-bold text-foreground">Dataset Quality Overview</h2>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    Summary of completeness, uniqueness, validity and
-                    consistency.
+                    Summary of completeness, uniqueness, validity and consistency.
                   </p>
                 </div>
 
@@ -636,12 +611,10 @@ export default function ParsedDataScreen() {
           {!selectedProfile && !profiling ? (
             <div className="flex min-h-[420px] flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-card p-8 text-center">
               <Eye className="h-12 w-12 text-muted-foreground/40" />
-              <h2 className="mt-4 text-lg font-bold text-foreground">
-                Select a column
-              </h2>
+              <h2 className="mt-4 text-lg font-bold text-foreground">Select a column</h2>
               <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Choose a column from the explorer to inspect its statistics,
-                distribution, quality, and sample frequencies.
+                Choose a column from the explorer to inspect its statistics, distribution, quality,
+                and sample frequencies.
               </p>
             </div>
           ) : null}
@@ -663,9 +636,7 @@ export default function ParsedDataScreen() {
                   <Layers className="h-4 w-4 text-indigo-500" />
                   Completeness by Column
                 </h3>
-                {overviewChart && (
-                  <ProfileChart option={overviewChart} style={{ height: 240 }} />
-                )}
+                {overviewChart && <ProfileChart option={overviewChart} style={{ height: 240 }} />}
               </div>
 
               <div className="rounded-3xl border border-border bg-card p-5">
@@ -673,9 +644,7 @@ export default function ParsedDataScreen() {
                   <Percent className="h-4 w-4 text-primary" />
                   Taux de valeurs nulles
                 </h3>
-                {heatmapChart && (
-                  <ProfileChart option={heatmapChart} style={{ height: 240 }} />
-                )}
+                {heatmapChart && <ProfileChart option={heatmapChart} style={{ height: 240 }} />}
               </div>
             </div>
           )}

@@ -254,10 +254,8 @@ class AppDatabase extends Dexie {
       // new v2 tables — compound indexes declared so they are queryable
       columnProfiles: "id, datasetId, column, updatedAt, [datasetId+updatedAt]",
       transformRecipes: "id, name, datasetId, updatedAt",
-      importHistory:
-        "id, ts, day, datasetId, status, [day+status], [datasetId+ts]",
-      activityHistory:
-        "id, ts, day, source, datasetId, [source+ts], [day+source]",
+      importHistory: "id, ts, day, datasetId, status, [day+status], [datasetId+ts]",
+      activityHistory: "id, ts, day, source, datasetId, [source+ts], [day+source]",
       savedQueries: "id, name, kind, datasetId, updatedAt, [kind+updatedAt]",
       achievements: "id, kind, ts, ref, [kind+ts]",
       reportDefinitions: "id, name, format, updatedAt",
@@ -277,10 +275,8 @@ class AppDatabase extends Dexie {
       sessionState: "key, updatedAt",
       columnProfiles: "id, datasetId, column, updatedAt, [datasetId+updatedAt]",
       transformRecipes: "id, name, datasetId, updatedAt",
-      importHistory:
-        "id, ts, day, datasetId, status, [day+status], [datasetId+ts]",
-      activityHistory:
-        "id, ts, day, source, datasetId, [source+ts], [day+source]",
+      importHistory: "id, ts, day, datasetId, status, [day+status], [datasetId+ts]",
+      activityHistory: "id, ts, day, source, datasetId, [source+ts], [day+source]",
       savedQueries: "id, name, kind, datasetId, updatedAt, [kind+updatedAt]",
       achievements: "id, kind, ts, ref, [kind+ts]",
       reportDefinitions: "id, name, format, updatedAt",
@@ -288,8 +284,7 @@ class AppDatabase extends Dexie {
       collabAnnotations: "id, roomId, updatedAt, author, [roomId+updatedAt]",
       // new v3 table — compound indexes so a metric's or a route's freshest
       // samples are one range read for the perf inspector.
-      perfMetrics:
-        "id, ts, day, metric, route, rating, [metric+ts], [route+ts], [day+metric]",
+      perfMetrics: "id, ts, day, metric, route, rating, [metric+ts], [route+ts], [day+metric]",
     });
   }
 }
@@ -311,27 +306,16 @@ function toFiniteNumber(value: unknown): number {
  * accessors reuse the SAME sanitiser instead of re-implementing it (avoids the
  * `DataCloneError` class of bugs).
  */
-export function toCloneSafeValue(
-  value: unknown,
-  seen = new WeakSet<object>(),
-): unknown {
+export function toCloneSafeValue(value: unknown, seen = new WeakSet<object>()): unknown {
   if (value === null) return null;
 
   const valueType = typeof value;
-  if (
-    valueType === "string" ||
-    valueType === "number" ||
-    valueType === "boolean"
-  ) {
+  if (valueType === "string" || valueType === "number" || valueType === "boolean") {
     return value;
   }
 
   if (valueType === "bigint") return String(value);
-  if (
-    valueType === "undefined" ||
-    valueType === "function" ||
-    valueType === "symbol"
-  ) {
+  if (valueType === "undefined" || valueType === "function" || valueType === "symbol") {
     return undefined;
   }
 
@@ -359,9 +343,7 @@ export function toCloneSafeValue(
   }
 
   if (value instanceof Set) {
-    return Array.from(value.values()).map(
-      (item) => toCloneSafeValue(item, seen) ?? null,
-    );
+    return Array.from(value.values()).map((item) => toCloneSafeValue(item, seen) ?? null);
   }
 
   const cloneSafeObject: Record<string, unknown> = {};
@@ -407,28 +389,19 @@ export async function listAnalyticsSnapshots(): Promise<AnalyticsSnapshot[]> {
   return appDb.analyticsSnapshots.orderBy("savedAt").reverse().toArray();
 }
 
-export async function listAnalyticsSnapshotMeta(): Promise<
-  AnalyticsSnapshotMeta[]
-> {
-  const snapshots = await appDb.analyticsSnapshots
-    .orderBy("savedAt")
-    .reverse()
-    .toArray();
+export async function listAnalyticsSnapshotMeta(): Promise<AnalyticsSnapshotMeta[]> {
+  const snapshots = await appDb.analyticsSnapshots.orderBy("savedAt").reverse().toArray();
 
-  return snapshots.map(
-    ({ key, savedAt, fileName, totalTransactions, successRate }) => ({
-      key,
-      savedAt,
-      fileName,
-      totalTransactions,
-      successRate,
-    }),
-  );
+  return snapshots.map(({ key, savedAt, fileName, totalTransactions, successRate }) => ({
+    key,
+    savedAt,
+    fileName,
+    totalTransactions,
+    successRate,
+  }));
 }
 
-export async function getAnalyticsSnapshot(
-  key: string,
-): Promise<AnalyticsSnapshot | undefined> {
+export async function getAnalyticsSnapshot(key: string): Promise<AnalyticsSnapshot | undefined> {
   return appDb.analyticsSnapshots.get(key);
 }
 
@@ -436,14 +409,8 @@ export async function deleteAnalyticsSnapshot(key: string): Promise<void> {
   await appDb.analyticsSnapshots.delete(key);
 }
 
-export async function getLatestSnapshot(
-  tableName: string,
-): Promise<AnalyticsSnapshot | undefined> {
-  return appDb.analyticsSnapshots
-    .where("tableName")
-    .equals(tableName)
-    .reverse()
-    .first();
+export async function getLatestSnapshot(tableName: string): Promise<AnalyticsSnapshot | undefined> {
+  return appDb.analyticsSnapshots.where("tableName").equals(tableName).reverse().first();
 }
 
 // ─── Parquet persistence (replaces OPFS) ─────────────────────────────────────
@@ -463,9 +430,7 @@ export async function saveTableParquet(
   });
 }
 
-export async function loadTableParquet(
-  tableName: string,
-): Promise<ArrayBuffer | null> {
+export async function loadTableParquet(tableName: string): Promise<ArrayBuffer | null> {
   const entry = await appDb.tableParquet.get(tableName);
   return entry?.bytes ?? null;
 }
@@ -514,8 +479,7 @@ export function newId(): string {
     c.getRandomValues(buf);
     for (const b of buf) rand += (b % 36).toString(36);
   } else {
-    for (let i = 0; i < 10; i++)
-      rand += Math.floor(Math.random() * 36).toString(36);
+    for (let i = 0; i < 10; i++) rand += Math.floor(Math.random() * 36).toString(36);
   }
   return `${time}${rand}`;
 }
@@ -552,9 +516,7 @@ export async function putColumnProfile(
 }
 
 /** Newest profiles for a dataset (one compound-index range read). */
-export async function listColumnProfiles(
-  datasetId: string,
-): Promise<ColumnProfile[]> {
+export async function listColumnProfiles(datasetId: string): Promise<ColumnProfile[]> {
   return appDb.columnProfiles
     .where("[datasetId+updatedAt]")
     .between([datasetId, Dexie.minKey], [datasetId, Dexie.maxKey])
@@ -569,9 +531,7 @@ export async function getColumnProfile(
   return appDb.columnProfiles.get(columnProfileId(datasetId, column));
 }
 
-export async function deleteColumnProfilesForDataset(
-  datasetId: string,
-): Promise<void> {
+export async function deleteColumnProfilesForDataset(datasetId: string): Promise<void> {
   await appDb.columnProfiles.where("datasetId").equals(datasetId).delete();
 }
 
@@ -588,9 +548,7 @@ export async function putTransformRecipe(
   return recipe.id;
 }
 
-export async function listTransformRecipes(
-  datasetId?: string,
-): Promise<TransformRecipe[]> {
+export async function listTransformRecipes(datasetId?: string): Promise<TransformRecipe[]> {
   if (datasetId) {
     return appDb.transformRecipes
       .where("datasetId")
@@ -623,17 +581,14 @@ export async function addImportRecord(
   return id;
 }
 
-export async function listImportHistory(limit = 500): Promise<
-  ImportHistoryRecord[]
-> {
+export async function listImportHistory(limit = 500): Promise<ImportHistoryRecord[]> {
   return appDb.importHistory.orderBy("ts").reverse().limit(limit).toArray();
 }
 
 // ─── Activity history (the query/activity event log) ─────────────────────────
 
 export async function addActivityRecord(
-  rec: Omit<ActivityRecord, "id" | "ts" | "day"> &
-    Partial<Pick<ActivityRecord, "id" | "ts">>,
+  rec: Omit<ActivityRecord, "id" | "ts" | "day"> & Partial<Pick<ActivityRecord, "id" | "ts">>,
 ): Promise<string> {
   const ts = rec.ts ?? Date.now();
   const id = rec.id ?? newId();
@@ -663,9 +618,7 @@ export async function listActivity(
   return appDb.activityHistory.orderBy("ts").reverse().limit(limit).toArray();
 }
 
-export async function countActivity(
-  source?: ActivityRecord["source"],
-): Promise<number> {
+export async function countActivity(source?: ActivityRecord["source"]): Promise<number> {
   return source
     ? appDb.activityHistory.where("source").equals(source).count()
     : appDb.activityHistory.count();
@@ -682,10 +635,7 @@ export async function pruneByTimestamp<T extends { ts: number }>(
   const total = await table.count();
   if (total <= keep) return 0;
   const excess = total - keep;
-  const oldKeys = (await table
-    .orderBy("ts")
-    .limit(excess)
-    .primaryKeys()) as string[];
+  const oldKeys = (await table.orderBy("ts").limit(excess).primaryKeys()) as string[];
   await table.bulkDelete(oldKeys);
   return oldKeys.length;
 }
@@ -695,22 +645,14 @@ export async function compactLogs(opts?: {
   activityKeep?: number;
   importKeep?: number;
 }): Promise<{ activity: number; imports: number }> {
-  const activity = await pruneByTimestamp(
-    appDb.activityHistory,
-    opts?.activityKeep ?? 5000,
-  );
-  const imports = await pruneByTimestamp(
-    appDb.importHistory,
-    opts?.importKeep ?? 1000,
-  );
+  const activity = await pruneByTimestamp(appDb.activityHistory, opts?.activityKeep ?? 5000);
+  const imports = await pruneByTimestamp(appDb.importHistory, opts?.importKeep ?? 1000);
   return { activity, imports };
 }
 
 // ─── Saved queries / filters ─────────────────────────────────────────────────
 
-export async function putSavedQuery(
-  q: Omit<SavedQuery, "updatedAt">,
-): Promise<string> {
+export async function putSavedQuery(q: Omit<SavedQuery, "updatedAt">): Promise<string> {
   await appDb.savedQueries.put({
     ...q,
     definition: toCloneSafeValue(q.definition) ?? null,
@@ -719,15 +661,9 @@ export async function putSavedQuery(
   return q.id;
 }
 
-export async function listSavedQueries(
-  kind?: SavedQuery["kind"],
-): Promise<SavedQuery[]> {
+export async function listSavedQueries(kind?: SavedQuery["kind"]): Promise<SavedQuery[]> {
   if (kind) {
-    return appDb.savedQueries
-      .where("kind")
-      .equals(kind)
-      .reverse()
-      .sortBy("updatedAt");
+    return appDb.savedQueries.where("kind").equals(kind).reverse().sortBy("updatedAt");
   }
   return appDb.savedQueries.orderBy("updatedAt").reverse().toArray();
 }
@@ -738,10 +674,7 @@ export async function deleteSavedQuery(id: string): Promise<void> {
 
 // ─── Achievements (unlock rows + capped event stream) ────────────────────────
 
-export async function unlockAchievement(
-  achievementId: string,
-  data?: unknown,
-): Promise<void> {
+export async function unlockAchievement(achievementId: string, data?: unknown): Promise<void> {
   await appDb.achievements.put({
     id: achievementId,
     kind: "unlock",
@@ -751,10 +684,7 @@ export async function unlockAchievement(
   });
 }
 
-export async function recordAchievementEvent(
-  triggerType: string,
-  data?: unknown,
-): Promise<string> {
+export async function recordAchievementEvent(triggerType: string, data?: unknown): Promise<string> {
   const id = `evt:${newId()}`;
   await appDb.achievements.put({
     id,
@@ -766,9 +696,7 @@ export async function recordAchievementEvent(
   return id;
 }
 
-export async function listUnlockedAchievements(): Promise<
-  AchievementRecord[]
-> {
+export async function listUnlockedAchievements(): Promise<AchievementRecord[]> {
   return appDb.achievements
     .where("[kind+ts]")
     .between(["unlock", Dexie.minKey], ["unlock", Dexie.maxKey])
@@ -794,9 +722,7 @@ export async function putReportDefinition(
   return def.id;
 }
 
-export async function listReportDefinitions(): Promise<
-  ReportDefinitionRecord[]
-> {
+export async function listReportDefinitions(): Promise<ReportDefinitionRecord[]> {
   return appDb.reportDefinitions.orderBy("updatedAt").reverse().toArray();
 }
 
@@ -856,9 +782,7 @@ export async function listCollabAnnotations(
     .toArray();
 }
 
-export async function deleteCollabAnnotationsForRoom(
-  roomId: string,
-): Promise<void> {
+export async function deleteCollabAnnotationsForRoom(roomId: string): Promise<void> {
   await appDb.collabAnnotations.where("roomId").equals(roomId).delete();
 }
 
@@ -871,8 +795,7 @@ export async function deleteCollabAnnotationsForRoom(
  * other write path (PerformanceEntry objects are not structured-cloneable).
  */
 export async function addPerfMetric(
-  rec: Omit<PerfMetricRecord, "id" | "ts" | "day"> &
-    Partial<Pick<PerfMetricRecord, "id" | "ts">>,
+  rec: Omit<PerfMetricRecord, "id" | "ts" | "day"> & Partial<Pick<PerfMetricRecord, "id" | "ts">>,
 ): Promise<string> {
   const ts = rec.ts ?? Date.now();
   const id = rec.id ?? newId();
@@ -888,11 +811,7 @@ export async function addPerfMetric(
 
 /** Newest perf samples, optionally filtered by metric or route via index. */
 export async function listPerfMetrics(
-  opts: {
-    metric?: string;
-    route?: string;
-    limit?: number;
-  } = {},
+  opts: { metric?: string; route?: string; limit?: number } = {},
 ): Promise<PerfMetricRecord[]> {
   const limit = opts.limit ?? 2000;
   if (opts.metric) {

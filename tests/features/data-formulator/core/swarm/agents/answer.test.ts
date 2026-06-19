@@ -1,9 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { runAnswer } from "@/features/data-formulator/core/swarm/agents/answer";
-import type {
-  Artifact,
-  SwarmContext,
-} from "@/features/data-formulator/core/swarm/types";
+import type { Artifact, SwarmContext } from "@/features/data-formulator/core/swarm/types";
 import type { ChartSpec, ColumnInfo } from "@/features/data-formulator/core/types";
 import type { InferenceScheduler } from "@/features/data-formulator/core/swarm/scheduler";
 
@@ -80,12 +77,9 @@ describe("runAnswer", () => {
 
   it("keeps the model's confidence when real data backs the answer", async () => {
     const { scheduler } = schedulerReturning(goodAnswer);
-    const result = await runAnswer(
-      scheduler,
-      makeCtx(),
-      "goal",
-      [chartArtifact([{ x_val: "A", y_val: 1 }])],
-    );
+    const result = await runAnswer(scheduler, makeCtx(), "goal", [
+      chartArtifact([{ x_val: "A", y_val: 1 }]),
+    ]);
     expect(result.confidence).toBe("high");
   });
 
@@ -117,12 +111,10 @@ describe("runAnswer", () => {
       confidence: "high",
       usedRealData: true,
     });
-    const result = await runAnswer(
-      scheduler,
-      makeCtx(),
-      "goal",
-      [tableArtifact([]), chartArtifact([{ x_val: "A", y_val: 1 }])],
-    );
+    const result = await runAnswer(scheduler, makeCtx(), "goal", [
+      tableArtifact([]),
+      chartArtifact([{ x_val: "A", y_val: 1 }]),
+    ]);
     expect(result.confidence).toBe("high");
   });
 

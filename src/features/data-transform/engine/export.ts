@@ -13,11 +13,7 @@
  * Both consume the already-fetched preview columns/rows; nothing re-queries.
  */
 
-import {
-  hasElectronFS,
-  saveFileDialog,
-  writeLocalFile,
-} from "@/platform/electron/electron-fs";
+import { hasElectronFS, saveFileDialog, writeLocalFile } from "@/platform/electron/electron-fs";
 import { getExportProxy, saveBytes } from "@/platform/viz";
 import type { ReportDocument } from "@/workers/export-types";
 
@@ -66,10 +62,7 @@ export async function exportResultCsv(
     if (!filePath) return { saved: false };
     await writeLocalFile(
       filePath,
-      bytes.buffer.slice(
-        bytes.byteOffset,
-        bytes.byteOffset + bytes.byteLength,
-      ) as ArrayBuffer,
+      bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer,
     );
     return { saved: true, path: filePath };
   }
@@ -103,9 +96,7 @@ export async function exportResultXlsx(
       {
         title: "Transform result",
         headers: table.cols,
-        rows: table.rows.map((row) =>
-          table.cols.map((c) => cellToString(row[c])),
-        ),
+        rows: table.rows.map((row) => table.cols.map((c) => cellToString(row[c]))),
       },
     ],
     includeCharts: false,

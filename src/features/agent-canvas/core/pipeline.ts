@@ -110,20 +110,11 @@ function requirePlan(state: State): DashboardPlan {
 }
 
 let _seq = 0;
-function mkThought(
-  agent: string,
-  kind: ThoughtKind,
-  text: string,
-): AgentThought {
+function mkThought(agent: string, kind: ThoughtKind, text: string): AgentThought {
   return { id: `t${++_seq}`, agent, kind, text, ts: Date.now() };
 }
 
-function emitThought(
-  state: State,
-  agent: string,
-  kind: ThoughtKind,
-  text: string,
-): AgentThought {
+function emitThought(state: State, agent: string, kind: ThoughtKind, text: string): AgentThought {
   const t = mkThought(agent, kind, text);
   const sink = sinkFor(state);
   sink?.onThought(t);
@@ -141,17 +132,13 @@ function emitThought(
 function emitStepStart(state: State, nodeName: string) {
   const sink = sinkFor(state);
   if (!sink) return;
-  publishEvent(
-    makeEvent(sink.ctx, { type: "STEP_STARTED", nodeName, phase: nodeName }),
-  );
+  publishEvent(makeEvent(sink.ctx, { type: "STEP_STARTED", nodeName, phase: nodeName }));
 }
 
 function emitStepEnd(state: State, nodeName: string, duration: number) {
   const sink = sinkFor(state);
   if (!sink) return;
-  publishEvent(
-    makeEvent(sink.ctx, { type: "STEP_FINISHED", nodeName, duration }),
-  );
+  publishEvent(makeEvent(sink.ctx, { type: "STEP_FINISHED", nodeName, duration }));
 }
 
 // ─── Nodes ────────────────────────────────────────────────────────────────────
@@ -208,14 +195,7 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
         );
       }
       const rows = await runReadOnlyQuery(sql);
-      thoughts.push(
-        emitThought(
-          state,
-          "ReActAgent",
-          "exec",
-          `query_data → ${rows.length} rows`,
-        ),
-      );
+      thoughts.push(emitThought(state, "ReActAgent", "exec", `query_data → ${rows.length} rows`));
     } catch {
       /* skip failed explorations */
     }
@@ -237,9 +217,7 @@ async function plannerNode(state: State): Promise<Partial<State>> {
 
   sink?.onPlan(plan);
   if (sink) {
-    publishEvent(
-      makeEvent(sink.ctx, { type: "STATE_SNAPSHOT", snapshot: { plan } }),
-    );
+    publishEvent(makeEvent(sink.ctx, { type: "STATE_SNAPSHOT", snapshot: { plan } }));
   }
 
   thoughts.push(
@@ -294,29 +272,19 @@ async function critiqueNode(state: State): Promise<Partial<State>> {
   const plan = requirePlan(state);
   const issues: string[] = [];
 
-  if (plan.widgets.length < 3)
-    issues.push("Too few widgets — add more coverage");
+  if (plan.widgets.length < 3) issues.push("Too few widgets — add more coverage");
   if (!plan.widgets.some((w) => w.chartType === "kpi-grid"))
     issues.push("Missing KPI overview widget");
   if (!plan.widgets.some((w) => ["bar", "line", "area"].includes(w.chartType)))
     issues.push("Add at least one trend chart");
 
   if (issues.length === 0) {
-    thoughts.push(
-      emitThought(state, "CritiqueAgent", "ok", "Plan passes quality check"),
-    );
+    thoughts.push(emitThought(state, "CritiqueAgent", "ok", "Plan passes quality check"));
     emitStepEnd(state, "critique", Date.now() - t0);
     return { approved: true, critiqueCount: count + 1, thoughts };
   }
 
-  thoughts.push(
-    emitThought(
-      state,
-      "CritiqueAgent",
-      "warn",
-      `Issues: ${issues.join("; ")}`,
-    ),
-  );
+  thoughts.push(emitThought(state, "CritiqueAgent", "warn", `Issues: ${issues.join("; ")}`));
   emitStepEnd(state, "critique", Date.now() - t0);
   return { approved: false, critiqueCount: count + 1, thoughts };
 }
@@ -364,12 +332,7 @@ async function reviseNode(state: State): Promise<Partial<State>> {
   };
 
   thoughts.push(
-    emitThought(
-      state,
-      "ReviseAgent",
-      "ok",
-      `Revised plan: +${additions.length} widgets`,
-    ),
+    emitThought(state, "ReviseAgent", "ok", `Revised plan: +${additions.length} widgets`),
   );
   sink?.onPlan(revised);
   emitStepEnd(state, "revise", Date.now() - t0);
@@ -432,8 +395,7 @@ async function buildWidget(
       tableHeaders = td.headers;
       tableRows = td.rows;
     } else {
-      echartsOption =
-        buildEChartsOption(spec.chartType, rawData, spec) ?? undefined;
+      echartsOption = buildEChartsOption(spec.chartType, rawData, spec) ?? undefined;
     }
   } catch {
     /* partial build ok */
@@ -516,9 +478,7 @@ async function narratorNode(state: State): Promise<Partial<State>> {
   ].join("\n");
 
   sink?.onNarrative(summary);
-  thoughts.push(
-    emitThought(state, "NarratorAgent", "ok", "Executive narrative ready"),
-  );
+  thoughts.push(emitThought(state, "NarratorAgent", "ok", "Executive narrative ready"));
 
   if (sink) {
     publishEvent(
@@ -558,8 +518,7 @@ function buildGraph() {
   g.addConditionalEdges(
     "critique",
     (state: State) => {
-      if (state.approved || (state.critiqueCount ?? 0) >= 3)
-        return "sql_fan_out";
+      if (state.approved || (state.critiqueCount ?? 0) >= 3) return "sql_fan_out";
       return "revise";
     },
     { sql_fan_out: "sql_fan_out", revise: "revise" },
@@ -600,10 +559,7 @@ export interface PipelineOptions {
 
 export interface PipelineHandle {
   threadId: string;
-  resume: (
-    decision: "approve" | "revise",
-    plan?: DashboardPlan,
-  ) => Promise<void>;
+  resume: (decision: "approve" | "revise", plan?: DashboardPlan) => Promise<void>;
   dispose: () => void;
 }
 
@@ -652,9 +608,7 @@ async function drive(
   return "done";
 }
 
-export async function runPipeline(
-  opts: PipelineOptions,
-): Promise<PipelineHandle> {
+export async function runPipeline(opts: PipelineOptions): Promise<PipelineHandle> {
   const ctx = makeCtx(opts.model);
   const threadId = opts.threadId ?? ctx.threadId;
   const graph = getGraph();
@@ -682,20 +636,13 @@ export async function runPipeline(
   const config = { configurable: { thread_id: threadId } };
 
   // Run until the first interrupt (plan-review). Errors surface via onError.
-  void drive(graph, { threadId, tableName: opts.tableName }, config, sink).catch(
-    () => {},
-  );
+  void drive(graph, { threadId, tableName: opts.tableName }, config, sink).catch(() => {});
 
   return {
     threadId,
     resume: async (decision, plan) => {
       // Correct LangGraph resume: feed a Command back into the interrupted node.
-      await drive(
-        graph,
-        new Command({ resume: { action: decision, plan } }),
-        config,
-        sink,
-      );
+      await drive(graph, new Command({ resume: { action: decision, plan } }), config, sink);
     },
     dispose: () => {
       SINKS.delete(threadId);

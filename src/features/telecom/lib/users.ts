@@ -113,10 +113,6 @@ export function setCurrentUser(id: string | null): void {
   if (id === null) localStorage.removeItem(CURRENT_KEY);
   else {
     localStorage.setItem(CURRENT_KEY, id);
-    writeUsers(
-      readUsers().map((u) =>
-        u.id === id ? { ...u, lastLoginAt: Date.now() } : u,
-      ),
-    );
+    writeUsers(readUsers().map((u) => (u.id === id ? { ...u, lastLoginAt: Date.now() } : u)));
   }
 }

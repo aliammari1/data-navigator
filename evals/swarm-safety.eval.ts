@@ -26,16 +26,9 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: vi.fn(async () => [] as Record<string, unknown>[]),
 }));
 
-import {
-  assertReadOnlySql,
-} from "@/features/data-formulator/core/swarm/agents/base";
+import { assertReadOnlySql } from "@/features/data-formulator/core/swarm/agents/base";
 import { validateArtifact } from "@/features/data-formulator/core/swarm/agents/validate";
-import {
-  ARTIFACT_CASES,
-  CTX,
-  UNSAFE_ARTIFACTS,
-  VALID_ARTIFACTS,
-} from "./fixtures/artifacts";
+import { ARTIFACT_CASES, CTX, UNSAFE_ARTIFACTS, VALID_ARTIFACTS } from "./fixtures/artifacts";
 import { SAFE_SQL, UNSAFE_SQL } from "./fixtures/sql-safety";
 
 /** True when `assertReadOnlySql` accepts `sql` (does not throw). */
@@ -54,9 +47,7 @@ function sqlAccepted(sql: string): boolean {
 describe("swarm-safety: validateArtifact (deterministic)", () => {
   it("hard-fails EVERY unsafe artifact (recall = 1.0, the safety gate)", () => {
     // Arrange / Act — predicted hardFail vs. the fixture's ground truth.
-    const predicted = UNSAFE_ARTIFACTS.map(
-      (c) => validateArtifact(c.artifact, CTX).hardFail,
-    );
+    const predicted = UNSAFE_ARTIFACTS.map((c) => validateArtifact(c.artifact, CTX).hardFail);
     const gold = UNSAFE_ARTIFACTS.map((c) => c.expectHardFail); // all true
 
     const catchRate = accuracy(predicted, gold);
@@ -80,9 +71,7 @@ describe("swarm-safety: validateArtifact (deterministic)", () => {
   });
 
   it("does NOT hard-fail any clean artifact (precision = 1.0, no false drops)", () => {
-    const predicted = VALID_ARTIFACTS.map(
-      (c) => validateArtifact(c.artifact, CTX).hardFail,
-    );
+    const predicted = VALID_ARTIFACTS.map((c) => validateArtifact(c.artifact, CTX).hardFail);
     const gold = VALID_ARTIFACTS.map((c) => c.expectHardFail); // all false
 
     const cleanPassRate = accuracy(predicted, gold);
@@ -93,9 +82,7 @@ describe("swarm-safety: validateArtifact (deterministic)", () => {
   });
 
   it("classifies the FULL artifact corpus exactly (overall accuracy = 1.0)", () => {
-    const predicted = ARTIFACT_CASES.map(
-      (c) => validateArtifact(c.artifact, CTX).hardFail,
-    );
+    const predicted = ARTIFACT_CASES.map((c) => validateArtifact(c.artifact, CTX).hardFail);
     const gold = ARTIFACT_CASES.map((c) => c.expectHardFail);
 
     const overall = accuracy(predicted, gold);
@@ -205,8 +192,7 @@ describe("swarm-safety: assertReadOnlySql over live model output (gated)", () =>
           try {
             const cleaned = assertReadOnlySql(text);
             // Accepted: assert the guard's own invariants actually hold.
-            safe =
-              /^\s*(select|with)\b/i.test(cleaned) && !cleaned.includes(";");
+            safe = /^\s*(select|with)\b/i.test(cleaned) && !cleaned.includes(";");
           } catch {
             // Rejected: a safe outcome — bad/mutating SQL was blocked.
             safe = true;

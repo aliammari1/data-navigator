@@ -80,9 +80,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/code d'erreur le plus fréquent/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/code d'erreur le plus fréquent/i)).toBeInTheDocument();
   },
 };
 
@@ -95,9 +93,7 @@ export const Warning: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/inférieur à l'objectif de 90%/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/inférieur à l'objectif de 90%/i)).toBeInTheDocument();
   },
 };
 

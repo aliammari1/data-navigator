@@ -145,13 +145,7 @@ function normalizeExtension(
 ): UploadFileFormat {
   const ext = String(explicitExtension || getExtension(filePath)).toLowerCase();
 
-  if (
-    ext === "csv" ||
-    ext === "tsv" ||
-    ext === "txt" ||
-    ext === "parquet" ||
-    ext === "pq"
-  ) {
+  if (ext === "csv" || ext === "tsv" || ext === "txt" || ext === "parquet" || ext === "pq") {
     return ext;
   }
 
@@ -160,9 +154,7 @@ function normalizeExtension(
   );
 }
 
-function isCsvLikeFormat(
-  format: UploadFileFormat,
-): format is "csv" | "tsv" | "txt" {
+function isCsvLikeFormat(format: UploadFileFormat): format is "csv" | "tsv" | "txt" {
   return format === "csv" || format === "tsv" || format === "txt";
 }
 
@@ -170,10 +162,7 @@ function isParquetFormat(format: UploadFileFormat): format is "parquet" | "pq" {
   return format === "parquet" || format === "pq";
 }
 
-function inferDelimiter(
-  format: UploadFileFormat,
-  explicitDelimiter?: string,
-): string | undefined {
+function inferDelimiter(format: UploadFileFormat, explicitDelimiter?: string): string | undefined {
   if (explicitDelimiter) return explicitDelimiter;
   if (format === "tsv") return "\t";
   return undefined;
@@ -192,9 +181,7 @@ export function sanitizeUploadTableName(name: string): string {
 }
 
 function inferPreviewType(values: unknown[]): string {
-  const nonNull = values.filter(
-    (value) => value !== null && value !== undefined && value !== "",
-  );
+  const nonNull = values.filter((value) => value !== null && value !== undefined && value !== "");
 
   if (nonNull.length === 0) return "string";
 
@@ -229,9 +216,7 @@ function buildPreviewColumnMetadata(
 ): LoadedUploadTable["columns"] {
   return columns.map((column) => {
     const values = previewRows.map((row) => row[column.name]);
-    const nonNull = values.filter(
-      (value) => value !== null && value !== undefined && value !== "",
-    );
+    const nonNull = values.filter((value) => value !== null && value !== undefined && value !== "");
 
     const previewType = inferPreviewType(values);
     const numericValues = nonNull
@@ -253,8 +238,7 @@ function buildPreviewColumnMetadata(
           : undefined,
       mean:
         numericValues.length > 0 && previewType === "number"
-          ? numericValues.reduce((sum, value) => sum + value, 0) /
-            numericValues.length
+          ? numericValues.reduce((sum, value) => sum + value, 0) / numericValues.length
           : undefined,
       sample: nonNull.slice(0, 5),
     };
@@ -295,9 +279,7 @@ export async function loadUploadPathToDuckDB(
   const previewLimit = options.previewLimit ?? 100;
 
   const displayName =
-    options.displayName?.trim() ||
-    options.tableName?.trim() ||
-    defaultDisplayName(filePath);
+    options.displayName?.trim() || options.tableName?.trim() || defaultDisplayName(filePath);
 
   if (isCsvLikeFormat(format)) {
     const dataset = await registerCSVPathDataset({

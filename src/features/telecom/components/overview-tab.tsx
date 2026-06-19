@@ -15,26 +15,15 @@ import {
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { memo, useMemo, useState } from "react";
-import {
-  CANAL_CONFIG,
-  STATUS_COLORS,
-} from "@/features/telecom/lib/canal-config";
-import {
-  fmtAmount,
-  fmtDuration,
-  fmtN,
-  fmtPct,
-} from "@/features/telecom/lib/format";
+import { CANAL_CONFIG, STATUS_COLORS } from "@/features/telecom/lib/canal-config";
+import { fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { cn } from "@/shared/utils";
 import { AlertBanner } from "./alert-banner";
 import { AnimCounter } from "./anim-counter";
-import {
-  type DashboardCardItem,
-  DraggableAutoGrid,
-} from "./draggable-auto-grid";
+import { type DashboardCardItem, DraggableAutoGrid } from "./draggable-auto-grid";
 import { KPICard } from "./kpi-card";
 import { Section } from "./section";
 import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
@@ -44,30 +33,26 @@ import { buildOption } from "@/features/data-formulator/core/chart-options";
 // Custom data-formulator widgets render through the shared telecom EChart
 // surface (OffscreenCanvas worker + tree-shaken core, with an echarts-for-react
 // fallback). Lazy-loaded so the chart code stays out of the initial route JS.
-const ReactEChartsWidget = dynamic(
-  () => import("./echart").then((m) => ({ default: m.EChart })),
-  { ssr: false },
-);
+const ReactEChartsWidget = dynamic(() => import("./echart").then((m) => ({ default: m.EChart })), {
+  ssr: false,
+});
 
 const ChartSkeleton = ({ h = "h-48" }: { h?: string }) => (
   <div className={`${h} rounded-xl bg-muted/40 animate-pulse`} />
 );
 
 const AmountPieChart = dynamic(
-  () =>
-    import("./amount-pie-chart").then((m) => ({ default: m.AmountPieChart })),
+  () => import("./amount-pie-chart").then((m) => ({ default: m.AmountPieChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
 const CanalShareChart = dynamic(
-  () =>
-    import("./canal-share-chart").then((m) => ({ default: m.CanalShareChart })),
+  () => import("./canal-share-chart").then((m) => ({ default: m.CanalShareChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
 const DailyTrendChart = dynamic(
-  () =>
-    import("./daily-trend-chart").then((m) => ({ default: m.DailyTrendChart })),
+  () => import("./daily-trend-chart").then((m) => ({ default: m.DailyTrendChart })),
   { ssr: false, loading: () => <ChartSkeleton /> },
 );
 
@@ -97,9 +82,7 @@ function sortCardsBySavedOrder(
 ): DashboardCardItem[] {
   const byId = new Map(cards.map((card) => [card.id, card]));
 
-  const ordered = savedOrder
-    .map((id) => byId.get(id))
-    .filter(Boolean) as DashboardCardItem[];
+  const ordered = savedOrder.map((id) => byId.get(id)).filter(Boolean) as DashboardCardItem[];
 
   const missing = cards.filter((card) => !savedOrder.includes(card.id));
 
@@ -199,8 +182,7 @@ export const OverviewTab = memo(function OverviewTab({
   const [cardOrder, setCardOrder] = useState<string[]>(readSavedCardOrder);
 
   const insights = useMemo(
-    () =>
-      kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 3) : [],
+    () => (kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 3) : []),
     [kpi, canals, hourly, statusData],
   );
 
@@ -231,17 +213,11 @@ export const OverviewTab = memo(function OverviewTab({
               />
             }
           >
-            <StatusDonut
-              data={statusData}
-              total={kpi?.totalTransactions ?? 0}
-            />
+            <StatusDonut data={statusData} total={kpi?.totalTransactions ?? 0} />
 
             <div className="mt-3 space-y-1.5">
               {statusData.map((s) => (
-                <div
-                  key={s.status}
-                  className="flex items-center justify-between"
-                >
+                <div key={s.status} className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-none"
@@ -249,15 +225,11 @@ export const OverviewTab = memo(function OverviewTab({
                         background: STATUS_COLORS[s.status] ?? "#6b7280",
                       }}
                     />
-                    <span className="text-xs text-muted-foreground">
-                      {s.status}
-                    </span>
+                    <span className="text-xs text-muted-foreground">{s.status}</span>
                   </div>
 
                   <div className="flex items-center gap-3 text-xs">
-                    <span className="text-muted-foreground tabular-nums">
-                      {fmtN(s.count)}
-                    </span>
+                    <span className="text-muted-foreground tabular-nums">{fmtN(s.count)}</span>
                     <span className="text-muted-foreground tabular-nums w-12 text-right">
                       {fmtPct((s.count / (kpi?.totalTransactions || 1)) * 100)}
                     </span>
@@ -400,9 +372,7 @@ export const OverviewTab = memo(function OverviewTab({
                       >
                         <td className="px-3 py-2.5">
                           <div className="flex items-center gap-2">
-                            <Icon
-                              className={cn("w-3.5 h-3.5 flex-none", cfg.color)}
-                            />
+                            <Icon className={cn("w-3.5 h-3.5 flex-none", cfg.color)} />
                             <span className="text-foreground font-medium whitespace-nowrap">
                               {cfg.shortLabel}
                             </span>
@@ -538,12 +508,10 @@ export const OverviewTab = memo(function OverviewTab({
           <div className="flex items-center justify-between gap-3 mb-3">
             <div className="flex items-center gap-2 min-w-0">
               <Sparkles className="w-3.5 h-3.5 text-primary" />
-              <span className="text-xs font-semibold text-primary">
-                Assistant métier
-              </span>
+              <span className="text-xs font-semibold text-primary">Assistant métier</span>
               <span className="text-[10px] text-muted-foreground">
-                · {insights.length} contrôles — voir l&apos;onglet Config &amp;
-                IA pour l&apos;analyse complète
+                · {insights.length} contrôles — voir l&apos;onglet Config &amp; IA pour
+                l&apos;analyse complète
               </span>
             </div>
             <ExportToggle
@@ -566,14 +534,9 @@ export const OverviewTab = memo(function OverviewTab({
               return (
                 <div
                   key={ins.id}
-                  className={cn(
-                    "rounded-xl border px-3 py-2.5 space-y-0.5",
-                    sevColor,
-                  )}
+                  className={cn("rounded-xl border px-3 py-2.5 space-y-0.5", sevColor)}
                 >
-                  <div className="text-[11px] font-semibold leading-tight">
-                    {ins.title}
-                  </div>
+                  <div className="text-[11px] font-semibold leading-tight">{ins.title}</div>
                   <div className="text-[10px] opacity-70 leading-relaxed line-clamp-2">
                     {ins.body}
                   </div>
@@ -591,9 +554,7 @@ export const OverviewTab = memo(function OverviewTab({
             delay={0}
             value={<AnimCounter value={kpi.totalTransactions} />}
             sub="volume total traité"
-            icon={
-              <Zap className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-            }
+            icon={<Zap className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />}
             color="border-indigo-200 dark:border-indigo-500/30 bg-linear-to-br from-indigo-50 to-white dark:from-indigo-500/10 dark:to-transparent"
             size="lg"
             kpiKey="totalTransactions"
@@ -608,9 +569,7 @@ export const OverviewTab = memo(function OverviewTab({
             sub={`${fmtPct(kpi.successRate)} taux de réussite`}
             trendValue={fmtPct(kpi.successRate)}
             trend={kpi.successRate >= 90 ? "up" : "down"}
-            icon={
-              <CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />
-            }
+            icon={<CheckCircle2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" />}
             color="border-emerald-200 dark:border-emerald-500/30 bg-linear-to-br from-emerald-50 to-white dark:from-emerald-500/10 dark:to-transparent"
             size="lg"
             kpiKey="successCount"
@@ -622,16 +581,10 @@ export const OverviewTab = memo(function OverviewTab({
             label="Échec (Refusé)"
             delay={0.12}
             value={<AnimCounter value={kpi.declinedCount} />}
-            sub={`${fmtPct(
-              (kpi.declinedCount / kpi.totalTransactions) * 100,
-            )} du total`}
-            trendValue={fmtPct(
-              (kpi.declinedCount / kpi.totalTransactions) * 100,
-            )}
+            sub={`${fmtPct((kpi.declinedCount / kpi.totalTransactions) * 100)} du total`}
+            trendValue={fmtPct((kpi.declinedCount / kpi.totalTransactions) * 100)}
             trend={kpi.declinedCount === 0 ? "up" : "down"}
-            icon={
-              <XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
-            }
+            icon={<XCircle className="w-4 h-4 text-red-500 dark:text-red-400" />}
             color="border-red-200 dark:border-red-500/30 bg-linear-to-br from-red-50 to-white dark:from-red-500/10 dark:to-transparent"
             size="lg"
             kpiKey="declinedCount"
@@ -663,9 +616,7 @@ export const OverviewTab = memo(function OverviewTab({
             label="Instance"
             delay={0.22}
             value={<AnimCounter value={kpi.instanceCount} />}
-            icon={
-              <Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />
-            }
+            icon={<Clock className="w-3.5 h-3.5 text-amber-500 dark:text-amber-400" />}
             color="border-amber-200/80 dark:border-amber-500/20 bg-amber-50/60 dark:bg-amber-500/5"
             size="sm"
             kpiKey="instanceCount"
@@ -677,9 +628,7 @@ export const OverviewTab = memo(function OverviewTab({
             label="Annulation (Remboursement)"
             delay={0.26}
             value={<AnimCounter value={kpi.refundCount} />}
-            icon={
-              <RefreshCw className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />
-            }
+            icon={<RefreshCw className="w-3.5 h-3.5 text-violet-500 dark:text-violet-400" />}
             color="border-violet-200/80 dark:border-violet-500/20 bg-violet-50/60 dark:bg-violet-500/5"
             size="sm"
             kpiKey="refundCount"
@@ -691,9 +640,7 @@ export const OverviewTab = memo(function OverviewTab({
             label="Confirmé"
             delay={0.3}
             value={<AnimCounter value={kpi.submittedCount} />}
-            icon={
-              <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />
-            }
+            icon={<CheckCircle2 className="w-3.5 h-3.5 text-blue-500 dark:text-blue-400" />}
             color="border-blue-200/80 dark:border-blue-500/20 bg-blue-50/60 dark:bg-blue-500/5"
             size="sm"
             kpiKey="submittedCount"
@@ -705,9 +652,7 @@ export const OverviewTab = memo(function OverviewTab({
             label="Abonnés uniques"
             delay={0.34}
             value={<AnimCounter value={kpi.uniqueCustomers} />}
-            icon={
-              <Activity className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />
-            }
+            icon={<Activity className="w-3.5 h-3.5 text-sky-500 dark:text-sky-400" />}
             color="border-sky-200/80 dark:border-sky-500/20 bg-sky-50/60 dark:bg-sky-500/5"
             size="sm"
             kpiKey="uniqueCustomers"
@@ -720,9 +665,7 @@ export const OverviewTab = memo(function OverviewTab({
             delay={0.38}
             value={fmtDuration(kpi.avgProcessingMs)}
             sub={`Heure de pointe ${kpi.peakHour}:00`}
-            icon={
-              <Zap className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />
-            }
+            icon={<Zap className="w-3.5 h-3.5 text-cyan-500 dark:text-cyan-400" />}
             color="border-cyan-200/80 dark:border-cyan-500/20 bg-cyan-50/60 dark:bg-cyan-500/5"
             size="sm"
             kpiKey="avgProcessingMs"
@@ -797,9 +740,7 @@ export const OverviewTab = memo(function OverviewTab({
 
               <div className="space-y-1.5 mt-auto">
                 <div className="flex items-center justify-between text-[10px]">
-                  <span className="text-muted-foreground">
-                    {fmtAmount(amount)} TND
-                  </span>
+                  <span className="text-muted-foreground">{fmtAmount(amount)} TND</span>
                   <span
                     className={cn(
                       "font-semibold",
@@ -818,11 +759,7 @@ export const OverviewTab = memo(function OverviewTab({
                   <div
                     className={cn(
                       "h-full rounded-full transition-all duration-700",
-                      rate >= 90
-                        ? "bg-emerald-500"
-                        : rate >= 70
-                          ? "bg-amber-500"
-                          : "bg-red-500",
+                      rate >= 90 ? "bg-emerald-500" : rate >= 70 ? "bg-amber-500" : "bg-red-500",
                     )}
                     style={{ width: `${Math.min(rate, 100)}%` }}
                   />

@@ -16,9 +16,7 @@ export const AmountPieChart = memo(function AmountPieChart({
       Object.entries(REVENUE_GROUPS)
         .map(([name, { keys, color }]) => ({
           name,
-          value: canals
-            .filter((c) => keys.includes(c.key))
-            .reduce((s, c) => s + c.amount, 0),
+          value: canals.filter((c) => keys.includes(c.key)).reduce((s, c) => s + c.amount, 0),
           color,
         }))
         .filter((g) => g.value > 0)

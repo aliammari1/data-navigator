@@ -10,12 +10,7 @@
  * by `diff_status` and the sign of each measure's variance.
  */
 
-import {
-  type ColumnDef,
-  flexRender,
-  getCoreRowModel,
-  useReactTable,
-} from "@tanstack/react-table";
+import { type ColumnDef, flexRender, getCoreRowModel, useReactTable } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { AlertTriangle, ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { useMemo, useRef } from "react";
@@ -32,9 +27,7 @@ function fmtNum(n: number | null): string {
 }
 
 function fmtSigned(n: number): string {
-  const s = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(
-    Math.abs(n),
-  );
+  const s = new Intl.NumberFormat("fr-FR", { maximumFractionDigits: 0 }).format(Math.abs(n));
   return n > 0 ? `+${s}` : n < 0 ? `−${s}` : s;
 }
 
@@ -83,9 +76,7 @@ export function ReconciliationDiffGrid({
           const material = isMaterialRow(d.status, d.primaryVariancePct, materiality);
           return (
             <div className="flex items-center gap-2 min-w-0">
-              {material && (
-                <AlertTriangle className="size-3.5 shrink-0 text-amber-400" />
-              )}
+              {material && <AlertTriangle className="size-3.5 shrink-0 text-amber-400" />}
               <span className="truncate font-medium text-slate-200" title={d.key}>
                 {d.key}
               </span>
@@ -206,10 +197,7 @@ export function ReconciliationDiffGrid({
         {headerGroups[0]?.headers.map((header, i) => (
           <div
             key={header.id}
-            className={cn(
-              "px-2 py-2 truncate",
-              i >= 2 ? "text-right" : "text-left",
-            )}
+            className={cn("px-2 py-2 truncate", i >= 2 ? "text-right" : "text-left")}
           >
             {flexRender(header.column.columnDef.header, header.getContext())}
           </div>
@@ -228,9 +216,7 @@ export function ReconciliationDiffGrid({
             No differences in this page.
           </div>
         ) : (
-          <div
-            style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}
-          >
+          <div style={{ height: rowVirtualizer.getTotalSize(), position: "relative" }}>
             {rowVirtualizer.getVirtualItems().map((vi) => {
               const row = model[vi.index];
               return (
@@ -251,10 +237,7 @@ export function ReconciliationDiffGrid({
                         ci >= 2 ? "justify-end" : "justify-start",
                       )}
                     >
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext(),
-                      )}
+                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
                     </div>
                   ))}
                 </div>

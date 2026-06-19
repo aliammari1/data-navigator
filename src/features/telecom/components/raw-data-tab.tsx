@@ -67,10 +67,7 @@ export const RawDataTab = memo(function RawDataTab({
     () => [...new Set(operators.map((o) => o.operator))],
     [operators],
   );
-  const regionOptions = useMemo(
-    () => [...new Set(regions.map((r) => r.region))],
-    [regions],
-  );
+  const regionOptions = useMemo(() => [...new Set(regions.map((r) => r.region))], [regions]);
 
   return (
     <div className="space-y-4">

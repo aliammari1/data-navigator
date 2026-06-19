@@ -279,7 +279,10 @@ export function AlertRulesTab() {
             <div className="rounded-md bg-slate-800/60 border border-blue-500/20 px-3 py-2.5 text-xs text-slate-300 space-y-2">
               <div className="text-blue-400 font-semibold">AI Suggested Thresholds</div>
               <div className="grid grid-cols-3 gap-2">
-                <Metric label="Success rate <" value={`${fmtN(aiSuggestion.successRateBelow, 1)}%`} />
+                <Metric
+                  label="Success rate <"
+                  value={`${fmtN(aiSuggestion.successRateBelow, 1)}%`}
+                />
                 <Metric label="Volume >" value={fmtN(aiSuggestion.volumeAbove)} />
                 <Metric label="Failures >" value={fmtN(aiSuggestion.failuresAbove)} />
               </div>
@@ -350,11 +353,7 @@ export function AlertRulesTab() {
                         <Button size="xs" variant="outline" onClick={() => handleEdit(rule)}>
                           Edit
                         </Button>
-                        <Button
-                          size="xs"
-                          variant="destructive"
-                          onClick={() => deleteRule(rule.id)}
-                        >
+                        <Button size="xs" variant="destructive" onClick={() => deleteRule(rule.id)}>
                           Del
                         </Button>
                       </div>

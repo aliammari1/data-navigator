@@ -92,7 +92,9 @@ function buildMetricsSQL(view: string, b: ColumnBindings): string {
     ? `CASE WHEN lower(CAST(${quoteIdent(b.success)} AS VARCHAR)) IN ('success','ok','1','true','y','yes') THEN 1 ELSE 0 END`
     : `1`;
 
-  const amountExpr = b.amount ? `COALESCE(SUM(TRY_CAST(${quoteIdent(b.amount)} AS DOUBLE)), 0)` : `0`;
+  const amountExpr = b.amount
+    ? `COALESCE(SUM(TRY_CAST(${quoteIdent(b.amount)} AS DOUBLE)), 0)`
+    : `0`;
 
   return `
     SELECT

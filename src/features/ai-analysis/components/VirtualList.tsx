@@ -39,11 +39,7 @@ export function VirtualList<T>({
   });
 
   return (
-    <div
-      ref={parentRef}
-      className={className}
-      style={{ maxHeight, overflowY: "auto" }}
-    >
+    <div ref={parentRef} className={className} style={{ maxHeight, overflowY: "auto" }}>
       <div
         style={{
           height: virtualizer.getTotalSize(),

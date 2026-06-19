@@ -11,10 +11,7 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  deleteLocalDataset,
-  listLocalDatasets,
-} from "@/platform/duckdb/duckdb-fs";
+import { deleteLocalDataset, listLocalDatasets } from "@/platform/duckdb/duckdb-fs";
 import {
   getStorageInfo,
   requestPersistence,
@@ -48,10 +45,7 @@ function storageTone(pct: number): string {
   return "bg-emerald-500";
 }
 
-export function StorageInfoPanel({
-  tableName,
-  datasetId,
-}: StorageInfoPanelProps) {
+export function StorageInfoPanel({ tableName, datasetId }: StorageInfoPanelProps) {
   const [info, setInfo] = useState<StorageInfo | null>(null);
   const [requestingPersistence, setRequestingPersistence] = useState(false);
   const [clearing, setClearing] = useState(false);
@@ -94,9 +88,7 @@ export function StorageInfoPanel({
       toast.success("Stockage persistant vérifié");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Impossible d'activer le stockage persistant",
+        error instanceof Error ? error.message : "Impossible d'activer le stockage persistant",
       );
     } finally {
       setRequestingPersistence(false);
@@ -132,9 +124,7 @@ export function StorageInfoPanel({
       toast.success("Dataset supprimé du cache local");
     } catch (error) {
       toast.error(
-        error instanceof Error
-          ? error.message
-          : "Impossible de supprimer le cache du dataset",
+        error instanceof Error ? error.message : "Impossible de supprimer le cache du dataset",
       );
     } finally {
       setClearing(false);
@@ -160,8 +150,8 @@ export function StorageInfoPanel({
           <div>
             <div className="font-semibold">Storage API non disponible</div>
             <div className="mt-1 text-muted-foreground">
-              Le cache DuckDB natif reste géré par Electron, mais les métriques
-              navigateur ne sont pas disponibles.
+              Le cache DuckDB natif reste géré par Electron, mais les métriques navigateur ne sont
+              pas disponibles.
             </div>
           </div>
         </div>
@@ -181,25 +171,20 @@ export function StorageInfoPanel({
 
             <div className="font-semibold text-foreground">
               {formatMB(info.usedMB)} / {formatMB(info.quotaMB)}
-              <span className="ml-1 text-muted-foreground">
-                ({info.pct.toFixed(1)}%)
-              </span>
+              <span className="ml-1 text-muted-foreground">({info.pct.toFixed(1)}%)</span>
             </div>
           </div>
 
           <div className="h-2 overflow-hidden rounded-full bg-muted">
             <div
-              className={cn(
-                "h-full rounded-full transition-all",
-                storageTone(info.pct),
-              )}
+              className={cn("h-full rounded-full transition-all", storageTone(info.pct))}
               style={{ width: `${Math.min(info.pct, 100)}%` }}
             />
           </div>
 
           <div className="mt-2 text-[11px] text-muted-foreground">
-            Cette valeur vient de l’API Storage du navigateur. Les fichiers
-            DuckDB/Parquet natifs sont gérés par le processus Electron.
+            Cette valeur vient de l’API Storage du navigateur. Les fichiers DuckDB/Parquet natifs
+            sont gérés par le processus Electron.
           </div>
         </div>
 

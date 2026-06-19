@@ -36,15 +36,9 @@ export function detectHourlyAnomalies(
 export function computeCanalRiskScore(c: CanalSummary): number {
   const failPenalty = (100 - c.successRate) * 0.5; // up to 50 pts
   const revPenalty = Math.min((c.refund / Math.max(c.total, 1)) * 100 * 2, 20); // up to 20 pts
-  const pendPenalty = Math.min(
-    (c.instance / Math.max(c.total, 1)) * 100 * 1.5,
-    15,
-  ); // up to 15
+  const pendPenalty = Math.min((c.instance / Math.max(c.total, 1)) * 100 * 1.5, 15); // up to 15
   const concentrationBonus = c.share > 40 ? (c.share - 40) * 0.3 : 0; // up to 15 pts extra
-  return Math.min(
-    Math.round(failPenalty + revPenalty + pendPenalty + concentrationBonus),
-    100,
-  );
+  return Math.min(Math.round(failPenalty + revPenalty + pendPenalty + concentrationBonus), 100);
 }
 
 // ─── Linear regression ────────────────────────────────────────────────────────
@@ -167,8 +161,7 @@ export function computeAIInsights(
     list.push({
       id: "no_spec_channel_match",
       severity: "critical",
-      title:
-        "Aucune transaction réussie classée dans les canaux du cahier des charges",
+      title: "Aucune transaction réussie classée dans les canaux du cahier des charges",
       body: `${fmtN(kpi.successCount)} transactions sont en statut Réussie, mais aucune ne correspond aux règles Brand_D, ACCOUNT_LAYER_ID, ACCOUNT_GROUP_ID ou ACCOUNT_MSISDN. Vérifiez le fichier chargé et le mappage des colonnes avant toute analyse canal.`,
       metric: "0 canal actif",
     });
@@ -212,9 +205,7 @@ export function computeAIInsights(
   // 2 — Canal performance outlier (worst)
   const significantCanals = canals.filter((c) => c.total > 100);
   if (significantCanals.length > 0) {
-    const worst = significantCanals.reduce((b, c) =>
-      c.successRate < b.successRate ? c : b,
-    );
+    const worst = significantCanals.reduce((b, c) => (c.successRate < b.successRate ? c : b));
     const gap = kpi.successRate - worst.successRate;
     if (gap > 8 || worst.successRate < 90) {
       list.push({
@@ -227,15 +218,10 @@ export function computeAIInsights(
     }
 
     if (kpi.declinedCount > 0) {
-      const failLeader = [...significantCanals].sort(
-        (a, b) => b.declined - a.declined,
-      )[0];
+      const failLeader = [...significantCanals].sort((a, b) => b.declined - a.declined)[0];
       if (failLeader && failLeader.declined > 0) {
         const failShare = (failLeader.declined / kpi.declinedCount) * 100;
-        const failRate =
-          failLeader.total > 0
-            ? (failLeader.declined / failLeader.total) * 100
-            : 0;
+        const failRate = failLeader.total > 0 ? (failLeader.declined / failLeader.total) * 100 : 0;
         if (failShare > 35 && failLeader.declined >= 50) {
           list.push({
             id: "failure_concentration",
@@ -254,8 +240,7 @@ export function computeAIInsights(
   const peak = sortedByTotal[0];
   if (peak && peak.total > 0) {
     const share = (peak.total / t) * 100;
-    const peakFailRate =
-      peak.total > 0 ? (peak.declined / peak.total) * 100 : 0;
+    const peakFailRate = peak.total > 0 ? (peak.declined / peak.total) * 100 : 0;
     if (share > 15) {
       list.push({
         id: "peak_hour",
@@ -322,13 +307,9 @@ export function computeAIInsights(
     }
   }
 
-  const anomalies = detectHourlyAnomalies(hourly).filter(
-    (a) => Math.abs(a.zScore) >= 2,
-  );
+  const anomalies = detectHourlyAnomalies(hourly).filter((a) => Math.abs(a.zScore) >= 2);
   if (anomalies.length > 0) {
-    const strongest = anomalies.sort(
-      (a, b) => Math.abs(b.zScore) - Math.abs(a.zScore),
-    )[0];
+    const strongest = anomalies.sort((a, b) => Math.abs(b.zScore) - Math.abs(a.zScore))[0];
     list.push({
       id: "hourly_anomaly",
       severity: Math.abs(strongest.zScore) >= 3 ? "warning" : "info",
@@ -340,7 +321,5 @@ export function computeAIInsights(
 
   // Sort: critical → warning → info → positive
   const severityWeight = { critical: 0, warning: 1, info: 2, positive: 3 };
-  return list
-    .sort((a, b) => severityWeight[a.severity] - severityWeight[b.severity])
-    .slice(0, 8);
+  return list.sort((a, b) => severityWeight[a.severity] - severityWeight[b.severity]).slice(0, 8);
 }

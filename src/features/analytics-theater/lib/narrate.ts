@@ -19,14 +19,7 @@ import { sceneDefinition } from "../model/scene";
 export const SCENE_NARRATION_SCHEMA = z.object({
   scenes: z.array(
     z.object({
-      kind: z.enum([
-        "calendar",
-        "race",
-        "sankey",
-        "gantt",
-        "wordcloud",
-        "sunburst",
-      ]),
+      kind: z.enum(["calendar", "race", "sankey", "gantt", "wordcloud", "sunburst"]),
       narration: z.string().min(1).max(400),
     }),
   ),

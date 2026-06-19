@@ -78,12 +78,7 @@ export interface SpecChRow {
   montant: number;
 }
 
-export {
-  SPEC_DECLINED_FILTER,
-  SPEC_INSTANCE_FILTER,
-  SPEC_REFUND_FILTER,
-  SPEC_SUCCESS_FILTER,
-};
+export { SPEC_DECLINED_FILTER, SPEC_INSTANCE_FILTER, SPEC_REFUND_FILTER, SPEC_SUCCESS_FILTER };
 
 export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
   const c = qc(dateColumn);
@@ -370,10 +365,7 @@ export async function fetchOperators(
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
-      successRate:
-        safeNum(r.total) > 0
-          ? (safeNum(r.success) / safeNum(r.total)) * 100
-          : 0,
+      successRate: safeNum(r.total) > 0 ? (safeNum(r.success) / safeNum(r.total)) * 100 : 0,
       accountType,
     }));
   try {
@@ -419,9 +411,7 @@ export async function fetchOperatorsForGroup(
   const amt = qc(m.amount);
   const op = qc(m.operator);
   const canal = canalCaseExpr(m);
-  const labels = groupKeys
-    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
-    .join(", ");
+  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -439,10 +429,7 @@ export async function fetchOperatorsForGroup(
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
-      successRate:
-        safeNum(r.total) > 0
-          ? (safeNum(r.success) / safeNum(r.total)) * 100
-          : 0,
+      successRate: safeNum(r.total) > 0 ? (safeNum(r.success) / safeNum(r.total)) * 100 : 0,
       accountType: "source" as const,
     }));
   } catch {
@@ -460,9 +447,7 @@ export async function fetchRegionsForGroup(
   const amt = qc(m.amount);
   const reg = qc(m.region);
   const canal = canalCaseExpr(m);
-  const labels = groupKeys
-    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
-    .join(", ");
+  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -496,9 +481,7 @@ export async function fetchDestinationsForGroup(
   const amt = qc(m.amount);
   const dst = qc("GENERATION_ACCOUNT_NAME");
   const canal = canalCaseExpr(m);
-  const labels = groupKeys
-    .map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k]))
-    .join(", ");
+  const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -516,10 +499,7 @@ export async function fetchDestinationsForGroup(
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
-      successRate:
-        safeNum(r.total) > 0
-          ? (safeNum(r.success) / safeNum(r.total)) * 100
-          : 0,
+      successRate: safeNum(r.total) > 0 ? (safeNum(r.success) / safeNum(r.total)) * 100 : 0,
       accountType: "destination" as const,
     }));
   } catch {
@@ -767,20 +747,14 @@ function buildFilteredWhere(
   const conds: string[] = [];
   if (f.status) conds.push(`${sn} = ${sqlLiteral(f.status)}`);
   if (f.region)
-    conds.push(
-      `UPPER(CAST(${reg} AS VARCHAR)) = ${sqlLiteral(f.region.toUpperCase())}`,
-    );
+    conds.push(`UPPER(CAST(${reg} AS VARCHAR)) = ${sqlLiteral(f.region.toUpperCase())}`);
   if (f.operator)
-    conds.push(
-      `UPPER(CAST(${op} AS VARCHAR)) = ${sqlLiteral(f.operator.toUpperCase())}`,
-    );
+    conds.push(`UPPER(CAST(${op} AS VARCHAR)) = ${sqlLiteral(f.operator.toUpperCase())}`);
   if (f.minAmount) conds.push(`TRY_CAST(${amt} AS DOUBLE) >= ${f.minAmount}`);
   if (f.maxAmount) conds.push(`TRY_CAST(${amt} AS DOUBLE) <= ${f.maxAmount}`);
   if (f.search) {
     const s = sqlLiteral(`%${f.search}%`);
-    conds.push(
-      `(CAST(${ms} AS VARCHAR) LIKE ${s} OR CAST(${sn2} AS VARCHAR) LIKE ${s})`,
-    );
+    conds.push(`(CAST(${ms} AS VARCHAR) LIKE ${s} OR CAST(${sn2} AS VARCHAR) LIKE ${s})`);
   }
   return conds.length > 0 ? `WHERE ${conds.join(" AND ")}` : "";
 }
@@ -798,9 +772,7 @@ export async function fetchFilteredCount(
 ): Promise<number> {
   const where = buildFilteredWhere(m, f, sm);
   try {
-    const cnt = await runReadOnlyQuery(
-      `SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`,
-    );
+    const cnt = await runReadOnlyQuery(`SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`);
     return safeNum(cnt[0]?.cnt);
   } catch {
     return 0;
@@ -822,9 +794,7 @@ export async function fetchFilteredPage(
   sortDir: SortDir = "desc",
 ): Promise<RawRow[]> {
   const where = buildFilteredWhere(m, f, sm);
-  const orderBy = sortCol
-    ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}`
-    : "";
+  const orderBy = sortCol ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}` : "";
   try {
     return await runReadOnlyQuery(
       `SELECT * FROM ${qc(tableName)} ${where} ${orderBy} LIMIT ${limit} OFFSET ${offset}`,
@@ -845,9 +815,7 @@ export async function fetchFiltered(
   sortDir: SortDir = "desc",
 ): Promise<{ rows: RawRow[]; total: number }> {
   const where = buildFilteredWhere(m, f, sm);
-  const orderBy = sortCol
-    ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}`
-    : "";
+  const orderBy = sortCol ? `ORDER BY ${qc(sortCol)} ${sortDir === "asc" ? "ASC" : "DESC"}` : "";
   try {
     const [cnt, data] = await Promise.all([
       runReadOnlyQuery(`SELECT COUNT(*) AS cnt FROM ${qc(tableName)} ${where}`),
@@ -861,9 +829,7 @@ export async function fetchFiltered(
   }
 }
 
-export async function detectAvailableColumns(
-  tableName: string,
-): Promise<string[]> {
+export async function detectAvailableColumns(tableName: string): Promise<string[]> {
   try {
     const rows = await runReadOnlyQuery(`DESCRIBE ${qc(tableName)}`);
     return rows.map((r) => String(r.column_name ?? ""));
@@ -914,10 +880,7 @@ export async function fetchSpecChannelStats(
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
-  const successFilter = buildRawStatusFilterForColumn(
-    statusExpr,
-    SPEC_STATUS_CODES.success,
-  );
+  const successFilter = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
   // Single-pass conditional aggregation: one table scan with per-channel
   // COUNT/SUM FILTER columns instead of one COUNT query per channel.
   const cols = channels
@@ -970,37 +933,23 @@ export async function fetchSpecStatusStats(
 }> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const scope =
-    channels.length > 0
-      ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
-      : "";
+    channels.length > 0 ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const statusCases = [
-    [
-      "Réussie",
-      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success),
-    ],
-    [
-      "Annulation",
-      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.refund),
-    ],
+    ["Réussie", buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success)],
+    ["Annulation", buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.refund)],
     [
       "Instance (Hold + Doubt)",
       buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.instance),
     ],
-    [
-      "Échec",
-      buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.declined),
-    ],
+    ["Échec", buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.declined)],
   ] as const;
 
   // Single-pass: one scan with a COUNT FILTER per status case instead of
   // one COUNT query (and one full scan) per status.
   const scopeClause = scope ? scope.replace(/^AND /, " AND ") : "";
   const cols = statusCases
-    .map(
-      ([, filter], i) =>
-        `COUNT(*) FILTER (WHERE (${filter})${scopeClause}) AS n_${i}`,
-    )
+    .map(([, filter], i) => `COUNT(*) FILTER (WHERE (${filter})${scopeClause}) AS n_${i}`)
     .join(",\n");
   try {
     const res = await runReadOnlyQuery(`
@@ -1036,15 +985,10 @@ export async function fetchSpecUnitAmountStats(
 }> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const scope =
-    channels.length > 0
-      ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`
-      : "";
+    channels.length > 0 ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
   const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
-  const successFilter = buildRawStatusFilterForColumn(
-    statusExpr,
-    SPEC_STATUS_CODES.success,
-  );
+  const successFilter = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -1109,14 +1053,9 @@ export async function fetchServiceCodeRows(
   }
 }
 
-export async function runCustomKPIExpr(
-  tableName: string,
-  sqlExpr: string,
-): Promise<number> {
+export async function runCustomKPIExpr(tableName: string, sqlExpr: string): Promise<number> {
   try {
-    const rows = await runReadOnlyQuery(
-      `SELECT (${sqlExpr}) AS val FROM ${qc(tableName)} LIMIT 1`,
-    );
+    const rows = await runReadOnlyQuery(`SELECT (${sqlExpr}) AS val FROM ${qc(tableName)} LIMIT 1`);
     return safeNum(rows[0]?.val);
   } catch (err) {
     console.error("[runCustomKPIExpr] Error:", err);

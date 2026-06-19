@@ -18,17 +18,8 @@ import { useDataStore } from "@/core/stores/data-store";
 import { mirrorStoreToDexie, runOnceBackfill } from "@/platform/storage";
 
 import type { HistoryRow } from "../model/types";
-import {
-  appendHistory,
-  historyDB,
-  pruneHistory,
-} from "./history-db";
-import {
-  activityRow,
-  datasetRow,
-  queryRow,
-  transformRow,
-} from "./normalize";
+import { appendHistory, historyDB, pruneHistory } from "./history-db";
+import { activityRow, datasetRow, queryRow, transformRow } from "./normalize";
 
 const BACKFILL_VERSION = 1;
 let started = false;

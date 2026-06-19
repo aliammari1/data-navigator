@@ -19,9 +19,7 @@ test.describe("Authentication Journey", () => {
 
     // Verify password input exists
     await expect(
-      page
-        .locator('input[type="password"], input[placeholder*="password" i]')
-        .first(),
+      page.locator('input[type="password"], input[placeholder*="password" i]').first(),
     ).toBeVisible();
 
     // Verify submit button exists
@@ -60,18 +58,12 @@ test.describe("Authentication Journey", () => {
     await expect(page).toHaveURL(/.*login.*/);
   });
 
-  test("should navigate from login to dashboard after successful auth flow", async ({
-    page,
-  }) => {
+  test("should navigate from login to dashboard after successful auth flow", async ({ page }) => {
     await page.goto("/login");
 
     // Fill in test credentials
-    const emailInput = page
-      .locator('input[type="email"], input[name="email"]')
-      .first();
-    const passwordInput = page
-      .locator('input[type="password"], input[name="password"]')
-      .first();
+    const emailInput = page.locator('input[type="email"], input[name="email"]').first();
+    const passwordInput = page.locator('input[type="password"], input[name="password"]').first();
 
     if (
       (await emailInput.isVisible().catch(() => false)) &&

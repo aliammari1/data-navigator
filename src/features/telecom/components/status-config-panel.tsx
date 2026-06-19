@@ -22,8 +22,7 @@ export function StatusConfigPanel({
 }) {
   const [editCode, setEditCode] = useState<string | null>(null);
   const [editLabel, setEditLabel] = useState("");
-  const [editSemantic, setEditSemantic] =
-    useState<Types.StatusSemantic>("other");
+  const [editSemantic, setEditSemantic] = useState<Types.StatusSemantic>("other");
   const [newCode, setNewCode] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newSemantic, setNewSemantic] = useState<Types.StatusSemantic>("other");
@@ -116,21 +115,15 @@ export function StatusConfigPanel({
             label: "Unmapped",
             value: unmapped.length,
             color:
-              unmapped.length > 0
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-muted-foreground",
+              unmapped.length > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
           },
         ].map((s) => (
           <div
             key={s.label}
             className="rounded-xl border border-border bg-muted/40 p-3 text-center"
           >
-            <div className={cn("text-2xl font-bold tabular-nums", s.color)}>
-              {s.value}
-            </div>
-            <div className="text-[10px] text-muted-foreground mt-0.5">
-              {s.label}
-            </div>
+            <div className={cn("text-2xl font-bold tabular-nums", s.color)}>{s.value}</div>
+            <div className="text-[10px] text-muted-foreground mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
@@ -160,10 +153,7 @@ export function StatusConfigPanel({
             >
               <div className="flex items-center justify-between">
                 <span className="text-xs font-semibold text-foreground">
-                  Editing:{" "}
-                  <code className="text-primary font-mono">
-                    {rs.rawCode}
-                  </code>
+                  Editing: <code className="text-primary font-mono">{rs.rawCode}</code>
                   <span className="text-muted-foreground ml-2">
                     ({fmtN(rs.count)} transactions)
                   </span>
@@ -202,9 +192,7 @@ export function StatusConfigPanel({
                   <select
                     id="edit-semantic"
                     value={editSemantic}
-                    onChange={(e) =>
-                      setEditSemantic(e.target.value as Types.StatusSemantic)
-                    }
+                    onChange={(e) => setEditSemantic(e.target.value as Types.StatusSemantic)}
                     className="w-full bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"
                   >
                     {SEMANTIC_STATUS_OPTIONS.map((o) => (
@@ -221,9 +209,7 @@ export function StatusConfigPanel({
                   <span
                     className={cn(
                       "px-2 py-0.5 rounded-full border text-[10px] font-semibold",
-                      SEMANTIC_STATUS_OPTIONS.find(
-                        (o) => o.value === editSemantic,
-                      )?.badgeClass,
+                      SEMANTIC_STATUS_OPTIONS.find((o) => o.value === editSemantic)?.badgeClass,
                     )}
                   >
                     {editLabel || rs.rawCode}
@@ -295,9 +281,7 @@ export function StatusConfigPanel({
                   <div className="text-xs font-semibold text-foreground tabular-nums">
                     {fmtN(rs.count)}
                   </div>
-                  <div className="text-[10px] text-muted-foreground">
-                    {fmtPct(shareOfTotal)}
-                  </div>
+                  <div className="text-[10px] text-muted-foreground">{fmtPct(shareOfTotal)}</div>
                 </div>
                 <div className="flex items-center gap-1">
                   <button
@@ -349,9 +333,7 @@ export function StatusConfigPanel({
           />
           <select
             value={newSemantic}
-            onChange={(e) =>
-              setNewSemantic(e.target.value as Types.StatusSemantic)
-            }
+            onChange={(e) => setNewSemantic(e.target.value as Types.StatusSemantic)}
             className="bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"
           >
             {SEMANTIC_STATUS_OPTIONS.map((o) => (
@@ -378,9 +360,7 @@ export function StatusConfigPanel({
         <div className="flex flex-wrap gap-2">
           {mapping.map((m) => (
             <div key={m.rawCode} className="flex items-center gap-1.5">
-              <code className="text-[10px] font-mono text-muted-foreground">
-                {m.rawCode}
-              </code>
+              <code className="text-[10px] font-mono text-muted-foreground">{m.rawCode}</code>
               <span className="text-muted-foreground text-[10px]">→</span>
               <span
                 className={cn(
@@ -393,9 +373,7 @@ export function StatusConfigPanel({
             </div>
           ))}
           {mapping.length === 0 && (
-            <span className="text-[11px] text-muted-foreground">
-              No mappings configured yet.
-            </span>
+            <span className="text-[11px] text-muted-foreground">No mappings configured yet.</span>
           )}
         </div>
       </div>
