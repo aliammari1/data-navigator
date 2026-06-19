@@ -1,3 +1,4 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { detectRegionAnomalies } from "@/features/geo-analysis/lib/anomaly";
 
 /**

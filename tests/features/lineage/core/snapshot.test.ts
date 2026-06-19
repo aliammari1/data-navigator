@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { hashInput } from "@/features/lineage/core/snapshot";
 
 describe("hashInput", () => {

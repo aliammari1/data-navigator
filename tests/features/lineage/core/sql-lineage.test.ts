@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import { parseProjectionLineage } from "@/features/lineage/core/sql-lineage";
 
 describe("parseProjectionLineage", () => {
