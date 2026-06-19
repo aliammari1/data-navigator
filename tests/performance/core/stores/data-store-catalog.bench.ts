@@ -1,9 +1,6 @@
 import { bench, describe } from "vitest";
 import { useDataStore } from "@/core/stores/data-store";
-import type {
-  RegisteredDataset,
-  RegisteredDatasetColumn,
-} from "@/platform/duckdb/duckdb";
+import type { RegisteredDataset, RegisteredDatasetColumn } from "@/platform/duckdb/duckdb";
 
 /**
  * Performance benchmark for catalog -> store sync.
@@ -48,10 +45,7 @@ function buildColumns(count: number, datasetIdx: number): RegisteredDatasetColum
   return cols;
 }
 
-function buildCatalog(
-  datasetCount: number,
-  colsPerDataset: number,
-): RegisteredDataset[] {
+function buildCatalog(datasetCount: number, colsPerDataset: number): RegisteredDataset[] {
   const out: RegisteredDataset[] = new Array(datasetCount);
   for (let i = 0; i < datasetCount; i++) {
     out[i] = {
@@ -61,9 +55,11 @@ function buildCatalog(
       sourcePath: `C:/data/source_${i}.csv`,
       cachePath: `C:/cache/dataset_${i}.parquet`,
       // sourceFormat is normalized via normalizeFormat; vary csv/parquet/tsv.
-      sourceFormat: (
-        i % 3 === 0 ? "csv" : i % 3 === 1 ? "parquet" : "tsv"
-      ) as RegisteredDataset["sourceFormat"],
+      sourceFormat: (i % 3 === 0
+        ? "csv"
+        : i % 3 === 1
+          ? "parquet"
+          : "tsv") as RegisteredDataset["sourceFormat"],
       rowCount: 1_000 + (i % 500) * 137,
       columns: buildColumns(colsPerDataset, i),
       createdAt: FIXED_CREATED_AT,
@@ -78,8 +74,7 @@ const CATALOG_2K = buildCatalog(2_000, 24);
 // Wide-schema variant: fewer datasets, very wide schemas (~50k columns total).
 const CATALOG_WIDE = buildCatalog(500, 100);
 
-const replaceDatasetsFromCatalog = () =>
-  useDataStore.getState().replaceDatasetsFromCatalog;
+const replaceDatasetsFromCatalog = () => useDataStore.getState().replaceDatasetsFromCatalog;
 
 // ─── Benchmarks ─────────────────────────────────────────────────────────────
 

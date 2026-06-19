@@ -10,12 +10,7 @@ import {
   chartTheme,
   retintOption,
 } from "@/features/telecom/lib/chart-options";
-import type {
-  CanalHourCell,
-  CanalSummary,
-  HourlyRow,
-  StatusRow,
-} from "@/features/telecom/types";
+import type { CanalHourCell, CanalSummary, HourlyRow, StatusRow } from "@/features/telecom/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -258,9 +253,7 @@ describe("buildRiskScoreOption", () => {
 
 describe("buildHourlyChartOption", () => {
   it("produces a 24-slot stacked dataset with zero-filled gaps", () => {
-    const data: HourlyRow[] = [
-      { hour: 8, total: 100, success: 90, declined: 10, amount: 500 },
-    ];
+    const data: HourlyRow[] = [{ hour: 8, total: 100, success: 90, declined: 10, amount: 500 }];
 
     const opt = buildHourlyChartOption(data, []) as EChartsOption;
     const successSeries = opt.series.find((s) => s.name === "Réussie")?.data as number[];
@@ -291,9 +284,10 @@ describe("buildHourlyChartOption", () => {
   });
 
   it("adds forecast series and extends the axis for forecast-only hours", () => {
-    const opt = buildHourlyChartOption([], [
-      { hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true },
-    ]) as EChartsOption;
+    const opt = buildHourlyChartOption(
+      [],
+      [{ hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true }],
+    ) as EChartsOption;
 
     expect(opt.legend?.data).toContain("Prévision IA");
     // 24 base hours + 1 forecast-only hour.

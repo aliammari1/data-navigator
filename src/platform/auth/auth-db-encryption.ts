@@ -40,9 +40,7 @@ export const ENCRYPTED_TEMP_SUFFIX = ".enc.tmp";
  * Enabling values (case-insensitive, trimmed): "1", "true", "on", "yes".
  * Everything else — including unset — means OFF.
  */
-export function isAuthDbEncryptionRequested(
-  env: NodeJS.ProcessEnv = process.env,
-): boolean {
+export function isAuthDbEncryptionRequested(env: NodeJS.ProcessEnv = process.env): boolean {
   const raw = env[ENCRYPT_AUTH_DB_FLAG];
   if (raw === undefined) return false;
   const normalized = raw.trim().toLowerCase();

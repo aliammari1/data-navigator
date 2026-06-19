@@ -4,12 +4,7 @@ import {
   buildRealLineage,
   columnLineageKey,
 } from "@/features/lineage/core/build-lineage";
-import type {
-  ColMeta,
-  Dataset,
-  DataTransform,
-  SavedChart,
-} from "@/core/stores/data-store";
+import type { ColMeta, Dataset, DataTransform, SavedChart } from "@/core/stores/data-store";
 import type { ColumnLineage } from "@/features/lineage/core/types";
 
 // A fixed "now" so timeAgo / datasetStatus are deterministic.
@@ -118,9 +113,7 @@ describe("buildRealLineage", () => {
 
   it("marks an old, unloaded dataset as stale", () => {
     const old = new Date(NOW - 10 * ONE_DAY).toISOString();
-    const result = buildRealLineage(
-      emptyInput({ datasets: [dataset({ updatedAt: old })] }),
-    );
+    const result = buildRealLineage(emptyInput({ datasets: [dataset({ updatedAt: old })] }));
     expect(result.nodes[0].status).toBe("stale");
   });
 
@@ -200,9 +193,7 @@ describe("buildRealLineage", () => {
       columns: [col("channel"), col("new_col")],
     });
     const result = buildRealLineage(emptyInput({ datasets: [parent, child] }));
-    const byTarget = new Map(
-      result.columnLineage.map((cl) => [cl.targetCol, cl]),
-    );
+    const byTarget = new Map(result.columnLineage.map((cl) => [cl.targetCol, cl]));
     // a column present in the parent maps by name
     expect(byTarget.get("channel")?.sourceCol).toBe("channel");
     // a column NOT present in the parent falls back to the '*' wildcard
@@ -219,9 +210,7 @@ describe("buildRealLineage", () => {
       config: {},
       createdAt: new Date(NOW).toISOString(),
     };
-    const result = buildRealLineage(
-      emptyInput({ datasets: [ds], savedCharts: [chart] }),
-    );
+    const result = buildRealLineage(emptyInput({ datasets: [ds], savedCharts: [chart] }));
     const chartNode = result.nodes.find((n) => n.id === "chart_ch1");
     expect(chartNode?.type).toBe("output");
     expect(chartNode?.upstreams).toEqual(["dataset_p"]);
@@ -242,12 +231,8 @@ describe("buildRealLineage", () => {
       description: "",
       appliedAt: new Date(NOW).toISOString(),
     };
-    const result = buildRealLineage(
-      emptyInput({ datasets: [a, b], transforms: [transform] }),
-    );
-    const edge = result.edges.find(
-      (e) => e.source === "dataset_a" && e.target === "dataset_b",
-    );
+    const result = buildRealLineage(emptyInput({ datasets: [a, b], transforms: [transform] }));
+    const edge = result.edges.find((e) => e.source === "dataset_a" && e.target === "dataset_b");
     expect(edge?.type).toBe("partial");
     expect(edge?.label).toBe("sample");
   });
@@ -316,9 +301,7 @@ describe("buildRealLineage", () => {
     expect(day?.upstreams).toContain("telecom_source_file1");
 
     // and there are aggregate / contributes edges from the source
-    const aggregatesEdge = result.edges.find(
-      (e) => e.target === "telecom_analytics_file1",
-    );
+    const aggregatesEdge = result.edges.find((e) => e.target === "telecom_analytics_file1");
     expect(aggregatesEdge?.label).toBe("aggregates");
   });
 
@@ -353,9 +336,7 @@ describe("buildRealLineage", () => {
       description: "",
       appliedAt: new Date(NOW).toISOString(),
     };
-    const result = buildRealLineage(
-      emptyInput({ datasets: [ds], transforms: [transform] }),
-    );
+    const result = buildRealLineage(emptyInput({ datasets: [ds], transforms: [transform] }));
     for (const edge of result.edges) {
       const ids = new Set(result.nodes.map((n) => n.id));
       expect(ids.has(edge.source)).toBe(true);

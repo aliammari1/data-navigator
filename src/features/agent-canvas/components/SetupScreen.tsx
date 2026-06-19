@@ -26,10 +26,7 @@ import { warmAI } from "@/features/agent-canvas/core/ai-bridge";
 import { ModelDownloadPanel } from "@/features/agent-canvas/components/ModelDownloadPanel";
 import type { AIModelInfo } from "@/platform/ai/provider";
 import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
-import {
-  loadUploadPathToDuckDB,
-  type UploadFileFormat,
-} from "@/platform/duckdb/upload-to-duckdb";
+import { loadUploadPathToDuckDB, type UploadFileFormat } from "@/platform/duckdb/upload-to-duckdb";
 import { isElectron, openFileDialog } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
@@ -42,13 +39,7 @@ function fileNameFromPath(filePath: string): string {
 function fileExtensionFromPath(filePath: string): UploadFileFormat {
   const ext = fileNameFromPath(filePath).split(".").pop()?.toLowerCase();
 
-  if (
-    ext === "csv" ||
-    ext === "tsv" ||
-    ext === "txt" ||
-    ext === "parquet" ||
-    ext === "pq"
-  ) {
+  if (ext === "csv" || ext === "tsv" || ext === "txt" || ext === "parquet" || ext === "pq") {
     return ext;
   }
 
@@ -124,8 +115,7 @@ function MeshBackground() {
       <div
         className="absolute inset-0"
         style={{
-          backgroundImage:
-            "radial-gradient(circle, rgba(148,163,184,0.05) 1px, transparent 1px)",
+          backgroundImage: "radial-gradient(circle, rgba(148,163,184,0.05) 1px, transparent 1px)",
           backgroundSize: "32px 32px",
         }}
       />
@@ -142,12 +132,7 @@ interface ModelPickerProps {
   onSkip: () => void;
 }
 
-function ModelPicker({
-  selected,
-  onSelect,
-  onLoaded,
-  onSkip,
-}: Readonly<ModelPickerProps>) {
+function ModelPicker({ selected, onSelect, onLoaded, onSkip }: Readonly<ModelPickerProps>) {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState("");
@@ -249,9 +234,7 @@ function ModelPicker({
             )}
           >
             <div className="mb-1 flex items-start justify-between gap-2">
-              <span className="text-xs font-semibold text-white">
-                {item.label}
-              </span>
+              <span className="text-xs font-semibold text-white">{item.label}</span>
 
               {item.sizeLabel && (
                 <span className="shrink-0 rounded border border-violet-700/40 bg-violet-900/60 px-1.5 py-0.5 text-[9px] text-violet-300">
@@ -261,9 +244,7 @@ function ModelPicker({
             </div>
 
             {item.family && (
-              <p className="text-[10px] leading-relaxed text-slate-400">
-                {item.family}
-              </p>
+              <p className="text-[10px] leading-relaxed text-slate-400">{item.family}</p>
             )}
           </button>
         ))}
@@ -307,11 +288,7 @@ function ModelPicker({
           disabled={loading || done}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-violet-600 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-violet-500 disabled:opacity-50"
         >
-          {loading ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : (
-            <Brain className="h-4 w-4" />
-          )}
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
           {loading ? "Loading…" : done ? "Loaded" : "Load Model"}
         </button>
 
@@ -327,8 +304,8 @@ function ModelPicker({
 
       {model && !loading && !done && (
         <p className="text-center text-[10px] text-slate-600">
-          Model weights are served from bundled / OPFS-cached assets — no network
-          needed once present.
+          Model weights are served from bundled / OPFS-cached assets — no network needed once
+          present.
         </p>
       )}
     </div>
@@ -386,9 +363,7 @@ function DataPicker({ onLoaded }: Readonly<DataPickerProps>) {
       }
 
       if (!isSupportedDatasetPath(filePath)) {
-        throw new Error(
-          "Unsupported file type. Use CSV, TSV, TXT, or Parquet.",
-        );
+        throw new Error("Unsupported file type. Use CSV, TSV, TXT, or Parquet.");
       }
 
       const fileName = fileNameFromPath(filePath);
@@ -417,9 +392,7 @@ function DataPicker({ onLoaded }: Readonly<DataPickerProps>) {
   }, [onLoaded]);
 
   const onDrop = useCallback(() => {
-    setHint(
-      "Use the native file picker so DuckDB can access a trusted local filesystem path.",
-    );
+    setHint("Use the native file picker so DuckDB can access a trusted local filesystem path.");
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -459,9 +432,7 @@ function DataPicker({ onLoaded }: Readonly<DataPickerProps>) {
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-white">
-                  Loading dataset
-                </p>
+                <p className="text-sm font-semibold text-white">Loading dataset</p>
                 <p className="mt-0.5 text-xs text-slate-500">{progress}</p>
               </div>
             </motion.div>
@@ -481,17 +452,12 @@ function DataPicker({ onLoaded }: Readonly<DataPickerProps>) {
                 )}
               >
                 <Database
-                  className={cn(
-                    "h-6 w-6",
-                    isDragActive ? "text-violet-400" : "text-slate-500",
-                  )}
+                  className={cn("h-6 w-6", isDragActive ? "text-violet-400" : "text-slate-500")}
                 />
               </div>
 
               <div>
-                <p className="text-sm font-semibold text-white">
-                  Load a local dataset
-                </p>
+                <p className="text-sm font-semibold text-white">Load a local dataset</p>
                 <p className="mt-0.5 text-xs text-slate-500">
                   CSV, TSV, TXT, or Parquet · processed locally by DuckDB
                 </p>
@@ -551,23 +517,14 @@ function StepsIndicator({ currentStep }: Readonly<{ currentStep: 0 | 1 | 2 }>) {
             {index < currentStep ? "✓" : index + 1}
           </div>
 
-          <div
-            className={cn(
-              index <= currentStep ? "text-white" : "text-slate-600",
-            )}
-          >
-            <p className="text-[11px] leading-none font-semibold">
-              {step.label}
-            </p>
+          <div className={cn(index <= currentStep ? "text-white" : "text-slate-600")}>
+            <p className="text-[11px] leading-none font-semibold">{step.label}</p>
             <p className="text-[9px] text-slate-500">{step.desc}</p>
           </div>
 
           {index < steps.length - 1 && (
             <ChevronRight
-              className={cn(
-                "h-3 w-3",
-                index < currentStep ? "text-emerald-500" : "text-slate-700",
-              )}
+              className={cn("h-3 w-3", index < currentStep ? "text-emerald-500" : "text-slate-700")}
             />
           )}
         </div>
@@ -637,13 +594,10 @@ export function SetupScreen({ onReady, model, onModelChange }: Props) {
               exit={{ opacity: 0, y: -8 }}
               className="rounded-2xl border border-slate-700/50 bg-slate-900/80 p-5 backdrop-blur-sm"
             >
-              <h2 className="mb-1 text-base font-semibold text-white">
-                Choose AI Model
-              </h2>
+              <h2 className="mb-1 text-base font-semibold text-white">Choose AI Model</h2>
 
               <p className="mb-4 text-xs text-slate-400">
-                Runs locally using WebGPU/WASM. You can also skip and use the
-                rule-based pipeline.
+                Runs locally using WebGPU/WASM. You can also skip and use the rule-based pipeline.
               </p>
 
               <ModelPicker
@@ -668,9 +622,7 @@ export function SetupScreen({ onReady, model, onModelChange }: Props) {
               className="space-y-4"
             >
               <div className="rounded-2xl border border-slate-700/50 bg-slate-900/80 p-5 backdrop-blur-sm">
-                <h2 className="mb-1 text-base font-semibold text-white">
-                  Load Data
-                </h2>
+                <h2 className="mb-1 text-base font-semibold text-white">Load Data</h2>
 
                 <p className="mb-4 text-xs text-slate-400">
                   {modelReady ? "Model loaded ✓ — " : "Rule-based mode — "}

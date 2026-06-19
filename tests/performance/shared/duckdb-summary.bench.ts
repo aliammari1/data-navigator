@@ -1,8 +1,5 @@
 import { bench, describe } from "vitest";
-import {
-  nullRateFromSummary,
-  numberOrUndefined,
-} from "@/shared/duckdb-summary";
+import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
 
 /**
  * Performance benchmarks for the shared DuckDB SUMMARIZE coercion helpers

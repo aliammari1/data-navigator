@@ -41,13 +41,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
 import { useDataStore } from "@/core/stores/data-store";
 import {
@@ -89,11 +83,7 @@ import { ApprovalWorkflow } from "../components/ApprovalWorkflow";
 import { AuditTrail } from "../components/AuditTrail";
 import { StickyNoteAnnotation } from "../components/StickyNoteAnnotation";
 import { useAnnotations } from "../hooks/useAnnotations";
-import {
-  useApprovalCRDT,
-  useAuditCRDT,
-  useCollabHubReady,
-} from "../collab/collab-hub-crdt";
+import { useApprovalCRDT, useAuditCRDT, useCollabHubReady } from "../collab/collab-hub-crdt";
 
 type CommentType = RoomComment["type"];
 
@@ -132,15 +122,7 @@ function quoteIdentifier(value: string): string {
 
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
-function Avatar({
-  name,
-  color,
-  size = "sm",
-}: {
-  name: string;
-  color: string;
-  size?: "sm" | "md";
-}) {
+function Avatar({ name, color, size = "sm" }: { name: string; color: string; size?: "sm" | "md" }) {
   const sz = size === "sm" ? "w-7 h-7 text-xs" : "w-9 h-9 text-sm";
   return (
     <div
@@ -200,37 +182,25 @@ function CommentCard({
       }`}
       style={{ opacity: comment.resolved ? 0.6 : 1 }}
     >
-      <button
-        type="button"
-        className="w-full text-left p-3"
-        onClick={() => setExpanded(!expanded)}
-      >
+      <button type="button" className="w-full text-left p-3" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start gap-2">
           <Avatar name={comment.authorName} color={comment.authorColor} />
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-foreground">
-                {comment.authorName}
-              </span>
+              <span className="text-sm font-semibold text-foreground">{comment.authorName}</span>
               <span className={`text-xs ${ts.color}`}>{ts.label}</span>
               {comment.cell && (
                 <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-mono">
                   {comment.cell}
                 </span>
               )}
-              {comment.pinned && (
-                <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />
-              )}
-              {comment.resolved && (
-                <CheckCircle2 className="w-3 h-3 text-green-400" />
-              )}
+              {comment.pinned && <Star className="w-3 h-3 text-yellow-400 fill-yellow-400" />}
+              {comment.resolved && <CheckCircle2 className="w-3 h-3 text-green-400" />}
               <span className="text-xs text-muted-foreground ml-auto">
                 {formatAge(comment.timestamp)}
               </span>
             </div>
-            <p className="text-xs text-foreground mt-1 line-clamp-2">
-              {comment.content}
-            </p>
+            <p className="text-xs text-foreground mt-1 line-clamp-2">{comment.content}</p>
           </div>
         </div>
       </button>
@@ -248,9 +218,7 @@ function CommentCard({
                 disabled={!canEdit}
                 onClick={() => onReact(comment.id, emoji)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs text-foreground transition-colors disabled:opacity-50 ${
-                  users.includes(myId)
-                    ? "bg-indigo-500/20"
-                    : "bg-muted hover:bg-accent"
+                  users.includes(myId) ? "bg-indigo-500/20" : "bg-muted hover:bg-accent"
                 }`}
               >
                 {emoji} {users.length}
@@ -271,16 +239,11 @@ function CommentCard({
 
           {/* Replies */}
           {comment.replies.map((reply) => (
-            <div
-              key={reply.id}
-              className="flex gap-2 pl-3 border-l border-border"
-            >
+            <div key={reply.id} className="flex gap-2 pl-3 border-l border-border">
               <Avatar name={reply.authorName} color="#64748b" />
               <div className="flex-1">
                 <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-foreground">
-                    {reply.authorName}
-                  </span>
+                  <span className="text-xs font-semibold text-foreground">{reply.authorName}</span>
                   <span className="text-xs text-muted-foreground">
                     {formatAge(reply.timestamp)}
                   </span>
@@ -375,15 +338,9 @@ function ChangeItem({ change }: { change: RoomChange }) {
       </div>
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-foreground">
-            {change.authorName}
-          </span>
-          <span className="text-xs text-muted-foreground">
-            {formatAge(change.timestamp)}
-          </span>
-          {change.approved === true && (
-            <CheckCircle2 className="w-3 h-3 text-green-400" />
-          )}
+          <span className="text-xs font-semibold text-foreground">{change.authorName}</span>
+          <span className="text-xs text-muted-foreground">{formatAge(change.timestamp)}</span>
+          {change.approved === true && <CheckCircle2 className="w-3 h-3 text-green-400" />}
           {change.approved === false && <X className="w-3 h-3 text-red-400" />}
         </div>
         <p className="text-xs text-foreground mt-1">{change.description}</p>
@@ -444,14 +401,9 @@ function SectionAnnotationRow({
       </div>
       <div className="flex items-center gap-2">
         {unresolvedCount > 0 && (
-          <Badge className="bg-amber-500 text-white text-[10px]">
-            {unresolvedCount}
-          </Badge>
+          <Badge className="bg-amber-500 text-white text-[10px]">{unresolvedCount}</Badge>
         )}
-        <StickyNoteAnnotation
-          sectionId={section.id}
-          sectionLabel={section.label}
-        />
+        <StickyNoteAnnotation sectionId={section.id} sectionLabel={section.label} />
       </div>
     </div>
   );
@@ -462,9 +414,7 @@ function ReportAnnotationsEmpty() {
     <div className="flex flex-col items-center gap-3 py-12">
       <StickyNote className="size-10 text-muted-foreground/30" />
       <div className="text-center">
-        <p className="text-sm font-medium text-muted-foreground">
-          No annotations yet
-        </p>
+        <p className="text-sm font-medium text-muted-foreground">No annotations yet</p>
         <p className="text-xs text-muted-foreground mt-1">
           Add notes to any report section using the sticky note button.
         </p>
@@ -488,26 +438,17 @@ function ReportAnnotations() {
   const [counts, setCounts] = useState<Record<string, number>>({});
 
   const handleCount = useCallback((sectionId: string, count: number) => {
-    setCounts((prev) =>
-      prev[sectionId] === count ? prev : { ...prev, [sectionId]: count },
-    );
+    setCounts((prev) => (prev[sectionId] === count ? prev : { ...prev, [sectionId]: count }));
   }, []);
 
-  const hasAny = useMemo(
-    () => Object.values(counts).some((c) => c > 0),
-    [counts],
-  );
+  const hasAny = useMemo(() => Object.values(counts).some((c) => c > 0), [counts]);
 
   // Always mount the rows so each `useAnnotations` hook stays subscribed and
   // reports its count; toggle the empty-state overlay from the reactive totals.
   return (
     <div className="space-y-3">
       {REPORT_SECTIONS.map((section) => (
-        <SectionAnnotationRow
-          key={section.id}
-          section={section}
-          onCount={handleCount}
-        />
+        <SectionAnnotationRow key={section.id} section={section} onCount={handleCount} />
       ))}
       {!hasAny && <ReportAnnotationsEmpty />}
     </div>
@@ -588,9 +529,7 @@ export default function CollaborationScreen() {
         const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
         if (tables.length > 0) {
           const tableName = String(Object.values(tables[0])[0]);
-          await runReadOnlyQuery(
-            `SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`,
-          );
+          await runReadOnlyQuery(`SELECT COUNT(*) as cnt FROM ${quoteIdentifier(tableName)}`);
         }
         if (!cancelled) setDuckdbLoaded(true);
       } catch {
@@ -711,10 +650,7 @@ export default function CollaborationScreen() {
     });
   }, [comments, searchQuery, filterResolved]);
 
-  const openComments = useMemo(
-    () => comments.filter((c) => !c.resolved).length,
-    [comments],
-  );
+  const openComments = useMemo(() => comments.filter((c) => !c.resolved).length, [comments]);
   const resolvedComments = comments.length - openComments;
 
   // ─── Charts (real data → OffscreenChart) ────────────────────────────────
@@ -817,9 +753,7 @@ export default function CollaborationScreen() {
               <Users className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">
-                Collaborative
-              </h1>
+              <h1 className="text-2xl font-bold text-foreground">Collaborative</h1>
               <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                 <div className="flex -space-x-2">
                   {peers.slice(0, 6).map((p) => (
@@ -833,9 +767,7 @@ export default function CollaborationScreen() {
                     </div>
                   ))}
                 </div>
-                <span className="text-sm text-muted-foreground">
-                  {onlineCount} online
-                </span>
+                <span className="text-sm text-muted-foreground">{onlineCount} online</span>
                 <span
                   className={`text-xs ${
                     lanStatus === "connected"
@@ -847,9 +779,7 @@ export default function CollaborationScreen() {
                 >
                   ● {lanLabel}
                 </span>
-                {duckdbLoaded && (
-                  <span className="text-xs text-green-400">● DuckDB live</span>
-                )}
+                {duckdbLoaded && <span className="text-xs text-green-400">● DuckDB live</span>}
                 <span className="text-xs text-muted-foreground">
                   {access.roleLabel} · {access.cacheMode}
                 </span>
@@ -870,15 +800,7 @@ export default function CollaborationScreen() {
         {/* Tabs */}
         <div className="flex flex-wrap gap-1 mt-3 bg-card rounded-xl p-1 border border-border w-fit">
           {(
-            [
-              "overview",
-              "comments",
-              "changes",
-              "live",
-              "annotations",
-              "approval",
-              "audit",
-            ] as const
+            ["overview", "comments", "changes", "live", "annotations", "approval", "audit"] as const
           ).map((tab) => {
             const icons = {
               overview: Activity,
@@ -969,24 +891,15 @@ export default function CollaborationScreen() {
                     sub: `${workspaceStats.telecomSources} files · ${workspaceStats.dailySnapshots} days`,
                   },
                 ].map((s) => (
-                  <div
-                    key={s.label}
-                    className="bg-card border border-border rounded-xl p-4"
-                  >
+                  <div key={s.label} className="bg-card border border-border rounded-xl p-4">
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs text-muted-foreground">
-                        {s.label}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{s.label}</span>
                       <div className={`p-1.5 rounded-lg ${s.color}`}>
                         <s.icon className="w-3.5 h-3.5 text-white" />
                       </div>
                     </div>
-                    <div className="text-2xl font-bold text-foreground">
-                      {s.value}
-                    </div>
-                    <div className="text-xs text-muted-foreground mt-0.5">
-                      {s.sub}
-                    </div>
+                    <div className="text-2xl font-bold text-foreground">{s.value}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{s.sub}</div>
                   </div>
                 ))}
               </div>
@@ -1002,9 +915,8 @@ export default function CollaborationScreen() {
                     <div className="space-y-2">
                       {peers.length === 0 && (
                         <div className="text-xs text-muted-foreground py-4 text-center">
-                          No peers connected. Join a LAN room from the control
-                          center to collaborate across machines — comments and
-                          chat still persist locally offline.
+                          No peers connected. Join a LAN room from the control center to collaborate
+                          across machines — comments and chat still persist locally offline.
                         </div>
                       )}
                       {peers.map((p) => (
@@ -1024,9 +936,7 @@ export default function CollaborationScreen() {
                                 </span>
                               )}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                              {p.page ?? "—"}
-                            </div>
+                            <div className="text-xs text-muted-foreground">{p.page ?? "—"}</div>
                           </div>
                           <span className="text-xs px-1.5 py-0.5 rounded border bg-blue-500/15 text-blue-300 border-blue-500/25">
                             {p.role}
@@ -1039,15 +949,11 @@ export default function CollaborationScreen() {
 
                 <div className="space-y-4">
                   <div className="bg-card border border-border rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Activity by hour
-                    </h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Activity by hour</h3>
                     <OffscreenChart option={activityOption} height={160} />
                   </div>
                   <div className="bg-card border border-border rounded-xl p-4">
-                    <h3 className="text-sm font-semibold text-foreground mb-3">
-                      Contributions
-                    </h3>
+                    <h3 className="text-sm font-semibold text-foreground mb-3">Contributions</h3>
                     <OffscreenChart option={contributionOption} height={160} />
                   </div>
                 </div>
@@ -1056,8 +962,7 @@ export default function CollaborationScreen() {
               {/* Audit trail (real shared LAN audit, virtualized) */}
               <div className="bg-card border border-border rounded-xl p-4">
                 <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <History className="w-4 h-4 text-cyan-400" /> Session Audit (
-                  {audit.length})
+                  <History className="w-4 h-4 text-cyan-400" /> Session Audit ({audit.length})
                 </h3>
                 {audit.length === 0 ? (
                   <div className="text-xs text-muted-foreground py-4 text-center">
@@ -1071,19 +976,13 @@ export default function CollaborationScreen() {
                     className="max-h-64"
                     renderItem={(a) => (
                       <div className="flex items-center gap-2 py-1.5 text-xs border-b border-border/60">
-                        <span className="font-mono text-cyan-300">
-                          {a.event}
-                        </span>
+                        <span className="font-mono text-cyan-300">{a.event}</span>
                         <span className="text-foreground">{a.peerName}</span>
                         {a.detail && (
-                          <span className="text-muted-foreground truncate">
-                            {a.detail}
-                          </span>
+                          <span className="text-muted-foreground truncate">{a.detail}</span>
                         )}
                         <span className="text-muted-foreground ml-auto">
-                          {formatAge(
-                            typeof a.at === "number" ? a.at : Date.parse(a.at),
-                          )}
+                          {formatAge(typeof a.at === "number" ? a.at : Date.parse(a.at))}
                         </span>
                       </div>
                     )}
@@ -1128,9 +1027,7 @@ export default function CollaborationScreen() {
                   <div className="flex gap-2">
                     <select
                       value={commentType}
-                      onChange={(e) =>
-                        setCommentType(e.target.value as CommentType)
-                      }
+                      onChange={(e) => setCommentType(e.target.value as CommentType)}
                       className="px-2 py-1 bg-muted border border-border rounded-lg text-xs text-foreground focus:outline-none"
                     >
                       <option value="comment">Comment</option>
@@ -1220,8 +1117,7 @@ export default function CollaborationScreen() {
             >
               <div className="flex items-center justify-between mb-2 shrink-0">
                 <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
-                  <GitBranch className="w-4 h-4 text-indigo-400" /> Change Log (
-                  {changes.length})
+                  <GitBranch className="w-4 h-4 text-indigo-400" /> Change Log ({changes.length})
                 </h2>
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-muted-foreground">
@@ -1288,9 +1184,7 @@ export default function CollaborationScreen() {
                     </div>
                   ))}
                   {peers.length === 0 && (
-                    <div className="text-xs text-muted-foreground">
-                      Just you (local).
-                    </div>
+                    <div className="text-xs text-muted-foreground">Just you (local).</div>
                   )}
                 </div>
               </div>
@@ -1381,12 +1275,10 @@ export default function CollaborationScreen() {
                 <div className="max-w-2xl space-y-4">
                   <PresenceBar currentPage="Collaboration · Report Review" />
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">
-                      Report Annotations
-                    </h2>
+                    <h2 className="text-base font-semibold text-foreground">Report Annotations</h2>
                     <p className="text-sm text-muted-foreground">
-                      Comment on each telecom report section — notes merge across
-                      tabs and LAN peers.
+                      Comment on each telecom report section — notes merge across tabs and LAN
+                      peers.
                     </p>
                   </div>
                   <ReportAnnotations />
@@ -1409,9 +1301,7 @@ export default function CollaborationScreen() {
               ) : (
                 <div className="max-w-xl space-y-4">
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">
-                      Approval Workflow
-                    </h2>
+                    <h2 className="text-base font-semibold text-foreground">Approval Workflow</h2>
                     <p className="text-sm text-muted-foreground">
                       Review and sign off the report before sharing.
                     </p>
@@ -1440,9 +1330,7 @@ export default function CollaborationScreen() {
               ) : (
                 <div className="space-y-4">
                   <div>
-                    <h2 className="text-base font-semibold text-foreground">
-                      Audit Trail
-                    </h2>
+                    <h2 className="text-base font-semibold text-foreground">Audit Trail</h2>
                     <p className="text-sm text-muted-foreground">
                       Complete log of every action taken on this report.
                     </p>

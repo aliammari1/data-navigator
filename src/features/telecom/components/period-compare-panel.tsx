@@ -3,10 +3,7 @@
 import { ArrowDown, ArrowRight, ArrowUp, Scale } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
-import {
-  fetchPeriodKPI,
-  type PeriodKPI,
-} from "@/features/telecom/lib/period-queries";
+import { fetchPeriodKPI, type PeriodKPI } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
 import { PeriodFilterBar, type PeriodValue } from "./period-filter-bar";
 
@@ -142,9 +139,7 @@ export function PeriodComparePanel({
     <div className="space-y-3">
       <div className="flex items-center gap-2">
         <Scale className="w-4 h-4 text-violet-500" />
-        <span className="text-sm font-semibold text-foreground">
-          Comparaison de périodes
-        </span>
+        <span className="text-sm font-semibold text-foreground">Comparaison de périodes</span>
         <span className="text-xs text-muted-foreground">
           A vs B — delta calculé sur la période A
         </span>
@@ -185,16 +180,9 @@ export function PeriodComparePanel({
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr
-                key={r.label}
-                className="border-b border-border last:border-0"
-              >
-                <td className="px-3 py-2 text-foreground font-medium">
-                  {r.label}
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-foreground">
-                  {r.fmt(r.A)}
-                </td>
+              <tr key={r.label} className="border-b border-border last:border-0">
+                <td className="px-3 py-2 text-foreground font-medium">{r.label}</td>
+                <td className="px-3 py-2 text-right tabular-nums text-foreground">{r.fmt(r.A)}</td>
                 <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">
                   {r.fmt(r.B)}
                 </td>
@@ -205,10 +193,7 @@ export function PeriodComparePanel({
             ))}
             {rows.length === 0 && (
               <tr>
-                <td
-                  colSpan={4}
-                  className="px-3 py-6 text-center text-xs text-muted-foreground"
-                >
+                <td colSpan={4} className="px-3 py-6 text-center text-xs text-muted-foreground">
                   {loading ? "Calcul…" : "Aucune donnée."}
                 </td>
               </tr>

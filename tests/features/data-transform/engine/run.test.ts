@@ -7,11 +7,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (...args: unknown[]) => runReadOnlyQuery(...args),
 }));
 
-import {
-  PREVIEW_LIMIT,
-  profileTable,
-  runPipeline,
-} from "@/features/data-transform/engine/run";
+import { PREVIEW_LIMIT, profileTable, runPipeline } from "@/features/data-transform/engine/run";
 import type { TransformStep } from "@/features/data-transform/engine/sql";
 
 function step(overrides: Partial<TransformStep> = {}): TransformStep {

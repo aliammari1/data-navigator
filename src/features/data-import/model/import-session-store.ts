@@ -35,9 +35,7 @@ export const useImportSession = create<ImportSessionState>((set) => ({
   add: (file) =>
     set((state) => ({
       files: { ...state.files, [file.id]: file },
-      order: state.order.includes(file.id)
-        ? state.order
-        : [file.id, ...state.order],
+      order: state.order.includes(file.id) ? state.order : [file.id, ...state.order],
     })),
 
   patch: (id, patch) =>

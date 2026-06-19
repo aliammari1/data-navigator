@@ -51,8 +51,7 @@ export const useReportDraftStore = create<ReportDraftStore>()(
             ...s.items,
           ].slice(0, MAX_DRAFT_ITEMS),
         })),
-      removeItem: (id) =>
-        set((s) => ({ items: s.items.filter((item) => item.id !== id) })),
+      removeItem: (id) => set((s) => ({ items: s.items.filter((item) => item.id !== id) })),
       clear: () => set({ items: [] }),
     }),
     {
@@ -66,8 +65,7 @@ export const useReportDraftStore = create<ReportDraftStore>()(
 
 export const useReportDraftItems = () => useReportDraftStore((s) => s.items);
 
-export const useReportDraftCount = () =>
-  useReportDraftStore((s) => s.items.length);
+export const useReportDraftCount = () => useReportDraftStore((s) => s.items.length);
 
 export const useReportDraftActions = () =>
   useReportDraftStore(

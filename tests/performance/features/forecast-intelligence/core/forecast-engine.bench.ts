@@ -70,12 +70,8 @@ const VALUES_30K = SERIES_30K.map((p) => p.value);
 
 // Pre-built fitted array (≈ a 1-step-lagged copy) for the residual-anomaly bench
 // so it measures only the anomaly scan, not a full forecast.
-const FITTED_3K = VALUES_3K.map((_, i) =>
-  i === 0 ? VALUES_3K[0]! : VALUES_3K[i - 1]!,
-);
-const FITTED_30K = VALUES_30K.map((_, i) =>
-  i === 0 ? VALUES_30K[0]! : VALUES_30K[i - 1]!,
-);
+const FITTED_3K = VALUES_3K.map((_, i) => (i === 0 ? VALUES_3K[0]! : VALUES_3K[i - 1]!));
+const FITTED_30K = VALUES_30K.map((_, i) => (i === 0 ? VALUES_30K[0]! : VALUES_30K[i - 1]!));
 
 // Aligned actual/predicted (predicted = actual shifted) for scoreForecast.
 const PRED_3K = VALUES_3K.map((v) => v * 1.02 + 1);

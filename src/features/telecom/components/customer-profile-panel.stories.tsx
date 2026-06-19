@@ -2,15 +2,10 @@ import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentProps } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
-import type {
-  ColumnMapping,
-  CustomerProfileData,
-} from "@/features/telecom/types";
+import type { ColumnMapping, CustomerProfileData } from "@/features/telecom/types";
 import { CustomerProfilePanel } from "./customer-profile-panel";
 
-type FetchCustomerProfile = ComponentProps<
-  typeof CustomerProfilePanel
->["fetchCustomerProfile"];
+type FetchCustomerProfile = ComponentProps<typeof CustomerProfilePanel>["fetchCustomerProfile"];
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",
@@ -103,9 +98,7 @@ export const NoData: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/Aucune donnée trouvée pour ce numéro/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/Aucune donnée trouvée pour ce numéro/i)).toBeInTheDocument();
   },
 };
 

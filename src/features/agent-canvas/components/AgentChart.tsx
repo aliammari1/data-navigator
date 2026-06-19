@@ -52,12 +52,7 @@ export function AgentChart({ option, className }: Props) {
     <div ref={ref} className={cn("h-full w-full", className)}>
       {height > 0 &&
         (supportsOffscreenChart() ? (
-          <OffscreenChart
-            option={option}
-            height={height}
-            theme="dark"
-            fallback={fallback}
-          />
+          <OffscreenChart option={option} height={height} theme="dark" fallback={fallback} />
         ) : (
           fallback
         ))}

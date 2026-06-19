@@ -32,9 +32,7 @@ describe("buildRawStatusFilter", () => {
   it("wraps the normalised status expression in an IN clause", () => {
     const filter = buildRawStatusFilter(["PST", "PST1"]);
 
-    expect(filter).toBe(
-      "UPPER(TRIM(CAST(TRANSACTION_STATUS AS VARCHAR))) IN ('PST','PST1')",
-    );
+    expect(filter).toBe("UPPER(TRIM(CAST(TRANSACTION_STATUS AS VARCHAR))) IN ('PST','PST1')");
   });
 });
 
@@ -42,9 +40,7 @@ describe("buildRawStatusFilterForColumn", () => {
   it("targets an arbitrary column expression", () => {
     const filter = buildRawStatusFilterForColumn("mapped_status", ["OK"]);
 
-    expect(filter).toBe(
-      "UPPER(TRIM(CAST(mapped_status AS VARCHAR))) IN ('OK')",
-    );
+    expect(filter).toBe("UPPER(TRIM(CAST(mapped_status AS VARCHAR))) IN ('OK')");
   });
 });
 

@@ -97,7 +97,7 @@ export const SQL_GOLD_CASES: readonly SqlGoldCase[] = [
   {
     id: "filter-status",
     question: "filter Status = active",
-    goldSql: "SELECT * FROM \"daily_transactions\" WHERE \"Status\" = 'active' LIMIT 500",
+    goldSql: 'SELECT * FROM "daily_transactions" WHERE "Status" = \'active\' LIMIT 500',
   },
   {
     id: "max-revenue",

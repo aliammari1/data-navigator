@@ -103,9 +103,7 @@ export const ClosedRendersNothing: Story = {
 export const ExportsDatabaseOnClick: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /exporter la base/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /exporter la base/i }));
     await expect(args.onExportDatabase).toHaveBeenCalledTimes(1);
   },
 };
@@ -113,9 +111,7 @@ export const ExportsDatabaseOnClick: Story = {
 export const LoadsAnalyticsSnapshot: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByText("Rapport transactions 2024-05-31"),
-    );
+    await userEvent.click(canvas.getByText("Rapport transactions 2024-05-31"));
     await expect(args.onLoadAnalytics).toHaveBeenCalledWith("snap-2024-05-31");
   },
 };

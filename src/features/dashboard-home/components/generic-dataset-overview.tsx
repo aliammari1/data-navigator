@@ -26,11 +26,7 @@ import type {
   NumericBucket,
 } from "@/features/dashboard-home/lib/generic-overview";
 import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
-import {
-  type EChartsOption,
-  OffscreenChart,
-  supportsOffscreenChart,
-} from "@/platform/viz";
+import { type EChartsOption, OffscreenChart, supportsOffscreenChart } from "@/platform/viz";
 import { echarts } from "@/platform/viz/echarts-core";
 
 function ChartSkeleton() {
@@ -44,13 +40,7 @@ function ChartSkeleton() {
  * tree-shaken `echarts/core` instance — never the full build — so the route
  * chunk stays small and the overview still renders everywhere.
  */
-function WorkerChart({
-  option,
-  height,
-}: {
-  option: EChartsOption;
-  height: number;
-}) {
+function WorkerChart({ option, height }: { option: EChartsOption; height: number }) {
   const fallback = (
     <ReactEChartsCore
       echarts={echarts}
@@ -80,8 +70,7 @@ const ROLE_TONE: Record<GenericColumnSummary["role"], string> = {
 };
 
 export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
-  const { data, isPending, isError, error, isFetching, refetch } =
-    useGenericOverview(dataset);
+  const { data, isPending, isError, error, isFetching, refetch } = useGenericOverview(dataset);
 
   return (
     <div className=" flex-1 overflow-y-auto">
@@ -115,9 +104,7 @@ export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
             disabled={isFetching}
             className="h-9 rounded-xl text-xs"
           >
-            <RefreshCw
-              className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`}
-            />
+            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
             Actualiser
           </Button>
         </div>
@@ -128,9 +115,7 @@ export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
           <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
             <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-destructive" />
             <div>
-              <p className="font-semibold text-foreground">
-                Impossible d'analyser le dataset
-              </p>
+              <p className="font-semibold text-foreground">Impossible d'analyser le dataset</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
                 {error instanceof Error ? error.message : "Erreur inconnue."}
               </p>
@@ -262,14 +247,10 @@ function KpiRow({ overview }: { overview: GenericOverview }) {
             </span>
             <span className={card.tone}>{card.icon}</span>
           </div>
-          <div
-            className={`text-xl font-bold leading-none tabular-nums ${card.tone}`}
-          >
+          <div className={`text-xl font-bold leading-none tabular-nums ${card.tone}`}>
             {card.value}
           </div>
-          <div className="mt-1.5 truncate text-[11px] text-muted-foreground">
-            {card.hint}
-          </div>
+          <div className="mt-1.5 truncate text-[11px] text-muted-foreground">{card.hint}</div>
         </div>
       ))}
     </div>
@@ -290,13 +271,9 @@ function ChartCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-3 flex items-start gap-2.5">
-        <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">
-          {icon}
-        </div>
+        <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">{icon}</div>
         <div className="min-w-0">
-          <h3 className="truncate text-sm font-semibold text-foreground">
-            {title}
-          </h3>
+          <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
           <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
         </div>
       </div>
@@ -330,9 +307,7 @@ function CategoricalBar({ values }: { values: CategoryCount[] }) {
     };
   }, [values]);
 
-  return (
-    <WorkerChart option={option} height={Math.max(224, values.length * 26)} />
-  );
+  return <WorkerChart option={option} height={Math.max(224, values.length * 26)} />;
 }
 
 function NumericHistogram({ buckets }: { buckets: NumericBucket[] }) {
@@ -372,13 +347,7 @@ function NumericHistogram({ buckets }: { buckets: NumericBucket[] }) {
   return <WorkerChart option={option} height={224} />;
 }
 
-function ColumnTable({
-  columns,
-  rowCount,
-}: {
-  columns: GenericColumnSummary[];
-  rowCount: number;
-}) {
+function ColumnTable({ columns, rowCount }: { columns: GenericColumnSummary[]; rowCount: number }) {
   const [search, setSearch] = useState("");
   const parentRef = useRef<HTMLDivElement>(null);
 
@@ -454,9 +423,7 @@ function ColumnTable({
                     transform: `translateY(${virtualRow.start}px)`,
                   }}
                 >
-                  <span className="truncate font-mono font-medium text-foreground">
-                    {col.name}
-                  </span>
+                  <span className="truncate font-mono font-medium text-foreground">{col.name}</span>
                   <span className={`truncate font-medium ${ROLE_TONE[col.role]}`}>
                     {ROLE_LABEL[col.role]}
                   </span>
@@ -472,9 +439,7 @@ function ColumnTable({
                   >
                     {col.nullPercentage.toFixed(1)}
                   </span>
-                  <span className="truncate text-muted-foreground">
-                    {formatRange(col)}
-                  </span>
+                  <span className="truncate text-muted-foreground">{formatRange(col)}</span>
                 </div>
               );
             })}

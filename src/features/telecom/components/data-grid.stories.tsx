@@ -1,12 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
 
-import type {
-  ColumnMapping,
-  FilterState,
-  RawRow,
-  StatusMapping,
-} from "@/features/telecom/types";
+import type { ColumnMapping, FilterState, RawRow, StatusMapping } from "@/features/telecom/types";
 import { DataGrid } from "./data-grid";
 
 const mapping: ColumnMapping = {
@@ -45,8 +40,20 @@ const filters: FilterState = {
 };
 
 const statusMapping: StatusMapping[] = [
-  { rawCode: "OK", label: "Succès", semantic: "success", color: "#a6e3a1", badgeClass: "bg-emerald-50 text-emerald-700" },
-  { rawCode: "DC01", label: "Refusé", semantic: "declined", color: "#f38ba8", badgeClass: "bg-red-50 text-red-700" },
+  {
+    rawCode: "OK",
+    label: "Succès",
+    semantic: "success",
+    color: "#a6e3a1",
+    badgeClass: "bg-emerald-50 text-emerald-700",
+  },
+  {
+    rawCode: "DC01",
+    label: "Refusé",
+    semantic: "declined",
+    color: "#f38ba8",
+    badgeClass: "bg-red-50 text-red-700",
+  },
 ];
 
 const rows: RawRow[] = Array.from({ length: 12 }, (_, i) => ({
@@ -93,9 +100,7 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      await canvas.findByText(/lignes correspondant aux filtres/i),
-    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/lignes correspondant aux filtres/i)).toBeInTheDocument();
   },
 };
 

@@ -52,14 +52,7 @@ const CANAL_KEYS: CanalKey[] = [
   "voucher_convergent",
 ];
 
-const STATUS_LABELS = [
-  "SUCCESS",
-  "DECLINED",
-  "REFUND",
-  "INSTANCE",
-  "SUBMITTED",
-  "OTHER",
-];
+const STATUS_LABELS = ["SUCCESS", "DECLINED", "REFUND", "INSTANCE", "SUBMITTED", "OTHER"];
 
 /** Bounded pseudo-random in [0, mod) derived from a counter (no Math.random). */
 function counterMod(i: number, mod: number): number {

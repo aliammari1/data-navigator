@@ -71,10 +71,7 @@ export function useTransformWorker(): {
   );
 
   const validateFragment = useCallback(
-    async (
-      fragment: string,
-      kind: "where" | "projection" | "groupby",
-    ): Promise<SqlValidation> => {
+    async (fragment: string, kind: "where" | "projection" | "groupby"): Promise<SqlValidation> => {
       const handle = getHandle();
       if (!handle) return { ok: true };
       try {

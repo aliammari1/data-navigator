@@ -116,17 +116,13 @@ async function buildSceneSection(
       // table instead of a rasterized chart.
       const built = buildWordCloudSql(view, roles);
       const rows = await runSql(built?.sql ?? null);
-      extraRows = rows
-        .slice(0, 20)
-        .map((r) => [asStr(r.word), asNum(r.count)]);
+      extraRows = rows.slice(0, 20).map((r) => [asStr(r.word), asNum(r.count)]);
       break;
     }
   }
 
   const svg = option ? await optionToSvg(option) : null;
-  const chart: ChartImage | null = svg
-    ? { svg, width: CHART_W, height: CHART_H }
-    : null;
+  const chart: ChartImage | null = svg ? { svg, width: CHART_W, height: CHART_H } : null;
 
   const section: TableSection =
     extraRows.length > 0
@@ -157,7 +153,9 @@ export interface ExportTheaterArgs {
  * Build and save the theater as a PPTX deck or PDF report. Returns the save
  * result (or throws on a hard failure the caller can surface).
  */
-export async function exportTheater(args: ExportTheaterArgs): Promise<{ saved: boolean; path?: string }> {
+export async function exportTheater(
+  args: ExportTheaterArgs,
+): Promise<{ saved: boolean; path?: string }> {
   const sections: TableSection[] = [];
   const charts: ChartImage[] = [];
 
@@ -181,8 +179,7 @@ export async function exportTheater(args: ExportTheaterArgs): Promise<{ saved: b
     throw new Error("Export worker is unavailable in this environment.");
   }
 
-  const bytes =
-    args.kind === "pptx" ? await proxy.pptx(doc) : await proxy.pdf(doc);
+  const bytes = args.kind === "pptx" ? await proxy.pptx(doc) : await proxy.pdf(doc);
   const fileName = `${(args.name || "analytics-theater").replace(/[^\w.-]+/g, "_")}.${args.kind}`;
   return saveBytes(bytes, fileName, args.kind);
 }

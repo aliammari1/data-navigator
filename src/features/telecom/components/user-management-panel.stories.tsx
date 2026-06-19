@@ -42,9 +42,7 @@ export const UserView: Story = {
   args: { currentRole: "user" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/création de comptes désactivée/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/création de comptes désactivée/i)).toBeVisible();
   },
 };
 

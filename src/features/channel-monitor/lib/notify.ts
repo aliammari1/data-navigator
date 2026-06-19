@@ -31,11 +31,7 @@ export function notificationsSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export type NotificationPermissionState =
-  | "default"
-  | "granted"
-  | "denied"
-  | "unsupported";
+export type NotificationPermissionState = "default" | "granted" | "denied" | "unsupported";
 
 export function notificationPermission(): NotificationPermissionState {
   if (!notificationsSupported()) return "unsupported";
@@ -66,11 +62,7 @@ const SEVERITY_PREFIX: Record<AlertSeverity, string> = {
  * available, otherwise falls back to the Web Notification API. No-ops cleanly
  * when permission has not been granted.
  */
-export function notify(
-  title: string,
-  body: string,
-  severity: AlertSeverity = "info",
-): void {
+export function notify(title: string, body: string, severity: AlertSeverity = "info"): void {
   const prefixed = `${SEVERITY_PREFIX[severity]} ${title}`;
 
   const electron = getElectronNotify();

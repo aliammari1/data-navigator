@@ -26,9 +26,7 @@ const verdictSchema = z.object({
 export function describeArtifact(artifact: Artifact): string {
   switch (artifact.kind) {
     case "chart": {
-      const fields = artifact.spec.encodings
-        .map((e) => `${e.channel}=${e.field}`)
-        .join(", ");
+      const fields = artifact.spec.encodings.map((e) => `${e.channel}=${e.field}`).join(", ");
       return [
         `[chart] "${artifact.title}"`,
         `type=${artifact.spec.type}`,
@@ -65,12 +63,7 @@ export function describeArtifact(artifact: Artifact): string {
   }
 }
 
-export const runCritic: CriticAgent = async ({
-  scheduler,
-  ctx,
-  task,
-  artifacts,
-}) => {
+export const runCritic: CriticAgent = async ({ scheduler, ctx, task, artifacts }) => {
   // Structural fact, not a heuristic: with nothing produced there is nothing to
   // verify, so reject immediately without spending an inference turn.
   if (artifacts.length === 0) {
@@ -84,9 +77,7 @@ export const runCritic: CriticAgent = async ({
   }
 
   const validColumns = new Set(ctx.columns.map((c) => c.name));
-  const artifactReport = artifacts
-    .map((a, i) => `${i + 1}. ${describeArtifact(a)}`)
-    .join("\n");
+  const artifactReport = artifacts.map((a, i) => `${i + 1}. ${describeArtifact(a)}`).join("\n");
 
   const system = [
     "You are a skeptical data-analysis reviewer verifying one worker's output.",
@@ -125,9 +116,7 @@ export const runCritic: CriticAgent = async ({
   );
 
   if (!result || typeof result.accepted !== "boolean") {
-    throw new Error(
-      `Critic produced no usable verdict for task "${task.id}" (${task.title}).`,
-    );
+    throw new Error(`Critic produced no usable verdict for task "${task.id}" (${task.title}).`);
   }
 
   const verdict: CriticVerdict = {

@@ -32,9 +32,7 @@ export function TheaterPresenter({ scenes }: { scenes: TheaterScene[] }) {
             transition={{ duration: 0.25 }}
           >
             {current && (
-              <h2 className="mb-2 text-lg font-semibold text-foreground">
-                {current.title}
-              </h2>
+              <h2 className="mb-2 text-lg font-semibold text-foreground">{current.title}</h2>
             )}
             {Scene ? <Scene /> : null}
           </motion.div>
@@ -44,12 +42,7 @@ export function TheaterPresenter({ scenes }: { scenes: TheaterScene[] }) {
       {/* Scroll spacers: each drives one step and carries the narration. */}
       <div className="space-y-2">
         {scenes.map((scene, i) => (
-          <section
-            key={scene.id}
-            data-scene
-            data-index={i}
-            className="flex min-h-[60vh] items-end"
-          >
+          <section key={scene.id} data-scene data-index={i} className="flex min-h-[60vh] items-end">
             <div
               className={`max-w-prose rounded-lg border p-5 text-base leading-relaxed transition-colors ${
                 i === active

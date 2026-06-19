@@ -2,10 +2,7 @@
 
 import type { ReactNode } from "react";
 import { Database, RefreshCw } from "lucide-react";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
 /** Shown when no dataset is active — instead of fabricating numbers. */
 export function NoDatasetState({

@@ -12,15 +12,7 @@ export interface ColumnInfo {
   prompt?: string; // NL prompt that produced this derived column
 }
 
-export type AggregateFn =
-  | "none"
-  | "count"
-  | "sum"
-  | "avg"
-  | "min"
-  | "max"
-  | "median"
-  | "distinct";
+export type AggregateFn = "none" | "count" | "sum" | "avg" | "min" | "max" | "median" | "distinct";
 
 export type TimeUnit = "hour" | "day" | "week" | "month" | "quarter" | "year";
 

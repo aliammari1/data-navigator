@@ -54,41 +54,35 @@ const TELECOM_TABS: readonly TelecomTab[] = [
     slug: "canals",
     name: "canals (channel content)",
     // Channel surface ("canal"/"canaux") or the channel loading panel.
-    keyRegion:
-      /canal|canaux|chargement de la table|patientez|rapport|aucun rapport|importer/i,
+    keyRegion: /canal|canaux|chargement de la table|patientez|rapport|aucun rapport|importer/i,
   },
   {
     slug: "analysis",
     name: "analysis",
-    keyRegion:
-      /analyse|opérateur|région|chargement de l'analyse|rapport|aucun rapport|importer/i,
+    keyRegion: /analyse|opérateur|région|chargement de l'analyse|rapport|aucun rapport|importer/i,
   },
   {
     slug: "grid",
     name: "grid (data grid)",
     // Raw-data grid: search/filter bar and column controls, or shell fallback.
-    keyRegion:
-      /rechercher|msisdn|statut|colonnes|filtre|rapport|aucun rapport|importer/i,
+    keyRegion: /rechercher|msisdn|statut|colonnes|filtre|rapport|aucun rapport|importer/i,
   },
   {
     slug: "period",
     name: "period",
-    keyRegion:
-      /période|periode|comparaison|studio|rapport|aucun rapport|importer/i,
+    keyRegion: /période|periode|comparaison|studio|rapport|aucun rapport|importer/i,
   },
   {
     slug: "day",
     name: "day",
-    keyRegion:
-      /jour|journalier|heure|horaire|rapport|aucun rapport|importer/i,
+    keyRegion: /jour|journalier|heure|horaire|rapport|aucun rapport|importer/i,
   },
   {
     slug: "history",
     name: "history (audit / annotations)",
     // History tab always mounts (no dataset required): analytics history copy,
     // or the report shell as a safe fallback.
-    keyRegion:
-      /historique|analytics|audit|annotation|sauvegard|rapport|importer/i,
+    keyRegion: /historique|analytics|audit|annotation|sauvegard|rapport|importer/i,
   },
   {
     slug: "config",
@@ -113,11 +107,7 @@ async function expectHealthyPage(page: Page, anchor: RegExp): Promise<void> {
  * lazily) and asserts the URL plus a tolerant anchor, mirroring the gotoPage
  * helper used by the existing journey suite.
  */
-async function gotoTelecom(
-  page: Page,
-  path: string,
-  anchor: RegExp = REPORT_SHELL,
-): Promise<void> {
+async function gotoTelecom(page: Page, path: string, anchor: RegExp = REPORT_SHELL): Promise<void> {
   // Under `next dev`, the first hit of a heavy telecom tab compiles on demand;
   // when several workers compile distinct tabs at once the dev server can abort
   // an in-flight navigation (`net::ERR_ABORTED; maybe frame was detached?`).
@@ -212,15 +202,11 @@ test.describe("Telecom report flagship journey", () => {
     await expect(reportRegion(page)).toBeVisible();
   });
 
-  test("the telecom report shell renders its header and import entry point", async ({
-    page,
-  }) => {
+  test("the telecom report shell renders its header and import entry point", async ({ page }) => {
     await gotoTelecom(page, `${TELECOM_BASE}/overview`);
 
     // Persistent toolbar chrome: report title + Importer action.
-    await expect(
-      page.getByText(/rapport journalier des transactions télécom/i),
-    ).toBeVisible();
+    await expect(page.getByText(/rapport journalier des transactions télécom/i)).toBeVisible();
     await expect(
       page.getByRole("button", { name: /importer|charger un rapport/i }).first(),
     ).toBeVisible();
@@ -228,17 +214,13 @@ test.describe("Telecom report flagship journey", () => {
 
   // One robust test per tab: route loads and the tab's key region is present.
   for (const tab of TELECOM_TABS) {
-    test(`tab ${tab.name} is routable and shows its key region`, async ({
-      page,
-    }) => {
+    test(`tab ${tab.name} is routable and shows its key region`, async ({ page }) => {
       await gotoTelecom(page, `${TELECOM_BASE}/${tab.slug}`, tab.keyRegion);
       await expect(reportRegion(page)).toBeVisible();
     });
   }
 
-  test("the full tab journey walks every section in sequence", async ({
-    page,
-  }) => {
+  test("the full tab journey walks every section in sequence", async ({ page }) => {
     // Start at the base route. Its server `redirect()` to /overview surfaces as
     // an in-RSC replace under `next dev` (no HTTP redirect / Location header),
     // so the browser URL stays on the base path in this environment while the

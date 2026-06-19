@@ -85,9 +85,7 @@ function findDataset(
   );
 }
 
-async function resolveSchema(
-  tableNameOrDatasetId: string,
-): Promise<ResolvedSchema> {
+async function resolveSchema(tableNameOrDatasetId: string): Promise<ResolvedSchema> {
   const catalog = await listRegisteredDatasets().catch(() => []);
   const dataset = findDataset(catalog, tableNameOrDatasetId);
 
@@ -142,11 +140,7 @@ function inferSemantic(
 
   if (type.includes("bool")) return "boolean";
 
-  if (
-    type.includes("date") ||
-    type.includes("time") ||
-    type.includes("timestamp")
-  ) {
+  if (type.includes("date") || type.includes("time") || type.includes("timestamp")) {
     return "datetime";
   }
 
@@ -163,9 +157,7 @@ function inferSemantic(
     "tinyint",
   ];
 
-  const isNumeric = numericTypes.some((numericType) =>
-    type.includes(numericType),
-  );
+  const isNumeric = numericTypes.some((numericType) => type.includes(numericType));
 
   if (isNumeric) {
     if (name.includes("id") && cardinalityRatio > 0.8) return "id";
@@ -279,9 +271,7 @@ async function profileColumnsBatched(input: {
   try {
     const summaryRows: SummarizeRow[] = datasetId
       ? ((await profileDataset({ datasetId })) as SummarizeRow[])
-      : ((await runReadOnlyQuery(
-          `SUMMARIZE SELECT * FROM ${quotedTable}`,
-        )) as SummarizeRow[]);
+      : ((await runReadOnlyQuery(`SUMMARIZE SELECT * FROM ${quotedTable}`)) as SummarizeRow[]);
     for (const row of summaryRows) {
       const name = String(row.column_name ?? "");
       if (name) summaryByName.set(name, row);
@@ -345,9 +335,7 @@ export async function analyzeSchema(
   const resolved = await resolveSchema(tableNameOrDatasetId);
   const { tableName, rowCount, columns } = resolved;
 
-  emit(
-    `Profiling ${columns.length} columns × ${rowCount.toLocaleString()} rows…`,
-  );
+  emit(`Profiling ${columns.length} columns × ${rowCount.toLocaleString()} rows…`);
 
   const profiles = await profileColumnsBatched({
     tableName,
@@ -363,20 +351,14 @@ export async function analyzeSchema(
   const dimensions = profiles
     .filter(
       (column) =>
-        column.semantic === "categorical" &&
-        column.cardinality >= 2 &&
-        column.cardinality <= 200,
+        column.semantic === "categorical" && column.cardinality >= 2 && column.cardinality <= 200,
     )
     .sort((a, b) => a.cardinality - b.cardinality)
     .map((column) => column.name)
     .slice(0, 8);
 
   const metrics = profiles
-    .filter(
-      (column) =>
-        column.semantic === "numeric" &&
-        !column.name.toLowerCase().includes("id"),
-    )
+    .filter((column) => column.semantic === "numeric" && !column.name.toLowerCase().includes("id"))
     .map((column) => column.name)
     .slice(0, 8);
 
@@ -391,10 +373,7 @@ export async function analyzeSchema(
 
     try {
       const columnList = profiles
-        .map(
-          (column) =>
-            `${column.name}(${column.semantic}, card=${column.cardinality})`,
-        )
+        .map((column) => `${column.name}(${column.semantic}, card=${column.cardinality})`)
         .join(", ");
 
       // Structured output: the model returns { summary } — guaranteed valid by

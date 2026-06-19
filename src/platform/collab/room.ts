@@ -21,16 +21,9 @@
 "use client";
 
 import * as Y from "yjs";
-import {
-  createAwareness,
-  destroyAwareness,
-} from "./awareness";
+import { createAwareness, destroyAwareness } from "./awareness";
 import { attachPersistence, detachPersistence } from "./persistence";
-import type {
-  CollabConnectOptions,
-  CollabRoomDoc,
-  CollabTransportStatus,
-} from "./types";
+import type { CollabConnectOptions, CollabRoomDoc, CollabTransportStatus } from "./types";
 
 const BROADCAST_PREFIX = "dn-room-v1:";
 const PERSIST_PREFIX = "dn-room-";
@@ -72,10 +65,7 @@ function wireBroadcast(
   doc.on("update", handleUpdate);
 
   channel.onmessage = (event: MessageEvent<ArrayBuffer | Uint8Array>) => {
-    const data =
-      event.data instanceof Uint8Array
-        ? event.data
-        : new Uint8Array(event.data);
+    const data = event.data instanceof Uint8Array ? event.data : new Uint8Array(event.data);
     Y.applyUpdate(doc, data, "remote");
   };
 
@@ -225,10 +215,7 @@ function emitRoomStatus(entry: RoomEntry, status: CollabTransportStatus): void {
  * Honors the offline ordering invariant: awaits `whenStored` (local load)
  * before connecting so offline edits are never clobbered by remote state.
  */
-export async function connectRoomLAN(
-  roomId: string,
-  opts: CollabConnectOptions,
-): Promise<void> {
+export async function connectRoomLAN(roomId: string, opts: CollabConnectOptions): Promise<void> {
   const entry = rooms.get(roomId);
   if (!entry) throw new Error(`connectRoomLAN: room "${roomId}" not acquired`);
   if (!opts.url) return;

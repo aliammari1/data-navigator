@@ -42,11 +42,7 @@ import {
   type ImportHistoryEntry,
   useImportHistory,
 } from "@/features/data-import/lib/use-import-history";
-import {
-  formatBytes,
-  getFileIcon,
-  StatusStep,
-} from "@/features/data-import/model/helpers";
+import { formatBytes, getFileIcon, StatusStep } from "@/features/data-import/model/helpers";
 import { useImportSession } from "@/features/data-import/model/import-session-store";
 import {
   ENCODING_LABELS,
@@ -72,12 +68,7 @@ import { cn } from "@/lib/utils";
 type DropzoneRootGetter = ReturnType<typeof useDropzone>["getRootProps"];
 type DropzoneInputGetter = ReturnType<typeof useDropzone>["getInputProps"];
 
-const IN_PROGRESS_STATUSES: UploadStatus[] = [
-  "reading",
-  "parsing",
-  "validating",
-  "loading_db",
-];
+const IN_PROGRESS_STATUSES: UploadStatus[] = ["reading", "parsing", "validating", "loading_db"];
 
 function getDisplaySize(size: number) {
   return size > 0 ? formatBytes(size) : "Fichier local";
@@ -135,13 +126,7 @@ function getStepStatus(
   file: ParsedFileInfo,
   step: UploadStatus,
 ): "pending" | "active" | "done" | "error" {
-  const order: UploadStatus[] = [
-    "reading",
-    "parsing",
-    "validating",
-    "loading_db",
-    "done",
-  ];
+  const order: UploadStatus[] = ["reading", "parsing", "validating", "loading_db", "done"];
 
   if (file.status === "error") {
     return step === file.status ? "error" : "pending";
@@ -192,11 +177,7 @@ export default function DataImportScreen() {
   // exports that would otherwise mojibake.
   const [encoding, setEncoding] = useState<ImportEncoding>("auto");
 
-  const {
-    history,
-    loading: historyLoading,
-    refresh: refreshHistory,
-  } = useImportHistory();
+  const { history, loading: historyLoading, refresh: refreshHistory } = useImportHistory();
 
   // Clear the in-memory session list when the screen mounts so a reload starts
   // fresh; persisted history is shown separately from the catalog.
@@ -211,9 +192,7 @@ export default function DataImportScreen() {
   );
 
   const selectedFile =
-    (selectedFileId ? files[selectedFileId] : undefined) ??
-    orderedFiles[0] ??
-    null;
+    (selectedFileId ? files[selectedFileId] : undefined) ?? orderedFiles[0] ?? null;
 
   const completedFiles = useMemo(
     () => orderedFiles.filter((file) => file.status === "done"),
@@ -361,9 +340,7 @@ export default function DataImportScreen() {
       const supported = paths.filter(isSupportedImportPath);
 
       if (supported.length === 0) {
-        setDropNotice(
-          "Aucun fichier pris en charge. Formats acceptés : CSV, TSV, TXT, Parquet.",
-        );
+        setDropNotice("Aucun fichier pris en charge. Formats acceptés : CSV, TSV, TXT, Parquet.");
         return;
       }
 
@@ -395,9 +372,7 @@ export default function DataImportScreen() {
 
             <div className="min-w-0">
               <h1 className="truncate text-sm font-bold text-foreground">
-                {isTelecomMode
-                  ? "Charger un rapport télécom"
-                  : "Importer des données"}
+                {isTelecomMode ? "Charger un rapport télécom" : "Importer des données"}
               </h1>
               <p className="truncate text-xs text-muted-foreground">
                 Fichiers locaux · DuckDB natif · Cache Parquet managé
@@ -488,10 +463,7 @@ export default function DataImportScreen() {
               hasDone={completedFiles.length > 0}
             />
 
-            <ImportHistoryPanel
-              history={history}
-              loading={historyLoading}
-            />
+            <ImportHistoryPanel history={history} loading={historyLoading} />
           </section>
 
           <aside className="space-y-4">
@@ -503,10 +475,7 @@ export default function DataImportScreen() {
 
             <UploadPipelineCard selectedFile={selectedFile} />
 
-            <UploadSummaryCard
-              files={orderedFiles}
-              totalStorageUsed={totalStorageUsed}
-            />
+            <UploadSummaryCard files={orderedFiles} totalStorageUsed={totalStorageUsed} />
 
             {selectedFile?.issues.length ? (
               <ValidationIssuesCard issues={selectedFile.issues} />
@@ -514,12 +483,10 @@ export default function DataImportScreen() {
 
             {latestCompletedFile?.status === "done" && isTelecomMode && (
               <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
-                <div className="text-sm font-bold text-primary">
-                  Rapport prêt
-                </div>
+                <div className="text-sm font-bold text-primary">Rapport prêt</div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Le fichier est enregistré dans le catalogue local DuckDB et
-                  disponible via une vue optimisée sur cache Parquet.
+                  Le fichier est enregistré dans le catalogue local DuckDB et disponible via une vue
+                  optimisée sur cache Parquet.
                 </p>
                 <Button
                   type="button"
@@ -547,9 +514,8 @@ function TelecomUploadNotice() {
       </div>
 
       <p className="mt-1 text-xs text-muted-foreground">
-        Importez le fichier journalier des transactions. Les fichiers
-        pipe-delimited CSV/TXT sont chargés localement, convertis en Parquet et
-        exposés comme dataset DuckDB.
+        Importez le fichier journalier des transactions. Les fichiers pipe-delimited CSV/TXT sont
+        chargés localement, convertis en Parquet et exposés comme dataset DuckDB.
       </p>
 
       <div className="mt-3 grid grid-cols-2 gap-1.5 md:grid-cols-4">
@@ -613,9 +579,7 @@ function UploadDropzone({
         </motion.div>
 
         <h2 className="mt-6 text-lg font-bold text-foreground">
-          {canUpload
-            ? "Importez un dataset local"
-            : "Votre rôle ne permet pas l'import"}
+          {canUpload ? "Importez un dataset local" : "Votre rôle ne permet pas l'import"}
         </h2>
 
         <p className="mt-2 max-w-lg text-sm text-muted-foreground">
@@ -643,8 +607,8 @@ function UploadDropzone({
 
         {!electronAvailable && (
           <div className="mt-4 max-w-md rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">
-            L'import optimisé nécessite Electron, car DuckDB doit lire le
-            fichier directement depuis le disque.
+            L'import optimisé nécessite Electron, car DuckDB doit lire le fichier directement depuis
+            le disque.
           </div>
         )}
 
@@ -709,9 +673,7 @@ function UploadedFilesPanel({
             <HardDrive className="h-4 w-4" />
           </div>
           <div>
-            <div className="text-sm font-bold text-foreground">
-              Aucun fichier importé
-            </div>
+            <div className="text-sm font-bold text-foreground">Aucun fichier importé</div>
             <div className="text-xs text-muted-foreground">
               Les imports apparaîtront ici pendant la session.
             </div>
@@ -725,9 +687,7 @@ function UploadedFilesPanel({
     <div className="rounded-2xl border border-border bg-card">
       <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
         <div>
-          <div className="text-sm font-bold text-foreground">
-            Imports de la session
-          </div>
+          <div className="text-sm font-bold text-foreground">Imports de la session</div>
           <div className="text-xs text-muted-foreground">
             {count} fichier{count > 1 ? "s" : ""}
           </div>
@@ -775,11 +735,7 @@ function UploadedFilesPanel({
                   }}
                   className="border-b border-border"
                 >
-                  <FileRow
-                    id={id}
-                    selected={selectedFileId === id}
-                    onSelect={onSelect}
-                  />
+                  <FileRow id={id} selected={selectedFileId === id} onSelect={onSelect} />
                 </div>
               );
             })}
@@ -788,12 +744,7 @@ function UploadedFilesPanel({
       ) : (
         <div className="divide-y divide-border">
           {order.map((id) => (
-            <FileRow
-              key={id}
-              id={id}
-              selected={selectedFileId === id}
-              onSelect={onSelect}
-            />
+            <FileRow key={id} id={id} selected={selectedFileId === id} onSelect={onSelect} />
           ))}
         </div>
       )}
@@ -833,9 +784,7 @@ function FileRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-semibold text-foreground">
-          {file.name}
-        </div>
+        <div className="truncate text-sm font-semibold text-foreground">{file.name}</div>
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
           <span>{getDisplaySize(file.size)}</span>
           <span>·</span>
@@ -878,10 +827,7 @@ function FileStatusBadge({ file }: { file: ParsedFileInfo }) {
   }
 
   return (
-    <Badge
-      variant="outline"
-      className="border-primary/25 bg-primary/10 text-primary"
-    >
+    <Badge variant="outline" className="border-primary/25 bg-primary/10 text-primary">
       <Loader2 className="mr-1 h-3 w-3 animate-spin" />
       {getStatusLabel(file.status)}
     </Badge>
@@ -902,9 +848,7 @@ function ImportHistoryPanel({
       <div className="flex items-center gap-2 border-b border-border px-5 py-4">
         <History className="h-4 w-4 text-muted-foreground" />
         <div>
-          <div className="text-sm font-bold text-foreground">
-            Datasets enregistrés
-          </div>
+          <div className="text-sm font-bold text-foreground">Datasets enregistrés</div>
           <div className="text-xs text-muted-foreground">
             Catalogue DuckDB local · persiste après rechargement
           </div>
@@ -919,17 +863,12 @@ function ImportHistoryPanel({
       ) : (
         <div className="divide-y divide-border">
           {history.slice(0, 12).map((entry) => (
-            <div
-              key={entry.id}
-              className="flex items-center gap-3 px-5 py-3"
-            >
+            <div key={entry.id} className="flex items-center gap-3 px-5 py-3">
               <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl border border-border bg-background text-muted-foreground">
                 <Database className="h-4 w-4" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="truncate text-sm font-semibold text-foreground">
-                  {entry.name}
-                </div>
+                <div className="truncate text-sm font-semibold text-foreground">{entry.name}</div>
                 <div className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
                   <span>{entry.rows.toLocaleString()} lignes</span>
                   <span>·</span>
@@ -972,26 +911,19 @@ function ImportSettingsCard({
         </div>
         <div>
           <div className="text-sm font-bold text-foreground">Encodage CSV</div>
-          <div className="text-xs text-muted-foreground">
-            Pour les exports Latin-1 / UTF-16
-          </div>
+          <div className="text-xs text-muted-foreground">Pour les exports Latin-1 / UTF-16</div>
         </div>
       </div>
 
       <div className="mt-4">
-        <label
-          htmlFor={selectId}
-          className="text-[11px] font-medium text-muted-foreground"
-        >
+        <label htmlFor={selectId} className="text-[11px] font-medium text-muted-foreground">
           Encodage du fichier
         </label>
         <select
           id={selectId}
           value={encoding}
           disabled={disabled}
-          onChange={(event) =>
-            onEncodingChange(event.target.value as ImportEncoding)
-          }
+          onChange={(event) => onEncodingChange(event.target.value as ImportEncoding)}
           className={cn(
             "mt-1.5 h-9 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground",
             "focus:outline-none focus:ring-2 focus:ring-ring",
@@ -1015,11 +947,7 @@ function ImportSettingsCard({
   );
 }
 
-function UploadPipelineCard({
-  selectedFile,
-}: {
-  selectedFile: ParsedFileInfo | null;
-}) {
+function UploadPipelineCard({ selectedFile }: { selectedFile: ParsedFileInfo | null }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-3">
@@ -1027,9 +955,7 @@ function UploadPipelineCard({
           <Activity className="h-4 w-4" />
         </div>
         <div>
-          <div className="text-sm font-bold text-foreground">
-            Pipeline d'import
-          </div>
+          <div className="text-sm font-bold text-foreground">Pipeline d'import</div>
           <div className="text-xs text-muted-foreground">
             Sélection, cache Parquet et vue DuckDB
           </div>
@@ -1054,9 +980,7 @@ function UploadPipelineCard({
                 <>
                   <span>·</span>
                   <span>
-                    {selectedFile.metadataSource === "full"
-                      ? "Stats complètes"
-                      : "Stats aperçu"}
+                    {selectedFile.metadataSource === "full" ? "Stats complètes" : "Stats aperçu"}
                   </span>
                   {selectedFile.encoding !== "auto" && (
                     <>
@@ -1064,27 +988,22 @@ function UploadPipelineCard({
                       <span className="uppercase">{selectedFile.encoding}</span>
                     </>
                   )}
-                  {selectedFile.rejectCount !== undefined &&
-                    selectedFile.rejectCount > 0 && (
-                      <>
-                        <span>·</span>
-                        <span className="text-warning">
-                          {selectedFile.rejectCount} rejet
-                          {selectedFile.rejectCount > 1 ? "s" : ""}
-                        </span>
-                      </>
-                    )}
+                  {selectedFile.rejectCount !== undefined && selectedFile.rejectCount > 0 && (
+                    <>
+                      <span>·</span>
+                      <span className="text-warning">
+                        {selectedFile.rejectCount} rejet
+                        {selectedFile.rejectCount > 1 ? "s" : ""}
+                      </span>
+                    </>
+                  )}
                 </>
               )}
             </div>
 
-            {selectedFile.status !== "done" &&
-              selectedFile.status !== "error" && (
-                <Progress
-                  value={selectedFile.progress}
-                  className="mt-3 h-1.5"
-                />
-              )}
+            {selectedFile.status !== "done" && selectedFile.status !== "error" && (
+              <Progress value={selectedFile.progress} className="mt-3 h-1.5" />
+            )}
           </div>
 
           {[
@@ -1141,15 +1060,9 @@ function UploadSummaryCard({
 }) {
   const readyFiles = files.filter((file) => file.status === "done");
 
-  const totalRows = readyFiles.reduce(
-    (total, file) => total + file.rowCount,
-    0,
-  );
+  const totalRows = readyFiles.reduce((total, file) => total + file.rowCount, 0);
 
-  const totalColumns = readyFiles.reduce(
-    (total, file) => total + file.columnCount,
-    0,
-  );
+  const totalColumns = readyFiles.reduce((total, file) => total + file.columnCount, 0);
 
   const duckDbFiles = readyFiles.filter((file) => file.dbTableName).length;
 
@@ -1184,8 +1097,7 @@ function UploadSummaryCard({
       value:
         readyFiles.length > 0
           ? `${Math.round(
-              readyFiles.reduce((sum, file) => sum + file.parseTime, 0) /
-                readyFiles.length,
+              readyFiles.reduce((sum, file) => sum + file.parseTime, 0) / readyFiles.length,
             )}ms`
           : "—",
       icon: Zap,
@@ -1195,19 +1107,14 @@ function UploadSummaryCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="text-sm font-bold text-foreground">Résumé</div>
-      <div className="mt-1 text-xs text-muted-foreground">
-        Etat de l'import courant
-      </div>
+      <div className="mt-1 text-xs text-muted-foreground">Etat de l'import courant</div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
         {stats.map((stat) => {
           const Icon = stat.icon;
 
           return (
-            <div
-              key={stat.label}
-              className="rounded-xl border border-border bg-background p-3"
-            >
+            <div key={stat.label} className="rounded-xl border border-border bg-background p-3">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <Icon className="h-3.5 w-3.5" />
                 <span className="text-[10px] font-medium">{stat.label}</span>
@@ -1227,9 +1134,7 @@ function ValidationIssuesCard({ issues }: { issues: ValidationIssue[] }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="text-sm font-bold text-foreground">Validation</div>
-      <div className="mt-1 text-xs text-muted-foreground">
-        Alertes détectées pendant l'import
-      </div>
+      <div className="mt-1 text-xs text-muted-foreground">Alertes détectées pendant l'import</div>
 
       <div className="mt-4 space-y-2">
         {issues.map((issue) => (

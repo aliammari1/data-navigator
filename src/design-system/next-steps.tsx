@@ -51,9 +51,7 @@ export function NextSteps({
                   {step.label}
                 </span>
                 {step.hint ? (
-                  <span className="block truncate text-xs text-muted-foreground">
-                    {step.hint}
-                  </span>
+                  <span className="block truncate text-xs text-muted-foreground">{step.hint}</span>
                 ) : null}
               </span>
               <ArrowRight className="size-4 flex-none text-muted-foreground transition-transform group-hover:translate-x-0.5" />

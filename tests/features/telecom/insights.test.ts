@@ -6,12 +6,7 @@ import {
   generateNarrative,
   linearRegression,
 } from "@/features/telecom/lib/insights";
-import type {
-  AIInsight,
-  CanalSummary,
-  HourlyRow,
-  KPISummary,
-} from "@/features/telecom/types";
+import type { AIInsight, CanalSummary, HourlyRow, KPISummary } from "@/features/telecom/types";
 
 // ─── Test fixtures ────────────────────────────────────────────────────────────
 
@@ -107,9 +102,7 @@ describe("detectHourlyAnomalies", () => {
   });
 
   it("caps results at the five strongest anomalies sorted by magnitude", () => {
-    const rows = Array.from({ length: 24 }, (_, h) =>
-      hourly(h, h % 2 === 0 ? 1000 : 1),
-    );
+    const rows = Array.from({ length: 24 }, (_, h) => hourly(h, h % 2 === 0 ? 1000 : 1));
 
     const anomalies = detectHourlyAnomalies(rows);
 
@@ -427,9 +420,7 @@ describe("computeAIInsights", () => {
       positive: 3,
     };
     for (let i = 1; i < insights.length; i++) {
-      expect(weight[insights[i].severity]).toBeGreaterThanOrEqual(
-        weight[insights[i - 1].severity],
-      );
+      expect(weight[insights[i].severity]).toBeGreaterThanOrEqual(weight[insights[i - 1].severity]);
     }
   });
 

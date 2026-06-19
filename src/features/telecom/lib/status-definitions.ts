@@ -60,72 +60,64 @@ export const SEMANTIC_STATUS_OPTIONS: Array<{
   label: string;
   badgeClass: string;
   color: string;
-}> = (
-  [
-    "success",
-    "declined",
-    "instance",
-    "refund",
-    "submitted",
-    "other",
-  ] as StatusSemantic[]
-).map((value) => ({
-  value,
-  ...STATUS_PRESENTATION[value],
-}));
+}> = (["success", "declined", "instance", "refund", "submitted", "other"] as StatusSemantic[]).map(
+  (value) => ({
+    value,
+    ...STATUS_PRESENTATION[value],
+  }),
+);
 
-export const BUILTIN_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> =
-  {
-    success: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
-    declined: [
-      "DCL",
-      "DCT",
-      "DCA",
-      "DCR",
-      "DCB",
-      "RDCL",
-      "RDCT",
-      "RDCA",
-      "RDCR",
-      "SDL1",
-      "SDL2",
-      "SDL3",
-      "SDL4",
-      "SDL7",
-      "PDL",
-      "PDL1",
-      "REJ",
-      "CAN",
-      "FLD",
-      "ERR",
-    ],
-    refund: ["RFD", "RFD3", "RFD4", "RVS"],
-    instance: [
-      "HLD",
-      "TPP",
-      "TTO",
-      "PRF",
-      "RHL",
-      "RTO",
-      "STO",
-      "STP",
-      "SRV",
-      "SRV1",
-      "SRTO",
-      "RHD",
-      "RHD3",
-      "RHD4",
-      "DBT",
-      "DBA",
-      "RDBT",
-      "RDBA",
-      "SDT",
-      "SRDT",
-      "PND",
-      "EXP",
-    ],
-    submitted: ["SBM"],
-  };
+export const BUILTIN_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> = {
+  success: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
+  declined: [
+    "DCL",
+    "DCT",
+    "DCA",
+    "DCR",
+    "DCB",
+    "RDCL",
+    "RDCT",
+    "RDCA",
+    "RDCR",
+    "SDL1",
+    "SDL2",
+    "SDL3",
+    "SDL4",
+    "SDL7",
+    "PDL",
+    "PDL1",
+    "REJ",
+    "CAN",
+    "FLD",
+    "ERR",
+  ],
+  refund: ["RFD", "RFD3", "RFD4", "RVS"],
+  instance: [
+    "HLD",
+    "TPP",
+    "TTO",
+    "PRF",
+    "RHL",
+    "RTO",
+    "STO",
+    "STP",
+    "SRV",
+    "SRV1",
+    "SRTO",
+    "RHD",
+    "RHD3",
+    "RHD4",
+    "DBT",
+    "DBA",
+    "RDBT",
+    "RDBA",
+    "SDT",
+    "SRDT",
+    "PND",
+    "EXP",
+  ],
+  submitted: ["SBM"],
+};
 
 export const REPORT_HOLD_STATUS_CODES = [
   "HLD",
@@ -144,14 +136,7 @@ export const REPORT_HOLD_STATUS_CODES = [
   "RHD4",
 ];
 
-export const REPORT_DOUBT_STATUS_CODES = [
-  "DBT",
-  "DBA",
-  "RDBT",
-  "RDBA",
-  "SDT",
-  "SRDT",
-];
+export const REPORT_DOUBT_STATUS_CODES = ["DBT", "DBA", "RDBT", "RDBA", "SDT", "SRDT"];
 
 export const REPORT_INSTANCE_STATUS_CODES = [
   ...REPORT_HOLD_STATUS_CODES,
@@ -224,29 +209,26 @@ const DEFAULT_STATUS_MAPPING_DEFS: Array<{
     semantic: "refund" as const,
   })),
   { rawCode: "RVS", semantic: "refund" },
-  ...["HLD", "TPP", "TTO", "PRF", "RHL", "DBT", "DBA", "PND", "EXP"].map(
-    (rawCode) => ({
-      rawCode,
-      semantic: "instance" as const,
-    }),
-  ),
+  ...["HLD", "TPP", "TTO", "PRF", "RHL", "DBT", "DBA", "PND", "EXP"].map((rawCode) => ({
+    rawCode,
+    semantic: "instance" as const,
+  })),
   { rawCode: "SBM", semantic: "submitted" },
 ];
 
-export const DEFAULT_STATUS_MAPPINGS: StatusMapping[] =
-  DEFAULT_STATUS_MAPPING_DEFS.map(
-    ({ rawCode, semantic, color, badgeClass }) => {
-      const presentation = STATUS_PRESENTATION[semantic];
+export const DEFAULT_STATUS_MAPPINGS: StatusMapping[] = DEFAULT_STATUS_MAPPING_DEFS.map(
+  ({ rawCode, semantic, color, badgeClass }) => {
+    const presentation = STATUS_PRESENTATION[semantic];
 
-      return {
-        rawCode,
-        label: presentation.label,
-        semantic,
-        color: color ?? presentation.color,
-        badgeClass: badgeClass ?? presentation.badgeClass,
-      };
-    },
-  );
+    return {
+      rawCode,
+      label: presentation.label,
+      semantic,
+      color: color ?? presentation.color,
+      badgeClass: badgeClass ?? presentation.badgeClass,
+    };
+  },
+);
 
 export const STATUS_AUTO_SEMANTIC_BY_CODE: Record<string, StatusSemantic> = {
   PST: "success",
@@ -282,33 +264,19 @@ export function sqlStatusInList(codes: string[]): string {
   return codes.map(sqlLiteral).join(",");
 }
 
-export const RAW_TRANSACTION_STATUS_EXPR =
-  "UPPER(TRIM(CAST(TRANSACTION_STATUS AS VARCHAR)))";
+export const RAW_TRANSACTION_STATUS_EXPR = "UPPER(TRIM(CAST(TRANSACTION_STATUS AS VARCHAR)))";
 
 export function buildRawStatusFilter(codes: string[]): string {
   return `${RAW_TRANSACTION_STATUS_EXPR} IN (${sqlStatusInList(codes)})`;
 }
 
 /** Build a raw-status filter for an arbitrary column expression (e.g. mapped column). */
-export function buildRawStatusFilterForColumn(
-  columnExpr: string,
-  codes: string[],
-): string {
+export function buildRawStatusFilterForColumn(columnExpr: string, codes: string[]): string {
   return `UPPER(TRIM(CAST(${columnExpr} AS VARCHAR))) IN (${sqlStatusInList(codes)})`;
 }
 
-export const SPEC_SUCCESS_FILTER = buildRawStatusFilter(
-  SPEC_STATUS_CODES.success,
-);
-export const SPEC_REFUND_FILTER = buildRawStatusFilter(
-  SPEC_STATUS_CODES.refund,
-);
-export const SPEC_INSTANCE_FILTER = buildRawStatusFilter(
-  SPEC_STATUS_CODES.instance,
-);
-export const SPEC_DECLINED_FILTER = buildRawStatusFilter(
-  SPEC_STATUS_CODES.declined,
-);
-export const SPEC_SUBMITTED_FILTER = buildRawStatusFilter(
-  SPEC_STATUS_CODES.submitted,
-);
+export const SPEC_SUCCESS_FILTER = buildRawStatusFilter(SPEC_STATUS_CODES.success);
+export const SPEC_REFUND_FILTER = buildRawStatusFilter(SPEC_STATUS_CODES.refund);
+export const SPEC_INSTANCE_FILTER = buildRawStatusFilter(SPEC_STATUS_CODES.instance);
+export const SPEC_DECLINED_FILTER = buildRawStatusFilter(SPEC_STATUS_CODES.declined);
+export const SPEC_SUBMITTED_FILTER = buildRawStatusFilter(SPEC_STATUS_CODES.submitted);

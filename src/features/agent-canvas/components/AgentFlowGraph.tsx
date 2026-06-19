@@ -78,27 +78,14 @@ function AgentNode({ data }: { data: AgentNodeData }) {
       )}
       onClick={data.onClick}
     >
-      <Handle
-        type="target"
-        position={Position.Top}
-        className="bg-slate-700! border-0! w-2! h-2!"
-      />
+      <Handle type="target" position={Position.Top} className="bg-slate-700! border-0! w-2! h-2!" />
       <div className="flex items-center justify-center gap-1.5">
         <span className="text-sm">{TYPE_ICON[data.type]}</span>
         <div className="flex flex-col items-start">
-          <span className="text-[11px] font-semibold text-white leading-tight">
-            {data.label}
-          </span>
+          <span className="text-[11px] font-semibold text-white leading-tight">{data.label}</span>
           <div className="flex items-center gap-1 mt-0.5">
-            <span
-              className={cn(
-                "w-1.5 h-1.5 rounded-full",
-                STATUS_DOT[data.status],
-              )}
-            />
-            <span className="text-[9px] text-slate-500 capitalize">
-              {data.status}
-            </span>
+            <span className={cn("w-1.5 h-1.5 rounded-full", STATUS_DOT[data.status])} />
+            <span className="text-[9px] text-slate-500 capitalize">{data.status}</span>
           </div>
         </div>
       </div>
@@ -188,9 +175,7 @@ function StatsStrip() {
   // Narrow selectors keep this strip off the per-thought re-render path.
   const tokenCount = useAgentStore((s) => s.tokenCount);
   const toolCallCnt = useAgentStore((s) => s.toolCallCnt);
-  const doneCount = useAgentStore(
-    (s) => s.widgets.filter((w) => w.status === "done").length,
-  );
+  const doneCount = useAgentStore((s) => s.widgets.filter((w) => w.status === "done").length);
   const startTime = useAgentStore((s) => s.startTime);
   const running = useAgentStore((s) => s.running);
   const done = doneCount;
@@ -217,13 +202,7 @@ function StatsStrip() {
 
 // ─── Agent log drawer ─────────────────────────────────────────────────────────
 
-function AgentLogDrawer({
-  open,
-  onClose,
-}: {
-  open: boolean;
-  onClose: () => void;
-}) {
+function AgentLogDrawer({ open, onClose }: { open: boolean; onClose: () => void }) {
   const thoughts = useAgentStore((s) => s.thoughts);
 
   return (
@@ -234,9 +213,7 @@ function AgentLogDrawer({
           <Drawer.Title className="sr-only">Agent Log</Drawer.Title>
           <div className="flex-none p-3 border-b border-slate-800 flex items-center justify-between">
             <span className="text-sm font-semibold text-white">Agent Log</span>
-            <span className="text-xs text-slate-500">
-              {thoughts.length} entries
-            </span>
+            <span className="text-xs text-slate-500">{thoughts.length} entries</span>
           </div>
           <div className="flex-1 overflow-y-auto p-3 space-y-1 font-mono">
             {thoughts.slice(-100).map((t) => (

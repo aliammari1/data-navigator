@@ -163,13 +163,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AiAssistantButton({
-  collapsed,
-  onClick,
-}: {
-  collapsed: boolean;
-  onClick: () => void;
-}) {
+function AiAssistantButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
   const button = (
     <button
       type="button"

@@ -58,14 +58,7 @@ describe("Settings Store", () => {
 
   it("should update accent color", () => {
     const { result } = renderHook(() => useSettingsStore());
-    const colors: AccentColor[] = [
-      "indigo",
-      "violet",
-      "cyan",
-      "emerald",
-      "amber",
-      "rose",
-    ];
+    const colors: AccentColor[] = ["indigo", "violet", "cyan", "emerald", "amber", "rose"];
 
     for (const color of colors) {
       act(() => {

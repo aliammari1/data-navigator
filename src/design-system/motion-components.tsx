@@ -11,12 +11,7 @@ import { useMotionPrefs } from "./use-motion-prefs";
 export function Rise({ children, ...props }: HTMLMotionProps<"div">) {
   const { reduced } = useMotionPrefs();
   return (
-    <motion.div
-      initial="hidden"
-      animate="visible"
-      variants={riseVariants(reduced)}
-      {...props}
-    >
+    <motion.div initial="hidden" animate="visible" variants={riseVariants(reduced)} {...props}>
       {children}
     </motion.div>
   );

@@ -1,8 +1,4 @@
-export function downloadTextFile(
-  content: string,
-  name: string,
-  type = "text/csv",
-) {
+export function downloadTextFile(content: string, name: string, type = "text/csv") {
   downloadBlob(new Blob([content], { type }), name);
 }
 

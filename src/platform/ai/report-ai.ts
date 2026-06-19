@@ -42,14 +42,8 @@ function ruleBasedSummary(
   topChannels: ChannelStat[],
   date?: string,
 ): ReportSummary {
-  const successRate =
-    status.total > 0
-      ? ((status.reussie / status.total) * 100).toFixed(1)
-      : "0.0";
-  const failRate =
-    status.total > 0
-      ? ((status.echec / status.total) * 100).toFixed(1)
-      : "0.0";
+  const successRate = status.total > 0 ? ((status.reussie / status.total) * 100).toFixed(1) : "0.0";
+  const failRate = status.total > 0 ? ((status.echec / status.total) * 100).toFixed(1) : "0.0";
 
   const dateLabel = date ? ` on ${date}` : "";
   const narrative =
@@ -61,22 +55,15 @@ function ruleBasedSummary(
 
   const flags: string[] = [];
   if (status.total > 0 && status.echec / status.total > 0.1) {
-    flags.push(
-      `High failure rate: ${failRate}% of transactions failed.`,
-    );
+    flags.push(`High failure rate: ${failRate}% of transactions failed.`);
   }
   if (status.total > 0 && status.instance / status.total > 0.05) {
     const instancePct = ((status.instance / status.total) * 100).toFixed(1);
-    flags.push(
-      `${instancePct}% of transactions are still in-progress (instance state).`,
-    );
+    flags.push(`${instancePct}% of transactions are still in-progress (instance state).`);
   }
   if (topChannels.length > 0) {
     const top = topChannels[0];
-    const topPct =
-      status.total > 0
-        ? ((top.nombre / status.total) * 100).toFixed(0)
-        : "0";
+    const topPct = status.total > 0 ? ((top.nombre / status.total) * 100).toFixed(0) : "0";
     if (parseInt(topPct, 10) > 60) {
       flags.push(
         `Channel "${top.canal}" accounts for ${topPct}% of all transactions — high concentration.`,
@@ -127,10 +114,7 @@ export async function generateReportSummary(
 
     const channelList = topChannels
       .slice(0, 5)
-      .map(
-        (c) =>
-          `${c.canal}: ${c.nombre} txns, ${c.montant.toLocaleString()} amount`,
-      )
+      .map((c) => `${c.canal}: ${c.nombre} txns, ${c.montant.toLocaleString()} amount`)
       .join("; ");
 
     const userPrompt =
@@ -144,7 +128,7 @@ export async function generateReportSummary(
 
     const raw = await generateText(userPrompt, {
       systemPrompt:
-        'You are a telecom analyst. Analyze this daily transaction report and return JSON only — no prose, no markdown fences. Schema: {narrative, topChannels: string[], flags: string[], recommendation}. narrative: 2-3 sentences. topChannels: top 3 channel names. flags: up to 3 warning strings. recommendation: one actionable sentence.',
+        "You are a telecom analyst. Analyze this daily transaction report and return JSON only — no prose, no markdown fences. Schema: {narrative, topChannels: string[], flags: string[], recommendation}. narrative: 2-3 sentences. topChannels: top 3 channel names. flags: up to 3 warning strings. recommendation: one actionable sentence.",
       maxTokens: 500,
       temperature: 0.3,
     });
@@ -160,9 +144,7 @@ export async function generateReportSummary(
       topChannels: Array.isArray(parsed.topChannels)
         ? parsed.topChannels.slice(0, 3)
         : fallback.topChannels,
-      flags: Array.isArray(parsed.flags)
-        ? parsed.flags.slice(0, 3)
-        : fallback.flags,
+      flags: Array.isArray(parsed.flags) ? parsed.flags.slice(0, 3) : fallback.flags,
       recommendation: parsed.recommendation ?? fallback.recommendation,
     };
   } catch {
@@ -182,8 +164,7 @@ export async function askReportQuestion(
   // Sensible fallback: show first 100 rows
   const fallback = {
     sql: `SELECT * FROM "${tableName}" LIMIT 100`,
-    explanation:
-      "Could not generate a specific query — showing first 100 rows.",
+    explanation: "Could not generate a specific query — showing first 100 rows.",
   };
 
   if (!isLLMReady()) {
@@ -201,7 +182,7 @@ export async function askReportQuestion(
 
     const raw = await generateText(userPrompt, {
       systemPrompt:
-        'You are a DuckDB SQL expert. Generate a DuckDB-compatible SQL query for the telecom transaction table. Return JSON only — no prose, no markdown fences. Schema: {sql, explanation}. Always include LIMIT 1000 if the query returns rows. Use double quotes for column and table names.',
+        "You are a DuckDB SQL expert. Generate a DuckDB-compatible SQL query for the telecom transaction table. Return JSON only — no prose, no markdown fences. Schema: {sql, explanation}. Always include LIMIT 1000 if the query returns rows. Use double quotes for column and table names.",
       maxTokens: 400,
       temperature: 0.2,
     });
@@ -217,9 +198,7 @@ export async function askReportQuestion(
 
     // Ensure LIMIT 1000 is present
     const trimmed = parsed.sql.trim().replace(/;$/, "");
-    const sql = /\bLIMIT\s+\d+/i.test(trimmed)
-      ? trimmed
-      : `${trimmed} LIMIT 1000`;
+    const sql = /\bLIMIT\s+\d+/i.test(trimmed) ? trimmed : `${trimmed} LIMIT 1000`;
 
     return {
       sql,

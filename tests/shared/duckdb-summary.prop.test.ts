@@ -1,9 +1,6 @@
 import { fc, it, test } from "@fast-check/vitest";
 import { describe, expect, vi } from "vitest";
-import {
-  nullRateFromSummary,
-  numberOrUndefined,
-} from "@/shared/duckdb-summary";
+import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
 
 // summarize.ts imports the Electron FS boundary; mock it so importing the pure
 // type mapper never reaches Electron/DuckDB.
@@ -156,7 +153,17 @@ describe("mapDuckTypeToColumnInfoType — total over arbitrary type names (fuzze
   );
 
   test.prop([
-    fc.constantFrom("INTEGER", "BIGINT", "DOUBLE", "FLOAT", "DECIMAL(10,2)", "NUMERIC", "REAL", "HUGEINT", "TINYINT"),
+    fc.constantFrom(
+      "INTEGER",
+      "BIGINT",
+      "DOUBLE",
+      "FLOAT",
+      "DECIMAL(10,2)",
+      "NUMERIC",
+      "REAL",
+      "HUGEINT",
+      "TINYINT",
+    ),
   ])("classifies every numeric DuckDB type as 'number'", (t) => {
     expect(mapDuckTypeToColumnInfoType(t)).toBe("number");
   });

@@ -78,9 +78,7 @@ export const CollapsibleTogglesContent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/24 812 transactions traitées/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/24 812 transactions traitées/i)).toBeVisible();
     await userEvent.click(canvas.getByText("Répartition par canal"));
   },
 };

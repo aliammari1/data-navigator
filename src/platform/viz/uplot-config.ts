@@ -84,9 +84,6 @@ export function buildSparklineOptions(
  * Assemble uPlot AlignedData from typed-array columns. First array MUST be x.
  * All series must be the same length as x (pad gaps with NaN/null).
  */
-export function toAlignedData(
-  x: ArrayLike<number>,
-  ys: ArrayLike<number>[],
-): uPlot.AlignedData {
+export function toAlignedData(x: ArrayLike<number>, ys: ArrayLike<number>[]): uPlot.AlignedData {
   return [x, ...ys] as unknown as uPlot.AlignedData;
 }

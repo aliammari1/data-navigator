@@ -107,7 +107,9 @@ describe("StatusStep (render + a11y)", () => {
   });
   it("has no detectable accessibility violations across states", async () => {
     for (const status of ["pending", "active", "done", "error"] as const) {
-      const { container, unmount } = render(<StatusStep label={`Step ${status}`} status={status} />);
+      const { container, unmount } = render(
+        <StatusStep label={`Step ${status}`} status={status} />,
+      );
       expect(await axe(container)).toHaveNoViolations();
       unmount();
     }

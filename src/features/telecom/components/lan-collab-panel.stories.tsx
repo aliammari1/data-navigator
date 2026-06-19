@@ -42,8 +42,6 @@ export const TogglesAdvancedOptions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByText(/Advanced options/i));
-    await expect(
-      canvas.getByRole("button", { name: /Probe server/i }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("button", { name: /Probe server/i })).toBeVisible();
   },
 };

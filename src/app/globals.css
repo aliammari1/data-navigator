@@ -145,7 +145,9 @@
   --color-surface-3: var(--surface-3);
   --font-sans: var(--font-data-navigator-sans), "Poppins", ui-sans-serif, system-ui, sans-serif;
   --font-mono: var(--font-moudir-mono), ui-monospace, "Fira Code", monospace;
-  --font-display: var(--font-data-navigator-display), var(--font-data-navigator-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-display:
+    var(--font-data-navigator-display), var(--font-data-navigator-sans), ui-sans-serif, system-ui,
+    sans-serif;
   --font-heading: var(--font-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -191,9 +193,11 @@
 
   /* Shadow system — 3-layer, hue-tinted (Comeau) */
   --shadow-1: 0 1px 1px hsl(var(--shadow-hsl) / 0.25), 0 2px 2px -1px hsl(var(--shadow-hsl) / 0.2);
-  --shadow-2: 0 1px 1.1px hsl(var(--shadow-hsl) / 0.3), 0 3px 3.3px -1.2px hsl(var(--shadow-hsl) / 0.28),
+  --shadow-2:
+    0 1px 1.1px hsl(var(--shadow-hsl) / 0.3), 0 3px 3.3px -1.2px hsl(var(--shadow-hsl) / 0.28),
     0 8px 9px -2.5px hsl(var(--shadow-hsl) / 0.26);
-  --shadow-3: 0 1px 1.2px hsl(var(--shadow-hsl) / 0.32), 0 5px 5.5px -1px hsl(var(--shadow-hsl) / 0.3),
+  --shadow-3:
+    0 1px 1.2px hsl(var(--shadow-hsl) / 0.32), 0 5px 5.5px -1px hsl(var(--shadow-hsl) / 0.3),
     0 14px 14px -2px hsl(var(--shadow-hsl) / 0.28), 0 28px 28px -3px hsl(var(--shadow-hsl) / 0.24);
 
   /* Z-index scale — only these values may be used */
@@ -553,7 +557,7 @@
  * menus so the workspace reads as a native Windows desktop — now cyan/navy.
  * ─────────────────────────────────────────────────────────────────────────── */
 :root {
-  --win-accent: 222 88% 55%;           /* cyan accent (brand) */
+  --win-accent: 222 88% 55%; /* cyan accent (brand) */
   --win-surface: rgba(248, 252, 253, 0.97);
   --win-titlebar: rgba(238, 246, 249, 0.92);
   --win-border: rgba(20, 50, 70, 0.12);
@@ -623,12 +627,22 @@
   --glass-shadow: 0 28px 70px -20px rgba(0, 0, 0, 0.65);
 }
 .dark [data-glass="peach"],
-.dark[data-glass="peach"] { --glass-bg: rgba(16, 36, 38, 0.62); --glass-bg-strong: rgba(20, 42, 44, 0.8); }
+.dark[data-glass="peach"] {
+  --glass-bg: rgba(16, 36, 38, 0.62);
+  --glass-bg-strong: rgba(20, 42, 44, 0.8);
+}
 .dark [data-glass="amber"],
-.dark[data-glass="amber"] { --glass-bg: rgba(16, 30, 44, 0.62); --glass-bg-strong: rgba(20, 36, 50, 0.8); }
+.dark[data-glass="amber"] {
+  --glass-bg: rgba(16, 30, 44, 0.62);
+  --glass-bg-strong: rgba(20, 36, 50, 0.8);
+}
 
 /* Dock surface — cyan glass in light mode, dark cyan-navy in dark mode so the
    dock sits in the Signal-Cyan theme family (matches telecom).
    Defined after the glass overrides so `.dark` wins over `:root` by source order. */
-:root { --dock-bg: var(--glass-bg); }
-.dark { --dock-bg: rgba(14, 30, 42, 0.72); }
+:root {
+  --dock-bg: var(--glass-bg);
+}
+.dark {
+  --dock-bg: rgba(14, 30, 42, 0.72);
+}

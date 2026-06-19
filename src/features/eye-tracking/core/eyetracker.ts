@@ -98,10 +98,15 @@ function loadWebgazerScript(): Promise<WebgazerApi> {
     script.onload = () => {
       const wg = (window as unknown as { webgazer?: WebgazerApi }).webgazer;
       if (wg) resolve(wg);
-      else reject(new EyeTrackerError("init-failed", "webgazer.js chargé mais introuvable sur window."));
+      else
+        reject(
+          new EyeTrackerError("init-failed", "webgazer.js chargé mais introuvable sur window."),
+        );
     };
     script.onerror = () =>
-      reject(new EyeTrackerError("init-failed", "Impossible de charger /vendor/webgazer/webgazer.js."));
+      reject(
+        new EyeTrackerError("init-failed", "Impossible de charger /vendor/webgazer/webgazer.js."),
+      );
     document.head.appendChild(script);
   });
   return scriptLoading;
@@ -109,7 +114,10 @@ function loadWebgazerScript(): Promise<WebgazerApi> {
 
 function assertSupported(): void {
   if (typeof window === "undefined" || typeof navigator === "undefined") {
-    throw new EyeTrackerError("unsupported", "Le suivi oculaire n'est disponible que dans le navigateur.");
+    throw new EyeTrackerError(
+      "unsupported",
+      "Le suivi oculaire n'est disponible que dans le navigateur.",
+    );
   }
   if (!navigator.mediaDevices || typeof navigator.mediaDevices.getUserMedia !== "function") {
     throw new EyeTrackerError(
@@ -123,13 +131,30 @@ function classifyStartError(err: unknown): EyeTrackerError {
   if (err instanceof EyeTrackerError) return err;
   const name = (err as { name?: string } | null)?.name ?? "";
   const message = (err as { message?: string } | null)?.message ?? String(err);
-  if (name === "NotAllowedError" || name === "SecurityError" || /permission|denied/i.test(message)) {
-    return new EyeTrackerError("permission", "Accès à la caméra refusé. Autorisez la caméra puis réessayez.");
+  if (
+    name === "NotAllowedError" ||
+    name === "SecurityError" ||
+    /permission|denied/i.test(message)
+  ) {
+    return new EyeTrackerError(
+      "permission",
+      "Accès à la caméra refusé. Autorisez la caméra puis réessayez.",
+    );
   }
-  if (name === "NotFoundError" || name === "DevicesNotFoundError" || /no camera|notfound/i.test(message)) {
-    return new EyeTrackerError("no-camera", "Aucune caméra disponible n'a été trouvée sur cet appareil.");
+  if (
+    name === "NotFoundError" ||
+    name === "DevicesNotFoundError" ||
+    /no camera|notfound/i.test(message)
+  ) {
+    return new EyeTrackerError(
+      "no-camera",
+      "Aucune caméra disponible n'a été trouvée sur cet appareil.",
+    );
   }
-  return new EyeTrackerError("init-failed", `Échec de l'initialisation du suivi oculaire : ${message}`);
+  return new EyeTrackerError(
+    "init-failed",
+    `Échec de l'initialisation du suivi oculaire : ${message}`,
+  );
 }
 
 /** Internal fan-out registered once with webgazer. */
@@ -180,7 +205,11 @@ export const eyeTracker = {
         // the LLM stays fast on the GPU. Best-effort: skips quietly if the
         // bundled tf isn't exposed.
         try {
-          const tf = (webgazer as unknown as { tf?: { setBackend?: (b: string) => Promise<boolean>; ready?: () => Promise<void> } }).tf;
+          const tf = (
+            webgazer as unknown as {
+              tf?: { setBackend?: (b: string) => Promise<boolean>; ready?: () => Promise<void> };
+            }
+          ).tf;
           if (tf?.setBackend) {
             const ok = await tf.setBackend("wasm").catch(() => false);
             if (!ok) await tf.setBackend("cpu").catch(() => {});

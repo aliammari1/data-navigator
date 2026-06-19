@@ -30,19 +30,14 @@ const ACCESS_KEY = "data-navigator-dashboard-access-v1";
 async function gotoDesktop(page: Page) {
   await page.addInitScript(
     ([key]) => {
-      window.localStorage.setItem(
-        key,
-        JSON.stringify({ role: "owner", cacheMode: "balanced" }),
-      );
+      window.localStorage.setItem(key, JSON.stringify({ role: "owner", cacheMode: "balanced" }));
     },
     [ACCESS_KEY],
   );
 
   await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
   await expect(page).toHaveURL(/\/dashboard\/?$/);
-  await expect(page.locator("body")).not.toContainText(
-    /404|not found|application error/i,
-  );
+  await expect(page.locator("body")).not.toContainText(/404|not found|application error/i);
   await expect(dock(page)).toBeVisible({ timeout: 45_000 });
   // The dock renders before React finishes hydrating its handlers; if a click
   // lands too early it is dropped. Wait (briefly, best-effort) for the network
@@ -159,9 +154,7 @@ test.describe("Desktop workspace journey", () => {
     // ("Corbeille") — both confirm we are in the windowed shell, not the
     // classic sidebar layout.
     await expect(dock(page)).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /corbeille/i }).first(),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /corbeille/i }).first()).toBeVisible();
 
     // A pinned dock app (Rapport Télécom) is reachable straight from the dock.
     await expect(
@@ -169,28 +162,20 @@ test.describe("Desktop workspace journey", () => {
     ).toBeVisible();
   });
 
-  test("the Launchpad opens a searchable grid of applications", async ({
-    page,
-  }) => {
+  test("the Launchpad opens a searchable grid of applications", async ({ page }) => {
     await gotoDesktop(page);
     await openLauncher(page);
 
     // The grid lists pinned/native apps by their French titles.
-    await expect(
-      page.getByText(/rapport t[ée]l[ée]com/i).first(),
-    ).toBeVisible();
+    await expect(page.getByText(/rapport t[ée]l[ée]com/i).first()).toBeVisible();
     await expect(page.getByText(/param[èe]tres/i).first()).toBeVisible();
 
     // Searching narrows the grid; an unknown term shows the empty state.
     await launcherSearch(page).fill("zzz-no-such-app");
-    await expect(
-      page.getByText(/aucune application ne correspond/i),
-    ).toBeVisible();
+    await expect(page.getByText(/aucune application ne correspond/i)).toBeVisible();
   });
 
-  test("launching Paramètres from the Launchpad floats a window", async ({
-    page,
-  }) => {
+  test("launching Paramètres from the Launchpad floats a window", async ({ page }) => {
     await gotoDesktop(page);
     await openLauncher(page);
 
@@ -204,14 +189,10 @@ test.describe("Desktop workspace journey", () => {
     await expect(visibleWindow(page, /param[èe]tres/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(
-      page.getByRole("button", { name: /^fermer$/i }).first(),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /^fermer$/i }).first()).toBeVisible();
   });
 
-  test("launching Rapport Télécom from the dock floats a windowed report", async ({
-    page,
-  }) => {
+  test("launching Rapport Télécom from the dock floats a windowed report", async ({ page }) => {
     await gotoDesktop(page);
 
     // Rapport Télécom is a pinned dock app — launch it straight from the dock.
@@ -228,14 +209,12 @@ test.describe("Desktop workspace journey", () => {
     await expect(page.locator(".dn-window:visible").first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(
-      page.locator('iframe[title*="Rapport" i]').first(),
-    ).toBeAttached({ timeout: 15_000 });
+    await expect(page.locator('iframe[title*="Rapport" i]').first()).toBeAttached({
+      timeout: 15_000,
+    });
   });
 
-  test("right-clicking the empty desktop opens its context menu", async ({
-    page,
-  }) => {
+  test("right-clicking the empty desktop opens its context menu", async ({ page }) => {
     await gotoDesktop(page);
     await expect(canvas(page)).toBeVisible();
 
@@ -258,14 +237,12 @@ test.describe("Desktop workspace journey", () => {
 
     // The desktop menu surfaces its French actions; "Mode classique" is a stable
     // entry unique to this menu.
-    await expect(
-      page.getByRole("button", { name: /mode classique/i }).first(),
-    ).toBeVisible({ timeout: 5_000 });
+    await expect(page.getByRole("button", { name: /mode classique/i }).first()).toBeVisible({
+      timeout: 5_000,
+    });
   });
 
-  test("multiple apps can be open as distinct desktop windows", async ({
-    page,
-  }) => {
+  test("multiple apps can be open as distinct desktop windows", async ({ page }) => {
     await gotoDesktop(page);
 
     const onScreen = page.locator(".dn-window:visible");
@@ -286,8 +263,6 @@ test.describe("Desktop workspace journey", () => {
     await expect(visibleWindow(page, /explorateur/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect
-      .poll(() => onScreen.count(), { timeout: 15_000 })
-      .toBeGreaterThanOrEqual(2);
+    await expect.poll(() => onScreen.count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(2);
   });
 });

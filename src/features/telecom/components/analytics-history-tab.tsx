@@ -23,9 +23,7 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
           <div>
             <div className="flex items-center gap-2">
               <FolderClock className="h-4 w-4 text-cyan-500" />
-              <h2 className="text-sm font-bold text-foreground">
-                Analytics sauvegardées
-              </h2>
+              <h2 className="text-sm font-bold text-foreground">Analytics sauvegardées</h2>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
               Recharge une journée déjà analysée sans relire le fichier CSV.
@@ -64,9 +62,7 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
               onClick={() => onLoad(entry.key)}
               className="rounded-3xl border border-border bg-card p-4 text-left transition hover:border-cyan-500/40 hover:bg-cyan-500/5"
             >
-              <div className="truncate text-sm font-bold text-foreground">
-                {entry.fileName}
-              </div>
+              <div className="truncate text-sm font-bold text-foreground">{entry.fileName}</div>
               <div className="mt-1 text-[11px] text-muted-foreground">
                 {new Date(entry.savedAt).toLocaleString("fr-TN")}
               </div>
@@ -79,9 +75,7 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
                 </div>
                 <div className="rounded-2xl bg-muted p-3">
                   <div className="text-muted-foreground">Réussite</div>
-                  <div className="mt-1 font-bold text-foreground">
-                    {fmtPct(entry.successRate)}
-                  </div>
+                  <div className="mt-1 font-bold text-foreground">{fmtPct(entry.successRate)}</div>
                 </div>
               </div>
             </button>

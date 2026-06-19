@@ -149,9 +149,7 @@ export function createDrizzleStorage(options: DrizzleStorageOptions = {}): State
 
     removeItem(name: string): void {
       removeLocal(name);
-      void deleteAppSettingRemote(namespace, name).catch((error) =>
-        onError("remove", name, error),
-      );
+      void deleteAppSettingRemote(namespace, name).catch((error) => onError("remove", name, error));
     },
   };
 }

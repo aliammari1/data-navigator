@@ -68,10 +68,7 @@ export async function loadRun<T>(
 }
 
 /** Drop a persisted run (used when the user clears or the dataset changes). */
-export async function clearRun(
-  kind: AnalyticsRunKind,
-  datasetId: string,
-): Promise<void> {
+export async function clearRun(kind: AnalyticsRunKind, datasetId: string): Promise<void> {
   if (!datasetId) return;
   await deleteReportDefinition(runId(kind, datasetId));
 }

@@ -51,9 +51,7 @@ export function EmptyState({
       {action || secondary ? (
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
           {action ? <ActionButton action={action} /> : null}
-          {secondary ? (
-            <ActionButton action={secondary} variant="ghost" />
-          ) : null}
+          {secondary ? <ActionButton action={secondary} variant="ghost" /> : null}
         </div>
       ) : null}
     </div>

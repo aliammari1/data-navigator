@@ -93,8 +93,20 @@ const rawStatuses: RawStatusRow[] = [
 ];
 
 const statusMapping: StatusMapping[] = [
-  { rawCode: "OK", label: "Succès", semantic: "success", color: "#a6e3a1", badgeClass: "bg-emerald-50" },
-  { rawCode: "DC01", label: "Refusé", semantic: "declined", color: "#f38ba8", badgeClass: "bg-red-50" },
+  {
+    rawCode: "OK",
+    label: "Succès",
+    semantic: "success",
+    color: "#a6e3a1",
+    badgeClass: "bg-emerald-50",
+  },
+  {
+    rawCode: "DC01",
+    label: "Refusé",
+    semantic: "declined",
+    color: "#f38ba8",
+    badgeClass: "bg-red-50",
+  },
 ];
 
 const meta = {
@@ -146,23 +158,15 @@ export const Default: Story = {};
 export const SwitchesToKPIs: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /KPIs Personnalisés/i }),
-    );
-    await expect(
-      canvas.getByText(/Constructeur de KPI Personnalisés/i),
-    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /KPIs Personnalisés/i }));
+    await expect(canvas.getByText(/Constructeur de KPI Personnalisés/i)).toBeInTheDocument();
   },
 };
 
 export const StatusSection: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Config\. Statuts/i }),
-    );
-    await expect(
-      canvas.getByText(/Configuration des Codes Statut/i),
-    ).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Config\. Statuts/i }));
+    await expect(canvas.getByText(/Configuration des Codes Statut/i)).toBeInTheDocument();
   },
 };

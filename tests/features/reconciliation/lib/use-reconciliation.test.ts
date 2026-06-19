@@ -8,10 +8,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery,
 }));
 
-import {
-  type DiffConfig,
-  mapDiffRow,
-} from "@/features/reconciliation/lib/use-reconciliation";
+import { type DiffConfig, mapDiffRow } from "@/features/reconciliation/lib/use-reconciliation";
 
 function baseConfig(overrides: Partial<DiffConfig> = {}): DiffConfig {
   return {

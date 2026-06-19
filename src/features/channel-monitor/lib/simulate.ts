@@ -56,9 +56,7 @@ export function simulateStatuses(tick: number, seed = DEFAULT_SEED): ChannelStat
     const amountToday = Math.round(base.amt * amtScale);
     const failureCount = Math.round(txnPerMin * (1 - successRate / 100) * 60);
 
-    const prevRng = mulberry32(
-      (seed ^ keySeed(ch.key) ^ ((tick - 1) * 2654435761)) >>> 0,
-    );
+    const prevRng = mulberry32((seed ^ keySeed(ch.key) ^ ((tick - 1) * 2654435761)) >>> 0);
     const prevSr = Math.max(50, Math.min(99.9, base.sr + (prevRng() - 0.5) * 3));
     const trend: ChannelStatus["trend"] =
       successRate > prevSr + 0.5 ? "up" : successRate < prevSr - 0.5 ? "down" : "stable";
@@ -66,12 +64,7 @@ export function simulateStatuses(tick: number, seed = DEFAULT_SEED): ChannelStat
     const health = classifyHealth(successRate);
     const hasIncident = health !== "healthy";
     const incidentHours = Math.floor(rng() * 12) + 1;
-    const incidentTypes = [
-      "success rate drop",
-      "volume spike",
-      "timeout surge",
-      "error burst",
-    ];
+    const incidentTypes = ["success rate drop", "volume spike", "timeout surge", "error burst"];
     const incidentType = incidentTypes[Math.floor(rng() * incidentTypes.length)];
 
     return {
@@ -84,9 +77,7 @@ export function simulateStatuses(tick: number, seed = DEFAULT_SEED): ChannelStat
       failureCount,
       trend,
       lastIncident: hasIncident ? `${incidentHours}h ago: ${incidentType}` : null,
-      lastIncidentAt: hasIncident
-        ? new Date(now - incidentHours * 3_600_000).toISOString()
-        : null,
+      lastIncidentAt: hasIncident ? new Date(now - incidentHours * 3_600_000).toISOString() : null,
       updatedAt: new Date(now).toISOString(),
     };
   });

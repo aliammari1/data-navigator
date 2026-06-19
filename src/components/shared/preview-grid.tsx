@@ -215,10 +215,7 @@ function formatCell(value: unknown): { text: string; isNull: boolean } {
   return { text: String(value), isNull: false };
 }
 
-function RecordsPreviewGrid({
-  columns,
-  rows,
-}: Omit<RecordsPreviewGridProps, "variant">) {
+function RecordsPreviewGrid({ columns, rows }: Omit<RecordsPreviewGridProps, "variant">) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const rowVirtualizer = useVirtualizer({
@@ -253,10 +250,7 @@ function RecordsPreviewGrid({
         >
           #
         </div>
-        <div
-          className="relative"
-          style={{ width: colVirtualizer.getTotalSize() }}
-        >
+        <div className="relative" style={{ width: colVirtualizer.getTotalSize() }}>
           {virtualCols.map((vc) => {
             const column = columns[vc.index];
             return (
@@ -270,9 +264,7 @@ function RecordsPreviewGrid({
                 }}
                 title={column}
               >
-                <span className="truncate text-[11px] font-medium text-zinc-300">
-                  {column}
-                </span>
+                <span className="truncate text-[11px] font-medium text-zinc-300">{column}</span>
               </div>
             );
           })}
@@ -308,10 +300,7 @@ function RecordsPreviewGrid({
               >
                 {vr.index + 1}
               </div>
-              <div
-                className="relative"
-                style={{ width: colVirtualizer.getTotalSize() }}
-              >
+              <div className="relative" style={{ width: colVirtualizer.getTotalSize() }}>
                 {virtualCols.map((vc) => {
                   const { text, isNull } = formatCell(row[columns[vc.index]]);
                   return (

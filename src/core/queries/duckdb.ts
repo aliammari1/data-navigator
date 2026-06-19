@@ -60,9 +60,7 @@ export function useDuckDBQuery(
  */
 export function useTableSchema(tableName: string | null) {
   return useQuery({
-    queryKey: tableName
-      ? queryKeys.duckdb.schema(tableName)
-      : ["duckdb", "schema", "null"],
+    queryKey: tableName ? queryKeys.duckdb.schema(tableName) : ["duckdb", "schema", "null"],
     queryFn: async () => {
       if (!tableName) return null;
 
@@ -91,9 +89,7 @@ export function useTableSchema(tableName: string | null) {
  */
 export function useTablePreview(tableName: string | null, limit = 100) {
   return useDuckDBQuery(
-    tableName
-      ? `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${Math.floor(limit)}`
-      : "",
+    tableName ? `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${Math.floor(limit)}` : "",
     [],
     {
       enabled: Boolean(tableName),
@@ -107,9 +103,7 @@ export function useTablePreview(tableName: string | null, limit = 100) {
  */
 export function useTableRowCount(tableName: string | null) {
   return useQuery({
-    queryKey: tableName
-      ? ["duckdb", "count", tableName]
-      : ["duckdb", "count", "null"],
+    queryKey: tableName ? ["duckdb", "count", tableName] : ["duckdb", "count", "null"],
     queryFn: async () => {
       if (!tableName) return 0;
 
@@ -213,9 +207,7 @@ export function usePrefetchDuckDBQuery() {
     },
 
     prefetchPreview: async (tableName: string, limit = 100) => {
-      const sql = `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${Math.floor(
-        limit,
-      )}`;
+      const sql = `SELECT * FROM ${quoteIdentifier(tableName)} LIMIT ${Math.floor(limit)}`;
 
       await queryClient.prefetchQuery({
         queryKey: queryKeys.duckdb.preview(tableName, limit),

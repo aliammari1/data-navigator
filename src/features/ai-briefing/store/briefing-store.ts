@@ -45,7 +45,7 @@ export type BriefingState = {
   toggleActionItem: (id: string) => void;
   clearHistory: () => void;
   clearActionPlan: () => void;
-}
+};
 
 // ─── Store ────────────────────────────────────────────────────────────────────
 

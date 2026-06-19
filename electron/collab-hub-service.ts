@@ -68,7 +68,10 @@ export type DiscoveryListener = (event: { type: "up" | "down"; hub: DiscoveredHu
 
 // Minimal structural types so this file does not need the hocuspocus/bonjour
 // type packages at compile time (they are lazy-imported as `unknown`).
-type HocuspocusServer = { listen(): Promise<unknown> | unknown; destroy(): Promise<unknown> | unknown };
+type HocuspocusServer = {
+  listen(): Promise<unknown> | unknown;
+  destroy(): Promise<unknown> | unknown;
+};
 type BonjourInstance = {
   publish(opts: Record<string, unknown>): unknown;
   find(opts: Record<string, unknown>): BonjourBrowser;

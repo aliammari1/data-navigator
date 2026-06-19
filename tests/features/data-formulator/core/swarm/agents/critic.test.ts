@@ -296,9 +296,7 @@ describe("runBatchedCritic", () => {
 describe("batchedVerdictSchema", () => {
   it("accepts a well-formed batched verdict payload", () => {
     const parsed = batchedVerdictSchema.parse({
-      verdicts: [
-        { taskId: "t1", accepted: true, reason: "ok", confidence: "medium" },
-      ],
+      verdicts: [{ taskId: "t1", accepted: true, reason: "ok", confidence: "medium" }],
     });
     expect(parsed.verdicts).toHaveLength(1);
   });
@@ -306,9 +304,7 @@ describe("batchedVerdictSchema", () => {
   it("rejects a verdict with an out-of-enum confidence", () => {
     expect(() =>
       batchedVerdictSchema.parse({
-        verdicts: [
-          { taskId: "t1", accepted: true, reason: "ok", confidence: "certain" },
-        ],
+        verdicts: [{ taskId: "t1", accepted: true, reason: "ok", confidence: "certain" }],
       }),
     ).toThrow();
   });

@@ -1,8 +1,5 @@
 import { bench, describe } from "vitest";
-import {
-  type ColumnInfo,
-  suggestColumnMapping,
-} from "@/features/reconciliation/lib/auto-map";
+import { type ColumnInfo, suggestColumnMapping } from "@/features/reconciliation/lib/auto-map";
 
 /**
  * Performance benchmarks for fuse.js-backed column auto-mapping

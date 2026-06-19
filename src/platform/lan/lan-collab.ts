@@ -166,10 +166,7 @@ interface ElectronCollabBridge {
 
 function electronCollab(): ElectronCollabBridge | null {
   if (typeof window === "undefined") return null;
-  return (
-    (window as unknown as { electronCollab?: ElectronCollabBridge })
-      .electronCollab ?? null
-  );
+  return (window as unknown as { electronCollab?: ElectronCollabBridge }).electronCollab ?? null;
 }
 
 /** True when running inside Electron with the collab-hub IPC bridge available. */
@@ -213,19 +210,13 @@ export function makeJoinHttpUrl(settings: LANSettings): string {
 }
 
 export function readLANSettings(): LANSettings {
-  const url =
-    (typeof localStorage !== "undefined" && localStorage.getItem(URL_KEY)) ||
-    "";
+  const url = (typeof localStorage !== "undefined" && localStorage.getItem(URL_KEY)) || "";
   const room =
-    (typeof localStorage !== "undefined" && localStorage.getItem(ROOM_KEY)) ||
-    "telecom-default";
-  const pairingCode =
-    (typeof localStorage !== "undefined" && localStorage.getItem(CODE_KEY)) ||
-    "";
+    (typeof localStorage !== "undefined" && localStorage.getItem(ROOM_KEY)) || "telecom-default";
+  const pairingCode = (typeof localStorage !== "undefined" && localStorage.getItem(CODE_KEY)) || "";
   let peer: LANPeer | null = null;
   try {
-    const raw =
-      typeof localStorage !== "undefined" && localStorage.getItem(PEER_KEY);
+    const raw = typeof localStorage !== "undefined" && localStorage.getItem(PEER_KEY);
     if (raw) peer = JSON.parse(raw) as LANPeer;
   } catch {}
   if (!peer) {
@@ -398,10 +389,7 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
         name: settings.peer.name,
         role: settings.peer.role,
         color: settings.peer.color,
-        page:
-          typeof location !== "undefined"
-            ? `${location.pathname}${location.search}`
-            : "",
+        page: typeof location !== "undefined" ? `${location.pathname}${location.search}` : "",
         lastSeenAt: Date.now(),
       });
       awareness.on("change", refreshPeers);
@@ -458,8 +446,7 @@ export async function disconnectLAN(): Promise<void> {
 // rAF-throttled cursor writer: a flood of selection/scroll events coalesces to
 // at most one awareness write per frame, so remote peers don't re-render every
 // subscriber on a medium CPU.
-let pendingCursor: { page: string; selection?: string; at: number } | null =
-  null;
+let pendingCursor: { page: string; selection?: string; at: number } | null = null;
 let cursorRaf: number | null = null;
 
 function flushCursor() {
@@ -500,10 +487,7 @@ export function publishPresence(patch: Partial<LANPeer>) {
  */
 export function publishSelection(selection: string) {
   pendingCursor = {
-    page:
-      typeof location !== "undefined"
-        ? `${location.pathname}${location.search}`
-        : "",
+    page: typeof location !== "undefined" ? `${location.pathname}${location.search}` : "",
     selection,
     at: Date.now(),
   };
@@ -514,10 +498,7 @@ export function publishSelection(selection: string) {
       : (setTimeout(flushCursor, 16) as unknown as number);
 }
 
-export function publishFileDrop(
-  file: File,
-  mode: "metadata" | "request" = "metadata",
-) {
+export function publishFileDrop(file: File, mode: "metadata" | "request" = "metadata") {
   const settings = activeSettings ?? readLANSettings();
   sharedLanRoom.set(
     "fileDrop",
@@ -792,21 +773,18 @@ export async function uploadLANFile(file: File): Promise<LANSharedFile> {
     return announced;
   }
 
-  const res = await fetch(
-    `${httpFromWs(settings.url).replace(/\/$/, "")}/lan/files`,
-    {
-      method: "POST",
-      headers: {
-        "content-type": file.type || "application/octet-stream",
-        "x-file-name": file.name,
-        "x-peer-id": settings.peer.id,
-        "x-peer-name": settings.peer.name,
-        "x-room": settings.room,
-        "x-pairing-code": settings.pairingCode,
-      },
-      body: file,
+  const res = await fetch(`${httpFromWs(settings.url).replace(/\/$/, "")}/lan/files`, {
+    method: "POST",
+    headers: {
+      "content-type": file.type || "application/octet-stream",
+      "x-file-name": file.name,
+      "x-peer-id": settings.peer.id,
+      "x-peer-name": settings.peer.name,
+      "x-room": settings.room,
+      "x-pairing-code": settings.pairingCode,
     },
-  );
+    body: file,
+  });
   const body = (await res.json()) as {
     ok: boolean;
     file?: LANSharedFile;

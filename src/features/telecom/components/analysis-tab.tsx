@@ -1,23 +1,9 @@
 "use client";
 
-import {
-  Activity,
-  AlertCircle,
-  BarChart2,
-  Clock,
-  Signal,
-  TrendingUp,
-  Zap,
-} from "lucide-react";
+import { Activity, AlertCircle, BarChart2, Clock, Signal, TrendingUp, Zap } from "lucide-react";
 import { motion } from "motion/react";
 import { memo, useEffect, useMemo, useState } from "react";
-import {
-  clamp,
-  fmtAmount,
-  fmtDuration,
-  fmtN,
-  fmtPct,
-} from "@/features/telecom/lib/format";
+import { clamp, fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import type * as Types from "@/features/telecom/types";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
@@ -62,9 +48,7 @@ export const AnalysisTab = memo(function AnalysisTab({
     m: Types.ColumnMapping,
     groupKeys: Types.CanalKey[],
   ) => Promise<Types.RegionRow[]>;
-  fetchCanalHourlyMatrix: (
-    m: Types.ColumnMapping,
-  ) => Promise<Types.CanalHourCell[]>;
+  fetchCanalHourlyMatrix: (m: Types.ColumnMapping) => Promise<Types.CanalHourCell[]>;
 }) {
   // F11 — Lazy-load operators/regions if background task hasn't finished yet
   const {
@@ -79,8 +63,7 @@ export const AnalysisTab = memo(function AnalysisTab({
   } = useLazyQuery(() => fetchRegions(m), [m]);
 
   // Use prop data if available (background task finished), otherwise use lazy result
-  const _operators =
-    operatorsProp.length > 0 ? operatorsProp : (lazyOperators ?? []);
+  const _operators = operatorsProp.length > 0 ? operatorsProp : (lazyOperators ?? []);
   const _regions = regionsProp.length > 0 ? regionsProp : (lazyRegions ?? []);
 
   // Unified Top 50 state — accounts (source), accounts (destination), regions/agents
@@ -187,10 +170,7 @@ export const AnalysisTab = memo(function AnalysisTab({
   return (
     <div className="space-y-6">
       {/* Hourly analysis */}
-      <Section
-        title="Profils de Trafic Horaire"
-        icon={<Clock className="w-4 h-4" />}
-      >
+      <Section title="Profils de Trafic Horaire" icon={<Clock className="w-4 h-4" />}>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-5">
           {hourlyStats.map((item, i) => (
             <motion.div
@@ -203,22 +183,11 @@ export const AnalysisTab = memo(function AnalysisTab({
                 damping: 24,
                 delay: i * 0.08,
               }}
-              className={cn(
-                "rounded-xl border p-4",
-                item.color.split(" ").slice(0, 2).join(" "),
-              )}
+              className={cn("rounded-xl border p-4", item.color.split(" ").slice(0, 2).join(" "))}
             >
-              <div className="text-xs text-muted-foreground mb-1">
-                {item.label}
-              </div>
-              <div
-                className={cn("text-2xl font-bold", item.color.split(" ")[2])}
-              >
-                {item.val}
-              </div>
-              <div className="text-xs text-muted-foreground mt-1">
-                {item.sub}
-              </div>
+              <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
+              <div className={cn("text-2xl font-bold", item.color.split(" ")[2])}>{item.val}</div>
+              <div className="text-xs text-muted-foreground mt-1">{item.sub}</div>
             </motion.div>
           ))}
         </div>
@@ -311,26 +280,19 @@ export const AnalysisTab = memo(function AnalysisTab({
               <tbody>
                 {top50Loading ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="py-8 text-center text-muted-foreground text-xs"
-                    >
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
                       Chargement…
                     </td>
                   </tr>
                 ) : top50Rows.length === 0 ? (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="py-8 text-center text-muted-foreground text-xs"
-                    >
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
                       Aucune donnée pour cette sélection.
                     </td>
                   </tr>
                 ) : (
                   top50Rows.map((row, idx) => {
-                    const rate =
-                      row.total > 0 ? (row.success / row.total) * 100 : 0;
+                    const rate = row.total > 0 ? (row.success / row.total) * 100 : 0;
                     return (
                       <tr
                         key={row.name}
@@ -403,9 +365,7 @@ export const AnalysisTab = memo(function AnalysisTab({
           <KPICard
             label="Temps de traitement moy."
             value={fmtDuration(kpi.avgProcessingMs)}
-            icon={
-              <Clock className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />
-            }
+            icon={<Clock className="w-4 h-4 text-cyan-500 dark:text-cyan-400" />}
             color="border-cyan-500/20 bg-cyan-500/5"
             size="sm"
           />
@@ -413,29 +373,21 @@ export const AnalysisTab = memo(function AnalysisTab({
             label="Heure de Pointe"
             value={`${kpi.peakHour.toString().padStart(2, "0")}:00`}
             sub="Heure la plus active"
-            icon={
-              <TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-            }
+            icon={<TrendingUp className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />}
             color="border-indigo-500/20 bg-indigo-500/5"
             size="sm"
           />
           <KPICard
             label="Abonnés uniques"
             value={<AnimCounter value={kpi.uniqueCustomers} />}
-            icon={
-              <Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />
-            }
+            icon={<Activity className="w-4 h-4 text-blue-500 dark:text-blue-400" />}
             color="border-blue-500/20 bg-blue-500/5"
             size="sm"
           />
           <KPICard
             label="Code d'Erreur Principal"
-            value={
-              <span className="text-sm font-mono">{kpi.topErrorCode}</span>
-            }
-            icon={
-              <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />
-            }
+            value={<span className="text-sm font-mono">{kpi.topErrorCode}</span>}
+            icon={<AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400" />}
             color="border-red-500/20 bg-red-500/5"
             size="sm"
           />

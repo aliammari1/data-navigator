@@ -1,10 +1,7 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  type CatalogFolder,
-  useFoldersStore,
-} from "@/core/stores/folders-store";
+import { type CatalogFolder, useFoldersStore } from "@/core/stores/folders-store";
 import { queryKeys } from "./keys";
 
 // ─── Folders ─────────────────────────────────────────────────────────────────
@@ -196,13 +193,7 @@ export function useMoveFolder() {
   const moveFolder = useFoldersStore((s) => s.moveFolder);
 
   return useMutation({
-    mutationFn: async ({
-      id,
-      newParentId,
-    }: {
-      id: string;
-      newParentId: string | null;
-    }) => {
+    mutationFn: async ({ id, newParentId }: { id: string; newParentId: string | null }) => {
       moveFolder(id, newParentId);
       return { id, newParentId };
     },
@@ -220,13 +211,7 @@ export function useMoveDatasetToFolder() {
   const moveDataset = useFoldersStore((s) => s.moveDataset);
 
   return useMutation({
-    mutationFn: async ({
-      datasetId,
-      folderId,
-    }: {
-      datasetId: string;
-      folderId: string | null;
-    }) => {
+    mutationFn: async ({ datasetId, folderId }: { datasetId: string; folderId: string | null }) => {
       moveDataset(datasetId, folderId);
       return { datasetId, folderId };
     },

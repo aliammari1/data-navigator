@@ -30,8 +30,7 @@ export function Section({
       <div
         className={cn(
           "flex items-center justify-between px-5 py-3.5 border-b border-border",
-          collapsible &&
-            "cursor-pointer hover:bg-muted/40 transition-colors select-none",
+          collapsible && "cursor-pointer hover:bg-muted/40 transition-colors select-none",
         )}
         onClick={() => collapsible && setOpen((v) => !v)}
       >

@@ -63,10 +63,9 @@ export function ModelDownloadPanel() {
       </div>
 
       <p className="text-[11px] leading-relaxed text-slate-400">
-        Fetch model weights once while you have a connection — afterwards everything
-        runs fully offline. Weights are stored locally (the LLM in your app data
-        folder, embeddings in the browser cache); nothing leaves your machine at
-        inference time.
+        Fetch model weights once while you have a connection — afterwards everything runs fully
+        offline. Weights are stored locally (the LLM in your app data folder, embeddings in the
+        browser cache); nothing leaves your machine at inference time.
       </p>
 
       {loading ? (
@@ -163,9 +162,7 @@ export function ModelDownloadPanel() {
                   <div className="mt-2">
                     <div className="mb-1 flex justify-between text-[9px] text-slate-500">
                       <span>Downloading…</span>
-                      <span>
-                        {pct >= 0 ? `${pct}%` : humanBytes(dl?.receivedBytes ?? 0)}
-                      </span>
+                      <span>{pct >= 0 ? `${pct}%` : humanBytes(dl?.receivedBytes ?? 0)}</span>
                     </div>
                     <div className="h-1.5 overflow-hidden rounded-full bg-slate-900">
                       <motion.div
@@ -191,9 +188,8 @@ export function ModelDownloadPanel() {
 
       {!electron && !loading && (
         <p className="rounded-lg border border-blue-500/20 bg-blue-500/10 px-3 py-2 text-[10px] text-blue-300">
-          In-app GGUF download requires the desktop app. On the web build, the
-          embeddings model is cached by the browser on first use; for a fully
-          air-gapped install pre-bundle weights with{" "}
+          In-app GGUF download requires the desktop app. On the web build, the embeddings model is
+          cached by the browser on first use; for a fully air-gapped install pre-bundle weights with{" "}
           <code className="rounded bg-slate-900 px-1">pnpm run prepare:models</code>.
         </p>
       )}

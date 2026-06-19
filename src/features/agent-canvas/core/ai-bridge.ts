@@ -22,10 +22,7 @@
  */
 
 import type { ZodType } from "zod";
-import {
-  pickDefaultProvider,
-  useAIRuntimeStore,
-} from "@/platform/ai/provider";
+import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
 import type { AIProvider } from "@/platform/ai/provider";
 
 interface Resolved {
@@ -59,9 +56,7 @@ async function ensureResolved(): Promise<Resolved> {
     if (!model) {
       throw new Error(`No model available for provider "${provider.id}".`);
     }
-    await provider.ensureReady(model, (p) =>
-      useAIRuntimeStore.getState().setProgress(p),
-    );
+    await provider.ensureReady(model, (p) => useAIRuntimeStore.getState().setProgress(p));
     _resolved = { provider, model };
     return _resolved;
   })();

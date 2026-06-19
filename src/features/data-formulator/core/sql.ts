@@ -5,10 +5,7 @@ type DerivedExpression = {
   sql?: string;
 };
 
-function quote(
-  field: string,
-  derivedMap: Map<string, DerivedExpression>,
-): string {
+function quote(field: string, derivedMap: Map<string, DerivedExpression>): string {
   const d = derivedMap.get(field);
   if (d?.sql) return `(${d.sql})`;
   return `"${field}"`;
@@ -34,8 +31,7 @@ function buildWhereClause(
       const [a, b] = f.value.split(",").map((v) => v.trim());
       return `TRY_CAST(${lhs} AS DOUBLE) BETWEEN ${a} AND ${b}`;
     }
-    if (f.op === "LIKE")
-      return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replace("'", "''")}'`;
+    if (f.op === "LIKE") return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replace("'", "''")}'`;
     const isNum = /^-?\d+(\.\d+)?$/.test(f.value.trim());
     if (isNum) return `TRY_CAST(${lhs} AS DOUBLE) ${f.op} ${f.value.trim()}`;
     return `CAST(${lhs} AS VARCHAR) ${f.op} '${f.value.replace("'", "''")}'`;
@@ -75,9 +71,7 @@ export function buildSQL(
     return `SELECT ${bin} as x_val, COUNT(*) as y_val FROM "${tableName}" ${where ? `WHERE ${where} AND` : "WHERE"} ${quote(xEnc.field, derivedMap)} IS NOT NULL GROUP BY x_val ORDER BY x_val LIMIT ${spec.limit}`;
   }
 
-  const hasAgg = spec.encodings.some(
-    (e) => e.aggregate && e.aggregate !== "none",
-  );
+  const hasAgg = spec.encodings.some((e) => e.aggregate && e.aggregate !== "none");
 
   const selectParts: string[] = [];
   const groupParts: string[] = [];
@@ -88,9 +82,7 @@ export function buildSQL(
   }
 
   if (yEnc) {
-    selectParts.push(
-      `${buildAgg(yEnc.aggregate, yEnc.field, derivedMap)} as y_val`,
-    );
+    selectParts.push(`${buildAgg(yEnc.aggregate, yEnc.field, derivedMap)} as y_val`);
   }
 
   if (colorEnc) {
@@ -99,9 +91,7 @@ export function buildSQL(
   }
 
   if (sizeEnc) {
-    selectParts.push(
-      `${buildAgg(sizeEnc.aggregate, sizeEnc.field, derivedMap)} as size_val`,
-    );
+    selectParts.push(`${buildAgg(sizeEnc.aggregate, sizeEnc.field, derivedMap)} as size_val`);
   }
 
   if (selectParts.length === 0) {

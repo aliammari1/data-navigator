@@ -47,18 +47,12 @@ function columnAxisLabel(columnCount: number) {
 }
 
 /** Per-column completeness (bar) + validity (line). */
-export function overviewQualityOption(
-  profiles: ColProfile[],
-): Record<string, unknown> | null {
+export function overviewQualityOption(profiles: ColProfile[]): Record<string, unknown> | null {
   if (profiles.length === 0) return null;
 
   const names = profiles.map((profile) => profile.name);
-  const completeness = profiles.map((profile) =>
-    Number(profile.completeness.toFixed(4)),
-  );
-  const validity = profiles.map((profile) =>
-    Number(profile.validity.toFixed(4)),
-  );
+  const completeness = profiles.map((profile) => Number(profile.completeness.toFixed(4)));
+  const validity = profiles.map((profile) => Number(profile.validity.toFixed(4)));
 
   return {
     backgroundColor: "transparent",
@@ -111,9 +105,7 @@ export function overviewQualityOption(
 }
 
 /** Donut of column-type distribution. */
-export function typeMixOption(
-  profiles: ColProfile[],
-): Record<string, unknown> | null {
+export function typeMixOption(profiles: ColProfile[]): Record<string, unknown> | null {
   if (profiles.length === 0) return null;
 
   const counts: Record<string, number> = {};
@@ -140,18 +132,16 @@ export function typeMixOption(
 }
 
 /** Single-row null-rate heatmap, one cell per column. */
-export function nullHeatmapOption(
-  profiles: ColProfile[],
-): Record<string, unknown> | null {
+export function nullHeatmapOption(profiles: ColProfile[]): Record<string, unknown> | null {
   if (profiles.length === 0) return null;
 
   return {
     backgroundColor: "transparent",
     tooltip: {
       formatter: (params: { data: [number, number, number] }) =>
-        `${profiles[params.data[0]]?.name ?? ""}<br/>Null rate: ${(
-          params.data[2] * 100
-        ).toFixed(2)}%`,
+        `${profiles[params.data[0]]?.name ?? ""}<br/>Null rate: ${(params.data[2] * 100).toFixed(
+          2,
+        )}%`,
     },
     grid: { top: 20, bottom: 40, left: 80, right: 20 },
     xAxis: {
@@ -175,19 +165,13 @@ export function nullHeatmapOption(
     series: [
       {
         type: "heatmap",
-        data: profiles.map((profile, index) => [
-          index,
-          0,
-          Number(profile.nullRate.toFixed(4)),
-        ]),
+        data: profiles.map((profile, index) => [index, 0, Number(profile.nullRate.toFixed(4))]),
         large: profiles.length > LARGE_THRESHOLD,
         progressive: 2000,
         label: {
           show: profiles.length <= WIDE_THRESHOLD,
           formatter: (params: { data: [number, number, number] }) =>
-            params.data[2] === 0
-              ? "✓"
-              : `${(params.data[2] * 100).toFixed(0)}%`,
+            params.data[2] === 0 ? "✓" : `${(params.data[2] * 100).toFixed(0)}%`,
           color: "#fff",
           fontSize: 10,
         },
@@ -197,9 +181,7 @@ export function nullHeatmapOption(
 }
 
 /** Numeric frequency-distribution histogram for the selected column. */
-export function histogramOption(
-  detail: ColumnDetail | null,
-): Record<string, unknown> | null {
+export function histogramOption(detail: ColumnDetail | null): Record<string, unknown> | null {
   const bins = detail?.histogram;
   if (!bins || bins.length === 0) return null;
 
@@ -235,9 +217,7 @@ export function histogramOption(
 }
 
 /** Horizontal top-values bar chart for the selected column. */
-export function topValuesOption(
-  detail: ColumnDetail | null,
-): Record<string, unknown> | null {
+export function topValuesOption(detail: ColumnDetail | null): Record<string, unknown> | null {
   const topValues = detail?.topValues;
   if (!topValues || topValues.length === 0) return null;
 
@@ -269,8 +249,7 @@ export function topValuesOption(
           position: "right",
           color: "#94a3b8",
           fontSize: 10,
-          formatter: (params: { value: number }) =>
-            params.value.toLocaleString(),
+          formatter: (params: { value: number }) => params.value.toLocaleString(),
         },
       },
     ],

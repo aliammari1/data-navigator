@@ -7,10 +7,7 @@ import { useRef, useState } from "react";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
-import {
-  FORMAT_COLORS,
-  fmtCompact,
-} from "@/features/dashboard-shell/topbar/format-helpers";
+import { FORMAT_COLORS, fmtCompact } from "@/features/dashboard-shell/topbar/format-helpers";
 import { useClickOutside } from "@/features/dashboard-shell/shell/use-click-outside";
 import { cn } from "@/shared/utils";
 
@@ -147,7 +144,9 @@ export function DatasetPicker() {
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-[10px] mt-0.5">
-                          <span className="text-muted-foreground">{fmtCompact(ds.rowCount)} rows</span>
+                          <span className="text-muted-foreground">
+                            {fmtCompact(ds.rowCount)} rows
+                          </span>
                           <span className={live ? "text-green-400" : "text-amber-400"}>
                             {live ? "● live" : "⊘ stale"}
                           </span>

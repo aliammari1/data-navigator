@@ -15,11 +15,7 @@ import type { NotificationEntry } from "../store/monitor-store";
 
 const ROW_HEIGHT = 60;
 
-export function VirtualNotificationList({
-  notifications,
-}: {
-  notifications: NotificationEntry[];
-}) {
+export function VirtualNotificationList({ notifications }: { notifications: NotificationEntry[] }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const virtualizer = useVirtualizer({
     count: notifications.length,
@@ -51,9 +47,7 @@ export function VirtualNotificationList({
                 className={cn("size-2 rounded-full mt-1.5 shrink-0", severityDot(n.severity))}
               />
               <div className="flex-1 min-w-0">
-                <div className="text-xs text-slate-200 leading-relaxed truncate">
-                  {n.message}
-                </div>
+                <div className="text-xs text-slate-200 leading-relaxed truncate">{n.message}</div>
                 <div className="text-xs text-slate-500 mt-0.5">{formatDateTime(n.timestamp)}</div>
               </div>
               {!n.read && <span className="size-1.5 rounded-full bg-blue-400 mt-2 shrink-0" />}

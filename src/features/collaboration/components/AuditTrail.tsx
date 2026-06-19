@@ -25,10 +25,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import type {
-  AuditEventType,
-  CollabAuditEvent as AuditEvent,
-} from "@/platform/collab";
+import type { AuditEventType, CollabAuditEvent as AuditEvent } from "@/platform/collab";
 import { clearAudit, useAuditCRDT } from "../collab/collab-hub-crdt";
 
 // ─── Event type config ────────────────────────────────────────────────────────
@@ -143,7 +140,7 @@ const EventRow = React.memo(function EventRow({
           className={cn(
             "flex size-7 shrink-0 items-center justify-center rounded-full",
             cfg.bg,
-            cfg.color
+            cfg.color,
           )}
         >
           {cfg.icon}
@@ -157,9 +154,7 @@ const EventRow = React.memo(function EventRow({
           </p>
         )}
         <div className="flex items-start justify-between gap-2">
-          <p className="text-sm leading-snug text-foreground">
-            {event.description}
-          </p>
+          <p className="text-sm leading-snug text-foreground">{event.description}</p>
           <span className="shrink-0 text-[10px] text-muted-foreground font-mono">
             {formatTime(event.at)}
           </span>
@@ -169,7 +164,7 @@ const EventRow = React.memo(function EventRow({
             className={cn(
               "rounded-full px-1.5 py-px text-[9px] font-medium uppercase tracking-wide",
               cfg.bg,
-              cfg.color
+              cfg.color,
             )}
           >
             {cfg.label}
@@ -210,9 +205,7 @@ export function AuditTrail() {
     return auditEvents.filter((e) => {
       const matchType = filterType === "all" || e.type === filterType;
       const matchSearch =
-        !q ||
-        e.description.toLowerCase().includes(q) ||
-        e.user.toLowerCase().includes(q);
+        !q || e.description.toLowerCase().includes(q) || e.user.toLowerCase().includes(q);
       return matchType && matchSearch;
     });
   }, [auditEvents, filterType, deferredSearch]);
@@ -302,14 +295,12 @@ export function AuditTrail() {
               "rounded-full px-2.5 py-1 text-xs font-medium transition-colors",
               filterType === key
                 ? "bg-primary text-primary-foreground"
-                : "bg-muted text-muted-foreground hover:bg-muted/80"
+                : "bg-muted text-muted-foreground hover:bg-muted/80",
             )}
           >
             {label}
             {key !== "all" && (
-              <span className="ml-1 opacity-70">
-                ({typeCounts[key as AuditEventType] ?? 0})
-              </span>
+              <span className="ml-1 opacity-70">({typeCounts[key as AuditEventType] ?? 0})</span>
             )}
           </button>
         ))}
@@ -381,15 +372,11 @@ export function AuditTrail() {
             </DialogTitle>
           </DialogHeader>
           <p className="text-sm text-muted-foreground">
-            This will permanently delete all {auditEvents.length} audit events.
-            This action cannot be undone.
+            This will permanently delete all {auditEvents.length} audit events. This action cannot
+            be undone.
           </p>
           <DialogFooter>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setConfirmClear(false)}
-            >
+            <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>
               Cancel
             </Button>
             <Button variant="destructive" size="sm" onClick={handleClear}>

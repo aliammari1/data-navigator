@@ -45,7 +45,8 @@ export default function EyeTrackingScreen() {
   const showGazeDot = useShowGazeDot();
   const showHeatmap = useShowHeatmap();
   const error = useEyeError();
-  const { setActive, setGaze, setError, toggleGazeDot, toggleHeatmap, resetRuntime } = useEyeTrackingActions();
+  const { setActive, setGaze, setError, toggleGazeDot, toggleHeatmap, resetRuntime } =
+    useEyeTrackingActions();
 
   const [busy, setBusy] = useState(false);
   const [calibrating, setCalibrating] = useState(false);
@@ -144,9 +145,7 @@ export default function EyeTrackingScreen() {
         </div>
         <span
           className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 font-medium text-xs ${
-            active
-              ? "bg-primary/10 text-primary"
-              : "bg-muted text-muted-foreground"
+            active ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground"
           }`}
         >
           <span
@@ -229,10 +228,7 @@ export default function EyeTrackingScreen() {
       <div className="grid grid-cols-2 gap-3">
         <StatCard label="Calibré" value={calibrated ? "Oui" : "Non"} />
         <StatCard label="Précision" value={accuracy != null ? `${accuracy}%` : "—"} />
-        <StatCard
-          label="Regard (x, y)"
-          value={coords ? `${coords.x}, ${coords.y}` : "—"}
-        />
+        <StatCard label="Regard (x, y)" value={coords ? `${coords.x}, ${coords.y}` : "—"} />
         <StatCard label="Fréquence" value={active ? `${fps} img/s` : "—"} />
       </div>
 

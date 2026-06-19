@@ -214,9 +214,7 @@ async function ingestCsv(
   const rowCount = Number(countRows[0]?.row_count ?? 0);
 
   if (rowCount !== expectedRows) {
-    throw new Error(
-      `Ingest row mismatch: expected ${expectedRows}, got ${rowCount}`,
-    );
+    throw new Error(`Ingest row mismatch: expected ${expectedRows}, got ${rowCount}`);
   }
 
   conn.closeSync();
@@ -257,9 +255,7 @@ async function ingestParquet(
   conn.closeSync();
 
   if (rowCount !== expectedRows) {
-    throw new Error(
-      `Parquet view row mismatch: expected ${expectedRows}, got ${rowCount}`,
-    );
+    throw new Error(`Parquet view row mismatch: expected ${expectedRows}, got ${rowCount}`);
   }
 
   return { rowsPerSec: rowCount / (ingestMs / 1000), ingestMs };
@@ -313,10 +309,7 @@ let instance: DuckDBInstance;
 // Ingested-table registry, keyed by scenario label, populated in beforeAll.
 const ingested = new Map<string, IngestResult>();
 // One persistent read connection per summarized view (reused across bench runs).
-const summarizeConns = new Map<
-  string,
-  Awaited<ReturnType<DuckDBInstance["connect"]>>
->();
+const summarizeConns = new Map<string, Awaited<ReturnType<DuckDBInstance["connect"]>>>();
 
 /** Ensure a CSV exists + is ingested to a parquet-backed view; returns result. */
 async function ensureIngested(scn: Scenario): Promise<IngestResult> {
@@ -328,14 +321,7 @@ async function ensureIngested(scn: Scenario): Promise<IngestResult> {
   const viewName = `v_${scn.label.replaceAll("-", "_")}`;
 
   const csvBytes = writeSyntheticCsv(csvPath, scn.rows, scn.cols);
-  const result = await ingestCsv(
-    instance,
-    csvPath,
-    cachePath,
-    viewName,
-    scn.rows,
-    scn.cols,
-  );
+  const result = await ingestCsv(instance, csvPath, cachePath, viewName, scn.rows, scn.cols);
   result.csvBytes = csvBytes;
   ingested.set(scn.label, result);
 

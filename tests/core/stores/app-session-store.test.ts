@@ -52,9 +52,7 @@ describe("useTelecomSessionStore", () => {
       act(() => {
         useTelecomSessionStore.getState().setTableName("telecom_transactions_2");
       });
-      expect(useTelecomSessionStore.getState().tableName).toBe(
-        "telecom_transactions_2",
-      );
+      expect(useTelecomSessionStore.getState().tableName).toBe("telecom_transactions_2");
     });
 
     it("does not modify file or report date", () => {
@@ -78,9 +76,7 @@ describe("useTelecomSessionStore", () => {
       act(() => {
         useTelecomSessionStore.getState().setFileName("DailyTransactions.csv");
       });
-      expect(useTelecomSessionStore.getState().fileName).toBe(
-        "DailyTransactions.csv",
-      );
+      expect(useTelecomSessionStore.getState().fileName).toBe("DailyTransactions.csv");
     });
 
     it("accepts an empty string to clear it", () => {
@@ -133,9 +129,7 @@ describe("useTelecomSessionStore", () => {
 
       // Act: only patch fileName.
       act(() => {
-        useTelecomSessionStore
-          .getState()
-          .setSession({ fileName: "changed.csv" });
+        useTelecomSessionStore.getState().setSession({ fileName: "changed.csv" });
       });
 
       // Assert

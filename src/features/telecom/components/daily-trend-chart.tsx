@@ -8,9 +8,7 @@ import { fmtN, fmtPct, movingAverage } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 
-type FetchDailyTrend = (
-  m: Types.ColumnMapping,
-) => Promise<Types.DailyTrendRow[]>;
+type FetchDailyTrend = (m: Types.ColumnMapping) => Promise<Types.DailyTrendRow[]>;
 
 export const DailyTrendChart = memo(function DailyTrendChart({
   m,
@@ -43,30 +41,17 @@ export const DailyTrendChart = memo(function DailyTrendChart({
     if (!data || data.length < 2) return null;
 
     const labels = data.map((r) => r.day.slice(5));
-    const rates = data.map((r) =>
-      r.total > 0 ? +((r.success / r.total) * 100).toFixed(1) : 0,
-    );
+    const rates = data.map((r) => (r.total > 0 ? +((r.success / r.total) * 100).toFixed(1) : 0));
     const totals = data.map((r) => r.total);
     const maWindow = Math.min(3, totals.length);
     const maValues = maWindow >= 2 ? movingAverage(totals, maWindow) : [];
-    const maSeries: (number | null)[] = [
-      ...Array(maWindow - 1).fill(null),
-      ...maValues,
-    ];
+    const maSeries: (number | null)[] = [...Array(maWindow - 1).fill(null), ...maValues];
 
     const totalTx = data.reduce((a, r) => a + r.total, 0);
     const avgRate =
-      (data.reduce((a, r) => a + (r.total > 0 ? r.success / r.total : 0), 0) /
-        data.length) *
-      100;
+      (data.reduce((a, r) => a + (r.total > 0 ? r.success / r.total : 0), 0) / data.length) * 100;
 
-    const option = buildDailyTrendOption(
-      data,
-      labels,
-      rates,
-      maSeries,
-      maValues,
-    );
+    const option = buildDailyTrendOption(data, labels, rates, maSeries, maValues);
 
     return { data, labels, totalTx, avgRate, option };
   }, [data]);
@@ -93,9 +78,7 @@ export const DailyTrendChart = memo(function DailyTrendChart({
         <div className="w-px h-3 bg-border" />
         <div className="flex items-center gap-1.5">
           <span className="text-muted-foreground">{d.length} jours ·</span>
-          <span className="font-bold text-primary tabular-nums">
-            {fmtN(totalTx)} tx
-          </span>
+          <span className="font-bold text-primary tabular-nums">{fmtN(totalTx)} tx</span>
         </div>
         <div className="w-px h-3 bg-border" />
         <div className="flex items-center gap-1.5">

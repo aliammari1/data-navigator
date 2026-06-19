@@ -44,8 +44,7 @@ export default function AchievementsTab({
   const unlockedCount = useMemo(() => Object.keys(unlocked).length, [unlocked]);
 
   const filtered = useMemo(
-    () =>
-      ACHIEVEMENTS.filter((a) => categoryFilter === "ALL" || a.category === categoryFilter),
+    () => ACHIEVEMENTS.filter((a) => categoryFilter === "ALL" || a.category === categoryFilter),
     [categoryFilter],
   );
 

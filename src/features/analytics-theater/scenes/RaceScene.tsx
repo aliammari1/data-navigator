@@ -72,10 +72,7 @@ export default function RaceScene() {
   const scene = useSceneData(buildRaceSql);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { frames, categories } = useMemo(
-    () => buildFrames(scene.rows),
-    [scene.rows],
-  );
+  const { frames, categories } = useMemo(() => buildFrames(scene.rows), [scene.rows]);
 
   const colorOf = useMemo(() => {
     const map = new Map<string, string>();
@@ -198,9 +195,7 @@ export default function RaceScene() {
       onRetry={scene.refetch}
     >
       <div className="space-y-4" ref={containerRef}>
-        {scene.note && (
-          <p className="text-xs text-muted-foreground">{scene.note}</p>
-        )}
+        {scene.note && <p className="text-xs text-muted-foreground">{scene.note}</p>}
 
         <div className="flex flex-wrap items-center gap-3">
           <Button
@@ -262,9 +257,7 @@ export default function RaceScene() {
         {champions.length > 0 && (
           <Card size="sm">
             <CardHeader>
-              <CardTitle className="text-sm">
-                Lead History — days in front
-              </CardTitle>
+              <CardTitle className="text-sm">Lead History — days in front</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex flex-wrap gap-2">
@@ -278,12 +271,8 @@ export default function RaceScene() {
                       style={{ background: colorOf.get(cat) }}
                     />
                     <span className="text-xs text-foreground">{cat}</span>
-                    <span className="text-xs font-semibold text-muted-foreground">
-                      {days}d
-                    </span>
-                    {i === 0 && (
-                      <span className="text-xs text-yellow-400">lead</span>
-                    )}
+                    <span className="text-xs font-semibold text-muted-foreground">{days}d</span>
+                    {i === 0 && <span className="text-xs text-yellow-400">lead</span>}
                   </div>
                 ))}
               </div>

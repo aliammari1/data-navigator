@@ -13,9 +13,7 @@ export function CanalDetectorPanel({
   fetchServiceCodeRows,
 }: {
   m: Types.ColumnMapping;
-  fetchServiceCodeRows: (
-    m: Types.ColumnMapping,
-  ) => Promise<Types.ServiceCodeRow[]>;
+  fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<Types.ServiceCodeRow[]>;
 }) {
   const [rows, setRows] = useState<Types.ServiceCodeRow[]>([]);
   const [loading, setLoading] = useState(false);
@@ -50,35 +48,25 @@ export function CanalDetectorPanel({
     <div className="space-y-5">
       <div className="grid grid-cols-3 gap-3">
         <div className="rounded-xl border border-border bg-muted/40 p-3 text-center">
-          <div className="text-2xl font-bold text-foreground tabular-nums">
-            {rows.length}
-          </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            Motifs distincts
-          </div>
+          <div className="text-2xl font-bold text-foreground tabular-nums">{rows.length}</div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Motifs distincts</div>
         </div>
         <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-3 text-center">
           <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
             {fmtPct(matchedPct)}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            Classifié
-          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Classifié</div>
         </div>
         <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-3 text-center">
           <div
             className={cn(
               "text-2xl font-bold tabular-nums",
-              otherTotal > 0
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-muted-foreground",
+              otherTotal > 0 ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground",
             )}
           >
             {fmtN(otherTotal)}
           </div>
-          <div className="text-[10px] text-muted-foreground mt-0.5">
-            Tx non classées
-          </div>
+          <div className="text-[10px] text-muted-foreground mt-0.5">Tx non classées</div>
         </div>
       </div>
 
@@ -91,15 +79,13 @@ export function CanalDetectorPanel({
           onClick={() => setRk((k) => k + 1)}
           className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
         >
-          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} />{" "}
-          Actualiser
+          <RefreshCw className={cn("w-3 h-3", loading && "animate-spin")} /> Actualiser
         </button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center py-10 gap-2 text-muted-foreground text-xs">
-          <Loader2 className="w-4 h-4 animate-spin" /> Analyse des codes de
-          service…
+          <Loader2 className="w-4 h-4 animate-spin" /> Analyse des codes de service…
         </div>
       ) : (
         <div className="space-y-3">
@@ -132,9 +118,7 @@ export function CanalDetectorPanel({
                       >
                         {r.serviceCode}
                       </code>
-                      <span className="text-muted-foreground text-[10px] flex-none">
-                        /
-                      </span>
+                      <span className="text-muted-foreground text-[10px] flex-none">/</span>
                       <span className="text-[10px] text-muted-foreground flex-none w-32 truncate">
                         {r.category || "—"}
                       </span>
@@ -144,9 +128,7 @@ export function CanalDetectorPanel({
                           max={items[0]?.count ?? 1}
                           showLabel={false}
                           height="h-1"
-                          color={
-                            cfg ? cfg.bg.replace("/10", "/60") : "bg-muted"
-                          }
+                          color={cfg ? cfg.bg.replace("/10", "/60") : "bg-muted"}
                         />
                       </div>
                       <span className="text-[11px] text-muted-foreground font-mono w-12 text-right flex-none">
@@ -165,15 +147,12 @@ export function CanalDetectorPanel({
               collapsible
               defaultOpen={true}
               badge={`${otherRows.length} motifs · ${fmtN(otherTotal)} tx`}
-              icon={
-                <AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400" />
-              }
+              icon={<AlertCircle className="w-4 h-4 text-amber-500 dark:text-amber-400" />}
             >
               <div className="text-xs text-amber-600/80 dark:text-amber-400/80 mb-3 leading-relaxed">
-                Ces valeurs SERVICE_CLASS_NAME ne correspondent à aucune règle
-                de canal. Étendez la logique de classification des canaux ou
-                vérifiez le mappage des colonnes si ces résultats sont
-                inattendus.
+                Ces valeurs SERVICE_CLASS_NAME ne correspondent à aucune règle de canal. Étendez la
+                logique de classification des canaux ou vérifiez le mappage des colonnes si ces
+                résultats sont inattendus.
               </div>
               <div className="space-y-1.5">
                 {otherRows.slice(0, 20).map((r) => (
@@ -184,9 +163,7 @@ export function CanalDetectorPanel({
                     <code className="text-[10px] font-mono text-amber-600/70 dark:text-amber-400/70 flex-none w-48 truncate">
                       {r.serviceCode}
                     </code>
-                    <span className="text-muted-foreground text-[10px] flex-none">
-                      /
-                    </span>
+                    <span className="text-muted-foreground text-[10px] flex-none">/</span>
                     <span className="text-[10px] text-muted-foreground flex-none w-32 truncate">
                       {r.category || "—"}
                     </span>
@@ -210,8 +187,7 @@ export function CanalDetectorPanel({
 
           {rows.length === 0 && (
             <div className="text-center py-8 text-xs text-muted-foreground">
-              Aucune donnée de code de service disponible. Chargez d&apos;abord
-              un fichier.
+              Aucune donnée de code de service disponible. Chargez d&apos;abord un fichier.
             </div>
           )}
         </div>

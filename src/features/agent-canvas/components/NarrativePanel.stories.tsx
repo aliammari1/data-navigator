@@ -162,9 +162,7 @@ export const ReviewTab: Story = {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: /review/i }));
     await expect(canvas.getByText(/widget order/i)).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: /approve & build/i }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /approve & build/i })).toBeInTheDocument();
   },
 };
 

@@ -1,8 +1,5 @@
 import { describe, expect, it } from "vitest";
-import {
-  nullRateFromSummary,
-  numberOrUndefined,
-} from "@/shared/duckdb-summary";
+import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
 
 /**
  * Locks in the shared DuckDB SUMMARIZE coercion helpers consolidated out of

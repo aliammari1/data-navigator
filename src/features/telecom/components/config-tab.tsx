@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Database,
-  FlaskConical,
-  ListFilter,
-  Sparkles,
-  Tag,
-} from "lucide-react";
+import { Database, FlaskConical, ListFilter, Sparkles, Tag } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useMemo, useState } from "react";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
@@ -53,9 +47,8 @@ export const ConfigTab = memo(function ConfigTab({
 
   const criticalCount = useMemo(
     () =>
-      computeAIInsights(kpi, canals, hourly, statusData).filter(
-        (i) => i.severity === "critical",
-      ).length,
+      computeAIInsights(kpi, canals, hourly, statusData).filter((i) => i.severity === "critical")
+        .length,
     [kpi, canals, hourly, statusData],
   );
 
@@ -71,42 +64,35 @@ export const ConfigTab = memo(function ConfigTab({
       label: "Assistant métier",
       icon: Sparkles,
       badge: criticalCount > 0 ? String(criticalCount) : undefined,
-      activeClass:
-        "bg-violet-600 dark:bg-violet-500 text-white shadow-sm shadow-violet-500/30",
+      activeClass: "bg-violet-600 dark:bg-violet-500 text-white shadow-sm shadow-violet-500/30",
     },
     {
       key: "status",
       label: "Config. Statuts",
       icon: Tag,
       badge:
-        rawStatuses.filter(
-          (r) => !statusMapping.find((m) => m.rawCode === r.rawCode),
-        ).length > 0
+        rawStatuses.filter((r) => !statusMapping.find((m) => m.rawCode === r.rawCode)).length > 0
           ? "!"
           : undefined,
-      activeClass:
-        "bg-amber-600 dark:bg-amber-500 text-white shadow-sm shadow-amber-500/30",
+      activeClass: "bg-amber-600 dark:bg-amber-500 text-white shadow-sm shadow-amber-500/30",
     },
     {
       key: "canals",
       label: "Détection Canal",
       icon: ListFilter,
-      activeClass:
-        "bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm shadow-emerald-500/30",
+      activeClass: "bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm shadow-emerald-500/30",
     },
     {
       key: "kpis",
       label: "KPIs Personnalisés",
       icon: FlaskConical,
-      activeClass:
-        "bg-indigo-600 dark:bg-indigo-500 text-white shadow-sm shadow-indigo-500/30",
+      activeClass: "bg-indigo-600 dark:bg-indigo-500 text-white shadow-sm shadow-indigo-500/30",
     },
     {
       key: "storage",
       label: "Stockage",
       icon: Database,
-      activeClass:
-        "bg-rose-600 dark:bg-rose-500 text-white shadow-sm shadow-rose-500/30",
+      activeClass: "bg-rose-600 dark:bg-rose-500 text-white shadow-sm shadow-rose-500/30",
     },
   ];
 
@@ -155,10 +141,7 @@ export const ConfigTab = memo(function ConfigTab({
             />
           )}
           {section === "status" && (
-            <Section
-              title="Configuration des Codes Statut"
-              icon={<Tag className="w-4 h-4" />}
-            >
+            <Section title="Configuration des Codes Statut" icon={<Tag className="w-4 h-4" />}>
               <StatusConfigPanel
                 rawStatuses={rawStatuses}
                 mapping={statusMapping}
@@ -172,10 +155,7 @@ export const ConfigTab = memo(function ConfigTab({
               title="Détecteur de Classification Canal"
               icon={<ListFilter className="w-4 h-4" />}
             >
-              <CanalDetectorPanel
-                m={m}
-                fetchServiceCodeRows={fetchServiceCodeRows}
-              />
+              <CanalDetectorPanel m={m} fetchServiceCodeRows={fetchServiceCodeRows} />
             </Section>
           )}
           {section === "kpis" && (

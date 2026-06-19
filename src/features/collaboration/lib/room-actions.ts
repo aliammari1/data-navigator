@@ -25,9 +25,7 @@ export interface LocalPeer {
 }
 
 function newId(prefix: string): string {
-  return `${prefix}-${Date.now().toString(36)}-${Math.random()
-    .toString(36)
-    .slice(2, 7)}`;
+  return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 7)}`;
 }
 
 export function addComment(
@@ -111,12 +109,7 @@ export function toggleReaction(
   });
 }
 
-export function addReply(
-  room: RoomDoc,
-  peer: LocalPeer,
-  commentId: string,
-  text: string,
-): void {
+export function addReply(room: RoomDoc, peer: LocalPeer, commentId: string, text: string): void {
   const content = text.trim();
   if (!content) return;
   room.doc.transact(() => {
@@ -175,8 +168,7 @@ export function recordChange(
     if (input.cell) m.set("cell", input.cell);
     if (input.oldValue) m.set("oldValue", input.oldValue);
     if (input.newValue) m.set("newValue", input.newValue);
-    if (input.rowsAffected !== undefined)
-      m.set("rowsAffected", input.rowsAffected);
+    if (input.rowsAffected !== undefined) m.set("rowsAffected", input.rowsAffected);
     room.changes.unshift([m]);
   });
 }
