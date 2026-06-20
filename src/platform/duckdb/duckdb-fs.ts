@@ -91,10 +91,7 @@ function defaultSnapshotName(dataset: RegisteredDataset): string {
   return `${base}.parquet`;
 }
 
-function inferDelimiter(
-  filePath: string,
-  explicitDelimiter?: string,
-): string | undefined {
+function inferDelimiter(filePath: string, explicitDelimiter?: string): string | undefined {
   if (explicitDelimiter) return explicitDelimiter;
 
   const ext = getExtension(filePath);
@@ -139,19 +136,13 @@ export async function listLocalDatasets(): Promise<RegisteredDataset[]> {
 
 // ─── Dialog helpers ───────────────────────────────────────────────────────────
 
-export async function openLocalFileDialog(
-  options?: LocalFileDialogOptions,
-): Promise<string[]> {
+export async function openLocalFileDialog(options?: LocalFileDialogOptions): Promise<string[]> {
   ensureElectron("openLocalFileDialog");
 
-  type OpenFileDialogProperties = NonNullable<
-    Parameters<typeof openFileDialog>[0]["properties"]
-  >;
+  type OpenFileDialogProperties = NonNullable<Parameters<typeof openFileDialog>[0]["properties"]>;
 
   const properties: OpenFileDialogProperties =
-    options?.multiSelections === false
-      ? ["openFile"]
-      : ["openFile", "multiSelections"];
+    options?.multiSelections === false ? ["openFile"] : ["openFile", "multiSelections"];
 
   return openFileDialog({
     title: options?.title ?? "Open dataset file",
@@ -196,8 +187,7 @@ export async function registerLocalDatasetFile(
   ensureElectron("registerLocalDatasetFile");
 
   const ext = getExtension(options.filePath);
-  const displayName =
-    options.displayName?.trim() || defaultDatasetDisplayName(options.filePath);
+  const displayName = options.displayName?.trim() || defaultDatasetDisplayName(options.filePath);
 
   if (isCsvLikeExtension(ext)) {
     return registerCSVPathDataset({
@@ -246,8 +236,7 @@ export async function registerLocalDatasetFiles(
 }
 
 export async function openAndRegisterLocalDatasetFiles(
-  options?: LocalFileDialogOptions &
-    Omit<RegisterLocalDatasetOptions, "filePath" | "displayName">,
+  options?: LocalFileDialogOptions & Omit<RegisterLocalDatasetOptions, "filePath" | "displayName">,
 ): Promise<RegisteredDatasetWithPreview[]> {
   const filePaths = await openLocalFileDialog({
     title: options?.title ?? "Import dataset files",

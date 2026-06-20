@@ -71,33 +71,24 @@ const ACCENT_OKLCH: Record<
   },
 };
 
-const DENSITY_TOKENS: Record<
-  DensityMode,
-  { radius: string; space: string }
-> = {
+const DENSITY_TOKENS: Record<DensityMode, { radius: string; space: string }> = {
   compact: { radius: "0.5rem", space: "0.5rem" },
   comfortable: { radius: "0.75rem", space: "0.875rem" },
   spacious: { radius: "1rem", space: "1.25rem" },
 };
 
 export function SettingsEffects() {
-  const {
-    theme,
-    accentColor,
-    density,
-    animationsEnabled,
-    compactNumbers,
-    performance,
-  } = useSettingsStore(
-    useShallow((s) => ({
-      theme: s.theme,
-      accentColor: s.accentColor,
-      density: s.density,
-      animationsEnabled: s.animationsEnabled,
-      compactNumbers: s.compactNumbers,
-      performance: s.performance,
-    })),
-  );
+  const { theme, accentColor, density, animationsEnabled, compactNumbers, performance } =
+    useSettingsStore(
+      useShallow((s) => ({
+        theme: s.theme,
+        accentColor: s.accentColor,
+        density: s.density,
+        animationsEnabled: s.animationsEnabled,
+        compactNumbers: s.compactNumbers,
+        performance: s.performance,
+      })),
+    );
   const { setTheme, resolvedTheme } = useTheme();
 
   // 1. Theme: settings store → ThemeProvider (the real applier). Keeps the two

@@ -23,9 +23,24 @@ import type {
  */
 
 const MODELS: AIModelInfo[] = [
-  { id: "onnx-community/Qwen2.5-0.5B-Instruct", label: "Qwen2.5 0.5B (ONNX)", family: "Qwen2.5", sizeLabel: "0.5B" },
-  { id: "HuggingFaceTB/SmolLM2-360M-Instruct", label: "SmolLM2 360M", family: "SmolLM2", sizeLabel: "360M" },
-  { id: "HuggingFaceTB/SmolLM2-1.7B-Instruct", label: "SmolLM2 1.7B", family: "SmolLM2", sizeLabel: "1.7B" },
+  {
+    id: "onnx-community/Qwen2.5-0.5B-Instruct",
+    label: "Qwen2.5 0.5B (ONNX)",
+    family: "Qwen2.5",
+    sizeLabel: "0.5B",
+  },
+  {
+    id: "HuggingFaceTB/SmolLM2-360M-Instruct",
+    label: "SmolLM2 360M",
+    family: "SmolLM2",
+    sizeLabel: "360M",
+  },
+  {
+    id: "HuggingFaceTB/SmolLM2-1.7B-Instruct",
+    label: "SmolLM2 1.7B",
+    family: "SmolLM2",
+    sizeLabel: "1.7B",
+  },
 ];
 
 export const transformersProvider: AIProvider = {

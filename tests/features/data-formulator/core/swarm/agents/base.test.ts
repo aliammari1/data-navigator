@@ -19,10 +19,7 @@ import {
   sanitizeSql,
   schemaSummary,
 } from "@/features/data-formulator/core/swarm/agents/base";
-import type {
-  Artifact,
-  SwarmContext,
-} from "@/features/data-formulator/core/swarm/types";
+import type { Artifact, SwarmContext } from "@/features/data-formulator/core/swarm/types";
 import type { ChartSpec, ColumnInfo } from "@/features/data-formulator/core/types";
 
 /** Minimal fake scheduler: only `io` is used by the artifact runners. */
@@ -141,9 +138,7 @@ describe("sanitizeSql", () => {
   });
 
   it("removes a leading line comment", () => {
-    expect(sanitizeSql("-- pick everything\nSELECT * FROM t")).toBe(
-      "SELECT * FROM t",
-    );
+    expect(sanitizeSql("-- pick everything\nSELECT * FROM t")).toBe("SELECT * FROM t");
   });
 
   it("removes a leading block comment", () => {
@@ -162,9 +157,7 @@ describe("sanitizeSql", () => {
 
 describe("assertReadOnlySql", () => {
   it("accepts a plain SELECT and returns the sanitized statement", () => {
-    expect(assertReadOnlySql("```sql\nSELECT a FROM t\n```")).toBe(
-      "SELECT a FROM t",
-    );
+    expect(assertReadOnlySql("```sql\nSELECT a FROM t\n```")).toBe("SELECT a FROM t");
   });
 
   it("accepts a leading WITH (CTE)", () => {
@@ -174,9 +167,7 @@ describe("assertReadOnlySql", () => {
   });
 
   it("rejects a statement that is not a SELECT/WITH", () => {
-    expect(() => assertReadOnlySql("SHOW TABLES")).toThrow(
-      /only SELECT\/WITH/,
-    );
+    expect(() => assertReadOnlySql("SHOW TABLES")).toThrow(/only SELECT\/WITH/);
   });
 
   it("rejects a forbidden non-read-only keyword", () => {
@@ -187,9 +178,7 @@ describe("assertReadOnlySql", () => {
   });
 
   it("rejects multiple statements separated by a semicolon", () => {
-    expect(() => assertReadOnlySql("SELECT 1 ; SELECT 2")).toThrow(
-      /multiple statements/,
-    );
+    expect(() => assertReadOnlySql("SELECT 1 ; SELECT 2")).toThrow(/multiple statements/);
   });
 });
 
@@ -217,24 +206,14 @@ describe("runTableArtifact", () => {
 
   it("returns an empty-rows table artifact without throwing", async () => {
     runReadOnlyQuery.mockResolvedValue([]);
-    const artifact = await runTableArtifact(
-      fakeScheduler(),
-      "t",
-      "Empty",
-      "SELECT 1 WHERE 1=0",
-    );
+    const artifact = await runTableArtifact(fakeScheduler(), "t", "Empty", "SELECT 1 WHERE 1=0");
     expect(artifact.kind).toBe("table");
     expect(artifact.rows).toEqual([]);
   });
 
   it("sanitizes BigInt values in the returned rows to JSON-safe numbers", async () => {
     runReadOnlyQuery.mockResolvedValue([{ n: 5n }]);
-    const artifact = await runTableArtifact(
-      fakeScheduler(),
-      "t",
-      "Big",
-      "SELECT 5 n",
-    );
+    const artifact = await runTableArtifact(fakeScheduler(), "t", "Big", "SELECT 5 n");
     expect(artifact.rows[0]).toEqual({ n: 5 });
   });
 });
@@ -244,12 +223,7 @@ describe("runChartArtifact", () => {
     runReadOnlyQuery.mockResolvedValue([{ x_val: "USSD", y_val: 99 }]);
     const spec = chartSpec("channel");
 
-    const artifact = await runChartArtifact(
-      fakeScheduler(),
-      makeCtx(),
-      "task-3",
-      spec,
-    );
+    const artifact = await runChartArtifact(fakeScheduler(), makeCtx(), "task-3", spec);
 
     expect(artifact.kind).toBe("chart");
     expect(artifact.taskId).toBe("task-3");
@@ -361,9 +335,7 @@ describe("artifactEvidence", () => {
 
   it("caps the per-artifact row sample to the first 8 rows", () => {
     const rows = Array.from({ length: 20 }, (_, i) => ({ idx: i }));
-    const out = artifactEvidence([
-      { kind: "table", id: "a", taskId: "t", title: "Big", rows },
-    ]);
+    const out = artifactEvidence([{ kind: "table", id: "a", taskId: "t", title: "Big", rows }]);
     expect(out).toContain('"idx":7');
     expect(out).not.toContain('"idx":8');
   });

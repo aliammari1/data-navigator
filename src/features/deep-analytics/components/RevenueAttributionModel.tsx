@@ -1,20 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import {
-  DollarSign,
-  TrendingUp,
-  BarChart2,
-  RefreshCw,
-} from "lucide-react";
+import { DollarSign, TrendingUp, BarChart2, RefreshCw } from "lucide-react";
 import { useDuckDBQuery } from "@/core/queries/duckdb";
 import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
 import { buildAttributionFeaturesSql } from "@/features/deep-analytics/lib/sql";
@@ -66,9 +55,8 @@ export function RevenueAttributionModel() {
   );
   const amountCol = useMemo(
     () =>
-      pickColumn(source.numericColumns, [
-        /amount|montant|revenue|value|price|total|mnt/i,
-      ]) ?? source.numericColumns[0],
+      pickColumn(source.numericColumns, [/amount|montant|revenue|value|price|total|mnt/i]) ??
+      source.numericColumns[0],
     [source.numericColumns],
   );
   const statusCol = useMemo(
@@ -106,10 +94,7 @@ export function RevenueAttributionModel() {
     }));
   }, [data]);
 
-  const totalRevenue = useMemo(
-    () => channels.reduce((s, c) => s + c.revenue, 0),
-    [channels],
-  );
+  const totalRevenue = useMemo(() => channels.reduce((s, c) => s + c.revenue, 0), [channels]);
 
   // ── Real regression-based attribution via the worker ──
   const [attr, setAttr] = useState<{ shares: number[]; rSquared: number } | null>(null);
@@ -247,10 +232,9 @@ export function RevenueAttributionModel() {
       <MissingColumnsState
         detail={
           <>
-            Revenue attribution needs a categorical channel column and a numeric
-            amount/revenue column. Dataset “{source.datasetName}” has{" "}
-            {source.categoricalColumns.length} categorical and{" "}
-            {source.numericColumns.length} numeric columns.
+            Revenue attribution needs a categorical channel column and a numeric amount/revenue
+            column. Dataset “{source.datasetName}” has {source.categoricalColumns.length}{" "}
+            categorical and {source.numericColumns.length} numeric columns.
           </>
         }
       />
@@ -273,8 +257,8 @@ export function RevenueAttributionModel() {
             <div>
               <h3 className="font-semibold text-slate-100 mb-1">Revenue Attribution Analysis</h3>
               <p className="text-sm text-slate-400">
-                Standardised multiple-linear-regression on per-channel drivers
-                (volume, success rate, avg amount) → revenue. |β| = true attribution.
+                Standardised multiple-linear-regression on per-channel drivers (volume, success
+                rate, avg amount) → revenue. |β| = true attribution.
               </p>
             </div>
             <Button
@@ -283,15 +267,21 @@ export function RevenueAttributionModel() {
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               {running ? (
-                <><RefreshCw className="size-4 animate-spin" />Fitting…</>
+                <>
+                  <RefreshCw className="size-4 animate-spin" />
+                  Fitting…
+                </>
               ) : (
-                <><DollarSign className="size-4" />{attr ? "Re-run Attribution" : "Run Attribution"}</>
+                <>
+                  <DollarSign className="size-4" />
+                  {attr ? "Re-run Attribution" : "Run Attribution"}
+                </>
               )}
             </Button>
           </div>
           <p className="mt-3 text-xs text-slate-500 bg-slate-800/50 rounded px-3 py-2">
-            {channels.length} channels from <b>{source.datasetName}</b> · target ={" "}
-            {amountCol} · total revenue {fmtRevenue(totalRevenue)} TND
+            {channels.length} channels from <b>{source.datasetName}</b> · target = {amountCol} ·
+            total revenue {fmtRevenue(totalRevenue)} TND
           </p>
           {attrError && <p className="mt-2 text-xs text-red-400">{attrError}</p>}
         </CardContent>
@@ -307,8 +297,8 @@ export function RevenueAttributionModel() {
                 Attribution Breakdown
               </CardTitle>
               <CardDescription>
-                Standardised driver contribution to revenue variation · model R²{" "}
-                = {attr.rSquared.toFixed(3)}
+                Standardised driver contribution to revenue variation · model R² ={" "}
+                {attr.rSquared.toFixed(3)}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -361,7 +351,10 @@ export function RevenueAttributionModel() {
                 {topChannels.slice(0, 15).map((row) => {
                   const pct = totalRevenue > 0 ? (row.revenue / totalRevenue) * 100 : 0;
                   return (
-                    <tr key={row.channel} className="border-b border-slate-800 hover:bg-slate-800/30">
+                    <tr
+                      key={row.channel}
+                      className="border-b border-slate-800 hover:bg-slate-800/30"
+                    >
                       <td className="py-2 px-3 text-slate-200 font-medium">{row.channel}</td>
                       <td className="py-2 px-3 text-right text-slate-300 font-mono text-xs">
                         {fmtRevenue(row.revenue)} TND
@@ -369,15 +362,24 @@ export function RevenueAttributionModel() {
                       <td className="py-2 px-3 text-right">
                         <div className="flex items-center justify-end gap-2">
                           <div className="h-1.5 rounded-full bg-slate-700 w-20">
-                            <div className="h-1.5 rounded-full bg-blue-500" style={{ width: `${Math.min(100, pct)}%` }} />
+                            <div
+                              className="h-1.5 rounded-full bg-blue-500"
+                              style={{ width: `${Math.min(100, pct)}%` }}
+                            />
                           </div>
-                          <span className="text-slate-300 font-mono text-xs">{pct.toFixed(1)}%</span>
+                          <span className="text-slate-300 font-mono text-xs">
+                            {pct.toFixed(1)}%
+                          </span>
                         </div>
                       </td>
-                      <td className="py-2 px-3 text-right text-slate-300 font-mono text-xs">{fmtInt(row.volume)}</td>
+                      <td className="py-2 px-3 text-right text-slate-300 font-mono text-xs">
+                        {fmtInt(row.volume)}
+                      </td>
                       <td className="py-2 px-3 text-right">
                         <span className="inline-flex items-center gap-1 text-xs font-mono text-slate-300">
-                          {row.successRate >= 85 && <TrendingUp className="size-3 text-emerald-400" />}
+                          {row.successRate >= 85 && (
+                            <TrendingUp className="size-3 text-emerald-400" />
+                          )}
                           {fmtPct(row.successRate)}
                         </span>
                       </td>

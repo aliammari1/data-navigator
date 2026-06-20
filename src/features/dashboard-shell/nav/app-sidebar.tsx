@@ -6,7 +6,6 @@ import { useMemo } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePinnedItems } from "@/core/stores/settings-store";
 import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
-import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import {
   ALL_ITEMS,
   FOOTER_ITEMS,
@@ -14,8 +13,9 @@ import {
   isNavItemActive,
   NAV_SECTIONS,
 } from "@/features/dashboard-shell/nav/nav-config";
+import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /**
  * Application sidebar (IA v2).
@@ -163,13 +163,7 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AiAssistantButton({
-  collapsed,
-  onClick,
-}: {
-  collapsed: boolean;
-  onClick: () => void;
-}) {
+function AiAssistantButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
   const button = (
     <button
       type="button"

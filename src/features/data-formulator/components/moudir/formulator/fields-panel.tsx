@@ -77,7 +77,9 @@ function FieldChip({
       variants={motionOn ? rise : undefined}
       draggable
       // native HTML5 drag on a motion element — cast past framer-motion's gesture typing
-      onDragStart={handleDragStart as unknown as React.ComponentProps<typeof motion.div>["onDragStart"]}
+      onDragStart={
+        handleDragStart as unknown as React.ComponentProps<typeof motion.div>["onDragStart"]
+      }
       title={`${column.name} · ${column.dbType}`}
       className={cn(
         "group flex h-8 items-center gap-2 rounded-md px-2",

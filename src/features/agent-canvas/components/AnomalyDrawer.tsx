@@ -64,9 +64,7 @@ async function detectOutliers(
   const infos: AnomalyInfo[] = [];
 
   for (const col of numericCols.slice(0, 3)) {
-    const values = data
-      .map((r, i) => ({ v: Number(r[col]), i }))
-      .filter((x) => !Number.isNaN(x.v));
+    const values = data.map((r, i) => ({ v: Number(r[col]), i })).filter((x) => !Number.isNaN(x.v));
 
     if (values.length < 4) continue;
 
@@ -221,9 +219,7 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
             <div className="flex-none p-4 border-b border-slate-800">
               <div className="flex items-center gap-2 mb-1">
                 <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <span className="text-sm font-bold text-white">
-                  Anomaly Inspector
-                </span>
+                <span className="text-sm font-bold text-white">Anomaly Inspector</span>
                 <span className="text-xs text-amber-400 bg-amber-900/30 border border-amber-700/30 px-2 py-0.5 rounded">
                   {totalOutliers} outliers
                 </span>
@@ -261,10 +257,7 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
                     { label: "IQR", value: info.iqr.toFixed(2) },
                     { label: "σ", value: info.stdev.toFixed(2) },
                   ].map((s) => (
-                    <div
-                      key={s.label}
-                      className="bg-slate-800 rounded-lg p-2 text-center"
-                    >
+                    <div key={s.label} className="bg-slate-800 rounded-lg p-2 text-center">
                       <p className="text-[10px] text-slate-500">{s.label}</p>
                       <p className="text-sm font-bold text-white">{s.value}</p>
                     </div>
@@ -291,39 +284,24 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
 
                 {/* Outlier rows */}
                 <div>
-                  <p className="text-[10px] text-slate-500 mb-1">
-                    Extreme rows
-                  </p>
+                  <p className="text-[10px] text-slate-500 mb-1">Extreme rows</p>
                   <div className="rounded-lg border border-slate-800 overflow-hidden">
                     <table className="min-w-full text-[11px]">
                       <thead className="bg-slate-800">
                         <tr>
-                          <th className="text-left px-3 py-1.5 text-slate-400">
-                            Row
-                          </th>
-                          <th className="text-left px-3 py-1.5 text-slate-400">
-                            {info.column}
-                          </th>
-                          <th className="text-left px-3 py-1.5 text-slate-400">
-                            Score
-                          </th>
+                          <th className="text-left px-3 py-1.5 text-slate-400">Row</th>
+                          <th className="text-left px-3 py-1.5 text-slate-400">{info.column}</th>
+                          <th className="text-left px-3 py-1.5 text-slate-400">Score</th>
                         </tr>
                       </thead>
                       <tbody>
                         {info.outliers.map((o) => (
-                          <tr
-                            key={o.rowIndex}
-                            className="border-t border-slate-800"
-                          >
-                            <td className="px-3 py-1 text-slate-500">
-                              {o.rowIndex + 1}
-                            </td>
+                          <tr key={o.rowIndex} className="border-t border-slate-800">
+                            <td className="px-3 py-1 text-slate-500">{o.rowIndex + 1}</td>
                             <td className="px-3 py-1 text-red-300 font-mono font-bold">
                               {o.value.toLocaleString()}
                             </td>
-                            <td className="px-3 py-1 text-amber-400">
-                              {o.score.toFixed(2)}x
-                            </td>
+                            <td className="px-3 py-1 text-amber-400">{o.score.toFixed(2)}x</td>
                           </tr>
                         ))}
                       </tbody>
@@ -341,8 +319,8 @@ export function AnomalyDrawer({ widget, onFilter }: Props) {
                   className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-violet-600/20 border border-violet-700/50 text-violet-300 text-sm hover:bg-violet-600/30 transition-colors"
                 >
                   <Filter className="w-3.5 h-3.5" />
-                  Filter outliers (WHERE {info.column} BETWEEN{" "}
-                  {info.lower.toFixed(2)} AND {info.upper.toFixed(2)})
+                  Filter outliers (WHERE {info.column} BETWEEN {info.lower.toFixed(2)} AND{" "}
+                  {info.upper.toFixed(2)})
                 </button>
               </div>
             )}

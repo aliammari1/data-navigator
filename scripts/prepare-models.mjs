@@ -139,12 +139,7 @@ export const MODEL_MANIFEST = [
     group: "embed",
     label: "all-MiniLM-L6-v2 tokenizer_config.json",
     url: `${HF}/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json?download=true`,
-    destPath: path.join(
-      TRANSFORMERS_DIR,
-      "Xenova",
-      "all-MiniLM-L6-v2",
-      "tokenizer_config.json",
-    ),
+    destPath: path.join(TRANSFORMERS_DIR, "Xenova", "all-MiniLM-L6-v2", "tokenizer_config.json"),
     bytes: 0,
     sha256: "",
   },
@@ -195,7 +190,11 @@ async function verifyExisting(entry, { verifyHash }) {
   }
   const actualBytes = statSync(entry.destPath).size;
   if (entry.bytes > 0 && actualBytes !== entry.bytes) {
-    return { ok: false, reason: `size mismatch (${actualBytes} ≠ ${entry.bytes})`, bytes: actualBytes };
+    return {
+      ok: false,
+      reason: `size mismatch (${actualBytes} ≠ ${entry.bytes})`,
+      bytes: actualBytes,
+    };
   }
   if (verifyHash && entry.sha256) {
     const sha = await sha256File(entry.destPath);
@@ -294,7 +293,9 @@ async function main() {
     return;
   }
 
-  console.log(`prepare-models: ${entries.length} artifact(s)${opts.checkOnly ? " (check only)" : ""}`);
+  console.log(
+    `prepare-models: ${entries.length} artifact(s)${opts.checkOnly ? " (check only)" : ""}`,
+  );
 
   let downloaded = 0;
   let skipped = 0;
@@ -342,7 +343,7 @@ async function main() {
         `      At runtime they must live in <userData>/models/llm/. The in-app Setup\n` +
         `      downloader (electron/model-download-service.ts) fetches directly to userData,\n` +
         `      or pass --llm-dest=<userData>/models/llm to write there now.`,
-  );
+    );
   }
 }
 

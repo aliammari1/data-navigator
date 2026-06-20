@@ -41,11 +41,7 @@ export const APP_ROUTES: AppRoute[] = (() => {
   }
   // Telecom in-page tabs are real destinations too (?tab=…).
   for (const tab of TELECOM_NAV_ITEMS) {
-    push(
-      `${TELECOM_BASE}?tab=${tab.key}`,
-      `Rapport Télécom — ${tab.label}`,
-      tab.description,
-    );
+    push(`${TELECOM_BASE}?tab=${tab.key}`, `Rapport Télécom — ${tab.label}`, tab.description);
   }
   return routes;
 })();

@@ -64,9 +64,7 @@ export async function upsertDailyStat(
     const merged: DailyStat = {
       ...stat,
       computedAt: stat.computedAt ?? Date.now(),
-      lineage: existing?.lineage
-        ? mergeLineage(existing.lineage, stat.lineage)
-        : stat.lineage,
+      lineage: existing?.lineage ? mergeLineage(existing.lineage, stat.lineage) : stat.lineage,
     };
     store.put(merged);
     await new Promise<void>((res) => {
@@ -77,10 +75,7 @@ export async function upsertDailyStat(
   } catch {}
 }
 
-function mergeLineage(
-  prev: DailyLineageEntry[],
-  next: DailyLineageEntry[],
-): DailyLineageEntry[] {
+function mergeLineage(prev: DailyLineageEntry[], next: DailyLineageEntry[]): DailyLineageEntry[] {
   const byKey = new Map<string, DailyLineageEntry>();
   for (const e of [...prev, ...next]) byKey.set(e.fileKey, e);
   return [...byKey.values()].sort((a, b) => a.ingestedAt - b.ingestedAt);

@@ -2,20 +2,8 @@
 
 import { useMemo } from "react";
 import { cn } from "@/shared/utils";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
-import {
-  TrendingUp,
-  TrendingDown,
-  Users,
-  BarChart2,
-  CheckCircle,
-} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { TrendingUp, TrendingDown, Users, BarChart2, CheckCircle } from "lucide-react";
 import { useDuckDBQuery } from "@/core/queries/duckdb";
 import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
 import { buildCohortRatesSql } from "@/features/deep-analytics/lib/sql";
@@ -50,9 +38,18 @@ interface CohortSeries {
 }
 
 const COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b", "#8b5cf6",
-  "#ec4899", "#06b6d4", "#a78bfa", "#f97316",
-  "#84cc16", "#ef4444", "#14b8a6", "#eab308",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#8b5cf6",
+  "#ec4899",
+  "#06b6d4",
+  "#a78bfa",
+  "#f97316",
+  "#84cc16",
+  "#ef4444",
+  "#14b8a6",
+  "#eab308",
 ];
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -153,16 +150,12 @@ export function CohortAnalysis() {
 
   const winner = useMemo(
     () =>
-      series.length
-        ? series.reduce((best, s) => (s.trend > best.trend ? s : best))
-        : undefined,
+      series.length ? series.reduce((best, s) => (s.trend > best.trend ? s : best)) : undefined,
     [series],
   );
   const struggler = useMemo(
     () =>
-      series.length
-        ? series.reduce((worst, s) => (s.trend < worst.trend ? s : worst))
-        : undefined,
+      series.length ? series.reduce((worst, s) => (s.trend < worst.trend ? s : worst)) : undefined,
     [series],
   );
 
@@ -217,7 +210,12 @@ export function CohortAnalysis() {
           type: "heatmap",
           data: points,
           progressive: 2000,
-          label: { show: buckets.length <= 12, formatter: (p: { data: [number, number, number] }) => `${p.data[2]}%`, fontSize: 10, color: "#e2e8f0" },
+          label: {
+            show: buckets.length <= 12,
+            formatter: (p: { data: [number, number, number] }) => `${p.data[2]}%`,
+            fontSize: 10,
+            color: "#e2e8f0",
+          },
           emphasis: { itemStyle: { shadowBlur: 10, shadowColor: "rgba(0,0,0,0.5)" } },
         },
       ],
@@ -227,11 +225,30 @@ export function CohortAnalysis() {
   const lineOption = useMemo(
     () => ({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: "#1e293b", borderColor: "#334155", textStyle: { color: "#e2e8f0" } },
-      legend: { data: series.map((s) => s.name), textStyle: { color: "#94a3b8", fontSize: 10 }, type: "scroll", bottom: 0 },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#1e293b",
+        borderColor: "#334155",
+        textStyle: { color: "#e2e8f0" },
+      },
+      legend: {
+        data: series.map((s) => s.name),
+        textStyle: { color: "#94a3b8", fontSize: 10 },
+        type: "scroll",
+        bottom: 0,
+      },
       grid: { top: 20, bottom: 60, left: 50, right: 20 },
-      xAxis: { type: "category", data: buckets, axisLabel: { color: "#94a3b8", rotate: 30, fontSize: 9 }, axisLine: { lineStyle: { color: "#334155" } } },
-      yAxis: { type: "value", axisLabel: { color: "#94a3b8", formatter: "{value}%" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+      xAxis: {
+        type: "category",
+        data: buckets,
+        axisLabel: { color: "#94a3b8", rotate: 30, fontSize: 9 },
+        axisLine: { lineStyle: { color: "#334155" } },
+      },
+      yAxis: {
+        type: "value",
+        axisLabel: { color: "#94a3b8", formatter: "{value}%" },
+        splitLine: { lineStyle: { color: "#1e293b" } },
+      },
       series: series.map((s) => ({
         name: s.name,
         type: "line",
@@ -253,9 +270,8 @@ export function CohortAnalysis() {
       <MissingColumnsState
         detail={
           <>
-            Cohort analysis needs a categorical column (e.g. channel) and a
-            date/time column. Active dataset “{source.datasetName}” has{" "}
-            {source.categoricalColumns.length} categorical and{" "}
+            Cohort analysis needs a categorical column (e.g. channel) and a date/time column. Active
+            dataset “{source.datasetName}” has {source.categoricalColumns.length} categorical and{" "}
             {source.dateColumns.length} date columns.
           </>
         }
@@ -283,8 +299,8 @@ export function CohortAnalysis() {
           </CardTitle>
           <CardDescription>
             Weekly success rate per “{categoryCol}” from <b>{source.datasetName}</b>
-            {statusCol ? ` (success = ${statusCol})` : " (row volume share)"} —{" "}
-            {series.length} cohorts × {buckets.length} weeks
+            {statusCol ? ` (success = ${statusCol})` : " (row volume share)"} — {series.length}{" "}
+            cohorts × {buckets.length} weeks
           </CardDescription>
         </CardHeader>
       </Card>
@@ -380,7 +396,10 @@ export function CohortAnalysis() {
                     Cohort
                   </th>
                   {buckets.map((b) => (
-                    <th key={b} className="text-center py-2 px-2 text-slate-400 font-medium whitespace-nowrap">
+                    <th
+                      key={b}
+                      className="text-center py-2 px-2 text-slate-400 font-medium whitespace-nowrap"
+                    >
                       {b.slice(5)}
                     </th>
                   ))}
@@ -392,20 +411,39 @@ export function CohortAnalysis() {
                   <tr key={s.name} className="border-b border-slate-800 hover:bg-slate-800/30">
                     <td className="py-2 px-3 sticky left-0 bg-slate-900">
                       <div className="flex items-center gap-2">
-                        <span className="size-2 rounded-full" style={{ backgroundColor: s.color }} />
-                        <span className="text-slate-200 font-medium text-xs whitespace-nowrap">{s.name}</span>
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ backgroundColor: s.color }}
+                        />
+                        <span className="text-slate-200 font-medium text-xs whitespace-nowrap">
+                          {s.name}
+                        </span>
                       </div>
                     </td>
                     {s.rates.map((rate, bi) => (
                       <td key={bi} className="py-1.5 px-1">
-                        <span className={cn("block text-center rounded px-1 py-0.5 text-xs font-mono", getCellColor(rate))}>
+                        <span
+                          className={cn(
+                            "block text-center rounded px-1 py-0.5 text-xs font-mono",
+                            getCellColor(rate),
+                          )}
+                        >
                           {Number.isFinite(rate) ? `${rate.toFixed(0)}%` : "—"}
                         </span>
                       </td>
                     ))}
                     <td className="py-2 px-3 text-center">
-                      <span className={cn("inline-flex items-center gap-1 text-xs font-medium", s.trend >= 0 ? "text-emerald-400" : "text-red-400")}>
-                        {s.trend >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 text-xs font-medium",
+                          s.trend >= 0 ? "text-emerald-400" : "text-red-400",
+                        )}
+                      >
+                        {s.trend >= 0 ? (
+                          <TrendingUp className="size-3" />
+                        ) : (
+                          <TrendingDown className="size-3" />
+                        )}
                         {s.trend >= 0 ? "+" : ""}
                         {s.trend.toFixed(1)}pp
                       </span>

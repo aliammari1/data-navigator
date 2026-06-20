@@ -72,7 +72,8 @@ function resolveVfs(mod: unknown): Record<string, string> {
 async function buildPdf(doc: ReportDocument): Promise<ArrayBuffer> {
   const pdfMakeMod = await import("pdfmake/build/pdfmake");
   const pdfFontsMod = await import("pdfmake/build/vfs_fonts");
-  const pdfMake = (pdfMakeMod as unknown as { default: PdfMake }).default ?? (pdfMakeMod as unknown as PdfMake);
+  const pdfMake =
+    (pdfMakeMod as unknown as { default: PdfMake }).default ?? (pdfMakeMod as unknown as PdfMake);
   pdfMake.vfs = resolveVfs(pdfFontsMod);
 
   const content: unknown[] = [];
@@ -143,14 +144,19 @@ interface PdfMake {
 
 async function buildXlsx(doc: ReportDocument): Promise<ArrayBuffer> {
   const ExcelJSMod = await import("exceljs");
-  const ExcelJS = (ExcelJSMod as unknown as { default?: typeof import("exceljs") }).default ?? ExcelJSMod;
+  const ExcelJS =
+    (ExcelJSMod as unknown as { default?: typeof import("exceljs") }).default ?? ExcelJSMod;
   const wb = new ExcelJS.Workbook();
   wb.creator = "data-navigator";
   wb.created = new Date();
 
   doc.sections.forEach((section, idx) => {
     const ws = wb.addWorksheet(section.title?.slice(0, 28) || `Sheet${idx + 1}`);
-    ws.columns = section.headers.map((h) => ({ header: h, key: h, width: Math.max(12, h.length + 4) }));
+    ws.columns = section.headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.max(12, h.length + 4),
+    }));
     const headerRow = ws.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } };
@@ -182,12 +188,22 @@ async function buildDocx(doc: ReportDocument): Promise<ArrayBuffer> {
     new Paragraph({ text: doc.title, heading: HeadingLevel.HEADING_1 }),
   ];
   if (doc.subtitle) {
-    children.push(new Paragraph({ children: [new TextRun({ text: doc.subtitle, italics: true, color: "64748B" })] }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: doc.subtitle, italics: true, color: "64748B" })],
+      }),
+    );
   }
   if (doc.logoPng) {
     children.push(
       new Paragraph({
-        children: [new ImageRun({ type: "png", data: doc.logoPng, transformation: { width: 64, height: 64 } })],
+        children: [
+          new ImageRun({
+            type: "png",
+            data: doc.logoPng,
+            transformation: { width: 64, height: 64 },
+          }),
+        ],
       }),
     );
   }
@@ -206,15 +222,15 @@ async function buildDocx(doc: ReportDocument): Promise<ArrayBuffer> {
           new TableRow({
             children: section.headers.map(
               (h) =>
-                new TableCell({ children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })] }),
+                new TableCell({
+                  children: [new Paragraph({ children: [new TextRun({ text: h, bold: true })] })],
+                }),
             ),
           }),
           ...section.rows.map(
             (r) =>
               new TableRow({
-                children: r.map(
-                  (c) => new TableCell({ children: [new Paragraph(String(c))] }),
-                ),
+                children: r.map((c) => new TableCell({ children: [new Paragraph(String(c))] })),
               }),
           ),
         ],
@@ -231,7 +247,9 @@ async function buildDocx(doc: ReportDocument): Promise<ArrayBuffer> {
       // v9: ImageRun requires `type`. Embed PNG directly (no SVG fallback needed).
       body.push(
         new Paragraph({
-          children: [new ImageRun({ type: "png", data: png, transformation: { width: w, height: h } })],
+          children: [
+            new ImageRun({ type: "png", data: png, transformation: { width: w, height: h } }),
+          ],
         }),
       );
     }
@@ -260,12 +278,22 @@ async function buildPptx(doc: ReportDocument): Promise<ArrayBuffer> {
   // One slide per table section.
   for (const section of doc.sections) {
     const slide = pptx.addSlide();
-    if (section.title) slide.addText(section.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true, color: "0F172A" });
+    if (section.title)
+      slide.addText(section.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true, color: "0F172A" });
     const tableRows = [
-      section.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: "1E3A8A" }, color: "FFFFFF" } })),
+      section.headers.map((h) => ({
+        text: h,
+        options: { bold: true, fill: { color: "1E3A8A" }, color: "FFFFFF" },
+      })),
       ...section.rows.map((r) => r.map((c) => ({ text: String(c) }))),
     ];
-    slide.addTable(tableRows, { x: 0.5, y: 1.1, w: 12.3, fontSize: 12, border: { type: "solid", color: "E2E8F0", pt: 1 } });
+    slide.addTable(tableRows, {
+      x: 0.5,
+      y: 1.1,
+      w: 12.3,
+      fontSize: 12,
+      border: { type: "solid", color: "E2E8F0", pt: 1 },
+    });
   }
 
   // Chart slides (rasterized PNG → data URI).

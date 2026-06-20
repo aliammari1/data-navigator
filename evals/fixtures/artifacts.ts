@@ -14,10 +14,7 @@
  *     positives — clean output must not be silently dropped).
  */
 
-import type {
-  Artifact,
-  SwarmContext,
-} from "@/features/data-formulator/core/swarm/types";
+import type { Artifact, SwarmContext } from "@/features/data-formulator/core/swarm/types";
 import type { ColumnInfo } from "@/features/data-formulator/core/types";
 
 /** The real columns the canned context knows about. */

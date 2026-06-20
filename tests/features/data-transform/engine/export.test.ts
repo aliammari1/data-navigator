@@ -73,9 +73,7 @@ describe("toCSV", () => {
       rows: [{ d: date, o: { k: 1 } }],
     };
     // The object contains no special chars except quotes -> it gets CSV-quoted.
-    expect(toCSV(table)).toBe(
-      'd,o\r\n2020-01-02T03:04:05.000Z,"{""k"":1}"',
-    );
+    expect(toCSV(table)).toBe('d,o\r\n2020-01-02T03:04:05.000Z,"{""k"":1}"');
   });
 
   it("emits empty cells for columns absent on a row", () => {
@@ -129,7 +127,11 @@ describe("exportResultCsv", () => {
     const click = vi.fn();
     const createElement = vi
       .spyOn(document, "createElement")
-      .mockReturnValue({ click } as unknown as HTMLAnchorElement);
+      // document.createElement is overloaded (Electron augments it with a
+      // `webview` → WebviewTag overload), so the spy's inferred return type is
+      // not a plain HTMLElement; cast the anchor stub through `never` to satisfy
+      // whichever overload signature the spy resolves to.
+      .mockReturnValue({ click } as never);
 
     const res = await exportResultCsv(table, "data");
 
@@ -159,11 +161,10 @@ describe("exportResultXlsx", () => {
     getExportProxy.mockReturnValue({ xlsx });
     saveBytes.mockResolvedValue({ saved: true, path: "C:/out/data.xlsx" });
 
-    const res = await exportResultXlsx(
-      { cols: ["a", "b"], rows: [{ a: 1, b: 2 }] },
-      "data",
-      { title: "My title", subtitle: "Sub" },
-    );
+    const res = await exportResultXlsx({ cols: ["a", "b"], rows: [{ a: 1, b: 2 }] }, "data", {
+      title: "My title",
+      subtitle: "Sub",
+    });
 
     expect(res).toEqual({ saved: true, path: "C:/out/data.xlsx" });
     expect(xlsx).toHaveBeenCalledTimes(1);
@@ -174,10 +175,6 @@ describe("exportResultXlsx", () => {
     expect(doc.sections).toHaveLength(1);
     expect(doc.sections[0].headers).toEqual(["a", "b"]);
     expect(doc.sections[0].rows).toEqual([["1", "2"]]);
-    expect(saveBytes).toHaveBeenCalledWith(
-      expect.any(ArrayBuffer),
-      "data.xlsx",
-      "xlsx",
-    );
+    expect(saveBytes).toHaveBeenCalledWith(expect.any(ArrayBuffer), "data.xlsx", "xlsx");
   });
 });

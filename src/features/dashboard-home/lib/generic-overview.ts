@@ -13,10 +13,7 @@
  * dataset still gets a meaningful landing page.
  */
 
-import {
-  runReadOnlyQuery,
-  summarizeRegisteredDataset,
-} from "@/platform/duckdb/duckdb";
+import { runReadOnlyQuery, summarizeRegisteredDataset } from "@/platform/duckdb/duckdb";
 import { qc } from "@/features/telecom/lib/sql";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -152,14 +149,9 @@ export async function buildGenericOverview(
   const categoricalColumns = columns.filter((c) => c.role === "categorical");
 
   const avgNullPercentage =
-    columns.length > 0
-      ? columns.reduce((sum, c) => sum + c.nullPercentage, 0) / columns.length
-      : 0;
+    columns.length > 0 ? columns.reduce((sum, c) => sum + c.nullPercentage, 0) / columns.length : 0;
   const totalNullCells = Math.round(
-    columns.reduce(
-      (sum, c) => sum + (c.nullPercentage / 100) * rowCount,
-      0,
-    ),
+    columns.reduce((sum, c) => sum + (c.nullPercentage / 100) * rowCount, 0),
   );
 
   // Pick the most informative categorical column for a bar chart.
@@ -179,9 +171,7 @@ export async function buildGenericOverview(
   );
 
   const [topCategorical, numericHistogram] = await Promise.all([
-    bestCategorical
-      ? fetchTopCategorical(viewName, bestCategorical.name)
-      : Promise.resolve(null),
+    bestCategorical ? fetchTopCategorical(viewName, bestCategorical.name) : Promise.resolve(null),
     bestNumeric
       ? fetchNumericHistogram(
           viewName,

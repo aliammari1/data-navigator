@@ -7,9 +7,7 @@ import { buildCanalHeatmapOption } from "@/features/telecom/lib/chart-options";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 
-type FetchCanalHourlyMatrix = (
-  m: Types.ColumnMapping,
-) => Promise<Types.CanalHourCell[]>;
+type FetchCanalHourlyMatrix = (m: Types.ColumnMapping) => Promise<Types.CanalHourCell[]>;
 
 export function CanalHeatmap({
   m,
@@ -70,9 +68,7 @@ export function CanalHeatmap({
             </button>
           ))}
         </div>
-        <span className="text-[10px] text-muted-foreground">
-          {canalCount} canaux · 24 heures
-        </span>
+        <span className="text-[10px] text-muted-foreground">{canalCount} canaux · 24 heures</span>
       </div>
       <div className="rounded-xl border border-border/50 bg-muted/10 overflow-x-auto">
         <div style={{ minWidth: "600px" }}>

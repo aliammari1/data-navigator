@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
@@ -107,9 +107,7 @@ export const ErrorPhase: Story = {
       threadId: "thread-fail0001",
       running: false,
       error: "Pipeline failed during build phase",
-      eventTicker: [
-        { type: "RUN_ERROR", messageId: "e1" },
-      ] as unknown as AGUIEvent[],
+      eventTicker: [{ type: "RUN_ERROR", messageId: "e1" }] as unknown as AGUIEvent[],
     }),
   ],
 };

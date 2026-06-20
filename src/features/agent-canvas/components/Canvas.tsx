@@ -47,9 +47,7 @@ function mergeLayouts(
   if (!saved) return base;
   const out = { ...base } as ResponsiveLayouts<string>;
   for (const bp of Object.keys(base) as Array<keyof ResponsiveLayouts<string>>) {
-    const savedByI = new Map<string, LayoutItem>(
-      (saved[bp] ?? []).map((l) => [l.i, l] as const),
-    );
+    const savedByI = new Map<string, LayoutItem>((saved[bp] ?? []).map((l) => [l.i, l] as const));
     out[bp] = (base[bp] ?? []).map((l) => savedByI.get(l.i) ?? l);
   }
   return out;
@@ -72,9 +70,7 @@ function EmptyCanvas({ running }: { running: boolean }) {
             ))}
           </div>
           <p className="text-sm text-slate-400">Agent building widgets…</p>
-          <p className="text-xs text-slate-600">
-            Widgets appear here as the agent completes them
-          </p>
+          <p className="text-xs text-slate-600">Widgets appear here as the agent completes them</p>
         </>
       ) : (
         <>
@@ -101,9 +97,9 @@ export function Canvas() {
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(1200);
-  const [savedLayouts, setSavedLayouts] = useState<
-    ResponsiveLayouts<string> | undefined
-  >(undefined);
+  const [savedLayouts, setSavedLayouts] = useState<ResponsiveLayouts<string> | undefined>(
+    undefined,
+  );
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const roomId = tableName ? `agent-canvas:${tableName}` : null;
@@ -118,9 +114,7 @@ export function Canvas() {
     roomRef.current = room;
     void room.whenStored.then(() => {
       if (cancelled) return;
-      const stored = room.meta.get("layouts") as
-        | ResponsiveLayouts<string>
-        | undefined;
+      const stored = room.meta.get("layouts") as ResponsiveLayouts<string> | undefined;
       if (stored) setSavedLayouts(stored);
     });
     return () => {
@@ -150,19 +144,16 @@ export function Canvas() {
   );
 
   // Persist layout changes (debounced) into the room doc → y-indexeddb.
-  const handleLayoutChange = useCallback(
-    (_: unknown, allLayouts: ResponsiveLayouts<string>) => {
-      const room = roomRef.current;
-      if (!room) return;
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(() => {
-        room.doc.transact(() => {
-          room.meta.set("layouts", allLayouts);
-        });
-      }, 400);
-    },
-    [],
-  );
+  const handleLayoutChange = useCallback((_: unknown, allLayouts: ResponsiveLayouts<string>) => {
+    const room = roomRef.current;
+    if (!room) return;
+    if (saveTimer.current) clearTimeout(saveTimer.current);
+    saveTimer.current = setTimeout(() => {
+      room.doc.transact(() => {
+        room.meta.set("layouts", allLayouts);
+      });
+    }, 400);
+  }, []);
 
   if (widgets.length === 0) {
     return <EmptyCanvas running={running} />;
@@ -185,12 +176,7 @@ export function Canvas() {
       >
         {widgets.map((w, i) => (
           <div key={w.spec.id}>
-            <WidgetCard
-              widget={w}
-              dragHandleClass="drag-handle"
-              className="h-full"
-              index={i}
-            />
+            <WidgetCard widget={w} dragHandleClass="drag-handle" className="h-full" index={i} />
           </div>
         ))}
       </ResponsiveGridLayout>

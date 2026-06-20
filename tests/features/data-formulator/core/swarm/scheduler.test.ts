@@ -392,7 +392,13 @@ describe("InferenceScheduler IO lane", () => {
 describe("InferenceScheduler.ensureReady", () => {
   it("delegates to the provider and forwards progress + abort signal", async () => {
     const ensureReady = vi.fn(
-      (model: string, onProgress?: (p: { progress: number; message?: string }) => void) => {
+      (
+        model: string,
+        onProgress?: (p: { progress: number; message?: string }) => void,
+        signal?: AbortSignal,
+      ) => {
+        void model;
+        void signal;
         onProgress?.({ progress: 0.5, message: "halfway" });
         return Promise.resolve();
       },

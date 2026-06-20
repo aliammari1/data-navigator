@@ -17,11 +17,7 @@ import {
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
 export type AlertSeverity = "info" | "warning" | "critical";
-export type AlertMetric =
-  | "success_rate"
-  | "volume"
-  | "failure_count"
-  | "avg_amount";
+export type AlertMetric = "success_rate" | "volume" | "failure_count" | "avg_amount";
 export type AlertCondition = "falls_below" | "exceeds" | "equals";
 export type AlertAction = "in_app" | "sound";
 export type ChannelHealth = "healthy" | "degraded" | "critical" | "unknown";
@@ -119,7 +115,7 @@ type MonitorStore = {
   clearNotifications: () => void;
 
   testAlert: (ruleId: string) => void;
-}
+};
 
 // ─── Default Rules ────────────────────────────────────────────────────────────
 
@@ -196,8 +192,7 @@ const useMonitorStoreBase = create<MonitorStore>()(
           alertRules: s.alertRules.map((r) => (r.id === id ? { ...r, ...patch } : r)),
         })),
 
-      deleteRule: (id) =>
-        set((s) => ({ alertRules: s.alertRules.filter((r) => r.id !== id) })),
+      deleteRule: (id) => set((s) => ({ alertRules: s.alertRules.filter((r) => r.id !== id) })),
 
       addEvent: (event) => {
         // Async write-through to IndexedDB (non-blocking — no localStorage stall).
@@ -213,9 +208,7 @@ const useMonitorStoreBase = create<MonitorStore>()(
       acknowledgeEvent: (id) => {
         void acknowledgeEventRecord(id);
         set((s) => ({
-          alertEvents: s.alertEvents.map((e) =>
-            e.id === id ? { ...e, acknowledged: true } : e,
-          ),
+          alertEvents: s.alertEvents.map((e) => (e.id === id ? { ...e, acknowledged: true } : e)),
         }));
       },
 

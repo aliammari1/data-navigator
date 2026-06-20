@@ -56,9 +56,7 @@ function makeDataset(overrides: Partial<Dataset> = {}): Dataset {
   };
 }
 
-function makeCatalogDataset(
-  overrides: Partial<RegisteredDataset> = {},
-): RegisteredDataset {
+function makeCatalogDataset(overrides: Partial<RegisteredDataset> = {}): RegisteredDataset {
   const id = overrides.id ?? "ds_cat";
   return {
     id,
@@ -313,12 +311,7 @@ describe("replaceDatasetsFromCatalog", () => {
     expect(ds.source).toBe("catalog");
     expect(ds.tableName).toBe(ds.viewName);
     expect(ds.colCount).toBe(4);
-    expect(ds.columns.map((c) => c.type)).toEqual([
-      "number",
-      "string",
-      "date",
-      "boolean",
-    ]);
+    expect(ds.columns.map((c) => c.type)).toEqual(["number", "string", "date", "boolean"]);
     // nullCount/distinctCount default to 0 -> quality score is uniqueness-only.
     expect(ds.qualityScore).toBe(computeQualityScore(ds.columns, ds.rowCount));
   });
@@ -357,10 +350,12 @@ describe("replaceDatasetsFromCatalog", () => {
   it("keeps the active dataset id when it still exists after replacement", () => {
     useDataStore.setState({ activeDatasetId: "ds_cat" });
 
-    useDataStore.getState().replaceDatasetsFromCatalog([
-      makeCatalogDataset({ id: "ds_cat" }),
-      makeCatalogDataset({ id: "ds_other" }),
-    ]);
+    useDataStore
+      .getState()
+      .replaceDatasetsFromCatalog([
+        makeCatalogDataset({ id: "ds_cat" }),
+        makeCatalogDataset({ id: "ds_other" }),
+      ]);
 
     expect(useDataStore.getState().activeDatasetId).toBe("ds_cat");
   });
@@ -374,10 +369,12 @@ describe("replaceDatasetsFromCatalog", () => {
   });
 
   it("rebuilds loadedTableNames from the resulting datasets", () => {
-    useDataStore.getState().replaceDatasetsFromCatalog([
-      makeCatalogDataset({ id: "ds_a", viewName: "v_a" }),
-      makeCatalogDataset({ id: "ds_b", viewName: "v_b" }),
-    ]);
+    useDataStore
+      .getState()
+      .replaceDatasetsFromCatalog([
+        makeCatalogDataset({ id: "ds_a", viewName: "v_a" }),
+        makeCatalogDataset({ id: "ds_b", viewName: "v_b" }),
+      ]);
 
     expect(useDataStore.getState().loadedTableNames).toEqual(["v_a", "v_b"]);
   });

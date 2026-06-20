@@ -131,11 +131,7 @@ describe("briefing grounding · grounded briefings score high (deterministic)", 
     }
     const minGroundedness = Math.min(...grounded.map((s) => s.groundedness));
     report("grounded.minGroundedness", minGroundedness);
-    assertAtLeast(
-      minGroundedness,
-      GROUNDED_MIN_GROUNDEDNESS_MIN,
-      "grounded.minGroundedness",
-    );
+    assertAtLeast(minGroundedness, GROUNDED_MIN_GROUNDEDNESS_MIN, "grounded.minGroundedness");
   });
 
   it("scores grounded briefings high on average and at the floor", () => {
@@ -170,9 +166,7 @@ describe("briefing grounding · hallucinated briefings score low (deterministic)
   });
 
   it("keeps hallucinated briefings low on average and at the worst case", () => {
-    const overalls = HALLUCINATED_CASES.map(
-      (c) => scoreBriefingGrounding(c.text, c.kpis).overall,
-    );
+    const overalls = HALLUCINATED_CASES.map((c) => scoreBriefingGrounding(c.text, c.kpis).overall);
     const meanOverall = mean(overalls);
     const maxOverall = Math.max(...overalls);
     report("hallucinated.meanOverall", meanOverall);
@@ -228,53 +222,50 @@ describe("briefing grounding · classes are separable (deterministic)", () => {
 // ─── Live: generate a briefing with the local engine and score its grounding ──
 
 describe("briefing grounding · live model (model-gated)", () => {
-  liveIt(
-    "generates a grounded briefing over synthetic KPIs",
-    async () => {
-      const engine = await loadLocalEngine();
-      try {
-        await engine.ensureModel();
+  liveIt("generates a grounded briefing over synthetic KPIs", async () => {
+    const engine = await loadLocalEngine();
+    try {
+      await engine.ensureModel();
 
-        const { status, channels } = LIVE_KPIS;
-        const successRate = ((status.reussie / status.total) * 100).toFixed(1);
-        const channelList = channels
-          .map((c) => `${c.canal}: ${c.nombre} txns, ${c.montant} amount`)
-          .join("; ");
+      const { status, channels } = LIVE_KPIS;
+      const successRate = ((status.reussie / status.total) * 100).toFixed(1);
+      const channelList = channels
+        .map((c) => `${c.canal}: ${c.nombre} txns, ${c.montant} amount`)
+        .join("; ");
 
-        // Mirror report-ai.ts's prompt shape: feed the model the exact figures and
-        // ask for a short narrative. A grounded model echoes these numbers; a
-        // hallucinating one invents new ones (which the scorer will catch).
-        const prompt =
-          `Total: ${status.total}, ` +
-          `Success: ${status.reussie} (${successRate}%), ` +
-          `Cancellations: ${status.annulation}, ` +
-          `In-progress: ${status.instance}, ` +
-          `Failed: ${status.echec}. ` +
-          `Top channels: ${channelList}. ` +
-          "Write a 2-3 sentence telecom analyst briefing using ONLY these numbers.";
+      // Mirror report-ai.ts's prompt shape: feed the model the exact figures and
+      // ask for a short narrative. A grounded model echoes these numbers; a
+      // hallucinating one invents new ones (which the scorer will catch).
+      const prompt =
+        `Total: ${status.total}, ` +
+        `Success: ${status.reussie} (${successRate}%), ` +
+        `Cancellations: ${status.annulation}, ` +
+        `In-progress: ${status.instance}, ` +
+        `Failed: ${status.echec}. ` +
+        `Top channels: ${channelList}. ` +
+        "Write a 2-3 sentence telecom analyst briefing using ONLY these numbers.";
 
-        const { text } = await engine.generate({
-          system:
-            "You are a telecom analyst. Summarize the daily transaction report in 2-3 sentences. " +
-            "Use ONLY the numbers given — never invent figures, revenue, growth rates, or regions.",
-          prompt,
-          maxTokens: 220,
-          temperature: 0,
-        });
+      const { text } = await engine.generate({
+        system:
+          "You are a telecom analyst. Summarize the daily transaction report in 2-3 sentences. " +
+          "Use ONLY the numbers given — never invent figures, revenue, growth rates, or regions.",
+        prompt,
+        maxTokens: 220,
+        temperature: 0,
+      });
 
-        const score = scoreBriefingGrounding(text, LIVE_KPIS);
-        report("live.briefing.text.length", text.trim().length);
-        report("live.briefing.claimCount", score.claimCount);
-        report("live.briefing.groundedness", score.groundedness);
-        report("live.briefing.overall", score.overall);
+      const score = scoreBriefingGrounding(text, LIVE_KPIS);
+      report("live.briefing.text.length", text.trim().length);
+      report("live.briefing.claimCount", score.claimCount);
+      report("live.briefing.groundedness", score.groundedness);
+      report("live.briefing.overall", score.overall);
 
-        // The model must produce a non-trivial briefing…
-        expect(text.trim().length).toBeGreaterThan(0);
-        // …and it must be well-grounded: most numeric claims trace to the inputs.
-        assertAtLeast(score.groundedness, LIVE_GROUNDEDNESS_MIN, "live.briefing.groundedness");
-      } finally {
-        await engine.dispose();
-      }
-    },
-  );
+      // The model must produce a non-trivial briefing…
+      expect(text.trim().length).toBeGreaterThan(0);
+      // …and it must be well-grounded: most numeric claims trace to the inputs.
+      assertAtLeast(score.groundedness, LIVE_GROUNDEDNESS_MIN, "live.briefing.groundedness");
+    } finally {
+      await engine.dispose();
+    }
+  });
 });

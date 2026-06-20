@@ -2,24 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/shared/utils";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { detectChannelAnomalies, type ChannelAnomaly } from "../lib/anomaly";
 import { formatTime } from "../lib/format-helpers";
-import {
-  healthColor,
-  healthTextColor,
-  successRateColor,
-  trendSymbol,
-} from "../lib/ui-helpers";
+import { healthColor, healthTextColor, successRateColor, trendSymbol } from "../lib/ui-helpers";
 import { SparklineCell } from "../components/SparklineCell";
 import { useMonitorStore } from "../store/monitor-store";
 import type { ChannelStatus } from "../store/monitor-store";
@@ -295,9 +284,7 @@ function ChannelCard({
       <CardContent className="pt-4 pb-4 space-y-3">
         <div className="flex items-start justify-between gap-2">
           <div>
-            <div className="font-bold text-slate-100 text-base leading-tight">
-              {st.displayName}
-            </div>
+            <div className="font-bold text-slate-100 text-base leading-tight">{st.displayName}</div>
             <div className="text-xs text-slate-500 font-mono mt-0.5">{st.channel}</div>
           </div>
           <div className="flex items-center gap-2 shrink-0">

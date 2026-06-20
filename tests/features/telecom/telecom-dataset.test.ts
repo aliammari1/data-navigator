@@ -12,8 +12,7 @@ import {
 } from "@/features/telecom/lib/telecom-dataset";
 
 // A column set that satisfies every required telecom column.
-const fullColumns = () =>
-  TELECOM_REQUIRED_COLUMNS.map((name) => ({ name }));
+const fullColumns = () => TELECOM_REQUIRED_COLUMNS.map((name) => ({ name }));
 
 describe("normalizeColumnName", () => {
   it("trims and upper-cases the name", () => {
@@ -53,9 +52,7 @@ describe("getMissingTelecomColumns", () => {
   });
 
   it("lists exactly the columns that are absent", () => {
-    const cols = fullColumns().filter(
-      (c) => c.name !== "BRAND_D" && c.name !== "CHANNEL",
-    );
+    const cols = fullColumns().filter((c) => c.name !== "BRAND_D" && c.name !== "CHANNEL");
     const missing = getMissingTelecomColumns(cols);
     expect(missing).toContain("BRAND_D");
     expect(missing).toContain("CHANNEL");

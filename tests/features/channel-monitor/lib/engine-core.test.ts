@@ -1,11 +1,6 @@
-import {
-  FIRE_COOLDOWN_MS,
-  evaluateRules,
-} from "@/features/channel-monitor/lib/engine-core";
-import type {
-  AlertRule,
-  ChannelStatus,
-} from "@/features/channel-monitor/store/monitor-store";
+import { describe, expect, it } from "vitest";
+import { FIRE_COOLDOWN_MS, evaluateRules } from "@/features/channel-monitor/lib/engine-core";
+import type { AlertRule, ChannelStatus } from "@/features/channel-monitor/store/monitor-store";
 
 /**
  * Unit tests for the deterministic alert-rule evaluation engine.
@@ -91,60 +86,29 @@ describe("evaluateRules — basic firing", () => {
 
 describe("evaluateRules — condition operators", () => {
   it("exceeds fires strictly above the threshold but not at it", () => {
-    const rules = [
-      makeRule({ metric: "failure_count", condition: "exceeds", threshold: 500 }),
-    ];
+    const rules = [makeRule({ metric: "failure_count", condition: "exceeds", threshold: 500 })];
 
-    const above = evaluateRules(
-      [makeStatus({ failureCount: 501 })],
-      rules,
-      new Map(),
-      NOW,
-    );
-    const at = evaluateRules(
-      [makeStatus({ failureCount: 500 })],
-      rules,
-      new Map(),
-      NOW,
-    );
+    const above = evaluateRules([makeStatus({ failureCount: 501 })], rules, new Map(), NOW);
+    const at = evaluateRules([makeStatus({ failureCount: 500 })], rules, new Map(), NOW);
 
     expect(above).toHaveLength(1);
     expect(at).toEqual([]);
   });
 
   it("equals fires within a 0.5 tolerance window and not outside it", () => {
-    const rules = [
-      makeRule({ metric: "failure_count", condition: "equals", threshold: 100 }),
-    ];
+    const rules = [makeRule({ metric: "failure_count", condition: "equals", threshold: 100 })];
 
-    const inside = evaluateRules(
-      [makeStatus({ failureCount: 100.4 })],
-      rules,
-      new Map(),
-      NOW,
-    );
-    const outside = evaluateRules(
-      [makeStatus({ failureCount: 100.6 })],
-      rules,
-      new Map(),
-      NOW,
-    );
+    const inside = evaluateRules([makeStatus({ failureCount: 100.4 })], rules, new Map(), NOW);
+    const outside = evaluateRules([makeStatus({ failureCount: 100.6 })], rules, new Map(), NOW);
 
     expect(inside).toHaveLength(1);
     expect(outside).toEqual([]);
   });
 
   it("ignores an unknown condition (defaults to not met)", () => {
-    const rules = [
-      makeRule({ condition: "weird_op" as AlertRule["condition"] }),
-    ];
+    const rules = [makeRule({ condition: "weird_op" as AlertRule["condition"] })];
 
-    const fired = evaluateRules(
-      [makeStatus({ successRate: 0 })],
-      rules,
-      new Map(),
-      NOW,
-    );
+    const fired = evaluateRules([makeStatus({ successRate: 0 })], rules, new Map(), NOW);
 
     expect(fired).toEqual([]);
   });
@@ -152,25 +116,16 @@ describe("evaluateRules — condition operators", () => {
 
 describe("evaluateRules — metric derivation", () => {
   it("derives volume as txnPerMin * 60 (per-hour)", () => {
-    const rules = [
-      makeRule({ metric: "volume", condition: "exceeds", threshold: 15000 }),
-    ];
+    const rules = [makeRule({ metric: "volume", condition: "exceeds", threshold: 15000 })];
     // 300 * 60 = 18000 > 15000
-    const fired = evaluateRules(
-      [makeStatus({ txnPerMin: 300 })],
-      rules,
-      new Map(),
-      NOW,
-    );
+    const fired = evaluateRules([makeStatus({ txnPerMin: 300 })], rules, new Map(), NOW);
 
     expect(fired).toHaveLength(1);
     expect(fired[0].event.actualValue).toBe(18000);
   });
 
   it("derives avg_amount as amountToday / max(1, txnPerMin*60)", () => {
-    const rules = [
-      makeRule({ metric: "avg_amount", condition: "exceeds", threshold: 0 }),
-    ];
+    const rules = [makeRule({ metric: "avg_amount", condition: "exceeds", threshold: 0 })];
     // amountToday 12000, txnPerMin 100 -> /6000 = 2
     const fired = evaluateRules(
       [makeStatus({ amountToday: 12000, txnPerMin: 100 })],
@@ -183,9 +138,7 @@ describe("evaluateRules — metric derivation", () => {
   });
 
   it("guards avg_amount against a divide-by-zero when there is no volume", () => {
-    const rules = [
-      makeRule({ metric: "avg_amount", condition: "exceeds", threshold: 0 }),
-    ];
+    const rules = [makeRule({ metric: "avg_amount", condition: "exceeds", threshold: 0 })];
     // txnPerMin 0 -> max(1, 0) = 1 denominator, so value == amountToday
     const fired = evaluateRules(
       [makeStatus({ amountToday: 5000, txnPerMin: 0 })],
@@ -216,16 +169,9 @@ describe("evaluateRules — metric derivation", () => {
 
 describe("evaluateRules — enabled gate and channel scoping", () => {
   it("skips disabled rules entirely", () => {
-    const rules = [
-      makeRule({ enabled: false, threshold: 100, condition: "falls_below" }),
-    ];
+    const rules = [makeRule({ enabled: false, threshold: 100, condition: "falls_below" })];
 
-    const fired = evaluateRules(
-      [makeStatus({ successRate: 10 })],
-      rules,
-      new Map(),
-      NOW,
-    );
+    const fired = evaluateRules([makeStatus({ successRate: 10 })], rules, new Map(), NOW);
 
     expect(fired).toEqual([]);
   });

@@ -48,7 +48,8 @@ export function GazeDot() {
       className="pointer-events-none fixed top-0 left-0 z-[9990] h-9 w-9 rounded-full"
       style={{
         opacity: visible ? 1 : 0,
-        background: "radial-gradient(circle, color-mix(in oklab, var(--color-primary) 55%, transparent) 0%, color-mix(in oklab, var(--color-primary) 18%, transparent) 60%, transparent 75%)",
+        background:
+          "radial-gradient(circle, color-mix(in oklab, var(--color-primary) 55%, transparent) 0%, color-mix(in oklab, var(--color-primary) 18%, transparent) 60%, transparent 75%)",
         boxShadow: "0 0 0 1px color-mix(in oklab, var(--color-primary) 30%, transparent)",
         transition: "opacity 200ms ease",
         willChange: "transform",

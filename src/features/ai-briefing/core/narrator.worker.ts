@@ -13,11 +13,7 @@
  */
 
 import * as Comlink from "comlink";
-import {
-  chunkText,
-  type KokoroTtsInstance,
-  loadKokoroModel,
-} from "@/platform/ai/kokoro-tts";
+import { chunkText, type KokoroTtsInstance, loadKokoroModel } from "@/platform/ai/kokoro-tts";
 import { configureTransformersEnv } from "@/platform/ai/transformers-env";
 
 // Configure the offline env BEFORE any transformers/kokoro pipeline is created.

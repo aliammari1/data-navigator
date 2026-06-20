@@ -12,11 +12,5 @@
     "**/*.mts",
     "electron/**/*.ts"
   ],
-  "exclude": [
-    "node_modules",
-    "out",
-    "dist",
-    "tests",
-    "evals"
-  ]
+  "exclude": ["node_modules", "out", "dist", "tests", "evals"]
 }

@@ -3,10 +3,7 @@
 import { Download, FileText, Loader2, Save, Sparkles } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAI } from "@/platform/ai/provider";
 import { warmExportWorker } from "@/platform/viz";
@@ -15,11 +12,7 @@ import { TheaterPresenter } from "../components/TheaterPresenter";
 import { narrateScenes } from "../lib/narrate";
 import { exportTheater } from "../lib/scene-export";
 import { useActiveDataset } from "../lib/use-active-dataset";
-import {
-  defaultTheater,
-  SCENE_DEFINITIONS,
-  type Theater,
-} from "../model/scene";
+import { defaultTheater, SCENE_DEFINITIONS, type Theater } from "../model/scene";
 import { listTheaters, saveTheater } from "../model/theater-db";
 import { SCENE_COMPONENTS } from "../scenes/registry";
 
@@ -32,9 +25,7 @@ export function AnalyticsTheaterScreen() {
   const [theater, setTheater] = useState<Theater | null>(null);
   const [mode, setMode] = useState<ViewMode>("explore");
   const [activeScene, setActiveScene] = useState(SCENE_DEFINITIONS[0].kind);
-  const [busy, setBusy] = useState<null | "narrate" | "save" | "pptx" | "pdf">(
-    null,
-  );
+  const [busy, setBusy] = useState<null | "narrate" | "save" | "pptx" | "pdf">(null);
   const [status, setStatus] = useState<string | null>(null);
 
   // Warm the export worker once so the first export does not pay a cold-start.
@@ -87,9 +78,7 @@ export function AnalyticsTheaterScreen() {
         prev
           ? {
               ...prev,
-              scenes: prev.scenes.map((s) =>
-                map[s.kind] ? { ...s, narration: map[s.kind] } : s,
-              ),
+              scenes: prev.scenes.map((s) => (map[s.kind] ? { ...s, narration: map[s.kind] } : s)),
               updatedAt: Date.now(),
             }
           : prev,
@@ -149,8 +138,8 @@ export function AnalyticsTheaterScreen() {
             Visual Analytics Theater
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            A scrollytelling presentation over your active dataset — every chart
-            is a live DuckDB aggregation, fully offline.
+            A scrollytelling presentation over your active dataset — every chart is a live DuckDB
+            aggregation, fully offline.
           </p>
         </div>
 
@@ -165,12 +154,7 @@ export function AnalyticsTheaterScreen() {
               <NativeSelectOption value="explore">Explore</NativeSelectOption>
               <NativeSelectOption value="present">Present</NativeSelectOption>
             </NativeSelect>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleNarrate}
-              disabled={busy !== null}
-            >
+            <Button size="sm" variant="outline" onClick={handleNarrate} disabled={busy !== null}>
               {busy === "narrate" ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -178,12 +162,7 @@ export function AnalyticsTheaterScreen() {
               )}
               Narrate
             </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSave}
-              disabled={busy !== null}
-            >
+            <Button size="sm" variant="outline" onClick={handleSave} disabled={busy !== null}>
               {busy === "save" ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : (
@@ -235,26 +214,17 @@ export function AnalyticsTheaterScreen() {
       ) : mode === "present" ? (
         <TheaterPresenter scenes={scenes} />
       ) : (
-        <Tabs
-          value={activeScene}
-          onValueChange={(v) => setActiveScene(v as typeof activeScene)}
-        >
+        <Tabs value={activeScene} onValueChange={(v) => setActiveScene(v as typeof activeScene)}>
           <TabsList className="flex h-auto flex-wrap gap-1 bg-muted/60 p-1">
             {SCENE_DEFINITIONS.map((def) => (
-              <TabsTrigger
-                key={def.kind}
-                value={def.kind}
-                className="text-xs sm:text-sm"
-              >
+              <TabsTrigger key={def.kind} value={def.kind} className="text-xs sm:text-sm">
                 {def.label}
               </TabsTrigger>
             ))}
           </TabsList>
 
           {currentScene && (
-            <p className="mt-1 text-sm text-muted-foreground">
-              {currentScene.narration}
-            </p>
+            <p className="mt-1 text-sm text-muted-foreground">{currentScene.narration}</p>
           )}
 
           {SCENE_DEFINITIONS.map((def) => {

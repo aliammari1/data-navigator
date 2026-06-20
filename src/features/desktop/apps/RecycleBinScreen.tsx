@@ -21,7 +21,14 @@ export default function RecycleBinScreen() {
     if (!item) return;
     if (item.kind === "folder") {
       const f = item.payload.folder as CatalogFolder | undefined;
-      if (f) addFolder({ id: f.id, name: f.name, parentId: f.parentId, starred: f.starred, color: f.color });
+      if (f)
+        addFolder({
+          id: f.id,
+          name: f.name,
+          parentId: f.parentId,
+          starred: f.starred,
+          color: f.color,
+        });
     }
   };
 

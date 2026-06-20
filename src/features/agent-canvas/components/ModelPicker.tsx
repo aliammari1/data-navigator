@@ -2,10 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { loadLLM } from "@/platform/ai/transformers-engine";
-import {
-  type LLMModelDef,
-  MODEL_CATALOG,
-} from "@/features/agent-canvas/core/types";
+import { type LLMModelDef, MODEL_CATALOG } from "@/features/agent-canvas/core/types";
 import { cn } from "@/shared/utils";
 
 interface Props {
@@ -270,12 +267,10 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
   return (
     <div className="flex flex-col gap-6 max-w-xl mx-auto mt-16">
       <div>
-        <h2 className="text-xl font-semibold text-white mb-1">
-          Select AI Model
-        </h2>
+        <h2 className="text-xl font-semibold text-white mb-1">Select AI Model</h2>
         <p className="text-sm text-slate-400">
-          The model runs fully offline in your browser — nothing leaves your
-          machine. Downloaded once, cached forever.
+          The model runs fully offline in your browser — nothing leaves your machine. Downloaded
+          once, cached forever.
         </p>
       </div>
 
@@ -330,11 +325,7 @@ export function ModelPicker({ onLoaded, onSkip }: Props) {
         </div>
       )}
 
-      {error && (
-        <p className="text-sm text-red-400 bg-red-900/20 rounded-lg p-3">
-          {error}
-        </p>
-      )}
+      {error && <p className="text-sm text-red-400 bg-red-900/20 rounded-lg p-3">{error}</p>}
 
       <div className="flex gap-3">
         <button

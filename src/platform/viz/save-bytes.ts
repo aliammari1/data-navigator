@@ -6,11 +6,7 @@
  * feature that exports a document — never `<a download>` directly in Electron.
  */
 
-import {
-  hasElectronFS,
-  saveFileDialog,
-  writeLocalFile,
-} from "@/platform/electron/electron-fs";
+import { hasElectronFS, saveFileDialog, writeLocalFile } from "@/platform/electron/electron-fs";
 import type { ExportKind } from "@/workers/export-types";
 
 const MIME: Record<ExportKind, string> = {

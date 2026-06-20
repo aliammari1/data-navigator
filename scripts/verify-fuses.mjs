@@ -112,7 +112,9 @@ async function main() {
   for (const [fuseName, expectedEnabled] of Object.entries(PRODUCTION_FUSE_CONFIG)) {
     const index = FuseV1Options[fuseName];
     if (typeof index !== "number") {
-      drift.push(`  ${fuseName}: unknown fuse name (not in FuseV1Options) — config/security.ts skew`);
+      drift.push(
+        `  ${fuseName}: unknown fuse name (not in FuseV1Options) — config/security.ts skew`,
+      );
       continue;
     }
 

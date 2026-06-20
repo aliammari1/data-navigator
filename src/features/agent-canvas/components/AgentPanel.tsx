@@ -44,13 +44,7 @@ const STATUS_DOT: Record<WidgetState["status"], string> = {
   error: "bg-red-400",
 };
 
-export function AgentPanel({
-  phase,
-  thoughts,
-  plan,
-  widgets,
-  className,
-}: Props) {
+export function AgentPanel({ phase, thoughts, plan, widgets, className }: Props) {
   const done = widgets.filter((w) => w.status === "done").length;
   const errored = widgets.filter((w) => w.status === "error").length;
   const total = widgets.length;
@@ -82,9 +76,7 @@ export function AgentPanel({
               )}
             />
           </span>
-          <span className="text-xs font-semibold text-slate-200">
-            Agent Pipeline
-          </span>
+          <span className="text-xs font-semibold text-slate-200">Agent Pipeline</span>
         </div>
         <span className={cn("text-[11px] font-medium", PHASE_COLOR[phase])}>
           {PHASE_LABEL[phase]}
@@ -98,9 +90,7 @@ export function AgentPanel({
             <span className="text-[11px] text-slate-400">Widgets</span>
             <span className="text-[11px] text-slate-400">
               {done}/{total}
-              {errored > 0 && (
-                <span className="text-red-400 ml-1">({errored} err)</span>
-              )}
+              {errored > 0 && <span className="text-red-400 ml-1">({errored} err)</span>}
             </span>
           </div>
           <div className="flex gap-1 flex-wrap">
@@ -127,13 +117,9 @@ export function AgentPanel({
       {plan && (
         <div className="px-4 py-2.5 border-b border-slate-700/30">
           <p className="text-[11px] text-slate-400 mb-0.5">Dashboard</p>
-          <p className="text-xs font-semibold text-white truncate">
-            {plan.title}
-          </p>
+          <p className="text-xs font-semibold text-white truncate">{plan.title}</p>
           {plan.description && (
-            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">
-              {plan.description}
-            </p>
+            <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-2">{plan.description}</p>
           )}
         </div>
       )}

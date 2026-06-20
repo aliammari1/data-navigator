@@ -321,10 +321,7 @@ function extractFrameProbabilities(data: unknown): {
   return {
     speechProbability,
     notSpeechProbability,
-    isSpeech:
-      typeof speechProbability === "number"
-        ? speechProbability >= 0.5
-        : undefined,
+    isSpeech: typeof speechProbability === "number" ? speechProbability >= 0.5 : undefined,
   };
 }
 
@@ -379,25 +376,17 @@ export class VoiceVadService {
   private initPromise: Promise<void> | null = null;
 
   constructor(options: VoiceVadServiceOptions = {}) {
-    const vadModel = getVadModel(
-      options.engine ?? VOICE_REGISTRY_DEFAULTS.vadEngine,
-    );
+    const vadModel = getVadModel(options.engine ?? VOICE_REGISTRY_DEFAULTS.vadEngine);
 
     this.options = {
       mode: options.mode ?? "hold-to-talk",
       engine: options.engine ?? VOICE_REGISTRY_DEFAULTS.vadEngine,
       runtime: options.runtime ?? VOICE_REGISTRY_DEFAULTS.runtime,
       deviceId: options.deviceId,
-      sampleRate:
-        options.sampleRate ?? vadModel.sampleRate ?? DEFAULT_SAMPLE_RATE,
-      baseAssetPath: normalizeBasePath(
-        options.baseAssetPath ?? vadModel.baseAssetPath ?? "/vad/",
-      ),
+      sampleRate: options.sampleRate ?? vadModel.sampleRate ?? DEFAULT_SAMPLE_RATE,
+      baseAssetPath: normalizeBasePath(options.baseAssetPath ?? vadModel.baseAssetPath ?? "/vad/"),
       onnxWASMBasePath: normalizeBasePath(
-        options.onnxWASMBasePath ??
-          vadModel.onnxWasmBasePath ??
-          vadModel.baseAssetPath ??
-          "/vad/",
+        options.onnxWASMBasePath ?? vadModel.onnxWasmBasePath ?? vadModel.baseAssetPath ?? "/vad/",
       ),
       positiveSpeechThreshold: options.positiveSpeechThreshold ?? 0.5,
       negativeSpeechThreshold: options.negativeSpeechThreshold ?? 0.35,
@@ -708,9 +697,7 @@ export class VoiceVadService {
   }
 }
 
-export function createVoiceVadService(
-  options: VoiceVadServiceOptions = {},
-): VoiceVadService {
+export function createVoiceVadService(options: VoiceVadServiceOptions = {}): VoiceVadService {
   return new VoiceVadService(options);
 }
 
@@ -763,8 +750,5 @@ export async function requestVoiceMicrophonePermission(): Promise<boolean> {
 }
 
 export function isVoiceVadSupported(): boolean {
-  return Boolean(
-    isBrowser() &&
-      typeof AudioContext !== "undefined",
-  );
+  return Boolean(isBrowser() && typeof AudioContext !== "undefined");
 }

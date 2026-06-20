@@ -53,12 +53,9 @@ export function FileManagementModal({
       <div className="w-full max-w-3xl overflow-hidden rounded-3xl border border-border bg-background shadow-2xl">
         <div className="flex items-center justify-between border-b border-border px-5 py-4">
           <div>
-            <h2 className="text-sm font-bold text-foreground">
-              Gestion des fichiers et analytics
-            </h2>
+            <h2 className="text-sm font-bold text-foreground">Gestion des fichiers et analytics</h2>
             <p className="text-xs text-muted-foreground">
-              Ajouter, remplacer, restaurer une journée ou exporter la base
-              locale.
+              Ajouter, remplacer, restaurer une journée ou exporter la base locale.
             </p>
           </div>
           <button
@@ -118,8 +115,8 @@ export function FileManagementModal({
                             {file.name}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
-                            {file.date} · {(file.size / 1024 / 1024).toFixed(2)}{" "}
-                            MB · {file.sourceKeys.length} source(s)
+                            {file.date} · {(file.size / 1024 / 1024).toFixed(2)} MB ·{" "}
+                            {file.sourceKeys.length} source(s)
                           </div>
                         </>
                       )}
@@ -170,12 +167,9 @@ export function FileManagementModal({
             className="rounded-2xl border border-primary/30 bg-primary/10 p-4 text-left transition hover:bg-primary/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <FilePlus2 className="mb-3 h-5 w-5 text-primary" />
-            <div className="text-sm font-semibold text-foreground">
-              Ajouter des fichiers
-            </div>
+            <div className="text-sm font-semibold text-foreground">Ajouter des fichiers</div>
             <div className="mt-1 text-xs text-muted-foreground">
-              Append dans la période courante sans supprimer les données
-              chargées.
+              Append dans la période courante sans supprimer les données chargées.
             </div>
           </button>
 
@@ -186,9 +180,7 @@ export function FileManagementModal({
             className="rounded-2xl border border-amber-500/25 bg-amber-500/10 p-4 text-left transition hover:bg-amber-500/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <RefreshCw className="mb-3 h-5 w-5 text-amber-500" />
-            <div className="text-sm font-semibold text-foreground">
-              Remplacer la période
-            </div>
+            <div className="text-sm font-semibold text-foreground">Remplacer la période</div>
             <div className="mt-1 text-xs text-muted-foreground">
               Crée une nouvelle table et remplace la sélection active.
             </div>
@@ -201,9 +193,7 @@ export function FileManagementModal({
             className="rounded-2xl border border-blue-500/25 bg-blue-500/10 p-4 text-left transition hover:bg-blue-500/15 disabled:cursor-not-allowed disabled:opacity-50"
           >
             <Database className="mb-3 h-5 w-5 text-blue-500" />
-            <div className="text-sm font-semibold text-foreground">
-              Exporter la base
-            </div>
+            <div className="text-sm font-semibold text-foreground">Exporter la base</div>
             <div className="mt-1 text-xs text-muted-foreground">
               Télécharge un snapshot Parquet de la table DuckDB active.
             </div>
@@ -220,8 +210,8 @@ export function FileManagementModal({
 
           {analyticsHistory.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-border p-5 text-sm text-muted-foreground">
-              Aucun cache analytics trouvé. Après une analyse complète, cette
-              liste permettra de rouvrir une journée sans recharger le CSV.
+              Aucun cache analytics trouvé. Après une analyse complète, cette liste permettra de
+              rouvrir une journée sans recharger le CSV.
             </div>
           ) : (
             <div className="max-h-72 space-y-2 overflow-y-auto pr-1">

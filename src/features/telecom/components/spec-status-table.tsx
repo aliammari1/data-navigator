@@ -64,9 +64,7 @@ export function SpecStatusTable({
         <tbody>
           {[...(data?.rows ?? []), ...(data ? [data.total] : [])].map((row) => (
             <tr key={row.status} className="border-b border-border">
-              <td className="px-3 py-2.5 font-medium text-foreground">
-                {row.status}
-              </td>
+              <td className="px-3 py-2.5 font-medium text-foreground">{row.status}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-foreground font-semibold">
                 {fmtN(row.nombre)}
               </td>

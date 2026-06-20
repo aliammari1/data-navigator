@@ -19,9 +19,7 @@ import { warmUpOnce } from "./_warmup";
 
 async function expectUsablePage(page: Page, anchor: RegExp) {
   await expect(page.locator("body")).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(
-    /404|not found|application error/i,
-  );
+  await expect(page.locator("body")).not.toContainText(/404|not found|application error/i);
   await expect(page.locator("body")).toContainText(anchor);
 }
 
@@ -77,86 +75,60 @@ test.describe("Data tooling journeys", () => {
     });
   });
 
-  test("every data tooling route loads its primary surface", async ({
-    page,
-  }) => {
+  test("every data tooling route loads its primary surface", async ({ page }) => {
     for (const route of DATA_TOOL_ROUTES) {
       await gotoPage(page, route.path, route.anchor);
     }
   });
 
-  test("CSV parser route shows the dropzone and parse controls", async ({
-    page,
-  }) => {
+  test("CSV parser route shows the dropzone and parse controls", async ({ page }) => {
     await gotoPage(page, "/dashboard/csv-parser");
 
     await expectUsablePage(page, /advanced csv parser/i);
 
     // Primary input surface: the paste/drop textarea.
-    await expect(
-      page.getByPlaceholder(/paste delimited text/i),
-    ).toBeVisible();
+    await expect(page.getByPlaceholder(/paste delimited text/i)).toBeVisible();
 
     // Parse controls: the Parse button plus the local-dataset entry point.
     await expect(page.getByRole("button", { name: /^Parse$/ })).toBeVisible();
-    await expect(
-      page.getByRole("button", { name: /open local dataset/i }).first(),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /open local dataset/i }).first()).toBeVisible();
 
     // Parse settings (delimiter / header toggles) are part of the surface.
     await expect(page.locator("body")).toContainText(/parse settings|delimiter/i);
   });
 
-  test("data browser route shows the explorer grid and SQL/search surface", async ({
-    page,
-  }) => {
+  test("data browser route shows the explorer grid and SQL/search surface", async ({ page }) => {
     await gotoPage(page, "/dashboard/data-browser");
 
     await expectUsablePage(page, /data browser|duckdb/i);
 
     // The header heading is always present regardless of dataset state.
-    await expect(
-      page.getByRole("heading", { name: /data browser/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /data browser/i })).toBeVisible();
 
     // Row search is the always-rendered explorer control.
     await expect(page.getByPlaceholder(/search rows/i)).toBeVisible();
 
     // Upload entry point into the browser is exposed via its aria-label.
-    await expect(
-      page.getByRole("button", { name: /upload file/i }).first(),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /upload file/i }).first()).toBeVisible();
 
     // The explorer exposes an SQL surface (view mode tab when a dataset is
     // loaded, or the dataset picker / DuckDB init copy otherwise). Keep this
     // tolerant of the no-data state.
-    await expect(page.locator("body")).toContainText(
-      /sql|select table|duckdb|search rows/i,
-    );
+    await expect(page.locator("body")).toContainText(/sql|select table|duckdb|search rows/i);
   });
 
-  test("report studio route shows the report builder and export tabs", async ({
-    page,
-  }) => {
+  test("report studio route shows the report builder and export tabs", async ({ page }) => {
     await gotoPage(page, "/dashboard/report-studio");
 
     await expectUsablePage(page, /executive report studio/i);
 
-    await expect(
-      page.getByRole("heading", { name: /executive report studio/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: /executive report studio/i })).toBeVisible();
 
     // Report builder export format tabs (PowerPoint / Word / PDF / Excel).
-    await expect(
-      page.getByRole("tab", { name: /powerpoint/i }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("tab", { name: /word document/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("tab", { name: /powerpoint/i })).toBeVisible();
+    await expect(page.getByRole("tab", { name: /word document/i })).toBeVisible();
 
     // Builder configuration + a generate action are part of the surface.
-    await expect(page.locator("body")).toContainText(
-      /report configuration|report date|generate/i,
-    );
+    await expect(page.locator("body")).toContainText(/report configuration|report date|generate/i);
   });
 });

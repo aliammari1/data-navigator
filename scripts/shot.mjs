@@ -9,7 +9,9 @@
 // `pnpm dev` → `electron --remote-debugging-port=9222`) so DuckDB/IPC data is
 // live. Falls back to headless Chromium against the Next dev server (layout
 // only — report data needs Electron IPC).
-import { chromium } from "playwright";
+// `chromium` is re-exported by @playwright/test (the installed devDependency);
+// the standalone `playwright` package is not a direct dependency.
+import { chromium } from "@playwright/test";
 
 const route = process.argv[2] ?? "/dashboard";
 const out = process.argv[3] ?? "screenshots/shot.png";

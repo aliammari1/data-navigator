@@ -52,12 +52,9 @@ function HistoryToolbarInner({
             <HistoryIcon className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-bold text-foreground">
-              Workspace History
-            </h1>
+            <h1 className="text-lg font-bold text-foreground">Workspace History</h1>
             <p className="text-xs text-muted-foreground">
-              Durable timeline from real datasets, transforms, queries and
-              workspace actions
+              Durable timeline from real datasets, transforms, queries and workspace actions
             </p>
           </div>
         </div>

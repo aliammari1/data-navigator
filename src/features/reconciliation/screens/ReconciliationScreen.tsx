@@ -12,9 +12,9 @@ export function ReconciliationScreen() {
           <h1 className="text-2xl font-bold text-slate-100">Reconciliation Wizard</h1>
         </div>
         <p className="text-slate-400 text-sm">
-          Diff two datasets in DuckDB (FULL OUTER JOIN), surface material
-          variances, investigate with the on-device model, and sign off an
-          immutable, exportable reconciliation record — fully offline.
+          Diff two datasets in DuckDB (FULL OUTER JOIN), surface material variances, investigate
+          with the on-device model, and sign off an immutable, exportable reconciliation record —
+          fully offline.
         </p>
       </div>
       <ReconciliationWizard />

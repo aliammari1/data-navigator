@@ -64,10 +64,7 @@ export const useActivityStore = create<ActivityStore>()(
         const prev = (persisted ?? {}) as { events?: unknown[] };
         const events = Array.isArray(prev.events)
           ? (prev.events as ActivityEvent[])
-              .filter(
-                (event) =>
-                  !!event && KNOWN_ACTIVITY_TYPES.has(event.type),
-              )
+              .filter((event) => !!event && KNOWN_ACTIVITY_TYPES.has(event.type))
               .slice(0, MAX_ACTIVITY_EVENTS)
           : [];
         return { events };

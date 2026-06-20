@@ -9,12 +9,7 @@
  * saved via `saveBytes` (Electron save dialog with a browser blob fallback).
  */
 
-import {
-  getChartProxy,
-  getExportProxy,
-  saveBytes,
-  type EChartsOption,
-} from "@/platform/viz";
+import { getChartProxy, getExportProxy, saveBytes, type EChartsOption } from "@/platform/viz";
 import type { ChartImage, ReportDocument } from "@/workers/export-types";
 import { channelLabel } from "./channels";
 import { formatDateTime } from "./format-helpers";
@@ -24,15 +19,7 @@ import type { AlertEvent } from "../store/monitor-store";
 function buildEventTable(events: AlertEvent[]) {
   return {
     title: "Alert Events",
-    headers: [
-      "Triggered",
-      "Channel",
-      "Severity",
-      "Metric",
-      "Actual",
-      "Threshold",
-      "Acknowledged",
-    ],
+    headers: ["Triggered", "Channel", "Severity", "Metric", "Actual", "Threshold", "Acknowledged"],
     rows: events.map((e) => [
       formatDateTime(e.triggeredAt),
       channelLabel(e.channel),

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   DEFAULT_MAX_CHARS_PER_CHUNK,
   chunkText,
@@ -51,18 +52,11 @@ describe("splitIntoSentences", () => {
   });
 
   it("splits on exclamation and question marks", () => {
-    expect(splitIntoSentences("Stop! Really? Yes.")).toEqual([
-      "Stop!",
-      "Really?",
-      "Yes.",
-    ]);
+    expect(splitIntoSentences("Stop! Really? Yes.")).toEqual(["Stop!", "Really?", "Yes."]);
   });
 
   it("splits on the Arabic question mark", () => {
-    expect(splitIntoSentences("كيف حالك؟ بخير.")).toEqual([
-      "كيف حالك؟",
-      "بخير.",
-    ]);
+    expect(splitIntoSentences("كيف حالك؟ بخير.")).toEqual(["كيف حالك؟", "بخير."]);
   });
 
   it("returns the whole normalized text as one part when there is no boundary", () => {
@@ -77,10 +71,7 @@ describe("splitIntoSentences", () => {
   });
 
   it("normalizes whitespace before splitting", () => {
-    expect(splitIntoSentences("First.\n\n  Second.")).toEqual([
-      "First.",
-      "Second.",
-    ]);
+    expect(splitIntoSentences("First.\n\n  Second.")).toEqual(["First.", "Second."]);
   });
 });
 

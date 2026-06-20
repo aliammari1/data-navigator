@@ -4,7 +4,7 @@ import { Undo2, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect } from "react";
 import { create } from "zustand";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /**
  * Desktop HUD — ephemeral, non-persisted feedback layer for the windowed shell.

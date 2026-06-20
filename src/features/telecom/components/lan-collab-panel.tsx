@@ -151,11 +151,7 @@ export function LanCollabPanel() {
     : connecting
       ? "text-amber-500"
       : "text-muted-foreground";
-  const statusLabel = connected
-    ? "Connected"
-    : connecting
-      ? "Connecting…"
-      : "Offline";
+  const statusLabel = connected ? "Connected" : connecting ? "Connecting…" : "Offline";
   const allAudit = [...(discovery?.audit ?? []), ...audit].slice(0, 20);
 
   return (
@@ -218,9 +214,7 @@ export function LanCollabPanel() {
               </p>
               <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-3 py-2.5">
                 <Terminal className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                <code className="min-w-0 flex-1 truncate font-mono text-xs">
-                  {command}
-                </code>
+                <code className="min-w-0 flex-1 truncate font-mono text-xs">{command}</code>
                 <button
                   type="button"
                   onClick={() => copyText(command)}
@@ -245,9 +239,7 @@ export function LanCollabPanel() {
               </div>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">
-                    Server address
-                  </span>
+                  <span className="text-xs text-muted-foreground">Server address</span>
                   <input
                     value={settings.url}
                     onChange={(e) => persist({ url: e.target.value })}
@@ -256,9 +248,7 @@ export function LanCollabPanel() {
                   />
                 </label>
                 <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">
-                    Room name
-                  </span>
+                  <span className="text-xs text-muted-foreground">Room name</span>
                   <input
                     value={settings.room}
                     onChange={(e) => persist({ room: e.target.value })}
@@ -286,9 +276,7 @@ export function LanCollabPanel() {
                   </div>
                 </label>
                 <label className="space-y-1">
-                  <span className="text-xs text-muted-foreground">
-                    Your name
-                  </span>
+                  <span className="text-xs text-muted-foreground">Your name</span>
                   <input
                     value={settings.peer.name}
                     onChange={(e) =>
@@ -321,15 +309,11 @@ export function LanCollabPanel() {
                   />
                   <div className="flex flex-col justify-center gap-3">
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">
-                        Room
-                      </div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Room</div>
                       <div className="font-medium">{settings.room}</div>
                     </div>
                     <div>
-                      <div className="text-[10px] uppercase text-muted-foreground">
-                        Access code
-                      </div>
+                      <div className="text-[10px] uppercase text-muted-foreground">Access code</div>
                       <div className="font-mono text-2xl font-bold tracking-[0.3em] text-cyan-600">
                         {settings.pairingCode}
                       </div>
@@ -439,8 +423,8 @@ export function LanCollabPanel() {
                   {discovery && (
                     <div className="rounded-md bg-muted/50 px-3 py-2 text-[10px] text-muted-foreground">
                       {discovery.websocketUrls.length} URL(s) · rooms:{" "}
-                      {discovery.rooms.map((r) => r.name).join(", ") || "none"}{" "}
-                      · inbox: {discovery.files?.length ?? 0} file(s)
+                      {discovery.rooms.map((r) => r.name).join(", ") || "none"} · inbox:{" "}
+                      {discovery.files?.length ?? 0} file(s)
                     </div>
                   )}
                 </div>
@@ -463,15 +447,11 @@ export function LanCollabPanel() {
                 />
                 <div className="flex flex-col justify-center gap-3">
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">
-                      Room
-                    </div>
+                    <div className="text-[10px] uppercase text-muted-foreground">Room</div>
                     <div className="font-medium">{settings.room}</div>
                   </div>
                   <div>
-                    <div className="text-[10px] uppercase text-muted-foreground">
-                      Access code
-                    </div>
+                    <div className="text-[10px] uppercase text-muted-foreground">Access code</div>
                     <div className="font-mono text-2xl font-bold tracking-[0.3em] text-cyan-600">
                       {settings.pairingCode}
                     </div>
@@ -511,9 +491,7 @@ export function LanCollabPanel() {
                         style={{ background: peer.color }}
                       />
                       <span className="font-medium">{peer.name}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {peer.role}
-                      </span>
+                      <span className="text-xs text-muted-foreground">{peer.role}</span>
                     </div>
                   ))}
                 </div>
@@ -544,8 +522,7 @@ export function LanCollabPanel() {
                 <FileUp className="h-4 w-4" /> Share a file with users
               </div>
               <p className="text-xs text-muted-foreground">
-                Uploaded files are announced to all connected users and stored
-                in the host inbox.
+                Uploaded files are announced to all connected users and stored in the host inbox.
               </p>
               <label className="flex h-20 cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border bg-muted/30 text-muted-foreground hover:border-cyan-400 hover:bg-cyan-50/30 dark:hover:bg-cyan-900/10">
                 <FileUp className="h-5 w-5" />
@@ -561,9 +538,7 @@ export function LanCollabPanel() {
                   }}
                 />
               </label>
-              {uploadingFile && (
-                <p className="text-xs text-cyan-600">Uploading…</p>
-              )}
+              {uploadingFile && <p className="text-xs text-cyan-600">Uploading…</p>}
             </div>
             {fileDrop && (
               <div className="rounded-lg border border-border bg-muted/30 p-3 text-sm">
@@ -583,9 +558,7 @@ export function LanCollabPanel() {
               <ShieldCheck className="h-4 w-4" /> Session activity
             </div>
             {allAudit.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No events recorded yet.
-              </p>
+              <p className="text-sm text-muted-foreground">No events recorded yet.</p>
             ) : (
               <div className="max-h-64 space-y-1 overflow-auto">
                 {allAudit.map((entry) => (
@@ -597,16 +570,9 @@ export function LanCollabPanel() {
                     <div>
                       <span className="font-medium">{entry.event}</span>
                       {entry.peerName && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          · {entry.peerName}
-                        </span>
+                        <span className="text-muted-foreground"> · {entry.peerName}</span>
                       )}
-                      {entry.detail && (
-                        <div className="text-muted-foreground">
-                          {entry.detail}
-                        </div>
-                      )}
+                      {entry.detail && <div className="text-muted-foreground">{entry.detail}</div>}
                     </div>
                   </div>
                 ))}

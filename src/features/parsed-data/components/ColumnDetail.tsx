@@ -26,15 +26,9 @@ import {
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo } from "react";
-import {
-  histogramOption,
-  topValuesOption,
-} from "@/features/parsed-data/charts/options";
+import { histogramOption, topValuesOption } from "@/features/parsed-data/charts/options";
 import { ProfileChart } from "@/features/parsed-data/charts/ProfileChart";
-import {
-  QualityRing,
-  StatGrid,
-} from "@/features/parsed-data/components/profile-cards";
+import { QualityRing, StatGrid } from "@/features/parsed-data/components/profile-cards";
 import { formatNumber } from "@/features/parsed-data/model/format";
 import {
   qualityColor,
@@ -89,13 +83,7 @@ export function ColumnDetailPanel({
   const avgLen = detail?.avgLen ?? profile.avgLen;
   const validityDetail = detail?.validityDetail ?? profile.validityDetail;
   const validityScore = validityDetail
-    ? Math.min(
-        1,
-        Math.max(
-          0,
-          validityDetail.conformanceRate * (1 - validityDetail.outlierRate),
-        ),
-      )
+    ? Math.min(1, Math.max(0, validityDetail.conformanceRate * (1 - validityDetail.outlierRate)))
     : profile.validity;
 
   const histChart = useMemo(() => histogramOption(detail), [detail]);
@@ -120,17 +108,10 @@ export function ColumnDetailPanel({
                 {profile.name}
               </h2>
               <div className="mt-1 flex flex-wrap items-center gap-2">
-                <span
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs",
-                    typeColor(profile.type),
-                  )}
-                >
+                <span className={cn("rounded-full px-2 py-0.5 text-xs", typeColor(profile.type))}>
                   {profile.sqlType}
                 </span>
-                <span className="text-xs text-muted-foreground">
-                  column #{profile.index + 1}
-                </span>
+                <span className="text-xs text-muted-foreground">column #{profile.index + 1}</span>
                 <span className="text-xs text-muted-foreground">
                   {profile.distinctCount.toLocaleString()} distinct values
                 </span>
@@ -145,15 +126,10 @@ export function ColumnDetailPanel({
 
           <div className="flex items-center gap-4">
             <div className="text-right">
-              <div
-                className="text-3xl font-bold"
-                style={{ color: qualityColor(score) }}
-              >
+              <div className="text-3xl font-bold" style={{ color: qualityColor(score) }}>
                 {(score * 100).toFixed(0)}%
               </div>
-              <div className="text-xs text-muted-foreground">
-                {qualityLabel(score)}
-              </div>
+              <div className="text-xs text-muted-foreground">{qualityLabel(score)}</div>
             </div>
             <QualityRing score={score} size={72} />
           </div>
@@ -285,15 +261,10 @@ export function ColumnDetailPanel({
 
                   <div className="space-y-3">
                     {topValues.slice(0, 6).map((value) => (
-                      <div
-                        key={value.value}
-                        className="flex items-center gap-3"
-                      >
+                      <div key={value.value} className="flex items-center gap-3">
                         <span className="w-36 truncate font-mono text-xs text-foreground">
                           {value.value || (
-                            <span className="italic text-muted-foreground">
-                              empty
-                            </span>
+                            <span className="italic text-muted-foreground">empty</span>
                           )}
                         </span>
 
@@ -307,8 +278,7 @@ export function ColumnDetailPanel({
                         </div>
 
                         <span className="w-24 text-right text-xs text-muted-foreground">
-                          {value.count.toLocaleString()} ·{" "}
-                          {(value.pct * 100).toFixed(1)}%
+                          {value.count.toLocaleString()} · {(value.pct * 100).toFixed(1)}%
                         </span>
                       </div>
                     ))}
@@ -390,9 +360,7 @@ export function ColumnDetailPanel({
                   score: validityScore,
                   description: validityDetail
                     ? `${(validityDetail.conformanceRate * 100).toFixed(1)}% conform${
-                        validityDetail.semanticType
-                          ? ` (${validityDetail.semanticType})`
-                          : ""
+                        validityDetail.semanticType ? ` (${validityDetail.semanticType})` : ""
                       }`
                     : `Values conform to ${profile.sqlType}`,
                   icon: Shield,
@@ -416,9 +384,7 @@ export function ColumnDetailPanel({
                           className="h-5 w-5"
                           style={{ color: qualityColor(dimension.score) }}
                         />
-                        <span className="text-sm font-bold text-foreground">
-                          {dimension.name}
-                        </span>
+                        <span className="text-sm font-bold text-foreground">{dimension.name}</span>
                       </div>
 
                       <span
@@ -441,12 +407,8 @@ export function ColumnDetailPanel({
                       />
                     </div>
 
-                    <p className="mt-4 text-sm text-foreground">
-                      {dimension.description}
-                    </p>
-                    <p className="mt-1 text-xs text-muted-foreground">
-                      {dimension.detail}
-                    </p>
+                    <p className="mt-4 text-sm text-foreground">{dimension.description}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{dimension.detail}</p>
                   </div>
                 );
               })}
@@ -520,9 +482,7 @@ export function ColumnDetailPanel({
                         >
                           <td className="max-w-72 truncate px-3 py-2 font-mono text-foreground">
                             {value.value || (
-                              <span className="italic text-muted-foreground">
-                                empty
-                              </span>
+                              <span className="italic text-muted-foreground">empty</span>
                             )}
                           </td>
                           <td className="px-3 py-2 text-right font-mono text-foreground">

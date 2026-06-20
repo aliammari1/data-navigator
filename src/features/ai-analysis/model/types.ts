@@ -63,13 +63,7 @@ export interface ForecastPoint {
 
 export interface Insight {
   id: string;
-  category:
-    | "anomaly"
-    | "trend"
-    | "correlation"
-    | "quality"
-    | "pattern"
-    | "forecast";
+  category: "anomaly" | "trend" | "correlation" | "quality" | "pattern" | "forecast";
   title: string;
   description: string;
   severity: "critical" | "warning" | "info" | "success";

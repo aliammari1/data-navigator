@@ -21,12 +21,7 @@ function shiftDate(date: string, deltaDays: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function clampToAvailable(
-  from: string,
-  to: string,
-  minD: string,
-  maxD: string,
-): PeriodValue {
+function clampToAvailable(from: string, to: string, minD: string, maxD: string): PeriodValue {
   return {
     from: minD && from < minD ? minD : from,
     to: maxD && to > maxD ? maxD : to,
@@ -124,8 +119,7 @@ export function PeriodFilterBar({
         <div className="flex items-center gap-1 flex-wrap">
           {dataPresetButtons.map((p) => {
             const Icon = p.icon;
-            const active =
-              value.from === p.value.from && value.to === p.value.to;
+            const active = value.from === p.value.from && value.to === p.value.to;
             return (
               <button
                 key={p.key}
@@ -171,11 +165,7 @@ export function PeriodFilterBar({
             disabled={busy || invalidRange}
             className="ml-auto h-8 px-3 rounded-md text-[11px] font-semibold bg-primary hover:bg-primary/90 text-primary-foreground flex items-center gap-1 disabled:opacity-50"
           >
-            {busy ? (
-              <RefreshCw className="w-3 h-3 animate-spin" />
-            ) : (
-              <Zap className="w-3 h-3" />
-            )}
+            {busy ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
             Appliquer
           </button>
         )}

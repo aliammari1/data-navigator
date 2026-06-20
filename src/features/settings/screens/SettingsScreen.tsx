@@ -121,9 +121,7 @@ export default function SettingsScreen() {
       <aside className="hidden w-52 flex-none space-y-0.5 border-r border-border/80 p-3 md:block">
         <div className="px-3 py-2 mb-2">
           <h1 className="text-base font-bold text-foreground">Settings</h1>
-          <p className="text-xs text-muted-foreground">
-            Preferences & configuration
-          </p>
+          <p className="text-xs text-muted-foreground">Preferences & configuration</p>
         </div>
         {TABS.map((tab) => {
           const Icon = tab.icon;
@@ -153,12 +151,8 @@ export default function SettingsScreen() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <div className=" flex flex-none items-center justify-between px-4 py-3.5 md:px-6">
           <div>
-            <h2 className="text-base font-semibold text-foreground capitalize">
-              {active.label}
-            </h2>
-            <p className="text-xs text-muted-foreground">
-              Changes save automatically
-            </p>
+            <h2 className="text-base font-semibold text-foreground capitalize">{active.label}</h2>
+            <p className="text-xs text-muted-foreground">Changes save automatically</p>
           </div>
           <button
             type="button"

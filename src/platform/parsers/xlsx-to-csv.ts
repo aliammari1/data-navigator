@@ -44,8 +44,7 @@ export function isExcelFile(file: File): boolean {
   return (
     file.name.endsWith(".xlsx") ||
     file.name.endsWith(".xls") ||
-    file.type ===
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+    file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
     file.type === "application/vnd.ms-excel"
   );
 }

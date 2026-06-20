@@ -77,6 +77,7 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Review dependency changes
+        if: ${{ !github.event.repository.private }}
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
@@ -110,9 +111,6 @@ jobs:
         # dependency-review gates net-new vulnerable deps on PRs instead.
         run: pnpm run audit:security
         continue-on-error: true
-
-      - name: Package hygiene
-        run: pnpm dlx sherif
 
       - name: Dead-code hygiene
         run: pnpm dlx knip

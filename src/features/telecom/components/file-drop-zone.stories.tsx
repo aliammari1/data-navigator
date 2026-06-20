@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
 
 import { FileDropZone } from "./file-drop-zone";
@@ -40,9 +40,7 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // The upload affordance is present before any file is queued.
-    await expect(
-      canvas.getByText(/gliss|dépos|upload|fichier/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/gliss|dépos|upload|fichier/i)).toBeInTheDocument();
   },
 };
 

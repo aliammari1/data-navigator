@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { UserManagementPanel } from "./user-management-panel";
@@ -42,9 +42,7 @@ export const UserView: Story = {
   args: { currentRole: "user" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/création de comptes désactivée/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/création de comptes désactivée/i)).toBeVisible();
   },
 };
 

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Activity, BarChart3 } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 
@@ -78,9 +78,7 @@ export const CollapsibleTogglesContent: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/24 812 transactions traitées/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/24 812 transactions traitées/i)).toBeVisible();
     await userEvent.click(canvas.getByText("Répartition par canal"));
   },
 };

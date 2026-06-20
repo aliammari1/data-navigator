@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { HourlyRow } from "../types";
 import { HourlyChart } from "./hourly-chart";

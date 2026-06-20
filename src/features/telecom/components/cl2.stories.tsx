@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { CL2 } from "./cl2";
@@ -44,9 +44,7 @@ export const Default: Story = {};
 export const ExpandsOnClick: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Recharge Voix/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Recharge Voix/i }));
     await expect(canvas.getByText(/Lignes fixes et mobiles/i)).toBeVisible();
   },
 };

@@ -193,37 +193,46 @@ export function WindowFrame({ win }: { win: DesktopWindow }) {
   );
 
   // --- Drop acceptance (forwarded to the hosted screen) ----------------------
-  const hasDesktopDrag = (e: React.DragEvent) => {
+  const hasDesktopDrag = useCallback((e: React.DragEvent) => {
     const types = e.dataTransfer?.types;
     if (!types) return false;
     for (let i = 0; i < types.length; i++) {
       if (types[i] === "application/x-data-navigator") return true;
     }
     return false;
-  };
-
-  const onContentDragOver = useCallback((e: React.DragEvent) => {
-    if (!hasDesktopDrag(e)) return;
-    e.preventDefault();
-    try {
-      e.dataTransfer.dropEffect = "copy";
-    } catch {
-      // dropEffect may be read-only in some phases.
-    }
   }, []);
 
-  const onContentDragEnter = useCallback((e: React.DragEvent) => {
-    if (!hasDesktopDrag(e)) return;
-    e.preventDefault();
-    dropDepth.current += 1;
-    setIsDropOver(true);
-  }, []);
+  const onContentDragOver = useCallback(
+    (e: React.DragEvent) => {
+      if (!hasDesktopDrag(e)) return;
+      e.preventDefault();
+      try {
+        e.dataTransfer.dropEffect = "copy";
+      } catch {
+        // dropEffect may be read-only in some phases.
+      }
+    },
+    [hasDesktopDrag],
+  );
 
-  const onContentDragLeave = useCallback((e: React.DragEvent) => {
-    if (!hasDesktopDrag(e)) return;
-    dropDepth.current = Math.max(0, dropDepth.current - 1);
-    if (dropDepth.current === 0) setIsDropOver(false);
-  }, []);
+  const onContentDragEnter = useCallback(
+    (e: React.DragEvent) => {
+      if (!hasDesktopDrag(e)) return;
+      e.preventDefault();
+      dropDepth.current += 1;
+      setIsDropOver(true);
+    },
+    [hasDesktopDrag],
+  );
+
+  const onContentDragLeave = useCallback(
+    (e: React.DragEvent) => {
+      if (!hasDesktopDrag(e)) return;
+      dropDepth.current = Math.max(0, dropDepth.current - 1);
+      if (dropDepth.current === 0) setIsDropOver(false);
+    },
+    [hasDesktopDrag],
+  );
 
   const onContentDrop = useCallback(
     (e: React.DragEvent) => {

@@ -8,10 +8,7 @@ export async function compress(data: unknown): Promise<ArrayBuffer> {
   const json = JSON.stringify(data);
   const bytes = new TextEncoder().encode(json);
 
-  if (
-    typeof CompressionStream === "undefined" ||
-    typeof Response === "undefined"
-  ) {
+  if (typeof CompressionStream === "undefined" || typeof Response === "undefined") {
     // Fallback: store uncompressed (older browsers)
     return bytes.buffer as ArrayBuffer;
   }
@@ -24,10 +21,7 @@ export async function compress(data: unknown): Promise<ArrayBuffer> {
 }
 
 export async function decompress(buf: ArrayBuffer): Promise<unknown> {
-  if (
-    typeof DecompressionStream === "undefined" ||
-    typeof Response === "undefined"
-  ) {
+  if (typeof DecompressionStream === "undefined" || typeof Response === "undefined") {
     // Fallback: treat as uncompressed JSON
     return JSON.parse(new TextDecoder().decode(buf));
   }

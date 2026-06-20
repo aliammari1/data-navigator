@@ -66,9 +66,7 @@ export const DERJA_GLOSSARY: readonly DerjaGlossaryEntry[] = [
 
 /** Render the glossary as a compact `term = meaning` block for the prompt. */
 function renderGlossary(): string {
-  return DERJA_GLOSSARY.map(
-    (e) => `- ${e.forms.join(" / ")} = ${e.meaning}`,
-  ).join("\n");
+  return DERJA_GLOSSARY.map((e) => `- ${e.forms.join(" / ")} = ${e.meaning}`).join("\n");
 }
 
 // ─── System-prompt fragment ─────────────────────────────────────────────────────

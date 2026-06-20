@@ -52,12 +52,13 @@ function HistoryRow({ event, isLatest }: RowProps) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="text-sm text-slate-200">
-          Unlocked{" "}
-          <span className="font-semibold text-slate-100">{def?.name ?? event.id}</span>
+          Unlocked <span className="font-semibold text-slate-100">{def?.name ?? event.id}</span>
         </p>
         <p className="text-xs text-slate-500 mt-0.5">{relativeTime(event.ts)}</p>
       </div>
-      <span className={cn("text-xs font-bold flex-shrink-0", cat.textColor)}>+{def?.xp ?? 0} XP</span>
+      <span className={cn("text-xs font-bold flex-shrink-0", cat.textColor)}>
+        +{def?.xp ?? 0} XP
+      </span>
     </div>
   );
 }

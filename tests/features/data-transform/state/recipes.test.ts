@@ -15,11 +15,7 @@ vi.mock("@/platform/storage", () => ({
   newId: () => newId(),
 }));
 
-import {
-  loadRecipes,
-  removeRecipe,
-  saveRecipe,
-} from "@/features/data-transform/state/recipes";
+import { loadRecipes, removeRecipe, saveRecipe } from "@/features/data-transform/state/recipes";
 
 function step(overrides: Partial<TransformStep> = {}): TransformStep {
   return {

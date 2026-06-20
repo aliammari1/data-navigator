@@ -11,11 +11,7 @@ export type VoiceRuntime = "auto" | "webgpu" | "wasm";
 
 export type VoiceModelKind = "vad" | "stt" | "tts";
 
-export type VoiceModelStatus =
-  | "ready"
-  | "experimental"
-  | "planned"
-  | "disabled";
+export type VoiceModelStatus = "ready" | "experimental" | "planned" | "disabled";
 
 export type VoiceModelSource =
   | "local-assets"
@@ -27,11 +23,7 @@ export type VoiceModelPrecision = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
 
 export type VadEngine = "silero-v5";
 
-export type SttEngine =
-  | "whisper-tiny"
-  | "whisper-base"
-  | "whisper-small"
-  | "moonshine";
+export type SttEngine = "whisper-tiny" | "whisper-base" | "whisper-small" | "moonshine";
 
 export type TtsEngine = "off" | "kokoro" | "piper";
 
@@ -153,8 +145,7 @@ export const VAD_MODELS: Record<VadEngine, VoiceModelDefinition> = {
     engine: "silero-v5",
     label: "Silero VAD v5",
     shortLabel: "Silero VAD",
-    description:
-      "Browser voice activity detection for speech start/end segmentation.",
+    description: "Browser voice activity detection for speech start/end segmentation.",
     status: "ready",
     source: "local-assets",
     baseAssetPath: `${VOICE_PUBLIC_PATHS.vad}/`,
@@ -233,8 +224,7 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     engine: "whisper-base",
     label: "Whisper Base",
     shortLabel: "Base",
-    description:
-      "Better transcription quality than Tiny, but slower and heavier.",
+    description: "Better transcription quality than Tiny, but slower and heavier.",
     status: "experimental",
     source: "huggingface-cache",
     modelId: "Xenova/whisper-base",
@@ -259,8 +249,7 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     engine: "whisper-small",
     label: "Whisper Small",
     shortLabel: "Small",
-    description:
-      "Higher quality STT for difficult audio. Heavy for browser use.",
+    description: "Higher quality STT for difficult audio. Heavy for browser use.",
     status: "experimental",
     source: "huggingface-cache",
     modelId: "Xenova/whisper-small",
@@ -286,8 +275,7 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     engine: "moonshine",
     label: "Moonshine Tiny",
     shortLabel: "Moonshine",
-    description:
-      "Experimental lightweight STT option for fast command transcription.",
+    description: "Experimental lightweight STT option for fast command transcription.",
     status: "planned",
     source: "huggingface-cache",
     modelId: "onnx-community/moonshine-tiny-ONNX",
@@ -450,18 +438,9 @@ export function getTtsModel(engine: TtsEngine): VoiceModelDefinition {
   return TTS_MODELS[engine];
 }
 
-export function getVoiceModel(
-  kind: "vad",
-  engine: VadEngine,
-): VoiceModelDefinition;
-export function getVoiceModel(
-  kind: "stt",
-  engine: SttEngine,
-): VoiceModelDefinition;
-export function getVoiceModel(
-  kind: "tts",
-  engine: TtsEngine,
-): VoiceModelDefinition;
+export function getVoiceModel(kind: "vad", engine: VadEngine): VoiceModelDefinition;
+export function getVoiceModel(kind: "stt", engine: SttEngine): VoiceModelDefinition;
+export function getVoiceModel(kind: "tts", engine: TtsEngine): VoiceModelDefinition;
 export function getVoiceModel(
   kind: VoiceModelKind,
   engine: VadEngine | SttEngine | TtsEngine,
@@ -477,9 +456,7 @@ export function getVoiceModel(
   return getTtsModel(engine as TtsEngine);
 }
 
-export function getRuntimeOrder(
-  runtime: VoiceRuntime,
-): Exclude<VoiceRuntime, "auto">[] {
+export function getRuntimeOrder(runtime: VoiceRuntime): Exclude<VoiceRuntime, "auto">[] {
   if (runtime === "webgpu") return ["webgpu", "wasm"];
   if (runtime === "wasm") return ["wasm"];
 
@@ -509,10 +486,7 @@ export function getDefaultPrecisionForRuntime(
   return model.supportedPrecisions[0];
 }
 
-export function isRuntimeSupported(
-  model: VoiceModelDefinition,
-  runtime: VoiceRuntime,
-): boolean {
+export function isRuntimeSupported(model: VoiceModelDefinition, runtime: VoiceRuntime): boolean {
   if (runtime === "auto") {
     return model.supportedRuntimes.includes("auto");
   }
@@ -573,13 +547,7 @@ export function normalizeVoiceRuntime(value: unknown): VoiceRuntime {
 }
 
 export function normalizeLanguageHint(value: unknown): VoiceLanguageHint {
-  if (
-    value === "auto" ||
-    value === "ar" ||
-    value === "ar-TN" ||
-    value === "fr" ||
-    value === "en"
-  ) {
+  if (value === "auto" || value === "ar" || value === "ar-TN" || value === "fr" || value === "en") {
     return value;
   }
 
@@ -599,9 +567,7 @@ export function mapLanguageHintToWhisperLanguage(
   return undefined;
 }
 
-export function mapLanguageHintToDisplayLabel(
-  language: VoiceLanguageHint | string,
-): string {
+export function mapLanguageHintToDisplayLabel(language: VoiceLanguageHint | string): string {
   if (language === "auto") return "Auto";
   if (language === "ar-TN") return "Tounsi";
   if (language === "ar") return "Arabic";
@@ -622,14 +588,12 @@ export function getVoiceReadinessScore(
   const requiredScore =
     requiredItems.length === 0
       ? 1
-      : requiredItems.filter((item) => item.ready).length /
-        requiredItems.length;
+      : requiredItems.filter((item) => item.ready).length / requiredItems.length;
 
   const optionalScore =
     optionalItems.length === 0
       ? 1
-      : optionalItems.filter((item) => item.ready).length /
-        optionalItems.length;
+      : optionalItems.filter((item) => item.ready).length / optionalItems.length;
 
   return Math.round((requiredScore * 0.8 + optionalScore * 0.2) * 100);
 }
@@ -641,9 +605,7 @@ export function createModelCacheKey(model: VoiceModelDefinition): string {
 export function getModelDisplaySummary(model: VoiceModelDefinition): string {
   const runtime = model.recommendedRuntime.toUpperCase();
   const size = model.sizeHintMb ? ` · ~${model.sizeHintMb}MB` : "";
-  const precision = model.recommendedPrecision
-    ? ` · ${model.recommendedPrecision}`
-    : "";
+  const precision = model.recommendedPrecision ? ` · ${model.recommendedPrecision}` : "";
 
   return `${model.shortLabel} · ${runtime}${precision}${size}`;
 }

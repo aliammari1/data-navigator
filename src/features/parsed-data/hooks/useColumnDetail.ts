@@ -15,10 +15,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import {
-  type RegisteredDataset,
-  runReadOnlyQuery,
-} from "@/platform/duckdb/duckdb";
+import { type RegisteredDataset, runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import type { DetailQueryResult } from "../model/summary-map";
 import { isNumericType } from "../model/summary-map";
 import type { ColProfile, ColumnDetail } from "../model/types";
@@ -44,10 +41,7 @@ interface RawDetail {
  * scans: top values, a histogram (numeric), length stats (string), and a
  * bounded reservoir sample used for the local validity score.
  */
-async function fetchColumnDetail(
-  view: string,
-  profile: ColProfile,
-): Promise<DetailQueryResult> {
+async function fetchColumnDetail(view: string, profile: ColProfile): Promise<DetailQueryResult> {
   const quotedView = quoteIdentifier(view);
   const quotedCol = quoteIdentifier(profile.name);
   const numeric = isNumericType(profile.type);
@@ -87,10 +81,7 @@ async function fetchColumnDetail(
 
     const counts = new Array<number>(HISTOGRAM_BINS).fill(0);
     for (const row of bucketRows) {
-      const index = Math.min(
-        Math.max(0, Number(row.bin ?? 0)),
-        HISTOGRAM_BINS - 1,
-      );
+      const index = Math.min(Math.max(0, Number(row.bin ?? 0)), HISTOGRAM_BINS - 1);
       counts[index] = Number(row.cnt ?? 0);
     }
     histogramRows = counts.map((count, index) => ({
@@ -123,9 +114,7 @@ async function fetchColumnDetail(
 
   const validitySample = sampleRows
     .map((row) =>
-      row.sample_value === null || row.sample_value === undefined
-        ? ""
-        : String(row.sample_value),
+      row.sample_value === null || row.sample_value === undefined ? "" : String(row.sample_value),
     )
     .filter((value) => value.length > 0);
 

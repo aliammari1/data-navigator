@@ -45,6 +45,7 @@ export function MoudirComposer({
   const motionOn = useMotionOn();
   const ref = useRef<HTMLTextAreaElement>(null);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ref is stable; resize must rerun on value change
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;

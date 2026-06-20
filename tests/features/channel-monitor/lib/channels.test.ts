@@ -1,7 +1,5 @@
-import {
-  CHANNELS,
-  channelLabel,
-} from "@/features/channel-monitor/lib/channels";
+import { describe, expect, it } from "vitest";
+import { CHANNELS, channelLabel } from "@/features/channel-monitor/lib/channels";
 
 /**
  * Unit tests for the shared channel catalog and label resolution. `channelLabel`

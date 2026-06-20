@@ -5,11 +5,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
-import {
-  isNavItemActive,
-  type NavItem,
-} from "@/features/dashboard-shell/nav/nav-config";
-import { cn } from "@/lib/utils";
+import { isNavItemActive, type NavItem } from "@/features/dashboard-shell/nav/nav-config";
+import { cn } from "@/shared/utils";
 
 /**
  * Collapsible nav group. The header row links to the hub page; a separate

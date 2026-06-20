@@ -93,7 +93,13 @@ export function Topbar({
     setTheme(theme === "dark" ? "light" : theme === "light" ? "system" : "dark");
   };
 
-  const ThemeIcon = !mounted ? Monitor : theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
+  const ThemeIcon = !mounted
+    ? Monitor
+    : theme === "dark"
+      ? Moon
+      : theme === "light"
+        ? Sun
+        : Monitor;
   const displayName = user?.name || user?.email || "Local user";
   const userInitials = userInitialsFrom(displayName);
 

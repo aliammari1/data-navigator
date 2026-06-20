@@ -4,7 +4,7 @@
 
 import { Plus, Sparkles, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cn } from "@/shared/utils";
 import { Kicker, MOUDIR, rise, stagger, useMotionOn } from "../moudir-kit";
 
@@ -103,6 +103,12 @@ function ChannelZone({ def, value, isDerived, onSet }: ChannelZoneProps) {
   const [over, setOver] = useState(false);
   const [draft, setDraft] = useState("");
   const [editing, setEditing] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  // Move focus into the inline editor when it opens (replaces autoFocus).
+  useEffect(() => {
+    if (editing) inputRef.current?.focus();
+  }, [editing]);
 
   const filled = Boolean(value && value.length > 0);
 
@@ -125,6 +131,7 @@ function ChannelZone({ def, value, isDerived, onSet }: ChannelZoneProps) {
         {def.label}
       </span>
 
+      {/* biome-ignore lint/a11y/noStaticElementInteractions: pointer-only drag-drop target; keyboard users set the value via the focusable button/input rendered inside. */}
       <div
         onDragOver={(e) => {
           e.preventDefault();
@@ -184,7 +191,7 @@ function ChannelZone({ def, value, isDerived, onSet }: ChannelZoneProps) {
           </div>
         ) : editing ? (
           <input
-            autoFocus
+            ref={inputRef}
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commitDraft}

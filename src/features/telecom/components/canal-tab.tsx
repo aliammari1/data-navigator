@@ -102,12 +102,10 @@ export const CanalTab = memo(function CanalTab({
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-muted-foreground flex-none" />
             <div>
-              <div className="text-xs font-semibold text-foreground">
-                Analyse canal par période
-              </div>
+              <div className="text-xs font-semibold text-foreground">Analyse canal par période</div>
               <div className="text-[10px] text-muted-foreground">
-                Le filtre s&apos;applique à tous les blocs Bill Payment,
-                Recharge, Voucher et Credit Transfer.
+                Le filtre s&apos;applique à tous les blocs Bill Payment, Recharge, Voucher et Credit
+                Transfer.
               </div>
             </div>
           </div>
@@ -119,10 +117,7 @@ export const CanalTab = memo(function CanalTab({
         </div>
 
         <div className="flex items-center gap-2 flex-wrap">
-          <label
-            className="text-xs text-muted-foreground"
-            htmlFor="canal-date-from"
-          >
+          <label className="text-xs text-muted-foreground" htmlFor="canal-date-from">
             Du
           </label>
           <input
@@ -132,10 +127,7 @@ export const CanalTab = memo(function CanalTab({
             onChange={(e) => setDateFrom(e.target.value)}
             className="text-xs bg-background border border-border rounded-lg px-2.5 py-1.5 text-foreground focus:outline-none focus:ring-1 focus:ring-primary/60"
           />
-          <label
-            className="text-xs text-muted-foreground"
-            htmlFor="canal-date-to"
-          >
+          <label className="text-xs text-muted-foreground" htmlFor="canal-date-to">
             Au
           </label>
           <input

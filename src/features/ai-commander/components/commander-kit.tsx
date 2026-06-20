@@ -12,7 +12,7 @@
 
 import { Bot } from "lucide-react";
 import { useReducedMotion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /** The Commander's one signal: a warm green (matches the window-frame icon tint). */
 export const CMD_ACCENT = "#2f9d6a";

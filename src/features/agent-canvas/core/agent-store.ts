@@ -39,10 +39,7 @@ export interface HumanInterrupt {
   active: boolean;
   reason: string;
   payload: unknown;
-  resolve?: (
-    decision: "approve" | "revise",
-    edits?: Partial<DashboardPlan>,
-  ) => void;
+  resolve?: (decision: "approve" | "revise", edits?: Partial<DashboardPlan>) => void;
 }
 
 // ─── Agent flow node ─────────────────────────────────────────────────────────
@@ -51,15 +48,7 @@ export interface FlowNode {
   id: string;
   label: string;
   status: "idle" | "running" | "done" | "error" | "interrupt";
-  type:
-    | "schema"
-    | "react"
-    | "plan"
-    | "critique"
-    | "sql"
-    | "chart"
-    | "narrate"
-    | "gate";
+  type: "schema" | "react" | "plan" | "critique" | "sql" | "chart" | "narrate" | "gate";
 }
 
 // ─── Root store ──────────────────────────────────────────────────────────────
@@ -217,10 +206,7 @@ export const useAgentStore = create<AgentStoreState>()(
       set((s) => {
         s.tableName = table;
         s.fileName = file;
-        if (
-          s.sqlTabs.length === 1 &&
-          s.sqlTabs[0]?.sql === DEFAULT_SQL_TAB.sql
-        ) {
+        if (s.sqlTabs.length === 1 && s.sqlTabs[0]?.sql === DEFAULT_SQL_TAB.sql) {
           s.sqlTabs[0].sql = defaultSQLForTable(table);
         }
       }),

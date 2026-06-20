@@ -27,21 +27,15 @@ function fuzzyFindColumn(
   hint: string,
   typeFilter?: ColMeta["type"],
 ): ColMeta | undefined {
-  const candidates = typeFilter
-    ? cols.filter((c) => c.type === typeFilter)
-    : cols;
+  const candidates = typeFilter ? cols.filter((c) => c.type === typeFilter) : cols;
   if (!candidates.length) return undefined;
 
   // Exact match first
-  const exact = candidates.find(
-    (c) => c.name.toLowerCase() === hint.toLowerCase(),
-  );
+  const exact = candidates.find((c) => c.name.toLowerCase() === hint.toLowerCase());
   if (exact) return exact;
 
   // Substring match
-  const substr = candidates.find((c) =>
-    c.name.toLowerCase().includes(hint.toLowerCase()),
-  );
+  const substr = candidates.find((c) => c.name.toLowerCase().includes(hint.toLowerCase()));
   if (substr) return substr;
 
   // Fuzzy match with Fuse.js
@@ -68,8 +62,7 @@ function dateCols(cols: ColMeta[]): ColMeta[] {
 
 function bestMetric(cols: ColMeta[], hint?: string): string {
   if (hint) {
-    const m =
-      fuzzyFindColumn(cols, hint, "number") ?? fuzzyFindColumn(cols, hint);
+    const m = fuzzyFindColumn(cols, hint, "number") ?? fuzzyFindColumn(cols, hint);
     if (m && m.type === "number") return `"${m.name}"`;
   }
   const priorities = [
@@ -94,8 +87,7 @@ function bestMetric(cols: ColMeta[], hint?: string): string {
 
 function bestDimension(cols: ColMeta[], hint?: string): string | null {
   if (hint) {
-    const d =
-      fuzzyFindColumn(cols, hint, "string") ?? fuzzyFindColumn(cols, hint);
+    const d = fuzzyFindColumn(cols, hint, "string") ?? fuzzyFindColumn(cols, hint);
     if (d) return `"${d.name}"`;
   }
   const priorities = [
@@ -297,12 +289,8 @@ const PATTERNS: Pattern[] = [
   {
     regex: /correlat(?:ion|e)\s+(?:between\s+)?(\w+)\s+(?:and|with)\s+(\w+)/i,
     build: (m, { tableName, columns }) => {
-      const c1 = numCols(columns).find((c) =>
-        c.name.toLowerCase().includes(m[1].toLowerCase()),
-      );
-      const c2 = numCols(columns).find((c) =>
-        c.name.toLowerCase().includes(m[2].toLowerCase()),
-      );
+      const c1 = numCols(columns).find((c) => c.name.toLowerCase().includes(m[1].toLowerCase()));
+      const c2 = numCols(columns).find((c) => c.name.toLowerCase().includes(m[2].toLowerCase()));
       if (!c1 || !c2) {
         const [a, b] = numCols(columns).slice(0, 2);
         if (!a || !b) return null;
@@ -327,10 +315,7 @@ const PATTERNS: Pattern[] = [
     regex: /missing|null|empty|blank|incomplete/i,
     build: (_m, { tableName, columns }) => {
       const checks = columns
-        .map(
-          (c) =>
-            `COUNT(*) FILTER (WHERE "${c.name}" IS NULL) AS "${c.name}_nulls"`,
-        )
+        .map((c) => `COUNT(*) FILTER (WHERE "${c.name}" IS NULL) AS "${c.name}_nulls"`)
         .join(", ");
       return {
         sql: `SELECT ${checks} FROM "${tableName}"`,
@@ -419,8 +404,7 @@ const PATTERNS: Pattern[] = [
 
   // FILTER by value
   {
-    regex:
-      /(?:where|filter|with|having)\s+(\w+)\s*(?:=|is|equals?)\s*['"]?([^'"]+)['"]?/i,
+    regex: /(?:where|filter|with|having)\s+(\w+)\s*(?:=|is|equals?)\s*['"]?([^'"]+)['"]?/i,
     build: (m, { tableName, columns }) => {
       const colHint = m[1].toLowerCase();
       const col = columns.find((c) => c.name.toLowerCase().includes(colHint));
@@ -503,8 +487,7 @@ export function translateNLQ(question: string, ctx: NLQContext): NLQResult {
     sql = addLimit(sql, 100);
     return {
       sql,
-      explanation:
-        "Could not fully parse your question — showing a grouped summary of the data.",
+      explanation: "Could not fully parse your question — showing a grouped summary of the data.",
       confidence: "low",
       chartSuggestion: "bar",
     };
@@ -575,9 +558,7 @@ export async function translateNLQWithLLM(
   }
 
   try {
-    const colList = ctx.columns
-      .map((c) => `${c.name} (${c.type})`)
-      .join(", ");
+    const colList = ctx.columns.map((c) => `${c.name} (${c.type})`).join(", ");
 
     const userPrompt = `Table: ${ctx.tableName}\nColumns: ${colList}\nQuestion: ${question}`;
 

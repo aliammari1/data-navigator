@@ -1,5 +1,5 @@
 // .storybook/main.ts
-import type { StorybookConfig } from "@storybook/nextjs";
+import type { StorybookConfig } from "@storybook/nextjs-vite";
 import { config as loadEnv } from "dotenv";
 
 loadEnv({ path: ".env.storybook", quiet: true });
@@ -10,9 +10,27 @@ const publicFigmaEnvironment = {
   STORYBOOK_FIGMA_EMPTY_NODE_ID: process.env.STORYBOOK_FIGMA_EMPTY_NODE_ID ?? "",
 };
 
+// Electron + Node built-ins are referenced transitively by app modules that get
+// pulled into stories. The (old) webpack builder stubbed them via
+// `resolve.alias = false`; under the Vite builder we resolve the exact bare/`node:`
+// specifiers to a virtual empty module instead. Scoped to exact ids so Vite's own
+// tooling (which uses Node directly, not the bundler graph) is unaffected.
+const STUBBED_BROWSER_EXTERNALS = new Set<string>([
+  "electron",
+  "fs",
+  "path",
+  "os",
+  "crypto",
+  "node:fs",
+  "node:path",
+  "node:os",
+  "node:crypto",
+]);
+const EMPTY_STUB_ID = "\0sb-empty-node-stub";
+
 const config: StorybookConfig = {
   framework: {
-    name: "@storybook/nextjs",
+    name: "@storybook/nextjs-vite",
     options: {},
   },
 
@@ -36,26 +54,19 @@ const config: StorybookConfig = {
     reactDocgen: "react-docgen-typescript",
   },
 
-  webpackFinal: async (config) => {
-    config.resolve ??= {};
-    config.resolve.alias ??= {};
-
-    config.resolve.alias = {
-      ...config.resolve.alias,
-
-      electron: false,
-      "node:fs": false,
-      "node:path": false,
-      "node:os": false,
-      "node:crypto": false,
-
-      fs: false,
-      path: false,
-      os: false,
-      crypto: false,
-    };
-
-    return config;
+  viteFinal: async (viteConfig) => {
+    viteConfig.plugins ??= [];
+    viteConfig.plugins.push({
+      name: "stub-node-builtins-for-storybook",
+      enforce: "pre",
+      resolveId(id) {
+        return STUBBED_BROWSER_EXTERNALS.has(id) ? EMPTY_STUB_ID : null;
+      },
+      load(id) {
+        return id === EMPTY_STUB_ID ? "export default {};" : null;
+      },
+    });
+    return viteConfig;
   },
 };
 

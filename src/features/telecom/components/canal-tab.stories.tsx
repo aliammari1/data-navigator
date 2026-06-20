@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { ColumnMapping } from "@/features/telecom/types";
@@ -63,9 +63,7 @@ export const Default: Story = {
 export const OpensComparePanel: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Comparer les canaux/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Comparer les canaux/i }));
     await expect(canvas.getByText(/Comparaison des canaux/i)).toBeInTheDocument();
   },
 };

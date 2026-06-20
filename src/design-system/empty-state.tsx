@@ -3,7 +3,7 @@ import { Inbox } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 type Action =
   | { label: string; href: string; onClick?: never }
@@ -51,9 +51,7 @@ export function EmptyState({
       {action || secondary ? (
         <div className="mt-5 flex flex-wrap items-center justify-center gap-2">
           {action ? <ActionButton action={action} /> : null}
-          {secondary ? (
-            <ActionButton action={secondary} variant="ghost" />
-          ) : null}
+          {secondary ? <ActionButton action={secondary} variant="ghost" /> : null}
         </div>
       ) : null}
     </div>

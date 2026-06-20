@@ -4,7 +4,7 @@ import Link from "next/link";
 import { memo } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import type { NavBadgeTone, NavItem } from "@/features/dashboard-shell/nav/nav-config";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 const BADGE_TONE: Record<NavBadgeTone, string> = {
   live: "bg-[color-mix(in_oklab,var(--negative)_18%,transparent)] text-negative",

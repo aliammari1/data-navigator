@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   actColName,
   buildDiffSQL,
@@ -84,9 +85,7 @@ describe("generated column-name helpers", () => {
 
 describe("buildDiffSQL", () => {
   it("throws when no key mappings are provided", () => {
-    expect(() => buildDiffSQL(baseConfig({ keyCols: [] }))).toThrow(
-      /at least one key mapping/i,
-    );
+    expect(() => buildDiffSQL(baseConfig({ keyCols: [] }))).toThrow(/at least one key mapping/i);
   });
 
   it("throws when no measure mappings are provided", () => {
@@ -154,9 +153,7 @@ describe("buildDiffSQL", () => {
   });
 
   it("escapes a quote-containing column name into the join predicate", () => {
-    const sql = buildDiffSQL(
-      baseConfig({ keyCols: [{ expected: 'we"ird', actual: "ok" }] }),
-    );
+    const sql = buildDiffSQL(baseConfig({ keyCols: [{ expected: 'we"ird', actual: "ok" }] }));
     expect(sql).toContain('e."we""ird" = a."ok"');
   });
 });

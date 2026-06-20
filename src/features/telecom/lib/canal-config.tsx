@@ -1,13 +1,4 @@
-import {
-  FileText,
-  Layers,
-  Phone,
-  Signal,
-  Smartphone,
-  Tag,
-  Wifi,
-  Zap,
-} from "lucide-react";
+import { FileText, Layers, Phone, Signal, Smartphone, Tag, Wifi, Zap } from "lucide-react";
 import type { RawCanalRow } from "@/features/telecom/lib/queries";
 import { STATUS_PRESENTATION } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, CanalSummary } from "@/features/telecom/types";

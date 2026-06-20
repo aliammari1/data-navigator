@@ -18,14 +18,8 @@
  */
 
 import { useSettingsStore } from "@/core/stores/settings-store";
-import {
-  exportAppSettingsRemote,
-  putAppSettingRemote,
-} from "@/platform/settings/settings-client";
-import {
-  SettingsBackupSchema,
-  SettingsExportEnvelopeSchema,
-} from "./settings-schema";
+import { exportAppSettingsRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
+import { SettingsBackupSchema, SettingsExportEnvelopeSchema } from "./settings-schema";
 
 const SETTINGS_NAMESPACE = "settings";
 const PERSIST_KEY = "data-navigator-settings";
@@ -102,17 +96,13 @@ export async function downloadSettingsBackup(): Promise<void> {
   }
 }
 
-export type RestoreResult =
-  | { ok: true; restoredKeys: number }
-  | { ok: false; error: string };
+export type RestoreResult = { ok: true; restoredKeys: number } | { ok: false; error: string };
 
 /**
  * Validate + restore a settings backup file. Returns a structured result instead
  * of throwing so the caller can surface a toast cleanly.
  */
-export async function restoreSettingsFromFile(
-  file: File,
-): Promise<RestoreResult> {
+export async function restoreSettingsFromFile(file: File): Promise<RestoreResult> {
   let raw: unknown;
   try {
     raw = JSON.parse(await file.text());

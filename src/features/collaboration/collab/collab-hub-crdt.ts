@@ -62,9 +62,7 @@ import { readLANSettings } from "@/platform/lan/lan-collab";
 export function currentUserName(fallback?: string): string {
   if (typeof window === "undefined") return fallback ?? "You";
   const override =
-    (typeof localStorage !== "undefined" &&
-      localStorage.getItem("collab:username")) ||
-    "";
+    (typeof localStorage !== "undefined" && localStorage.getItem("collab:username")) || "";
   if (override) return override;
   try {
     return readLANSettings().peer.name || fallback || "You";
@@ -76,11 +74,7 @@ export function currentUserName(fallback?: string): string {
 // ─── Audit append (single write path) ─────────────────────────────────────────
 
 /** Append an audit event to the shared CRDT log (LAN-synced, durable). */
-export function recordAudit(
-  type: AuditEventType,
-  description: string,
-  user?: string,
-): void {
+export function recordAudit(type: AuditEventType, description: string, user?: string): void {
   appendAuditEvent({ type, description, user: user ?? currentUserName() });
 }
 
@@ -307,10 +301,7 @@ export function useAnnotationsCRDT(sectionId: string): AnnotationsApi {
     (id: string) => setAnnotationResolved(sectionId, id, false, undefined),
     [sectionId],
   );
-  const deleteNote = useCallback(
-    (id: string) => deleteAnnotation(sectionId, id),
-    [sectionId],
-  );
+  const deleteNote = useCallback((id: string) => deleteAnnotation(sectionId, id), [sectionId]);
   const replyToNote = useCallback(
     (id: string, text: string) =>
       replyToAnnotation(sectionId, id, { author: currentUserName(), text }),
@@ -348,9 +339,7 @@ function defaultApproval(reportId: string): ApprovalRecord {
 
 /** Live approval record for a report, CRDT-backed and LAN-synced. */
 export function useApprovalCRDT(reportId: string = DEFAULT_REPORT_ID): ApprovalApi {
-  const cacheRef = useRef<ApprovalRecord>(
-    readApproval(reportId) ?? defaultApproval(reportId),
-  );
+  const cacheRef = useRef<ApprovalRecord>(readApproval(reportId) ?? defaultApproval(reportId));
 
   const subscribe = useCallback(
     (onChange: () => void) =>

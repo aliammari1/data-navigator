@@ -22,10 +22,7 @@
 import os from "node:os";
 import path from "node:path";
 import { app, utilityProcess, type UtilityProcess } from "electron";
-import type {
-  UtilityRequest,
-  UtilityResponse,
-} from "./duckdb-utility-protocol";
+import type { UtilityRequest, UtilityResponse } from "./duckdb-utility-protocol";
 import { isErrorResponse } from "./duckdb-utility-protocol";
 
 // ─── Tunables ─────────────────────────────────────────────────────────────────
@@ -166,8 +163,16 @@ function ensureSpawned(): Promise<void> {
   return readyPromise;
 }
 
+/**
+ * `Omit<Union, K>` is NOT distributive: it collapses a discriminated union to
+ * only the keys common to every member, dropping variant-specific fields like
+ * `InitRequest.userDataDir` (TS issues #54525 / #49659). Distributing the Omit
+ * over each union member preserves each request variant's own properties.
+ */
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never;
+
 /** Send a request and await its correlated response (or timeout/crash). */
-function request(message: Omit<UtilityRequest, "id">): Promise<UtilityResponse> {
+function request(message: DistributiveOmit<UtilityRequest, "id">): Promise<UtilityResponse> {
   const id = nextId++;
   const full = { ...message, id } as UtilityRequest;
 

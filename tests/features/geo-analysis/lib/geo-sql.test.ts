@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   channelFlowSql,
   channelRegionMatrixSql,
@@ -74,26 +75,16 @@ describe("regionRollupSql", () => {
   });
 
   it("clamps and floors the limit", () => {
-    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 50)).toContain(
-      "LIMIT 50",
-    );
+    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 50)).toContain("LIMIT 50");
     // floored
-    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 12.9)).toContain(
-      "LIMIT 12",
-    );
+    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 12.9)).toContain("LIMIT 12");
     // clamped to a minimum of 1
-    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 0)).toContain(
-      "LIMIT 1",
-    );
-    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, -10)).toContain(
-      "LIMIT 1",
-    );
+    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, 0)).toContain("LIMIT 1");
+    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS, -10)).toContain("LIMIT 1");
   });
 
   it("defaults the limit to 200 when omitted", () => {
-    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS)).toContain(
-      "LIMIT 200",
-    );
+    expect(regionRollupSql("t", makeMapping(), STATUS_MAPPINGS)).toContain("LIMIT 200");
   });
 
   it("routes the region column through the audited quoter (rejects injection)", () => {
@@ -135,12 +126,8 @@ describe("channelFlowSql", () => {
   });
 
   it("defaults the limit to 400 and clamps a fractional/zero limit", () => {
-    expect(channelFlowSql("t", makeMapping(), STATUS_MAPPINGS)).toContain(
-      "LIMIT 400",
-    );
-    expect(
-      channelFlowSql("t", makeMapping(), STATUS_MAPPINGS, 0),
-    ).toContain("LIMIT 1");
+    expect(channelFlowSql("t", makeMapping(), STATUS_MAPPINGS)).toContain("LIMIT 400");
+    expect(channelFlowSql("t", makeMapping(), STATUS_MAPPINGS, 0)).toContain("LIMIT 1");
   });
 });
 

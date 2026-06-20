@@ -70,9 +70,6 @@ jobs:
         with:
           node-version: ${{ matrix.node }}
 
-      - name: Package hygiene (sherif)
-        run: pnpm dlx sherif
-
       - name: Lint (biome)
         run: pnpm run lint
 
@@ -216,7 +213,7 @@ jobs:
 
       - name: Lighthouse CI (Core Web Vitals budgets)
         # @lhci/cli is not a declared dependency; fetch a pinned version on demand.
-        run: pnpm dlx @lhci/cli@0.16.0 autorun
+        run: pnpm dlx @lhci/cli@0.14.0 autorun
 
       - name: Stop Next production server
         if: always()

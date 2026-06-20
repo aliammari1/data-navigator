@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { FlowNode } from "@/features/agent-canvas/core/agent-store";
 
@@ -83,9 +83,7 @@ export const Completed: Story = {
 export const WithError: Story = {
   decorators: [
     withStore({
-      flowNodes: baseNodes.map((n) =>
-        n.id === "sql_fan_out" ? { ...n, status: "error" } : n,
-      ),
+      flowNodes: baseNodes.map((n) => (n.id === "sql_fan_out" ? { ...n, status: "error" } : n)),
       running: false,
     }),
   ],

@@ -45,14 +45,7 @@ export interface ColValidityDetail {
   /** 0..1 fraction of sampled numeric values flagged as outliers (MAD-based). */
   outlierRate: number;
   /** Inferred semantic type from format inference, if a strong match was found. */
-  semanticType?:
-    | "email"
-    | "uuid"
-    | "url"
-    | "date"
-    | "numeric"
-    | "boolean"
-    | "categorical";
+  semanticType?: "email" | "uuid" | "url" | "date" | "numeric" | "boolean" | "categorical";
   /** Number of non-null values inspected for this score. */
   sampleSize: number;
 }

@@ -40,10 +40,7 @@ import { DuckDBInstance } from "@duckdb/node-api";
 import { afterAll, beforeAll, bench, describe } from "vitest";
 
 import { canalCaseExpr, hourExpr, qc, statusNorm } from "@/features/telecom/lib/sql";
-import {
-  buildSpecDateFilter,
-  transactionDayExpr,
-} from "@/features/telecom/lib/queries";
+import { buildSpecDateFilter, transactionDayExpr } from "@/features/telecom/lib/queries";
 import {
   SPEC_DECLINED_FILTER,
   SPEC_INSTANCE_FILTER,
@@ -77,25 +74,50 @@ const BENCH_OPTS = { warmupIterations: 2, iterations: 8, time: 0 } as const;
 // mobile ttcash/voucher, data sabba/evoucher, voucher-for-payment, credit
 // transfer, voucher-convergent) plus some "Other" ids.
 const BRAND_IDS = [
-  39, 35, 61, 9, 118, 132, 149, 156, 108, 122, 56, 57, 58, 59, 8, 31, 117, 109,
-  95, 137, 123, 158, 98, 99, 100, 88, 89, 111, 159, 166, 163, 119, 120, 7, 42,
-  200, 201, 202,
+  39, 35, 61, 9, 118, 132, 149, 156, 108, 122, 56, 57, 58, 59, 8, 31, 117, 109, 95, 137, 123, 158,
+  98, 99, 100, 88, 89, 111, 159, 166, 163, 119, 120, 7, 42, 200, 201, 202,
 ] as const;
 
 // Status codes weighted toward SUCCESS (PST*), with declines, refunds,
 // instance (hold/doubt) and submitted, matching BUILTIN/SPEC status sets.
 const STATUS_CODES = [
-  "PST", "PST", "PST", "PST", "PST1", "PST2", "PST7", // success-heavy
-  "DCL", "DCT", "DCA", "PDL", "REJ", "FLD", // declined
-  "RFD", "RFD3", // refund
-  "HLD", "DBT", "TPP", "PND", // instance
+  "PST",
+  "PST",
+  "PST",
+  "PST",
+  "PST1",
+  "PST2",
+  "PST7", // success-heavy
+  "DCL",
+  "DCT",
+  "DCA",
+  "PDL",
+  "REJ",
+  "FLD", // declined
+  "RFD",
+  "RFD3", // refund
+  "HLD",
+  "DBT",
+  "TPP",
+  "PND", // instance
   "SBM", // submitted
 ] as const;
 
 const ACCOUNT_MSISDNS = [
-  "21619444555", "21619777888", "21692507919", "2160000111222", "21619111222",
-  "21699270724", "21692509273", "21693033354", "21698276912", "21692836704",
-  "21692885461", "2160123456789", "21692885410", "21692885467",
+  "21619444555",
+  "21619777888",
+  "21692507919",
+  "2160000111222",
+  "21619111222",
+  "21699270724",
+  "21692509273",
+  "21693033354",
+  "21698276912",
+  "21692836704",
+  "21692885461",
+  "2160123456789",
+  "21692885410",
+  "21692885467",
 ] as const;
 
 const ACCOUNT_LAYER_IDS = [12, 9, 6, 14, 5] as const;
@@ -112,7 +134,7 @@ function pick<T>(arr: readonly T[], i: number): T {
 /** Deterministic date string in "DD/MM/YYYY HH:MM:SS" — the app's primary format. */
 function txnDate(i: number): string {
   const day = (i % 28) + 1; // 1..28
-  const month = ((Math.trunc(i / 28)) % 12) + 1; // 1..12
+  const month = (Math.trunc(i / 28) % 12) + 1; // 1..12
   const hour = i % 24; // 0..23 (drives hourExpr / peak-hour)
   const minute = i % 60;
   const second = (i * 7) % 60;
@@ -198,18 +220,14 @@ async function buildTable(): Promise<void> {
     `ALTER TABLE ${qc(TABLE)} RENAME COLUMN "ACCOUNT_GROUP_ID_REGION" TO "ACCOUNT_GROUP_ID"`,
   );
 
-  const reader = await conn.runAndReadAll(
-    `SELECT COUNT(*) AS n FROM ${qc(TABLE)}`,
-  );
+  const reader = await conn.runAndReadAll(`SELECT COUNT(*) AS n FROM ${qc(TABLE)}`);
   actualRows = Number(reader.getRowObjects()[0]?.n ?? 0);
 }
 
 /** CASE expression: pick element `i % arr.length` from a literal array, in SQL. */
 function sqlPick(values: readonly string[]): string {
   const n = values.length;
-  const whens = values
-    .map((v, idx) => `WHEN ${idx} THEN '${v.replace(/'/g, "''")}'`)
-    .join(" ");
+  const whens = values.map((v, idx) => `WHEN ${idx} THEN '${v.replace(/'/g, "''")}'`).join(" ");
   return `(CASE (i % ${n}) ${whens} END)`;
 }
 
@@ -396,9 +414,7 @@ beforeAll(async () => {
   for (const [name, sql] of verify) {
     const rows = await runSql(sql);
     const sample = rows[0]
-      ? JSON.stringify(rows[0], (_k, v) =>
-          typeof v === "bigint" ? Number(v) : v,
-        ).slice(0, 140)
+      ? JSON.stringify(rows[0], (_k, v) => (typeof v === "bigint" ? Number(v) : v)).slice(0, 140)
       : "(no rows)";
     // eslint-disable-next-line no-console
     console.log(`[duckdb-bench] ${name.padEnd(16)} -> ${rows.length} rows | ${sample}`);
@@ -417,43 +433,83 @@ afterAll(async () => {
 // mean/p99/hz (ops/sec). Per-query rows-scanned/sec = ROWS * hz.
 
 describe(`telecom report SQL on REAL DuckDB (${ROWS.toLocaleString()} rows)`, () => {
-  bench("KPI / success-rate (full scan, FILTER aggregates)", async () => {
-    await runSql(SQL.kpi);
-  }, BENCH_OPTS);
+  bench(
+    "KPI / success-rate (full scan, FILTER aggregates)",
+    async () => {
+      await runSql(SQL.kpi);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("hourly series (hour extract + status splits)", async () => {
-    await runSql(SQL.hourly);
-  }, BENCH_OPTS);
+  bench(
+    "hourly series (hour extract + status splits)",
+    async () => {
+      await runSql(SQL.hourly);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("operators matrix (group + success-rate)", async () => {
-    await runSql(SQL.operators);
-  }, BENCH_OPTS);
+  bench(
+    "operators matrix (group + success-rate)",
+    async () => {
+      await runSql(SQL.operators);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("regions breakdown (group + amount)", async () => {
-    await runSql(SQL.regions);
-  }, BENCH_OPTS);
+  bench(
+    "regions breakdown (group + amount)",
+    async () => {
+      await runSql(SQL.regions);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("canal summaries (10-branch CASE aggregation)", async () => {
-    await runSql(SQL.canalSummaries);
-  }, BENCH_OPTS);
+  bench(
+    "canal summaries (10-branch CASE aggregation)",
+    async () => {
+      await runSql(SQL.canalSummaries);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("canal x hour matrix (2-dim heavy CASE group)", async () => {
-    await runSql(SQL.canalHourMatrix);
-  }, BENCH_OPTS);
+  bench(
+    "canal x hour matrix (2-dim heavy CASE group)",
+    async () => {
+      await runSql(SQL.canalHourMatrix);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("daily trend (date parse + day group)", async () => {
-    await runSql(SQL.dailyTrend);
-  }, BENCH_OPTS);
+  bench(
+    "daily trend (date parse + day group)",
+    async () => {
+      await runSql(SQL.dailyTrend);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("period KPI (date-filtered spec-status aggregation)", async () => {
-    await runSql(SQL.periodKpi);
-  }, BENCH_OPTS);
+  bench(
+    "period KPI (date-filtered spec-status aggregation)",
+    async () => {
+      await runSql(SQL.periodKpi);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("raw grid page (filter + sort + paginate) — hot path", async () => {
-    await runSql(SQL.rawGridPage);
-  }, BENCH_OPTS);
+  bench(
+    "raw grid page (filter + sort + paginate) — hot path",
+    async () => {
+      await runSql(SQL.rawGridPage);
+    },
+    BENCH_OPTS,
+  );
 
-  bench("raw grid filtered count (paired full filtered scan)", async () => {
-    await runSql(SQL.rawGridCount);
-  }, BENCH_OPTS);
+  bench(
+    "raw grid filtered count (paired full filtered scan)",
+    async () => {
+      await runSql(SQL.rawGridCount);
+    },
+    BENCH_OPTS,
+  );
 });

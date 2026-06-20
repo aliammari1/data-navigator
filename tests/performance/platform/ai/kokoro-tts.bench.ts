@@ -1,9 +1,5 @@
 import { bench, describe } from "vitest";
-import {
-  chunkText,
-  normalizeText,
-  splitIntoSentences,
-} from "@/platform/ai/kokoro-tts";
+import { chunkText, normalizeText, splitIntoSentences } from "@/platform/ai/kokoro-tts";
 
 /**
  * Performance benchmarks for the Kokoro TTS text-preparation hot path

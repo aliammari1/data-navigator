@@ -147,13 +147,9 @@ function StepCardImpl({
         <span className="flex-1 truncate text-xs text-zinc-300">{label}</span>
 
         <div className="flex flex-none items-center gap-1">
-          {status === "done" && (
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-          )}
+          {status === "done" && <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />}
           {status === "error" && <XCircle className="h-3.5 w-3.5 text-red-400" />}
-          {status === "running" && (
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-          )}
+          {status === "running" && <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />}
 
           <button
             type="button"
@@ -163,9 +159,7 @@ function StepCardImpl({
             }}
             className={cn(
               "h-5 w-8 flex-none rounded-full border transition-colors",
-              enabled
-                ? "border-emerald-500/30 bg-emerald-500/20"
-                : "border-zinc-700 bg-zinc-800",
+              enabled ? "border-emerald-500/30 bg-emerald-500/20" : "border-zinc-700 bg-zinc-800",
             )}
           >
             <span
@@ -189,29 +183,24 @@ function StepCardImpl({
         </div>
       </div>
 
-      {status === "done" &&
-        (inputRows !== undefined || outputRows !== undefined) && (
-          <div className="mt-2 flex items-center gap-2 text-[10px] text-zinc-500">
-            <span>{(inputRows ?? 0).toLocaleString()} in</span>
-            <ArrowRight className="h-2.5 w-2.5" />
-            <span
-              className={cn(
-                outputRows !== undefined &&
-                  inputRows !== undefined &&
-                  outputRows < inputRows
-                  ? "text-amber-400"
-                  : "text-emerald-400",
-              )}
-            >
-              {(outputRows ?? 0).toLocaleString()} out
-            </span>
-          </div>
-        )}
+      {status === "done" && (inputRows !== undefined || outputRows !== undefined) && (
+        <div className="mt-2 flex items-center gap-2 text-[10px] text-zinc-500">
+          <span>{(inputRows ?? 0).toLocaleString()} in</span>
+          <ArrowRight className="h-2.5 w-2.5" />
+          <span
+            className={cn(
+              outputRows !== undefined && inputRows !== undefined && outputRows < inputRows
+                ? "text-amber-400"
+                : "text-emerald-400",
+            )}
+          >
+            {(outputRows ?? 0).toLocaleString()} out
+          </span>
+        </div>
+      )}
 
       {status === "error" && error && (
-        <p className="mt-1.5 truncate font-mono text-[10px] text-red-400">
-          {error}
-        </p>
+        <p className="mt-1.5 truncate font-mono text-[10px] text-red-400">{error}</p>
       )}
     </div>
   );

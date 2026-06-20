@@ -46,14 +46,8 @@ export function DataPanel() {
             suffix="rows"
           />
         </SettingRow>
-        <SettingRow
-          label="Null display value"
-          description="How NULL values appear in tables"
-        >
-          <NullDisplayField
-            value={nullDisplay}
-            onCommit={(v) => setData({ nullDisplay: v })}
-          />
+        <SettingRow label="Null display value" description="How NULL values appear in tables">
+          <NullDisplayField value={nullDisplay} onCommit={(v) => setData({ nullDisplay: v })} />
         </SettingRow>
       </Section>
 

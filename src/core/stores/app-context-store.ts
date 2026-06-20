@@ -5,10 +5,7 @@ import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AppDomain = "telecom" | "general";
 
-const APP_DOMAINS: ReadonlySet<AppDomain> = new Set<AppDomain>([
-  "telecom",
-  "general",
-]);
+const APP_DOMAINS: ReadonlySet<AppDomain> = new Set<AppDomain>(["telecom", "general"]);
 
 interface AppContextState {
   activeDomain: AppDomain;
@@ -18,12 +15,7 @@ interface AppContextState {
   setActiveDatasetId: (activeDatasetId: string | null) => void;
   setActiveTableName: (activeTableName: string | null) => void;
   setContext: (
-    next: Partial<
-      Pick<
-        AppContextState,
-        "activeDomain" | "activeDatasetId" | "activeTableName"
-      >
-    >,
+    next: Partial<Pick<AppContextState, "activeDomain" | "activeDatasetId" | "activeTableName">>,
   ) => void;
 }
 
@@ -47,9 +39,7 @@ export const useAppContextStore = create<AppContextState>()(
       migrate: (persisted, _version) => {
         const prev = (persisted ?? {}) as Partial<AppContextState>;
         const activeDomain =
-          prev.activeDomain && APP_DOMAINS.has(prev.activeDomain)
-            ? prev.activeDomain
-            : "telecom";
+          prev.activeDomain && APP_DOMAINS.has(prev.activeDomain) ? prev.activeDomain : "telecom";
         return {
           activeDomain,
           activeDatasetId: prev.activeDatasetId ?? null,

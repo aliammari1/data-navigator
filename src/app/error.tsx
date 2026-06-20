@@ -28,7 +28,8 @@ export default function GlobalError({
         Une erreur est survenue lors de l'affichage.
       </h1>
       <p className="mx-auto mt-4 max-w-md text-base leading-relaxed text-muted-foreground">
-        Vos données locales sont intactes. Réessayez, ou revenez à l'accueil si le problème persiste.
+        Vos données locales sont intactes. Réessayez, ou revenez à l'accueil si le problème
+        persiste.
         {error.digest && (
           <span className="mt-2 block font-mono text-xs text-muted-foreground/70">
             réf. {error.digest}

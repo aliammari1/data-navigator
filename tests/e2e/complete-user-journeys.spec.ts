@@ -52,9 +52,7 @@ const TELECOM_ROUTES = [
 
 async function expectUsablePage(page: Page, anchor: RegExp) {
   await expect(page.locator("body")).toBeVisible();
-  await expect(page.locator("body")).not.toContainText(
-    /404|not found|application error/i,
-  );
+  await expect(page.locator("body")).not.toContainText(/404|not found|application error/i);
   await expect(page.locator("body")).toContainText(anchor);
 }
 
@@ -65,9 +63,7 @@ async function gotoPage(page: Page, path: string, anchor?: RegExp) {
 }
 
 async function openCommandPalette(page: Page) {
-  await page.keyboard.press(
-    process.platform === "darwin" ? "Meta+K" : "Control+K",
-  );
+  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
   const input = page.getByPlaceholder(/search pages, features/i);
   if (!(await input.isVisible().catch(() => false))) {
     await page.getByRole("button", { name: /search.*k/i }).click();
@@ -109,14 +105,10 @@ test.describe("Complete user journey coverage", () => {
       .first()
       .fill("password123");
     await page.getByLabel(/show password/i).click();
-    await expect(
-      page.locator('input[type="text"], input[name="password"]').first(),
-    ).toBeVisible();
+    await expect(page.locator('input[type="text"], input[name="password"]').first()).toBeVisible();
   });
 
-  test("dashboard shell navigation reaches every concrete feature route", async ({
-    page,
-  }) => {
+  test("dashboard shell navigation reaches every concrete feature route", async ({ page }) => {
     for (const route of DASHBOARD_ROUTES) {
       await gotoPage(page, route.path, route.anchor);
     }
@@ -127,10 +119,7 @@ test.describe("Complete user journey coverage", () => {
   }) => {
     for (const path of TELECOM_ROUTES) {
       await gotoPage(page, path);
-      await expectUsablePage(
-        page,
-        /rapport|telecom|télécom|canal|kpi|données/i,
-      );
+      await expectUsablePage(page, /rapport|telecom|télécom|canal|kpi|données/i);
     }
   });
 
@@ -141,16 +130,12 @@ test.describe("Complete user journey coverage", () => {
 
     await openCommandPalette(page);
     await page.getByPlaceholder(/search pages, features/i).fill("csv");
-    await page
-      .getByRole("button", { name: /upload.*import data files/i })
-      .click();
+    await page.getByRole("button", { name: /upload.*import data files/i }).click();
     await expect(page).toHaveURL(/\/dashboard\/upload/);
     await expectUsablePage(page, /importer|glissez|upload|fichier/i);
 
     await gotoPage(page, "/dashboard");
-    await page.keyboard.press(
-      process.platform === "darwin" ? "Meta+B" : "Control+B",
-    );
+    await page.keyboard.press(process.platform === "darwin" ? "Meta+B" : "Control+B");
     await expect(page.locator("body")).toContainText(/datanavigator/i);
 
     await page.getByTitle(/ai assistant/i).click();
@@ -172,9 +157,7 @@ test.describe("Complete user journey coverage", () => {
     await expect(page.locator("td", { hasText: "Bob" })).toBeVisible();
     await expect(page.getByText("3 rows", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: /load/i })).toBeEnabled();
-    await expect(
-      page.getByRole("button", { name: /export csv/i }),
-    ).toBeEnabled();
+    await expect(page.getByRole("button", { name: /export csv/i })).toBeEnabled();
 
     await page.getByRole("button", { name: /filter/i }).click();
     await page.getByPlaceholder(/status = success/i).fill("STATUS = SUCCESS");
@@ -195,24 +178,14 @@ test.describe("Complete user journey coverage", () => {
       buffer: Buffer.from(SAMPLE_CSV),
     });
 
-    await expect(
-      page.getByRole("button", { name: /journey\.csv/i }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /journey\.csv/i })).toBeVisible();
     await expect(page.locator("body")).toContainText(
       /duckdb|electronduckdb|erreur|error|prêt|ready/i,
     );
 
-    await gotoPage(
-      page,
-      "/dashboard/data-browser",
-      /data browser|duckdb|sql|search rows/i,
-    );
+    await gotoPage(page, "/dashboard/data-browser", /data browser|duckdb|sql|search rows/i);
 
-    await gotoPage(
-      page,
-      "/dashboard/transform",
-      /pipeline|run|deduplicate|limit/i,
-    );
+    await gotoPage(page, "/dashboard/transform", /pipeline|run|deduplicate|limit/i);
 
     await gotoPage(page, "/dashboard/folders", /folders|my datasets/i);
   });
@@ -226,21 +199,15 @@ test.describe("Complete user journey coverage", () => {
     await page.getByPlaceholder(/folder name/i).fill("Journey Folder");
     await page.getByRole("button", { name: /create/i }).click();
 
-    await expect(
-      page.getByRole("button", { name: "Journey Folder" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();
     await page.getByPlaceholder(/^search/i).fill("Journey");
-    await expect(
-      page.getByRole("button", { name: "Journey Folder" }),
-    ).toBeVisible();
+    await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();
 
     await page.getByRole("button", { name: /starred/i }).click();
     await expect(page.locator("body")).toContainText(/starred/i);
 
     await page.getByRole("button", { name: /stats/i }).click();
-    await expect(page.locator("body")).toContainText(
-      /total files|total folders/i,
-    );
+    await expect(page.locator("body")).toContainText(/total files|total folders/i);
   });
 
   test("transform page journey edits pipeline steps and reviews generated SQL surfaces", async ({
@@ -275,9 +242,7 @@ test.describe("Complete user journey coverage", () => {
 
     await expectUsablePage(page, /column profiler|parsed|profile|no loaded/i);
     await page.getByPlaceholder(/search columns/i).fill("amount");
-    await expect(
-      page.getByRole("button", { name: /export csv/i }),
-    ).toBeDisabled();
+    await expect(page.getByRole("button", { name: /export csv/i })).toBeDisabled();
     await page.getByRole("button", { name: /refresh/i }).click();
     await expect(page.locator("body")).toContainText(
       /dataset quality overview|no loaded duckdb table/i,
@@ -316,9 +281,7 @@ test.describe("Complete user journey coverage", () => {
     ) {
       await page.getByPlaceholder(/search nodes/i).fill("upload");
     }
-    await expect(page.locator("body")).toContainText(
-      /node|type|status|lineage/i,
-    );
+    await expect(page.locator("body")).toContainText(/node|type|status|lineage/i);
 
     await page.getByRole("button", { name: /impact/i }).click();
     await expect(page.locator("body")).toContainText(/select a node|impact/i);
@@ -368,26 +331,20 @@ test.describe("Complete user journey coverage", () => {
     const sqlToggle = page.getByRole("button", { name: /^sql$/i }).first();
     if (await sqlToggle.isVisible().catch(() => false)) {
       await sqlToggle.click();
-      await expect(page.locator("body")).toContainText(
-        /sql editor|run query|write a sql query/i,
-      );
+      await expect(page.locator("body")).toContainText(/sql editor|run query|write a sql query/i);
     }
 
     // Column manager + filter panels are reachable via accessible icon buttons.
     const columnsButton = page.getByRole("button", { name: /columns/i }).first();
     if (await columnsButton.isVisible().catch(() => false)) {
       await columnsButton.click();
-      await expect(page.locator("body")).toContainText(
-        /columns|search columns|show all/i,
-      );
+      await expect(page.locator("body")).toContainText(/columns|search columns|show all/i);
     }
 
     const filtersButton = page.getByRole("button", { name: /filters/i }).first();
     if (await filtersButton.isVisible().catch(() => false)) {
       await filtersButton.click();
-      await expect(page.locator("body")).toContainText(
-        /filters|add rule|clear all/i,
-      );
+      await expect(page.locator("body")).toContainText(/filters|add rule|clear all/i);
     }
   });
 
@@ -436,9 +393,7 @@ test.describe("Complete user journey coverage", () => {
 
     await gotoPage(page, "/dashboard/agent-canvas");
     await page.getByRole("button", { name: /skip/i }).click();
-    await expect(page.locator("body")).toContainText(
-      /load data|drop your data file/i,
-    );
+    await expect(page.locator("body")).toContainText(/load data|drop your data file/i);
   });
 
   test("data formulator page journey opens command, model, and right-panel controls", async ({
@@ -447,9 +402,7 @@ test.describe("Complete user journey coverage", () => {
     await gotoPage(page, "/dashboard/data-formulator");
 
     await expectUsablePage(page, /moudir ai|import data|active table/i);
-    await expect(
-      page.getByPlaceholder(/ask for a kpi|describe what rows/i),
-    ).toBeVisible();
+    await expect(page.getByPlaceholder(/ask for a kpi|describe what rows/i)).toBeVisible();
     await page.getByTitle(/model readiness/i).click();
     await expect(page.locator("body")).toContainText(/model|readiness|ai/i);
     await page.getByTitle(/kpi foundry/i).click();
@@ -466,11 +419,13 @@ test.describe("Complete user journey coverage", () => {
     await gotoPage(page, "/dashboard/auto-analyst");
 
     await expectUsablePage(page, /auto.?analyst|upload a dataset/i);
-    await expect(
-      page.getByRole("link", { name: /upload data/i }),
-    ).toHaveAttribute("href", "/dashboard/upload");
-    await expect(
-      page.getByRole("link", { name: /open telecom/i }),
-    ).toHaveAttribute("href", "/dashboard/telecom-report");
+    await expect(page.getByRole("link", { name: /upload data/i })).toHaveAttribute(
+      "href",
+      "/dashboard/upload",
+    );
+    await expect(page.getByRole("link", { name: /open telecom/i })).toHaveAttribute(
+      "href",
+      "/dashboard/telecom-report",
+    );
   });
 });

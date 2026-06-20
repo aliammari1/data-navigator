@@ -1,9 +1,4 @@
-import {
-  Check,
-  FileText,
-  Loader2,
-  X,
-} from "lucide-react";
+import { Check, FileText, Loader2, X } from "lucide-react";
 import type { ColMeta } from "@/core/stores/data-store";
 import { cn } from "@/shared/utils";
 import type { ColumnInfo, FileType } from "./types";
@@ -58,32 +53,22 @@ export function computeQualityScores(columns: ColumnInfo[], rowCount: number) {
     };
 
   const completeness = Math.round(
-    (1 -
-      columns.reduce((acc, c) => acc + columnNullRate(c, rowCount), 0) /
-        columns.length) *
-      100,
+    (1 - columns.reduce((acc, c) => acc + columnNullRate(c, rowCount), 0) / columns.length) * 100,
   );
 
   // A column is "usable" when it has at least one non-null value.
   const accuracy = Math.round(
-    (columns.reduce(
-      (acc, c) => acc + (columnNullRate(c, rowCount) < 1 ? 1 : 0),
-      0,
-    ) /
+    (columns.reduce((acc, c) => acc + (columnNullRate(c, rowCount) < 1 ? 1 : 0), 0) /
       columns.length) *
       100,
   );
 
   const mixedCols = columns.filter((c) => c.type === "mixed").length;
-  const consistency = Math.round(
-    (1 - mixedCols / Math.max(1, columns.length)) * 100,
-  );
+  const consistency = Math.round((1 - mixedCols / Math.max(1, columns.length)) * 100);
 
   const avgUnique =
-    columns.reduce(
-      (acc, c) => acc + Math.min(1, c.uniqueCount / Math.max(1, rowCount)),
-      0,
-    ) / Math.max(1, columns.length);
+    columns.reduce((acc, c) => acc + Math.min(1, c.uniqueCount / Math.max(1, rowCount)), 0) /
+    Math.max(1, columns.length);
   const uniqueness = Math.round(avgUnique * 100);
 
   return { completeness, accuracy, consistency, uniqueness };
@@ -92,12 +77,7 @@ export function computeQualityScores(columns: ColumnInfo[], rowCount: number) {
 export function columnInfoToColMeta(columns: ColumnInfo[]): ColMeta[] {
   return columns.map((column) => ({
     name: column.name,
-    type:
-      column.type === "mixed"
-        ? "string"
-        : column.type === "boolean"
-          ? "boolean"
-          : column.type,
+    type: column.type === "mixed" ? "string" : column.type === "boolean" ? "boolean" : column.type,
     nullCount: column.nullCount,
     distinctCount: column.uniqueCount,
     min: column.min,
@@ -127,14 +107,10 @@ export function StatusStep({
           status === "error" && "bg-red-500/20 border border-red-500/50",
         )}
       >
-        {status === "active" && (
-          <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />
-        )}
+        {status === "active" && <Loader2 className="h-3 w-3 text-blue-400 animate-spin" />}
         {status === "done" && <Check className="h-3 w-3 text-emerald-400" />}
         {status === "error" && <X className="h-3 w-3 text-red-400" />}
-        {status === "pending" && (
-          <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" />
-        )}
+        {status === "pending" && <span className="h-1.5 w-1.5 rounded-full bg-zinc-600" />}
       </div>
       <span
         className={cn(

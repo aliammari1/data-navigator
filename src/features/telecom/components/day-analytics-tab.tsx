@@ -56,10 +56,7 @@ export function DayAnalyticsTab({
   const reload = useCallback(async () => {
     if (!table || !mapping?.transactionDate) return;
 
-    const [dy, ss] = await Promise.all([
-      fetchAvailableDays(table, mapping),
-      listDailyStats(),
-    ]);
+    const [dy, ss] = await Promise.all([fetchAvailableDays(table, mapping), listDailyStats()]);
 
     setAvailableDays(dy);
     setSavedStats(ss);
@@ -86,12 +83,7 @@ export function DayAnalyticsTab({
           setStat(cached);
         }
 
-        const kpi = await fetchPeriodKPI(
-          table,
-          mapping,
-          appliedDay,
-          appliedDay,
-        );
+        const kpi = await fetchPeriodKPI(table, mapping, appliedDay, appliedDay);
 
         if (!kpi || cancelled) return;
 
@@ -136,12 +128,8 @@ export function DayAnalyticsTab({
       const metaByKey = new Map(sourceMetas.map((meta) => [meta.key, meta]));
 
       const lineage: DailyLineageEntry[] = loadedFiles.flatMap((f) => {
-        const sourceKeys =
-          f.sourceKeys.length > 0 ? f.sourceKeys : [f.cacheKey];
-        const rowsPerSource = Math.max(
-          0,
-          Math.round(rowsForDay / sourceKeys.length),
-        );
+        const sourceKeys = f.sourceKeys.length > 0 ? f.sourceKeys : [f.cacheKey];
+        const rowsPerSource = Math.max(0, Math.round(rowsForDay / sourceKeys.length));
 
         return sourceKeys.map((key) => {
           const meta = metaByKey.get(key);
@@ -232,8 +220,7 @@ export function DayAnalyticsTab({
         </button>
 
         <span className="text-[10px] text-muted-foreground ml-auto flex items-center gap-1">
-          <HardDrive className="w-3 h-3" /> {savedStats.length} snapshot(s)
-          local(aux)
+          <HardDrive className="w-3 h-3" /> {savedStats.length} snapshot(s) local(aux)
         </span>
       </div>
 
@@ -279,11 +266,7 @@ export function DayAnalyticsTab({
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-            <DataLineagePanel
-              day={stat.day}
-              lineage={stat.lineage}
-              computedAt={stat.computedAt}
-            />
+            <DataLineagePanel day={stat.day} lineage={stat.lineage} computedAt={stat.computedAt} />
 
             <SnapshotsPanel
               snapshots={savedStats}
@@ -293,12 +276,7 @@ export function DayAnalyticsTab({
             />
           </div>
 
-          <SubStatusPanel
-            table={table}
-            mapping={mapping}
-            dateFrom={stat.day}
-            dateTo={stat.day}
-          />
+          <SubStatusPanel table={table} mapping={mapping} dateFrom={stat.day} dateTo={stat.day} />
 
           <TopAccountsLeaderboard
             table={table}
@@ -311,9 +289,8 @@ export function DayAnalyticsTab({
 
       {!appliedDay && (
         <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-xs text-muted-foreground">
-          Sélectionnez un jour puis cliquez{" "}
-          <strong className="text-foreground">Appliquer</strong> pour calculer
-          les analytics. Aucun calcul automatique.
+          Sélectionnez un jour puis cliquez <strong className="text-foreground">Appliquer</strong>{" "}
+          pour calculer les analytics. Aucun calcul automatique.
         </div>
       )}
 
@@ -348,9 +325,7 @@ function DayCard({
         </span>
       </div>
 
-      <div className="text-2xl font-black tabular-nums leading-none">
-        {value}
-      </div>
+      <div className="text-2xl font-black tabular-nums leading-none">{value}</div>
 
       {sub && <div className="text-[10px] mt-1 opacity-70">{sub}</div>}
     </div>
@@ -372,19 +347,14 @@ function SnapshotsPanel({
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
         <HardDrive className="w-3.5 h-3.5 text-emerald-500" />
-        <span className="text-xs font-semibold">
-          Snapshots quotidiens (cache local)
-        </span>
-        <span className="text-[10px] text-muted-foreground ml-auto">
-          {snapshots.length}
-        </span>
+        <span className="text-xs font-semibold">Snapshots quotidiens (cache local)</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">{snapshots.length}</span>
       </div>
 
       <div className="max-h-70 overflow-y-auto divide-y divide-border">
         {snapshots.length === 0 && (
           <div className="px-4 py-6 text-xs text-muted-foreground text-center">
-            Aucun snapshot — sauvegardez un jour pour l&apos;accélérer plus
-            tard.
+            Aucun snapshot — sauvegardez un jour pour l&apos;accélérer plus tard.
           </div>
         )}
 
@@ -404,8 +374,7 @@ function SnapshotsPanel({
             </button>
 
             <div className="text-[10px] text-muted-foreground tabular-nums">
-              {fmtN(s.total)} tx · {fmtPct(s.successRate)} · {s.lineage.length}{" "}
-              fichier(s)
+              {fmtN(s.total)} tx · {fmtPct(s.successRate)} · {s.lineage.length} fichier(s)
             </div>
 
             <button

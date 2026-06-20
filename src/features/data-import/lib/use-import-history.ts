@@ -10,11 +10,7 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import {
-  isElectron,
-  listDatasets,
-  type RegisteredDataset,
-} from "@/platform/electron/electron-fs";
+import { isElectron, listDatasets, type RegisteredDataset } from "@/platform/electron/electron-fs";
 
 export interface ImportHistoryEntry {
   id: string;

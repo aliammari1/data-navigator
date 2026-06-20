@@ -17,10 +17,7 @@ function ForecastSkeleton() {
       <div className="border-b border-slate-800/60 bg-slate-900/20 px-6 py-0">
         <div className="flex gap-1 py-1">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-10 w-32 rounded-lg bg-slate-800/60 mx-1"
-            />
+            <div key={i} className="h-10 w-32 rounded-lg bg-slate-800/60 mx-1" />
           ))}
         </div>
       </div>

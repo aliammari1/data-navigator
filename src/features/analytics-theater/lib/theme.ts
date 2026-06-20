@@ -28,5 +28,7 @@ export const SERIES_COLORS = [
 ] as const;
 
 export function seriesColor(index: number): string {
-  return SERIES_COLORS[((index % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length];
+  return SERIES_COLORS[
+    ((index % SERIES_COLORS.length) + SERIES_COLORS.length) % SERIES_COLORS.length
+  ];
 }

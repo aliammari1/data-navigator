@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import {
   fileNameFromPath,
   isSupportedImportPath,
@@ -24,9 +25,7 @@ describe("fileNameFromPath", () => {
   });
 
   it("extracts the file name from a Windows path", () => {
-    expect(fileNameFromPath("C:\\Users\\ali\\data\\report.parquet")).toBe(
-      "report.parquet",
-    );
+    expect(fileNameFromPath("C:\\Users\\ali\\data\\report.parquet")).toBe("report.parquet");
   });
 
   it("handles mixed separators", () => {

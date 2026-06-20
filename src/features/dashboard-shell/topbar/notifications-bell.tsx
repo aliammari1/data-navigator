@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Bell,
-  Database,
-  GitBranch,
-  Table2,
-  Upload,
-  Users,
-  X,
-  Zap,
-} from "lucide-react";
+import { Bell, Database, GitBranch, Table2, Upload, Users, X, Zap } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMemo, useRef, useState } from "react";
 import {

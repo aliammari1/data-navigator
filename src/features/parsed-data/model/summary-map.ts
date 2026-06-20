@@ -8,20 +8,9 @@
  * `../worker/profile.worker.ts`).
  */
 
-import {
-  medianAbsoluteDeviation,
-  median as ssMedian,
-} from "simple-statistics";
-import {
-  nullRateFromSummary,
-  numberOrUndefined,
-} from "@/shared/duckdb-summary";
-import type {
-  ColProfile,
-  ColumnDetail,
-  ColValidityDetail,
-  QualityDimension,
-} from "./types";
+import { medianAbsoluteDeviation, median as ssMedian } from "simple-statistics";
+import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
+import type { ColProfile, ColumnDetail, ColValidityDetail, QualityDimension } from "./types";
 
 // Re-exported so existing `@/features/parsed-data/model/summary-map` consumers
 // keep importing these from one place, while the implementations live in the
@@ -61,11 +50,7 @@ function numberOr(value: unknown, fallback: number): number {
 export function toProfileType(sqlType: string): ColProfile["type"] {
   const type = sqlType.toUpperCase();
 
-  if (
-    /TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT/.test(
-      type,
-    )
-  ) {
+  if (/TINYINT|SMALLINT|INTEGER|BIGINT|HUGEINT|UTINYINT|USMALLINT|UINTEGER|UBIGINT/.test(type)) {
     return "integer";
   }
 
@@ -90,10 +75,7 @@ export function isNumericType(type: ColProfile["type"]): boolean {
  * `validity` is initialised from a type-based prior here; it is upgraded to a
  * measured score by {@link applyValidityDetail} once a reservoir sample arrives.
  */
-export function summaryRowToProfile(
-  row: SummarizeRow,
-  index: number,
-): ColProfile {
+export function summaryRowToProfile(row: SummarizeRow, index: number): ColProfile {
   const sqlType = String(row.column_type ?? "");
   const type = toProfileType(sqlType);
   const total = numberOr(row.count, 0);
@@ -132,11 +114,7 @@ export function profilesFromSummary(rows: SummarizeRow[]): ColProfile[] {
 }
 
 export function profileScore(profile: ColProfile): number {
-  return (
-    profile.completeness * 0.5 +
-    profile.uniqueness * 0.25 +
-    profile.validity * 0.25
-  );
+  return profile.completeness * 0.5 + profile.uniqueness * 0.25 + profile.validity * 0.25;
 }
 
 // ─── Filtering & sorting (off-main-thread) ────────────────────────────────────
@@ -145,12 +123,7 @@ export type ProfileSortKey = "name" | "nullRate" | "distinctCount" | "quality";
 
 export type ProfileTypeFilter = ColProfile["type"] | "all";
 
-export type ProfileQualityFilter =
-  | "all"
-  | "excellent"
-  | "good"
-  | "fair"
-  | "poor";
+export type ProfileQualityFilter = "all" | "excellent" | "good" | "fair" | "poor";
 
 export interface ProfileQuery {
   search: string;
@@ -168,10 +141,7 @@ export const defaultProfileQuery: ProfileQuery = {
   sortAsc: false,
 };
 
-function matchesQualityFilter(
-  filter: ProfileQualityFilter,
-  score: number,
-): boolean {
+function matchesQualityFilter(filter: ProfileQualityFilter, score: number): boolean {
   switch (filter) {
     case "excellent":
       return score >= 0.9;
@@ -191,10 +161,7 @@ function matchesQualityFilter(
  * run inside the profiling worker on every keystroke without ever touching the
  * renderer main thread.
  */
-export function filterSortProfiles(
-  profiles: ColProfile[],
-  query: ProfileQuery,
-): ColProfile[] {
+export function filterSortProfiles(profiles: ColProfile[], query: ProfileQuery): ColProfile[] {
   let list = profiles;
 
   const search = query.search.trim().toLowerCase();
@@ -222,9 +189,7 @@ export function filterSortProfiles(
 
   sorted.sort((a, b) => {
     if (sortBy === "name") {
-      return sortAsc
-        ? a.name.localeCompare(b.name)
-        : b.name.localeCompare(a.name);
+      return sortAsc ? a.name.localeCompare(b.name) : b.name.localeCompare(a.name);
     }
 
     let first = 0;
@@ -248,20 +213,14 @@ export function filterSortProfiles(
 
 // ─── Quality dimensions ───────────────────────────────────────────────────────
 
-export function buildQualityDimensions(
-  profiles: ColProfile[],
-): QualityDimension[] {
+export function buildQualityDimensions(profiles: ColProfile[]): QualityDimension[] {
   const profileCount = Math.max(profiles.length, 1);
   const avgCompleteness =
-    profiles.reduce((sum, profile) => sum + profile.completeness, 0) /
-    profileCount;
+    profiles.reduce((sum, profile) => sum + profile.completeness, 0) / profileCount;
   const avgUniqueness =
-    profiles.reduce((sum, profile) => sum + profile.uniquenessRate, 0) /
-    profileCount;
-  const avgValidity =
-    profiles.reduce((sum, profile) => sum + profile.validity, 0) / profileCount;
-  const consistency =
-    profiles.filter((profile) => profile.nullRate < 0.01).length / profileCount;
+    profiles.reduce((sum, profile) => sum + profile.uniquenessRate, 0) / profileCount;
+  const avgValidity = profiles.reduce((sum, profile) => sum + profile.validity, 0) / profileCount;
+  const consistency = profiles.filter((profile) => profile.nullRate < 0.01).length / profileCount;
 
   return [
     {
@@ -284,9 +243,7 @@ export function buildQualityDimensions(
       name: "Validity",
       score: avgValidity,
       description: "Values conform to expected type and format",
-      affected: profiles
-        .filter((profile) => profile.validity < 0.8)
-        .map((profile) => profile.name),
+      affected: profiles.filter((profile) => profile.validity < 0.8).map((profile) => profile.name),
     },
     {
       name: "Consistency",
@@ -302,24 +259,11 @@ export function buildQualityDimensions(
 // ─── Real validity scoring (runs on a bounded sample) ─────────────────────────
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const URL_RE = /^(https?|ftp):\/\/[^\s/$.?#].[^\s]*$/i;
-const DATE_RE =
-  /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}([ T]\d{2}:\d{2}(:\d{2})?(\.\d+)?(Z|[+-]\d{2}:?\d{2})?)?$/;
 const NUMERIC_RE = /^[+-]?(\d{1,3}(,\d{3})*|\d+)(\.\d+)?([eE][+-]?\d+)?$/;
-const BOOL_VALUES = new Set([
-  "true",
-  "false",
-  "t",
-  "f",
-  "yes",
-  "no",
-  "y",
-  "n",
-  "0",
-  "1",
-]);
+const BOOL_VALUES = new Set(["true", "false", "t", "f", "yes", "no", "y", "n", "0", "1"]);
 
 function fractionMatching(values: string[], re: RegExp): number {
   if (values.length === 0) return 0;
@@ -383,9 +327,7 @@ export function computeValidityDetail(
   let outlierRate = 0;
 
   if (isNumericType(type)) {
-    const nums = cleaned
-      .map((value) => Number(value))
-      .filter((value) => Number.isFinite(value));
+    const nums = cleaned.map((value) => Number(value)).filter((value) => Number.isFinite(value));
     conformanceRate = nums.length / sampleSize;
     outlierRate = madOutlierRate(nums);
   } else if (type === "date") {
@@ -396,8 +338,7 @@ export function computeValidityDetail(
     conformanceRate = ok / sampleSize;
   } else if (type === "boolean") {
     conformanceRate = fractionMatching(cleaned, /.*/) // base
-      ? cleaned.filter((value) => BOOL_VALUES.has(value.toLowerCase())).length /
-        sampleSize
+      ? cleaned.filter((value) => BOOL_VALUES.has(value.toLowerCase())).length / sampleSize
       : 0;
   } else if (semanticType === "email") {
     conformanceRate = fractionMatching(cleaned, EMAIL_RE);
@@ -438,9 +379,7 @@ function lengthStability(values: string[]): number {
   const lengths = values.map((value) => value.length);
   const mean = lengths.reduce((sum, value) => sum + value, 0) / lengths.length;
   if (mean === 0) return 1;
-  const variance =
-    lengths.reduce((sum, value) => sum + (value - mean) ** 2, 0) /
-    lengths.length;
+  const variance = lengths.reduce((sum, value) => sum + (value - mean) ** 2, 0) / lengths.length;
   const cv = Math.sqrt(variance) / mean;
   // Map coefficient of variation 0→1 score, saturating around cv≈1.
   return clamp01(1 - cv);
@@ -455,10 +394,7 @@ function clamp01(value: number): number {
  * Fold a measured {@link ColValidityDetail} into a profile's `validity` score
  * and propagate the detail for the Quality tab.
  */
-export function applyValidityDetail(
-  profile: ColProfile,
-  detail: ColValidityDetail,
-): ColProfile {
+export function applyValidityDetail(profile: ColProfile, detail: ColValidityDetail): ColProfile {
   const validity = clamp01(detail.conformanceRate * (1 - detail.outlierRate));
   return { ...profile, validity, validityDetail: detail };
 }
@@ -505,24 +441,15 @@ export function parseColumnDetail(result: DetailQueryResult): ColumnDetail {
     });
   }
 
-  const validityDetail = computeValidityDetail(
-    result.type,
-    result.validitySample,
-  );
+  const validityDetail = computeValidityDetail(result.type, result.validitySample);
 
   return {
     column: result.column,
     topValues,
     histogram,
-    minLen: result.lengthStats
-      ? numberOrUndefined(result.lengthStats.min_len)
-      : undefined,
-    maxLen: result.lengthStats
-      ? numberOrUndefined(result.lengthStats.max_len)
-      : undefined,
-    avgLen: result.lengthStats
-      ? numberOrUndefined(result.lengthStats.avg_len)
-      : undefined,
+    minLen: result.lengthStats ? numberOrUndefined(result.lengthStats.min_len) : undefined,
+    maxLen: result.lengthStats ? numberOrUndefined(result.lengthStats.max_len) : undefined,
+    avgLen: result.lengthStats ? numberOrUndefined(result.lengthStats.avg_len) : undefined,
     validityDetail,
   };
 }

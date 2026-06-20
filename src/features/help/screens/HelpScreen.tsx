@@ -37,9 +37,7 @@ export default function HelpScreen() {
               <HelpCircle className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">
-                Help & Documentation
-              </h1>
+              <h1 className="text-xl font-bold text-foreground">Help & Documentation</h1>
               <p className="text-sm text-muted-foreground">
                 DataNavigator — offline-first data analysis platform
               </p>
@@ -141,19 +139,12 @@ export default function HelpScreen() {
                 >
                   <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
                     <GroupIcon className={cn("w-4 h-4", group.iconClassName)} />
-                    <span className="text-sm font-semibold text-foreground">
-                      {group.label}
-                    </span>
+                    <span className="text-sm font-semibold text-foreground">{group.label}</span>
                   </div>
                   <div className="divide-y divide-border">
                     {group.shortcuts.map(({ keys, desc }) => (
-                      <div
-                        key={desc}
-                        className="flex items-center justify-between px-4 py-3"
-                      >
-                        <span className="text-sm text-muted-foreground">
-                          {desc}
-                        </span>
+                      <div key={desc} className="flex items-center justify-between px-4 py-3">
+                        <span className="text-sm text-muted-foreground">{desc}</span>
                         <div className="flex items-center gap-1">
                           {keys.map((k, i) => (
                             <span key={k}>
@@ -161,9 +152,7 @@ export default function HelpScreen() {
                                 {k}
                               </kbd>
                               {i < keys.length - 1 && (
-                                <span className="text-muted-foreground text-xs mx-0.5">
-                                  +
-                                </span>
+                                <span className="text-muted-foreground text-xs mx-0.5">+</span>
                               )}
                             </span>
                           ))}

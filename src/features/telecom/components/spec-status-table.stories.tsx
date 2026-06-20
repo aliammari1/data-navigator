@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import type { SpecStatusResult } from "@/features/telecom/types";
