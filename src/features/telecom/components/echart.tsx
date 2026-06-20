@@ -28,7 +28,7 @@
  * new colors. No new deps; offline-safe.
  */
 
-import ReactECharts from "echarts-for-react";
+import ReactECharts from "echarts-for-react/lib/core";
 import { memo, useEffect, useMemo, useRef, useState } from "react";
 import { type ChartTheme, chartTheme, retintOption } from "@/features/telecom/lib/chart-options";
 import { type EChartsOption, echarts, OffscreenChart } from "@/platform/viz";
