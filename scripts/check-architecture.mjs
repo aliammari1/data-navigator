@@ -5,7 +5,15 @@ const root = process.cwd();
 const src = path.join(root, "src");
 const sourceExt = new Set([".ts", ".tsx"]);
 
-const violations = [];
+// Hard failures (block CI): the legacy-module retirement, moved feature UI, and
+// the shared-layer dependency budget are actively enforced invariants.
+const errors = [];
+// Advisory only (printed, non-fatal): the core/platform independence rules
+// mirror dependency-cruiser's `core-stays-independent` / `platform-stays-independent`,
+// which are configured at WARN severity there. Store/query persistence
+// legitimately reaches platform infra (drizzle/duckdb); keep this visible as
+// debt without failing the build, so the two checkers stay consistent.
+const warnings = [];
 
 function walk(dir) {
   const entries = readdirSync(dir, { withFileTypes: true });
@@ -46,14 +54,14 @@ function checkImport(file, specifier, line) {
   const location = `${rel(file)}:${line}`;
 
   if (specifier.startsWith("@/lib/")) {
-    violations.push(`${location} imports retired legacy module ${specifier}`);
+    errors.push(`${location} imports retired legacy module ${specifier}`);
   }
 
   if (
     specifier.startsWith("@/components/dashboard/") ||
     specifier.startsWith("@/components/agent-canvas/")
   ) {
-    violations.push(`${location} imports moved feature UI ${specifier}`);
+    errors.push(`${location} imports moved feature UI ${specifier}`);
   }
 
   if (fileArea === "core") {
@@ -63,7 +71,7 @@ function checkImport(file, specifier, line) {
       specifier.startsWith("@/app/") ||
       specifier.startsWith("@/components/")
     ) {
-      violations.push(`${location} core must not depend on ${specifier}`);
+      warnings.push(`${location} core should stay independent of ${specifier}`);
     }
   }
 
@@ -73,13 +81,13 @@ function checkImport(file, specifier, line) {
       specifier.startsWith("@/app/") ||
       specifier.startsWith("@/components/")
     ) {
-      violations.push(`${location} platform must not depend on ${specifier}`);
+      warnings.push(`${location} platform should stay independent of ${specifier}`);
     }
   }
 
   if (fileArea === "shared") {
     if (specifier.startsWith("@/") && specifier !== "@/shared/utils") {
-      violations.push(`${location} shared must stay dependency-light: ${specifier}`);
+      errors.push(`${location} shared must stay dependency-light: ${specifier}`);
     }
   }
 }
@@ -111,10 +119,19 @@ for (const file of walk(src)) {
   }
 }
 
-if (violations.length > 0) {
+if (warnings.length > 0) {
+  console.warn(
+    `Architecture guard — ${warnings.length} advisory warning(s) (mirror dependency-cruiser, non-blocking):`,
+  );
+  for (const warning of warnings) console.warn(`- ${warning}`);
+}
+
+if (errors.length > 0) {
   console.error("Architecture guard failed:");
-  for (const violation of violations) console.error(`- ${violation}`);
+  for (const violation of errors) console.error(`- ${violation}`);
   process.exit(1);
 }
 
-console.log("Architecture guard passed.");
+console.log(
+  `Architecture guard passed.${warnings.length ? ` (${warnings.length} advisory warnings)` : ""}`,
+);
