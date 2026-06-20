@@ -96,9 +96,7 @@ export async function readStorageStats(): Promise<StorageStats> {
 }
 
 /** Delete one OPFS cache namespace (e.g. clear cached models). Returns bytes-freed best-effort. */
-export async function clearCacheNamespace(
-  id: keyof typeof OPFS_NS,
-): Promise<void> {
+export async function clearCacheNamespace(id: keyof typeof OPFS_NS): Promise<void> {
   if (!isOpfsAvailable()) return;
   await deleteDir(OPFS_NS[id]);
 }

@@ -8,13 +8,7 @@ import type { SupportedExtensions } from "@/shared/types";
 
 export type ColType = "number" | "string" | "date" | "boolean" | "unknown";
 
-export type DatasetFormat =
-  | SupportedExtensions
-  | "csv"
-  | "tsv"
-  | "txt"
-  | "parquet"
-  | "pq";
+export type DatasetFormat = SupportedExtensions | "csv" | "tsv" | "txt" | "parquet" | "pq";
 
 export type DatasetSource = "upload" | "paste" | "transform" | "catalog";
 
@@ -220,10 +214,7 @@ function catalogDatasetToStoreDataset(dataset: RegisteredDataset): Dataset {
   };
 }
 
-function mergeDataset(
-  existing: Dataset | undefined,
-  incoming: Dataset,
-): Dataset {
+function mergeDataset(existing: Dataset | undefined, incoming: Dataset): Dataset {
   if (!existing) return incoming;
 
   return {
@@ -310,21 +301,15 @@ export const useDataStore = create<DataStore>()(
       removeDataset: (id) =>
         set((state) => {
           const removed = state.datasets.find((dataset) => dataset.id === id);
-          const remaining = state.datasets.filter(
-            (dataset) => dataset.id !== id,
-          );
+          const remaining = state.datasets.filter((dataset) => dataset.id !== id);
 
           return {
             datasets: remaining,
             activeDatasetId:
-              state.activeDatasetId === id
-                ? (remaining[0]?.id ?? null)
-                : state.activeDatasetId,
+              state.activeDatasetId === id ? (remaining[0]?.id ?? null) : state.activeDatasetId,
             loadedTableNames: removed
               ? state.loadedTableNames.filter(
-                  (tableName) =>
-                    tableName !== removed.tableName &&
-                    tableName !== removed.viewName,
+                  (tableName) => tableName !== removed.tableName && tableName !== removed.viewName,
                 )
               : state.loadedTableNames,
           };
@@ -343,14 +328,11 @@ export const useDataStore = create<DataStore>()(
           const incomingIds = new Set(incoming.map((dataset) => dataset.id));
 
           const preservedLocalDatasets = state.datasets.filter(
-            (dataset) =>
-              !incomingIds.has(dataset.id) && dataset.source !== "catalog",
+            (dataset) => !incomingIds.has(dataset.id) && dataset.source !== "catalog",
           );
 
           const mergedIncoming = incoming.map((dataset) => {
-            const existing = state.datasets.find(
-              (item) => item.id === dataset.id,
-            );
+            const existing = state.datasets.find((item) => item.id === dataset.id);
             return mergeDataset(existing, dataset);
           });
 
@@ -396,13 +378,11 @@ export const useDataStore = create<DataStore>()(
           transforms: [transform, ...state.transforms],
         })),
 
-      getDatasetById: (id) =>
-        get().datasets.find((dataset) => dataset.id === id),
+      getDatasetById: (id) => get().datasets.find((dataset) => dataset.id === id),
 
       getDatasetByTable: (tableName) =>
         get().datasets.find(
-          (dataset) =>
-            dataset.tableName === tableName || dataset.viewName === tableName,
+          (dataset) => dataset.tableName === tableName || dataset.viewName === tableName,
         ),
 
       getDatasetByView: (viewName) =>
@@ -438,9 +418,7 @@ export const useDataStore = create<DataStore>()(
         return {
           datasets,
           activeDatasetId,
-          queryHistory: Array.isArray(prev.queryHistory)
-            ? prev.queryHistory
-            : [],
+          queryHistory: Array.isArray(prev.queryHistory) ? prev.queryHistory : [],
           savedCharts: Array.isArray(prev.savedCharts) ? prev.savedCharts : [],
           transforms: Array.isArray(prev.transforms) ? prev.transforms : [],
         };
@@ -516,9 +494,7 @@ function migrateDataset(raw: unknown): Dataset {
     parentId: d.parentId,
     transformSql: d.transformSql,
     qualityScore:
-      typeof d.qualityScore === "number"
-        ? d.qualityScore
-        : computeQualityScore(columns, rowCount),
+      typeof d.qualityScore === "number" ? d.qualityScore : computeQualityScore(columns, rowCount),
   };
 }
 
@@ -557,11 +533,7 @@ export const useDataActions = () =>
 export function inferColType(duckType: string): ColType {
   const type = duckType.toUpperCase();
 
-  if (
-    /INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(
-      type,
-    )
-  ) {
+  if (/INT|BIGINT|HUGEINT|TINYINT|SMALLINT|FLOAT|DOUBLE|DECIMAL|NUMERIC|REAL/.test(type)) {
     return "number";
   }
 

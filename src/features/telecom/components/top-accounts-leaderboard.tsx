@@ -3,10 +3,7 @@
 import { Crown, TrendingUp, Users } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
-import {
-  fetchTopAccounts,
-  type TopAccountRow,
-} from "@/features/telecom/lib/period-queries";
+import { fetchTopAccounts, type TopAccountRow } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
 
 export function TopAccountsLeaderboard({
@@ -75,15 +72,7 @@ export function TopAccountsLeaderboard({
         <table className="w-full text-xs">
           <thead className="sticky top-0 bg-muted/60 backdrop-blur">
             <tr className="border-b border-border">
-              {[
-                "#",
-                "MSISDN",
-                "Nom",
-                "Tx",
-                "Réussite",
-                "Montant",
-                "Canal favori",
-              ].map((h) => (
+              {["#", "MSISDN", "Nom", "Tx", "Réussite", "Montant", "Canal favori"].map((h) => (
                 <th
                   key={h}
                   className="px-3 py-2 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
@@ -102,18 +91,10 @@ export function TopAccountsLeaderboard({
                   key={r.msisdn}
                   className="border-b border-border last:border-0 hover:bg-muted/40 transition-colors"
                 >
-                  <td className="px-3 py-2 text-muted-foreground tabular-nums w-8">
-                    {i + 1}
-                  </td>
-                  <td className="px-3 py-2 font-mono text-foreground">
-                    {r.msisdn}
-                  </td>
-                  <td className="px-3 py-2 text-foreground truncate max-w-45">
-                    {r.name}
-                  </td>
-                  <td className="px-3 py-2 tabular-nums text-foreground">
-                    {fmtN(r.total)}
-                  </td>
+                  <td className="px-3 py-2 text-muted-foreground tabular-nums w-8">{i + 1}</td>
+                  <td className="px-3 py-2 font-mono text-foreground">{r.msisdn}</td>
+                  <td className="px-3 py-2 text-foreground truncate max-w-45">{r.name}</td>
+                  <td className="px-3 py-2 tabular-nums text-foreground">{fmtN(r.total)}</td>
                   <td className="px-3 py-2 tabular-nums">
                     <span
                       className={
@@ -146,10 +127,7 @@ export function TopAccountsLeaderboard({
             })}
             {rows.length === 0 && !loading && (
               <tr>
-                <td
-                  colSpan={7}
-                  className="px-3 py-6 text-center text-xs text-muted-foreground"
-                >
+                <td colSpan={7} className="px-3 py-6 text-center text-xs text-muted-foreground">
                   Aucun abonné.
                 </td>
               </tr>

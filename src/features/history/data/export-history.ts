@@ -12,14 +12,7 @@ import { toTimestamp } from "../model/format";
 import { downloadBlob, downloadText } from "./download";
 import { type HistoryEvent, readAllHistory } from "./history-db";
 
-const COLUMNS = [
-  "timestamp",
-  "source",
-  "type",
-  "message",
-  "dataset",
-  "table",
-] as const;
+const COLUMNS = ["timestamp", "source", "type", "message", "dataset", "table"] as const;
 
 function isoStamp(value: string): string {
   const ts = toTimestamp(value);
@@ -83,14 +76,7 @@ function toReportDocument(rows: HistoryRow[]): ReportDocument {
         headers: ["Timestamp", "Source", "Type", "Message", "Dataset", "Table"],
         rows: rows.map((r) => {
           const rec = toRecord(r);
-          return [
-            rec.timestamp,
-            rec.source,
-            rec.type,
-            rec.message,
-            rec.dataset,
-            rec.table,
-          ];
+          return [rec.timestamp, rec.source, rec.type, rec.message, rec.dataset, rec.table];
         }),
       },
     ],
@@ -134,8 +120,7 @@ export async function exportFullHistory(
   format: HistoryExportFormat,
 ): Promise<number> {
   const events = await readAllHistory();
-  const rows =
-    events.length > 0 ? events.map(eventToRow) : fallbackRows;
+  const rows = events.length > 0 ? events.map(eventToRow) : fallbackRows;
   await exportHistory(rows, format);
   return rows.length;
 }
@@ -152,11 +137,7 @@ export async function exportHistory(
       downloadText(buildCsv(rows), `${base}.csv`, "text/csv;charset=utf-8");
       return;
     case "json":
-      downloadText(
-        buildJson(rows),
-        `${base}.json`,
-        "application/json;charset=utf-8",
-      );
+      downloadText(buildJson(rows), `${base}.json`, "application/json;charset=utf-8");
       return;
     case "xlsx": {
       // Prefer the shared export worker (exceljs off the main thread) + the

@@ -86,10 +86,7 @@ const PIPELINE_200 = makePipeline(200);
 const SINGLE_STEPS = STEP_TYPES.map((_, i) => makeStep(i));
 
 // Identifiers / literals with embedded quotes to exercise the escape path.
-const IDENTS = Array.from(
-  { length: 10_000 },
-  (_, i) => `weird"col"${i}_${i % 5}'name`,
-);
+const IDENTS = Array.from({ length: 10_000 }, (_, i) => `weird"col"${i}_${i % 5}'name`);
 
 describe("identifier / literal quoting (per-cell hot path)", () => {
   bench("quoteIdent over 10k names (with embedded quotes)", () => {

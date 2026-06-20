@@ -383,10 +383,7 @@ const electronLlama = {
    * Subscribe to streaming tokens for a given requestId. Returns an unsubscribe
    * function. Pass the same `requestId` to `generate`/`generateStructured`.
    */
-  onToken: (
-    requestId: string,
-    callback: (chunk: string) => void,
-  ): (() => void) => {
+  onToken: (requestId: string, callback: (chunk: string) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, payload: { id: string; chunk: string }): void => {
       if (payload?.id === requestId) callback(payload.chunk);
     };

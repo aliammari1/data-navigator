@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { LanCollabPanel } from "./lan-collab-panel";
@@ -42,8 +42,6 @@ export const TogglesAdvancedOptions: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByText(/Advanced options/i));
-    await expect(
-      canvas.getByRole("button", { name: /Probe server/i }),
-    ).toBeVisible();
+    await expect(canvas.getByRole("button", { name: /Probe server/i })).toBeVisible();
   },
 };

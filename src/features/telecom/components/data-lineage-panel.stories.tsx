@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
 import type { DailyLineageEntry } from "@/features/telecom/lib/daily-stats-cache";
@@ -73,8 +73,6 @@ export const Empty: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/Pas de lignée enregistrée pour ce jour/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/Pas de lignée enregistrée pour ce jour/i)).toBeInTheDocument();
   },
 };

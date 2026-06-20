@@ -56,13 +56,7 @@ export const SuccessGauge = memo(function SuccessGauge({
       >
         {rate.toFixed(0)}%
       </text>
-      <text
-        x={cx}
-        y={cy + size * 0.195}
-        textAnchor="middle"
-        fill="#6c7086"
-        fontSize={size * 0.1}
-      >
+      <text x={cx} y={cy + size * 0.195} textAnchor="middle" fill="#6c7086" fontSize={size * 0.1}>
         Rate
       </text>
     </svg>

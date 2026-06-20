@@ -1,6 +1,6 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { AnalysisCards } from "./analysis-cards";
-import { AlertTriangle, CheckCircle2, GitBranch, Layers, } from "lucide-react";
+import { AlertTriangle, CheckCircle2, GitBranch, Layers } from "lucide-react";
 
 const meta = {
   title: "Src/Features/AiAnalysis/Components/AnalysisCards",
@@ -52,7 +52,8 @@ const mockInsights = [
     id: "1",
     category: "anomaly" as const,
     title: "Revenue Drop Detected",
-    description: "Unexpected 23% revenue decrease in Q3 compared to forecast. Check regional sales data for root cause.",
+    description:
+      "Unexpected 23% revenue decrease in Q3 compared to forecast. Check regional sales data for root cause.",
     severity: "critical" as const,
     confidence: 0.92,
     impact: "high" as const,
@@ -65,7 +66,8 @@ const mockInsights = [
     id: "2",
     category: "trend" as const,
     title: "User Engagement Upward Trend",
-    description: "Daily active users have increased 15% over the last 30 days, driven by new feature adoption.",
+    description:
+      "Daily active users have increased 15% over the last 30 days, driven by new feature adoption.",
     severity: "success" as const,
     confidence: 0.87,
     impact: "medium" as const,
@@ -78,7 +80,8 @@ const mockInsights = [
     id: "3",
     category: "correlation" as const,
     title: "Marketing Spend vs Revenue",
-    description: "Strong positive correlation (r=0.84) between marketing spend and revenue in EMEA region.",
+    description:
+      "Strong positive correlation (r=0.84) between marketing spend and revenue in EMEA region.",
     severity: "info" as const,
     confidence: 0.84,
     impact: "medium" as const,
@@ -90,7 +93,8 @@ const mockInsights = [
     id: "4",
     category: "pattern" as const,
     title: "Seasonal Purchase Pattern",
-    description: "Recurring purchase spikes detected every Friday afternoon, suggesting weekend preparation behavior.",
+    description:
+      "Recurring purchase spikes detected every Friday afternoon, suggesting weekend preparation behavior.",
     severity: "warning" as const,
     confidence: 0.78,
     impact: "low" as const,
@@ -102,7 +106,8 @@ const mockInsights = [
     id: "5",
     category: "forecast" as const,
     title: "Q4 Revenue Forecast",
-    description: "Predicted 18% revenue growth in Q4 based on current pipeline and historical patterns.",
+    description:
+      "Predicted 18% revenue growth in Q4 based on current pipeline and historical patterns.",
     severity: "success" as const,
     confidence: 0.75,
     impact: "high" as const,
@@ -148,7 +153,7 @@ export const InsightsOnly: Story = {
 export const AllAcknowledged: Story = {
   args: {
     stats: mockStats,
-    insights: mockInsights.map(i => ({ ...i, acknowledged: true })),
+    insights: mockInsights.map((i) => ({ ...i, acknowledged: true })),
     onAcknowledge: (id: string) => console.log("Acknowledged:", id),
   },
 };

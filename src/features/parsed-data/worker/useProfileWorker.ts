@@ -14,10 +14,7 @@ import type { BuildProfilesResult, ProfileWorkerApi } from "./profile.worker";
 
 export interface ProfileWorkerClient {
   buildProfiles(rows: unknown[]): Promise<BuildProfilesResult>;
-  filterSort(
-    profiles: ColProfile[],
-    query: ProfileQuery,
-  ): Promise<ColProfile[]>;
+  filterSort(profiles: ColProfile[], query: ProfileQuery): Promise<ColProfile[]>;
   parseDetail(result: DetailQueryResult): Promise<ColumnDetail>;
 }
 
@@ -31,10 +28,9 @@ export function useProfileWorker(): ProfileWorkerClient {
 
   const getProxy = useCallback((): Comlink.Remote<ProfileWorkerApi> => {
     if (!handleRef.current) {
-      const worker = new Worker(
-        new URL("./profile.worker.ts", import.meta.url),
-        { type: "module" },
-      );
+      const worker = new Worker(new URL("./profile.worker.ts", import.meta.url), {
+        type: "module",
+      });
       handleRef.current = {
         worker,
         proxy: Comlink.wrap<ProfileWorkerApi>(worker),
@@ -52,8 +48,7 @@ export function useProfileWorker(): ProfileWorkerClient {
 
   return useMemo<ProfileWorkerClient>(
     () => ({
-      buildProfiles: (rows) =>
-        getProxy().buildProfiles(rows as never),
+      buildProfiles: (rows) => getProxy().buildProfiles(rows as never),
       filterSort: (profiles, query) => getProxy().filterSort(profiles, query),
       parseDetail: (result) => getProxy().parseDetail(result),
     }),

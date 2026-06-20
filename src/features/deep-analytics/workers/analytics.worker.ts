@@ -55,10 +55,7 @@ export interface KMeansResult {
  * Seeded, typed-array k-means. `data` is a row-major number[][] of finite
  * values; non-finite rows must be filtered by the caller.
  */
-export async function kMeans(
-  data: number[][],
-  options: KMeansOptions,
-): Promise<KMeansResult> {
+export async function kMeans(data: number[][], options: KMeansOptions): Promise<KMeansResult> {
   const n = data.length;
   const d = data[0]?.length ?? 0;
   const k = Math.max(1, Math.min(options.k, n));
@@ -235,10 +232,7 @@ function standardizeColumns(X: number[][]): {
 function standardize1d(y: number[]): number[] {
   const n = y.length;
   const mean = y.reduce((s, v) => s + v, 0) / n;
-  const std =
-    Math.sqrt(
-      y.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, n - 1),
-    ) || 1;
+  const std = Math.sqrt(y.reduce((s, v) => s + (v - mean) ** 2, 0) / Math.max(1, n - 1)) || 1;
   return y.map((v) => (v - mean) / std);
 }
 
@@ -247,10 +241,7 @@ function standardize1d(y: number[]): number[] {
  * pseudo-inverse: β = V Σ⁺ Uᵀ y. Robust to collinear columns. The absolute
  * standardised coefficients become true revenue-attribution shares.
  */
-export async function attribution(
-  X: number[][],
-  y: number[],
-): Promise<AttributionResult> {
+export async function attribution(X: number[][], y: number[]): Promise<AttributionResult> {
   const n = X.length;
   const d = X[0]?.length ?? 0;
 
@@ -269,14 +260,11 @@ export async function attribution(
   const u = svd.leftSingularVectors; // n x r
   const v = svd.rightSingularVectors; // d x r
   const s = svd.diagonal; // length r
-  const tolerance =
-    (s.length > 0 ? Math.max(...s) : 0) * Math.max(n, d) * Number.EPSILON;
+  const tolerance = (s.length > 0 ? Math.max(...s) : 0) * Math.max(n, d) * Number.EPSILON;
 
   const yCol = Matrix.columnVector(yz);
   const uty = u.transpose().mmul(yCol).to1DArray(); // length r
-  const scaled = uty.map((val, i) =>
-    s[i]! > tolerance ? val / s[i]! : 0,
-  ); // length r
+  const scaled = uty.map((val, i) => (s[i]! > tolerance ? val / s[i]! : 0)); // length r
   const coefficients = v.mmul(Matrix.columnVector(scaled)).to1DArray();
 
   const absCoefs = coefficients.map((c) => Math.abs(c));

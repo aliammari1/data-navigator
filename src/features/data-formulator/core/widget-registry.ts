@@ -61,21 +61,16 @@ export const useWidgetRegistry = create<WidgetRegistryStore>()(
       detachFromPage: (widgetId, pageId) =>
         set((s) => ({
           widgets: s.widgets.map((w) =>
-            w.id === widgetId
-              ? { ...w, attachedTo: w.attachedTo.filter((p) => p !== pageId) }
-              : w,
+            w.id === widgetId ? { ...w, attachedTo: w.attachedTo.filter((p) => p !== pageId) } : w,
           ),
         })),
 
       updateWidget: (id, patch) =>
         set((s) => ({
-          widgets: s.widgets.map((w) =>
-            w.id === id ? { ...w, ...patch } : w,
-          ),
+          widgets: s.widgets.map((w) => (w.id === id ? { ...w, ...patch } : w)),
         })),
 
-      getWidgetsForPage: (pageId) =>
-        get().widgets.filter((w) => w.attachedTo.includes(pageId)),
+      getWidgetsForPage: (pageId) => get().widgets.filter((w) => w.attachedTo.includes(pageId)),
     }),
     {
       name: "formulator-widget-registry-v1",

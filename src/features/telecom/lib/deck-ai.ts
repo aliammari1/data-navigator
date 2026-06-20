@@ -78,9 +78,7 @@ function buildFallbackBrief(input: TelecomDeckBriefInput): TelecomDeckBrief {
     .filter((canal) => canal.total > 0)
     .sort((a, b) => a.successRate - b.successRate)[0];
   const peakHour = [...input.hourly].sort((a, b) => b.total - a.total)[0];
-  const failed = input.statusData.find((row) =>
-    row.status.toLowerCase().includes("échec"),
-  );
+  const failed = input.statusData.find((row) => row.status.toLowerCase().includes("échec"));
 
   const keyFindings: TelecomDeckInsight[] = [
     {
@@ -91,12 +89,7 @@ function buildFallbackBrief(input: TelecomDeckBriefInput): TelecomDeckBrief {
         `Échecs: ${input.kpi.declinedCount.toLocaleString("fr-TN")}`,
         `Montant réussi: ${input.kpi.totalAmount.toFixed(3)} DT`,
       ],
-      risk:
-        input.kpi.successRate >= 90
-          ? "low"
-          : input.kpi.successRate >= 75
-            ? "medium"
-            : "high",
+      risk: input.kpi.successRate >= 90 ? "low" : input.kpi.successRate >= 75 ? "medium" : "high",
     },
     {
       title: "Canal dominant",
@@ -123,9 +116,7 @@ function buildFallbackBrief(input: TelecomDeckBriefInput): TelecomDeckBrief {
             `Échecs: ${weakestCanal.declined.toLocaleString("fr-TN")}`,
             `Instances: ${weakestCanal.instance.toLocaleString("fr-TN")}`,
           ]
-        : [
-            "Surveiller les canaux avec faible volume avant d'interpréter les taux.",
-          ],
+        : ["Surveiller les canaux avec faible volume avant d'interpréter les taux."],
       risk: weakestCanal && weakestCanal.successRate < 80 ? "high" : "medium",
     },
     {
@@ -212,10 +203,7 @@ export async function generateTelecomDeckBrief(
       );
       return { brief, source: "ai" };
     } catch (err) {
-      console.warn(
-        "[telecom deck] offline AI brief failed, using local brief",
-        err,
-      );
+      console.warn("[telecom deck] offline AI brief failed, using local brief", err);
     }
   }
 

@@ -31,7 +31,12 @@ export const TUNISIA_CENTER = { lat: 33.8869, lon: 9.5375, zoom: 7 } as const;
  * 24 Tunisian governorate centroids. Static reference geometry only.
  */
 export const TUNISIA_GAZETTEER: GazetteerEntry[] = [
-  { name: "Tunis", lat: 36.8065, lon: 10.1815, aliases: ["grand tunis", "tunis ville", "tunis-ville", "تونس"] },
+  {
+    name: "Tunis",
+    lat: 36.8065,
+    lon: 10.1815,
+    aliases: ["grand tunis", "tunis ville", "tunis-ville", "تونس"],
+  },
   { name: "Ariana", lat: 36.8665, lon: 10.1647, aliases: ["aryanah", "أريانة"] },
   { name: "Ben Arous", lat: 36.7444, lon: 10.2336, aliases: ["ben-arous", "bin arus", "بن عروس"] },
   { name: "Manouba", lat: 36.8095, lon: 10.0968, aliases: ["la manouba", "manuba", "منوبة"] },
@@ -44,12 +49,17 @@ export const TUNISIA_GAZETTEER: GazetteerEntry[] = [
   { name: "Siliana", lat: 36.0844, lon: 9.3708, aliases: ["silyanah", "سليانة"] },
   { name: "Kairouan", lat: 35.6781, lon: 10.0969, aliases: ["qayrawan", "القيروان"] },
   { name: "Kasserine", lat: 35.1676, lon: 8.8365, aliases: ["al qasrayn", "القصرين"] },
-  { name: "Sidi Bouzid", lat: 35.0382, lon: 9.4849, aliases: ["sidi-bouzid", "sidi bu zayd", "سيدي بوزيد"] },
+  {
+    name: "Sidi Bouzid",
+    lat: 35.0382,
+    lon: 9.4849,
+    aliases: ["sidi-bouzid", "sidi bu zayd", "سيدي بوزيد"],
+  },
   { name: "Sousse", lat: 35.8245, lon: 10.6346, aliases: ["susah", "سوسة"] },
   { name: "Monastir", lat: 35.7643, lon: 10.8113, aliases: ["al munastir", "المنستير"] },
   { name: "Mahdia", lat: 35.5047, lon: 11.0622, aliases: ["al mahdiyah", "المهدية"] },
   { name: "Sfax", lat: 34.7406, lon: 10.7603, aliases: ["safaqis", "صفاقس"] },
-  { name: "Gafsa", lat: 34.4250, lon: 8.7842, aliases: ["qafsah", "قفصة"] },
+  { name: "Gafsa", lat: 34.425, lon: 8.7842, aliases: ["qafsah", "قفصة"] },
   { name: "Tozeur", lat: 33.9197, lon: 8.1335, aliases: ["tawzar", "توزر"] },
   { name: "Kebili", lat: 33.7058, lon: 8.9702, aliases: ["kbili", "qibili", "قبلي"] },
   { name: "Gabès", lat: 33.8833, lon: 10.1167, aliases: ["gabes", "qabis", "قابس"] },
@@ -64,11 +74,7 @@ interface SearchRecord {
 
 /** Strip accents and lowercase for stable fuzzy matching. */
 function normalize(value: string): string {
-  return value
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .toLowerCase()
-    .trim();
+  return value.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
 }
 
 // Build one searchable record per name + alias so Fuse can match either.

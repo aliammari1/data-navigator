@@ -55,16 +55,11 @@ function FeatureCardImpl({ f }: { f: FeatureDef }) {
       >
         <div className="overflow-hidden">
           <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              {f.summary}
-            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{f.summary}</p>
             {f.tips.length > 0 && (
               <ul className="space-y-1.5">
                 {f.tips.map((tip) => (
-                  <li
-                    key={tip}
-                    className="flex items-start gap-2 text-xs text-muted-foreground"
-                  >
+                  <li key={tip} className="flex items-start gap-2 text-xs text-muted-foreground">
                     <ChevronRight className="w-3 h-3 text-indigo-400 flex-none mt-0.5" />
                     {tip}
                   </li>

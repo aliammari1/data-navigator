@@ -38,10 +38,7 @@ export function NarrativeReport({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
           <Brain className="w-3.5 h-3.5 text-primary" />
-          <span>
-            "Résumé exécutif généré automatiquement · "mis à jour avec les
-            données
-          </span>
+          <span>"Résumé exécutif généré automatiquement · "mis à jour avec les données</span>
         </div>
         <button
           type="button"
@@ -57,9 +54,7 @@ export function NarrativeReport({
         </button>
       </div>
       <motion.div className="rounded-xl bg-background/80 border border-border p-5">
-        <p className="text-sm text-muted-foreground leading-7 font-light">
-          {narrative}
-        </p>
+        <p className="text-sm text-muted-foreground leading-7 font-light">{narrative}</p>
       </motion.div>
     </div>
   );

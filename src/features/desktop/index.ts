@@ -1,5 +1,10 @@
 export { Desktop } from "@/features/desktop/components/desktop";
-export { DESKTOP_APPS, getApp, LAUNCHER_APPS, PINNED_APPS } from "@/features/desktop/core/app-registry";
+export {
+  DESKTOP_APPS,
+  getApp,
+  LAUNCHER_APPS,
+  PINNED_APPS,
+} from "@/features/desktop/core/app-registry";
 export type { DesktopApp } from "@/features/desktop/core/app-registry";
 export {
   useDesktopActions,

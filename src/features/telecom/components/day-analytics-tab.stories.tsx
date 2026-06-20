@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { ColumnMapping, LoadedFile } from "@/features/telecom/types";
 import { DayAnalyticsTab } from "./day-analytics-tab";

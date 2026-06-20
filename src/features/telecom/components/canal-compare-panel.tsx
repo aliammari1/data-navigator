@@ -140,13 +140,9 @@ export function CanalComparePanel({
           {results && (
             <div className="rounded-xl border border-border/50 bg-muted/10 overflow-hidden">
               <div className="px-3 pt-2.5 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                <BarChart2 className="w-3 h-3" /> Volume des transactions
-                réussies
+                <BarChart2 className="w-3 h-3" /> Volume des transactions réussies
               </div>
-              <EChart
-                option={buildCanalCompareBarOption(results)}
-                height={220}
-              />
+              <EChart option={buildCanalCompareBarOption(results)} height={220} />
             </div>
           )}
 
@@ -158,9 +154,7 @@ export function CanalComparePanel({
             <div className="divide-y divide-border/30">
               {metrics.map((met) => (
                 <div key={met.key} className="px-3 py-2">
-                  <div className="text-[10px] text-muted-foreground mb-1.5">
-                    {met.label}
-                  </div>
+                  <div className="text-[10px] text-muted-foreground mb-1.5">{met.label}</div>
                   <div className="space-y-1.5">
                     {[...results]
                       .sort((a, b) => b[met.key] - a[met.key])

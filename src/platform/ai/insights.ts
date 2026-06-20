@@ -67,12 +67,7 @@ export function linearForecast(values: number[], steps = 6): Forecast {
     r2,
     slope: reg.m,
     intercept: reg.b,
-    trend:
-      Math.abs(reg.m) < 0.001 * Math.abs(my)
-        ? "flat"
-        : reg.m > 0
-          ? "up"
-          : "down",
+    trend: Math.abs(reg.m) < 0.001 * Math.abs(my) ? "flat" : reg.m > 0 ? "up" : "down",
   };
 }
 
@@ -86,13 +81,7 @@ function computeSkewness(values: number[]): number {
 // ─── Auto-insight generator ───────────────────────────────────────────────────
 
 export interface Insight {
-  type:
-    | "trend"
-    | "anomaly"
-    | "correlation"
-    | "distribution"
-    | "quality"
-    | "outlier";
+  type: "trend" | "anomaly" | "correlation" | "distribution" | "quality" | "outlier";
   severity: "info" | "warning" | "critical";
   title: string;
   description: string;
@@ -199,14 +188,9 @@ export async function generateInsights(
     statsSummary[colName] = {
       mean: Number(ss.mean(values).toFixed(3)),
       stddev: Number(ss.sampleStandardDeviation(values).toFixed(3)),
-      skewness:
-        values.length >= 3
-          ? Number(ss.sampleSkewness(values).toFixed(3))
-          : 0,
+      skewness: values.length >= 3 ? Number(ss.sampleSkewness(values).toFixed(3)) : 0,
       nullPct:
-        nullCol && rowCount > 0
-          ? Number(((nullCol.nullCount / rowCount) * 100).toFixed(1))
-          : 0,
+        nullCol && rowCount > 0 ? Number(((nullCol.nullCount / rowCount) * 100).toFixed(1)) : 0,
     };
   }
 
@@ -222,7 +206,7 @@ export async function generateInsights(
 
     const raw = await generateText(userPrompt, {
       systemPrompt:
-        'You are a data analyst. Given dataset stats, return 3-5 insights as a JSON array only — no prose, no markdown fences. Schema: [{type, severity, title, description}]. Types: trend|anomaly|correlation|distribution|quality. Severities: info|warning|critical. Be concise.',
+        "You are a data analyst. Given dataset stats, return 3-5 insights as a JSON array only — no prose, no markdown fences. Schema: [{type, severity, title, description}]. Types: trend|anomaly|correlation|distribution|quality. Severities: info|warning|critical. Be concise.",
       maxTokens: 600,
       temperature: 0.3,
     });
@@ -232,8 +216,7 @@ export async function generateInsights(
     if (!jsonMatch) throw new Error("No JSON array in LLM response");
 
     const parsed = JSON.parse(jsonMatch[0]) as Insight[];
-    if (!Array.isArray(parsed) || parsed.length === 0)
-      throw new Error("Empty or invalid array");
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Empty or invalid array");
 
     return parsed;
   } catch {
@@ -255,10 +238,7 @@ export interface ChartRecommendation {
 
 // ─── Rule-based chart-recommendation fallback ────────────────────────────────
 
-function ruleBasedCharts(
-  cols: ColMeta[],
-  rowCount: number,
-): ChartRecommendation[] {
+function ruleBasedCharts(cols: ColMeta[], rowCount: number): ChartRecommendation[] {
   const recs: ChartRecommendation[] = [];
   const nums = cols.filter((c) => c.type === "number");
   const strs = cols.filter((c) => c.type === "string");
@@ -331,7 +311,7 @@ export async function recommendCharts(
 
     const raw = await generateText(userPrompt, {
       systemPrompt:
-        'You are a data visualisation expert. Given column schema, recommend 2-3 chart types as a JSON array only — no prose, no markdown fences. Schema: [{type, title, reason, xCol, yCol, confidence}]. type must be one of: bar|line|scatter|pie|heatmap|histogram|box. confidence is 0-1.',
+        "You are a data visualisation expert. Given column schema, recommend 2-3 chart types as a JSON array only — no prose, no markdown fences. Schema: [{type, title, reason, xCol, yCol, confidence}]. type must be one of: bar|line|scatter|pie|heatmap|histogram|box. confidence is 0-1.",
       maxTokens: 400,
       temperature: 0.3,
     });
@@ -340,8 +320,7 @@ export async function recommendCharts(
     if (!jsonMatch) throw new Error("No JSON array in LLM response");
 
     const parsed = JSON.parse(jsonMatch[0]) as ChartRecommendation[];
-    if (!Array.isArray(parsed) || parsed.length === 0)
-      throw new Error("Empty or invalid array");
+    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Empty or invalid array");
 
     return parsed;
   } catch {

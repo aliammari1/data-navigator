@@ -15,7 +15,7 @@ interaction, and accessibility tests. This document is the contract for both.
 | Visual regression | Playwright snapshots of built Storybook | `tests/visual/**` | `pnpm test:vr` |
 | Performance | Vitest `bench` (tinybench) | `tests/performance/**/*.bench.ts` | `pnpm bench` |
 | End-to-end journeys | Playwright | `tests/e2e/**` | `pnpm test:e2e` |
-| Dependency / supply chain | `pnpm audit`, `sherif`, `knip` | — | Security workflow |
+| Dependency / supply chain | `pnpm audit`, `knip` | — | Security workflow |
 | Static security analysis | CodeQL | — | Security workflow |
 
 ## Commands
@@ -79,7 +79,7 @@ The canonical reference is
 [`src/features/telecom/components/kpi-card.stories.tsx`](../src/features/telecom/components/kpi-card.stories.tsx).
 
 ```tsx
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { Widget } from "./widget";
 

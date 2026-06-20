@@ -35,9 +35,7 @@ type DevicePreference = PipelineDevice | "auto";
 
 type PipelineDType = NonNullable<DataType>;
 
-type TextGenerationCallOptions = NonNullable<
-  Parameters<TextGenerationPipeline>[1]
->;
+type TextGenerationCallOptions = NonNullable<Parameters<TextGenerationPipeline>[1]>;
 
 type TextGenerationResult = Awaited<ReturnType<TextGenerationPipeline>>;
 type GeneratedText = string | Message[];
@@ -169,18 +167,11 @@ function safeStringify(value: unknown, maxLength = 3000): string {
       (_key, currentValue) => {
         if (typeof currentValue === "bigint") return String(currentValue);
 
-        if (
-          typeof currentValue === "function" ||
-          typeof currentValue === "symbol"
-        ) {
+        if (typeof currentValue === "function" || typeof currentValue === "symbol") {
           return String(currentValue);
         }
 
-        if (
-          currentValue &&
-          typeof currentValue === "object" &&
-          currentValue instanceof Error
-        ) {
+        if (currentValue && typeof currentValue === "object" && currentValue instanceof Error) {
           return {
             name: currentValue.name,
             message: currentValue.message,
@@ -201,9 +192,7 @@ function safeStringify(value: unknown, maxLength = 3000): string {
     if (!text) return String(value);
 
     return text.length > maxLength
-      ? `${text.slice(0, maxLength)}\n... [truncated ${
-          text.length - maxLength
-        } chars]`
+      ? `${text.slice(0, maxLength)}\n... [truncated ${text.length - maxLength} chars]`
       : text;
   } catch {
     return String(value);
@@ -213,9 +202,7 @@ function safeStringify(value: unknown, maxLength = 3000): string {
 function preview(text: string, maxLength = 700) {
   const clean = text.replace(/\s+/g, " ").trim();
   return clean.length > maxLength
-    ? `${clean.slice(0, maxLength)}... [truncated ${
-        clean.length - maxLength
-      } chars]`
+    ? `${clean.slice(0, maxLength)}... [truncated ${clean.length - maxLength} chars]`
     : clean;
 }
 
@@ -329,8 +316,7 @@ function assertBrowser(traceId?: string, debug?: boolean) {
     {
       hasWindow: typeof window !== "undefined",
       hasNavigator: typeof navigator !== "undefined",
-      userAgent:
-        typeof navigator !== "undefined" ? navigator.userAgent : "no navigator",
+      userAgent: typeof navigator !== "undefined" ? navigator.userAgent : "no navigator",
     },
     { traceId, debug },
   );
@@ -340,11 +326,7 @@ function assertBrowser(traceId?: string, debug?: boolean) {
   }
 }
 
-function throwIfAborted(
-  signal?: AbortSignal,
-  traceId?: string,
-  debug?: boolean,
-) {
+function throwIfAborted(signal?: AbortSignal, traceId?: string, debug?: boolean) {
   if (signal?.aborted) {
     log("abort detected", undefined, { traceId, debug, level: "warn" });
     throw new DOMException("Operation aborted", "AbortError");
@@ -411,9 +393,7 @@ async function detectDevice(
       }
 
       if (preferredDevice === "webgpu") {
-        throw new Error(
-          "WebGPU was requested, but no WebGPU adapter is available.",
-        );
+        throw new Error("WebGPU was requested, but no WebGPU adapter is available.");
       }
 
       log("falling back to WASM", undefined, { traceId, debug });
@@ -431,16 +411,13 @@ function normalizeProgress(info: ProgressInfo): {
   progress: number;
   text: string;
 } {
-  const rawProgress =
-    "progress" in info && typeof info.progress === "number" ? info.progress : 0;
+  const rawProgress = "progress" in info && typeof info.progress === "number" ? info.progress : 0;
 
   const progress = Math.max(0.02, Math.min(0.99, rawProgress / 100));
 
-  const file =
-    "file" in info && typeof info.file === "string" ? info.file : null;
+  const file = "file" in info && typeof info.file === "string" ? info.file : null;
 
-  const status =
-    "status" in info && typeof info.status === "string" ? info.status : null;
+  const status = "status" in info && typeof info.status === "string" ? info.status : null;
 
   return {
     progress,
@@ -449,21 +426,12 @@ function normalizeProgress(info: ProgressInfo): {
       : status || "Loading model…",
   };
 }
-function hasGeneratedText(
-  value: unknown,
-): value is { generated_text: string | Message[] } {
-  return (
-    typeof value === "object" && value !== null && "generated_text" in value
-  );
+function hasGeneratedText(value: unknown): value is { generated_text: string | Message[] } {
+  return typeof value === "object" && value !== null && "generated_text" in value;
 }
 
 function isMessage(value: unknown): value is Message {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "role" in value &&
-    "content" in value
-  );
+  return typeof value === "object" && value !== null && "role" in value && "content" in value;
 }
 
 function isMessageArray(value: unknown): value is Message[] {
@@ -566,8 +534,7 @@ function getAssistantText(
         index,
         role: msg.role,
         contentLength: typeof msg.content === "string" ? msg.content.length : 0,
-        preview:
-          typeof msg.content === "string" ? preview(msg.content, 250) : "",
+        preview: typeof msg.content === "string" ? preview(msg.content, 250) : "",
       })),
     },
     { traceId, debug },
@@ -708,18 +675,11 @@ export async function loadLLM(options: LoadLLMOptions): Promise<void> {
           // decides (default: allow one-time download, then cached offline).
           configureTransformersEnv({ allowRemoteModels });
 
-          const selectedDevice = await detectDevice(
-            preferredDevice,
-            traceId,
-            debug,
-          );
+          const selectedDevice = await detectDevice(preferredDevice, traceId, debug);
 
           throwIfAborted(signal, traceId, debug);
 
-          onProgress?.(
-            0.02,
-            `Initializing ${selectedDevice.toUpperCase()} backend…`,
-          );
+          onProgress?.(0.02, `Initializing ${selectedDevice.toUpperCase()} backend…`);
 
           log(
             "selected backend",
@@ -807,10 +767,7 @@ export async function loadLLM(options: LoadLLMOptions): Promise<void> {
             { traceId, debug },
           );
 
-          onProgress?.(
-            1,
-            `${modelId} ready on ${selectedDevice.toUpperCase()}`,
-          );
+          onProgress?.(1, `${modelId} ready on ${selectedDevice.toUpperCase()}`);
         },
         { traceId, debug },
       ).finally(() => {
@@ -828,11 +785,7 @@ export async function loadLLM(options: LoadLLMOptions): Promise<void> {
 // Chat
 // ─────────────────────────────────────────────────────────────────────────────
 
-export async function chat(
-  system: string,
-  user: string,
-  opts: ChatOptions = {},
-): Promise<string> {
+export async function chat(system: string, user: string, opts: ChatOptions = {}): Promise<string> {
   const traceId = opts.traceId ?? nextId("chat");
   const debug = opts.debug;
   const agentName = opts.agentName ?? "unknown-agent";
@@ -866,10 +819,7 @@ export async function chat(
   });
 }
 
-export async function chatMessages(
-  messages: Message[],
-  opts: ChatOptions = {},
-): Promise<string> {
+export async function chatMessages(messages: Message[], opts: ChatOptions = {}): Promise<string> {
   const traceId = opts.traceId ?? nextId("chat-messages");
   const debug = opts.debug;
   const agentName = opts.agentName ?? "unknown-agent";
@@ -920,10 +870,8 @@ export async function chatMessages(
       const messageSummary = messages.map((message, index) => ({
         index,
         role: message.role,
-        contentLength:
-          typeof message.content === "string" ? message.content.length : 0,
-        preview:
-          typeof message.content === "string" ? preview(message.content) : "",
+        contentLength: typeof message.content === "string" ? message.content.length : 0,
+        preview: typeof message.content === "string" ? preview(message.content) : "",
       }));
 
       logGroup("message summary", messageSummary, { traceId, debug });
@@ -1024,9 +972,7 @@ export async function chatMessages(
                   new Error(
                     `LLM inference timed out after ${timeoutMs}ms. ` +
                       `agent=${agentName}, model=${_modelId}, device=${_device}, ` +
-                      `max_new_tokens=${String(
-                        finalGenerationOptions.max_new_tokens,
-                      )}. ` +
+                      `max_new_tokens=${String(finalGenerationOptions.max_new_tokens)}. ` +
                       `Try maxTokens=80, temperature=0, or preferredDevice="wasm".`,
                   ),
                 );
@@ -1241,9 +1187,7 @@ export function parseJSON<T>(
       name: "balanced-array",
       value: extractBalancedBlock(s, "[", "]"),
     },
-  ].filter((candidate): candidate is { name: string; value: string } =>
-    Boolean(candidate.value),
-  );
+  ].filter((candidate): candidate is { name: string; value: string } => Boolean(candidate.value));
 
   log(
     "parseJSON candidates",
@@ -1369,11 +1313,7 @@ function stripMarkdownFence(input: string): string | null {
   return match?.[1]?.trim() ?? null;
 }
 
-function extractBalancedBlock(
-  input: string,
-  open: "{" | "[",
-  close: "}" | "]",
-): string | null {
+function extractBalancedBlock(input: string, open: "{" | "[", close: "}" | "]"): string | null {
   const start = input.indexOf(open);
   if (start === -1) return null;
 

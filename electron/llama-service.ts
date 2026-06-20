@@ -26,11 +26,7 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { app } from "electron";
-import type {
-  Llama,
-  LlamaContext,
-  LlamaModel,
-} from "node-llama-cpp";
+import type { Llama, LlamaContext, LlamaModel } from "node-llama-cpp";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -366,9 +362,7 @@ export async function ensureModel(file: string = DEFAULT_LLM_MODEL): Promise<{ m
   const target = modelPath(file);
 
   if (!existsSync(target)) {
-    throw new Error(
-      `Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`,
-    );
+    throw new Error(`Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`);
   }
 
   if (model && loadedModelPath === target) {
@@ -501,9 +495,7 @@ export async function generate(input: LlamaGenerateInput): Promise<LlamaGenerate
  * the output is parseable by construction (no regex repair). The schema is NOT
  * injected into the prompt — describe the desired JSON shape in `input.prompt`.
  */
-export async function generateStructured(
-  input: LlamaGenerateStructuredInput,
-): Promise<unknown> {
+export async function generateStructured(input: LlamaGenerateStructuredInput): Promise<unknown> {
   return enqueue(async () => {
     await ensureModel();
     const llama = await getLlamaInstance();

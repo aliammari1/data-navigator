@@ -16,23 +16,15 @@ export function normalizeColumnName(value: string) {
 }
 
 export function hasTelecomRequiredColumns(columns: Array<{ name: string }>) {
-  const available = new Set(
-    columns.map((column) => normalizeColumnName(column.name)),
-  );
+  const available = new Set(columns.map((column) => normalizeColumnName(column.name)));
 
-  return TELECOM_REQUIRED_COLUMNS.every((column) =>
-    available.has(normalizeColumnName(column)),
-  );
+  return TELECOM_REQUIRED_COLUMNS.every((column) => available.has(normalizeColumnName(column)));
 }
 
 export function getMissingTelecomColumns(columns: Array<{ name: string }>) {
-  const available = new Set(
-    columns.map((column) => normalizeColumnName(column.name)),
-  );
+  const available = new Set(columns.map((column) => normalizeColumnName(column.name)));
 
-  return TELECOM_REQUIRED_COLUMNS.filter(
-    (column) => !available.has(normalizeColumnName(column)),
-  );
+  return TELECOM_REQUIRED_COLUMNS.filter((column) => !available.has(normalizeColumnName(column)));
 }
 
 export function extractReportDateFromName(fileName: string) {
@@ -49,7 +41,7 @@ export function buildDatasetTags({
   fileName,
   telecomMode,
 }: {
-  columns: ColMeta[];
+  columns: Array<{ name: string }>;
   fileName: string;
   telecomMode: boolean;
 }) {
@@ -86,10 +78,7 @@ export function getTelecomDatasetProfile({
 }
 
 export function isTelecomDataset(dataset: Dataset) {
-  return (
-    dataset.tags.includes("telecom") ||
-    hasTelecomRequiredColumns(dataset.columns)
-  );
+  return dataset.tags.includes("telecom") || hasTelecomRequiredColumns(dataset.columns);
 }
 
 export function getDatasetReportDate(dataset: Dataset | null | undefined) {

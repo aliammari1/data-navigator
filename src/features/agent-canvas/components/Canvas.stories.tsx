@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { WidgetSpec, WidgetState } from "@/features/agent-canvas/core/types";
@@ -110,8 +110,6 @@ export const EmptyRunning: Story = {
   decorators: [withStore({ widgets: [], running: true })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/agent building widgets/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/agent building widgets/i)).toBeInTheDocument();
   },
 };

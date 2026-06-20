@@ -1,31 +1,15 @@
 import { motion } from "motion/react";
 import type { ColProfile } from "@/features/parsed-data/model/types";
-import {
-  qualityColor,
-  typeColor,
-  typeIcon,
-} from "@/features/parsed-data/model/profile-format";
+import { qualityColor, typeColor, typeIcon } from "@/features/parsed-data/model/profile-format";
 // ─── Sub-components ────────────────────────────────────────────────────────
 
-export function QualityRing({
-  score,
-  size = 48,
-}: {
-  score: number;
-  size?: number;
-}) {
+export function QualityRing({ score, size = 48 }: { score: number; size?: number }) {
   const radius = (size - 6) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference * (1 - score);
   const color = qualityColor(score);
   return (
-    <svg
-      width={size}
-      height={size}
-      className="-rotate-90"
-      role="img"
-      aria-label="Quality score"
-    >
+    <svg width={size} height={size} className="-rotate-90" role="img" aria-label="Quality score">
       <circle
         cx={size / 2}
         cy={size / 2}
@@ -51,15 +35,7 @@ export function QualityRing({
   );
 }
 
-export function MiniBar({
-  value,
-  max,
-  color,
-}: {
-  value: number;
-  max: number;
-  color: string;
-}) {
+export function MiniBar({ value, max, color }: { value: number; max: number; color: string }) {
   const pct = max === 0 ? 0 : (value / max) * 100;
   return (
     <div className="h-1.5 bg-accent rounded-full overflow-hidden w-full">
@@ -85,8 +61,7 @@ export function ColCard({
 }) {
   const Icon = typeIcon(profile.type);
   const overallScore =
-    (profile.completeness + profile.uniqueness * 0.5 + profile.validity * 0.5) /
-    2;
+    (profile.completeness + profile.uniqueness * 0.5 + profile.validity * 0.5) / 2;
 
   return (
     <motion.button
@@ -102,19 +77,13 @@ export function ColCard({
       }`}
     >
       <div className="flex items-start gap-2.5">
-        <div
-          className={`p-1.5 rounded-lg shrink-0 ${typeColor(profile.type)}`}
-        >
+        <div className={`p-1.5 rounded-lg shrink-0 ${typeColor(profile.type)}`}>
           <Icon className="w-3.5 h-3.5" />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-sm font-semibold text-foreground truncate">
-              {profile.name}
-            </span>
-            <span
-              className={`text-xs px-1.5 py-0.5 rounded ${typeColor(profile.type)}`}
-            >
+            <span className="text-sm font-semibold text-foreground truncate">{profile.name}</span>
+            <span className={`text-xs px-1.5 py-0.5 rounded ${typeColor(profile.type)}`}>
               {profile.type}
             </span>
           </div>
@@ -123,11 +92,7 @@ export function ColCard({
             <span>{profile.distinctCount.toLocaleString()} distinct</span>
           </div>
           <div className="mt-1.5">
-            <MiniBar
-              value={overallScore}
-              max={1}
-              color={qualityColor(overallScore)}
-            />
+            <MiniBar value={overallScore} max={1} color={qualityColor(overallScore)} />
           </div>
         </div>
         <div className="shrink-0">

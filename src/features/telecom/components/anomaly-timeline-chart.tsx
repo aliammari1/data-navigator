@@ -11,7 +11,5 @@ export function AnomalyTimelineChart({
   hourly: Types.HourlyRow[];
   anomalies: Array<{ hour: number; zScore: number; type: "spike" | "drop" }>;
 }) {
-  return (
-    <EChart option={buildAnomalyTimelineOption(hourly, anomalies)} height={200} />
-  );
+  return <EChart option={buildAnomalyTimelineOption(hourly, anomalies)} height={200} />;
 }

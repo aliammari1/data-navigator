@@ -14,10 +14,7 @@
 
 /** A loaded Kokoro instance — the subset of the API both workers rely on. */
 export interface KokoroTtsInstance {
-  generate: (
-    text: string,
-    options?: Record<string, unknown>,
-  ) => Promise<unknown>;
+  generate: (text: string, options?: Record<string, unknown>) => Promise<unknown>;
   list_voices?: () => unknown;
 }
 
@@ -54,9 +51,7 @@ export interface LoadKokoroModelOptions {
  * `localModelPath`/`progress_callback` get byte-for-byte the same call they made
  * before this was shared.
  */
-export async function loadKokoroModel(
-  options: LoadKokoroModelOptions,
-): Promise<KokoroTtsInstance> {
+export async function loadKokoroModel(options: LoadKokoroModelOptions): Promise<KokoroTtsInstance> {
   const mod = await importKokoroModule();
   return mod.KokoroTTS.from_pretrained(options.modelId, {
     ...(options.dtype !== undefined ? { dtype: options.dtype } : {}),
@@ -110,10 +105,7 @@ export function splitIntoSentences(text: string): string[] {
  * Pack sentences into chunks bounded by `maxChars`, force-splitting any single
  * sentence that is itself longer than the bound on a word boundary.
  */
-export function chunkText(
-  text: string,
-  maxChars = DEFAULT_MAX_CHARS_PER_CHUNK,
-): string[] {
+export function chunkText(text: string, maxChars = DEFAULT_MAX_CHARS_PER_CHUNK): string[] {
   const sentences = splitIntoSentences(text);
   const chunks: string[] = [];
 

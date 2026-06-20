@@ -1,14 +1,6 @@
 "use client";
 
-import {
-  Activity,
-  Database,
-  HardDrive,
-  Radio,
-  Settings2,
-  Signal,
-  Upload,
-} from "lucide-react";
+import { Activity, Database, HardDrive, Radio, Settings2, Signal, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -22,11 +14,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
-import {
-  useActiveDataset,
-  useDatasets,
-  useSetActiveDataset,
-} from "@/core/queries/datasets";
+import { useActiveDataset, useDatasets, useSetActiveDataset } from "@/core/queries/datasets";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useTelecomSessionStore } from "@/core/stores/app-session-store";
@@ -52,10 +40,7 @@ import {
   fetchServiceCodeRows as _fetchServiceCodeRows,
   runCustomKPIExpr as _runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
-import {
-  getDatasetReportDate,
-  isTelecomDataset,
-} from "@/features/telecom/lib/telecom-dataset";
+import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/telecom-dataset";
 import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
@@ -133,9 +118,7 @@ export interface TelecomReportRuntimeValue {
     m: Types.ColumnMapping,
     groupKeys: Types.CanalKey[],
   ) => Promise<Types.OperatorRow[]>;
-  fetchCanalHourlyMatrix: (
-    m: Types.ColumnMapping,
-  ) => Promise<Types.CanalHourCell[]>;
+  fetchCanalHourlyMatrix: (m: Types.ColumnMapping) => Promise<Types.CanalHourCell[]>;
   fetchDailyTrend: (m: Types.ColumnMapping) => Promise<Types.DailyTrendRow[]>;
   fetchFiltered: (
     m: Types.ColumnMapping,
@@ -164,25 +147,20 @@ export interface TelecomReportRuntimeValue {
     m: Types.ColumnMapping,
     msisdn: string,
   ) => Promise<Types.CustomerProfileData | null>;
-  fetchServiceCodeRows: (
-    m: Types.ColumnMapping,
-  ) => Promise<Types.ServiceCodeRow[]>;
+  fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<Types.ServiceCodeRow[]>;
   runCustomKPIExpr: (sqlExpr: string) => Promise<number>;
   refreshAnalyticsHistory: () => Promise<void>;
   loadAnalyticsFromHistory: (key: string) => Promise<void>;
   exportActiveDatabase: () => Promise<void>;
 }
 
-const TelecomReportRuntimeContext =
-  createContext<TelecomReportRuntimeValue | null>(null);
+const TelecomReportRuntimeContext = createContext<TelecomReportRuntimeValue | null>(null);
 
 export function useTelecomReportRuntime() {
   const value = useContext(TelecomReportRuntimeContext);
 
   if (!value) {
-    throw new Error(
-      "useTelecomReportRuntime must be used inside TelecomReportRuntimeProvider",
-    );
+    throw new Error("useTelecomReportRuntime must be used inside TelecomReportRuntimeProvider");
   }
 
   return value;
@@ -200,11 +178,7 @@ function getDatasetViewName(
   return dataset?.viewName || dataset?.tableName || "";
 }
 
-export function TelecomReportRuntimeProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export function TelecomReportRuntimeProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const access = useDashboardAccess();
@@ -218,17 +192,13 @@ export function TelecomReportRuntimeProvider({
   const activeDatasetId = activeDataset?.id ?? null;
   const setActiveDatasetMutation = useSetActiveDataset();
 
-  const replaceDatasetsFromCatalog = useDataStore(
-    (state) => state.replaceDatasetsFromCatalog,
-  );
+  const replaceDatasetsFromCatalog = useDataStore((state) => state.replaceDatasetsFromCatalog);
 
   const setTelecomSession = useTelecomSessionStore((state) => state.setSession);
   const setAppContext = useAppContextStore((state) => state.setContext);
   const addActivity = useActivityStore((state) => state.addEvent);
 
-  const [analyticsHistory, setAnalyticsHistory] = useState<
-    AnalyticsSnapshotMeta[]
-  >([]);
+  const [analyticsHistory, setAnalyticsHistory] = useState<AnalyticsSnapshotMeta[]>([]);
 
   const refreshAnalyticsHistory = useCallback(async () => {
     setAnalyticsHistory(await listAnalyticsSnapshotMeta());
@@ -277,10 +247,7 @@ export function TelecomReportRuntimeProvider({
     () =>
       datasets
         .filter(isTelecomDataset)
-        .sort(
-          (a, b) =>
-            new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime(),
-        ),
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [datasets],
   );
 
@@ -334,8 +301,7 @@ export function TelecomReportRuntimeProvider({
   );
 
   const fetchCanalHourlyMatrix = useCallback(
-    (m: Types.ColumnMapping) =>
-      _fetchCanalHourlyMatrix(tableNameRef.current, m),
+    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m),
     [],
   );
 
@@ -359,17 +325,7 @@ export function TelecomReportRuntimeProvider({
       offset: number,
       sortCol: string,
       sortDir: Types.SortDir,
-    ) =>
-      _fetchFiltered(
-        tableNameRef.current,
-        m,
-        f,
-        sm,
-        limit,
-        offset,
-        sortCol,
-        sortDir,
-      ),
+    ) => _fetchFiltered(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir),
     [],
   );
 
@@ -388,17 +344,7 @@ export function TelecomReportRuntimeProvider({
       offset: number,
       sortCol: string,
       sortDir: Types.SortDir,
-    ) =>
-      _fetchFilteredPage(
-        tableNameRef.current,
-        m,
-        f,
-        sm,
-        limit,
-        offset,
-        sortCol,
-        sortDir,
-      ),
+    ) => _fetchFilteredPage(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir),
     [],
   );
 
@@ -412,8 +358,7 @@ export function TelecomReportRuntimeProvider({
     [],
   );
 
-  const dashboardCsvCols =
-    activeTelecomDataset?.columns.map((column) => column.name) ?? [];
+  const dashboardCsvCols = activeTelecomDataset?.columns.map((column) => column.name) ?? [];
 
   const analytics = useTelecomAnalytics({
     getTableName,
@@ -533,19 +478,16 @@ export function TelecomReportRuntimeProvider({
     Set<Types.OverviewExportSectionKey>
   >(() => new Set(DEFAULT_OVERVIEW_EXPORT_SECTIONS));
 
-  const toggleOverviewSection = useCallback(
-    (key: Types.OverviewExportSectionKey) => {
-      setSelectedOverviewSections((prev) => {
-        const next = new Set(prev);
+  const toggleOverviewSection = useCallback((key: Types.OverviewExportSectionKey) => {
+    setSelectedOverviewSections((prev) => {
+      const next = new Set(prev);
 
-        if (next.has(key)) next.delete(key);
-        else next.add(key);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
 
-        return next;
-      });
-    },
-    [],
-  );
+      return next;
+    });
+  }, []);
 
   useEffect(() => {
     fileNameRef.current = dashboardFileName;
@@ -594,29 +536,16 @@ export function TelecomReportRuntimeProvider({
   const historyRoute = pathname.endsWith("/telecom-report/history");
 
   const reportContentVisible =
-    dashboardLoaded ||
-    sharedOverviewMode ||
-    restoredSnapshotMode ||
-    historyRoute;
+    dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute;
 
   const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
-  const overviewCanals = sharedOverviewMode
-    ? (remoteOverview?.canals ?? [])
-    : canals;
-  const overviewHourly = sharedOverviewMode
-    ? (remoteOverview?.hourly ?? [])
-    : hourly;
-  const overviewStatusData = sharedOverviewMode
-    ? (remoteOverview?.statusData ?? [])
-    : statusData;
-  const overviewForecast = sharedOverviewMode
-    ? (remoteOverview?.forecast ?? [])
-    : forecast;
+  const overviewCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
+  const overviewHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
+  const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
+  const overviewForecast = sharedOverviewMode ? (remoteOverview?.forecast ?? []) : forecast;
 
   async function loadAnalyticsFromHistory(key: string) {
-    const cached =
-      (await getAnalyticsSnapshot(key)) ??
-      (await getCachedAnalyticsForKey(key));
+    const cached = (await getAnalyticsSnapshot(key)) ?? (await getCachedAnalyticsForKey(key));
 
     if (!cached) return;
 
@@ -650,16 +579,14 @@ export function TelecomReportRuntimeProvider({
       return;
     }
 
-    const { exportDatasetSnapshotFile } = await import(
-      "@/platform/duckdb/duckdb-fs"
-    );
+    const { exportDatasetSnapshotFile } = await import("@/platform/duckdb/duckdb-fs");
 
     await exportDatasetSnapshotFile({
       datasetId: activeTelecomDataset.id,
       defaultPath: `${dashboardFileName || activeTelecomDataset.name || activeTelecomDataset.id}.parquet`,
     });
   }
-  
+
   function goToTelecomUpload() {
     addActivity({
       type: "telecom_opened",
@@ -749,9 +676,7 @@ export function TelecomReportRuntimeProvider({
                   onSelect={(id) => {
                     setActiveDatasetMutation.mutate(id);
 
-                    const selected = telecomDatasets.find(
-                      (dataset) => dataset.id === id,
-                    );
+                    const selected = telecomDatasets.find((dataset) => dataset.id === id);
 
                     if (!selected) return;
 
@@ -904,13 +829,11 @@ export function TelecomReportRuntimeProvider({
                 <Upload className="h-5 w-5" />
               </div>
 
-              <h2 className="text-sm font-bold text-foreground">
-                Aucun rapport télécom chargé
-              </h2>
+              <h2 className="text-sm font-bold text-foreground">Aucun rapport télécom chargé</h2>
 
               <p className="mx-auto mt-1 max-w-md text-xs text-muted-foreground">
-                Les fichiers sont chargés depuis la page Upload centrale. Après
-                import, le rapport sera disponible ici pour analyse.
+                Les fichiers sont chargés depuis la page Upload centrale. Après import, le rapport
+                sera disponible ici pour analyse.
               </p>
 
               <button
@@ -946,8 +869,7 @@ export function TelecomReportRuntimeProvider({
                         <span className="font-semibold text-foreground">
                           {remoteOverview.presenterName}
                         </span>
-                        . Aucun fichier source ni ligne brute n&apos;est
-                        transféré sur cet appareil.
+                        . Aucun fichier source ni ligne brute n&apos;est transféré sur cet appareil.
                       </div>
                     </div>
                   </div>
@@ -990,15 +912,13 @@ export function TelecomReportRuntimeProvider({
             onChange={(m) => {
               setMapping(m);
 
-              import("@/platform/collab/collab").then(
-                ({ sharedMapping: yMapping, ydoc }) => {
-                  ydoc.transact(() => {
-                    for (const [k, v] of Object.entries(m)) {
-                      yMapping.set(k, v as string);
-                    }
-                  });
-                },
-              );
+              import("@/platform/collab/collab").then(({ sharedMapping: yMapping, ydoc }) => {
+                ydoc.transact(() => {
+                  for (const [k, v] of Object.entries(m)) {
+                    yMapping.set(k, v as string);
+                  }
+                });
+              });
             }}
             onClose={() => setShowMapper(false)}
             defaultMapping={DEFAULT_MAPPING}

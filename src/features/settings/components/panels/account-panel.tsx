@@ -181,9 +181,7 @@ export function AccountPanel() {
     <>
       <Section title="Account" icon={User}>
         <SettingRow label="Signed in as">
-          <span className="text-sm text-foreground font-mono">
-            {user.email}
-          </span>
+          <span className="text-sm text-foreground font-mono">{user.email}</span>
         </SettingRow>
         {user.name && (
           <SettingRow label="Name">

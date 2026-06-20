@@ -95,10 +95,7 @@ export async function requestPersistence(): Promise<boolean> {
   const storage = storageApi();
   if (!storage || typeof storage.persist !== "function") return false;
   try {
-    if (
-      typeof storage.persisted === "function" &&
-      (await storage.persisted())
-    ) {
+    if (typeof storage.persisted === "function" && (await storage.persisted())) {
       return true;
     }
     return await storage.persist();
@@ -121,10 +118,7 @@ export async function ensurePersistentStorage(): Promise<{
   estimate: { usage: number; quota: number };
 }> {
   if (persistRequested) {
-    const [persisted, est] = await Promise.all([
-      isStoragePersisted(),
-      estimateStorage(),
-    ]);
+    const [persisted, est] = await Promise.all([isStoragePersisted(), estimateStorage()]);
     return { persisted, estimate: { usage: est.usage, quota: est.quota } };
   }
   persistRequested = true;

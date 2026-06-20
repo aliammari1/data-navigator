@@ -1,3 +1,4 @@
+import { describe, expect, it, vi } from "vitest";
 import { summarizeDataset } from "@/platform/electron/electron-fs";
 import {
   fetchFullTableColumnInfo,
@@ -33,12 +34,14 @@ describe("mapDuckTypeToColumnInfoType", () => {
     expect(mapDuckTypeToColumnInfoType(duckType)).toBe("number");
   });
 
-  it.each(["DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIME"])(
-    "maps %s to date",
-    (duckType) => {
-      expect(mapDuckTypeToColumnInfoType(duckType)).toBe("date");
-    },
-  );
+  it.each([
+    "DATE",
+    "TIMESTAMP",
+    "TIMESTAMP WITH TIME ZONE",
+    "TIME",
+  ])("maps %s to date", (duckType) => {
+    expect(mapDuckTypeToColumnInfoType(duckType)).toBe("date");
+  });
 
   it.each(["BOOLEAN", "BOOL"])("maps %s to boolean", (duckType) => {
     expect(mapDuckTypeToColumnInfoType(duckType)).toBe("boolean");
@@ -120,9 +123,7 @@ describe("summarizeRowsToColumnInfo", () => {
   });
 
   it("attaches preview sample values by column name", () => {
-    const rows = [
-      { column_name: "region", column_type: "VARCHAR", approx_unique: 3 },
-    ];
+    const rows = [{ column_name: "region", column_type: "VARCHAR", approx_unique: 3 }];
     const samples = new Map<string, unknown[]>([["region", ["N", "S", "E"]]]);
 
     const [col] = summarizeRowsToColumnInfo(rows, 10, samples);
@@ -131,9 +132,7 @@ describe("summarizeRowsToColumnInfo", () => {
   });
 
   it("defaults sample values to an empty array when none are provided", () => {
-    const rows = [
-      { column_name: "x", column_type: "INTEGER", approx_unique: 1 },
-    ];
+    const rows = [{ column_name: "x", column_type: "INTEGER", approx_unique: 1 }];
 
     const [col] = summarizeRowsToColumnInfo(rows, 10, new Map());
 

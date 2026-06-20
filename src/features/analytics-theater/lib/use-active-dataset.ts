@@ -29,8 +29,7 @@ export function useActiveDataset(): ActiveDatasetContext {
   const activeDatasetId = useDataStore((state) => state.activeDatasetId);
 
   return useMemo(() => {
-    const dataset =
-      datasets.find((d) => d.id === activeDatasetId) ?? datasets[0];
+    const dataset = datasets.find((d) => d.id === activeDatasetId) ?? datasets[0];
     const view = dataset?.viewName || dataset?.tableName || null;
     const roles = detectColumnRoles(dataset);
     return {

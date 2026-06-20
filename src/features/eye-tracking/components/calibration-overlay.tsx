@@ -82,18 +82,15 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
   const completedDots = useMemo(() => clicks.filter((c) => c >= CLICKS_PER_POINT).length, [clicks]);
   const allTrained = completedDots === GRID_POINTS.length;
 
-  const handleDotClick = useCallback(
-    (index: number, clientX: number, clientY: number) => {
-      eyeTracker.recordCalibrationPoint(clientX, clientY);
-      setClicks((prev) => {
-        if (prev[index] >= CLICKS_PER_POINT) return prev;
-        const next = [...prev];
-        next[index] += 1;
-        return next;
-      });
-    },
-    [],
-  );
+  const handleDotClick = useCallback((index: number, clientX: number, clientY: number) => {
+    eyeTracker.recordCalibrationPoint(clientX, clientY);
+    setClicks((prev) => {
+      if (prev[index] >= CLICKS_PER_POINT) return prev;
+      const next = [...prev];
+      next[index] += 1;
+      return next;
+    });
+  }, []);
 
   // Accuracy probe: sample predicted vs. known centre point for a few seconds.
   const runMeasurement = useCallback(() => {
@@ -118,7 +115,9 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
         // Convert mean pixel error to a 0–100 score. The screen diagonal is the
         // worst-case error; closer to the target ⇒ higher score.
         const meanError =
-          errors.length > 0 ? errors.reduce((a, b) => a + b, 0) / errors.length : Number.POSITIVE_INFINITY;
+          errors.length > 0
+            ? errors.reduce((a, b) => a + b, 0) / errors.length
+            : Number.POSITIVE_INFINITY;
         const diagonal = Math.hypot(window.innerWidth, window.innerHeight);
         const score = Number.isFinite(meanError)
           ? Math.max(0, Math.round(100 - (meanError / (diagonal / 2)) * 100))
@@ -172,7 +171,8 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
         <p className="mt-2 text-muted-foreground text-sm">
           {phase === "calibrating" &&
             `Cliquez ${CLICKS_PER_POINT} fois sur chaque point en le regardant. ${completedDots} / ${GRID_POINTS.length} points calibrés.`}
-          {phase === "measuring" && "Gardez les yeux sur le point central pendant la mesure de précision."}
+          {phase === "measuring" &&
+            "Gardez les yeux sur le point central pendant la mesure de précision."}
           {phase === "done" && "Vous pouvez fermer cette fenêtre et activer le point de regard."}
         </p>
       </div>
@@ -217,29 +217,31 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
                 }}
                 aria-label={`Point de calibration ${index + 1}, ${count} sur ${CLICKS_PER_POINT}`}
               >
-              <motion.span
-                className="absolute inset-0 rounded-full"
-                style={{
-                  background: done
-                    ? "color-mix(in oklab, var(--color-primary) 20%, transparent)"
-                    : "color-mix(in oklab, var(--color-primary) 12%, transparent)",
-                }}
-                animate={done ? { scale: 1 } : { scale: [1, 1.18, 1] }}
-                transition={done ? undefined : { duration: 1.6, repeat: Number.POSITIVE_INFINITY }}
-              />
-              <span
-                className="relative flex items-center justify-center rounded-full font-semibold text-xs shadow-md transition-colors"
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: done ? "var(--color-primary)" : "var(--color-card)",
-                  color: done ? "var(--color-primary-foreground)" : "var(--color-foreground)",
-                  border: "2px solid var(--color-primary)",
-                  opacity: 0.5 + progress * 0.5,
-                }}
-              >
-                {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : CLICKS_PER_POINT - count}
-              </span>
+                <motion.span
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: done
+                      ? "color-mix(in oklab, var(--color-primary) 20%, transparent)"
+                      : "color-mix(in oklab, var(--color-primary) 12%, transparent)",
+                  }}
+                  animate={done ? { scale: 1 } : { scale: [1, 1.18, 1] }}
+                  transition={
+                    done ? undefined : { duration: 1.6, repeat: Number.POSITIVE_INFINITY }
+                  }
+                />
+                <span
+                  className="relative flex items-center justify-center rounded-full font-semibold text-xs shadow-md transition-colors"
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: done ? "var(--color-primary)" : "var(--color-card)",
+                    color: done ? "var(--color-primary-foreground)" : "var(--color-foreground)",
+                    border: "2px solid var(--color-primary)",
+                    opacity: 0.5 + progress * 0.5,
+                  }}
+                >
+                  {done ? <Check className="h-3.5 w-3.5" aria-hidden /> : CLICKS_PER_POINT - count}
+                </span>
               </button>
             );
           })}
@@ -255,7 +257,11 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
             transition={{ duration: 1.2, repeat: Number.POSITIVE_INFINITY }}
           >
             <span className="h-3 w-3 rounded-full bg-primary" />
-            <svg className="-rotate-90 absolute inset-0 h-full w-full" viewBox="0 0 64 64" aria-hidden>
+            <svg
+              className="-rotate-90 absolute inset-0 h-full w-full"
+              viewBox="0 0 64 64"
+              aria-hidden
+            >
               <circle
                 cx="32"
                 cy="32"
@@ -300,7 +306,9 @@ export function CalibrationOverlay({ onClose }: CalibrationOverlayProps) {
               className="flex flex-col items-center gap-3"
             >
               <div className="rounded-xl border border-border bg-card px-6 py-4 text-center shadow-sm">
-                <p className="text-muted-foreground text-xs uppercase tracking-wide">Précision estimée</p>
+                <p className="text-muted-foreground text-xs uppercase tracking-wide">
+                  Précision estimée
+                </p>
                 <p className="mt-1 font-semibold text-3xl text-foreground">{finalAccuracy ?? 0}%</p>
               </div>
               <button

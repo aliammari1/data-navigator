@@ -1,4 +1,4 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LEdge, LNode } from "@/features/lineage/core/types";
 
 // ─── Mock elkjs ──────────────────────────────────────────────────────────────
@@ -100,9 +100,7 @@ describe("layoutGraph", () => {
       [edge("a", "b"), edge("a", "ghost"), edge("ghost", "b")],
     );
     const graph = layoutMock.mock.calls[0][0];
-    expect(graph.edges).toEqual([
-      { id: "a->b", sources: ["a"], targets: ["b"] },
-    ]);
+    expect(graph.edges).toEqual([{ id: "a->b", sources: ["a"], targets: ["b"] }]);
   });
 
   it("falls back to a deterministic non-overlapping grid when ELK throws", async () => {

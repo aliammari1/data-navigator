@@ -203,9 +203,7 @@ export function LanControlCenter() {
                     />
                   </label>
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">
-                      Room name
-                    </span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Room name</span>
                     <input
                       value={settings.room}
                       onChange={(e) => persist({ room: e.target.value })}
@@ -219,9 +217,7 @@ export function LanControlCenter() {
                     <div className="flex gap-1">
                       <input
                         value={settings.pairingCode}
-                        onChange={(e) =>
-                          persist({ pairingCode: e.target.value })
-                        }
+                        onChange={(e) => persist({ pairingCode: e.target.value })}
                         className="h-8 min-w-0 flex-1 rounded-md border border-border bg-background px-2 font-mono text-xs"
                       />
                       <button
@@ -235,9 +231,7 @@ export function LanControlCenter() {
                     </div>
                   </label>
                   <label>
-                    <span className="mb-1 block text-[10px] text-muted-foreground">
-                      Your name
-                    </span>
+                    <span className="mb-1 block text-[10px] text-muted-foreground">Your name</span>
                     <input
                       value={settings.peer.name}
                       onChange={(e) =>
@@ -265,8 +259,7 @@ export function LanControlCenter() {
                 )}
                 {connected && (
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-600">
-                    <CheckCircle className="h-3.5 w-3.5" /> Session active —
-                    share QR to invite
+                    <CheckCircle className="h-3.5 w-3.5" /> Session active — share QR to invite
                   </div>
                 )}
                 <div className="flex gap-4 items-start">
@@ -279,15 +272,11 @@ export function LanControlCenter() {
                   />
                   <div className="flex-1 space-y-2 pt-1">
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">
-                        Room
-                      </div>
+                      <div className="text-[10px] text-muted-foreground">Room</div>
                       <div className="text-xs font-medium">{settings.room}</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">
-                        Access code
-                      </div>
+                      <div className="text-[10px] text-muted-foreground">Access code</div>
                       <div className="font-mono text-sm font-bold tracking-widest">
                         {settings.pairingCode}
                       </div>
@@ -321,14 +310,9 @@ export function LanControlCenter() {
                       key={peer.id}
                       className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px]"
                     >
-                      <span
-                        className="h-2 w-2 rounded-full"
-                        style={{ background: peer.color }}
-                      />
+                      <span className="h-2 w-2 rounded-full" style={{ background: peer.color }} />
                       {peer.name}
-                      <span className="text-muted-foreground">
-                        · {peer.role}
-                      </span>
+                      <span className="text-muted-foreground">· {peer.role}</span>
                     </span>
                   ))}
                 </div>
@@ -370,8 +354,7 @@ export function LanControlCenter() {
           <>
             <div className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                Ask the host for the QR code or the join link, then fill in
-                below.
+                Ask the host for the QR code or the join link, then fill in below.
               </p>
               <label className="block">
                 <span className="mb-1 block text-[10px] text-muted-foreground">
@@ -416,9 +399,7 @@ export function LanControlCenter() {
               </label>
               <div className="grid grid-cols-2 gap-2">
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">
-                    Room name
-                  </span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Room name</span>
                   <input
                     value={settings.room}
                     onChange={(e) => persist({ room: e.target.value })}
@@ -426,9 +407,7 @@ export function LanControlCenter() {
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">
-                    Access code
-                  </span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Access code</span>
                   <input
                     value={settings.pairingCode}
                     onChange={(e) => persist({ pairingCode: e.target.value })}
@@ -437,9 +416,7 @@ export function LanControlCenter() {
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">
-                    Your name
-                  </span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Your name</span>
                   <input
                     value={settings.peer.name}
                     onChange={(e) =>
@@ -451,9 +428,7 @@ export function LanControlCenter() {
                   />
                 </label>
                 <label>
-                  <span className="mb-1 block text-[10px] text-muted-foreground">
-                    Join as
-                  </span>
+                  <span className="mb-1 block text-[10px] text-muted-foreground">Join as</span>
                   <select
                     value={settings.peer.role}
                     onChange={(e) =>
@@ -490,9 +465,7 @@ export function LanControlCenter() {
         )}
 
         {error && (
-          <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">
-            {error}
-          </div>
+          <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{error}</div>
         )}
 
         {/* Advanced toggle (host mode only, not connected) */}
@@ -511,9 +484,7 @@ export function LanControlCenter() {
         {showAdvanced && mode === "host" && !connected && (
           <div className="space-y-1">
             <label>
-              <span className="mb-1 block text-[10px] text-muted-foreground">
-                Role
-              </span>
+              <span className="mb-1 block text-[10px] text-muted-foreground">Role</span>
               <select
                 value={settings.peer.role}
                 onChange={(e) =>

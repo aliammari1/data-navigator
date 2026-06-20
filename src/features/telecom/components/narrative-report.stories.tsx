@@ -1,11 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { CreditCard, Phone } from "lucide-react";
 
-import type {
-  CanalSummary,
-  HourlyRow,
-  KPISummary,
-} from "@/features/telecom/types";
+import type { CanalSummary, HourlyRow, KPISummary } from "@/features/telecom/types";
 import { NarrativeReport } from "./narrative-report";
 
 const kpi: KPISummary = {

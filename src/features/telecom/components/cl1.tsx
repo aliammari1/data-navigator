@@ -45,9 +45,7 @@ export function CL1({
     <div
       className={cn(
         "rounded-2xl border overflow-hidden shadow-sm transition-all duration-300",
-        open
-          ? "border-border/80 bg-linear-to-b from-muted/30 to-card"
-          : "border-border bg-card",
+        open ? "border-border/80 bg-linear-to-b from-muted/30 to-card" : "border-border bg-card",
       )}
     >
       {open && <div className={cn("h-px w-full", accentGlow)} />}
@@ -85,16 +83,14 @@ export function CL1({
             className="overflow-hidden"
           >
             <div className="px-5 py-4 space-y-3 border-t border-border/60">
-              {summaryGroups &&
-                summaryGroups.length > 1 &&
-                fetchSpecChannelStats && (
-                  <GroupSummaryChart
-                    groups={summaryGroups}
-                    dateFrom={dateFrom ?? ""}
-                    dateTo={dateTo ?? ""}
-                    fetchSpecChannelStats={fetchSpecChannelStats}
-                  />
-                )}
+              {summaryGroups && summaryGroups.length > 1 && fetchSpecChannelStats && (
+                <GroupSummaryChart
+                  groups={summaryGroups}
+                  dateFrom={dateFrom ?? ""}
+                  dateTo={dateTo ?? ""}
+                  fetchSpecChannelStats={fetchSpecChannelStats}
+                />
+              )}
               {children}
             </div>
           </motion.div>

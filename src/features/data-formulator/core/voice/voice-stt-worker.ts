@@ -18,11 +18,7 @@
  * - Safe audio validation and transcription latency reporting.
  */
 
-import {
-  type AutomaticSpeechRecognitionPipeline,
-  env,
-  pipeline,
-} from "@huggingface/transformers";
+import { type AutomaticSpeechRecognitionPipeline, env, pipeline } from "@huggingface/transformers";
 import {
   getDefaultPrecisionForRuntime,
   getModelDisplaySummary,
@@ -276,15 +272,11 @@ async function isWebGpuAvailable(): Promise<boolean> {
   }
 }
 
-async function resolveRuntimeOrder(
-  runtime: VoiceRuntime,
-): Promise<ConcreteRuntime[]> {
+async function resolveRuntimeOrder(runtime: VoiceRuntime): Promise<ConcreteRuntime[]> {
   const order = getRuntimeOrder(runtime);
 
   if (runtime === "webgpu" && !(await isWebGpuAvailable())) {
-    throw new Error(
-      "WebGPU was requested but is not available in this browser.",
-    );
+    throw new Error("WebGPU was requested but is not available in this browser.");
   }
 
   if (runtime === "auto") {
@@ -349,9 +341,7 @@ function createProgressHandler({
     const payload = progress as ProgressPayload;
 
     postStatus({
-      status: isDownloadProgress(payload)
-        ? "downloading-model"
-        : "loading-model",
+      status: isDownloadProgress(payload) ? "downloading-model" : "loading-model",
       detail: payload.status,
       model: modelId,
       engine,
@@ -506,9 +496,7 @@ async function loadPipelineWithFallback({
     }
   }
 
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Could not load STT model.");
+  throw lastError instanceof Error ? lastError : new Error("Could not load STT model.");
 }
 
 function unloadMatchingPipelines({
@@ -850,9 +838,7 @@ async function handleTranscribe(
   });
 }
 
-function handleUnloadModel(
-  request: Extract<VoiceSttRequest, { type: "UNLOAD_MODEL" }>,
-): void {
+function handleUnloadModel(request: Extract<VoiceSttRequest, { type: "UNLOAD_MODEL" }>): void {
   const engine = request.engine ? resolveEngine(request.engine) : undefined;
   const runtime = request.runtime
     ? resolveRuntime(request.runtime) === "auto"
@@ -899,63 +885,54 @@ function handleGetStatus(): void {
 /*  Message handler                                                    */
 /* ------------------------------------------------------------------ */
 
-workerSelf.addEventListener(
-  "message",
-  async (event: MessageEvent<VoiceSttRequest>) => {
-    const request = event.data;
+workerSelf.addEventListener("message", async (event: MessageEvent<VoiceSttRequest>) => {
+  const request = event.data;
 
-    try {
-      if (!request || typeof request.type !== "string") {
-        throw new Error("Invalid STT worker request.");
-      }
-
-      switch (request.type) {
-        case "LOAD_MODEL": {
-          await handleLoadModel(request);
-          return;
-        }
-
-        case "TRANSCRIBE": {
-          await handleTranscribe(request);
-          return;
-        }
-
-        case "UNLOAD_MODEL": {
-          handleUnloadModel(request);
-          return;
-        }
-
-        case "GET_STATUS": {
-          handleGetStatus();
-          return;
-        }
-
-        default: {
-          const unknownRequest = request as { type?: string };
-          throw new Error(
-            `Unknown STT request type: ${unknownRequest.type ?? "unknown"}`,
-          );
-        }
-      }
-    } catch (error) {
-      const engine =
-        "engine" in request ? resolveEngine(request.engine) : undefined;
-
-      const runtimeValue =
-        "runtime" in request ? resolveRuntime(request.runtime) : undefined;
-
-      postError({
-        error,
-        status: "failed",
-        engine,
-        runtime:
-          runtimeValue && runtimeValue !== "auto"
-            ? (runtimeValue as ConcreteRuntime)
-            : undefined,
-      });
+  try {
+    if (!request || typeof request.type !== "string") {
+      throw new Error("Invalid STT worker request.");
     }
-  },
-);
+
+    switch (request.type) {
+      case "LOAD_MODEL": {
+        await handleLoadModel(request);
+        return;
+      }
+
+      case "TRANSCRIBE": {
+        await handleTranscribe(request);
+        return;
+      }
+
+      case "UNLOAD_MODEL": {
+        handleUnloadModel(request);
+        return;
+      }
+
+      case "GET_STATUS": {
+        handleGetStatus();
+        return;
+      }
+
+      default: {
+        const unknownRequest = request as { type?: string };
+        throw new Error(`Unknown STT request type: ${unknownRequest.type ?? "unknown"}`);
+      }
+    }
+  } catch (error) {
+    const engine = "engine" in request ? resolveEngine(request.engine) : undefined;
+
+    const runtimeValue = "runtime" in request ? resolveRuntime(request.runtime) : undefined;
+
+    postError({
+      error,
+      status: "failed",
+      engine,
+      runtime:
+        runtimeValue && runtimeValue !== "auto" ? (runtimeValue as ConcreteRuntime) : undefined,
+    });
+  }
+});
 
 postStatus({
   status: "idle",

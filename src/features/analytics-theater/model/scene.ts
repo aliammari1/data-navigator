@@ -7,13 +7,7 @@
  * the old hardcoded `TABS` array.
  */
 
-export type SceneKind =
-  | "calendar"
-  | "race"
-  | "sankey"
-  | "gantt"
-  | "wordcloud"
-  | "sunburst";
+export type SceneKind = "calendar" | "race" | "sankey" | "gantt" | "wordcloud" | "sunburst";
 
 export interface SceneDefinition {
   kind: SceneKind;
@@ -44,14 +38,12 @@ export const SCENE_DEFINITIONS: readonly SceneDefinition[] = [
   {
     kind: "sankey",
     label: "Flow",
-    subtitle:
-      "Value flowing from one category to another, sized by the aggregated measure.",
+    subtitle: "Value flowing from one category to another, sized by the aggregated measure.",
   },
   {
     kind: "gantt",
     label: "Activity",
-    subtitle:
-      "Hourly activity intensity per category — when is each category busiest?",
+    subtitle: "Hourly activity intensity per category — when is each category busiest?",
   },
   {
     kind: "wordcloud",
@@ -62,15 +54,12 @@ export const SCENE_DEFINITIONS: readonly SceneDefinition[] = [
   {
     kind: "sunburst",
     label: "Hierarchy",
-    subtitle:
-      "Two-level hierarchical breakdown of the measure by category and sub-category.",
+    subtitle: "Two-level hierarchical breakdown of the measure by category and sub-category.",
   },
 ] as const;
 
 export function sceneDefinition(kind: SceneKind): SceneDefinition {
-  return (
-    SCENE_DEFINITIONS.find((s) => s.kind === kind) ?? SCENE_DEFINITIONS[0]
-  );
+  return SCENE_DEFINITIONS.find((s) => s.kind === kind) ?? SCENE_DEFINITIONS[0];
 }
 
 /** A scene as stored inside an authored theater (with editable narration). */

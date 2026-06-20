@@ -17,12 +17,7 @@
 import { toast } from "sonner";
 import { useSettingsStore } from "@/core/stores/settings-store";
 
-export type NotificationCategory =
-  | "uploads"
-  | "queries"
-  | "errors"
-  | "collaboration"
-  | "digest";
+export type NotificationCategory = "uploads" | "queries" | "errors" | "collaboration" | "digest";
 
 type ToastKind = "success" | "error" | "info" | "warning";
 
@@ -69,10 +64,8 @@ export function notify(
 }
 
 /** Convenience wrappers so call sites read cleanly at the point of use. */
-export const notifyUpload = (msg: string, o?: NotifyOptions) =>
-  notify("uploads", msg, o);
-export const notifyQuery = (msg: string, o?: NotifyOptions) =>
-  notify("queries", msg, o);
+export const notifyUpload = (msg: string, o?: NotifyOptions) => notify("uploads", msg, o);
+export const notifyQuery = (msg: string, o?: NotifyOptions) => notify("queries", msg, o);
 /** Errors default to `force: true` — a disabled toggle should not hide failures. */
 export const notifyError = (msg: string, o?: NotifyOptions) =>
   notify("errors", msg, { kind: "error", force: true, ...o });

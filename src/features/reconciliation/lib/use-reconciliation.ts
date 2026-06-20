@@ -26,6 +26,8 @@ import {
   varPctColName,
 } from "./recon-sql";
 
+export type { DiffConfig } from "./recon-sql";
+
 export interface DiffMeasureCell {
   label: string;
   expected: number | null;
@@ -54,10 +56,7 @@ export interface DiffSummary {
   rowsUnchanged: number;
   rowsMaterial: number;
   /** Per-measure expected/actual/variance sums, keyed by measure label. */
-  totals: Record<
-    string,
-    { sumExpected: number; sumActual: number; sumVariance: number }
-  >;
+  totals: Record<string, { sumExpected: number; sumActual: number; sumVariance: number }>;
 }
 
 function configReady(cfg: DiffConfig | null): cfg is DiffConfig {
@@ -71,9 +70,7 @@ function configReady(cfg: DiffConfig | null): cfg is DiffConfig {
 }
 
 export function mapDiffRow(cfg: DiffConfig, raw: Record<string, unknown>): DiffRow {
-  const keyParts = cfg.keyCols.map((_, i) =>
-    String(raw[keyColName(i)] ?? "∅"),
-  );
+  const keyParts = cfg.keyCols.map((_, i) => String(raw[keyColName(i)] ?? "∅"));
   const measures: DiffMeasureCell[] = cfg.measures.map((m) => ({
     label: m.label,
     expected: toNullableNum(raw[expColName(m.label)]),
@@ -92,19 +89,10 @@ export function mapDiffRow(cfg: DiffConfig, raw: Record<string, unknown>): DiffR
   };
 }
 
-const reconKey = (cfg: DiffConfig) => [
-  cfg.expectedView,
-  cfg.actualView,
-  cfg.keyCols,
-  cfg.measures,
-];
+const reconKey = (cfg: DiffConfig) => [cfg.expectedView, cfg.actualView, cfg.keyCols, cfg.measures];
 
 /** Aggregate rollup (status counts + per-measure sums) computed in DuckDB. */
-export function useDiffSummary(
-  cfg: DiffConfig | null,
-  tolerancePct: number,
-  enabled = true,
-) {
+export function useDiffSummary(cfg: DiffConfig | null, tolerancePct: number, enabled = true) {
   return useQuery({
     queryKey: ["reconciliation", "summary", cfg && reconKey(cfg), tolerancePct],
     enabled: enabled && configReady(cfg),
@@ -169,10 +157,7 @@ export function useDiffPage(
  * Fetch the top-N most material changed rows directly (outside React Query
  * caching) for LLM hypothesis generation.
  */
-export async function fetchMaterialRows(
-  cfg: DiffConfig,
-  limit: number,
-): Promise<DiffRow[]> {
+export async function fetchMaterialRows(cfg: DiffConfig, limit: number): Promise<DiffRow[]> {
   const rows = await runReadOnlyQuery(buildMaterialRowsSQL(cfg, limit));
   return rows.map((raw) => mapDiffRow(cfg, raw));
 }

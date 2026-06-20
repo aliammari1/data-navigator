@@ -55,10 +55,7 @@ export interface KMeansResult {
   iterations: number;
 }
 
-export async function kMeans(
-  data: number[][],
-  options: KMeansOptions,
-): Promise<KMeansResult> {
+export async function kMeans(data: number[][], options: KMeansOptions): Promise<KMeansResult> {
   const n = data.length;
   const d = data[0]?.length ?? 0;
   const k = Math.max(1, Math.min(options.k, n));
@@ -163,7 +160,13 @@ export async function kMeans(
     centroidsOut.push(row);
   }
 
-  return { labels: Array.from(labels), centroids: centroidsOut, withinss, totalWithinss, iterations };
+  return {
+    labels: Array.from(labels),
+    centroids: centroidsOut,
+    withinss,
+    totalWithinss,
+    iterations,
+  };
 }
 
 // ─── DBSCAN (density-clustering) → label vector + noise indices ──────────────
@@ -181,11 +184,7 @@ export interface DbscanResult {
  * DBSCAN over standardized features. `eps` is in raw feature units → the caller
  * should z-score columns first so `eps` is meaningful across dimensions.
  */
-export async function dbscan(
-  data: number[][],
-  eps = 0.5,
-  minPts = 5,
-): Promise<DbscanResult> {
+export async function dbscan(data: number[][], eps = 0.5, minPts = 5): Promise<DbscanResult> {
   if (data.length === 0) return { labels: [], clusters: [], noise: [] };
   const engine = new DBSCAN();
   const clusters: number[][] = engine.run(data, eps, minPts);
@@ -231,10 +230,7 @@ function standardize1d(y: number[]): number[] {
   return y.map((v) => (v - m) / std);
 }
 
-export async function attribution(
-  X: number[][],
-  y: number[],
-): Promise<AttributionResult> {
+export async function attribution(X: number[][], y: number[]): Promise<AttributionResult> {
   const n = X.length;
   const d = X[0]?.length ?? 0;
   if (n < 2 || d < 1 || y.length !== n) {
@@ -304,7 +300,8 @@ export async function correlationMatrix(
       const denom = stds[i]! * stds[j]!;
       if (denom < EPSILON) return 0;
       let cov = 0;
-      for (let r = 0; r < nRows; r++) cov += (data[r]![i]! - means[i]!) * (data[r]![j]! - means[j]!);
+      for (let r = 0; r < nRows; r++)
+        cov += (data[r]![i]! - means[i]!) * (data[r]![j]! - means[j]!);
       cov /= nRows - 1;
       return Math.round((cov / denom) * 1000) / 1000;
     }),
@@ -324,15 +321,19 @@ export interface TTestResult {
   significant: boolean;
 }
 
-export async function welchTTest(
-  a: number[],
-  b: number[],
-  alpha = 0.05,
-): Promise<TTestResult> {
+export async function welchTTest(a: number[], b: number[], alpha = 0.05): Promise<TTestResult> {
   const na = a.length;
   const nb = b.length;
   if (na < 2 || nb < 2) {
-    return { statistic: 0, df: 0, pValue: 1, meanA: mean(a), meanB: mean(b), ci: [0, 0], significant: false };
+    return {
+      statistic: 0,
+      df: 0,
+      pValue: 1,
+      meanA: mean(a),
+      meanB: mean(b),
+      ci: [0, 0],
+      significant: false,
+    };
   }
   const ma = mean(a);
   const mb = mean(b);
@@ -383,7 +384,13 @@ export async function anova1(
   const k = groupArrays.length;
   const n = values.length;
   if (k < 2 || n <= k) {
-    return { statistic: 0, pValue: 1, dfBetween: Math.max(0, k - 1), dfWithin: Math.max(0, n - k), significant: false };
+    return {
+      statistic: 0,
+      pValue: 1,
+      dfBetween: Math.max(0, k - 1),
+      dfWithin: Math.max(0, n - k),
+      significant: false,
+    };
   }
   const grand = mean(values);
   let ssBetween = 0;
@@ -660,7 +667,13 @@ export interface HoltWintersResult {
 
 export async function holtWinters(
   values: number[],
-  options: { period?: number; horizon?: number; alpha?: number; beta?: number; gamma?: number } = {},
+  options: {
+    period?: number;
+    horizon?: number;
+    alpha?: number;
+    beta?: number;
+    gamma?: number;
+  } = {},
 ): Promise<HoltWintersResult> {
   const n = values.length;
   const horizon = options.horizon ?? 5;
@@ -710,8 +723,9 @@ export async function holtWinters(
     seasonal[i % period] = gamma * (values[i]! - level) + (1 - gamma) * s;
     fitted[i] = level + trend + seasonal[i % period]!;
   }
-  const forecast = Array.from({ length: horizon }, (_, h) =>
-    level + (h + 1) * trend + seasonal[(n + h) % period]!,
+  const forecast = Array.from(
+    { length: horizon },
+    (_, h) => level + (h + 1) * trend + seasonal[(n + h) % period]!,
   );
   return { fitted, forecast };
 }

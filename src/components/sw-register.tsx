@@ -14,16 +14,13 @@ export function SWRegister() {
   useEffect(() => {
     const shouldRegister =
       "serviceWorker" in navigator &&
-      (process.env.NODE_ENV === "production" ||
-        process.env.NEXT_PUBLIC_ENABLE_SW === "true");
+      (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_ENABLE_SW === "true");
 
     if (!shouldRegister) return;
 
-    navigator.serviceWorker
-      .register("/sw.js", { scope: "/" })
-      .catch((error) => {
-        console.warn("[PWA] Service Worker registration failed:", error);
-      });
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
+      console.warn("[PWA] Service Worker registration failed:", error);
+    });
   }, []);
 
   return null;

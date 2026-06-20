@@ -65,7 +65,5 @@ export const useAnnotationsStore = create<AnnotationsState>((set, get) => ({
 
 /** Stable selector hook for a single row's annotation (minimizes re-renders). */
 export function useRowAnnotation(key: string): RowAnnotation {
-  return useAnnotationsStore(
-    (s) => s.annotations[key] ?? EMPTY_ANNOTATION,
-  );
+  return useAnnotationsStore((s) => s.annotations[key] ?? EMPTY_ANNOTATION);
 }

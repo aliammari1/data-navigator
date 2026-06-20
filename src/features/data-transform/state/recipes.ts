@@ -53,10 +53,7 @@ function reviveSteps(raw: unknown[]): TransformStep[] {
       type: s.type as StepType,
       label: typeof s.label === "string" ? s.label : s.type,
       enabled: s.enabled !== false,
-      config:
-        s.config && typeof s.config === "object"
-          ? (s.config as Record<string, unknown>)
-          : {},
+      config: s.config && typeof s.config === "object" ? (s.config as Record<string, unknown>) : {},
     });
   }
   return out;

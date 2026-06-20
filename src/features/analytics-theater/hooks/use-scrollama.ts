@@ -31,8 +31,8 @@ export function useScrollama(
     if (steps.length === 0) return;
 
     const sc = scrollama();
-    sc.setup({ step: steps, offset, progress: false }).onStepEnter(
-      ({ index, direction }) => onStepRef.current(index, direction),
+    sc.setup({ step: steps, offset, progress: false }).onStepEnter(({ index, direction }) =>
+      onStepRef.current(index, direction),
     );
 
     const onResize = () => sc.resize();

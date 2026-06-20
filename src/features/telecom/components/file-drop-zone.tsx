@@ -33,16 +33,11 @@ export function FileDropZone({
         onChange={(files) =>
           setPending((prev) => {
             const existing = new Set(prev.map((f) => f.name + f.size));
-            return [
-              ...prev,
-              ...files.filter((f) => !existing.has(f.name + f.size)),
-            ];
+            return [...prev, ...files.filter((f) => !existing.has(f.name + f.size))];
           })
         }
         onRemove={(file) =>
-          setPending((prev) =>
-            prev.filter((f) => !(f.name === file.name && f.size === file.size)),
-          )
+          setPending((prev) => prev.filter((f) => !(f.name === file.name && f.size === file.size)))
         }
       />
       {pending.length > 0 && (
@@ -60,9 +55,7 @@ export function FileDropZone({
                     : "text-muted-foreground hover:bg-background hover:text-foreground disabled:opacity-40 disabled:hover:bg-transparent"
                 }`}
               >
-                {value === "replace"
-                  ? "Remplacer la période"
-                  : "Ajouter à la période"}
+                {value === "replace" ? "Remplacer la période" : "Ajouter à la période"}
               </button>
             ))}
           </div>
@@ -80,9 +73,7 @@ export function FileDropZone({
             ) : (
               <>
                 <Play className="w-4 h-4" />
-                {mode === "append"
-                  ? "Ajouter et recalculer"
-                  : "Charger et analyser"}
+                {mode === "append" ? "Ajouter et recalculer" : "Charger et analyser"}
                 {pending.length > 1 ? ` (${pending.length} fichiers)` : ""}
               </>
             )}

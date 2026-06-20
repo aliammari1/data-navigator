@@ -6,28 +6,18 @@ import type { ColMeta } from "@/core/stores/data-store";
 // it is ready. We keep it "not ready" by default so the pure rule-based paths
 // run, and flip it on only for the few tests that exercise the LLM branch.
 const isLLMReady = vi.fn<() => boolean>(() => false);
-const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(
-  async () => "",
-);
+const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
 
 vi.mock("@/platform/ai/llm-engine", () => ({
   isLLMReady: () => isLLMReady(),
   generateText: (prompt: string, opts?: unknown) => generateText(prompt, opts),
 }));
 
-import {
-  generateInsights,
-  linearForecast,
-  recommendCharts,
-} from "@/platform/ai/insights";
+import { generateInsights, linearForecast, recommendCharts } from "@/platform/ai/insights";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
-function col(
-  name: string,
-  type: ColMeta["type"],
-  extra: Partial<ColMeta> = {},
-): ColMeta {
+function col(name: string, type: ColMeta["type"], extra: Partial<ColMeta> = {}): ColMeta {
   return {
     name,
     type,
@@ -187,9 +177,7 @@ describe("generateInsights rule-based trend / distribution / correlation", () =>
   });
 
   it("caps rule-based insights at five", async () => {
-    const cols = Array.from({ length: 10 }, (_, i) =>
-      col(`c${i}`, "number", { nullCount: 90 }),
-    );
+    const cols = Array.from({ length: 10 }, (_, i) => col(`c${i}`, "number", { nullCount: 90 }));
     const numericData = Object.fromEntries(
       cols.map((c) => [c.name, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]]),
     );

@@ -18,11 +18,7 @@
 
 import { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
-import type {
-  AwarenessCursor,
-  AwarenessUser,
-  CollabPeer,
-} from "./types";
+import type { AwarenessCursor, AwarenessUser, CollabPeer } from "./types";
 
 /** Create an Awareness instance bound to a doc. */
 export function createAwareness(doc: Y.Doc): Awareness {
@@ -30,10 +26,7 @@ export function createAwareness(doc: Y.Doc): Awareness {
 }
 
 /** Write the durable identity user field (low frequency: join/rename/role). */
-export function setAwarenessUser(
-  awareness: Awareness,
-  user: AwarenessUser,
-): void {
+export function setAwarenessUser(awareness: Awareness, user: AwarenessUser): void {
   awareness.setLocalStateField("user", {
     ...user,
     lastSeenAt: Date.now(),
@@ -56,10 +49,7 @@ function scheduleFrame(cb: () => void): number {
  * Throttled cursor/selection write (~1 per animation frame). Keeps high-rate
  * remote cursor traffic from re-rendering every subscriber on a medium CPU.
  */
-export function publishCursor(
-  awareness: Awareness,
-  cursor: AwarenessCursor,
-): void {
+export function publishCursor(awareness: Awareness, cursor: AwarenessCursor): void {
   pendingCursor.set(awareness, cursor);
   if (cursorRaf.has(awareness)) return;
   const handle = scheduleFrame(() => {
@@ -101,10 +91,7 @@ export function readPeers(awareness: Awareness): CollabPeer[] {
  * tick, so this fires once per logical presence change (still: throttle the
  * consumer's projection if you derive cursors).
  */
-export function subscribePeers(
-  awareness: Awareness,
-  handler: () => void,
-): () => void {
+export function subscribePeers(awareness: Awareness, handler: () => void): () => void {
   awareness.on("change", handler);
   return () => awareness.off("change", handler);
 }

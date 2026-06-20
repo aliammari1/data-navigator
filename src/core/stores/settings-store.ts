@@ -3,14 +3,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
-export type AccentColor =
-  | "blue"
-  | "indigo"
-  | "violet"
-  | "cyan"
-  | "emerald"
-  | "amber"
-  | "rose";
+export type AccentColor = "blue" | "indigo" | "violet" | "cyan" | "emerald" | "amber" | "rose";
 export type DensityMode = "compact" | "comfortable" | "spacious";
 export type SidebarStyle = "dark" | "glass" | "minimal";
 
@@ -138,11 +131,7 @@ export const useSettingsStore = create<SettingsStore>()(
       performance: DEFAULT_PERFORMANCE,
       enableAiCritic: false,
       notifications: DEFAULT_NOTIFICATIONS,
-      pinnedItems: [
-        "/dashboard",
-        "/dashboard/upload",
-        "/dashboard/ai-analysis",
-      ],
+      pinnedItems: ["/dashboard", "/dashboard/upload", "/dashboard/ai-analysis"],
 
       setMaxFileSize: (size) => set({ maxFileSize: size }),
       setMaxFiles: (count) => set({ maxFiles: count }),
@@ -156,17 +145,14 @@ export const useSettingsStore = create<SettingsStore>()(
       setShowBreadcrumbs: (v) => set({ showBreadcrumbs: v }),
       setCompactNumbers: (v) => set({ compactNumbers: v }),
       setData: (patch) => set((s) => ({ data: { ...s.data, ...patch } })),
-      setPerformance: (patch) =>
-        set((s) => ({ performance: { ...s.performance, ...patch } })),
+      setPerformance: (patch) => set((s) => ({ performance: { ...s.performance, ...patch } })),
       setEnableAiCritic: (v) => set({ enableAiCritic: v }),
       setNotifications: (patch) =>
         set((s) => ({ notifications: { ...s.notifications, ...patch } })),
       togglePinnedItem: (href) => {
         const items = get().pinnedItems;
         set({
-          pinnedItems: items.includes(href)
-            ? items.filter((h) => h !== href)
-            : [...items, href],
+          pinnedItems: items.includes(href) ? items.filter((h) => h !== href) : [...items, href],
         });
       },
       resetToDefaults: () =>
@@ -183,11 +169,7 @@ export const useSettingsStore = create<SettingsStore>()(
           performance: DEFAULT_PERFORMANCE,
           enableAiCritic: false,
           notifications: DEFAULT_NOTIFICATIONS,
-          pinnedItems: [
-            "/dashboard",
-            "/dashboard/upload",
-            "/dashboard/ai-analysis",
-          ],
+          pinnedItems: ["/dashboard", "/dashboard/upload", "/dashboard/ai-analysis"],
         }),
     }),
     {
@@ -263,12 +245,9 @@ export const useAppearanceSettings = () =>
   );
 
 export const useDataSettings = () => useSettingsStore((s) => s.data);
-export const usePerformanceSettings = () =>
-  useSettingsStore((s) => s.performance);
-export const useEnableAiCritic = () =>
-  useSettingsStore((s) => s.enableAiCritic);
-export const useNotificationSettings = () =>
-  useSettingsStore((s) => s.notifications);
+export const usePerformanceSettings = () => useSettingsStore((s) => s.performance);
+export const useEnableAiCritic = () => useSettingsStore((s) => s.enableAiCritic);
+export const useNotificationSettings = () => useSettingsStore((s) => s.notifications);
 export const usePinnedItems = () => useSettingsStore((s) => s.pinnedItems);
 
 export const useSettingsActions = () =>

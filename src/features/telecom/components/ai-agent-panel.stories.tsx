@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import type { ColumnMapping } from "@/features/telecom/types";
@@ -68,9 +68,7 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText(/Agent IA · 100% offline/i)).toBeInTheDocument();
-    await expect(
-      canvas.getByRole("button", { name: /Analyser maintenant/i }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Analyser maintenant/i })).toBeInTheDocument();
   },
 };
 

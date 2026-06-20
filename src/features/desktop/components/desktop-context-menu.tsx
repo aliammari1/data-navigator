@@ -55,8 +55,7 @@ export function DesktopContextMenu({
   onClose: () => void;
   onExit?: () => void;
 }) {
-  const { toggleLauncher, cascadeArrange, closeAll, setWallpaper, addWidget } =
-    useDesktopActions();
+  const { toggleLauncher, cascadeArrange, closeAll, setWallpaper, addWidget } = useDesktopActions();
   const { setDesktopMode } = useShellActions();
   const wallpaper = useWallpaper();
   const [widgetSubOpen, setWidgetSubOpen] = useState(false);
@@ -91,11 +90,16 @@ export function DesktopContextMenu({
     onClose();
   };
 
-  const item = "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-foreground/5";
+  const item =
+    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-foreground/5";
 
   // Keep the menu on-screen.
-  const x = menu ? Math.min(menu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 240) : 0;
-  const y = menu ? Math.min(menu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - 280) : 0;
+  const x = menu
+    ? Math.min(menu.x, (typeof window !== "undefined" ? window.innerWidth : 9999) - 240)
+    : 0;
+  const y = menu
+    ? Math.min(menu.y, (typeof window !== "undefined" ? window.innerHeight : 9999) - 280)
+    : 0;
 
   return (
     <AnimatePresence>
@@ -110,17 +114,34 @@ export function DesktopContextMenu({
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
-          <button type="button" className={item} onClick={() => { toggleLauncher(); onClose(); }}>
+          <button
+            type="button"
+            className={item}
+            onClick={() => {
+              toggleLauncher();
+              onClose();
+            }}
+          >
             <LayoutGrid className="size-3.5" /> Applications
           </button>
           <button
             type="button"
             className={item}
-            onClick={() => { cascadeArrange({ w: window.innerWidth, h: window.innerHeight }); onClose(); }}
+            onClick={() => {
+              cascadeArrange({ w: window.innerWidth, h: window.innerHeight });
+              onClose();
+            }}
           >
             <Layers className="size-3.5" /> Ranger les fenêtres
           </button>
-          <button type="button" className={item} onClick={() => { closeAll(); onClose(); }}>
+          <button
+            type="button"
+            className={item}
+            onClick={() => {
+              closeAll();
+              onClose();
+            }}
+          >
             <X className="size-3.5" /> Tout fermer
           </button>
 
@@ -132,7 +153,12 @@ export function DesktopContextMenu({
             onMouseEnter={() => setWidgetSubOpen(true)}
             onMouseLeave={() => setWidgetSubOpen(false)}
           >
-            <button type="button" className={item} aria-haspopup="menu" aria-expanded={widgetSubOpen}>
+            <button
+              type="button"
+              className={item}
+              aria-haspopup="menu"
+              aria-expanded={widgetSubOpen}
+            >
               <Plus className="size-3.5" /> Ajouter un widget
               <ChevronRight className="ml-auto size-3.5 text-foreground/40" />
             </button>
@@ -170,7 +196,10 @@ export function DesktopContextMenu({
                 key={wp.id}
                 type="button"
                 title={wp.label}
-                onClick={() => { setWallpaper(wp.id); onClose(); }}
+                onClick={() => {
+                  setWallpaper(wp.id);
+                  onClose();
+                }}
                 className={`size-8 rounded-lg border-2 transition ${wallpaper === wp.id ? "border-primary" : "border-white/60 hover:border-foreground/30"}`}
                 style={{ background: wp.css }}
               />

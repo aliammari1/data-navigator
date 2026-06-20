@@ -7,12 +7,7 @@ import { SceneShell } from "../components/SceneShell";
 import { TheaterChart } from "../components/TheaterChart";
 import { useSceneData } from "../hooks/use-scene-data";
 import { asNum, asStr, buildSankeySql } from "../lib/queries";
-import {
-  seriesColor,
-  TEXT_COLOR,
-  TOOLTIP_BG,
-  TOOLTIP_BORDER,
-} from "../lib/theme";
+import { seriesColor, TEXT_COLOR, TOOLTIP_BG, TOOLTIP_BORDER } from "../lib/theme";
 
 interface SankeyNode {
   name: string;
@@ -66,10 +61,7 @@ function buildGraph(rows: Record<string, unknown>[]): {
 export default function SankeyScene() {
   const scene = useSceneData(buildSankeySql);
 
-  const { nodes, links, total } = useMemo(
-    () => buildGraph(scene.rows),
-    [scene.rows],
-  );
+  const { nodes, links, total } = useMemo(() => buildGraph(scene.rows), [scene.rows]);
 
   const option = useMemo(
     () => ({
@@ -125,9 +117,7 @@ export default function SankeyScene() {
       onRetry={scene.refetch}
     >
       <div className="space-y-4">
-        {scene.note && (
-          <p className="text-xs text-muted-foreground">{scene.note}</p>
-        )}
+        {scene.note && <p className="text-xs text-muted-foreground">{scene.note}</p>}
         <Card>
           <CardContent className="pt-4">
             <TheaterChart option={option} height={440} />
@@ -136,9 +126,7 @@ export default function SankeyScene() {
         <Card size="sm">
           <CardContent className="pt-3 text-center">
             <p className="text-xs text-muted-foreground">Total flow</p>
-            <p className="mt-1 text-xl font-bold text-foreground">
-              {fmtN(total)}
-            </p>
+            <p className="mt-1 text-xl font-bold text-foreground">{fmtN(total)}</p>
           </CardContent>
         </Card>
       </div>

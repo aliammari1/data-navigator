@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 /**
  * Real, traceable report insights — replaces every fabricated number that used
@@ -15,25 +15,21 @@
  * (grammar-constrained JSON) — no parseJSON repair, no direct web-llm.
  */
 
-import { getAnalysisProxy } from '@/platform/viz'
-import type { AnalysisWorkerApi } from '@/workers/analysis.worker'
-import type { RegisteredDataset } from '@/platform/duckdb/duckdb'
-import type {
-  ReportAnomaly,
-  ReportComparison,
-  ReportData,
-} from './types'
-import { aggregateReportData, detectColumnRoles } from '../data/queries'
+import { getAnalysisProxy } from "@/platform/viz";
+import type { AnalysisWorkerApi } from "@/workers/analysis.worker";
+import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
+import type { ReportAnomaly, ReportComparison, ReportData } from "./types";
+import { aggregateReportData, detectColumnRoles } from "../data/queries";
 
 /** Subset of the analysis API this module uses (proxy or inline kernels). */
-type AnalysisLike = Pick<AnalysisWorkerApi, 'welchTTest' | 'gesdAnomalies'>
+type AnalysisLike = Pick<AnalysisWorkerApi, "welchTTest" | "gesdAnomalies">;
 
 /** Previous calendar day in `YYYY-MM-DD` form (UTC-stable, no locale drift). */
 export function previousDay(date: string): string {
-  const d = new Date(`${date}T00:00:00Z`)
-  if (Number.isNaN(d.getTime())) return date
-  d.setUTCDate(d.getUTCDate() - 1)
-  return d.toISOString().slice(0, 10)
+  const d = new Date(`${date}T00:00:00Z`);
+  if (Number.isNaN(d.getTime())) return date;
+  d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
 }
 
 /**
@@ -43,10 +39,10 @@ export function previousDay(date: string): string {
  * `Comlink.expose`) is never pulled onto the renderer's hot path.
  */
 async function analysis(): Promise<AnalysisLike> {
-  const proxy = getAnalysisProxy()
-  if (proxy) return proxy
-  const kernels = await import('@/workers/analysis.worker')
-  return kernels
+  const proxy = getAnalysisProxy();
+  if (proxy) return proxy;
+  const kernels = await import("@/workers/analysis.worker");
+  return kernels;
 }
 
 /**
@@ -57,11 +53,11 @@ export async function detectHourlyAnomalies(
   data: ReportData,
   maxAnomalies = 4,
 ): Promise<ReportAnomaly[]> {
-  const series = data.hourlyData
-  if (series.length < 4) return []
-  const counts = series.map((h) => h.count)
-  const proxy = await analysis()
-  const { indices, scores } = await proxy.gesdAnomalies(counts, { maxAnomalies })
+  const series = data.hourlyData;
+  if (series.length < 4) return [];
+  const counts = series.map((h) => h.count);
+  const proxy = await analysis();
+  const { indices, scores } = await proxy.gesdAnomalies(counts, { maxAnomalies });
   return indices
     .map((idx, k) => ({
       hour: series[idx]?.hour ?? idx,
@@ -69,7 +65,7 @@ export async function detectHourlyAnomalies(
       successRate: series[idx]?.successRate ?? 0,
       score: scores[k] ?? 0,
     }))
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score);
 }
 
 /**
@@ -84,29 +80,29 @@ export async function computeComparison(
   // A meaningful previous-period comparison requires a timestamp column so the
   // two periods are actually different rows. Without one, suppress it rather
   // than report a fabricated 0% delta against an identical whole-view aggregate.
-  if (!detectColumnRoles(dataset).timestamp) return null
+  if (!detectColumnRoles(dataset).timestamp) return null;
 
-  const prevDate = previousDay(current.date)
-  let prev: ReportData
+  const prevDate = previousDay(current.date);
+  let prev: ReportData;
   try {
-    prev = await aggregateReportData(dataset, prevDate, { scopeToDay: true })
+    prev = await aggregateReportData(dataset, prevDate, { scopeToDay: true });
   } catch {
-    return null
+    return null;
   }
-  if (prev.totalTransactions === 0) return null
+  if (prev.totalTransactions === 0) return null;
 
-  let volumeTrend: ReportComparison['volumeTrend'] = null
+  let volumeTrend: ReportComparison["volumeTrend"] = null;
   if (current.hourlyData.length >= 2 && prev.hourlyData.length >= 2) {
-    const a = current.hourlyData.map((h) => h.count)
-    const b = prev.hourlyData.map((h) => h.count)
-    const proxy = await analysis()
-    const t = await proxy.welchTTest(a, b)
+    const a = current.hourlyData.map((h) => h.count);
+    const b = prev.hourlyData.map((h) => h.count);
+    const proxy = await analysis();
+    const t = await proxy.welchTTest(a, b);
     volumeTrend = {
       pValue: t.pValue,
       significant: t.significant,
       meanCurrent: t.meanA,
       meanPrev: t.meanB,
-    }
+    };
   }
 
   return {
@@ -118,7 +114,7 @@ export async function computeComparison(
       failedTransactions: prev.failedTransactions,
     },
     volumeTrend,
-  }
+  };
 }
 
 /**
@@ -132,10 +128,10 @@ export async function enrichWithInsights(
   const [anomalies, comparison] = await Promise.all([
     detectHourlyAnomalies(data).catch(() => [] as ReportAnomaly[]),
     dataset ? computeComparison(dataset, data).catch(() => null) : Promise.resolve(null),
-  ])
+  ]);
   return {
     ...data,
     anomalies,
     comparison: comparison ?? undefined,
-  }
+  };
 }

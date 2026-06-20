@@ -35,9 +35,7 @@ export const DEFAULT_MAPPING: ColumnMapping = {
   retryCount: "",
 };
 
-export function normalizeColumnMapping(
-  mapping?: Partial<ColumnMapping> | null,
-): ColumnMapping {
+export function normalizeColumnMapping(mapping?: Partial<ColumnMapping> | null): ColumnMapping {
   const merged = {
     ...DEFAULT_MAPPING,
     ...(mapping ?? {}),
@@ -111,14 +109,11 @@ export const useTelecomStore = create<TelecomStore>()(
 
       setStatusMapping: (statusMapping) => set({ statusMapping }),
 
-      addCustomKPI: (kpi) =>
-        set((s) => ({ customKPIs: [...s.customKPIs, kpi] })),
+      addCustomKPI: (kpi) => set((s) => ({ customKPIs: [...s.customKPIs, kpi] })),
 
       updateCustomKPI: (id, patch) =>
         set((s) => ({
-          customKPIs: s.customKPIs.map((k) =>
-            k.id === id ? { ...k, ...patch } : k,
-          ),
+          customKPIs: s.customKPIs.map((k) => (k.id === id ? { ...k, ...patch } : k)),
         })),
 
       removeCustomKPI: (id) =>

@@ -29,13 +29,7 @@ const KPI_ACCENT: Record<string, string> = {
 
 type EChartsOptionObject = Record<string, unknown>;
 
-const SPECIAL_ECHART_TYPES = new Set([
-  "heatmap",
-  "network",
-  "sankey",
-  "calendar",
-  "bump",
-]);
+const SPECIAL_ECHART_TYPES = new Set(["heatmap", "network", "sankey", "calendar", "bump"]);
 
 function getRowKeys(data: Record<string, unknown>[]): string[] {
   return Object.keys(data[0] ?? {});
@@ -64,17 +58,13 @@ function getExtent(values: number[]): { min: number; max: number } {
   return min === max ? { min: 0, max: max || 1 } : { min, max };
 }
 
-function buildHeatmapOption(
-  rawData: Record<string, unknown>[],
-): EChartsOptionObject {
+function buildHeatmapOption(rawData: Record<string, unknown>[]): EChartsOptionObject {
   const keys = getRowKeys(rawData);
   const labelKey = keys[0];
   const valueKeys = keys.filter((key) => key !== labelKey).slice(0, 24);
   const rows = rawData.slice(0, 24);
 
-  const values = rows.flatMap((row) =>
-    valueKeys.map((key) => asNumber(row[key])),
-  );
+  const values = rows.flatMap((row) => valueKeys.map((key) => asNumber(row[key])));
 
   const { min, max } = getExtent(values);
 
@@ -126,9 +116,7 @@ function buildHeatmapOption(
     series: [
       {
         type: "heatmap",
-        data: rows.flatMap((row, y) =>
-          valueKeys.map((key, x) => [x, y, asNumber(row[key])]),
-        ),
+        data: rows.flatMap((row, y) => valueKeys.map((key, x) => [x, y, asNumber(row[key])])),
         emphasis: {
           itemStyle: {
             borderColor: "#e2e8f0",
@@ -140,9 +128,7 @@ function buildHeatmapOption(
   };
 }
 
-function buildNetworkOption(
-  rawData: Record<string, unknown>[],
-): EChartsOptionObject {
+function buildNetworkOption(rawData: Record<string, unknown>[]): EChartsOptionObject {
   const keys = getRowKeys(rawData);
   const sourceKey = keys[0];
   const targetKey = keys[1];
@@ -204,9 +190,7 @@ function buildNetworkOption(
   };
 }
 
-function buildSankeyOption(
-  rawData: Record<string, unknown>[],
-): EChartsOptionObject {
+function buildSankeyOption(rawData: Record<string, unknown>[]): EChartsOptionObject {
   const keys = getRowKeys(rawData);
   const sourceKey = keys[0];
   const targetKey = keys[1];
@@ -266,9 +250,7 @@ function buildSankeyOption(
   };
 }
 
-function buildCalendarOption(
-  rawData: Record<string, unknown>[],
-): EChartsOptionObject | null {
+function buildCalendarOption(rawData: Record<string, unknown>[]): EChartsOptionObject | null {
   const keys = getRowKeys(rawData);
 
   const dateKey =
@@ -285,10 +267,7 @@ function buildCalendarOption(
       return value && !Number.isNaN(new Date(String(value)).getTime());
     })
     .slice(0, 365)
-    .map((row) => [
-      String(row[dateKey]).slice(0, 10),
-      asNumber(row[valueKey], 1),
-    ]);
+    .map((row) => [String(row[dateKey]).slice(0, 10), asNumber(row[valueKey], 1)]);
 
   if (data.length < 2) {
     return null;
@@ -350,9 +329,7 @@ function buildCalendarOption(
   };
 }
 
-function buildBumpOption(
-  rawData: Record<string, unknown>[],
-): EChartsOptionObject {
+function buildBumpOption(rawData: Record<string, unknown>[]): EChartsOptionObject {
   const keys = getRowKeys(rawData);
   const seriesKey = keys[0];
   const periodKey = keys[1];
@@ -471,11 +448,7 @@ function KPIGrid({ cards }: { cards: KPICard[] }) {
     <div
       className={cn(
         "grid gap-3 h-full content-start",
-        cards.length <= 2
-          ? "grid-cols-2"
-          : cards.length <= 4
-            ? "grid-cols-2"
-            : "grid-cols-2",
+        cards.length <= 2 ? "grid-cols-2" : cards.length <= 4 ? "grid-cols-2" : "grid-cols-2",
       )}
     >
       {cards.map((card, i) => {
@@ -490,9 +463,7 @@ function KPIGrid({ cards }: { cards: KPICard[] }) {
             style={{ borderTopColor: accent, borderTopWidth: 2 }}
           >
             <p className="text-[11px] text-slate-400 truncate">{card.label}</p>
-            <p
-              className={cn("text-xl font-bold tabular-nums", card.colorClass)}
-            >
+            <p className={cn("text-xl font-bold tabular-nums", card.colorClass)}>
               {numVal !== null ? (
                 <CountUp
                   end={numVal}
@@ -515,9 +486,7 @@ function KPIGrid({ cards }: { cards: KPICard[] }) {
                 card.value
               )}
             </p>
-            {card.sub && (
-              <p className="text-[10px] text-slate-500">{card.sub}</p>
-            )}
+            {card.sub && <p className="text-[10px] text-slate-500">{card.sub}</p>}
           </div>
         );
       })}
@@ -535,30 +504,18 @@ function DataTable({ headers, rows }: { headers: string[]; rows: string[][] }) {
 
 // ─── Skeleton ─────────────────────────────────────────────────────────────────
 
-function Skeleton({
-  status,
-  error,
-}: {
-  status: WidgetState["status"];
-  error?: string;
-}) {
+function Skeleton({ status, error }: { status: WidgetState["status"]; error?: string }) {
   if (status === "error") {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-2 text-center px-4">
         <span className="text-red-400 text-xl">✗</span>
-        <p className="text-xs text-red-400/80">
-          {error ?? "Failed to build widget"}
-        </p>
+        <p className="text-xs text-red-400/80">{error ?? "Failed to build widget"}</p>
       </div>
     );
   }
 
   const label =
-    status === "querying"
-      ? "Running SQL…"
-      : status === "building"
-        ? "Building chart…"
-        : "Pending…";
+    status === "querying" ? "Running SQL…" : status === "building" ? "Building chart…" : "Pending…";
 
   return (
     <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -585,16 +542,7 @@ interface Props {
 }
 
 export function WidgetRenderer({ widget, height = "100%", className }: Props) {
-  const {
-    status,
-    echartsOption,
-    kpis,
-    tableHeaders,
-    tableRows,
-    error,
-    spec,
-    rawData,
-  } = widget;
+  const { status, echartsOption, kpis, tableHeaders, tableRows, error, spec, rawData } = widget;
 
   // Memoize
   // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -350,9 +350,7 @@ export const DESKTOP_APPS: DesktopApp[] = [
     hue: 258,
     defaultSize: { w: 1020, h: 760 },
     inLauncher: true,
-    Component: d(
-      () => import("@/features/collaboration/screens/CollaborationHostedScreen"),
-    ),
+    Component: d(() => import("@/features/collaboration/screens/CollaborationHostedScreen")),
   },
   {
     id: "agent-canvas",

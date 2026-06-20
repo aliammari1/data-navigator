@@ -123,9 +123,7 @@ export function buildDiffSQL(cfg: DiffConfig): string {
   const allKeysExpNull = cfg.keyCols
     .map((k) => `e.${quoteIdent(k.expected)} IS NULL`)
     .join(" AND ");
-  const allKeysActNull = cfg.keyCols
-    .map((k) => `a.${quoteIdent(k.actual)} IS NULL`)
-    .join(" AND ");
+  const allKeysActNull = cfg.keyCols.map((k) => `a.${quoteIdent(k.actual)} IS NULL`).join(" AND ");
 
   return `SELECT
   ${keySelect},

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  ChevronDown,
-  Download,
-  FileSpreadsheet,
-  FileText,
-  XCircle,
-} from "lucide-react";
+import { ChevronDown, Download, FileSpreadsheet, FileText, XCircle } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { KPI_FIELDS } from "@/features/telecom/constants";
 import { buildCanalCsv, buildKpiCsv } from "@/features/telecom/export/csv";
@@ -80,8 +74,7 @@ export function ExportPanel({
   const includeDailyTrendDataset = hasOverviewSection("dailyTrend");
 
   const insights = useMemo(
-    () =>
-      kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 6) : [],
+    () => (kpi ? computeAIInsights(kpi, canals, hourly, statusData).slice(0, 6) : []),
     [kpi, canals, hourly, statusData],
   );
 
@@ -182,8 +175,7 @@ export function ExportPanel({
     if (!(selectedKpis.size > 0 && kpi)) return null;
     const filtered: Partial<Types.KPISummary> = {};
     for (const f of KPI_FIELDS) {
-      if (selectedKpis.has(f.key))
-        (filtered as Record<string, unknown>)[f.key] = kpi[f.key];
+      if (selectedKpis.has(f.key)) (filtered as Record<string, unknown>)[f.key] = kpi[f.key];
     }
     return filtered;
   }, [kpi, selectedKpis]);
@@ -209,8 +201,7 @@ export function ExportPanel({
     if (selectedKpiPayload) payload.kpi = selectedKpiPayload;
     const deckBrief = await getDeckBrief();
     if (deckBrief) payload.narrative = deckBrief;
-    if (includeAssistantDataset && insights.length)
-      payload.assistant = insights;
+    if (includeAssistantDataset && insights.length) payload.assistant = insights;
     if (hasOverviewSection("revenueGroups") && revenueGroupRows.length)
       payload.revenueGroups = revenueGroupRows;
     if (includeCanalDataset)
@@ -230,8 +221,7 @@ export function ExportPanel({
     if (includeHourlyDataset && hourly.length) payload.hourly = hourly;
     if (inclOperators && operators.length) payload.operators = operators;
     if (inclRegions && regions.length) payload.regions = regions;
-    if (includeStatusDataset && statusData.length)
-      payload.statuses = statusData;
+    if (includeStatusDataset && statusData.length) payload.statuses = statusData;
     const dailyTrend = await getDailyTrendRows();
     if (dailyTrend.length) payload.dailyTrend = dailyTrend;
     downloadTextFile(
@@ -285,8 +275,7 @@ export function ExportPanel({
         fgColor: { argb: "FF4F46E5" },
       };
       kpiSheet.getRow(1).font = { bold: true, color: { argb: "FFFFFFFF" } };
-      for (const [metric, value] of kpiRows())
-        kpiSheet.addRow({ metric, value });
+      for (const [metric, value] of kpiRows()) kpiSheet.addRow({ metric, value });
 
       const deckBrief = await getDeckBrief();
       if (deckBrief) {
@@ -504,10 +493,7 @@ export function ExportPanel({
             region: r.region,
             total: r.total,
             success: r.success,
-            rate:
-              r.total > 0
-                ? Number(((r.success / r.total) * 100).toFixed(2))
-                : 0,
+            rate: r.total > 0 ? Number(((r.success / r.total) * 100).toFixed(2)) : 0,
             amount: Number(r.amount.toFixed(3)),
           });
       }
@@ -537,10 +523,7 @@ export function ExportPanel({
             success: h.success,
             declined: h.declined,
             amount: Number(h.amount.toFixed(3)),
-            rate:
-              h.total > 0
-                ? Number(((h.success / h.total) * 100).toFixed(2))
-                : 0,
+            rate: h.total > 0 ? Number(((h.success / h.total) * 100).toFixed(2)) : 0,
           });
       }
 
@@ -661,9 +644,7 @@ export function ExportPanel({
             1: { cellWidth: 60, halign: "right" },
           },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       const deckBrief = await getDeckBrief();
@@ -675,9 +656,7 @@ export function ExportPanel({
         doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
         doc.text(
-          deckBrief.source === "ai"
-            ? "Synthèse exécutive IA"
-            : "Synthèse exécutive locale",
+          deckBrief.source === "ai" ? "Synthèse exécutive IA" : "Synthèse exécutive locale",
           margin,
           y,
         );
@@ -696,8 +675,7 @@ export function ExportPanel({
             ["Actions", deckBrief.brief.recommendedActions.join("\n")],
           ],
           headStyles: {
-            fillColor:
-              deckBrief.source === "ai" ? [255, 122, 26] : [15, 118, 110],
+            fillColor: deckBrief.source === "ai" ? [255, 122, 26] : [15, 118, 110],
             textColor: 255,
             fontStyle: "bold",
             fontSize: 7,
@@ -707,9 +685,7 @@ export function ExportPanel({
           margin: { left: margin, right: margin },
           columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 138 } },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       if (includeAssistantDataset && insights.length) {
@@ -720,11 +696,7 @@ export function ExportPanel({
         autoTable(doc, {
           startY: y,
           head: [["Sévérité", "Titre", "Contrôle"]],
-          body: insights.map((insight) => [
-            insight.severity,
-            insight.title,
-            insight.body,
-          ]),
+          body: insights.map((insight) => [insight.severity, insight.title, insight.body]),
           headStyles: {
             fillColor: [79, 70, 229],
             textColor: 255,
@@ -736,9 +708,7 @@ export function ExportPanel({
           margin: { left: margin, right: margin },
           columnStyles: { 2: { cellWidth: 86 } },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       if (hasOverviewSection("revenueGroups") && revenueGroupRows.length) {
@@ -770,9 +740,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [240, 253, 250] },
           margin: { left: margin, right: margin },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Canaux table ────────────────────────────────────────────────────────
@@ -787,17 +755,7 @@ export function ExportPanel({
         y += 2;
         autoTable(doc, {
           startY: y,
-          head: [
-            [
-              "Canal",
-              "Total",
-              "Réussies",
-              "Échecs",
-              "Taux %",
-              "Montant TND",
-              "Part %",
-            ],
-          ],
+          head: [["Canal", "Total", "Réussies", "Échecs", "Taux %", "Montant TND", "Part %"]],
           body: canals.map((c) => [
             c.label,
             fmtN(c.total),
@@ -829,9 +787,7 @@ export function ExportPanel({
             }
           },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Statuts table ───────────────────────────────────────────────────────
@@ -864,9 +820,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [245, 243, 255] },
           margin: { left: margin, right: margin },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Opérateurs table ────────────────────────────────────────────────────
@@ -881,9 +835,7 @@ export function ExportPanel({
         y += 2;
         autoTable(doc, {
           startY: y,
-          head: [
-            ["Compte", "Type", "Total", "Réussie", "Taux %", "Montant TND"],
-          ],
+          head: [["Compte", "Type", "Total", "Réussie", "Taux %", "Montant TND"]],
           body: operators.map((o) => [
             o.operator,
             o.accountType,
@@ -902,9 +854,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [240, 249, 255] },
           margin: { left: margin, right: margin },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Régions table ────────────────────────────────────────────────────────
@@ -937,9 +887,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [236, 254, 255] },
           margin: { left: margin, right: margin },
         });
-        y =
-          (doc as unknown as { lastAutoTable: { finalY: number } })
-            .lastAutoTable.finalY + 8;
+        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
       }
 
       // ── Horaire table ────────────────────────────────────────────────────────
@@ -954,9 +902,7 @@ export function ExportPanel({
         y += 2;
         autoTable(doc, {
           startY: y,
-          head: [
-            ["Heure", "Total", "Réussies", "Échecs", "Taux %", "Montant TND"],
-          ],
+          head: [["Heure", "Total", "Réussies", "Échecs", "Taux %", "Montant TND"]],
           body: hourly.map((h) => [
             `${String(h.hour).padStart(2, "0")}:00`,
             fmtN(h.total),
@@ -1055,9 +1001,7 @@ export function ExportPanel({
     kpiRows,
   ]); // includeAssistantDataset and insights used by exportPdf callback — intentionally in deps
 
-  const selectedKpiCount = KPI_FIELDS.filter((f) =>
-    selectedKpis.has(f.key),
-  ).length;
+  const selectedKpiCount = KPI_FIELDS.filter((f) => selectedKpis.has(f.key)).length;
   const selectedOverviewCount = selectedOverviewSections.size;
 
   return (
@@ -1069,18 +1013,14 @@ export function ExportPanel({
       >
         <Download className="w-3.5 h-3.5" />
         Exporter
-        <ChevronDown
-          className={cn("w-3 h-3 transition-transform", open && "rotate-180")}
-        />
+        <ChevronDown className={cn("w-3 h-3 transition-transform", open && "rotate-180")} />
       </button>
 
       {open && (
         <div className="absolute right-0 top-full mt-1.5 z-50 w-80 rounded-2xl border border-border bg-card shadow-xl">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
-            <span className="text-sm font-semibold text-foreground">
-              Exporter le rapport
-            </span>
+            <span className="text-sm font-semibold text-foreground">Exporter le rapport</span>
             <button
               type="button"
               onClick={() => setOpen(false)}
@@ -1094,17 +1034,14 @@ export function ExportPanel({
             {/* KPI selection summary */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-foreground">
-                  KPIs sélectionnés
-                </span>
+                <span className="text-xs font-semibold text-foreground">KPIs sélectionnés</span>
                 <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded-full">
                   {selectedKpiCount} / {KPI_FIELDS.length}
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Cochez / décochez les cartes KPI dans la vue{" "}
-                <strong>Vue d&apos;ensemble</strong> pour sélectionner les
-                métriques à exporter.
+                Cochez / décochez les cartes KPI dans la vue <strong>Vue d&apos;ensemble</strong>{" "}
+                pour sélectionner les métriques à exporter.
               </p>
             </div>
 
@@ -1118,9 +1055,8 @@ export function ExportPanel({
                 </span>
               </div>
               <p className="text-[10px] text-muted-foreground leading-relaxed">
-                Les checkboxes sur les widgets de la vue d&apos;ensemble
-                contrôlent les sections incluses dans JSON, Excel, PDF et CSV
-                Canaux.
+                Les checkboxes sur les widgets de la vue d&apos;ensemble contrôlent les sections
+                incluses dans JSON, Excel, PDF et CSV Canaux.
               </p>
             </div>
 
@@ -1197,9 +1133,7 @@ export function ExportPanel({
                       )}
                     </span>
                     <span className="flex-1 font-medium">{label}</span>
-                    {count > 0 && (
-                      <span className="text-[9px] opacity-60">{count}</span>
-                    )}
+                    {count > 0 && <span className="text-[9px] opacity-60">{count}</span>}
                   </button>
                 ))}
               </div>
@@ -1207,9 +1141,7 @@ export function ExportPanel({
 
             {/* Format buttons */}
             <div>
-              <span className="text-xs font-semibold text-foreground block mb-2">
-                Format
-              </span>
+              <span className="text-xs font-semibold text-foreground block mb-2">Format</span>
               <div className="grid grid-cols-2 gap-2">
                 <button
                   type="button"

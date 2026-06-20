@@ -6,10 +6,5 @@ import { useTelecomReportRuntime } from "@/features/telecom/components/telecom-r
 export default function PeriodPage() {
   const report = useTelecomReportRuntime();
 
-  return (
-    <PeriodStudioTab
-      table={report.dashboardTableName}
-      mapping={report.mapping}
-    />
-  );
+  return <PeriodStudioTab table={report.dashboardTableName} mapping={report.mapping} />;
 }

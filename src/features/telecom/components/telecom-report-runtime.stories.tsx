@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
 // NOTE: this module's primary exports are the data-fetching context provider
@@ -38,8 +38,6 @@ export const ShowsLabel: Story = {
   args: { label: "Chargement du rapport du 2024-06-01…" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/Chargement du rapport du 2024-06-01/i),
-    ).toBeVisible();
+    await expect(canvas.getByText(/Chargement du rapport du 2024-06-01/i)).toBeVisible();
   },
 };

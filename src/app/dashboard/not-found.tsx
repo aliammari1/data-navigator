@@ -13,8 +13,8 @@ export default function DashboardNotFound() {
         Page introuvable
       </h1>
       <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-muted-foreground">
-        Cette page n'existe pas ou a été déplacée. Utilisez le menu ou la palette de commandes
-        (Ctrl + K) pour naviguer.
+        Cette page n'existe pas ou a été déplacée. Utilisez le menu ou la palette de commandes (Ctrl
+        + K) pour naviguer.
       </p>
       <div className="mt-7">
         <Button asChild>

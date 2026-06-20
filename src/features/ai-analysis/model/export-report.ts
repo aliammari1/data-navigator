@@ -12,13 +12,7 @@
 import { getChartProxy, getExportProxy, saveBytes } from "@/platform/viz";
 import type { EChartsOption } from "@/platform/viz";
 import type { ExportKind, ReportDocument, TableSection } from "@/workers/export-types";
-import type {
-  Anomaly,
-  ColStat,
-  Correlation,
-  ForecastMeta,
-  Insight,
-} from "./types";
+import type { Anomaly, ColStat, Correlation, ForecastMeta, Insight } from "./types";
 
 export interface ReportInput {
   datasetName: string;

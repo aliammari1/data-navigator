@@ -4,9 +4,9 @@
  * plain ECharts option object. Keeping these pure means export can rasterize the
  * exact same chart the user sees without mounting a component.
  *
- * Word cloud is intentionally NOT here: it needs the full-echarts `wordCloud`
- * series (registered only in `echarts-wordcloud.ts`) and is exported via its own
- * live-canvas `getDataURL` path.
+ * Word cloud is intentionally NOT here: it is rendered with the standalone
+ * wordcloud2 library on its own 2D canvas (see scenes/WordCloudScene.tsx), not
+ * as an ECharts series.
  */
 
 import { fmtCompact, fmtN } from "@/features/telecom/lib/format";
@@ -55,8 +55,7 @@ export function buildCalendarOption(
       backgroundColor: "transparent",
       tooltip: {
         ...baseTooltip,
-        formatter: (p: { data: [string, number] }) =>
-          `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
+        formatter: (p: { data: [string, number] }) => `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
       },
       visualMap: {
         min,
@@ -148,10 +147,7 @@ export function buildSankeyOption(rows: Rows): { option: Option; total: number }
 
 // ─── Gantt / hourly heatmap ──────────────────────────────────────────────────
 
-const HOURS = Array.from(
-  { length: 24 },
-  (_, h) => `${String(h).padStart(2, "0")}:00`,
-);
+const HOURS = Array.from({ length: 24 }, (_, h) => `${String(h).padStart(2, "0")}:00`);
 
 export function buildGanttOption(rows: Rows): { option: Option; rowCount: number } {
   const categories: string[] = [];

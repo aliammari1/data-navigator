@@ -8,10 +8,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
-import {
-  listRegisteredDatasets,
-  type RegisteredDataset,
-} from "@/platform/duckdb/duckdb";
+import { listRegisteredDatasets, type RegisteredDataset } from "@/platform/duckdb/duckdb";
 
 export interface DatasetCatalogState {
   catalog: RegisteredDataset[];
@@ -23,8 +20,7 @@ export interface DatasetCatalogState {
 }
 
 export function useDatasetCatalog(refreshKey: number): DatasetCatalogState {
-  const { activeDatasetId, setActiveDataset, replaceDatasetsFromCatalog } =
-    useDataStore();
+  const { activeDatasetId, setActiveDataset, replaceDatasetsFromCatalog } = useDataStore();
 
   const [catalog, setCatalog] = useState<RegisteredDataset[]>([]);
   const [loading, setLoading] = useState(false);
@@ -55,9 +51,7 @@ export function useDatasetCatalog(refreshKey: number): DatasetCatalogState {
   }, [refreshCatalog, refreshKey]);
 
   const activeDataset =
-    catalog.find((dataset) => dataset.id === activeDatasetId) ??
-    catalog[0] ??
-    null;
+    catalog.find((dataset) => dataset.id === activeDatasetId) ?? catalog[0] ?? null;
 
   return {
     catalog,

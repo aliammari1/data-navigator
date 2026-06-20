@@ -50,10 +50,7 @@ export function AppearancePanel() {
   return (
     <>
       <Section title="Theme" icon={Moon}>
-        <SettingRow
-          label="Color scheme"
-          description="System follows your OS preference"
-        >
+        <SettingRow label="Color scheme" description="System follows your OS preference">
           <div className="flex gap-1.5" role="radiogroup" aria-label="Color scheme">
             {(["dark", "light", "system"] as const).map((t) => {
               const Icon = t === "dark" ? Moon : t === "light" ? Sun : Monitor;
@@ -82,11 +79,7 @@ export function AppearancePanel() {
       </Section>
 
       <Section title="Accent Color" icon={Palette}>
-        <div
-          className="flex gap-3 flex-wrap"
-          role="radiogroup"
-          aria-label="Accent color"
-        >
+        <div className="flex gap-3 flex-wrap" role="radiogroup" aria-label="Accent color">
           {ACCENTS.map((a) => {
             const active = accentColor === a.value;
             return (
@@ -110,9 +103,7 @@ export function AppearancePanel() {
                 >
                   {active && <Check className="w-5 h-5 text-white" />}
                 </div>
-                <span className="text-[10px] text-muted-foreground">
-                  {a.label}
-                </span>
+                <span className="text-[10px] text-muted-foreground">{a.label}</span>
               </button>
             );
           })}

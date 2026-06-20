@@ -3,10 +3,7 @@
 import { AlertOctagon, Bell, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
-import {
-  fetchAnomalies,
-  type RowAnomaly,
-} from "@/features/telecom/lib/period-queries";
+import { fetchAnomalies, type RowAnomaly } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
 
 export function AnomalyDetectorPanel({
@@ -46,12 +43,8 @@ export function AnomalyDetectorPanel({
     <div className="rounded-2xl border border-border bg-card overflow-hidden">
       <div className="px-4 py-2.5 border-b border-border flex items-center gap-2">
         <AlertOctagon className="w-3.5 h-3.5 text-red-500" />
-        <span className="text-xs font-semibold">
-          Anomalies détectées (z-score canal × heure)
-        </span>
-        <span className="text-[10px] text-muted-foreground ml-2">
-          {rows.length} cas
-        </span>
+        <span className="text-xs font-semibold">Anomalies détectées (z-score canal × heure)</span>
+        <span className="text-[10px] text-muted-foreground ml-2">{rows.length} cas</span>
         <button
           type="button"
           onClick={refresh}
@@ -75,25 +68,17 @@ export function AnomalyDetectorPanel({
             key={`${r.canal}-${r.hour}`}
             className="px-4 py-2.5 flex items-center gap-3 hover:bg-muted/30"
           >
-            <span
-              className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${sevColor(
-                r.z,
-              )}`}
-            >
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold border ${sevColor(r.z)}`}>
               z={r.z.toFixed(1)}
             </span>
             <div className="flex-1 min-w-0">
               <div className="text-xs font-semibold text-foreground truncate">
                 {r.canal} · {String(r.hour).padStart(2, "0")}h
               </div>
-              <div className="text-[10px] text-muted-foreground">
-                {r.reason}
-              </div>
+              <div className="text-[10px] text-muted-foreground">{r.reason}</div>
             </div>
             <div className="text-right text-xs tabular-nums">
-              <div className="text-foreground font-medium">
-                {fmtN(r.total)} tx
-              </div>
+              <div className="text-foreground font-medium">{fmtN(r.total)} tx</div>
               <div
                 className={
                   r.successRate >= 90

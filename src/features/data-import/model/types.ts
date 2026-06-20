@@ -112,9 +112,4 @@ export const ENCODING_LABELS: Record<ImportEncoding, string> = {
  * The ordered list of selectable encodings (auto first — the safe default that
  * defers to the main-process chardet/BOM detector).
  */
-export const ENCODING_OPTIONS: ImportEncoding[] = [
-  "auto",
-  "utf-8",
-  "latin-1",
-  "utf-16",
-];
+export const ENCODING_OPTIONS: ImportEncoding[] = ["auto", "utf-8", "latin-1", "utf-16"];

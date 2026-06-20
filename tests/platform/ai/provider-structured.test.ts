@@ -19,7 +19,7 @@ describe("extractJsonBlock", () => {
     expect(extractJsonBlock('prefix {"s":"}{"} suffix')).toBe('{"s":"}{"}');
   });
   it("extracts an array of objects as the array, not the inner object", () => {
-    expect(extractJsonBlock("[1,2,{\"x\":3}]")).toBe('[1,2,{"x":3}]');
+    expect(extractJsonBlock('[1,2,{"x":3}]')).toBe('[1,2,{"x":3}]');
   });
   it("handles nested objects", () => {
     const s = '{"nested":{"deep":{"x":1}},"y":2}';
@@ -33,7 +33,7 @@ describe("extractJsonBlock", () => {
 describe("repairJson", () => {
   it("removes trailing commas", () => {
     expect(JSON.parse(repairJson('{"a":1,}'))).toEqual({ a: 1 });
-    expect(JSON.parse(repairJson('[1,2,3,]'))).toEqual([1, 2, 3]);
+    expect(JSON.parse(repairJson("[1,2,3,]"))).toEqual([1, 2, 3]);
   });
   it("normalizes smart quotes inside fences", () => {
     expect(JSON.parse(repairJson("```\n{“a”: 1}\n```"))).toEqual({ a: 1 });

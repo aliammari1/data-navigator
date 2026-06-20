@@ -61,19 +61,13 @@ export const KPICard = memo(function KPICard({
         "rounded-2xl border flex flex-col gap-3 overflow-hidden relative",
         isHero ? "p-5" : "p-4",
         color,
-        kpiKey &&
-          selected &&
-          "ring-2 ring-primary/60",
+        kpiKey && selected && "ring-2 ring-primary/60",
       )}
     >
       {kpiKey && (
         <button
           type="button"
-          aria-label={
-            selected
-              ? "Désélectionner pour l'export"
-              : "Sélectionner pour l'export"
-          }
+          aria-label={selected ? "Désélectionner pour l'export" : "Sélectionner pour l'export"}
           onClick={onToggle}
           className={cn(
             "absolute top-2 left-2 w-4 h-4 rounded flex items-center justify-center border transition-all z-10",
@@ -98,11 +92,7 @@ export const KPICard = memo(function KPICard({
       )}
       <div className="flex items-center justify-between">
         <span
-          className={cn(
-            "font-semibold text-muted-foreground leading-tight",
-            ls,
-            kpiKey && "pl-5",
-          )}
+          className={cn("font-semibold text-muted-foreground leading-tight", ls, kpiKey && "pl-5")}
         >
           {label}
         </span>
@@ -116,28 +106,15 @@ export const KPICard = memo(function KPICard({
           {icon}
         </div>
       </div>
-      <div
-        className={cn(
-          "font-black text-foreground tabular-nums leading-none",
-          fs,
-        )}
-      >
-        {value}
-      </div>
+      <div className={cn("font-black text-foreground tabular-nums leading-none", fs)}>{value}</div>
       {(sub ?? trendValue) && (
         <div className="flex items-center justify-between gap-2 flex-wrap mt-auto">
-          {sub && (
-            <span className={cn("text-muted-foreground leading-tight", ls)}>
-              {sub}
-            </span>
-          )}
+          {sub && <span className={cn("text-muted-foreground leading-tight", ls)}>{sub}</span>}
           {trendValue && (
             <span
               className={cn(
                 "flex items-center gap-0.5 font-semibold rounded-full flex-none",
-                isHero
-                  ? "text-[11px] px-2 py-0.5"
-                  : "text-[10px] px-1.5 py-0.5",
+                isHero ? "text-[11px] px-2 py-0.5" : "text-[10px] px-1.5 py-0.5",
                 trend === "up"
                   ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300"
                   : trend === "down"

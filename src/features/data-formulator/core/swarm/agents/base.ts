@@ -50,33 +50,19 @@ export const ALLOWED_CHART_TYPES = [
   "funnel",
 ] as const satisfies readonly ChartType[];
 
-export const chartTypeEnum = z.enum(
-  ALLOWED_CHART_TYPES as unknown as [string, ...string[]],
-);
+export const chartTypeEnum = z.enum(ALLOWED_CHART_TYPES as unknown as [string, ...string[]]);
 
 export const channelEnum = z.enum(["x", "y", "color", "size"]);
-export const aggregateEnum = z.enum([
-  "none",
-  "sum",
-  "avg",
-  "count",
-  "min",
-  "max",
-  "median",
-]);
+export const aggregateEnum = z.enum(["none", "sum", "avg", "count", "min", "max", "median"]);
 
 export function coerceChartType(value: string): ChartType {
-  return (ALLOWED_CHART_TYPES as readonly string[]).includes(value)
-    ? (value as ChartType)
-    : "bar";
+  return (ALLOWED_CHART_TYPES as readonly string[]).includes(value) ? (value as ChartType) : "bar";
 }
 
 // ─── Dataset grounding ─────────────────────────────────────────────────────────
 
 export function schemaSummary(columns: ColumnInfo[]): string {
-  return columns
-    .map((c) => `- ${c.name} (${c.type}${c.derived ? ", derived" : ""})`)
-    .join("\n");
+  return columns.map((c) => `- ${c.name} (${c.type}${c.derived ? ", derived" : ""})`).join("\n");
 }
 
 /**
@@ -114,12 +100,9 @@ export async function runChartArtifact(
   ctx: SwarmContext,
   taskId: string,
   spec: ChartSpec,
-): Promise<Artifact> {
+): Promise<Extract<Artifact, { kind: "chart" }>> {
   const sql = buildSQL(spec, ctx.tableName);
-  const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<
-    string,
-    unknown
-  >[];
+  const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<string, unknown>[];
   if (!rows.length) {
     throw new Error(`Chart "${spec.title}" returned no rows.`);
   }
@@ -140,11 +123,8 @@ export async function runTableArtifact(
   taskId: string,
   title: string,
   sql: string,
-): Promise<Artifact> {
-  const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<
-    string,
-    unknown
-  >[];
+): Promise<Extract<Artifact, { kind: "table" }>> {
+  const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<string, unknown>[];
   return {
     kind: "table",
     id: genId(),

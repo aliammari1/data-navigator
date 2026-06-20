@@ -118,7 +118,8 @@ export const llamacppProvider: AIProvider = {
     // A4: hand the run-stable prefix to the main process so it can preload its KV
     // once and reuse it across the run; strip it from the user prompt to avoid
     // sending the grounding twice. Only when it really is a leading prefix.
-    const prefix = req.systemPrefix && user.startsWith(req.systemPrefix) ? req.systemPrefix : undefined;
+    const prefix =
+      req.systemPrefix && user.startsWith(req.systemPrefix) ? req.systemPrefix : undefined;
     const promptTail = prefix ? user.slice(prefix.length).replace(/^\s+/, "") : user;
 
     // Streaming is request-correlated, not a separate IPC method: subscribe to
@@ -126,7 +127,8 @@ export const llamacppProvider: AIProvider = {
     // unsubscribe once it resolves. Main fans out per-chunk tokens tagged with
     // the id. Always mint an id so `abort(requestId)` can target this request.
     const requestId =
-      globalThis.crypto?.randomUUID?.() ?? `llama-${started}-${Math.random().toString(36).slice(2)}`;
+      globalThis.crypto?.randomUUID?.() ??
+      `llama-${started}-${Math.random().toString(36).slice(2)}`;
 
     let unsubscribe: (() => void) | undefined;
     if (req.onToken) {
@@ -172,7 +174,8 @@ export const llamacppProvider: AIProvider = {
     }
 
     const { system, user } = toSystemUser(req);
-    const prefix = req.systemPrefix && user.startsWith(req.systemPrefix) ? req.systemPrefix : undefined;
+    const prefix =
+      req.systemPrefix && user.startsWith(req.systemPrefix) ? req.systemPrefix : undefined;
     const promptTail = prefix ? user.slice(prefix.length).replace(/^\s+/, "") : user;
     const out = await api.generateStructured({
       system: system || undefined,

@@ -13,12 +13,7 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ALL_TOURS, type TourDefinition } from "../data/tours";
-import {
-  getAllTourStates,
-  resetAllTours,
-  resetTour,
-  type TourState,
-} from "./onboarding-db";
+import { getAllTourStates, resetAllTours, resetTour, type TourState } from "./onboarding-db";
 import { createTourRunner, type TourRunner } from "./tour-runner";
 
 export interface UseOnboarding {
@@ -48,10 +43,7 @@ export function useOnboarding(): UseOnboarding {
   const [loading, setLoading] = useState(true);
   const mounted = useRef(true);
 
-  const runner = useMemo(
-    () => createTourRunner((href) => router.push(href)),
-    [router],
-  );
+  const runner = useMemo(() => createTourRunner((href) => router.push(href)), [router]);
 
   const refresh = useCallback(async () => {
     try {

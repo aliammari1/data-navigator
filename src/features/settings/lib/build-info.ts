@@ -61,8 +61,6 @@ export function runtimeLabel(): string {
   // Electron exposes `process.versions.electron` to the renderer preload bridge;
   // fall back to a generic web label offline. We probe defensively so this is
   // safe in SSR and the browser build alike.
-  const electron =
-    typeof navigator !== "undefined" &&
-    /electron/i.test(navigator.userAgent ?? "");
+  const electron = typeof navigator !== "undefined" && /electron/i.test(navigator.userAgent ?? "");
   return electron ? "Electron desktop (native DuckDB)" : "Web (DuckDB WASM)";
 }

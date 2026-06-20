@@ -168,9 +168,7 @@ describe("useAppContextStore", () => {
 
       // Act
       act(() => {
-        useAppContextStore
-          .getState()
-          .setContext({ activeDatasetId: null, activeTableName: null });
+        useAppContextStore.getState().setContext({ activeDatasetId: null, activeTableName: null });
       });
 
       // Assert

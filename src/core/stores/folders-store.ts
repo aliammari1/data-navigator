@@ -46,10 +46,7 @@ export const useFoldersStore = create<FoldersStore>()(
 
       addFolder: (folder) =>
         set((s) => ({
-          folders: [
-            ...s.folders,
-            { ...folder, createdAt: new Date().toISOString() },
-          ],
+          folders: [...s.folders, { ...folder, createdAt: new Date().toISOString() }],
         })),
 
       removeFolder: (id) =>
@@ -81,16 +78,12 @@ export const useFoldersStore = create<FoldersStore>()(
 
       starFolder: (id) =>
         set((s) => ({
-          folders: s.folders.map((f) =>
-            f.id === id ? { ...f, starred: !f.starred } : f,
-          ),
+          folders: s.folders.map((f) => (f.id === id ? { ...f, starred: !f.starred } : f)),
         })),
 
       moveFolder: (id, newParentId) =>
         set((s) => ({
-          folders: s.folders.map((f) =>
-            f.id === id ? { ...f, parentId: newParentId } : f,
-          ),
+          folders: s.folders.map((f) => (f.id === id ? { ...f, parentId: newParentId } : f)),
         })),
 
       moveDataset: (datasetId, folderId) =>
@@ -137,8 +130,7 @@ export const useFoldersStore = create<FoldersStore>()(
           : [];
 
         const rawMap =
-          prev.datasetFolderMap &&
-          typeof prev.datasetFolderMap === "object"
+          prev.datasetFolderMap && typeof prev.datasetFolderMap === "object"
             ? prev.datasetFolderMap
             : {};
         const datasetFolderMap: Record<string, string | null> = {};
@@ -149,9 +141,7 @@ export const useFoldersStore = create<FoldersStore>()(
         }
 
         const starredDatasets = Array.isArray(prev.starredDatasets)
-          ? prev.starredDatasets.filter(
-              (id): id is string => typeof id === "string",
-            )
+          ? prev.starredDatasets.filter((id): id is string => typeof id === "string")
           : [];
 
         return { folders, datasetFolderMap, starredDatasets };

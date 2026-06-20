@@ -18,31 +18,14 @@ import {
 import { cn } from "@/shared/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  getLANJoinUrl,
-  getLANStatus,
-  readLANSettings,
-} from "@/platform/lan/lan-collab";
-import type {
-  ApprovalHistoryEntry,
-  ApprovalStatus,
-} from "@/platform/collab";
+import { getLANJoinUrl, getLANStatus, readLANSettings } from "@/platform/lan/lan-collab";
+import type { ApprovalHistoryEntry, ApprovalStatus } from "@/platform/collab";
 import { useCollabHubStore } from "../store/collab-hub-store";
-import {
-  currentUserName,
-  recordAudit,
-  useApprovalCRDT,
-} from "../collab/collab-hub-crdt";
+import { currentUserName, recordAudit, useApprovalCRDT } from "../collab/collab-hub-crdt";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
-const TEAM_MEMBERS = [
-  "Alice Martin",
-  "Bob Chen",
-  "Cécile Dupont",
-  "David Osei",
-  "Elena Kovač",
-];
+const TEAM_MEMBERS = ["Alice Martin", "Bob Chen", "Cécile Dupont", "David Osei", "Elena Kovač"];
 
 const STATUS_CONFIG: Record<
   ApprovalStatus,
@@ -120,26 +103,20 @@ function ProgressSteps({ status }: { status: ApprovalStatus }) {
                 className={cn(
                   "flex size-7 items-center justify-center rounded-full text-xs font-semibold transition-all",
                   done && "bg-emerald-500 text-white",
-                  active &&
-                    status === "REJECTED" &&
-                    "bg-destructive text-white",
-                  active &&
-                    status !== "REJECTED" &&
-                    "bg-primary text-primary-foreground",
-                  !done && !active && "bg-muted text-muted-foreground"
+                  active && status === "REJECTED" && "bg-destructive text-white",
+                  active && status !== "REJECTED" && "bg-primary text-primary-foreground",
+                  !done && !active && "bg-muted text-muted-foreground",
                 )}
               >
                 {done ? <CheckCircle2 className="size-3.5" /> : step}
               </div>
-              <span className="mt-1 text-[10px] text-muted-foreground">
-                {label}
-              </span>
+              <span className="mt-1 text-[10px] text-muted-foreground">{label}</span>
             </div>
             {i < steps.length - 1 && (
               <div
                 className={cn(
                   "mx-1 mb-4 h-0.5 w-10 rounded-full transition-all",
-                  step < currentStep ? "bg-emerald-500" : "bg-muted"
+                  step < currentStep ? "bg-emerald-500" : "bg-muted",
                 )}
               />
             )}
@@ -156,9 +133,7 @@ function HistoryTimeline({ entries }: { entries: ApprovalHistoryEntry[] }) {
   if (entries.length === 0) return null;
   return (
     <div className="space-y-2">
-      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-        History
-      </p>
+      <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">History</p>
       <div className="space-y-1.5">
         {[...entries].reverse().map((entry, idx) => {
           const config = STATUS_CONFIG[entry.status];
@@ -174,29 +149,23 @@ function HistoryTimeline({ entries }: { entries: ApprovalHistoryEntry[] }) {
                 <div
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-full text-[10px]",
-                    config.color
+                    config.color,
                   )}
                 >
                   {config.icon}
                 </div>
-                {idx < entries.length - 1 && (
-                  <div className="w-px flex-1 bg-border" />
-                )}
+                {idx < entries.length - 1 && <div className="w-px flex-1 bg-border" />}
               </div>
               <div className="pb-2">
                 <div className="flex items-baseline gap-1.5">
                   <span className="text-xs font-medium">{config.label}</span>
-                  <span className="text-[10px] text-muted-foreground">
-                    by {entry.by}
-                  </span>
+                  <span className="text-[10px] text-muted-foreground">by {entry.by}</span>
                   <span className="text-[10px] text-muted-foreground">
                     · {relativeTime(entry.at)}
                   </span>
                 </div>
                 {entry.comment && (
-                  <p className="mt-0.5 text-xs text-muted-foreground italic">
-                    "{entry.comment}"
-                  </p>
+                  <p className="mt-0.5 text-xs text-muted-foreground italic">"{entry.comment}"</p>
                 )}
               </div>
             </motion.div>
@@ -216,12 +185,7 @@ export function ApprovalWorkflow() {
   // one machine appears on every connected peer (the workflow used to be a
   // single-player zustand silo). `transition` is last-writer-wins on `status`
   // with an append-only `history` that merges conflict-free.
-  const {
-    record,
-    transition: transitionApproval,
-    setSharedUrl,
-    reset,
-  } = useApprovalCRDT();
+  const { record, transition: transitionApproval, setSharedUrl, reset } = useApprovalCRDT();
 
   const [reviewer, setReviewer] = useState(TEAM_MEMBERS[0]);
   const [comment, setComment] = useState("");
@@ -230,16 +194,8 @@ export function ApprovalWorkflow() {
   const { status, history, reviewerName } = record;
   const config = STATUS_CONFIG[status];
 
-  function transition(
-    newStatus: ApprovalStatus,
-    _by: string,
-    commentText: string,
-  ) {
-    transitionApproval(
-      newStatus,
-      commentText,
-      newStatus === "REVIEW" ? reviewer : undefined,
-    );
+  function transition(newStatus: ApprovalStatus, _by: string, commentText: string) {
+    transitionApproval(newStatus, commentText, newStatus === "REVIEW" ? reviewer : undefined);
     setComment("");
   }
 
@@ -257,8 +213,7 @@ export function ApprovalWorkflow() {
     transition("REJECTED", username, comment);
   };
 
-  const lanConnected =
-    typeof window !== "undefined" && getLANStatus() === "connected";
+  const lanConnected = typeof window !== "undefined" && getLANStatus() === "connected";
 
   const handleShare = () => {
     if (typeof window === "undefined") return;
@@ -307,17 +262,16 @@ export function ApprovalWorkflow() {
           "flex items-center gap-3 rounded-lg border p-3",
           status === "APPROVED" &&
             "border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30",
-          status === "REJECTED" &&
-            "border-destructive/20 bg-destructive/5",
+          status === "REJECTED" && "border-destructive/20 bg-destructive/5",
           status === "REVIEW" &&
             "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30",
-          status === "DRAFT" && "border-border bg-muted/30"
+          status === "DRAFT" && "border-border bg-muted/30",
         )}
       >
         <span
           className={cn(
             "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs font-semibold",
-            config.color
+            config.color,
           )}
         >
           {config.icon}
@@ -327,11 +281,11 @@ export function ApprovalWorkflow() {
           {status === "DRAFT" && "Report is in draft — submit for review when ready"}
           {status === "REVIEW" && (
             <>
-              Pending review by{" "}
-              <span className="font-medium text-foreground">{reviewerName}</span>
+              Pending review by <span className="font-medium text-foreground">{reviewerName}</span>
             </>
           )}
-          {status === "APPROVED" && `Approved by ${history.at(-1)?.by ?? "—"} at ${formatTime(history.at(-1)?.at ?? 0)}`}
+          {status === "APPROVED" &&
+            `Approved by ${history.at(-1)?.by ?? "—"} at ${formatTime(history.at(-1)?.at ?? 0)}`}
           {status === "REJECTED" && `Rejected by ${history.at(-1)?.by ?? "—"}`}
         </div>
         <ProgressSteps status={status} />
@@ -348,9 +302,7 @@ export function ApprovalWorkflow() {
             className="space-y-3"
           >
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">
-                Reviewer
-              </label>
+              <label className="text-xs font-medium text-muted-foreground">Reviewer</label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
                 <select
@@ -450,8 +402,7 @@ export function ApprovalWorkflow() {
                 Report Approved
               </p>
               <p className="text-xs text-muted-foreground">
-                by {history.at(-1)?.by ?? "—"} ·{" "}
-                {formatTime(history.at(-1)?.at ?? 0)}
+                by {history.at(-1)?.by ?? "—"} · {formatTime(history.at(-1)?.at ?? 0)}
               </p>
             </div>
             <div className="flex gap-2">
@@ -469,24 +420,15 @@ export function ApprovalWorkflow() {
                 {copied
                   ? "Link copied!"
                   : lanConnected
-                  ? "Share via LAN"
-                  : "Share (no LAN session)"}
+                    ? "Share via LAN"
+                    : "Share (no LAN session)"}
               </Button>
-              <Button
-                variant="outline"
-                className="flex-1 gap-1.5"
-                onClick={handleDownload}
-              >
+              <Button variant="outline" className="flex-1 gap-1.5" onClick={handleDownload}>
                 <Download className="size-4" />
                 Download
               </Button>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="w-full text-xs"
-              onClick={() => reset()}
-            >
+            <Button variant="ghost" size="sm" className="w-full text-xs" onClick={() => reset()}>
               Reset to Draft
             </Button>
           </motion.div>
@@ -503,9 +445,7 @@ export function ApprovalWorkflow() {
           >
             <div className="flex flex-col items-center gap-2 rounded-xl bg-destructive/5 py-5">
               <XCircle className="size-10 text-destructive" />
-              <p className="text-sm font-semibold text-destructive">
-                Report Rejected
-              </p>
+              <p className="text-sm font-semibold text-destructive">Report Rejected</p>
               {history.at(-1)?.comment && (
                 <p className="mx-4 text-center text-xs text-muted-foreground italic">
                   "{history.at(-1)?.comment}"

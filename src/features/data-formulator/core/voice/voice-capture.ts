@@ -93,9 +93,7 @@ function formatMicrophoneError(error: unknown): string {
 }
 
 function getCaptureDurationMs(): number {
-  return captureStartTime > 0
-    ? Math.round(performance.now() - captureStartTime)
-    : 0;
+  return captureStartTime > 0 ? Math.round(performance.now() - captureStartTime) : 0;
 }
 
 function emitState(
@@ -224,10 +222,7 @@ function emitRealtimeFrames(
   sampleRate: number,
   onAudioChunk: (chunk: Float32Array, sampleRate: number) => void,
 ): void {
-  const frameSize = Math.max(
-    1,
-    Math.round((sampleRate * FRAME_DURATION_MS) / 1000),
-  );
+  const frameSize = Math.max(1, Math.round((sampleRate * FRAME_DURATION_MS) / 1000));
 
   const buffer = concatFloat32(frameCarry, chunk);
   let offset = 0;
@@ -238,8 +233,7 @@ function emitRealtimeFrames(
     offset += frameSize;
   }
 
-  frameCarry =
-    offset < buffer.length ? buffer.slice(offset) : new Float32Array(0);
+  frameCarry = offset < buffer.length ? buffer.slice(offset) : new Float32Array(0);
 }
 
 export async function startVoiceCapture(
@@ -291,9 +285,7 @@ export async function startVoiceCapture(
     });
 
     if (tracks.length === 0) {
-      throw new Error(
-        "Microphone permission was granted, but no audio track was returned.",
-      );
+      throw new Error("Microphone permission was granted, but no audio track was returned.");
     }
 
     audioContext = new AudioContext({
@@ -307,11 +299,7 @@ export async function startVoiceCapture(
     captureSampleRate = audioContext.sampleRate;
 
     sourceNode = audioContext.createMediaStreamSource(micStream);
-    scriptNode = audioContext.createScriptProcessor(
-      SCRIPT_PROCESSOR_BUFFER_SIZE,
-      1,
-      1,
-    );
+    scriptNode = audioContext.createScriptProcessor(SCRIPT_PROCESSOR_BUFFER_SIZE, 1, 1);
 
     analyserNode = audioContext.createAnalyser();
     analyserNode.fftSize = 256;

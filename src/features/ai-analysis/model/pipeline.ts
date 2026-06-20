@@ -34,13 +34,7 @@ import {
   buildTopValuesSQL,
 } from "./sql";
 import { correlationStrength, linearRegression } from "./stats";
-import type {
-  Anomaly,
-  ClusterGroup,
-  ColStat,
-  Correlation,
-  ForecastPoint,
-} from "./types";
+import type { Anomaly, ClusterGroup, ColStat, Correlation, ForecastPoint } from "./types";
 
 // ─── Seeded analysis kernels (injected from the platform analysis worker) ─────
 //
@@ -124,10 +118,7 @@ function maybeNum(v: unknown): number | undefined {
 
 // ─── Column statistics (single-pass pushdown) ────────────────────────────────
 
-async function computeColumnStats(
-  input: AnalysisInput,
-  query: QueryFn,
-): Promise<ColStat[]> {
+async function computeColumnStats(input: AnalysisInput, query: QueryFn): Promise<ColStat[]> {
   const out: ColStat[] = [];
 
   if (input.numericCols.length > 0) {
@@ -147,9 +138,7 @@ async function computeColumnStats(
       let histogram: number[] | undefined;
       if (min !== undefined && max !== undefined && max > min) {
         const bins = input.histogramBins;
-        const histRows = await query(
-          buildHistogramSQL(input.tableName, col, min, max, bins),
-        );
+        const histRows = await query(buildHistogramSQL(input.tableName, col, min, max, bins));
         const dense = new Array<number>(bins).fill(0);
         for (const hr of histRows) {
           const bin = num(hr.bin); // 1..bins
@@ -379,10 +368,7 @@ async function detectAnomalies(
 
 // ─── Correlations (single native corr() query) ───────────────────────────────
 
-async function computeCorrelations(
-  input: AnalysisInput,
-  query: QueryFn,
-): Promise<Correlation[]> {
+async function computeCorrelations(input: AnalysisInput, query: QueryFn): Promise<Correlation[]> {
   if (input.numericCols.length < 2) return [];
   const sql = buildCorrelationSQL(input.tableName, input.numericCols);
   if (!sql) return [];
@@ -438,9 +424,7 @@ async function fitSeries(
   let method = "";
 
   if (period >= 2) {
-    const hw = await kernels
-      .holtWinters(ys, { period, horizon: HORIZON })
-      .catch(() => null);
+    const hw = await kernels.holtWinters(ys, { period, horizon: HORIZON }).catch(() => null);
     if (hw && hw.fitted.length === ys.length) {
       fitted = hw.fitted;
       forecast = hw.forecast;
@@ -460,7 +444,10 @@ async function fitSeries(
     const xs = ys.map((_, i) => i);
     const reg = linearRegression(xs, ys);
     fitted = ys.map((_, i) => reg.slope * i + reg.intercept);
-    forecast = Array.from({ length: HORIZON }, (_, k) => reg.slope * (ys.length + k) + reg.intercept);
+    forecast = Array.from(
+      { length: HORIZON },
+      (_, k) => reg.slope * (ys.length + k) + reg.intercept,
+    );
     method = "OLS (linear extrapolation)";
   }
 
@@ -546,8 +533,7 @@ async function computeForecast(
 function residualStdDev(residuals: number[]): number {
   if (residuals.length < 2) return 0;
   const m = residuals.reduce((a, b) => a + b, 0) / residuals.length;
-  const variance =
-    residuals.reduce((a, b) => a + (b - m) ** 2, 0) / (residuals.length - 1);
+  const variance = residuals.reduce((a, b) => a + (b - m) ** 2, 0) / (residuals.length - 1);
   return Math.sqrt(Math.max(0, variance));
 }
 
@@ -592,9 +578,7 @@ async function computeClusters(
   }
 
   // Rank clusters by sample size (largest first) for stable display order.
-  const order = result.centroids
-    .map((_, i) => i)
-    .sort((a, b) => sizes[b] - sizes[a]);
+  const order = result.centroids.map((_, i) => i).sort((a, b) => sizes[b] - sizes[a]);
 
   return order.map((clusterIdx, displayIdx) => {
     // De-standardise the centroid back into original feature units for display.
@@ -639,11 +623,7 @@ export async function runAnalysisPipeline(
   const correlations = await computeCorrelations(input, query);
 
   onStage({ progress: 74, stage: "Forecast (Holt-Winters)" });
-  const { points: forecasts, meta: forecastMeta } = await computeForecast(
-    input,
-    query,
-    kernels,
-  );
+  const { points: forecasts, meta: forecastMeta } = await computeForecast(input, query, kernels);
 
   onStage({ progress: 90, stage: "Pattern discovery (seeded k-means)" });
   const clusters = await computeClusters(input, numericStats, query, kernels);

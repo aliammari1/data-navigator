@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
 
 import { SuccessGauge } from "./success-gauge";
@@ -28,9 +28,7 @@ export const Healthy: Story = {
   args: { rate: 96.2 },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByRole("img", { name: /success rate 96\.2%/i }),
-    ).toBeInTheDocument();
+    await expect(canvas.getByRole("img", { name: /success rate 96\.2%/i })).toBeInTheDocument();
   },
 };
 

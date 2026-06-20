@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { CanalHourCell, ColumnMapping } from "@/features/telecom/types";
 import { CanalHeatmap } from "./canal-heatmap";
@@ -26,12 +26,7 @@ const mapping: ColumnMapping = {
   retryCount: "retry_count",
 };
 
-const canalLabels = [
-  "Bill Payment",
-  "Mobile by TTCASH",
-  "Internet Sabba",
-  "Credit Transfer",
-];
+const canalLabels = ["Bill Payment", "Mobile by TTCASH", "Internet Sabba", "Credit Transfer"];
 
 const matrix: CanalHourCell[] = canalLabels.flatMap((canal) =>
   Array.from({ length: 24 }, (_, hour) => {
@@ -65,8 +60,7 @@ export const Default: Story = {};
 
 export const SingleCanal: Story = {
   args: {
-    fetchCanalHourlyMatrix: async () =>
-      matrix.filter((c) => c.canal === "Bill Payment"),
+    fetchCanalHourlyMatrix: async () => matrix.filter((c) => c.canal === "Bill Payment"),
   },
 };
 

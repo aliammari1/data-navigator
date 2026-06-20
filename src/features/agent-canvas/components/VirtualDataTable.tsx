@@ -93,10 +93,7 @@ export function VirtualDataTable({
           return (
             <div
               key={vr.key}
-              className={cn(
-                "absolute left-0",
-                vr.index % 2 === 0 ? "" : "bg-slate-800/20",
-              )}
+              className={cn("absolute left-0", vr.index % 2 === 0 ? "" : "bg-slate-800/20")}
               style={{
                 top: vr.start,
                 width: totalWidth,

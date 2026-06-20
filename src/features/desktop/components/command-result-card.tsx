@@ -15,7 +15,7 @@
  */
 
 import type { CommandKind, CommandResult } from "@/features/desktop/core/commands";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /** Default icon hue per command family, used when `result.hue` is absent. */
 const KIND_HUE: Record<CommandKind, number> = {

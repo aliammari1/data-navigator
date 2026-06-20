@@ -42,10 +42,7 @@ export function SlaComplianceTab() {
   const meetingCount = slaRows.filter((r) => r.met).length;
 
   const dayLabels = useMemo(
-    () =>
-      Array.from({ length: 30 }, (_, i) =>
-        formatDate(Date.now() - (29 - i) * 86_400_000),
-      ),
+    () => Array.from({ length: 30 }, (_, i) => formatDate(Date.now() - (29 - i) * 86_400_000)),
     [],
   );
 

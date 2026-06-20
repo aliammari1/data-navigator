@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { WidgetSpec, WidgetState } from "@/features/agent-canvas/core/types";
 import { WidgetRenderer } from "./WidgetRenderer";
 

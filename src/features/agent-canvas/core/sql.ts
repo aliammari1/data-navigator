@@ -82,9 +82,7 @@ function heuristicSQL(spec: WidgetSpec, schema: DataSchema): string {
     case "bar":
     case "horizontal-bar": {
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 20`;
-      const agg = met
-        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
-        : `COUNT(*) AS count`;
+      const agg = met ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value` : `COUNT(*) AS count`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category, ${agg}
 FROM ${tbl}
 WHERE ${qc(dim)} IS NOT NULL
@@ -93,11 +91,8 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 20`;
 
     case "stacked-bar":
     case "stacked-horizontal-bar": {
-      if (!dim || !dim2)
-        return heuristicSQL({ ...spec, chartType: "bar" }, schema);
-      const agg = met
-        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
-        : `COUNT(*) AS value`;
+      if (!dim || !dim2) return heuristicSQL({ ...spec, chartType: "bar" }, schema);
+      const agg = met ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value` : `COUNT(*) AS value`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category,
   CAST(${qc(dim2)} AS VARCHAR) AS series, ${agg}
 FROM ${tbl}
@@ -110,9 +105,7 @@ GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 120`;
     case "multi-line": {
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 30`;
       const isTime = schema.timeDims.includes(dim);
-      const agg = met
-        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
-        : `COUNT(*) AS value`;
+      const agg = met ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value` : `COUNT(*) AS value`;
       const cast = isTime
         ? `DATE_TRUNC('day', TRY_CAST(${qc(dim)} AS TIMESTAMP)) AS period`
         : `CAST(${qc(dim)} AS VARCHAR) AS period`;
@@ -127,9 +120,7 @@ GROUP BY 1 ORDER BY 1 LIMIT 60`;
     case "treemap":
     case "funnel": {
       if (!dim) return `SELECT * FROM ${tbl} LIMIT 10`;
-      const agg = met
-        ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value`
-        : `COUNT(*) AS value`;
+      const agg = met ? `ROUND(${safeAgg(met, "SUM", schema)},2) AS value` : `COUNT(*) AS value`;
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS name, ${agg}
 FROM ${tbl}
 WHERE ${qc(dim)} IS NOT NULL
@@ -146,14 +137,8 @@ GROUP BY 1 ORDER BY 2 DESC LIMIT 12`;
       const y = spec.metrics[1] ?? schema.metrics[1] ?? x;
       const label = dim ?? schema.dimensions[0] ?? "";
       const labelSql = label ? `, CAST(${qc(label)} AS VARCHAR) AS label` : "";
-      const xExpr =
-        x && isNumericColumn(x, schema)
-          ? qc(x)
-          : `TRY_CAST(${qc(x)} AS DOUBLE)`;
-      const yExpr =
-        y && isNumericColumn(y, schema)
-          ? qc(y)
-          : `TRY_CAST(${qc(y)} AS DOUBLE)`;
+      const xExpr = x && isNumericColumn(x, schema) ? qc(x) : `TRY_CAST(${qc(x)} AS DOUBLE)`;
+      const yExpr = y && isNumericColumn(y, schema) ? qc(y) : `TRY_CAST(${qc(y)} AS DOUBLE)`;
       return `SELECT ROUND(${xExpr},3) AS x,
   ROUND(${yExpr},3) AS y${labelSql}
 FROM ${tbl}
@@ -174,8 +159,7 @@ GROUP BY 1, 2 ORDER BY 3 DESC LIMIT 200`;
     case "radar": {
       if (!dim || mets.length < 2) return `SELECT * FROM ${tbl} LIMIT 10`;
       const aggParts = mets.map(
-        (m) =>
-          `ROUND(${safeAgg(m, "AVG", schema)},2) AS ${m.toLowerCase().replace(/\W+/g, "_")}`,
+        (m) => `ROUND(${safeAgg(m, "AVG", schema)},2) AS ${m.toLowerCase().replace(/\W+/g, "_")}`,
       );
       return `SELECT CAST(${qc(dim)} AS VARCHAR) AS category,
   ${aggParts.join(",\n  ")}
@@ -209,9 +193,7 @@ FROM ${tbl}`;
  * rows scanned, fully offline). Catches hallucinated columns / bad syntax that
  * the "starts with SELECT/WITH" regex check misses, before the real query runs.
  */
-async function explainOk(
-  sql: string,
-): Promise<{ ok: true } | { ok: false; error: string }> {
+async function explainOk(sql: string): Promise<{ ok: true } | { ok: false; error: string }> {
   const trimmed = sql.trim().replace(/;\s*$/, "");
   try {
     await runReadOnlyQuery(`EXPLAIN ${trimmed}`);
@@ -336,12 +318,7 @@ export async function generateSQL(
       }
     }
 
-    const fallback = postProcessSQL(
-      heuristicSQL(spec, schema),
-      spec,
-      schema,
-      defaultLimit,
-    );
+    const fallback = postProcessSQL(heuristicSQL(spec, schema), spec, schema, defaultLimit);
     emit(`Using validated heuristic SQL for "${spec.title}"`);
     return fallback;
   }

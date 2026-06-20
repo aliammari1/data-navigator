@@ -88,9 +88,7 @@ function heuristicPlan(schema: DataSchema): DashboardPlan {
       id: "bar-top-dim",
       title: `${metric} by ${dim}`,
       chartType:
-        dimensions[0].toLowerCase().includes("region") || rowCount < 20
-          ? "horizontal-bar"
-          : "bar",
+        dimensions[0].toLowerCase().includes("region") || rowCount < 20 ? "horizontal-bar" : "bar",
       sqlIntent: `Group by ${dim}, sum ${metric}, order desc, limit 15`,
       dimensions: [dim],
       metrics: [metric],
@@ -120,11 +118,8 @@ function heuristicPlan(schema: DataSchema): DashboardPlan {
       id: "status-breakdown",
       title: "Transaction Status Breakdown",
       chartType: "donut",
-      sqlIntent:
-        "Group by TRANSACTION_STATUS or status column, count records, show top 8 statuses",
-      dimensions: dimensions
-        .filter((d) => d.toLowerCase().includes("status"))
-        .slice(0, 1),
+      sqlIntent: "Group by TRANSACTION_STATUS or status column, count records, show top 8 statuses",
+      dimensions: dimensions.filter((d) => d.toLowerCase().includes("status")).slice(0, 1),
       metrics: [],
       position: gridPos(idx++, 10, "donut"),
     });
@@ -244,12 +239,9 @@ export async function buildPlan(
   try {
     // Grammar-constrained structured output: the result is schema-valid by
     // construction — no markdown stripping, no parseJSON candidate juggling.
-    const parsed = await aiStructured(
-      SYSTEM_PROMPT,
-      buildUserPrompt(schema),
-      DashboardPlanSchema,
-      { maxTokens: 1800 },
-    );
+    const parsed = await aiStructured(SYSTEM_PROMPT, buildUserPrompt(schema), DashboardPlanSchema, {
+      maxTokens: 1800,
+    });
 
     // Assign deterministic grid positions (kept out of the grammar on purpose).
     const widgets: WidgetSpec[] = parsed.widgets.map((w, i) => ({

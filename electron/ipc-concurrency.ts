@@ -89,9 +89,7 @@ export function createConcurrencyLimiter(options: ConcurrencyLimiterOptions): Co
   const label = options.label;
   const maxConcurrent = Math.max(1, Math.floor(options.maxConcurrent));
   const maxQueue =
-    options.maxQueue === undefined
-      ? maxConcurrent * 4
-      : Math.max(0, Math.floor(options.maxQueue));
+    options.maxQueue === undefined ? maxConcurrent * 4 : Math.max(0, Math.floor(options.maxQueue));
 
   let active = 0;
   const queue: QueueEntry[] = [];

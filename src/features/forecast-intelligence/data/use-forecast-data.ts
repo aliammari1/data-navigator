@@ -26,12 +26,7 @@ import {
   type RawCanalRow,
 } from "@/features/telecom/lib/queries";
 import { useTelecomStore } from "@/features/telecom/store";
-import type {
-  ColumnMapping,
-  DailyTrendRow,
-  HourlyRow,
-  KPISummary,
-} from "@/features/telecom/types";
+import type { ColumnMapping, DailyTrendRow, HourlyRow, KPISummary } from "@/features/telecom/types";
 import type { SeriesPoint } from "../core/forecast-engine";
 
 export interface ForecastData {
@@ -110,11 +105,7 @@ export function useForecastData() {
         fetchHourly(tableName, m),
         fetchKPI(tableName, m),
       ]);
-      const channels = await fetchRawCanalSummaries(
-        tableName,
-        m,
-        kpi?.totalTransactions ?? 0,
-      );
+      const channels = await fetchRawCanalSummaries(tableName, m, kpi?.totalTransactions ?? 0);
       return {
         daily,
         hourly,
@@ -142,13 +133,6 @@ export function useForecastData() {
       error: query.error,
       noDataset: !tableName,
     }),
-    [
-      data,
-      tableName,
-      hasData,
-      query.isLoading,
-      query.isError,
-      query.error,
-    ],
+    [data, tableName, hasData, query.isLoading, query.isError, query.error],
   );
 }

@@ -8,10 +8,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: vi.fn(),
 }));
 
-import {
-  assertReadOnlySql,
-  sanitizeSql,
-} from "@/features/data-formulator/core/swarm/agents/base";
+import { assertReadOnlySql, sanitizeSql } from "@/features/data-formulator/core/swarm/agents/base";
 
 /**
  * Property-based fuzzing of the read-only SQL guardrail.
@@ -52,14 +49,12 @@ const FORBIDDEN_KEYWORDS = [
 
 /** Arbitrary mix of upper/lower casing of a fixed word (DROP, dRoP, ...). */
 function casedWord(word: string): fc.Arbitrary<string> {
-  return fc
-    .array(fc.boolean(), { minLength: word.length, maxLength: word.length })
-    .map((flags) =>
-      word
-        .split("")
-        .map((ch, i) => (flags[i] ? ch.toUpperCase() : ch.toLowerCase()))
-        .join(""),
-    );
+  return fc.array(fc.boolean(), { minLength: word.length, maxLength: word.length }).map((flags) =>
+    word
+      .split("")
+      .map((ch, i) => (flags[i] ? ch.toUpperCase() : ch.toLowerCase()))
+      .join(""),
+  );
 }
 
 /** A bare, SQL-safe identifier (column/table/alias). */
@@ -73,11 +68,7 @@ const wsArb = fc
   .map((parts) => parts.join(""));
 
 describe("assertReadOnlySql — safety properties (fuzzed)", () => {
-  test.prop([
-    fc.constantFrom(...FORBIDDEN_KEYWORDS),
-    identArb,
-    identArb,
-  ])(
+  test.prop([fc.constantFrom(...FORBIDDEN_KEYWORDS), identArb, identArb])(
     "NEVER accepts a statement that begins with a write keyword (any case)",
     (keyword, table, col) => {
       // Build a syntactically plausible mutating statement for each keyword so

@@ -2,13 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -35,24 +29,22 @@ import {
   AnalyticsError,
 } from "@/features/deep-analytics/components/AnalyticsStates";
 import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
-import {
-  buildClusterSampleSql,
-  buildPeriodMetricsSql,
-} from "@/features/deep-analytics/lib/sql";
-import {
-  pickColumn,
-  fmtBucket,
-  fmtRevenue,
-  fmtInt,
-} from "@/features/deep-analytics/lib/format";
+import { buildClusterSampleSql, buildPeriodMetricsSql } from "@/features/deep-analytics/lib/sql";
+import { pickColumn, fmtBucket, fmtRevenue, fmtInt } from "@/features/deep-analytics/lib/format";
 import { welchTTest, significanceFromP } from "@/features/deep-analytics/lib/stats";
 import { getMLClient } from "@/features/deep-analytics/lib/ml-client";
 import { loadRun, saveRun } from "@/features/deep-analytics/lib/runs-store";
 import type { KMeansResult } from "@/features/deep-analytics/workers/analytics.worker";
 
 const CLUSTER_COLORS = [
-  "#3b82f6", "#10b981", "#f59e0b", "#ef4444",
-  "#8b5cf6", "#06b6d4", "#ec4899", "#84cc16",
+  "#3b82f6",
+  "#10b981",
+  "#f59e0b",
+  "#ef4444",
+  "#8b5cf6",
+  "#06b6d4",
+  "#ec4899",
+  "#84cc16",
 ];
 
 function num(v: unknown): number {
@@ -102,7 +94,8 @@ function ClusterAnalysis() {
     return preferred && preferred !== xCol ? preferred : distinct;
   }, [source.numericColumns, xCol]);
   const labelCol = useMemo(
-    () => pickColumn(source.categoricalColumns, [/channel|canal|operator|category|segment|product/i]),
+    () =>
+      pickColumn(source.categoricalColumns, [/channel|canal|operator|category|segment|product/i]),
     [source.categoricalColumns],
   );
   const statusCol = useMemo(
@@ -272,10 +265,14 @@ function ClusterAnalysis() {
 
   const hasSuccess = clusters.some((c) => c.successRate != null);
   const worst = hasSuccess
-    ? clusters.filter((c) => c.successRate != null).reduce((w, c) => ((c.successRate ?? 100) < (w.successRate ?? 100) ? c : w))
+    ? clusters
+        .filter((c) => c.successRate != null)
+        .reduce((w, c) => ((c.successRate ?? 100) < (w.successRate ?? 100) ? c : w))
     : undefined;
   const best = hasSuccess
-    ? clusters.filter((c) => c.successRate != null).reduce((b, c) => ((c.successRate ?? 0) > (b.successRate ?? 0) ? c : b))
+    ? clusters
+        .filter((c) => c.successRate != null)
+        .reduce((b, c) => ((c.successRate ?? 0) > (b.successRate ?? 0) ? c : b))
     : undefined;
 
   if (!source.enabled) return <NoDatasetState />;
@@ -284,8 +281,8 @@ function ClusterAnalysis() {
       <MissingColumnsState
         detail={
           <>
-            Clustering needs at least two numeric columns. Dataset “{source.datasetName}”
-            has {source.numericColumns.length} numeric column
+            Clustering needs at least two numeric columns. Dataset “{source.datasetName}” has{" "}
+            {source.numericColumns.length} numeric column
             {source.numericColumns.length === 1 ? "" : "s"}.
           </>
         }
@@ -306,7 +303,8 @@ function ClusterAnalysis() {
                 Transaction Cluster Analysis
               </CardTitle>
               <CardDescription>
-                Seeded k-means (off-thread) on {xCol} × {yCol} — {fmtInt(points.length)} sampled rows
+                Seeded k-means (off-thread) on {xCol} × {yCol} — {fmtInt(points.length)} sampled
+                rows
               </CardDescription>
             </div>
             <Button
@@ -315,9 +313,15 @@ function ClusterAnalysis() {
               className="bg-purple-700 hover:bg-purple-600 text-white"
             >
               {running ? (
-                <><RefreshCw className="size-4 animate-spin" />Clustering…</>
+                <>
+                  <RefreshCw className="size-4 animate-spin" />
+                  Clustering…
+                </>
               ) : (
-                <><Network className="size-4" />Run k-Means</>
+                <>
+                  <Network className="size-4" />
+                  Run k-Means
+                </>
               )}
             </Button>
           </div>
@@ -340,8 +344,8 @@ function ClusterAnalysis() {
             <CardHeader>
               <CardTitle className="text-slate-100">Cluster Scatter Plot</CardTitle>
               <CardDescription>
-                {fmtInt(points.length)} points · converged in {result.iterations} iterations · total withinss{" "}
-                {result.totalWithinss.toExponential(2)}
+                {fmtInt(points.length)} points · converged in {result.iterations} iterations · total
+                withinss {result.totalWithinss.toExponential(2)}
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -387,8 +391,13 @@ function ClusterAnalysis() {
               <Card key={ci} className="border-slate-700 bg-slate-900">
                 <CardContent className="pt-4 space-y-3">
                   <div className="flex items-center gap-2">
-                    <span className="size-3 rounded-full flex-shrink-0" style={{ backgroundColor: CLUSTER_COLORS[ci % CLUSTER_COLORS.length] }} />
-                    <span className="font-semibold text-slate-200 text-xs leading-tight">{c.label}</span>
+                    <span
+                      className="size-3 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: CLUSTER_COLORS[ci % CLUSTER_COLORS.length] }}
+                    />
+                    <span className="font-semibold text-slate-200 text-xs leading-tight">
+                      {c.label}
+                    </span>
                   </div>
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between text-slate-400">
@@ -412,7 +421,16 @@ function ClusterAnalysis() {
                     {c.successRate != null && (
                       <div className="flex justify-between text-slate-400">
                         <span>Success Rate</span>
-                        <span className={cn("font-mono font-medium", c.successRate >= 88 ? "text-emerald-400" : c.successRate >= 75 ? "text-yellow-400" : "text-red-400")}>
+                        <span
+                          className={cn(
+                            "font-mono font-medium",
+                            c.successRate >= 88
+                              ? "text-emerald-400"
+                              : c.successRate >= 75
+                                ? "text-yellow-400"
+                                : "text-red-400",
+                          )}
+                        >
                           {c.successRate.toFixed(1)}%
                         </span>
                       </div>
@@ -448,11 +466,16 @@ const PERIOD_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444"];
 
 function getMetricValue(p: PeriodRow, m: MetricKey): number {
   switch (m) {
-    case "Volume": return p.volume;
-    case "Success Rate": return p.successRate;
-    case "Revenue": return p.revenue;
-    case "Failures": return p.failures;
-    case "Avg Amount": return p.avgAmount;
+    case "Volume":
+      return p.volume;
+    case "Success Rate":
+      return p.successRate;
+    case "Revenue":
+      return p.revenue;
+    case "Failures":
+      return p.failures;
+    case "Avg Amount":
+      return p.avgAmount;
   }
 }
 
@@ -467,7 +490,9 @@ function MultiPeriodComparison() {
   const source = useAnalyticsSource();
 
   const dateCol = useMemo(
-    () => pickColumn(source.dateColumns, [/date|time|timestamp|ts|day|created/i]) ?? source.dateColumns[0],
+    () =>
+      pickColumn(source.dateColumns, [/date|time|timestamp|ts|day|created/i]) ??
+      source.dateColumns[0],
     [source.dateColumns],
   );
   const amountCol = useMemo(
@@ -532,8 +557,12 @@ function MultiPeriodComparison() {
     (id: string) =>
       setActiveIds((prev) =>
         prev.includes(id)
-          ? prev.length > 1 ? prev.filter((p) => p !== id) : prev
-          : prev.length < 4 ? [...prev, id] : prev,
+          ? prev.length > 1
+            ? prev.filter((p) => p !== id)
+            : prev
+          : prev.length < 4
+            ? [...prev, id]
+            : prev,
       ),
     [],
   );
@@ -552,11 +581,25 @@ function MultiPeriodComparison() {
   const trendOption = useMemo(
     () => ({
       backgroundColor: "transparent",
-      tooltip: { trigger: "axis", backgroundColor: "#1e293b", borderColor: "#334155", textStyle: { color: "#e2e8f0" } },
+      tooltip: {
+        trigger: "axis",
+        backgroundColor: "#1e293b",
+        borderColor: "#334155",
+        textStyle: { color: "#e2e8f0" },
+      },
       legend: { data: periods.map((p) => p.label), textStyle: { color: "#94a3b8" }, bottom: 0 },
       grid: { top: 20, bottom: 50, left: 60, right: 20 },
-      xAxis: { type: "category", data: METRICS, axisLabel: { color: "#94a3b8", rotate: 15, fontSize: 10 }, axisLine: { lineStyle: { color: "#334155" } } },
-      yAxis: { type: "value", axisLabel: { color: "#94a3b8" }, splitLine: { lineStyle: { color: "#1e293b" } } },
+      xAxis: {
+        type: "category",
+        data: METRICS,
+        axisLabel: { color: "#94a3b8", rotate: 15, fontSize: 10 },
+        axisLine: { lineStyle: { color: "#334155" } },
+      },
+      yAxis: {
+        type: "value",
+        axisLabel: { color: "#94a3b8" },
+        splitLine: { lineStyle: { color: "#1e293b" } },
+      },
       series: periods.map((p, pi) => ({
         name: p.label,
         type: "line",
@@ -580,8 +623,8 @@ function MultiPeriodComparison() {
       <MissingColumnsState
         detail={
           <>
-            Period comparison needs a date/time column. Dataset “{source.datasetName}”
-            has {source.dateColumns.length} date columns.
+            Period comparison needs a date/time column. Dataset “{source.datasetName}” has{" "}
+            {source.dateColumns.length} date columns.
           </>
         }
       />
@@ -617,9 +660,15 @@ function MultiPeriodComparison() {
                   onClick={() => togglePeriod(p.id)}
                   className={cn(
                     "flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium transition-colors",
-                    active ? "border-transparent text-white" : "border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500",
+                    active
+                      ? "border-transparent text-white"
+                      : "border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500",
                   )}
-                  style={active ? { backgroundColor: PERIOD_COLORS[colorIdx % PERIOD_COLORS.length] } : {}}
+                  style={
+                    active
+                      ? { backgroundColor: PERIOD_COLORS[colorIdx % PERIOD_COLORS.length] }
+                      : {}
+                  }
                 >
                   {p.label}
                   {active && <CheckCircle className="size-3.5" />}
@@ -643,7 +692,10 @@ function MultiPeriodComparison() {
                   <th className="text-left py-2 px-3 text-slate-400 font-medium">Metric</th>
                   {periods.map((p, pi) => (
                     <th key={p.id} className="text-center py-2 px-3 text-slate-400 font-medium">
-                      <span className="inline-block rounded px-2 py-0.5 text-xs text-white" style={{ backgroundColor: PERIOD_COLORS[pi % PERIOD_COLORS.length] }}>
+                      <span
+                        className="inline-block rounded px-2 py-0.5 text-xs text-white"
+                        style={{ backgroundColor: PERIOD_COLORS[pi % PERIOD_COLORS.length] }}
+                      >
                         {p.label}
                       </span>
                     </th>
@@ -674,7 +726,11 @@ function MultiPeriodComparison() {
                             key={p.id}
                             className={cn(
                               "py-2 px-3 text-center font-mono text-xs font-medium rounded",
-                              isBest ? "bg-emerald-900/40 text-emerald-300" : isWorst ? "bg-red-900/40 text-red-300" : "text-slate-300",
+                              isBest
+                                ? "bg-emerald-900/40 text-emerald-300"
+                                : isWorst
+                                  ? "bg-red-900/40 text-red-300"
+                                  : "text-slate-300",
                             )}
                           >
                             {formatMetric(m, v)}
@@ -682,9 +738,19 @@ function MultiPeriodComparison() {
                         );
                       })}
                       <td className="py-2 px-3 text-center">
-                        <span className={cn("inline-flex items-center gap-0.5 text-xs font-medium", deltaGood ? "text-emerald-400" : "text-red-400")}>
-                          {deltaGood ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                          {deltaPct >= 0 ? "+" : ""}{deltaPct.toFixed(1)}%
+                        <span
+                          className={cn(
+                            "inline-flex items-center gap-0.5 text-xs font-medium",
+                            deltaGood ? "text-emerald-400" : "text-red-400",
+                          )}
+                        >
+                          {deltaGood ? (
+                            <TrendingUp className="size-3" />
+                          ) : (
+                            <TrendingDown className="size-3" />
+                          )}
+                          {deltaPct >= 0 ? "+" : ""}
+                          {deltaPct.toFixed(1)}%
                         </span>
                       </td>
                     </tr>
@@ -738,7 +804,8 @@ export function DeepAnalyticsScreen() {
       <div>
         <h1 className="text-2xl font-bold text-slate-100">Deep Analytics</h1>
         <p className="text-slate-400 text-sm mt-1">
-          Advanced statistical analysis — cohorts, attribution, clustering, and multi-period comparison
+          Advanced statistical analysis — cohorts, attribution, clustering, and multi-period
+          comparison
         </p>
       </div>
 

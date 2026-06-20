@@ -21,9 +21,7 @@
  */
 
 import type { ZodType } from "zod";
-import {
-  LlmInsightResponseSchema,
-} from "@/features/ai-analysis/model/insight-schema";
+import { LlmInsightResponseSchema } from "@/features/ai-analysis/model/insight-schema";
 import { TransformRecipeSchema } from "@/features/data-transform/ai/recipe-schema";
 import { analysisPlanSchema } from "@/features/data-formulator/core/swarm/agents/analyze";
 
@@ -72,18 +70,14 @@ const recipeClean = `{
 const insightFencedJson = "```json\n" + insightClean + "\n```";
 
 const recipeFencedBare =
-  "```\n" +
-  `{ "steps": [ { "type": "limit", "label": "Top 50", "count": 50 } ] }` +
-  "\n```";
+  "```\n" + `{ "steps": [ { "type": "limit", "label": "Top 50", "count": 50 } ] }` + "\n```";
 
 // ── Trailing / leading prose around a JSON value ─────────────────────────────
 
 const insightTrailingProse =
-  insightClean +
-  "\n\nThat insight highlights the most material movement in the data.";
+  insightClean + "\n\nThat insight highlights the most material movement in the data.";
 
-const insightLeadingProse =
-  "Here is the structured analysis you asked for:\n\n" + insightClean;
+const insightLeadingProse = "Here is the structured analysis you asked for:\n\n" + insightClean;
 
 const recipeProseSandwich =
   "Sure! Here's the recipe.\n\n```json\n" +
@@ -160,23 +154,83 @@ export const STRUCTURED_CASES: readonly StructuredCase[] = [
   // Positives — should recover.
   { id: "insight.clean", schema: LlmInsightResponseSchema, raw: insightClean, shouldRecover: true },
   { id: "recipe.clean", schema: TransformRecipeSchema, raw: recipeClean, shouldRecover: true },
-  { id: "insight.fencedJson", schema: LlmInsightResponseSchema, raw: insightFencedJson, shouldRecover: true },
-  { id: "recipe.fencedBare", schema: TransformRecipeSchema, raw: recipeFencedBare, shouldRecover: true },
-  { id: "insight.trailingProse", schema: LlmInsightResponseSchema, raw: insightTrailingProse, shouldRecover: true },
-  { id: "insight.leadingProse", schema: LlmInsightResponseSchema, raw: insightLeadingProse, shouldRecover: true },
-  { id: "recipe.proseSandwich", schema: TransformRecipeSchema, raw: recipeProseSandwich, shouldRecover: true },
-  { id: "recipe.trailingCommas", schema: TransformRecipeSchema, raw: recipeTrailingCommas, shouldRecover: true },
-  { id: "insight.smartQuotes", schema: LlmInsightResponseSchema, raw: insightSmartQuotes, shouldRecover: true },
-  { id: "insight.fenceTrailingComma", schema: LlmInsightResponseSchema, raw: insightFenceTrailingComma, shouldRecover: true },
+  {
+    id: "insight.fencedJson",
+    schema: LlmInsightResponseSchema,
+    raw: insightFencedJson,
+    shouldRecover: true,
+  },
+  {
+    id: "recipe.fencedBare",
+    schema: TransformRecipeSchema,
+    raw: recipeFencedBare,
+    shouldRecover: true,
+  },
+  {
+    id: "insight.trailingProse",
+    schema: LlmInsightResponseSchema,
+    raw: insightTrailingProse,
+    shouldRecover: true,
+  },
+  {
+    id: "insight.leadingProse",
+    schema: LlmInsightResponseSchema,
+    raw: insightLeadingProse,
+    shouldRecover: true,
+  },
+  {
+    id: "recipe.proseSandwich",
+    schema: TransformRecipeSchema,
+    raw: recipeProseSandwich,
+    shouldRecover: true,
+  },
+  {
+    id: "recipe.trailingCommas",
+    schema: TransformRecipeSchema,
+    raw: recipeTrailingCommas,
+    shouldRecover: true,
+  },
+  {
+    id: "insight.smartQuotes",
+    schema: LlmInsightResponseSchema,
+    raw: insightSmartQuotes,
+    shouldRecover: true,
+  },
+  {
+    id: "insight.fenceTrailingComma",
+    schema: LlmInsightResponseSchema,
+    raw: insightFenceTrailingComma,
+    shouldRecover: true,
+  },
   { id: "plan.clean", schema: analysisPlanSchema, raw: planClean, shouldRecover: true },
-  { id: "plan.fencedTrailingProse", schema: analysisPlanSchema, raw: planFencedTrailingProse, shouldRecover: true },
+  {
+    id: "plan.fencedTrailingProse",
+    schema: analysisPlanSchema,
+    raw: planFencedTrailingProse,
+    shouldRecover: true,
+  },
 
   // Negatives — should be rejected (throw), NOT silently coerced.
-  { id: "insight.wrongShape", schema: LlmInsightResponseSchema, raw: insightWrongShape, shouldRecover: false },
+  {
+    id: "insight.wrongShape",
+    schema: LlmInsightResponseSchema,
+    raw: insightWrongShape,
+    shouldRecover: false,
+  },
   { id: "recipe.badEnum", schema: TransformRecipeSchema, raw: recipeBadEnum, shouldRecover: false },
-  { id: "insight.outOfRange", schema: LlmInsightResponseSchema, raw: insightOutOfRange, shouldRecover: false },
+  {
+    id: "insight.outOfRange",
+    schema: LlmInsightResponseSchema,
+    raw: insightOutOfRange,
+    shouldRecover: false,
+  },
   { id: "prose.only", schema: LlmInsightResponseSchema, raw: proseOnly, shouldRecover: false },
-  { id: "insight.truncated", schema: LlmInsightResponseSchema, raw: truncated, shouldRecover: false },
+  {
+    id: "insight.truncated",
+    schema: LlmInsightResponseSchema,
+    raw: truncated,
+    shouldRecover: false,
+  },
 ];
 
 /** Positive cases only — the strings a healthy parser must recover. */

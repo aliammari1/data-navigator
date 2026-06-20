@@ -31,11 +31,6 @@ export function AnalysisChart({ option, height, className }: AnalysisChartProps)
   if (!supportsOffscreenChart()) return fallback;
 
   return (
-    <OffscreenChart
-      option={option}
-      height={height}
-      className={className}
-      fallback={fallback}
-    />
+    <OffscreenChart option={option} height={height} className={className} fallback={fallback} />
   );
 }

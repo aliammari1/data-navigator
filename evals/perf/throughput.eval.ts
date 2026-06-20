@@ -88,14 +88,12 @@ interface Scenario {
 const SCENARIOS: readonly Scenario[] = [
   {
     name: "short-prompt/short-output",
-    prompt:
-      "In one short sentence, state what a telecom daily-transactions report is for.",
+    prompt: "In one short sentence, state what a telecom daily-transactions report is for.",
     maxTokens: 48,
   },
   {
     name: "short-prompt/long-output",
-    prompt:
-      "Explain, in a few sentences, what a telecom daily-transactions report is used for.",
+    prompt: "Explain, in a few sentences, what a telecom daily-transactions report is used for.",
     maxTokens: 192,
   },
   {

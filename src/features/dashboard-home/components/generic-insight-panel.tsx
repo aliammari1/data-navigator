@@ -72,9 +72,7 @@ export function GenericInsightPanel({
             <Sparkles className="h-3.5 w-3.5" />
           </div>
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-foreground">
-              Analyse IA du dataset
-            </h3>
+            <h3 className="text-sm font-semibold text-foreground">Analyse IA du dataset</h3>
             <p className="text-[11px] text-muted-foreground">
               Résumé local généré à partir du profil DuckDB
             </p>
@@ -109,9 +107,9 @@ export function GenericInsightPanel({
 
         {aiReady && state.phase === "idle" && (
           <p className="text-xs text-muted-foreground">
-            Générez un résumé en langage naturel des {overview.columnCount}{" "}
-            colonnes et de la qualité des données — entièrement hors-ligne, fondé
-            uniquement sur les statistiques réelles.
+            Générez un résumé en langage naturel des {overview.columnCount} colonnes et de la
+            qualité des données — entièrement hors-ligne, fondé uniquement sur les statistiques
+            réelles.
           </p>
         )}
 
@@ -122,9 +120,7 @@ export function GenericInsightPanel({
           </div>
         )}
 
-        {state.phase === "error" && (
-          <p className="text-xs text-destructive">{state.message}</p>
-        )}
+        {state.phase === "error" && <p className="text-xs text-destructive">{state.message}</p>}
 
         {state.phase === "done" && <InsightBody insight={state.insight} />}
       </div>
@@ -135,9 +131,7 @@ export function GenericInsightPanel({
 function InsightBody({ insight }: { insight: DatasetInsight }) {
   return (
     <div className="space-y-4">
-      <p className="text-sm font-medium leading-snug text-foreground">
-        {insight.headline}
-      </p>
+      <p className="text-sm font-medium leading-snug text-foreground">{insight.headline}</p>
 
       <InsightList
         icon={<Lightbulb className="h-3.5 w-3.5 text-amber-500" />}
@@ -179,10 +173,7 @@ function InsightList({
       </div>
       <ul className="space-y-1">
         {items.map((item, i) => (
-          <li
-            key={`${title}-${i}`}
-            className="flex gap-2 text-xs leading-relaxed text-foreground"
-          >
+          <li key={`${title}-${i}`} className="flex gap-2 text-xs leading-relaxed text-foreground">
             <span className="mt-1.5 h-1 w-1 flex-none rounded-full bg-muted-foreground/50" />
             <span>{item}</span>
           </li>

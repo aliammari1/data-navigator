@@ -2,11 +2,7 @@
 
 import { BarChart3 } from "lucide-react";
 import type { ReactNode } from "react";
-import {
-  SceneEmptyState,
-  SceneErrorState,
-  SceneLoadingState,
-} from "./scene-states";
+import { SceneEmptyState, SceneErrorState, SceneLoadingState } from "./scene-states";
 
 interface SceneShellProps {
   isLoading: boolean;

@@ -20,15 +20,13 @@ const SQRT2 = Math.SQRT2;
 export function logGamma(x: number): number {
   const g = 7;
   const c = [
-    0.99999999999980993, 676.5203681218851, -1259.1392167224028,
-    771.32342877765313, -176.61502916214059, 12.507343278686905,
-    -0.13857109526572012, 9.9843695780195716e-6, 1.5056327351493116e-7,
+    0.99999999999980993, 676.5203681218851, -1259.1392167224028, 771.32342877765313,
+    -176.61502916214059, 12.507343278686905, -0.13857109526572012, 9.9843695780195716e-6,
+    1.5056327351493116e-7,
   ];
   if (x < 0.5) {
     // Reflection formula.
-    return (
-      Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x)
-    );
+    return Math.log(Math.PI / Math.sin(Math.PI * x)) - logGamma(1 - x);
   }
   x -= 1;
   let a = c[0]!;
@@ -45,9 +43,7 @@ export function incompleteBeta(x: number, a: number, b: number): number {
   if (x <= 0) return 0;
   if (x >= 1) return 1;
 
-  const lbeta =
-    logGamma(a + b) - logGamma(a) - logGamma(b) +
-    a * Math.log(x) + b * Math.log(1 - x);
+  const lbeta = logGamma(a + b) - logGamma(a) - logGamma(b) + a * Math.log(x) + b * Math.log(1 - x);
   const front = Math.exp(lbeta) / a;
 
   // Continued fraction (Lentz).
@@ -63,8 +59,7 @@ export function incompleteBeta(x: number, a: number, b: number): number {
     } else if (i % 2 === 0) {
       numerator = (m * (b - m) * x) / ((a + 2 * m - 1) * (a + 2 * m));
     } else {
-      numerator =
-        -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
+      numerator = -((a + m) * (a + b + m) * x) / ((a + 2 * m) * (a + 2 * m + 1));
     }
     d = 1 + numerator * d;
     if (Math.abs(d) < tiny) d = tiny;
@@ -126,10 +121,7 @@ export function erf(x: number): number {
   const t = 1 / (1 + 0.3275911 * ax);
   const y =
     1 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t -
-      0.284496736) *
-      t +
-      0.254829592) *
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) * t + 0.254829592) *
       t *
       Math.exp(-ax * ax);
   return sign * y;

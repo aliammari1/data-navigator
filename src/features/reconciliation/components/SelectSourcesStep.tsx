@@ -16,10 +16,7 @@ import { Plus, Sparkles, Trash2 } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 // (UI primitives + auto-map helpers + diff-config types imported below.)
-import {
-  NativeSelect,
-  NativeSelectOption,
-} from "@/components/ui/native-select";
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { useDatasets } from "@/core/queries/datasets";
 import {
   type ColumnInfo,
@@ -59,11 +56,14 @@ function toLite(d: {
 type MeasureDraft = MeasureMapping;
 
 export interface SelectSourcesStepProps {
-  onReady: (cfg: DiffConfig, meta: {
-    expectedLabel: string;
-    actualLabel: string;
-    tolerancePct: number;
-  }) => void;
+  onReady: (
+    cfg: DiffConfig,
+    meta: {
+      expectedLabel: string;
+      actualLabel: string;
+      tolerancePct: number;
+    },
+  ) => void;
 }
 
 export function SelectSourcesStep({ onReady }: SelectSourcesStepProps) {
@@ -176,8 +176,8 @@ export function SelectSourcesStep({ onReady }: SelectSourcesStepProps) {
   if (lite.length < 2) {
     return (
       <div className="rounded-lg border border-dashed border-slate-700 bg-slate-900/40 p-8 text-center text-sm text-slate-400">
-        Reconciliation needs at least two registered datasets. Import an
-        "expected" and an "actual" dataset, then return here.
+        Reconciliation needs at least two registered datasets. Import an "expected" and an "actual"
+        dataset, then return here.
       </div>
     );
   }
@@ -204,9 +204,7 @@ export function SelectSourcesStep({ onReady }: SelectSourcesStepProps) {
       {expected && actual && (
         <>
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-200">
-              Key & measure mapping
-            </h3>
+            <h3 className="text-sm font-semibold text-slate-200">Key & measure mapping</h3>
             <Button variant="outline" size="sm" onClick={autoMap}>
               <Sparkles className="mr-1 size-3.5" /> Auto-map columns
             </Button>
@@ -219,9 +217,7 @@ export function SelectSourcesStep({ onReady }: SelectSourcesStepProps) {
             expectedCols={expected.columns}
             actualCols={actual.columns}
             onChange={(i, side, v) =>
-              setKeyCols((prev) =>
-                prev.map((r, idx) => (idx === i ? { ...r, [side]: v } : r)),
-              )
+              setKeyCols((prev) => prev.map((r, idx) => (idx === i ? { ...r, [side]: v } : r)))
             }
             onRemove={(i) => setKeyCols((prev) => prev.filter((_, idx) => idx !== i))}
             onAdd={addKey}
@@ -242,13 +238,9 @@ export function SelectSourcesStep({ onReady }: SelectSourcesStepProps) {
               )
             }
             onChange={(i, side, v) =>
-              setMeasures((prev) =>
-                prev.map((r, idx) => (idx === i ? { ...r, [side]: v } : r)),
-              )
+              setMeasures((prev) => prev.map((r, idx) => (idx === i ? { ...r, [side]: v } : r)))
             }
-            onRemove={(i) =>
-              setMeasures((prev) => prev.filter((_, idx) => idx !== i))
-            }
+            onRemove={(i) => setMeasures((prev) => prev.filter((_, idx) => idx !== i))}
             onAdd={addMeasure}
           />
 
@@ -295,11 +287,7 @@ function DatasetPicker({
   return (
     <div className="space-y-1.5">
       <span className="text-xs font-medium text-slate-400">{label}</span>
-      <NativeSelect
-        className="w-full"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
+      <NativeSelect className="w-full" value={value} onChange={(e) => onChange(e.target.value)}>
         <NativeSelectOption value="">Select a dataset…</NativeSelectOption>
         {options
           .filter((d) => d.id !== exclude)
@@ -345,9 +333,7 @@ function MappingTable({
         </Button>
       </div>
       {rows.length === 0 ? (
-        <p className="py-2 text-center text-xs text-slate-500">
-          None — auto-map or add a row.
-        </p>
+        <p className="py-2 text-center text-xs text-slate-500">None — auto-map or add a row.</p>
       ) : (
         <div className="space-y-2">
           {rows.map((row, i) => (

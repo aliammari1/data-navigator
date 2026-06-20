@@ -56,9 +56,7 @@ export default defineConfig({
     },
     coverage: {
       provider: "v8",
-      reporter: isCI
-        ? ["text-summary", "json", "json-summary", "lcov"]
-        : ["text", "json", "html"],
+      reporter: isCI ? ["text-summary", "json", "json-summary", "lcov"] : ["text", "json", "html"],
       reportsDirectory: "./coverage",
       // Only count source we actually ship; exclude generated/boilerplate.
       include: ["src/**/*.{ts,tsx}", "electron/**/*.ts"],

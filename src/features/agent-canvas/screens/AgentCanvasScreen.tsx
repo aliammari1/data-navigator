@@ -34,11 +34,7 @@ import {
   subscribeEvents,
 } from "@/features/agent-canvas/core/event-bus";
 import { runPipeline } from "@/features/agent-canvas/core/pipeline";
-import type {
-  AgentThought,
-  DashboardPlan,
-  WidgetState,
-} from "@/features/agent-canvas/core/types";
+import type { AgentThought, DashboardPlan, WidgetState } from "@/features/agent-canvas/core/types";
 
 // ─── Dynamic imports (client-only heavy) ────────────────────────────────────
 
@@ -176,10 +172,7 @@ export default function AgentCanvasScreen() {
   const pushEvent = useAgentStore((s) => s.pushEvent);
   const pipelineRef = useRef<{
     threadId: string;
-    resume: (
-      decision: "approve" | "revise",
-      plan?: DashboardPlan,
-    ) => Promise<void>;
+    resume: (decision: "approve" | "revise", plan?: DashboardPlan) => Promise<void>;
     dispose: () => void;
   } | null>(null);
 
@@ -305,14 +298,7 @@ export default function AgentCanvasScreen() {
         st.setPhase("error");
       }
     },
-    [
-      handleWidget,
-      handleThought,
-      handlePlan,
-      handleNarrative,
-      handleInterrupt,
-      handleDone,
-    ],
+    [handleWidget, handleThought, handlePlan, handleNarrative, handleInterrupt, handleDone],
   );
 
   // ── File loaded ───────────────────────────────────────────────────────────
@@ -354,11 +340,7 @@ export default function AgentCanvasScreen() {
             transition={{ duration: 0.3 }}
             className="flex-1 min-h-0 overflow-auto"
           >
-            <SetupScreen
-              onReady={handleReady}
-              model={model}
-              onModelChange={setModel}
-            />
+            <SetupScreen onReady={handleReady} model={model} onModelChange={setModel} />
           </motion.div>
         ) : (
           <motion.div
@@ -404,16 +386,11 @@ export default function AgentCanvasScreen() {
             <div className="flex-1 min-h-0">
               <PanelGroup orientation="horizontal" className="h-full">
                 {/* Panel A: Widget Canvas */}
-                <Panel
-                  defaultSize={showSql || showGraph ? 45 : 100}
-                  minSize={20}
-                >
+                <Panel defaultSize={showSql || showGraph ? 45 : 100} minSize={20}>
                   <div className="h-full flex flex-col border-r border-slate-800">
                     <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 shrink-0">
                       <LayoutDashboard className="w-3 h-3 text-violet-400" />
-                      <span className="text-[10px] font-semibold text-slate-400">
-                        Canvas
-                      </span>
+                      <span className="text-[10px] font-semibold text-slate-400">Canvas</span>
                     </div>
                     <div className="flex-1 min-h-0 overflow-hidden">
                       <Canvas />
@@ -429,9 +406,7 @@ export default function AgentCanvasScreen() {
                       <div className="h-full flex flex-col border-r border-slate-800">
                         <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 shrink-0">
                           <Code2 className="w-3 h-3 text-cyan-400" />
-                          <span className="text-[10px] font-semibold text-slate-400">
-                            SQL IDE
-                          </span>
+                          <span className="text-[10px] font-semibold text-slate-400">SQL IDE</span>
                         </div>
                         <div className="flex-1 min-h-0 overflow-hidden">
                           <SqlIdePanel />

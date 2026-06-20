@@ -9,12 +9,7 @@
 
 import ReactECharts from "echarts-for-react";
 import { useMemo, useState } from "react";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Slider } from "@/components/ui/slider";
 import { fmtCompact, fmtN } from "@/features/telecom/lib/format";
 import { useForecastData } from "../data/use-forecast-data";
@@ -72,19 +67,13 @@ export default function ScenariosTab() {
   const [customSuccess, setCustomSuccess] = useState(0);
   const [customAmount, setCustomAmount] = useState(0);
 
-  const baseline = useMemo(
-    () => baselineFromDaily(data.daily),
-    [data.daily],
-  );
+  const baseline = useMemo(() => baselineFromDaily(data.daily), [data.daily]);
   const baseDailyRevenue = baseline.revenue;
 
   const computeRevenue = useMemo(() => {
     return (volumeAdj: number, successAdj: number, amountAdj: number) => {
       const adjVolume = baseline.volume * (1 + volumeAdj / 100);
-      const adjSuccess = Math.min(
-        1,
-        Math.max(0, baseline.successRate + successAdj / 100),
-      );
+      const adjSuccess = Math.min(1, Math.max(0, baseline.successRate + successAdj / 100));
       const adjAmount = baseline.avgAmount * (1 + amountAdj / 100);
       return adjVolume * adjSuccess * adjAmount;
     };
@@ -193,8 +182,7 @@ export default function ScenariosTab() {
 
   if (data.noDataset) return <NoDatasetState what="scenario planning" />;
   if (data.isLoading) return <LoadingState />;
-  if (data.daily.length < 1)
-    return <NotEnoughDataState what="Scenario planning" />;
+  if (data.daily.length < 1) return <NotEnoughDataState what="Scenario planning" />;
 
   return (
     <div className="space-y-6">
@@ -205,9 +193,7 @@ export default function ScenariosTab() {
               <div className="flex items-center gap-2 mb-3">
                 <span className="text-xl">{s.icon}</span>
                 <div>
-                  <p className={cn("text-sm font-semibold", s.textColor)}>
-                    {s.name}
-                  </p>
+                  <p className={cn("text-sm font-semibold", s.textColor)}>{s.name}</p>
                   <p className="text-xs text-slate-500">{s.desc}</p>
                 </div>
               </div>
@@ -236,9 +222,7 @@ export default function ScenariosTab() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card className="bg-slate-900/60 ring-slate-700/40">
           <CardHeader>
-            <CardTitle className="text-slate-200">
-              Custom Scenario Builder
-            </CardTitle>
+            <CardTitle className="text-slate-200">Custom Scenario Builder</CardTitle>
           </CardHeader>
           <CardContent className="space-y-5">
             <input
@@ -337,32 +321,18 @@ export default function ScenariosTab() {
 
       <Card className="bg-slate-900/60 ring-slate-700/40">
         <CardHeader>
-          <CardTitle className="text-slate-200">
-            All Scenarios Side-by-Side
-          </CardTitle>
+          <CardTitle className="text-slate-200">All Scenarios Side-by-Side</CardTitle>
         </CardHeader>
         <CardContent>
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-700/50">
-                <th className="text-left py-2 text-slate-400 font-medium">
-                  Scenario
-                </th>
-                <th className="text-right py-2 text-slate-400 font-medium">
-                  Vol Adj
-                </th>
-                <th className="text-right py-2 text-slate-400 font-medium">
-                  SR Adj
-                </th>
-                <th className="text-right py-2 text-slate-400 font-medium">
-                  Daily Revenue
-                </th>
-                <th className="text-right py-2 text-slate-400 font-medium">
-                  Delta/Day
-                </th>
-                <th className="text-right py-2 text-slate-400 font-medium">
-                  Monthly
-                </th>
+                <th className="text-left py-2 text-slate-400 font-medium">Scenario</th>
+                <th className="text-right py-2 text-slate-400 font-medium">Vol Adj</th>
+                <th className="text-right py-2 text-slate-400 font-medium">SR Adj</th>
+                <th className="text-right py-2 text-slate-400 font-medium">Daily Revenue</th>
+                <th className="text-right py-2 text-slate-400 font-medium">Delta/Day</th>
+                <th className="text-right py-2 text-slate-400 font-medium">Monthly</th>
               </tr>
             </thead>
             <tbody>
@@ -373,9 +343,7 @@ export default function ScenariosTab() {
                 >
                   <td className="py-2.5">
                     <span className="mr-1.5">{s.icon}</span>
-                    <span className={cn("font-medium", s.textColor)}>
-                      {s.name}
-                    </span>
+                    <span className={cn("font-medium", s.textColor)}>{s.name}</span>
                   </td>
                   <td className="py-2.5 text-right text-slate-400 tabular-nums">
                     {s.volumeAdj > 0 ? "+" : ""}

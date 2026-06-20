@@ -97,11 +97,7 @@ export async function addFeedback(input: {
 
 /** Most recent feedback entries first. */
 export async function listFeedback(limit = 50): Promise<FeedbackEntry[]> {
-  return onboardingDb.feedback
-    .orderBy("createdAt")
-    .reverse()
-    .limit(limit)
-    .toArray();
+  return onboardingDb.feedback.orderBy("createdAt").reverse().limit(limit).toArray();
 }
 
 /** Total number of stored feedback entries. */
@@ -114,9 +110,7 @@ export async function countFeedback(): Promise<number> {
 /* ------------------------------------------------------------------ */
 
 /** Read a single tour's persisted state (undefined if never started). */
-export async function getTourState(
-  tourId: string,
-): Promise<TourState | undefined> {
+export async function getTourState(tourId: string): Promise<TourState | undefined> {
   return onboardingDb.tours.get(tourId);
 }
 

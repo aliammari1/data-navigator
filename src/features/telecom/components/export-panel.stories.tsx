@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 
@@ -47,7 +47,13 @@ const baseCanal: Omit<CanalSummary, "key" | "label" | "icon"> = {
 
 const canals: CanalSummary[] = [
   { ...baseCanal, key: "bill_payment", label: "Bill Payment", icon: FileText },
-  { ...baseCanal, key: "voice_mobile_ttcash", label: "Mobile by TTCASH", icon: Smartphone, share: 26 },
+  {
+    ...baseCanal,
+    key: "voice_mobile_ttcash",
+    label: "Mobile by TTCASH",
+    icon: Smartphone,
+    share: 26,
+  },
 ];
 
 const hourly: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => ({
@@ -59,12 +65,17 @@ const hourly: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => ({
 }));
 
 const operators: OperatorRow[] = [
-  { operator: "Tunisie Telecom", total: 9200, success: 8740, amount: 6_900_000, successRate: 95, accountType: "source" },
+  {
+    operator: "Tunisie Telecom",
+    total: 9200,
+    success: 8740,
+    amount: 6_900_000,
+    successRate: 95,
+    accountType: "source",
+  },
 ];
 
-const regions: RegionRow[] = [
-  { region: "Tunis", total: 8200, success: 7790, amount: 6_100_000 },
-];
+const regions: RegionRow[] = [{ region: "Tunis", total: 8200, success: 7790, amount: 6_100_000 }];
 
 const statusData: StatusRow[] = [
   { status: "SUCCESS", count: 23498, amount: 17_400_000 },

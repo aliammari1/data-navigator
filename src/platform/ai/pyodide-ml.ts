@@ -26,9 +26,7 @@ let initPromise: Promise<boolean> | null = null;
  * Idempotent: installs scikit-learn + deps once per app session.
  * Returns true when sklearn is available, false on any failure.
  */
-async function ensureSklearn(
-  onProgress?: (s: string) => void,
-): Promise<boolean> {
+async function ensureSklearn(onProgress?: (s: string) => void): Promise<boolean> {
   if (sklearnReady) return true;
   if (initPromise) return initPromise;
 
@@ -36,11 +34,7 @@ async function ensureSklearn(
     try {
       await ensureSandboxReady(onProgress);
       onProgress?.("Installing scikit-learn…");
-      await installPackages(
-        ML_SESSION,
-        ["scikit-learn", "pandas", "numpy"],
-        onProgress,
-      );
+      await installPackages(ML_SESSION, ["scikit-learn", "pandas", "numpy"], onProgress);
       // Smoke-test: import the core module
       const { stderr } = await runPython("import sklearn", {
         sessionId: ML_SESSION,

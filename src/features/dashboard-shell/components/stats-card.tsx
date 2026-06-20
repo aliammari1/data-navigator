@@ -11,14 +11,7 @@ interface StatsCardProps {
   className?: string;
 }
 
-export function StatsCard({
-  title,
-  value,
-  description,
-  icon,
-  trend,
-  className,
-}: StatsCardProps) {
+export function StatsCard({ title, value, description, icon, trend, className }: StatsCardProps) {
   return (
     <Card className={cn("relative overflow-hidden", className)}>
       <CardContent className="p-6">
@@ -26,9 +19,7 @@ export function StatsCard({
           <div className="space-y-2">
             <p className="text-sm text-muted-foreground">{title}</p>
             <p className="text-3xl font-bold tracking-tight">{value}</p>
-            {description && (
-              <p className="text-xs text-muted-foreground">{description}</p>
-            )}
+            {description && <p className="text-xs text-muted-foreground">{description}</p>}
             {trend !== undefined && (
               <div
                 className={cn(
@@ -46,11 +37,7 @@ export function StatsCard({
               </div>
             )}
           </div>
-          {icon && (
-            <div className="rounded-lg bg-primary/10 p-2 text-primary">
-              {icon}
-            </div>
-          )}
+          {icon && <div className="rounded-lg bg-primary/10 p-2 text-primary">{icon}</div>}
         </div>
       </CardContent>
     </Card>
