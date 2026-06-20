@@ -1,6 +1,6 @@
 "use client";
 
-import ReactECharts from "echarts-for-react";
+import ReactEChartsCore from "echarts-for-react/lib/core";
 import {
   Activity,
   ArrowDown,
@@ -28,6 +28,7 @@ import type {
   ColumnStats,
   SortConfig,
 } from "@/features/data-browser/model/types";
+import { echarts } from "@/platform/viz";
 import { cn } from "@/shared/utils";
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
@@ -183,7 +184,8 @@ export function ColumnStatPanel({ stats, colDef }: { stats: ColumnStats; colDef:
       {stats.histogram.length > 0 && (
         <div>
           <div className="text-[10px] text-zinc-500 uppercase tracking-wide mb-1">Distribution</div>
-          <ReactECharts
+          <ReactEChartsCore
+            echarts={echarts}
             option={chartOption}
             style={{ height: 100 }}
             opts={{ renderer: "canvas" }}
