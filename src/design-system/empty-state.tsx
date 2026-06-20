@@ -3,7 +3,7 @@ import { Inbox } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 type Action =
   | { label: string; href: string; onClick?: never }

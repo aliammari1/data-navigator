@@ -21,8 +21,8 @@ import {
 import { useMoudirVoice } from "@/features/data-formulator/components/moudir/use-moudir-voice";
 import { getApp } from "@/features/desktop/core/app-registry";
 import { useDesktopActions } from "@/features/desktop/store/desktop-store";
-import { cn } from "@/lib/utils";
 import { useAI } from "@/platform/ai/provider/use-ai";
+import { cn } from "@/shared/utils";
 import { CommanderComposer } from "../components/commander-composer";
 import { CommanderEmptyState, type StatusTone } from "../components/commander-empty-state";
 import {

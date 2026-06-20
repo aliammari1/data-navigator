@@ -4,7 +4,7 @@ import { Check, FilePlus2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { type ReportDraftItem, useReportDraftActions } from "@/core/stores/report-draft-store";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /**
  * "Ajouter au rapport" — the shared analyse→rapporter action. Stages an item in
