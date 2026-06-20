@@ -34,8 +34,8 @@ import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
 import {
   fileNameFromPath,
-  importBatch,
   type ImportPipelineContext,
+  importBatch,
   isSupportedImportPath,
 } from "@/features/data-import/lib/import-pipeline";
 import {
@@ -63,7 +63,7 @@ import {
   listLocalFilesRecursive,
   openFileDialog,
 } from "@/platform/electron/electron-fs";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 type DropzoneRootGetter = ReturnType<typeof useDropzone>["getRootProps"];
 type DropzoneInputGetter = ReturnType<typeof useDropzone>["getInputProps"];

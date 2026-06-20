@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /**
  * PageHeader v2 — the single page-title primitive every screen must use, so the
