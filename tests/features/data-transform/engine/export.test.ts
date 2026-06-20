@@ -127,7 +127,11 @@ describe("exportResultCsv", () => {
     const click = vi.fn();
     const createElement = vi
       .spyOn(document, "createElement")
-      .mockReturnValue({ click } as unknown as HTMLAnchorElement);
+      // document.createElement is overloaded (Electron augments it with a
+      // `webview` → WebviewTag overload), so the spy's inferred return type is
+      // not a plain HTMLElement; cast the anchor stub through `never` to satisfy
+      // whichever overload signature the spy resolves to.
+      .mockReturnValue({ click } as never);
 
     const res = await exportResultCsv(table, "data");
 

@@ -16,7 +16,6 @@ import type { CanalHourCell, CanalSummary, HourlyRow, StatusRow } from "@/featur
 
 function canal(partial: Partial<CanalSummary> & { key: CanalSummary["key"] }): CanalSummary {
   return {
-    key: partial.key,
     label: partial.label ?? partial.key,
     icon: (() => null) as unknown as CanalSummary["icon"],
     color: "",

@@ -26,6 +26,8 @@ import {
   varPctColName,
 } from "./recon-sql";
 
+export type { DiffConfig } from "./recon-sql";
+
 export interface DiffMeasureCell {
   label: string;
   expected: number | null;
