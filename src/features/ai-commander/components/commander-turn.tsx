@@ -9,7 +9,7 @@
 
 import { ChevronRight, type LucideIcon } from "lucide-react";
 import { motion, useReducedMotion } from "motion/react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 import { CommanderGlyph } from "./commander-kit";
 
 export interface CommanderAction {
