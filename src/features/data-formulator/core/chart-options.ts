@@ -275,7 +275,7 @@ export function buildOption(
     // `data` array for every (x, group) cell (O(xs·groups·data) via `data.find`).
     const byKey = new Map<string, number>();
     for (const d of data) {
-      byKey.set(`${String(d.x_val ?? "")} ${String(d.color_val ?? "")}`, Number(d.y_val ?? 0));
+      byKey.set(`${String(d.x_val ?? "")}\u0000${String(d.color_val ?? "")}`, Number(d.y_val ?? 0));
     }
     const series = groups.map((g, i) => ({
       name: g,
@@ -284,7 +284,7 @@ export function buildOption(
       smooth: isMultiLine,
       symbol: isMultiLine ? "circle" : undefined,
       symbolSize: 4,
-      data: xs.map((x) => byKey.get(`${x} ${g}`) ?? 0),
+      data: xs.map((x) => byKey.get(`${x}\u0000${g}`) ?? 0),
       itemStyle: { color: PALETTE[i % PALETTE.length] },
       lineStyle: isMultiLine ? { color: PALETTE[i % PALETTE.length], width: 2.5 } : undefined,
       barMaxWidth: 36,
