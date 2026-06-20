@@ -100,7 +100,7 @@ export async function runChartArtifact(
   ctx: SwarmContext,
   taskId: string,
   spec: ChartSpec,
-): Promise<Artifact> {
+): Promise<Extract<Artifact, { kind: "chart" }>> {
   const sql = buildSQL(spec, ctx.tableName);
   const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<string, unknown>[];
   if (!rows.length) {
@@ -123,7 +123,7 @@ export async function runTableArtifact(
   taskId: string,
   title: string,
   sql: string,
-): Promise<Artifact> {
+): Promise<Extract<Artifact, { kind: "table" }>> {
   const rows = (await scheduler.io(() => runReadOnlyQuery(sql))) as Record<string, unknown>[];
   return {
     kind: "table",
