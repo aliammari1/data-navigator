@@ -81,9 +81,7 @@ export function ConfidenceBar({ value }: { value: number }) {
           transition={{ duration: 0.8, ease: "easeOut" }}
         />
       </div>
-      <span className="text-xs text-muted-foreground w-8 text-right">
-        {pct}%
-      </span>
+      <span className="text-xs text-muted-foreground w-8 text-right">{pct}%</span>
     </div>
   );
 }
@@ -175,20 +173,14 @@ export function InsightCard({
               : "border-border"
       }`}
     >
-      <button
-        type="button"
-        className="w-full text-left p-4"
-        onClick={() => setExpanded(!expanded)}
-      >
+      <button type="button" className="w-full text-left p-4" onClick={() => setExpanded(!expanded)}>
         <div className="flex items-start gap-3">
           <div className={`mt-0.5 p-1.5 rounded-lg ${catColor}`}>
             <Icon className="w-3.5 h-3.5" />
           </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-sm font-semibold text-foreground">
-                {insight.title}
-              </span>
+              <span className="text-sm font-semibold text-foreground">{insight.title}</span>
               <SeverityBadge severity={insight.severity} />
               <span
                 className={`text-xs px-1.5 py-0.5 rounded ${
@@ -202,9 +194,7 @@ export function InsightCard({
                 {insight.impact} impact
               </span>
             </div>
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
-              {insight.description}
-            </p>
+            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{insight.description}</p>
           </div>
           <div className="shrink-0">
             {expanded ? (
@@ -226,9 +216,7 @@ export function InsightCard({
           >
             <div className="px-4 pb-4 border-t border-border pt-3 space-y-3">
               <div>
-                <div className="text-xs text-muted-foreground mb-1">
-                  Confidence
-                </div>
+                <div className="text-xs text-muted-foreground mb-1">Confidence</div>
                 <ConfidenceBar value={insight.confidence} />
               </div>
               {insight.metric && (
@@ -237,9 +225,7 @@ export function InsightCard({
                   <span className="text-foreground font-mono bg-muted px-2 py-0.5 rounded">
                     {insight.metric}
                   </span>
-                  {insight.value && (
-                    <span className="text-foreground">{insight.value}</span>
-                  )}
+                  {insight.value && <span className="text-foreground">{insight.value}</span>}
                 </div>
               )}
               {!insight.acknowledged && (

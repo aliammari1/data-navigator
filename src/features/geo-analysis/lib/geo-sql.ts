@@ -10,12 +10,7 @@
  */
 
 import type { ColumnMapping, StatusMapping } from "@/features/telecom/types";
-import {
-  canalCaseExpr,
-  qc,
-  sqlLiteral,
-  statusNorm,
-} from "@/features/telecom/lib/sql";
+import { canalCaseExpr, qc, sqlLiteral, statusNorm } from "@/features/telecom/lib/sql";
 
 /** Row shape returned by {@link regionRollupSql}. */
 export interface RegionRollupRow {
@@ -73,11 +68,7 @@ export function regionRollupSql(
  * Used for the distribution heatmap and per-region channel mix. Returns long
  * (tidy) rows; the component pivots them into a matrix in memory.
  */
-export function channelRegionMatrixSql(
-  table: string,
-  m: ColumnMapping,
-  regionLimit = 12,
-): string {
+export function channelRegionMatrixSql(table: string, m: ColumnMapping, regionLimit = 12): string {
   const reg = qc(m.region);
   const canal = canalCaseExpr(m);
   return `

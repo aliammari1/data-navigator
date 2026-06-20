@@ -19,9 +19,7 @@ export default function OverviewPage() {
       selectedOverviewSections={report.selectedOverviewSections}
       toggleOverviewSection={report.toggleOverviewSection}
       fetchDailyTrend={
-        report.sharedOverviewMode
-          ? async () => []
-          : () => report.fetchDailyTrend(report.mapping)
+        report.sharedOverviewMode ? async () => [] : () => report.fetchDailyTrend(report.mapping)
       }
     />
   );

@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Download, Plus } from "lucide-react";
 
 import { PageHeader } from "./page-header";

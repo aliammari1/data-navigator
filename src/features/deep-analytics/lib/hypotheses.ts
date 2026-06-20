@@ -50,8 +50,7 @@ export function buildHypothesisPrompt(discrepancies: DiscrepancyInput[]): string
       `${d.isMaterial ? " [MATERIAL]" : ""}`,
   );
   return (
-    "Produce a hypothesis for each of the following channel discrepancies:\n" +
-    lines.join("\n")
+    "Produce a hypothesis for each of the following channel discrepancies:\n" + lines.join("\n")
   );
 }
 
@@ -70,9 +69,9 @@ export function deterministicHypothesis(d: DiscrepancyInput): string {
   }
   const revNote =
     Math.abs(d.revVariancePct) > 5
-      ? ` Revenue is ${d.revVariancePct >= 0 ? "up" : "down"} ${Math.abs(
-          d.revVariancePct,
-        ).toFixed(1)}%, so check pricing/mix as well as volume.`
+      ? ` Revenue is ${d.revVariancePct >= 0 ? "up" : "down"} ${Math.abs(d.revVariancePct).toFixed(
+          1,
+        )}%, so check pricing/mix as well as volume.`
       : " Revenue tracked expectations, so this is likely a volume-only effect.";
   return (
     `${d.channel} volume is ${mag.toFixed(1)}% ${dir} expected. Likely causes: ` +

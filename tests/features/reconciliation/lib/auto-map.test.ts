@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   type ColumnInfo,
   isNumericType,
@@ -40,9 +41,7 @@ describe("isNumericType", () => {
 describe("suggestColumnMapping", () => {
   it("returns an exact case-insensitive match with confidence 1", () => {
     const result = suggestColumnMapping(cols("Channel"), cols("channel"));
-    expect(result).toEqual([
-      { expected: "Channel", actual: "channel", confidence: 1 },
-    ]);
+    expect(result).toEqual([{ expected: "Channel", actual: "channel", confidence: 1 }]);
   });
 
   it("fuzzy-matches differently-named but similar columns with partial confidence", () => {
@@ -113,9 +112,7 @@ describe("pickDefaultKey", () => {
   });
 
   it("ignores suggestions that did not resolve to an actual column", () => {
-    const suggestions: MappingSuggestion[] = [
-      { expected: "channel", actual: null, confidence: 0 },
-    ];
+    const suggestions: MappingSuggestion[] = [{ expected: "channel", actual: null, confidence: 0 }];
     const expected: ColumnInfo[] = [{ name: "channel", type: "VARCHAR" }];
     expect(pickDefaultKey(suggestions, expected)).toBeNull();
   });
@@ -129,9 +126,7 @@ describe("pickDefaultKey", () => {
   });
 
   it("treats unknown-type columns as eligible keys (non-numeric by default)", () => {
-    const suggestions: MappingSuggestion[] = [
-      { expected: "id", actual: "id", confidence: 0.8 },
-    ];
+    const suggestions: MappingSuggestion[] = [{ expected: "id", actual: "id", confidence: 0.8 }];
     const expected: ColumnInfo[] = [{ name: "id" }];
     expect(pickDefaultKey(suggestions, expected)?.expected).toBe("id");
   });
@@ -152,11 +147,7 @@ describe("pickDefaultMeasures", () => {
       { expected: "qty", actual: "qty", confidence: 0.8 },
       { expected: "cost", actual: "cost", confidence: 0.7 },
     ];
-    const measures = pickDefaultMeasures(
-      suggestions,
-      expected,
-      new Set(["channel"]),
-    );
+    const measures = pickDefaultMeasures(suggestions, expected, new Set(["channel"]));
     const labels = measures.map((m) => m.expected);
     expect(labels).not.toContain("channel");
     expect(labels).toEqual(["revenue", "qty", "cost"]);

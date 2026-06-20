@@ -6,21 +6,13 @@ import { AnimatePresence, motion } from "motion/react";
 import { cn } from "@/shared/utils";
 
 /** Level-3 collapsible — type / method */
-export function CL3({
-  title,
-  children,
-}: {
-  title: string;
-  children: React.ReactNode;
-}) {
+export function CL3({ title, children }: { title: string; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
     <div
       className={cn(
         "rounded-lg border overflow-hidden transition-colors duration-200",
-        open
-          ? "border-border/60 bg-background/80"
-          : "border-border/40 bg-background/50",
+        open ? "border-border/60 bg-background/80" : "border-border/40 bg-background/50",
       )}
     >
       <button
@@ -35,9 +27,7 @@ export function CL3({
               open ? "bg-muted-foreground/60" : "bg-border",
             )}
           />
-          <span className="text-xs font-semibold text-muted-foreground">
-            {title}
-          </span>
+          <span className="text-xs font-semibold text-muted-foreground">{title}</span>
         </div>
         <ChevronDown
           className={cn(
@@ -55,9 +45,7 @@ export function CL3({
             transition={{ duration: 0.16 }}
             className="overflow-hidden"
           >
-            <div className="px-3.5 py-3 border-t border-border/40">
-              {children}
-            </div>
+            <div className="px-3.5 py-3 border-t border-border/40">{children}</div>
           </motion.div>
         )}
       </AnimatePresence>

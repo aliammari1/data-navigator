@@ -117,8 +117,7 @@ async function runOnceBackfillLocalStorage(
   const guardKey = `dn:backfill:${key}`;
   let done = false;
   try {
-    const raw =
-      typeof localStorage !== "undefined" ? localStorage.getItem(guardKey) : null;
+    const raw = typeof localStorage !== "undefined" ? localStorage.getItem(guardKey) : null;
     done = raw !== null && Number(raw) >= version;
   } catch {
     done = false;

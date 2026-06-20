@@ -107,8 +107,7 @@ export default function CalendarScene() {
       : (years[years.length - 1] ?? null);
 
   const yearPoints = useMemo(
-    () =>
-      activeYear == null ? [] : points.filter((p) => p.year === activeYear),
+    () => (activeYear == null ? [] : points.filter((p) => p.year === activeYear)),
     [points, activeYear],
   );
 
@@ -122,8 +121,7 @@ export default function CalendarScene() {
         backgroundColor: TOOLTIP_BG,
         borderColor: TOOLTIP_BORDER,
         textStyle: { color: TEXT_COLOR, fontSize: 12 },
-        formatter: (p: { data: [string, number] }) =>
-          `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
+        formatter: (p: { data: [string, number] }) => `<b>${p.data[0]}</b><br/>${fmtN(p.data[1])}`,
       },
       visualMap: {
         min: stats.min,
@@ -178,9 +176,7 @@ export default function CalendarScene() {
       onRetry={() => void refetch()}
     >
       <div className="space-y-4">
-        {built?.note && (
-          <p className="text-xs text-muted-foreground">{built.note}</p>
-        )}
+        {built?.note && <p className="text-xs text-muted-foreground">{built.note}</p>}
 
         {years.length > 1 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -199,10 +195,7 @@ export default function CalendarScene() {
 
         <Card>
           <CardContent className="pt-4">
-            <TheaterChart
-              option={option}
-              style={{ height: 200, width: "100%" }}
-            />
+            <TheaterChart option={option} style={{ height: 200, width: "100%" }} />
           </CardContent>
         </Card>
 
@@ -228,9 +221,7 @@ export default function CalendarScene() {
             <Card key={label} size="sm">
               <CardContent className="pt-3">
                 <p className="text-xs text-muted-foreground">{label}</p>
-                <p className="mt-1 truncate text-base font-semibold text-foreground">
-                  {value}
-                </p>
+                <p className="mt-1 truncate text-base font-semibold text-foreground">{value}</p>
                 <p className="text-xs text-muted-foreground">{sub}</p>
               </CardContent>
             </Card>

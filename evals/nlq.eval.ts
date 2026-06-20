@@ -156,7 +156,8 @@ function observeShape(sql: string, chart: ChartSuggestion, confidence: Confidenc
 /** Per-field comparison of an observed shape against the (partial) gold shape. */
 function fieldScores(observed: ObservedShape, expected: ExpectedShape): boolean[] {
   const checks: boolean[] = [];
-  if (expected.aggregation !== undefined) checks.push(observed.aggregation === expected.aggregation);
+  if (expected.aggregation !== undefined)
+    checks.push(observed.aggregation === expected.aggregation);
   if (expected.groupBy !== undefined) checks.push(observed.groupBy === expected.groupBy);
   if (expected.hasWhere !== undefined) checks.push(observed.hasWhere === expected.hasWhere);
   if (expected.hasOrderBy !== undefined) checks.push(observed.hasOrderBy === expected.hasOrderBy);
@@ -240,7 +241,8 @@ function summarizeSql(sql: string): SqlStructure {
 const PARSER = new Parser();
 
 /** Statement keywords that would mutate state or escape a read-only sandbox. */
-const MUTATING = /\b(?:insert|update|delete|drop|alter|create|attach|copy|pragma|call|truncate|grant|revoke|merge|replace|set|begin|commit|rollback|vacuum|install|load)\b/i;
+const MUTATING =
+  /\b(?:insert|update|delete|drop|alter|create|attach|copy|pragma|call|truncate|grant|revoke|merge|replace|set|begin|commit|rollback|vacuum|install|load)\b/i;
 
 /**
  * True when `sql` is a single read-only statement: it begins with SELECT or

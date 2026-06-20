@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 
 import type { StatusMapping } from "../types";
 import { StatusBadge } from "./status-badge";
@@ -33,14 +33,7 @@ const meta = {
   argTypes: {
     status: {
       control: "select",
-      options: [
-        "SUCCESS",
-        "DECLINED",
-        "INSTANCE",
-        "REFUND",
-        "SUBMITTED",
-        "OTHER",
-      ],
+      options: ["SUCCESS", "DECLINED", "INSTANCE", "REFUND", "SUBMITTED", "OTHER"],
     },
     mapping: { control: false },
   },

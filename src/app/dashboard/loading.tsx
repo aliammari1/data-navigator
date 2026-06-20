@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
  */
 export default function DashboardLoading() {
   return (
-    <div className="" aria-busy="true" aria-label="Chargement">
+    <div className="" role="status" aria-busy="true" aria-label="Chargement">
       <div className="flex items-start justify-between gap-4">
         <div className="space-y-3">
           <Skeleton className="h-8 w-64" />

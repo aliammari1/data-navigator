@@ -130,9 +130,7 @@ function buildValidationIssues(
   const sampleSize = Math.max(loaded.previewRows.length, 1);
   const highNullCols = columns.filter((column) => {
     const rate =
-      typeof column.nullRate === "number"
-        ? column.nullRate
-        : column.nullCount / sampleSize;
+      typeof column.nullRate === "number" ? column.nullRate : column.nullCount / sampleSize;
     return rate > 0.3;
   });
 
@@ -162,10 +160,7 @@ function buildRejectIssues(rejects: RejectSummary | undefined): ValidationIssue[
   const sample = rejects.sample
     .slice(0, 3)
     .map((entry) => {
-      const where =
-        entry.line !== null && entry.line !== undefined
-          ? `ligne ${entry.line}`
-          : null;
+      const where = entry.line !== null && entry.line !== undefined ? `ligne ${entry.line}` : null;
       const what = entry.errorMessage ?? entry.errorType ?? "valeur invalide";
       return [where, entry.columnName, what].filter(Boolean).join(" · ");
     })
@@ -208,11 +203,7 @@ export interface ImportPipelineContext {
   }) => void;
 }
 
-function baseFileInfo(
-  filePath: string,
-  id: string,
-  encoding: ImportEncoding,
-): ParsedFileInfo {
+function baseFileInfo(filePath: string, id: string, encoding: ImportEncoding): ParsedFileInfo {
   const fileName = fileNameFromPath(filePath);
   return {
     id,
@@ -258,8 +249,7 @@ export async function processFilePath(
 
   session.add(baseFileInfo(filePath, id, ctx.encoding));
 
-  const patch = (next: Partial<ParsedFileInfo>) =>
-    useImportSession.getState().patch(id, next);
+  const patch = (next: Partial<ParsedFileInfo>) => useImportSession.getState().patch(id, next);
 
   try {
     const t0 = performance.now();
@@ -300,18 +290,13 @@ export async function processFilePath(
     );
 
     const columns = fullColumns ?? previewColumns;
-    const metadataSource: ParsedFileInfo["metadataSource"] = fullColumns
-      ? "full"
-      : "preview";
+    const metadataSource: ParsedFileInfo["metadataSource"] = fullColumns ? "full" : "preview";
 
     const issues = [
       ...buildValidationIssues(loaded, columns),
       ...buildRejectIssues(loaded.rejects),
     ];
-    const quality = computeQualityScores(
-      columns,
-      Math.max(loaded.rowCount, 1),
-    );
+    const quality = computeQualityScores(columns, Math.max(loaded.rowCount, 1));
 
     const dsCols = columnInfoToColMeta(columns);
     const telecomProfile = getTelecomDatasetProfile({
@@ -429,9 +414,7 @@ export async function importBatch(
     }
   };
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, paths.length || 1) }, worker),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, paths.length || 1) }, worker));
 
   return { doneIds, failed };
 }

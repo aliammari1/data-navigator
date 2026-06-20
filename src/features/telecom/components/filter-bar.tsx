@@ -13,8 +13,7 @@ export function FilterBar({
   operators: string[];
   regions: string[];
 }) {
-  const set = (k: keyof Types.FilterState, v: string) =>
-    onChange({ ...filters, [k]: v });
+  const set = (k: keyof Types.FilterState, v: string) => onChange({ ...filters, [k]: v });
   const hasAny = Object.values(filters).some((v) => v !== "");
   return (
     <div className="flex flex-wrap items-center gap-2 p-3 bg-muted/40 border border-border rounded-xl">
@@ -38,14 +37,7 @@ export function FilterBar({
         {
           key: "status" as const,
           label: "Tous les Statuts",
-          opts: [
-            "SUCCESS",
-            "DECLINED",
-            "INSTANCE",
-            "REFUND",
-            "SUBMITTED",
-            "OTHER",
-          ],
+          opts: ["SUCCESS", "DECLINED", "INSTANCE", "REFUND", "SUBMITTED", "OTHER"],
         },
       ].map(({ key, label, opts }) => (
         <select

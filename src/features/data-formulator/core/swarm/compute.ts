@@ -64,7 +64,10 @@ export interface AnomalyFinding {
 }
 
 /** Pure anomaly detector over realized rows. Returns a finding or null. */
-export function detectAnomaly(rows: Row[], kind: AnalysisPlan["anomalyChecks"][number]["kind"]): AnomalyFinding | null {
+export function detectAnomaly(
+  rows: Row[],
+  kind: AnalysisPlan["anomalyChecks"][number]["kind"],
+): AnomalyFinding | null {
   const key = firstNumericKey(rows);
   if (!key) return null;
   const vals = rows.map((r) => Number(r[key])).filter((n) => Number.isFinite(n));
@@ -76,17 +79,33 @@ export function detectAnomaly(rows: Row[], kind: AnalysisPlan["anomalyChecks"][n
   const max = Math.max(...vals);
 
   if (kind === "dip" && min < mean - sd) {
-    return { title: "Dip detected", body: `${key} dips to ${min} (mean ${mean.toFixed(1)}).`, severity: "high" };
+    return {
+      title: "Dip detected",
+      body: `${key} dips to ${min} (mean ${mean.toFixed(1)}).`,
+      severity: "high",
+    };
   }
   if (kind === "spike" && max > mean + sd) {
-    return { title: "Spike detected", body: `${key} spikes to ${max} (mean ${mean.toFixed(1)}).`, severity: "high" };
+    return {
+      title: "Spike detected",
+      body: `${key} spikes to ${max} (mean ${mean.toFixed(1)}).`,
+      severity: "high",
+    };
   }
   if (kind === "outlier" && (max > mean + 2 * sd || min < mean - 2 * sd)) {
-    return { title: "Outlier", body: `${key} has an outlier (range ${min}–${max}, mean ${mean.toFixed(1)}).`, severity: "medium" };
+    return {
+      title: "Outlier",
+      body: `${key} has an outlier (range ${min}–${max}, mean ${mean.toFixed(1)}).`,
+      severity: "medium",
+    };
   }
   if (kind === "trend") {
     const up = vals[vals.length - 1] > vals[0];
-    return { title: "Trend", body: `${key} trends ${up ? "up" : "down"} (${vals[0]} → ${vals[vals.length - 1]}).`, severity: "low" };
+    return {
+      title: "Trend",
+      body: `${key} trends ${up ? "up" : "down"} (${vals[0]} → ${vals[vals.length - 1]}).`,
+      severity: "low",
+    };
   }
   return null;
 }
@@ -131,7 +150,9 @@ export async function compute(
     const encodings: Encoding[] = [
       { id: genId(), channel: "x", field: c.x },
       { id: genId(), channel: "y", field: c.y },
-      ...(c.series && known.has(c.series) ? [{ id: genId(), channel: "color" as const, field: c.series }] : []),
+      ...(c.series && known.has(c.series)
+        ? [{ id: genId(), channel: "color" as const, field: c.series }]
+        : []),
     ];
     const spec: ChartSpec = {
       id: genId(),
@@ -167,5 +188,7 @@ export async function compute(
   }
 
   const tables = tableResults.map((t) => t.artifact);
-  return [...tables, ...charts, ...anomalies].filter((a): a is Artifact => a !== null && a !== undefined);
+  return [...tables, ...charts, ...anomalies].filter(
+    (a): a is Artifact => a !== null && a !== undefined,
+  );
 }

@@ -111,7 +111,12 @@ export async function runAnswer(
         temperature: 0.2,
         onToken,
       });
-      return toResult(parseStructured(text, answerSchema, { label: "moudir-answer" }), goal, artifacts, ctx.model);
+      return toResult(
+        parseStructured(text, answerSchema, { label: "moudir-answer" }),
+        goal,
+        artifacts,
+        ctx.model,
+      );
     } catch (err) {
       // If the run was cancelled, propagate — don't burn a retry on an aborted run.
       if (scheduler.signal.aborted) throw err;

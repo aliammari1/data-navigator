@@ -51,13 +51,7 @@ export interface RoomReply {
   timestamp: number;
 }
 
-export type ChangeKind =
-  | "edit"
-  | "add_row"
-  | "delete_row"
-  | "schema"
-  | "filter"
-  | "sort";
+export type ChangeKind = "edit" | "add_row" | "delete_row" | "schema" | "filter" | "sort";
 
 export interface RoomChange {
   id: string;
@@ -116,9 +110,7 @@ function reactionsToObject(value: unknown): Record<string, string[]> {
   }
   if (value && typeof value === "object") {
     const out: Record<string, string[]> = {};
-    for (const [emoji, users] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
+    for (const [emoji, users] of Object.entries(value as Record<string, unknown>)) {
       if (Array.isArray(users)) out[emoji] = users.map(String);
     }
     return out;

@@ -43,10 +43,7 @@ export function LanAccessGate({
           setConnecting(false);
         } else {
           if (debounceRef.current) clearTimeout(debounceRef.current);
-          debounceRef.current = setTimeout(
-            () => setStableConnected(false),
-            800,
-          );
+          debounceRef.current = setTimeout(() => setStableConnected(false), 800);
         }
       }),
     [],
@@ -136,9 +133,7 @@ export function LanAccessGate({
             <Radio className="h-7 w-7 text-cyan-600" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Access required
-            </h1>
+            <h1 className="text-2xl font-bold tracking-tight">Access required</h1>
             <p className="mt-1 text-sm text-muted-foreground">
               {mode === "user"
                 ? "Enter the code your admin gave you to access this dashboard."
@@ -152,9 +147,7 @@ export function LanAccessGate({
           {mode === "user" && (
             <div className="space-y-4">
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Server address
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Server address</span>
                 <div className="flex gap-2">
                   <input
                     value={settings.url}
@@ -193,9 +186,7 @@ export function LanAccessGate({
               </label>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Room name
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Room name</span>
                 <input
                   value={settings.room}
                   onChange={(e) => persist({ room: e.target.value })}
@@ -204,9 +195,7 @@ export function LanAccessGate({
               </label>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Access code
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Access code</span>
                 <input
                   value={settings.pairingCode}
                   onChange={(e) => persist({ pairingCode: e.target.value })}
@@ -216,9 +205,7 @@ export function LanAccessGate({
               </label>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Your name
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Your name</span>
                 <input
                   value={settings.peer.name}
                   onChange={(e) =>
@@ -246,19 +233,14 @@ export function LanAccessGate({
           {mode === "admin" && (
             <div className="space-y-4">
               <div className="rounded-lg bg-muted px-3 py-3 text-xs">
-                <p className="font-medium text-foreground">
-                  Step 1 — run this in a terminal:
-                </p>
+                <p className="font-medium text-foreground">Step 1 — run this in a terminal:</p>
                 <code className="mt-1.5 block truncate font-mono text-muted-foreground">
-                  PAIRING_CODE={settings.pairingCode || "123456"} PORT=1234 bun
-                  run lan-server
+                  PAIRING_CODE={settings.pairingCode || "123456"} PORT=1234 bun run lan-server
                 </code>
               </div>
 
               <label className="block space-y-1.5">
-                <span className="text-xs font-medium text-muted-foreground">
-                  Server address
-                </span>
+                <span className="text-xs font-medium text-muted-foreground">Server address</span>
                 <input
                   value={settings.url}
                   onChange={(e) => persist({ url: e.target.value })}

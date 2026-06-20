@@ -150,9 +150,7 @@ export interface DuckDBStatus {
 export interface ElectronDuckDBBridge {
   init(): Promise<{ success: boolean }>;
 
-  registerCSVPathDataset(
-    input: RegisterCSVPathDatasetInput,
-  ): Promise<RegisteredDatasetWithPreview>;
+  registerCSVPathDataset(input: RegisterCSVPathDatasetInput): Promise<RegisteredDatasetWithPreview>;
 
   registerParquetPathDataset(
     input: RegisterParquetPathDatasetInput,
@@ -160,9 +158,7 @@ export interface ElectronDuckDBBridge {
 
   listDatasets(): Promise<RegisteredDataset[]>;
 
-  previewDataset(
-    input: PreviewDatasetInput,
-  ): Promise<Record<string, unknown>[]>;
+  previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]>;
 
   summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]>;
 
@@ -210,9 +206,7 @@ function fsBridge(): ElectronFSBridge {
   const bridge = (window as ElectronWindow).electronFS;
 
   if (!bridge) {
-    throw new Error(
-      "electronFS not available — ensure the app is running inside Electron.",
-    );
+    throw new Error("electronFS not available — ensure the app is running inside Electron.");
   }
 
   return bridge;
@@ -226,9 +220,7 @@ export function duckdbBridge(): ElectronDuckDBBridge {
   const bridge = (window as ElectronWindow).electronDuckDB;
 
   if (!bridge) {
-    throw new Error(
-      "electronDuckDB not available — ensure the app is running inside Electron.",
-    );
+    throw new Error("electronDuckDB not available — ensure the app is running inside Electron.");
   }
 
   return bridge;
@@ -242,9 +234,7 @@ export function voiceBridge(): ElectronVoiceBridge {
   const bridge = (window as ElectronWindow).electronVoice;
 
   if (!bridge) {
-    throw new Error(
-      "electronVoice not available — ensure the app is running inside Electron.",
-    );
+    throw new Error("electronVoice not available — ensure the app is running inside Electron.");
   }
 
   return bridge;
@@ -261,24 +251,15 @@ export function isElectron(): boolean {
 }
 
 export function hasElectronFS(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    Boolean((window as ElectronWindow).electronFS)
-  );
+  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronFS);
 }
 
 export function hasElectronDuckDB(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    Boolean((window as ElectronWindow).electronDuckDB)
-  );
+  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronDuckDB);
 }
 
 export function hasElectronVoice(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    Boolean((window as ElectronWindow).electronVoice)
-  );
+  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronVoice);
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────
@@ -291,10 +272,7 @@ export function readLocalFile(filePath: string): Promise<ArrayBuffer> {
   return fsBridge().readFile(filePath);
 }
 
-export function writeLocalFile(
-  filePath: string,
-  data: ArrayBuffer,
-): Promise<void> {
+export function writeLocalFile(filePath: string, data: ArrayBuffer): Promise<void> {
   return fsBridge().writeFile(filePath, data);
 }
 
@@ -314,9 +292,7 @@ export function localFileExists(filePath: string): Promise<boolean> {
   return fsBridge().fileExists(filePath);
 }
 
-export async function openFileDialog(
-  options: ElectronOpenDialogOptions,
-): Promise<string[]> {
+export async function openFileDialog(options: ElectronOpenDialogOptions): Promise<string[]> {
   const result = await fsBridge().openDialog(options);
   return result.canceled ? [] : result.filePaths;
 }
@@ -342,9 +318,7 @@ export function getDroppedFilePaths(files: File[]): string[] {
   return paths;
 }
 
-export async function saveFileDialog(
-  options: ElectronSaveDialogOptions,
-): Promise<string | null> {
+export async function saveFileDialog(options: ElectronSaveDialogOptions): Promise<string | null> {
   const result = await fsBridge().saveDialog(options);
   return result.canceled || !result.filePath ? null : result.filePath;
 }
@@ -382,15 +356,11 @@ export function listDatasets(): Promise<RegisteredDataset[]> {
   return duckdbBridge().listDatasets();
 }
 
-export function previewDataset(
-  input: PreviewDatasetInput,
-): Promise<Record<string, unknown>[]> {
+export function previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]> {
   return duckdbBridge().previewDataset(input);
 }
 
-export function summarizeDataset(
-  input: DatasetOnlyInput,
-): Promise<Record<string, unknown>[]> {
+export function summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]> {
   return duckdbBridge().summarizeDataset(input);
 }
 

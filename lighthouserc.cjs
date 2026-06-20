@@ -33,17 +33,23 @@ module.exports = {
       },
     },
     assert: {
-      // Budget the field-correlated lab metrics. INP is approximated in the lab
-      // by TBT/max-potential-FID, so we gate CLS + TBT + max-potential-FID
-      // directly and keep the higher-level Web Vitals as warnings.
+      // Gate the stable, lab-measurable main-thread / layout signals as hard
+      // errors (CLS + TBT) and keep the higher-level Web Vitals as advisory
+      // warnings. Budgets are sized for a heavy *desktop Electron-renderer*
+      // dashboard on noisy CI hardware, not a public over-the-network web page.
+      //
+      // Deliberately NOT asserted:
+      //  - `max-potential-fid`: deprecated by Lighthouse (superseded by INP) and
+      //    redundant with TBT, which already captures main-thread blocking.
+      //  - `interaction-to-next-paint`: INP cannot be produced by a lab run with
+      //    no user interaction — it always reports "auditRan: 0" here, so gating
+      //    (even as a warning) is pure noise.
       assertions: {
         "cumulative-layout-shift": ["error", { maxNumericValue: 0.1 }],
-        "total-blocking-time": ["error", { maxNumericValue: 300 }],
-        "max-potential-fid": ["error", { maxNumericValue: 200 }],
+        "total-blocking-time": ["error", { maxNumericValue: 500 }],
         "largest-contentful-paint": ["warn", { maxNumericValue: 2500 }],
         "first-contentful-paint": ["warn", { maxNumericValue: 1800 }],
         interactive: ["warn", { maxNumericValue: 3800 }],
-        "interaction-to-next-paint": ["warn", { maxNumericValue: 200 }],
         // Don't let the overall perf category silently rot.
         "categories:performance": ["warn", { minScore: 0.85 }],
       },

@@ -111,10 +111,13 @@ describe("translateNLQ — output is read-only & parseable (fuzzed NL questions)
     },
   );
 
-  test.prop([questionArb])("every output SQL parses under a DuckDB-adjacent dialect", (question) => {
-    const { sql } = translateNLQ(question, CTX);
-    expect(parsesAsSql(sql)).toBe(true);
-  });
+  test.prop([questionArb])(
+    "every output SQL parses under a DuckDB-adjacent dialect",
+    (question) => {
+      const { sql } = translateNLQ(question, CTX);
+      expect(parsesAsSql(sql)).toBe(true);
+    },
+  );
 
   test.prop([fc.string()])(
     "is a TOTAL function: never throws for ANY question string and always returns a non-empty SQL string",

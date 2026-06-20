@@ -20,10 +20,9 @@ export function getMLClient(): AnalyticsApi {
     throw new Error("getMLClient must be called in the browser");
   }
   if (!api) {
-    worker = new Worker(
-      new URL("../workers/analytics.worker.ts", import.meta.url),
-      { type: "module" },
-    );
+    worker = new Worker(new URL("../workers/analytics.worker.ts", import.meta.url), {
+      type: "module",
+    });
     api = Comlink.wrap<typeof AnalyticsWorker>(worker);
   }
   return api;

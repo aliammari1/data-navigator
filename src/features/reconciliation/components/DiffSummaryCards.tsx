@@ -6,12 +6,7 @@
  * fabricated. Replaces the legacy `useMemo` reductions over a hardcoded array.
  */
 
-import {
-  CheckCircle2,
-  MinusCircle,
-  PlusCircle,
-  TriangleAlert,
-} from "lucide-react";
+import { CheckCircle2, MinusCircle, PlusCircle, TriangleAlert } from "lucide-react";
 import type { DiffSummary } from "../lib/use-reconciliation";
 
 function fmt(n: number): string {
@@ -63,14 +58,9 @@ export function DiffSummaryCards({
           const Icon = card.icon;
           const value = summary?.[card.key] ?? 0;
           return (
-            <div
-              key={card.key}
-              className={`rounded-lg border bg-slate-900/40 p-4 ${card.ring}`}
-            >
+            <div key={card.key} className={`rounded-lg border bg-slate-900/40 p-4 ${card.ring}`}>
               <div className="flex items-center justify-between">
-                <span className="text-xs font-medium text-slate-400">
-                  {card.label}
-                </span>
+                <span className="text-xs font-medium text-slate-400">{card.label}</span>
                 <Icon className={`size-4 ${card.accent}`} />
               </div>
               <div className={`mt-2 text-2xl font-bold ${card.accent}`}>
@@ -84,14 +74,10 @@ export function DiffSummaryCards({
       {summary && (
         <div className="flex flex-wrap items-center gap-x-6 gap-y-1 rounded-lg border border-slate-800 bg-slate-900/40 px-4 py-3 text-xs text-slate-400">
           <span>
-            <strong className="text-slate-200">{fmt(summary.rowsTotal)}</strong>{" "}
-            matched keys
+            <strong className="text-slate-200">{fmt(summary.rowsTotal)}</strong> matched keys
           </span>
           <span>
-            <strong className="text-amber-300">
-              {fmt(summary.rowsMaterial)}
-            </strong>{" "}
-            material
+            <strong className="text-amber-300">{fmt(summary.rowsMaterial)}</strong> material
           </span>
           {Object.entries(summary.totals).map(([label, t]) => (
             <span key={label}>

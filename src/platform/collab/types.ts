@@ -84,12 +84,7 @@ export interface CollabRoomDoc {
 
 // ─── Provider transport ───────────────────────────────────────────────────────
 
-export type CollabTransportStatus =
-  | "off"
-  | "connecting"
-  | "connected"
-  | "disconnected"
-  | "error";
+export type CollabTransportStatus = "off" | "connecting" | "connected" | "disconnected" | "error";
 
 /** Settings to attach a room/doc to a LAN hub over y-websocket. */
 export interface CollabConnectOptions {

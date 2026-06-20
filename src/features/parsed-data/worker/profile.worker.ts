@@ -25,11 +25,7 @@ import {
   type ProfileQuery,
   type SummarizeRow,
 } from "../model/summary-map";
-import type {
-  ColProfile,
-  ColumnDetail,
-  QualityDimension,
-} from "../model/types";
+import type { ColProfile, ColumnDetail, QualityDimension } from "../model/types";
 
 export interface BuildProfilesResult {
   profiles: ColProfile[];

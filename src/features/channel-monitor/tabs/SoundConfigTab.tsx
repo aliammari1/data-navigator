@@ -144,7 +144,9 @@ export function SoundConfigTab() {
           <Button
             size="sm"
             variant="outline"
-            disabled={permission === "granted" || permission === "denied" || permission === "unsupported"}
+            disabled={
+              permission === "granted" || permission === "denied" || permission === "unsupported"
+            }
             onClick={async () => setPermission(await requestNotificationPermission())}
           >
             {permission === "granted" ? "Enabled" : "Enable"}

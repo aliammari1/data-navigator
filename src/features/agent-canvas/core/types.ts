@@ -41,8 +41,7 @@ export const MODEL_CATALOG: NonEmptyArray<LLMModelDef> = [
     id: "HuggingFaceTB/SmolLM2-360M-Instruct",
     label: "SmolLM2 360M",
     tier: "nano",
-    description:
-      "Fastest — 360M params, great for SQL & planning. Loads in ~30s.",
+    description: "Fastest — 360M params, great for SQL & planning. Loads in ~30s.",
     sizeLabel: "~400 MB",
     downloadMB: 400,
     badge: "Fastest",
@@ -60,8 +59,7 @@ export const MODEL_CATALOG: NonEmptyArray<LLMModelDef> = [
     id: "Qwen/Qwen2.5-0.5B-Instruct",
     label: "Qwen 2.5 500M",
     tier: "nano",
-    description:
-      "Tiny but sharp — 500M params, excellent instruction following.",
+    description: "Tiny but sharp — 500M params, excellent instruction following.",
     sizeLabel: "~600 MB",
     downloadMB: 600,
   },
@@ -77,13 +75,7 @@ export const MODEL_CATALOG: NonEmptyArray<LLMModelDef> = [
 
 // ─── Schema & Profiling ───────────────────────────────────────────────────────
 
-export type ColumnSemantic =
-  | "numeric"
-  | "categorical"
-  | "datetime"
-  | "boolean"
-  | "id"
-  | "text";
+export type ColumnSemantic = "numeric" | "categorical" | "datetime" | "boolean" | "id" | "text";
 
 export interface ColumnProfile {
   name: string;
@@ -157,12 +149,7 @@ export interface AgentThought {
 
 // ─── Widget State ─────────────────────────────────────────────────────────────
 
-export type WidgetStatus =
-  | "pending"
-  | "querying"
-  | "building"
-  | "done"
-  | "error";
+export type WidgetStatus = "pending" | "querying" | "building" | "done" | "error";
 
 export interface KPICard {
   label: string;
@@ -196,11 +183,4 @@ export type PipelineEvent =
 
 export type PipelineCallback = (event: PipelineEvent) => void;
 
-export type AgentPhase =
-  | "idle"
-  | "model-load"
-  | "schema"
-  | "plan"
-  | "build"
-  | "done"
-  | "error";
+export type AgentPhase = "idle" | "model-load" | "schema" | "plan" | "build" | "done" | "error";

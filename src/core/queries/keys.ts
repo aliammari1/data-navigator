@@ -13,16 +13,14 @@ export const queryKeys = {
       [...queryKeys.datasets.lists(), filters ?? {}] as const,
     details: () => [...queryKeys.datasets.all(), "detail"] as const,
     detail: (id: string) => [...queryKeys.datasets.details(), id] as const,
-    byTable: (tableName: string) =>
-      [...queryKeys.datasets.all(), "byTable", tableName] as const,
+    byTable: (tableName: string) => [...queryKeys.datasets.all(), "byTable", tableName] as const,
   },
 
   // Query History
   queryHistory: {
     all: () => ["queryHistory"] as const,
     lists: () => [...queryKeys.queryHistory.all(), "list"] as const,
-    list: (datasetId?: string) =>
-      [...queryKeys.queryHistory.lists(), { datasetId }] as const,
+    list: (datasetId?: string) => [...queryKeys.queryHistory.lists(), { datasetId }] as const,
     detail: (id: string) => [...queryKeys.queryHistory.all(), id] as const,
   },
 
@@ -30,8 +28,7 @@ export const queryKeys = {
   savedCharts: {
     all: () => ["savedCharts"] as const,
     lists: () => [...queryKeys.savedCharts.all(), "list"] as const,
-    list: (datasetId?: string) =>
-      [...queryKeys.savedCharts.lists(), { datasetId }] as const,
+    list: (datasetId?: string) => [...queryKeys.savedCharts.lists(), { datasetId }] as const,
     detail: (id: string) => [...queryKeys.savedCharts.all(), id] as const,
   },
 
@@ -39,8 +36,7 @@ export const queryKeys = {
   transforms: {
     all: () => ["transforms"] as const,
     lists: () => [...queryKeys.transforms.all(), "list"] as const,
-    list: (datasetId?: string) =>
-      [...queryKeys.transforms.lists(), { datasetId }] as const,
+    list: (datasetId?: string) => [...queryKeys.transforms.lists(), { datasetId }] as const,
     detail: (id: string) => [...queryKeys.transforms.all(), id] as const,
   },
 
@@ -48,8 +44,7 @@ export const queryKeys = {
   files: {
     all: () => ["files"] as const,
     lists: () => [...queryKeys.files.all(), "list"] as const,
-    list: (folderId?: string | null) =>
-      [...queryKeys.files.lists(), { folderId }] as const,
+    list: (folderId?: string | null) => [...queryKeys.files.lists(), { folderId }] as const,
     detail: (id: string) => [...queryKeys.files.all(), id] as const,
     uploadProgress: (fileId: string) =>
       [...queryKeys.files.all(), "uploadProgress", fileId] as const,
@@ -59,8 +54,7 @@ export const queryKeys = {
   folders: {
     all: () => ["folders"] as const,
     lists: () => [...queryKeys.folders.all(), "list"] as const,
-    list: (parentId?: string | null) =>
-      [...queryKeys.folders.lists(), { parentId }] as const,
+    list: (parentId?: string | null) => [...queryKeys.folders.lists(), { parentId }] as const,
     detail: (id: string) => [...queryKeys.folders.all(), id] as const,
     starred: () => [...queryKeys.folders.all(), "starred"] as const,
     datasetMap: () => [...queryKeys.folders.all(), "datasetMap"] as const,
@@ -69,10 +63,8 @@ export const queryKeys = {
   // DuckDB
   duckdb: {
     tables: () => ["duckdb", "tables"] as const,
-    query: (sql: string, params?: unknown[]) =>
-      ["duckdb", "query", sql, params ?? []] as const,
-    schema: (tableName: string) =>
-      ["duckdb", "schema", tableName] as const,
+    query: (sql: string, params?: unknown[]) => ["duckdb", "query", sql, params ?? []] as const,
+    schema: (tableName: string) => ["duckdb", "schema", tableName] as const,
     preview: (tableName: string, limit?: number) =>
       ["duckdb", "preview", tableName, limit ?? 100] as const,
   },
@@ -82,16 +74,11 @@ export const queryKeys = {
     all: () => ["telecom"] as const,
     analytics: (tableName: string, mappingHash: string) =>
       [...queryKeys.telecom.all(), "analytics", tableName, mappingHash] as const,
-    kpi: (tableName: string) =>
-      [...queryKeys.telecom.all(), "kpi", tableName] as const,
-    hourly: (tableName: string) =>
-      [...queryKeys.telecom.all(), "hourly", tableName] as const,
-    canals: (tableName: string) =>
-      [...queryKeys.telecom.all(), "canals", tableName] as const,
-    operators: (tableName: string) =>
-      [...queryKeys.telecom.all(), "operators", tableName] as const,
-    regions: (tableName: string) =>
-      [...queryKeys.telecom.all(), "regions", tableName] as const,
+    kpi: (tableName: string) => [...queryKeys.telecom.all(), "kpi", tableName] as const,
+    hourly: (tableName: string) => [...queryKeys.telecom.all(), "hourly", tableName] as const,
+    canals: (tableName: string) => [...queryKeys.telecom.all(), "canals", tableName] as const,
+    operators: (tableName: string) => [...queryKeys.telecom.all(), "operators", tableName] as const,
+    regions: (tableName: string) => [...queryKeys.telecom.all(), "regions", tableName] as const,
     statusBreakdown: (tableName: string) =>
       [...queryKeys.telecom.all(), "statusBreakdown", tableName] as const,
     forecast: (tableName: string, hours: number) =>

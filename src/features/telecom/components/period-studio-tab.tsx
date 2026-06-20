@@ -16,12 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { memo, useEffect, useMemo, useState } from "react";
-import {
-  fmtAmount,
-  fmtCompact,
-  fmtN,
-  fmtPct,
-} from "@/features/telecom/lib/format";
+import { fmtAmount, fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   type BrandRow,
   fetchAvailableDays,
@@ -33,11 +28,7 @@ import type { ColumnMapping } from "@/features/telecom/types";
 import { AiAgentPanel } from "./ai-agent-panel";
 import { AnomalyDetectorPanel } from "./anomaly-detector-panel";
 import { PeriodComparePanel } from "./period-compare-panel";
-import {
-  defaultPeriod,
-  PeriodFilterBar,
-  type PeriodValue,
-} from "./period-filter-bar";
+import { defaultPeriod, PeriodFilterBar, type PeriodValue } from "./period-filter-bar";
 import { SubStatusPanel } from "./sub-status-panel";
 import { TopAccountsLeaderboard } from "./top-accounts-leaderboard";
 
@@ -62,12 +53,8 @@ function KCard({
           {label}
         </span>
       </div>
-      <div className="text-2xl font-black tabular-nums leading-none">
-        {value}
-      </div>
-      {sub && (
-        <div className="text-[10px] mt-1 opacity-70 tabular-nums">{sub}</div>
-      )}
+      <div className="text-2xl font-black tabular-nums leading-none">{value}</div>
+      {sub && <div className="text-[10px] mt-1 opacity-70 tabular-nums">{sub}</div>}
     </div>
   );
 }
@@ -81,9 +68,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
   mapping: ColumnMapping;
   initialPeriod?: PeriodValue;
 }) {
-  const [period, setPeriod] = useState<PeriodValue>(
-    initialPeriod ?? defaultPeriod(),
-  );
+  const [period, setPeriod] = useState<PeriodValue>(initialPeriod ?? defaultPeriod());
   const [appliedPeriod, setAppliedPeriod] = useState<PeriodValue | null>(null);
   const [kpi, setKpi] = useState<PeriodKPI | null>(null);
   const [brands, setBrands] = useState<BrandRow[]>([]);
@@ -116,13 +101,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
 
     Promise.all([
       fetchPeriodKPI(table, mapping, appliedPeriod.from, appliedPeriod.to),
-      fetchBrandBreakdown(
-        table,
-        mapping,
-        appliedPeriod.from,
-        appliedPeriod.to,
-        20,
-      ),
+      fetchBrandBreakdown(table, mapping, appliedPeriod.from, appliedPeriod.to, 20),
     ]).then(([k, b]) => {
       if (!cancelled) {
         setKpi(k);
@@ -141,10 +120,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
     const a = appliedPeriod ?? period;
     const fromD = new Date(a.from);
     const toD = new Date(a.to);
-    const days = Math.max(
-      0,
-      Math.round((toD.getTime() - fromD.getTime()) / 86400000),
-    );
+    const days = Math.max(0, Math.round((toD.getTime() - fromD.getTime()) / 86400000));
     const bTo = new Date(fromD);
     bTo.setDate(bTo.getDate() - 1);
     const bFrom = new Date(bTo);
@@ -177,10 +153,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
         {[
           {
             label: "1. Choisir",
-            detail:
-              days.length > 0
-                ? `${days.length} jour(s) détecté(s)`
-                : "Chargement des dates",
+            detail: days.length > 0 ? `${days.length} jour(s) détecté(s)` : "Chargement des dates",
             icon: CalendarDays,
             done: days.length > 0,
           },
@@ -208,26 +181,16 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
           <div
             key={step.label}
             className={`rounded-xl border p-3 ${
-              step.done
-                ? "border-primary/25 bg-primary/5"
-                : "border-border bg-card"
+              step.done ? "border-primary/25 bg-primary/5" : "border-border bg-card"
             }`}
           >
             <div className="flex items-center justify-between gap-2">
               <step.icon
-                className={`w-3.5 h-3.5 ${
-                  step.done
-                    ? "text-primary"
-                    : "text-muted-foreground"
-                }`}
+                className={`w-3.5 h-3.5 ${step.done ? "text-primary" : "text-muted-foreground"}`}
               />
-              <span className="text-[10px] font-semibold text-muted-foreground">
-                {step.label}
-              </span>
+              <span className="text-[10px] font-semibold text-muted-foreground">{step.label}</span>
             </div>
-            <div className="mt-1.5 text-[11px] text-muted-foreground truncate">
-              {step.detail}
-            </div>
+            <div className="mt-1.5 text-[11px] text-muted-foreground truncate">{step.detail}</div>
           </div>
         ))}
       </div>
@@ -242,9 +205,8 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
 
       {!appliedPeriod && (
         <div className="rounded-2xl border border-dashed border-border bg-card p-8 text-center text-xs text-muted-foreground">
-          Sélectionnez une période et cliquez{" "}
-          <strong className="text-foreground">Appliquer</strong>. Aucun calcul
-          automatique — vous gardez le contrôle.
+          Sélectionnez une période et cliquez <strong className="text-foreground">Appliquer</strong>
+          . Aucun calcul automatique — vous gardez le contrôle.
         </div>
       )}
 
@@ -427,14 +389,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
             <table className="w-full text-xs">
               <thead className="sticky top-0 bg-muted/60 backdrop-blur">
                 <tr className="border-b border-border">
-                  {[
-                    "Brand ID",
-                    "Nom",
-                    "Total",
-                    "Réussies",
-                    "Taux",
-                    "Montant",
-                  ].map((h) => (
+                  {["Brand ID", "Nom", "Total", "Réussies", "Taux", "Montant"].map((h) => (
                     <th
                       key={h}
                       className="px-3 py-2 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold"
@@ -450,15 +405,9 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
                     key={b.brandId}
                     className="border-b border-border last:border-0 hover:bg-muted/40"
                   >
-                    <td className="px-3 py-2 font-mono text-foreground">
-                      {b.brandId}
-                    </td>
-                    <td className="px-3 py-2 text-foreground truncate max-w-65">
-                      {b.brandName}
-                    </td>
-                    <td className="px-3 py-2 tabular-nums text-foreground">
-                      {fmtN(b.total)}
-                    </td>
+                    <td className="px-3 py-2 font-mono text-foreground">{b.brandId}</td>
+                    <td className="px-3 py-2 text-foreground truncate max-w-65">{b.brandName}</td>
+                    <td className="px-3 py-2 tabular-nums text-foreground">{fmtN(b.total)}</td>
                     <td className="px-3 py-2 tabular-nums text-emerald-600 dark:text-emerald-400">
                       {fmtN(b.success)}
                     </td>
@@ -482,10 +431,7 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
                 ))}
                 {brands.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={6}
-                      className="px-3 py-6 text-center text-xs text-muted-foreground"
-                    >
+                    <td colSpan={6} className="px-3 py-6 text-center text-xs text-muted-foreground">
                       Aucune marque pour la période.
                     </td>
                   </tr>

@@ -106,21 +106,21 @@ describe("loadOrCreateWrappedDek", () => {
 
 describe("ensureAuthDbKeyEnv", () => {
   it("sets the env var to a hex DEK when available", () => {
-    const env: NodeJS.ProcessEnv = {};
+    const env: Partial<NodeJS.ProcessEnv> = {};
     const dek = ensureAuthDbKeyEnv(dir, makeFakeSafeStorage(), env);
     expect(dek).toMatch(/^[0-9a-f]{64}$/);
     expect(env[AUTH_DB_KEY_ENV]).toBe(dek);
   });
 
   it("leaves the env var unset when encryption is unavailable", () => {
-    const env: NodeJS.ProcessEnv = {};
+    const env: Partial<NodeJS.ProcessEnv> = {};
     const dek = ensureAuthDbKeyEnv(dir, makeFakeSafeStorage(false), env);
     expect(dek).toBeNull();
     expect(env[AUTH_DB_KEY_ENV]).toBeUndefined();
   });
 
   it("does not expose a key when the flag disables encryption", () => {
-    const env: NodeJS.ProcessEnv = { [ENCRYPT_AUTH_DB_ENV]: "0" };
+    const env: Partial<NodeJS.ProcessEnv> = { [ENCRYPT_AUTH_DB_ENV]: "0" };
     const dek = ensureAuthDbKeyEnv(dir, makeFakeSafeStorage(), env);
     expect(dek).toBeNull();
     expect(env[AUTH_DB_KEY_ENV]).toBeUndefined();
@@ -128,7 +128,7 @@ describe("ensureAuthDbKeyEnv", () => {
 
   it("respects an operator-provided key already in the env", () => {
     const preset = "a".repeat(64);
-    const env: NodeJS.ProcessEnv = { [AUTH_DB_KEY_ENV]: preset };
+    const env: Partial<NodeJS.ProcessEnv> = { [AUTH_DB_KEY_ENV]: preset };
     const dek = ensureAuthDbKeyEnv(dir, makeFakeSafeStorage(), env);
     expect(dek).toBe(preset);
     // No wrapped key file should be created when an explicit key is supplied.

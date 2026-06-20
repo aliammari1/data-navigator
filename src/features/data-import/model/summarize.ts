@@ -22,10 +22,7 @@
  */
 
 import { summarizeDataset } from "@/platform/electron/electron-fs";
-import {
-  nullRateFromSummary,
-  numberOrUndefined,
-} from "@/shared/duckdb-summary";
+import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
 import type { ColumnInfo } from "./types";
 
 interface SummarizeRow {
@@ -116,10 +113,8 @@ export function summarizeRowsToColumnInfo(
     const uniqueCount = asFiniteNumber(row.approx_unique) ?? 0;
     const avg = type === "number" ? asFiniteNumber(row.avg) : undefined;
 
-    const min =
-      type === "number" ? asFiniteNumber(row.min) : asString(row.min);
-    const max =
-      type === "number" ? asFiniteNumber(row.max) : asString(row.max);
+    const min = type === "number" ? asFiniteNumber(row.min) : asString(row.min);
+    const max = type === "number" ? asFiniteNumber(row.max) : asString(row.max);
 
     return {
       name,

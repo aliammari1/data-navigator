@@ -35,19 +35,11 @@ function TourRow({
             : "border-indigo-500/20 bg-indigo-500/10 text-indigo-400",
         )}
       >
-        {completed ? (
-          <CheckCircle2 className="h-4 w-4" />
-        ) : (
-          <Sparkles className="h-4 w-4" />
-        )}
+        {completed ? <CheckCircle2 className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="text-sm font-semibold text-foreground">
-          {tour.title}
-        </div>
-        <div className="truncate text-xs text-muted-foreground">
-          {tour.description}
-        </div>
+        <div className="text-sm font-semibold text-foreground">{tour.title}</div>
+        <div className="truncate text-xs text-muted-foreground">{tour.description}</div>
       </div>
       {completed && (
         <button
@@ -82,9 +74,7 @@ function TourLauncherImpl() {
     >
       <div className="flex items-center gap-2 border-b border-border px-4 py-3">
         <Sparkles className="h-4 w-4 text-indigo-400" />
-        <span className="text-sm font-semibold text-foreground">
-          Guided tours
-        </span>
+        <span className="text-sm font-semibold text-foreground">Guided tours</span>
         <span className="ml-auto text-xs text-muted-foreground">
           Fully offline · saved on this device
         </span>

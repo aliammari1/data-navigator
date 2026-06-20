@@ -49,10 +49,7 @@ function TabFallback() {
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div
-            key={i}
-            className="h-28 animate-pulse rounded-xl bg-slate-900/60"
-          />
+          <div key={i} className="h-28 animate-pulse rounded-xl bg-slate-900/60" />
         ))}
       </div>
       <div className="h-80 animate-pulse rounded-xl bg-slate-900/60" />
@@ -84,9 +81,7 @@ export function ForecastScreen() {
               onClick={() => setActiveTab(tab.id)}
               className={cn(
                 "relative whitespace-nowrap px-4 py-3.5 text-sm font-medium transition-colors",
-                activeTab === tab.id
-                  ? "text-blue-400"
-                  : "text-slate-500 hover:text-slate-300",
+                activeTab === tab.id ? "text-blue-400" : "text-slate-500 hover:text-slate-300",
               )}
             >
               {tab.label}

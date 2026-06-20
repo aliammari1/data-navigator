@@ -1,5 +1,5 @@
 "use client";
-import { useState, } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   StickyNote,
@@ -27,46 +27,41 @@ import { useCollabHubStore } from "../store/collab-hub-store";
 
 // ─── Color config ─────────────────────────────────────────────────────────────
 
-const COLOR_MAP: Record<
-  NoteColor,
-  { header: string; bg: string; border: string; label: string }
-> = {
-  yellow: {
-    header: "bg-yellow-400/80 dark:bg-yellow-500/60",
-    bg: "bg-yellow-50 dark:bg-yellow-950/30",
-    border: "border-yellow-300 dark:border-yellow-700",
-    label: "Yellow",
-  },
-  blue: {
-    header: "bg-blue-400/80 dark:bg-blue-500/60",
-    bg: "bg-blue-50 dark:bg-blue-950/30",
-    border: "border-blue-300 dark:border-blue-700",
-    label: "Blue",
-  },
-  green: {
-    header: "bg-emerald-400/80 dark:bg-emerald-500/60",
-    bg: "bg-emerald-50 dark:bg-emerald-950/30",
-    border: "border-emerald-300 dark:border-emerald-700",
-    label: "Green",
-  },
-  pink: {
-    header: "bg-pink-400/80 dark:bg-pink-500/60",
-    bg: "bg-pink-50 dark:bg-pink-950/30",
-    border: "border-pink-300 dark:border-pink-700",
-    label: "Pink",
-  },
-  purple: {
-    header: "bg-violet-400/80 dark:bg-violet-500/60",
-    bg: "bg-violet-50 dark:bg-violet-950/30",
-    border: "border-violet-300 dark:border-violet-700",
-    label: "Purple",
-  },
-};
+const COLOR_MAP: Record<NoteColor, { header: string; bg: string; border: string; label: string }> =
+  {
+    yellow: {
+      header: "bg-yellow-400/80 dark:bg-yellow-500/60",
+      bg: "bg-yellow-50 dark:bg-yellow-950/30",
+      border: "border-yellow-300 dark:border-yellow-700",
+      label: "Yellow",
+    },
+    blue: {
+      header: "bg-blue-400/80 dark:bg-blue-500/60",
+      bg: "bg-blue-50 dark:bg-blue-950/30",
+      border: "border-blue-300 dark:border-blue-700",
+      label: "Blue",
+    },
+    green: {
+      header: "bg-emerald-400/80 dark:bg-emerald-500/60",
+      bg: "bg-emerald-50 dark:bg-emerald-950/30",
+      border: "border-emerald-300 dark:border-emerald-700",
+      label: "Green",
+    },
+    pink: {
+      header: "bg-pink-400/80 dark:bg-pink-500/60",
+      bg: "bg-pink-50 dark:bg-pink-950/30",
+      border: "border-pink-300 dark:border-pink-700",
+      label: "Pink",
+    },
+    purple: {
+      header: "bg-violet-400/80 dark:bg-violet-500/60",
+      bg: "bg-violet-50 dark:bg-violet-950/30",
+      border: "border-violet-300 dark:border-violet-700",
+      label: "Purple",
+    },
+  };
 
-const PRIORITY_MAP: Record<
-  NotePriority,
-  { label: string; className: string }
-> = {
+const PRIORITY_MAP: Record<NotePriority, { label: string; className: string }> = {
   normal: { label: "Normal", className: "bg-muted text-muted-foreground" },
   important: {
     label: "Important",
@@ -131,23 +126,20 @@ function NoteCard({
         "rounded-lg border overflow-hidden",
         colors.bg,
         colors.border,
-        note.resolved && "opacity-60"
+        note.resolved && "opacity-60",
       )}
     >
       {/* Colored header strip */}
       <div
         className={cn(
           "flex items-center justify-between px-3 py-1.5 text-xs font-medium",
-          colors.header
+          colors.header,
         )}
       >
         <div className="flex items-center gap-2">
           <span className="font-semibold text-foreground">{note.author}</span>
           <span
-            className={cn(
-              "rounded-full px-1.5 py-0.5 text-[10px] font-medium",
-              priority.className
-            )}
+            className={cn("rounded-full px-1.5 py-0.5 text-[10px] font-medium", priority.className)}
           >
             {priority.label}
           </span>
@@ -160,7 +152,7 @@ function NoteCard({
         <p
           className={cn(
             "text-sm leading-relaxed text-foreground",
-            note.resolved && "line-through opacity-70"
+            note.resolved && "line-through opacity-70",
           )}
         >
           {note.text}
@@ -201,11 +193,7 @@ function NoteCard({
                   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) handleReply();
                 }}
               />
-              <Button
-                size="icon-sm"
-                onClick={handleReply}
-                disabled={!replyText.trim()}
-              >
+              <Button size="icon-sm" onClick={handleReply} disabled={!replyText.trim()}>
                 <Send className="size-3" />
               </Button>
             </div>
@@ -268,22 +256,12 @@ interface StickyNoteAnnotationProps {
   sectionLabel: string;
 }
 
-export function StickyNoteAnnotation({
-  sectionId,
-  sectionLabel,
-}: StickyNoteAnnotationProps) {
+export function StickyNoteAnnotation({ sectionId, sectionLabel }: StickyNoteAnnotationProps) {
   // Author identity comes from the LAN peer (shared with presence/audit), so the
   // "delete own note" affordance matches who actually wrote it across machines.
   const username = currentUserName();
-  const {
-    notes,
-    addNote,
-    resolveNote,
-    unresolveNote,
-    deleteNote,
-    replyToNote,
-    unresolvedCount,
-  } = useAnnotations(sectionId);
+  const { notes, addNote, resolveNote, unresolveNote, deleteNote, replyToNote, unresolvedCount } =
+    useAnnotations(sectionId);
 
   // Remember the last-used note style across panel opens (the panel unmounts on
   // close), via the UI-pref store.
@@ -317,7 +295,7 @@ export function StickyNoteAnnotation({
         className={cn(
           "relative flex items-center justify-center rounded-md p-1.5 text-muted-foreground transition-colors",
           "hover:bg-muted hover:text-foreground",
-          panelOpen && "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400"
+          panelOpen && "bg-amber-100 text-amber-600 dark:bg-amber-900/40 dark:text-amber-400",
         )}
         title={`Annotations for ${sectionLabel}`}
       >
@@ -339,7 +317,7 @@ export function StickyNoteAnnotation({
             transition={{ duration: 0.15 }}
             className={cn(
               "absolute right-0 top-full z-50 mt-2 w-80 rounded-xl border border-border",
-              "bg-popover shadow-lg ring-1 ring-foreground/5"
+              "bg-popover shadow-lg ring-1 ring-foreground/5",
             )}
           >
             {/* Panel header */}
@@ -348,16 +326,10 @@ export function StickyNoteAnnotation({
                 <StickyNote className="size-4 text-amber-500" />
                 <span className="text-sm font-medium">{sectionLabel}</span>
                 {unresolvedCount > 0 && (
-                  <Badge className="bg-amber-500 text-white text-[10px]">
-                    {unresolvedCount}
-                  </Badge>
+                  <Badge className="bg-amber-500 text-white text-[10px]">{unresolvedCount}</Badge>
                 )}
               </div>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                onClick={() => setPanelOpen(false)}
-              >
+              <Button variant="ghost" size="icon-sm" onClick={() => setPanelOpen(false)}>
                 <X className="size-3.5" />
               </Button>
             </div>
@@ -387,7 +359,7 @@ export function StickyNoteAnnotation({
                       className={cn(
                         "size-5 rounded-full transition-transform",
                         COLOR_MAP[c].header,
-                        color === c && "ring-2 ring-offset-1 ring-foreground scale-110"
+                        color === c && "ring-2 ring-offset-1 ring-foreground scale-110",
                       )}
                     />
                   ))}
@@ -397,24 +369,20 @@ export function StickyNoteAnnotation({
               {/* Priority + post */}
               <div className="flex items-center gap-2">
                 <div className="flex gap-1">
-                  {(["normal", "important", "urgent"] as NotePriority[]).map(
-                    (p) => (
-                      <button
-                        type="button"
-                        key={p}
-                        onClick={() => setPriority(p)}
-                        className={cn(
-                          "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize transition-colors",
-                          PRIORITY_MAP[p].className,
-                          priority === p
-                            ? "ring-2 ring-offset-1 ring-foreground/40"
-                            : "opacity-60"
-                        )}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
+                  {(["normal", "important", "urgent"] as NotePriority[]).map((p) => (
+                    <button
+                      type="button"
+                      key={p}
+                      onClick={() => setPriority(p)}
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-[10px] font-medium capitalize transition-colors",
+                        PRIORITY_MAP[p].className,
+                        priority === p ? "ring-2 ring-offset-1 ring-foreground/40" : "opacity-60",
+                      )}
+                    >
+                      {p}
+                    </button>
+                  ))}
                 </div>
                 <Button
                   size="sm"
@@ -456,9 +424,7 @@ export function StickyNoteAnnotation({
                     ) : (
                       <ChevronDown className="size-3" />
                     )}
-                    {showResolved
-                      ? "Hide resolved"
-                      : `Show ${resolvedNotes.length} resolved`}
+                    {showResolved ? "Hide resolved" : `Show ${resolvedNotes.length} resolved`}
                   </button>
                   <AnimatePresence>
                     {showResolved && (

@@ -68,17 +68,10 @@ export function SettingRow({
   return (
     <div className="flex items-center justify-between gap-4">
       <div className="flex-1">
-        <label
-          htmlFor={htmlFor}
-          className="text-sm text-foreground block"
-        >
+        <label htmlFor={htmlFor} className="text-sm text-foreground block">
           {label}
         </label>
-        {description && (
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {description}
-          </div>
-        )}
+        {description && <div className="text-xs text-muted-foreground mt-0.5">{description}</div>}
       </div>
       <div className="flex-none">{children}</div>
     </div>
@@ -103,11 +96,7 @@ export function Toggle({
     <div className="flex items-center justify-between gap-4">
       <label htmlFor={id} className="cursor-pointer">
         <div className="text-sm text-foreground">{label}</div>
-        {description && (
-          <div className="text-xs text-muted-foreground mt-0.5">
-            {description}
-          </div>
-        )}
+        {description && <div className="text-xs text-muted-foreground mt-0.5">{description}</div>}
       </label>
       <Switch
         id={id}
@@ -200,9 +189,7 @@ export function NumberSetting({
           className,
         )}
       />
-      {suffix && (
-        <span className="text-xs text-muted-foreground">{suffix}</span>
-      )}
+      {suffix && <span className="text-xs text-muted-foreground">{suffix}</span>}
     </div>
   );
 }
@@ -286,9 +273,7 @@ export function SliderSetting({
         }}
         className="w-28"
       />
-      <span className="text-sm text-foreground w-5 text-center tabular-nums">
-        {draft}
-      </span>
+      <span className="text-sm text-foreground w-5 text-center tabular-nums">{draft}</span>
     </div>
   );
 }
@@ -302,9 +287,7 @@ export function QuotaBar({ pct }: { pct: number }) {
       value={clamped}
       className={cn(
         clamped > 85 && "[&_[data-slot=progress-indicator]]:bg-red-500",
-        clamped > 60 &&
-          clamped <= 85 &&
-          "[&_[data-slot=progress-indicator]]:bg-amber-500",
+        clamped > 60 && clamped <= 85 && "[&_[data-slot=progress-indicator]]:bg-amber-500",
       )}
     />
   );

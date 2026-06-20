@@ -129,10 +129,7 @@ export function useAnalysis(args: UseAnalysisArgs): UseAnalysisResult {
 
   const tableName = resolvedTableName || preferredTableName;
 
-  const aiAvailable = useMemo(
-    () => ai.availability.some((a) => a.available),
-    [ai.availability],
-  );
+  const aiAvailable = useMemo(() => ai.availability.some((a) => a.available), [ai.availability]);
 
   // ── Table resolution ────────────────────────────────────────────────────────
   useEffect(() => {
@@ -153,9 +150,7 @@ export function useAnalysis(args: UseAnalysisArgs): UseAnalysisResult {
           }
           return;
         }
-        const countRes = await runReadOnlyQuery(
-          `SELECT COUNT(*) AS cnt FROM ${quoteIdent(next)}`,
-        );
+        const countRes = await runReadOnlyQuery(`SELECT COUNT(*) AS cnt FROM ${quoteIdent(next)}`);
         if (!cancelled) {
           setResolvedTableName(next);
           setTableLoaded(true);
@@ -253,10 +248,7 @@ export function useAnalysis(args: UseAnalysisArgs): UseAnalysisResult {
         try {
           const narrated = await narrateInsights(facts, {
             generateStructured: (req, schema) =>
-              aiRef.current.generateStructured(
-                { ...req, signal: controller.signal },
-                schema,
-              ),
+              aiRef.current.generateStructured({ ...req, signal: controller.signal }, schema),
             schema: LlmInsightResponseSchema,
             signal: controller.signal,
           });

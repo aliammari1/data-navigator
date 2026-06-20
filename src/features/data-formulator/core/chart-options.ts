@@ -1,7 +1,4 @@
-import {
-  flagOutliers,
-  linearTrendline,
-} from "@/features/data-formulator/core/ai";
+import { flagOutliers, linearTrendline } from "@/features/data-formulator/core/ai";
 import type { ChartSpec } from "./types";
 import { PALETTE } from "./constants";
 import { fmtVal } from "./helpers";
@@ -103,11 +100,7 @@ export function buildOption(
     for (const d of data) {
       const key = String(d.color_val ?? "");
       const arr = grouped.get(key) ?? [];
-      arr.push([
-        Number(d.x_val ?? 0),
-        Number(d.y_val ?? 0),
-        String(d.x_val ?? ""),
-      ]);
+      arr.push([Number(d.x_val ?? 0), Number(d.y_val ?? 0), String(d.x_val ?? "")]);
       grouped.set(key, arr);
     }
     const series = [...grouped.entries()].map(([name, arr], i) => ({
@@ -122,9 +115,7 @@ export function buildOption(
       ...base,
       tooltip: { ...base.tooltip, trigger: "item" },
       legend:
-        grouped.size > 1
-          ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 }
-          : undefined,
+        grouped.size > 1 ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 } : undefined,
       grid: { top: 32, right: 16, bottom: 36, left: 12, containLabel: true },
       xAxis: { ...valAxis, scale: true },
       yAxis: { ...valAxis, scale: true },
@@ -180,8 +171,7 @@ export function buildOption(
       ...base,
       tooltip: {
         ...base.tooltip,
-        formatter: (p: { name: string; value: number }) =>
-          `${p.name}: ${fmtVal(p.value)}`,
+        formatter: (p: { name: string; value: number }) => `${p.name}: ${fmtVal(p.value)}`,
       },
       series: [
         {
@@ -213,16 +203,13 @@ export function buildOption(
 
   // ── Funnel ──────────────────────────────────────────────────────────────
   if (spec.type === "funnel") {
-    const sorted = [...data].sort(
-      (a, b) => Number(b.y_val ?? 0) - Number(a.y_val ?? 0),
-    );
+    const sorted = [...data].sort((a, b) => Number(b.y_val ?? 0) - Number(a.y_val ?? 0));
     return {
       ...base,
       tooltip: {
         ...base.tooltip,
         trigger: "item",
-        formatter: (p: { name: string; value: number }) =>
-          `${p.name}: ${fmtVal(p.value)}`,
+        formatter: (p: { name: string; value: number }) => `${p.name}: ${fmtVal(p.value)}`,
       },
       series: [
         {
@@ -276,11 +263,9 @@ export function buildOption(
   }
 
   // ── Stacked / Multi-line: pivot color ────────────────────────────────────
-  const isStacked =
-    spec.type === "stacked-bar" || spec.type === "stacked-horizontal-bar";
+  const isStacked = spec.type === "stacked-bar" || spec.type === "stacked-horizontal-bar";
   const isMultiLine = spec.type === "multi-line";
-  const horizontal =
-    spec.type === "horizontal-bar" || spec.type === "stacked-horizontal-bar";
+  const horizontal = spec.type === "horizontal-bar" || spec.type === "stacked-horizontal-bar";
 
   const hasColor = colorVals.some((v) => v !== "");
   if ((isStacked || isMultiLine) && hasColor) {
@@ -290,10 +275,7 @@ export function buildOption(
     // `data` array for every (x, group) cell (O(xs·groups·data) via `data.find`).
     const byKey = new Map<string, number>();
     for (const d of data) {
-      byKey.set(
-        `${String(d.x_val ?? "")} ${String(d.color_val ?? "")}`,
-        Number(d.y_val ?? 0),
-      );
+      byKey.set(`${String(d.x_val ?? "")}\u0000${String(d.color_val ?? "")}`, Number(d.y_val ?? 0));
     }
     const series = groups.map((g, i) => ({
       name: g,
@@ -302,11 +284,9 @@ export function buildOption(
       smooth: isMultiLine,
       symbol: isMultiLine ? "circle" : undefined,
       symbolSize: 4,
-      data: xs.map((x) => byKey.get(`${x} ${g}`) ?? 0),
+      data: xs.map((x) => byKey.get(`${x}\u0000${g}`) ?? 0),
       itemStyle: { color: PALETTE[i % PALETTE.length] },
-      lineStyle: isMultiLine
-        ? { color: PALETTE[i % PALETTE.length], width: 2.5 }
-        : undefined,
+      lineStyle: isMultiLine ? { color: PALETTE[i % PALETTE.length], width: 2.5 } : undefined,
       barMaxWidth: 36,
       emphasis: { focus: "series" },
     }));
@@ -374,9 +354,7 @@ export function buildOption(
     }
   } else {
     // bar / horizontal-bar
-    const outliers = spec.showOutliers
-      ? flagOutliers(yValues)
-      : yValues.map(() => false);
+    const outliers = spec.showOutliers ? flagOutliers(yValues) : yValues.map(() => false);
     series.push({
       type: "bar",
       data: yValues.map((v, i) => ({
@@ -395,9 +373,7 @@ export function buildOption(
     ...base,
     tooltip: { ...base.tooltip, trigger: "axis" },
     legend:
-      series.length > 1
-        ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 }
-        : undefined,
+      series.length > 1 ? { textStyle: { color: "#6c7086", fontSize: 10 }, top: 0 } : undefined,
     grid: {
       top: series.length > 1 ? 32 : 16,
       right: 16,

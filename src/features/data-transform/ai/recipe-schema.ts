@@ -39,22 +39,13 @@ export const RecipeStepSchema = z.object({
     .optional()
     .describe("SQL WHERE clause without the WHERE keyword (filter steps)."),
   /** select */
-  columns: z
-    .string()
-    .optional()
-    .describe("Comma-separated column list or '*' (select steps)."),
+  columns: z.string().optional().describe("Comma-separated column list or '*' (select steps)."),
   /** derive / rename */
-  expression: z
-    .string()
-    .optional()
-    .describe("SQL expression for a derived/renamed column."),
+  expression: z.string().optional().describe("SQL expression for a derived/renamed column."),
   alias: z.string().optional().describe("Output column name for derive/rename."),
   /** aggregate */
   groupBy: z.string().optional().describe("GROUP BY column(s)."),
-  agg: z
-    .string()
-    .optional()
-    .describe("Aggregation list, e.g. 'SUM(amount) AS total'."),
+  agg: z.string().optional().describe("Aggregation list, e.g. 'SUM(amount) AS total'."),
   /** sort */
   column: z.string().optional().describe("Column to sort by (sort steps)."),
   direction: z.enum(["ASC", "DESC"]).optional().describe("Sort direction."),

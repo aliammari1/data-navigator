@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import SettingsScreen from "./SettingsScreen";
@@ -33,9 +33,7 @@ export const Default: Story = {};
 export const PerformanceTab: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /performance/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /performance/i }));
     // The lazily-loaded panel surfaces the reload notice.
     await expect(await canvas.findByText(/applies on reload/i)).toBeVisible();
   },
@@ -45,9 +43,7 @@ export const StorageTab: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: /^storage$/i }));
-    await expect(
-      await canvas.findByText(/device storage/i),
-    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/device storage/i)).toBeInTheDocument();
   },
 };
 
@@ -55,8 +51,6 @@ export const AboutTab: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: /about/i }));
-    await expect(
-      await canvas.findByText(/about datanavigator/i),
-    ).toBeInTheDocument();
+    await expect(await canvas.findByText(/about datanavigator/i)).toBeInTheDocument();
   },
 };

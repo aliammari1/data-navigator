@@ -35,6 +35,7 @@ export function Spotlight({ inline = false, greeting }: { inline?: boolean; gree
   const commands = useMemo(() => (term ? resolveCommands(term) : []), [term]);
 
   // Keep the keyboard selection in range as results change.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: term is an intentional trigger to reset the selection when the query changes; it is not read in the effect body.
   useEffect(() => {
     setActiveIndex(0);
   }, [term]);

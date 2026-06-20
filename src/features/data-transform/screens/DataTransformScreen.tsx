@@ -26,14 +26,7 @@ import {
   XCircle,
 } from "lucide-react";
 import dynamic from "next/dynamic";
-import {
-  useCallback,
-  useDeferredValue,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -75,12 +68,7 @@ import {
   type TransformStep,
 } from "../engine/sql";
 import { type SqlValidation } from "../engine/validate";
-import {
-  loadRecipes,
-  removeRecipe,
-  type SavedRecipe,
-  saveRecipe,
-} from "../state/recipes";
+import { loadRecipes, removeRecipe, type SavedRecipe, saveRecipe } from "../state/recipes";
 import { useTransformWorker } from "../workers/useTransformWorker";
 
 const MonacoEditor = dynamic(() => import("@monaco-editor/react"), {
@@ -118,10 +106,7 @@ const ADDABLE_STEPS: StepType[] = [
   "pivot",
 ];
 
-const STEP_DEFAULTS: Record<
-  StepType,
-  { label: string; config: Record<string, unknown> }
-> = {
+const STEP_DEFAULTS: Record<StepType, { label: string; config: Record<string, unknown> }> = {
   filter: { label: "New filter", config: { condition: "1=1" } },
   select: { label: "Select columns", config: { columns: "*" } },
   rename: { label: "Add column", config: { expression: "1", alias: "new_col" } },
@@ -144,8 +129,7 @@ export default function DataTransformScreen() {
   const activeDatasetId = useDataStore((s) => s.activeDatasetId);
   const datasets = useDataStore((s) => s.datasets);
   const loadedTableNames = useDataStore((s) => s.loadedTableNames);
-  const activeDataset =
-    datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
+  const activeDataset = datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
   const addActivity = useActivityStore((s) => s.addEvent);
   const addTransform = useDataStore((s) => s.addTransform);
   const setAppContext = useAppContextStore((s) => s.setContext);
@@ -210,9 +194,7 @@ export default function DataTransformScreen() {
         let tableName = activeDataset?.tableName ?? loadedTableNames[0] ?? "";
         const tables = await runReadOnlyQuery("SHOW TABLES").catch(() => []);
         const tableNames = tables
-          .map((row) =>
-            String(row.name ?? row.table_name ?? Object.values(row)[0] ?? ""),
-          )
+          .map((row) => String(row.name ?? row.table_name ?? Object.values(row)[0] ?? ""))
           .filter(Boolean);
         if (tableNames.length > 0 && (!tableName || !tableNames.includes(tableName))) {
           tableName = tableNames[0] ?? "";
@@ -259,9 +241,7 @@ export default function DataTransformScreen() {
     setRunning(true);
     setActiveTab("preview");
     setRuntime(
-      Object.fromEntries(
-        enabled.map((s) => [s.id, { status: "running" } as StepRuntime]),
-      ),
+      Object.fromEntries(enabled.map((s) => [s.id, { status: "running" } as StepRuntime])),
     );
 
     try {
@@ -329,9 +309,7 @@ export default function DataTransformScreen() {
           join: "join",
           pivot: "pivot",
         };
-        const lineageType: DataTransform["type"] = primary
-          ? LINEAGE_TYPE[primary.type]
-          : "filter";
+        const lineageType: DataTransform["type"] = primary ? LINEAGE_TYPE[primary.type] : "filter";
         addTransform({
           id: newId(),
           inputDatasetId: activeDatasetId,
@@ -400,10 +378,7 @@ export default function DataTransformScreen() {
     if (preview.rows.length === 0 || exporting) return;
     setExporting("csv");
     try {
-      await exportResultCsv(
-        { cols: preview.cols, rows: preview.rows },
-        baseExportName(),
-      );
+      await exportResultCsv({ cols: preview.cols, rows: preview.rows }, baseExportName());
     } catch (e) {
       console.error(e);
     } finally {
@@ -416,16 +391,12 @@ export default function DataTransformScreen() {
     if (preview.rows.length === 0 || exporting) return;
     setExporting("xlsx");
     try {
-      await exportResultXlsx(
-        { cols: preview.cols, rows: preview.rows },
-        baseExportName(),
-        {
-          title: "Transform result",
-          subtitle: sourceTableName
-            ? `Source: ${sourceTableName} · ${finalRowCount?.toLocaleString() ?? "?"} rows`
-            : undefined,
-        },
-      );
+      await exportResultXlsx({ cols: preview.cols, rows: preview.rows }, baseExportName(), {
+        title: "Transform result",
+        subtitle: sourceTableName
+          ? `Source: ${sourceTableName} · ${finalRowCount?.toLocaleString() ?? "?"} rows`
+          : undefined,
+      });
     } catch (e) {
       console.error(e);
     } finally {
@@ -461,9 +432,7 @@ export default function DataTransformScreen() {
   }, []);
 
   const toggleStep = useCallback((id: string) => {
-    setSteps((prev) =>
-      prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)),
-    );
+    setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, enabled: !s.enabled } : s)));
   }, []);
 
   const deleteStep = useCallback((id: string) => {
@@ -477,17 +446,12 @@ export default function DataTransformScreen() {
     });
   }, []);
 
-  const updateStepConfig = useCallback(
-    (id: string, key: string, value: unknown) => {
-      setSteps((prev) =>
-        prev.map((s) =>
-          s.id === id ? { ...s, config: { ...s.config, [key]: value } } : s,
-        ),
-      );
-      setRuntime((prev) => (id in prev ? { ...prev, [id]: IDLE_RUNTIME } : prev));
-    },
-    [],
-  );
+  const updateStepConfig = useCallback((id: string, key: string, value: unknown) => {
+    setSteps((prev) =>
+      prev.map((s) => (s.id === id ? { ...s, config: { ...s.config, [key]: value } } : s)),
+    );
+    setRuntime((prev) => (id in prev ? { ...prev, [id]: IDLE_RUNTIME } : prev));
+  }, []);
 
   const updateStepLabel = useCallback((id: string, label: string) => {
     setSteps((prev) => prev.map((s) => (s.id === id ? { ...s, label } : s)));
@@ -539,14 +503,7 @@ export default function DataTransformScreen() {
     } finally {
       setAiGenerating(false);
     }
-  }, [
-    nlInstruction,
-    aiGenerating,
-    sourceTableName,
-    activeDataset?.columns,
-    sourceRowCount,
-    ai,
-  ]);
+  }, [nlInstruction, aiGenerating, sourceTableName, activeDataset?.columns, sourceRowCount, ai]);
 
   const acceptProposed = useCallback(() => {
     if (!proposedSteps) return;
@@ -614,10 +571,7 @@ export default function DataTransformScreen() {
   // reformat) trails the keystrokes instead of running on every one.
   const deferredActiveStep = useDeferredValue(activeStep);
   const liveSQL = useMemo(
-    () =>
-      deferredActiveStep
-        ? stepToSQL(deferredActiveStep, '"prev_step"')
-        : "",
+    () => (deferredActiveStep ? stepToSQL(deferredActiveStep, '"prev_step"') : ""),
     [deferredActiveStep],
   );
 
@@ -643,10 +597,7 @@ export default function DataTransformScreen() {
 
   // ── Real analytics (driven by real sourceRowCount, not a hardcoded 10000) ───
   const doneSteps = useMemo(
-    () =>
-      steps.filter(
-        (s) => s.enabled && (runtime[s.id]?.status ?? "idle") === "done",
-      ),
+    () => steps.filter((s) => s.enabled && (runtime[s.id]?.status ?? "idle") === "done"),
     [steps, runtime],
   );
 
@@ -679,8 +630,7 @@ export default function DataTransformScreen() {
         axisLabel: {
           color: "#71717a",
           fontSize: 10,
-          formatter: (v: number) =>
-            v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v),
+          formatter: (v: number) => (v >= 1000 ? `${(v / 1000).toFixed(0)}K` : String(v)),
         },
         splitLine: { lineStyle: { color: "#27272a" } },
       },
@@ -739,11 +689,7 @@ export default function DataTransformScreen() {
                 : "border-emerald-500/20 bg-emerald-500/10 text-emerald-400",
             )}
           >
-            {hasErrors ? (
-              <XCircle className="h-3 w-3" />
-            ) : (
-              <CheckCircle2 className="h-3 w-3" />
-            )}
+            {hasErrors ? <XCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
             {hasErrors
               ? "Errors detected"
               : `${finalRowCount?.toLocaleString() ?? "?"} output rows`}
@@ -777,9 +723,7 @@ export default function DataTransformScreen() {
         {/* Steps list */}
         <div className="flex w-80 flex-none flex-col border-r border-zinc-800">
           <div className="flex flex-none items-center justify-between border-b border-zinc-800 px-3 py-2.5">
-            <span className="text-xs font-medium text-zinc-400">
-              Steps ({steps.length})
-            </span>
+            <span className="text-xs font-medium text-zinc-400">Steps ({steps.length})</span>
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -804,9 +748,7 @@ export default function DataTransformScreen() {
           <div className="flex-none border-b border-zinc-800 bg-zinc-900/30 p-3">
             <div className="mb-1.5 flex items-center gap-1.5">
               <Sparkles className="h-3.5 w-3.5 text-purple-400" />
-              <span className="text-[11px] font-medium text-zinc-300">
-                Describe a transform
-              </span>
+              <span className="text-[11px] font-medium text-zinc-300">Describe a transform</span>
             </div>
             <div className="flex gap-1.5">
               <Input
@@ -835,9 +777,7 @@ export default function DataTransformScreen() {
                 )}
               </Button>
             </div>
-            {aiError && (
-              <p className="mt-1.5 text-[10px] text-red-400">{aiError}</p>
-            )}
+            {aiError && <p className="mt-1.5 text-[10px] text-red-400">{aiError}</p>}
             {proposedSteps && (
               <div className="mt-2 rounded-lg border border-purple-500/30 bg-purple-500/5 p-2">
                 <p className="mb-1.5 text-[10px] font-medium text-purple-300">
@@ -846,16 +786,8 @@ export default function DataTransformScreen() {
                 </p>
                 <div className="mb-2 space-y-1">
                   {proposedSteps.map((s) => (
-                    <div
-                      key={s.id}
-                      className="flex items-center gap-1.5 text-[10px] text-zinc-300"
-                    >
-                      <span
-                        className={cn(
-                          "rounded px-1 py-0.5 uppercase",
-                          STEP_COLORS[s.type],
-                        )}
-                      >
+                    <div key={s.id} className="flex items-center gap-1.5 text-[10px] text-zinc-300">
+                      <span className={cn("rounded px-1 py-0.5 uppercase", STEP_COLORS[s.type])}>
                         {s.type}
                       </span>
                       <span className="truncate">{s.label}</span>
@@ -907,9 +839,7 @@ export default function DataTransformScreen() {
             {showRecipes && (
               <div className="mt-2 space-y-1">
                 {recipes.length === 0 ? (
-                  <p className="py-2 text-center text-[10px] text-zinc-600">
-                    No saved recipes yet
-                  </p>
+                  <p className="py-2 text-center text-[10px] text-zinc-600">No saved recipes yet</p>
                 ) : (
                   recipes.map((r) => (
                     <div
@@ -974,8 +904,7 @@ export default function DataTransformScreen() {
                 <div>
                   <p className="text-xs text-zinc-400">Source</p>
                   <p className="text-[10px] text-zinc-600">
-                    {sourceTableName ?? "No table loaded"} ·{" "}
-                    {sourceRowCount.toLocaleString()} rows
+                    {sourceTableName ?? "No table loaded"} · {sourceRowCount.toLocaleString()} rows
                   </p>
                 </div>
               </div>
@@ -997,9 +926,7 @@ export default function DataTransformScreen() {
                     onDelete={deleteStep}
                     onMove={moveStep}
                   />
-                  {i < steps.length - 1 && (
-                    <div className="mx-auto mt-1 h-2 w-px bg-zinc-700" />
-                  )}
+                  {i < steps.length - 1 && <div className="mx-auto mt-1 h-2 w-px bg-zinc-700" />}
                 </div>
               ))}
 
@@ -1022,9 +949,7 @@ export default function DataTransformScreen() {
 
           {runHistory.length > 0 && (
             <div className="flex-none border-t border-zinc-800 p-3">
-              <p className="mb-2 text-[10px] uppercase tracking-wide text-zinc-500">
-                Run History
-              </p>
+              <p className="mb-2 text-[10px] uppercase tracking-wide text-zinc-500">Run History</p>
               <div className="space-y-1.5">
                 {runHistory.slice(0, 3).map((r) => (
                   <div key={r.id} className="flex items-center gap-2 text-[10px]">
@@ -1033,12 +958,8 @@ export default function DataTransformScreen() {
                     ) : (
                       <XCircle className="h-3 w-3 text-red-400" />
                     )}
-                    <span className="text-zinc-500">
-                      {r.timestamp.toLocaleTimeString()}
-                    </span>
-                    <span className="text-zinc-400">
-                      {r.outputRows.toLocaleString()}r
-                    </span>
+                    <span className="text-zinc-500">{r.timestamp.toLocaleTimeString()}</span>
+                    <span className="text-zinc-400">{r.outputRows.toLocaleString()}r</span>
                     <span className="ml-auto text-zinc-600">{r.duration}ms</span>
                   </div>
                 ))}
@@ -1057,11 +978,23 @@ export default function DataTransformScreen() {
             <div className="flex-none border-b border-zinc-800 px-4">
               <TabsList className="h-10 gap-0 border-0 bg-transparent p-0">
                 {[
-                  { v: "pipeline", label: "Configure", icon: <Settings2 className="h-3.5 w-3.5" /> },
+                  {
+                    v: "pipeline",
+                    label: "Configure",
+                    icon: <Settings2 className="h-3.5 w-3.5" />,
+                  },
                   { v: "preview", label: "Preview", icon: <Eye className="h-3.5 w-3.5" /> },
-                  { v: "profile", label: "Profile", icon: <TableProperties className="h-3.5 w-3.5" /> },
+                  {
+                    v: "profile",
+                    label: "Profile",
+                    icon: <TableProperties className="h-3.5 w-3.5" />,
+                  },
                   { v: "sql", label: "SQL", icon: <Code2 className="h-3.5 w-3.5" /> },
-                  { v: "analytics", label: "Analytics", icon: <BarChart2 className="h-3.5 w-3.5" /> },
+                  {
+                    v: "analytics",
+                    label: "Analytics",
+                    icon: <BarChart2 className="h-3.5 w-3.5" />,
+                  },
                 ].map((tab) => (
                   <TabsTrigger
                     key={tab.v}
@@ -1196,11 +1129,7 @@ export default function DataTransformScreen() {
                             type="number"
                             value={String(activeStep.config.count ?? 1000)}
                             onChange={(e) =>
-                              updateStepConfig(
-                                activeStep.id,
-                                "count",
-                                Number(e.target.value),
-                              )
+                              updateStepConfig(activeStep.id, "count", Number(e.target.value))
                             }
                             className="h-8 border-zinc-700 bg-zinc-800 font-mono text-xs"
                           />
@@ -1209,9 +1138,7 @@ export default function DataTransformScreen() {
                       {activeStep.type === "join" && (
                         <>
                           <div className="space-y-1.5">
-                            <Label className="text-xs text-zinc-400">
-                              Table to join
-                            </Label>
+                            <Label className="text-xs text-zinc-400">Table to join</Label>
                             <Select
                               value={String(activeStep.config.table ?? "")}
                               onValueChange={(v) =>
@@ -1225,11 +1152,7 @@ export default function DataTransformScreen() {
                                 {datasets
                                   .filter((d) => d.tableName !== sourceTableName)
                                   .map((d) => (
-                                    <SelectItem
-                                      key={d.id}
-                                      value={d.tableName}
-                                      className="text-xs"
-                                    >
+                                    <SelectItem key={d.id} value={d.tableName} className="text-xs">
                                       {d.name}
                                     </SelectItem>
                                   ))}
@@ -1294,8 +1217,7 @@ export default function DataTransformScreen() {
                       )}
                       {activeStep.type === "deduplicate" && (
                         <p className="text-xs text-zinc-500">
-                          Removes all exact duplicate rows using DISTINCT. No
-                          configuration needed.
+                          Removes all exact duplicate rows using DISTINCT. No configuration needed.
                         </p>
                       )}
                     </CardContent>
@@ -1304,9 +1226,7 @@ export default function DataTransformScreen() {
                   {/* Live (debounced) generated SQL preview */}
                   <Card className="border-zinc-800 bg-zinc-900">
                     <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-zinc-400">
-                        Generated SQL
-                      </CardTitle>
+                      <CardTitle className="text-sm text-zinc-400">Generated SQL</CardTitle>
                     </CardHeader>
                     <CardContent>
                       <pre className="overflow-x-auto whitespace-pre-wrap rounded-lg bg-zinc-950 p-3 font-mono text-xs text-emerald-300">
@@ -1342,8 +1262,7 @@ export default function DataTransformScreen() {
                     <span className="text-xs text-zinc-400">
                       Preview: {preview.rows.length.toLocaleString()}
                       {preview.rows.length >= PREVIEW_LIMIT ? "+" : ""} of{" "}
-                      {finalRowCount?.toLocaleString() ?? "?"} rows ·{" "}
-                      {preview.cols.length} columns
+                      {finalRowCount?.toLocaleString() ?? "?"} rows · {preview.cols.length} columns
                     </span>
                     <div className="flex-1" />
                     <Button
@@ -1381,11 +1300,7 @@ export default function DataTransformScreen() {
                       Pipeline output
                     </Badge>
                   </div>
-                  <PreviewGrid
-                    variant="records"
-                    columns={preview.cols}
-                    rows={preview.rows}
-                  />
+                  <PreviewGrid variant="records" columns={preview.cols} rows={preview.rows} />
                 </div>
               )}
             </TabsContent>
@@ -1418,9 +1333,7 @@ export default function DataTransformScreen() {
                   <div className="flex h-40 items-center justify-center text-zinc-500">
                     <div className="text-center">
                       <TableProperties className="mx-auto mb-3 h-10 w-10 opacity-30" />
-                      <p className="text-sm">
-                        Run a SUMMARIZE profile to inspect columns
-                      </p>
+                      <p className="text-sm">Run a SUMMARIZE profile to inspect columns</p>
                     </div>
                   </div>
                 ) : (
@@ -1445,9 +1358,7 @@ export default function DataTransformScreen() {
                           </span>
                         </div>
                         <div className="mt-2 flex items-center gap-3 text-[10px] text-zinc-500">
-                          <span className="w-24">
-                            null {p.nullPct.toFixed(1)}%
-                          </span>
+                          <span className="w-24">null {p.nullPct.toFixed(1)}%</span>
                           <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-800">
                             <div
                               className={cn(

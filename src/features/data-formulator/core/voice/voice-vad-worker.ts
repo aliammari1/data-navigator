@@ -143,13 +143,7 @@ export type VADProcessRequest =
   | VADFrameRequest
   | VADProcessAudioRequest;
 
-export type VADWorkerEventName =
-  | "START"
-  | "SPEECH"
-  | "SILENCE"
-  | "END"
-  | "BARGE_IN"
-  | "FORCED_END";
+export type VADWorkerEventName = "START" | "SPEECH" | "SILENCE" | "END" | "BARGE_IN" | "FORCED_END";
 
 export type VADProcessResponse =
   | {
@@ -285,30 +279,15 @@ function normalizeOptions(value: VADRuntimeOptions): VADRuntimeOptions {
       -5,
       DEFAULT_OPTIONS.bargeInThresholdDbfs,
     ),
-    minSpeechMs: clampNumber(
-      value.minSpeechMs,
-      40,
-      2000,
-      DEFAULT_OPTIONS.minSpeechMs,
-    ),
+    minSpeechMs: clampNumber(value.minSpeechMs, 40, 2000, DEFAULT_OPTIONS.minSpeechMs),
     silenceHangoverMs: clampNumber(
       value.silenceHangoverMs,
       80,
       5000,
       DEFAULT_OPTIONS.silenceHangoverMs,
     ),
-    maxSpeechMs: clampNumber(
-      value.maxSpeechMs,
-      1000,
-      120_000,
-      DEFAULT_OPTIONS.maxSpeechMs,
-    ),
-    speechPaddingMs: clampNumber(
-      value.speechPaddingMs,
-      0,
-      2000,
-      DEFAULT_OPTIONS.speechPaddingMs,
-    ),
+    maxSpeechMs: clampNumber(value.maxSpeechMs, 1000, 120_000, DEFAULT_OPTIONS.maxSpeechMs),
+    speechPaddingMs: clampNumber(value.speechPaddingMs, 0, 2000, DEFAULT_OPTIONS.speechPaddingMs),
     adaptiveBatchThreshold:
       typeof value.adaptiveBatchThreshold === "boolean"
         ? value.adaptiveBatchThreshold
@@ -316,12 +295,7 @@ function normalizeOptions(value: VADRuntimeOptions): VADRuntimeOptions {
   };
 }
 
-function clampNumber(
-  value: unknown,
-  min: number,
-  max: number,
-  fallback: number,
-): number {
+function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
@@ -455,11 +429,7 @@ function analyzeSamples(samples: Float32Array): {
   };
 }
 
-function frameRms(
-  samples: Float32Array,
-  startSample: number,
-  endSample: number,
-): number {
+function frameRms(samples: Float32Array, startSample: number, endSample: number): number {
   const length = Math.max(0, endSample - startSample);
 
   if (length === 0) return 0;
@@ -474,10 +444,7 @@ function frameRms(
   return Math.sqrt(sumSquares / length);
 }
 
-function computeAdaptiveThreshold(
-  frameEnergies: number[],
-  baseThreshold: number,
-): number {
+function computeAdaptiveThreshold(frameEnergies: number[], baseThreshold: number): number {
   if (frameEnergies.length === 0) return baseThreshold;
 
   const sorted = [...frameEnergies].sort((a, b) => a - b);
@@ -744,14 +711,8 @@ function energyBasedBatchVAD(
     };
   }
 
-  const frameSize = Math.max(
-    1,
-    Math.floor((sampleRate * batchOptions.frameMs) / 1000),
-  );
-  const minSpeechFrames = Math.max(
-    1,
-    Math.ceil(batchOptions.minSpeechMs / batchOptions.frameMs),
-  );
+  const frameSize = Math.max(1, Math.floor((sampleRate * batchOptions.frameMs) / 1000));
+  const minSpeechFrames = Math.max(1, Math.ceil(batchOptions.minSpeechMs / batchOptions.frameMs));
   const minSilenceFrames = Math.max(
     1,
     Math.ceil(batchOptions.silenceHangoverMs / batchOptions.frameMs),
@@ -800,8 +761,7 @@ function energyBasedBatchVAD(
         inSpeech = true;
         speechStartFrame = candidateSpeechStartFrame;
 
-        const silenceStartTime =
-          segments.length > 0 ? segments[segments.length - 1].end : 0;
+        const silenceStartTime = segments.length > 0 ? segments[segments.length - 1].end : 0;
 
         const speechStartTime = Math.max(
           0,
@@ -887,10 +847,7 @@ function energyBasedBatchVAD(
     const speechEndFrame = Math.max(speechStartFrame, lastSpeechFrame + 1);
 
     pushSegment(segments, {
-      start: Math.max(
-        0,
-        (speechStartFrame * frameSize - paddingSamples) / sampleRate,
-      ),
+      start: Math.max(0, (speechStartFrame * frameSize - paddingSamples) / sampleRate),
       end: Math.min(
         samples.length / sampleRate,
         (speechEndFrame * frameSize + paddingSamples) / sampleRate,
@@ -952,11 +909,7 @@ function processAudio(request: VADProcessAudioRequest): void {
   });
 
   const samples = decodeAudioBuffer(request.audioBuffer);
-  const analysis = energyBasedBatchVAD(
-    samples,
-    request.sampleRate,
-    batchOptions,
-  );
+  const analysis = energyBasedBatchVAD(samples, request.sampleRate, batchOptions);
 
   postMessage({
     type: "VAD_RESULT",

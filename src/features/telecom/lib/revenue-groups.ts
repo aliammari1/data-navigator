@@ -1,9 +1,6 @@
 import type { CanalKey } from "@/features/telecom/types";
 
-export const REVENUE_GROUPS: Record<
-  string,
-  { keys: CanalKey[]; color: string }
-> = {
+export const REVENUE_GROUPS: Record<string, { keys: CanalKey[]; color: string }> = {
   "Bill Payment": {
     keys: ["bill_payment"],
     color: "#89b4fa",

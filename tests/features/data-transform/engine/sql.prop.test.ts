@@ -82,12 +82,9 @@ describe("quoteIdent / quoteString — injection-safe quoting (fuzzed)", () => {
     },
   );
 
-  test.prop([identArb])(
-    "a bare identifier is wrapped without any internal doubling",
-    (name) => {
-      expect(quoteIdent(name)).toBe(`"${name}"`);
-    },
-  );
+  test.prop([identArb])("a bare identifier is wrapped without any internal doubling", (name) => {
+    expect(quoteIdent(name)).toBe(`"${name}"`);
+  });
 });
 
 describe("buildCTE — read-only & CTE-count invariants (fuzzed)", () => {

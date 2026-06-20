@@ -12,9 +12,7 @@ test.describe("Dashboard Navigation Journey", () => {
     await page.waitForLoadState("networkidle");
   });
 
-  test("should navigate through all core pages via sidebar", async ({
-    page,
-  }) => {
+  test("should navigate through all core pages via sidebar", async ({ page }) => {
     const pages = [
       { path: "/dashboard/upload", label: "Upload" },
       { path: "/dashboard/folders", label: "Folders" },
@@ -27,9 +25,7 @@ test.describe("Dashboard Navigation Journey", () => {
 
     for (const navPage of pages) {
       // Find sidebar link
-      const link = page
-        .locator("a", { hasText: new RegExp(navPage.label, "i") })
-        .first();
+      const link = page.locator("a", { hasText: new RegExp(navPage.label, "i") }).first();
 
       if (await link.isVisible().catch(() => false)) {
         await link.click();
@@ -94,9 +90,7 @@ test.describe("Dashboard Navigation Journey", () => {
     await page.waitForLoadState("networkidle");
 
     // Find and click dashboard/home link
-    const homeLink = page
-      .locator("a", { hasText: /dashboard|home|overview/i })
-      .first();
+    const homeLink = page.locator("a", { hasText: /dashboard|home|overview/i }).first();
 
     if (await homeLink.isVisible().catch(() => false)) {
       await homeLink.click();

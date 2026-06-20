@@ -3,13 +3,7 @@
 import { useEffect, useRef } from "react";
 import { fmtN } from "@/features/telecom/lib/format";
 
-export function AnimCounter({
-  value,
-  dec = 0,
-}: {
-  value: number;
-  dec?: number;
-}) {
+export function AnimCounter({ value, dec = 0 }: { value: number; dec?: number }) {
   const spanRef = useRef<HTMLSpanElement>(null);
   const prev = useRef(0);
   const raf = useRef<number | null>(null);

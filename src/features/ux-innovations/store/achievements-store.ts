@@ -74,8 +74,7 @@ const useAchievementsBase = create<AchievementsState>()(
         void recordAchievementEvent("achievement.unlocked", { id, ts }).catch(() => {});
         return true;
       },
-      claim: (id) =>
-        set((s) => (s.claimed[id] ? s : { claimed: { ...s.claimed, [id]: true } })),
+      claim: (id) => set((s) => (s.claimed[id] ? s : { claimed: { ...s.claimed, [id]: true } })),
       reset: () => set({ unlocked: {}, events: [], claimed: {} }),
     }),
     {
@@ -102,8 +101,7 @@ export const selectXP = (s: AchievementsState): number =>
   ACHIEVEMENTS.reduce((sum, a) => (s.unlocked[a.id] ? sum + a.xp : sum), 0);
 
 /** Count of unlocked achievements. */
-export const selectUnlockedCount = (s: AchievementsState): number =>
-  Object.keys(s.unlocked).length;
+export const selectUnlockedCount = (s: AchievementsState): number => Object.keys(s.unlocked).length;
 
 /** Unlocked status map (id -> ISO date). */
 export const selectUnlocked = (s: AchievementsState): Record<string, string> => s.unlocked;

@@ -9,19 +9,14 @@
 
 import { useForecastData } from "../data/use-forecast-data";
 import { ForecastPanel } from "../components/forecast-panel";
-import {
-  LoadingState,
-  NoDatasetState,
-  NotEnoughDataState,
-} from "./shared";
+import { LoadingState, NoDatasetState, NotEnoughDataState } from "./shared";
 
 export default function IntelligenceTab() {
   const data = useForecastData();
 
   if (data.noDataset) return <NoDatasetState what="forecast intelligence" />;
   if (data.isLoading) return <LoadingState />;
-  if (data.volumeSeries.length < 2)
-    return <NotEnoughDataState what="Forecast intelligence" />;
+  if (data.volumeSeries.length < 2) return <NotEnoughDataState what="Forecast intelligence" />;
 
   return (
     <div className="space-y-8">

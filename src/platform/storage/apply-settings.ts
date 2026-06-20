@@ -98,8 +98,7 @@ export function applyAppearance(input: AppearanceInput): {
     AccentColorSchema.safeParse(input.accentColor).data ?? "blue";
   const density: DensityModeValue =
     DensityModeSchema.safeParse(input.density).data ?? "comfortable";
-  const theme: ThemeValue =
-    ThemeSchema.safeParse(input.theme).data ?? "system";
+  const theme: ThemeValue = ThemeSchema.safeParse(input.theme).data ?? "system";
   const animationsEnabled = input.animationsEnabled !== false;
 
   const el = root();
@@ -110,10 +109,7 @@ export function applyAppearance(input: AppearanceInput): {
     // (theme-provider owns those).
     el.setAttribute("data-theme", theme);
     el.setAttribute("data-animations", animationsEnabled ? "on" : "off");
-    el.setAttribute(
-      "data-compact-numbers",
-      input.compactNumbers ? "on" : "off",
-    );
+    el.setAttribute("data-compact-numbers", input.compactNumbers ? "on" : "off");
 
     const style = el.style;
     style.setProperty("--user-accent", ACCENT_HEX[accentColor]);
@@ -144,14 +140,9 @@ export interface RuntimePerformanceConfig {
  * `clampNumericSetting`, so an out-of-range/`NaN` draft becomes the safe field
  * default instead of poisoning the engine.
  */
-export function resolvePerformanceConfig(
-  input: PerformanceInput,
-): RuntimePerformanceConfig {
+export function resolvePerformanceConfig(input: PerformanceInput): RuntimePerformanceConfig {
   return {
-    duckdbWorkers: clampNumericSetting(
-      "duckdbWorkers",
-      input.duckdbWorkers ?? 4,
-    ),
+    duckdbWorkers: clampNumericSetting("duckdbWorkers", input.duckdbWorkers ?? 4),
     maxMemoryMB: clampNumericSetting("maxMemoryMB", input.maxMemoryMB ?? 512),
     virtualizeThreshold: clampNumericSetting(
       "virtualizeThreshold",

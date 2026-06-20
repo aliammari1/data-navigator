@@ -67,9 +67,7 @@ export function SpecUnitAmountTable({
         <tbody>
           {[...(data?.rows ?? []), ...(data ? [data.total] : [])].map((row) => (
             <tr key={row.unitAmount} className="border-b border-border">
-              <td className="px-3 py-2.5 font-medium text-foreground">
-                {row.unitAmount}
-              </td>
+              <td className="px-3 py-2.5 font-medium text-foreground">{row.unitAmount}</td>
               <td className="px-3 py-2.5 text-right tabular-nums text-foreground font-semibold">
                 {fmtN(row.nombre)}
               </td>

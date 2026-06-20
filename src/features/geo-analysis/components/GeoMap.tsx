@@ -21,17 +21,14 @@ import type { GeoRegion } from "../hooks/use-geo-data";
 import { hasBundledBasemap } from "../lib/pmtiles-protocol";
 import { OfflineMap } from "./OfflineMap";
 
-const MapLibreMap = dynamic(
-  () => import("./MapLibreMap").then((m) => m.MapLibreMap),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="flex h-[500px] items-center justify-center text-sm text-muted-foreground">
-        Loading vector map…
-      </div>
-    ),
-  },
-);
+const MapLibreMap = dynamic(() => import("./MapLibreMap").then((m) => m.MapLibreMap), {
+  ssr: false,
+  loading: () => (
+    <div className="flex h-[500px] items-center justify-center text-sm text-muted-foreground">
+      Loading vector map…
+    </div>
+  ),
+});
 
 export interface GeoMapProps {
   regions: GeoRegion[];

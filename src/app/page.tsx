@@ -230,13 +230,7 @@ function CountUp({
 }
 
 /** Cursor-tracked spotlight surface — CSS variables only, zero re-renders. */
-function Spotlight({
-  children,
-  className = "",
-}: {
-  children: ReactNode;
-  className?: string;
-}) {
+function Spotlight({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     // biome-ignore lint/a11y/noStaticElementInteractions: decorative cursor highlight only
     <div
@@ -708,8 +702,8 @@ function HeroPanel() {
             </span>
           </div>
           <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
-            Volume <span className="text-emerald-300">+4,2%</span> vs hier. Creux à 16:00 sur USSD
-            — corrélé à l'incident régional EST.
+            Volume <span className="text-emerald-300">+4,2%</span> vs hier. Creux à 16:00 sur USSD —
+            corrélé à l'incident régional EST.
           </p>
         </div>
       </div>
@@ -875,8 +869,16 @@ function Hero() {
 function TickerRow({ items, reverse = false }: { items: readonly string[]; reverse?: boolean }) {
   const track = [...items, ...items];
   return (
-    <div className="flex overflow-hidden" style={{ maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)", WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)" }}>
-      <div className={`${reverse ? "lp-marquee-reverse" : "lp-marquee"} flex w-max shrink-0 items-center gap-3 pr-3`}>
+    <div
+      className="flex overflow-hidden"
+      style={{
+        maskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+        WebkitMaskImage: "linear-gradient(90deg, transparent, black 8%, black 92%, transparent)",
+      }}
+    >
+      <div
+        className={`${reverse ? "lp-marquee-reverse" : "lp-marquee"} flex w-max shrink-0 items-center gap-3 pr-3`}
+      >
         {track.map((t, i) => (
           <span
             // biome-ignore lint/suspicious/noArrayIndexKey: static duplicated track
@@ -958,9 +960,7 @@ function StepVisual({ step }: { step: number }) {
               <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-slate-500">
                 {r.type}
               </span>
-              <span className="ml-auto font-mono text-[10px] text-slate-500">
-                nulls {r.null_}
-              </span>
+              <span className="ml-auto font-mono text-[10px] text-slate-500">nulls {r.null_}</span>
               <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/8">
                 <motion.div
                   className={`h-full rounded-full ${r.q > 90 ? "bg-blue-400" : r.q > 80 ? "bg-amber-400" : "bg-rose-400"}`}
@@ -994,7 +994,8 @@ function StepVisual({ step }: { step: number }) {
                 <span className="text-slate-300"> tx,</span>
               </p>
               <p className="pl-7 text-slate-300">
-                <span className="text-blue-300">avg</span>(montant) <span className="text-indigo-300">AS</span> panier
+                <span className="text-blue-300">avg</span>(montant){" "}
+                <span className="text-indigo-300">AS</span> panier
               </p>
               <p>
                 <span className="text-indigo-300">FROM</span>
@@ -1103,7 +1104,12 @@ function GoldenPath() {
   const rail = useSpring(scrollYProgress, { stiffness: 120, damping: 28 });
 
   return (
-    <section id="workflow" ref={ref} className="relative" style={{ height: `${STEPS.length * 100}vh` }}>
+    <section
+      id="workflow"
+      ref={ref}
+      className="relative"
+      style={{ height: `${STEPS.length * 100}vh` }}
+    >
       <div className="sticky top-0 flex h-screen flex-col justify-center overflow-hidden px-5 sm:px-6">
         <div className="mx-auto w-full max-w-7xl">
           <Reveal>
@@ -1167,8 +1173,7 @@ function GoldenPath() {
                   aria-hidden
                   className="absolute inset-0 opacity-40"
                   style={{
-                    backgroundImage:
-                      "radial-gradient(rgba(148,163,184,0.1) 1px, transparent 1px)",
+                    backgroundImage: "radial-gradient(rgba(148,163,184,0.1) 1px, transparent 1px)",
                     backgroundSize: "24px 24px",
                   }}
                 />
@@ -1518,9 +1523,7 @@ function Numbers() {
             <div className="font-mono text-4xl font-semibold tracking-tight text-blue-300 md:text-5xl">
               <CountUp end={s.end} decimals={s.decimals} suffix={s.suffix} />
             </div>
-            <div className="mt-2.5 max-w-[22ch] text-sm leading-snug text-slate-400">
-              {s.label}
-            </div>
+            <div className="mt-2.5 max-w-[22ch] text-sm leading-snug text-slate-400">{s.label}</div>
           </Reveal>
         ))}
       </div>

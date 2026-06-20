@@ -37,9 +37,7 @@ export function CL2({
     <div
       className={cn(
         "rounded-xl border overflow-hidden transition-colors duration-200",
-        open
-          ? "border-primary/25 bg-primary/5"
-          : "border-border/60 bg-muted/20",
+        open ? "border-primary/25 bg-primary/5" : "border-border/60 bg-muted/20",
       )}
     >
       <button
@@ -73,16 +71,14 @@ export function CL2({
             className="overflow-hidden"
           >
             <div className="px-4 py-3 space-y-2.5 border-t border-primary/15">
-              {summaryGroups &&
-                summaryGroups.length > 1 &&
-                fetchSpecChannelStats && (
-                  <GroupSummaryChart
-                    groups={summaryGroups}
-                    dateFrom={dateFrom ?? ""}
-                    dateTo={dateTo ?? ""}
-                    fetchSpecChannelStats={fetchSpecChannelStats}
-                  />
-                )}
+              {summaryGroups && summaryGroups.length > 1 && fetchSpecChannelStats && (
+                <GroupSummaryChart
+                  groups={summaryGroups}
+                  dateFrom={dateFrom ?? ""}
+                  dateTo={dateTo ?? ""}
+                  fetchSpecChannelStats={fetchSpecChannelStats}
+                />
+              )}
               {children}
             </div>
           </motion.div>

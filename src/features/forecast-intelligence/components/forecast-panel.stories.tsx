@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import type { SeriesPoint } from "../core/forecast-engine";
@@ -91,9 +91,7 @@ export const Empty: Story = {
   args: { series: [{ date: "2026-06-01", value: 1000 }] },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(
-      canvas.getByText(/not enough data to forecast/i),
-    ).toBeInTheDocument();
+    await expect(canvas.getByText(/not enough data to forecast/i)).toBeInTheDocument();
   },
 };
 

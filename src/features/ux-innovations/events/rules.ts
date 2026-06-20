@@ -94,7 +94,9 @@ export function progressFor(
     return { current: Math.min(xp, 5000), target: 5000, reached: xp >= 5000 };
   }
   if (def.id === "data-wizard") {
-    const dataExpert = ACHIEVEMENTS.filter((a) => a.category === "DATA_EXPERT" && a.id !== "data-wizard");
+    const dataExpert = ACHIEVEMENTS.filter(
+      (a) => a.category === "DATA_EXPERT" && a.id !== "data-wizard",
+    );
     return {
       current: unlockedCount,
       target: dataExpert.length,
@@ -113,11 +115,7 @@ export function progressFor(
  * ids that are *newly* satisfied (not already unlocked) so callers can unlock
  * idempotently and celebrate once.
  */
-export function evaluate(
-  metrics: Metrics,
-  xp: number,
-  unlocked: Record<string, string>,
-): string[] {
+export function evaluate(metrics: Metrics, xp: number, unlocked: Record<string, string>): string[] {
   const newlyUnlocked: string[] = [];
   const isUnlocked = (id: string) => Boolean(unlocked[id]) || newlyUnlocked.includes(id);
 

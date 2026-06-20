@@ -162,21 +162,18 @@ export function normalQuantile(p: number): number {
 
   // Coefficients.
   const a = [
-    -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2,
-    1.38357751867269e2, -3.066479806614716e1, 2.506628277459239,
+    -3.969683028665376e1, 2.209460984245205e2, -2.759285104469687e2, 1.38357751867269e2,
+    -3.066479806614716e1, 2.506628277459239,
   ];
   const b = [
-    -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2,
-    6.680131188771972e1, -1.328068155288572e1,
+    -5.447609879822406e1, 1.615858368580409e2, -1.556989798598866e2, 6.680131188771972e1,
+    -1.328068155288572e1,
   ];
   const c = [
-    -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838,
-    -2.549732539343734, 4.374664141464968, 2.938163982698783,
+    -7.784894002430293e-3, -3.223964580411365e-1, -2.400758277161838, -2.549732539343734,
+    4.374664141464968, 2.938163982698783,
   ];
-  const d = [
-    7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996,
-    3.754408661907416,
-  ];
+  const d = [7.784695709041462e-3, 3.224671290700398e-1, 2.445134137142996, 3.754408661907416];
 
   const pLow = 0.02425;
   const pHigh = 1 - pLow;
@@ -194,8 +191,7 @@ export function normalQuantile(p: number): number {
     q = p - 0.5;
     r = q * q;
     return (
-      ((((((a[0]! * r + a[1]!) * r + a[2]!) * r + a[3]!) * r + a[4]!) * r + a[5]!) *
-        q) /
+      ((((((a[0]! * r + a[1]!) * r + a[2]!) * r + a[3]!) * r + a[4]!) * r + a[5]!) * q) /
       (((((b[0]! * r + b[1]!) * r + b[2]!) * r + b[3]!) * r + b[4]!) * r + 1)
     );
   }
@@ -213,8 +209,7 @@ export function normalQuantile(p: number): number {
  */
 function resolveBandZ(opts: ForecastOptions): number {
   if (typeof opts.ci === "number" && Number.isFinite(opts.ci)) return opts.ci;
-  const level =
-    typeof opts.ciLevel === "number" ? opts.ciLevel : DEFAULTS.ciLevel;
+  const level = typeof opts.ciLevel === "number" ? opts.ciLevel : DEFAULTS.ciLevel;
   const clamped = Math.min(0.999999, Math.max(0.5, level));
   return normalQuantile(0.5 + clamped / 2);
 }
@@ -250,9 +245,7 @@ function median(xs: number[]): number {
   if (xs.length === 0) return 0;
   const sorted = [...xs].sort((a, b) => a - b);
   const mid = Math.floor(sorted.length / 2);
-  return sorted.length % 2 === 0
-    ? (sorted[mid - 1]! + sorted[mid]!) / 2
-    : sorted[mid]!;
+  return sorted.length % 2 === 0 ? (sorted[mid - 1]! + sorted[mid]!) / 2 : sorted[mid]!;
 }
 
 /** Add `n` days to an ISO date (YYYY-MM-DD…). Falls back to index labels. */
@@ -435,17 +428,13 @@ export function forecastSeries(
   const effectiveM = hasSeason ? m : 1;
 
   // Deseasonalise: subtract each point's phase index.
-  const deseasonalised = values.map(
-    (y, t) => y - (hasSeason ? indices[t % m]! : 0),
-  );
+  const deseasonalised = values.map((y, t) => y - (hasSeason ? indices[t % m]! : 0));
 
   // ── Holt on the deseasonalised series ───────────────────────────────────────
   const state = holt(deseasonalised, opts.alpha, opts.beta);
 
   // Reseasonalise the fitted values for honest in-sample residuals.
-  const fitted = state.fitted.map(
-    (f, t) => f + (hasSeason ? indices[t % m]! : 0),
-  );
+  const fitted = state.fitted.map((f, t) => f + (hasSeason ? indices[t % m]! : 0));
 
   // One-step residuals (skip index 0 which fits itself).
   const residuals: number[] = [];
@@ -494,10 +483,7 @@ export function forecastSeries(
  * the prefix, forecast forward, and score MAE / RMSE / MAPE against the actual
  * holdout. Returns null when the series is too short to split meaningfully.
  */
-export function backtest(
-  values: number[],
-  options: ForecastOptions = {},
-): BacktestMetrics | null {
+export function backtest(values: number[], options: ForecastOptions = {}): BacktestMetrics | null {
   const opts = { ...DEFAULTS, ...options };
   const n = values.length;
   // Need enough history to fit AND a holdout to score.
@@ -513,17 +499,13 @@ export function backtest(
   // Refit on the training prefix (same model, no CI needed here).
   const indices = seasonalIndices(train, opts.seasonLength);
   const hasSeason = indices.some((i) => i !== 0);
-  const deseason = train.map(
-    (y, t) => y - (hasSeason ? indices[t % opts.seasonLength]! : 0),
-  );
+  const deseason = train.map((y, t) => y - (hasSeason ? indices[t % opts.seasonLength]! : 0));
   const state = holt(deseason, opts.alpha, opts.beta);
 
   const predicted = actual.map((_, i) => {
     const h = i + 1;
     const base = state.level + h * state.trend;
-    const seasonal = hasSeason
-      ? indices[(trainLen - 1 + h) % opts.seasonLength]!
-      : 0;
+    const seasonal = hasSeason ? indices[(trainLen - 1 + h) % opts.seasonLength]! : 0;
     return base + seasonal;
   });
 
@@ -531,10 +513,7 @@ export function backtest(
 }
 
 /** Compute MAE / RMSE / MAPE for aligned actual/predicted arrays. */
-export function scoreForecast(
-  actual: number[],
-  predicted: number[],
-): BacktestMetrics {
+export function scoreForecast(actual: number[], predicted: number[]): BacktestMetrics {
   const n = Math.min(actual.length, predicted.length);
   if (n === 0) return { mae: 0, rmse: 0, mape: 0, sampleSize: 0 };
 

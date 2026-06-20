@@ -58,14 +58,9 @@ interface SortableWidgetItemProps {
 }
 
 function SortableWidgetItem({ id, title, chart }: SortableWidgetItemProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id });
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id,
+  });
 
   return (
     <div
@@ -98,9 +93,7 @@ function HITLEditor() {
   const interrupt = useAgentStore((s) => s.interrupt);
   const setPlan = useAgentStore((s) => s.setPlan);
   const clearInterrupt = useAgentStore((s) => s.clearInterrupt);
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-  );
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
   const widgets = plan?.widgets ?? [];
 
@@ -145,9 +138,7 @@ function HITLEditor() {
     <div className="flex flex-col gap-3 p-3">
       {interrupt.active && (
         <div className="p-3 rounded-xl border border-amber-700/40 bg-amber-900/10">
-          <p className="text-xs font-semibold text-amber-300 mb-0.5">
-            Human Review Required
-          </p>
+          <p className="text-xs font-semibold text-amber-300 mb-0.5">Human Review Required</p>
           <p className="text-[11px] text-amber-200/70">{interrupt.reason}</p>
         </div>
       )}
@@ -156,23 +147,11 @@ function HITLEditor() {
         <p className="text-[10px] text-slate-500 mb-2 font-semibold uppercase tracking-wider">
           Widget Order ({widgets.length})
         </p>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragEnd={handleDragEnd}
-        >
-          <SortableContext
-            items={widgets.map((w) => w.id)}
-            strategy={verticalListSortingStrategy}
-          >
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={widgets.map((w) => w.id)} strategy={verticalListSortingStrategy}>
             <div className="space-y-1.5">
               {widgets.map((w) => (
-                <SortableWidgetItem
-                  key={w.id}
-                  id={w.id}
-                  title={w.title}
-                  chart={w.chartType}
-                />
+                <SortableWidgetItem key={w.id} id={w.id} title={w.title} chart={w.chartType} />
               ))}
             </div>
           </SortableContext>
@@ -205,13 +184,7 @@ function HITLEditor() {
 
 // ─── LangSmith offline trace viewer ──────────────────────────────────────────
 
-function TraceNodeItem({
-  node,
-  depth = 0,
-}: {
-  node: TraceNode;
-  depth?: number;
-}) {
+function TraceNodeItem({ node, depth = 0 }: { node: TraceNode; depth?: number }) {
   const [open, setOpen] = useState(depth < 1);
 
   const statusColor =
@@ -224,19 +197,10 @@ function TraceNodeItem({
           : "text-slate-500";
 
   const typeIcon =
-    node.type === "node"
-      ? "⬡"
-      : node.type === "tool"
-        ? "⚙"
-        : node.type === "llm"
-          ? "✦"
-          : "•";
+    node.type === "node" ? "⬡" : node.type === "tool" ? "⚙" : node.type === "llm" ? "✦" : "•";
 
   return (
-    <div
-      className="ml-3 border-l border-slate-800/60"
-      style={{ marginLeft: depth * 12 }}
-    >
+    <div className="ml-3 border-l border-slate-800/60" style={{ marginLeft: depth * 12 }}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -247,9 +211,7 @@ function TraceNodeItem({
         <span className={cn("shrink-0", statusColor)}>{node.status}</span>
         {node.duration && (
           <span className="text-slate-600 shrink-0 tabular-nums">
-            {node.duration < 1000
-              ? `${node.duration}ms`
-              : `${(node.duration / 1000).toFixed(1)}s`}
+            {node.duration < 1000 ? `${node.duration}ms` : `${(node.duration / 1000).toFixed(1)}s`}
           </span>
         )}
         {node.children.length > 0 && (
@@ -354,9 +316,7 @@ export function NarrativePanel() {
               ) : (
                 <div className="flex flex-col items-center justify-center h-full gap-3">
                   <MessageSquare className="w-8 h-8 text-slate-700" />
-                  <p className="text-xs text-slate-500">
-                    Executive summary will appear here
-                  </p>
+                  <p className="text-xs text-slate-500">Executive summary will appear here</p>
                 </div>
               )}
             </motion.div>

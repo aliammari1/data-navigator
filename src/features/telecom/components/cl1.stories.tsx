@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText } from "lucide-react";
 import { expect, userEvent, within } from "storybook/test";
 
@@ -61,7 +61,6 @@ export const RechargeAccent: Story = {
     title: "II. Recharge",
     accentBg: "bg-emerald-500/15",
     accentColor: "text-emerald-600 dark:text-emerald-400",
-    accentGlow:
-      "bg-linear-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0",
+    accentGlow: "bg-linear-to-r from-emerald-500/0 via-emerald-500/50 to-emerald-500/0",
   },
 };

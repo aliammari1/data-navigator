@@ -20,9 +20,7 @@ export function ProgressBar({
   const pct = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
   return (
     <div className="flex items-center gap-2">
-      <div
-        className={cn("flex-1 bg-muted rounded-full overflow-hidden", height)}
-      >
+      <div className={cn("flex-1 bg-muted rounded-full overflow-hidden", height)}>
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: `${pct}%` }}

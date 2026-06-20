@@ -13,11 +13,7 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Grid3x3 } from "lucide-react";
 import { useCallback, useRef } from "react";
-import {
-  qualityColor,
-  typeColor,
-  typeIcon,
-} from "@/features/parsed-data/model/profile-format";
+import { qualityColor, typeColor, typeIcon } from "@/features/parsed-data/model/profile-format";
 import { profileScore } from "@/features/parsed-data/model/summary-map";
 import type { ColProfile } from "@/features/parsed-data/model/types";
 import { cn } from "@/shared/utils";
@@ -79,10 +75,7 @@ function ColumnListCard({
                 }}
               />
             </div>
-            <span
-              className="text-[10px] font-bold"
-              style={{ color: qualityColor(score) }}
-            >
+            <span className="text-[10px] font-bold" style={{ color: qualityColor(score) }}>
               {(score * 100).toFixed(0)}%
             </span>
           </div>
@@ -116,19 +109,14 @@ export function ColumnList({
       <div className="rounded-3xl border border-dashed border-border bg-card p-8 text-center">
         <Grid3x3 className="mx-auto h-8 w-8 text-muted-foreground/60" />
         <p className="mt-3 text-sm text-muted-foreground">
-          {empty
-            ? "No profiles available yet."
-            : "No columns match your filters."}
+          {empty ? "No profiles available yet." : "No columns match your filters."}
         </p>
       </div>
     );
   }
 
   return (
-    <div
-      ref={parentRef}
-      className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-1"
-    >
+    <div ref={parentRef} className="max-h-[calc(100vh-25rem)] overflow-y-auto pr-1">
       <div
         style={{
           height: virtualizer.getTotalSize(),

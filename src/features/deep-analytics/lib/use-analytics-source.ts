@@ -32,15 +32,11 @@ export function useAnalyticsSource(): AnalyticsSource {
 
   return useMemo(() => {
     const columns = dataset?.columns ?? [];
-    const numericColumns = columns
-      .filter((c) => c.type === "number")
-      .map((c) => c.name);
+    const numericColumns = columns.filter((c) => c.type === "number").map((c) => c.name);
     const categoricalColumns = columns
       .filter((c) => c.type === "string" || c.type === "boolean")
       .map((c) => c.name);
-    const dateColumns = columns
-      .filter((c) => c.type === "date")
-      .map((c) => c.name);
+    const dateColumns = columns.filter((c) => c.type === "date").map((c) => c.name);
 
     const viewName = dataset?.viewName ?? dataset?.tableName;
 

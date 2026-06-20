@@ -260,13 +260,11 @@ export async function loadLocalEngine(): Promise<LocalEngine> {
   // native module at the top level. `tokenize` is the model's own tokenizer, so
   // token counts are exact (not estimated).
   let llama: unknown = null;
-  let model:
-    | {
-        dispose: () => Promise<void>;
-        createContext: (o?: unknown) => Promise<unknown>;
-        tokenize: (text: string) => unknown[];
-      }
-    | null = null;
+  let model: {
+    dispose: () => Promise<void>;
+    createContext: (o?: unknown) => Promise<unknown>;
+    tokenize: (text: string) => unknown[];
+  } | null = null;
   let loadedPath: string | null = null;
   const targetPath = path.join(dir, resolveModelFile(dir));
 
@@ -310,7 +308,10 @@ export async function loadLocalEngine(): Promise<LocalEngine> {
       await ensureModel();
       // Imported lazily so the type-only import does not load native code early.
       const { LlamaChatSession } = (await import("node-llama-cpp")) as unknown as {
-        LlamaChatSession: new (o: { contextSequence: unknown; systemPrompt?: string }) => {
+        LlamaChatSession: new (o: {
+          contextSequence: unknown;
+          systemPrompt?: string;
+        }) => {
           prompt: (p: string, o?: { maxTokens?: number; temperature?: number }) => Promise<string>;
         };
       };
@@ -345,7 +346,10 @@ export async function loadLocalEngine(): Promise<LocalEngine> {
       // never derived from `Date.now()`, so timing stays deterministic-by-method.
       const { performance } = await import("node:perf_hooks");
       const { LlamaChatSession } = (await import("node-llama-cpp")) as unknown as {
-        LlamaChatSession: new (o: { contextSequence: unknown; systemPrompt?: string }) => {
+        LlamaChatSession: new (o: {
+          contextSequence: unknown;
+          systemPrompt?: string;
+        }) => {
           prompt: (
             p: string,
             o?: {

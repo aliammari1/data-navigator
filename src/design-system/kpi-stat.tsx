@@ -3,7 +3,7 @@
 import { ArrowDownRight, ArrowRight, ArrowUpRight } from "lucide-react";
 import type { ReactNode } from "react";
 import { NumberTicker } from "@/components/ui/number-ticker";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 type Trend = "up" | "down" | "neutral";
 
@@ -113,11 +113,7 @@ export function KpiStat({
 
       {sub || trendValue ? (
         <div className="mt-auto flex flex-wrap items-center justify-between gap-2">
-          {sub ? (
-            <span className="text-xs leading-tight text-muted-foreground">
-              {sub}
-            </span>
-          ) : null}
+          {sub ? <span className="text-xs leading-tight text-muted-foreground">{sub}</span> : null}
           {trendValue ? (
             <span
               className={cn(

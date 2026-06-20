@@ -27,15 +27,10 @@ function dateExpr(col: string): string {
 }
 
 /** Calendar heatmap: daily aggregated measure across the dataset's date range. */
-export function buildCalendarSql(
-  view: string,
-  roles: ColumnRoles,
-): SceneSql | null {
+export function buildCalendarSql(view: string, roles: ColumnRoles): SceneSql | null {
   if (!roles.date) return null;
   const d = dateExpr(roles.date.name);
-  const measure = roles.measure
-    ? `SUM(${quoteIdent(roles.measure.name)})`
-    : "COUNT(*)";
+  const measure = roles.measure ? `SUM(${quoteIdent(roles.measure.name)})` : "COUNT(*)";
   return {
     sql: `SELECT ${d} AS d, ${measure} AS v
 FROM ${quoteIdent(view)}
@@ -56,9 +51,7 @@ export function buildRaceSql(view: string, roles: ColumnRoles): SceneSql | null 
   if (!roles.date || !roles.category) return null;
   const d = dateExpr(roles.date.name);
   const cat = quoteIdent(roles.category.name);
-  const measure = roles.measure
-    ? `SUM(${quoteIdent(roles.measure.name)})`
-    : "COUNT(*)";
+  const measure = roles.measure ? `SUM(${quoteIdent(roles.measure.name)})` : "COUNT(*)";
   // Restrict to the overall top-N categories so the bar race stays readable.
   return {
     sql: `WITH ranked AS (
@@ -79,16 +72,11 @@ ORDER BY 1, 2`,
 }
 
 /** Sankey flow: category → category2 measure totals. */
-export function buildSankeySql(
-  view: string,
-  roles: ColumnRoles,
-): SceneSql | null {
+export function buildSankeySql(view: string, roles: ColumnRoles): SceneSql | null {
   if (!roles.category || !roles.category2) return null;
   const a = quoteIdent(roles.category.name);
   const b = quoteIdent(roles.category2.name);
-  const measure = roles.measure
-    ? `SUM(${quoteIdent(roles.measure.name)})`
-    : "COUNT(*)";
+  const measure = roles.measure ? `SUM(${quoteIdent(roles.measure.name)})` : "COUNT(*)";
   return {
     sql: `SELECT ${a} AS src, ${b} AS tgt, ${measure} AS v
 FROM ${quoteIdent(view)}
@@ -105,16 +93,11 @@ LIMIT 200`,
  * Gantt / activity heat: measure per (category, hour-of-day). Requires a
  * timestamp-bearing date column; degrades gracefully if no hour is present.
  */
-export function buildGanttSql(
-  view: string,
-  roles: ColumnRoles,
-): SceneSql | null {
+export function buildGanttSql(view: string, roles: ColumnRoles): SceneSql | null {
   if (!roles.date || !roles.category) return null;
   const cat = quoteIdent(roles.category.name);
   const ts = `TRY_CAST(${quoteIdent(roles.date.name)} AS TIMESTAMP)`;
-  const measure = roles.measure
-    ? `SUM(${quoteIdent(roles.measure.name)})`
-    : "COUNT(*)";
+  const measure = roles.measure ? `SUM(${quoteIdent(roles.measure.name)})` : "COUNT(*)";
   return {
     sql: `WITH top_cat AS (
   SELECT ${cat} AS cat, ${measure} AS total
@@ -135,10 +118,7 @@ ORDER BY 1, 2`,
  * Word frequencies: tokenize a free-text column with DuckDB's
  * regexp_split_to_table and count tokens, stop-words filtered, top 80.
  */
-export function buildWordCloudSql(
-  view: string,
-  roles: ColumnRoles,
-): SceneSql | null {
+export function buildWordCloudSql(view: string, roles: ColumnRoles): SceneSql | null {
   if (!roles.text) return null;
   const col = quoteIdent(roles.text.name);
   return {
@@ -160,15 +140,10 @@ LIMIT 80`,
 }
 
 /** Sunburst: two-level hierarchy category → category2 with measure totals. */
-export function buildSunburstSql(
-  view: string,
-  roles: ColumnRoles,
-): SceneSql | null {
+export function buildSunburstSql(view: string, roles: ColumnRoles): SceneSql | null {
   if (!roles.category) return null;
   const a = quoteIdent(roles.category.name);
-  const measure = roles.measure
-    ? `SUM(${quoteIdent(roles.measure.name)})`
-    : "COUNT(*)";
+  const measure = roles.measure ? `SUM(${quoteIdent(roles.measure.name)})` : "COUNT(*)";
   if (roles.category2) {
     const b = quoteIdent(roles.category2.name);
     return {

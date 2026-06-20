@@ -14,16 +14,9 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ensurePersistentStorage, type OPFS_NS } from "@/platform/storage";
-import {
-  downloadSettingsBackup,
-  restoreSettingsFromFile,
-} from "../../lib/settings-backup";
+import { downloadSettingsBackup, restoreSettingsFromFile } from "../../lib/settings-backup";
 import { formatBytes } from "../../lib/format";
-import {
-  clearCacheNamespace,
-  readStorageStats,
-  type StorageStats,
-} from "../../lib/storage-stats";
+import { clearCacheNamespace, readStorageStats, type StorageStats } from "../../lib/storage-stats";
 import { QuotaBar, Section, SettingRow } from "../controls";
 
 export function StoragePanel() {
@@ -49,21 +42,18 @@ export function StoragePanel() {
     void refresh();
   }, [refresh]);
 
-  const handleClear = useCallback(
-    async (id: keyof typeof OPFS_NS, label: string) => {
-      setClearing(id);
-      try {
-        await clearCacheNamespace(id);
-        toast.success(`Cleared ${label.toLowerCase()} cache`);
-        setStats(await readStorageStats());
-      } catch {
-        toast.error(`Failed to clear ${label.toLowerCase()} cache`);
-      } finally {
-        setClearing(null);
-      }
-    },
-    [],
-  );
+  const handleClear = useCallback(async (id: keyof typeof OPFS_NS, label: string) => {
+    setClearing(id);
+    try {
+      await clearCacheNamespace(id);
+      toast.success(`Cleared ${label.toLowerCase()} cache`);
+      setStats(await readStorageStats());
+    } catch {
+      toast.error(`Failed to clear ${label.toLowerCase()} cache`);
+    } finally {
+      setClearing(null);
+    }
+  }, []);
 
   const handleExport = useCallback(async () => {
     setBusy(true);
@@ -113,11 +103,7 @@ export function StoragePanel() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck
-                className={
-                  overall?.isPersistent
-                    ? "w-3.5 h-3.5 text-emerald-400"
-                    : "w-3.5 h-3.5"
-                }
+                className={overall?.isPersistent ? "w-3.5 h-3.5 text-emerald-400" : "w-3.5 h-3.5"}
               />
               {overall?.isPersistent
                 ? "Storage is persisted (eviction-protected)"
@@ -151,15 +137,10 @@ export function StoragePanel() {
         ) : (
           <div className="space-y-3">
             {(stats?.caches ?? []).map((c) => (
-              <div
-                key={c.id}
-                className="flex items-center justify-between gap-4"
-              >
+              <div key={c.id} className="flex items-center justify-between gap-4">
                 <div className="min-w-0">
                   <div className="text-sm text-foreground">{c.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">
-                    {c.description}
-                  </div>
+                  <div className="text-xs text-muted-foreground truncate">{c.description}</div>
                 </div>
                 <div className="flex items-center gap-3 flex-none">
                   <span className="text-sm text-foreground tabular-nums w-16 text-right">

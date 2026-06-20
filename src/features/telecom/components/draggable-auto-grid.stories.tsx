@@ -1,10 +1,7 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
 
-import {
-  type DashboardCardItem,
-  DraggableAutoGrid,
-} from "./draggable-auto-grid";
+import { type DashboardCardItem, DraggableAutoGrid } from "./draggable-auto-grid";
 
 function Card({ title, body }: { title: string; body: string }) {
   return (
@@ -16,11 +13,31 @@ function Card({ title, body }: { title: string; body: string }) {
 }
 
 const items: DashboardCardItem[] = [
-  { id: "kpis", size: "full", node: <Card title="KPIs globaux" body="24 812 transactions · 94,7 % de réussite" /> },
-  { id: "canal-share", size: "md", node: <Card title="Répartition par canal" body="Part de chaque canal sur la période" /> },
-  { id: "daily-trend", size: "md", node: <Card title="Tendance journalière" body="Volume et taux sur 14 jours" /> },
-  { id: "hourly", size: "lg", node: <Card title="Profil horaire" body="Distribution du trafic par heure" /> },
-  { id: "status", size: "sm", node: <Card title="Statuts" body="Succès / échecs / remboursements" /> },
+  {
+    id: "kpis",
+    size: "full",
+    node: <Card title="KPIs globaux" body="24 812 transactions · 94,7 % de réussite" />,
+  },
+  {
+    id: "canal-share",
+    size: "md",
+    node: <Card title="Répartition par canal" body="Part de chaque canal sur la période" />,
+  },
+  {
+    id: "daily-trend",
+    size: "md",
+    node: <Card title="Tendance journalière" body="Volume et taux sur 14 jours" />,
+  },
+  {
+    id: "hourly",
+    size: "lg",
+    node: <Card title="Profil horaire" body="Distribution du trafic par heure" />,
+  },
+  {
+    id: "status",
+    size: "sm",
+    node: <Card title="Statuts" body="Succès / échecs / remboursements" />,
+  },
 ];
 
 const meta = {

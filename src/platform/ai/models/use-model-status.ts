@@ -79,7 +79,7 @@ async function probeTransformersAsset(entry: ModelManifestEntry): Promise<{
   }
 
   // 2. Browser cache populated by a first online transformers.js run (Cache
-    // Storage keyed on the HF URL) — the worker is then offline-capable.
+  // Storage keyed on the HF URL) — the worker is then offline-capable.
   try {
     if ("caches" in window) {
       const names = await caches.keys();
@@ -88,8 +88,7 @@ async function probeTransformersAsset(entry: ModelManifestEntry): Promise<{
         const keys = await cache.keys();
         if (
           keys.some(
-            (req) =>
-              req.url.includes("all-MiniLM-L6-v2") && req.url.includes("model_quantized"),
+            (req) => req.url.includes("all-MiniLM-L6-v2") && req.url.includes("model_quantized"),
           )
         ) {
           return { state: "present", source: "browser-cache" };
@@ -109,9 +108,7 @@ async function probeTransformersAsset(entry: ModelManifestEntry): Promise<{
       const models = await root.getDirectoryHandle("models").catch(() => null);
       if (models) {
         const xenova = await models.getDirectoryHandle("Xenova").catch(() => null);
-        const dir = await xenova
-          ?.getDirectoryHandle("all-MiniLM-L6-v2")
-          .catch(() => null);
+        const dir = await xenova?.getDirectoryHandle("all-MiniLM-L6-v2").catch(() => null);
         if (dir) return { state: "present", source: "browser-cache" };
       }
     }
@@ -267,18 +264,17 @@ export function useModelStatus(lanes: ModelLane[] = ["llm", "embed"]): UseModelS
   const [downloads, setDownloads] = useState<Record<string, DownloadState>>({});
 
   // Track requestId + unsubscribe per active download so cancel() can reach it.
-  const activeRef = useRef<Map<string, { requestId: string; unsubscribe: () => void }>>(
-    new Map(),
-  );
+  const activeRef = useRef<Map<string, { requestId: string; unsubscribe: () => void }>>(new Map());
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal list per call site; keyed off its joined value to avoid rebuilds on new array references.
   const refresh = useCallback(async () => {
     const wanted = MODEL_MANIFEST.filter((m) => lanes.includes(m.lane));
     const next = await Promise.all(wanted.map(probeEntry));
     setRecords(next);
     setLoading(false);
-    // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal list per call site.
   }, [lanes.join(",")]);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `lanes` is a stable literal per call site; keyed off its joined value to avoid rebuilds on new array references.
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -295,7 +291,6 @@ export function useModelStatus(lanes: ModelLane[] = ["llm", "embed"]): UseModelS
       for (const { unsubscribe } of captured.values()) unsubscribe();
       captured.clear();
     };
-    // biome-ignore lint/correctness/useExhaustiveDependencies: lanes is a stable literal per call site.
   }, [lanes.join(",")]);
 
   const setDownload = useCallback((key: string, patch: Partial<DownloadState>) => {

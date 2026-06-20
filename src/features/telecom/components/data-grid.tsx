@@ -9,12 +9,7 @@ import {
   type VisibilityState,
 } from "@tanstack/react-table";
 import { useVirtualizer } from "@tanstack/react-virtual";
-import {
-  ChevronDown,
-  ChevronsUpDown,
-  ChevronUp,
-  Columns3,
-} from "lucide-react";
+import { ChevronDown, ChevronsUpDown, ChevronUp, Columns3 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { fmtN } from "@/features/telecom/lib/format";
@@ -226,10 +221,7 @@ export function DataGrid({
   // Close visibility dropdown on outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (
-        visDropRef.current &&
-        !visDropRef.current.contains(e.target as Node)
-      ) {
+      if (visDropRef.current && !visDropRef.current.contains(e.target as Node)) {
         setVisDropOpen(false);
       }
     }
@@ -268,8 +260,7 @@ export function DataGrid({
         enableSorting: true,
         cell: ({ getValue }) => {
           const v = String(getValue() ?? "");
-          if (c === m.status)
-            return <StatusBadge status={v} mapping={statusMapping} />;
+          if (c === m.status) return <StatusBadge status={v} mapping={statusMapping} />;
           if (c === m.msisdn && onMsisdnClick && v)
             return (
               <button
@@ -280,11 +271,7 @@ export function DataGrid({
                 {v}
               </button>
             );
-          return (
-            <span className="text-muted-foreground font-mono text-[11px]">
-              {v}
-            </span>
-          );
+          return <span className="text-muted-foreground font-mono text-[11px]">{v}</span>;
         },
       })),
     [displayCols, m, onMsisdnClick, statusMapping],
@@ -380,9 +367,7 @@ export function DataGrid({
                           onChange={col.getToggleVisibilityHandler()}
                           className="w-3.5 h-3.5 rounded accent-[var(--primary)]"
                         />
-                        <span className="text-xs text-foreground font-mono truncate">
-                          {col.id}
-                        </span>
+                        <span className="text-xs text-foreground font-mono truncate">{col.id}</span>
                       </label>
                     ))}
                   </div>
@@ -392,9 +377,7 @@ export function DataGrid({
           </div>
 
           {fetchingMore && (
-            <span className="text-[10px] text-muted-foreground animate-pulse">
-              Chargement…
-            </span>
+            <span className="text-[10px] text-muted-foreground animate-pulse">Chargement…</span>
           )}
         </div>
       </div>
@@ -419,10 +402,7 @@ export function DataGrid({
               <table className="w-full text-xs table-fixed">
                 <thead className="sticky top-0 z-10">
                   {table.getHeaderGroups().map((hg) => (
-                    <tr
-                      key={hg.id}
-                      className="bg-muted/80 backdrop-blur border-b border-border"
-                    >
+                    <tr key={hg.id} className="bg-muted/80 backdrop-blur border-b border-border">
                       {hg.headers.map((header) => {
                         const sorted = header.column.getIsSorted();
                         return (
@@ -432,10 +412,7 @@ export function DataGrid({
                             onClick={header.column.getToggleSortingHandler()}
                           >
                             <span className="flex items-center gap-1">
-                              {flexRender(
-                                header.column.columnDef.header,
-                                header.getContext(),
-                              )}
+                              {flexRender(header.column.columnDef.header, header.getContext())}
                               {sorted === "asc" ? (
                                 <ChevronUp className="w-3 h-3 text-primary" />
                               ) : sorted === "desc" ? (
@@ -491,10 +468,7 @@ export function DataGrid({
                           className="px-3 py-1.5 whitespace-nowrap truncate"
                           style={{ width: `${100 / colCount}%` }}
                         >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
                         </div>
                       ))}
                     </div>

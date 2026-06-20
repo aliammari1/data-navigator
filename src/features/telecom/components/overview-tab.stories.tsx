@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { CreditCard, Phone, Wifi } from "lucide-react";
 import { fn } from "storybook/test";
 
@@ -156,11 +156,9 @@ const meta = {
     statusData,
     forecast: [],
     m: mapping,
-    selectedKpis: new Set([
-      "totalTransactions",
-      "successCount",
-      "declinedCount",
-    ]) as Set<keyof KPISummary>,
+    selectedKpis: new Set(["totalTransactions", "successCount", "declinedCount"]) as Set<
+      keyof KPISummary
+    >,
     toggleKpi: fn(),
     selectedOverviewSections: new Set(allSections),
     toggleOverviewSection: fn(),

@@ -1,3 +1,4 @@
+import { describe, expect, it } from "vitest";
 import {
   applyValidityDetail,
   buildQualityDimensions,
@@ -192,14 +193,10 @@ describe("profilesFromSummary", () => {
 
 describe("profileScore", () => {
   it("is a weighted blend of completeness, uniqueness and validity", () => {
-    const score = profileScore(
-      makeProfile({ completeness: 1, uniqueness: 1, validity: 1 }),
-    );
+    const score = profileScore(makeProfile({ completeness: 1, uniqueness: 1, validity: 1 }));
     expect(score).toBeCloseTo(1);
 
-    const half = profileScore(
-      makeProfile({ completeness: 0.5, uniqueness: 0.5, validity: 0.5 }),
-    );
+    const half = profileScore(makeProfile({ completeness: 0.5, uniqueness: 0.5, validity: 0.5 }));
     expect(half).toBeCloseTo(0.5);
   });
 });
@@ -207,19 +204,54 @@ describe("profileScore", () => {
 describe("filterSortProfiles", () => {
   const profiles = [
     // alpha lands in the "good" bucket: score = 0.8*0.5 + 0.8*0.25 + 0.8*0.25 = 0.8
-    makeProfile({ name: "alpha", type: "integer", sqlType: "BIGINT", nullRate: 0.1, distinctCount: 10, completeness: 0.8, uniqueness: 0.8, validity: 0.8 }),
+    makeProfile({
+      name: "alpha",
+      type: "integer",
+      sqlType: "BIGINT",
+      nullRate: 0.1,
+      distinctCount: 10,
+      completeness: 0.8,
+      uniqueness: 0.8,
+      validity: 0.8,
+    }),
     // beta lands in the "poor" bucket: score = 0.5*0.5 + 0.2*0.25 + 0.4*0.25 = 0.4
-    makeProfile({ name: "beta", type: "string", sqlType: "VARCHAR", nullRate: 0.5, distinctCount: 3, completeness: 0.5, uniqueness: 0.2, validity: 0.4 }),
+    makeProfile({
+      name: "beta",
+      type: "string",
+      sqlType: "VARCHAR",
+      nullRate: 0.5,
+      distinctCount: 3,
+      completeness: 0.5,
+      uniqueness: 0.2,
+      validity: 0.4,
+    }),
     // gamma lands in the "excellent" bucket: score = 1
-    makeProfile({ name: "gamma", type: "float", sqlType: "DOUBLE", nullRate: 0, distinctCount: 99, completeness: 1, uniqueness: 1, validity: 1 }),
+    makeProfile({
+      name: "gamma",
+      type: "float",
+      sqlType: "DOUBLE",
+      nullRate: 0,
+      distinctCount: 99,
+      completeness: 1,
+      uniqueness: 1,
+      validity: 1,
+    }),
   ];
 
   it("filters by a case-insensitive name/type/sqlType search", () => {
-    expect(filterSortProfiles(profiles, { ...defaultProfileQuery, search: "BETA" }).map((p) => p.name)).toEqual(["beta"]);
+    expect(
+      filterSortProfiles(profiles, { ...defaultProfileQuery, search: "BETA" }).map((p) => p.name),
+    ).toEqual(["beta"]);
     // type substring
-    expect(filterSortProfiles(profiles, { ...defaultProfileQuery, search: "float" }).map((p) => p.name)).toEqual(["gamma"]);
+    expect(
+      filterSortProfiles(profiles, { ...defaultProfileQuery, search: "float" }).map((p) => p.name),
+    ).toEqual(["gamma"]);
     // sqlType substring
-    expect(filterSortProfiles(profiles, { ...defaultProfileQuery, search: "varchar" }).map((p) => p.name)).toEqual(["beta"]);
+    expect(
+      filterSortProfiles(profiles, { ...defaultProfileQuery, search: "varchar" }).map(
+        (p) => p.name,
+      ),
+    ).toEqual(["beta"]);
   });
 
   it("filters by type", () => {
@@ -230,21 +262,40 @@ describe("filterSortProfiles", () => {
   it("filters by quality bucket", () => {
     const poor = filterSortProfiles(profiles, { ...defaultProfileQuery, qualityFilter: "poor" });
     expect(poor.map((p) => p.name)).toEqual(["beta"]);
-    const excellent = filterSortProfiles(profiles, { ...defaultProfileQuery, qualityFilter: "excellent" });
+    const excellent = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      qualityFilter: "excellent",
+    });
     expect(excellent.map((p) => p.name)).toEqual(["gamma"]);
   });
 
   it("sorts by name ascending and descending", () => {
-    const asc = filterSortProfiles(profiles, { ...defaultProfileQuery, sortBy: "name", sortAsc: true });
+    const asc = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "name",
+      sortAsc: true,
+    });
     expect(asc.map((p) => p.name)).toEqual(["alpha", "beta", "gamma"]);
-    const desc = filterSortProfiles(profiles, { ...defaultProfileQuery, sortBy: "name", sortAsc: false });
+    const desc = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "name",
+      sortAsc: false,
+    });
     expect(desc.map((p) => p.name)).toEqual(["gamma", "beta", "alpha"]);
   });
 
   it("sorts by nullRate and distinctCount", () => {
-    const byNull = filterSortProfiles(profiles, { ...defaultProfileQuery, sortBy: "nullRate", sortAsc: true });
+    const byNull = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "nullRate",
+      sortAsc: true,
+    });
     expect(byNull.map((p) => p.nullRate)).toEqual([0, 0.1, 0.5]);
-    const byDistinct = filterSortProfiles(profiles, { ...defaultProfileQuery, sortBy: "distinctCount", sortAsc: false });
+    const byDistinct = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "distinctCount",
+      sortAsc: false,
+    });
     expect(byDistinct.map((p) => p.distinctCount)).toEqual([99, 10, 3]);
   });
 
@@ -259,7 +310,13 @@ describe("buildQualityDimensions", () => {
   it("returns the four dimensions with averaged scores and affected columns", () => {
     const dims = buildQualityDimensions([
       makeProfile({ name: "good", completeness: 1, uniquenessRate: 0.6, validity: 1, nullRate: 0 }),
-      makeProfile({ name: "bad", completeness: 0.5, uniquenessRate: 0.05, validity: 0.5, nullRate: 0.5 }),
+      makeProfile({
+        name: "bad",
+        completeness: 0.5,
+        uniquenessRate: 0.05,
+        validity: 0.5,
+        nullRate: 0.5,
+      }),
     ]);
 
     const names = dims.map((d) => d.name);
@@ -317,11 +374,7 @@ describe("computeValidityDetail", () => {
   });
 
   it("infers and scores email semantic type", () => {
-    const detail = computeValidityDetail("string", [
-      "a@b.com",
-      "c@d.org",
-      "e@f.net",
-    ]);
+    const detail = computeValidityDetail("string", ["a@b.com", "c@d.org", "e@f.net"]);
     expect(detail.semanticType).toBe("email");
     expect(detail.conformanceRate).toBe(1);
   });

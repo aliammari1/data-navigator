@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Activity, Phone, Users } from "lucide-react";
 import { expect, fn, userEvent, within } from "storybook/test";
 
@@ -58,7 +58,12 @@ export const TrendDown: Story = {
 };
 
 export const HeroSize: Story = {
-  args: { size: "lg", label: "MSISDNs uniques", value: "1,2 M", icon: <Users className="h-5 w-5 text-emerald-400" /> },
+  args: {
+    size: "lg",
+    label: "MSISDNs uniques",
+    value: "1,2 M",
+    icon: <Users className="h-5 w-5 text-emerald-400" />,
+  },
 };
 
 export const Compact: Story = {

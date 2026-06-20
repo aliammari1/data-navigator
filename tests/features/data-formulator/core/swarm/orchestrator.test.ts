@@ -36,7 +36,7 @@ const schedulerStub = {
   ensureReady: vi.fn().mockResolvedValue(undefined),
   cancel: vi.fn(),
 };
-const SchedulerCtor = vi.fn(() => schedulerStub);
+const SchedulerCtor = vi.fn((..._args: unknown[]) => schedulerStub);
 
 vi.mock("@/features/data-formulator/core/swarm/scheduler", () => ({
   InferenceScheduler: function (this: unknown, ...args: unknown[]) {

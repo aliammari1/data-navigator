@@ -61,12 +61,7 @@ interface Props {
   index: number;
 }
 
-function WidgetCardImpl({
-  widget,
-  dragHandleClass = "drag-handle",
-  className,
-  index,
-}: Props) {
+function WidgetCardImpl({ widget, dragHandleClass = "drag-handle", className, index }: Props) {
   const [showSQL, setShowSQL] = useState(false);
   const { spec, status, sql, insight, error } = widget;
   const accent = ACCENT[spec.chartType] ?? "#F59E0B";
@@ -103,15 +98,8 @@ function WidgetCardImpl({
           "cursor-grab active:cursor-grabbing select-none",
         )}
       >
-        <span
-          className={cn(
-            "w-1.5 h-1.5 rounded-full shrink-0",
-            STATUS_DOT[status],
-          )}
-        />
-        <span className="text-[12px] font-semibold text-white truncate flex-1">
-          {spec.title}
-        </span>
+        <span className={cn("w-1.5 h-1.5 rounded-full shrink-0", STATUS_DOT[status])} />
+        <span className="text-[12px] font-semibold text-white truncate flex-1">{spec.title}</span>
 
         {/* Anomaly badge */}
         {widget.rawData && widget.rawData.length > 0 && status === "done" && (
@@ -175,9 +163,7 @@ function WidgetCardImpl({
       {/* Insight footer */}
       {insight && (
         <div className="px-3 py-1.5 border-t border-slate-700/30 shrink-0 bg-slate-800/20">
-          <p className="text-[10px] text-amber-300/80 italic line-clamp-2">
-            ✦ {insight}
-          </p>
+          <p className="text-[10px] text-amber-300/80 italic line-clamp-2">✦ {insight}</p>
         </div>
       )}
 

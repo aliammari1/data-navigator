@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/nextjs";
+import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { PeriodFilterBar } from "./period-filter-bar";
@@ -77,9 +77,7 @@ export const AppliesPeriod: Story = {
 export const PresetEmitsChange: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(
-      canvas.getByRole("button", { name: /Dernier jour chargé/i }),
-    );
+    await userEvent.click(canvas.getByRole("button", { name: /Dernier jour chargé/i }));
     await expect(args.onChange).toHaveBeenCalledWith({
       from: "2024-06-07",
       to: "2024-06-07",

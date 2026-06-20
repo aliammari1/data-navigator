@@ -49,13 +49,7 @@
     "src/**/*.d.ts",
     "next-env.d.ts"
   ],
-  "ignoreBinaries": [
-    "depcruise",
-    "lhci",
-    "test-storybook",
-    "electron-forge",
-    "powershell"
-  ],
+  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "electron-forge", "powershell"],
   "ignoreDependencies": [
     "@huggingface/transformers",
     "onnxruntime-web",
@@ -84,10 +78,7 @@
   },
   "storybook": {
     "config": [".storybook/main.ts"],
-    "entry": [
-      ".storybook/{main,preview,test-runner}.{ts,tsx}",
-      "src/**/*.stories.{ts,tsx}"
-    ]
+    "entry": [".storybook/{main,preview,test-runner}.{ts,tsx}", "src/**/*.stories.{ts,tsx}"]
   },
   "vitest": {
     "config": ["vitest.config.ts"],

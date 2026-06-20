@@ -54,9 +54,7 @@ export function detectZScoreAnomalies(
     .filter((x) => x.score > threshold);
 }
 
-export function detectIQRAnomalies(
-  values: number[],
-): { idx: number; score: number }[] {
+export function detectIQRAnomalies(values: number[]): { idx: number; score: number }[] {
   const q1 = ss.quantile(values, 0.25);
   const q3 = ss.quantile(values, 0.75);
   const iqr = q3 - q1;
@@ -65,8 +63,7 @@ export function detectIQRAnomalies(
   return values
     .map((v, i) => ({
       idx: i,
-      score:
-        v < lo ? (lo - v) / (iqr || 1) : v > hi ? (v - hi) / (iqr || 1) : 0,
+      score: v < lo ? (lo - v) / (iqr || 1) : v > hi ? (v - hi) / (iqr || 1) : 0,
     }))
     .filter((x) => x.score > 0);
 }

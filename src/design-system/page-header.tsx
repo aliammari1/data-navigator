@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "@/shared/utils";
 
 /**
  * PageHeader v2 — the single page-title primitive every screen must use, so the
@@ -25,10 +25,7 @@ export function PageHeader({
 }) {
   return (
     <header
-      className={cn(
-        "flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
-        className,
-      )}
+      className={cn("flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between", className)}
     >
       <div className="flex min-w-0 items-start gap-3">
         {icon ? (
@@ -53,9 +50,7 @@ export function PageHeader({
         </div>
       </div>
       {actions ? (
-        <div className="flex flex-none flex-wrap items-center gap-2">
-          {actions}
-        </div>
+        <div className="flex flex-none flex-wrap items-center gap-2">{actions}</div>
       ) : null}
     </header>
   );

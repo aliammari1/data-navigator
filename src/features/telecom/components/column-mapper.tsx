@@ -18,8 +18,7 @@ export function ColumnMapper({
   defaultMapping: Types.ColumnMapping;
 }) {
   const [local, setLocal] = useState<Types.ColumnMapping>({ ...mapping });
-  const set = (k: keyof Types.ColumnMapping, v: string) =>
-    setLocal((p) => ({ ...p, [k]: v }));
+  const set = (k: keyof Types.ColumnMapping, v: string) => setLocal((p) => ({ ...p, [k]: v }));
 
   const fields: Array<{
     key: keyof Types.ColumnMapping;
@@ -47,9 +46,7 @@ export function ColumnMapper({
     { key: "totalAmount", label: "Montant Total" },
     { key: "retryCount", label: "Nombre de Tentatives" },
   ];
-  const missingRequired = fields.filter(
-    (field) => field.required && !local[field.key],
-  );
+  const missingRequired = fields.filter((field) => field.required && !local[field.key]);
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -65,9 +62,7 @@ export function ColumnMapper({
         <div className="flex items-center justify-between px-5 py-4 border-b border-border">
           <div className="flex items-center gap-2">
             <Settings2 className="w-5 h-5 text-primary" />
-            <span className="text-sm font-bold text-foreground">
-              Mappage des Colonnes
-            </span>
+            <span className="text-sm font-bold text-foreground">Mappage des Colonnes</span>
             <span className="text-[11px] text-muted-foreground">
               {columns.length} colonnes détectées
             </span>
@@ -88,11 +83,7 @@ export function ColumnMapper({
                 className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold mb-1 block"
               >
                 {label}
-                {required && (
-                  <span className="text-red-600 dark:text-red-400 ml-0.5">
-                    *
-                  </span>
-                )}
+                {required && <span className="text-red-600 dark:text-red-400 ml-0.5">*</span>}
               </label>
               <select
                 id={`col-${key}`}

@@ -32,10 +32,7 @@ function isPlainObject(v: unknown): v is Plain {
  *
  *   migrate: makeDeepMergeMigrate(() => DEFAULT_STATE),
  */
-export function deepMergeDefaults<T extends Plain>(
-  defaults: T,
-  persisted: unknown,
-): T {
+export function deepMergeDefaults<T extends Plain>(defaults: T, persisted: unknown): T {
   if (!isPlainObject(persisted)) return { ...defaults };
   const out: Plain = { ...defaults };
   for (const key of Object.keys(defaults)) {

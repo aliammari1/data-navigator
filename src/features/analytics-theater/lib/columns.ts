@@ -75,9 +75,7 @@ export function detectColumnRoles(dataset: Dataset | undefined): ColumnRoles {
   // ── Measure (numeric) ──────────────────────────────────────────────────
   // Prefer a named measure; otherwise the numeric column with the largest
   // distinct spread (least likely to be an id/flag), excluding obvious ids.
-  const measureCandidates = numeric.filter(
-    (c) => !/^id$|_id$|index|idx/i.test(c.name),
-  );
+  const measureCandidates = numeric.filter((c) => !/^id$|_id$|index|idx/i.test(c.name));
   const measure =
     measureCandidates.find((c) => MEASURE_NAME_HINT.test(c.name)) ??
     measureCandidates[0] ??
@@ -96,9 +94,7 @@ export function detectColumnRoles(dataset: Dataset | undefined): ColumnRoles {
     .sort((a, b) => a.ratio - b.ratio);
 
   const category =
-    strings.find(
-      (c) => c !== date && CATEGORY_NAME_HINT.test(c.name),
-    ) ??
+    strings.find((c) => c !== date && CATEGORY_NAME_HINT.test(c.name)) ??
     lowCardStrings[0]?.col ??
     strings.find((c) => c !== date) ??
     null;
