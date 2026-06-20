@@ -40,7 +40,9 @@ export const ENCRYPTED_TEMP_SUFFIX = ".enc.tmp";
  * Enabling values (case-insensitive, trimmed): "1", "true", "on", "yes".
  * Everything else — including unset — means OFF.
  */
-export function isAuthDbEncryptionRequested(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isAuthDbEncryptionRequested(
+  env: Partial<NodeJS.ProcessEnv> = process.env,
+): boolean {
   const raw = env[ENCRYPT_AUTH_DB_FLAG];
   if (raw === undefined) return false;
   const normalized = raw.trim().toLowerCase();
@@ -55,7 +57,7 @@ export function normalizeDekHex(value: string | undefined): string | null {
 }
 
 /** Resolve the DEK from the environment, if present and well-formed. */
-export function resolveDekFromEnv(env: NodeJS.ProcessEnv = process.env): string | null {
+export function resolveDekFromEnv(env: Partial<NodeJS.ProcessEnv> = process.env): string | null {
   return normalizeDekHex(env[AUTH_DB_KEY_ENV]);
 }
 

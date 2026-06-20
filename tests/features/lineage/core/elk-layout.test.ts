@@ -1,4 +1,4 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { LEdge, LNode } from "@/features/lineage/core/types";
 
 // ─── Mock elkjs ──────────────────────────────────────────────────────────────

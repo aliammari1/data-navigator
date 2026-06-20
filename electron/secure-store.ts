@@ -67,7 +67,7 @@ export function getWrappedKeyPath(userDataDir: string): string {
 }
 
 /** True unless the feature flag is explicitly set to a disabling value. */
-export function isEncryptionEnabledByFlag(env: NodeJS.ProcessEnv = process.env): boolean {
+export function isEncryptionEnabledByFlag(env: Partial<NodeJS.ProcessEnv> = process.env): boolean {
   const raw = env[ENCRYPT_AUTH_DB_ENV];
   if (raw === undefined) return true;
   const normalized = raw.trim().toLowerCase();
@@ -133,7 +133,7 @@ export function loadOrCreateWrappedDek(
 export function ensureAuthDbKeyEnv(
   userDataDir: string,
   safeStorage: SafeStorageLike,
-  env: NodeJS.ProcessEnv = process.env,
+  env: Partial<NodeJS.ProcessEnv> = process.env,
 ): string | null {
   // Respect an explicit operator-provided key (e.g. for tests / recovery).
   const existing = env[AUTH_DB_KEY_ENV];

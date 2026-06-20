@@ -41,7 +41,7 @@ export function buildDatasetTags({
   fileName,
   telecomMode,
 }: {
-  columns: ColMeta[];
+  columns: Array<{ name: string }>;
   fileName: string;
   telecomMode: boolean;
 }) {

@@ -13,7 +13,6 @@ import type { AIInsight, CanalSummary, HourlyRow, KPISummary } from "@/features/
 /** A minimal CanalSummary; the chart-irrelevant visual fields are stubbed. */
 function canal(partial: Partial<CanalSummary> & { key: CanalSummary["key"] }): CanalSummary {
   return {
-    key: partial.key,
     label: partial.label ?? partial.key,
     icon: (() => null) as unknown as CanalSummary["icon"],
     color: "",

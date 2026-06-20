@@ -24,7 +24,6 @@ const ALL_CANAL_KEYS: CanalKey[] = [
 
 function rawCanal(partial: Partial<RawCanalRow> & { key: CanalKey }): RawCanalRow {
   return {
-    key: partial.key,
     label: partial.label ?? partial.key,
     total: 0,
     success: 0,

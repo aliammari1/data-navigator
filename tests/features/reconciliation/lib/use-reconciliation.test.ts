@@ -1,4 +1,4 @@
-import { beforeEach, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Mock the DuckDB boundary so importing the hook module never pulls in the real
 // worker/wasm graph. mapDiffRow itself is pure and never touches DuckDB; we only
