@@ -159,18 +159,21 @@ jobs:
         run: pnpm run typecheck
 
       # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
-      # DEBUG=electron-forge:* streams Forge's internal trace to stderr, bypassing the
-      # listr renderer (whose interactive frames get mangled in non-TTY CI logs and
-      # hide whether the maker actually ran). FORCE_COLOR=0 keeps that trace readable.
+      #
+      # CRITICAL: pipe through `cat` so Forge's stdout is NOT a TTY. `electron-forge
+      # make` hard-codes `interactive: true` (see @electron-forge/cli
+      # electron-forge-make.js), so listr2 uses its INTERACTIVE renderer. Under the
+      # runner's TTY that renderer mis-syncs and the make process exits ~0.7s into
+      # extracting the Electron zip — exit 0, no out/, no .msi (silently green).
+      # Forcing a non-TTY stdout makes listr2 fall back to its line renderer and the
+      # full package + WiX maker run to completion. bash here gets `-o pipefail`
+      # (GitHub default), so a real Forge failure still fails the step.
       - name: Make Windows MSI
-        run: pnpm run electron:make
+        shell: bash
+        run: pnpm run electron:make 2>&1 | cat
         env:
           NODE_ENV: production
-          # Widen to all debug namespaces: the no-op happens inside @electron/packager
-          # (its own namespace), not electron-forge:*, so capture everything to see
-          # exactly where packaging bails and produces no out/.
-          DEBUG: "*"
-          DEBUG_COLORS: "false"
+          DEBUG: electron-forge:*
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
