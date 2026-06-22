@@ -1,9 +1,12 @@
 # facts: data-navigator is a private (package.json private:true), offline-first Electron
-# desktop app. This workflow is the security gate: CodeQL (js/ts), dependency-review on
-# PRs, pnpm audit (audit:security script), and OpenSSF Scorecard. No multi-GB GGUF model
-# is ever downloaded in CI. Third-party actions are SHA-pinned; first-party actions/* and
-# github/* use major tags. Least-privilege permissions per job. Assumes the shared composite
-# action ./.github/actions/setup exists (added by the workflow-setup lane).
+# desktop app. This workflow is the lightweight security gate: dependency-review on PRs
+# plus a pnpm production-dependency audit + dead-code hygiene. No multi-GB GGUF model is
+# ever downloaded in CI. Third-party actions are SHA-pinned; first-party actions/* use
+# major tags. Least-privilege permissions per job.
+#
+# (CodeQL was removed — code scanning requires GitHub Advanced Security, which is not
+# enabled on this repo, so it only ever errored. OpenSSF Scorecard and the weekly
+# schedule that fed both were removed too.)
 name: Security
 
 on:
@@ -16,9 +19,6 @@ on:
       - main
       - develop
   merge_group:
-  schedule:
-    # Weekly, Monday 03:24 UTC. Keeps CodeQL + Scorecard fresh even without new commits.
-    - cron: "24 3 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -29,40 +29,6 @@ concurrency:
 permissions: {}
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Static analysis (CodeQL) for JavaScript/TypeScript. build-mode: none because
-  # this is an interpreted codebase (no compiled artifact needed for analysis).
-  # ---------------------------------------------------------------------------
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    permissions:
-      contents: read
-      security-events: write
-      packages: read
-      # Required by github/codeql-action in PRIVATE repos: the analyze step calls
-      # the Actions workflow-runs API (telemetry + incremental analysis). Without
-      # it the job ends in "Resource not accessible by integration" /
-      # "CodeQL job status was configuration error" and the gate goes red.
-      actions: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          build-mode: none
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:javascript-typescript"
-
   # ---------------------------------------------------------------------------
   # Dependency review: blocks PRs that introduce vulnerable or disallowed-license
   # dependencies, and posts a summary comment. PR-only (needs the base..head diff).
@@ -106,7 +72,6 @@ jobs:
         uses: actions/checkout@v6
 
       # Shared composite action: pnpm + Node 24 + pnpm-store/Next caches + install.
-      # Added by the workflow-setup lane (see .github/actions/setup/action.yml).
       - name: Set up toolchain
         uses: ./.github/actions/setup
 
@@ -120,52 +85,3 @@ jobs:
       - name: Dead-code hygiene
         run: pnpm dlx knip
         continue-on-error: true
-
-  # ---------------------------------------------------------------------------
-  # OpenSSF Scorecard: repository security-posture scoring. Runs on push to the
-  # default branch and on schedule only (it scores branch protection, tokens,
-  # workflow perms, etc. — not meaningful per-PR). Uploads SARIF to code scanning.
-  # ---------------------------------------------------------------------------
-  scorecard:
-    name: OpenSSF Scorecard
-    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-
-    permissions:
-      contents: read
-      security-events: write
-      # Needed for the Scorecard publish/auth flow (read OIDC token).
-      id-token: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
-
-      - name: Run analysis
-        # SHA-PIN (third-party): verify/refresh this SHA at implementation time via
-        #   gh api repos/ossf/scorecard-action/git/refs/tags/v2 --jq .object.sha
-        # Dependabot (github-actions ecosystem) keeps it current after merge.
-        uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          # Only publish results (public OpenSSF API) for the canonical repo on
-          # scheduled runs; keep it off elsewhere so forks/branches don't publish.
-          publish_results: false
-
-      - name: Upload SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: results.sarif
-          category: scorecard
-
-      - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v5
-        if: always()
-        with:
-          name: scorecard-sarif
-          path: results.sarif
-          retention-days: 7
