@@ -42,6 +42,11 @@ jobs:
       contents: read
       security-events: write
       packages: read
+      # Required by github/codeql-action in PRIVATE repos: the analyze step calls
+      # the Actions workflow-runs API (telemetry + incremental analysis). Without
+      # it the job ends in "Resource not accessible by integration" /
+      # "CodeQL job status was configuration error" and the gate goes red.
+      actions: read
 
     steps:
       - name: Checkout repository
