@@ -56,7 +56,9 @@ env:
 jobs:
   audit:
     name: Audit packaged fuses
-    runs-on: windows-latest
+    # windows-2022 (not windows-latest=windows-2025-vs2026): the new image breaks
+    # node-gyp/VS detection and @electron/packager. Same toolchain the MSI build uses.
+    runs-on: windows-2022
     timeout-minutes: 90
 
     permissions:
@@ -110,8 +112,14 @@ jobs:
       # `electron:package` runs desktop:build then `electron-forge package`, which
       # invokes the postPackage hook in forge.config.ts that flips the production
       # fuses. Output lands under ./out/<ProductName>-win32-x64/.
+      # Pipe through `cat` so stdout is NOT a TTY: electron-forge package hard-codes
+      # interactive:true, and under the runner's TTY the listr2 interactive renderer
+      # makes the process exit mid-extraction (no packaged app -> verify-fuses then
+      # finds no binary). Non-TTY stdout uses the line renderer and packaging
+      # completes. bash gets -o pipefail (GitHub default) so real failures still fail.
       - name: Package app (flips production fuses)
-        run: pnpm run electron:package
+        shell: bash
+        run: pnpm run electron:package 2>&1 | cat
         env:
           NODE_ENV: production
 
