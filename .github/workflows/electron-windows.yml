@@ -77,7 +77,13 @@ env:
 jobs:
   build:
     name: Build Windows MSI
-    runs-on: windows-latest
+    # Pin to windows-2022, NOT windows-latest. windows-latest moved to the
+    # windows-2025-vs2026 image, where node-gyp cannot find Visual Studio 2026
+    # (native installs fail) and @electron/packager dies mid-extraction of the
+    # Electron zip — the make exits 0 having produced no out/ and no .msi.
+    # windows-2022 ships VS 2022 + the WiX 3 toolset, the proven environment this
+    # WiX MSI build was written for.
+    runs-on: windows-2022
     timeout-minutes: 90
 
     permissions:
