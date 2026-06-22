@@ -143,8 +143,14 @@ jobs:
       # sherpa-onnx-node / sqlite-vec / node-llama-cpp during make. Adding an
       # explicit step would reference a script that does not exist in package.json.
 
-      - name: Verify (quality + build)
-        run: pnpm run verify
+      # Typecheck only — NOT the full `pnpm run verify`. The MSI artifact only
+      # needs to compile + package; the heavy quality suite (lint, tests, coverage,
+      # Storybook build, size budgets) already runs on the same commit in
+      # quality.yml / storybook.yml and must not gate or slow the release artifact.
+      # `electron:make` runs `desktop:build` (next build) itself, so build coverage
+      # is preserved. A failing Storybook/coverage/size gate no longer blocks the MSI.
+      - name: Typecheck
+        run: pnpm run typecheck
 
       # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
       - name: Make Windows MSI
