@@ -149,6 +149,14 @@ jobs:
         with:
           node-version: 24
 
+      # @size-limit/time measures worker execution time by running the bundle in
+      # headless Chrome. Ubuntu 24.04 runners restrict unprivileged user
+      # namespaces via AppArmor, so Chrome's sandbox fails to start and the run
+      # dies at "Running JS in headless Chrome" with no error. Re-allow
+      # unprivileged userns so the sandbox launches (host-level; applies below).
+      - name: Allow headless Chrome sandbox (Ubuntu 24.04 userns)
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+
       # On pull_request: build + measure + comment the delta in one step.
       - name: Size budgets with PR delta comment
         if: github.event_name == 'pull_request'
