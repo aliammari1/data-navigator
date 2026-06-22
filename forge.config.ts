@@ -55,7 +55,7 @@ const nextStandaloneDir = path.join(root, ".next", "standalone");
 const nextStaticDir = path.join(root, ".next", "static");
 const electronMainBuild = path.join(root, "build", "main.js");
 
-const githubOwner = process.env.GITHUB_REPOSITORY_OWNER ?? "aliammari1";
+const githubOwner = process.env.GITHUB_REPOSITORY_OWNER ?? "The-Data-Navigator";
 const githubRepo = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "data-navigator";
 
 const hasWindowsCertificate =
