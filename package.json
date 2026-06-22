@@ -6,11 +6,11 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/aliammari1/data-navigator.git"
+    "url": "git+https://github.com/The-Data-Navigator/data-navigator.git"
   },
-  "homepage": "https://github.com/aliammari1/data-navigator#readme",
+  "homepage": "https://github.com/The-Data-Navigator/data-navigator#readme",
   "bugs": {
-    "url": "https://github.com/aliammari1/data-navigator/issues"
+    "url": "https://github.com/The-Data-Navigator/data-navigator/issues"
   },
   "main": "build/main.js",
   "scripts": {
