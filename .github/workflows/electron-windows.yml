@@ -160,7 +160,11 @@ jobs:
         run: pnpm run electron:make
         env:
           NODE_ENV: production
-          DEBUG: electron-forge:*
+          # Widen to all debug namespaces: the no-op happens inside @electron/packager
+          # (its own namespace), not electron-forge:*, so capture everything to see
+          # exactly where packaging bails and produces no out/.
+          DEBUG: "*"
+          DEBUG_COLORS: "false"
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
