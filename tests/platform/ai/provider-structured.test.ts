@@ -5,6 +5,7 @@ import {
   extractJsonBlock,
   parseStructured,
   repairJson,
+  schemaToGrammarJson,
 } from "@/platform/ai/provider/structured";
 
 describe("extractJsonBlock", () => {
@@ -27,6 +28,23 @@ describe("extractJsonBlock", () => {
   });
   it("returns null when there is no JSON", () => {
     expect(extractJsonBlock("no json here")).toBeNull();
+  });
+  it("keeps escaped quotes inside string values from breaking balance", () => {
+    // The backslash-escape path must skip the next char so an escaped quote does
+    // not toggle string mode and mis-balance the braces.
+    expect(extractJsonBlock('{"s":"a\\"b"}')).toBe('{"s":"a\\"b"}');
+  });
+  it("returns null when an opening delimiter never balances (truncated output)", () => {
+    expect(extractJsonBlock('{"a":1')).toBeNull();
+    expect(extractJsonBlock('[1,2,{"x":3}')).toBeNull();
+  });
+});
+
+describe("schemaToGrammarJson", () => {
+  it("converts a representable zod object into an inline JSON schema", () => {
+    const out = schemaToGrammarJson(z.object({ name: z.string(), age: z.number() }));
+    expect(out).toMatchObject({ type: "object" });
+    expect(out).toHaveProperty("properties");
   });
 });
 
