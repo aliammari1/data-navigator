@@ -1,12 +1,16 @@
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   assertLoopbackHostname,
   buildRendererCsp,
+  ensureAuthSecretEnv,
   getStringProperty,
   isAllowedAppOrigin,
   isLoopbackHostname,
   isPathInside,
+  loadOrCreateAuthSecret,
   normalizePath,
   PathAccessController,
   wantsMicrophone,
@@ -84,6 +88,12 @@ describe("wantsMicrophone", () => {
     expect(wantsMicrophone({ mediaType: "audio" })).toBe(true);
     expect(wantsMicrophone({ mediaType: "unknown" })).toBe(true);
     expect(wantsMicrophone({ mediaType: "video" })).toBe(false);
+  });
+  it("fails open (true) when details carry neither mediaTypes nor mediaType", () => {
+    // A request object with no media descriptor at all → treat as a possible mic
+    // request and let the user decide, rather than silently denying.
+    expect(wantsMicrophone({})).toBe(true);
+    expect(wantsMicrophone({ requestingUrl: "http://localhost:3000" })).toBe(true);
   });
 });
 
@@ -257,5 +267,51 @@ describe("isLoopbackHostname / assertLoopbackHostname", () => {
     expect(assertLoopbackHostname("127.0.0.1")).toBe("127.0.0.1");
     expect(() => assertLoopbackHostname("0.0.0.0")).toThrow(/non-loopback/);
     expect(() => assertLoopbackHostname("evil.example.com")).toThrow(/localhost-only/);
+  });
+});
+
+describe("loadOrCreateAuthSecret / ensureAuthSecretEnv", () => {
+  let dir: string;
+
+  beforeEach(() => {
+    dir = mkdtempSync(path.join(os.tmpdir(), "dn-auth-secret-"));
+  });
+
+  afterEach(() => {
+    rmSync(dir, { recursive: true, force: true });
+    delete process.env.BETTER_AUTH_SECRET;
+  });
+
+  it("generates a 256-bit hex secret on first run and persists it", () => {
+    const secret = loadOrCreateAuthSecret(dir);
+    expect(secret).toMatch(/^[0-9a-f]{64}$/);
+    expect(existsSync(path.join(dir, "better-auth-secret"))).toBe(true);
+  });
+
+  it("returns the same persisted secret on subsequent runs (stable signing key)", () => {
+    const first = loadOrCreateAuthSecret(dir);
+    const second = loadOrCreateAuthSecret(dir);
+    expect(second).toBe(first);
+  });
+
+  it("regenerates when the persisted secret is too short to be trustworthy", () => {
+    writeFileSync(path.join(dir, "better-auth-secret"), "tooshort", "utf8");
+    const secret = loadOrCreateAuthSecret(dir);
+    expect(secret).not.toBe("tooshort");
+    expect(secret).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("ensureAuthSecretEnv respects an already-set strong env secret (no disk write)", () => {
+    const preset = "a".repeat(40);
+    process.env.BETTER_AUTH_SECRET = preset;
+    expect(ensureAuthSecretEnv(dir)).toBe(preset);
+    expect(existsSync(path.join(dir, "better-auth-secret"))).toBe(false);
+  });
+
+  it("ensureAuthSecretEnv populates the env from disk when unset", () => {
+    delete process.env.BETTER_AUTH_SECRET;
+    const secret = ensureAuthSecretEnv(dir);
+    expect(secret).toMatch(/^[0-9a-f]{64}$/);
+    expect(process.env.BETTER_AUTH_SECRET).toBe(secret);
   });
 });
