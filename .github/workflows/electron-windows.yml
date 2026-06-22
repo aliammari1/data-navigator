@@ -77,7 +77,13 @@ env:
 jobs:
   build:
     name: Build Windows MSI
-    runs-on: windows-latest
+    # Pin to windows-2022, NOT windows-latest. windows-latest moved to the
+    # windows-2025-vs2026 image, where node-gyp cannot find Visual Studio 2026
+    # (native installs fail) and @electron/packager dies mid-extraction of the
+    # Electron zip — the make exits 0 having produced no out/ and no .msi.
+    # windows-2022 ships VS 2022 + the WiX 3 toolset, the proven environment this
+    # WiX MSI build was written for.
+    runs-on: windows-2022
     timeout-minutes: 90
 
     permissions:
@@ -153,10 +159,46 @@ jobs:
         run: pnpm run typecheck
 
       # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
+      #
+      # CRITICAL: pipe through `cat` so Forge's stdout is NOT a TTY. `electron-forge
+      # make` hard-codes `interactive: true` (see @electron-forge/cli
+      # electron-forge-make.js), so listr2 uses its INTERACTIVE renderer. Under the
+      # runner's TTY that renderer mis-syncs and the make process exits ~0.7s into
+      # extracting the Electron zip — exit 0, no out/, no .msi (silently green).
+      # Forcing a non-TTY stdout makes listr2 fall back to its line renderer and the
+      # full package + WiX maker run to completion. bash here gets `-o pipefail`
+      # (GitHub default), so a real Forge failure still fails the step.
       - name: Make Windows MSI
-        run: pnpm run electron:make
+        shell: bash
+        run: pnpm run electron:make 2>&1 | cat
         env:
           NODE_ENV: production
+          DEBUG: electron-forge:*
+          FORCE_COLOR: "0"
+
+      # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
+      # out/make/wix/x64/*.msi; if that is empty the build silently shipped nothing,
+      # so make this an explicit, loud gate instead of a warn-and-pass.
+      - name: Verify MSI was produced
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "=== out/ tree ==="
+          if (Test-Path out) {
+            Get-ChildItem -Recurse out -ErrorAction SilentlyContinue |
+              Select-Object @{n='Size(MB)';e={[math]::Round($_.Length/1MB,2)}}, FullName |
+              Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+          } else {
+            Write-Host "out/ does NOT exist"
+          }
+          $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
+          if ($msis.Count -eq 0) {
+            Write-Error "No .msi was produced under out/ — the WiX maker did not run."
+            exit 1
+          }
+          foreach ($m in $msis) {
+            Write-Host "MSI: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
+          }
 
       # Build a verifiable supply-chain provenance attestation over the MSI(s),
       # even for this private app (defense-in-depth). First-party action -> major tag.
