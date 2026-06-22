@@ -78,9 +78,9 @@
     "ci": "pnpm run check:deps && pnpm run lint && pnpm run typecheck && pnpm run check:architecture && pnpm run test && pnpm run build:storybook && pnpm run build",
     "ci:electron": "pnpm run electron:package",
     "ci:release": "pnpm run verify && pnpm run electron:publish",
-    "electron:package": "pnpm run desktop:build && electron-forge package -- --platform=win32 --arch=x64",
-    "electron:make": "pnpm run desktop:build && electron-forge make -- --platform=win32 --arch=x64",
-    "electron:publish": "pnpm run desktop:build && electron-forge publish -- --platform=win32 --arch=x64",
+    "electron:package": "pnpm run desktop:build && electron-forge package --platform=win32 --arch=x64",
+    "electron:make": "pnpm run desktop:build && electron-forge make --platform=win32 --arch=x64",
+    "electron:publish": "pnpm run desktop:build && electron-forge publish --platform=win32 --arch=x64",
     "voice:models": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/download-sherpa-models.ps1"
   },
   "dependencies": {
