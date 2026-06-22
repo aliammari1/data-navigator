@@ -153,10 +153,39 @@ jobs:
         run: pnpm run typecheck
 
       # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
+      # DEBUG=electron-forge:* streams Forge's internal trace to stderr, bypassing the
+      # listr renderer (whose interactive frames get mangled in non-TTY CI logs and
+      # hide whether the maker actually ran). FORCE_COLOR=0 keeps that trace readable.
       - name: Make Windows MSI
         run: pnpm run electron:make
         env:
           NODE_ENV: production
+          DEBUG: electron-forge:*
+          FORCE_COLOR: "0"
+
+      # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
+      # out/make/wix/x64/*.msi; if that is empty the build silently shipped nothing,
+      # so make this an explicit, loud gate instead of a warn-and-pass.
+      - name: Verify MSI was produced
+        if: always()
+        shell: pwsh
+        run: |
+          Write-Host "=== out/ tree ==="
+          if (Test-Path out) {
+            Get-ChildItem -Recurse out -ErrorAction SilentlyContinue |
+              Select-Object @{n='Size(MB)';e={[math]::Round($_.Length/1MB,2)}}, FullName |
+              Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+          } else {
+            Write-Host "out/ does NOT exist"
+          }
+          $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
+          if ($msis.Count -eq 0) {
+            Write-Error "No .msi was produced under out/ — the WiX maker did not run."
+            exit 1
+          }
+          foreach ($m in $msis) {
+            Write-Host "MSI: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
+          }
 
       # Build a verifiable supply-chain provenance attestation over the MSI(s),
       # even for this private app (defense-in-depth). First-party action -> major tag.
