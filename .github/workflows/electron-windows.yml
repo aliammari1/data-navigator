@@ -158,22 +158,27 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      # Always exercise the real WiX MSI maker used by releases (out/make/wix/x64/*.msi).
-      #
-      # CRITICAL: pipe through `cat` so Forge's stdout is NOT a TTY. `electron-forge
-      # make` hard-codes `interactive: true` (see @electron-forge/cli
-      # electron-forge-make.js), so listr2 uses its INTERACTIVE renderer. Under the
-      # runner's TTY that renderer mis-syncs and the make process exits ~0.7s into
-      # extracting the Electron zip — exit 0, no out/, no .msi (silently green).
-      # Forcing a non-TTY stdout makes listr2 fall back to its line renderer and the
-      # full package + WiX maker run to completion. bash here gets `-o pipefail`
-      # (GitHub default), so a real Forge failure still fails the step.
-      - name: Make Windows MSI
-        shell: bash
-        run: pnpm run electron:make 2>&1 | cat
+      # Build the Next standalone + Electron main bundle as its own step, so the
+      # forge `make` below runs as a fresh process we can trace in isolation.
+      - name: Build desktop bundle
+        run: pnpm run desktop:build
         env:
           NODE_ENV: production
-          DEBUG: electron-forge:*
+
+      # Make the real WiX MSI (out/make/wix/x64/*.msi). On the runner, make has been
+      # exiting CLEANLY (exit 0) ~2.5s into @electron/packager's Electron
+      # download/extraction, producing no out/ (the build works end-to-end locally).
+      # --trace-exit logs the stack of any explicit process.exit(); the packager/get/
+      # extract DEBUG namespaces show the exact stop point. bash gets -o pipefail.
+      - name: Make Windows MSI
+        shell: bash
+        run: |
+          echo "=== disk free before make ==="; df -h 2>/dev/null | head || true
+          pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat
+        env:
+          NODE_ENV: production
+          NODE_OPTIONS: "--trace-exit --trace-uncaught"
+          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
