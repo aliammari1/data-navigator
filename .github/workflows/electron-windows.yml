@@ -165,20 +165,31 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Make the real WiX MSI (out/make/wix/x64/*.msi). On the runner, make has been
-      # exiting CLEANLY (exit 0) ~2.5s into @electron/packager's Electron
-      # download/extraction, producing no out/ (the build works end-to-end locally).
-      # --trace-exit logs the stack of any explicit process.exit(); the packager/get/
-      # extract DEBUG namespaces show the exact stop point. bash gets -o pipefail.
+      # Make the real WiX MSI (out/make/wix/x64/*.msi).
+      #
+      # On the runner, the FIRST make exits cleanly (exit 0) ~2.5s into
+      # @electron/packager's Electron download+extract, producing no out/ — a
+      # subprocess Forge spawns on the cache-MISS download path tears the make down
+      # via a child-exit -> process.exit(0) handler (confirmed via --trace-exit; the
+      # full build works end-to-end locally). But that first attempt still leaves the
+      # Electron zip in @electron/get's cache, so we retry: the next attempt is a pure
+      # cache HIT (no download/verify subprocess) and runs to completion. compgen
+      # gates on the actual .msi, since the broken attempt "succeeds" with exit 0.
       - name: Make Windows MSI
         shell: bash
         run: |
-          echo "=== disk free before make ==="; df -h 2>/dev/null | head || true
-          pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat
+          for i in 1 2 3; do
+            echo "::group::electron-forge make (attempt $i)"
+            pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat || true
+            echo "::endgroup::"
+            if compgen -G "out/make/wix/x64/*.msi" > /dev/null; then
+              echo "MSI produced on attempt $i"; break
+            fi
+            echo "attempt $i produced no .msi; clearing out/ and retrying"; rm -rf out
+          done
         env:
           NODE_ENV: production
-          NODE_OPTIONS: "--trace-exit --trace-uncaught"
-          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
+          DEBUG: "electron-forge:*"
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
