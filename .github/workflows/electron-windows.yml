@@ -174,20 +174,32 @@ jobs:
         run: pnpm exec electron-builder --win --x64 --publish never --config electron-builder.config.cjs
         env:
           NODE_ENV: production
+          # electron-builder spawns a child "node module collector" that walks the
+          # production dependency graph. On pnpm's isolated .pnpm store (a deep symlink
+          # web of hundreds of packages) it blows the default ~2 GB heap (exit 134,
+          # "JavaScript heap out of memory"). Its result is discarded anyway — files[]
+          # excludes root node_modules and we ship pre-staged real-file trees — but it
+          # still runs, so give the child (which inherits NODE_OPTIONS) room to finish.
+          # windows-2022 runners have 16 GB RAM, so 8 GB heap is safe headroom.
+          NODE_OPTIONS: "--max-old-space-size=8192"
 
       # Ground-truth what electron-builder produced; hard-fail loudly if no installer.
+      # CRITICAL: count ONLY root-level dist/*.exe + dist/*.msi (the NSIS / MSI
+      # installers). Do NOT recurse — dist/win-unpacked/electron.exe is the raw Electron
+      # runtime, not an installer, and a recursive match there silently green-lights a
+      # run where the installer-assembly (NSIS/WiX) step actually failed.
       - name: Verify installer was produced
         if: always()
         timeout-minutes: 5
         shell: pwsh
         run: |
           $ErrorActionPreference = 'SilentlyContinue'
-          Write-Host "===== dist/ tree ====="
+          Write-Host "===== dist/ root ====="
           if (Test-Path dist) {
-            Get-ChildItem dist -Recurse | Select-Object @{n='MB';e={[math]::Round($_.Length/1MB,2)}}, FullName | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+            Get-ChildItem dist -File | Select-Object @{n='MB';e={[math]::Round($_.Length/1MB,2)}}, Name | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
           } else { Write-Host "dist/ does NOT exist" }
-          $a = @(Get-ChildItem -Path dist -Recurse -Include *.exe, *.msi -ErrorAction SilentlyContinue)
-          if ($a.Count -eq 0) { Write-Host "::error::No installer (.exe/.msi) was produced under dist/"; exit 1 }
+          $a = @(Get-ChildItem -Path 'dist\*.exe', 'dist\*.msi' -File -ErrorAction SilentlyContinue)
+          if ($a.Count -eq 0) { Write-Host "::error::No installer (.exe/.msi) was produced at dist/ root"; exit 1 }
           foreach ($f in $a) { Write-Host "INSTALLER: $($f.FullName)  ($([math]::Round($f.Length/1MB,1)) MB)" }
 
       # Supply-chain provenance attestation over the installer(s). First-party -> major tag.
