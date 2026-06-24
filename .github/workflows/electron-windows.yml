@@ -98,9 +98,16 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v6
         with:
-          lfs: true
-          # On a release, build from the exact tag changesets cut so the MSI matches
-          # the published version; otherwise build the event's default ref (PR head).
+          # lfs:false — do NOT fetch LFS objects. Every LFS-tracked file is an AI model
+          # (*.onnx/*.bin/*.gguf/*.safetensors + public/models/**); this build is
+          # intentionally model-less (models are downloaded at runtime), so it needs
+          # none of them. Fetching ~636 MB of LFS on every run was pure waste and is
+          # what exhausted the account's LFS bandwidth budget ("exceeded its LFS
+          # budget"). The build-critical assets (public/icon.ico, etc.) are normal git
+          # objects, not LFS.
+          lfs: false
+          # On a release, build from the exact tag changesets cut so the installer
+          # matches the published version; otherwise build the event's default ref.
           ref: ${{ inputs.release-tag != '' && inputs.release-tag || github.ref }}
 
       - name: Set up pnpm
