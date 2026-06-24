@@ -299,9 +299,12 @@ function runtimeDepNames(realPkg) {
   return out;
 }
 
-function flattenClosure(seeds, destNodeModules) {
+function flattenClosure(seeds, destNodeModules, resolveRoot) {
   const visitedIds = new Set();
   const writtenNames = new Set();
+  // Flat (hoisted) packages have no pnpm id; guard their dep-walk by realpath so a
+  // dependency cycle among flat packages terminates.
+  const flatWalked = new Set();
   // Seeds are top-level/required entries: always written. Each package then
   // enqueues only ITS declared runtime deps, so the closure stays production-lean.
   const queue = [...seeds];
@@ -333,6 +336,20 @@ function flattenClosure(seeds, destNodeModules) {
 
     // For already-real (dereferenced) packages, follow their nested runtime deps.
     enqueueRuntimeDeps(nestedDeps(realPkg));
+
+    // Flat/hoisted layout (node-linker=hoisted, used by the CI packaging install):
+    // there is NO .pnpm store (parsed === null) and deps are NOT nested — they sit
+    // as siblings under `resolveRoot` (the flat node_modules). Resolve each declared
+    // runtime dep from there so the transitive closure is still captured. Without
+    // this, build/node_modules ships seeds with ZERO of their transitive deps and
+    // the packaged app crashes on its first require ("bindings", "jose", …).
+    if (!parsed && resolveRoot && !flatWalked.has(realPkg)) {
+      flatWalked.add(realPkg);
+      for (const depName of runtimeDepNames(realPkg)) {
+        const flat = path.join(resolveRoot, ...depName.split("/"));
+        if (fs.existsSync(flat)) queue.push({ name: depName, entryPath: flat });
+      }
+    }
 
     if (!writtenNames.has(name)) {
       writtenNames.add(name);
@@ -480,7 +497,10 @@ function flattenMainNodeModules(buildNodeModules) {
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  flattenClosure(seeds, tmp);
+  // Pass the flat dev node_modules as the resolve-root so that under node-linker=
+  // hoisted (no .pnpm store) the closure walk can still find each seed's transitive
+  // runtime deps as flat siblings.
+  flattenClosure(seeds, tmp, devNodeModules);
 
   fs.rmSync(buildNodeModules, { recursive: true, force: true });
   safeRename(tmp,buildNodeModules);
@@ -489,6 +509,22 @@ function flattenMainNodeModules(buildNodeModules) {
   console.log(
     `[stage] main node_modules flattened: ${flatNames.length} top-level entries (seeds=${seeds.length})`,
   );
+
+  // Canary: `bindings` is a transitive dep of better-sqlite3 — never a direct dep
+  // and never require()d by the bundle, so it lands here ONLY if the closure walk
+  // resolved transitive deps. If it's missing the walk silently dropped the closure
+  // (e.g. a node_modules layout change) and the packaged app would crash at runtime
+  // — fail the BUILD loudly rather than ship a launch-broken installer.
+  const missingCanary = ["bindings"].filter(
+    (d) => !fs.existsSync(path.join(buildNodeModules, d)),
+  );
+  if (missingCanary.length > 0) {
+    throw new Error(
+      `[stage] build/node_modules is missing transitive dep(s) [${missingCanary.join(", ")}] ` +
+        `after flattening — the dependency-closure walk failed (node_modules layout mismatch?). ` +
+        `The packaged app would crash at runtime; aborting.`,
+    );
+  }
 }
 
 /**
@@ -530,7 +566,10 @@ function flattenAppNodeModules(appNodeModules) {
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  flattenClosure(seeds, tmp);
+  // Resolve-root = the standalone's own (already-flat under hoisted) node_modules,
+  // so any non-seed transitive dep still resolves; under isolated layout the .pnpm
+  // seeds above already cover the closure and this fallback is a harmless no-op.
+  flattenClosure(seeds, tmp, appNodeModules);
 
   fs.rmSync(appNodeModules, { recursive: true, force: true });
   safeRename(tmp,appNodeModules);
