@@ -775,7 +775,16 @@ const config: ForgeConfig = {
     appCategoryType: "public.app-category.productivity",
     icon: iconBase,
     overwrite: true,
-    prune: true,
+    // prune:false — do NOT let packager run the package manager to prune devDeps.
+    // The `ignore` function below already excludes everything except build/, app/
+    // (staged), public/, models/, package.json and node_modules/next|@next, and
+    // packageAfterCopy stages the full production closure itself, so the pm prune is
+    // redundant. Critically, that prune spawns a pnpm child during packaging, and on
+    // the hosted runner a pnpm child's exit fires an .on('exit') handler that calls
+    // process.exit(0) on the make process mid-extraction (confirmed via --trace-exit),
+    // killing the build before any .msi is produced. Removing the prune removes a
+    // pnpm child spawn.
+    prune: false,
     protocols: [
       {
         name: "Data Navigator Protocol",

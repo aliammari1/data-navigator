@@ -184,21 +184,32 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Make the real WiX MSI (out/make/wix/x64/*.msi). With rebuildConfig removed (the
-      # native rebuild now runs in its own step above), `make` no longer spawns the
-      # node-gyp child whose exit previously fired a premature process.exit(0) ~4s in
-      # during @electron/packager's Electron extract. --trace-exit still prints the
-      # stack of ANY process.exit so a recurrence stays visible, and the Verify step
-      # (if: always()) dumps the full state and is the ground-truth no-MSI gate.
+      # Skip forge's check-system step. It runs `pnpm config get hoist-pattern` as a
+      # child; pnpm 10 lingers, and that child's exit (~4s later, mid Electron extract)
+      # fires an .on('exit') handler that calls process.exit(0) on the make process,
+      # killing the build before any .msi is produced (confirmed via --trace-exit:
+      # ChildProcess._handle.onexit -> maybeClose -> emit -> process exit). The check is
+      # unneeded here — windows-2022 already has VS 2022 + WiX 3 and the install is
+      # hoisted. forge itself documents this skip file in its log.
+      - name: Skip forge system check (avoid the pnpm child it spawns)
+        shell: pwsh
+        run: New-Item -ItemType File -Force -Path "$HOME/.skip-forge-system-check" | Out-Null
+
+      # Make the real WiX MSI (out/make/wix/x64/*.msi). rebuildConfig + prune are both
+      # off (their pnpm/node-gyp children were the source of the early process.exit(0)
+      # ~4s in during @electron/packager's Electron extract). --trace-exit prints the
+      # stack of ANY process.exit and NODE_DEBUG=child_process logs EVERY child spawn/
+      # reap, so if a child still slips through, the next log names it exactly. The
+      # Verify step (if: always()) dumps the full state and is the ground-truth gate.
       - name: Make Windows MSI
         shell: bash
         run: pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat
         env:
           NODE_ENV: production
-          # --trace-exit prints the stack of any process.exit() so a recurrence of the
-          # old early-exit is captured; the packager/get/extract DEBUG namespaces keep
-          # the make log explicit about where time is spent.
+          # --trace-exit: stack of any process.exit(). NODE_DEBUG=child_process: logs
+          # every child Node spawns/reaps, so the killing subprocess is identifiable.
           NODE_OPTIONS: "--trace-exit"
+          NODE_DEBUG: "child_process"
           DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
           FORCE_COLOR: "0"
 
