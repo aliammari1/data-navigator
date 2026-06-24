@@ -16,7 +16,6 @@
     "src/**/*.stories.{ts,tsx}",
     "src/db/schema.ts",
     "drizzle.config.ts",
-    "forge.config.ts",
     "tsup.config.ts",
     "next.config.ts",
     "postcss.config.mjs",
@@ -49,7 +48,7 @@
     "src/**/*.d.ts",
     "next-env.d.ts"
   ],
-  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "electron-forge", "powershell"],
+  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "powershell"],
   "ignoreDependencies": [
     "@huggingface/transformers",
     "onnxruntime-web",

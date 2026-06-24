@@ -62,3 +62,12 @@ playwright-report
 
 # Build-time model staging (scripts/prepare-models.mjs) — large GGUF weights.
 .model-cache/
+
+# Electron packaging staging (scripts/stage-app.mjs). electron-app/ is the staged
+# Next standalone (remapped to app/ inside the package); app/ is a legacy staging
+# name kept ignored so a stale one can never poison `next build` or be committed.
+# build/node_modules/ is the staged Electron-main native-dep tree (build/*.js stay
+# tracked, but the staged node_modules is a regenerated artifact).
+/electron-app/
+/app/
+/build/node_modules/
