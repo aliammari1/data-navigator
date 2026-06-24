@@ -30,6 +30,8 @@ on:
       - "scripts/**"
       - "electron-builder.config.cjs"
       - "next.config.ts"
+      - "tsup.config.ts"
+      - "esbuild.workers.mjs"
       - "package.json"
       - "pnpm-lock.yaml"
       - "tsconfig.json"
