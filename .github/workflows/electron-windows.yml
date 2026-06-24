@@ -139,8 +139,26 @@ jobs:
           restore-keys: |
             nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      # Install with node-linker=hoisted (flat, npm-style node_modules), the OFFICIAL
+      # Electron + pnpm requirement: electron-builder's node_modules collector is built
+      # for npm's flat layout and OOMs/times-out walking pnpm's isolated .pnpm symlink
+      # store. Scoped to THIS packaging install via --config so the repo's dev/test
+      # installs stay isolated; a clean CI runner has no prior node_modules to conflict
+      # with the layout, and node-linker changes only on-disk layout (not the lockfile's
+      # resolution), so --frozen-lockfile still holds.
+      - name: Install dependencies (hoisted node_modules for electron-builder)
+        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
+
+      # Confirm the flat layout actually applied — a lingering .pnpm store means the
+      # collector would walk the symlink web again and hang.
+      - name: Confirm hoisted node_modules
+        shell: pwsh
+        run: |
+          if (Test-Path node_modules/.pnpm) {
+            Write-Host "::warning::node_modules/.pnpm present — node-linker=hoisted did NOT apply; collector may hang"
+          } else {
+            Write-Host "node_modules is flat (hoisted) — no .pnpm store, collector will be fast"
+          }
 
       # Typecheck only — NOT the full `pnpm run verify`. The installer artifact only
       # needs to compile + package; the heavy quality suite (lint, tests, coverage)
