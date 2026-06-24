@@ -15,21 +15,20 @@ name: Electron Windows
 # `workflow_dispatch` input below also allows a manual release build.
 #
 # Offline-product note: the multi-GB GGUF model is intentionally NOT downloaded.
-# forge.config.ts copies ./models only if it exists (copyDirIfExists), so CI
-# builds a model-less MSI on purpose. Do not add a model-download step here.
+# scripts/stage-app.mjs copies ./models only if it exists, so CI builds a
+# model-less installer on purpose. Do not add a model-download step here.
 
 on:
   pull_request:
     branches:
       - main
     paths:
-      - "app/**"
       - "src/**"
       - "electron/**"
       - "build/**"
       - "public/**"
       - "scripts/**"
-      - "forge.config.ts"
+      - "electron-builder.config.cjs"
       - "next.config.ts"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -78,11 +77,10 @@ jobs:
   build:
     name: Build Windows MSI
     # Pin to windows-2022, NOT windows-latest. windows-latest moved to the
-    # windows-2025-vs2026 image, where node-gyp cannot find Visual Studio 2026
-    # (native installs fail) and @electron/packager dies mid-extraction of the
-    # Electron zip — the make exits 0 having produced no out/ and no .msi.
-    # windows-2022 ships VS 2022 + the WiX 3 toolset, the proven environment this
-    # WiX MSI build was written for.
+    # windows-2025-vs2026 image, where node-gyp cannot find Visual Studio 2026 so
+    # the native rebuild (better-sqlite3 / @duckdb / node-llama-cpp) fails.
+    # windows-2022 ships VS 2022 + the WiX 3 toolset electron-builder's MSI target
+    # shells out to — the proven environment for this native + WiX build.
     runs-on: windows-2022
     timeout-minutes: 90
 
@@ -121,7 +119,7 @@ jobs:
           cache-dependency-path: pnpm-lock.yaml
 
       # Cache Electron + electron-builder binary downloads (electron-rebuild /
-      # forge fetch the matching Electron headers + prebuilt binaries on make).
+      # electron-builder fetch the matching Electron headers + prebuilt binaries).
       - name: Cache Electron binaries
         uses: actions/cache@v4
         with:
@@ -144,120 +142,86 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # NOTE: no explicit `native:rebuild:electron` step. Forge rebuildConfig
-      # (force:true in forge.config.ts) rebuilds better-sqlite3 / @duckdb /
-      # sherpa-onnx-node / sqlite-vec / node-llama-cpp during make. Adding an
-      # explicit step would reference a script that does not exist in package.json.
-
-      # Typecheck only — NOT the full `pnpm run verify`. The MSI artifact only
-      # needs to compile + package; the heavy quality suite (lint, tests, coverage,
-      # Storybook build, size budgets) already runs on the same commit in
-      # quality.yml / storybook.yml and must not gate or slow the release artifact.
-      # `electron:make` runs `desktop:build` (next build) itself, so build coverage
-      # is preserved. A failing Storybook/coverage/size gate no longer blocks the MSI.
+      # Typecheck only — NOT the full `pnpm run verify`. The installer artifact only
+      # needs to compile + package; the heavy quality suite (lint, tests, coverage)
+      # already runs on the same commit in quality.yml and must not gate or slow the
+      # release artifact. `desktop:build` (below) runs next build itself, so build
+      # coverage is preserved. A failing coverage/size gate no longer blocks the MSI.
       - name: Typecheck
         run: pnpm run typecheck
 
-      # Build the Next standalone + Electron main bundle as its own step, so the
-      # forge `make` below runs as a fresh process we can trace in isolation.
+      # Rebuild the native modules for the Electron ABI (electron-builder's npmRebuild
+      # is off). Mirrors the old forge rebuildConfig.onlyModules; must run BEFORE the
+      # bundle is staged so the staged .node files carry the Electron-42 ABI.
+      - name: Rebuild native modules for Electron ABI
+        run: pnpm run native:rebuild
+        env:
+          NODE_ENV: production
+
+      # build (next + workers) + prepare:standalone + tsup + stage:app. stage:app emits
+      # the real-file ./app (Next standalone) and ./build/node_modules that electron-
+      # builder packs verbatim — it never walks pnpm's isolated/symlinked store.
       - name: Build desktop bundle
         run: pnpm run desktop:build
         env:
           NODE_ENV: production
 
-      # Make the real WiX MSI (out/make/wix/x64/*.msi). On the hosted runner this
-      # exits cleanly (exit 0) ~4s in, during @electron/packager's Electron extract,
-      # producing no out/ — process.exit(0) fires from a child-process exit handler
-      # (confirmed via --trace-exit; the full build works locally). --trace-exit +
-      # the packager/get/extract DEBUG namespaces keep the make log explicit, and the
-      # Verify step below dumps the partial state so we can see exactly where it dies.
-      # `|| true` so the loud gate is the Verify step, not this step's exit code.
-      - name: Make Windows MSI
-        shell: bash
-        run: pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat || true
+      # Package with electron-builder -> dist/*.exe (NSIS) + dist/*.msi. Runs IN-PROCESS
+      # (no spawned child subcommand, unlike `electron-forge make`, whose child exited
+      # mid-extraction on this runner). --publish never: no GitHub calls here; the
+      # release attach happens below.
+      - name: Build Windows installer (electron-builder)
+        run: pnpm exec electron-builder --win --x64 --publish never --config electron-builder.config.cjs
         env:
           NODE_ENV: production
-          # --trace-exit: stack of any process.exit(). NODE_DEBUG=child_process:
-          # logs EVERY child process Node spawns/reaps — the teardown fires from a
-          # ChildProcess exit handler, so this reveals which subprocess it is.
-          NODE_OPTIONS: "--trace-exit"
-          NODE_DEBUG: "child_process"
-          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip,@electron/rebuild,@malept*"
-          FORCE_COLOR: "0"
 
-      # Ground-truth what `make` actually produced AND dump diagnostics, since the
-      # make silently exits 0 with no out/. We print: the out/ tree, how far Electron
-      # packaging got (the electron-packager temp template dir), whether the Electron
-      # download landed in the @electron/get cache, disk free, and any stray .msi near
-      # the build. Targeted paths only (no whole-drive scan -> fast). Then hard-fail
-      # if there is no real MSI.
-      - name: Verify MSI was produced
+      # Ground-truth what electron-builder produced; hard-fail loudly if no installer.
+      - name: Verify installer was produced
         if: always()
         timeout-minutes: 5
         shell: pwsh
         run: |
           $ErrorActionPreference = 'SilentlyContinue'
-          function Dump($label, $path, $depth) {
-            Write-Host "`n===== $label : $path ====="
-            if (Test-Path $path) {
-              Get-ChildItem $path -Recurse -Depth $depth |
-                Select-Object @{n='MB';e={[math]::Round($_.Length/1MB,2)}}, LastWriteTime, FullName |
-                Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
-            } else { Write-Host "(does not exist)" }
-          }
-          Dump "out tree" "out" 4
-          # @electron/packager extracts Electron into a temp template dir before copying
-          # the app; its contents reveal whether extraction even completed.
-          foreach ($t in @("$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager", "$env:LOCALAPPDATA\Temp\electron-packager")) { Dump "electron-packager temp" $t 1 }
-          Dump "electron download cache" "$env:LOCALAPPDATA\electron\Cache" 2
-          Write-Host "`n===== disk free ====="
-          Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}}, @{n='UsedGB';e={[math]::Round($_.Used/1GB,1)}} | Format-Table -AutoSize | Out-String | Write-Host
-          # Look for any .msi ONLY where one could plausibly be (out/ + packager temp).
-          # NEVER recurse node_modules — it's huge, slow, and never holds an .msi.
-          Write-Host "`n===== .msi files (out/ + electron-packager temp only) ====="
-          @("out", "$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager") |
-            ForEach-Object { if (Test-Path $_) { Get-ChildItem -Path $_ -Filter *.msi -Recurse -ErrorAction SilentlyContinue } } |
-            Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+          Write-Host "===== dist/ tree ====="
+          if (Test-Path dist) {
+            Get-ChildItem dist -Recurse | Select-Object @{n='MB';e={[math]::Round($_.Length/1MB,2)}}, FullName | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+          } else { Write-Host "dist/ does NOT exist" }
+          $a = @(Get-ChildItem -Path dist -Recurse -Include *.exe, *.msi -ErrorAction SilentlyContinue)
+          if ($a.Count -eq 0) { Write-Host "::error::No installer (.exe/.msi) was produced under dist/"; exit 1 }
+          foreach ($f in $a) { Write-Host "INSTALLER: $($f.FullName)  ($([math]::Round($f.Length/1MB,1)) MB)" }
 
-          $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
-          if ($msis.Count -eq 0) {
-            Write-Host "::error::No .msi was produced under out/ — the WiX maker did not run."
-            exit 1
-          }
-          foreach ($m in $msis) {
-            Write-Host "MSI: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
-          }
-
-      # Build a verifiable supply-chain provenance attestation over the MSI(s),
-      # even for this private app (defense-in-depth). First-party action -> major tag.
+      # Supply-chain provenance attestation over the installer(s). First-party -> major tag.
       - name: Attest build provenance
         if: env.IS_RELEASE == 'true'
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "out/make/**/*.msi"
+          subject-path: |
+            dist/*.exe
+            dist/*.msi
 
-      # Attach the MSI to the GitHub Release changesets created for this version.
-      # tag_name is the explicit `v<version>` tag (NOT github.ref, which is the caller's
-      # branch during a workflow_call); softprops updates that existing draft Release.
-      - name: Attach MSI to GitHub Release
+      # Attach the installer to the GitHub Release changesets created for this version.
+      # fail_on_unmatched_files:false so a dropped MSI target (NSIS-only) still attaches.
+      - name: Attach installer to GitHub Release
         if: env.IS_RELEASE == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ inputs.release-tag }}
           draft: true
-          fail_on_unmatched_files: true
+          fail_on_unmatched_files: false
           files: |
-            out/make/**/*.msi
+            dist/*.exe
+            dist/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Always upload the MSI as a workflow artifact (build record + PR download).
-      - name: Upload MSI artifact
+      # Always upload the installer as a workflow artifact (build record + PR download).
+      - name: Upload installer artifact
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: data-navigator-windows-msi
+          name: data-navigator-windows-installer
           path: |
-            out/make/**/*.msi
+            dist/*.exe
+            dist/*.msi
           if-no-files-found: warn
           retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}
