@@ -177,8 +177,12 @@ jobs:
         run: pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat || true
         env:
           NODE_ENV: production
+          # --trace-exit: stack of any process.exit(). NODE_DEBUG=child_process:
+          # logs EVERY child process Node spawns/reaps — the teardown fires from a
+          # ChildProcess exit handler, so this reveals which subprocess it is.
           NODE_OPTIONS: "--trace-exit"
-          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
+          NODE_DEBUG: "child_process"
+          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip,@electron/rebuild,@malept*"
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced AND dump diagnostics, since the
@@ -208,8 +212,12 @@ jobs:
           Dump "electron download cache" "$env:LOCALAPPDATA\electron\Cache" 2
           Write-Host "`n===== disk free ====="
           Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}}, @{n='UsedGB';e={[math]::Round($_.Used/1GB,1)}} | Format-Table -AutoSize | Out-String | Write-Host
-          Write-Host "`n===== .msi files under the workspace ====="
-          Get-ChildItem -Path . -Filter *.msi -Recurse -ErrorAction SilentlyContinue | Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+          # Look for any .msi ONLY where one could plausibly be (out/ + packager temp).
+          # NEVER recurse node_modules — it's huge, slow, and never holds an .msi.
+          Write-Host "`n===== .msi files (out/ + electron-packager temp only) ====="
+          @("out", "$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager") |
+            ForEach-Object { if (Test-Path $_) { Get-ChildItem -Path $_ -Filter *.msi -Recurse -ErrorAction SilentlyContinue } } |
+            Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
 
           $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
           if ($msis.Count -eq 0) {

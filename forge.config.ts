@@ -859,7 +859,16 @@ const config: ForgeConfig = {
   plugins: [new AutoUnpackNativesPlugin({})],
 
   hooks: {
+    // Fires AFTER the Electron zip is extracted into buildPath, BEFORE the app is
+    // copied. Diagnostic marker: if this prints in CI, extraction completed and any
+    // failure is downstream (the node_modules copy/flatten below); if it never
+    // prints, the build died during Electron extraction itself.
+    packageAfterExtract: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterExtract OK — Electron extracted to ${buildPath}`);
+    },
+
     packageAfterCopy: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterCopy START — staging app + node_modules into ${buildPath}`);
       requirePath("Electron main build", electronMainBuild);
       requirePath("Next standalone output", nextStandaloneDir);
       requirePath("Next static output", nextStaticDir);
