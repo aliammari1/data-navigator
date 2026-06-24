@@ -192,7 +192,8 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType File -Force -Path "$HOME/.skip-forge-system-check" | Out-Null
 
-      # Make the WiX MSI via forge's PROGRAMMATIC api.make() (scripts/forge-make.mjs),
+      # Make the Windows installer (Squirrel Setup.exe) via forge's PROGRAMMATIC
+      # api.make() (scripts/forge-make.mjs),
       # NOT `electron-forge make`. The CLI uses commander external-executable subcommands,
       # so `electron-forge make` spawns a separate electron-forge-make.js child that, on
       # this runner, exits 0 mid extract-zip (event-loop drain) and the dispatcher
@@ -200,7 +201,7 @@ jobs:
       # process.exit). api.make() runs in ONE process (no child to lose), and the script's
       # ref'd keep-alive timer prevents the loop draining during extraction. --trace-exit
       # stays on to catch any residual process.exit; Verify (if: always()) is the gate.
-      - name: Make Windows MSI
+      - name: Make Windows installer
         shell: bash
         run: node scripts/forge-make.mjs 2>&1 | cat
         env:
@@ -215,7 +216,7 @@ jobs:
       # download landed in the @electron/get cache, disk free, and any stray .msi near
       # the build. Targeted paths only (no whole-drive scan -> fast). Then hard-fail
       # if there is no real MSI.
-      - name: Verify MSI was produced
+      - name: Verify installer was produced
         if: always()
         timeout-minutes: 5
         shell: pwsh
@@ -243,13 +244,15 @@ jobs:
             ForEach-Object { if (Test-Path $_) { Get-ChildItem -Path $_ -Filter *.msi -Recurse -ErrorAction SilentlyContinue } } |
             Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
 
-          $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
-          if ($msis.Count -eq 0) {
-            Write-Host "::error::No .msi was produced under out/ — the WiX maker did not run."
+          # Squirrel emits out/make/squirrel.windows/<arch>/<Setup>.exe + a -full.nupkg
+          # + RELEASES. The Setup .exe is the installer; require at least one.
+          $exes = @(Get-ChildItem -Recurse -Path out/make -Filter *.exe -ErrorAction SilentlyContinue)
+          if ($exes.Count -eq 0) {
+            Write-Host "::error::No Setup .exe was produced under out/make — the Squirrel maker did not run."
             exit 1
           }
-          foreach ($m in $msis) {
-            Write-Host "MSI: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
+          foreach ($e in $exes) {
+            Write-Host "INSTALLER: $($e.FullName)  ($([math]::Round($e.Length/1MB,1)) MB)"
           }
 
       # Build a verifiable supply-chain provenance attestation over the MSI(s),
@@ -258,12 +261,15 @@ jobs:
         if: env.IS_RELEASE == 'true'
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "out/make/**/*.msi"
+          subject-path: "out/make/squirrel.windows/**/*.exe"
 
-      # Attach the MSI to the GitHub Release changesets created for this version.
+      # Attach the Squirrel installer to the GitHub Release changesets created for this
+      # version. Attach the WHOLE squirrel.windows output — Setup.exe + the -full.nupkg
+      # + RELEASES — because update-electron-app / the autoUpdater read RELEASES + the
+      # nupkg from the Release to deliver updates, not just the Setup.exe.
       # tag_name is the explicit `v<version>` tag (NOT github.ref, which is the caller's
       # branch during a workflow_call); softprops updates that existing draft Release.
-      - name: Attach MSI to GitHub Release
+      - name: Attach installer to GitHub Release
         if: env.IS_RELEASE == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
@@ -271,17 +277,17 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           files: |
-            out/make/**/*.msi
+            out/make/squirrel.windows/**/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      # Always upload the MSI as a workflow artifact (build record + PR download).
-      - name: Upload MSI artifact
+      # Always upload the installer as a workflow artifact (build record + PR download).
+      - name: Upload installer artifact
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: data-navigator-windows-msi
+          name: data-navigator-windows-setup
           path: |
-            out/make/**/*.msi
+            out/make/squirrel.windows/**/*
           if-no-files-found: warn
           retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

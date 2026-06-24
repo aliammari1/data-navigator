@@ -59,9 +59,14 @@ import {
 import * as voiceService from "./voice-service";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
 
-// if (require("electron-squirrel-startup")) {
-//   app.quit();
-// }
+// Squirrel.Windows fires the app with --squirrel-install / --squirrel-updated /
+// --squirrel-uninstall / --squirrel-obsolete on (un)install + update. electron-
+// squirrel-startup handles those events (creating/removing Start Menu + desktop
+// shortcuts via Update.exe) and returns true, in which case we must quit immediately
+// rather than boot the full app. Must run before any heavy init.
+if (require("electron-squirrel-startup")) {
+  app.quit();
+}
 
 // Lightweight boot tracer. Windowed Electron does not surface main-process
 // stdout, so packaged startup failures are otherwise invisible. Writes to
