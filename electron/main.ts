@@ -939,6 +939,17 @@ async function createWindow(): Promise<void> {
       await mainWindow.loadURL(dashboardUrl);
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
+      // The window is created with show:false and only revealed on ready-to-show,
+      // which never fires when the server fails to start (loadURL is never reached).
+      // Without surfacing the error the packaged app just silently shows nothing, so
+      // make the failure visible and diagnosable instead of an invisible no-op launch.
+      dialog.showErrorBox(
+        "Data Navigator failed to start",
+        `The local application server could not start, so the app cannot open.\n\n` +
+          `${error instanceof Error ? error.message : String(error)}\n\n` +
+          `See boot.log in the app data folder for details.`,
+      );
+      app.quit();
     }
   }
 
