@@ -2,8 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
 // import { MakerMSIX } from "@electron-forge/maker-msix";
-// import { MakerSquirrel } from "@electron-forge/maker-squirrel";
-import { MakerWix } from "@electron-forge/maker-wix";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
+// import { MakerWix } from "@electron-forge/maker-wix";
 // import { MakerZIP } from "@electron-forge/maker-zip";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -834,34 +834,24 @@ const config: ForgeConfig = {
   // carry the right ABI and `make` never spawns a rebuild child.
 
   makers: [
-    new MakerWix(
+    // Squirrel.Windows maker — forge's default Windows target. Chosen over MakerWix
+    // because WiX compiling this ~1.2 GB app into an .msi takes 30-40+ min; Squirrel's
+    // NuGet-based Setup.exe is far faster, and it is the format update-electron-app /
+    // the autoUpdater consume, so it also unblocks auto-update. noMsi:true skips
+    // Squirrel's optional MSI wrapper (we only want the fast Setup.exe + nupkg).
+    new MakerSquirrel(
       {
-        language: 1033,
-        manufacturer,
-        arch: "x64",
-        name: appName,
-        exe: appExe,
-        shortName: "DataNavigator",
-        icon: iconIco,
-        upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        // NuGet package id — no hyphens allowed, so data-navigator -> data_navigator.
+        name: appSlug.replaceAll("-", "_"),
+        authors: manufacturer,
+        description: "AI-powered local data analysis and visualization platform",
+        setupExe: "DataNavigatorSetup.exe",
+        setupIcon: iconIco,
+        noMsi: true,
         ...windowsCertificateConfig,
       },
       ["win32"],
     ),
-
-    // new MakerSquirrel(
-    //   {
-    //     name: appSlug.replaceAll("-", "_"),
-    //     authors: manufacturer,
-    //     description:
-    //       "AI-powered local data analysis and visualization platform",
-    //     setupExe: "DataNavigatorSetup.exe",
-    //     setupIcon: iconIco,
-    //     noMsi: true,
-    //     ...windowsCertificateConfig,
-    //   },
-    //   ["win32"],
-    // ),
 
     // new MakerMSIX(
     //   {
