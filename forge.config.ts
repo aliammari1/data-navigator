@@ -1,72 +1,77 @@
-// scripts/stage-app.mjs
-//
-// Stage the Electron app tree (Next.js standalone + Electron-main runtime
-// packages) into REAL-file, npm-style node_modules at the repo root BEFORE
-// electron-builder runs. electron-builder cannot walk pnpm's isolated store, so
-// we produce the flattened (zero-symlink) trees ourselves here.
-//
-// This is a straight port of forge.config.ts's `packageAfterCopy` hook +
-// `makeNodeModulesPortable`, re-rooted from `<buildPath>` to the repo root
-// (`process.cwd()`). All the pnpm → flat node_modules dereferencing helpers are
-// ported VERBATIM from forge.config.ts (TS type annotations stripped).
-//
-// Runnable as: node scripts/stage-app.mjs
-
 import fs from "node:fs";
 import path from "node:path";
-
-const root = process.cwd();
-
-/** Synchronous sleep (no async available in this straight-line fs script). */
-function sleepSync(ms) {
-  try {
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
-  } catch {
-    // SharedArrayBuffer may be unavailable; fall back to a cheap busy-wait.
-    const end = performance.now() + ms;
-    while (performance.now() < end) {
-      /* spin */
-    }
-  }
-}
+import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
+// import { MakerMSIX } from "@electron-forge/maker-msix";
+// import { MakerSquirrel } from "@electron-forge/maker-squirrel";
+import { MakerWix } from "@electron-forge/maker-wix";
+// import { MakerZIP } from "@electron-forge/maker-zip";
+import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
+import { PublisherGithub } from "@electron-forge/publisher-github";
+import type { ForgeConfig } from "@electron-forge/shared-types";
+import { PRODUCTION_FUSE_CONFIG } from "./electron/security";
 
 /**
- * Windows can EPERM/EBUSY a directory rename when AV / the search indexer briefly
- * holds a handle on the just-removed destination (the `.flat-tmp` -> real swap).
- * Retry the clear+rename with backoff; this is purely a robustness wrapper around
- * `fs.rmSync(to) + fs.renameSync(from, to)`.
+ * Forge configuration sources:
+ *
+ * TypeScript constructor syntax:
+ * https://www.electronforge.io/config/typescript-configuration
+ *
+ * Makers:
+ * https://www.electronforge.io/config/makers
+ * https://www.electronforge.io/config/makers/zip
+ * https://www.electronforge.io/config/makers/msix
+ *
+ * GitHub Publisher:
+ * https://www.electronforge.io/config/publishers/github
+ *
+ * Lifecycle hooks:
+ * https://www.electronforge.io/config/hooks
+ *
+ * Native module unpacking:
+ * https://www.electronforge.io/config/plugins/auto-unpack-natives
+ *
+ * Fuses / ASAR integrity:
+ * https://www.electronforge.io/config/plugins/fuses
+ * https://www.electronjs.org/docs/latest/tutorial/asar-integrity
+ *
+ * Windows signing:
+ * https://www.electronforge.io/guides/code-signing/code-signing-windows
  */
-function safeRename(from, to) {
-  let lastErr;
-  for (let attempt = 1; attempt <= 6; attempt++) {
-    try {
-      fs.rmSync(to, { recursive: true, force: true });
-    } catch {
-      /* ignore — renameSync below reports the real failure */
+
+const root = __dirname;
+
+const appName = "Data Navigator";
+const appSlug = "data-navigator";
+const appExe = "data-navigator";
+const appId = "com.data-navigator.app";
+const manufacturer = "Ali Ammari";
+const protocolScheme = "com.data-navigator.app";
+
+const publicDir = path.join(root, "public");
+const iconBase = path.join(publicDir, "icon");
+const iconIco = path.join(publicDir, "icon.ico");
+
+const nextStandaloneDir = path.join(root, ".next", "standalone");
+const nextStaticDir = path.join(root, ".next", "static");
+const electronMainBuild = path.join(root, "build", "main.js");
+
+const githubOwner = process.env.GITHUB_REPOSITORY_OWNER ?? "The-Data-Navigator";
+const githubRepo = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "data-navigator";
+
+const hasWindowsCertificate =
+  Boolean(process.env.WINDOWS_CERTIFICATE_FILE) &&
+  Boolean(process.env.WINDOWS_CERTIFICATE_PASSWORD);
+
+const windowsCertificateConfig = hasWindowsCertificate
+  ? {
+      certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+      certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
     }
-    try {
-      fs.renameSync(from, to);
-      return;
-    } catch (err) {
-      lastErr = err;
-      if (!["EPERM", "EBUSY", "ENOTEMPTY", "EEXIST", "EACCES"].includes(err.code)) throw err;
-      sleepSync(250 * attempt);
-    }
-  }
-  // Rename keeps failing (a Windows AV/indexer handle on the temp dir survives the
-  // retries). The temp holds REAL files (flattenClosure dereferenced every symlink),
-  // so copy it into place instead, then best-effort drop the temp. Slower but reliable.
-  console.warn(`[stage] renameSync failed (${lastErr?.code}); copying ${from} -> ${to} instead.`);
-  try {
-    fs.rmSync(to, { recursive: true, force: true });
-  } catch {
-    /* ignore */
-  }
-  fs.cpSync(from, to, { recursive: true, force: true });
-  try {
-    fs.rmSync(from, { recursive: true, force: true });
-  } catch {
-    /* leftover .flat-tmp is harmless; it is not under any ship path */
+  : {};
+
+function requirePath(label: string, targetPath: string) {
+  if (!fs.existsSync(targetPath)) {
+    throw new Error(`[forge] Missing ${label}: ${targetPath}`);
   }
 }
 
@@ -74,12 +79,53 @@ function safeRename(from, to) {
  * Shared copy options for the bulk directory copies below. `dereference: true`
  * is set as a best-effort hint, but note it is INERT for Windows DIRECTORY
  * symlinks on this build host (verified) — cpSync copies pnpm's dir symlinks
- * verbatim regardless. The real portability fix is the flattening pass below,
- * which manually resolves every symlink to real files. These copies just stage
- * the trees (including the local `.pnpm` store under `app/node_modules`) for the
- * flattening pass.
+ * verbatim regardless. The real portability fix is `makeNodeModulesPortable`,
+ * which runs AFTER these copies and manually resolves every symlink to real
+ * files (see that function). These copies just stage the trees (including the
+ * local `.pnpm` store under `app/node_modules`) for the flattening pass.
  */
-const COPY_OPTS = { recursive: true, force: true, dereference: true };
+const COPY_OPTS = { recursive: true, force: true, dereference: true } as const;
+
+function copyDir(label: string, from: string, to: string) {
+  requirePath(label, from);
+
+  console.log(`[forge] Copying ${label}`);
+  fs.rmSync(to, { recursive: true, force: true });
+  fs.cpSync(from, to, COPY_OPTS);
+}
+
+function copyDirIfExists(label: string, from: string, to: string) {
+  if (!fs.existsSync(from)) return;
+
+  console.log(`[forge] Copying ${label}`);
+  fs.rmSync(to, { recursive: true, force: true });
+  fs.cpSync(from, to, COPY_OPTS);
+}
+
+/**
+ * Resolve the packaged Electron binary inside a Forge output directory, so
+ * @electron/fuses can flip the production hardening fuses into it.
+ */
+function resolveElectronBinary(outputPath: string, platform: string): string {
+  if (platform === "darwin") {
+    return path.join(outputPath, `${appName}.app`, "Contents", "MacOS", appExe);
+  }
+  if (platform === "win32") {
+    return path.join(outputPath, `${appExe}.exe`);
+  }
+  return path.join(outputPath, appExe);
+}
+
+function copyPackageIfExists(packageName: string, buildPath: string) {
+  const from = path.join(root, "node_modules", packageName);
+  const to = path.join(buildPath, "node_modules", packageName);
+
+  if (!fs.existsSync(from)) return;
+
+  console.log(`[forge] Copying runtime package: ${packageName}`);
+  fs.rmSync(to, { recursive: true, force: true });
+  fs.cpSync(from, to, COPY_OPTS);
+}
 
 // ─── pnpm → flat node_modules dereferencing ──────────────────────────────────
 //
@@ -99,14 +145,14 @@ const COPY_OPTS = { recursive: true, force: true, dereference: true };
 const DEV_PNPM_STORE = path.join(root, "node_modules", ".pnpm");
 
 /** Strip Windows extended-length (`\\?\`) prefixes from realpath/readlink. */
-function stripExtendedPrefix(p) {
+function stripExtendedPrefix(p: string): string {
   if (p.startsWith("\\\\?\\UNC\\")) return `\\\\${p.slice("\\\\?\\UNC\\".length)}`;
   if (p.startsWith("\\\\?\\")) return p.slice("\\\\?\\".length);
   return p;
 }
 
 /** True if the dirent at `p` is a symlink/junction. */
-function isLink(p) {
+function isLink(p: string): boolean {
   try {
     return fs.lstatSync(p).isSymbolicLink();
   } catch {
@@ -115,7 +161,7 @@ function isLink(p) {
 }
 
 /** Resolve a path (following symlinks) to its real absolute location, or null. */
-function tryRealpath(p) {
+function tryRealpath(p: string): string | null {
   try {
     return stripExtendedPrefix(fs.realpathSync.native(p));
   } catch {
@@ -134,7 +180,7 @@ function tryRealpath(p) {
  * real files, so this is mostly a plain recursive copy; the symlink handling is
  * defensive (and resolves any stray nested links to real files).
  */
-function copyRealTree(src, dest, seen = new Set()) {
+function copyRealTree(src: string, dest: string, seen: Set<string> = new Set()): void {
   const realSrc = tryRealpath(src);
   if (!realSrc) return;
   if (seen.has(realSrc)) return; // guard against symlink cycles
@@ -158,9 +204,9 @@ function copyRealTree(src, dest, seen = new Set()) {
  * package's name and its on-disk path (which may be a symlink to another store
  * entry, or a real dir for the id's own package).
  */
-function listPackagesInDir(nmDir) {
-  const out = [];
-  let entries;
+function listPackagesInDir(nmDir: string): { name: string; entryPath: string }[] {
+  const out: { name: string; entryPath: string }[] = [];
+  let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(nmDir, { withFileTypes: true });
   } catch {
@@ -171,7 +217,7 @@ function listPackagesInDir(nmDir) {
     const full = path.join(nmDir, entry.name);
     if (entry.name.startsWith("@")) {
       // scope dir: real directory whose children are the actual packages/links
-      let scoped;
+      let scoped: fs.Dirent[];
       try {
         scoped = fs.readdirSync(full, { withFileTypes: true });
       } catch {
@@ -195,7 +241,9 @@ function listPackagesInDir(nmDir) {
  * (`.../.pnpm/<id>/node_modules/<name>`), return its `<id>` segment, the store
  * root, and the id's `node_modules` dir — so we can enumerate its sibling deps.
  */
-function parsePnpmEntry(realPkgPath) {
+function parsePnpmEntry(
+  realPkgPath: string,
+): { storeRoot: string; id: string; idNodeModules: string } | null {
   const norm = realPkgPath.replaceAll("\\", "/");
   const marker = "/.pnpm/";
   const idx = norm.lastIndexOf(marker);
@@ -211,8 +259,11 @@ function parsePnpmEntry(realPkgPath) {
   };
 }
 
+/** A package to flatten: its npm name plus its on-disk location (link or real). */
+type FlattenSeed = { name: string; entryPath: string };
+
 /** Derive the package name from a `.../node_modules/<name>` realpath, or null. */
-function nameFromNodeModulesPath(realPkg) {
+function nameFromNodeModulesPath(realPkg: string): string | null {
   const norm = realPkg.replaceAll("\\", "/");
   const marker = "/node_modules/";
   const idx = norm.lastIndexOf(marker);
@@ -224,7 +275,7 @@ function nameFromNodeModulesPath(realPkg) {
 }
 
 /** List dependency symlinks/dirs in a package's OWN nested `node_modules`, if any. */
-function nestedDeps(realPkg) {
+function nestedDeps(realPkg: string): FlattenSeed[] {
   const nested = path.join(realPkg, "node_modules");
   if (!fs.existsSync(nested)) return [];
   return listPackagesInDir(nested);
@@ -249,7 +300,7 @@ function nestedDeps(realPkg) {
  * later ESM import needs). The DEV store always has the full published package.
  * So when the dev store has the SAME `<id>/node_modules/<name>`, prefer it.
  */
-function resolveCompleteSource(realPkg) {
+function resolveCompleteSource(realPkg: string): string {
   const parsed = parsePnpmEntry(realPkg);
   if (!parsed) return realPkg;
   // Already in the dev store → it's complete.
@@ -267,7 +318,7 @@ function resolveCompleteSource(realPkg) {
 // for source compilation; we ship the `@node-llama-cpp/*` prebuilds instead).
 // Excluding them — and their large transitive trees — keeps the package lean
 // without affecting runtime. Add only deps proven build-only for THIS app.
-const BUILD_ONLY_DEPS = new Set(["cmake-js"]);
+const BUILD_ONLY_DEPS = new Set<string>(["cmake-js"]);
 
 /**
  * Read a package's RUNTIME dependency names from its package.json:
@@ -281,8 +332,8 @@ const BUILD_ONLY_DEPS = new Set(["cmake-js"]);
  *   - explicit BUILD_ONLY_DEPS (e.g. `cmake-js`).
  * Following only declared runtime deps yields the correct, lean production set.
  */
-function runtimeDepNames(realPkg) {
-  const out = new Set();
+function runtimeDepNames(realPkg: string): Set<string> {
+  const out = new Set<string>();
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(realPkg, "package.json"), "utf8"));
     for (const field of ["dependencies", "optionalDependencies"]) {
@@ -299,15 +350,19 @@ function runtimeDepNames(realPkg) {
   return out;
 }
 
-function flattenClosure(seeds, destNodeModules, resolveRoot) {
-  const visitedIds = new Set();
-  const writtenNames = new Set();
+function flattenClosure(
+  seeds: FlattenSeed[],
+  destNodeModules: string,
+  resolveRoot?: string,
+): void {
+  const visitedIds = new Set<string>();
+  const writtenNames = new Set<string>();
   // Flat (hoisted) packages have no pnpm id; guard their dep-walk by realpath so a
   // dependency cycle among flat packages terminates.
-  const flatWalked = new Set();
+  const flatWalked = new Set<string>();
   // Seeds are top-level/required entries: always written. Each package then
   // enqueues only ITS declared runtime deps, so the closure stays production-lean.
-  const queue = [...seeds];
+  const queue: FlattenSeed[] = [...seeds];
 
   while (queue.length > 0) {
     const item = queue.shift();
@@ -321,7 +376,7 @@ function flattenClosure(seeds, destNodeModules, resolveRoot) {
     if (!name) continue;
 
     // Enqueue this package's RUNTIME dependencies (only), once per pnpm id.
-    const enqueueRuntimeDeps = (candidates) => {
+    const enqueueRuntimeDeps = (candidates: FlattenSeed[]) => {
       const allowed = runtimeDepNames(realPkg);
       for (const dep of candidates) {
         if (allowed.has(dep.name)) queue.push(dep);
@@ -337,12 +392,12 @@ function flattenClosure(seeds, destNodeModules, resolveRoot) {
     // For already-real (dereferenced) packages, follow their nested runtime deps.
     enqueueRuntimeDeps(nestedDeps(realPkg));
 
-    // Flat/hoisted layout (node-linker=hoisted, used by the CI packaging install):
-    // there is NO .pnpm store (parsed === null) and deps are NOT nested — they sit
-    // as siblings under `resolveRoot` (the flat node_modules). Resolve each declared
+    // Flat/hoisted layout (node-linker=hoisted, the forge+pnpm requirement): there
+    // is NO .pnpm store (parsed === null) and deps are NOT nested — they sit as
+    // siblings under `resolveRoot` (the flat node_modules). Resolve each declared
     // runtime dep from there so the transitive closure is still captured. Without
-    // this, build/node_modules ships seeds with ZERO of their transitive deps and
-    // the packaged app crashes on its first require ("bindings", "jose", …).
+    // this, build/node_modules ships seeds with ZERO transitive deps and the packaged
+    // app crashes on its first require ("bindings", "jose", …).
     if (!parsed && resolveRoot && !flatWalked.has(realPkg)) {
       flatWalked.add(realPkg);
       for (const depName of runtimeDepNames(realPkg)) {
@@ -364,7 +419,7 @@ function flattenClosure(seeds, destNodeModules, resolveRoot) {
  *   "better-auth/api" → "better-auth"; "@scope/pkg/sub" → "@scope/pkg".
  * Returns null for relative/builtin specifiers.
  */
-function specifierToPackageName(spec) {
+function specifierToPackageName(spec: string): string | null {
   if (!spec || spec.startsWith(".") || spec.startsWith("/")) return null;
   if (spec.startsWith("node:")) return null;
   const segs = spec.split("/");
@@ -427,8 +482,8 @@ const NODE_BUILTINS = new Set([
  * even start the Next server. Deriving the set from the bundle keeps this in sync
  * automatically as imports change.
  */
-function externalPackagesFromBundle(bundlePath) {
-  const names = new Set();
+function externalPackagesFromBundle(bundlePath: string): Set<string> {
+  const names = new Set<string>();
   if (!fs.existsSync(bundlePath)) return names;
   const src = fs.readFileSync(bundlePath, "utf8");
   const re = /require\(\s*["']([^"']+)["']\s*\)/g;
@@ -445,18 +500,18 @@ function externalPackagesFromBundle(bundlePath) {
 /**
  * Replace the symlinked top-level entries in a packaged `node_modules` with flat
  * real-file packages, computing the full transitive dependency closure from the
- * dev pnpm store. Used for `build/node_modules` (the Electron MAIN deps), which
- * has NO local `.pnpm` store of its own.
+ * dev pnpm store. Used for `<buildPath>/node_modules` (the Electron MAIN deps),
+ * which has NO local `.pnpm` store of its own.
  */
-function flattenMainNodeModules(buildNodeModules) {
+function flattenMainNodeModules(buildNodeModules: string): void {
   if (!fs.existsSync(buildNodeModules)) return;
-  console.log(`[stage] Flattening main node_modules: ${buildNodeModules}`);
+  console.log(`[forge] Flattening main node_modules: ${buildNodeModules}`);
 
   const devNodeModules = path.join(root, "node_modules");
-  const seeds = [];
-  const seededNames = new Set();
+  const seeds: FlattenSeed[] = [];
+  const seededNames = new Set<string>();
 
-  const addSeed = (name) => {
+  const addSeed = (name: string) => {
     if (seededNames.has(name)) return;
     const devEntry = path.join(devNodeModules, ...name.split("/"));
     if (!fs.existsSync(devEntry)) return;
@@ -498,29 +553,29 @@ function flattenMainNodeModules(buildNodeModules) {
   fs.mkdirSync(tmp, { recursive: true });
 
   // Pass the flat dev node_modules as the resolve-root so that under node-linker=
-  // hoisted (no .pnpm store) the closure walk can still find each seed's transitive
-  // runtime deps as flat siblings.
+  // hoisted (the forge+pnpm requirement; no .pnpm store) the closure walk can still
+  // find each seed's transitive runtime deps as flat siblings.
   flattenClosure(seeds, tmp, devNodeModules);
 
   fs.rmSync(buildNodeModules, { recursive: true, force: true });
-  safeRename(tmp,buildNodeModules);
+  fs.renameSync(tmp, buildNodeModules);
 
   const flatNames = fs.readdirSync(buildNodeModules);
   console.log(
-    `[stage] main node_modules flattened: ${flatNames.length} top-level entries (seeds=${seeds.length})`,
+    `[forge] main node_modules flattened: ${flatNames.length} top-level entries (seeds=${seeds.length})`,
   );
 
   // Canary: `bindings` is a transitive dep of better-sqlite3 — never a direct dep
   // and never require()d by the bundle, so it lands here ONLY if the closure walk
   // resolved transitive deps. If it's missing the walk silently dropped the closure
   // (e.g. a node_modules layout change) and the packaged app would crash at runtime
-  // — fail the BUILD loudly rather than ship a launch-broken installer.
+  // — fail the BUILD loudly rather than ship a launch-broken MSI.
   const missingCanary = ["bindings"].filter(
     (d) => !fs.existsSync(path.join(buildNodeModules, d)),
   );
   if (missingCanary.length > 0) {
     throw new Error(
-      `[stage] build/node_modules is missing transitive dep(s) [${missingCanary.join(", ")}] ` +
+      `[forge] build node_modules is missing transitive dep(s) [${missingCanary.join(", ")}] ` +
         `after flattening — the dependency-closure walk failed (node_modules layout mismatch?). ` +
         `The packaged app would crash at runtime; aborting.`,
     );
@@ -528,17 +583,17 @@ function flattenMainNodeModules(buildNodeModules) {
 }
 
 /**
- * Flatten `app/node_modules` (the Next.js standalone closure). The `.pnpm`
- * store is ALREADY present here (copied verbatim by the standalone copy), so we
- * can flatten directly from `app/node_modules/.pnpm` plus the existing top-level
+ * Flatten `<buildPath>/app/node_modules` (the Next.js standalone closure). The
+ * `.pnpm` store is ALREADY present here (copied verbatim by copyDir), so we can
+ * flatten directly from `app/node_modules/.pnpm` plus the existing top-level
  * symlinks, then drop `.pnpm` entirely.
  */
-function flattenAppNodeModules(appNodeModules) {
+function flattenAppNodeModules(appNodeModules: string): void {
   if (!fs.existsSync(appNodeModules)) return;
-  console.log(`[stage] Flattening app node_modules: ${appNodeModules}`);
+  console.log(`[forge] Flattening app node_modules: ${appNodeModules}`);
 
   const localPnpm = path.join(appNodeModules, ".pnpm");
-  const seeds = [];
+  const seeds: FlattenSeed[] = [];
 
   // Seed 1: existing top-level entries (next, react, react-dom, …).
   for (const top of listPackagesInDir(appNodeModules)) {
@@ -566,13 +621,13 @@ function flattenAppNodeModules(appNodeModules) {
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  // Resolve-root = the standalone's own (already-flat under hoisted) node_modules,
-  // so any non-seed transitive dep still resolves; under isolated layout the .pnpm
-  // seeds above already cover the closure and this fallback is a harmless no-op.
+  // Resolve-root = the standalone's own node_modules; under hoisted it is already
+  // flat, under isolated the .pnpm seeds above already cover the closure so the
+  // fallback is a harmless no-op.
   flattenClosure(seeds, tmp, appNodeModules);
 
   fs.rmSync(appNodeModules, { recursive: true, force: true });
-  safeRename(tmp,appNodeModules);
+  fs.renameSync(tmp, appNodeModules);
 }
 
 /**
@@ -582,10 +637,10 @@ function flattenAppNodeModules(appNodeModules) {
  * link points into the pnpm store, the target package also gets its private
  * dependency closure nested under it, so version-specific imports resolve.
  */
-function dereferenceAnyRemainingLinks(rootDir) {
+function dereferenceAnyRemainingLinks(rootDir: string): number {
   let replaced = 0;
-  const walk = (dir) => {
-    let entries;
+  const walk = (dir: string) => {
+    let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -620,10 +675,10 @@ function dereferenceAnyRemainingLinks(rootDir) {
 }
 
 /** Count remaining symlinks under a tree (verification helper). */
-function countSymlinks(rootDir) {
+function countSymlinks(rootDir: string): number {
   let count = 0;
-  const walk = (dir) => {
-    let entries;
+  const walk = (dir: string) => {
+    let entries: fs.Dirent[];
     try {
       entries = fs.readdirSync(dir, { withFileTypes: true });
     } catch {
@@ -642,118 +697,316 @@ function countSymlinks(rootDir) {
   return count;
 }
 
-// ─── Staging (forge's packageAfterCopy body, re-rooted to the repo root) ──────
+/**
+ * Top-level entry: make BOTH packaged node_modules fully portable. Called from
+ * the packageAfterCopy hook after all copies are done.
+ */
+function makeNodeModulesPortable(buildPath: string): void {
+  requirePath("dev pnpm store", DEV_PNPM_STORE);
 
-const nextStandaloneDir = path.join(root, ".next", "standalone");
-const nextStaticDir = path.join(root, ".next", "static");
-const publicDir = path.join(root, "public");
-const modelsDir = path.join(root, "models");
+  const appDir = path.join(buildPath, "app");
+  const appNm = path.join(appDir, "node_modules");
+  const mainNm = path.join(buildPath, "node_modules");
 
-// Stage the Next standalone into ./electron-app, NOT ./app. A root-level ./app is
-// resolved by `next build` as the App Router source in preference to ./src/app, so a
-// leftover staged ./app poisons the very next `next build` (turbopack tries to compile
-// the standalone's .next/server chunks -> "Module not found"). electron-builder remaps
-// electron-app -> app INSIDE the package (files FileSet in electron-builder.config.cjs),
-// so the Electron main still reads app.getAppPath()/app unchanged.
-const appDest = path.join(root, "electron-app");
-const buildNodeModules = path.join(root, "build", "node_modules");
+  flattenAppNodeModules(appNm);
+  flattenMainNodeModules(mainNm);
 
-// Electron-MAIN runtime packages to stage into build/node_modules. Mirrors
-// forge.config.ts's copyPackageIfExists list.
-const MAIN_RUNTIME_PACKAGES = [
-  "next",
-  "@next/env",
-  "better-sqlite3",
-  "@duckdb",
-  "@lancedb",
-  "@mlc-ai",
-  "detect-libc",
-  "onnxruntime-node",
-  "sharp",
-  "sherpa-onnx-node",
-  "sqlite-vec",
-  // node-llama-cpp generative lane (Electron main) + its platform binaries.
-  "node-llama-cpp",
-  "@node-llama-cpp",
-  // Embedded LAN collaboration hub (optional) + mDNS discovery.
-  "@hocuspocus",
-  "bonjour-service",
-];
-
-/** Copy a runtime package from dev node_modules into build/node_modules. */
-function copyPackageIfExists(packageName) {
-  const from = path.join(root, "node_modules", packageName);
-  const to = path.join(buildNodeModules, packageName);
-
-  if (!fs.existsSync(from)) return;
-
-  console.log(`[stage] Copying runtime package: ${packageName}`);
-  fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(from, to, COPY_OPTS);
-}
-
-// 1. Stage the Next.js standalone app tree at <root>/app.
-console.log(`[stage] Staging app + node_modules into ${root}`);
-
-fs.rmSync(appDest, { recursive: true, force: true });
-
-console.log("[stage] Copying Next standalone app");
-fs.cpSync(nextStandaloneDir, appDest, { recursive: true, force: true, dereference: true });
-
-console.log("[stage] Copying Next static assets");
-fs.cpSync(nextStaticDir, path.join(appDest, ".next", "static"), {
-  recursive: true,
-  force: true,
-  dereference: true,
-});
-
-console.log("[stage] Copying public assets");
-fs.cpSync(publicDir, path.join(appDest, "public"), {
-  recursive: true,
-  force: true,
-  dereference: true,
-});
-
-if (fs.existsSync(modelsDir)) {
-  console.log("[stage] Copying local edge-AI models");
-  fs.cpSync(modelsDir, path.join(appDest, "models"), {
-    recursive: true,
-    force: true,
-    dereference: true,
-  });
-}
-
-// 2. Stage the Electron-MAIN runtime packages into build/node_modules.
-for (const packageName of MAIN_RUNTIME_PACKAGES) {
-  copyPackageIfExists(packageName);
-}
-
-// 3. Flatten BOTH trees into a flat, real-file, npm-style layout so the package
-// is fully portable — zero symlinks, full dependency closure resolvable on a
-// clean machine. This is the actual fix for "Cannot find module
-// next/dist/server/lib/start-server".
-flattenAppNodeModules(path.join(appDest, "node_modules"));
-flattenMainNodeModules(buildNodeModules);
-
-// 4. Dereference + verify the trees. The whole-`app` sweep is essential: Next.js
-// standalone places externalized native modules under
-// `app/.next/node_modules/<name>-<hash>` as ABSOLUTE-path symlinks (e.g.
-// `better-sqlite3-…` → dev `.pnpm` store), and may scatter more traced-module
-// links under `.next/server`. Any one of these dangling on a clean machine
-// produces "Failed to load external module <x>" 500s at runtime. Walking all of
-// `app/` (not just `app/node_modules`) replaces every remaining symlink with
-// real files, guaranteeing the server can resolve them.
-for (const target of [appDest, buildNodeModules]) {
-  if (!fs.existsSync(target)) continue;
-  const replaced = dereferenceAnyRemainingLinks(target);
-  if (replaced > 0) {
-    console.log(`[stage] Dereferenced ${replaced} stray symlink(s) in ${target}`);
+  // Dereference + verify the ENTIRE `app` subtree and the main `node_modules`.
+  // The whole-`app` sweep is essential: Next.js standalone places externalized
+  // native modules under `app/.next/node_modules/<name>-<hash>` as ABSOLUTE-path
+  // symlinks (e.g. `better-sqlite3-…` → dev `.pnpm` store), and may scatter more
+  // traced-module links under `.next/server`. Any one of these dangling on a
+  // clean machine produces "Failed to load external module <x>" 500s at runtime.
+  // Walking all of `app/` (not just `app/node_modules`) replaces every remaining
+  // symlink with real files, guaranteeing the server can resolve them.
+  for (const target of [appDir, mainNm]) {
+    if (!fs.existsSync(target)) continue;
+    const replaced = dereferenceAnyRemainingLinks(target);
+    if (replaced > 0) {
+      console.log(`[forge] Dereferenced ${replaced} stray symlink(s) in ${target}`);
+    }
+    const remaining = countSymlinks(target);
+    if (remaining > 0) {
+      throw new Error(
+        `[forge] Portability check FAILED: ${remaining} symlink(s) remain in ${target}`,
+      );
+    }
+    console.log(`[forge] Portability OK (0 symlinks): ${target}`);
   }
-  const remaining = countSymlinks(target);
-  if (remaining > 0) {
-    throw new Error(`[stage] ${remaining} symlink(s) remain in ${target}`);
-  }
-  console.log(`[stage] Portability OK (0 symlinks): ${target}`);
 }
 
-console.log("[stage] Staging complete — app/ and build/node_modules are flat and portable.");
+const asarUnpackDirs = [
+  "node_modules/@duckdb",
+  "node_modules/@img",
+  "node_modules/@lancedb",
+  "node_modules/@mlc-ai",
+  "node_modules/detect-libc",
+  "node_modules/next",
+  "node_modules/onnxruntime-node",
+  "node_modules/sharp",
+  "node_modules/sherpa-onnx-node",
+  "node_modules/sqlite-vec",
+  "node_modules/better-sqlite3",
+  // node-llama-cpp ships a JS wrapper + prebuilt native binaries in the
+  // @node-llama-cpp/* platform subpackages — both must stay OUTSIDE the asar.
+  "node_modules/node-llama-cpp",
+  "node_modules/@node-llama-cpp",
+
+  "app/node_modules/@duckdb",
+  "app/node_modules/@img",
+  "app/node_modules/@lancedb",
+  "app/node_modules/@mlc-ai",
+  "app/node_modules/detect-libc",
+  "app/node_modules/next",
+  "app/node_modules/onnxruntime-node",
+  "app/node_modules/sharp",
+  "app/node_modules/sherpa-onnx-node",
+  "app/node_modules/sqlite-vec",
+  "app/node_modules/better-sqlite3",
+  "app/node_modules/node-llama-cpp",
+  "app/node_modules/@node-llama-cpp",
+].join(",");
+
+const config: ForgeConfig = {
+  packagerConfig: {
+    name: appName,
+    executableName: appExe,
+    appBundleId: appId,
+    appCategoryType: "public.app-category.productivity",
+    icon: iconBase,
+    overwrite: true,
+    prune: true,
+    protocols: [
+      {
+        name: "Data Navigator Protocol",
+        schemes: [protocolScheme],
+      },
+    ],
+
+    win32metadata: {
+      CompanyName: manufacturer,
+      FileDescription: appName,
+      InternalName: appName,
+      OriginalFilename: `${appExe}.exe`,
+      ProductName: appName,
+    },
+
+    asar: {
+      unpack: "**/*.{node,dll,so,dylib,wasm,onnx,ort,bin,gguf,safetensors}",
+      unpackDir: `{${asarUnpackDirs}}`,
+    },
+
+    ignore: (filePath) => {
+      if (!filePath) return false;
+
+      const normalizedPath = filePath.replaceAll("\\", "/");
+
+      const keep = [
+        /^\/build(?:\/|$)/,
+        /^\/app(?:\/|$)/,
+        /^\/public(?:\/|$)/,
+        /^\/models(?:\/|$)/,
+        /^\/package\.json$/,
+        /^\/node_modules\/next(?:\/|$)/,
+        /^\/node_modules\/@next(?:\/|$)/,
+      ];
+
+      return !keep.some((pattern) => pattern.test(normalizedPath));
+    },
+  },
+
+  // NO rebuildConfig. Forge's in-`make` native rebuild (@electron/rebuild) spawns a
+  // node-gyp child process per native module; on the hosted Windows runner that is
+  // both the documented "Preparing native dependencies" hang (forge #3474/#3619) AND
+  // the source of the early process.exit(0) that previously killed `make` ~4s in
+  // during packaging (a child-process exit handler fired on the main process). The
+  // native modules are instead rebuilt for the Electron ABI in a dedicated CI step
+  // (`pnpm run native:rebuild`) BEFORE `make`, so the staged .node files already
+  // carry the right ABI and `make` never spawns a rebuild child.
+
+  makers: [
+    new MakerWix(
+      {
+        language: 1033,
+        manufacturer,
+        arch: "x64",
+        name: appName,
+        exe: appExe,
+        shortName: "DataNavigator",
+        icon: iconIco,
+        upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        ...windowsCertificateConfig,
+      },
+      ["win32"],
+    ),
+
+    // new MakerSquirrel(
+    //   {
+    //     name: appSlug.replaceAll("-", "_"),
+    //     authors: manufacturer,
+    //     description:
+    //       "AI-powered local data analysis and visualization platform",
+    //     setupExe: "DataNavigatorSetup.exe",
+    //     setupIcon: iconIco,
+    //     noMsi: true,
+    //     ...windowsCertificateConfig,
+    //   },
+    //   ["win32"],
+    // ),
+
+    // new MakerMSIX(
+    //   {
+    //     manifestVariables: {
+    //       packageIdentity: "AliAmmari.DataNavigator",
+    //       appDisplayName: appName,
+    //       publisher: process.env.WINDOWS_PUBLISHER ?? "CN=Ali Ammari",
+    //       publisherDisplayName: manufacturer,
+    //       packageDescription:
+    //         "AI-powered local data analysis and visualization platform",
+    //     },
+
+    //     ...(hasWindowsCertificate
+    //       ? {
+    //           windowsSignOptions: {
+    //             certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
+    //             certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
+    //           },
+    //         }
+    //       : {}),
+    //   },
+    //   ["win32"],
+    // ),
+
+    // new MakerZIP({}, ["win32"]),
+  ],
+
+  publishers: [
+    new PublisherGithub({
+      repository: {
+        owner: githubOwner,
+        name: githubRepo,
+      },
+      draft: true,
+      prerelease:
+        process.env.PRERELEASE === "true" ||
+        process.env.CHANNEL === "alpha" ||
+        process.env.CHANNEL === "beta",
+    }),
+  ],
+
+  plugins: [new AutoUnpackNativesPlugin({})],
+
+  hooks: {
+    // Fires AFTER the Electron zip is extracted into buildPath, BEFORE the app is
+    // copied. Diagnostic marker: if this prints in CI, extraction completed and any
+    // failure is downstream (the node_modules copy/flatten below); if it never
+    // prints, the build died during Electron extraction itself.
+    packageAfterExtract: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterExtract OK — Electron extracted to ${buildPath}`);
+    },
+
+    packageAfterCopy: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterCopy START — staging app + node_modules into ${buildPath}`);
+      requirePath("Electron main build", electronMainBuild);
+      requirePath("Next standalone output", nextStandaloneDir);
+      requirePath("Next static output", nextStaticDir);
+      requirePath("public assets", publicDir);
+      requirePath("Windows icon", iconIco);
+
+      const appDest = path.join(buildPath, "app");
+
+      copyDir("Next standalone app", nextStandaloneDir, appDest);
+
+      copyDir("Next static assets", nextStaticDir, path.join(appDest, ".next", "static"));
+
+      copyDir("public assets", publicDir, path.join(appDest, "public"));
+
+      copyDirIfExists(
+        "local edge-AI models",
+        path.join(root, "models"),
+        path.join(appDest, "models"),
+      );
+
+      for (const packageName of [
+        "next",
+        "@next/env",
+        "better-sqlite3",
+        "@duckdb",
+        "@lancedb",
+        "@mlc-ai",
+        "detect-libc",
+        "onnxruntime-node",
+        "sharp",
+        "sherpa-onnx-node",
+        "sqlite-vec",
+        // node-llama-cpp generative lane (Electron main) + its platform binaries.
+        "node-llama-cpp",
+        "@node-llama-cpp",
+        // Embedded LAN collaboration hub (optional) + mDNS discovery.
+        "@hocuspocus",
+        "bonjour-service",
+      ]) {
+        copyPackageIfExists(packageName, buildPath);
+      }
+
+      // The copies above preserve pnpm's symlink web (cpSync dereference is inert
+      // for Windows dir symlinks). Rewrite BOTH packaged node_modules into a
+      // flat, real-file, npm-style layout so the MSI is fully portable — zero
+      // symlinks, full dependency closure resolvable on a clean machine. This is
+      // the actual fix for "Cannot find module next/dist/server/lib/start-server".
+      makeNodeModulesPortable(buildPath);
+    },
+
+    packageAfterPrune: async (_forgeConfig, buildPath) => {
+      const packageJsonPath = path.join(buildPath, "package.json");
+
+      if (!fs.existsSync(packageJsonPath)) return;
+
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, "utf8"));
+
+      packageJson.name = appSlug;
+      packageJson.productName = appName;
+      packageJson.author = manufacturer;
+      packageJson.description = "AI-powered local data analysis and visualization platform";
+      packageJson.main = "build/main.js";
+
+      fs.writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+    },
+
+    // ── @electron/fuses production hardening (architecture §12) ──
+    // Bake the hardening fuses into the packaged binary so they cannot be
+    // re-enabled at runtime via env vars / CLI flags. Driven by the single
+    // source of truth in electron/security.ts (PRODUCTION_FUSE_CONFIG).
+    postPackage: async (_forgeConfig, { platform, outputPaths }) => {
+      for (const outputPath of outputPaths) {
+        const electronBinary = resolveElectronBinary(outputPath, platform);
+
+        if (!fs.existsSync(electronBinary)) {
+          console.warn(`[forge] fuses: binary not found, skipping: ${electronBinary}`);
+          continue;
+        }
+
+        console.log(`[forge] Flipping @electron/fuses on ${electronBinary}`);
+        await flipFuses(electronBinary, {
+          version: FuseVersion.V1,
+          resetAdHocDarwinSignature: platform === "darwin",
+          [FuseV1Options.RunAsNode]: PRODUCTION_FUSE_CONFIG.RunAsNode,
+          [FuseV1Options.EnableCookieEncryption]: PRODUCTION_FUSE_CONFIG.EnableCookieEncryption,
+          [FuseV1Options.EnableNodeOptionsEnvironmentVariable]:
+            PRODUCTION_FUSE_CONFIG.EnableNodeOptionsEnvironmentVariable,
+          [FuseV1Options.EnableNodeCliInspectArguments]:
+            PRODUCTION_FUSE_CONFIG.EnableNodeCliInspectArguments,
+          [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]:
+            PRODUCTION_FUSE_CONFIG.EnableEmbeddedAsarIntegrityValidation,
+          [FuseV1Options.OnlyLoadAppFromAsar]: PRODUCTION_FUSE_CONFIG.OnlyLoadAppFromAsar,
+          [FuseV1Options.LoadBrowserProcessSpecificV8Snapshot]:
+            PRODUCTION_FUSE_CONFIG.LoadBrowserProcessSpecificV8Snapshot,
+          [FuseV1Options.GrantFileProtocolExtraPrivileges]:
+            PRODUCTION_FUSE_CONFIG.GrantFileProtocolExtraPrivileges,
+        });
+      }
+    },
+  },
+};
+
+export default config;
