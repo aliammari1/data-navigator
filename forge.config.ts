@@ -697,6 +697,88 @@ function countSymlinks(rootDir: string): number {
   return count;
 }
 
+/** Best-effort recursive byte size of a directory, for prune logging. */
+function dirSizeBytes(dir: string): number {
+  let total = 0;
+  const stack = [dir];
+  while (stack.length > 0) {
+    const d = stack.pop();
+    if (!d) continue;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) stack.push(full);
+      else {
+        try {
+          total += fs.statSync(full).size;
+        } catch {
+          /* unreadable file — skip */
+        }
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Strip dead weight from BOTH packaged node_modules trees so the Windows installer
+ * is a tractable size (the unpruned package is ~3.8\,GB, almost all of it unused):
+ *   - node-llama-cpp GPU / wrong-arch backends. The app runs CPU-only by default
+ *     (GPU is opt-in via DN\_LLAMA\_GPU and falls back to CPU); CUDA (~580\,MB) needs
+ *     an NVIDIA GPU, and the arm64 backend is the wrong architecture for this x64
+ *     build. We keep win-x64 (CPU) and win-x64-vulkan (the opt-in Vulkan path).
+ *   - onnxruntime-node binaries for platforms we never ship. The package bundles
+ *     darwin, linux and win32/arm64 prebuilts; only win32/x64 is ever loaded.
+ * Together these remove roughly 0.9\,GB without changing the default runtime.
+ */
+function pruneOversizedNativeBinaries(buildPath: string): void {
+  const trees = [
+    path.join(buildPath, "node_modules"),
+    path.join(buildPath, "app", "node_modules"),
+  ];
+  let removedBytes = 0;
+  const drop = (target: string) => {
+    if (!fs.existsSync(target)) return;
+    removedBytes += dirSizeBytes(target);
+    fs.rmSync(target, { recursive: true, force: true });
+    console.log(`[forge] pruned ${target}`);
+  };
+
+  for (const nm of trees) {
+    if (!fs.existsSync(nm)) continue;
+
+    // 1. node-llama-cpp: drop GPU/wrong-arch backends; keep win-x64 + win-x64-vulkan.
+    for (const backend of ["win-x64-cuda", "win-x64-cuda-ext", "win-arm64"]) {
+      drop(path.join(nm, "@node-llama-cpp", backend));
+    }
+
+    // 2. onnxruntime-node: keep only the win32/x64 prebuilt, drop every other
+    //    platform and architecture under bin/napi-v6.
+    const onnxBin = path.join(nm, "onnxruntime-node", "bin", "napi-v6");
+    if (fs.existsSync(onnxBin)) {
+      for (const osDir of fs.readdirSync(onnxBin)) {
+        if (osDir !== "win32") {
+          drop(path.join(onnxBin, osDir));
+          continue;
+        }
+        const win = path.join(onnxBin, "win32");
+        for (const archDir of fs.readdirSync(win)) {
+          if (archDir !== "x64") drop(path.join(win, archDir));
+        }
+      }
+    }
+  }
+
+  console.log(
+    `[forge] pruned ~${(removedBytes / 1048576).toFixed(0)} MB of unused GPU / wrong-platform native binaries`,
+  );
+}
+
 /**
  * Top-level entry: make BOTH packaged node_modules fully portable. Called from
  * the packageAfterCopy hook after all copies are done.
@@ -954,6 +1036,11 @@ const config: ForgeConfig = {
       // symlinks, full dependency closure resolvable on a clean machine. This is
       // the actual fix for "Cannot find module next/dist/server/lib/start-server".
       makeNodeModulesPortable(buildPath);
+
+      // Strip dead weight (GPU/wrong-platform native binaries) so the installer is a
+      // tractable size. The app is ~3.8\,GB before this, almost entirely unused
+      // node-llama-cpp CUDA backends and multi-platform onnxruntime binaries.
+      pruneOversizedNativeBinaries(buildPath);
     },
 
     packageAfterPrune: async (_forgeConfig, buildPath) => {
