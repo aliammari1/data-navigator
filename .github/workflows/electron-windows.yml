@@ -165,51 +165,55 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Make the real WiX MSI (out/make/wix/x64/*.msi).
-      #
-      # On the runner, the FIRST make exits cleanly (exit 0) ~2.5s into
-      # @electron/packager's Electron download+extract, producing no out/ — a
-      # subprocess Forge spawns on the cache-MISS download path tears the make down
-      # via a child-exit -> process.exit(0) handler (confirmed via --trace-exit; the
-      # full build works end-to-end locally). But that first attempt still leaves the
-      # Electron zip in @electron/get's cache, so we retry: the next attempt is a pure
-      # cache HIT (no download/verify subprocess) and runs to completion. compgen
-      # gates on the actual .msi, since the broken attempt "succeeds" with exit 0.
+      # Make the real WiX MSI (out/make/wix/x64/*.msi). On the hosted runner this
+      # exits cleanly (exit 0) ~4s in, during @electron/packager's Electron extract,
+      # producing no out/ — process.exit(0) fires from a child-process exit handler
+      # (confirmed via --trace-exit; the full build works locally). --trace-exit +
+      # the packager/get/extract DEBUG namespaces keep the make log explicit, and the
+      # Verify step below dumps the partial state so we can see exactly where it dies.
+      # `|| true` so the loud gate is the Verify step, not this step's exit code.
       - name: Make Windows MSI
         shell: bash
-        run: |
-          for i in 1 2 3; do
-            echo "::group::electron-forge make (attempt $i)"
-            pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat || true
-            echo "::endgroup::"
-            if compgen -G "out/make/wix/x64/*.msi" > /dev/null; then
-              echo "MSI produced on attempt $i"; break
-            fi
-            echo "attempt $i produced no .msi; clearing out/ and retrying"; rm -rf out
-          done
+        run: pnpm exec electron-forge make --platform=win32 --arch=x64 2>&1 | cat || true
         env:
           NODE_ENV: production
-          DEBUG: "electron-forge:*"
+          NODE_OPTIONS: "--trace-exit"
+          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
           FORCE_COLOR: "0"
 
-      # Ground-truth what `make` actually produced. The WiX maker writes the MSI to
-      # out/make/wix/x64/*.msi; if that is empty the build silently shipped nothing,
-      # so make this an explicit, loud gate instead of a warn-and-pass.
+      # Ground-truth what `make` actually produced AND dump diagnostics, since the
+      # make silently exits 0 with no out/. We print: the out/ tree, how far Electron
+      # packaging got (the electron-packager temp template dir), whether the Electron
+      # download landed in the @electron/get cache, disk free, and any stray .msi near
+      # the build. Targeted paths only (no whole-drive scan -> fast). Then hard-fail
+      # if there is no real MSI.
       - name: Verify MSI was produced
         if: always()
+        timeout-minutes: 5
         shell: pwsh
         run: |
-          Write-Host "=== out/ tree ==="
-          if (Test-Path out) {
-            Get-ChildItem -Recurse out -ErrorAction SilentlyContinue |
-              Select-Object @{n='Size(MB)';e={[math]::Round($_.Length/1MB,2)}}, FullName |
-              Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
-          } else {
-            Write-Host "out/ does NOT exist"
+          $ErrorActionPreference = 'SilentlyContinue'
+          function Dump($label, $path, $depth) {
+            Write-Host "`n===== $label : $path ====="
+            if (Test-Path $path) {
+              Get-ChildItem $path -Recurse -Depth $depth |
+                Select-Object @{n='MB';e={[math]::Round($_.Length/1MB,2)}}, LastWriteTime, FullName |
+                Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+            } else { Write-Host "(does not exist)" }
           }
+          Dump "out tree" "out" 4
+          # @electron/packager extracts Electron into a temp template dir before copying
+          # the app; its contents reveal whether extraction even completed.
+          foreach ($t in @("$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager", "$env:LOCALAPPDATA\Temp\electron-packager")) { Dump "electron-packager temp" $t 1 }
+          Dump "electron download cache" "$env:LOCALAPPDATA\electron\Cache" 2
+          Write-Host "`n===== disk free ====="
+          Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}}, @{n='UsedGB';e={[math]::Round($_.Used/1GB,1)}} | Format-Table -AutoSize | Out-String | Write-Host
+          Write-Host "`n===== .msi files under the workspace ====="
+          Get-ChildItem -Path . -Filter *.msi -Recurse -ErrorAction SilentlyContinue | Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
+
           $msis = @(Get-ChildItem -Recurse -Path out -Filter *.msi -ErrorAction SilentlyContinue)
           if ($msis.Count -eq 0) {
-            Write-Error "No .msi was produced under out/ — the WiX maker did not run."
+            Write-Host "::error::No .msi was produced under out/ — the WiX maker did not run."
             exit 1
           }
           foreach ($m in $msis) {
