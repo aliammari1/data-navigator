@@ -11,7 +11,7 @@ import type { ChartType, DataSchema, WidgetSpec } from "./types";
 // ─── SQL Helpers ──────────────────────────────────────────────────────────────
 
 function qc(col: string) {
-  return `"${col.replace('"', '""')}"`;
+  return `"${col.replaceAll('"', '""')}"`;
 }
 
 function isNumericColumn(colName: string, schema: DataSchema): boolean {

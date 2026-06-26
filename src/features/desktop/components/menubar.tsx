@@ -3,7 +3,7 @@
 import { Bell, Monitor, Moon, Palette, Sun, Wifi } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
-import { useTheme } from "@/components/theme-provider";
+import { AppMenubar } from "@/features/desktop/components/app-menubar";
 import { Explainable } from "@/features/desktop/components/hover-explain";
 import {
   NotificationsCenter,
@@ -11,14 +11,14 @@ import {
 } from "@/features/desktop/components/notifications-center";
 import { useWidgetTelecomData } from "@/features/desktop/components/widgets/use-widget-telecom-data";
 import { WorkspacesMenu } from "@/features/desktop/components/workspaces-menu";
-import { getApp } from "@/features/desktop/core/app-registry";
+import { useMenuContext } from "@/features/desktop/core/menu/use-menu-context";
 import {
   GLASS_PALETTES,
   useDesktopActions,
-  useDesktopWindows,
   useGlassPalette,
 } from "@/features/desktop/store/desktop-store";
 import { fmtPct } from "@/features/telecom/lib/format";
+import { useAppTheme } from "@/hooks/use-app-theme";
 
 /**
  * macOS-style glass menu bar (top). Left: brand + focused app name. Right: the
@@ -27,10 +27,9 @@ import { fmtPct } from "@/features/telecom/lib/format";
  * All colours are palette-driven (`--glass-*`).
  */
 export function MenuBar({ clock, date }: { clock: string; date: string }) {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
   const palette = useGlassPalette();
   const { setGlassPalette } = useDesktopActions();
-  const windows = useDesktopWindows();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -39,15 +38,8 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
   const unreadCount = useUnreadCount();
   const successRate = telecom.ready && telecom.kpi ? fmtPct(telecom.kpi.successRate) : null;
 
-  // Focused app title for the leading "app menu" slot.
-  let topZ = -1;
-  let topApp = "Finder";
-  for (const w of windows) {
-    if (!w.minimized && w.z > topZ) {
-      topZ = w.z;
-      topApp = getApp(w.appId)?.title ?? w.title;
-    }
-  }
+  // App-aware menus: the bar's menus follow the focused window's app + page.
+  const { groups } = useMenuContext();
 
   const ThemeIcon = theme === "dark" ? Moon : theme === "light" ? Sun : Monitor;
   const cycleTheme = () =>
@@ -70,10 +62,7 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
       >
         م
       </span>
-      <span className="font-semibold">{topApp}</span>
-      <span className="hidden opacity-60 sm:inline">Fichier</span>
-      <span className="hidden opacity-60 sm:inline">Édition</span>
-      <span className="hidden opacity-60 md:inline">Affichage</span>
+      <AppMenubar groups={groups} />
 
       {successRate && (
         <Explainable

@@ -23,6 +23,26 @@ import { authClient } from "./auth-client";
 import * as collabHubService from "./collab-hub-service";
 import * as duckdbService from "./duckdb-service";
 import { createConcurrencyLimiter, runBounded } from "./ipc-concurrency";
+import {
+  CollabStartSchema,
+  CountRowsSchema,
+  DatasetOnlySchema,
+  ExportDatasetSchema,
+  KeysetPageSchema,
+  LlamaEnsureModelSchema,
+  LlamaGenerateSchema,
+  LlamaGenerateStructuredSchema,
+  ModelDownloadSchema,
+  ModelKeySchema,
+  PreviewDatasetSchema,
+  ProfileColumnDetailSchema,
+  ProfileDatasetSchema,
+  parseIpc,
+  RegisterCsvSchema,
+  RegisterParquetSchema,
+  RequestIdSchema,
+  SqlSchema,
+} from "./ipc-validation";
 import * as llamaService from "./llama-service";
 import * as modelDownloadService from "./model-download-service";
 import { ensureAuthDbKeyEnv } from "./secure-store";
@@ -37,25 +57,14 @@ import {
   withRendererSecurityHeaders,
 } from "./security";
 import {
-  CollabStartSchema,
-  CountRowsSchema,
-  DatasetOnlySchema,
-  ExportDatasetSchema,
-  KeysetPageSchema,
-  LlamaEnsureModelSchema,
-  LlamaGenerateSchema,
-  LlamaGenerateStructuredSchema,
-  ModelDownloadSchema,
-  ModelKeySchema,
-  parseIpc,
-  PreviewDatasetSchema,
-  ProfileColumnDetailSchema,
-  ProfileDatasetSchema,
-  RegisterCsvSchema,
-  RegisterParquetSchema,
-  RequestIdSchema,
-  SqlSchema,
-} from "./ipc-validation";
+  closeSettingsStore,
+  configureSettingsStore,
+  deleteSetting,
+  exportSettings,
+  getSetting,
+  migrateLegacyAppSettings,
+  setSetting,
+} from "./settings-store";
 import * as voiceService from "./voice-service";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
 
@@ -96,11 +105,22 @@ let mainWindow: BrowserWindow | null = null;
 
 authClient.setupMain({
   getWindow: () => mainWindow,
+  // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
+  // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
+  // edit can't silently activate a competing onHeadersReceived CSP handler.
+  csp: false,
 });
 
 // ─── App Update ───────────────────────────────────────────────────────────────
+// Offline-first: auto-update is OFF by default so a packaged launch makes ZERO
+// outbound network requests. Otherwise update-electron-app polls
+// update.electronjs.org on launch AND hourly — in the MAIN process, so the
+// renderer CSP cannot stop it, and it leaks app version + platform. Opt back in
+// by setting DN_ENABLE_AUTO_UPDATE=1 in the environment. (Auto-update is also
+// non-functional for this private-repo MSI — see docs/RELEASING-WINDOWS.md — so
+// disabling it by default only removes a dead, guarantee-violating network call.)
 
-if (app.isPackaged) {
+if (app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
   import("update-electron-app")
     .then(({ updateElectronApp }) => {
       updateElectronApp({
@@ -161,6 +181,15 @@ if (app.isPackaged) {
 // ─── Paths ────────────────────────────────────────────────────────────────────
 
 const DATA_DIR = path.join(app.getPath("userData"), "data-navigator");
+
+// Directory holding the per-domain settings/analytics SQLite files owned by the
+// main process (the IPC replacement for /api/settings).
+const DATABASES_DIR = path.join(app.getPath("userData"), "databases");
+
+// Auth DB filename — duplicated from storage-constants.ts (AUTH_DB_FILE) because
+// electron modules can't resolve the "@/" alias under tsup. Used only to locate
+// the legacy app_setting rows for the one-time lift into the new databases.
+const AUTH_DB_FILENAME = "data-navigator-auth.sqlite";
 
 // Single source of truth for filesystem allowlisting. The pure logic lives in
 // ./security and is exhaustively unit-tested (see tests/security).
@@ -267,6 +296,29 @@ async function installReactDevTools(): Promise<void> {
     console.warn("[electron] React DevTools install failed:", error);
   }
 }
+
+// ─── IPC: Settings Bridge ────────────────────────────────────────────────────
+// Durable client state (zustand stores, theme, dashboard access, analytics
+// snapshots) persisted into per-domain SQLite files owned here in the main
+// process — the IPC replacement for the retired /api/settings HTTP route. The
+// store ops are synchronous (better-sqlite3); the trusted-sender guard blocks
+// calls from any frame that isn't an allowed app origin.
+
+ipcMain.handle("settings:get", async (event, namespace: string, key: string) =>
+  withTrustedSender(event, () => getSetting(namespace, key)),
+);
+
+ipcMain.handle("settings:set", async (event, namespace: string, key: string, value: unknown) =>
+  withTrustedSender(event, () => setSetting(namespace, key, value)),
+);
+
+ipcMain.handle("settings:delete", async (event, namespace: string, key: string) =>
+  withTrustedSender(event, () => deleteSetting(namespace, key)),
+);
+
+ipcMain.handle("settings:export", async (event, namespace?: string) =>
+  withTrustedSender(event, () => exportSettings(namespace)),
+);
 
 // ─── IPC: Filesystem Bridge ──────────────────────────────────────────────────
 // Keep this bridge narrow. Arbitrary read/write/delete is blocked unless the
@@ -1114,6 +1166,22 @@ app
       );
     }
 
+    // Bring up the per-domain settings/analytics databases and lift any legacy
+    // app_setting rows out of the auth DB exactly once — BEFORE createWindow loads
+    // the renderer (which talks to them over the settings: IPC channels). Done here
+    // rather than in startNextJSServer so it also runs in dev, where the renderer is
+    // served by an external `next dev` and startNextJSServer never runs.
+    configureSettingsStore(DATABASES_DIR);
+    try {
+      const authDbPath = path.join(app.getPath("userData"), "data", AUTH_DB_FILENAME);
+      const { migrated } = migrateLegacyAppSettings(authDbPath);
+      bootLog(`settings-store: ready at ${DATABASES_DIR}; legacy lift migrated ${migrated} rows`);
+    } catch (error) {
+      bootLog(
+        `settings-store: init/migration error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+
     installMediaPermissionHandlers();
 
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
@@ -1177,6 +1245,9 @@ app.on("before-quit", () => {
   collabHubService.dispose().catch((error) => {
     console.error("[electron] collab-hub cleanup error:", error);
   });
+
+  // Flush WAL + close the settings/analytics SQLite handles cleanly.
+  closeSettingsStore();
 });
 
 app.on("window-all-closed", () => {

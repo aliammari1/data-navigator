@@ -1,12 +1,23 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { useMonitorEngine } from "../hooks/useMonitorEngine";
 import { monitorStoreApi, useMonitorStore } from "../store/monitor-store";
-import { ChannelHealthTab } from "../tabs/ChannelHealthTab";
+
+const MONITOR_PAGES = [
+  { id: "health", label: "Santé des canaux" },
+  { id: "rules", label: "Règles d'alerte" },
+  { id: "timeline", label: "Chronologie des alertes" },
+  { id: "sla", label: "Conformité SLA" },
+  { id: "sound", label: "Son & notifications" },
+];
+
 import { AlertRulesTab } from "../tabs/AlertRulesTab";
+import { ChannelHealthTab } from "../tabs/ChannelHealthTab";
 
 // Lazy-load the chart-heavy tabs so ECharts/OffscreenChart only load when the
 // timeline / SLA tab actually opens (smaller initial route chunk).
@@ -40,6 +51,24 @@ export function ChannelMonitorScreen() {
   // Atomic selector — only re-renders the header badge on notification changes.
   const notifications = useMonitorStore.use.notifications();
   const unreadCount = notifications.filter((n) => !n.read).length;
+
+  // Controlled tabs so the desktop View menu can navigate + reflect the page.
+  const [activeTab, setActiveTab] = useState<string>("health");
+
+  // Surface the tabs as pages in the universal Affichage menu.
+  useRegisterPages(useWindowId(), MONITOR_PAGES, activeTab);
+
+  // Let the app menu drive real screen/store behaviour via the command bus.
+  useAppCommands("monitor", {
+    navigate: (payload) => setActiveTab((payload as { pageId: string }).pageId),
+    "mark-read": () => monitorStoreApi.getState().markAllNotificationsRead(),
+    "clear-notifications": () => monitorStoreApi.getState().clearNotifications(),
+    "clear-events": () => monitorStoreApi.getState().clearEvents(),
+    "toggle-sound": () => {
+      const store = monitorStoreApi.getState();
+      store.setSoundEnabled(!store.soundEnabled);
+    },
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
@@ -76,7 +105,7 @@ export function ChannelMonitorScreen() {
 
       {/* Tabs */}
       <div className="px-6 py-6">
-        <Tabs defaultValue="health" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="mb-6 w-full sm:w-auto">
             <TabsTrigger value="health">Channel Health</TabsTrigger>
             <TabsTrigger value="rules">Alert Rules</TabsTrigger>

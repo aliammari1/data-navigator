@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
-import { SignInForm } from "@/components/auth/sign-in-form";
+import { OsLogin } from "@/components/auth/os-login";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
-      <SignInForm />
+      <OsLogin />
     </Suspense>
   );
 }

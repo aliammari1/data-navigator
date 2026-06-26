@@ -17,10 +17,11 @@ import { chunkText, type KokoroTtsInstance, loadKokoroModel } from "@/platform/a
 import { configureTransformersEnv } from "@/platform/ai/transformers-env";
 
 // Configure the offline env BEFORE any transformers/kokoro pipeline is created.
-// We honour the user's air-gap preference (default allows a one-time download
-// while online, then the weights are cached to IndexedDB for offline use); a
-// strict air-gap with no bundled weights simply falls back to system voices.
-configureTransformersEnv();
+// Air-gapped by design: never attempt a CDN weight download (allowRemoteModels:
+// false). This worker is a fallback only — the renderer prefers the bundled
+// native sherpa-onnx voice lane (see useNarrator); if no Kokoro weights are
+// cached this simply falls back to system voices.
+configureTransformersEnv({ allowRemoteModels: false });
 
 const MODEL_ID = "onnx-community/Kokoro-82M-ONNX";
 const DEFAULT_VOICE = "af_heart";

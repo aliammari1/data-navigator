@@ -52,6 +52,7 @@ import {
   type UploadStatus,
   type ValidationIssue,
 } from "@/features/data-import/model/types";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import {
   isTelecomDataset,
   TELECOM_REQUIRED_COLUMNS,
@@ -359,6 +360,18 @@ export default function DataImportScreen() {
       "application/vnd.apache.parquet": [".parquet", ".pq"],
     },
     multiple: true,
+  });
+
+  // Bridge the desktop window menu (Importer) to the screen's existing handlers.
+  useAppCommands("upload", {
+    import: () => void importFromFiles(),
+    "import-folder": () => void importFromFolder(),
+    "refresh-history": () => void refreshHistory(),
+    "clear-session": () => {
+      reset();
+      setSelectedFileId(null);
+      setDropNotice(null);
+    },
   });
 
   return (

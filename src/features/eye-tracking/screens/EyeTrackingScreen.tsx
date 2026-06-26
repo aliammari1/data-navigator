@@ -1,6 +1,5 @@
 "use client";
 
-import { AnimatePresence } from "motion/react";
 import {
   AlertTriangle,
   Eye,
@@ -12,12 +11,14 @@ import {
   ShieldCheck,
   Target,
 } from "lucide-react";
+import { AnimatePresence } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { eyeTracker, EyeTrackerError } from "../core/eyetracker";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { AttentionHeatmap } from "../components/attention-heatmap";
 import { CalibrationOverlay } from "../components/calibration-overlay";
 import { GazeDot } from "../components/gaze-dot";
+import { EyeTrackerError, eyeTracker } from "../core/eyetracker";
 import {
   useEyeAccuracy,
   useEyeActive,
@@ -127,6 +128,14 @@ export default function EyeTrackingScreen() {
     setError(null);
     setCalibrating(true);
   }, [active, handleStart, setError]);
+
+  // Bridge the desktop menu bar ("Suivi") to the existing handlers above.
+  useAppCommands("eye-tracking", {
+    "toggle-tracking": () => handleToggle(),
+    calibrate: () => void handleCalibrate(),
+    "toggle-gaze-dot": () => toggleGazeDot(),
+    "toggle-heatmap": () => toggleHeatmap(),
+  });
 
   return (
     <div className="flex h-full flex-col gap-5 overflow-y-auto bg-background p-6 text-foreground">

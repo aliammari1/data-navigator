@@ -3,9 +3,9 @@
  * Python Sandbox Worker (Pyodide).
  *
  * Inspired by the LangChain Sandbox pattern (isolated Python interpreter,
- * stateful between calls, pre-installs scientific stack on demand) — but runs
- * entirely in the browser via Pyodide loaded from CDN. No server, no network
- * traffic for code execution itself.
+ * stateful between calls, pre-installs scientific stack on demand) — runs
+ * entirely in the browser via Pyodide SELF-HOSTED under /public/pyodide
+ * (staged by scripts/stage-pyodide.mjs). No CDN, no network traffic at runtime.
  *
  * Each session is a fresh `pyodide.toPy()` namespace so agent runs cannot
  * accidentally bleed state between conversations.
@@ -42,7 +42,11 @@ interface PythonNamespace {
 }
 
 const PYODIDE_VERSION = "0.26.4";
-const PYODIDE_CDN = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+// Self-hosted under public/pyodide/v<ver>/full/ (staged by scripts/stage-pyodide.mjs)
+// and served same-origin by the embedded Next server, so the runtime + all wheels
+// load over loopback with ZERO internet. (Renamed concept kept as PYODIDE_CDN for
+// minimal churn; it is now an origin-relative path, not a CDN.)
+const PYODIDE_CDN = `/pyodide/v${PYODIDE_VERSION}/full/`;
 
 export type SandboxRequest =
   | { id: string; type: "INIT" }
@@ -98,7 +102,7 @@ async function ensurePyodide(reqId: string): Promise<PyodideInstance> {
         self.importScripts(`${PYODIDE_CDN}pyodide.js`);
       } catch (err) {
         throw new Error(
-          `Pyodide CDN unreachable (${PYODIDE_CDN}pyodide.js). Check your network connection and try again. Underlying: ${err instanceof Error ? err.message : String(err)}`,
+          `Failed to load self-hosted Pyodide (${PYODIDE_CDN}pyodide.js). The Pyodide distribution must be vendored under public/pyodide — run \`pnpm stage:pyodide\` (one-time, online). Underlying: ${err instanceof Error ? err.message : String(err)}`,
         );
       }
       const loader = self.loadPyodide;
@@ -239,8 +243,11 @@ del __sandbox_rows, __sandbox_var, __sandbox_df
     if (msg.type === "INSTALL") {
       await ensureScientific(py, msg.id);
       configureStreams(py, msg.id, msg.sessionId);
-      const micropip = py.pyimport("micropip");
-      await micropip.install(msg.packages);
+      // Offline: resolve from the locally-vendored Pyodide distribution
+      // (pyodide-lock.json) via loadPackage instead of micropip→PyPI. Every
+      // package the app uses (numpy/pandas/scipy/scikit-learn/statsmodels) ships
+      // in the Pyodide distribution, so no network is required.
+      await py.loadPackage(msg.packages);
       post({
         id: msg.id,
         type: "RESULT",

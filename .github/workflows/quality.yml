@@ -55,7 +55,7 @@ jobs:
     steps:
       - name: Checkout repository
         # First-party action: major-version tag is acceptable (auto-patched).
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # LFS holds tracked model/binary fixtures; the build references them.
           lfs: true
@@ -99,7 +99,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-node-${{ matrix.node }}
           path: coverage

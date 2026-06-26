@@ -19,6 +19,12 @@
  */
 
 import {
+  canUseSettingsApi,
+  deleteAppSettingRemote,
+  getAppSettingRemote,
+  putAppSettingRemote,
+} from "@/platform/settings/settings-client";
+import {
   getEnabledSttEngines,
   getEnabledTtsEngines,
   KOKORO_VOICES,
@@ -396,10 +402,6 @@ function isBrowser(): boolean {
   return typeof window !== "undefined" && typeof window.localStorage !== "undefined";
 }
 
-function canUseSettingsApi(): boolean {
-  return typeof window !== "undefined" && typeof fetch !== "undefined";
-}
-
 function now(): number {
   return Date.now();
 }
@@ -412,12 +414,6 @@ function safeJsonParse<T>(value: string | null, fallback: T): T {
   } catch {
     return fallback;
   }
-}
-
-function getVoiceSettingsApiPath(): string {
-  return `/api/settings/${encodeURIComponent(VOICE_SETTINGS_NAMESPACE)}/${encodeURIComponent(
-    VOICE_SETTINGS_DB_KEY,
-  )}`;
 }
 
 function clampNumber(value: unknown, min: number, max: number, fallback: number): number {
@@ -709,23 +705,17 @@ function readCachedVoiceSettings(): Record<string, unknown> | null {
 function persistVoiceSettingsToDatabase(settings: VoiceSettings): void {
   if (!canUseSettingsApi()) return;
 
-  void fetch(getVoiceSettingsApiPath(), {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
+  void putAppSettingRemote(VOICE_SETTINGS_NAMESPACE, VOICE_SETTINGS_DB_KEY, settings).catch(
+    (error) => {
+      console.warn("[voice-settings] failed to persist settings to database", error);
     },
-    body: JSON.stringify({ value: settings }),
-  }).catch((error) => {
-    console.warn("[voice-settings] failed to persist settings to database", error);
-  });
+  );
 }
 
 function deleteVoiceSettingsFromDatabase(): void {
   if (!canUseSettingsApi()) return;
 
-  void fetch(getVoiceSettingsApiPath(), {
-    method: "DELETE",
-  }).catch((error) => {
+  void deleteAppSettingRemote(VOICE_SETTINGS_NAMESPACE, VOICE_SETTINGS_DB_KEY).catch((error) => {
     console.warn("[voice-settings] failed to delete settings from database", error);
   });
 }
@@ -733,20 +723,13 @@ function deleteVoiceSettingsFromDatabase(): void {
 export async function loadVoiceSettingsFromDatabase(): Promise<VoiceSettings | null> {
   if (!canUseSettingsApi()) return null;
 
-  const response = await fetch(getVoiceSettingsApiPath(), {
-    method: "GET",
-  });
+  const { value } = await getAppSettingRemote<Record<string, unknown>>(
+    VOICE_SETTINGS_NAMESPACE,
+    VOICE_SETTINGS_DB_KEY,
+  );
+  if (!value) return null;
 
-  if (response.status === 404) return null;
-
-  if (!response.ok) {
-    throw new Error(`Failed to load voice settings from database: ${response.status}`);
-  }
-
-  const payload = (await response.json()) as { value?: Record<string, unknown> | null };
-  if (!payload.value) return null;
-
-  return normalizeVoiceSettings(payload.value);
+  return normalizeVoiceSettings(value);
 }
 
 export async function hydrateVoiceSettingsFromDatabase(): Promise<VoiceSettings | null> {

@@ -21,13 +21,15 @@ import {
   UsersIcon,
 } from "@animateicons/react/lucide";
 import { AnimatePresence, motion } from "motion/react";
-import { type ComponentType, type Ref, useRef, useState } from "react";
+import { type ComponentType, type Ref, useEffect, useRef, useState } from "react";
 import {
   DockJumpList,
   DockProgressRing,
   useDockMagnify,
 } from "@/features/desktop/components/dock-extras";
+import { DockWindowPreview } from "@/features/desktop/components/dock-window-preview";
 import { type DesktopApp, getApp, PINNED_APPS } from "@/features/desktop/core/app-registry";
+import type { DesktopWindow } from "@/features/desktop/core/types";
 import {
   useDesktopActions,
   useDesktopWindows,
@@ -68,6 +70,18 @@ const ANIMATED_ICONS: Record<string, AnimatedIcon> = {
 const ICON_PX = 24;
 
 /**
+ * How far (px) a fully-magnified tile pushes its neighbours apart on each side.
+ * CSS `scale()` doesn't affect flex flow, so this margin is what actually opens
+ * up the breathing room between dock items as the cursor magnifies them.
+ */
+const MAGNIFY_SPREAD = 38;
+
+/** Hover-intent: wait this long on an icon before opening its preview (kills flicker on sweep). */
+const PREVIEW_OPEN_DELAY = 130;
+/** ...and keep the preview alive this long after the cursor leaves, for the icon → card handoff. */
+const PREVIEW_CLOSE_GRACE = 260;
+
+/**
  * One cohesive tile surface for every dock icon. No per-app hue and no
  * hand-picked hex: tiles are shadcn `card` surfaces with a `border`, lifting to
  * `accent` on hover, so the row reads as one neutral, professional family that
@@ -87,8 +101,7 @@ export function Dock() {
   const windows = useDesktopWindows();
   const recycleBin = useRecycleBin();
   const dockProgress = useDockProgress();
-  const { openApp, focusWindow, minimizeWindow, restoreWindow, toggleLauncher } =
-    useDesktopActions();
+  const { openApp, focusWindow, restoreWindow, toggleLauncher } = useDesktopActions();
 
   // macOS fisheye magnify, keyed by the direct-child index of the pill row.
   const rowRef = useRef<HTMLDivElement>(null);
@@ -113,32 +126,30 @@ export function Dock() {
     });
   };
 
-  const running = new Map<string, { id: string; minimized: boolean; z: number }>();
-  let topZ = -1;
-  let topId: string | null = null;
+  // appId → top (highest-z) window id for click handling
+  const topWinId = new Map<string, string>();
+  // appId → all windows (for preview strip)
+  const windowsByApp = new Map<string, DesktopWindow[]>();
   for (const w of windows) {
-    const cur = running.get(w.appId);
-    if (!cur || w.z > cur.z) running.set(w.appId, { id: w.id, minimized: w.minimized, z: w.z });
-    if (!w.minimized && w.z > topZ) {
-      topZ = w.z;
-      topId = w.id;
-    }
+    const curId = topWinId.get(w.appId);
+    const curZ = curId ? (windows.find((x) => x.id === curId)?.z ?? -1) : -1;
+    if (w.z > curZ) topWinId.set(w.appId, w.id);
+    const list = windowsByApp.get(w.appId);
+    if (list) list.push(w);
+    else windowsByApp.set(w.appId, [w]);
   }
   const pinnedIds = new Set(PINNED_APPS.map((a) => a.id));
-  const extras = [...running.keys()]
+  const extras = [...topWinId.keys()]
     .filter((id) => !pinnedIds.has(id) && id !== "recycle-bin")
     .map(getApp)
     .filter((a): a is NonNullable<typeof a> => Boolean(a));
   const items = [...PINNED_APPS, ...extras];
 
   const onClick = (appId: string) => {
-    const r = running.get(appId);
-    if (!r) return void openApp(appId);
-    if (r.id === topId) minimizeWindow(r.id);
-    else {
-      restoreWindow(r.id);
-      focusWindow(r.id);
-    }
+    const winId = topWinId.get(appId);
+    if (!winId) return void openApp(appId);
+    restoreWindow(winId);
+    focusWindow(winId);
   };
 
   return (
@@ -174,8 +185,9 @@ export function Dock() {
             key={app.id}
             app={app}
             scale={scaleFor(2 + i)}
-            running={running.has(app.id)}
+            running={topWinId.has(app.id)}
             progress={dockProgress[app.id]}
+            appWindows={windowsByApp.get(app.id) ?? []}
             onClick={() => onClick(app.id)}
             onContextMenu={(e) => openJump(e, { id: app.id, title: app.title })}
           />
@@ -195,7 +207,7 @@ export function Dock() {
           <span data-drop="recycle" className={TILE_CLASS}>
             <Trash2Icon ref={trashRef} size={ICON_PX} />
           </span>
-          <Dot show={running.has("recycle-bin")} />
+          <Dot show={topWinId.has("recycle-bin")} />
         </DockItem>
       </motion.div>
 
@@ -209,12 +221,14 @@ export function Dock() {
 /**
  * A single pinned/running app tile. Owns its own animated-icon handle so the
  * glyph animates while the whole tile is hovered (not only the small icon).
+ * Shows a Windows-11-style window preview strip while hovered + running.
  */
 function DockAppButton({
   app,
   scale,
   running,
   progress,
+  appWindows,
   onClick,
   onContextMenu,
 }: Readonly<{
@@ -222,30 +236,84 @@ function DockAppButton({
   scale: number;
   running: boolean;
   progress: number | null | undefined;
+  appWindows: DesktopWindow[];
   onClick: () => void;
   onContextMenu: (e: React.MouseEvent) => void;
 }>) {
   const iconRef = useRef<IconHandle>(null);
+  const spanRef = useRef<HTMLSpanElement>(null);
+  // Track icon hover and preview-card hover separately so moving the mouse
+  // from the icon into the preview card keeps the preview visible.
+  const [isDockHovered, setIsDockHovered] = useState(false);
+  const [isPreviewHovered, setIsPreviewHovered] = useState(false);
+  const { closeWindow, focusWindow, restoreWindow } = useDesktopActions();
   const Animated = ANIMATED_ICONS[app.id];
   const StaticIcon = app.icon;
 
+  const wantPreview = (isDockHovered || isPreviewHovered) && appWindows.length > 0;
+  const [previewVisible, setPreviewVisible] = useState(false);
+
+  // Hover-intent: a short open delay kills preview flicker while sweeping across
+  // the dock, and a close grace keeps the card alive during the icon → card
+  // handoff (and brief grazes of a neighbouring icon) so it never vanishes mid-reach.
+  useEffect(() => {
+    if (wantPreview === previewVisible) return;
+    const t = setTimeout(
+      () => setPreviewVisible(wantPreview),
+      wantPreview ? PREVIEW_OPEN_DELAY : PREVIEW_CLOSE_GRACE,
+    );
+    return () => clearTimeout(t);
+  }, [wantPreview, previewVisible]);
+
+  const handleFocusWindow = (winId: string) => {
+    restoreWindow(winId);
+    focusWindow(winId);
+  };
+
   return (
-    <DockItem
-      label={app.title}
-      scale={scale}
-      onClick={onClick}
-      onContextMenu={onContextMenu}
-      onHoverStart={() => iconRef.current?.startAnimation()}
-      onHoverEnd={() => iconRef.current?.stopAnimation()}
-    >
-      <span className="relative grid place-items-center">
-        <span className={TILE_CLASS}>
-          {Animated ? <Animated ref={iconRef} size={ICON_PX} /> : <StaticIcon className="size-6" />}
+    <span ref={spanRef}>
+      <DockItem
+        label={app.title}
+        scale={scale}
+        onClick={onClick}
+        onContextMenu={onContextMenu}
+        showLabel={appWindows.length === 0}
+        onHoverStart={() => {
+          iconRef.current?.startAnimation();
+          setIsDockHovered(true);
+        }}
+        onHoverEnd={() => {
+          iconRef.current?.stopAnimation();
+          setIsDockHovered(false);
+        }}
+      >
+        <span className="relative grid place-items-center">
+          <span className={TILE_CLASS}>
+            {Animated ? (
+              <Animated ref={iconRef} size={ICON_PX} />
+            ) : (
+              <StaticIcon className="size-6" />
+            )}
+          </span>
+          <DockProgressRing value={progress} />
         </span>
-        <DockProgressRing value={progress} />
-      </span>
-      <Dot show={running} />
-    </DockItem>
+        <Dot show={running} />
+      </DockItem>
+      <AnimatePresence>
+        {previewVisible && appWindows.length > 0 && (
+          <DockWindowPreview
+            app={app}
+            windows={appWindows}
+            anchorRef={spanRef}
+            frozen={!isDockHovered}
+            onPreviewEnter={() => setIsPreviewHovered(true)}
+            onPreviewLeave={() => setIsPreviewHovered(false)}
+            onCloseWindow={closeWindow}
+            onFocusWindow={handleFocusWindow}
+          />
+        )}
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -256,6 +324,7 @@ function DockItem({
   onHoverStart,
   onHoverEnd,
   scale = 1,
+  showLabel = true,
   children,
 }: Readonly<{
   label: string;
@@ -265,6 +334,8 @@ function DockItem({
   onHoverEnd?: () => void;
   /** Magnify scale supplied by `useDockMagnify`; 1 at rest. */
   scale?: number;
+  /** Set false to suppress the label tooltip (e.g. when a preview card is shown instead). */
+  showLabel?: boolean;
   children: React.ReactNode;
 }>) {
   return (
@@ -274,18 +345,26 @@ function DockItem({
       onContextMenu={onContextMenu}
       onHoverStart={onHoverStart}
       onHoverEnd={onHoverEnd}
-      // Fisheye magnify: scale from the dock hook, lift proportional to growth.
-      animate={{ scale, y: -((scale - 1) * 26) }}
+      // Fisheye magnify: scale lifts the icon; horizontal margins push siblings
+      // apart because CSS scale() doesn't affect flex layout flow.
+      animate={{
+        scale,
+        y: -((scale - 1) * 26),
+        marginLeft: (scale - 1) * MAGNIFY_SPREAD,
+        marginRight: (scale - 1) * MAGNIFY_SPREAD,
+      }}
       whileTap={{ scale: scale * 0.92 }}
       transition={{ type: "spring", stiffness: 420, damping: 22 }}
       className="group relative flex flex-col items-center rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background"
       style={{ transformOrigin: "bottom center" }}
-      title={label}
+      title={showLabel ? label : undefined}
     >
       {children}
-      <span className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-[11px] font-medium text-popover-foreground opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
-        {label}
-      </span>
+      {showLabel && (
+        <span className="pointer-events-none absolute -top-10 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md border border-border bg-popover px-2.5 py-1 text-[11px] font-medium text-popover-foreground opacity-0 shadow-md backdrop-blur-sm transition-opacity duration-200 group-hover:opacity-100">
+          {label}
+        </span>
+      )}
     </motion.button>
   );
 }

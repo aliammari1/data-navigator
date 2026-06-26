@@ -1,12 +1,14 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useDashboardHistoryStore } from "@/features/dashboard-home/store/dashboard-history-store";
 import {
   type ContextMenuState,
   IconContextMenu,
   type MenuItem,
 } from "@/features/desktop/components/icon-context-menu";
+import { KPI_METRICS } from "@/features/desktop/components/widgets/kpi-widget";
 import { useWidgetTelecomData } from "@/features/desktop/components/widgets/use-widget-telecom-data";
 import {
   renderWidgetBody,
@@ -38,7 +40,21 @@ export function WidgetsLayer() {
 
 function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
   const data = useWidgetTelecomData();
-  const { moveWidget, removeWidget } = useDesktopActions();
+  const { moveWidget, removeWidget, updateWidgetConfig } = useDesktopActions();
+  const doRemoveWidget = useDashboardHistoryStore((s) => s.doRemoveWidget);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerSize, setContainerSize] = useState({ w: 0, h: 0 });
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setContainerSize({ w: width, h: height });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   const dragInfo = useRef<{
@@ -48,6 +64,11 @@ function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
     moved: boolean;
   } | null>(null);
   const [menu, setMenu] = useState<(ContextMenuState & { items: MenuItem[] }) | null>(null);
+
+  const clampPos = (x: number, y: number, sw: number, sh: number) => ({
+    x: containerSize.w > 0 ? Math.max(0, Math.min(x, containerSize.w - sw)) : x,
+    y: containerSize.h > 0 ? Math.max(0, Math.min(y, containerSize.h - sh)) : y,
+  });
 
   const onPointerDown = (e: React.PointerEvent, w: DesktopWidget) => {
     if (e.button !== 0) return;
@@ -67,11 +88,11 @@ function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
     const info = dragInfo.current;
     if (!info) return;
     info.moved = true;
-    setDrag({
-      id: info.id,
-      x: Math.max(0, e.clientX - info.offX),
-      y: Math.max(0, e.clientY - info.offY),
-    });
+    const widget = widgets.find((wid) => wid.id === info.id);
+    const size = widget ? widgetSize(widget.type) : { w: 0, h: 0 };
+    const rawX = Math.max(0, e.clientX - info.offX);
+    const rawY = Math.max(0, e.clientY - info.offY);
+    setDrag({ id: info.id, ...clampPos(rawX, rawY, size.w, size.h) });
   };
 
   const onPointerUp = () => {
@@ -86,18 +107,46 @@ function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
   const openMenu = (e: React.MouseEvent, w: DesktopWidget) => {
     e.preventDefault();
     e.stopPropagation();
+
+    const configItems: MenuItem[] = [];
+    if (w.type === "kpi") {
+      for (const m of KPI_METRICS) {
+        configItems.push({
+          label: m.label,
+          onClick: () => updateWidgetConfig(w.id, { ...w.config, metric: m.id }),
+        });
+      }
+      configItems.push({ label: "──────", onClick: () => {} });
+    }
+
     setMenu({
       x: e.clientX,
       y: e.clientY,
-      items: [{ label: "Retirer le widget", danger: true, onClick: () => removeWidget(w.id) }],
+      items: [
+        ...configItems,
+        {
+          label: "Retirer le widget",
+          danger: true,
+          onClick: () => {
+            const label =
+              w.type === "kpi"
+                ? `Indicateur (${String(w.config.metric ?? "")})`
+                : w.type === "pinned-chart"
+                  ? String(w.config.title ?? "Graphique")
+                  : w.type;
+            doRemoveWidget(w.id, w.type, w.config, w.x, w.y, label);
+          },
+        },
+      ],
     });
   };
 
   return (
-    <>
+    <div ref={containerRef} className="absolute inset-0">
       {widgets.map((w) => {
         const size = widgetSize(w.type);
-        const pos = drag?.id === w.id ? drag : { x: w.x, y: w.y };
+        const rawPos = drag?.id === w.id ? drag : { x: w.x, y: w.y };
+        const pos = clampPos(rawPos.x, rawPos.y, size.w, size.h);
         const body = renderWidgetBody(w, data);
         if (body === null) return null;
         return (
@@ -127,7 +176,15 @@ function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
               type="button"
               data-widget-close
               aria-label="Retirer le widget"
-              onClick={() => removeWidget(w.id)}
+              onClick={() => {
+                const label =
+                  w.type === "kpi"
+                    ? `Indicateur (${String(w.config.metric ?? "")})`
+                    : w.type === "pinned-chart"
+                      ? String(w.config.title ?? "Graphique")
+                      : w.type;
+                doRemoveWidget(w.id, w.type, w.config, w.x, w.y, label);
+              }}
               className="absolute right-1.5 top-1.5 z-10 grid size-5 place-items-center rounded-full opacity-0 transition-opacity group-hover:opacity-100"
               style={{
                 background: "var(--glass-bg-strong)",
@@ -145,6 +202,6 @@ function WidgetsLayerInner({ widgets }: { widgets: DesktopWidget[] }) {
       })}
 
       <IconContextMenu menu={menu} onClose={() => setMenu(null)} />
-    </>
+    </div>
   );
 }

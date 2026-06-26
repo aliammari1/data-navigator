@@ -25,6 +25,7 @@
 import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
+import { generatePairingCode, pairingCodesMatch } from "./collab-pairing";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -174,8 +175,7 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
   }
 
   const port = input.port ?? DEFAULT_PORT;
-  const pairingCode =
-    input.pairingCode?.trim() || String(Math.floor(100000 + Math.random() * 900000));
+  const pairingCode = input.pairingCode?.trim() || generatePairingCode();
   const room = input.room ?? "telecom-default";
 
   const { Server } = (await import("@hocuspocus/server")) as {
@@ -202,8 +202,11 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
       connection: { readOnly: boolean };
       documentName: string;
     }) {
+      // Fail-closed, constant-time pairing-code check (see collab-pairing.ts):
+      // a missing/empty/wrong code is rejected, and the comparison does not leak
+      // via timing how many leading digits matched.
       const code = payload.requestParameters.get("pairingCode");
-      if (pairingCode && code !== pairingCode) {
+      if (!pairingCodesMatch(pairingCode, code)) {
         throw new Error("Invalid pairing code");
       }
       const role = payload.requestParameters.get("role");

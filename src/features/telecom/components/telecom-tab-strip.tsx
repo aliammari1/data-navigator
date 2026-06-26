@@ -21,14 +21,27 @@ const TELECOM_TABS: ReadonlyArray<{ seg: string; label: string }> = [
 /**
  * Horizontal tab strip for the telecom report shell.
  *
- * The eight report sections are otherwise reachable only by URL; this strip
- * makes them discoverable. Active state is derived from `usePathname()` (the
- * bare base path redirects to `overview`, so it is treated as active there).
- * Uses `next/link` so navigation stays client-side both on the standalone
- * route and inside the framed desktop-window host.
+ * When `onTabChange` is provided (desktop-window mode), renders buttons with
+ * local-state navigation so clicks don't affect the main app's URL.
+ * Otherwise uses `next/link` for URL-based navigation (standalone route).
  */
-export function TelecomTabStrip() {
+export function TelecomTabStrip({
+  activeTab,
+  onTabChange,
+}: {
+  activeTab?: string;
+  onTabChange?: (seg: string) => void;
+}) {
   const pathname = usePathname();
+
+  const tabClass = (active: boolean) =>
+    cn(
+      "flex-none whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors",
+      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      active
+        ? "border-primary text-foreground"
+        : "border-transparent text-muted-foreground hover:text-foreground",
+    );
 
   return (
     <nav
@@ -36,21 +49,31 @@ export function TelecomTabStrip() {
       className="-mb-px flex items-center gap-1 overflow-x-auto"
     >
       {TELECOM_TABS.map(({ seg, label }) => {
-        const href = `${TELECOM_BASE}/${seg}`;
-        const active = pathname === href || (seg === "overview" && pathname === TELECOM_BASE);
+        const active = onTabChange
+          ? activeTab === seg
+          : pathname === `${TELECOM_BASE}/${seg}` ||
+            (seg === "overview" && pathname === TELECOM_BASE);
+
+        if (onTabChange) {
+          return (
+            <button
+              key={seg}
+              type="button"
+              onClick={() => onTabChange(seg)}
+              aria-current={active ? "page" : undefined}
+              className={tabClass(active)}
+            >
+              {label}
+            </button>
+          );
+        }
 
         return (
           <Link
             key={seg}
-            href={href}
+            href={`${TELECOM_BASE}/${seg}`}
             aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex-none whitespace-nowrap border-b-2 px-3 py-2 text-xs font-medium transition-colors",
-              "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-              active
-                ? "border-primary text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
-            )}
+            className={tabClass(active)}
           >
             {label}
           </Link>

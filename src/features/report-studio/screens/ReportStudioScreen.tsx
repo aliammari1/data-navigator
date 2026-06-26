@@ -1,18 +1,20 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useBranding } from "../hooks/use-branding";
-import { useReportData } from "../hooks/use-report-data";
-import { useExportWorker } from "../hooks/use-export-worker";
-import { useReportNarrative } from "../hooks/use-report-narrative";
-import { ChannelSelector } from "../components/ChannelSelector";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { BrandingPanel } from "../components/BrandingPanel";
-import { PresentationOverlay } from "../components/PresentationOverlay";
+import { ChannelSelector } from "../components/ChannelSelector";
 import { HourlyChartPreview } from "../components/HourlyChartPreview";
+import { PresentationOverlay } from "../components/PresentationOverlay";
+import { useBranding } from "../hooks/use-branding";
+import { useExportWorker } from "../hooks/use-export-worker";
+import { useReportData } from "../hooks/use-report-data";
+import { useReportNarrative } from "../hooks/use-report-narrative";
 import type {
   BrandingProfile,
   DocxOptions,
@@ -240,6 +242,34 @@ export function ReportStudioScreen() {
   }, [rawData.topChannels]);
 
   const docxPageEst = Object.values(docxSections).filter(Boolean).length * 1.5 + 1;
+
+  // ── Desktop menu integration ──────────────────────────────────────────────
+  // Surface the export tabs in the universal Affichage menu and let the app's
+  // Fichier / Rapport menus drive the existing export + presentation handlers.
+  useRegisterPages(
+    useWindowId(),
+    [
+      { id: "pptx", label: "PowerPoint" },
+      { id: "docx", label: "Word" },
+      { id: "pdf", label: "PDF" },
+      { id: "xlsx", label: "Excel" },
+      { id: "templates", label: "Modèles" },
+      { id: "presentation", label: "Présentation" },
+      { id: "branding", label: "Image de marque" },
+    ],
+    activeTab,
+  );
+  useAppCommands("report-studio", {
+    navigate: (payload) => setActiveTab((payload as { pageId: string }).pageId),
+    "export-pptx": () =>
+      runExport("pptx", () => exportPptx(reportData, pptxTemplate, selectedChannels)),
+    "export-docx": () =>
+      runExport("docx", () => exportDocx(reportData, { includeSections: docxSections })),
+    "export-pdf": () => runExport("pdf", () => exportPdf(reportData, pdfOptions)),
+    "export-xlsx": () => runExport("xlsx", () => exportXlsx(reportData)),
+    "generate-narrative": () => generateNarrative(),
+    present: () => setPresentationOpen(true),
+  });
 
   return (
     <>

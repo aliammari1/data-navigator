@@ -23,7 +23,7 @@ function buildWhereClause(
     if (f.op === "IN") {
       const vals = f.value
         .split(",")
-        .map((v) => `'${v.trim().replace("'", "''")}'`)
+        .map((v) => `'${v.trim().replaceAll("'", "''")}'`)
         .join(",");
       return `${lhs} IN (${vals})`;
     }
@@ -31,10 +31,10 @@ function buildWhereClause(
       const [a, b] = f.value.split(",").map((v) => v.trim());
       return `TRY_CAST(${lhs} AS DOUBLE) BETWEEN ${a} AND ${b}`;
     }
-    if (f.op === "LIKE") return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replace("'", "''")}'`;
+    if (f.op === "LIKE") return `CAST(${lhs} AS VARCHAR) LIKE '${f.value.replaceAll("'", "''")}'`;
     const isNum = /^-?\d+(\.\d+)?$/.test(f.value.trim());
     if (isNum) return `TRY_CAST(${lhs} AS DOUBLE) ${f.op} ${f.value.trim()}`;
-    return `CAST(${lhs} AS VARCHAR) ${f.op} '${f.value.replace("'", "''")}'`;
+    return `CAST(${lhs} AS VARCHAR) ${f.op} '${f.value.replaceAll("'", "''")}'`;
   });
   return parts.join(" AND ");
 }
