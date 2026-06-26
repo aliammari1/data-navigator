@@ -91,7 +91,7 @@ export function DesktopContextMenu({
   };
 
   const item =
-    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs text-foreground/80 transition hover:bg-foreground/5";
+    "flex w-full items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-left text-xs text-popover-foreground/80 transition hover:bg-foreground/8";
 
   // Keep the menu on-screen.
   const x = menu
@@ -110,7 +110,7 @@ export function DesktopContextMenu({
           exit={{ opacity: 0, scale: 0.96 }}
           transition={{ duration: 0.12 }}
           style={{ left: x, top: y }}
-          className="fixed z-[var(--z-modal)] w-56 rounded-xl border border-white/60 bg-white/85 p-1.5 shadow-2xl backdrop-blur-xl"
+          className="fixed z-[var(--z-modal)] w-56 rounded-xl border border-border bg-popover/95 p-1.5 shadow-2xl backdrop-blur-xl"
           onClick={(e) => e.stopPropagation()}
           onContextMenu={(e) => e.preventDefault()}
         >
@@ -145,7 +145,7 @@ export function DesktopContextMenu({
             <X className="size-3.5" /> Tout fermer
           </button>
 
-          <div className="my-1 h-px bg-black/5" />
+          <div className="my-1 h-px bg-border" />
           {/* Add-widget row with a hover-revealed submenu of the four widget types. */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: hover wrapper toggles the submenu; focusable triggers live inside. */}
           <div
@@ -169,7 +169,7 @@ export function DesktopContextMenu({
                   animate={{ opacity: 1, scale: 1 }}
                   exit={{ opacity: 0, scale: 0.96 }}
                   transition={{ duration: 0.12 }}
-                  className="absolute left-full top-0 ml-1 w-44 rounded-xl border border-white/60 bg-white/85 p-1.5 shadow-2xl backdrop-blur-xl"
+                  className="absolute left-full top-0 ml-1 w-44 rounded-xl border border-border bg-popover/95 p-1.5 shadow-2xl backdrop-blur-xl"
                 >
                   {WIDGET_CHOICES.map(({ type, label, Icon }) => (
                     <button
@@ -186,8 +186,8 @@ export function DesktopContextMenu({
             </AnimatePresence>
           </div>
 
-          <div className="my-1 h-px bg-black/5" />
-          <div className="px-2.5 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wide text-foreground/40">
+          <div className="my-1 h-px bg-border" />
+          <div className="px-2.5 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Fond d'écran
           </div>
           <div className="flex gap-1.5 px-2 pb-1.5">
@@ -200,13 +200,13 @@ export function DesktopContextMenu({
                   setWallpaper(wp.id);
                   onClose();
                 }}
-                className={`size-8 rounded-lg border-2 transition ${wallpaper === wp.id ? "border-primary" : "border-white/60 hover:border-foreground/30"}`}
+                className={`size-8 rounded-lg border-2 transition ${wallpaper === wp.id ? "border-primary" : "border-border hover:border-foreground/40"}`}
                 style={{ background: wp.css }}
               />
             ))}
           </div>
 
-          <div className="my-1 h-px bg-black/5" />
+          <div className="my-1 h-px bg-border" />
           <button
             type="button"
             className={item}
@@ -218,7 +218,7 @@ export function DesktopContextMenu({
           >
             <MonitorOff className="size-3.5" /> Mode classique
           </button>
-          <div className="flex items-center gap-2 px-2.5 py-1 text-[10px] text-foreground/35">
+          <div className="flex items-center gap-2 px-2.5 py-1 text-[10px] text-muted-foreground">
             <Grid2x2 className="size-3" /> ⌘K pour les applications
           </div>
         </motion.div>

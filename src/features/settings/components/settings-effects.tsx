@@ -23,7 +23,7 @@
  * cleanly on top of the theme-driven base values and revert on reset.
  */
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
 import { useTheme } from "@/components/theme-provider";
 import { useSettingsStore } from "@/core/stores/settings-store";
@@ -89,13 +89,40 @@ export function SettingsEffects() {
         performance: s.performance,
       })),
     );
+  const storeSetTheme = useSettingsStore((s) => s.setTheme);
   const { setTheme, resolvedTheme } = useTheme();
 
-  // 1. Theme: settings store → ThemeProvider (the real applier). Keeps the two
-  //    in sync so the Settings theme toggle actually changes the app theme.
+  // Track whether the initial-mount reconciliation has run.
+  const themeInitDone = useRef(false);
+
+  // 1. Theme: settings store ↔ ThemeProvider bidirectional sync.
+  //
+  //    Problem solved here: ThemeProvider and the settings store use SEPARATE
+  //    localStorage keys ("theme" vs "data-navigator-settings"). Any time
+  //    ThemeProvider.setTheme is called outside the settings page — e.g. the
+  //    login screen toggle or the topbar cycle button — only ThemeProvider's key
+  //    gets updated. On the next session the settings store still has the old
+  //    value and this effect would overwrite the user's preference.
+  //
+  //    Fix: on the very first mount, read ThemeProvider's own localStorage key.
+  //    If it disagrees with the settings store, update the settings store first
+  //    so the subsequent setTheme call is a no-op rather than a clobber.
   useEffect(() => {
+    if (!themeInitDone.current) {
+      themeInitDone.current = true;
+      const providerStored = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
+      if (
+        (providerStored === "light" || providerStored === "dark" || providerStored === "system") &&
+        providerStored !== theme
+      ) {
+        // ThemeProvider's key is more recent (e.g. set from login screen or topbar).
+        // Update the settings store to match so the push below is a no-op.
+        storeSetTheme(providerStored);
+        return; // re-runs when theme (store) updates to the new value
+      }
+    }
     setTheme(theme);
-  }, [theme, setTheme]);
+  }, [theme, setTheme, storeSetTheme]);
 
   // 1b. Bridge to the canonical platform applier so accent/density/animations
   //     flow through the documented `--accent` / `--density-scale` /

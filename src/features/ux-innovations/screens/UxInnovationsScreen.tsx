@@ -11,7 +11,10 @@
 "use client";
 
 import dynamic from "next/dynamic";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { OnboardingTour } from "../components/OnboardingTour";
+import { useTour } from "../onboarding/useTour";
+import { useAchievements } from "../store/achievements-store";
 
 const AchievementSystem = dynamic(
   () => import("../components/AchievementSystem").then((m) => m.AchievementSystem),
@@ -41,6 +44,15 @@ function AchievementsSkeleton() {
 }
 
 export default function UxInnovationsScreen() {
+  // Bridge the desktop menu to the screen's existing behaviour: the guided tour
+  // (driver.js engine) and the achievement store reset both already exist here.
+  const reset = useAchievements.use.reset();
+  const { start } = useTour();
+  useAppCommands("ux-innovations", {
+    tour: () => start(),
+    reset: () => reset(),
+  });
+
   return (
     <div className="mx-auto w-full max-w-7xl px-4 py-6">
       <AchievementSystem />

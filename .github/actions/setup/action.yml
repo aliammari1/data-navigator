@@ -45,7 +45,7 @@ runs:
     - name: Cache Next.js build
       # First-party action: major-version tag is acceptable. Key must match the
       # inline setup blocks in the workflows so caches are shared across jobs.
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: .next/cache
         key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}

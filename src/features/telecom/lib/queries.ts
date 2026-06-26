@@ -78,6 +78,15 @@ export interface SpecChRow {
   montant: number;
 }
 
+export interface SpecChStatusRow {
+  canal: string;
+  réussie: number;
+  annulation: number;
+  instance: number;
+  échec: number;
+  total: number;
+}
+
 export { SPEC_DECLINED_FILTER, SPEC_INSTANCE_FILTER, SPEC_REFUND_FILTER, SPEC_SUCCESS_FILTER };
 
 export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
@@ -175,8 +184,8 @@ export async function fetchKPI(
           COUNT(*) FILTER (WHERE _status_norm='INSTANCE') AS instance_count,
           COUNT(*) FILTER (WHERE _status_norm='SUBMITTED') AS submitted_count,
           ROUND(COUNT(*) FILTER (WHERE _status_norm='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
-          ROUND(SUM(_amount),3)                                                           AS total_amount,
-          ROUND(AVG(_amount),3)                                                           AS avg_amount,
+          ROUND(SUM(_amount) FILTER (WHERE _status_norm='SUCCESS'),3)                     AS total_amount,
+          ROUND(AVG(_amount) FILTER (WHERE _status_norm='SUCCESS'),3)                     AS avg_amount,
           ROUND(AVG(_proc_ms),0)                                                          AS avg_proc_ms,
           APPROX_COUNT_DISTINCT(_customer_id)                                             AS unique_customers,
           MODE(_txn_hour)                                                                 AS peak_hour,
@@ -215,8 +224,8 @@ export async function fetchKPI(
           COUNT(*) FILTER (WHERE _status='INSTANCE') AS instance_count,
           COUNT(*) FILTER (WHERE _status='SUBMITTED') AS submitted_count,
           ROUND(COUNT(*) FILTER (WHERE _status='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
-          ROUND(SUM(_amt),3) AS total_amount,
-          ROUND(AVG(_amt),3) AS avg_amount,
+          ROUND(SUM(_amt) FILTER (WHERE _status='SUCCESS'),3) AS total_amount,
+          ROUND(AVG(_amt) FILTER (WHERE _status='SUCCESS'),3) AS avg_amount,
           ROUND(AVG(_pms),0) AS avg_proc_ms,
           APPROX_COUNT_DISTINCT(_id) AS unique_customers,
           MODE(_hr) AS peak_hour,
@@ -260,8 +269,8 @@ export async function fetchRawCanalSummaries(
         COUNT(*) FILTER (WHERE ${sn}='REFUND') AS refund,
         COUNT(*) FILTER (WHERE ${sn}='INSTANCE') AS instance,
         COUNT(*) FILTER (WHERE ${sn}='SUBMITTED') AS submitted,
-        ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)                                    AS amount,
-        ROUND(AVG(TRY_CAST(${amt} AS DOUBLE)),3)                                    AS avg_amount
+        ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)) FILTER (WHERE ${sn}='SUCCESS'),3)     AS amount,
+        ROUND(AVG(TRY_CAST(${amt} AS DOUBLE)) FILTER (WHERE ${sn}='SUCCESS'),3)     AS avg_amount
       FROM ${qc(tableName)}
       GROUP BY 1 ORDER BY 2 DESC
     `);
@@ -932,8 +941,11 @@ export async function fetchSpecStatusStats(
   total: { status: string; nombre: number };
 }> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
-  const scope =
-    channels.length > 0 ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
+  // Channel scope (within the already date-filtered set), kept WITHOUT a leading
+  // AND so it can be reused both as a per-status FILTER suffix and as the
+  // grand-total FILTER predicate.
+  const channelScope =
+    channels.length > 0 ? `(${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const statusCases = [
     ["Réussie", buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success)],
@@ -947,13 +959,21 @@ export async function fetchSpecStatusStats(
 
   // Single-pass: one scan with a COUNT FILTER per status case instead of
   // one COUNT query (and one full scan) per status.
-  const scopeClause = scope ? scope.replace(/^AND /, " AND ") : "";
-  const cols = statusCases
+  const scopeClause = channelScope ? ` AND ${channelScope}` : "";
+  const statusCols = statusCases
     .map(([, filter], i) => `COUNT(*) FILTER (WHERE (${filter})${scopeClause}) AS n_${i}`)
     .join(",\n");
+  // "TOTAL (tous Status)" reconciles to the FULL row count in scope — every
+  // status, including Confirmé (SBM) and any code outside the 4 shown rows.
+  // The displayed rows are therefore a partial breakdown of this grand total.
+  const totalCol = channelScope
+    ? `COUNT(*) FILTER (WHERE ${channelScope}) AS total_all`
+    : `COUNT(*) AS total_all`;
   try {
     const res = await runReadOnlyQuery(`
-      SELECT ${cols}
+      SELECT
+        ${statusCols},
+        ${totalCol}
       FROM ${qc(tableName)}
       WHERE 1=1${df}
     `);
@@ -962,14 +982,67 @@ export async function fetchSpecStatusStats(
       status,
       nombre: safeNum(row[`n_${i}`]),
     }));
-    const total = results.reduce((s, r) => s + r.nombre, 0);
     return {
       rows: results,
-      total: { status: "TOTAL (tous Status)", nombre: total },
+      total: { status: "TOTAL (tous Status)", nombre: safeNum(row.total_all) },
     };
   } catch (err) {
     console.error("[fetchSpecStatusStats] Error:", err);
     return { rows: [], total: { status: "TOTAL (tous Status)", nombre: 0 } };
+  }
+}
+
+/** Per-canal × per-status breakdown in a single table scan. */
+export async function fetchSpecCanalStatusMatrix(
+  tableName: string,
+  channels: ChannelDef[],
+  dateFrom: string,
+  dateTo: string,
+  m?: ColumnMapping,
+): Promise<SpecChStatusRow[]> {
+  if (channels.length === 0) return [];
+  const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
+  const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
+  const okF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
+  const anF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.refund);
+  const inF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.instance);
+  const dcF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.declined);
+
+  const cols = channels
+    .map(
+      (ch, i) => `
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${okF})) AS ok_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${anF})) AS an_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${inF})) AS in_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${dcF})) AS dc_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}))              AS al_${i}`,
+    )
+    .join(",\n");
+
+  try {
+    const res = await runReadOnlyQuery(`
+      SELECT ${cols}
+      FROM ${qc(tableName)}
+      WHERE 1=1${df}
+    `);
+    const row = res[0] ?? {};
+    return channels.map((ch, i) => ({
+      canal: ch.name,
+      réussie: safeNum(row[`ok_${i}`]),
+      annulation: safeNum(row[`an_${i}`]),
+      instance: safeNum(row[`in_${i}`]),
+      échec: safeNum(row[`dc_${i}`]),
+      total: safeNum(row[`al_${i}`]),
+    }));
+  } catch {
+    return channels.map((ch) => ({
+      canal: ch.name,
+      réussie: 0,
+      annulation: 0,
+      instance: 0,
+      échec: 0,
+      total: 0,
+    }));
   }
 }
 

@@ -1,6 +1,6 @@
 // src/workers/python-sandbox.worker.ts
 var PYODIDE_VERSION = "0.26.4";
-var PYODIDE_CDN = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;
+var PYODIDE_CDN = `/pyodide/v${PYODIDE_VERSION}/full/`;
 var pyodide = null;
 var loadPromise = null;
 var sessions = /* @__PURE__ */ new Map();
@@ -22,7 +22,7 @@ async function ensurePyodide(reqId) {
         self.importScripts(`${PYODIDE_CDN}pyodide.js`);
       } catch (err) {
         throw new Error(
-          `Pyodide CDN unreachable (${PYODIDE_CDN}pyodide.js). Check your network connection and try again. Underlying: ${err instanceof Error ? err.message : String(err)}`
+          `Failed to load self-hosted Pyodide (${PYODIDE_CDN}pyodide.js). The Pyodide distribution must be vendored under public/pyodide \u2014 run \`pnpm stage:pyodide\` (one-time, online). Underlying: ${err instanceof Error ? err.message : String(err)}`
         );
       }
       const loader = self.loadPyodide;
@@ -95,16 +95,13 @@ function setSessionValue(session, key, value) {
     session.ns.set(key, value);
     return;
   }
-  throw new Error(
-    "Pyodide session namespace does not support variable binding."
-  );
+  throw new Error("Pyodide session namespace does not support variable binding.");
 }
 function safeJSON(value) {
   if (value === null || value === void 0) return null;
   const t = typeof value;
   if (t === "string" || t === "number" || t === "boolean") return value;
-  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value))
-    return "<binary>";
+  if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) return "<binary>";
   try {
     return JSON.parse(JSON.stringify(value));
   } catch {
@@ -154,8 +151,7 @@ del __sandbox_rows, __sandbox_var, __sandbox_df
     if (msg.type === "INSTALL") {
       await ensureScientific(py, msg.id);
       configureStreams(py, msg.id, msg.sessionId);
-      const micropip = py.pyimport("micropip");
-      await micropip.install(msg.packages);
+      await py.loadPackage(msg.packages);
       post({
         id: msg.id,
         type: "RESULT",

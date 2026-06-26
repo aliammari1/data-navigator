@@ -24,6 +24,11 @@ import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview"
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
 import { getCachedAnalyticsForKey } from "@/features/telecom/lib/analytics-cache";
+import {
+  type SQLiteAnalyticsSnapshot,
+  loadAnalyticsSnapshotFromSQLite,
+  saveAnalyticsSnapshotToSQLite,
+} from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
@@ -55,6 +60,7 @@ import {
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 import { TelecomTabStrip } from "./telecom-tab-strip";
+import { UnknownStatusDialog } from "./unknown-status-dialog";
 
 const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
   "assistant",
@@ -99,6 +105,7 @@ export interface TelecomReportRuntimeValue {
   overviewStatusData: Types.StatusRow[];
   overviewForecast: ForecastPoint[];
   analyticsHistory: AnalyticsSnapshotMeta[];
+  snapshotedAt: number | null;
   selectedKpis: Set<keyof Types.KPISummary>;
   toggleKpi: (key: keyof Types.KPISummary) => void;
   selectedOverviewSections: Set<Types.OverviewExportSectionKey>;
@@ -166,6 +173,16 @@ export function useTelecomReportRuntime() {
   return value;
 }
 
+function msAgo(ts: number): string {
+  const diff = Date.now() - ts;
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "snapshot";
+  if (mins < 60) return `snapshot · ${mins}m`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `snapshot · ${hrs}h`;
+  return `snapshot · ${Math.floor(hrs / 24)}d`;
+}
+
 function getDatasetViewName(
   dataset:
     | {
@@ -178,7 +195,17 @@ function getDatasetViewName(
   return dataset?.viewName || dataset?.tableName || "";
 }
 
-export function TelecomReportRuntimeProvider({ children }: { children: React.ReactNode }) {
+export function TelecomReportRuntimeProvider({
+  children,
+  /** Desktop-window mode: currently active tab segment (skips URL routing). */
+  activeTab: activeTabProp,
+  /** Desktop-window mode: called instead of router.push when switching tabs. */
+  onTabChange,
+}: {
+  children: React.ReactNode;
+  activeTab?: string;
+  onTabChange?: (seg: string) => void;
+}) {
   const router = useRouter();
   const pathname = usePathname();
   const access = useDashboardAccess();
@@ -186,6 +213,8 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
   const tableNameRef = useRef("");
+  const snapshotLoadedForRef = useRef("");
+  const lastAutoSavedRef = useRef<string | null>(null);
 
   const { data: datasets = [] } = useDatasets();
   const { data: activeDataset } = useActiveDataset();
@@ -199,6 +228,10 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
   const addActivity = useActivityStore((state) => state.addEvent);
 
   const [analyticsHistory, setAnalyticsHistory] = useState<AnalyticsSnapshotMeta[]>([]);
+
+  // Codes in the new file that aren't in the known taxonomy — shown in the
+  // blocking dialog until the user explicitly assigns each one.
+  const [pendingUnknown, setPendingUnknown] = useState<Types.StatusMapping[] | null>(null);
 
   const refreshAnalyticsHistory = useCallback(async () => {
     setAnalyticsHistory(await listAnalyticsSnapshotMeta());
@@ -368,7 +401,9 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
-      setStatusMapping((prev) => [...prev, ...additions]);
+      // Show the blocking dialog — do NOT merge into statusMapping yet.
+      // The user must explicitly assign every code before we proceed.
+      setPendingUnknown(additions);
     },
   });
 
@@ -403,6 +438,7 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
   const regions = analytics.regions;
 
   const [persistingSnapshot, setPersistingSnapshot] = useState(false);
+  const [snapshotedAt, setSnapshotedAt] = useState<number | null>(null);
 
   const handlePersistAnalytics = useCallback(async () => {
     if (!kpi || !dashboardFileName || !dashboardTableName) return;
@@ -518,7 +554,7 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
     setTelecomSession,
   ]);
 
-  const { forecast, rawStatuses } = analytics;
+  const { forecast, rawStatuses, isFetching: analyticsIsFetching } = analytics;
 
   const { remoteOverview } = useSharedOverview({
     enabled: Boolean(dashboardLoaded && kpi),
@@ -531,9 +567,80 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
     forecast,
   });
 
+  // Reset snapshot tracking whenever the active table changes (dataset switch).
+  useEffect(() => {
+    snapshotLoadedForRef.current = "";
+    setSnapshotedAt(null);
+  }, [dashboardTableName]);
+
+  // Auto-load: when analytics settle with no data (DuckDB table absent), restore
+  // the last SQLite snapshot for this dataset so the UI shows something immediately.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: analytics setters are stable useCallback refs
+  useEffect(() => {
+    if (!dashboardLoaded || analyticsIsFetching || kpi !== null || !dashboardTableName) return;
+    if (snapshotLoadedForRef.current === dashboardTableName) return;
+    snapshotLoadedForRef.current = dashboardTableName;
+
+    let cancelled = false;
+    void loadAnalyticsSnapshotFromSQLite(dashboardTableName).then((snapshot) => {
+      if (cancelled || !snapshot?.kpi) return;
+      analytics.setKpi(snapshot.kpi as Types.KPISummary);
+      analytics.setCanals(snapshot.canals as Types.CanalSummary[]);
+      analytics.setHourly(snapshot.hourly as Types.HourlyRow[]);
+      analytics.setStatusData(snapshot.statusData as Types.StatusRow[]);
+      analytics.setOperators(snapshot.operators as Types.OperatorRow[]);
+      analytics.setRegions(snapshot.regions as Types.RegionRow[]);
+      analytics.setRawStatuses((snapshot.rawStatuses ?? []) as Types.RawStatusRow[]);
+      setSnapshotedAt(snapshot.computedAt);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [dashboardLoaded, analyticsIsFetching, kpi, dashboardTableName]);
+
+  // Auto-save: when fresh analytics complete, snapshot them to SQLite and clear
+  // the snapshot indicator (we are now showing live data, not a stored snapshot).
+  useEffect(() => {
+    if (!kpi || !dashboardTableName || analyticsIsFetching) return;
+    const saveKey = `${dashboardTableName}:${kpi.totalTransactions}`;
+    if (lastAutoSavedRef.current === saveKey) return;
+    lastAutoSavedRef.current = saveKey;
+    setSnapshotedAt(null);
+
+    const payload: SQLiteAnalyticsSnapshot = {
+      tableName: dashboardTableName,
+      fileName: dashboardFileName,
+      kpi,
+      canals,
+      hourly,
+      statusData,
+      operators,
+      regions,
+      rawStatuses: rawStatuses ?? [],
+      forecast,
+      computedAt: Date.now(),
+    };
+    void saveAnalyticsSnapshotToSQLite(payload).catch(() => {});
+  }, [
+    kpi,
+    dashboardTableName,
+    analyticsIsFetching,
+    dashboardFileName,
+    canals,
+    hourly,
+    statusData,
+    operators,
+    regions,
+    rawStatuses,
+    forecast,
+  ]);
+
   const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
   const restoredSnapshotMode = Boolean(kpi) && !dashboardLoaded;
-  const historyRoute = pathname.endsWith("/telecom-report/history");
+  // In desktop-window mode use the local activeTab state; otherwise derive from URL.
+  const historyRoute = activeTabProp
+    ? activeTabProp === "history"
+    : pathname.endsWith("/telecom-report/history");
 
   const reportContentVisible =
     dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute;
@@ -568,7 +675,8 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
       tableName: restoredTableName,
     });
 
-    router.push("/dashboard/telecom-report/overview");
+    if (onTabChange) onTabChange("overview");
+    else router.push("/dashboard/telecom-report/overview");
   }
 
   async function exportActiveDatabase() {
@@ -623,6 +731,7 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
     overviewStatusData,
     overviewForecast,
     analyticsHistory,
+    snapshotedAt,
     selectedKpis,
     toggleKpi,
     selectedOverviewSections,
@@ -733,6 +842,19 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
                     </span>
                   </>
                 )}
+
+                {snapshotedAt && (
+                  <>
+                    <span>·</span>
+                    <span
+                      title={`Snapshot calculé le ${new Date(snapshotedAt).toLocaleString()}`}
+                      className="flex items-center gap-0.5 text-amber-500 dark:text-amber-400"
+                    >
+                      <HardDrive className="h-3 w-3" />
+                      {msAgo(snapshotedAt)}
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -817,7 +939,7 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
         </div>
 
         <div className="mt-3 border-b border-border">
-          <TelecomTabStrip />
+          <TelecomTabStrip activeTab={activeTabProp} onTabChange={onTabChange} />
         </div>
       </div>
 
@@ -925,6 +1047,18 @@ export function TelecomReportRuntimeProvider({ children }: { children: React.Rea
           />
         )}
       </AnimatePresence>
+
+      {/* ── Unknown-status gate — blocks interaction until all codes are assigned ── */}
+      {pendingUnknown && pendingUnknown.length > 0 && (
+        <UnknownStatusDialog
+          pending={pendingUnknown}
+          rawStatuses={rawStatuses ?? []}
+          onConfirm={(confirmed) => {
+            setStatusMapping((prev) => [...prev, ...confirmed]);
+            setPendingUnknown(null);
+          }}
+        />
+      )}
     </div>
   );
 }

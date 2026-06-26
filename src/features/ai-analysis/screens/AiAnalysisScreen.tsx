@@ -33,19 +33,21 @@ import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
-import type { EChartsOption } from "@/platform/viz";
+import { AnalysisChart } from "@/features/ai-analysis/components/AnalysisChart";
 
 import {
   InsightCard,
   SeverityBadge,
   StatCard,
 } from "@/features/ai-analysis/components/analysis-cards";
-import { AnalysisChart } from "@/features/ai-analysis/components/AnalysisChart";
 import { ForecastChart } from "@/features/ai-analysis/components/ForecastChart";
 import { VirtualList } from "@/features/ai-analysis/components/VirtualList";
 import { useAnalysis } from "@/features/ai-analysis/hooks/useAnalysis";
 import { exportAnalysisReport } from "@/features/ai-analysis/model/export-report";
 import { linearRegression, mean } from "@/features/ai-analysis/model/stats";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
+import type { EChartsOption } from "@/platform/viz";
 
 // ─── Main Component ───────────────────────────────────────────────────────────
 
@@ -461,6 +463,45 @@ export default function AiAnalysisScreen() {
       anomalyDistChart,
     ],
   );
+
+  // ─── Desktop menu wiring (app-command bus + page registry) ───────────────────
+  // Surfaces the six tabs in the window's Affichage menu and lets the Fichier /
+  // Analyse menus drive the existing Run + Export handlers.
+  const windowId = useWindowId();
+  useRegisterPages(
+    windowId,
+    [
+      { id: "insights", label: "Aperçus", icon: Sparkles },
+      { id: "anomalies", label: "Anomalies", icon: AlertTriangle },
+      { id: "correlations", label: "Corrélations", icon: GitBranch },
+      { id: "forecast", label: "Prévisions", icon: TrendingUp },
+      { id: "patterns", label: "Segments", icon: Layers },
+      { id: "explain", label: "Méthodes", icon: FlaskConical },
+    ],
+    activeTab,
+  );
+  useAppCommands("ai-analysis", {
+    run: () => {
+      if (!isRunning && tableLoaded) runAnalysis();
+    },
+    export: (payload) => {
+      const kind = (payload as { kind?: "xlsx" | "pdf" } | undefined)?.kind ?? "xlsx";
+      if (analysisState.status === "done") void handleExport(kind);
+    },
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (
+        pageId === "insights" ||
+        pageId === "anomalies" ||
+        pageId === "correlations" ||
+        pageId === "forecast" ||
+        pageId === "patterns" ||
+        pageId === "explain"
+      ) {
+        setActiveTab(pageId);
+      }
+    },
+  });
 
   return (
     <div className="">

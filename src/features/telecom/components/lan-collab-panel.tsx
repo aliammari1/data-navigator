@@ -44,10 +44,7 @@ import {
   subscribeLANRoom,
   uploadLANFile,
 } from "@/features/telecom/lib/lan-collab";
-
-function randomCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+import { generatePairingCode } from "@/platform/lan/pairing";
 
 function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
@@ -268,7 +265,7 @@ export function LanCollabPanel() {
                     <button
                       type="button"
                       title="Generate new code"
-                      onClick={() => persist({ pairingCode: randomCode() })}
+                      onClick={() => persist({ pairingCode: generatePairingCode() })}
                       className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md border border-border hover:bg-muted"
                     >
                       <RefreshCw className="h-3.5 w-3.5" />

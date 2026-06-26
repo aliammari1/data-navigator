@@ -81,3 +81,15 @@ describe("geocodeRegion — no-match contract", () => {
     expect(geocodeRegion("zzzzzqqqqq")).toBeNull();
   });
 });
+
+describe("geocodeRegion — fuzzy fallback path (fuse search is reached but score is absent)", () => {
+  it("returns null for a close-but-not-exact name when fuse lacks includeScore (score undefined → defaulted to 1)", () => {
+    // The Fuse instance is configured without includeScore:true so best.score is
+    // always undefined. The source's guard `(best.score ?? 1) <= 0.34` evaluates
+    // to `1 <= 0.34` which is false, so geocodeRegion returns null even when
+    // Fuse finds a candidate. This exercises the branch where best is truthy but
+    // the score check fails (line 126 false-branch → line 134 null return).
+    expect(geocodeRegion("Bizertte")).toBeNull();
+    expect(geocodeRegion("Kairoune")).toBeNull();
+  });
+});

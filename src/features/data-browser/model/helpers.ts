@@ -10,6 +10,19 @@ function quoteLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
+/**
+ * Operand for a numeric comparison (>, >=, <, <=, and BETWEEN bounds). A genuine
+ * finite number is emitted unquoted (numeric comparison); anything else — text,
+ * a date string, or an injection attempt like `5 OR 1=1` — is emitted as a
+ * safely-quoted string literal so it can never break out of the clause. Replaces
+ * the previous raw `${r.value}` interpolation.
+ */
+function comparisonOperand(value: string): string {
+  const trimmed = value.trim();
+  const n = Number(trimmed);
+  return trimmed !== "" && Number.isFinite(n) ? String(n) : quoteLiteral(value);
+}
+
 export function inferColType(_key: string, sample: unknown): ColType {
   if (typeof sample === "boolean") return "boolean";
   if (typeof sample === "number") return "number";
@@ -43,13 +56,13 @@ export function buildWhereClause(group: FilterGroup): string {
         case "neq":
           return `${col} != ${quoteLiteral(r.value)}`;
         case "gt":
-          return `${col} > ${r.value}`;
+          return `${col} > ${comparisonOperand(r.value)}`;
         case "gte":
-          return `${col} >= ${r.value}`;
+          return `${col} >= ${comparisonOperand(r.value)}`;
         case "lt":
-          return `${col} < ${r.value}`;
+          return `${col} < ${comparisonOperand(r.value)}`;
         case "lte":
-          return `${col} <= ${r.value}`;
+          return `${col} <= ${comparisonOperand(r.value)}`;
         case "contains":
           return `${col} LIKE ${quoteLiteral(`%${r.value}%`)}`;
         case "not_contains":
@@ -67,8 +80,12 @@ export function buildWhereClause(group: FilterGroup): string {
             .split(",")
             .map((v) => quoteLiteral(v.trim()))
             .join(", ")})`;
-        case "between":
-          return `${col} BETWEEN ${r.value} AND ${r.value2 ?? r.value}`;
+        case "between": {
+          // `??` only catches null/undefined — an empty-string value2 must also
+          // fall back, else the clause gets a dangling `BETWEEN x AND `.
+          const upper = r.value2?.trim() ? r.value2 : r.value;
+          return `${col} BETWEEN ${comparisonOperand(r.value)} AND ${comparisonOperand(upper)}`;
+        }
         default:
           return "1=1";
       }

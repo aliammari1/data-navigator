@@ -40,6 +40,7 @@ import { toast } from "sonner";
 import { type PreviewColumn, PreviewGrid } from "@/components/shared/preview-grid";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { profileDataset, type SummarizeRow } from "@/platform/duckdb/duckdb";
 import {
   type LoadedUploadTable,
@@ -679,6 +680,22 @@ export default function CsvParserScreen() {
           message: reject.message,
         }));
   const rejectTotal = dbRejectTotal > 0 ? dbRejectTotal : rejectViews.length;
+
+  // ─── Menu bar commands (Analyseur CSV app menu) ────────────────────────────
+
+  useAppCommands("csv-parser", {
+    parse: () => runParse(),
+    paste: () => void handlePaste(),
+    clear: () => handleClear(),
+    import: () => void handleOpenLocalDataset(),
+    "load-db": () => void handleLoadDB(),
+    "export-csv": () => handleExportCSV(),
+    "export-xlsx": () => void handleExportXLSX(),
+    "toggle-columns": () => setShowColPanel((value) => !value),
+    "toggle-filter": () => setShowFilterPanel((value) => !value),
+    "toggle-profile": () => setShowProfilePanel((value) => !value),
+    "toggle-rejects": () => setShowRejectsPanel((value) => !value),
+  });
 
   // ─── Render ────────────────────────────────────────────────────────────────
 

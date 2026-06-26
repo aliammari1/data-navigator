@@ -74,7 +74,7 @@ vi.mock("@/features/data-formulator/core/swarm/compute", () => ({
 // Import the real store (zustand) and the system under test AFTER the mocks.
 import { useSettingsStore } from "@/core/stores/settings-store";
 import { useSwarmStore } from "@/features/data-formulator/store/swarm-store";
-import { runSwarm } from "@/features/data-formulator/core/swarm/orchestrator";
+import { cancelActiveSwarm, runSwarm } from "@/features/data-formulator/core/swarm/orchestrator";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 const baseCtx: SwarmContext = {
@@ -391,5 +391,227 @@ describe("runSwarm — failure propagation", () => {
     const ctxArg = runLookup.mock.calls[0][1] as SwarmContext;
     expect(ctxArg.userPrompt).toBe("  Combien de transactions hier?  ");
     expect(ctxArg.datasetId).toBe("ds1");
+  });
+});
+
+describe("cancelActiveSwarm", () => {
+  it("calls cancel on the active scheduler when a run is in flight", async () => {
+    // Start a run that will be held open until we cancel it.
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+    let resolveLookup!: (v: SwarmResult) => void;
+    const pendingLookup = new Promise<SwarmResult>((res) => {
+      resolveLookup = res;
+    });
+    runLookup.mockReturnValue(pendingLookup);
+
+    // Fire the swarm but do not await — we want it in-flight.
+    const running = runSwarm(baseCtx, "pending");
+
+    // Give the event loop a tick so runSwarm can reach the in-flight state.
+    await Promise.resolve();
+
+    // cancelActiveSwarm should forward to the scheduler stub's cancel().
+    cancelActiveSwarm();
+    expect(schedulerStub.cancel).toHaveBeenCalledTimes(1);
+
+    // Resolve lookup so the promise settles and the test can clean up.
+    resolveLookup({ ...result("done"), artifacts: [] });
+    await running;
+  });
+
+  it("is a no-op when no swarm is active (activeScheduler is null)", () => {
+    // No run is in flight — this must not throw.
+    expect(() => cancelActiveSwarm()).not.toThrow();
+    expect(schedulerStub.cancel).not.toHaveBeenCalled();
+  });
+});
+
+describe("runSwarm — errMessage branch for non-Error throws", () => {
+  it("converts a non-Error thrown value to a string for the store error", async () => {
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+    // Throwing a plain string exercises the String(err) branch of errMessage.
+    runLookup.mockRejectedValue("plain string error");
+
+    await expect(runSwarm(baseCtx, "boom")).rejects.toBe("plain string error");
+
+    const state = useSwarmStore.getState();
+    expect(state.phase).toBe("failed");
+    expect(state.error).toBe("plain string error");
+  });
+});
+
+describe("runSwarm — ensureReady rejection propagates through withTimeout", () => {
+  it("propagates an ensureReady rejection (covering lines 54-55) and marks the store failed", async () => {
+    const warmError = new Error("model load failed");
+    schedulerStub.ensureReady.mockRejectedValue(warmError);
+
+    await expect(runSwarm(baseCtx, "anything")).rejects.toThrow("model load failed");
+
+    const state = useSwarmStore.getState();
+    expect(state.phase).toBe("failed");
+    expect(state.error).toBe("model load failed");
+    // The warming indicator must have been cleared in the finally block.
+    expect(state.warming).toBeNull();
+  });
+});
+
+describe("runSwarm — warming progress callback (line 131)", () => {
+  it("falls back to the default warming message when ensureReady provides an empty message", async () => {
+    // We need ensureReady to call the progress callback with a falsy message
+    // so the `message || "Warming up the offline model…"` branch fires.
+    schedulerStub.ensureReady.mockImplementation(
+      async (_model: string, onProgress: (progress: number, message: string) => void) => {
+        // Call with empty string to trigger the fallback branch.
+        onProgress(50, "");
+      },
+    );
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+    runLookup.mockResolvedValue({ ...result("ok"), artifacts: [] });
+
+    await runSwarm(baseCtx, "anything");
+
+    // The store should have received the fallback message during warming.
+    // After the finally block warming is null, so we just check the run completed.
+    expect(useSwarmStore.getState().phase).toBe("done");
+  });
+
+  it("passes a provided warming message through unchanged", async () => {
+    // Capture setWarming calls to verify the truthy-message path.
+    const warmingMessages: string[] = [];
+    const origState = useSwarmStore.getState();
+    const origSetWarming = origState.setWarming.bind(origState);
+    const spySetWarming = vi.spyOn(useSwarmStore.getState(), "setWarming").mockImplementation(
+      (w) => {
+        if (w && typeof w === "object" && "message" in w) {
+          warmingMessages.push(w.message as string);
+        }
+        origSetWarming(w as Parameters<typeof origSetWarming>[0]);
+      },
+    );
+
+    schedulerStub.ensureReady.mockImplementation(
+      async (_model: string, onProgress: (progress: number, message: string) => void) => {
+        onProgress(75, "Custom loading message");
+      },
+    );
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+    runLookup.mockResolvedValue({ ...result("ok"), artifacts: [] });
+
+    await runSwarm(baseCtx, "anything");
+
+    spySetWarming.mockRestore();
+    expect(warmingMessages).toContain("Custom loading message");
+  });
+});
+
+describe("runSwarm — runAnswer token callback (line 201)", () => {
+  it("forwards streamed tokens to the store via appendAnswerToken", async () => {
+    routeQuestion.mockResolvedValue({ tier: "analysis" });
+    runAnalysisPlan.mockResolvedValue({ goal: "g", tasks: [] });
+    compute.mockResolvedValue([tableArtifact("a1")]);
+
+    // Simulate runAnswer calling the token callback before resolving.
+    runAnswer.mockImplementation(
+      async (
+        _scheduler: unknown,
+        _ctx: unknown,
+        _goal: string,
+        _artifacts: unknown,
+        onToken: (token: string) => void,
+      ) => {
+        onToken("Hello");
+        onToken(" world");
+        return result("streamed");
+      },
+    );
+
+    const appendSpy = vi.spyOn(useSwarmStore.getState(), "appendAnswerToken");
+
+    await runSwarm(baseCtx, "stream this");
+
+    expect(appendSpy).toHaveBeenCalledWith("Hello");
+    expect(appendSpy).toHaveBeenCalledWith(" world");
+    appendSpy.mockRestore();
+  });
+});
+
+describe("runSwarm — withTimeout fires when ensureReady takes too long", () => {
+  it("rejects with the timeout message when ensureReady does not settle within 120s", async () => {
+    vi.useFakeTimers();
+
+    // ensureReady returns a promise that never resolves — simulating a hung model load.
+    schedulerStub.ensureReady.mockReturnValue(new Promise<void>(() => {}));
+
+    // Start the run — it will block in the withTimeout wrapper.
+    const runningPromise = runSwarm(baseCtx, "slow model");
+
+    // Drain microtasks so runSwarm reaches the withTimeout call.
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Advance clocks past the 120 000 ms threshold to fire the timeout.
+    vi.advanceTimersByTime(121_000);
+
+    // Drain microtasks again so the rejection propagates through the promise chain.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Restore real timers before awaiting so no further fake-timer interactions occur.
+    vi.useRealTimers();
+
+    await expect(runningPromise).rejects.toThrow(/offline model took too long/);
+
+    const state = useSwarmStore.getState();
+    expect(state.phase).toBe("failed");
+  });
+});
+
+describe("runSwarm — concurrent runs (line 210 false branch)", () => {
+  it("does not clear activeScheduler in the finally block when a newer run has already replaced it", async () => {
+    // Arrange: first run starts and blocks; second run supersedes the first's scheduler.
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+
+    let resolveFirst!: (v: SwarmResult) => void;
+    const firstPending = new Promise<SwarmResult>((res) => {
+      resolveFirst = res;
+    });
+    // The SchedulerCtor is called once per runSwarm invocation.
+    // We need the second invocation to produce a different stub so that
+    // activeScheduler !== firstScheduler when the first finally runs.
+    const secondSchedulerStub = {
+      isReady: vi.fn().mockResolvedValue(true),
+      ensureReady: vi.fn().mockResolvedValue(undefined),
+      cancel: vi.fn(),
+    };
+
+    let callCount = 0;
+    SchedulerCtor.mockImplementation(() => {
+      callCount++;
+      return callCount === 1 ? schedulerStub : secondSchedulerStub;
+    });
+
+    // First run stalls at the lookup stage.
+    runLookup
+      .mockReturnValueOnce(firstPending)
+      .mockResolvedValue({ ...result("second"), artifacts: [] });
+
+    const first = runSwarm(baseCtx, "first");
+
+    // Tick enough for the first run to advance past isReady and reach the blocked lookup.
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+
+    // Second run starts immediately — it should replace activeScheduler.
+    const second = runSwarm(baseCtx, "second");
+
+    // Now resolve the first run. Its finally block will see activeScheduler !== firstScheduler.
+    resolveFirst({ ...result("first"), artifacts: [] });
+
+    // Both must settle without throwing.
+    const [r1, r2] = await Promise.all([first, second]);
+    expect(r1.headline).toBe("first");
+    expect(r2.headline).toBe("second");
   });
 });

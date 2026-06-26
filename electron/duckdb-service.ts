@@ -329,18 +329,18 @@ function quoteSqlPathList(paths: readonly string[]): string {
  * Restricts filesystem access to ONLY the managed datasets + spill directories
  * so a malicious/compromised renderer SQL string cannot use functions like
  * `read_parquet('C:/Users/.../secret')` to exfiltrate arbitrary files — even if
- * it gets past the textual `assertReadOnlySql` guard. We still need
- * `enable_external_access = true` because the lazy dataset views are
- * `read_parquet(<cachePath>)` over real files on disk; `allowed_directories`
- * then narrows that access to the managed cache, and `lock_configuration = true`
- * makes the sandbox un-resettable for the lifetime of the connection.
+ * it gets past the textual `assertReadOnlySql` guard.
  *
- * Each SET is applied independently and tolerantly: if the installed
- * @duckdb/node-api build does not recognize a setting name, we log and skip it
- * rather than crash init (degrades to the existing textual guard).
- *
- * NOTE: `lock_configuration` is intentionally applied LAST so the preceding
- * directory/external-access settings are still mutable while being set.
+ * DuckDB 1.x facts (tested against @duckdb/node-api 1.5.x):
+ * - `enable_external_access` is GLOBAL scope and startup-only; setting it via
+ *   `SET` after the database is open throws "Cannot enable external access while
+ *   database is running". It must be passed to DuckDBInstance.create().
+ * - `allowed_directories` is GLOBAL scope but CAN be set via SET at runtime.
+ * - `lock_configuration` is also GLOBAL scope. Setting it true on any one
+ *   connection locks the entire database instance, so all subsequent connections
+ *   (READ_CONN_COUNT = 3) would fail every SET. It is therefore omitted here;
+ *   the textual assertReadOnlySql guard (which blocks any SET statement from the
+ *   renderer) is the anti-reset layer.
  */
 async function applyReadConnectionSandbox(
   conn: DuckDBConnection,
@@ -352,28 +352,17 @@ async function applyReadConnectionSandbox(
 
   if (resolvedDirs.length === 0) return;
 
-  // Order matters: scope access, then lock so it cannot be widened/reset.
-  const settings: readonly string[] = [
-    // Views need to touch real parquet files on disk.
-    "SET enable_external_access = true",
-    // ...but only inside the managed cache/spill directories.
-    `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
-    // Freeze the configuration for this connection's lifetime.
-    "SET lock_configuration = true",
-  ];
-
-  for (const setting of settings) {
-    try {
-      await conn.run(setting);
-    } catch (error) {
-      // Unsupported setting name on this engine build, or already locked.
-      // Degrade gracefully to the textual assertReadOnlySql guard.
-      console.warn(
-        `[duckdb] read-connection sandbox skipped (${setting.split("=")[0].trim()}): ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-    }
+  // Narrow filesystem access to the managed cache + spill dirs only.
+  const setting = `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`;
+  try {
+    await conn.run(setting);
+  } catch (error) {
+    // Degrade gracefully to the textual assertReadOnlySql guard.
+    console.warn(
+      `[duckdb] read-connection sandbox skipped (SET allowed_directories): ${
+        error instanceof Error ? error.message : String(error)
+      }`,
+    );
   }
 }
 
@@ -753,6 +742,10 @@ async function ensureInit(): Promise<void> {
 
       instance = await DuckDBInstance.create(dbPath, {
         threads,
+        // enable_external_access is a startup-only GLOBAL setting in DuckDB 1.x;
+        // it cannot be changed via SET after the database is open. Default is
+        // already true, but we set it explicitly so the intent is clear.
+        enable_external_access: "true",
       });
 
       writeConn = await instance.connect();

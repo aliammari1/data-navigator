@@ -49,6 +49,8 @@ import { RotateCcw } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { isTelecomDataset } from "@/features/telecom/lib/dataset-detection";
 import { DEFAULT_MAPPING } from "@/features/telecom/store";
@@ -390,6 +392,22 @@ export default function MoudirSwarmScreen() {
     runningPromptRef.current = "";
     lastRecordedPromptRef.current = "";
   }, [resetSwarm]);
+
+  // Menu bar bridge: the desktop's "Moudir" menu drives the screen's existing
+  // handlers over the app-command bus (handlers are read live, no memo needed).
+  const menuWindowId = useWindowId();
+  useAppCommands(
+    "moudir",
+    {
+      reset: () => onReset(),
+      cancel: () => cancelActiveSwarm(),
+      ask: (payload) => {
+        const prompt = (payload as { prompt?: string } | undefined)?.prompt?.trim();
+        if (prompt) onAsk(prompt);
+      },
+    },
+    { windowId: menuWindowId },
+  );
 
   // The active model, humanized for the header chip: strip the .gguf suffix and
   // the quantization tail so "qwen2.5-1.5b-instruct-q4_k_m.gguf" reads as a name.

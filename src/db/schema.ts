@@ -1,12 +1,5 @@
 import { sql } from "drizzle-orm";
-import {
-  index,
-  integer,
-  primaryKey,
-  sqliteTable,
-  text,
-  uniqueIndex,
-} from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
 
@@ -77,22 +70,4 @@ export const verification = sqliteTable(
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
-);
-
-export const appSetting = sqliteTable(
-  "app_setting",
-  {
-    namespace: text("namespace").notNull(),
-    key: text("key").notNull(),
-    value: text("value", { mode: "json" }).$type<unknown>().notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-  },
-  (table) => [
-    primaryKey({
-      columns: [table.namespace, table.key],
-      name: "app_setting_pk",
-    }),
-    index("app_setting_namespace_idx").on(table.namespace),
-  ],
 );

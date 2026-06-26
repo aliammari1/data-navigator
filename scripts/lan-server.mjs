@@ -438,8 +438,11 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
+  // SECURITY: never disclose the pairing code in an HTTP response — it is the
+  // sole access-control secret for the room. It lives only on the host console
+  // and the host's own UI. A health probe gets a generic OK, nothing else.
   res.writeHead(200, { "content-type": "text/plain" });
-  res.end(`${SESSION_NAME} — OK\nPairing code: ${PAIRING_CODE}\n`);
+  res.end(`${SESSION_NAME} — OK\n`);
 });
 
 const wss = new WebSocketServer({

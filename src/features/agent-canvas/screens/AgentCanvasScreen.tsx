@@ -24,8 +24,8 @@ import {
   ResizableHandle as PanelResizeHandle,
 } from "@/components/ui/resizable";
 import { makeCtx, makeEvent } from "@/features/agent-canvas/core/ag-ui-types";
-import { resetAI } from "@/features/agent-canvas/core/ai-bridge";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
+import { resetAI } from "@/features/agent-canvas/core/ai-bridge";
 import {
   buildTraceTree,
   clearEventLog,
@@ -35,6 +35,7 @@ import {
 } from "@/features/agent-canvas/core/event-bus";
 import { runPipeline } from "@/features/agent-canvas/core/pipeline";
 import type { AgentThought, DashboardPlan, WidgetState } from "@/features/agent-canvas/core/types";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 
 // ─── Dynamic imports (client-only heavy) ────────────────────────────────────
 
@@ -325,6 +326,17 @@ export default function AgentCanvasScreen() {
 
   // Subscribe to AG-UI events → push to store ticker (stable action ref).
   useEffect(() => subscribeEvents(pushEvent), [pushEvent]);
+
+  // ── Desktop menu commands ───────────────────────────────────────────────────
+  useAppCommands("agent-canvas", {
+    reset: () => handleReset(),
+    togglePanel: (payload) => {
+      const panel = (payload as { panel?: string } | undefined)?.panel;
+      if (panel === "sql") setShowSql((v) => !v);
+      else if (panel === "graph") setShowGraph((v) => !v);
+      else if (panel === "narrative") setShowNarrative((v) => !v);
+    },
+  });
 
   const isSetup = step === "setup";
 
