@@ -1,4 +1,5 @@
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { DashboardClientShell } from "@/features/dashboard-shell/components/dashboard-client-shell";
 import { auth } from "@/platform/auth/auth";
 
@@ -10,5 +11,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     headers: await headers(),
   });
 
-  return <DashboardClientShell user={session?.user ?? undefined}>{children}</DashboardClientShell>;
+  if (!session) redirect("/login");
+
+  return <DashboardClientShell user={session.user}>{children}</DashboardClientShell>;
 }

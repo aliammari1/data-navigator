@@ -98,6 +98,11 @@ interface FormulatorStore {
   setThreadPanelOpen: (open: boolean) => void;
   setExplainPanelOpen: (open: boolean) => void;
   setAgentPanelOpen: (open: boolean) => void;
+
+  // Chart pinning
+  pinChart: (threadId: string, stepId: string) => void;
+  unpinChart: (threadId: string, stepId: string) => void;
+  getPinnedCharts: () => Array<{ threadId: string; step: ExplorationStep }>;
 }
 
 const DEFAULT_SETTINGS: FormulatorSettings = {
@@ -268,6 +273,60 @@ export const useFormulatorStore = create<FormulatorStore>()(
       setThreadPanelOpen: (open) => set({ threadPanelOpen: open }),
       setExplainPanelOpen: (open) => set({ explainPanelOpen: open }),
       setAgentPanelOpen: (open) => set({ agentPanelOpen: open }),
+
+      // Chart pinning
+      pinChart: (threadId, stepId) =>
+        set((state) => {
+          const thread = state.threads[threadId];
+          if (!thread) return state;
+          return {
+            threads: {
+              ...state.threads,
+              [threadId]: {
+                ...thread,
+                steps: thread.steps.map((s) =>
+                  s.id === stepId && s.chartSpec
+                    ? { ...s, chartSpec: { ...s.chartSpec, pinnedAt: Date.now() } }
+                    : s,
+                ),
+              },
+            },
+          };
+        }),
+
+      unpinChart: (threadId, stepId) =>
+        set((state) => {
+          const thread = state.threads[threadId];
+          if (!thread) return state;
+          return {
+            threads: {
+              ...state.threads,
+              [threadId]: {
+                ...thread,
+                steps: thread.steps.map((s) =>
+                  s.id === stepId && s.chartSpec
+                    ? { ...s, chartSpec: { ...s.chartSpec, pinnedAt: undefined } }
+                    : s,
+                ),
+              },
+            },
+          };
+        }),
+
+      getPinnedCharts: () => {
+        const state = get();
+        const result: Array<{ threadId: string; step: ExplorationStep }> = [];
+        for (const [threadId, thread] of Object.entries(state.threads)) {
+          for (const step of thread.steps) {
+            if (step.chartSpec?.pinnedAt) {
+              result.push({ threadId, step });
+            }
+          }
+        }
+        return result.sort(
+          (a, b) => (b.step.chartSpec?.pinnedAt ?? 0) - (a.step.chartSpec?.pinnedAt ?? 0),
+        );
+      },
     }),
     {
       name: "data-formulator-enterprise-v1",

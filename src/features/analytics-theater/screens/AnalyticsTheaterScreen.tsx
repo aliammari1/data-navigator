@@ -5,6 +5,8 @@ import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { useAI } from "@/platform/ai/provider";
 import { warmExportWorker } from "@/platform/viz";
 import { SceneEmptyState } from "../components/scene-states";
@@ -12,7 +14,7 @@ import { TheaterPresenter } from "../components/TheaterPresenter";
 import { narrateScenes } from "../lib/narrate";
 import { exportTheater } from "../lib/scene-export";
 import { useActiveDataset } from "../lib/use-active-dataset";
-import { defaultTheater, SCENE_DEFINITIONS, type Theater } from "../model/scene";
+import { defaultTheater, SCENE_DEFINITIONS, type SceneKind, type Theater } from "../model/scene";
 import { listTheaters, saveTheater } from "../model/theater-db";
 import { SCENE_COMPONENTS } from "../scenes/registry";
 
@@ -129,6 +131,31 @@ export function AnalyticsTheaterScreen() {
       setBusy(null);
     }
   }
+
+  // ── Desktop menu bar wiring ────────────────────────────────────────────────
+  const windowId = useWindowId();
+  const pages = useMemo(
+    () => SCENE_DEFINITIONS.map((def) => ({ id: def.kind, label: def.label })),
+    [],
+  );
+  useRegisterPages(windowId, pages, activeScene);
+
+  useAppCommands("theater", {
+    narrate: () => void handleNarrate(),
+    save: () => void handleSave(),
+    export: (payload) => {
+      const kind = (payload as { kind?: "pptx" | "pdf" } | undefined)?.kind;
+      if (kind === "pptx" || kind === "pdf") void handleExport(kind);
+    },
+    mode: (payload) => {
+      const next = (payload as { mode?: ViewMode } | undefined)?.mode;
+      if (next === "explore" || next === "present") setMode(next);
+    },
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId) setActiveScene(pageId as SceneKind);
+    },
+  });
 
   return (
     <div className="space-y-6 p-6">

@@ -32,7 +32,7 @@ export function qc(col: string): string {
   if (/[;\\]|--|\/\*|\*\//.test(col)) {
     throw new Error(`Unsafe column identifier rejected: ${col}`);
   }
-  return `"${col.replace('"', '""')}"`;
+  return `"${col.replaceAll('"', '""')}"`;
 }
 
 /** Returns a SQL expression for col, or NULL literal when col is unmapped (empty string). */
@@ -41,7 +41,7 @@ export function colExpr(col: string): string {
 }
 
 export function sqlLiteral(value: string): string {
-  return `'${value.replace("'", "''")}'`;
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 // ─── Status normalisation ─────────────────────────────────────────────────────

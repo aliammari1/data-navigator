@@ -4,6 +4,18 @@ import type { Artifact, SwarmContext } from "@/features/data-formulator/core/swa
 import type { ChartSpec, ColumnInfo } from "@/features/data-formulator/core/types";
 import type { InferenceScheduler } from "@/features/data-formulator/core/swarm/scheduler";
 
+import { parseStructured } from "@/platform/ai/provider/structured";
+
+// Mock the structured provider so we can control parseStructured in streaming tests.
+vi.mock("@/platform/ai/provider/structured", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/platform/ai/provider/structured")>();
+  return {
+    ...actual,
+    parseStructured: vi.fn(actual.parseStructured),
+    buildJsonInstruction: vi.fn(actual.buildJsonInstruction),
+  };
+});
+
 const columns: ColumnInfo[] = [
   { name: "channel", type: "string", dbType: "VARCHAR" },
   { name: "amount", type: "number", dbType: "DOUBLE" },
@@ -147,5 +159,113 @@ describe("runAnswer", () => {
     await runAnswer(scheduler, makeCtx(), "goal", []);
     const [req] = generateStructured.mock.calls[0];
     expect(req.prompt).toMatch(/no data was successfully retrieved/i);
+  });
+});
+
+describe("runAnswer — onToken streaming path", () => {
+  /**
+   * Build a scheduler that supports both `generate` (streaming) and
+   * `generateStructured` (grammar-constrained fallback), plus a `signal`.
+   */
+  function makeStreamingScheduler({
+    generateResult,
+    generateError,
+    structuredResult = goodAnswer,
+    aborted = false,
+  }: {
+    generateResult?: string;
+    generateError?: Error;
+    structuredResult?: typeof goodAnswer;
+    aborted?: boolean;
+  }): { scheduler: InferenceScheduler; generate: ReturnType<typeof vi.fn>; generateStructured: ReturnType<typeof vi.fn> } {
+    const generate = generateError
+      ? vi.fn().mockRejectedValue(generateError)
+      : vi.fn().mockResolvedValue(generateResult ?? JSON.stringify(goodAnswer));
+    const generateStructured = vi.fn().mockResolvedValue(structuredResult);
+    const signal = { aborted } as AbortSignal;
+    const scheduler = { generate, generateStructured, signal } as unknown as InferenceScheduler;
+    return { scheduler, generate, generateStructured };
+  }
+
+  it("calls scheduler.generate and returns a shaped result when streaming succeeds", async () => {
+    // parseStructured is mocked to pass through to the real implementation,
+    // so we provide a valid JSON string for `generate` to return.
+    const rawJson = JSON.stringify(goodAnswer);
+    const { scheduler, generate } = makeStreamingScheduler({ generateResult: rawJson });
+    const tokens: string[] = [];
+    const onToken = (t: string) => tokens.push(t);
+
+    const result = await runAnswer(
+      scheduler,
+      makeCtx(),
+      "Top channel",
+      [tableArtifact([{ channel: "USSD", total: 10 }])],
+      onToken,
+    );
+
+    // scheduler.generate must have been called (not generateStructured).
+    expect(generate).toHaveBeenCalledOnce();
+    const [req] = generate.mock.calls[0];
+    // The JSON instruction is appended to the system prompt.
+    expect(req.system).toContain("Respond with ONLY a single valid JSON value");
+    // The onToken callback is forwarded.
+    expect(req.onToken).toBe(onToken);
+    // Result is correctly shaped.
+    expect(result.goal).toBe("Top channel");
+    expect(result.headline).toBe("USSD leads revenue");
+    expect(result.modelUsed).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+  });
+
+  it("propagates the error when streaming fails and the signal is aborted", async () => {
+    const abortError = new Error("AbortError: run was cancelled");
+    const { scheduler } = makeStreamingScheduler({ generateError: abortError, aborted: true });
+
+    await expect(
+      runAnswer(scheduler, makeCtx(), "goal", [], () => {}),
+    ).rejects.toThrow("AbortError: run was cancelled");
+  });
+
+  it("falls back to generateStructured when streaming fails and the signal is not aborted", async () => {
+    const parseError = new Error("malformed JSON from small model");
+    // usedRealData=false so the mechanical cap does not fire, letting "medium" pass through.
+    const { scheduler, generateStructured } = makeStreamingScheduler({
+      generateError: parseError,
+      aborted: false,
+      structuredResult: { ...goodAnswer, confidence: "medium" as const, usedRealData: false },
+    });
+
+    const result = await runAnswer(scheduler, makeCtx(), "fallback goal", [], () => {});
+
+    // The grammar-constrained path was used as the fallback.
+    expect(generateStructured).toHaveBeenCalledOnce();
+    expect(result.goal).toBe("fallback goal");
+    // Confidence comes from the structured fallback result (cap does not fire because usedRealData=false).
+    expect(result.confidence).toBe("medium");
+  });
+
+  it("mechanical confidence cap applies on the streaming path too", async () => {
+    // usedRealData=true but no artifact rows — should be capped to 'low'.
+    const rawJson = JSON.stringify({ ...goodAnswer, confidence: "high", usedRealData: true });
+    const { scheduler } = makeStreamingScheduler({ generateResult: rawJson });
+
+    const result = await runAnswer(
+      scheduler,
+      makeCtx(),
+      "goal",
+      [tableArtifact([])],
+      () => {},
+    );
+
+    expect(result.confidence).toBe("low");
+  });
+
+  it("prompt excludes userPrompt line when userPrompt is absent (streaming path)", async () => {
+    const rawJson = JSON.stringify(goodAnswer);
+    const { scheduler, generate } = makeStreamingScheduler({ generateResult: rawJson });
+
+    await runAnswer(scheduler, makeCtx(), "goal", [], () => {});
+
+    const [req] = generate.mock.calls[0];
+    expect(req.prompt).not.toContain("User's question");
   });
 });

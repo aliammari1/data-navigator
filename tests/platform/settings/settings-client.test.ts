@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canUseSettingsApi,
   deleteAppSettingRemote,
@@ -7,77 +7,121 @@ import {
   putAppSettingRemote,
 } from "@/platform/settings/settings-client";
 
-function jsonResponse(body: unknown, status = 200): Response {
-  return new Response(JSON.stringify(body), {
-    status,
-    headers: { "Content-Type": "application/json" },
-  });
+type Bridge = {
+  get: ReturnType<typeof vi.fn>;
+  set: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+  export: ReturnType<typeof vi.fn>;
+};
+
+function installBridge(): Bridge {
+  const bridge: Bridge = { get: vi.fn(), set: vi.fn(), delete: vi.fn(), export: vi.fn() };
+  (window as unknown as { electronSettings?: Bridge }).electronSettings = bridge;
+  return bridge;
 }
 
 describe("settings-client", () => {
-  beforeEach(() => {
-    vi.stubGlobal("fetch", vi.fn());
-  });
-
   afterEach(() => {
+    // Restore any stubbed window first, then clear the bridge (a test may have
+    // stubbed `window` to undefined, which would make the cleanup throw).
     vi.unstubAllGlobals();
     vi.restoreAllMocks();
+    if (typeof window !== "undefined") {
+      (window as unknown as { electronSettings?: Bridge }).electronSettings = undefined;
+    }
   });
 
-  it("reports the API is usable when window + fetch exist", () => {
+  it("reports the API is usable when the IPC bridge is present", () => {
+    installBridge();
     expect(canUseSettingsApi()).toBe(true);
   });
 
-  it("getAppSettingRemote returns the value and url-encodes segments", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ value: { a: 1 }, updatedAt: "2026-01-01" }));
+  it("getAppSettingRemote returns the value + updatedAt from the bridge", async () => {
+    const bridge = installBridge();
+    bridge.get.mockResolvedValueOnce({ value: { a: 1 }, updatedAt: "2026-01-01" });
 
     const result = await getAppSettingRemote("voice", "settings/v3");
 
     expect(result).toEqual({ value: { a: 1 }, updatedAt: "2026-01-01" });
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/api/settings/voice/settings%2Fv3",
-      expect.objectContaining({ method: "GET" }),
-    );
+    expect(bridge.get).toHaveBeenCalledWith("voice", "settings/v3");
   });
 
-  it("getAppSettingRemote treats 404 as absent (null value, no throw)", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ value: null }, 404));
+  it("getAppSettingRemote coerces a missing value to null", async () => {
+    const bridge = installBridge();
+    bridge.get.mockResolvedValueOnce({ value: null, updatedAt: "2025-01-01" });
+    await expect(getAppSettingRemote("ns", "key")).resolves.toEqual({
+      value: null,
+      updatedAt: "2025-01-01",
+    });
+  });
 
-    await expect(getAppSettingRemote("store", "missing")).resolves.toEqual({
+  it("getAppSettingRemote coerces a missing updatedAt to null", async () => {
+    const bridge = installBridge();
+    bridge.get.mockResolvedValueOnce({ value: "v", updatedAt: null });
+    await expect(getAppSettingRemote("ns", "key")).resolves.toEqual({
+      value: "v",
+      updatedAt: null,
+    });
+  });
+
+  it("putAppSettingRemote sets the value and returns the persisted updatedAt", async () => {
+    const bridge = installBridge();
+    bridge.set.mockResolvedValueOnce("2026-02-02");
+
+    const updatedAt = await putAppSettingRemote("store", "answer", 42);
+
+    expect(updatedAt).toBe("2026-02-02");
+    expect(bridge.set).toHaveBeenCalledWith("store", "answer", 42);
+  });
+
+  it("deleteAppSettingRemote forwards to the bridge", async () => {
+    const bridge = installBridge();
+    bridge.delete.mockResolvedValueOnce(undefined);
+    await expect(deleteAppSettingRemote("store", "gone")).resolves.toBeUndefined();
+    expect(bridge.delete).toHaveBeenCalledWith("store", "gone");
+  });
+
+  it("exportAppSettingsRemote returns the settings map for a namespace", async () => {
+    const bridge = installBridge();
+    bridge.export.mockResolvedValueOnce({ store: { a: 1 } });
+    await expect(exportAppSettingsRemote("store")).resolves.toEqual({ store: { a: 1 } });
+    expect(bridge.export).toHaveBeenCalledWith("store");
+  });
+
+  it("exportAppSettingsRemote passes undefined when the namespace is omitted", async () => {
+    const bridge = installBridge();
+    bridge.export.mockResolvedValueOnce({ a: { b: 2 } });
+    await expect(exportAppSettingsRemote()).resolves.toEqual({ a: { b: 2 } });
+    expect(bridge.export).toHaveBeenCalledWith(undefined);
+  });
+
+  // --- bridge unavailable (SSR / next build / non-Electron) ---
+
+  it("canUseSettingsApi returns false when the bridge is absent", () => {
+    expect(canUseSettingsApi()).toBe(false);
+  });
+
+  it("canUseSettingsApi returns false when window is undefined", () => {
+    vi.stubGlobal("window", undefined);
+    expect(canUseSettingsApi()).toBe(false);
+  });
+
+  it("getAppSettingRemote returns null immediately when the bridge is unavailable", async () => {
+    await expect(getAppSettingRemote("ns", "key")).resolves.toEqual({
       value: null,
       updatedAt: null,
     });
   });
 
-  it("getAppSettingRemote throws on unexpected HTTP errors", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500));
-
-    await expect(getAppSettingRemote("store", "x")).rejects.toThrow("500");
+  it("putAppSettingRemote returns null when the bridge is unavailable", async () => {
+    await expect(putAppSettingRemote("ns", "key", 99)).resolves.toBeNull();
   });
 
-  it("putAppSettingRemote PUTs the wrapped value and returns updatedAt", async () => {
-    const fetchMock = vi.mocked(fetch);
-    fetchMock.mockResolvedValueOnce(jsonResponse({ value: 42, updatedAt: "2026-02-02" }));
-
-    const updatedAt = await putAppSettingRemote("store", "answer", 42);
-
-    expect(updatedAt).toBe("2026-02-02");
-    const [, init] = fetchMock.mock.calls[0];
-    expect(init).toMatchObject({ method: "PUT" });
-    expect(JSON.parse((init as RequestInit).body as string)).toEqual({ value: 42 });
+  it("deleteAppSettingRemote is a no-op when the bridge is unavailable", async () => {
+    await expect(deleteAppSettingRemote("ns", "key")).resolves.toBeUndefined();
   });
 
-  it("deleteAppSettingRemote tolerates 404", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(new Response(null, { status: 404 }));
-    await expect(deleteAppSettingRemote("store", "gone")).resolves.toBeUndefined();
-  });
-
-  it("exportAppSettingsRemote returns the settings map", async () => {
-    vi.mocked(fetch).mockResolvedValueOnce(
-      jsonResponse({ exportedAt: "now", settings: { store: { a: 1 } } }),
-    );
-
-    await expect(exportAppSettingsRemote("store")).resolves.toEqual({ store: { a: 1 } });
+  it("exportAppSettingsRemote returns {} when the bridge is unavailable", async () => {
+    await expect(exportAppSettingsRemote()).resolves.toEqual({});
   });
 });

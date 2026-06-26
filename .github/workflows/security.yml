@@ -1,9 +1,18 @@
 # facts: data-navigator is a private (package.json private:true), offline-first Electron
-# desktop app. This workflow is the security gate: CodeQL (js/ts), dependency-review on
-# PRs, pnpm audit (audit:security script), and OpenSSF Scorecard. No multi-GB GGUF model
-# is ever downloaded in CI. Third-party actions are SHA-pinned; first-party actions/* and
-# github/* use major tags. Least-privilege permissions per job. Assumes the shared composite
-# action ./.github/actions/setup exists (added by the workflow-setup lane).
+# desktop app. This workflow is the security gate: dependency-review on PRs, a pnpm
+# production-dependency audit + dead-code hygiene, secret scanning (gitleaks), and SAST
+# (Semgrep OSS / Community Edition). No multi-GB GGUF model is ever downloaded in CI.
+# Third-party actions are SHA-pinned; first-party actions/* use major tags. Least-privilege
+# permissions per job.
+#
+# (CodeQL was removed — code scanning requires GitHub Advanced Security, which is not
+# enabled on this repo, so it only ever errored. Semgrep OSS now provides SAST without
+# Advanced Security; findings print in the job log and upload as a SARIF artifact rather
+# than the Security tab. OpenSSF Scorecard and the weekly schedule were removed too.)
+#
+# gitleaks and semgrep run as installed binaries, NOT the marketing-gated gitleaks-action
+# (which requires a paid GITLEAKS_LICENSE for org-owned repos) — same self-contained
+# pattern as osv-scanner.yml's `go install`.
 name: Security
 
 on:
@@ -16,9 +25,6 @@ on:
       - main
       - develop
   merge_group:
-  schedule:
-    # Weekly, Monday 03:24 UTC. Keeps CodeQL + Scorecard fresh even without new commits.
-    - cron: "24 3 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -29,40 +35,6 @@ concurrency:
 permissions: {}
 
 jobs:
-  # ---------------------------------------------------------------------------
-  # Static analysis (CodeQL) for JavaScript/TypeScript. build-mode: none because
-  # this is an interpreted codebase (no compiled artifact needed for analysis).
-  # ---------------------------------------------------------------------------
-  codeql:
-    name: CodeQL
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-
-    permissions:
-      contents: read
-      security-events: write
-      packages: read
-      # Required by github/codeql-action in PRIVATE repos: the analyze step calls
-      # the Actions workflow-runs API (telemetry + incremental analysis). Without
-      # it the job ends in "Resource not accessible by integration" /
-      # "CodeQL job status was configuration error" and the gate goes red.
-      actions: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          build-mode: none
-
-      - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v4
-        with:
-          category: "/language:javascript-typescript"
-
   # ---------------------------------------------------------------------------
   # Dependency review: blocks PRs that introduce vulnerable or disallowed-license
   # dependencies, and posts a summary comment. PR-only (needs the base..head diff).
@@ -79,7 +51,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Review dependency changes
         if: ${{ !github.event.repository.private }}
@@ -103,10 +75,9 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       # Shared composite action: pnpm + Node 24 + pnpm-store/Next caches + install.
-      # Added by the workflow-setup lane (see .github/actions/setup/action.yml).
       - name: Set up toolchain
         uses: ./.github/actions/setup
 
@@ -122,50 +93,110 @@ jobs:
         continue-on-error: true
 
   # ---------------------------------------------------------------------------
-  # OpenSSF Scorecard: repository security-posture scoring. Runs on push to the
-  # default branch and on schedule only (it scores branch protection, tokens,
-  # workflow perms, etc. — not meaningful per-PR). Uploads SARIF to code scanning.
+  # Secret scanning: gitleaks over the checked-out working tree. Blocks the gate
+  # when a credential-shaped, high-entropy string lands in source. Runs the
+  # MIT-licensed gitleaks binary directly — the gitleaks-action wrapper needs a
+  # paid GITLEAKS_LICENSE for org-owned repos; the CLI does not.
   # ---------------------------------------------------------------------------
-  scorecard:
-    name: OpenSSF Scorecard
-    if: github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+  secret-scan:
+    name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
 
     permissions:
       contents: read
-      security-events: write
-      # Needed for the Scorecard publish/auth flow (read OIDC token).
-      id-token: write
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          persist-credentials: false
+        uses: actions/checkout@v7
 
-      - name: Run analysis
-        # SHA-PIN (third-party): verify/refresh this SHA at implementation time via
-        #   gh api repos/ossf/scorecard-action/git/refs/tags/v2 --jq .object.sha
-        # Dependabot (github-actions ecosystem) keeps it current after merge.
-        uses: ossf/scorecard-action@62b2cac7ed8198b15735ed49ab1e5cf35480ba46 # v2.4.0
-        with:
-          results_file: results.sarif
-          results_format: sarif
-          # Only publish results (public OpenSSF API) for the canonical repo on
-          # scheduled runs; keep it off elsewhere so forks/branches don't publish.
-          publish_results: false
+      - name: Install gitleaks
+        env:
+          # Pinned for reproducibility; bump deliberately.
+          # Latest tags: https://github.com/gitleaks/gitleaks/releases
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          tar -xzf gitleaks.tar.gz gitleaks
+          sudo install gitleaks /usr/local/bin/gitleaks
+          gitleaks version
 
-      - name: Upload SARIF to code scanning
-        uses: github/codeql-action/upload-sarif@v4
-        with:
-          sarif_file: results.sarif
-          category: scorecard
+      - name: Scan working tree for secrets
+        # `dir` scans files as-is (no git history) — highest signal, lowest noise.
+        # --redact keeps real secret values out of logs and the SARIF artifact.
+        # Exits non-zero (blocks) on any finding; tune the allowlist in .gitleaks.toml.
+        run: |
+          gitleaks dir . \
+            --config .gitleaks.toml \
+            --redact=100 \
+            --verbose \
+            --report-format sarif \
+            --report-path gitleaks.sarif \
+            --exit-code 1
 
-      - name: Upload SARIF artifact
-        uses: actions/upload-artifact@v5
+      - name: Upload gitleaks SARIF
         if: always()
+        uses: actions/upload-artifact@v7
         with:
-          name: scorecard-sarif
-          path: results.sarif
+          name: gitleaks-sarif
+          path: gitleaks.sarif
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # SAST: Semgrep OSS (Community Edition) over first-party source (src, electron,
+  # scripts) — mirrors the dependency-cruiser scope. Uses `semgrep scan` (the
+  # stand-alone OSS path) with registry rule packs: no login token, not subject to
+  # Semgrep AppSec Platform limits. Blocks on ERROR-severity (high-confidence)
+  # findings only, to keep false positives out of the gate.
+  # ---------------------------------------------------------------------------
+  sast:
+    name: SAST (semgrep)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install semgrep
+        # Unpinned: a scanner benefits from the latest engine + rules. Pin a
+        # specific version here once you want fully reproducible SAST runs.
+        run: python -m pip install --upgrade semgrep
+
+      - name: Run Semgrep (OSS, no login)
+        env:
+          SEMGREP_ENABLE_VERSION_CHECK: "0"
+        # --severity ERROR + --error => block only on high-confidence findings.
+        # To widen coverage to advisory: drop `--severity ERROR` and add
+        # `continue-on-error: true`. `// nosemgrep: <rule-id>` suppresses one line.
+        run: |
+          semgrep scan \
+            --config p/default \
+            --config p/owasp-top-ten \
+            --config p/javascript \
+            --config p/typescript \
+            --config p/react \
+            --metrics off \
+            --severity ERROR \
+            --error \
+            --no-suppress-errors \
+            --sarif --output semgrep.sarif \
+            src electron scripts
+
+      - name: Upload Semgrep SARIF
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: semgrep-sarif
+          path: semgrep.sarif
+          if-no-files-found: ignore
           retention-days: 7

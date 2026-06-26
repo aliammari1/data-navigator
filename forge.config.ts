@@ -1,10 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
-// import { MakerMSIX } from "@electron-forge/maker-msix";
-// import { MakerSquirrel } from "@electron-forge/maker-squirrel";
+import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerWix } from "@electron-forge/maker-wix";
-// import { MakerZIP } from "@electron-forge/maker-zip";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
@@ -350,9 +348,12 @@ function runtimeDepNames(realPkg: string): Set<string> {
   return out;
 }
 
-function flattenClosure(seeds: FlattenSeed[], destNodeModules: string): void {
+function flattenClosure(seeds: FlattenSeed[], destNodeModules: string, resolveRoot?: string): void {
   const visitedIds = new Set<string>();
   const writtenNames = new Set<string>();
+  // Flat (hoisted) packages have no pnpm id; guard their dep-walk by realpath so a
+  // dependency cycle among flat packages terminates.
+  const flatWalked = new Set<string>();
   // Seeds are top-level/required entries: always written. Each package then
   // enqueues only ITS declared runtime deps, so the closure stays production-lean.
   const queue: FlattenSeed[] = [...seeds];
@@ -384,6 +385,20 @@ function flattenClosure(seeds: FlattenSeed[], destNodeModules: string): void {
 
     // For already-real (dereferenced) packages, follow their nested runtime deps.
     enqueueRuntimeDeps(nestedDeps(realPkg));
+
+    // Flat/hoisted layout (node-linker=hoisted, the forge+pnpm requirement): there
+    // is NO .pnpm store (parsed === null) and deps are NOT nested — they sit as
+    // siblings under `resolveRoot` (the flat node_modules). Resolve each declared
+    // runtime dep from there so the transitive closure is still captured. Without
+    // this, build/node_modules ships seeds with ZERO transitive deps and the packaged
+    // app crashes on its first require ("bindings", "jose", …).
+    if (!parsed && resolveRoot && !flatWalked.has(realPkg)) {
+      flatWalked.add(realPkg);
+      for (const depName of runtimeDepNames(realPkg)) {
+        const flat = path.join(resolveRoot, ...depName.split("/"));
+        if (fs.existsSync(flat)) queue.push({ name: depName, entryPath: flat });
+      }
+    }
 
     if (!writtenNames.has(name)) {
       writtenNames.add(name);
@@ -531,7 +546,10 @@ function flattenMainNodeModules(buildNodeModules: string): void {
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  flattenClosure(seeds, tmp);
+  // Pass the flat dev node_modules as the resolve-root so that under node-linker=
+  // hoisted (the forge+pnpm requirement; no .pnpm store) the closure walk can still
+  // find each seed's transitive runtime deps as flat siblings.
+  flattenClosure(seeds, tmp, devNodeModules);
 
   fs.rmSync(buildNodeModules, { recursive: true, force: true });
   fs.renameSync(tmp, buildNodeModules);
@@ -540,6 +558,20 @@ function flattenMainNodeModules(buildNodeModules: string): void {
   console.log(
     `[forge] main node_modules flattened: ${flatNames.length} top-level entries (seeds=${seeds.length})`,
   );
+
+  // Canary: `bindings` is a transitive dep of better-sqlite3 — never a direct dep
+  // and never require()d by the bundle, so it lands here ONLY if the closure walk
+  // resolved transitive deps. If it's missing the walk silently dropped the closure
+  // (e.g. a node_modules layout change) and the packaged app would crash at runtime
+  // — fail the BUILD loudly rather than ship a launch-broken MSI.
+  const missingCanary = ["bindings"].filter((d) => !fs.existsSync(path.join(buildNodeModules, d)));
+  if (missingCanary.length > 0) {
+    throw new Error(
+      `[forge] build node_modules is missing transitive dep(s) [${missingCanary.join(", ")}] ` +
+        `after flattening — the dependency-closure walk failed (node_modules layout mismatch?). ` +
+        `The packaged app would crash at runtime; aborting.`,
+    );
+  }
 }
 
 /**
@@ -581,7 +613,10 @@ function flattenAppNodeModules(appNodeModules: string): void {
   fs.rmSync(tmp, { recursive: true, force: true });
   fs.mkdirSync(tmp, { recursive: true });
 
-  flattenClosure(seeds, tmp);
+  // Resolve-root = the standalone's own node_modules; under hoisted it is already
+  // flat, under isolated the .pnpm seeds above already cover the closure so the
+  // fallback is a harmless no-op.
+  flattenClosure(seeds, tmp, appNodeModules);
 
   fs.rmSync(appNodeModules, { recursive: true, force: true });
   fs.renameSync(tmp, appNodeModules);
@@ -652,6 +687,85 @@ function countSymlinks(rootDir: string): number {
   };
   walk(rootDir);
   return count;
+}
+
+/** Best-effort recursive byte size of a directory, for prune logging. */
+function dirSizeBytes(dir: string): number {
+  let total = 0;
+  const stack = [dir];
+  while (stack.length > 0) {
+    const d = stack.pop();
+    if (!d) continue;
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(d, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const e of entries) {
+      const full = path.join(d, e.name);
+      if (e.isDirectory()) stack.push(full);
+      else {
+        try {
+          total += fs.statSync(full).size;
+        } catch {
+          /* unreadable file — skip */
+        }
+      }
+    }
+  }
+  return total;
+}
+
+/**
+ * Strip dead weight from BOTH packaged node_modules trees so the Windows installer
+ * is a tractable size (the unpruned package is ~3.8\,GB, almost all of it unused):
+ *   - node-llama-cpp GPU / wrong-arch backends. The app runs CPU-only by default
+ *     (GPU is opt-in via DN\_LLAMA\_GPU and falls back to CPU); CUDA (~580\,MB) needs
+ *     an NVIDIA GPU, and the arm64 backend is the wrong architecture for this x64
+ *     build. We keep win-x64 (CPU) and win-x64-vulkan (the opt-in Vulkan path).
+ *   - onnxruntime-node binaries for platforms we never ship. The package bundles
+ *     darwin, linux and win32/arm64 prebuilts; only win32/x64 is ever loaded.
+ * Together these remove roughly 0.9\,GB without changing the default runtime.
+ */
+function pruneOversizedNativeBinaries(buildPath: string): void {
+  const trees = [path.join(buildPath, "node_modules"), path.join(buildPath, "app", "node_modules")];
+  let removedBytes = 0;
+  const drop = (target: string) => {
+    if (!fs.existsSync(target)) return;
+    removedBytes += dirSizeBytes(target);
+    fs.rmSync(target, { recursive: true, force: true });
+    console.log(`[forge] pruned ${target}`);
+  };
+
+  for (const nm of trees) {
+    if (!fs.existsSync(nm)) continue;
+
+    // 1. node-llama-cpp: drop GPU/wrong-arch backends; keep win-x64 + win-x64-vulkan.
+    for (const backend of ["win-x64-cuda", "win-x64-cuda-ext", "win-arm64"]) {
+      drop(path.join(nm, "@node-llama-cpp", backend));
+    }
+
+    // 2. onnxruntime-node: keep only the win32/x64 prebuilt, drop every other
+    //    platform and architecture under bin/napi-v6.
+    const onnxBin = path.join(nm, "onnxruntime-node", "bin", "napi-v6");
+    if (fs.existsSync(onnxBin)) {
+      for (const osDir of fs.readdirSync(onnxBin)) {
+        if (osDir !== "win32") {
+          drop(path.join(onnxBin, osDir));
+          continue;
+        }
+        const win = path.join(onnxBin, "win32");
+        for (const archDir of fs.readdirSync(win)) {
+          if (archDir !== "x64") drop(path.join(win, archDir));
+        }
+      }
+    }
+  }
+
+  console.log(
+    `[forge] pruned ~${(removedBytes / 1048576).toFixed(0)} MB of unused GPU / wrong-platform native binaries`,
+  );
 }
 
 /**
@@ -732,7 +846,16 @@ const config: ForgeConfig = {
     appCategoryType: "public.app-category.productivity",
     icon: iconBase,
     overwrite: true,
-    prune: true,
+    // prune:false — do NOT let packager run the package manager to prune devDeps.
+    // The `ignore` function below already excludes everything except build/, app/
+    // (staged), public/, models/, package.json and node_modules/next|@next, and
+    // packageAfterCopy stages the full production closure itself, so the pm prune is
+    // redundant. Critically, that prune spawns a pnpm child during packaging, and on
+    // the hosted runner a pnpm child's exit fires an .on('exit') handler that calls
+    // process.exit(0) on the make process mid-extraction (confirmed via --trace-exit),
+    // killing the build before any .msi is produced. Removing the prune removes a
+    // pnpm child spawn.
+    prune: false,
     protocols: [
       {
         name: "Data Navigator Protocol",
@@ -772,49 +895,28 @@ const config: ForgeConfig = {
     },
   },
 
-  rebuildConfig: {
-    force: true,
-    onlyModules: [
-      "@duckdb/node-bindings",
-      "sherpa-onnx-node",
-      "sqlite-vec",
-      "better-sqlite3",
-      // node-llama-cpp ships prebuilt binaries per platform, so a rebuild is not
-      // strictly required; listed so a source build picks up the Electron ABI if
-      // prebuilds are missing for the target.
-      "node-llama-cpp",
-    ],
-  },
+  // NO rebuildConfig. Forge's in-`make` native rebuild (@electron/rebuild) spawns a
+  // node-gyp child process per native module; on the hosted Windows runner that is
+  // both the documented "Preparing native dependencies" hang (forge #3474/#3619) AND
+  // the source of the early process.exit(0) that previously killed `make` ~4s in
+  // during packaging (a child-process exit handler fired on the main process). The
+  // prebuilt .node binaries already carry the correct Electron ABI, so no rebuild
+  // step is needed and `make` never spawns a rebuild child.
 
   makers: [
-    new MakerWix(
+    new MakerSquirrel(
       {
-        language: 1033,
-        manufacturer,
-        arch: "x64",
-        name: appName,
-        exe: appExe,
-        shortName: "DataNavigator",
-        icon: iconIco,
-        upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        // NuGet package id — no hyphens allowed, so data-navigator -> data_navigator.
+        name: appSlug.replaceAll("-", "_"),
+        authors: manufacturer,
+        description: "AI-powered local data analysis and visualization platform",
+        setupExe: "DataNavigatorSetup.exe",
+        setupIcon: iconIco,
+        noMsi: true,
         ...windowsCertificateConfig,
       },
       ["win32"],
     ),
-
-    // new MakerSquirrel(
-    //   {
-    //     name: appSlug.replaceAll("-", "_"),
-    //     authors: manufacturer,
-    //     description:
-    //       "AI-powered local data analysis and visualization platform",
-    //     setupExe: "DataNavigatorSetup.exe",
-    //     setupIcon: iconIco,
-    //     noMsi: true,
-    //     ...windowsCertificateConfig,
-    //   },
-    //   ["win32"],
-    // ),
 
     // new MakerMSIX(
     //   {
@@ -838,8 +940,6 @@ const config: ForgeConfig = {
     //   },
     //   ["win32"],
     // ),
-
-    // new MakerZIP({}, ["win32"]),
   ],
 
   publishers: [
@@ -859,7 +959,16 @@ const config: ForgeConfig = {
   plugins: [new AutoUnpackNativesPlugin({})],
 
   hooks: {
+    // Fires AFTER the Electron zip is extracted into buildPath, BEFORE the app is
+    // copied. Diagnostic marker: if this prints in CI, extraction completed and any
+    // failure is downstream (the node_modules copy/flatten below); if it never
+    // prints, the build died during Electron extraction itself.
+    packageAfterExtract: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterExtract OK — Electron extracted to ${buildPath}`);
+    },
+
     packageAfterCopy: async (_forgeConfig, buildPath) => {
+      console.log(`[forge] packageAfterCopy START — staging app + node_modules into ${buildPath}`);
       requirePath("Electron main build", electronMainBuild);
       requirePath("Next standalone output", nextStandaloneDir);
       requirePath("Next static output", nextStaticDir);
@@ -908,6 +1017,11 @@ const config: ForgeConfig = {
       // symlinks, full dependency closure resolvable on a clean machine. This is
       // the actual fix for "Cannot find module next/dist/server/lib/start-server".
       makeNodeModulesPortable(buildPath);
+
+      // Strip dead weight (GPU/wrong-platform native binaries) so the installer is a
+      // tractable size. The app is ~3.8\,GB before this, almost entirely unused
+      // node-llama-cpp CUDA backends and multi-platform onnxruntime binaries.
+      pruneOversizedNativeBinaries(buildPath);
     },
 
     packageAfterPrune: async (_forgeConfig, buildPath) => {

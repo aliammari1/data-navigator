@@ -1,8 +1,8 @@
 # facts: Release pipeline for data-navigator (private, offline-first Electron app). Changesets
 # owns version+git-tag+GitHub Release on push to main; a needs-gated Windows job then builds and
-# attaches the WiX MSI to that Release. The tag is created with GITHUB_TOKEN, which does NOT
+# attaches the Squirrel Setup.exe to that Release. The tag is created with GITHUB_TOKEN, which does NOT
 # re-trigger electron-windows.yml's `on: push: tags` (GitHub loop-prevention safeguard), so the
-# MSI build is chained explicitly via `needs` + the changesets `published` output instead of by
+# installer build is chained explicitly via `needs` + the changesets `published` output instead of by
 # tag push. Third-party actions are SHA-pinned; first-party actions/* use major tags. No GGUF
 # model download anywhere in this pipeline.
 name: Release
@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
           lfs: true
@@ -90,21 +90,21 @@ jobs:
           version="$(node -p "require('./package.json').version")"
           echo "releaseTag=v${version}" >> "$GITHUB_OUTPUT"
 
-  # Build + attach the Windows MSI to the Release that the changesets job just cut.
+  # Build + attach the Windows installer to the Release that the changesets job just cut.
   # Chained via `needs` (not a tag-push trigger) because GITHUB_TOKEN-created tags
   # do not start new workflow runs. Calls the reusable Windows build in
-  # electron-windows.yml so there is a single source of truth for the MSI build.
+  # electron-windows.yml so there is a single source of truth for the installer build.
   windows-msi:
-    name: Build + publish Windows MSI
+    name: Build + publish Windows Installer
     needs: changesets
     if: needs.changesets.outputs.published == 'true'
     uses: ./.github/workflows/electron-windows.yml
     permissions:
-      contents: write # attach the MSI to the GitHub Release
+      contents: write # attach the installer to the GitHub Release
       id-token: write # OIDC token for build-provenance attestation
       attestations: write # write the provenance attestation
     with:
       release: true
-      # Check out + attach the MSI to the exact tag changesets created.
+      # Check out + attach the installer to the exact tag changesets created.
       release-tag: ${{ needs.changesets.outputs.releaseTag }}
     secrets: inherit

@@ -1,14 +1,15 @@
 "use client";
 
 import { Brain, Database, HardDrive, Keyboard, Radio, Sparkles } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { PageHeader } from "@/features/dashboard-shell/components/page-header";
+import { useShellStore } from "@/features/dashboard-shell/shell/shell-store";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
 import { useLanStatus } from "@/features/dashboard-shell/shell/use-lan-status";
 import { useModelStatus } from "@/features/dashboard-shell/shell/use-model-status";
-import { useShellStore } from "@/features/dashboard-shell/shell/shell-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { getStorageInfo, type StorageInfo } from "@/platform/storage";
 import { cn } from "@/shared/utils";
 
@@ -32,19 +33,19 @@ export function ShellOverviewScreen() {
 
   const [storage, setStorage] = useState<StorageInfo | null>(null);
 
-  useEffect(() => {
-    let cancelled = false;
+  const refreshStorage = useCallback(() => {
     getStorageInfo()
-      .then((info) => {
-        if (!cancelled) setStorage(info);
-      })
+      .then((info) => setStorage(info))
       .catch(() => {
         /* ignore — surface defaults */
       });
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  useEffect(() => {
+    refreshStorage();
+  }, [refreshStorage]);
+
+  useAppCommands("diagnostics", { refresh: () => refreshStorage() });
 
   const cards = [
     {

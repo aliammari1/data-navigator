@@ -186,6 +186,51 @@ export type MicrophoneAccessStatus =
 
 export interface ElectronVoiceBridge {
   getMicrophoneAccessStatus(): Promise<MicrophoneAccessStatus>;
+  preloadStt(input: { engine?: string; localModelPath?: string | null }): Promise<{
+    engine: string;
+    model: string;
+    runtime: "cpu";
+  }>;
+  transcribe(input: {
+    audio: ArrayBuffer | Float32Array | number[];
+    sampleRate?: number;
+    engine?: string;
+    language?: string;
+    localModelPath?: string | null;
+  }): Promise<{
+    text: string;
+    engine: string;
+    model: string;
+    runtime: "cpu";
+    sampleRate: number;
+    audioDurationMs: number;
+    latencyMs: number;
+    language?: string;
+  }>;
+  preloadTts(input: { engine?: string; localModelPath?: string | null }): Promise<{
+    engine: string;
+    model: string;
+    runtime: "cpu";
+  }>;
+  speak(input: {
+    text: string;
+    engine?: string;
+    voice?: string;
+    speed?: number;
+    localModelPath?: string | null;
+  }): Promise<{
+    jobId: string;
+    engine: string;
+    model: string;
+    runtime: "cpu";
+    voice: string;
+    text: string;
+    sampleRate: number;
+    durationMs: number;
+    latencyMs: number;
+    wav: ArrayBuffer;
+  }>;
+  clearModels(): Promise<{ stt: number; tts: number }>;
 }
 
 // ─── Window Type ──────────────────────────────────────────────────────────────
@@ -260,6 +305,29 @@ export function hasElectronDuckDB(): boolean {
 
 export function hasElectronVoice(): boolean {
   return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronVoice);
+}
+
+// ─── Native (sherpa-onnx) Voice Helpers ───────────────────────────────────────
+// Thin wrappers over the bundled, fully-offline sherpa-onnx STT/TTS lane
+// (electron/voice-service.ts via IPC). Renderer voice features prefer these over
+// the transformers.js / kokoro-js web workers, which need HuggingFace at runtime.
+
+/** Offline speech-to-text via the bundled sherpa-onnx whisper model. */
+export async function sherpaTranscribe(
+  audio: ArrayBuffer | Float32Array | number[],
+  opts: { sampleRate?: number; language?: string } = {},
+): Promise<string> {
+  const { text } = await voiceBridge().transcribe({ audio, ...opts });
+  return text;
+}
+
+/** Offline text-to-speech via the bundled sherpa-onnx kokoro model. Returns WAV bytes. */
+export async function sherpaSpeak(
+  text: string,
+  opts: { voice?: string; speed?: number } = {},
+): Promise<{ wav: ArrayBuffer; sampleRate: number }> {
+  const r = await voiceBridge().speak({ text, ...opts });
+  return { wav: r.wav, sampleRate: r.sampleRate };
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────

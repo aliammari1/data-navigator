@@ -211,3 +211,84 @@ describe("warmRouter", () => {
     expect(embedRaw).toHaveBeenCalledTimes(3);
   });
 });
+
+// ── Additional branch-coverage tests ─────────────────────────────────────────
+
+describe("cosine — zero-vector guard (denom === 0 branch)", () => {
+  it("returns a score of 0 when the query is a zero vector (avoids division by zero)", async () => {
+    // Prime warm with axis vectors so cosine is exercised against a zero query.
+    primeWarmCorpora();
+    // A zero vector has magnitude 0 → denom === 0 → cosine must return 0.
+    const zeroVec = new Float32Array(4); // all zeros
+    embedRaw.mockResolvedValueOnce([zeroVec]);
+
+    const r = await classifyTier("empty embedding");
+
+    // navBest=0, lookupBest=0, analysisBest=0 → falls to analysis (tie/low confidence).
+    expect(r.tier).toBe("analysis");
+    expect(r.score).toBe(0);
+  });
+});
+
+describe("classifyTier — empty navVecs branch (navScores.length === 0)", () => {
+  it("returns 0 for navBest when the nav exemplar list is empty", async () => {
+    // Make warmRouter store an empty navVecs array by returning [] for the nav corpus.
+    embedRaw.mockResolvedValueOnce([]); // nav corpora → 0 nav vecs
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 6 }, () => axis(2))); // lookup
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 5 }, () => axis(3))); // analysis
+
+    // Query strongly aligned to lookup axis so we get a deterministic tier.
+    embedRaw.mockResolvedValueOnce([axis(2)]);
+
+    const r = await classifyTier("top 5 channels");
+
+    // With no nav vecs, navBest must be 0 (the else branch). Lookup wins.
+    expect(r.tier).toBe("lookup");
+  });
+});
+
+describe("routeQuestion — navigate fallback paths", () => {
+  it("calls resolveRoute when navIdx is out of APP_ROUTES bounds and returns its result", async () => {
+    // Prime warm with THREE nav vecs even though APP_ROUTES only has two entries.
+    // The third vec (axis 5, but we use a 5-dim vec aligned to index 4) will win.
+    const extra = new Float32Array(5);
+    extra[4] = 1; // dimension outside the 4-dim test space → unique axis
+    embedRaw.mockResolvedValueOnce([axis(0), axis(1), extra]); // 3 nav vecs
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 6 }, () => axis(2)));
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 5 }, () => axis(3)));
+
+    // Query aligns with `extra` — index 2 in navScores, which is out of APP_ROUTES.
+    embedRaw.mockResolvedValueOnce([extra]);
+
+    const fakeRoute = { path: "/dashboard/monitor", label: "Monitor", hint: "" };
+    resolveRoute.mockReturnValue(fakeRoute);
+
+    const r = await routeQuestion("navigate to the third thing");
+
+    // APP_ROUTES[2] is undefined → ?? resolveRoute(...) is called.
+    expect(resolveRoute).toHaveBeenCalledWith("navigate to the third thing");
+    expect(r.tier).toBe("navigate");
+    if (r.tier === "navigate") {
+      expect(r.route).toBe(fakeRoute);
+    }
+  });
+
+  it("falls back to analysis when navIdx is out of bounds AND resolveRoute returns null", async () => {
+    const extra = new Float32Array(5);
+    extra[4] = 1;
+    embedRaw.mockResolvedValueOnce([axis(0), axis(1), extra]);
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 6 }, () => axis(2)));
+    embedRaw.mockResolvedValueOnce(Array.from({ length: 5 }, () => axis(3)));
+
+    embedRaw.mockResolvedValueOnce([extra]);
+
+    // resolveRoute already returns null by default (reset in beforeEach).
+    resolveRoute.mockReturnValue(null);
+
+    const r = await routeQuestion("navigate to something unknown");
+
+    expect(resolveRoute).toHaveBeenCalled();
+    // route is null → { tier: "analysis" }
+    expect(r).toEqual({ tier: "analysis" });
+  });
+});
