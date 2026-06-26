@@ -1,9 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   DEFAULT_MAX_CHARS_PER_CHUNK,
   chunkText,
   normalizeText,
   splitIntoSentences,
+  importKokoroModule,
+  loadKokoroModel,
 } from "@/platform/ai/kokoro-tts";
 
 /**
@@ -144,5 +146,122 @@ describe("chunkText", () => {
 
   it("exposes a sensible default bound", () => {
     expect(DEFAULT_MAX_CHARS_PER_CHUNK).toBe(220);
+  });
+});
+
+describe("importKokoroModule", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it("dynamically imports kokoro-js and returns a module with KokoroTTS", async () => {
+    // Mock kokoro-js so the test does not need the real native addon.
+    vi.doMock("kokoro-js", () => ({
+      KokoroTTS: {
+        from_pretrained: vi.fn().mockResolvedValue({ generate: vi.fn() }),
+      },
+    }));
+    const mod = await importKokoroModule();
+    expect(mod).toBeDefined();
+    expect(mod.KokoroTTS).toBeDefined();
+    expect(typeof mod.KokoroTTS.from_pretrained).toBe("function");
+  });
+});
+
+describe("loadKokoroModel", () => {
+  const mockGenerate = vi.fn();
+  const mockFromPretrained = vi.fn();
+
+  beforeEach(() => {
+    vi.resetModules();
+    mockFromPretrained.mockReset();
+    mockGenerate.mockReset();
+    mockFromPretrained.mockResolvedValue({ generate: mockGenerate });
+    vi.doMock("kokoro-js", () => ({
+      KokoroTTS: { from_pretrained: mockFromPretrained },
+    }));
+  });
+
+  it("calls from_pretrained with modelId and no extra options when only modelId provided", async () => {
+    // Re-import so the vi.doMock above is picked up.
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "test-model" });
+    expect(mockFromPretrained).toHaveBeenCalledWith("test-model", {});
+  });
+
+  it("forwards dtype when provided", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "test-model", dtype: "q8" });
+    expect(mockFromPretrained).toHaveBeenCalledWith("test-model", { dtype: "q8" });
+  });
+
+  it("forwards device when provided", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "test-model", device: "wasm" });
+    expect(mockFromPretrained).toHaveBeenCalledWith("test-model", { device: "wasm" });
+  });
+
+  it("forwards localModelPath when provided", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "test-model", localModelPath: "/path/to/model" });
+    expect(mockFromPretrained).toHaveBeenCalledWith("test-model", {
+      localModelPath: "/path/to/model",
+    });
+  });
+
+  it("forwards onProgress as progress_callback when provided", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    const onProgress = vi.fn();
+    await load({ modelId: "test-model", onProgress });
+    expect(mockFromPretrained).toHaveBeenCalledWith("test-model", {
+      progress_callback: onProgress,
+    });
+  });
+
+  it("forwards all options together when all are provided", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    const onProgress = vi.fn();
+    await load({
+      modelId: "full-model",
+      dtype: "fp16",
+      device: "webgpu",
+      localModelPath: "/models/full",
+      onProgress,
+    });
+    expect(mockFromPretrained).toHaveBeenCalledWith("full-model", {
+      dtype: "fp16",
+      device: "webgpu",
+      localModelPath: "/models/full",
+      progress_callback: onProgress,
+    });
+  });
+
+  it("omits dtype when not provided but includes device", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "m", device: "wasm" });
+    const call = mockFromPretrained.mock.calls[0][1] as Record<string, unknown>;
+    expect("dtype" in call).toBe(false);
+    expect(call.device).toBe("wasm");
+  });
+
+  it("omits device when not provided but includes dtype", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "m", dtype: "q4" });
+    const call = mockFromPretrained.mock.calls[0][1] as Record<string, unknown>;
+    expect("device" in call).toBe(false);
+    expect(call.dtype).toBe("q4");
+  });
+
+  it("omits localModelPath when falsy (empty string)", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    await load({ modelId: "m", localModelPath: "" });
+    const call = mockFromPretrained.mock.calls[0][1] as Record<string, unknown>;
+    expect("localModelPath" in call).toBe(false);
+  });
+
+  it("returns the KokoroTtsInstance from from_pretrained", async () => {
+    const { loadKokoroModel: load } = await import("@/platform/ai/kokoro-tts");
+    const result = await load({ modelId: "test-model" });
+    expect(result).toEqual({ generate: mockGenerate });
   });
 });

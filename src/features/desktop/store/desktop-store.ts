@@ -4,6 +4,13 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import { getApp } from "@/features/desktop/core/app-registry";
+import {
+  type CanvasBox,
+  clampRectToCanvas,
+  defaultRectForCanvas,
+  getDesktopCanvas,
+  maximizedRect,
+} from "@/features/desktop/core/layout";
 import type { DesktopWindow, OpenAppOptions, WindowRect } from "@/features/desktop/core/types";
 import { createDrizzleStorage } from "@/platform/storage";
 
@@ -57,7 +64,20 @@ export interface DesktopSnapshot {
 /** A live desktop widget (KPI tile, sparkline, clock, channel breakdown). */
 export interface DesktopWidget {
   id: string;
-  type: "kpi" | "sparkline" | "clock" | "channels";
+  type:
+    | "kpi"
+    | "sparkline"
+    | "clock"
+    | "channels"
+    | "amount"
+    | "customers"
+    | "status-donut"
+    | "hourly-bar"
+    | "mini-report"
+    | "pinned-chart"
+    | "revenue-group"
+    | "success-rate"
+    | "daily-trend";
   config: Record<string, unknown>;
   x: number;
   y: number;
@@ -109,6 +129,10 @@ interface DesktopState {
   pinnedOnTop: string[];
   /** Per-app dock progress: 0..1, or -1 for indeterminate. Ephemeral. */
   dockProgress: Record<string, number>;
+  /** Global date filter for widgets — ISO date string "YYYY-MM-DD" or null for full dataset. */
+  widgetDate: string | null;
+  setWidgetDate: (date: string | null) => void;
+  updateWidgetConfig: (id: string, config: Record<string, unknown>) => void;
 
   openApp: (appId: string, opts?: OpenAppOptions) => string | undefined;
   closeWindow: (id: string) => void;
@@ -126,6 +150,8 @@ interface DesktopState {
   setGlassPalette: (id: GlassPaletteId) => void;
   closeAll: () => void;
   cascadeArrange: (parent: { w: number; h: number }) => void;
+  /** Refit every window to the live canvas after a viewport resize / on mount. */
+  reflowWindows: (canvas?: CanvasBox) => void;
 
   // Desktop icons
   setIconPosition: (id: string, pos: { x: number; y: number }) => void;
@@ -177,8 +203,9 @@ function defaultRect(appId: string, seed: number): WindowRect {
   const app = getApp(appId);
   const w = app?.defaultSize.w ?? 880;
   const h = app?.defaultSize.h ?? 640;
-  const off = (seed % 6) * 28;
-  return { x: 80 + off, y: 64 + off, w, h };
+  // Shrink the app's preferred size to the live canvas and cascade-place it, so
+  // a 1180×820 app never opens off-screen on a small / resized display.
+  return defaultRectForCanvas({ w, h }, seed);
 }
 
 export const useDesktopStore = create<DesktopState>()(
@@ -198,6 +225,7 @@ export const useDesktopStore = create<DesktopState>()(
       workspaces: [],
       pinnedOnTop: [],
       dockProgress: {},
+      widgetDate: null,
 
       openApp: (appId, opts) => {
         const app = getApp(appId);
@@ -413,10 +441,37 @@ export const useDesktopStore = create<DesktopState>()(
           return { dockProgress: next };
         }),
 
+      setWidgetDate: (date) => set({ widgetDate: date }),
+      updateWidgetConfig: (id, config) =>
+        set((s) => ({
+          widgets: s.widgets.map((w) => (w.id === id ? { ...w, config } : w)),
+        })),
+
       setWindowGroup: (id, groupId) =>
         set((s) => ({
           windows: s.windows.map((w) => (w.id === id ? { ...w, groupId } : w)),
         })),
+
+      reflowWindows: (canvas) =>
+        set((s) => {
+          const box = canvas ?? getDesktopCanvas();
+          const max = maximizedRect(box);
+          let changed = false;
+          const windows = s.windows.map((w) => {
+            // Maximised windows always refill the (possibly new) usable canvas.
+            if (w.maximized) {
+              if (w.x === max.x && w.y === max.y && w.w === max.w && w.h === max.h) return w;
+              changed = true;
+              return { ...w, ...max };
+            }
+            const fit = clampRectToCanvas({ x: w.x, y: w.y, w: w.w, h: w.h }, box);
+            if (fit.x === w.x && fit.y === w.y && fit.w === w.w && fit.h === w.h) return w;
+            changed = true;
+            return { ...w, ...fit };
+          });
+          // Avoid a needless state write (and re-render) when nothing moved.
+          return changed ? { windows } : s;
+        }),
 
       cascadeArrange: (parent) =>
         set((s) => {
@@ -473,6 +528,7 @@ export const useWidgets = () => useDesktopStore((s) => s.widgets);
 export const useWorkspaces = () => useDesktopStore((s) => s.workspaces);
 export const usePinnedOnTop = () => useDesktopStore((s) => s.pinnedOnTop);
 export const useDockProgress = () => useDesktopStore((s) => s.dockProgress);
+export const useWidgetDate = () => useDesktopStore((s) => s.widgetDate);
 
 /**
  * Windows with an effective z that bumps pinned-on-top windows above the rest.
@@ -505,6 +561,7 @@ export const useDesktopActions = () =>
       setGlassPalette: s.setGlassPalette,
       closeAll: s.closeAll,
       cascadeArrange: s.cascadeArrange,
+      reflowWindows: s.reflowWindows,
       // Desktop icons
       setIconPosition: s.setIconPosition,
       // Recycle bin
@@ -528,6 +585,9 @@ export const useDesktopActions = () =>
       togglePinOnTop: s.togglePinOnTop,
       // Dock progress
       setDockProgress: s.setDockProgress,
+      // Widget date filter + config
+      setWidgetDate: s.setWidgetDate,
+      updateWidgetConfig: s.updateWidgetConfig,
       // Window tabs
       setWindowGroup: s.setWindowGroup,
     })),

@@ -547,3 +547,140 @@ describe("translateNLQWithLLM", () => {
     expect(result.sql).toBe("SELECT 2 LIMIT 1000");
   });
 });
+
+// ─── fuzzyFindColumn: substring and fuzzy match paths ────────────────────────
+// These private paths are exercised via bestMetric / bestDimension when hints
+// are non-exact matches of column names present in the schema.
+
+describe("fuzzyFindColumn substring match (line 38-39)", () => {
+  it("finds a column via substring match when the hint is a prefix of the column name", () => {
+    // Column is "revenue_2024" - hint "revenue" is not an exact match but IS a
+    // substring, so line 38-39 must fire.
+    const substringCols: ColMeta[] = [
+      col("revenue_2024", "number"),
+      col("category", "string"),
+    ];
+    const substringCtx = { tableName: TABLE, columns: substringCols };
+
+    // The "top N by metric" pattern calls bestMetric(columns, metricHint).
+    // With hint="revenue" and column "revenue_2024", exact match fails
+    // (different strings) but substring match succeeds.
+    const result = translateNLQ("top 5 items by revenue", substringCtx);
+
+    expect(result.sql).toContain('"revenue_2024"');
+    expect(result.confidence).toBe("high");
+  });
+
+  it("finds a dimension via substring match when the hint is part of the column name", () => {
+    // Column is "category_name" - hint "category" is a substring of it.
+    const substringDimCols: ColMeta[] = [
+      col("category_name", "string"),
+      col("amount", "number"),
+    ];
+    const dimCtx = { tableName: TABLE, columns: substringDimCols };
+
+    // The "sum ... by" pattern calls bestDimension(columns, hint).
+    const result = translateNLQ("sum of amount by category", dimCtx);
+
+    expect(result.sql).toContain('"category_name"');
+  });
+});
+
+describe("fuzzyFindColumn fuzzy (Fuse.js) match (lines 42-48)", () => {
+  it("finds a column via Fuse.js when hint is a near-typo of the column name", () => {
+    // "revnue" is a typo - not exact, not a substring of "revenue", but close
+    // enough for Fuse.js (threshold 0.4) to fuzzy-match it.
+    const fuzzyCols: ColMeta[] = [
+      col("revenue", "number"),
+      col("category", "string"),
+    ];
+    const fuzzyCtx = { tableName: TABLE, columns: fuzzyCols };
+
+    // The "top N by metric" pattern: bestMetric(columns, "revnue").
+    // exact match -> false, substring ("revnue" in "revenue") -> false,
+    // Fuse.js -> finds "revenue".
+    const result = translateNLQ("top 5 items by revnue", fuzzyCtx);
+
+    // Fuse should resolve "revnue" -> "revenue".
+    expect(result.sql).toContain('"revenue"');
+    expect(result.confidence).toBe("high");
+  });
+
+  it("returns undefined from fuzzyFindColumn when no candidates match at all", () => {
+    // A hint so far from any column that even Fuse.js finds nothing.
+    // bestMetric falls through to priority-list / first-numeric.
+    // We need zero priority-matching columns too, so use a custom name.
+    // A string column is also needed so bestDimension is non-null and the
+    // top-N pattern doesn't return null (which would trigger the global fallback).
+    const unmatchedCols: ColMeta[] = [
+      col("zzz_score", "number"),
+      col("segment", "string"),
+    ];
+    const unmatchedCtx = { tableName: TABLE, columns: unmatchedCols };
+
+    // bestMetric(cols, "xqzjk"): exact -> false, substring -> false, Fuse.js ->
+    // undefined (hint is too dissimilar) -> priority scan misses all ("zzz_score"
+    // contains none of the priority keywords) -> falls to first numeric col.
+    const result = translateNLQ("top 5 things by xqzjk", unmatchedCtx);
+
+    // Should use "zzz_score" as the fallback first numeric col.
+    expect(result.sql).toContain('"zzz_score"');
+    expect(result.confidence).toBe("high");
+  });
+});
+
+// ─── bestMetric: fallback paths (lines 84-85) ────────────────────────────────
+
+describe("bestMetric fallback paths (lines 84-85)", () => {
+  it("returns the first numeric column when no priority keyword matches", () => {
+    // Column "score_2024" does not match any of the priority keywords
+    // (revenue, sales, amount, value, total, price, profit, count, qty, quantity).
+    const noPriorityMatchCols: ColMeta[] = [
+      col("score_2024", "number"),
+      col("category", "string"),
+    ];
+    const noPriorityCtx = { tableName: TABLE, columns: noPriorityMatchCols };
+
+    // bestMetric called without a hint -> priority scan misses -> first numeric.
+    const result = translateNLQ("show outliers", noPriorityCtx);
+
+    expect(result.sql).toContain('"score_2024"');
+  });
+
+  it("returns COUNT(*) when no numeric columns exist at all", () => {
+    // No number columns -> numCols returns [] -> first is undefined -> COUNT(*).
+    const noNumericCols: ColMeta[] = [
+      col("category", "string"),
+    ];
+    const noNumCtx = { tableName: TABLE, columns: noNumericCols };
+
+    // Outliers pattern calls bestMetric(columns) with no hint.
+    const result = translateNLQ("show outliers", noNumCtx);
+
+    expect(result.sql).toContain("COUNT(*)");
+  });
+});
+
+// ─── addLimit: semicolon-terminated SQL without existing LIMIT (line 122) ────
+
+describe("addLimit semicolon path (line 122)", () => {
+  it("appends LIMIT before the trailing semicolon", () => {
+    // The raw SQL passthrough calls addLimit(q, 1000) where q may end in ";".
+    // If SQL has no LIMIT and ends with ";", we expect "... LIMIT 1000;".
+    const result = translateNLQ("SELECT region FROM sales;", ctx);
+
+    // SQL passthrough kicks in (starts with SELECT), addLimit is called.
+    // "SELECT region FROM sales;" -> no existing LIMIT -> ends with ";" ->
+    // -> "SELECT region FROM sales LIMIT 1000;"
+    expect(result.sql).toBe("SELECT region FROM sales LIMIT 1000;");
+    expect(result.explanation).toBe("Executed as raw SQL.");
+  });
+
+  it("preserves a semicolon-terminated SQL that already has LIMIT (early-return branch)", () => {
+    // SQL has both a LIMIT and a trailing semicolon.
+    // addLimit detects existing LIMIT in withoutSemi and returns sql unchanged.
+    const result = translateNLQ("SELECT region FROM sales LIMIT 5;", ctx);
+
+    expect(result.sql).toBe("SELECT region FROM sales LIMIT 5;");
+  });
+});

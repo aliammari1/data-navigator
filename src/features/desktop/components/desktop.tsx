@@ -2,7 +2,7 @@
 
 import { AlertTriangle, LineChart, PanelRight, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import {
   type ContextMenuState,
@@ -21,12 +21,26 @@ import { Spotlight } from "@/features/desktop/components/spotlight";
 import { WidgetsLayer } from "@/features/desktop/components/widgets/widgets-layer";
 import { WindowFrame } from "@/features/desktop/components/window-frame";
 import { DESKTOP_DND_MIME, type DesktopDragPayload, readDrag } from "@/features/desktop/core/dnd";
+import { useViewportReflow } from "@/features/desktop/core/use-viewport-reflow";
 import {
   useDesktopActions,
   useDesktopWindows,
   useGlassPalette,
   useWallpaper,
 } from "@/features/desktop/store/desktop-store";
+
+/*
+ * The desktop root holds transient UI state (the right-click context menu, the
+ * 15s clock tick, the inspector toggle, smart-drop). Memoizing the heavy canvas
+ * children keeps any of those from re-rendering every open window + widget —
+ * which is what made the context menu feel laggy "between each click" on
+ * mid-range hardware. As a bonus, dragging one window no longer re-renders the
+ * others (each WindowFrame only re-renders when its own `win` object changes).
+ */
+const WindowFrameMemo = memo(WindowFrame);
+const WidgetsLayerMemo = memo(WidgetsLayer);
+const SnapshotsLayerMemo = memo(SnapshotsLayer);
+const DesktopIconsMemo = memo(DesktopIcons);
 
 /** Forward a question to the Moudir AI swarm (open + dispatch the listened event). */
 function askMoudir(openApp: (id: string) => unknown, prompt: string) {
@@ -65,6 +79,9 @@ export function Desktop({
   const [inspectorOpen, setInspectorOpen] = useState(false);
   const [smartDrop, setSmartDrop] = useState<SmartDrop | null>(null);
   const dropDepth = useRef(0);
+
+  // Keep open windows fitted to the live canvas (on mount + on every resize).
+  useViewportReflow();
 
   useEffect(() => {
     const tick = () => {
@@ -244,13 +261,13 @@ export function Desktop({
       >
         {/* Free-floating widgets + pinned snapshots sit above the wallpaper,
             beneath the window layer. */}
-        <WidgetsLayer />
-        <SnapshotsLayer />
+        <WidgetsLayerMemo />
+        <SnapshotsLayerMemo />
 
-        <DesktopIcons />
+        <DesktopIconsMemo />
 
         {windows.map((win) => (
-          <WindowFrame key={win.id} win={win} />
+          <WindowFrameMemo key={win.id} win={win} />
         ))}
 
         {/* Spotlight hero on the empty desktop */}

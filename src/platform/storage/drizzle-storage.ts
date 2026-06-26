@@ -4,7 +4,7 @@
  *
  * Why this shape:
  * - The renderer cannot touch better-sqlite3 directly, so durable writes go
- *   through the `/api/settings` bridge (see settings-client.ts).
+ *   through the Electron settings IPC bridge (see settings-client.ts).
  * - localStorage is kept as a synchronous working copy so store hydration stays
  *   instant in the common (warm-cache) case — no UI flash of default state.
  * - On a single-user desktop build the "remote" is just this machine's SQLite

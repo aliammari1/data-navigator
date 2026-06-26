@@ -2,19 +2,70 @@
 
 import { BarChart3, ExternalLink, Layers, Sparkles, Table2, X } from "lucide-react";
 import { useEffect } from "react";
-import type { Dataset } from "@/core/stores/data-store";
-import { usePreviewRows } from "@/features/folders/hooks/usePreviewRows";
+import type { ColMeta, Dataset } from "@/core/stores/data-store";
 import { formatBytes } from "../lib/format";
 
-/**
- * DatasetPreview — a modal "review of the file": instant schema chips (from the
- * in-store column metadata) plus the first rows (a single read-only LIMIT query
- * via {@link usePreviewRows}). It is deliberately a quick peek, not the Explorer;
- * the primary CTA hands off to the full Explorer screen, and secondary actions
- * deep-link to Profil / Transformations / Moudir.
- */
+const TYPE_STYLE: Record<string, string> = {
+  number: "text-blue-400 bg-blue-400/10 border-blue-400/20",
+  string: "text-emerald-400 bg-emerald-400/10 border-emerald-400/20",
+  date: "text-purple-400 bg-purple-400/10 border-purple-400/20",
+  boolean: "text-amber-400 bg-amber-400/10 border-amber-400/20",
+  unknown: "text-muted-foreground bg-muted border-border",
+};
 
-const PREVIEW_ROW_LIMIT = 20;
+function ColumnCard({ col, rowCount }: { col: ColMeta; rowCount: number }) {
+  const fillPct =
+    rowCount > 0 ? Math.max(0, 100 - (col.nullCount / rowCount) * 100) : 100;
+  const typeStyle = TYPE_STYLE[col.type] ?? TYPE_STYLE.unknown;
+
+  const rangeLabel =
+    col.min !== undefined && col.max !== undefined
+      ? `[${col.min}, ${col.max}]`
+      : null;
+
+  const meanLabel =
+    col.mean !== undefined
+      ? `moy. ${col.mean.toLocaleString("fr-FR", { maximumFractionDigits: 1 })}`
+      : null;
+
+  return (
+    <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-2.5">
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="truncate text-xs font-medium text-foreground"
+          title={col.name}
+        >
+          {col.name}
+        </span>
+        <span
+          className={`shrink-0 rounded border px-1.5 py-0.5 text-[10px] font-medium ${typeStyle}`}
+        >
+          {col.type}
+        </span>
+      </div>
+
+      {/* Fill rate bar */}
+      <div className="flex items-center gap-1.5">
+        <div className="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-primary/60 transition-all"
+            style={{ width: `${fillPct}%` }}
+          />
+        </div>
+        <span className="shrink-0 tabular-nums text-[10px] text-muted-foreground">
+          {fillPct.toFixed(0)}% rempli
+        </span>
+      </div>
+
+      {/* Distinct + numeric stats */}
+      <p className="truncate text-[10px] text-muted-foreground">
+        {col.distinctCount.toLocaleString("fr-FR")} val. uniques
+        {meanLabel ? ` · ${meanLabel}` : ""}
+        {rangeLabel ? ` · ${rangeLabel}` : ""}
+      </p>
+    </div>
+  );
+}
 
 export interface DatasetPreviewProps {
   dataset: Dataset;
@@ -25,12 +76,6 @@ export interface DatasetPreviewProps {
   onAskMoudir: () => void;
 }
 
-function cellText(value: unknown): string {
-  if (value === null || value === undefined || value === "") return "—";
-  if (value instanceof Date) return value.toLocaleString("fr-FR");
-  return String(value);
-}
-
 export function DatasetPreview({
   dataset,
   onClose,
@@ -39,7 +84,6 @@ export function DatasetPreview({
   onTransform,
   onAskMoudir,
 }: DatasetPreviewProps) {
-  const { rows, loading, error } = usePreviewRows(dataset.viewName, PREVIEW_ROW_LIMIT);
   const columns = dataset.columns;
 
   useEffect(() => {
@@ -50,14 +94,24 @@ export function DatasetPreview({
     return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
+  const avgFillPct =
+    columns.length > 0 && dataset.rowCount > 0
+      ? (columns.reduce(
+          (sum, col) => sum + (1 - col.nullCount / dataset.rowCount),
+          0,
+        ) /
+          columns.length) *
+        100
+      : 100;
+
   return (
-    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close is a standard modal affordance; Escape is handled above.
-    // biome-ignore lint/a11y/useKeyWithClickEvents: backdrop dismiss is pointer-only; keyboard users dismiss via Escape (handled above).
+    // biome-ignore lint/a11y/noStaticElementInteractions: backdrop click-to-close; Escape handled above
+    // biome-ignore lint/a11y/useKeyWithClickEvents: pointer-only backdrop dismiss; keyboard via Escape
     <div
       className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-black/60 p-4 backdrop-blur-sm"
       onClick={onClose}
     >
-      {/* biome-ignore lint/a11y/useKeyWithClickEvents: inner stop-propagation only; dialog keyboard handling is global Escape. */}
+      {/* biome-ignore lint/a11y/useKeyWithClickEvents: stop-propagation on inner dialog */}
       <div
         role="dialog"
         aria-modal="true"
@@ -73,7 +127,8 @@ export function DatasetPreview({
               {dataset.name}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {dataset.format.toUpperCase()} · {dataset.rowCount.toLocaleString("fr-FR")} lignes ·{" "}
+              {dataset.format.toUpperCase()} ·{" "}
+              {dataset.rowCount.toLocaleString("fr-FR")} lignes ·{" "}
               {dataset.colCount} colonnes · {formatBytes(dataset.sizeBytes)}
             </p>
           </div>
@@ -87,76 +142,36 @@ export function DatasetPreview({
           </button>
         </div>
 
-        {/* Schema chips */}
-        <div className="shrink-0 border-b border-border px-4 py-2">
-          <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-            Schéma ({columns.length})
-          </div>
-          <div className="flex max-h-20 flex-wrap gap-1 overflow-y-auto">
-            {columns.map((col) => (
-              <span
-                key={col.name}
-                className="inline-flex items-center gap-1 rounded-md border border-border bg-muted px-2 py-0.5 text-[11px]"
-              >
-                <span className="font-medium text-foreground">{col.name}</span>
-                <span className="text-muted-foreground">{col.type}</span>
-              </span>
-            ))}
-          </div>
+        {/* Quality summary strip */}
+        <div className="flex shrink-0 items-center gap-4 border-b border-border bg-muted/30 px-4 py-2 text-xs text-muted-foreground">
+          <span>{columns.length} colonnes</span>
+          <span className="h-3.5 w-px bg-border" aria-hidden />
+          <span>
+            Taux de remplissage moyen :{" "}
+            <strong className="text-foreground">{avgFillPct.toFixed(1)}%</strong>
+          </span>
         </div>
 
-        {/* Rows preview */}
-        <div className="min-h-0 flex-1 overflow-auto">
-          {loading ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Chargement de l'aperçu…
-            </div>
-          ) : error ? (
-            <div className="p-6 text-center text-sm text-destructive">
-              Aperçu indisponible : {error}
-            </div>
-          ) : rows.length === 0 ? (
-            <div className="p-6 text-center text-sm text-muted-foreground">
-              Aucune ligne à prévisualiser.
-            </div>
+        {/* Column quality grid */}
+        <div className="min-h-0 flex-1 overflow-auto p-3">
+          {columns.length === 0 ? (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Aucune colonne détectée.
+            </p>
           ) : (
-            <table className="w-full border-collapse text-left text-xs">
-              <thead className="sticky top-0 bg-card">
-                <tr className="border-b border-border">
-                  {columns.map((col) => (
-                    <th
-                      key={col.name}
-                      className="whitespace-nowrap px-3 py-2 font-semibold text-muted-foreground"
-                    >
-                      {col.name}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row, i) => (
-                  <tr key={i} className="border-b border-border/60 last:border-0">
-                    {columns.map((col) => (
-                      <td
-                        key={col.name}
-                        className="max-w-[16rem] truncate px-3 py-1.5 text-foreground"
-                        title={cellText(row[col.name])}
-                      >
-                        {cellText(row[col.name])}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {columns.map((col) => (
+                <ColumnCard
+                  key={col.name}
+                  col={col}
+                  rowCount={dataset.rowCount}
+                />
+              ))}
+            </div>
           )}
         </div>
 
-        {/* Footer hint + actions */}
-        <div className="shrink-0 border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
-          Aperçu des {PREVIEW_ROW_LIMIT} premières lignes — ouvrez l'Explorateur pour filtrer, trier
-          et tout parcourir.
-        </div>
+        {/* Footer actions */}
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
           <button
             type="button"

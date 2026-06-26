@@ -15,6 +15,8 @@ export interface FormulatorWidget {
   attachedTo: string[]; // page IDs like "telecom-overview", "telecom-analysis"
   createdAt: number;
   tableName: string;
+  /** Set when the chart is pinned to the dashboard/desktop. Unix ms timestamp. */
+  pinnedAt?: number;
 }
 
 interface WidgetRegistryStore {
@@ -25,6 +27,9 @@ interface WidgetRegistryStore {
   detachFromPage: (widgetId: string, pageId: string) => void;
   updateWidget: (id: string, patch: Partial<FormulatorWidget>) => void;
   getWidgetsForPage: (pageId: string) => FormulatorWidget[];
+  pinWidget: (id: string) => void;
+  unpinWidget: (id: string) => void;
+  getPinnedWidgets: () => FormulatorWidget[];
 }
 
 export const useWidgetRegistry = create<WidgetRegistryStore>()(
@@ -71,6 +76,18 @@ export const useWidgetRegistry = create<WidgetRegistryStore>()(
         })),
 
       getWidgetsForPage: (pageId) => get().widgets.filter((w) => w.attachedTo.includes(pageId)),
+
+      pinWidget: (id) =>
+        set((s) => ({
+          widgets: s.widgets.map((w) => (w.id === id ? { ...w, pinnedAt: Date.now() } : w)),
+        })),
+
+      unpinWidget: (id) =>
+        set((s) => ({
+          widgets: s.widgets.map((w) => (w.id === id ? { ...w, pinnedAt: undefined } : w)),
+        })),
+
+      getPinnedWidgets: () => get().widgets.filter((w) => w.pinnedAt !== undefined),
     }),
     {
       name: "formulator-widget-registry-v1",

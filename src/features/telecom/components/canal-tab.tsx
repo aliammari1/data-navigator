@@ -24,10 +24,12 @@ import {
   VOUCHER_PAYMENT_SUMMARY_GROUPS,
 } from "@/features/telecom/lib/canal-groups";
 import {
+  fetchSpecCanalStatusMatrix as _fetchSpecCanalStatusMatrix,
   fetchSpecChannelStats as _fetchSpecChannelStats,
   fetchSpecStatusStats as _fetchSpecStatusStats,
   fetchSpecUnitAmountStats as _fetchSpecUnitAmountStats,
   type SpecChRow,
+  type SpecChStatusRow,
 } from "@/features/telecom/lib/queries";
 import {
   BILL_PAYMENT_CHANNELS,
@@ -47,6 +49,7 @@ import {
 import type { ColumnMapping } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 import { CanalComparePanel } from "./canal-compare-panel";
+import { CanalSunburstExplorer } from "./canal-sunburst-explorer";
 import { CL1 } from "./cl1";
 import { CL2 } from "./cl2";
 import { CL3 } from "./cl3";
@@ -91,6 +94,11 @@ export const CanalTab = memo(function CanalTab({
   const fetchSpecUnitAmountStats = useCallback(
     (channels: ChannelDef[], df: string, dt: string) =>
       _fetchSpecUnitAmountStats(getTableName(), channels, df, dt, mapping),
+    [getTableName, mapping],
+  );
+  const fetchSpecCanalStatusMatrix = useCallback(
+    (channels: ChannelDef[], df: string, dt: string): Promise<SpecChStatusRow[]> =>
+      _fetchSpecCanalStatusMatrix(getTableName(), channels, df, dt, mapping),
     [getTableName, mapping],
   );
 
@@ -213,6 +221,13 @@ export const CanalTab = memo(function CanalTab({
         </div>
       </div>
 
+      {/* ── Interactive sunburst explorer: click a section → its statuses ── */}
+      <CanalSunburstExplorer
+        dateFrom={dateFrom}
+        dateTo={dateTo}
+        fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
+      />
+
       {/* ── Canal Comparison Panel ─────────────────────────────────────── */}
       <AnimatePresence initial={false}>
         {compareOpen && (
@@ -257,6 +272,7 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
+          fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
         />
       </CL1>
 
@@ -288,6 +304,7 @@ export const CanalTab = memo(function CanalTab({
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
+              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
             />
           </CL3>
           {/* 1.2 Lignes Mobiles */}
@@ -298,6 +315,7 @@ export const CanalTab = memo(function CanalTab({
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
+              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
             />
           </CL3>
         </CL2>
@@ -316,6 +334,7 @@ export const CanalTab = memo(function CanalTab({
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
+              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
             />
           </CL3>
           <CL3 title="2.2 Par Evoucher DATA">
@@ -324,6 +343,7 @@ export const CanalTab = memo(function CanalTab({
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
+              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
             />
           </CL3>
         </CL2>
@@ -360,6 +380,7 @@ export const CanalTab = memo(function CanalTab({
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
+            fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
           />
         </CL2>
         <CL2
@@ -373,6 +394,7 @@ export const CanalTab = memo(function CanalTab({
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
+            fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
           />
         </CL2>
       </CL1>
@@ -401,6 +423,7 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
+          fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
         />
       </CL1>
 
@@ -433,6 +456,7 @@ export const CanalTab = memo(function CanalTab({
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
+            fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
           />
         </CL2>
         <CL2

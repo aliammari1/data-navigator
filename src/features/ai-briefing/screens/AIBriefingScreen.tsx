@@ -3,9 +3,11 @@
 import { AlertTriangle, BookOpen, Flag, Mic, Sparkles } from "lucide-react";
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { useAI } from "@/platform/ai/provider";
 import { EmptyDatasetState } from "../components/EmptyDatasetState";
 import { ModelStatusBar } from "../components/ModelStatusBar";
@@ -37,13 +39,34 @@ const DataStoryTab = dynamic(() => import("../components/DataStoryTab"), {
   loading: TabFallback,
 });
 
+const BRIEFING_PAGES = [
+  { id: "briefing", label: "Briefing quotidien" },
+  { id: "anomaly", label: "Rapport d'anomalies" },
+  { id: "action", label: "Plan d'action" },
+  { id: "story", label: "Récit des données" },
+] as const;
+
 export default function AIBriefingScreen() {
   const { context, loading, error, datasetName, reload } = useBriefingContext();
   const ai = useAI();
+  const windowId = useWindowId();
+  const [activeTab, setActiveTab] = useState<string>("briefing");
 
   const warmUp = useCallback(() => {
     void ai.ensureReady().catch(() => {});
   }, [ai]);
+
+  // Let the desktop menu drive the screen: page navigation, data refresh,
+  // and a one-shot model warm-up all map onto existing handlers.
+  useRegisterPages(windowId, [...BRIEFING_PAGES], activeTab);
+  useAppCommands("ai-briefing", {
+    refresh: () => reload(),
+    warm: () => warmUp(),
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId) setActiveTab(pageId);
+    },
+  });
 
   const ready = Boolean(context) && !loading && !error;
 
@@ -76,7 +99,7 @@ export default function AIBriefingScreen() {
         {!ready || !context ? (
           <EmptyDatasetState loading={loading} error={error} onRetry={reload} />
         ) : (
-          <Tabs defaultValue="briefing">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="briefing" className="gap-1.5">
                 <Mic className="size-3.5" />

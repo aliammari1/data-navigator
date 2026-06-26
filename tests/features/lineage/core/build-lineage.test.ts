@@ -343,4 +343,95 @@ describe("buildRealLineage", () => {
       expect(ids.has(edge.target)).toBe(true);
     }
   });
+
+  it("uses the dataset's own tags array when it is non-empty (line 92 true branch)", () => {
+    const ds = dataset({ id: "ds1", tags: ["finance", "monthly"] });
+    const result = buildRealLineage(emptyInput({ datasets: [ds] }));
+    expect(result.nodes[0].tags).toEqual(["finance", "monthly"]);
+  });
+
+  it("falls back to [format, source] when tags is empty (line 92 false branch – verifies existing behaviour)", () => {
+    const ds = dataset({ id: "ds1", tags: [], source: "upload", format: "csv" });
+    const result = buildRealLineage(emptyInput({ datasets: [ds] }));
+    expect(result.nodes[0].tags).toEqual(["csv", "upload"]);
+  });
+
+  it("emits targetCol as the sourceCol when a projection has no source column refs (line 121 false branch)", () => {
+    // SELECT 42 AS num  → sourceCols=[], so falls back to [targetCol]
+    const parent = dataset({ id: "p", tableName: "raw_view", columns: [col("num")] });
+    const child = dataset({
+      id: "c",
+      tableName: "lit_view",
+      parentId: "p",
+      transformSql: "SELECT 42 AS num FROM raw",
+      columns: [col("num")],
+    });
+    const result = buildRealLineage(emptyInput({ datasets: [parent, child] }));
+    // The projection has no column_ref, so sourceCols is empty and we fall back to targetCol
+    const cl = result.columnLineage.find((l) => l.targetCol === "num");
+    expect(cl).toBeDefined();
+    expect(cl?.sourceCol).toBe("num");
+  });
+
+  it("labels column lineage as 'SQL projection' when transformSql is set but projection parsing returns null (line 139 true branch)", () => {
+    // SELECT * FROM raw → parseProjectionLineage returns null (star projection)
+    const parent = dataset({ id: "p", tableName: "raw_view", columns: [col("channel")] });
+    const child = dataset({
+      id: "c",
+      tableName: "star_view",
+      parentId: "p",
+      transformSql: "SELECT * FROM raw",
+      columns: [col("channel")],
+    });
+    const result = buildRealLineage(emptyInput({ datasets: [parent, child] }));
+    // Falls back to name-equality matching; transform label must be "SQL projection"
+    expect(result.columnLineage.length).toBeGreaterThan(0);
+    for (const cl of result.columnLineage) {
+      expect(cl.transform).toBe("SQL projection");
+    }
+  });
+
+  it("defaults telecom source type tag to 'file' when source.type is absent (line 200 false branch)", () => {
+    const result = buildRealLineage(
+      emptyInput({
+        telecomSources: [
+          {
+            key: "src1",
+            savedAt: NOW,
+            fileName: "data.bin",
+            size: 512,
+            lastModified: NOW,
+            // type intentionally omitted to exercise the `|| "file"` fallback
+          } as Parameters<typeof buildRealLineage>[0]["telecomSources"][number],
+        ],
+      }),
+    );
+    const node = result.nodes.find((n) => n.id === "telecom_source_src1");
+    expect(node?.tags).toContain("file");
+  });
+
+  it("produces 'unknown' lastUpdated when updatedAt is an invalid date string (timeAgo line 26 true branch)", () => {
+    const result = buildRealLineage(
+      emptyInput({ datasets: [dataset({ id: "ds1", updatedAt: "not-a-date" })] }),
+    );
+    expect(result.nodes[0].lastUpdated).toBe("unknown");
+  });
+
+  it("produces 'Xm ago' lastUpdated for a dataset updated minutes ago (timeAgo line 30 true branch)", () => {
+    // 30 minutes ago → minutes=30, which is >= 1 and < 60
+    const thirtyMinsAgo = new Date(NOW - 30 * 60 * 1000).toISOString();
+    const result = buildRealLineage(
+      emptyInput({ datasets: [dataset({ id: "ds1", updatedAt: thirtyMinsAgo })] }),
+    );
+    expect(result.nodes[0].lastUpdated).toBe("30m ago");
+  });
+
+  it("produces 'Xh ago' lastUpdated for a dataset updated hours ago (timeAgo line 32 true branch)", () => {
+    // 5 hours ago → minutes=300, hours=5, which is >= 1 and < 24
+    const fiveHoursAgo = new Date(NOW - 5 * 60 * 60 * 1000).toISOString();
+    const result = buildRealLineage(
+      emptyInput({ datasets: [dataset({ id: "ds1", updatedAt: fiveHoursAgo })] }),
+    );
+    expect(result.nodes[0].lastUpdated).toBe("5h ago");
+  });
 });

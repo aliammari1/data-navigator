@@ -1,8 +1,9 @@
 "use client";
 
-import { FolderClosed, RotateCcw, Trash2, Database } from "lucide-react";
+import { Database, FolderClosed, RotateCcw, Trash2 } from "lucide-react";
 import type { CatalogFolder } from "@/core/stores/folders-store";
 import { useFoldersActions } from "@/core/stores/folders-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { useDesktopStore } from "@/features/desktop/store/desktop-store";
 
 /**
@@ -31,6 +32,13 @@ export default function RecycleBinScreen() {
         });
     }
   };
+
+  useAppCommands("recycle-bin", {
+    empty: () => emptyBin(),
+    "restore-all": () => {
+      for (const item of [...recycleBin]) restore(item.id);
+    },
+  });
 
   return (
     <div className="flex h-full flex-col bg-background">

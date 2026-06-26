@@ -2,9 +2,9 @@
  * Offline backup / restore for app settings.
  *
  * The Zustand settings store persists through `createDrizzleStorage` into the
- * durable `app_setting` table (namespace `settings`) via the `/api/settings`
- * bridge. There is a server-side `exportAppSettingsRemote()` but no UI, so a
- * profile wipe loses every preference even though drizzle holds it.
+ * durable `app_setting` table (namespace `settings`) over the Electron settings
+ * IPC bridge. There is an `exportAppSettingsRemote()` helper but no UI, so a
+ * profile wipe loses every preference even though SQLite holds it.
  *
  * This module wires a genuine, fully-offline JSON backup/restore:
  *  - `exportSettings()` reads the real durable rows and serialises them.

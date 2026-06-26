@@ -44,10 +44,16 @@ function findStories(dir = resolve(ROOT, "src"), out = []) {
   return out;
 }
 
-/** Resolve a relative import to a real file on disk (try common extensions). */
+/** Resolve a relative or `@/`-aliased import to a real file on disk (try common extensions). */
 function resolveModule(fromFile, importPath) {
-  if (!importPath.startsWith(".")) return null; // package import — skip.
-  const base = resolve(dirname(fromFile), importPath);
+  let base;
+  if (importPath.startsWith("@/")) {
+    base = resolve(ROOT, "src", importPath.slice(2)); // `@/*` -> `src/*` (tsconfig paths)
+  } else if (importPath.startsWith(".")) {
+    base = resolve(dirname(fromFile), importPath);
+  } else {
+    return null; // package import — skip.
+  }
   const candidates = [base, `${base}.tsx`, `${base}.ts`, `${base}/index.tsx`, `${base}/index.ts`];
   return candidates.find((c) => existsSync(c)) ?? null;
 }

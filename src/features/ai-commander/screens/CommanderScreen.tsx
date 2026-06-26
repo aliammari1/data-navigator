@@ -20,6 +20,7 @@ import {
 } from "@/features/ai-commander/core/commander";
 import { useMoudirVoice } from "@/features/data-formulator/components/moudir/use-moudir-voice";
 import { getApp } from "@/features/desktop/core/app-registry";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { useDesktopActions } from "@/features/desktop/store/desktop-store";
 import { useAI } from "@/platform/ai/provider/use-ai";
 import { cn } from "@/shared/utils";
@@ -189,6 +190,14 @@ export default function CommanderScreen() {
     if (voice.listening) void voice.stop();
     else void voice.start();
   }, [voice]);
+
+  // Menu-bar commands → existing screen handlers (handlers read live).
+  useAppCommands("commander", {
+    reset: () => reset(),
+    cancel: () => cancel(),
+    toggleVoice: () => toggleVoice(),
+    stopVoice: () => voice.stopSpeak(),
+  });
 
   // Voice transcript → auto-run.
   useEffect(() => {

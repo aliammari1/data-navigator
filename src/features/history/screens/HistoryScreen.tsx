@@ -1,15 +1,17 @@
 "use client";
 
-import { type ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { Activity, Database, Table2, Zap } from "lucide-react";
+import { type ComponentType, useCallback, useEffect, useMemo, useRef, useState } from "react";
+
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 
 import { DayHeader } from "../components/DayHeader";
 import { HistoryRowView } from "../components/HistoryRow";
 import { HistoryToolbar } from "../components/HistoryToolbar";
 import { exportFullHistory } from "../data/export-history";
 import { startHistoryMirror } from "../data/history-mirror";
-import { useHistory } from "../data/use-history";
+import { type SourceFilter, useHistory } from "../data/use-history";
 import type { FlatHistoryItem, HistoryExportFormat } from "../model/types";
 
 const HEADER_SIZE = 36;
@@ -65,6 +67,13 @@ export default function HistoryScreen() {
     },
     [rows],
   );
+
+  // Bridge the global app menu (Journal d'activité) to the screen's real handlers.
+  useAppCommands("history", {
+    export: (payload) => onExport((payload as { format: HistoryExportFormat }).format),
+    filter: (payload) => setSource((payload as { source: SourceFilter }).source),
+    search: (payload) => setQRaw((payload as { query: string }).query),
+  });
 
   return (
     <div className="">

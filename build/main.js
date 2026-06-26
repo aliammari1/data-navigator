@@ -13,13 +13,17 @@ var api = require('better-auth/api');
 var cookies = require('better-auth/cookies');
 var Conf = require('conf');
 var client = require('better-auth/client');
+var crypto$1 = require('crypto');
 var nodeApi = require('@duckdb/node-api');
 var nanoid = require('nanoid');
 var PQueue = require('p-queue');
 var apacheArrow = require('apache-arrow');
-var crypto$1 = require('crypto');
 var stream = require('stream');
 var promises = require('stream/promises');
+var Database = require('better-sqlite3');
+var drizzleOrm = require('drizzle-orm');
+var betterSqlite3 = require('drizzle-orm/better-sqlite3');
+var sqliteCore = require('drizzle-orm/sqlite-core');
 
 function _interopDefault (e) { return e && e.__esModule ? e : { default: e }; }
 
@@ -48,58 +52,39 @@ var fs3__default = /*#__PURE__*/_interopDefault(fs3);
 var os4__default = /*#__PURE__*/_interopDefault(os4);
 var z__namespace = /*#__PURE__*/_interopNamespace(z);
 var Conf__default = /*#__PURE__*/_interopDefault(Conf);
-var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
 var crypto__default = /*#__PURE__*/_interopDefault(crypto$1);
+var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
+var Database__default = /*#__PURE__*/_interopDefault(Database);
 
 var __create = Object.create;
 var __defProp = Object.defineProperty;
-var __defProps = Object.defineProperties;
 var __getOwnPropDesc = Object.getOwnPropertyDescriptor;
-var __getOwnPropDescs = Object.getOwnPropertyDescriptors;
 var __getOwnPropNames = Object.getOwnPropertyNames;
-var __getOwnPropSymbols = Object.getOwnPropertySymbols;
 var __getProtoOf = Object.getPrototypeOf;
 var __hasOwnProp = Object.prototype.hasOwnProperty;
-var __propIsEnum = Object.prototype.propertyIsEnumerable;
 var __typeError = (msg) => {
   throw TypeError(msg);
 };
-var __defNormalProp = (obj, key, value) => key in obj ? __defProp(obj, key, { enumerable: true, configurable: true, writable: true, value }) : obj[key] = value;
-var __spreadValues = (a, b) => {
-  for (var prop in b || (b = {}))
-    if (__hasOwnProp.call(b, prop))
-      __defNormalProp(a, prop, b[prop]);
-  if (__getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(b)) {
-      if (__propIsEnum.call(b, prop))
-        __defNormalProp(a, prop, b[prop]);
-    }
-  return a;
-};
-var __spreadProps = (a, b) => __defProps(a, __getOwnPropDescs(b));
 var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require : typeof Proxy !== "undefined" ? new Proxy(x, {
   get: (a, b) => (typeof require !== "undefined" ? require : a)[b]
 }) : x)(function(x) {
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
-var __objRest = (source, exclude) => {
-  var target = {};
-  for (var prop in source)
-    if (__hasOwnProp.call(source, prop) && exclude.indexOf(prop) < 0)
-      target[prop] = source[prop];
-  if (source != null && __getOwnPropSymbols)
-    for (var prop of __getOwnPropSymbols(source)) {
-      if (exclude.indexOf(prop) < 0 && __propIsEnum.call(source, prop))
-        target[prop] = source[prop];
-    }
-  return target;
-};
-var __esm = (fn, res) => function __init() {
-  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+var __esm = (fn, res, err) => function __init() {
+  if (err) throw err[0];
+  try {
+    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
+  } catch (e) {
+    throw err = [e], e;
+  }
 };
 var __commonJS = (cb, mod) => function __require2() {
-  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  try {
+    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
+  } catch (e) {
+    throw mod = 0, e;
+  }
 };
 var __export = (target, all) => {
   for (var name in all)
@@ -125,6 +110,468 @@ var __accessCheck = (obj, member, msg) => member.has(obj) || __typeError("Cannot
 var __privateGet = (obj, member, getter) => (__accessCheck(obj, member, "read from private field"), getter ? getter.call(obj) : member.get(obj));
 var __privateAdd = (obj, member, value) => member.has(obj) ? __typeError("Cannot add the same private member more than once") : member instanceof WeakSet ? member.add(obj) : member.set(obj, value);
 var __privateSet = (obj, member, value, setter) => (__accessCheck(obj, member, "write to private field"), member.set(obj, value), value);
+
+// node_modules/.pnpm/ms@2.0.0/node_modules/ms/index.js
+var require_ms = __commonJS({
+  "node_modules/.pnpm/ms@2.0.0/node_modules/ms/index.js"(exports, module) {
+    var s = 1e3;
+    var m = s * 60;
+    var h = m * 60;
+    var d = h * 24;
+    var y = d * 365.25;
+    module.exports = function(val, options) {
+      options = options || {};
+      var type = typeof val;
+      if (type === "string" && val.length > 0) {
+        return parse(val);
+      } else if (type === "number" && isNaN(val) === false) {
+        return options.long ? fmtLong(val) : fmtShort(val);
+      }
+      throw new Error(
+        "val is not a non-empty string or a valid number. val=" + JSON.stringify(val)
+      );
+    };
+    function parse(str) {
+      str = String(str);
+      if (str.length > 100) {
+        return;
+      }
+      var match = /^((?:\d+)?\.?\d+) *(milliseconds?|msecs?|ms|seconds?|secs?|s|minutes?|mins?|m|hours?|hrs?|h|days?|d|years?|yrs?|y)?$/i.exec(
+        str
+      );
+      if (!match) {
+        return;
+      }
+      var n = parseFloat(match[1]);
+      var type = (match[2] || "ms").toLowerCase();
+      switch (type) {
+        case "years":
+        case "year":
+        case "yrs":
+        case "yr":
+        case "y":
+          return n * y;
+        case "days":
+        case "day":
+        case "d":
+          return n * d;
+        case "hours":
+        case "hour":
+        case "hrs":
+        case "hr":
+        case "h":
+          return n * h;
+        case "minutes":
+        case "minute":
+        case "mins":
+        case "min":
+        case "m":
+          return n * m;
+        case "seconds":
+        case "second":
+        case "secs":
+        case "sec":
+        case "s":
+          return n * s;
+        case "milliseconds":
+        case "millisecond":
+        case "msecs":
+        case "msec":
+        case "ms":
+          return n;
+        default:
+          return void 0;
+      }
+    }
+    function fmtShort(ms) {
+      if (ms >= d) {
+        return Math.round(ms / d) + "d";
+      }
+      if (ms >= h) {
+        return Math.round(ms / h) + "h";
+      }
+      if (ms >= m) {
+        return Math.round(ms / m) + "m";
+      }
+      if (ms >= s) {
+        return Math.round(ms / s) + "s";
+      }
+      return ms + "ms";
+    }
+    function fmtLong(ms) {
+      return plural(ms, d, "day") || plural(ms, h, "hour") || plural(ms, m, "minute") || plural(ms, s, "second") || ms + " ms";
+    }
+    function plural(ms, n, name) {
+      if (ms < n) {
+        return;
+      }
+      if (ms < n * 1.5) {
+        return Math.floor(ms / n) + " " + name;
+      }
+      return Math.ceil(ms / n) + " " + name + "s";
+    }
+  }
+});
+
+// node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/debug.js
+var require_debug = __commonJS({
+  "node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/debug.js"(exports, module) {
+    exports = module.exports = createDebug.debug = createDebug["default"] = createDebug;
+    exports.coerce = coerce;
+    exports.disable = disable;
+    exports.enable = enable;
+    exports.enabled = enabled;
+    exports.humanize = require_ms();
+    exports.names = [];
+    exports.skips = [];
+    exports.formatters = {};
+    var prevTime;
+    function selectColor(namespace) {
+      var hash = 0, i;
+      for (i in namespace) {
+        hash = (hash << 5) - hash + namespace.charCodeAt(i);
+        hash |= 0;
+      }
+      return exports.colors[Math.abs(hash) % exports.colors.length];
+    }
+    function createDebug(namespace) {
+      function debug() {
+        if (!debug.enabled) return;
+        var self2 = debug;
+        var curr = +/* @__PURE__ */ new Date();
+        var ms = curr - (prevTime || curr);
+        self2.diff = ms;
+        self2.prev = prevTime;
+        self2.curr = curr;
+        prevTime = curr;
+        var args = new Array(arguments.length);
+        for (var i = 0; i < args.length; i++) {
+          args[i] = arguments[i];
+        }
+        args[0] = exports.coerce(args[0]);
+        if ("string" !== typeof args[0]) {
+          args.unshift("%O");
+        }
+        var index2 = 0;
+        args[0] = args[0].replace(/%([a-zA-Z%])/g, function(match, format) {
+          if (match === "%%") return match;
+          index2++;
+          var formatter = exports.formatters[format];
+          if ("function" === typeof formatter) {
+            var val = args[index2];
+            match = formatter.call(self2, val);
+            args.splice(index2, 1);
+            index2--;
+          }
+          return match;
+        });
+        exports.formatArgs.call(self2, args);
+        var logFn = debug.log || exports.log || console.log.bind(console);
+        logFn.apply(self2, args);
+      }
+      debug.namespace = namespace;
+      debug.enabled = exports.enabled(namespace);
+      debug.useColors = exports.useColors();
+      debug.color = selectColor(namespace);
+      if ("function" === typeof exports.init) {
+        exports.init(debug);
+      }
+      return debug;
+    }
+    function enable(namespaces) {
+      exports.save(namespaces);
+      exports.names = [];
+      exports.skips = [];
+      var split = (typeof namespaces === "string" ? namespaces : "").split(/[\s,]+/);
+      var len = split.length;
+      for (var i = 0; i < len; i++) {
+        if (!split[i]) continue;
+        namespaces = split[i].replace(/\*/g, ".*?");
+        if (namespaces[0] === "-") {
+          exports.skips.push(new RegExp("^" + namespaces.substr(1) + "$"));
+        } else {
+          exports.names.push(new RegExp("^" + namespaces + "$"));
+        }
+      }
+    }
+    function disable() {
+      exports.enable("");
+    }
+    function enabled(name) {
+      var i, len;
+      for (i = 0, len = exports.skips.length; i < len; i++) {
+        if (exports.skips[i].test(name)) {
+          return false;
+        }
+      }
+      for (i = 0, len = exports.names.length; i < len; i++) {
+        if (exports.names[i].test(name)) {
+          return true;
+        }
+      }
+      return false;
+    }
+    function coerce(val) {
+      if (val instanceof Error) return val.stack || val.message;
+      return val;
+    }
+  }
+});
+
+// node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/browser.js
+var require_browser = __commonJS({
+  "node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/browser.js"(exports, module) {
+    exports = module.exports = require_debug();
+    exports.log = log;
+    exports.formatArgs = formatArgs;
+    exports.save = save;
+    exports.load = load;
+    exports.useColors = useColors;
+    exports.storage = "undefined" != typeof chrome && "undefined" != typeof chrome.storage ? chrome.storage.local : localstorage();
+    exports.colors = [
+      "lightseagreen",
+      "forestgreen",
+      "goldenrod",
+      "dodgerblue",
+      "darkorchid",
+      "crimson"
+    ];
+    function useColors() {
+      if (typeof window !== "undefined" && window.process && window.process.type === "renderer") {
+        return true;
+      }
+      return typeof document !== "undefined" && document.documentElement && document.documentElement.style && document.documentElement.style.WebkitAppearance || // is firebug? http://stackoverflow.com/a/398120/376773
+      typeof window !== "undefined" && window.console && (window.console.firebug || window.console.exception && window.console.table) || // is firefox >= v31?
+      // https://developer.mozilla.org/en-US/docs/Tools/Web_Console#Styling_messages
+      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/firefox\/(\d+)/) && parseInt(RegExp.$1, 10) >= 31 || // double check webkit in userAgent just in case we are in a worker
+      typeof navigator !== "undefined" && navigator.userAgent && navigator.userAgent.toLowerCase().match(/applewebkit\/(\d+)/);
+    }
+    exports.formatters.j = function(v) {
+      try {
+        return JSON.stringify(v);
+      } catch (err) {
+        return "[UnexpectedJSONParseError]: " + err.message;
+      }
+    };
+    function formatArgs(args) {
+      var useColors2 = this.useColors;
+      args[0] = (useColors2 ? "%c" : "") + this.namespace + (useColors2 ? " %c" : " ") + args[0] + (useColors2 ? "%c " : " ") + "+" + exports.humanize(this.diff);
+      if (!useColors2) return;
+      var c = "color: " + this.color;
+      args.splice(1, 0, c, "color: inherit");
+      var index2 = 0;
+      var lastC = 0;
+      args[0].replace(/%[a-zA-Z%]/g, function(match) {
+        if ("%%" === match) return;
+        index2++;
+        if ("%c" === match) {
+          lastC = index2;
+        }
+      });
+      args.splice(lastC, 0, c);
+    }
+    function log() {
+      return "object" === typeof console && console.log && Function.prototype.apply.call(console.log, console, arguments);
+    }
+    function save(namespaces) {
+      try {
+        if (null == namespaces) {
+          exports.storage.removeItem("debug");
+        } else {
+          exports.storage.debug = namespaces;
+        }
+      } catch (e) {
+      }
+    }
+    function load() {
+      var r;
+      try {
+        r = exports.storage.debug;
+      } catch (e) {
+      }
+      if (!r && typeof process !== "undefined" && "env" in process) {
+        r = process.env.DEBUG;
+      }
+      return r;
+    }
+    exports.enable(load());
+    function localstorage() {
+      try {
+        return window.localStorage;
+      } catch (e) {
+      }
+    }
+  }
+});
+
+// node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/node.js
+var require_node = __commonJS({
+  "node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/node.js"(exports, module) {
+    var tty = __require("tty");
+    var util = __require("util");
+    exports = module.exports = require_debug();
+    exports.init = init2;
+    exports.log = log;
+    exports.formatArgs = formatArgs;
+    exports.save = save;
+    exports.load = load;
+    exports.useColors = useColors;
+    exports.colors = [6, 2, 3, 4, 5, 1];
+    exports.inspectOpts = Object.keys(process.env).filter(function(key) {
+      return /^debug_/i.test(key);
+    }).reduce(function(obj, key) {
+      var prop = key.substring(6).toLowerCase().replace(/_([a-z])/g, function(_, k) {
+        return k.toUpperCase();
+      });
+      var val = process.env[key];
+      if (/^(yes|on|true|enabled)$/i.test(val)) val = true;
+      else if (/^(no|off|false|disabled)$/i.test(val)) val = false;
+      else if (val === "null") val = null;
+      else val = Number(val);
+      obj[prop] = val;
+      return obj;
+    }, {});
+    var fd = parseInt(process.env.DEBUG_FD, 10) || 2;
+    if (1 !== fd && 2 !== fd) {
+      util.deprecate(function() {
+      }, "except for stderr(2) and stdout(1), any other usage of DEBUG_FD is deprecated. Override debug.log if you want to use a different log function (https://git.io/debug_fd)")();
+    }
+    var stream = 1 === fd ? process.stdout : 2 === fd ? process.stderr : createWritableStdioStream(fd);
+    function useColors() {
+      return "colors" in exports.inspectOpts ? Boolean(exports.inspectOpts.colors) : tty.isatty(fd);
+    }
+    exports.formatters.o = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts).split("\n").map(function(str) {
+        return str.trim();
+      }).join(" ");
+    };
+    exports.formatters.O = function(v) {
+      this.inspectOpts.colors = this.useColors;
+      return util.inspect(v, this.inspectOpts);
+    };
+    function formatArgs(args) {
+      var name = this.namespace;
+      var useColors2 = this.useColors;
+      if (useColors2) {
+        var c = this.color;
+        var prefix = "  \x1B[3" + c + ";1m" + name + " \x1B[0m";
+        args[0] = prefix + args[0].split("\n").join("\n" + prefix);
+        args.push("\x1B[3" + c + "m+" + exports.humanize(this.diff) + "\x1B[0m");
+      } else {
+        args[0] = (/* @__PURE__ */ new Date()).toUTCString() + " " + name + " " + args[0];
+      }
+    }
+    function log() {
+      return stream.write(util.format.apply(util, arguments) + "\n");
+    }
+    function save(namespaces) {
+      if (null == namespaces) {
+        delete process.env.DEBUG;
+      } else {
+        process.env.DEBUG = namespaces;
+      }
+    }
+    function load() {
+      return process.env.DEBUG;
+    }
+    function createWritableStdioStream(fd2) {
+      var stream2;
+      var tty_wrap = process.binding("tty_wrap");
+      switch (tty_wrap.guessHandleType(fd2)) {
+        case "TTY":
+          stream2 = new tty.WriteStream(fd2);
+          stream2._type = "tty";
+          if (stream2._handle && stream2._handle.unref) {
+            stream2._handle.unref();
+          }
+          break;
+        case "FILE":
+          var fs5 = __require("fs");
+          stream2 = new fs5.SyncWriteStream(fd2, { autoClose: false });
+          stream2._type = "fs";
+          break;
+        case "PIPE":
+        case "TCP":
+          var net3 = __require("net");
+          stream2 = new net3.Socket({
+            fd: fd2,
+            readable: false,
+            writable: true
+          });
+          stream2.readable = false;
+          stream2.read = null;
+          stream2._type = "pipe";
+          if (stream2._handle && stream2._handle.unref) {
+            stream2._handle.unref();
+          }
+          break;
+        default:
+          throw new Error("Implement me. Unknown stream file type!");
+      }
+      stream2.fd = fd2;
+      stream2._isStdio = true;
+      return stream2;
+    }
+    function init2(debug) {
+      debug.inspectOpts = {};
+      var keys = Object.keys(exports.inspectOpts);
+      for (var i = 0; i < keys.length; i++) {
+        debug.inspectOpts[keys[i]] = exports.inspectOpts[keys[i]];
+      }
+    }
+    exports.enable(load());
+  }
+});
+
+// node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/index.js
+var require_src = __commonJS({
+  "node_modules/.pnpm/debug@2.6.9/node_modules/debug/src/index.js"(exports, module) {
+    if (typeof process !== "undefined" && process.type === "renderer") {
+      module.exports = require_browser();
+    } else {
+      module.exports = require_node();
+    }
+  }
+});
+
+// node_modules/.pnpm/electron-squirrel-startup@1.0.1/node_modules/electron-squirrel-startup/index.js
+var require_electron_squirrel_startup = __commonJS({
+  "node_modules/.pnpm/electron-squirrel-startup@1.0.1/node_modules/electron-squirrel-startup/index.js"(exports, module) {
+    var path13 = __require("path");
+    var spawn = __require("child_process").spawn;
+    var debug = require_src()("electron-squirrel-startup");
+    var app10 = __require("electron").app;
+    var run = function(args, done) {
+      var updateExe = path13.resolve(path13.dirname(process.execPath), "..", "Update.exe");
+      debug("Spawning `%s` with args `%s`", updateExe, args);
+      spawn(updateExe, args, {
+        detached: true
+      }).on("close", done);
+    };
+    var check = function() {
+      if (process.platform === "win32") {
+        var cmd = process.argv[1];
+        debug("processing squirrel command `%s`", cmd);
+        var target = path13.basename(process.execPath);
+        if (cmd === "--squirrel-install" || cmd === "--squirrel-updated") {
+          run(["--createShortcut=" + target], app10.quit);
+          return true;
+        }
+        if (cmd === "--squirrel-uninstall") {
+          run(["--removeShortcut=" + target], app10.quit);
+          return true;
+        }
+        if (cmd === "--squirrel-obsolete") {
+          app10.quit();
+          return true;
+        }
+      }
+      return false;
+    };
+    module.exports = check();
+  }
+});
 
 // node_modules/.pnpm/process-nextick-args@2.0.1/node_modules/process-nextick-args/index.js
 var require_process_nextick_args = __commonJS({
@@ -506,7 +953,7 @@ var require_destroy = __commonJS({
 });
 
 // node_modules/.pnpm/util-deprecate@1.0.2/node_modules/util-deprecate/node.js
-var require_node = __commonJS({
+var require_node2 = __commonJS({
   "node_modules/.pnpm/util-deprecate@1.0.2/node_modules/util-deprecate/node.js"(exports, module) {
     module.exports = __require("util").deprecate;
   }
@@ -531,7 +978,7 @@ var require_stream_writable = __commonJS({
     var util = Object.create(require_util());
     util.inherits = require_inherits();
     var internalUtil = {
-      deprecate: require_node()
+      deprecate: require_node2()
     };
     var Stream = require_stream();
     var Buffer3 = require_safe_buffer().Buffer;
@@ -1719,9 +2166,9 @@ var require_stream_readable = __commonJS({
         }
         return this;
       }
-      var index = indexOf(state.pipes, dest);
-      if (index === -1) return this;
-      state.pipes.splice(index, 1);
+      var index2 = indexOf(state.pipes, dest);
+      if (index2 === -1) return this;
+      state.pipes.splice(index2, 1);
       state.pipesCount -= 1;
       if (state.pipesCount === 1) state.pipes = state.pipes[0];
       dest.emit("unpipe", this, unpipeInfo);
@@ -2977,12 +3424,12 @@ var require_utils = __commonJS({
       var result = transform[inputType][outputType](input);
       return result;
     };
-    exports.resolve = function(path12) {
-      var parts = path12.split("/");
+    exports.resolve = function(path13) {
+      var parts = path13.split("/");
       var result = [];
-      for (var index = 0; index < parts.length; index++) {
-        var part = parts[index];
-        if (part === "." || part === "" && index !== 0 && index !== parts.length - 1) {
+      for (var index2 = 0; index2 < parts.length; index2++) {
+        var part = parts[index2];
+        if (part === "." || part === "" && index2 !== 0 && index2 !== parts.length - 1) {
           continue;
         } else if (part === "..") {
           result.pop();
@@ -3581,7 +4028,7 @@ var require_StreamHelper = __commonJS({
       }
     }
     function concat(type, dataArray) {
-      var i, index = 0, res = null, totalLength = 0;
+      var i, index2 = 0, res = null, totalLength = 0;
       for (i = 0; i < dataArray.length; i++) {
         totalLength += dataArray[i].length;
       }
@@ -3593,8 +4040,8 @@ var require_StreamHelper = __commonJS({
         case "uint8array":
           res = new Uint8Array(totalLength);
           for (i = 0; i < dataArray.length; i++) {
-            res.set(dataArray[i], index);
-            index += dataArray[i].length;
+            res.set(dataArray[i], index2);
+            index2 += dataArray[i].length;
           }
           return res;
         case "nodebuffer":
@@ -8793,18 +9240,18 @@ var require_object = __commonJS({
       var object2 = new ZipObject(name, zipObjectContent, o);
       this.files[name] = object2;
     };
-    var parentFolder = function(path12) {
-      if (path12.slice(-1) === "/") {
-        path12 = path12.substring(0, path12.length - 1);
+    var parentFolder = function(path13) {
+      if (path13.slice(-1) === "/") {
+        path13 = path13.substring(0, path13.length - 1);
       }
-      var lastSlash = path12.lastIndexOf("/");
-      return lastSlash > 0 ? path12.substring(0, lastSlash) : "";
+      var lastSlash = path13.lastIndexOf("/");
+      return lastSlash > 0 ? path13.substring(0, lastSlash) : "";
     };
-    var forceTrailingSlash = function(path12) {
-      if (path12.slice(-1) !== "/") {
-        path12 += "/";
+    var forceTrailingSlash = function(path13) {
+      if (path13.slice(-1) !== "/") {
+        path13 += "/";
       }
-      return path12;
+      return path13;
     };
     var folderAdd = function(name, createFolders) {
       createFolders = typeof createFolders !== "undefined" ? createFolders : defaults.createFolders;
@@ -9553,8 +10000,8 @@ var require_zipEntries = __commonJS({
         this.centralDirSize = this.reader.readInt(8);
         this.centralDirOffset = this.reader.readInt(8);
         this.zip64ExtensibleData = {};
-        var extraDataSize = this.zip64EndOfCentralSize - 44, index = 0, extraFieldId, extraFieldLength, extraFieldValue;
-        while (index < extraDataSize) {
+        var extraDataSize = this.zip64EndOfCentralSize - 44, index2 = 0, extraFieldId, extraFieldLength, extraFieldValue;
+        while (index2 < extraDataSize) {
           extraFieldId = this.reader.readInt(2);
           extraFieldLength = this.reader.readInt(4);
           extraFieldValue = this.reader.readData(extraFieldLength);
@@ -9857,7 +10304,7 @@ var init_dist = __esm({
   }
 });
 
-// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
+// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@42.4.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   ANGULAR_DEVTOOLS: () => ANGULAR_DEVTOOLS,
@@ -9983,9 +10430,10 @@ async function downloadExtension(extensionId, options) {
       console.log(`Failed to fetch extension, trying ${attempts - 1} more times`);
       if (attempts <= 1) return reject(err);
       setTimeout(() => {
-        downloadExtension(extensionId, __spreadProps(__spreadValues({}, opts), {
+        downloadExtension(extensionId, {
+          ...opts,
           attempts: attempts - 1
-        })).then(resolve2).catch(reject);
+        }).then(resolve2).catch(reject);
       }, 200);
     });
   });
@@ -10022,7 +10470,7 @@ async function installExtension(extensionIds, options) {
 }
 var ANGULAR_DEVTOOLS, APOLLO_CLIENT_TOOLS, BACKBONE_DEBUGGER, EMBER_INSPECTOR, MOBX_DEVTOOLS, PREACT_DEVELOPER_TOOLS, REACT_DEVELOPER_TOOLS, REDUX_DEVTOOLS, SOLID_DEVTOOLS, SVELTE_DEVTOOLS, VUEJS_DEVTOOLS, VUEJS_DEVTOOLS_BETA, VUEJS_DEVTOOLS_V5, VUEJS_DEVTOOLS_V6, EXTENSIONS, src_default2;
 var init_dist2 = __esm({
-  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
+  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@42.4.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
     init_dist();
     ANGULAR_DEVTOOLS = "ienfalfjdbdpebioblfackkekamfmbnh";
     APOLLO_CLIENT_TOOLS = "jdkknkkbebbapilgoeccciglkfbmbnfm";
@@ -10068,17 +10516,16 @@ function isAuthDbEncryptionRequested(env2 = process.env) {
 }
 
 // src/platform/auth/electron-options.ts
-var _a, _b;
-var BETTER_AUTH_BASE_URL = (_b = (_a = process.env.NEXT_PUBLIC_BETTER_AUTH_URL) != null ? _a : process.env.BETTER_AUTH_URL) != null ? _b : "http://localhost:3000";
+var BETTER_AUTH_BASE_URL = process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
 var ELECTRON_AUTH_PROTOCOL = "com.data-navigator.app";
 var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
 var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_04ba92c9906047bc68e3abb2243983ca/node_modules/@better-auth/electron/dist/version-DMVLEsxG.mjs
-var PACKAGE_VERSION = "1.6.18";
+// node_modules/.pnpm/@better-auth+electron@1.6.1_cd70a721a613f8e7aa440e4f8ebe5b74/node_modules/@better-auth/electron/dist/version-BBOVUjFi.mjs
+var PACKAGE_VERSION = "1.6.19";
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_04ba92c9906047bc68e3abb2243983ca/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_cd70a721a613f8e7aa440e4f8ebe5b74/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
 function isProcessType(type) {
   return typeof process !== "undefined" && process.type === type;
 }
@@ -10096,7 +10543,7 @@ function getChannelPrefixWithDelimiter(ns = "better-auth") {
   return ns.length > 0 ? ns + ":" : ns;
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/error/index.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.19_@b_6f6be2e09f620bd7fa590baa54280754/node_modules/@better-auth/core/dist/error/index.mjs
 var BetterAuthError = class extends Error {
   constructor(message, options) {
     super(message, options);
@@ -10106,7 +10553,7 @@ var BetterAuthError = class extends Error {
   }
 };
 
-// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/base64.mjs
+// node_modules/.pnpm/@better-auth+utils@0.4.2/node_modules/@better-auth/utils/dist/base64.mjs
 function getAlphabet(urlSafe) {
   return urlSafe ? "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_" : "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 }
@@ -10157,10 +10604,9 @@ function base64Decode(data, alphabet) {
 }
 var base64 = {
   encode(data, options = {}) {
-    var _a3;
     const alphabet = getAlphabet(false);
     const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
-    return base64Encode(buffer, alphabet, (_a3 = options.padding) != null ? _a3 : true);
+    return base64Encode(buffer, alphabet, options.padding ?? true);
   },
   decode(data) {
     if (typeof data !== "string") {
@@ -10173,10 +10619,9 @@ var base64 = {
 };
 var base64Url = {
   encode(data, options = {}) {
-    var _a3;
     const alphabet = getAlphabet(true);
     const buffer = typeof data === "string" ? new TextEncoder().encode(data) : new Uint8Array(data);
-    return base64Encode(buffer, alphabet, (_a3 = options.padding) != null ? _a3 : true);
+    return base64Encode(buffer, alphabet, options.padding ?? true);
   },
   decode(data) {
     const urlSafe = data.includes("-") || data.includes("_");
@@ -10185,7 +10630,7 @@ var base64Url = {
   }
 };
 
-// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/index.mjs
+// node_modules/.pnpm/@better-auth+utils@0.4.2/node_modules/@better-auth/utils/dist/index.mjs
 function getWebcryptoSubtle() {
   const cr = typeof globalThis !== "undefined" && globalThis.crypto;
   if (cr && typeof cr.subtle === "object" && cr.subtle != null)
@@ -10193,7 +10638,7 @@ function getWebcryptoSubtle() {
   throw new Error("crypto.subtle must be defined");
 }
 
-// node_modules/.pnpm/@better-auth+utils@0.4.1/node_modules/@better-auth/utils/dist/hash.mjs
+// node_modules/.pnpm/@better-auth+utils@0.4.2/node_modules/@better-auth/utils/dist/hash.mjs
 function createHash(algorithm, encoding) {
   return {
     digest: async (input) => {
@@ -10205,16 +10650,12 @@ function createHash(algorithm, encoding) {
   };
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/env/env-impl.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.19_@b_6f6be2e09f620bd7fa590baa54280754/node_modules/@better-auth/core/dist/env/env-impl.mjs
 var _envShim = /* @__PURE__ */ Object.create(null);
-var _getEnv = (useShim) => {
-  var _a3, _b2;
-  return ((_a3 = globalThis.process) == null ? void 0 : _a3.env) || ((_b2 = globalThis.Deno) == null ? void 0 : _b2.env.toObject()) || globalThis.__env__ || (useShim ? _envShim : globalThis);
-};
+var _getEnv = (useShim) => globalThis.process?.env || globalThis.Deno?.env.toObject() || globalThis.__env__ || (useShim ? _envShim : globalThis);
 var env = new Proxy(_envShim, {
   get(_, prop) {
-    var _a3;
-    return (_a3 = _getEnv()[prop]) != null ? _a3 : _envShim[prop];
+    return _getEnv()[prop] ?? _envShim[prop];
   },
   has(_, prop) {
     return prop in _getEnv() || prop in _envShim;
@@ -10235,8 +10676,7 @@ var env = new Proxy(_envShim, {
     return Object.keys(env2);
   }
 });
-var _a2;
-var nodeENV = (_a2 = env.NODE_ENV) != null ? _a2 : "";
+var nodeENV = env.NODE_ENV ?? "";
 var isDevelopment = () => nodeENV === "dev" || nodeENV === "development";
 function isValidIP(ip) {
   return z__namespace.ipv4().safeParse(ip).success || z__namespace.ipv6().safeParse(ip).success;
@@ -10245,14 +10685,13 @@ function isIPv6(ip) {
   return z__namespace.ipv6().safeParse(ip).success;
 }
 function extractIPv4FromMapped(ipv62) {
-  var _a3;
   const lower = ipv62.toLowerCase();
   if (lower.startsWith("::ffff:")) {
     const ipv4Part = lower.substring(7);
     if (z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
   }
   const parts = ipv62.split(":");
-  if (parts.length === 7 && ((_a3 = parts[5]) == null ? void 0 : _a3.toLowerCase()) === "ffff") {
+  if (parts.length === 7 && parts[5]?.toLowerCase() === "ffff") {
     const ipv4Part = parts[6];
     if (ipv4Part && z__namespace.ipv4().safeParse(ipv4Part).success) return ipv4Part;
   }
@@ -10297,15 +10736,14 @@ function normalizeIPv6(ipv62, subnetPrefix) {
   return groups.join(":").toLowerCase();
 }
 function normalizeIP(ip, options = {}) {
-  var _a3;
   if (z__namespace.ipv4().safeParse(ip).success) return ip.toLowerCase();
   if (!isIPv6(ip)) return ip.toLowerCase();
   const ipv42 = extractIPv4FromMapped(ip);
   if (ipv42) return ipv42.toLowerCase();
-  return normalizeIPv6(ip, (_a3 = options.ipv6Subnet) != null ? _a3 : 64);
+  return normalizeIPv6(ip, options.ipv6Subnet ?? 64);
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.18_@b_41b4f2aeed778d0a12d93114a352a4b4/node_modules/@better-auth/core/dist/utils/host.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.19_@b_6f6be2e09f620bd7fa590baa54280754/node_modules/@better-auth/core/dist/utils/host.mjs
 var CLOUD_METADATA_HOSTS = /* @__PURE__ */ new Set([
   "metadata.google.internal",
   "metadata.goog",
@@ -10455,8 +10893,7 @@ function isPublicRoutableHost(host) {
 var { net } = electron__default.default;
 var DEFAULT_MAX_BYTES = 1024 * 1024 * 5;
 async function fetchUserImage(baseURL, url, options) {
-  var _a3, _b2, _c;
-  if (((_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.enabled) === false) return null;
+  if (options?.userImageProxy?.enabled === false) return null;
   const decoded = await decodeDataImageUrl(url, options);
   if (decoded) return {
     stream: new ReadableStream({ start(controller) {
@@ -10470,7 +10907,7 @@ async function fetchUserImage(baseURL, url, options) {
     let parsed;
     try {
       parsed = new URL(url);
-    } catch (e) {
+    } catch {
       if (!baseURL) return null;
       const base = baseURL.endsWith("/") ? baseURL : `${baseURL}/`;
       const relative = url.startsWith("/") ? url.slice(1) : url;
@@ -10479,22 +10916,22 @@ async function fetchUserImage(baseURL, url, options) {
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
     if (!isDevelopment() && !isPublicRoutableHost(parsed.hostname)) return null;
     resolvedUrl = parsed.href;
-  } catch (e) {
+  } catch {
     return null;
   }
-  const { maxSize = DEFAULT_MAX_BYTES, accept = "image/*", customValidator: validateImage = detectImageType } = (_b2 = options == null ? void 0 : options.userImageProxy) != null ? _b2 : {};
+  const { maxSize = DEFAULT_MAX_BYTES, accept = "image/*", customValidator: validateImage = detectImageType } = options?.userImageProxy ?? {};
   const response = await net.fetch(resolvedUrl, {
     method: "GET",
     headers: { accept }
   });
   if (!response.ok) return null;
   const contentType = response.headers.get("content-type");
-  if (!(contentType == null ? void 0 : contentType.startsWith("image/")) || contentType.startsWith("image/svg")) return null;
+  if (!contentType?.startsWith("image/") || contentType.startsWith("image/svg")) return null;
   const contentLength = response.headers.get("content-length");
   if (contentLength && Number(contentLength) > maxSize) return null;
   const body = response.body;
   if (!body) return null;
-  const mimeType = ((_c = contentType.split(";")[0]) == null ? void 0 : _c.trim()) || "image/png";
+  const mimeType = contentType.split(";")[0]?.trim() || "image/png";
   const reader = body.getReader();
   let totalSize = 0;
   let firstChunk = true;
@@ -10530,14 +10967,12 @@ async function fetchUserImage(baseURL, url, options) {
   };
 }
 function normalizeUserOutput(user, options) {
-  var _a3, _b2;
-  const result = __spreadValues({}, user);
-  if (result.image && ((_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.enabled) !== false) result.image = `${((_b2 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _b2.scheme) || "user-image"}://${result.id}`;
+  const result = { ...user };
+  if (result.image && options?.userImageProxy?.enabled !== false) result.image = `${options?.userImageProxy?.scheme || "user-image"}://${result.id}`;
   return result;
 }
 async function decodeDataImageUrl(url, options) {
-  var _a3, _b2, _c;
-  const maxSize = (_b2 = (_a3 = options == null ? void 0 : options.userImageProxy) == null ? void 0 : _a3.maxSize) != null ? _b2 : DEFAULT_MAX_BYTES;
+  const maxSize = options?.userImageProxy?.maxSize ?? DEFAULT_MAX_BYTES;
   const maxBase64Size = Math.ceil(maxSize * 4 / 3);
   const lower = url.toLowerCase();
   if (!lower.startsWith("data:image/") || lower.startsWith("data:image/svg")) return null;
@@ -10548,13 +10983,13 @@ async function decodeDataImageUrl(url, options) {
   if (!payload || payload.length > maxBase64Size) return null;
   try {
     const bytes = base64.decode(payload);
-    const { customValidator: validateImage = detectImageType } = (_c = options == null ? void 0 : options.userImageProxy) != null ? _c : {};
+    const { customValidator: validateImage = detectImageType } = options?.userImageProxy ?? {};
     if (!await validateImage(bytes)) return null;
     return {
       bytes,
       mimeType
     };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -10576,22 +11011,22 @@ function detectImageType(bytes) {
 }
 var kElectron = /* @__PURE__ */ Symbol.for("better-auth:electron");
 (() => {
-  const _a3 = api.signInSocial().options.body.shape, { provider, idToken, loginHint } = _a3, signInSocialBody = __objRest(_a3, ["provider", "idToken", "loginHint"]);
-  return z__namespace.object(__spreadProps(__spreadValues({}, signInSocialBody), {
+  const { provider, idToken, loginHint, ...signInSocialBody } = api.signInSocial().options.body.shape;
+  return z__namespace.object({
+    ...signInSocialBody,
     provider: z__namespace.string().nonempty().optional()
-  }));
+  });
 })();
 async function requestAuth(clientOptions, options, cfg) {
-  var _a3;
   if (!isProcessType("browser")) throw new BetterAuthError("`requestAuth` can only be called in the main process");
   const { randomBytes } = await import('crypto');
   const state = crypto.generateRandomString(16, "A-Z", "a-z", "0-9");
   const codeVerifier = base64Url.encode(randomBytes(32));
   const codeChallenge = base64Url.encode(await createHash("SHA-256").digest(codeVerifier));
-  ((_a3 = globalThis[kElectron]) != null ? _a3 : globalThis[kElectron] = /* @__PURE__ */ new Map()).set(state, codeVerifier);
+  (globalThis[kElectron] ?? (globalThis[kElectron] = /* @__PURE__ */ new Map())).set(state, codeVerifier);
   let url = null;
-  if (cfg == null ? void 0 : cfg.provider) {
-    const baseURL = betterAuth.getBaseURL(clientOptions == null ? void 0 : clientOptions.baseURL, clientOptions == null ? void 0 : clientOptions.basePath, void 0, true);
+  if (cfg?.provider) {
+    const baseURL = betterAuth.getBaseURL(clientOptions?.baseURL, clientOptions?.basePath, void 0, true);
     if (!baseURL) {
       console.log("No base URL found in client options");
       throw betterAuth.APIError.from("INTERNAL_SERVER_ERROR", {
@@ -10609,22 +11044,22 @@ async function requestAuth(clientOptions, options, cfg) {
   await electron.shell.openExternal(url.toString(), { activate: true });
 }
 async function authenticate({ $fetch, options, token, getWindow, fetchOptions }) {
-  var _a3, _b2;
   if (!isProcessType("browser")) throw new BetterAuthError("`authenticate` can only be called in the main process.");
   const decoded = betterAuth.safeJSONParse(new TextDecoder().decode(base64Url.decode(decodeURIComponent(token))));
-  const codeVerifier = (_a3 = globalThis[kElectron]) == null ? void 0 : _a3.get(decoded == null ? void 0 : decoded.state);
-  (_b2 = globalThis[kElectron]) == null ? void 0 : _b2.delete(decoded == null ? void 0 : decoded.state);
+  const codeVerifier = globalThis[kElectron]?.get(decoded?.state);
+  globalThis[kElectron]?.delete(decoded?.state);
   if (!codeVerifier) throw new BetterAuthError("Code verifier not found.");
-  return await $fetch("/electron/token", __spreadProps(__spreadValues({}, fetchOptions), {
+  return await $fetch("/electron/token", {
+    ...fetchOptions,
     method: "POST",
-    body: __spreadProps(__spreadValues({}, (fetchOptions == null ? void 0 : fetchOptions.body) || {}), {
+    body: {
+      ...fetchOptions?.body || {},
       token: decoded.identifier,
       state: decoded.state,
       code_verifier: codeVerifier
-    }),
+    },
     onSuccess: async (ctx) => {
-      var _a4, _b3, _c, _d;
-      let user = (_b3 = (_a4 = ctx.data) == null ? void 0 : _a4.user) != null ? _b3 : null;
+      let user = ctx.data?.user ?? null;
       if (user !== null && typeof options.sanitizeUser === "function") try {
         user = await options.sanitizeUser(user);
       } catch (error) {
@@ -10633,22 +11068,21 @@ async function authenticate({ $fetch, options, token, getWindow, fetchOptions })
       }
       if (user === null) return;
       user = normalizeUserOutput(user, options);
-      await ((_c = fetchOptions == null ? void 0 : fetchOptions.onSuccess) == null ? void 0 : _c.call(fetchOptions, ctx));
-      (_d = getWindow()) == null ? void 0 : _d.webContents.send(`${getChannelPrefixWithDelimiter(options.channelPrefix)}authenticated`, user);
+      await fetchOptions?.onSuccess?.(ctx);
+      getWindow()?.webContents.send(`${getChannelPrefixWithDelimiter(options.channelPrefix)}authenticated`, user);
     }
-  }));
+  });
 }
 var { app: app$1, session, protocol, BrowserWindow, ipcMain, webContents: webContents$1 } = electron__default.default;
 function withGetWindowFallback(win) {
-  return win != null ? win : (() => {
+  return win ?? (() => {
     const allWindows = BrowserWindow.getAllWindows();
     return allWindows.length > 0 ? allWindows[0] : null;
   });
 }
 function setupMain($fetch, $store, getCookie2, opts, clientOptions, cfg) {
-  var _a3;
   if (!isProcessType("browser")) throw new BetterAuthError("setupMain can only be called in the main process.");
-  const getWindow = withGetWindowFallback(cfg == null ? void 0 : cfg.getWindow);
+  const getWindow = withGetWindowFallback(cfg?.getWindow);
   if (!cfg || cfg.csp === true) setupCSP(clientOptions, opts);
   if (!cfg || cfg.scheme === true) registerProtocolScheme($fetch, opts, getWindow, clientOptions);
   if (!cfg || cfg.bridges === true) setupBridges({
@@ -10657,7 +11091,7 @@ function setupMain($fetch, $store, getCookie2, opts, clientOptions, cfg) {
     getCookie: getCookie2,
     getWindow
   }, opts, clientOptions);
-  if (((_a3 = opts.userImageProxy) == null ? void 0 : _a3.enabled) !== false) setupUserImageProxy({
+  if (opts.userImageProxy?.enabled !== false) setupUserImageProxy({
     $fetch,
     getCookie: getCookie2
   }, opts, clientOptions);
@@ -10667,7 +11101,7 @@ async function handleDeepLink({ $fetch, options, url, getWindow, clientOptions }
   let parsedURL = null;
   try {
     parsedURL = new URL(url);
-  } catch (e) {
+  } catch {
   }
   if (!parsedURL) return;
   const { scheme } = parseProtocolScheme(options.protocol);
@@ -10688,13 +11122,14 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
   const { scheme, privileges = {} } = typeof options.protocol === "string" ? { scheme: options.protocol } : options.protocol;
   protocol.registerSchemesAsPrivileged([{
     scheme,
-    privileges: __spreadValues({
+    privileges: {
       standard: false,
-      secure: true
-    }, privileges)
+      secure: true,
+      ...privileges
+    }
   }]);
   let hasSetupProtocolClient = false;
-  if (process == null ? void 0 : process.defaultApp) {
+  if (process?.defaultApp) {
     if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path2.resolve(process.argv[1])]);
   } else hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme);
   if (!hasSetupProtocolClient) console.error(`Failed to register protocol ${scheme} as default protocol client.`);
@@ -10710,10 +11145,10 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
         const maybeURL = commandLine.pop();
         if (typeof maybeURL === "string" && maybeURL.trim() !== "") try {
           url = new URL(maybeURL).toString();
-        } catch (e) {
+        } catch {
         }
       }
-      if ((process == null ? void 0 : process.platform) !== "darwin" && typeof url === "string") await handleDeepLink({
+      if (process?.platform !== "darwin" && typeof url === "string") await handleDeepLink({
         $fetch,
         options,
         url,
@@ -10722,7 +11157,7 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
       });
     });
     app$1.on("open-url", async (_event, url) => {
-      if ((process == null ? void 0 : process.platform) === "darwin") await handleDeepLink({
+      if (process?.platform === "darwin") await handleDeepLink({
         $fetch,
         options,
         url,
@@ -10731,7 +11166,7 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
       });
     });
     app$1.whenReady().then(async () => {
-      if ((process == null ? void 0 : process.platform) !== "darwin" && typeof process.argv[1] === "string") await handleDeepLink({
+      if (process?.platform !== "darwin" && typeof process.argv[1] === "string") await handleDeepLink({
         $fetch,
         options,
         url: process.argv[1],
@@ -10744,19 +11179,19 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
 function setupCSP(clientOptions, options) {
   app$1.whenReady().then(() => {
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      var _a3, _b2, _c;
-      const origin = new URL((clientOptions == null ? void 0 : clientOptions.baseURL) || "", "http://localhost").origin;
+      const origin = new URL(clientOptions?.baseURL || "", "http://localhost").origin;
       const cspKey = Object.keys(details.responseHeaders || {}).find((k) => k.toLowerCase() === "content-security-policy");
-      if (!cspKey) return callback({ responseHeaders: __spreadProps(__spreadValues({}, details.responseHeaders || {}), {
+      if (!cspKey) return callback({ responseHeaders: {
+        ...details.responseHeaders || {},
         "content-security-policy": `connect-src 'self' ${origin}`
-      }) });
-      const policy = ((_b2 = (_a3 = details.responseHeaders) == null ? void 0 : _a3[cspKey]) == null ? void 0 : _b2.toString()) || "";
+      } });
+      const policy = details.responseHeaders?.[cspKey]?.toString() || "";
       const csp = /* @__PURE__ */ new Map();
       for (let token of policy.split(";")) {
         token = token.trim();
         if (!token || !/^[\x00-\x7f]*$/.test(token)) continue;
         const [rawDirectiveName, ...directiveValue] = token.split(/\s+/);
-        const directiveName = rawDirectiveName == null ? void 0 : rawDirectiveName.toLowerCase();
+        const directiveName = rawDirectiveName?.toLowerCase();
         if (!directiveName) continue;
         if (csp.has(directiveName)) continue;
         csp.set(directiveName, directiveValue);
@@ -10766,25 +11201,24 @@ function setupCSP(clientOptions, options) {
         if (!values.includes(origin)) values.push(origin);
         csp.set("connect-src", values);
       } else csp.set("connect-src", ["'self'", origin]);
-      const userImageScheme = (((_c = options.userImageProxy) == null ? void 0 : _c.scheme) || "user-image") + ":";
+      const userImageScheme = (options.userImageProxy?.scheme || "user-image") + ":";
       if (csp.has("img-src")) {
         const values = csp.get("img-src") || [];
         if (!values.includes(userImageScheme)) values.push(userImageScheme);
         csp.set("img-src", values);
       } else csp.set("img-src", ["'self'", userImageScheme]);
-      callback({ responseHeaders: __spreadProps(__spreadValues({}, details.responseHeaders), {
+      callback({ responseHeaders: {
+        ...details.responseHeaders,
         "content-security-policy": Array.from(csp.entries()).map(([k, v]) => `${k} ${v.join(" ")}`).join("; ")
-      }) });
+      } });
     });
   });
 }
 function setupBridges(ctx, opts, clientOptions) {
-  var _a3, _b2;
   const prefix = getChannelPrefixWithDelimiter(opts.channelPrefix);
-  (_b2 = (_a3 = ctx.$store) == null ? void 0 : _a3.atoms.session) == null ? void 0 : _b2.subscribe(async (state) => {
-    var _a4, _b3, _c;
+  ctx.$store?.atoms.session?.subscribe(async (state) => {
     if (state.isPending === true) return;
-    let user = (_b3 = (_a4 = state.data) == null ? void 0 : _a4.user) != null ? _b3 : null;
+    let user = state.data?.user ?? null;
     if (user !== null && typeof opts.sanitizeUser === "function") try {
       user = await opts.sanitizeUser(user);
     } catch (error) {
@@ -10792,17 +11226,16 @@ function setupBridges(ctx, opts, clientOptions) {
       user = null;
     }
     if (user !== null) user = normalizeUserOutput(user, opts);
-    (_c = webContents$1.getFocusedWebContents()) == null ? void 0 : _c.send(`${prefix}user-updated`, user);
+    webContents$1.getFocusedWebContents()?.send(`${prefix}user-updated`, user);
   });
   ipcMain.handle(`${prefix}getUser`, async () => {
-    var _a4, _b3;
-    let user = (_b3 = (_a4 = (await ctx.$fetch("/get-session", {
+    let user = (await ctx.$fetch("/get-session", {
       method: "GET",
       headers: {
         cookie: ctx.getCookie(),
         "content-type": "application/json"
       }
-    })).data) == null ? void 0 : _a4.user) != null ? _b3 : null;
+    })).data?.user ?? null;
     if (user !== null && typeof opts.sanitizeUser === "function") try {
       user = await opts.sanitizeUser(user);
     } catch (error) {
@@ -10810,7 +11243,7 @@ function setupBridges(ctx, opts, clientOptions) {
       user = null;
     }
     if (user !== null) user = normalizeUserOutput(user, opts);
-    return user != null ? user : null;
+    return user ?? null;
   });
   ipcMain.handle(`${prefix}requestAuth`, async (_evt, options) => requestAuth(clientOptions, opts, options));
   ipcMain.handle(`${prefix}authenticate`, async (_evt, data) => {
@@ -10833,9 +11266,8 @@ function setupBridges(ctx, opts, clientOptions) {
   });
 }
 function setupUserImageProxy(ctx, opts, clientOptions) {
-  var _a3, _b2, _c;
-  const hasAdminPlugin = (_b2 = (_a3 = clientOptions == null ? void 0 : clientOptions.plugins) == null ? void 0 : _a3.some((plugin) => plugin.id === "admin")) != null ? _b2 : false;
-  const scheme = ((_c = opts.userImageProxy) == null ? void 0 : _c.scheme) || "user-image";
+  const hasAdminPlugin = clientOptions?.plugins?.some((plugin) => plugin.id === "admin") ?? false;
+  const scheme = opts.userImageProxy?.scheme || "user-image";
   protocol.registerSchemesAsPrivileged([{
     scheme,
     privileges: {
@@ -10847,7 +11279,6 @@ function setupUserImageProxy(ctx, opts, clientOptions) {
   }]);
   app$1.whenReady().then(() => {
     protocol.handle(scheme, async (request2) => {
-      var _a4, _b3, _c2, _d;
       try {
         const userId = new URL(request2.url).hostname;
         if (!userId) return new Response(null, { status: 400 });
@@ -10860,19 +11291,19 @@ function setupUserImageProxy(ctx, opts, clientOptions) {
           method: "GET",
           headers
         });
-        if (((_b3 = (_a4 = sessionResult.data) == null ? void 0 : _a4.user) == null ? void 0 : _b3.id) === userId) imageUrl = sessionResult.data.user.image;
-        else if (hasAdminPlugin) imageUrl = (_d = (_c2 = (await ctx.$fetch(`/admin/get-user?id=${encodeURIComponent(userId)}`, {
+        if (sessionResult.data?.user?.id === userId) imageUrl = sessionResult.data.user.image;
+        else if (hasAdminPlugin) imageUrl = (await ctx.$fetch(`/admin/get-user?id=${encodeURIComponent(userId)}`, {
           method: "GET",
           headers
-        })).data) == null ? void 0 : _c2.user) == null ? void 0 : _d.image;
+        })).data?.user?.image;
         if (!imageUrl) return new Response(null, { status: 404 });
-        const result = await fetchUserImage(clientOptions == null ? void 0 : clientOptions.baseURL, imageUrl, opts);
+        const result = await fetchUserImage(clientOptions?.baseURL, imageUrl, opts);
         if (!result) return new Response(null, { status: 404 });
         return new Response(result.stream, { headers: {
           "content-type": result.mimeType,
           "cache-control": "private, max-age=3600"
         } });
-      } catch (e) {
+      } catch {
         return new Response(null, { status: 500 });
       }
     });
@@ -10891,8 +11322,11 @@ function getSetCookie(header, prevCookie) {
     };
   });
   if (prevCookie) try {
-    toSetCookie = __spreadValues(__spreadValues({}, JSON.parse(prevCookie)), toSetCookie);
-  } catch (e) {
+    toSetCookie = {
+      ...JSON.parse(prevCookie),
+      ...toSetCookie
+    };
+  } catch {
   }
   return JSON.stringify(toSetCookie);
 }
@@ -10911,7 +11345,6 @@ function getCookie(cookie) {
   return pairs.join("; ");
 }
 function hasSessionCookieChanged(prevCookie, newCookie) {
-  var _a3, _b2;
   if (!prevCookie) return true;
   try {
     const prev = JSON.parse(prevCookie);
@@ -10923,9 +11356,9 @@ function hasSessionCookieChanged(prevCookie, newCookie) {
     Object.keys(next).forEach((key) => {
       if (key.includes("session_token") || key.includes("session_data")) sessionKeys.add(key);
     });
-    for (const key of sessionKeys) if (((_a3 = prev[key]) == null ? void 0 : _a3.value) !== ((_b2 = next[key]) == null ? void 0 : _b2.value)) return true;
+    for (const key of sessionKeys) if (prev[key]?.value !== next[key]?.value) return true;
     return false;
-  } catch (e) {
+  } catch {
     return true;
   }
 }
@@ -10944,16 +11377,16 @@ function hasBetterAuthCookies(setCookieHeader, cookiePrefix) {
 var { app, safeStorage, webContents } = electron__default.default;
 var storageAdapter = (storage2, sessionKeys) => {
   const memory = /* @__PURE__ */ new Map();
-  return __spreadProps(__spreadValues({}, storage2), {
+  return {
+    ...storage2,
     getDecrypted: (name) => {
-      var _a3;
-      if (sessionKeys.has(name) && memory.has(name)) return (_a3 = memory.get(name)) != null ? _a3 : null;
+      if (sessionKeys.has(name) && memory.has(name)) return memory.get(name) ?? null;
       if (!safeStorage.isEncryptionAvailable()) return null;
       const item = storage2.getItem(name);
       if (!item || typeof item !== "string") return null;
       try {
         return safeStorage.decryptString(buffer.Buffer.from(base64.decode(item)));
-      } catch (e) {
+      } catch {
         return null;
       }
     },
@@ -10964,32 +11397,33 @@ var storageAdapter = (storage2, sessionKeys) => {
       }
       try {
         storage2.setItem(name, base64.encode(safeStorage.encryptString(value)));
-      } catch (e) {
+      } catch {
         return;
       }
     }
-  });
+  };
 };
 var electronClient = (options) => {
-  const opts = __spreadValues({
+  const opts = {
     storagePrefix: "better-auth",
     cookiePrefix: "better-auth",
     channelPrefix: "better-auth",
-    callbackPath: "/auth/callback"
-  }, options);
+    callbackPath: "/auth/callback",
+    ...options
+  };
   const { scheme } = parseProtocolScheme(opts.protocol);
   let store = null;
   const cookieName = `${opts.storagePrefix}.cookie`;
   const localCacheName = `${opts.storagePrefix}.local_cache`;
   const { getDecrypted, setEncrypted } = storageAdapter(opts.storage, /* @__PURE__ */ new Set([cookieName, localCacheName]));
   const clearSessionCache = () => {
-    var _a3;
     setEncrypted(cookieName, "{}");
-    (_a3 = store == null ? void 0 : store.atoms.session) == null ? void 0 : _a3.set(__spreadProps(__spreadValues({}, store.atoms.session.get()), {
+    store?.atoms.session?.set({
+      ...store.atoms.session.get(),
       data: null,
       error: null,
       isPending: false
-    }));
+    });
     setEncrypted(localCacheName, "{}");
   };
   if ((betterAuth.isDevelopment() || betterAuth.isTest()) && /^(?!\.)(?!.*\.\.)(?!.*\.$)[^.]+\.[^.]+$/.test(scheme)) console.warn("The provided scheme does not follow the reverse domain name notation. For example: `app.example.com` -> `com.example.app`.");
@@ -11004,12 +11438,13 @@ var electronClient = (options) => {
         const cookie = getCookie(getDecrypted(cookieName) || "{}");
         options2 || (options2 = {});
         options2.credentials = "omit";
-        options2.headers = __spreadProps(__spreadValues({}, options2.headers), {
+        options2.headers = {
+          ...options2.headers,
           cookie,
           "user-agent": app.userAgentFallback,
           "electron-origin": `${scheme}:/`,
           "x-skip-oauth-proxy": "true"
-        });
+        };
         if (url.endsWith("/sign-out")) clearSessionCache();
         return {
           url,
@@ -11022,10 +11457,10 @@ var electronClient = (options) => {
           if (setCookie) {
             if (hasBetterAuthCookies(setCookie, opts.cookiePrefix)) {
               const prevCookie = getDecrypted(cookieName);
-              const toSetCookie = getSetCookie(setCookie || "{}", prevCookie != null ? prevCookie : void 0);
+              const toSetCookie = getSetCookie(setCookie || "{}", prevCookie ?? void 0);
               if (hasSessionCookieChanged(prevCookie, toSetCookie)) {
                 setEncrypted(cookieName, toSetCookie);
-                store == null ? void 0 : store.notify("$sessionSignal");
+                store?.notify("$sessionSignal");
               } else setEncrypted(cookieName, toSetCookie);
             }
           }
@@ -11036,10 +11471,10 @@ var electronClient = (options) => {
           if (context.request.url.toString().includes("/sign-out")) clearSessionCache();
         },
         onError: async (context) => {
-          var _a3;
-          (_a3 = webContents.getFocusedWebContents()) == null ? void 0 : _a3.send(`${getChannelPrefixWithDelimiter(opts.channelPrefix)}error`, __spreadProps(__spreadValues({}, context.error), {
+          webContents.getFocusedWebContents()?.send(`${getChannelPrefixWithDelimiter(opts.channelPrefix)}error`, {
+            ...context.error,
             path: context.request.url
-          }));
+          });
         }
       }
     }],
@@ -11052,15 +11487,16 @@ var electronClient = (options) => {
       return {
         getCookie: getCookieFn,
         authenticate: async (data) => {
-          return await authenticate(__spreadProps(__spreadValues({}, data), {
+          return await authenticate({
+            ...data,
             $fetch,
             options,
             getWindow: withGetWindowFallback(getWindow)
-          }));
+          });
         },
         requestAuth: (options2) => requestAuth(clientOptions, opts, options2),
         setupMain: (cfg) => {
-          if (cfg == null ? void 0 : cfg.getWindow) getWindow = cfg.getWindow;
+          if (cfg?.getWindow) getWindow = cfg.getWindow;
           return setupMain($fetch, store, getCookieFn, opts, clientOptions, cfg);
         },
         $Infer: {}
@@ -11075,11 +11511,12 @@ var storage = (opts) => {
     setItem: () => {
     }
   };
-  const config = new Conf__default.default(__spreadValues({
+  const config = new Conf__default.default({
     cwd: app2.getPath("userData"),
     projectName: app2.getName(),
-    projectVersion: app2.getVersion()
-  }, opts));
+    projectVersion: app2.getVersion(),
+    ...opts
+  });
   return {
     getItem: (key) => {
       return config.get(key, null);
@@ -11099,10 +11536,27 @@ var authClient = client.createAuthClient({
         scheme: ELECTRON_AUTH_PROTOCOL
       },
       signInURL: ELECTRON_AUTH_SIGN_IN_URL,
-      storage: storage()
+      storage: storage(),
+      // Offline/defense-in-depth: never register the bypassCSP "user-image://"
+      // proxy that net.fetches a remote avatar URL from the main process. Auth is
+      // local email/password (no remote avatars), so this only closes a latent,
+      // un-CSP'd egress surface.
+      userImageProxy: { enabled: false }
     })
   ]
 });
+function generatePairingCode() {
+  return String(crypto$1.randomInt(1e5, 1e6));
+}
+function pairingCodesMatch(expected, actual) {
+  if (!expected || !actual) return false;
+  const a = Buffer.from(expected, "utf8");
+  const b = Buffer.from(actual, "utf8");
+  if (a.length !== b.length) return false;
+  return crypto$1.timingSafeEqual(a, b);
+}
+
+// electron/collab-hub-service.ts
 var DEFAULT_PORT = 1234;
 var SERVICE_TYPE = "dn-collab";
 var SERVICE_NAME = "Data Navigator LAN";
@@ -11122,11 +11576,10 @@ function dataDir() {
   return path2__default.default.join(electron.app.getPath("userData"), "data-navigator", "collab");
 }
 function lanAddresses() {
-  var _a3;
   const nets = os4__default.default.networkInterfaces();
   const lans = [];
   for (const name of Object.keys(nets)) {
-    for (const net3 of (_a3 = nets[name]) != null ? _a3 : []) {
+    for (const net3 of nets[name] ?? []) {
       if (net3.family === "IPv4" && !net3.internal) {
         lans.push({ name, address: net3.address });
       }
@@ -11138,37 +11591,34 @@ function websocketUrls(port) {
   return lanAddresses().map((ip) => `ws://${ip.address}:${port}`);
 }
 function pickIpv4(addresses) {
-  return addresses == null ? void 0 : addresses.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
+  return addresses?.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
 }
 function serviceKey(svc) {
-  var _a3, _b2;
-  return `${(_b2 = (_a3 = svc.name) != null ? _a3 : svc.host) != null ? _b2 : "hub"}:${svc.port}`;
+  return `${svc.name ?? svc.host ?? "hub"}:${svc.port}`;
 }
 function toDiscoveredHub(svc) {
-  var _a3, _b2, _c, _d, _e, _f;
-  const ip = (_a3 = pickIpv4(svc.addresses)) != null ? _a3 : svc.host;
+  const ip = pickIpv4(svc.addresses) ?? svc.host;
   if (!ip) return null;
   return {
-    name: (_b2 = svc.name) != null ? _b2 : SERVICE_NAME,
-    host: (_c = svc.host) != null ? _c : ip,
+    name: svc.name ?? SERVICE_NAME,
+    host: svc.host ?? ip,
     port: svc.port,
     url: `ws://${ip}:${svc.port}`,
-    addresses: (_d = svc.addresses) != null ? _d : [],
-    room: (_e = svc.txt) == null ? void 0 : _e.room,
-    pairingRequired: ((_f = svc.txt) == null ? void 0 : _f.pairingRequired) === "1"
+    addresses: svc.addresses ?? [],
+    room: svc.txt?.room,
+    pairingRequired: svc.txt?.pairingRequired === "1"
   };
 }
 function setDiscoveryListener(listener) {
   discoveryListener = listener;
 }
 async function start(input = {}) {
-  var _a3, _b2, _c;
   if (server) {
     return status();
   }
-  const port = (_a3 = input.port) != null ? _a3 : DEFAULT_PORT;
-  const pairingCode = ((_b2 = input.pairingCode) == null ? void 0 : _b2.trim()) || String(Math.floor(1e5 + Math.random() * 9e5));
-  const room = (_c = input.room) != null ? _c : "telecom-default";
+  const port = input.port ?? DEFAULT_PORT;
+  const pairingCode = input.pairingCode?.trim() || generatePairingCode();
+  const room = input.room ?? "telecom-default";
   const { Server } = await import('@hocuspocus/server');
   const { SQLite } = await import('@hocuspocus/extension-sqlite');
   const fs5 = await import('fs/promises');
@@ -11183,7 +11633,7 @@ async function start(input = {}) {
     // Pairing-code gate = the existing lan-server.mjs contract.
     async onAuthenticate(payload) {
       const code = payload.requestParameters.get("pairingCode");
-      if (pairingCode && code !== pairingCode) {
+      if (!pairingCodesMatch(pairingCode, code)) {
         throw new Error("Invalid pairing code");
       }
       const role = payload.requestParameters.get("role");
@@ -11249,10 +11699,9 @@ function getDiscovered() {
   return [...discovered.values()];
 }
 async function ensureBonjour() {
-  var _a3;
   if (!bonjour) {
     const mod = await import('bonjour-service');
-    const Ctor = (_a3 = mod.Bonjour) != null ? _a3 : mod.default;
+    const Ctor = mod.Bonjour ?? mod.default;
     if (!Ctor) throw new Error("bonjour-service: missing Bonjour export");
     bonjour = new Ctor();
   }
@@ -11282,7 +11731,7 @@ async function stopAdvertising() {
     await new Promise((resolve2) => {
       try {
         inst.unpublishAll(() => resolve2());
-      } catch (e) {
+      } catch {
         resolve2();
       }
     });
@@ -11299,13 +11748,13 @@ function startDiscovery() {
         const hub = toDiscoveredHub(svc);
         if (!hub) return;
         discovered.set(serviceKey(svc), hub);
-        discoveryListener == null ? void 0 : discoveryListener({ type: "up", hub });
+        discoveryListener?.({ type: "up", hub });
       });
       b.on("down", (svc) => {
         const key = serviceKey(svc);
         const hub = discovered.get(key);
         discovered.delete(key);
-        if (hub) discoveryListener == null ? void 0 : discoveryListener({ type: "down", hub });
+        if (hub) discoveryListener?.({ type: "down", hub });
       });
     } catch (error) {
       console.warn("[collab-hub] mDNS discovery failed:", error);
@@ -11313,11 +11762,10 @@ function startDiscovery() {
   })();
 }
 function stopDiscovery() {
-  var _a3;
   if (browser) {
     try {
-      (_a3 = browser.stop) == null ? void 0 : _a3.call(browser);
-    } catch (e) {
+      browser.stop?.();
+    } catch {
     }
     browser = null;
   }
@@ -11328,7 +11776,7 @@ async function dispose() {
   if (bonjour) {
     try {
       bonjour.destroy();
-    } catch (e) {
+    } catch {
     }
     bonjour = null;
   }
@@ -11356,7 +11804,7 @@ function normalizeValue(v) {
 function stringifyComplex(v) {
   try {
     return JSON.stringify(v, bigintReplacer);
-  } catch (e) {
+  } catch {
     return String(v);
   }
 }
@@ -11455,8 +11903,8 @@ var readConnIndex = 0;
 var writeQueue = new PQueue__default.default({ concurrency: 1 });
 var readQueue = new PQueue__default.default({ concurrency: READ_CONN_COUNT });
 var queryMetrics = [];
-function truncateSql(sql, maxLen = 240) {
-  return sql.length > maxLen ? `${sql.slice(0, maxLen)}...` : sql;
+function truncateSql(sql2, maxLen = 240) {
+  return sql2.length > maxLen ? `${sql2.slice(0, maxLen)}...` : sql2;
 }
 function pushMetric(metric) {
   queryMetrics.unshift(metric);
@@ -11464,25 +11912,25 @@ function pushMetric(metric) {
     queryMetrics.pop();
   }
 }
-async function measureRows(conn, sql) {
+async function measureRows(conn, sql2) {
   const start2 = performance.now();
-  const result = await conn.run(sql);
+  const result = await conn.run(sql2);
   const rows = await result.getRowObjectsJS();
   const durationMs = Math.round(performance.now() - start2);
   pushMetric({
-    sql: truncateSql(sql),
+    sql: truncateSql(sql2),
     durationMs,
     timestamp: Date.now(),
     rowCount: rows.length
   });
   return rows;
 }
-async function measureRun(conn, sql) {
+async function measureRun(conn, sql2) {
   const start2 = performance.now();
-  await conn.run(sql);
+  await conn.run(sql2);
   const durationMs = Math.round(performance.now() - start2);
   pushMetric({
-    sql: truncateSql(sql),
+    sql: truncateSql(sql2),
     durationMs,
     timestamp: Date.now(),
     rowCount: 0
@@ -11539,22 +11987,13 @@ function quoteSqlPathList(paths) {
 async function applyReadConnectionSandbox(conn, allowedDirs) {
   const resolvedDirs = allowedDirs.filter((dir) => typeof dir === "string" && dir.length > 0).map((dir) => path2__default.default.resolve(dir));
   if (resolvedDirs.length === 0) return;
-  const settings = [
-    // Views need to touch real parquet files on disk.
-    "SET enable_external_access = true",
-    // ...but only inside the managed cache/spill directories.
-    `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
-    // Freeze the configuration for this connection's lifetime.
-    "SET lock_configuration = true"
-  ];
-  for (const setting of settings) {
-    try {
-      await conn.run(setting);
-    } catch (error) {
-      console.warn(
-        `[duckdb] read-connection sandbox skipped (${setting.split("=")[0].trim()}): ${error instanceof Error ? error.message : String(error)}`
-      );
-    }
+  const setting = `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`;
+  try {
+    await conn.run(setting);
+  } catch (error) {
+    console.warn(
+      `[duckdb] read-connection sandbox skipped (SET allowed_directories): ${error instanceof Error ? error.message : String(error)}`
+    );
   }
 }
 function makeDatasetId() {
@@ -11564,13 +12003,12 @@ function datasetViewName(datasetId2) {
   return DatasetIdSchema.parse(datasetId2);
 }
 function buildCsvOptions(options) {
-  var _a3, _b2;
   const parts = [
     "auto_detect = true",
-    `header = ${(_a3 = options.hasHeader) != null ? _a3 : true}`,
+    `header = ${options.hasHeader ?? true}`,
     "strict_mode = false",
     "null_padding = true",
-    `sample_size = ${(_b2 = options.sampleSize) != null ? _b2 : DEFAULT_CSV_SAMPLE_SIZE}`,
+    `sample_size = ${options.sampleSize ?? DEFAULT_CSV_SAMPLE_SIZE}`,
     "max_line_size = 10000000"
   ];
   if (options.delimiter) {
@@ -11585,18 +12023,15 @@ function buildCsvOptions(options) {
   return parts.join(", ");
 }
 function normalizeColumns(rows) {
-  return rows.map((row) => {
-    var _a3, _b2;
-    return {
-      name: String((_a3 = row.column_name) != null ? _a3 : row.name),
-      type: String((_b2 = row.column_type) != null ? _b2 : row.type),
-      nullable: row.null !== "NO" && row.null !== false
-    };
-  });
+  return rows.map((row) => ({
+    name: String(row.column_name ?? row.name),
+    type: String(row.column_type ?? row.type),
+    nullable: row.null !== "NO" && row.null !== false
+  }));
 }
 function parseColumns(value) {
   try {
-    const parsed = JSON.parse(String(value != null ? value : "[]"));
+    const parsed = JSON.parse(String(value ?? "[]"));
     if (!Array.isArray(parsed)) {
       return [];
     }
@@ -11605,7 +12040,7 @@ function parseColumns(value) {
       type: String(column.type),
       nullable: Boolean(column.nullable)
     }));
-  } catch (e) {
+  } catch {
     return [];
   }
 }
@@ -11672,7 +12107,7 @@ async function restoreDatasetViews() {
           FROM read_parquet(${quoteSqlString(cachePath)})
         `
       );
-    } catch (e) {
+    } catch {
       await measureRun(
         conn,
         `
@@ -11685,7 +12120,6 @@ async function restoreDatasetViews() {
   }
 }
 async function getDatasetById(conn, datasetId2) {
-  var _a3;
   const id = DatasetIdSchema.parse(datasetId2);
   const rows = await measureRows(
     conn,
@@ -11717,22 +12151,22 @@ async function getDatasetById(conn, datasetId2) {
     sourcePath: String(row.source_path),
     cachePath: String(row.cache_path),
     sourceFormat: String(row.source_format),
-    rowCount: Number((_a3 = row.row_count) != null ? _a3 : 0),
+    rowCount: Number(row.row_count ?? 0),
     columns: parseColumns(row.schema_json),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at)
   };
 }
-function stripSqlWrapping(sql) {
-  let s = sql.trim();
+function stripSqlWrapping(sql2) {
+  let s = sql2.trim();
   const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
-  if (fence == null ? void 0 : fence[1]) s = fence[1].trim();
+  if (fence?.[1]) s = fence[1].trim();
   s = s.replace(/^(\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)+/i, "").trim();
   s = s.replace(/;+\s*$/, "").trim();
   return s;
 }
-function assertReadOnlySql(sql) {
-  const trimmed = stripSqlWrapping(sql);
+function assertReadOnlySql(sql2) {
+  const trimmed = stripSqlWrapping(sql2);
   const upper = trimmed.toUpperCase();
   const allowed = upper.startsWith("SELECT") || upper.startsWith("WITH") || upper.startsWith("SHOW") || upper.startsWith("DESCRIBE") || upper.startsWith("DESC ") || upper.startsWith("SUMMARIZE") || upper.startsWith("EXPLAIN") || // DuckDB read-only shorthands the 1.5B model sometimes emits.
   upper.startsWith("FROM") || upper.startsWith("TABLE") || upper.startsWith("VALUES") || upper.startsWith("PIVOT") || upper.startsWith("UNPIVOT");
@@ -11765,7 +12199,6 @@ async function describeView(conn, viewName) {
   return normalizeColumns(rows);
 }
 async function countViewRows(conn, viewName) {
-  var _a3, _b2;
   const rows = await measureRows(
     conn,
     `
@@ -11773,14 +12206,13 @@ async function countViewRows(conn, viewName) {
       FROM ${quoteIdentifier(viewName)}
     `
   );
-  return Number((_b2 = (_a3 = rows[0]) == null ? void 0 : _a3.row_count) != null ? _b2 : 0);
+  return Number(rows[0]?.row_count ?? 0);
 }
 var REJECT_SAMPLE_LIMIT = 50;
 async function collectRejectSummary(conn) {
-  var _a3, _b2;
   try {
     const countRows2 = await measureRows(conn, "SELECT count(*) AS bad_rows FROM reject_errors");
-    const rejectedRowCount = Number((_b2 = (_a3 = countRows2[0]) == null ? void 0 : _a3.bad_rows) != null ? _b2 : 0);
+    const rejectedRowCount = Number(countRows2[0]?.bad_rows ?? 0);
     if (rejectedRowCount === 0) {
       return { rejectedRowCount: 0, sample: [] };
     }
@@ -11800,7 +12232,7 @@ async function collectRejectSummary(conn) {
       errorMessage: row.error_message === null || row.error_message === void 0 ? null : String(row.error_message)
     }));
     return { rejectedRowCount, sample };
-  } catch (e) {
+  } catch {
     return { rejectedRowCount: 0, sample: [] };
   }
 }
@@ -11808,7 +12240,6 @@ async function ensureInit() {
   if (instance && writeConn) return;
   if (initPromise) return initPromise;
   initPromise = (async () => {
-    var _a3, _b2, _c;
     try {
       const rootDir = getDuckDBRootDir();
       const datasetsDir = getDatasetsDirPath();
@@ -11817,10 +12248,14 @@ async function ensureInit() {
       await ensureDirectory(datasetsDir);
       const tmpSpillDir = path2__default.default.join(rootDir, "tmp");
       await ensureDirectory(tmpSpillDir);
-      const cores = (_c = (_b2 = (_a3 = os4__default.default).availableParallelism) == null ? void 0 : _b2.call(_a3)) != null ? _c : 4;
+      const cores = os4__default.default.availableParallelism?.() ?? 4;
       const threads = String(Math.max(2, Math.min(cores - 1, 6)));
       instance = await nodeApi.DuckDBInstance.create(dbPath2, {
-        threads
+        threads,
+        // enable_external_access is a startup-only GLOBAL setting in DuckDB 1.x;
+        // it cannot be changed via SET after the database is open. Default is
+        // already true, but we set it explicitly so the intent is clear.
+        enable_external_access: "true"
       });
       writeConn = await instance.connect();
       readConns = [];
@@ -11870,7 +12305,6 @@ async function init() {
 async function registerCSVPathDataset(rawInput) {
   const input = RegisterCSVPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a3, _b2, _c, _d, _e;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -11878,7 +12312,7 @@ async function registerCSVPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a3 = input.displayName) != null ? _a3 : path2__default.default.basename(sourcePath);
+    const displayName = input.displayName ?? path2__default.default.basename(sourcePath);
     const cachePath = path2__default.default.join(datasetsDir, `${id}.parquet`);
     const csvOptions = buildCsvOptions({
       hasHeader: input.hasHeader,
@@ -11941,16 +12375,16 @@ async function registerCSVPathDataset(rawInput) {
           ${quoteSqlString(
         JSON.stringify({
           auto_detect: true,
-          header: (_b2 = input.hasHeader) != null ? _b2 : true,
-          delimiter: (_c = input.delimiter) != null ? _c : null,
-          sample_size: (_d = input.sampleSize) != null ? _d : DEFAULT_CSV_SAMPLE_SIZE
+          header: input.hasHeader ?? true,
+          delimiter: input.delimiter ?? null,
+          sample_size: input.sampleSize ?? DEFAULT_CSV_SAMPLE_SIZE
         })
       )},
           now()
         )
       `
     );
-    const previewLimit = (_e = input.previewLimit) != null ? _e : DEFAULT_PREVIEW_LIMIT;
+    const previewLimit = input.previewLimit ?? DEFAULT_PREVIEW_LIMIT;
     const previewRows = await measureRows(
       conn,
       `
@@ -11959,7 +12393,7 @@ async function registerCSVPathDataset(rawInput) {
         LIMIT ${previewLimit}
       `
     );
-    return __spreadValues({
+    return {
       id,
       displayName,
       viewName,
@@ -11970,14 +12404,14 @@ async function registerCSVPathDataset(rawInput) {
       columns,
       createdAt: now,
       updatedAt: now,
-      previewRows
-    }, rejects ? { rejects } : {});
+      previewRows,
+      ...rejects ? { rejects } : {}
+    };
   });
 }
 async function registerParquetPathDataset(rawInput) {
   const input = RegisterParquetPathDatasetSchema.parse(rawInput);
   return enqueueWrite(async () => {
-    var _a3, _b2;
     await ensureInit();
     const conn = getWriteConnection();
     const sourcePath = await assertReadableFile(input.filePath);
@@ -11985,7 +12419,7 @@ async function registerParquetPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = (_a3 = input.displayName) != null ? _a3 : path2__default.default.basename(sourcePath);
+    const displayName = input.displayName ?? path2__default.default.basename(sourcePath);
     const cachePath = path2__default.default.join(datasetsDir, `${id}.parquet`);
     await fs__default.default.copyFile(sourcePath, cachePath);
     await measureRun(
@@ -12028,7 +12462,7 @@ async function registerParquetPathDataset(rawInput) {
         )
       `
     );
-    const previewLimit = (_b2 = input.previewLimit) != null ? _b2 : DEFAULT_PREVIEW_LIMIT;
+    const previewLimit = input.previewLimit ?? DEFAULT_PREVIEW_LIMIT;
     const previewRows = await measureRows(
       conn,
       `
@@ -12074,32 +12508,28 @@ async function listDatasets() {
         ORDER BY created_at DESC
       `
     );
-    return rows.map((row) => {
-      var _a3;
-      return {
-        id: String(row.id),
-        displayName: String(row.display_name),
-        viewName: String(row.view_name),
-        sourcePath: String(row.source_path),
-        cachePath: String(row.cache_path),
-        sourceFormat: String(row.source_format),
-        rowCount: Number((_a3 = row.row_count) != null ? _a3 : 0),
-        columns: parseColumns(row.schema_json),
-        createdAt: String(row.created_at),
-        updatedAt: String(row.updated_at)
-      };
-    });
+    return rows.map((row) => ({
+      id: String(row.id),
+      displayName: String(row.display_name),
+      viewName: String(row.view_name),
+      sourcePath: String(row.source_path),
+      cachePath: String(row.cache_path),
+      sourceFormat: String(row.source_format),
+      rowCount: Number(row.row_count ?? 0),
+      columns: parseColumns(row.schema_json),
+      createdAt: String(row.created_at),
+      updatedAt: String(row.updated_at)
+    }));
   });
 }
 async function previewDataset(rawInput) {
   const input = PreviewDatasetSchema.parse(rawInput);
   return enqueueRead(async () => {
-    var _a3, _b2;
     await ensureInit();
     const conn = getReadConnection();
     const viewName = datasetViewName(input.datasetId);
-    const limit = (_a3 = input.limit) != null ? _a3 : DEFAULT_PREVIEW_LIMIT;
-    const offset = (_b2 = input.offset) != null ? _b2 : 0;
+    const limit = input.limit ?? DEFAULT_PREVIEW_LIMIT;
+    const offset = input.offset ?? 0;
     return measureRows(
       conn,
       `
@@ -12168,7 +12598,7 @@ async function deleteDataset(rawInput) {
     );
     try {
       await fs__default.default.unlink(cachePath);
-    } catch (e) {
+    } catch {
     }
   });
 }
@@ -12188,11 +12618,11 @@ function getQueryMetrics() {
 function clearQueryMetrics() {
   queryMetrics.length = 0;
 }
-async function runReadOnlyQuery(sql) {
+async function runReadOnlyQuery(sql2) {
   return enqueueRead(async () => {
     await ensureInit();
     const conn = getReadConnection();
-    const safeSql = assertReadOnlySql(sql);
+    const safeSql = assertReadOnlySql(sql2);
     return measureRows(conn, safeSql);
   });
 }
@@ -12229,7 +12659,7 @@ function cancelQueries(token) {
     for (const conn of conns) {
       try {
         conn.interrupt();
-      } catch (e) {
+      } catch {
       }
     }
   }
@@ -12255,9 +12685,9 @@ async function runCancellableRead(token, body) {
     }
   });
 }
-async function measureArrow(conn, sql) {
+async function measureArrow(conn, sql2) {
   const start2 = performance.now();
-  const reader = await conn.runAndReadAll(sql);
+  const reader = await conn.runAndReadAll(sql2);
   const cols = reader.getColumnsObjectJS();
   reader.columnTypes();
   const bytes = encodeColumnsToArrowIPC(cols);
@@ -12265,15 +12695,15 @@ async function measureArrow(conn, sql) {
   const firstCol = Object.values(cols)[0];
   const rowCount = Array.isArray(firstCol) ? firstCol.length : 0;
   pushMetric({
-    sql: truncateSql(sql),
+    sql: truncateSql(sql2),
     durationMs,
     timestamp: Date.now(),
     rowCount
   });
   return bytes;
 }
-async function runReadOnlyQueryArrow(sql, cancelToken2) {
-  const safeSql = assertReadOnlySql(sql);
+async function runReadOnlyQueryArrow(sql2, cancelToken2) {
+  const safeSql = assertReadOnlySql(sql2);
   return runCancellableRead(cancelToken2, (conn) => measureArrow(conn, safeSql));
 }
 async function profileDataset(rawInput) {
@@ -12289,57 +12719,49 @@ async function profileDataset(rawInput) {
         FROM (SUMMARIZE SELECT * FROM ${quoteIdentifier(viewName)})
       `
     );
-    return rows.map((row) => {
-      var _a3, _b2, _c, _d, _e;
-      return {
-        column_name: String((_a3 = row.column_name) != null ? _a3 : ""),
-        column_type: String((_b2 = row.column_type) != null ? _b2 : ""),
-        min: (_c = row.min) != null ? _c : null,
-        max: (_d = row.max) != null ? _d : null,
-        approx_unique: numOrNull(row.approx_unique),
-        avg: numOrNull(row.avg),
-        std: numOrNull(row.std),
-        q25: numOrNull(row.q25),
-        q50: numOrNull(row.q50),
-        q75: numOrNull(row.q75),
-        count: Number((_e = row.count) != null ? _e : 0),
-        null_percentage: numOrNull(row.null_percentage)
-      };
-    });
+    return rows.map((row) => ({
+      column_name: String(row.column_name ?? ""),
+      column_type: String(row.column_type ?? ""),
+      min: row.min ?? null,
+      max: row.max ?? null,
+      approx_unique: numOrNull(row.approx_unique),
+      avg: numOrNull(row.avg),
+      std: numOrNull(row.std),
+      q25: numOrNull(row.q25),
+      q50: numOrNull(row.q50),
+      q75: numOrNull(row.q75),
+      count: Number(row.count ?? 0),
+      null_percentage: numOrNull(row.null_percentage)
+    }));
   });
 }
 async function profileColumnDetail(rawInput) {
-  var _a3;
   const input = ProfileColumnDetailSchema.parse(rawInput);
   const viewName = datasetViewName(input.datasetId);
   const col = quoteIdentifier(input.column);
-  const binCount = (_a3 = input.binCount) != null ? _a3 : 20;
+  const binCount = input.binCount ?? 20;
   return runCancellableRead(input.cancelToken, async (conn) => {
-    var _a4, _b2, _c, _d;
     const distinctRows = await measureRows(
       conn,
       `SELECT approx_count_distinct(${col}) AS distinct_approx FROM ${quoteIdentifier(viewName)}`
     );
-    const distinctApprox = Number((_b2 = (_a4 = distinctRows[0]) == null ? void 0 : _a4.distinct_approx) != null ? _b2 : 0);
+    const distinctApprox = Number(distinctRows[0]?.distinct_approx ?? 0);
     const topRows = await measureRows(
       conn,
-      `SELECT approx_top_k(${col}, ${(_c = input.topK) != null ? _c : 10}) AS top_values FROM ${quoteIdentifier(viewName)}`
+      `SELECT approx_top_k(${col}, ${input.topK ?? 10}) AS top_values FROM ${quoteIdentifier(viewName)}`
     );
-    const topValues = normalizeTopValues((_d = topRows[0]) == null ? void 0 : _d.top_values);
+    const topValues = normalizeTopValues(topRows[0]?.top_values);
     let histogram = [];
     try {
       const histRows = await measureRows(
         conn,
         `FROM histogram(${quoteIdentifier(viewName)}, ${col}, bin_count := ${binCount})`
       );
-      histogram = histRows.map((row) => {
-        var _a5, _b3, _c2, _d2;
-        return {
-          bin: String((_b3 = (_a5 = row.bin) != null ? _a5 : row.x) != null ? _b3 : ""),
-          count: Number((_d2 = (_c2 = row.count) != null ? _c2 : row.y) != null ? _d2 : 0)
-        };
-      });
-    } catch (e) {
+      histogram = histRows.map((row) => ({
+        bin: String(row.bin ?? row.x ?? ""),
+        count: Number(row.count ?? row.y ?? 0)
+      }));
+    } catch {
       histogram = [];
     }
     return {
@@ -12352,7 +12774,7 @@ async function profileColumnDetail(rawInput) {
 }
 var countCache = /* @__PURE__ */ new Map();
 function countKey(viewName, where) {
-  return `${viewName}::${(where != null ? where : "").trim()}`;
+  return `${viewName}::${(where ?? "").trim()}`;
 }
 function invalidateCountCache(viewName) {
   for (const key of countCache.keys()) {
@@ -12362,23 +12784,21 @@ function invalidateCountCache(viewName) {
   }
 }
 async function countRows(rawInput) {
-  var _a3;
   const input = CountRowsSchema.parse(rawInput);
   const viewName = datasetViewName(input.datasetId);
-  const where = (_a3 = input.where) == null ? void 0 : _a3.trim();
+  const where = input.where?.trim();
   const key = countKey(viewName, where);
   if (!input.force) {
     const cached = countCache.get(key);
     if (cached) return cached.total;
   }
   return runCancellableRead(input.cancelToken, async (conn) => {
-    var _a4, _b2;
     const filter = where ? ` WHERE ${where}` : "";
     const rows = await measureRows(
       conn,
       `SELECT count(*) AS total FROM ${quoteIdentifier(viewName)}${filter}`
     );
-    const total = Number((_b2 = (_a4 = rows[0]) == null ? void 0 : _a4.total) != null ? _b2 : 0);
+    const total = Number(rows[0]?.total ?? 0);
     countCache.set(key, { total, cachedAt: Date.now() });
     return total;
   });
@@ -12386,22 +12806,21 @@ async function countRows(rawInput) {
 async function fetchKeysetPage(rawInput) {
   const input = KeysetPageSchema.parse(rawInput);
   return runCancellableRead(input.cancelToken, async (conn) => {
-    var _a3;
     const dataset = await getDatasetById(conn, input.datasetId);
     if (!dataset) {
       throw new Error("Dataset not found.");
     }
     const cachePath = await assertManagedCachePath(dataset.cachePath);
-    const { sql, params } = buildKeysetPage(cachePath, input);
+    const { sql: sql2, params } = buildKeysetPage(cachePath, input);
     const start2 = performance.now();
-    const reader = params.length > 0 ? await conn.runAndReadAll(sql, params) : await conn.runAndReadAll(sql);
+    const reader = params.length > 0 ? await conn.runAndReadAll(sql2, params) : await conn.runAndReadAll(sql2);
     const cols = reader.getColumnsObjectJS();
     const types = reader.columnTypes();
     const durationMs = Math.round(performance.now() - start2);
-    const rowidCol = (_a3 = cols.rowid) != null ? _a3 : [];
+    const rowidCol = cols.rowid ?? [];
     const rowCount = rowidCol.length;
     pushMetric({
-      sql: truncateSql(sql),
+      sql: truncateSql(sql2),
       durationMs,
       timestamp: Date.now(),
       rowCount
@@ -12423,17 +12842,16 @@ async function fetchKeysetPage(rawInput) {
   });
 }
 function buildKeysetPage(cachePath, input) {
-  var _a3, _b2;
   const limit = Math.max(1, Math.trunc(input.limit));
   const inner = `(
         SELECT *, file_row_number AS rowid
         FROM read_parquet(${quoteSqlString(cachePath)}, file_row_number = true)
       ) AS _kp`;
-  const projection = ((_a3 = input.columns) == null ? void 0 : _a3.length) ? `${input.columns.map(quoteIdentifier).join(", ")}, rowid` : "* EXCLUDE (file_row_number)";
+  const projection = input.columns?.length ? `${input.columns.map(quoteIdentifier).join(", ")}, rowid` : "* EXCLUDE (file_row_number)";
   const orderParts = input.sortKeys.map((k) => `${quoteIdentifier(k.column)} ${k.direction}`);
   orderParts.push("rowid ASC");
   const filters = [];
-  if ((_b2 = input.where) == null ? void 0 : _b2.trim()) {
+  if (input.where?.trim()) {
     filters.push(`(${input.where})`);
   }
   const params = [];
@@ -12464,13 +12882,13 @@ function buildKeysetPage(cachePath, input) {
   }
   const whereSql = filters.length > 0 ? `
       WHERE ${filters.join(" AND ")}` : "";
-  const sql = `
+  const sql2 = `
       SELECT ${projection}
       FROM ${inner}${whereSql}
       ORDER BY ${orderParts.join(", ")}
       LIMIT ${limit}
   `.trim();
-  return { sql, params };
+  return { sql: sql2, params };
 }
 function numOrNull(value) {
   if (value === null || value === void 0) return null;
@@ -12482,20 +12900,19 @@ function toCursorValue(value) {
     return value <= BigInt(Number.MAX_SAFE_INTEGER) && value >= BigInt(Number.MIN_SAFE_INTEGER) ? Number(value) : value.toString();
   }
   if (value instanceof Date) return value.toISOString();
-  return value != null ? value : null;
+  return value ?? null;
 }
 function normalizeTopValues(raw) {
   if (!Array.isArray(raw)) return [];
   return raw.map((entry) => {
-    var _a3, _b2, _c, _d;
     if (entry && typeof entry === "object" && !Array.isArray(entry)) {
       const rec = entry;
       return {
-        value: (_c = (_b2 = (_a3 = rec.value) != null ? _a3 : rec.key) != null ? _b2 : rec[Object.keys(rec)[0]]) != null ? _c : null,
-        count: numOrNull((_d = rec.count) != null ? _d : rec.n)
+        value: rec.value ?? rec.key ?? rec[Object.keys(rec)[0]] ?? null,
+        count: numOrNull(rec.count ?? rec.n)
       };
     }
-    return { value: entry != null ? entry : null, count: null };
+    return { value: entry ?? null, count: null };
   });
 }
 async function close() {
@@ -12579,10 +12996,9 @@ function createConcurrencyLimiter(options) {
   return { run, stats };
 }
 function withTimeout(task, options) {
-  var _a3, _b2;
   const { label, timeoutMs } = options;
-  const setTimeoutFn = (_a3 = options.setTimeoutFn) != null ? _a3 : ((fn, ms) => setTimeout(fn, ms));
-  const clearTimeoutFn = (_b2 = options.clearTimeoutFn) != null ? _b2 : ((h) => clearTimeout(h));
+  const setTimeoutFn = options.setTimeoutFn ?? ((fn, ms) => setTimeout(fn, ms));
+  const clearTimeoutFn = options.clearTimeoutFn ?? ((h) => clearTimeout(h));
   const controller = new AbortController();
   if (!Number.isFinite(timeoutMs) || timeoutMs <= 0) {
     return task(controller.signal);
@@ -12617,6 +13033,94 @@ function withTimeout(task, options) {
 function runBounded(limiter, task, timeout) {
   return limiter.run(() => withTimeout(task, timeout));
 }
+function parseIpc(schema, input, channel) {
+  const result = schema.safeParse(input);
+  if (!result.success) {
+    const detail = result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`).join("; ");
+    throw new Error(`Invalid IPC payload for "${channel}": ${detail}`);
+  }
+  return result.data;
+}
+var MAX_SQL_CHARS = 2e5;
+var MAX_PROMPT_CHARS = 1e6;
+var datasetId = z.z.string().min(1).max(512);
+var cancelToken = z.z.string().max(512).optional();
+var requestId = z.z.string().max(512).optional();
+var SqlSchema = z.z.string().min(1).max(MAX_SQL_CHARS);
+var RegisterCsvSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().optional(),
+  hasHeader: z.z.boolean().optional(),
+  delimiter: z.z.string().max(8).optional(),
+  sampleSize: z.z.number().optional(),
+  previewLimit: z.z.number().optional(),
+  encoding: z.z.enum(["utf-8", "utf-16", "latin-1"]).optional(),
+  storeRejects: z.z.boolean().optional()
+});
+var RegisterParquetSchema = z.z.object({
+  filePath: z.z.string().min(1),
+  displayName: z.z.string().optional(),
+  previewLimit: z.z.number().optional()
+});
+var DatasetOnlySchema2 = z.z.object({ datasetId });
+var PreviewDatasetSchema2 = z.z.object({
+  datasetId,
+  limit: z.z.number().optional(),
+  offset: z.z.number().optional()
+});
+var ExportDatasetSchema2 = z.z.object({ datasetId, targetPath: z.z.string().min(1) });
+var ProfileDatasetSchema2 = z.z.object({ datasetId, cancelToken });
+var ProfileColumnDetailSchema2 = z.z.object({
+  datasetId,
+  column: z.z.string().min(1),
+  topK: z.z.number().optional(),
+  binCount: z.z.number().optional(),
+  cancelToken
+});
+var CountRowsSchema2 = z.z.object({
+  datasetId,
+  where: z.z.string().max(MAX_SQL_CHARS).optional(),
+  force: z.z.boolean().optional(),
+  cancelToken
+});
+var KeysetPageSchema2 = z.z.object({
+  datasetId,
+  sortKeys: z.z.array(z.z.object({ column: z.z.string().min(1), direction: z.z.enum(["ASC", "DESC"]).optional() })).max(64),
+  limit: z.z.number(),
+  where: z.z.string().max(MAX_SQL_CHARS).optional(),
+  cursor: z.z.object({ sortValues: z.z.array(z.z.unknown()), rowid: z.z.number() }).optional(),
+  columns: z.z.array(z.z.string()).max(4096).optional(),
+  cancelToken
+});
+var LlamaGenerateSchema = z.z.object({
+  requestId,
+  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
+  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  maxTokens: z.z.number().optional(),
+  temperature: z.z.number().optional(),
+  topP: z.z.number().optional()
+});
+var LlamaGenerateStructuredSchema = z.z.object({
+  requestId,
+  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
+  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
+  jsonSchema: z.z.record(z.z.string(), z.z.unknown()),
+  maxTokens: z.z.number().optional(),
+  temperature: z.z.number().optional()
+});
+var LlamaEnsureModelSchema = z.z.object({ file: z.z.string().max(512).optional() }).optional();
+var RequestIdSchema = z.z.string().min(1).max(512);
+var ModelKeySchema = z.z.string().min(1).max(256);
+var ModelDownloadSchema = z.z.object({ key: ModelKeySchema, requestId });
+var CollabStartSchema = z.z.object({
+  port: z.z.number().int().min(0).max(65535).optional(),
+  pairingCode: z.z.string().max(256).optional(),
+  room: z.z.string().max(256).optional(),
+  advertise: z.z.boolean().optional(),
+  discover: z.z.boolean().optional()
+}).optional();
 var DEFAULT_LLM_MODEL = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
 var KNOWN_MODELS = [
   {
@@ -12638,7 +13142,7 @@ var DEFAULT_STRUCTURED_MAX_TOKENS = 1536;
 function repairTruncatedJson(raw) {
   let s = raw.trim();
   const fence = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
-  if (fence == null ? void 0 : fence[1]) s = fence[1].trim();
+  if (fence?.[1]) s = fence[1].trim();
   const stack = [];
   let inString = false;
   let escaped = false;
@@ -12675,7 +13179,7 @@ async function disposeSharedContext() {
   if (sharedContext) {
     try {
       await sharedContext.dispose();
-    } catch (e) {
+    } catch {
     }
     sharedContext = null;
   }
@@ -12686,7 +13190,7 @@ function clearWarmSessions() {
   for (const entry of warmSessions.values()) {
     try {
       entry.sequence.dispose();
-    } catch (e) {
+    } catch {
     }
   }
   warmSessions.clear();
@@ -12700,11 +13204,11 @@ function dropWarmSession(entry) {
   }
   try {
     entry.sequence.dispose();
-  } catch (e) {
+  } catch {
   }
 }
 async function getWarmSession(systemPrefix) {
-  const key = `${loadedModelPath != null ? loadedModelPath : ""}::${systemPrefix}`;
+  const key = `${loadedModelPath ?? ""}::${systemPrefix}`;
   const existing = warmSessions.get(key);
   if (existing) {
     warmSessions.delete(key);
@@ -12729,12 +13233,12 @@ async function getWarmSession(systemPrefix) {
       const old = warmSessions.get(oldest);
       warmSessions.delete(oldest);
       try {
-        old == null ? void 0 : old.sequence.dispose();
-      } catch (e) {
+        old?.sequence.dispose();
+      } catch {
       }
     }
     return entry;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -12754,8 +13258,7 @@ function modelPath(file) {
   return path2__default.default.join(modelDir(), file);
 }
 function gpuExplicitlyEnabled() {
-  var _a3;
-  const value = (_a3 = process.env.DN_LLAMA_GPU) == null ? void 0 : _a3.trim().toLowerCase();
+  const value = process.env.DN_LLAMA_GPU?.trim().toLowerCase();
   if (!value) return false;
   return ["1", "true", "yes", "on", "auto", "vulkan", "cuda", "metal"].includes(value);
 }
@@ -12788,9 +13291,7 @@ async function ensureModel(file = DEFAULT_LLM_MODEL) {
   const llama = await getLlamaInstance();
   const target = modelPath(file);
   if (!fs3.existsSync(target)) {
-    throw new Error(
-      `Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`
-    );
+    throw new Error(`Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`);
   }
   if (model && loadedModelPath === target) {
     return { model: target };
@@ -12807,10 +13308,9 @@ async function ensureModel(file = DEFAULT_LLM_MODEL) {
 }
 async function generate(input) {
   return enqueue(async () => {
-    var _a3, _b2, _c, _d, _e, _f, _g, _h, _i, _j;
     const start2 = Date.now();
     await ensureModel();
-    if ((_a3 = input.signal) == null ? void 0 : _a3.aborted) throw abortError();
+    if (input.signal?.aborted) throw abortError();
     const effectivePrompt = input.systemPrefix ? `${input.systemPrefix}
 
 ${input.prompt}` : input.prompt;
@@ -12826,31 +13326,28 @@ ${input.prompt}` : input.prompt;
           let warmText = "";
           try {
             warmText = await warm.session.prompt(user, {
-              maxTokens: (_b2 = input.maxTokens) != null ? _b2 : DEFAULT_MAX_TOKENS,
-              temperature: (_c = input.temperature) != null ? _c : 0,
+              maxTokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+              temperature: input.temperature ?? 0,
               topP: input.topP,
               signal: input.signal,
-              onTextChunk: (chunk) => {
-                var _a4;
-                return (_a4 = input.onToken) == null ? void 0 : _a4.call(input, chunk);
-              }
+              onTextChunk: (chunk) => input.onToken?.(chunk)
             });
           } catch (error) {
-            if ((_d = input.signal) == null ? void 0 : _d.aborted) warmFinish = "abort";
+            if (input.signal?.aborted) warmFinish = "abort";
             else throw error;
           }
           const warmCompletion = countTokens(warmText);
           return {
             text: warmText,
-            model: loadedModelPath != null ? loadedModelPath : "",
-            finishReason: warmFinish === "abort" ? "abort" : warmCompletion >= ((_e = input.maxTokens) != null ? _e : DEFAULT_MAX_TOKENS) ? "length" : "stop",
+            model: loadedModelPath ?? "",
+            finishReason: warmFinish === "abort" ? "abort" : warmCompletion >= (input.maxTokens ?? DEFAULT_MAX_TOKENS) ? "length" : "stop",
             promptTokens: countTokens(`${input.systemPrefix}
 ${user}`),
             completionTokens: warmCompletion,
             elapsedMs: Date.now() - start2
           };
-        } catch (e) {
-          if ((_f = input.signal) == null ? void 0 : _f.aborted) throw abortError();
+        } catch {
+          if (input.signal?.aborted) throw abortError();
           dropWarmSession(warm);
         }
       }
@@ -12864,20 +13361,17 @@ ${user}`),
         systemPrompt: input.system
       });
       let finishReason = "stop";
-      let text = "";
+      let text2 = "";
       try {
-        text = await session4.prompt(effectivePrompt, {
-          maxTokens: (_g = input.maxTokens) != null ? _g : DEFAULT_MAX_TOKENS,
-          temperature: (_h = input.temperature) != null ? _h : 0,
+        text2 = await session4.prompt(effectivePrompt, {
+          maxTokens: input.maxTokens ?? DEFAULT_MAX_TOKENS,
+          temperature: input.temperature ?? 0,
           topP: input.topP,
           signal: input.signal,
-          onTextChunk: (chunk) => {
-            var _a4;
-            return (_a4 = input.onToken) == null ? void 0 : _a4.call(input, chunk);
-          }
+          onTextChunk: (chunk) => input.onToken?.(chunk)
         });
       } catch (error) {
-        if ((_i = input.signal) == null ? void 0 : _i.aborted) {
+        if (input.signal?.aborted) {
           finishReason = "abort";
         } else {
           throw error;
@@ -12887,11 +13381,11 @@ ${user}`),
         input.system ? `${input.system}
 ${effectivePrompt}` : effectivePrompt
       );
-      const completionTokens = countTokens(text);
+      const completionTokens = countTokens(text2);
       return {
-        text,
-        model: loadedModelPath != null ? loadedModelPath : "",
-        finishReason: finishReason === "abort" ? "abort" : completionTokens >= ((_j = input.maxTokens) != null ? _j : DEFAULT_MAX_TOKENS) ? "length" : "stop",
+        text: text2,
+        model: loadedModelPath ?? "",
+        finishReason: finishReason === "abort" ? "abort" : completionTokens >= (input.maxTokens ?? DEFAULT_MAX_TOKENS) ? "length" : "stop",
         promptTokens,
         completionTokens,
         elapsedMs: Date.now() - start2
@@ -12903,10 +13397,9 @@ ${effectivePrompt}` : effectivePrompt
 }
 async function generateStructured(input) {
   return enqueue(async () => {
-    var _a3, _b2, _c, _d, _e, _f;
     await ensureModel();
     const llama = await getLlamaInstance();
-    if ((_a3 = input.signal) == null ? void 0 : _a3.aborted) throw abortError();
+    if (input.signal?.aborted) throw abortError();
     const grammar = await llama.createGrammarForJsonSchema(
       input.jsonSchema
     );
@@ -12923,8 +13416,8 @@ ${input.prompt}` : input.prompt;
 ${input.prompt}` : input.prompt;
           const raw = await warm.session.prompt(user, {
             grammar,
-            maxTokens: (_b2 = input.maxTokens) != null ? _b2 : DEFAULT_STRUCTURED_MAX_TOKENS,
-            temperature: (_c = input.temperature) != null ? _c : 0,
+            maxTokens: input.maxTokens ?? DEFAULT_STRUCTURED_MAX_TOKENS,
+            temperature: input.temperature ?? 0,
             signal: input.signal
           });
           try {
@@ -12932,12 +13425,12 @@ ${input.prompt}` : input.prompt;
           } catch (parseErr) {
             try {
               return JSON.parse(repairTruncatedJson(raw));
-            } catch (e) {
+            } catch {
               throw parseErr;
             }
           }
-        } catch (e) {
-          if ((_d = input.signal) == null ? void 0 : _d.aborted) throw abortError();
+        } catch {
+          if (input.signal?.aborted) throw abortError();
           dropWarmSession(warm);
         }
       }
@@ -12952,8 +13445,8 @@ ${input.prompt}` : input.prompt;
       });
       const raw = await session4.prompt(effectivePrompt, {
         grammar,
-        maxTokens: (_e = input.maxTokens) != null ? _e : DEFAULT_STRUCTURED_MAX_TOKENS,
-        temperature: (_f = input.temperature) != null ? _f : 0,
+        maxTokens: input.maxTokens ?? DEFAULT_STRUCTURED_MAX_TOKENS,
+        temperature: input.temperature ?? 0,
         signal: input.signal
       });
       try {
@@ -12961,7 +13454,7 @@ ${input.prompt}` : input.prompt;
       } catch (parseErr) {
         try {
           return JSON.parse(repairTruncatedJson(raw));
-        } catch (e) {
+        } catch {
           throw parseErr;
         }
       }
@@ -12973,7 +13466,7 @@ ${input.prompt}` : input.prompt;
 function listModels() {
   return KNOWN_MODELS.map((m) => {
     const p = modelPath(m.id);
-    return __spreadProps(__spreadValues({}, m), { path: p, present: fs3.existsSync(p) });
+    return { ...m, path: p, present: fs3.existsSync(p) };
   });
 }
 async function isAvailable(file = DEFAULT_LLM_MODEL) {
@@ -12981,7 +13474,7 @@ async function isAvailable(file = DEFAULT_LLM_MODEL) {
     if (!fs3.existsSync(modelPath(file))) return false;
     await ensureModel(file);
     return true;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -13002,14 +13495,14 @@ async function dispose2() {
       const llama = await llamaPromise;
       await llama.dispose();
     }
-  } catch (e) {
+  } catch {
   } finally {
     llamaPromise = null;
   }
 }
-function countTokens(text) {
-  if (!text) return 0;
-  return Math.max(1, Math.ceil(text.length / 4));
+function countTokens(text2) {
+  if (!text2) return 0;
+  return Math.max(1, Math.ceil(text2.length / 4));
 }
 var HF = "https://huggingface.co";
 var MODEL_DOWNLOADS = [
@@ -13079,14 +13572,13 @@ function isModelPresent(key) {
   return fs3.existsSync(path2__default.default.join(llmDir(), entry.file));
 }
 async function downloadModel(input) {
-  var _a3, _b2, _c;
   const entry = entryFor(input.key);
   const dir = llmDir();
   const dest = path2__default.default.join(dir, entry.file);
   if (fs3.existsSync(dest)) {
     const size2 = fs3.statSync(dest).size;
     if (entry.bytes === 0 || size2 === entry.bytes) {
-      (_a3 = input.onProgress) == null ? void 0 : _a3.call(input, {
+      input.onProgress?.({
         key: entry.key,
         receivedBytes: size2,
         totalBytes: size2,
@@ -13120,13 +13612,12 @@ async function downloadModel(input) {
   let lastEmit = 0;
   const source = stream.Readable.fromWeb(res.body);
   source.on("data", (chunk) => {
-    var _a4;
     received += chunk.length;
-    hash == null ? void 0 : hash.update(chunk);
+    hash?.update(chunk);
     const now = Date.now();
     if (now - lastEmit > 100) {
       lastEmit = now;
-      (_a4 = input.onProgress) == null ? void 0 : _a4.call(input, {
+      input.onProgress?.({
         key: entry.key,
         receivedBytes: received,
         totalBytes: total,
@@ -13139,7 +13630,7 @@ async function downloadModel(input) {
     await promises.pipeline(source, fs3.createWriteStream(tmp));
   } catch (err) {
     await fs.rm(tmp, { force: true });
-    if ((_b2 = input.signal) == null ? void 0 : _b2.aborted) throw abortError2();
+    if (input.signal?.aborted) throw abortError2();
     throw err;
   }
   if (entry.bytes > 0 && received !== entry.bytes) {
@@ -13163,7 +13654,7 @@ async function downloadModel(input) {
   }
   await fs.rename(tmp, dest);
   const size = fs3.statSync(dest).size;
-  (_c = input.onProgress) == null ? void 0 : _c.call(input, {
+  input.onProgress?.({
     key: entry.key,
     receivedBytes: size,
     totalBytes: size,
@@ -13212,7 +13703,7 @@ function loadOrCreateWrappedDek(userDataDir, safeStorage2) {
       if (/^[0-9a-f]{64}$/i.test(hex)) {
         return hex.toLowerCase();
       }
-    } catch (e) {
+    } catch {
       return null;
     }
   }
@@ -13253,7 +13744,7 @@ function isAllowedAppOrigin(value) {
     if (url.hostname === "localhost") return true;
     if (url.hostname === "127.0.0.1") return true;
     return false;
-  } catch (e) {
+  } catch {
     return false;
   }
 }
@@ -13346,7 +13837,7 @@ function withCrossOriginIsolationHeaders(responseHeaders) {
     "cross-origin-resource-policy"
   ]);
   const next = {};
-  for (const [key, value] of Object.entries(responseHeaders != null ? responseHeaders : {})) {
+  for (const [key, value] of Object.entries(responseHeaders ?? {})) {
     if (!managed.has(key.toLowerCase())) {
       next[key] = value;
     }
@@ -13468,94 +13959,140 @@ function ensureAuthSecretEnv(userDataDir) {
 var PRODUCTION_FUSE_CONFIG = {
   /** Disallow `ELECTRON_RUN_AS_NODE` — no arbitrary Node execution via the app. */
   RunAsNode: false};
-function parseIpc(schema, input, channel) {
-  const result = schema.safeParse(input);
-  if (!result.success) {
-    const detail = result.error.issues.map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`).join("; ");
-    throw new Error(`Invalid IPC payload for "${channel}": ${detail}`);
-  }
-  return result.data;
+var nowMs = drizzleOrm.sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
+var appSetting = sqliteCore.sqliteTable(
+  "app_setting",
+  {
+    namespace: sqliteCore.text("namespace").notNull(),
+    key: sqliteCore.text("key").notNull(),
+    value: sqliteCore.text("value", { mode: "json" }).$type().notNull(),
+    createdAt: sqliteCore.integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
+    updatedAt: sqliteCore.integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs)
+  },
+  (table) => [
+    sqliteCore.primaryKey({ columns: [table.namespace, table.key], name: "app_setting_pk" }),
+    sqliteCore.index("app_setting_namespace_idx").on(table.namespace)
+  ]
+);
+var SCHEMA_SQL = `
+CREATE TABLE IF NOT EXISTS app_setting (
+  namespace text NOT NULL,
+  key text NOT NULL,
+  value text NOT NULL,
+  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+  updated_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
+  PRIMARY KEY (namespace, key)
+);
+CREATE INDEX IF NOT EXISTS app_setting_namespace_idx ON app_setting (namespace);
+`;
+var DB_FILES = {
+  settings: "settings.db",
+  analytics: "analytics.db"
+};
+var ANALYTICS_NAMESPACES = /* @__PURE__ */ new Set(["analytics_snapshot"]);
+function domainForNamespace(namespace) {
+  return ANALYTICS_NAMESPACES.has(namespace) ? "analytics" : "settings";
 }
-var MAX_SQL_CHARS = 2e5;
-var MAX_PROMPT_CHARS = 1e6;
-var datasetId = z.z.string().min(1).max(512);
-var cancelToken = z.z.string().max(512).optional();
-var requestId = z.z.string().max(512).optional();
-var SqlSchema = z.z.string().min(1).max(MAX_SQL_CHARS);
-var RegisterCsvSchema = z.z.object({
-  filePath: z.z.string().min(1),
-  displayName: z.z.string().optional(),
-  hasHeader: z.z.boolean().optional(),
-  delimiter: z.z.string().max(8).optional(),
-  sampleSize: z.z.number().optional(),
-  previewLimit: z.z.number().optional(),
-  encoding: z.z.enum(["utf-8", "utf-16", "latin-1"]).optional(),
-  storeRejects: z.z.boolean().optional()
-});
-var RegisterParquetSchema = z.z.object({
-  filePath: z.z.string().min(1),
-  displayName: z.z.string().optional(),
-  previewLimit: z.z.number().optional()
-});
-var DatasetOnlySchema2 = z.z.object({ datasetId });
-var PreviewDatasetSchema2 = z.z.object({
-  datasetId,
-  limit: z.z.number().optional(),
-  offset: z.z.number().optional()
-});
-var ExportDatasetSchema2 = z.z.object({ datasetId, targetPath: z.z.string().min(1) });
-var ProfileDatasetSchema2 = z.z.object({ datasetId, cancelToken });
-var ProfileColumnDetailSchema2 = z.z.object({
-  datasetId,
-  column: z.z.string().min(1),
-  topK: z.z.number().optional(),
-  binCount: z.z.number().optional(),
-  cancelToken
-});
-var CountRowsSchema2 = z.z.object({
-  datasetId,
-  where: z.z.string().max(MAX_SQL_CHARS).optional(),
-  force: z.z.boolean().optional(),
-  cancelToken
-});
-var KeysetPageSchema2 = z.z.object({
-  datasetId,
-  sortKeys: z.z.array(z.z.object({ column: z.z.string().min(1), direction: z.z.enum(["ASC", "DESC"]).optional() })).max(64),
-  limit: z.z.number(),
-  where: z.z.string().max(MAX_SQL_CHARS).optional(),
-  cursor: z.z.object({ sortValues: z.z.array(z.z.unknown()), rowid: z.z.number() }).optional(),
-  columns: z.z.array(z.z.string()).max(4096).optional(),
-  cancelToken
-});
-var LlamaGenerateSchema = z.z.object({
-  requestId,
-  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
-  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
-  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
-  maxTokens: z.z.number().optional(),
-  temperature: z.z.number().optional(),
-  topP: z.z.number().optional()
-});
-var LlamaGenerateStructuredSchema = z.z.object({
-  requestId,
-  system: z.z.string().max(MAX_PROMPT_CHARS).optional(),
-  prompt: z.z.string().min(1).max(MAX_PROMPT_CHARS),
-  systemPrefix: z.z.string().max(MAX_PROMPT_CHARS).optional(),
-  jsonSchema: z.z.record(z.z.string(), z.z.unknown()),
-  maxTokens: z.z.number().optional(),
-  temperature: z.z.number().optional()
-});
-var LlamaEnsureModelSchema = z.z.object({ file: z.z.string().max(512).optional() }).optional();
-var RequestIdSchema = z.z.string().min(1).max(512);
-var ModelKeySchema = z.z.string().min(1).max(256);
-var ModelDownloadSchema = z.z.object({ key: ModelKeySchema, requestId });
-var CollabStartSchema = z.z.object({
-  port: z.z.number().int().min(0).max(65535).optional(),
-  pairingCode: z.z.string().max(256).optional(),
-  room: z.z.string().max(256).optional(),
-  advertise: z.z.boolean().optional(),
-  discover: z.z.boolean().optional()
-}).optional();
+var handles = /* @__PURE__ */ new Map();
+var baseDir = null;
+function configureSettingsStore(databasesDir) {
+  baseDir = databasesDir;
+}
+function openDomain(domain) {
+  const cached = handles.get(domain);
+  if (cached) return cached;
+  if (!baseDir) {
+    throw new Error("settings-store: configureSettingsStore() was not called");
+  }
+  fs3.mkdirSync(baseDir, { recursive: true });
+  const sqlite = new Database__default.default(path2__default.default.join(baseDir, DB_FILES[domain]));
+  sqlite.pragma("journal_mode = WAL");
+  sqlite.pragma("foreign_keys = ON");
+  sqlite.exec(SCHEMA_SQL);
+  const handle = { db: betterSqlite3.drizzle({ client: sqlite, schema: { appSetting } }), sqlite };
+  handles.set(domain, handle);
+  return handle;
+}
+function getSetting(namespace, key) {
+  const { db } = openDomain(domainForNamespace(namespace));
+  const row = db.select().from(appSetting).where(drizzleOrm.and(drizzleOrm.eq(appSetting.namespace, namespace), drizzleOrm.eq(appSetting.key, key))).get();
+  if (!row) return { value: null, updatedAt: null };
+  return { value: row.value, updatedAt: new Date(row.updatedAt).toISOString() };
+}
+function setSetting(namespace, key, value) {
+  const { db } = openDomain(domainForNamespace(namespace));
+  const now = /* @__PURE__ */ new Date();
+  db.insert(appSetting).values({ namespace, key, value, createdAt: now, updatedAt: now }).onConflictDoUpdate({
+    target: [appSetting.namespace, appSetting.key],
+    set: { value, updatedAt: now }
+  }).run();
+  return now.toISOString();
+}
+function deleteSetting(namespace, key) {
+  const { db } = openDomain(domainForNamespace(namespace));
+  db.delete(appSetting).where(drizzleOrm.and(drizzleOrm.eq(appSetting.namespace, namespace), drizzleOrm.eq(appSetting.key, key))).run();
+}
+function exportSettings(namespace) {
+  const out = {};
+  const collect = (domain) => {
+    var _a;
+    const { db } = openDomain(domain);
+    const query = db.select().from(appSetting);
+    const rows = namespace ? query.where(drizzleOrm.eq(appSetting.namespace, namespace)).all() : query.all();
+    for (const row of rows) {
+      out[_a = row.namespace] ?? (out[_a] = {});
+      out[row.namespace][row.key] = row.value;
+    }
+  };
+  if (namespace) {
+    collect(domainForNamespace(namespace));
+  } else {
+    collect("settings");
+    collect("analytics");
+  }
+  return out;
+}
+var MIGRATION_NS = "__migration";
+var MIGRATION_KEY = "auth_app_setting_v1";
+function migrateLegacyAppSettings(authDbPath) {
+  if (getSetting(MIGRATION_NS, MIGRATION_KEY).value) return { migrated: 0 };
+  let migrated = 0;
+  if (fs3.existsSync(authDbPath)) {
+    try {
+      const source = new Database__default.default(authDbPath, { readonly: true });
+      try {
+        const rows = source.prepare("SELECT namespace, key, value FROM app_setting").all();
+        for (const row of rows) {
+          if (row.namespace === MIGRATION_NS) continue;
+          if (getSetting(row.namespace, row.key).value !== null) continue;
+          let parsed;
+          try {
+            parsed = JSON.parse(row.value);
+          } catch {
+            parsed = row.value;
+          }
+          setSetting(row.namespace, row.key, parsed);
+          migrated += 1;
+        }
+      } finally {
+        source.close();
+      }
+    } catch (error) {
+      console.warn("[settings-store] legacy app_setting lift skipped:", error);
+    }
+  }
+  setSetting(MIGRATION_NS, MIGRATION_KEY, { done: true, migrated, at: Date.now() });
+  return { migrated };
+}
+function closeSettingsStore() {
+  for (const { sqlite } of handles.values()) {
+    try {
+      sqlite.close();
+    } catch {
+    }
+  }
+  handles.clear();
+}
 var DEFAULT_SAMPLE_RATE = 16e3;
 var DEFAULT_STT_ENGINE = "sherpa-whisper-tiny";
 var DEFAULT_TTS_ENGINE = "sherpa-kokoro";
@@ -13585,12 +14122,9 @@ var sherpaModulePromise = null;
 var recognizers = /* @__PURE__ */ new Map();
 var ttsModels = /* @__PURE__ */ new Map();
 function getSherpa() {
-  sherpaModulePromise != null ? sherpaModulePromise : sherpaModulePromise = import('sherpa-onnx-node').then(
-    (module) => {
-      var _a3;
-      return (_a3 = module.default) != null ? _a3 : module;
-    }
-  );
+  sherpaModulePromise ?? (sherpaModulePromise = import('sherpa-onnx-node').then(
+    (module) => module.default ?? module
+  ));
   return sherpaModulePromise;
 }
 function normalizeSttEngine(value) {
@@ -13602,7 +14136,7 @@ function normalizeTtsEngine(value) {
   return DEFAULT_TTS_ENGINE;
 }
 function normalizeModelDir(value, fallback) {
-  return path2__default.default.resolve((value == null ? void 0 : value.trim()) || fallback);
+  return path2__default.default.resolve(value?.trim() || fallback);
 }
 function requireFile(filePath) {
   if (!fs3.existsSync(filePath)) {
@@ -13691,9 +14225,8 @@ async function getTts(modelDir2) {
   return tts;
 }
 function getSpeakerId(voice) {
-  var _a3;
   if (!voice) return KOKORO_SPEAKER_IDS.af_sky;
-  return (_a3 = KOKORO_SPEAKER_IDS[voice]) != null ? _a3 : KOKORO_SPEAKER_IDS.af_sky;
+  return KOKORO_SPEAKER_IDS[voice] ?? KOKORO_SPEAKER_IDS.af_sky;
 }
 function encodeWav(samples, sampleRate) {
   const numChannels = 1;
@@ -13737,7 +14270,6 @@ async function preloadStt(input = {}) {
   };
 }
 async function transcribe(input) {
-  var _a3, _b2;
   const start2 = Date.now();
   const engine = normalizeSttEngine(input.engine);
   const sampleRate = normalizeSampleRate(input.sampleRate);
@@ -13750,9 +14282,9 @@ async function transcribe(input) {
     samples
   });
   const result = await recognizer.decodeAsync(stream);
-  const text = ((_b2 = (_a3 = result.text) != null ? _a3 : recognizer.getResult(stream).text) != null ? _b2 : "").trim();
+  const text2 = (result.text ?? recognizer.getResult(stream).text ?? "").trim();
   return {
-    text,
+    text: text2,
     engine,
     model: modelDir2,
     runtime: "cpu",
@@ -13784,8 +14316,8 @@ async function speak(input) {
   if (engine === "off") {
     throw new Error("TTS engine is set to text-only mode.");
   }
-  const text = input.text.trim();
-  if (!text) {
+  const text2 = input.text.trim();
+  if (!text2) {
     throw new Error("No text was provided for Sherpa TTS.");
   }
   const start2 = Date.now();
@@ -13799,7 +14331,7 @@ async function speak(input) {
     silenceScale: 0.2
   });
   const audio = await tts.generateAsync({
-    text,
+    text: text2,
     sid: getSpeakerId(input.voice),
     speed,
     generationConfig
@@ -13811,7 +14343,7 @@ async function speak(input) {
     model: modelDir2,
     runtime: "cpu",
     voice: input.voice || "af_sky",
-    text,
+    text: text2,
     sampleRate: audio.sampleRate,
     durationMs: Math.round(audio.samples.length / audio.sampleRate * 1e3),
     latencyMs: Date.now() - start2,
@@ -13922,7 +14454,7 @@ function ensureSpawned() {
 }
 function request(message) {
   const id = nextId++;
-  const full = __spreadProps(__spreadValues({}, message), { id });
+  const full = { ...message, id };
   return new Promise((resolve2, reject) => {
     const active = child;
     if (!active) {
@@ -13939,10 +14471,9 @@ function request(message) {
 }
 var initialized = false;
 async function ensureInitialized() {
-  var _a3, _b2, _c;
   await ensureSpawned();
   if (initialized) return;
-  const cores = (_c = (_b2 = (_a3 = os4__default.default).availableParallelism) == null ? void 0 : _b2.call(_a3)) != null ? _c : 4;
+  const cores = os4__default.default.availableParallelism?.() ?? 4;
   const threads = Math.max(1, Math.min(cores - 1, 6));
   const response = await request({
     kind: "init",
@@ -13957,9 +14488,9 @@ async function ensureInitialized() {
   }
   initialized = true;
 }
-async function runReadOnlyQuery2(sql) {
+async function runReadOnlyQuery2(sql2) {
   await ensureInitialized();
-  const response = await request({ kind: "runReadOnlyQuery", sql });
+  const response = await request({ kind: "runReadOnlyQuery", sql: sql2 });
   if (isErrorResponse(response)) {
     throw new Error(response.message);
   }
@@ -13974,13 +14505,16 @@ function dispose3() {
   if (active) {
     try {
       active.kill();
-    } catch (e) {
+    } catch {
     }
   }
   teardown(new Error("DuckDB utility broker disposed."));
 }
 
 // electron/main.ts
+if (require_electron_squirrel_startup()) {
+  electron.app.quit();
+}
 function bootLog(message) {
   const line = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${message}
 `;
@@ -13988,21 +14522,25 @@ function bootLog(message) {
   try {
     nodeFs.appendFileSync(path2__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
     return;
-  } catch (e) {
+  } catch {
   }
   try {
     const os5 = __require("os");
     nodeFs.appendFileSync(path2__default.default.join(os5.tmpdir(), "data-navigator-boot.log"), line);
-  } catch (e) {
+  } catch {
   }
 }
 bootLog(`main.js loaded; isPackaged=${electron.app.isPackaged}`);
 var isDev = !electron.app.isPackaged;
 var mainWindow = null;
 authClient.setupMain({
-  getWindow: () => mainWindow
+  getWindow: () => mainWindow,
+  // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
+  // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
+  // edit can't silently activate a competing onHeadersReceived CSP handler.
+  csp: false
 });
-if (electron.app.isPackaged) {
+if (electron.app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
   import('update-electron-app').then(({ updateElectronApp }) => {
     updateElectronApp({
       repo: "aliammari1/data-navigator",
@@ -14038,6 +14576,8 @@ if (electron.app.isPackaged) {
   }
 }
 var DATA_DIR = path2__default.default.join(electron.app.getPath("userData"), "data-navigator");
+var DATABASES_DIR = path2__default.default.join(electron.app.getPath("userData"), "databases");
+var AUTH_DB_FILENAME = "data-navigator-auth.sqlite";
 var pathAccess = new PathAccessController(DATA_DIR);
 async function ensureDataDir() {
   await fs__default.default.mkdir(DATA_DIR, { recursive: true });
@@ -14058,8 +14598,7 @@ function assertAllowedDirectoryPath(dirPath) {
   return pathAccess.assertAllowedDirectoryPath(dirPath);
 }
 function assertTrustedSender(event) {
-  var _a3;
-  const frameUrl = (_a3 = event.senderFrame) == null ? void 0 : _a3.url;
+  const frameUrl = event.senderFrame?.url;
   const webContentsUrl = event.sender.getURL();
   const url = frameUrl || webContentsUrl;
   if (!isAllowedAppOrigin(url)) {
@@ -14098,6 +14637,22 @@ async function installReactDevTools() {
   }
 }
 electron.ipcMain.handle(
+  "settings:get",
+  async (event, namespace, key) => withTrustedSender(event, () => getSetting(namespace, key))
+);
+electron.ipcMain.handle(
+  "settings:set",
+  async (event, namespace, key, value) => withTrustedSender(event, () => setSetting(namespace, key, value))
+);
+electron.ipcMain.handle(
+  "settings:delete",
+  async (event, namespace, key) => withTrustedSender(event, () => deleteSetting(namespace, key))
+);
+electron.ipcMain.handle(
+  "settings:export",
+  async (event, namespace) => withTrustedSender(event, () => exportSettings(namespace))
+);
+electron.ipcMain.handle(
   "fs:getDataDir",
   async (event) => withTrustedSender(event, async () => {
     await ensureDataDir();
@@ -14127,7 +14682,7 @@ electron.ipcMain.handle(
     try {
       await fs__default.default.unlink(safePath);
       return true;
-    } catch (e) {
+    } catch {
       return false;
     }
   })
@@ -14138,7 +14693,7 @@ electron.ipcMain.handle(
     const target = dir ? assertAllowedDirectoryPath(dir) : DATA_DIR;
     try {
       return await fs__default.default.readdir(target);
-    } catch (e) {
+    } catch {
       return [];
     }
   })
@@ -14164,7 +14719,7 @@ electron.ipcMain.handle(
     try {
       const safeDir = assertAllowedDirectoryPath(dir);
       return await walkFilesRecursive(safeDir);
-    } catch (e) {
+    } catch {
       return [];
     }
   })
@@ -14175,7 +14730,7 @@ electron.ipcMain.handle(
     try {
       const safePath = assertAllowedReadPath(filePath);
       return fs3.existsSync(safePath);
-    } catch (e) {
+    } catch {
       return false;
     }
   })
@@ -14183,9 +14738,8 @@ electron.ipcMain.handle(
 electron.ipcMain.handle(
   "fs:openDialog",
   async (event, options) => withTrustedSender(event, async () => {
-    var _a3;
     const result = await electron.dialog.showOpenDialog(options);
-    const opensDirectory = (_a3 = options.properties) == null ? void 0 : _a3.includes("openDirectory");
+    const opensDirectory = options.properties?.includes("openDirectory");
     for (const filePath of result.filePaths) {
       if (opensDirectory) {
         pathAccess.rememberDirectory(filePath);
@@ -14224,7 +14778,7 @@ electron.ipcMain.handle(
   async (event, input) => withTrustedSender(event, async () => {
     const parsed = parseIpc(RegisterCsvSchema, input, "duckdb:registerCSVPathDataset");
     const safePath = assertAllowedReadPath(parsed.filePath);
-    return registerCSVPathDataset(__spreadProps(__spreadValues({}, parsed), { filePath: safePath }));
+    return registerCSVPathDataset({ ...parsed, filePath: safePath });
   })
 );
 electron.ipcMain.handle(
@@ -14232,7 +14786,7 @@ electron.ipcMain.handle(
   async (event, input) => withTrustedSender(event, async () => {
     const parsed = parseIpc(RegisterParquetSchema, input, "duckdb:registerParquetPathDataset");
     const safePath = assertAllowedReadPath(parsed.filePath);
-    return registerParquetPathDataset(__spreadProps(__spreadValues({}, parsed), { filePath: safePath }));
+    return registerParquetPathDataset({ ...parsed, filePath: safePath });
   })
 );
 electron.ipcMain.handle(
@@ -14258,7 +14812,7 @@ electron.ipcMain.handle(
   async (event, input) => withTrustedSender(event, async () => {
     const parsed = parseIpc(ExportDatasetSchema2, input, "duckdb:exportDataset");
     const safeTargetPath = assertAllowedWritePath(parsed.targetPath);
-    return exportDataset(__spreadProps(__spreadValues({}, parsed), { targetPath: safeTargetPath }));
+    return exportDataset({ ...parsed, targetPath: safeTargetPath });
   })
 );
 electron.ipcMain.handle(
@@ -14286,32 +14840,30 @@ electron.ipcMain.handle(
 function installMediaPermissionHandlers() {
   electron.session.defaultSession.setPermissionCheckHandler(
     (_webContents, permission, requestingOrigin, details) => {
-      var _a3;
       if (permission !== "media") return false;
       const mediaDetails = details;
-      const origin = (_a3 = mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _a3 : requestingOrigin;
+      const origin = mediaDetails?.securityOrigin ?? requestingOrigin;
       return isAllowedAppOrigin(origin);
     }
   );
   electron.session.defaultSession.setPermissionRequestHandler(
     (webContents2, permission, callback, details) => {
-      var _a3, _b2, _c, _d;
       if (permission !== "media") {
         callback(false);
         return;
       }
       const mediaDetails = details;
-      const pageUrl = (_b2 = (_a3 = mediaDetails == null ? void 0 : mediaDetails.requestingUrl) != null ? _a3 : mediaDetails == null ? void 0 : mediaDetails.securityOrigin) != null ? _b2 : webContents2.getURL();
+      const pageUrl = mediaDetails?.requestingUrl ?? mediaDetails?.securityOrigin ?? webContents2.getURL();
       if (!isAllowedAppOrigin(pageUrl)) {
         callback(false);
         return;
       }
-      const types = (_c = mediaDetails == null ? void 0 : mediaDetails.mediaTypes) != null ? _c : [];
+      const types = mediaDetails?.mediaTypes ?? [];
       const wantsVideo = types.includes("video");
       const wantsAudio = types.includes("audio") || wantsMicrophone(mediaDetails);
       const what = wantsVideo && wantsAudio ? "la cam\xE9ra et le microphone" : wantsVideo ? "la cam\xE9ra" : "le microphone";
       console.log("[electron] media permission request \u2192 prompting", { pageUrl, types });
-      const parent = (_d = electron.BrowserWindow.fromWebContents(webContents2)) != null ? _d : void 0;
+      const parent = electron.BrowserWindow.fromWebContents(webContents2) ?? void 0;
       const opts = {
         type: "question",
         buttons: ["Autoriser", "Refuser"],
@@ -14358,8 +14910,8 @@ electron.ipcMain.handle(
 );
 electron.ipcMain.handle(
   "duckdb:runReadOnlyQuery",
-  async (event, sql) => withBoundedHeavyQuery(event, "duckdb:runReadOnlyQuery", async () => {
-    const safeSql = parseIpc(SqlSchema, sql, "duckdb:runReadOnlyQuery");
+  async (event, sql2) => withBoundedHeavyQuery(event, "duckdb:runReadOnlyQuery", async () => {
+    const safeSql = parseIpc(SqlSchema, sql2, "duckdb:runReadOnlyQuery");
     if (isEnabled()) {
       try {
         return await runReadOnlyQuery2(safeSql);
@@ -14375,11 +14927,11 @@ electron.ipcMain.handle(
 );
 electron.ipcMain.handle(
   "duckdb:runReadOnlyQueryArrow",
-  async (event, sql, cancelToken2) => withBoundedHeavyQuery(
+  async (event, sql2, cancelToken2) => withBoundedHeavyQuery(
     event,
     "duckdb:runReadOnlyQueryArrow",
     () => runReadOnlyQueryArrow(
-      parseIpc(SqlSchema, sql, "duckdb:runReadOnlyQueryArrow"),
+      parseIpc(SqlSchema, sql2, "duckdb:runReadOnlyQueryArrow"),
       cancelToken2
     )
   )
@@ -14435,26 +14987,23 @@ electron.ipcMain.handle(
   "llama:ensureModel",
   async (event, input) => withTrustedSender(
     event,
-    () => {
-      var _a3;
-      return ensureModel((_a3 = parseIpc(LlamaEnsureModelSchema, input, "llama:ensureModel")) == null ? void 0 : _a3.file);
-    }
+    () => ensureModel(parseIpc(LlamaEnsureModelSchema, input, "llama:ensureModel")?.file)
   )
 );
 electron.ipcMain.handle(
   "llama:generate",
   async (event, input) => withTrustedSender(event, () => {
     parseIpc(LlamaGenerateSchema, input, "llama:generate");
-    const requestId2 = input == null ? void 0 : input.requestId;
+    const requestId2 = input?.requestId;
     const controller = new AbortController();
     if (requestId2) llamaAbortControllers.set(requestId2, controller);
     return generate({
-      system: input == null ? void 0 : input.system,
-      prompt: input == null ? void 0 : input.prompt,
-      systemPrefix: input == null ? void 0 : input.systemPrefix,
-      maxTokens: input == null ? void 0 : input.maxTokens,
-      temperature: input == null ? void 0 : input.temperature,
-      topP: input == null ? void 0 : input.topP,
+      system: input?.system,
+      prompt: input?.prompt,
+      systemPrefix: input?.systemPrefix,
+      maxTokens: input?.maxTokens,
+      temperature: input?.temperature,
+      topP: input?.topP,
       signal: controller.signal,
       onToken: requestId2 ? (chunk) => {
         if (!event.sender.isDestroyed()) {
@@ -14470,16 +15019,16 @@ electron.ipcMain.handle(
   "llama:generateStructured",
   async (event, input) => withTrustedSender(event, () => {
     parseIpc(LlamaGenerateStructuredSchema, input, "llama:generateStructured");
-    const requestId2 = input == null ? void 0 : input.requestId;
+    const requestId2 = input?.requestId;
     const controller = new AbortController();
     if (requestId2) llamaAbortControllers.set(requestId2, controller);
     return generateStructured({
-      system: input == null ? void 0 : input.system,
-      prompt: input == null ? void 0 : input.prompt,
-      systemPrefix: input == null ? void 0 : input.systemPrefix,
-      jsonSchema: input == null ? void 0 : input.jsonSchema,
-      maxTokens: input == null ? void 0 : input.maxTokens,
-      temperature: input == null ? void 0 : input.temperature,
+      system: input?.system,
+      prompt: input?.prompt,
+      systemPrefix: input?.systemPrefix,
+      jsonSchema: input?.jsonSchema,
+      maxTokens: input?.maxTokens,
+      temperature: input?.temperature,
       signal: controller.signal
     }).finally(() => {
       if (requestId2) llamaAbortControllers.delete(requestId2);
@@ -14507,10 +15056,7 @@ electron.ipcMain.handle(
   "llama:isAvailable",
   async (event, input) => withTrustedSender(
     event,
-    () => {
-      var _a3;
-      return isAvailable((_a3 = parseIpc(LlamaEnsureModelSchema, input, "llama:isAvailable")) == null ? void 0 : _a3.file);
-    }
+    () => isAvailable(parseIpc(LlamaEnsureModelSchema, input, "llama:isAvailable")?.file)
   )
 );
 var modelDownloadAbortControllers = /* @__PURE__ */ new Map();
@@ -14529,11 +15075,11 @@ electron.ipcMain.handle(
   "models:download",
   async (event, input) => withTrustedSender(event, () => {
     parseIpc(ModelDownloadSchema, input, "models:download");
-    const requestId2 = input == null ? void 0 : input.requestId;
+    const requestId2 = input?.requestId;
     const controller = new AbortController();
     if (requestId2) modelDownloadAbortControllers.set(requestId2, controller);
     return downloadModel({
-      key: input == null ? void 0 : input.key,
+      key: input?.key,
       requestId: requestId2,
       signal: controller.signal,
       onProgress: requestId2 ? (progress) => {
@@ -14625,13 +15171,13 @@ async function createWindow() {
     }
   });
   mainWindow.once("ready-to-show", () => {
-    mainWindow == null ? void 0 : mainWindow.show();
+    mainWindow?.show();
   });
   const isAllowedNavigation = (target) => {
     if (isAllowedAppOrigin(target)) return true;
     try {
       return new URL(target).protocol === `${ELECTRON_AUTH_PROTOCOL}:`;
-    } catch (e) {
+    } catch {
       return false;
     }
   };
@@ -14671,6 +15217,15 @@ async function createWindow() {
       await mainWindow.loadURL(dashboardUrl);
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
+      electron.dialog.showErrorBox(
+        "Data Navigator failed to start",
+        `The local application server could not start, so the app cannot open.
+
+${error instanceof Error ? error.message : String(error)}
+
+See boot.log in the app data folder for details.`
+      );
+      electron.app.quit();
     }
   }
   let loadRetries = 0;
@@ -14770,6 +15325,16 @@ electron.app.whenReady().then(async () => {
       "[electron] ELECTRON_RUN_AS_NODE is set in a packaged build \u2014 fuses may not be enforced."
     );
   }
+  configureSettingsStore(DATABASES_DIR);
+  try {
+    const authDbPath = path2__default.default.join(electron.app.getPath("userData"), "data", AUTH_DB_FILENAME);
+    const { migrated } = migrateLegacyAppSettings(authDbPath);
+    bootLog(`settings-store: ready at ${DATABASES_DIR}; legacy lift migrated ${migrated} rows`);
+  } catch (error) {
+    bootLog(
+      `settings-store: init/migration error: ${error instanceof Error ? error.message : String(error)}`
+    );
+  }
   installMediaPermissionHandlers();
   electron.session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
     callback({
@@ -14815,6 +15380,7 @@ electron.app.on("before-quit", () => {
   dispose().catch((error) => {
     console.error("[electron] collab-hub cleanup error:", error);
   });
+  closeSettingsStore();
 });
 electron.app.on("window-all-closed", () => {
   if (process.platform !== "darwin") {

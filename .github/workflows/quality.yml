@@ -1,8 +1,9 @@
 # facts: data-navigator is a private (package.json private:true), offline-first
 # Electron + Next.js 16 app using pnpm@10.25.0; this is THE PR quality gate
 # (replaces the deleted ci.yml). It runs static analysis + tests + build on every
-# PR/push/merge_group, plus deeper, advisory size-limit and Lighthouse budgets on
-# PRs and a nightly schedule. No multi-GB GGUF model is ever downloaded in CI.
+# PR/push/merge_group. No multi-GB GGUF model is ever downloaded in CI.
+# (The advisory size-limit and Lighthouse jobs were removed — flaky/heavy for no
+# signal — along with the nightly schedule that only existed to run them.)
 name: Quality
 
 on:
@@ -15,9 +16,6 @@ on:
       - main
       - develop
   merge_group:
-  schedule:
-    # Nightly deep-quality run (size budgets + Lighthouse) at 03:11 UTC.
-    - cron: "11 3 * * *"
   workflow_dispatch:
 
 # Cancel superseded runs on the same ref; never cancel a queued merge-group entry
@@ -57,7 +55,7 @@ jobs:
     steps:
       - name: Checkout repository
         # First-party action: major-version tag is acceptable (auto-patched).
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # LFS holds tracked model/binary fixtures; the build references them.
           lfs: true
@@ -101,7 +99,7 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-node-${{ matrix.node }}
           path: coverage
@@ -118,123 +116,3 @@ jobs:
 
       - name: Next build
         run: pnpm run build
-
-  # ---------------------------------------------------------------------------
-  # Deeper, advisory gate: bundle/worker size budgets from .size-limit.json.
-  # On PRs, post a size-delta comment vs the base branch; on push/schedule, just
-  # assert the budgets. Runs on PRs and nightly; skipped in the merge queue to
-  # keep landing fast.
-  # ---------------------------------------------------------------------------
-  size-limit:
-    name: Size budgets
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    if: github.event_name != 'merge_group'
-
-    permissions:
-      contents: read
-      # Needed only so the PR run can post/update the size-delta comment.
-      pull-requests: write
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          lfs: true
-          # size-limit-action diffs against the base branch; give it history.
-          fetch-depth: 0
-
-      - name: Set up pnpm + Node + caches
-        uses: ./.github/actions/setup
-        with:
-          node-version: 24
-
-      # @size-limit/time measures worker execution time by running the bundle in
-      # headless Chrome. Ubuntu 24.04 runners restrict unprivileged user
-      # namespaces via AppArmor, so Chrome's sandbox fails to start and the run
-      # dies at "Running JS in headless Chrome" with no error. Re-allow
-      # unprivileged userns so the sandbox launches (host-level; applies below).
-      - name: Allow headless Chrome sandbox (Ubuntu 24.04 userns)
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-
-      # On pull_request: build + measure + comment the delta in one step.
-      - name: Size budgets with PR delta comment
-        if: github.event_name == 'pull_request'
-        # Third-party action: pinned to a commit SHA per supply-chain policy.
-        uses: andresz1/size-limit-action@94bc357df29c36c8f8d50ea497c3e225c3c95d1d # v1.8.0
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          package_manager: pnpm
-          # Reuse the repo's real scripts: `build` (worker:build + next:build)
-          # and `size` (size-limit against .size-limit.json).
-          build_script: build
-          script: pnpm run size
-          # Deps already installed by the composite setup above.
-          skip_step: install
-
-      # On push / schedule / manual: no PR to comment on, so just assert budgets.
-      - name: Size budgets (assert only)
-        if: github.event_name != 'pull_request'
-        run: |
-          pnpm run build
-          pnpm run size
-
-  # ---------------------------------------------------------------------------
-  # Deepest, advisory gate: Lighthouse (lhci) Core Web Vitals budgets from
-  # lighthouserc.cjs, run against the locally started Next production server.
-  # Advisory (continue-on-error) because @lhci/cli is not a pinned dependency and
-  # lab perf numbers are noisy; runs on PRs and nightly only.
-  # ---------------------------------------------------------------------------
-  lighthouse:
-    name: Lighthouse budgets
-    runs-on: ubuntu-latest
-    timeout-minutes: 35
-    if: github.event_name != 'merge_group'
-    continue-on-error: true
-
-    permissions:
-      contents: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v6
-        with:
-          lfs: true
-
-      - name: Set up pnpm + Node + caches
-        uses: ./.github/actions/setup
-        with:
-          node-version: 24
-
-      - name: Build app
-        run: pnpm run build
-
-      - name: Start Next production server
-        # lighthouserc.cjs collects against http://localhost:3000 with no
-        # startServerCommand (offline invariant), so boot the server ourselves.
-        run: |
-          pnpm run start &
-          echo "NEXT_SERVER_PID=$!" >> "$GITHUB_ENV"
-
-      - name: Wait for server
-        run: pnpm exec wait-on --timeout 120000 http://localhost:3000
-
-      - name: Lighthouse CI (Core Web Vitals budgets)
-        # @lhci/cli is not a declared dependency; fetch a pinned version on demand.
-        run: pnpm dlx @lhci/cli@0.14.0 autorun
-
-      - name: Stop Next production server
-        if: always()
-        run: |
-          if [ -n "${NEXT_SERVER_PID:-}" ]; then
-            kill "${NEXT_SERVER_PID}" || true
-          fi
-
-      - name: Upload Lighthouse reports
-        if: always()
-        uses: actions/upload-artifact@v5
-        with:
-          name: lighthouse-reports
-          path: .lighthouseci
-          if-no-files-found: ignore
-          retention-days: 14
