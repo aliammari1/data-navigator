@@ -83,4 +83,47 @@ describe("parseProjectionLineage", () => {
     const sql = "SELECT channel, amount FROM sales QUALIFY ROW_NUMBER() OVER () = 1";
     expect(parseProjectionLineage(sql)).toBeNull();
   });
+
+  it("collects source columns from a CASE expression (exercises array branch in AST walker)", () => {
+    // CASE args is an array in node-sql-parser's AST, exercising the array branch
+    // of collectSourceCols (line 94).
+    const result = parseProjectionLineage(
+      "SELECT CASE WHEN score > 90 THEN grade ELSE fallback END AS level FROM students",
+    );
+    expect(result).toHaveLength(1);
+    const proj = result?.[0];
+    expect(proj?.targetCol).toBe("level");
+    // score, grade, and fallback are all referenced inside the CASE branches.
+    expect(proj?.sourceCols).toContain("grade");
+    expect(proj?.sourceCols).toContain("fallback");
+    expect(proj?.transform).toBeTruthy();
+    expect(proj?.transform?.toUpperCase()).toContain("CASE");
+  });
+
+  it("collects source columns from a multi-argument function (COALESCE)", () => {
+    // COALESCE produces a function node whose name.name and args.value are arrays,
+    // exercising the array branch of collectSourceCols (line 94).
+    const result = parseProjectionLineage("SELECT COALESCE(primary_col, fallback_col) AS val FROM t");
+    expect(result).toHaveLength(1);
+    const proj = result?.[0];
+    expect(proj?.targetCol).toBe("val");
+    expect(proj?.sourceCols).toContain("primary_col");
+    expect(proj?.sourceCols).toContain("fallback_col");
+    expect(proj?.transform).toBeTruthy();
+  });
+
+  it("returns null for a table-qualified wildcard (SELECT t.*)", () => {
+    // t.* produces a column_ref whose column field is the string '*',
+    // triggering the wildcard guard at line 159.
+    expect(parseProjectionLineage("SELECT t.* FROM t")).toBeNull();
+  });
+
+  it("handles a qualified column reference (table.column) correctly", () => {
+    // table1.column1 produces column: { expr: { type: 'default', value: 'column1' } }
+    // exercising the nested-object branch of columnName (line 68).
+    const result = parseProjectionLineage("SELECT table1.column1 AS x FROM t");
+    expect(result).toHaveLength(1);
+    expect(result?.[0].targetCol).toBe("x");
+    expect(result?.[0].sourceCols).toContain("column1");
+  });
 });

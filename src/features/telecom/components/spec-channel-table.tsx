@@ -1,12 +1,19 @@
 "use client";
 
-import { AlertTriangle, BarChart2, Loader2, Sparkles } from "lucide-react";
+import { AlertTriangle, BarChart2, ChevronDown, ChevronRight, Loader2, Sparkles } from "lucide-react";
 import { useEffect, useState } from "react";
 import { EChart } from "@/features/telecom/components/echart";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
-import type { SpecChRow } from "@/features/telecom/lib/queries";
+import type { SpecChRow, SpecChStatusRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { cn } from "@/shared/utils";
+
+const STATUS_COLS = [
+  { key: "réussie" as const,    label: "Réussie",    icon: "✓", color: "text-emerald-600 dark:text-emerald-400" },
+  { key: "annulation" as const, label: "Annulation", icon: "↩", color: "text-sky-600 dark:text-sky-400"        },
+  { key: "instance" as const,   label: "Instance",   icon: "⏳", color: "text-orange-600 dark:text-orange-400" },
+  { key: "échec" as const,      label: "Échec",      icon: "✗", color: "text-red-600 dark:text-red-400"        },
+] as const;
 
 export function SpecChannelTable({
   channels,
@@ -14,6 +21,7 @@ export function SpecChannelTable({
   dateTo,
   title,
   fetchSpecChannelStats,
+  fetchSpecCanalStatusMatrix,
 }: {
   channels: ChannelDef[];
   dateFrom: string;
@@ -24,40 +32,33 @@ export function SpecChannelTable({
     dateFrom: string,
     dateTo: string,
   ) => Promise<{ rows: SpecChRow[]; total: SpecChRow }>;
+  fetchSpecCanalStatusMatrix?: (
+    channels: ChannelDef[],
+    dateFrom: string,
+    dateTo: string,
+  ) => Promise<SpecChStatusRow[]>;
 }) {
-  const [data, setData] = useState<{
-    rows: SpecChRow[];
-    total: SpecChRow;
-  } | null>(null);
+  const [data, setData] = useState<{ rows: SpecChRow[]; total: SpecChRow } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [statusData, setStatusData] = useState<SpecChStatusRow[] | null>(null);
+  const [statusOpen, setStatusOpen] = useState(true);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: channels is a stable module-level constant
   useEffect(() => {
     let cancelled = false;
     const label = channels.map((c) => c.name).join(", ");
 
-    console.time(`[SpecChannelTable] ${label}`);
-    console.log("[SpecChannelTable] start", {
-      channels: channels.length,
-      dateFrom,
-      dateTo,
-    });
-
     setLoading(true);
     setData(null);
+    setStatusData(null);
 
-    // Add timeout to prevent infinite hanging
     const timeoutId = setTimeout(() => {
-      if (!cancelled) {
-        console.error("[SpecChannelTable] TIMEOUT - table may not exist or query is too slow");
-        setLoading(false);
-      }
-    }, 30000); // 10 second timeout
+      if (!cancelled) setLoading(false);
+    }, 30000);
 
     fetchSpecChannelStats(channels, dateFrom, dateTo)
       .then((d) => {
         clearTimeout(timeoutId);
-        console.log("[SpecChannelTable] done", label, d);
         if (!cancelled) setData(d);
       })
       .catch((err) => {
@@ -65,15 +66,20 @@ export function SpecChannelTable({
         console.error("[SpecChannelTable] failed", label, err);
       })
       .finally(() => {
-        console.timeEnd(`[SpecChannelTable] ${label}`);
         if (!cancelled) setLoading(false);
       });
+
+    if (fetchSpecCanalStatusMatrix) {
+      fetchSpecCanalStatusMatrix(channels, dateFrom, dateTo)
+        .then((d) => { if (!cancelled) setStatusData(d); })
+        .catch(() => {});
+    }
 
     return () => {
       cancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [dateFrom, dateTo, fetchSpecChannelStats]);
+  }, [dateFrom, dateTo, fetchSpecChannelStats, fetchSpecCanalStatusMatrix]);
 
   if (loading) {
     return (
@@ -120,12 +126,7 @@ export function SpecChannelTable({
     yAxis: {
       type: "category",
       data: sorted.map((r) => r.canal),
-      axisLabel: {
-        color: "#cdd6f4",
-        fontSize: 10,
-        width: 145,
-        overflow: "truncate",
-      },
+      axisLabel: { color: "#cdd6f4", fontSize: 10, width: 145, overflow: "truncate" },
       axisTick: { show: false },
       axisLine: { show: false },
     },
@@ -141,10 +142,7 @@ export function SpecChannelTable({
                 ? "#ffffff10"
                 : {
                     type: "linear",
-                    x: 0,
-                    y: 0,
-                    x2: 1,
-                    y2: 0,
+                    x: 0, y: 0, x2: 1, y2: 0,
                     colorStops: [
                       { offset: 0, color: "#89b4fa" },
                       { offset: 1, color: "#b4befe" },
@@ -164,6 +162,17 @@ export function SpecChannelTable({
       },
     ],
   };
+
+  // Status totals for the footer row
+  const statusTotals = statusData
+    ? {
+        réussie:    statusData.reduce((s, r) => s + r.réussie, 0),
+        annulation: statusData.reduce((s, r) => s + r.annulation, 0),
+        instance:   statusData.reduce((s, r) => s + r.instance, 0),
+        échec:      statusData.reduce((s, r) => s + r.échec, 0),
+        total:      statusData.reduce((s, r) => s + r.total, 0),
+      }
+    : null;
 
   return (
     <div className="space-y-4">
@@ -216,9 +225,7 @@ export function SpecChannelTable({
             },
           ].map((k) => (
             <div key={k.label} className={cn("rounded-xl border p-3 space-y-0.5", k.border, k.bg)}>
-              <div
-                className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}
-              >
+              <div className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}>
                 {k.value}
               </div>
               <div className="text-[10px] text-muted-foreground">{k.label}</div>
@@ -228,7 +235,7 @@ export function SpecChannelTable({
         </div>
       )}
 
-      {/* Horizontal bar chart — shown when ≥ 2 channels have data */}
+      {/* Horizontal bar chart */}
       {hasData && sorted.filter((r) => r.nombre > 0).length >= 2 && (
         <div className="rounded-xl border border-border/50 bg-muted/10 overflow-hidden">
           <div className="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
@@ -238,7 +245,7 @@ export function SpecChannelTable({
         </div>
       )}
 
-      {/* Table with inline progress bars */}
+      {/* Success-only table */}
       <div className="overflow-x-auto rounded-lg border border-border/50">
         <table className="w-full text-xs">
           <thead>
@@ -263,11 +270,7 @@ export function SpecChannelTable({
                 >
                   <td className="px-3 py-2 text-foreground">{row.canal}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
-                    {row.nombre > 0 ? (
-                      fmtN(row.nombre)
-                    ) : (
-                      <span className="text-muted-foreground/35">—</span>
-                    )}
+                    {row.nombre > 0 ? fmtN(row.nombre) : <span className="text-muted-foreground/35">—</span>}
                   </td>
                   <td className="px-2 py-2 hidden sm:table-cell">
                     <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
@@ -278,11 +281,7 @@ export function SpecChannelTable({
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-                    {row.montant > 0 ? (
-                      fmtAmount(row.montant)
-                    ) : (
-                      <span className="text-muted-foreground/35">—</span>
-                    )}
+                    {row.montant > 0 ? fmtAmount(row.montant) : <span className="text-muted-foreground/35">—</span>}
                   </td>
                 </tr>
               );
@@ -302,6 +301,96 @@ export function SpecChannelTable({
           </tfoot>
         </table>
       </div>
+
+      {/* ── KPIs par statut par canal ─────────────────────────────────────── */}
+      {statusData && statusData.length > 0 && statusTotals && (
+        <div className="space-y-1.5">
+          <button
+            type="button"
+            onClick={() => setStatusOpen((v) => !v)}
+            className="flex w-full items-center gap-2 text-left"
+          >
+            <div className="flex-1 h-px bg-border/60" />
+            <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 select-none hover:text-foreground transition-colors">
+              {statusOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              KPIs par statut
+            </span>
+            <div className="flex-1 h-px bg-border/60" />
+          </button>
+
+          {statusOpen && (
+            <div className="overflow-x-auto rounded-lg border border-border/50">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border/50 bg-muted/40">
+                    <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">
+                      CANAL
+                    </th>
+                    {STATUS_COLS.map((s) => (
+                      <th
+                        key={s.key}
+                        className={cn(
+                          "text-right px-3 py-2.5 font-semibold whitespace-nowrap",
+                          s.color,
+                        )}
+                      >
+                        {s.icon} {s.label}
+                      </th>
+                    ))}
+                    <th className="text-right px-3 py-2.5 font-semibold text-muted-foreground whitespace-nowrap">
+                      Total
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {statusData.map((row) => (
+                    <tr
+                      key={row.canal}
+                      className="border-b border-border/30 last:border-0 hover:bg-muted/20 even:bg-muted/10 transition-colors"
+                    >
+                      <td className="px-3 py-2 text-foreground">{row.canal}</td>
+                      {STATUS_COLS.map((s) => (
+                        <td
+                          key={s.key}
+                          className={cn("px-3 py-2 text-right tabular-nums font-medium", s.color)}
+                        >
+                          {row[s.key] > 0 ? (
+                            fmtN(row[s.key])
+                          ) : (
+                            <span className="text-muted-foreground/35">—</span>
+                          )}
+                        </td>
+                      ))}
+                      <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
+                        {fmtN(row.total)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="bg-muted/50 border-t-2 border-border">
+                    <td className="px-3 py-2.5 font-bold text-foreground">TOTAL (tous canaux)</td>
+                    {STATUS_COLS.map((s) => (
+                      <td
+                        key={s.key}
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums font-bold",
+                          s.color,
+                        )}
+                      >
+                        {fmtN(statusTotals[s.key])}
+                      </td>
+                    ))}
+                    <td className="px-3 py-2.5 text-right tabular-nums font-bold text-foreground">
+                      {fmtN(statusTotals.total)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Insight banners */}
       {hasData && activeChannels < data.rows.length && (

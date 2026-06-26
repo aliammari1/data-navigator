@@ -4,6 +4,13 @@ import {
   type AccentColor,
   type DensityMode,
   type SidebarStyle,
+  useAppearanceSettings,
+  useDataSettings,
+  useEnableAiCritic,
+  useNotificationSettings,
+  usePerformanceSettings,
+  usePinnedItems,
+  useSettingsActions,
   useSettingsStore,
 } from "@/core/stores/settings-store";
 
@@ -245,5 +252,176 @@ describe("Settings Store", () => {
     expect(result.current.pinnedItems).toContain("/dashboard");
     expect(result.current.pinnedItems).toContain("/dashboard/upload");
     expect(result.current.pinnedItems).toContain("/dashboard/ai-analysis");
+  });
+
+  it("should enable and disable AI critic", () => {
+    const { result } = renderHook(() => useSettingsStore());
+
+    act(() => {
+      result.current.setEnableAiCritic(true);
+    });
+    expect(result.current.enableAiCritic).toBe(true);
+
+    act(() => {
+      result.current.setEnableAiCritic(false);
+    });
+    expect(result.current.enableAiCritic).toBe(false);
+  });
+
+  describe("selector hooks", () => {
+    it("useAppearanceSettings returns appearance slice", () => {
+      const { result } = renderHook(() => useAppearanceSettings());
+      expect(result.current).toMatchObject({
+        theme: "dark",
+        accentColor: "blue",
+        density: "comfortable",
+        sidebarStyle: "dark",
+        animationsEnabled: true,
+        sidebarPinned: true,
+        showBreadcrumbs: true,
+        compactNumbers: true,
+      });
+    });
+
+    it("useDataSettings returns data settings", () => {
+      const { result } = renderHook(() => useDataSettings());
+      expect(result.current.defaultRowLimit).toBe(10000);
+      expect(result.current.numberLocale).toBe("en-US");
+    });
+
+    it("usePerformanceSettings returns performance settings", () => {
+      const { result } = renderHook(() => usePerformanceSettings());
+      expect(result.current.duckdbWorkers).toBe(4);
+      expect(result.current.maxMemoryMB).toBe(512);
+    });
+
+    it("useEnableAiCritic returns AI critic flag", () => {
+      const { result } = renderHook(() => useEnableAiCritic());
+      expect(result.current).toBe(false);
+    });
+
+    it("useNotificationSettings returns notification settings", () => {
+      const { result } = renderHook(() => useNotificationSettings());
+      expect(result.current.uploads).toBe(true);
+      expect(result.current.errors).toBe(true);
+    });
+
+    it("usePinnedItems returns pinned items", () => {
+      const { result } = renderHook(() => usePinnedItems());
+      expect(result.current).toContain("/dashboard");
+    });
+
+    it("useSettingsActions returns all action functions", () => {
+      const { result } = renderHook(() => useSettingsActions());
+      expect(typeof result.current.setTheme).toBe("function");
+      expect(typeof result.current.setMaxFileSize).toBe("function");
+      expect(typeof result.current.setMaxFiles).toBe("function");
+      expect(typeof result.current.setDefaultFolderId).toBe("function");
+      expect(typeof result.current.setAccentColor).toBe("function");
+      expect(typeof result.current.setDensity).toBe("function");
+      expect(typeof result.current.setSidebarStyle).toBe("function");
+      expect(typeof result.current.setAnimationsEnabled).toBe("function");
+      expect(typeof result.current.setSidebarPinned).toBe("function");
+      expect(typeof result.current.setShowBreadcrumbs).toBe("function");
+      expect(typeof result.current.setCompactNumbers).toBe("function");
+      expect(typeof result.current.setData).toBe("function");
+      expect(typeof result.current.setPerformance).toBe("function");
+      expect(typeof result.current.setEnableAiCritic).toBe("function");
+      expect(typeof result.current.setNotifications).toBe("function");
+      expect(typeof result.current.togglePinnedItem).toBe("function");
+      expect(typeof result.current.resetToDefaults).toBe("function");
+    });
+  });
+
+  describe("migrate function", () => {
+    // Access the migrate function directly from persist options to test all branches
+    // without requiring a full storage hydration round-trip.
+    const getMigrate = () => useSettingsStore.persist.getOptions().migrate as
+      (persisted: unknown, version: number) => unknown;
+
+    it("migrates null/undefined persisted state using empty object fallback", () => {
+      const migrate = getMigrate();
+      const result = migrate(null, 3) as Record<string, unknown>;
+      // accentColor should be undefined (not indigo/cyan), so it stays undefined
+      expect(result.accentColor).toBeUndefined();
+      expect(result.enableAiCritic).toBe(false);
+    });
+
+    it("migrates indigo accent color to blue", () => {
+      const migrate = getMigrate();
+      const result = migrate({ accentColor: "indigo" }, 3) as Record<string, unknown>;
+      expect(result.accentColor).toBe("blue");
+    });
+
+    it("migrates cyan accent color to blue", () => {
+      const migrate = getMigrate();
+      const result = migrate({ accentColor: "cyan" }, 3) as Record<string, unknown>;
+      expect(result.accentColor).toBe("blue");
+    });
+
+    it("preserves non-legacy accent colors during migration", () => {
+      const migrate = getMigrate();
+      const result = migrate({ accentColor: "rose" }, 3) as Record<string, unknown>;
+      expect(result.accentColor).toBe("rose");
+    });
+
+    it("deep-merges data settings onto defaults when prev.data is present", () => {
+      const migrate = getMigrate();
+      const result = migrate({ data: { defaultRowLimit: 999 } }, 3) as Record<string, unknown>;
+      const data = result.data as Record<string, unknown>;
+      expect(data.defaultRowLimit).toBe(999);
+      // Default fields backfilled
+      expect(data.autoRefreshInterval).toBe(0);
+    });
+
+    it("uses empty object for data when prev.data is missing (nullish branch)", () => {
+      const migrate = getMigrate();
+      const result = migrate({}, 3) as Record<string, unknown>;
+      const data = result.data as Record<string, unknown>;
+      // All defaults should be present
+      expect(data.defaultRowLimit).toBe(10000);
+    });
+
+    it("deep-merges performance settings onto defaults when prev.performance is present", () => {
+      const migrate = getMigrate();
+      const result = migrate({ performance: { duckdbWorkers: 8 } }, 3) as Record<string, unknown>;
+      const perf = result.performance as Record<string, unknown>;
+      expect(perf.duckdbWorkers).toBe(8);
+      expect(perf.maxMemoryMB).toBe(512);
+    });
+
+    it("uses empty object for performance when prev.performance is missing (nullish branch)", () => {
+      const migrate = getMigrate();
+      const result = migrate({}, 3) as Record<string, unknown>;
+      const perf = result.performance as Record<string, unknown>;
+      expect(perf.duckdbWorkers).toBe(4);
+    });
+
+    it("preserves enableAiCritic when it is explicitly true", () => {
+      const migrate = getMigrate();
+      const result = migrate({ enableAiCritic: true }, 3) as Record<string, unknown>;
+      expect(result.enableAiCritic).toBe(true);
+    });
+
+    it("defaults enableAiCritic to false when missing from persisted state (nullish branch)", () => {
+      const migrate = getMigrate();
+      const result = migrate({}, 3) as Record<string, unknown>;
+      expect(result.enableAiCritic).toBe(false);
+    });
+
+    it("deep-merges notifications onto defaults when prev.notifications is present", () => {
+      const migrate = getMigrate();
+      const result = migrate({ notifications: { uploads: false } }, 3) as Record<string, unknown>;
+      const notifs = result.notifications as Record<string, unknown>;
+      expect(notifs.uploads).toBe(false);
+      expect(notifs.errors).toBe(true);
+    });
+
+    it("uses empty object for notifications when prev.notifications is missing (nullish branch)", () => {
+      const migrate = getMigrate();
+      const result = migrate({}, 3) as Record<string, unknown>;
+      const notifs = result.notifications as Record<string, unknown>;
+      expect(notifs.uploads).toBe(true);
+    });
   });
 });

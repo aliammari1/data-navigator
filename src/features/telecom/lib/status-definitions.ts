@@ -32,15 +32,15 @@ export const STATUS_PRESENTATION: Record<
   },
   refund: {
     label: "Annulation",
-    color: "#F59E0B",
+    color: "#0ea5e9",
     badgeClass:
-      "bg-violet-50 text-violet-700 border-violet-200 dark:bg-violet-500/15 dark:text-violet-300 dark:border-violet-500/30",
+      "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-300 dark:border-sky-500/30",
   },
   instance: {
     label: "Instance",
-    color: "#f59e0b",
+    color: "#f97316",
     badgeClass:
-      "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-500/30",
+      "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30",
   },
   submitted: {
     label: "Confirmé",
@@ -67,54 +67,34 @@ export const SEMANTIC_STATUS_OPTIONS: Array<{
   }),
 );
 
+/**
+ * Authoritative status code taxonomy derived directly from the telecom specification.
+ *
+ * STATUS groups (spec §III):
+ *   HOLD     → part of INSTANCE: HLD TPP TTO PRF RHL RTO STO STP SRV SRV1 SRTO RHD RHD3 RHD4
+ *   DOUBT    → part of INSTANCE: DBT DBA RDBT RDBA SDT SRDT
+ *   SUCCESS  → PST PST1 PST2 PST7 PST8 PST9
+ *   REFUND   → RFD RFD3 RFD4
+ *   DECLINED → DCL DCT DCA DCR DCB RDCL RDCT RDCA RDCR SDL1 SDL2 SDL3 SDL4 SDL7 PDL PDL1
+ *   SUBMITTED→ SBM
+ *
+ * Do NOT add extra codes here. Add fallback auto-detection in STATUS_AUTO_SEMANTIC_BY_CODE.
+ */
 export const BUILTIN_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> = {
   success: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
   declined: [
-    "DCL",
-    "DCT",
-    "DCA",
-    "DCR",
-    "DCB",
-    "RDCL",
-    "RDCT",
-    "RDCA",
-    "RDCR",
-    "SDL1",
-    "SDL2",
-    "SDL3",
-    "SDL4",
-    "SDL7",
-    "PDL",
-    "PDL1",
-    "REJ",
-    "CAN",
-    "FLD",
-    "ERR",
+    "DCL", "DCT", "DCA", "DCR", "DCB",
+    "RDCL", "RDCT", "RDCA", "RDCR",
+    "SDL1", "SDL2", "SDL3", "SDL4", "SDL7",
+    "PDL", "PDL1",
   ],
-  refund: ["RFD", "RFD3", "RFD4", "RVS"],
+  refund: ["RFD", "RFD3", "RFD4"],
   instance: [
-    "HLD",
-    "TPP",
-    "TTO",
-    "PRF",
-    "RHL",
-    "RTO",
-    "STO",
-    "STP",
-    "SRV",
-    "SRV1",
-    "SRTO",
-    "RHD",
-    "RHD3",
-    "RHD4",
-    "DBT",
-    "DBA",
-    "RDBT",
-    "RDBA",
-    "SDT",
-    "SRDT",
-    "PND",
-    "EXP",
+    // HOLD sub-statuses
+    "HLD", "TPP", "TTO", "PRF", "RHL", "RTO", "STO", "STP",
+    "SRV", "SRV1", "SRTO", "RHD", "RHD3", "RHD4",
+    // DOUBT sub-statuses
+    "DBT", "DBA", "RDBT", "RDBA", "SDT", "SRDT",
   ],
   submitted: ["SBM"],
 };
@@ -143,89 +123,35 @@ export const REPORT_INSTANCE_STATUS_CODES = [
   ...REPORT_DOUBT_STATUS_CODES,
 ];
 
-export const SPEC_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> = {
-  success: BUILTIN_STATUS_CODES.success,
-  declined: [
-    "DCL",
-    "DCT",
-    "DCA",
-    "DCR",
-    "DCB",
-    "RDCL",
-    "RDCT",
-    "RDCA",
-    "RDCR",
-    "SDL1",
-    "SDL2",
-    "SDL3",
-    "SDL4",
-    "SDL7",
-    "PDL",
-    "PDL1",
-  ],
-  refund: ["RFD", "RFD3", "RFD4"],
-  instance: REPORT_INSTANCE_STATUS_CODES,
-  submitted: ["SBM"],
-};
+/**
+ * Alias of BUILTIN_STATUS_CODES. Both refer to the same spec-accurate taxonomy.
+ * Used by all KPI queries — BUILTIN_STATUS_CODES and SPEC_STATUS_CODES are identical.
+ */
+export const SPEC_STATUS_CODES = BUILTIN_STATUS_CODES;
 
+// All spec codes map directly to their semantic — no extra codes here.
+// Non-spec fallbacks (REJ, CAN, RVS, PND, EXP, …) live in STATUS_AUTO_SEMANTIC_BY_CODE.
 const DEFAULT_STATUS_MAPPING_DEFS: Array<{
   rawCode: string;
   semantic: StatusSemantic;
-  color?: string;
-  badgeClass?: string;
 }> = [
-  ...BUILTIN_STATUS_CODES.success.map((rawCode) => ({
-    rawCode,
-    semantic: "success" as const,
-  })),
-  ...SPEC_STATUS_CODES.declined.map((rawCode) => ({
-    rawCode,
-    semantic: "declined" as const,
-  })),
-  { rawCode: "REJ", semantic: "declined" },
-  {
-    rawCode: "CAN",
-    semantic: "declined",
-    color: "#f97316",
-    badgeClass:
-      "bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-300 dark:border-orange-500/30",
-  },
-  {
-    rawCode: "FLD",
-    semantic: "declined",
-    color: "#dc2626",
-    badgeClass:
-      "bg-red-100 text-red-800 border-red-300 dark:bg-red-600/15 dark:text-red-300 dark:border-red-600/30",
-  },
-  {
-    rawCode: "ERR",
-    semantic: "declined",
-    color: "#b91c1c",
-    badgeClass:
-      "bg-red-100 text-red-900 border-red-300 dark:bg-red-700/15 dark:text-red-300 dark:border-red-700/30",
-  },
-  ...SPEC_STATUS_CODES.refund.map((rawCode) => ({
-    rawCode,
-    semantic: "refund" as const,
-  })),
-  { rawCode: "RVS", semantic: "refund" },
-  ...["HLD", "TPP", "TTO", "PRF", "RHL", "DBT", "DBA", "PND", "EXP"].map((rawCode) => ({
-    rawCode,
-    semantic: "instance" as const,
-  })),
-  { rawCode: "SBM", semantic: "submitted" },
+  ...BUILTIN_STATUS_CODES.success.map((rawCode) => ({ rawCode, semantic: "success" as const })),
+  ...BUILTIN_STATUS_CODES.declined.map((rawCode) => ({ rawCode, semantic: "declined" as const })),
+  ...BUILTIN_STATUS_CODES.refund.map((rawCode) => ({ rawCode, semantic: "refund" as const })),
+  // All 20 INSTANCE codes: 14 HOLD + 6 DOUBT
+  ...REPORT_INSTANCE_STATUS_CODES.map((rawCode) => ({ rawCode, semantic: "instance" as const })),
+  ...BUILTIN_STATUS_CODES.submitted.map((rawCode) => ({ rawCode, semantic: "submitted" as const })),
 ];
 
 export const DEFAULT_STATUS_MAPPINGS: StatusMapping[] = DEFAULT_STATUS_MAPPING_DEFS.map(
-  ({ rawCode, semantic, color, badgeClass }) => {
+  ({ rawCode, semantic }) => {
     const presentation = STATUS_PRESENTATION[semantic];
-
     return {
       rawCode,
       label: presentation.label,
       semantic,
-      color: color ?? presentation.color,
-      badgeClass: badgeClass ?? presentation.badgeClass,
+      color: presentation.color,
+      badgeClass: presentation.badgeClass,
     };
   },
 );
@@ -257,7 +183,7 @@ export const STATUS_AUTO_SEMANTIC_BY_CODE: Record<string, StatusSemantic> = {
 };
 
 function sqlLiteral(value: string): string {
-  return `'${value.replace("'", "''")}'`;
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 export function sqlStatusInList(codes: string[]): string {

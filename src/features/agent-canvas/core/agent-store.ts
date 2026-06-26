@@ -125,7 +125,7 @@ export interface AgentStoreState {
 }
 
 function quoteIdentifier(value: string): string {
-  return `"${value.replace('"', '""')}"`;
+  return `"${value.replaceAll('"', '""')}"`;
 }
 
 export function defaultSQLForTable(tableName?: string): string {

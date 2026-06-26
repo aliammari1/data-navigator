@@ -1,7 +1,5 @@
 "use client";
 
-import { lazy, Suspense, useState } from "react";
-import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import {
   Bell,
   ChevronRight,
@@ -15,8 +13,12 @@ import {
   User,
   Zap,
 } from "lucide-react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { useSettingsStore } from "@/core/stores/settings-store";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { cn } from "@/shared/utils";
 
 /**
@@ -87,6 +89,20 @@ const TABS = [
 
 type TabId = (typeof TABS)[number]["id"];
 
+/** French labels for the desktop menu's page list (Affichage + "Sections"). */
+const MENU_PAGES: { id: TabId; label: string; icon: (typeof TABS)[number]["icon"] }[] = [
+  { id: "appearance", label: "Apparence", icon: Palette },
+  { id: "data", label: "Données", icon: Database },
+  { id: "performance", label: "Performances", icon: Zap },
+  { id: "account", label: "Compte", icon: User },
+  { id: "notifications", label: "Notifications", icon: Bell },
+  { id: "storage", label: "Stockage", icon: HardDrive },
+  { id: "shortcuts", label: "Raccourcis", icon: Keyboard },
+  { id: "about", label: "À propos", icon: Info },
+];
+
+const TAB_IDS = new Set<string>(TABS.map((t) => t.id));
+
 function PanelFallback() {
   return (
     <div className="flex items-center gap-2 px-1 py-8 text-sm text-muted-foreground">
@@ -109,6 +125,17 @@ export default function SettingsScreen() {
     resetToDefaults();
     toast.success("Settings reset to defaults");
   };
+
+  // Surface the tabs in the desktop menu bar (Affichage + "Sections") and let
+  // menu items drive the existing tab state.
+  useRegisterPages(useWindowId(), MENU_PAGES, activeTab);
+  useAppCommands("settings", {
+    reset: () => handleReset(),
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId && TAB_IDS.has(pageId)) setActiveTab(pageId as TabId);
+    },
+  });
 
   const active = TABS.find((t) => t.id === activeTab) ?? TABS[0];
   const ActivePanel = active.Panel;

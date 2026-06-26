@@ -6,6 +6,7 @@ import {
   CheckCircle2,
   Clock,
   Layers,
+  Pin,
   RefreshCw,
   Sparkles,
   TrendingUp,
@@ -24,11 +25,13 @@ import { cn } from "@/shared/utils";
 import { AlertBanner } from "./alert-banner";
 import { AnimCounter } from "./anim-counter";
 import { type DashboardCardItem, DraggableAutoGrid } from "./draggable-auto-grid";
-import { KPICard } from "./kpi-card";
+import { KPICard, type KPICardProps } from "./kpi-card";
 import { Section } from "./section";
 import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
 import { buildOption } from "@/features/data-formulator/core/chart-options";
+import { useDashboardHistoryStore } from "@/features/dashboard-home/store/dashboard-history-store";
+import { type DesktopWidget, useWidgets } from "@/features/desktop/store/desktop-store";
 
 // Custom data-formulator widgets render through the shared telecom EChart
 // surface (OffscreenCanvas worker + tree-shaken core, with an echarts-for-react
@@ -104,6 +107,116 @@ function saveCardOrder(order: string[]) {
   try {
     localStorage.setItem(OVERVIEW_CARD_ORDER_KEY, JSON.stringify(order));
   } catch {}
+}
+
+function PinChartButton({ widgetId, title, isPinned }: { widgetId: string; title: string; isPinned: boolean }) {
+  const doPinFormulatorWidget = useDashboardHistoryStore((s) => s.doPinFormulatorWidget);
+  const doUnpinFormulatorWidget = useDashboardHistoryStore((s) => s.doUnpinFormulatorWidget);
+
+  return (
+    <button
+      type="button"
+      onClick={() => isPinned ? doUnpinFormulatorWidget(widgetId, title) : doPinFormulatorWidget(widgetId, title)}
+      title={isPinned ? "Désépingler du tableau de bord" : "Épingler au tableau de bord"}
+      className={`absolute right-3 top-3 z-10 grid size-7 place-items-center rounded-lg border transition-all ${
+        isPinned
+          ? "border-[hsl(var(--win-accent))/30] bg-[hsl(var(--win-accent))/10] text-[hsl(var(--win-accent))] opacity-100"
+          : "border-border bg-background/80 text-muted-foreground opacity-0 group-hover:opacity-100"
+      } hover:border-[hsl(var(--win-accent))/30] hover:bg-[hsl(var(--win-accent))/10] hover:text-[hsl(var(--win-accent))]`}
+    >
+      <Pin className={`size-3.5 ${isPinned ? "fill-current" : ""}`} />
+    </button>
+  );
+}
+
+/**
+ * Generic "pin to desktop" toggle. Pin state is derived from the desktop store
+ * (a widget matching `match`), so the button reflects reality and toggles
+ * correctly. Removal flows through the dashboard history so it lands in the
+ * undo/redo lineage like every other pin action.
+ */
+function usePinToDesktop(opts: {
+  type: DesktopWidget["type"];
+  config: Record<string, unknown>;
+  match: (w: DesktopWidget) => boolean;
+  label: string;
+}) {
+  const widgets = useWidgets();
+  const doPinWidget = useDashboardHistoryStore((s) => s.doPinWidget);
+  const doRemoveWidget = useDashboardHistoryStore((s) => s.doRemoveWidget);
+  const existing = widgets.find(opts.match);
+
+  return {
+    pinned: Boolean(existing),
+    toggle: () => {
+      if (existing) {
+        doRemoveWidget(existing.id, existing.type, existing.config, existing.x, existing.y, opts.label);
+      } else {
+        const offset = 20 + widgets.length * 16;
+        doPinWidget(opts.type, opts.config, offset, offset, opts.label);
+      }
+    },
+  };
+}
+
+/** Pin/unpin a built-in KPI card to the desktop as a live `kpi` widget. */
+function useKpiPin(metric: string, label: string) {
+  return usePinToDesktop({
+    type: "kpi",
+    config: { metric },
+    match: (w) => w.type === "kpi" && w.config.metric === metric,
+    label: `Indicateur (${label})`,
+  });
+}
+
+/** Pin/unpin a built-in chart card to the desktop as its compact widget. */
+function useChartPin(type: DesktopWidget["type"], label: string) {
+  return usePinToDesktop({
+    type,
+    config: {},
+    match: (w) => w.type === type,
+    label,
+  });
+}
+
+/** Compact pin button for a built-in chart card's Section action slot. */
+function ChartPinButton({ type, label }: { type: DesktopWidget["type"]; label: string }) {
+  const { pinned, toggle } = useChartPin(type, label);
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation();
+        toggle();
+      }}
+      title={pinned ? "Retirer du bureau" : "Épingler au bureau"}
+      aria-label={pinned ? "Retirer du bureau" : "Épingler au bureau"}
+      aria-pressed={pinned}
+      className={cn(
+        "grid size-7 place-items-center rounded-lg border transition-colors",
+        pinned
+          ? "border-primary/30 bg-primary/10 text-primary"
+          : "border-border bg-background text-muted-foreground hover:bg-muted hover:text-primary",
+      )}
+    >
+      <Pin className={cn("size-3.5", pinned && "fill-current")} />
+    </button>
+  );
+}
+
+/** Alias for the presentational card so the wrapper can render it by another name. */
+const KpiCardBase = KPICard;
+
+/**
+ * KPICard wrapper that adds the desktop pin button for KPIs carrying a
+ * `kpiKey`. Cards without a `kpiKey` render unchanged.
+ */
+function PinnableKpiCard(props: KPICardProps) {
+  const metric = props.kpiKey ? String(props.kpiKey) : "";
+  const label = typeof props.label === "string" ? props.label : metric;
+  const { pinned, toggle } = useKpiPin(metric, label);
+  if (!metric) return <KpiCardBase {...props} />;
+  return <KpiCardBase {...props} pinned={pinned} onPin={toggle} />;
 }
 
 function ExportToggle({
@@ -207,10 +320,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="Répartition des Statuts"
             icon={<Activity className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("status")}
-                onToggle={() => toggleOverviewSection("status")}
-              />
+              <>
+                <ChartPinButton type="status-donut" label="Répartition des statuts" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("status")}
+                  onToggle={() => toggleOverviewSection("status")}
+                />
+              </>
             }
           >
             <StatusDonut data={statusData} total={kpi?.totalTransactions ?? 0} />
@@ -255,10 +371,13 @@ export const OverviewTab = memo(function OverviewTab({
               ) : null
             }
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("hourly")}
-                onToggle={() => toggleOverviewSection("hourly")}
-              />
+              <>
+                <ChartPinButton type="hourly-bar" label="Distribution horaire" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("hourly")}
+                  onToggle={() => toggleOverviewSection("hourly")}
+                />
+              </>
             }
           >
             <HourlyChart data={hourly} forecast={forecast} />
@@ -273,10 +392,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="Part des Transactions par Groupe"
             icon={<Layers className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("canalShare")}
-                onToggle={() => toggleOverviewSection("canalShare")}
-              />
+              <>
+                <ChartPinButton type="channels" label="Part par groupe" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("canalShare")}
+                  onToggle={() => toggleOverviewSection("canalShare")}
+                />
+              </>
             }
           >
             <CanalShareChart canals={canals} />
@@ -291,10 +413,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="Revenue per Group"
             icon={<TrendingUp className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("canalAmount")}
-                onToggle={() => toggleOverviewSection("canalAmount")}
-              />
+              <>
+                <ChartPinButton type="revenue-group" label="Revenu par groupe" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("canalAmount")}
+                  onToggle={() => toggleOverviewSection("canalAmount")}
+                />
+              </>
             }
           >
             <AmountPieChart canals={canals} />
@@ -309,10 +434,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="Taux de Réussite par Groupe"
             icon={<CheckCircle2 className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("successRate")}
-                onToggle={() => toggleOverviewSection("successRate")}
-              />
+              <>
+                <ChartPinButton type="success-rate" label="Taux de réussite par groupe" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("successRate")}
+                  onToggle={() => toggleOverviewSection("successRate")}
+                />
+              </>
             }
           >
             <SuccessRateTrendChart canals={canals} />
@@ -327,10 +455,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="KPI Summary by Product"
             icon={<BarChart2 className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("canalTable")}
-                onToggle={() => toggleOverviewSection("canalTable")}
-              />
+              <>
+                <ChartPinButton type="mini-report" label="Résumé par produit" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("canalTable")}
+                  onToggle={() => toggleOverviewSection("canalTable")}
+                />
+              </>
             }
           >
             <div className="overflow-x-auto">
@@ -446,10 +577,13 @@ export const OverviewTab = memo(function OverviewTab({
             title="Daily Trend"
             icon={<TrendingUp className="w-4 h-4" />}
             action={
-              <ExportToggle
-                checked={selectedOverviewSections.has("dailyTrend")}
-                onToggle={() => toggleOverviewSection("dailyTrend")}
-              />
+              <>
+                <ChartPinButton type="daily-trend" label="Tendance journalière" />
+                <ExportToggle
+                  checked={selectedOverviewSections.has("dailyTrend")}
+                  onToggle={() => toggleOverviewSection("dailyTrend")}
+                />
+              </>
             }
           >
             <DailyTrendChart fetchDailyTrend={fetchDailyTrend} m={m} />
@@ -478,18 +612,21 @@ export const OverviewTab = memo(function OverviewTab({
       id: w.id,
       size: w.size,
       node: (
-        <Section title={w.title} icon={<BarChart2 className="w-4 h-4" />}>
-          {w.result && w.result.data.length > 0 ? (
-            <ReactEChartsWidget
-              option={buildOption(w.chartSpec, w.result.data) ?? {}}
-              height={240}
-            />
-          ) : (
-            <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
-              No data available
-            </div>
-          )}
-        </Section>
+        <div className="group relative">
+          <Section title={w.title} icon={<BarChart2 className="w-4 h-4" />}>
+            {w.result && w.result.data.length > 0 ? (
+              <ReactEChartsWidget
+                option={buildOption(w.chartSpec, w.result.data) ?? {}}
+                height={240}
+              />
+            ) : (
+              <div className="h-48 flex items-center justify-center text-muted-foreground text-xs">
+                No data available
+              </div>
+            )}
+          </Section>
+          <PinChartButton widgetId={w.id} title={w.title} isPinned={Boolean(w.pinnedAt)} />
+        </div>
       ),
     }));
   }, [widgets]);
@@ -549,7 +686,7 @@ export const OverviewTab = memo(function OverviewTab({
 
       {kpi ? (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <KPICard
+          <PinnableKpiCard
             label="Transactions Totales"
             delay={0}
             value={<AnimCounter value={kpi.totalTransactions} />}
@@ -562,7 +699,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("totalTransactions")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Réussies"
             delay={0.06}
             value={<AnimCounter value={kpi.successCount} />}
@@ -577,7 +714,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("successCount")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Échec (Refusé)"
             delay={0.12}
             value={<AnimCounter value={kpi.declinedCount} />}
@@ -612,7 +749,7 @@ export const OverviewTab = memo(function OverviewTab({
 
       {kpi ? (
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-          <KPICard
+          <PinnableKpiCard
             label="Instance"
             delay={0.22}
             value={<AnimCounter value={kpi.instanceCount} />}
@@ -624,7 +761,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("instanceCount")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Annulation (Remboursement)"
             delay={0.26}
             value={<AnimCounter value={kpi.refundCount} />}
@@ -636,7 +773,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("refundCount")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Confirmé"
             delay={0.3}
             value={<AnimCounter value={kpi.submittedCount} />}
@@ -648,7 +785,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("submittedCount")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Abonnés uniques"
             delay={0.34}
             value={<AnimCounter value={kpi.uniqueCustomers} />}
@@ -660,7 +797,7 @@ export const OverviewTab = memo(function OverviewTab({
             onToggle={() => toggleKpi("uniqueCustomers")}
           />
 
-          <KPICard
+          <PinnableKpiCard
             label="Traitement moy."
             delay={0.38}
             value={fmtDuration(kpi.avgProcessingMs)}

@@ -11,6 +11,7 @@
 
 import * as Comlink from "comlink";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { hasElectronVoice, sherpaSpeak } from "@/platform/electron/electron-fs";
 import type { NarratorWorkerApi } from "../core/narrator.worker";
 
 type Mode = "kokoro" | "speech" | "none";
@@ -124,6 +125,29 @@ export function useNarrator() {
       const clean = text.trim();
       if (!clean) return;
       cleanup();
+
+      // Prefer the bundled native sherpa-onnx lane (fully offline, zero new
+      // assets) whenever running inside Electron.
+      if (hasElectronVoice()) {
+        setState((s) => ({ ...s, loading: true, engine: "Kokoro (offline)" }));
+        try {
+          const { wav } = await sherpaSpeak(clean, { voice: "af_heart" });
+          setState((s) => ({ ...s, loading: false }));
+          const blob = new Blob([new Uint8Array(wav)], { type: "audio/wav" });
+          const url = URL.createObjectURL(blob);
+          urlRef.current = url;
+          const audio = new Audio(url);
+          audioRef.current = audio;
+          audio.onended = () => setState((s) => ({ ...s, speaking: false }));
+          audio.onerror = () => setState((s) => ({ ...s, speaking: false }));
+          setState((s) => ({ ...s, speaking: true }));
+          await audio.play();
+          return;
+        } catch {
+          setState((s) => ({ ...s, loading: false }));
+          // Fall through to the kokoro worker / speechSynthesis chain below.
+        }
+      }
 
       // Try Kokoro first unless it has previously failed in this session.
       if (modeRef.current === "kokoro" && !kokoroFailedRef.current) {

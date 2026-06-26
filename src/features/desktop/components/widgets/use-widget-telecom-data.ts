@@ -1,11 +1,15 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
+import { useDesktopStore } from "@/features/desktop/store/desktop-store";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { isTelecomDataset } from "@/features/telecom/lib/dataset-detection";
+import { fetchDailyTrend, transactionDateExpr } from "@/features/telecom/lib/queries";
 import { DEFAULT_MAPPING } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
+import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 /**
  * Live telecom analytics for the desktop widgets layer.
@@ -27,11 +31,17 @@ export interface WidgetTelecomData {
   kpi: Types.KPISummary | null;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
+  /** Per-day trend across the whole dataset (date filter does not apply). */
+  daily: Types.DailyTrendRow[];
+  widgetDate: string | null;
 }
 
 export function useWidgetTelecomData(): WidgetTelecomData {
   const datasets = useDataStore((s) => s.datasets);
   const activeDatasetId = useDataStore((s) => s.activeDatasetId);
+  const widgetDate = useDesktopStore((s) => s.widgetDate);
+  // Only run the (whole-dataset) daily query when a daily-trend widget is pinned.
+  const needsDaily = useDesktopStore((s) => s.widgets.some((w) => w.type === "daily-trend"));
 
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
@@ -68,6 +78,115 @@ export function useWidgetTelecomData(): WidgetTelecomData {
     },
   });
 
+  const dateQuery = useQuery({
+    queryKey: ["widget-date-kpi", tableNameRef.current, widgetDate],
+    queryFn: async (): Promise<{ kpi: Types.KPISummary; hourly: Types.HourlyRow[] } | null> => {
+      const table = tableNameRef.current;
+      if (!widgetDate || !table) return null;
+      const m = DEFAULT_MAPPING;
+      const dateExpr = transactionDateExpr(m.transactionDate);
+      const sn = `CASE
+      WHEN UPPER(CAST("${m.status}" AS VARCHAR)) IN ('00','000','0000','SUCCESS','OK','1') THEN 'SUCCESS'
+      WHEN UPPER(CAST("${m.status}" AS VARCHAR)) IN ('REFUND','REMBOURS') THEN 'REFUND'
+      WHEN UPPER(CAST("${m.status}" AS VARCHAR)) IN ('INSTANCE','PENDING','EN ATTENTE') THEN 'INSTANCE'
+      WHEN UPPER(CAST("${m.status}" AS VARCHAR)) IN ('SUBMITTED') THEN 'SUBMITTED'
+      ELSE 'DECLINED'
+    END`;
+      try {
+        const [kpiRows, hourlyRows] = await Promise.all([
+          runReadOnlyQuery(`
+          WITH base AS (
+            SELECT
+              ${sn} AS _status,
+              TRY_CAST("${m.amount}" AS DOUBLE) AS _amt,
+              CAST("${m.msisdn}" AS VARCHAR) AS _id
+            FROM "${table}"
+            WHERE CAST(${dateExpr} AS DATE) = CAST('${widgetDate}' AS DATE)
+          )
+          SELECT
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE _status='SUCCESS') AS success_count,
+            COUNT(*) FILTER (WHERE _status='DECLINED') AS declined_count,
+            COUNT(*) FILTER (WHERE _status='REFUND') AS refund_count,
+            COUNT(*) FILTER (WHERE _status='INSTANCE') AS instance_count,
+            COUNT(*) FILTER (WHERE _status='SUBMITTED') AS submitted_count,
+            ROUND(COUNT(*) FILTER (WHERE _status='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
+            ROUND(SUM(_amt) FILTER (WHERE _status='SUCCESS'),3) AS total_amount,
+            APPROX_COUNT_DISTINCT(_id) AS unique_customers
+          FROM base
+        `),
+          runReadOnlyQuery(`
+          WITH base AS (
+            SELECT
+              ${sn} AS _status,
+              TRY_CAST("${m.amount}" AS DOUBLE) AS _amt,
+              TRY_CAST(SPLIT_PART(SPLIT_PART(CAST("${m.transactionDate}" AS VARCHAR),' ',2),':',1) AS INTEGER) AS _hour
+            FROM "${table}"
+            WHERE CAST(${dateExpr} AS DATE) = CAST('${widgetDate}' AS DATE)
+          )
+          SELECT
+            _hour AS hour,
+            COUNT(*) AS total,
+            COUNT(*) FILTER (WHERE _status='SUCCESS') AS success,
+            COUNT(*) FILTER (WHERE _status='DECLINED') AS declined,
+            COALESCE(ROUND(SUM(_amt) FILTER (WHERE _status='SUCCESS'),3),0) AS amount
+          FROM base
+          WHERE _hour IS NOT NULL
+          GROUP BY 1
+          ORDER BY 1
+        `),
+        ]);
+        const r = kpiRows[0];
+        if (!r || Number(r.total) === 0) return null;
+        const kpi: Types.KPISummary = {
+          totalTransactions: Number(r.total),
+          successCount: Number(r.success_count),
+          declinedCount: Number(r.declined_count),
+          refundCount: Number(r.refund_count),
+          instanceCount: Number(r.instance_count),
+          submittedCount: Number(r.submitted_count),
+          successRate: Number(r.success_rate),
+          totalAmount: Number(r.total_amount),
+          avgAmount: 0,
+          avgProcessingMs: 0,
+          uniqueCustomers: Number(r.unique_customers),
+          peakHour: 0,
+          topErrorCode: "",
+        };
+        const hourly: Types.HourlyRow[] = hourlyRows
+          .filter((h) => h.hour !== null)
+          .map((h) => ({
+            hour: Number(h.hour),
+            total: Number(h.total),
+            success: Number(h.success),
+            declined: Number(h.declined),
+            amount: Number(h.amount),
+          }));
+        if (hourly.length > 0) {
+          kpi.peakHour = hourly.reduce((max, h) => (h.total > max.total ? h : max), hourly[0]).hour;
+        }
+        return { kpi, hourly };
+      } catch {
+        return null;
+      }
+    },
+    enabled: Boolean(widgetDate) && tableReady && Boolean(tableNameRef.current),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
+  const dailyQuery = useQuery({
+    queryKey: ["widget-daily-trend", tableNameRef.current, tableReady],
+    queryFn: async (): Promise<Types.DailyTrendRow[]> => {
+      const table = tableNameRef.current;
+      if (!table) return [];
+      return fetchDailyTrend(table, DEFAULT_MAPPING);
+    },
+    enabled: needsDaily && tableReady && Boolean(tableNameRef.current),
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+
   useEffect(() => {
     if (!activeTelecomDataset) {
       setTableReady(false);
@@ -88,11 +207,18 @@ export function useWidgetTelecomData(): WidgetTelecomData {
     setTableReady(true);
   }, [activeTelecomDataset]);
 
+  const dateData = dateQuery.data ?? null;
+  const effectiveKpi = widgetDate ? (dateData?.kpi ?? null) : analytics.kpi;
+  const effectiveHourly = widgetDate ? (dateData?.hourly ?? []) : analytics.hourly;
+  const effectiveCanals = widgetDate ? [] : analytics.canals;
+
   return {
-    ready: tableReady && Boolean(analytics.kpi),
+    ready: tableReady && Boolean(widgetDate ? dateData?.kpi : analytics.kpi),
     fileName: activeTelecomDataset?.name ?? "",
-    kpi: analytics.kpi,
-    canals: analytics.canals,
-    hourly: analytics.hourly,
+    kpi: effectiveKpi,
+    canals: effectiveCanals,
+    hourly: effectiveHourly,
+    daily: dailyQuery.data ?? [],
+    widgetDate,
   };
 }

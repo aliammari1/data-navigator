@@ -16,7 +16,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useTheme } from "@/components/theme-provider";
+import { useAppTheme } from "@/hooks/use-app-theme";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -67,7 +67,7 @@ export function Topbar({
   const pathname = usePathname();
   const router = useRouter();
   const showBreadcrumbs = useSettingsStore((s) => s.showBreadcrumbs);
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
   const { setDesktopMode } = useShellActions();
   const [mounted, setMounted] = useState(false);
   const [signingOut, setSigningOut] = useState(false);

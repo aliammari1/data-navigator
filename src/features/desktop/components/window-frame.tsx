@@ -10,6 +10,7 @@ import { captureSnapshot } from "@/features/desktop/components/snapshots-layer";
 import { WindowTabBar } from "@/features/desktop/components/window-tabs";
 import { getApp } from "@/features/desktop/core/app-registry";
 import { readDrag } from "@/features/desktop/core/dnd";
+import { WindowProvider } from "@/features/desktop/core/menu/window-context";
 import {
   rectForZone,
   type SnapViewport,
@@ -297,6 +298,7 @@ export function WindowFrame({ win }: { win: DesktopWindow }) {
         className="dn-window"
       >
         <div
+          data-window-id={win.id}
           className={`flex h-full w-full flex-col overflow-hidden border bg-[var(--win-surface)] text-foreground transition-shadow duration-200 ${
             win.maximized ? "rounded-none" : "rounded-lg"
           }`}
@@ -459,11 +461,13 @@ export function WindowFrame({ win }: { win: DesktopWindow }) {
                 allow="camera; microphone; clipboard-read; clipboard-write"
               />
             ) : app.Component ? (
-              <Suspense
-                fallback={<div className="p-6 text-sm text-muted-foreground">Chargement…</div>}
-              >
-                <app.Component {...(win.props ?? {})} />
-              </Suspense>
+              <WindowProvider windowId={win.id} appId={win.appId}>
+                <Suspense
+                  fallback={<div className="p-6 text-sm text-muted-foreground">Chargement…</div>}
+                >
+                  <app.Component {...(win.props ?? {})} />
+                </Suspense>
+              </WindowProvider>
             ) : null}
 
             {/* Drop affordance overlay (non-interactive). */}

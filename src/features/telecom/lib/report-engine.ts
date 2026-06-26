@@ -97,7 +97,7 @@ export const STATUS_MAP = {
     subStatuses: SPEC_STATUS_CODES.refund,
   },
   DECLINED: {
-    label: "Echec",
+    label: "Échec",
     subStatuses: SPEC_STATUS_CODES.declined,
   },
   SUBMITTED: {

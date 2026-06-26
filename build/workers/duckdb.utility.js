@@ -17,7 +17,7 @@ var datasetsDir = null;
 function stripSqlWrapping(sql) {
   let s = sql.trim();
   const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
-  if (fence == null ? void 0 : fence[1]) s = fence[1].trim();
+  if (fence?.[1]) s = fence[1].trim();
   s = s.replace(/^(\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)+/i, "").trim();
   s = s.replace(/;+\s*$/, "").trim();
   return s;
@@ -50,7 +50,6 @@ async function applyReadConnectionSandbox(conn, allowedDirs) {
   const resolvedDirs = allowedDirs.filter((dir) => typeof dir === "string" && dir.length > 0).map((dir) => path__default.default.resolve(dir));
   if (resolvedDirs.length === 0) return false;
   const settings = [
-    "SET enable_external_access = true",
     `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
     "SET lock_configuration = true"
   ];
@@ -68,13 +67,10 @@ async function applyReadConnectionSandbox(conn, allowedDirs) {
   return allApplied;
 }
 async function initEngine(req) {
-  var _a, _b, _c;
   if (instance && readConn) return true;
-  const cores = (_c = (_b = (_a = os__default.default).availableParallelism) == null ? void 0 : _b.call(_a)) != null ? _c : 4;
-  const threads = String(
-    Math.max(1, Math.min(req.threads > 0 ? req.threads : cores - 1, 6))
-  );
-  instance = await nodeApi.DuckDBInstance.create(":memory:", { threads });
+  const cores = os__default.default.availableParallelism?.() ?? 4;
+  const threads = String(Math.max(1, Math.min(req.threads > 0 ? req.threads : cores - 1, 6)));
+  instance = await nodeApi.DuckDBInstance.create(":memory:", { threads, enable_external_access: "true" });
   readConn = await instance.connect();
   datasetsDir = path__default.default.resolve(req.datasetsDir);
   const pragmas = [
@@ -93,10 +89,7 @@ async function initEngine(req) {
       );
     }
   }
-  const sandboxApplied = await applyReadConnectionSandbox(readConn, [
-    datasetsDir,
-    req.tmpSpillDir
-  ]);
+  const sandboxApplied = await applyReadConnectionSandbox(readConn, [datasetsDir, req.tmpSpillDir]);
   return sandboxApplied;
 }
 async function runReadOnlyQuery(req) {
@@ -108,10 +101,9 @@ async function runReadOnlyQuery(req) {
   return result.getRowObjectsJS();
 }
 function reply(message) {
-  parentPort == null ? void 0 : parentPort.postMessage(message);
+  parentPort?.postMessage(message);
 }
 async function handle(request) {
-  var _a, _b, _c;
   try {
     switch (request.kind) {
       case "init": {
@@ -129,9 +121,9 @@ async function handle(request) {
         return;
       }
       default: {
-        const unknownKind = (_a = request.kind) != null ? _a : "<none>";
+        const unknownKind = request.kind ?? "<none>";
         reply({
-          id: (_b = request.id) != null ? _b : -1,
+          id: request.id ?? -1,
           kind: "error",
           ok: false,
           message: `Unknown request kind: ${unknownKind}`
@@ -140,7 +132,7 @@ async function handle(request) {
     }
   } catch (error) {
     reply({
-      id: (_c = request.id) != null ? _c : -1,
+      id: request.id ?? -1,
       kind: "error",
       ok: false,
       message: error instanceof Error ? error.message : String(error)

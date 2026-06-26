@@ -152,7 +152,12 @@ export const DESKTOP_APPS: DesktopApp[] = [
     singleInstance: true,
     inLauncher: true,
     pinned: true,
-    route: "/dashboard/telecom-report/overview",
+    // Native Component (not iframe) so it shares the Electron IPC bridge,
+    // Zustand stores, and React Query cache with the rest of the app.
+    Component: d(
+      () => import("@/features/desktop/screens/TelecomDesktopScreen"),
+      "TelecomDesktopScreen",
+    ),
   },
   {
     id: "ai-briefing",

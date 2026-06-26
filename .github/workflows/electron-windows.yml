@@ -1,10 +1,10 @@
 name: Electron Windows
 
-# Build + release the Windows MSI for Data Navigator.
+# Build + release the Windows Squirrel installer for Data Navigator.
 #
 # Two modes:
-#  - PR / manual smoke      -> build-only: prove the WiX MSI still MAKEs (no publish).
-#  - Release (workflow_call) -> MAKE the MSI on windows-latest, upload it as a workflow
+#  - PR / manual smoke      -> build-only: prove the Squirrel Setup.exe still builds (no publish).
+#  - Release (workflow_call) -> MAKE the installer on windows-latest, upload it as a workflow
 #    artifact AND attach it to the GitHub Release for the current version, with a signed
 #    build-provenance attestation. update-electron-app consumes that Release.
 #
@@ -16,7 +16,7 @@ name: Electron Windows
 #
 # Offline-product note: the multi-GB GGUF model is intentionally NOT downloaded.
 # forge.config.ts copies ./models only if it exists (copyDirIfExists), so CI
-# builds a model-less MSI on purpose. Do not add a model-download step here.
+# builds a model-less installer on purpose. Do not add a model-download step here.
 
 on:
   pull_request:
@@ -40,24 +40,24 @@ on:
   workflow_call:
     inputs:
       release:
-        description: Build and publish the MSI to the GitHub Release.
+        description: Build and publish the installer to the GitHub Release.
         type: boolean
         required: false
         default: false
       release-tag:
-        description: The `v<version>` tag whose GitHub Release the MSI is attached to.
+        description: The `v<version>` tag whose GitHub Release the installer is attached to.
         type: string
         required: false
         default: ""
   workflow_dispatch:
     inputs:
       release:
-        description: Build and publish the MSI to the GitHub Release.
+        description: Build and publish the installer to the GitHub Release.
         type: boolean
         required: false
         default: false
       release-tag:
-        description: The `v<version>` tag whose GitHub Release the MSI is attached to (e.g. v0.2.0).
+        description: The `v<version>` tag whose GitHub Release the installer is attached to (e.g. v0.2.0).
         type: string
         required: false
         default: ""
@@ -76,12 +76,8 @@ env:
 
 jobs:
   build:
-    name: Build Windows MSI
-    # Pin to windows-2022, NOT windows-latest. windows-latest moved to the
-    # windows-2025-vs2026 image where node-gyp cannot find Visual Studio 2026, so the
-    # native rebuild step fails. windows-2022 ships VS 2022 + the WiX 3 toolset that
-    # MakerWix shells out to — the proven environment for this native + WiX MSI build.
-    runs-on: windows-2022
+    name: Build Windows Installer
+    runs-on: windows-latest
     timeout-minutes: 90
 
     permissions:
@@ -96,7 +92,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # lfs:false — do NOT fetch LFS objects. Every LFS-tracked file is an AI model
           # (*.onnx/*.bin/*.gguf/*.safetensors + public/models/**); this build is
@@ -128,7 +124,7 @@ jobs:
       # Cache Electron binary downloads (electron-rebuild + @electron/get fetch the
       # matching Electron headers + the prebuilt Electron zip the packager extracts).
       - name: Cache Electron binaries
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: |
             ~/AppData/Local/electron/Cache
@@ -138,7 +134,7 @@ jobs:
 
       # Cache the Next.js build cache to speed up `desktop:build` -> next build.
       - name: Cache Next.js build
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}
@@ -164,17 +160,6 @@ jobs:
             Write-Host "node_modules is flat (hoisted) — no .pnpm store"
           }
 
-      # Rebuild native modules for the Electron 42 ABI in a DEDICATED step, BEFORE make.
-      # forge.config.ts no longer carries a rebuildConfig: forge's in-`make` rebuild
-      # spawned a node-gyp child PER native module, which on the hosted runner both hung
-      # ("Preparing native dependencies", forge #3474/#3619) AND triggered the early
-      # process.exit(0) that killed make ~4s in. Rebuilding here means `make` never
-      # spawns a rebuild child, and the staged .node files already carry the right ABI.
-      - name: Rebuild native modules for Electron ABI
-        run: pnpm run native:rebuild
-        env:
-          NODE_ENV: production
-
       # Typecheck only — NOT the full `pnpm run verify`. The MSI artifact only
       # needs to compile + package; the heavy quality suite (lint, tests, coverage,
       # Storybook build, size budgets) already runs on the same commit in
@@ -193,8 +178,8 @@ jobs:
 
       # Belt-and-suspenders: skip forge's check-system (it spawns a pnpm child). The
       # in-process make below bypasses the CLI entirely, but keep this so no forge code
-      # path spawns that child. windows-2022 already has VS 2022 + WiX 3 and the install
-      # is hoisted, so the check is unneeded. forge documents this skip file in its log.
+      # path spawns that child. The install is hoisted, so the check is unneeded.
+      # forge documents this skip file in its log.
       - name: Skip forge system check (avoid the pnpm child it spawns)
         shell: pwsh
         run: New-Item -ItemType File -Force -Path "$HOME/.skip-forge-system-check" | Out-Null
@@ -291,7 +276,7 @@ jobs:
       # Always upload the installer as a workflow artifact (build record + PR download).
       - name: Upload installer artifact
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: data-navigator-windows-setup
           path: |

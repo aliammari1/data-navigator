@@ -1,9 +1,9 @@
 "use client";
 
-import { SpecChannelTable } from "./spec-channel-table";
-import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
+import type { SpecChRow, SpecChStatusRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import type { SpecChRow } from "@/features/telecom/lib/queries";
+import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
+import { SpecChannelTable } from "./spec-channel-table";
 
 export function VoiceLineSection({
   ttcash,
@@ -11,6 +11,7 @@ export function VoiceLineSection({
   dateFrom,
   dateTo,
   fetchSpecChannelStats,
+  fetchSpecCanalStatusMatrix,
 }: {
   ttcash: ChannelDef[];
   voucher: ChannelDef[];
@@ -21,6 +22,11 @@ export function VoiceLineSection({
     dateFrom: string,
     dateTo: string,
   ) => Promise<{ rows: SpecChRow[]; total: SpecChRow }>;
+  fetchSpecCanalStatusMatrix?: (
+    channels: ChannelDef[],
+    dateFrom: string,
+    dateTo: string,
+  ) => Promise<SpecChStatusRow[]>;
 }) {
   const summaryGroups: ChannelGroup[] = [
     { label: "TTCASH", channels: ttcash, color: "#89b4fa" },
@@ -40,6 +46,7 @@ export function VoiceLineSection({
         dateTo={dateTo}
         title="Par TTCASH"
         fetchSpecChannelStats={fetchSpecChannelStats}
+        fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
       />
       <div className="border-t border-border/30" />
       <SpecChannelTable
@@ -48,6 +55,7 @@ export function VoiceLineSection({
         dateTo={dateTo}
         title="Par Voucher"
         fetchSpecChannelStats={fetchSpecChannelStats}
+        fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
       />
     </div>
   );

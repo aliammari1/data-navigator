@@ -96,6 +96,8 @@ import type {
   SortConfig,
   ViewMode,
 } from "@/features/data-browser/model/types";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import {
   cancelQueries,
   listRegisteredDatasets,
@@ -1083,6 +1085,52 @@ export default function DataBrowserScreen({
     },
     [heatmapEnabled, columnRanges],
   );
+
+  // ─── Desktop menu wiring (app-command bus + page registry) ───────────────────
+  // Surfaces the four views in the window's Affichage menu and lets the Fichier /
+  // Données / Affichage menus drive the existing import, export, refresh, panel
+  // and table-option handlers.
+  const windowId = useWindowId();
+  useRegisterPages(
+    windowId,
+    [
+      { id: "table", label: "Tableau", icon: Table2 },
+      { id: "cards", label: "Cartes", icon: Grid3X3 },
+      { id: "analytics", label: "Graphiques", icon: BarChart2 },
+      { id: "sql", label: "SQL", icon: Code2 },
+    ],
+    viewMode,
+  );
+  useAppCommands("data-browser", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId === "table" || pageId === "cards" || pageId === "analytics" || pageId === "sql") {
+        setViewMode(pageId);
+      }
+    },
+    import: () => setUploadPanelOpen(true),
+    export: (payload) => {
+      const kind = (payload as { kind?: "csv" | "xlsx" | "json" } | undefined)?.kind ?? "csv";
+      if (kind === "xlsx") void exportExcel();
+      else if (kind === "json") void exportJSON();
+      else void exportData("csv");
+    },
+    refresh: () => {
+      countCacheRef.current.clear();
+      void fetchRows();
+    },
+    "toggle-filters": () => setFilterPanelOpen((prev) => !prev),
+    "toggle-columns": () => setColPanelOpen((prev) => !prev),
+    "run-sql": () => {
+      setViewMode("sql");
+      void runCustomQuery();
+    },
+    "toggle-row-numbers": () => setShowRowNumbers((prev) => !prev),
+    "toggle-compact": () => setCompactMode((prev) => !prev),
+    "toggle-zebra": () => setZebraStripes((prev) => !prev),
+    "toggle-heatmap": () => setHeatmapEnabled((prev) => !prev),
+    "toggle-fullscreen": () => setFullscreen((prev) => !prev),
+  });
 
   // ── Render ──
   const pageContainerClass = cn(

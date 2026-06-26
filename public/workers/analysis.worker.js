@@ -5968,7 +5968,13 @@ async function kMeans(data, options) {
     for (let j = 0; j < d; j++) row.push(centroids[c * d + j]);
     centroidsOut.push(row);
   }
-  return { labels: Array.from(labels), centroids: centroidsOut, withinss, totalWithinss, iterations };
+  return {
+    labels: Array.from(labels),
+    centroids: centroidsOut,
+    withinss,
+    totalWithinss,
+    iterations
+  };
 }
 async function dbscan(data, eps = 0.5, minPts = 5) {
   if (data.length === 0) return { labels: [], clusters: [], noise: [] };
@@ -6067,7 +6073,8 @@ async function correlationMatrix(data, columns = []) {
       const denom = stds[i] * stds[j];
       if (denom < EPSILON) return 0;
       let cov = 0;
-      for (let r = 0; r < nRows; r++) cov += (data[r][i] - means[i]) * (data[r][j] - means[j]);
+      for (let r = 0; r < nRows; r++)
+        cov += (data[r][i] - means[i]) * (data[r][j] - means[j]);
       cov /= nRows - 1;
       return Math.round(cov / denom * 1e3) / 1e3;
     })
@@ -6078,7 +6085,15 @@ async function welchTTest(a, b, alpha = 0.05) {
   const na = a.length;
   const nb = b.length;
   if (na < 2 || nb < 2) {
-    return { statistic: 0, df: 0, pValue: 1, meanA: mean(a), meanB: mean(b), ci: [0, 0], significant: false };
+    return {
+      statistic: 0,
+      df: 0,
+      pValue: 1,
+      meanA: mean(a),
+      meanB: mean(b),
+      ci: [0, 0],
+      significant: false
+    };
   }
   const ma = mean(a);
   const mb = mean(b);
@@ -6114,7 +6129,13 @@ async function anova1(values, factor, alpha = 0.05) {
   const k = groupArrays.length;
   const n = values.length;
   if (k < 2 || n <= k) {
-    return { statistic: 0, pValue: 1, dfBetween: Math.max(0, k - 1), dfWithin: Math.max(0, n - k), significant: false };
+    return {
+      statistic: 0,
+      pValue: 1,
+      dfBetween: Math.max(0, k - 1),
+      dfWithin: Math.max(0, n - k),
+      significant: false
+    };
   }
   const grand = mean(values);
   let ssBetween = 0;

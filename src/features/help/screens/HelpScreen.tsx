@@ -1,8 +1,10 @@
 "use client";
 
-import { HelpCircle, Keyboard, Search } from "lucide-react";
+import { BookOpen, HelpCircle, Keyboard, Search } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { cn } from "@/shared/utils";
 import { FaqItem } from "../components/FaqItem";
 import { FeatureCard } from "../components/FeatureCard";
@@ -22,6 +24,28 @@ export default function HelpScreen() {
   // Fuzzy search (fuse.js) with useDeferredValue + useMemo — built once at
   // module load; no per-keystroke O(n) lowercasing or list re-animation.
   const { features, faqs, query } = useHelpSearch(search);
+
+  // Surface the three help sections in the desktop View menu and let the menu
+  // switch them + reset the search box, all through the app-command bus.
+  const windowId = useWindowId();
+  useRegisterPages(
+    windowId,
+    [
+      { id: "features", label: "Fonctionnalités", icon: BookOpen },
+      { id: "faq", label: "FAQ", icon: HelpCircle },
+      { id: "shortcuts", label: "Raccourcis clavier", icon: Keyboard },
+    ],
+    activeSection,
+  );
+  useAppCommands("help", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId === "features" || pageId === "faq" || pageId === "shortcuts") {
+        setActiveSection(pageId);
+      }
+    },
+    "clear-search": () => setSearch(""),
+  });
 
   return (
     <div className=" flex-1 overflow-y-auto">

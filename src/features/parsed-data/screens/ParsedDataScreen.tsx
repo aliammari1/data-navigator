@@ -48,6 +48,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/design-system/empty-state";
 import { NextSteps } from "@/design-system/next-steps";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import {
   nullHeatmapOption,
   overviewQualityOption,
@@ -55,9 +57,13 @@ import {
   typeMixOption,
 } from "@/features/parsed-data/charts/options";
 import { ProfileChart } from "@/features/parsed-data/charts/ProfileChart";
-import { ColumnList } from "@/features/parsed-data/components/ColumnList";
 import { ColumnDetailPanel, type DetailTab } from "@/features/parsed-data/components/ColumnDetail";
+import { ColumnList } from "@/features/parsed-data/components/ColumnList";
 import { QualityRing } from "@/features/parsed-data/components/profile-cards";
+import { useColumnDetail } from "@/features/parsed-data/hooks/useColumnDetail";
+import { useDatasetCatalog } from "@/features/parsed-data/hooks/useDatasetCatalog";
+import { useDatasetProfile } from "@/features/parsed-data/hooks/useDatasetProfile";
+import { useFilteredProfiles } from "@/features/parsed-data/hooks/useFilteredProfiles";
 import { csvEscape } from "@/features/parsed-data/model/format";
 import { qualityColor, qualityLabel } from "@/features/parsed-data/model/profile-format";
 import type {
@@ -67,10 +73,6 @@ import type {
   ProfileTypeFilter,
 } from "@/features/parsed-data/model/summary-map";
 import { defaultProfileQuery } from "@/features/parsed-data/model/summary-map";
-import { useColumnDetail } from "@/features/parsed-data/hooks/useColumnDetail";
-import { useDatasetCatalog } from "@/features/parsed-data/hooks/useDatasetCatalog";
-import { useDatasetProfile } from "@/features/parsed-data/hooks/useDatasetProfile";
-import { useFilteredProfiles } from "@/features/parsed-data/hooks/useFilteredProfiles";
 import { useProfileWorker } from "@/features/parsed-data/worker/useProfileWorker";
 import { cn } from "@/shared/utils";
 
@@ -194,6 +196,7 @@ export default function ParsedDataScreen() {
   );
 
   const [activeDetailTab, setActiveDetailTab] = useState<DetailTab>("overview");
+  const windowId = useWindowId();
 
   // ── Filter / sort query (debounced + off-main-thread) ──
   const [search, setSearch] = useState("");
@@ -280,6 +283,32 @@ export default function ParsedDataScreen() {
   const handleRefresh = useCallback(() => {
     setRefreshKey((key) => key + 1);
   }, []);
+
+  // ── Desktop menu wiring (export / refresh / filter reset + detail tabs) ──
+  useAppCommands("parsed", {
+    export: () => exportProfiles(),
+    refresh: () => handleRefresh(),
+    "clear-filters": () => {
+      setSearch("");
+      setTypeFilter("all");
+      setQualityFilter("all");
+    },
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string }).pageId;
+      if (pageId) setActiveDetailTab(pageId as DetailTab);
+    },
+  });
+
+  useRegisterPages(
+    windowId,
+    [
+      { id: "overview", label: "Vue d'ensemble", icon: Eye },
+      { id: "distribution", label: "Distribution", icon: Sigma },
+      { id: "quality", label: "Qualité", icon: AlertTriangle },
+      { id: "samples", label: "Échantillons", icon: Database },
+    ],
+    activeDetailTab,
+  );
 
   const error = catalogError ?? profileError;
   const busy = profiling || catalogLoading;

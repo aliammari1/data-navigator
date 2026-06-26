@@ -506,12 +506,37 @@ const electronCollab = {
   },
 } as const;
 
+// ─── Settings / analytics persistence bridge ──────────────────────────────────
+// IPC replacement for the retired /api/settings HTTP route: durable client state
+// is read/written against the per-domain SQLite databases owned by the main
+// process. Values are arbitrary JSON-serializable data.
+
+export type AppSettingRemote = {
+  value: unknown;
+  updatedAt: string | null;
+};
+
+const electronSettings = {
+  get: (namespace: string, key: string): Promise<AppSettingRemote> =>
+    ipcRenderer.invoke("settings:get", namespace, key),
+
+  set: (namespace: string, key: string, value: unknown): Promise<string> =>
+    ipcRenderer.invoke("settings:set", namespace, key, value),
+
+  delete: (namespace: string, key: string): Promise<void> =>
+    ipcRenderer.invoke("settings:delete", namespace, key),
+
+  export: (namespace?: string): Promise<Record<string, Record<string, unknown>>> =>
+    ipcRenderer.invoke("settings:export", namespace),
+} as const;
+
 contextBridge.exposeInMainWorld("electronFS", electronFS);
 contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 contextBridge.exposeInMainWorld("electronVoice", electronVoice);
 contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 contextBridge.exposeInMainWorld("electronModels", electronModels);
 contextBridge.exposeInMainWorld("electronCollab", electronCollab);
+contextBridge.exposeInMainWorld("electronSettings", electronSettings);
 
 declare global {
   type AuthBridges = typeof authClient.$Infer.Bridges;
@@ -525,5 +550,6 @@ declare global {
     electronLlama: typeof electronLlama;
     electronModels: typeof electronModels;
     electronCollab: typeof electronCollab;
+    electronSettings: typeof electronSettings;
   }
 }

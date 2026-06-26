@@ -5,6 +5,23 @@ import { useEffect, useState } from "react";
 import { fmtN } from "@/features/telecom/lib/format";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import type { SpecStatusResult } from "@/features/telecom/types";
+import { cn } from "@/shared/utils";
+
+const STATUS_COLOR: Record<string, string> = {
+  "Réussie":                "text-emerald-600 dark:text-emerald-400",
+  "Annulation":             "text-sky-600 dark:text-sky-400",
+  "Instance (Hold + Doubt)":"text-orange-600 dark:text-orange-400",
+  "Échec":                  "text-red-600 dark:text-red-400",
+  "Confirmé":               "text-blue-600 dark:text-blue-400",
+};
+
+const STATUS_DOT: Record<string, string> = {
+  "Réussie":                "bg-emerald-500",
+  "Annulation":             "bg-sky-500",
+  "Instance (Hold + Doubt)":"bg-orange-500",
+  "Échec":                  "bg-red-500",
+  "Confirmé":               "bg-blue-500",
+};
 
 export function SpecStatusTable({
   channels,
@@ -48,6 +65,9 @@ export function SpecStatusTable({
     );
   }
 
+  const rows = data?.rows ?? [];
+  const total = data?.total;
+
   return (
     <div className="overflow-x-auto rounded-xl border border-border">
       <table className="w-full text-xs">
@@ -62,15 +82,32 @@ export function SpecStatusTable({
           </tr>
         </thead>
         <tbody>
-          {[...(data?.rows ?? []), ...(data ? [data.total] : [])].map((row) => (
-            <tr key={row.status} className="border-b border-border">
-              <td className="px-3 py-2.5 font-medium text-foreground">{row.status}</td>
-              <td className="px-3 py-2.5 text-right tabular-nums text-foreground font-semibold">
-                {fmtN(row.nombre)}
+          {rows.map((row) => {
+            const textColor = STATUS_COLOR[row.status] ?? "text-foreground";
+            const dotColor  = STATUS_DOT[row.status]  ?? "bg-muted-foreground";
+            return (
+              <tr key={row.status} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+                <td className={cn("px-3 py-2.5 font-medium flex items-center gap-2", textColor)}>
+                  <span className={cn("inline-block w-2 h-2 rounded-full flex-none", dotColor)} />
+                  {row.status}
+                </td>
+                <td className={cn("px-3 py-2.5 text-right tabular-nums font-semibold", textColor)}>
+                  {fmtN(row.nombre)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        {total && (
+          <tfoot>
+            <tr className="bg-muted/50 border-t-2 border-border">
+              <td className="px-3 py-2.5 font-bold text-foreground">{total.status}</td>
+              <td className="px-3 py-2.5 text-right tabular-nums font-bold text-foreground">
+                {fmtN(total.nombre)}
               </td>
             </tr>
-          ))}
-        </tbody>
+          </tfoot>
+        )}
       </table>
     </div>
   );

@@ -13,8 +13,11 @@
  * synthetic `generateHistoricalData()` / `Math.random()` builders are gone.
  */
 
+import { useQueryClient } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { lazy, Suspense, useState } from "react";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { cn } from "@/shared/utils";
 
 const TomorrowForecastTab = lazy(() => import("../tabs/TomorrowForecastTab"));
@@ -60,6 +63,21 @@ function TabFallback() {
 export function ForecastScreen() {
   const [activeTab, setActiveTab] = useState<TabId>("forecast");
   const ActiveTab = TAB_COMPONENTS[activeTab];
+  const queryClient = useQueryClient();
+
+  // Surface the six tabs in the desktop Affichage menu and reflect the current one.
+  useRegisterPages(useWindowId(), TABS as unknown as { id: string; label: string }[], activeTab);
+
+  // Let the app menu drive the screen's existing tab/refresh behaviour.
+  useAppCommands("forecast", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId as TabId | undefined;
+      if (pageId && pageId in TAB_COMPONENTS) setActiveTab(pageId);
+    },
+    refresh: () => {
+      void queryClient.invalidateQueries({ queryKey: ["forecast"] });
+    },
+  });
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">

@@ -130,7 +130,7 @@ var electronLlama = {
    */
   onToken: (requestId, callback) => {
     const handler = (_event, payload) => {
-      if ((payload == null ? void 0 : payload.id) === requestId) callback(payload.chunk);
+      if (payload?.id === requestId) callback(payload.chunk);
     };
     electron.ipcRenderer.on("llama:token", handler);
     return () => electron.ipcRenderer.removeListener("llama:token", handler);
@@ -153,7 +153,7 @@ var electronModels = {
    */
   onProgress: (requestId, callback) => {
     const handler = (_event, payload) => {
-      if ((payload == null ? void 0 : payload.id) === requestId) callback(payload.progress);
+      if (payload?.id === requestId) callback(payload.progress);
     };
     electron.ipcRenderer.on("models:progress", handler);
     return () => electron.ipcRenderer.removeListener("models:progress", handler);
@@ -175,9 +175,16 @@ var electronCollab = {
     return () => electron.ipcRenderer.removeListener("collab:discovered", handler);
   }
 };
+var electronSettings = {
+  get: (namespace, key) => electron.ipcRenderer.invoke("settings:get", namespace, key),
+  set: (namespace, key, value) => electron.ipcRenderer.invoke("settings:set", namespace, key, value),
+  delete: (namespace, key) => electron.ipcRenderer.invoke("settings:delete", namespace, key),
+  export: (namespace) => electron.ipcRenderer.invoke("settings:export", namespace)
+};
 electron.contextBridge.exposeInMainWorld("electronFS", electronFS);
 electron.contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 electron.contextBridge.exposeInMainWorld("electronVoice", electronVoice);
 electron.contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 electron.contextBridge.exposeInMainWorld("electronModels", electronModels);
 electron.contextBridge.exposeInMainWorld("electronCollab", electronCollab);
+electron.contextBridge.exposeInMainWorld("electronSettings", electronSettings);

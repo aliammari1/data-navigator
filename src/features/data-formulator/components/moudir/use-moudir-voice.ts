@@ -35,6 +35,7 @@ import {
   isVoiceVadSupported,
   type VoiceVadService,
 } from "../../core/voice/voice-vad-service";
+import { hasElectronVoice, sherpaSpeak, sherpaTranscribe } from "@/platform/electron/electron-fs";
 
 export interface UseMoudirVoice {
   supported: boolean;
@@ -299,12 +300,16 @@ export function useMoudirVoice(): UseMoudirVoice {
       return;
     }
 
-    // Make sure the STT worker exists before we start capturing.
-    const stt = ensureSttWorker();
+    // In Electron, capture is transcribed by the native sherpa-onnx STT lane
+    // (no transformers.js worker needed). Elsewhere, ensure the STT worker
+    // exists before we start capturing.
+    if (!hasElectronVoice()) {
+      const stt = ensureSttWorker();
 
-    if (!stt) {
-      // ensureSttWorker already set a specific error message.
-      return;
+      if (!stt) {
+        // ensureSttWorker already set a specific error message.
+        return;
+      }
     }
 
     if (vadRef.current) {
@@ -333,26 +338,44 @@ export function useMoudirVoice(): UseMoudirVoice {
         submitUserSpeechOnPause: true,
         onEvent: (event) => {
           if (event.type === "SPEECH_END") {
-            const worker = sttRef.current;
-
-            if (!worker) {
-              return;
-            }
-
             if (mountedRef.current) {
               setTranscribing(true);
             }
 
-            worker.postMessage({
-              type: "TRANSCRIBE",
-              audio: event.audio,
-              sampleRate: event.sampleRate,
-              engine: settings.sttEngine,
-              runtime: settings.sttRuntime,
-              language: settings.languageHint,
-              allowRemoteModels: settings.allowRemoteSttModels,
-              localModelPath: settings.localSttModelPath ?? undefined,
-            });
+            if (hasElectronVoice()) {
+              // Native sherpa-onnx STT (fully offline, bundled) — preferred lane.
+              void sherpaTranscribe(event.audio, {
+                sampleRate: event.sampleRate,
+                language: settings.languageHint,
+              })
+                .then((text) => {
+                  if (mountedRef.current) setTranscribing(false);
+                  if (text.trim()) transcriptCbRef.current?.(text);
+                })
+                .catch((err) => {
+                  if (mountedRef.current) setTranscribing(false);
+                  setErrorSafe(
+                    err instanceof Error ? err.message : "La transcription a échoué.",
+                  );
+                });
+            } else {
+              const worker = sttRef.current;
+
+              if (worker) {
+                worker.postMessage({
+                  type: "TRANSCRIBE",
+                  audio: event.audio,
+                  sampleRate: event.sampleRate,
+                  engine: settings.sttEngine,
+                  runtime: settings.sttRuntime,
+                  language: settings.languageHint,
+                  allowRemoteModels: settings.allowRemoteSttModels,
+                  localModelPath: settings.localSttModelPath ?? undefined,
+                });
+              } else if (mountedRef.current) {
+                setTranscribing(false);
+              }
+            }
 
             // Auto-stop listening after a captured utterance. Pause the VAD
             // directly here to avoid a forward reference to `stop`.
@@ -450,14 +473,50 @@ export function useMoudirVoice(): UseMoudirVoice {
         return;
       }
 
+      const settings = loadVoiceSettings();
+
+      if (hasElectronVoice()) {
+        // Native sherpa-onnx TTS (fully offline, bundled) — preferred lane.
+        void sherpaSpeak(text, { voice: settings.ttsVoice, speed: settings.ttsSpeed })
+          .then(({ wav }) => {
+            if (audioUrlRef.current) {
+              URL.revokeObjectURL(audioUrlRef.current);
+              audioUrlRef.current = null;
+            }
+            const wavBytes = new Uint8Array(wav);
+            const blob = new Blob([wavBytes], { type: "audio/wav" });
+            const url = URL.createObjectURL(blob);
+            audioUrlRef.current = url;
+            const audio = new Audio(url);
+            audioRef.current = audio;
+            audio.onended = () => {
+              if (mountedRef.current) setSpeaking(false);
+              if (audioUrlRef.current) {
+                URL.revokeObjectURL(audioUrlRef.current);
+                audioUrlRef.current = null;
+              }
+            };
+            audio.onerror = () => {
+              if (mountedRef.current) setSpeaking(false);
+            };
+            if (mountedRef.current) setSpeaking(true);
+            void audio.play().catch(() => {
+              if (mountedRef.current) setSpeaking(false);
+            });
+          })
+          .catch((err) => {
+            if (mountedRef.current) setSpeaking(false);
+            setErrorSafe(err instanceof Error ? err.message : "La synthèse vocale a échoué.");
+          });
+        return;
+      }
+
       const worker = ensureTtsWorker();
 
       if (!worker) {
         // ensureTtsWorker already set a specific error message.
         return;
       }
-
-      const settings = loadVoiceSettings();
 
       worker.postMessage({
         type: "SPEAK",
@@ -471,7 +530,7 @@ export function useMoudirVoice(): UseMoudirVoice {
         chunkSentences: true,
       });
     },
-    [ensureTtsWorker],
+    [ensureTtsWorker, setErrorSafe],
   );
 
   const stopSpeak = useCallback(() => {

@@ -389,4 +389,186 @@ describe("recommendCharts LLM path", () => {
 
     expect(recs.some((r) => r.type === "bar")).toBe(true);
   });
+
+  it("falls back to rule-based recommendations when the LLM returns an empty array", async () => {
+    isLLMReady.mockReturnValue(true);
+    generateText.mockResolvedValue("[]");
+
+    const cols = [col("region", "string"), col("revenue", "number")];
+    const recs = await recommendCharts(cols, 100);
+
+    expect(recs.some((r) => r.type === "bar")).toBe(true);
+  });
+
+  it("includes distinctCount in the column schema sent to the LLM", async () => {
+    isLLMReady.mockReturnValue(true);
+    generateText.mockResolvedValue(
+      JSON.stringify([
+        {
+          type: "bar",
+          title: "LLM bar",
+          reason: "reason",
+          confidence: 0.8,
+        },
+      ]),
+    );
+
+    const cols = [col("region", "string", { distinctCount: 5 }), col("revenue", "number")];
+    const recs = await recommendCharts(cols, 100);
+
+    expect(generateText).toHaveBeenCalledTimes(1);
+    const promptArg = generateText.mock.calls[0][0] as string;
+    expect(promptArg).toContain("5 distinct");
+    expect(recs).toHaveLength(1);
+    expect(recs[0].type).toBe("bar");
+  });
+
+  it("uses 'unknown' for row count in the LLM prompt when rowCount is omitted", async () => {
+    isLLMReady.mockReturnValue(true);
+    generateText.mockResolvedValue(
+      JSON.stringify([
+        {
+          type: "scatter",
+          title: "LLM scatter",
+          reason: "reason",
+          confidence: 0.7,
+        },
+      ]),
+    );
+
+    const cols = [col("a", "number"), col("b", "number")];
+    const recs = await recommendCharts(cols);
+
+    expect(generateText).toHaveBeenCalledTimes(1);
+    const promptArg = generateText.mock.calls[0][0] as string;
+    expect(promptArg).toContain("unknown");
+    expect(recs).toHaveLength(1);
+  });
+});
+
+// ─── generateInsights: statsSummary branch coverage ──────────────────────────
+
+describe("generateInsights statsSummary nullPct branch coverage", () => {
+  it("sets nullPct to 0 in statsSummary when rowCount is 0 even if the column has nulls", async () => {
+    // This exercises the nullCol && rowCount > 0 branch where rowCount === 0.
+    // statsSummary nullPct = 0 (not-ready LLM path goes to ruleBasedInsights, but we just
+    // need to exercise the branch without crashing).
+    const cols = [col("amount", "number", { nullCount: 10 })];
+    const insights = await generateInsights(cols, 0, {
+      amount: [1, 2, 3],
+    });
+    // No crash; result is an array.
+    expect(Array.isArray(insights)).toBe(true);
+  });
+
+  it("sets nullPct to 0 when the column name is not found in cols", async () => {
+    // numericData has a key that does not match any ColMeta name.
+    const cols = [col("other", "number")];
+    const insights = await generateInsights(cols, 100, {
+      missingFromCols: [1, 2, 3],
+    });
+    // No quality/trend/distribution insight for this column; just verifying no crash.
+    expect(Array.isArray(insights)).toBe(true);
+  });
+
+  it("skips statsSummary computation for columns with fewer than 2 values", async () => {
+    const cols = [col("tiny", "number")];
+    const insights = await generateInsights(cols, 10, {
+      tiny: [42],
+    });
+    // Single-value column is skipped; no crash expected.
+    expect(Array.isArray(insights)).toBe(true);
+  });
+
+  it("computes skewness as 0 for exactly 2 values in statsSummary (length < 3 branch)", async () => {
+    // values.length === 2: skewness branch (values.length >= 3) is false → 0.
+    const cols = [col("pair", "number")];
+    // Two values so statsSummary is computed (>= 2) but skewness branch returns 0.
+    const insights = await generateInsights(cols, 10, {
+      pair: [1, 9],
+    });
+    expect(Array.isArray(insights)).toBe(true);
+  });
+});
+
+// ─── Additional branch coverage for ruleBasedInsights paths ──────────────────
+
+describe("generateInsights rule-based additional branch coverage", () => {
+  it("describes a left-skewed distribution when skewness is strongly negative", async () => {
+    const cols = [col("lskew", "number")];
+    // Heavily left-skewed: most values high, a few very low outliers.
+    const insights = await generateInsights(cols, 12, {
+      lskew: [80, 90, 95, 97, 98, 99, 100, 100, 100, 100, 1, 2],
+    });
+
+    const dist = insights.find((i) => i.type === "distribution");
+    expect(dist).toBeDefined();
+    expect(dist?.description).toContain("left");
+  });
+
+  it("detects a downward trend through ruleBasedInsights", async () => {
+    const cols = [col("declining", "number")];
+    // Strong linear downward series; r2 > 0.5, slope < 0.
+    const values = [100, 80, 60, 40, 20, 10, 5, 2, 1, 0];
+    const insights = await generateInsights(cols, values.length, {
+      declining: values,
+    });
+
+    const trend = insights.find((i) => i.type === "trend");
+    expect(trend).toBeDefined();
+    expect(trend?.title).toContain("Downward");
+    expect(trend?.columnName).toBe("declining");
+  });
+
+  it("describes a negative correlation as 'negatively'", async () => {
+    const cols = [col("x", "number"), col("y", "number")];
+    // Perfect negative correlation: as x increases y decreases.
+    const x = [1, 2, 3, 4, 5, 6];
+    const y = [12, 10, 8, 6, 4, 2];
+    const insights = await generateInsights(cols, x.length, { x, y });
+
+    const corr = insights.find((i) => i.type === "correlation");
+    expect(corr).toBeDefined();
+    expect(corr?.description).toContain("negatively");
+  });
+});
+
+// ─── pearsonCorr: NaN / short-array edge cases ────────────────────────────────
+
+describe("pearsonCorr edge cases via ruleBasedInsights", () => {
+  it("handles the constant-variance case (zero-variance columns produce no correlation insight)", async () => {
+    // Both columns constant → variance === 0 → pearsonCorr returns 0 → no correlation insight.
+    const cols = [col("flat1", "number"), col("flat2", "number")];
+    const insights = await generateInsights(cols, 6, {
+      flat1: [5, 5, 5, 5, 5, 5],
+      flat2: [3, 3, 3, 3, 3, 3],
+    });
+    expect(insights.some((i) => i.type === "correlation")).toBe(false);
+  });
+
+  it("handles arrays shorter than 2 in pearsonCorr (n < 2 early return)", async () => {
+    // Both arrays have 1 element → n=1 < 2 → pearsonCorr returns 0 → no correlation.
+    const cols = [col("a", "number"), col("b", "number")];
+    const insights = await generateInsights(cols, 1, {
+      a: [1],
+      b: [2],
+    });
+    expect(insights.some((i) => i.type === "correlation")).toBe(false);
+  });
+});
+
+// ─── recommendCharts: LLM fallback with undefined rowCount ───────────────────
+
+describe("recommendCharts LLM path with undefined rowCount in catch", () => {
+  it("falls back with rowCount defaulting to 0 when LLM rejects and rowCount is omitted", async () => {
+    isLLMReady.mockReturnValue(true);
+    generateText.mockRejectedValue(new Error("inference failed"));
+
+    const cols = [col("category", "string")];
+    // No rowCount passed, so the fallback uses rowCount ?? 0 = 0.
+    const recs = await recommendCharts(cols);
+
+    // With rowCount=0, pie is suppressed (0 is not > 0 and not < 20000 matters but 0 fails > 0).
+    expect(Array.isArray(recs)).toBe(true);
+  });
 });

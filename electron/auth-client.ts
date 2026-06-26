@@ -20,6 +20,11 @@ export const authClient = createAuthClient({
       },
       signInURL: ELECTRON_AUTH_SIGN_IN_URL,
       storage: storage(),
+      // Offline/defense-in-depth: never register the bypassCSP "user-image://"
+      // proxy that net.fetches a remote avatar URL from the main process. Auth is
+      // local email/password (no remote avatars), so this only closes a latent,
+      // un-CSP'd egress surface.
+      userImageProxy: { enabled: false },
     }),
   ],
 });
