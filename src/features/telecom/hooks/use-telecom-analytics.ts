@@ -59,6 +59,7 @@ export interface UseTelecomAnalyticsReturn {
   forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
   setRawStatuses: (v: Types.RawStatusRow[]) => void;
+  isFetching: boolean;
   refresh: () => Promise<void>;
   runAnalytics: (m: Types.ColumnMapping, sm: Types.StatusMapping[]) => Promise<void>;
 }
@@ -276,6 +277,7 @@ export function useTelecomAnalytics({
     forecast: data.forecast,
     rawStatuses: data.rawStatuses,
     setRawStatuses: (rawStatuses) => patchAnalytics({ rawStatuses }),
+    isFetching: query.isFetching,
     refresh,
     runAnalytics,
   };

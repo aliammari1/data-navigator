@@ -1,9 +1,13 @@
 "use client";
 
-import { Bell, Monitor, Moon, Search, Sun, Wifi } from "lucide-react";
-import { useTheme } from "@/components/theme-provider";
+import { Bell, CalendarDays, Monitor, Moon, Search, Sun, Wifi } from "lucide-react";
 import { getApp, PINNED_APPS } from "@/features/desktop/core/app-registry";
-import { useDesktopActions, useDesktopWindows } from "@/features/desktop/store/desktop-store";
+import {
+  useDesktopActions,
+  useDesktopStore,
+  useDesktopWindows,
+} from "@/features/desktop/store/desktop-store";
+import { useAppTheme } from "@/hooks/use-app-theme";
 
 /**
  * Windows 11-style taskbar: centered Start + search + pinned/running apps, with
@@ -14,7 +18,9 @@ export function Taskbar({ clock, date }: { clock: string; date: string }) {
   const windows = useDesktopWindows();
   const { openApp, focusWindow, minimizeWindow, restoreWindow, toggleLauncher, toggleSpotlight } =
     useDesktopActions();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
+  const widgetDate = useDesktopStore((s) => s.widgetDate);
+  const setWidgetDate = useDesktopStore((s) => s.setWidgetDate);
 
   const running = new Map<string, { id: string; minimized: boolean; z: number }>();
   let topZ = -1;
@@ -99,6 +105,26 @@ export function Taskbar({ clock, date }: { clock: string; date: string }) {
 
       {/* Right: system tray */}
       <div className="flex flex-1 items-center justify-end gap-0.5">
+        <div className="relative">
+          <input
+            type="date"
+            value={widgetDate ?? ""}
+            onChange={(e) => setWidgetDate(e.target.value || null)}
+            title="Filtrer les widgets par date"
+            aria-label="Date des widgets"
+            className="absolute inset-0 cursor-pointer opacity-0"
+            style={{ width: "100%", height: "100%" }}
+          />
+          <button
+            type="button"
+            title={widgetDate ? `Filtré : ${widgetDate}` : "Filtrer par date"}
+            className={`grid size-8 place-items-center rounded-md transition-colors hover:bg-foreground/10 ${
+              widgetDate ? "text-[hsl(var(--win-accent))]" : "text-foreground/60"
+            }`}
+          >
+            <CalendarDays className="size-4" />
+          </button>
+        </div>
         <button
           type="button"
           aria-label="Réseau"

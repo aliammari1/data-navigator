@@ -63,6 +63,13 @@ playwright-report
 # Build-time model staging (scripts/prepare-models.mjs) — large GGUF weights.
 .model-cache/
 
+# Offline AI assets staged at setup-time (large; not committed). Run
+# `pnpm stage:offline-assets` once (online) before packaging an offline build:
+#   - Pyodide runtime + scientific wheels  (scripts/stage-pyodide.mjs)
+#   - transformers.js weights e.g. MiniLM   (scripts/prepare-models.mjs)
+/public/pyodide/
+/public/models/transformers/
+
 # Electron packaging staging (scripts/stage-app.mjs). electron-app/ is the staged
 # Next standalone (remapped to app/ inside the package); app/ is a legacy staging
 # name kept ignored so a stale one can never poison `next build` or be committed.

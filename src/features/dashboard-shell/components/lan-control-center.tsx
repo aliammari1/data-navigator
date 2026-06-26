@@ -30,10 +30,7 @@ import {
   type LANRole,
   type LANScanResult,
 } from "@/platform/lan/lan-collab";
-
-function randomCode() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
+import { generatePairingCode } from "@/platform/lan/pairing";
 
 export function LanControlCenter() {
   const [mode, setMode] = useState<"host" | "join">("host");
@@ -222,7 +219,7 @@ export function LanControlCenter() {
                       />
                       <button
                         type="button"
-                        onClick={() => persist({ pairingCode: randomCode() })}
+                        onClick={() => persist({ pairingCode: generatePairingCode() })}
                         title="Generate new code"
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border hover:bg-muted"
                       >

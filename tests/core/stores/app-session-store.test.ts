@@ -243,4 +243,97 @@ describe("useTelecomSessionStore", () => {
       expect(typeof result.current.setSession).toBe("function");
     });
   });
+
+  describe("persist.migrate", () => {
+    // Access the migrate function directly from the persist options so we can
+    // exercise every branch without triggering real storage I/O.
+    function getMigrate() {
+      return useTelecomSessionStore.persist.getOptions().migrate!;
+    }
+
+    it("returns all three fields from a fully valid persisted object", () => {
+      const result = getMigrate()(
+        { tableName: "custom_table", fileName: "daily.csv", reportDate: "2026-01-01" },
+        0,
+      );
+      expect(result).toEqual({
+        tableName: "custom_table",
+        fileName: "daily.csv",
+        reportDate: "2026-01-01",
+      });
+    });
+
+    it("falls back to TELECOM_TABLE_BASE when persisted tableName is an empty string", () => {
+      const result = getMigrate()({ tableName: "", fileName: "f.csv", reportDate: "2026-01-01" }, 0);
+      expect((result as { tableName: string }).tableName).toBe(TELECOM_TABLE_BASE);
+    });
+
+    it("falls back to TELECOM_TABLE_BASE when persisted tableName is whitespace only", () => {
+      const result = getMigrate()(
+        { tableName: "   ", fileName: "f.csv", reportDate: "2026-01-01" },
+        0,
+      );
+      expect((result as { tableName: string }).tableName).toBe(TELECOM_TABLE_BASE);
+    });
+
+    it("falls back to TELECOM_TABLE_BASE when persisted tableName is not a string", () => {
+      const result = getMigrate()(
+        { tableName: 42, fileName: "f.csv", reportDate: "2026-01-01" },
+        0,
+      );
+      expect((result as { tableName: string }).tableName).toBe(TELECOM_TABLE_BASE);
+    });
+
+    it("falls back to empty string when persisted fileName is not a string", () => {
+      const result = getMigrate()(
+        { tableName: "t", fileName: 99, reportDate: "2026-01-01" },
+        0,
+      );
+      expect((result as { fileName: string }).fileName).toBe("");
+    });
+
+    it("falls back to empty string when persisted reportDate is not a string", () => {
+      const result = getMigrate()(
+        { tableName: "t", fileName: "f.csv", reportDate: null },
+        0,
+      );
+      expect((result as { reportDate: string }).reportDate).toBe("");
+    });
+
+    it("handles null persisted state by using defaults", () => {
+      const result = getMigrate()(null, 0) as {
+        tableName: string;
+        fileName: string;
+        reportDate: string;
+      };
+      expect(result.tableName).toBe(TELECOM_TABLE_BASE);
+      expect(result.fileName).toBe("");
+      expect(result.reportDate).toBe("");
+    });
+
+    it("handles undefined persisted state by using defaults", () => {
+      const result = getMigrate()(undefined, 0) as {
+        tableName: string;
+        fileName: string;
+        reportDate: string;
+      };
+      expect(result.tableName).toBe(TELECOM_TABLE_BASE);
+      expect(result.fileName).toBe("");
+      expect(result.reportDate).toBe("");
+    });
+  });
+
+  describe("persist.partialize", () => {
+    it("selects only tableName, fileName, and reportDate from the full state", () => {
+      const partialize = useTelecomSessionStore.persist.getOptions().partialize!;
+      const state = useTelecomSessionStore.getState();
+      const partial = partialize(state);
+      expect(Object.keys(partial)).toEqual(["tableName", "fileName", "reportDate"]);
+      expect(partial).toEqual({
+        tableName: state.tableName,
+        fileName: state.fileName,
+        reportDate: state.reportDate,
+      });
+    });
+  });
 });

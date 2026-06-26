@@ -5,7 +5,7 @@ import Fuse from "fuse.js";
 import { ArrowRight, Brain, Database, Folders, Palette, Search, Table2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useTheme } from "@/components/theme-provider";
+import { useAppTheme } from "@/hooks/use-app-theme";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
@@ -42,7 +42,7 @@ export interface CommandPaletteProps {
  */
 export function CommandPalette({ open, onClose, onToggleAi }: CommandPaletteProps) {
   const router = useRouter();
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme } = useAppTheme();
 
   const datasets = useDataStore((s) => s.datasets);
   const setActiveDataset = useDataStore((s) => s.setActiveDataset);

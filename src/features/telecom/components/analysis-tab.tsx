@@ -75,6 +75,14 @@ export const AnalysisTab = memo(function AnalysisTab({
     Array<{ name: string; total: number; success: number; amount: number }>
   >([]);
   const [top50Loading, setTop50Loading] = useState(false);
+  const [sortBy, setSortBy] = useState<"nombre" | "montant">("nombre");
+  const sortedTop50 = useMemo(
+    () =>
+      [...top50Rows].sort((a, b) =>
+        sortBy === "nombre" ? b.total - a.total : b.amount - a.amount,
+      ),
+    [top50Rows, sortBy],
+  );
   useEffect(() => {
     const group = REVENUE_GROUPS[selectedGroup];
     if (!group) return;
@@ -203,7 +211,7 @@ export const AnalysisTab = memo(function AnalysisTab({
           icon={<Signal className="w-4 h-4" />}
           badge={top50Loading ? "chargement…" : `${top50Rows.length} entrées`}
         >
-          {/* View selector + group pills */}
+          {/* View selector + group pills + sort toggle */}
           <div className="flex flex-wrap items-center gap-3 mb-4">
             {/* View toggle */}
             <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 gap-0.5">
@@ -252,6 +260,36 @@ export const AnalysisTab = memo(function AnalysisTab({
                 {name}
               </button>
             ))}
+
+            <div className="w-px h-5 bg-border" />
+
+            {/* Sort toggle */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setSortBy("nombre")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
+                  sortBy === "nombre"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <BarChart2 className="w-3 h-3" /> Par Nombre
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy("montant")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
+                  sortBy === "montant"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <TrendingUp className="w-3 h-3" /> Par Montant
+              </button>
+            </div>
           </div>
 
           {/* Table */}
@@ -260,19 +298,27 @@ export const AnalysisTab = memo(function AnalysisTab({
               <thead>
                 <tr className="bg-muted/50 border-b border-border">
                   {[
-                    "#",
-                    top50View === "regions" ? "Agent / Région" : "Account",
-                    "Total Tx",
-                    "Réussies",
-                    "Échecs",
-                    "Taux Réussite",
-                    "Montant (TND)",
-                  ].map((h) => (
+                    { label: "#", key: null },
+                    { label: top50View === "regions" ? "Agent / Région" : "Account", key: null },
+                    { label: "Total Tx", key: "nombre" },
+                    { label: "Réussies", key: null },
+                    { label: "Échecs", key: null },
+                    { label: "Taux Réussite", key: null },
+                    { label: "Montant (TND)", key: "montant" },
+                  ].map(({ label, key }) => (
                     <th
-                      key={h}
-                      className="px-3 py-2.5 text-left text-[10px] uppercase tracking-wide text-muted-foreground font-semibold whitespace-nowrap"
+                      key={label}
+                      className={cn(
+                        "px-3 py-2.5 text-left text-[10px] uppercase tracking-wide font-semibold whitespace-nowrap",
+                        key && sortBy === key
+                          ? "text-primary"
+                          : "text-muted-foreground",
+                      )}
                     >
-                      {h}
+                      {label}
+                      {key && sortBy === key && (
+                        <span className="ml-1 text-primary">▼</span>
+                      )}
                     </th>
                   ))}
                 </tr>
@@ -284,14 +330,14 @@ export const AnalysisTab = memo(function AnalysisTab({
                       Chargement…
                     </td>
                   </tr>
-                ) : top50Rows.length === 0 ? (
+                ) : sortedTop50.length === 0 ? (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
                       Aucune donnée pour cette sélection.
                     </td>
                   </tr>
                 ) : (
-                  top50Rows.map((row, idx) => {
+                  sortedTop50.map((row, idx) => {
                     const rate = row.total > 0 ? (row.success / row.total) * 100 : 0;
                     return (
                       <tr

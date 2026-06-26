@@ -268,4 +268,103 @@ describe("useActivityStore", () => {
       expect(storedTypes).toEqual([...types].sort());
     });
   });
+
+  describe("persist: migrate function", () => {
+    // Access the migrate function through the zustand persist API.
+    // The store exposes `store.persist.getOptions()` at runtime.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getMigrate = () => (useActivityStore as any).persist.getOptions().migrate as (persisted: unknown, version: number) => { events: unknown[] };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const getPartialize = () => (useActivityStore as any).persist.getOptions().partialize as (s: { events: unknown[] }) => { events: unknown[] };
+
+    it("migrate: returns empty events array when persisted is null", () => {
+      const migrate = getMigrate();
+      const result = migrate(null, 0);
+      expect(result).toEqual({ events: [] });
+    });
+
+    it("migrate: returns empty events array when persisted is undefined", () => {
+      const migrate = getMigrate();
+      const result = migrate(undefined, 0);
+      expect(result).toEqual({ events: [] });
+    });
+
+    it("migrate: returns empty events array when prev.events is not an array", () => {
+      const migrate = getMigrate();
+      const result = migrate({ events: "not-an-array" }, 0);
+      expect(result).toEqual({ events: [] });
+    });
+
+    it("migrate: returns empty events array when prev.events is missing", () => {
+      const migrate = getMigrate();
+      const result = migrate({}, 0);
+      expect(result).toEqual({ events: [] });
+    });
+
+    it("migrate: filters out events with unknown types", () => {
+      const migrate = getMigrate();
+      const input = {
+        events: [
+          { id: "1", type: "dataset_uploaded", message: "ok", createdAt: "2026-01-01T00:00:00.000Z" },
+          { id: "2", type: "unknown_type", message: "bad", createdAt: "2026-01-01T00:00:00.000Z" },
+          { id: "3", type: "query_run", message: "ok2", createdAt: "2026-01-01T00:00:00.000Z" },
+        ],
+      };
+      const result = migrate(input, 0);
+      expect(result.events).toHaveLength(2);
+      expect((result.events as Array<{ type: string }>).map((e) => e.type)).toEqual([
+        "dataset_uploaded",
+        "query_run",
+      ]);
+    });
+
+    it("migrate: filters out null/falsy event entries", () => {
+      const migrate = getMigrate();
+      const input = {
+        events: [
+          null,
+          undefined,
+          { id: "1", type: "dataset_uploaded", message: "ok", createdAt: "2026-01-01T00:00:00.000Z" },
+        ],
+      };
+      const result = migrate(input, 0);
+      expect(result.events).toHaveLength(1);
+    });
+
+    it("migrate: caps result at MAX_ACTIVITY_EVENTS (500)", () => {
+      const migrate = getMigrate();
+      const manyEvents = Array.from({ length: 600 }, (_, i) => ({
+        id: `id-${i}`,
+        type: "query_run" as ActivityType,
+        message: `q${i}`,
+        createdAt: "2026-01-01T00:00:00.000Z",
+      }));
+      const result = migrate({ events: manyEvents }, 0);
+      expect(result.events).toHaveLength(500);
+    });
+
+    it("migrate: keeps all events when count is below the cap", () => {
+      const migrate = getMigrate();
+      const events = [
+        { id: "1", type: "dataset_selected", message: "a", createdAt: "2026-01-01T00:00:00.000Z" },
+        { id: "2", type: "transform_run", message: "b", createdAt: "2026-01-01T00:00:00.000Z" },
+      ];
+      const result = migrate({ events }, 0);
+      expect(result.events).toHaveLength(2);
+    });
+
+    it("partialize: returns only the events slice of state", () => {
+      const partialize = getPartialize();
+      const fakeState = {
+        events: [{ id: "1", type: "query_run" as ActivityType, message: "x", createdAt: "2026-01-01T00:00:00.000Z" }],
+        addEvent: () => {},
+        clearEvents: () => {},
+      };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const result = partialize(fakeState as any);
+      expect(result).toEqual({ events: fakeState.events });
+      expect(result).not.toHaveProperty("addEvent");
+      expect(result).not.toHaveProperty("clearEvents");
+    });
+  });
 });

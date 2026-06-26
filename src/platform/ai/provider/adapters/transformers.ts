@@ -66,6 +66,10 @@ export const transformersProvider: AIProvider = {
     await loadLLM({
       modelId: model,
       preferredDevice: "auto",
+      // Air-gapped by design: never attempt a CDN weight download (the CSP would
+      // block it anyway). Weights must be bundled under /models/transformers or
+      // already cached. Mirrors the embeddings worker's hardcoded posture.
+      allowRemoteModels: false,
       onProgress: (progress, text) =>
         onProgress?.({
           status: progress >= 1 ? "ready" : "loading",

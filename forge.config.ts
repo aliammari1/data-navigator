@@ -1,10 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
-// import { MakerMSIX } from "@electron-forge/maker-msix";
 import { MakerSquirrel } from "@electron-forge/maker-squirrel";
-// import { MakerWix } from "@electron-forge/maker-wix";
-// import { MakerZIP } from "@electron-forge/maker-zip";
+import { MakerWix } from "@electron-forge/maker-wix";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { PublisherGithub } from "@electron-forge/publisher-github";
 import type { ForgeConfig } from "@electron-forge/shared-types";
@@ -350,11 +348,7 @@ function runtimeDepNames(realPkg: string): Set<string> {
   return out;
 }
 
-function flattenClosure(
-  seeds: FlattenSeed[],
-  destNodeModules: string,
-  resolveRoot?: string,
-): void {
+function flattenClosure(seeds: FlattenSeed[], destNodeModules: string, resolveRoot?: string): void {
   const visitedIds = new Set<string>();
   const writtenNames = new Set<string>();
   // Flat (hoisted) packages have no pnpm id; guard their dep-walk by realpath so a
@@ -570,9 +564,7 @@ function flattenMainNodeModules(buildNodeModules: string): void {
   // resolved transitive deps. If it's missing the walk silently dropped the closure
   // (e.g. a node_modules layout change) and the packaged app would crash at runtime
   // — fail the BUILD loudly rather than ship a launch-broken MSI.
-  const missingCanary = ["bindings"].filter(
-    (d) => !fs.existsSync(path.join(buildNodeModules, d)),
-  );
+  const missingCanary = ["bindings"].filter((d) => !fs.existsSync(path.join(buildNodeModules, d)));
   if (missingCanary.length > 0) {
     throw new Error(
       `[forge] build node_modules is missing transitive dep(s) [${missingCanary.join(", ")}] ` +
@@ -737,10 +729,7 @@ function dirSizeBytes(dir: string): number {
  * Together these remove roughly 0.9\,GB without changing the default runtime.
  */
 function pruneOversizedNativeBinaries(buildPath: string): void {
-  const trees = [
-    path.join(buildPath, "node_modules"),
-    path.join(buildPath, "app", "node_modules"),
-  ];
+  const trees = [path.join(buildPath, "node_modules"), path.join(buildPath, "app", "node_modules")];
   let removedBytes = 0;
   const drop = (target: string) => {
     if (!fs.existsSync(target)) return;
@@ -911,16 +900,10 @@ const config: ForgeConfig = {
   // both the documented "Preparing native dependencies" hang (forge #3474/#3619) AND
   // the source of the early process.exit(0) that previously killed `make` ~4s in
   // during packaging (a child-process exit handler fired on the main process). The
-  // native modules are instead rebuilt for the Electron ABI in a dedicated CI step
-  // (`pnpm run native:rebuild`) BEFORE `make`, so the staged .node files already
-  // carry the right ABI and `make` never spawns a rebuild child.
+  // prebuilt .node binaries already carry the correct Electron ABI, so no rebuild
+  // step is needed and `make` never spawns a rebuild child.
 
   makers: [
-    // Squirrel.Windows maker — forge's default Windows target. Chosen over MakerWix
-    // because WiX compiling this ~1.2 GB app into an .msi takes 30-40+ min; Squirrel's
-    // NuGet-based Setup.exe is far faster, and it is the format update-electron-app /
-    // the autoUpdater consume, so it also unblocks auto-update. noMsi:true skips
-    // Squirrel's optional MSI wrapper (we only want the fast Setup.exe + nupkg).
     new MakerSquirrel(
       {
         // NuGet package id — no hyphens allowed, so data-navigator -> data_navigator.
@@ -957,8 +940,6 @@ const config: ForgeConfig = {
     //   },
     //   ["win32"],
     // ),
-
-    // new MakerZIP({}, ["win32"]),
   ],
 
   publishers: [

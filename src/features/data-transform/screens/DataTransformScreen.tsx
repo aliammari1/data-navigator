@@ -27,6 +27,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from "react";
+import { PreviewGrid } from "@/components/shared/preview-grid";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -41,10 +42,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PreviewGrid } from "@/components/shared/preview-grid";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { type DataTransform, useDataStore } from "@/core/stores/data-store";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { useAI } from "@/platform/ai/provider";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { newId } from "@/platform/storage";
@@ -61,8 +63,8 @@ import {
   type StepRuntime,
 } from "../engine/run";
 import {
-  buildReadableSQL,
   buildCTE,
+  buildReadableSQL,
   type StepType,
   stepToSQL,
   type TransformStep,
@@ -92,6 +94,14 @@ interface RunHistoryEntry {
 }
 
 const IDLE_RUNTIME: StepRuntime = { status: "idle" };
+
+const TRANSFORM_PAGES = [
+  { id: "pipeline", label: "Configurer", icon: Settings2 },
+  { id: "preview", label: "Aperçu", icon: Eye },
+  { id: "profile", label: "Profil", icon: TableProperties },
+  { id: "sql", label: "SQL", icon: Code2 },
+  { id: "analytics", label: "Analytique", icon: BarChart2 },
+];
 
 const ADDABLE_STEPS: StepType[] = [
   "filter",
@@ -665,6 +675,33 @@ export default function DataTransformScreen() {
   const enabledCount = steps.filter((s) => s.enabled).length;
   const doneCount = doneSteps.length;
   const hasErrors = Object.values(runtime).some((r) => r.status === "error");
+
+  // ── Desktop menu bar wiring (app-command bus + page registry) ───────────────
+  const windowId = useWindowId();
+  useRegisterPages(windowId, TRANSFORM_PAGES, activeTab);
+  useAppCommands("transform", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId) setActiveTab(pageId);
+    },
+    run: () => void handleRun(),
+    reset: () => resetRun(),
+    "add-step": () => {
+      setActiveTab("pipeline");
+      setShowAddStep(true);
+    },
+    profile: () => {
+      setActiveTab("profile");
+      void loadProfile();
+    },
+    "save-recipe": () => void handleSaveRecipe(),
+    recipes: () => setShowRecipes(true),
+    "export-csv": () => void exportCSV(),
+    "export-xlsx": () => void exportXLSX(),
+    "copy-sql": () => {
+      if (outputSQL) void navigator.clipboard.writeText(outputSQL);
+    },
+  });
 
   return (
     <div className=" flex h-full min-h-full flex-col overflow-hidden">

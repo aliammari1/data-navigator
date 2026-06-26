@@ -215,3 +215,95 @@ describe("useAppContextStore", () => {
     });
   });
 });
+
+// ─── persist.migrate ─────────────────────────────────────────────────────────
+
+describe("useAppContextStore — persist.migrate", () => {
+  // Extract the migrate function directly from the persist options.
+  type MigrateFn = (persisted: unknown, version: number) => unknown;
+  const getMigrate = () =>
+    (useAppContextStore as unknown as { persist: { getOptions: () => { migrate: MigrateFn } } })
+      .persist.getOptions().migrate;
+
+  it("falls back to 'telecom' when persisted is null", () => {
+    const result = getMigrate()(null, 0) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("telecom");
+    expect(result.activeDatasetId).toBeNull();
+    expect(result.activeTableName).toBeNull();
+  });
+
+  it("falls back to 'telecom' when persisted is undefined", () => {
+    const result = getMigrate()(undefined, 0) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("telecom");
+    expect(result.activeDatasetId).toBeNull();
+    expect(result.activeTableName).toBeNull();
+  });
+
+  it("preserves a valid 'telecom' domain from persisted state", () => {
+    const result = getMigrate()(
+      { activeDomain: "telecom", activeDatasetId: "ds-1", activeTableName: "t-1" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("telecom");
+    expect(result.activeDatasetId).toBe("ds-1");
+    expect(result.activeTableName).toBe("t-1");
+  });
+
+  it("preserves a valid 'general' domain from persisted state", () => {
+    const result = getMigrate()(
+      { activeDomain: "general", activeDatasetId: null, activeTableName: null },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("general");
+    expect(result.activeDatasetId).toBeNull();
+    expect(result.activeTableName).toBeNull();
+  });
+
+  it("falls back to 'telecom' for an unknown/invalid domain", () => {
+    const result = getMigrate()(
+      { activeDomain: "unknown-domain" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("telecom");
+  });
+
+  it("falls back to 'telecom' when activeDomain is an empty string (falsy)", () => {
+    const result = getMigrate()(
+      { activeDomain: "" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDomain).toBe("telecom");
+  });
+
+  it("defaults activeDatasetId to null when missing from persisted state (nullish branch)", () => {
+    const result = getMigrate()(
+      { activeDomain: "general" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDatasetId).toBeNull();
+  });
+
+  it("defaults activeTableName to null when missing from persisted state (nullish branch)", () => {
+    const result = getMigrate()(
+      { activeDomain: "general" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeTableName).toBeNull();
+  });
+
+  it("preserves non-null activeDatasetId from persisted state", () => {
+    const result = getMigrate()(
+      { activeDomain: "general", activeDatasetId: "ds-persisted" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeDatasetId).toBe("ds-persisted");
+  });
+
+  it("preserves non-null activeTableName from persisted state", () => {
+    const result = getMigrate()(
+      { activeDomain: "general", activeTableName: "t-persisted" },
+      0,
+    ) as Record<string, unknown>;
+    expect(result.activeTableName).toBe("t-persisted");
+  });
+});

@@ -24,6 +24,7 @@ import { QuickActions } from "@/features/dashboard-home/components/quick-actions
 import { RecentDatasetsCard } from "@/features/dashboard-home/components/recent-datasets-card";
 import { TipCard } from "@/features/dashboard-home/components/tip-card";
 import { handleLauncherClick } from "@/features/dashboard-home/lib/open-app";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/dataset-detection";
 import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
@@ -140,6 +141,13 @@ function MissionControl() {
     firstLoad.current = true;
     setTableReady(true);
   }, [activeDatasetId, activeTelecomDataset, setActiveDataset, setCurrentTableName]);
+
+  // Let the desktop menu's "Actualiser" reach the live analytics refresh.
+  useAppCommands("home", {
+    refresh: () => {
+      if (tableReady) analytics.refresh();
+    },
+  });
 
   if (!activeTelecomDataset) return <MissionControlEmptyState />;
 

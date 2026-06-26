@@ -172,6 +172,13 @@ describe("summaryRowToProfile", () => {
     expect(profile.rowCount).toBe(0);
     expect(profile.uniquenessRate).toBe(0);
   });
+
+  it("defaults sqlType to empty string when column_type is absent", () => {
+    // Exercises the `row.column_type ?? ""` nullish-coalescing false branch on line 79.
+    const profile = summaryRowToProfile({ column_name: "x" }, 0);
+    expect(profile.sqlType).toBe("");
+    expect(profile.type).toBe("unknown");
+  });
 });
 
 describe("profilesFromSummary", () => {
@@ -402,6 +409,62 @@ describe("computeValidityDetail", () => {
   });
 });
 
+describe("computeValidityDetail – additional branch coverage", () => {
+  it("returns boolean semanticType for a string column whose values all appear in the bool vocabulary", () => {
+    // inferSemanticType: lowered.every(v => BOOL_VALUES.has(v)) -> true -> "boolean"
+    // computeValidityDetail: falls through all specific branches into lengthStability
+    const detail = computeValidityDetail("string", ["true", "false", "yes", "no"]);
+    // semanticType inferred as "boolean" but handled by the generic else (lengthStability)
+    expect(detail.semanticType).toBe("boolean");
+    // All values have length 4 or 5 — some variation; conformanceRate still clamped to [0,1]
+    expect(detail.conformanceRate).toBeGreaterThanOrEqual(0);
+    expect(detail.conformanceRate).toBeLessThanOrEqual(1);
+  });
+
+  it("handles numeric columns with identical constant values (MAD = 0, no outliers)", () => {
+    // madOutlierRate: nums.length >= 8 but mad === 0 -> return 0
+    const sample = Array.from({ length: 10 }, () => "42");
+    const detail = computeValidityDetail("integer", sample);
+    expect(detail.outlierRate).toBe(0);
+    expect(detail.conformanceRate).toBe(1);
+  });
+
+  it("handles numeric columns with fewer than 8 parseable values (short-circuit in madOutlierRate)", () => {
+    // madOutlierRate: nums.length < 8 -> return 0
+    const detail = computeValidityDetail("float", ["1", "2", "3"]);
+    expect(detail.outlierRate).toBe(0);
+  });
+
+  it("infers numeric semanticType for string column with numeric-looking values", () => {
+    // inferSemanticType: fractionMatching(sample, NUMERIC_RE) >= 0.9 -> "numeric"
+    const detail = computeValidityDetail("string", [
+      "1.5", "2.0", "3.14", "100", "0", "999", "42", "7", "88", "11",
+    ]);
+    expect(detail.semanticType).toBe("numeric");
+  });
+
+  it("infers date semanticType for string column with ISO date values", () => {
+    // inferSemanticType: fractionMatching(sample, DATE_RE) >= 0.9 -> "date"
+    const detail = computeValidityDetail("string", [
+      "2024-01-01", "2024-02-15", "2025-06-20", "2023-12-31", "2022-03-10",
+      "2021-07-04", "2020-11-11", "2026-01-01", "2019-09-09", "2018-08-08",
+    ]);
+    expect(detail.semanticType).toBe("date");
+  });
+
+  it("clamps a non-finite validity score to 0 via applyValidityDetail", () => {
+    // applyValidityDetail computes conformanceRate * (1 - outlierRate)
+    // Pass conformanceRate=Infinity/NaN via a custom ColValidityDetail -> clamp01 returns 0
+    const profile = makeProfile();
+    const updated = applyValidityDetail(profile, {
+      conformanceRate: Number.NaN,
+      outlierRate: 0,
+      sampleSize: 1,
+    });
+    expect(updated.validity).toBe(0);
+  });
+});
+
 describe("applyValidityDetail", () => {
   it("folds conformance and outlier rate into the validity score and attaches the detail", () => {
     const profile = makeProfile({ validity: 0.9 });
@@ -427,6 +490,114 @@ describe("applyValidityDetail", () => {
       sampleSize: 1,
     });
     expect(updated.validity).toBe(1);
+  });
+});
+
+describe("computeValidityDetail – uuid and url semantic types", () => {
+  it("infers uuid semantic type and scores conformance against UUID_RE", () => {
+    const uuids = [
+      "550e8400-e29b-41d4-a716-446655440000",
+      "6ba7b810-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b811-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b812-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b813-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b814-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b815-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b816-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b817-9dad-11d1-80b4-00c04fd430c8",
+      "6ba7b818-9dad-11d1-80b4-00c04fd430c8",
+    ];
+    const detail = computeValidityDetail("string", uuids);
+    expect(detail.semanticType).toBe("uuid");
+    expect(detail.conformanceRate).toBe(1);
+  });
+
+  it("infers url semantic type and scores conformance against URL_RE", () => {
+    const urls = [
+      "https://example.com",
+      "http://foo.bar/path?q=1",
+      "https://baz.io/a/b/c",
+      "ftp://files.example.org/data",
+      "https://one.com",
+      "https://two.com",
+      "https://three.com",
+      "https://four.com",
+      "https://five.com",
+      "https://six.com",
+    ];
+    const detail = computeValidityDetail("string", urls);
+    expect(detail.semanticType).toBe("url");
+    expect(detail.conformanceRate).toBe(1);
+  });
+});
+
+describe("filterSortProfiles – sort by quality score", () => {
+  it("sorts by quality score ascending and descending", () => {
+    const profiles = [
+      makeProfile({ name: "low", completeness: 0.5, uniqueness: 0.5, validity: 0.5 }),
+      makeProfile({ name: "high", completeness: 1, uniqueness: 1, validity: 1 }),
+      makeProfile({ name: "mid", completeness: 0.75, uniqueness: 0.75, validity: 0.75 }),
+    ];
+    const asc = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "quality",
+      sortAsc: true,
+    });
+    expect(asc.map((p) => p.name)).toEqual(["low", "mid", "high"]);
+
+    const desc = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      sortBy: "quality",
+      sortAsc: false,
+    });
+    expect(desc.map((p) => p.name)).toEqual(["high", "mid", "low"]);
+  });
+});
+
+describe("filterSortProfiles – quality filter 'fair'", () => {
+  it("filters by the 'fair' quality bucket", () => {
+    const profiles = [
+      // score = 0.6*0.5 + 0.6*0.25 + 0.6*0.25 = 0.6 -> fair
+      makeProfile({ name: "fair_col", completeness: 0.6, uniqueness: 0.6, validity: 0.6 }),
+      // score = 1 -> excellent
+      makeProfile({ name: "excellent_col", completeness: 1, uniqueness: 1, validity: 1 }),
+    ];
+    const result = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      qualityFilter: "fair",
+    });
+    expect(result.map((p) => p.name)).toEqual(["fair_col"]);
+  });
+});
+
+describe("filterSortProfiles – quality filter 'good' excludes scores outside [0.7, 0.9)", () => {
+  it("excludes an excellent-scored profile (score >= 0.9) from the 'good' bucket", () => {
+    const profiles = [
+      // score = 0.8 -> good
+      makeProfile({ name: "good_col", completeness: 0.8, uniqueness: 0.8, validity: 0.8 }),
+      // score = 1.0 -> excellent; score >= 0.7 but score < 0.9 is false -> excluded from good
+      makeProfile({ name: "excellent_col", completeness: 1, uniqueness: 1, validity: 1 }),
+    ];
+    const result = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      qualityFilter: "good",
+    });
+    expect(result.map((p) => p.name)).toEqual(["good_col"]);
+    expect(result.some((p) => p.name === "excellent_col")).toBe(false);
+  });
+
+  it("passes all profiles through when qualityFilter is an unexpected runtime value (default branch)", () => {
+    // matchesQualityFilter's default case is unreachable via the TypeScript type, but
+    // is reached when a runtime value other than the known literals slips through.
+    const profiles = [
+      makeProfile({ name: "x", completeness: 0.5, uniqueness: 0.5, validity: 0.5 }),
+    ];
+    // Bypass TypeScript to exercise the switch default -> return true path.
+    const result = filterSortProfiles(profiles, {
+      ...defaultProfileQuery,
+      qualityFilter: "unknown_value" as never,
+    });
+    expect(result).toHaveLength(1);
   });
 });
 

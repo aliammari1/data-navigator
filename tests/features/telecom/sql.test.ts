@@ -47,6 +47,12 @@ describe("qc — safe identifier quoting", () => {
     expect(qc("Account Group ID")).toBe('"Account Group ID"');
   });
 
+  it("doubles EVERY embedded double quote (regression: not just the first)", () => {
+    expect(qc('a"b"c')).toBe('"a""b""c"');
+    expect(qc('"lead')).toBe('"""lead"');
+    expect(qc('trail"')).toBe('"trail"""');
+  });
+
   it("throws a TypeError on an empty string", () => {
     expect(() => qc("")).toThrow(TypeError);
   });
@@ -70,6 +76,24 @@ describe("qc — safe identifier quoting", () => {
 
   it("rejects identifiers containing a backslash", () => {
     expect(() => qc("col\\name")).toThrow(/Unsafe column identifier/);
+  });
+});
+
+describe("sqlLiteral — string literal quoting", () => {
+  it("wraps a plain value in single quotes", () => {
+    expect(sqlLiteral("SUCCESS")).toBe("'SUCCESS'");
+  });
+
+  it("doubles EVERY embedded single quote (regression: not just the first)", () => {
+    // French data is full of apostrophes — `d'aujourd'hui` has two and must not
+    // produce broken/injectable SQL.
+    expect(sqlLiteral("d'aujourd'hui")).toBe("'d''aujourd''hui'");
+    expect(sqlLiteral("O'Brien")).toBe("'O''Brien'");
+    expect(sqlLiteral("'; DROP TABLE t; --")).toBe("'''; DROP TABLE t; --'");
+  });
+
+  it("leaves a value with no quotes unchanged inside the wrapper", () => {
+    expect(sqlLiteral("RECHARGE")).toBe("'RECHARGE'");
   });
 });
 

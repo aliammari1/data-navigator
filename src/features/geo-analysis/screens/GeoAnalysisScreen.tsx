@@ -5,6 +5,8 @@ import { useCallback, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { fmtAmount, fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { ExportButton } from "../components/ExportButton";
 import { InsightsPanel } from "../components/InsightsPanel";
@@ -12,7 +14,13 @@ import { RegionList } from "../components/RegionList";
 import { type GeoFlow, useGeoData } from "../hooks/use-geo-data";
 import { useGeoInsights } from "../hooks/use-geo-insights";
 import { channelColor, successRateToColor } from "../lib/colors";
-import type { GeoExportInput } from "../lib/geo-export";
+import { exportGeoReport, type GeoExportFormat, type GeoExportInput } from "../lib/geo-export";
+
+const GEO_PAGES = [
+  { id: "map", label: "Carte des régions" },
+  { id: "flows", label: "Flux par canal" },
+  { id: "distribution", label: "Distribution des canaux" },
+] as const;
 
 // ─── Browser-only chart/map components ────────────────────────────────────────
 
@@ -473,6 +481,8 @@ function DistributionTab({ geo }: { geo: ReturnType<typeof useGeoData> }) {
 export default function GeoAnalysisScreen() {
   const geo = useGeoData();
   const insights = useGeoInsights(geo);
+  const windowId = useWindowId();
+  const [tab, setTab] = useState<string>("map");
 
   // Built lazily on export so aggregates are never serialised until requested.
   const getExportInput = useCallback(
@@ -489,6 +499,25 @@ export default function GeoAnalysisScreen() {
     [geo, insights.insight],
   );
 
+  // Surface the three tabs in the desktop View menu and reflect the active one.
+  useRegisterPages(windowId, [...GEO_PAGES], tab);
+
+  // Handle menu commands dispatched from the desktop menu bar.
+  useAppCommands("geo", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId) setTab(pageId);
+    },
+    export: (payload) => {
+      if (!geo.ready) return;
+      const format = (payload as { format?: GeoExportFormat } | undefined)?.format ?? "pdf";
+      void exportGeoReport(getExportInput(), format).catch(() => {});
+    },
+    insights: () => {
+      void insights.generate();
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6 p-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -502,7 +531,7 @@ export default function GeoAnalysisScreen() {
         <ExportButton getInput={getExportInput} disabled={!geo.ready} />
       </div>
 
-      <Tabs defaultValue="map">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
           <TabsTrigger value="map">Region Map</TabsTrigger>
           <TabsTrigger value="flows">Channel Flows</TabsTrigger>

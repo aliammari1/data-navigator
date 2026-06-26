@@ -18,6 +18,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import {
   type CachedAnalyticsMeta,
   type CachedTelecomSourceFileMeta,
@@ -183,6 +185,32 @@ export default function LineageScreen() {
     setSelectedNode(node);
     if (node) setActiveTab("graph");
   };
+
+  // ── Desktop menu wiring: surface the four views as pages and let the
+  //    "Lignage" / "Fichier" menus drive tab switching + refresh. ──
+  const windowId = useWindowId();
+  useRegisterPages(
+    windowId,
+    [
+      { id: "graph", label: "Graphe", icon: Network },
+      { id: "table", label: "Tableau", icon: Table2 },
+      { id: "impact", label: "Analyse d'impact", icon: AlertTriangle },
+      { id: "columns", label: "Lignage des colonnes", icon: GitBranch },
+    ],
+    activeTab,
+  );
+  useAppCommands("lineage", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId === "graph" || pageId === "table" || pageId === "impact" || pageId === "columns") {
+        setActiveTab(pageId);
+      }
+    },
+    refresh: () => {
+      setSelectedNode(null);
+      setRefreshNonce((n) => n + 1);
+    },
+  });
 
   return (
     <div className=" flex flex-col">

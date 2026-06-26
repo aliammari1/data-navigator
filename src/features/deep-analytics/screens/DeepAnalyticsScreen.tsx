@@ -1,40 +1,42 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Slider } from "@/components/ui/slider";
 import {
-  Layers,
-  DollarSign,
-  Network,
-  CalendarRange,
-  RefreshCw,
-  TrendingUp,
-  TrendingDown,
-  Minus,
   AlertTriangle,
+  CalendarRange,
   CheckCircle,
+  DollarSign,
+  Layers,
+  Minus,
+  Network,
+  RefreshCw,
+  TrendingDown,
+  TrendingUp,
 } from "lucide-react";
-import { cn } from "@/shared/utils";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Slider } from "@/components/ui/slider";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useDuckDBQuery } from "@/core/queries/duckdb";
-import { CohortAnalysis } from "@/features/deep-analytics/components/CohortAnalysis";
-import { RevenueAttributionModel } from "@/features/deep-analytics/components/RevenueAttributionModel";
 import { AnalyticsChart } from "@/features/deep-analytics/components/AnalyticsChart";
 import {
-  NoDatasetState,
-  MissingColumnsState,
-  AnalyticsLoading,
   AnalyticsError,
+  AnalyticsLoading,
+  MissingColumnsState,
+  NoDatasetState,
 } from "@/features/deep-analytics/components/AnalyticsStates";
-import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
-import { buildClusterSampleSql, buildPeriodMetricsSql } from "@/features/deep-analytics/lib/sql";
-import { pickColumn, fmtBucket, fmtRevenue, fmtInt } from "@/features/deep-analytics/lib/format";
-import { welchTTest, significanceFromP } from "@/features/deep-analytics/lib/stats";
+import { CohortAnalysis } from "@/features/deep-analytics/components/CohortAnalysis";
+import { RevenueAttributionModel } from "@/features/deep-analytics/components/RevenueAttributionModel";
+import { fmtBucket, fmtInt, fmtRevenue, pickColumn } from "@/features/deep-analytics/lib/format";
 import { getMLClient } from "@/features/deep-analytics/lib/ml-client";
 import { loadRun, saveRun } from "@/features/deep-analytics/lib/runs-store";
+import { buildClusterSampleSql, buildPeriodMetricsSql } from "@/features/deep-analytics/lib/sql";
+import { significanceFromP, welchTTest } from "@/features/deep-analytics/lib/stats";
+import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
 import type { KMeansResult } from "@/features/deep-analytics/workers/analytics.worker";
+import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
+import { useWindowId } from "@/features/desktop/core/menu/window-context";
+import { cn } from "@/shared/utils";
 
 const CLUSTER_COLORS = [
   "#3b82f6",
@@ -798,7 +800,25 @@ function MultiPeriodComparison() {
 // MAIN SCREEN
 // ═══════════════════════════════════════════════════════════════════════════════
 
+const DEEP_ANALYTICS_PAGES = [
+  { id: "cohort", label: "Cohortes", icon: Layers },
+  { id: "attribution", label: "Attribution des revenus", icon: DollarSign },
+  { id: "clusters", label: "Clustering", icon: Network },
+  { id: "periods", label: "Comparaison de périodes", icon: CalendarRange },
+];
+
 export function DeepAnalyticsScreen() {
+  const windowId = useWindowId();
+  const [activeTab, setActiveTab] = useState("cohort");
+
+  useRegisterPages(windowId, DEEP_ANALYTICS_PAGES, activeTab);
+  useAppCommands("deep-analytics", {
+    navigate: (payload) => {
+      const pageId = (payload as { pageId?: string } | undefined)?.pageId;
+      if (pageId) setActiveTab(pageId);
+    },
+  });
+
   return (
     <div className="flex flex-col gap-6 p-6" data-tour="deep-analytics">
       <div>
@@ -809,7 +829,7 @@ export function DeepAnalyticsScreen() {
         </p>
       </div>
 
-      <Tabs defaultValue="cohort">
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList className="bg-slate-800/60 border border-slate-700">
           <TabsTrigger value="cohort" className="data-active:bg-slate-700">
             <Layers className="size-3.5" />

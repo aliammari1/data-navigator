@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
+import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import type { SupportedExtensions } from "@/shared/types";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -391,7 +392,9 @@ export const useDataStore = create<DataStore>()(
     {
       name: "data-navigator-datasets",
       version: 1,
-      storage: createJSONStorage(() => localStorage),
+      // Durable: localStorage warm cache + SQLite backup via the settings IPC
+      // bridge (same as every other persisted store).
+      storage: createJSONStorage(() => createDrizzleStorage()),
 
       // Map any legacy persisted shape to the current Dataset shape: backfill
       // viewName from tableName, strip column samples, default qualityScore,

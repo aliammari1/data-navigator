@@ -114218,7 +114218,11 @@ async function buildXlsx(doc) {
   wb.created = /* @__PURE__ */ new Date();
   doc.sections.forEach((section, idx) => {
     const ws = wb.addWorksheet(section.title?.slice(0, 28) || `Sheet${idx + 1}`);
-    ws.columns = section.headers.map((h) => ({ header: h, key: h, width: Math.max(12, h.length + 4) }));
+    ws.columns = section.headers.map((h) => ({
+      header: h,
+      key: h,
+      width: Math.max(12, h.length + 4)
+    }));
     const headerRow = ws.getRow(1);
     headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
     headerRow.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1E3A8A" } };
@@ -114245,12 +114249,22 @@ async function buildDocx(doc) {
     new Paragraph2({ text: doc.title, heading: HeadingLevel2.HEADING_1 })
   ];
   if (doc.subtitle) {
-    children.push(new Paragraph2({ children: [new TextRun2({ text: doc.subtitle, italics: true, color: "64748B" })] }));
+    children.push(
+      new Paragraph2({
+        children: [new TextRun2({ text: doc.subtitle, italics: true, color: "64748B" })]
+      })
+    );
   }
   if (doc.logoPng) {
     children.push(
       new Paragraph2({
-        children: [new ImageRun2({ type: "png", data: doc.logoPng, transformation: { width: 64, height: 64 } })]
+        children: [
+          new ImageRun2({
+            type: "png",
+            data: doc.logoPng,
+            transformation: { width: 64, height: 64 }
+          })
+        ]
       })
     );
   }
@@ -114265,14 +114279,14 @@ async function buildDocx(doc) {
         rows: [
           new TableRow2({
             children: section.headers.map(
-              (h) => new TableCell2({ children: [new Paragraph2({ children: [new TextRun2({ text: h, bold: true })] })] })
+              (h) => new TableCell2({
+                children: [new Paragraph2({ children: [new TextRun2({ text: h, bold: true })] })]
+              })
             )
           }),
           ...section.rows.map(
             (r) => new TableRow2({
-              children: r.map(
-                (c) => new TableCell2({ children: [new Paragraph2(String(c))] })
-              )
+              children: r.map((c) => new TableCell2({ children: [new Paragraph2(String(c))] }))
             })
           )
         ]
@@ -114287,7 +114301,9 @@ async function buildDocx(doc) {
       const h = chart.height ?? Math.round(w * 0.4);
       body.push(
         new Paragraph2({
-          children: [new ImageRun2({ type: "png", data: png, transformation: { width: w, height: h } })]
+          children: [
+            new ImageRun2({ type: "png", data: png, transformation: { width: w, height: h } })
+          ]
         })
       );
     }
@@ -114308,12 +114324,22 @@ async function buildPptx(doc) {
   if (doc.subtitle) title.addText(doc.subtitle, { x: 0.5, y: 3.6, fontSize: 18, color: "64748B" });
   for (const section of doc.sections) {
     const slide = pptx.addSlide();
-    if (section.title) slide.addText(section.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true, color: "0F172A" });
+    if (section.title)
+      slide.addText(section.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true, color: "0F172A" });
     const tableRows = [
-      section.headers.map((h) => ({ text: h, options: { bold: true, fill: { color: "1E3A8A" }, color: "FFFFFF" } })),
+      section.headers.map((h) => ({
+        text: h,
+        options: { bold: true, fill: { color: "1E3A8A" }, color: "FFFFFF" }
+      })),
       ...section.rows.map((r) => r.map((c) => ({ text: String(c) })))
     ];
-    slide.addTable(tableRows, { x: 0.5, y: 1.1, w: 12.3, fontSize: 12, border: { type: "solid", color: "E2E8F0", pt: 1 } });
+    slide.addTable(tableRows, {
+      x: 0.5,
+      y: 1.1,
+      w: 12.3,
+      fontSize: 12,
+      border: { type: "solid", color: "E2E8F0", pt: 1 }
+    });
   }
   if (doc.includeCharts && doc.charts) {
     for (const chart of doc.charts) {

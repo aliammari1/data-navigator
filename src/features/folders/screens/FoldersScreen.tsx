@@ -55,6 +55,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTheme } from "@/components/theme-provider";
 import { useDataStore } from "@/core/stores/data-store";
 import { useFoldersStore } from "@/core/stores/folders-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import type { EChartsOption } from "@/platform/viz";
 import { BulkActionBar } from "../components/BulkActionBar";
 import { CatalogChart } from "../components/CatalogChart";
@@ -625,6 +626,36 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
       if (applied > 0) setExpanded((prev) => new Set(prev).add(ROOT_ID));
     }
   }, [organizer]);
+
+  // ── Desktop menu bus: route Catalogue menu items to existing handlers ───────
+  useAppCommands("folders", {
+    "new-folder": () => {
+      setNewFolderName("");
+      setShowNewFolder(true);
+    },
+    import: () => openDesktopApp("data-browser"),
+    "auto-organize": () => {
+      if (!organizer.running && ungroupedCount > 0) void handleAutoOrganize();
+    },
+    layout: (payload) => {
+      const mode = (payload as { mode?: "grid" | "list" } | undefined)?.mode;
+      if (mode === "grid" || mode === "list") setLayout(mode);
+    },
+    sort: (payload) => {
+      const key = (payload as { key?: SortKey } | undefined)?.key;
+      if (key) {
+        if (sortBy === key) setSortAsc((prev) => !prev);
+        else {
+          setSortBy(key);
+          setSortAsc(true);
+        }
+      }
+    },
+    filter: (payload) => {
+      const filter = (payload as { filter?: CatalogFilter } | undefined)?.filter;
+      if (filter) changeFilter(filter);
+    },
+  });
 
   // ── Storage-by-folder chart (theme aware) ──────────────────────────────────
   const axisLabelColor = isDark ? "#94a3b8" : "#64748b";

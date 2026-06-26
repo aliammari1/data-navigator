@@ -130,8 +130,11 @@ async function applyReadConnectionSandbox(
 
   if (resolvedDirs.length === 0) return false;
 
+  // enable_external_access is startup-only (set in DuckDBInstance.create).
+  // lock_configuration is GLOBAL but safe here: this utility process has a
+  // single connection, so locking it after setting allowed_directories gives
+  // the same per-lifetime guarantee the original code intended.
   const settings: readonly string[] = [
-    "SET enable_external_access = true",
     `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`,
     "SET lock_configuration = true",
   ];
@@ -162,7 +165,9 @@ async function initEngine(req: InitRequest): Promise<boolean> {
 
   // In-memory instance: the utility scaffold reads managed Parquet files
   // directly and never co-opens the main read-write `.duckdb` catalog file.
-  instance = await DuckDBInstance.create(":memory:", { threads });
+  // enable_external_access is a startup-only GLOBAL setting in DuckDB 1.x and
+  // must be passed here, not via SET after the instance is running.
+  instance = await DuckDBInstance.create(":memory:", { threads, enable_external_access: "true" });
   readConn = await instance.connect();
 
   datasetsDir = path.resolve(req.datasetsDir);
