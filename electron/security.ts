@@ -436,11 +436,20 @@ export const PRODUCTION_FUSE_CONFIG = {
   /** Only ever load app code from the packaged ASAR (no loose files). */
   OnlyLoadAppFromAsar: true,
   /**
-   * Load a browser-process-specific V8 snapshot, separate from renderers — shrinks
+   * Browser-process-specific V8 snapshot, separate from renderers — would shrink
    * the blast radius of a poisoned shared snapshot (the CVE-2025-55305 gadget
-   * class). Packaged-build only; verify the MSI still launches after enabling.
+   * class). MUST stay false unless the build also GENERATES and ships a
+   * `browser_v8_context_snapshot.bin` next to the executable: enabling this fuse
+   * makes the browser process load that file, and Electron does not produce it.
+   * With the fuse on and the file absent, the browser process dies at startup with
+   * `FATAL: Error loading V8 startup snapshot file` — before any app code runs, so
+   * the window never appears and nothing is logged (regression from 2026-06-18).
+   * A plain copy of `v8_context_snapshot.bin` adds no real protection (the two must
+   * actually differ), and generating a distinct snapshot needs mksnapshot tooling
+   * matched to this Electron's V8, which the build does not have — so we keep the
+   * standard shared snapshot and leave this off.
    */
-  LoadBrowserProcessSpecificV8Snapshot: true,
+  LoadBrowserProcessSpecificV8Snapshot: false,
   /**
    * Drop `file://` extra privileges. The UI is served over `http://localhost`,
    * never `file://`, so cross-`file://` fetch / service workers / universal

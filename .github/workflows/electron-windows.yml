@@ -1,12 +1,15 @@
 name: Electron Windows
 
-# Build + release the Windows Squirrel installer for Data Navigator.
+# Build + release the Windows WiX MSI installer for Data Navigator.
 #
 # Two modes:
-#  - PR / manual smoke      -> build-only: prove the Squirrel Setup.exe still builds (no publish).
+#  - PR / manual smoke      -> build-only: prove the WiX .msi still builds (no publish).
 #  - Release (workflow_call) -> MAKE the installer on windows-latest, upload it as a workflow
 #    artifact AND attach it to the GitHub Release for the current version, with a signed
-#    build-provenance attestation. update-electron-app consumes that Release.
+#    build-provenance attestation.
+#
+# Toolchain: @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
+# Toolset v3, so the "Install WiX Toolset v3" step must put them on PATH before the make.
 #
 # RELEASE TRIGGER: this workflow is CALLED by release.yml (workflow_call) after the
 # changesets job cuts the version + git tag + GitHub Release. It is NOT triggered by
@@ -160,6 +163,33 @@ jobs:
             Write-Host "node_modules is flat (hoisted) — no .pnpm store"
           }
 
+      # @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
+      # Toolset v3 (its requiredExternalBinaries; forge aborts the make if they are not
+      # on PATH). The windows-latest (Server 2025) image no longer guarantees WiX v3 and
+      # the WiX v3 repo is archived, so install a pinned version via Chocolatey and add
+      # its bin to PATH for the make step. No-op if the runner already ships WiX. Done
+      # before the long build so a missing toolchain fails fast.
+      - name: Install WiX Toolset v3
+        shell: pwsh
+        run: |
+          if (Get-Command candle.exe -ErrorAction SilentlyContinue) {
+            Write-Host "WiX already available: $((Get-Command candle.exe).Source)"
+          } else {
+            choco install wixtoolset --version=3.14.0 -y --no-progress
+            $wixBin = "C:\Program Files (x86)\WiX Toolset v3.14\bin"
+            if (-not (Test-Path "$wixBin\candle.exe")) {
+              # Fall back to whatever WiX v3 dir Chocolatey actually created.
+              $found = Get-ChildItem "C:\Program Files (x86)" -Filter "WiX Toolset v*" -Directory -ErrorAction SilentlyContinue | Select-Object -Last 1
+              if ($found) { $wixBin = Join-Path $found.FullName "bin" }
+            }
+            if (-not (Test-Path "$wixBin\candle.exe")) {
+              Write-Host "::error::WiX Toolset v3 install failed — candle.exe not found under '$wixBin'"
+              exit 1
+            }
+            Write-Host "Adding WiX to PATH: $wixBin"
+            Add-Content -Path $env:GITHUB_PATH -Value $wixBin
+          }
+
       # Typecheck only — NOT the full `pnpm run verify`. The MSI artifact only
       # needs to compile + package; the heavy quality suite (lint, tests, coverage,
       # Storybook build, size budgets) already runs on the same commit in
@@ -184,7 +214,7 @@ jobs:
         shell: pwsh
         run: New-Item -ItemType File -Force -Path "$HOME/.skip-forge-system-check" | Out-Null
 
-      # Make the Windows installer (Squirrel Setup.exe) via forge's PROGRAMMATIC
+      # Make the Windows installer (WiX .msi) via forge's PROGRAMMATIC
       # api.make() (scripts/forge-make.mjs),
       # NOT `electron-forge make`. The CLI uses commander external-executable subcommands,
       # so `electron-forge make` spawns a separate electron-forge-make.js child that, on
@@ -199,7 +229,7 @@ jobs:
         env:
           NODE_ENV: production
           NODE_OPTIONS: "--trace-exit"
-          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip"
+          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip,electron-wix-msi*"
           FORCE_COLOR: "0"
 
       # Ground-truth what `make` actually produced AND dump diagnostics, since the
@@ -236,15 +266,15 @@ jobs:
             ForEach-Object { if (Test-Path $_) { Get-ChildItem -Path $_ -Filter *.msi -Recurse -ErrorAction SilentlyContinue } } |
             Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
 
-          # Squirrel emits out/make/squirrel.windows/<arch>/<Setup>.exe + a -full.nupkg
-          # + RELEASES. The Setup .exe is the installer; require at least one.
-          $exes = @(Get-ChildItem -Recurse -Path out/make -Filter *.exe -ErrorAction SilentlyContinue)
-          if ($exes.Count -eq 0) {
-            Write-Host "::error::No Setup .exe was produced under out/make — the Squirrel maker did not run."
+          # maker-wix emits out/make/wix/<arch>/<name>.msi. The .msi is the installer;
+          # require at least one or fail the build (a make that exits 0 with no .msi).
+          $msis = @(Get-ChildItem -Recurse -Path out/make/wix -Filter *.msi -ErrorAction SilentlyContinue)
+          if ($msis.Count -eq 0) {
+            Write-Host "::error::No .msi was produced under out/make/wix — the WiX maker did not run (is WiX v3 on PATH?)."
             exit 1
           }
-          foreach ($e in $exes) {
-            Write-Host "INSTALLER: $($e.FullName)  ($([math]::Round($e.Length/1MB,1)) MB)"
+          foreach ($m in $msis) {
+            Write-Host "INSTALLER: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
           }
 
       # Build a verifiable supply-chain provenance attestation over the MSI(s),
@@ -253,12 +283,9 @@ jobs:
         if: env.IS_RELEASE == 'true'
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "out/make/squirrel.windows/**/*.exe"
+          subject-path: "out/make/wix/**/*.msi"
 
-      # Attach the Squirrel installer to the GitHub Release changesets created for this
-      # version. Attach the WHOLE squirrel.windows output — Setup.exe + the -full.nupkg
-      # + RELEASES — because update-electron-app / the autoUpdater read RELEASES + the
-      # nupkg from the Release to deliver updates, not just the Setup.exe.
+      # Attach the WiX .msi to the GitHub Release changesets created for this version.
       # tag_name is the explicit `v<version>` tag (NOT github.ref, which is the caller's
       # branch during a workflow_call); softprops updates that existing draft Release.
       - name: Attach installer to GitHub Release
@@ -269,7 +296,7 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           files: |
-            out/make/squirrel.windows/**/*
+            out/make/wix/**/*.msi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -278,8 +305,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: data-navigator-windows-setup
+          name: data-navigator-windows-msi
           path: |
-            out/make/squirrel.windows/**/*
+            out/make/wix/**/*.msi
           if-no-files-found: warn
           retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

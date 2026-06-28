@@ -71,20 +71,11 @@ var __require = /* @__PURE__ */ ((x) => typeof require !== "undefined" ? require
   if (typeof require !== "undefined") return require.apply(this, arguments);
   throw Error('Dynamic require of "' + x + '" is not supported');
 });
-var __esm = (fn, res, err) => function __init() {
-  if (err) throw err[0];
-  try {
-    return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
-  } catch (e) {
-    throw err = [e], e;
-  }
+var __esm = (fn, res) => function __init() {
+  return fn && (res = (0, fn[__getOwnPropNames(fn)[0]])(fn = 0)), res;
 };
 var __commonJS = (cb, mod) => function __require2() {
-  try {
-    return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
-  } catch (e) {
-    throw mod = 0, e;
-  }
+  return mod || (0, cb[__getOwnPropNames(cb)[0]])((mod = { exports: {} }).exports, mod), mod.exports;
 };
 var __export = (target, all) => {
   for (var name in all)
@@ -10304,7 +10295,7 @@ var init_dist = __esm({
   }
 });
 
-// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@42.4.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
+// node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs
 var dist_exports = {};
 __export(dist_exports, {
   ANGULAR_DEVTOOLS: () => ANGULAR_DEVTOOLS,
@@ -10470,7 +10461,7 @@ async function installExtension(extensionIds, options) {
 }
 var ANGULAR_DEVTOOLS, APOLLO_CLIENT_TOOLS, BACKBONE_DEBUGGER, EMBER_INSPECTOR, MOBX_DEVTOOLS, PREACT_DEVELOPER_TOOLS, REACT_DEVELOPER_TOOLS, REDUX_DEVTOOLS, SOLID_DEVTOOLS, SVELTE_DEVTOOLS, VUEJS_DEVTOOLS, VUEJS_DEVTOOLS_BETA, VUEJS_DEVTOOLS_V5, VUEJS_DEVTOOLS_V6, EXTENSIONS, src_default2;
 var init_dist2 = __esm({
-  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@42.4.1/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
+  "node_modules/.pnpm/@tomjs+electron-devtools-installer@4.0.1_electron@41.8.0/node_modules/@tomjs/electron-devtools-installer/dist/index.mjs"() {
     init_dist();
     ANGULAR_DEVTOOLS = "ienfalfjdbdpebioblfackkekamfmbnh";
     APOLLO_CLIENT_TOOLS = "jdkknkkbebbapilgoeccciglkfbmbnfm";
@@ -10522,10 +10513,10 @@ var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
 var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_cd70a721a613f8e7aa440e4f8ebe5b74/node_modules/@better-auth/electron/dist/version-BBOVUjFi.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_861267058a959494601d2546e3da94d3/node_modules/@better-auth/electron/dist/version-BBOVUjFi.mjs
 var PACKAGE_VERSION = "1.6.19";
 
-// node_modules/.pnpm/@better-auth+electron@1.6.1_cd70a721a613f8e7aa440e4f8ebe5b74/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.1_861267058a959494601d2546e3da94d3/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
 function isProcessType(type) {
   return typeof process !== "undefined" && process.type === type;
 }

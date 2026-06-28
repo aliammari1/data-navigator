@@ -1,6 +1,6 @@
 # facts: Release pipeline for data-navigator (private, offline-first Electron app). Changesets
 # owns version+git-tag+GitHub Release on push to main; a needs-gated Windows job then builds and
-# attaches the Squirrel Setup.exe to that Release. The tag is created with GITHUB_TOKEN, which does NOT
+# attaches the WiX .msi installer to that Release. The tag is created with GITHUB_TOKEN, which does NOT
 # re-trigger electron-windows.yml's `on: push: tags` (GitHub loop-prevention safeguard), so the
 # installer build is chained explicitly via `needs` + the changesets `published` output instead of by
 # tag push. Third-party actions are SHA-pinned; first-party actions/* use major tags. No GGUF

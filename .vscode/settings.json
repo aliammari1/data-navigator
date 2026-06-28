@@ -2,7 +2,6 @@
   // ─────────────────────────────────────────────
   // Visual feel / animations
   // ─────────────────────────────────────────────
-
   "editor.cursorBlinking": "smooth",
   "editor.cursorSmoothCaretAnimation": "on",
   "editor.cursorStyle": "line",
@@ -16,11 +15,9 @@
   "editor.scrollBeyondLastColumn": 3,
   "editor.cursorSurroundingLines": 6,
   "editor.cursorSurroundingLinesStyle": "all",
-
   // ─────────────────────────────────────────────
   // Editor readability
   // ─────────────────────────────────────────────
-
   "editor.fontFamily": "JetBrains Mono, Cascadia Code, Fira Code, Consolas, 'Courier New', monospace",
   "editor.fontLigatures": true,
   "editor.fontSize": 14.5,
@@ -31,7 +28,10 @@
   "editor.insertSpaces": true,
   "editor.wordWrap": "on",
   "editor.wordWrapColumn": 110,
-  "editor.rulers": [100, 120],
+  "editor.rulers": [
+    100,
+    120
+  ],
   "editor.renderWhitespace": "selection",
   "editor.renderControlCharacters": false,
   "editor.guides.indentation": true,
@@ -43,11 +43,9 @@
   "editor.selectionHighlight": true,
   "editor.codeLens": true,
   "editor.colorDecorators": true,
-
   // ─────────────────────────────────────────────
   // Sticky context / navigation
   // ─────────────────────────────────────────────
-
   "editor.stickyScroll.enabled": true,
   "editor.stickyScroll.maxLineCount": 8,
   "editor.stickyScroll.scrollWithEditor": true,
@@ -60,11 +58,9 @@
   "workbench.editor.tabSizing": "fit",
   "workbench.editor.wrapTabs": false,
   "workbench.editor.labelFormat": "medium",
-
   // ─────────────────────────────────────────────
   // Minimap: useful but not noisy
   // ─────────────────────────────────────────────
-
   "editor.minimap.enabled": true,
   "editor.minimap.side": "right",
   "editor.minimap.renderCharacters": false,
@@ -73,11 +69,9 @@
   "editor.minimap.showSlider": "mouseover",
   "editor.hideCursorInOverviewRuler": true,
   "editor.overviewRulerBorder": false,
-
   // ─────────────────────────────────────────────
   // Suggestions / IntelliSense feel
   // ─────────────────────────────────────────────
-
   "editor.inlineSuggest.enabled": true,
   "editor.suggestSelection": "first",
   "editor.suggest.preview": true,
@@ -101,11 +95,9 @@
   "js.inlayHints.parameterTypes.enabled": false,
   "js.inlayHints.variableTypes.enabled": false,
   "js.inlayHints.functionLikeReturnTypes.enabled": false,
-
   // ─────────────────────────────────────────────
   // Format / save behavior
   // ─────────────────────────────────────────────
-
   "files.autoSave": "afterDelay",
   "files.autoSaveDelay": 700,
   "files.trimTrailingWhitespace": true,
@@ -118,7 +110,6 @@
     "source.fixAll.biome": "explicit"
   },
   "editor.defaultFormatter": "biomejs.biome",
-
   "[javascript]": {
     "editor.defaultFormatter": "biomejs.biome"
   },
@@ -135,40 +126,52 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   },
   "[jsonc]": {
-    "editor.defaultFormatter": "biomejs.biome"
+    "editor.defaultFormatter": "vscode.json-language-features"
   },
-
   // ─────────────────────────────────────────────
   // TypeScript / Next / npm project behavior
   // ─────────────────────────────────────────────
-
   "ts.tsdk": "node_modules/typescript/lib",
   "ts.enablePromptUseWorkspaceTsdk": true,
   "ts.preferences.importModuleSpecifier": "non-relative",
   "ts.preferences.includePackageJsonAutoImports": "on",
   "ts.updateImportsOnFileMove.enabled": "always",
   "npm.packageManager": "bun",
-
   // ─────────────────────────────────────────────
   // Tailwind / React class helpers
   // ─────────────────────────────────────────────
-
   "tailwindCSS.includeLanguages": {
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  "tailwindCSS.classAttributes": ["class", "className", "ngClass", ".*ClassName", ".*Classes"],
-  "tailwindCSS.experimental.classRegex": [
-    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
-    ["clsx\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
-    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
-    ["tv\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
+  "tailwindCSS.classAttributes": [
+    "class",
+    "className",
+    "ngClass",
+    ".*ClassName",
+    ".*Classes"
   ],
-
+  "tailwindCSS.experimental.classRegex": [
+    [
+      "cn\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ],
+    [
+      "clsx\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ],
+    [
+      "cva\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ],
+    [
+      "tv\\(([^)]*)\\)",
+      "[\"'`]([^\"'`]*).*?[\"'`]"
+    ]
+  ],
   // ─────────────────────────────────────────────
   // Terminal polish
   // ─────────────────────────────────────────────
-
   "terminal.integrated.defaultProfile.windows": "PowerShell",
   "terminal.integrated.fontFamily": "JetBrainsMono Nerd Font, Cascadia Code, Consolas, monospace",
   "terminal.integrated.fontSize": 13.5,
@@ -179,11 +182,9 @@
   "terminal.integrated.confirmOnExit": "hasChildProcesses",
   "terminal.integrated.persistentSessionReviveProcess": "never",
   "terminal.integrated.scrollback": 20000,
-
   // ─────────────────────────────────────────────
   // Workbench / UI polish
   // ─────────────────────────────────────────────
-
   "workbench.colorTheme": "Dark 2026",
   "workbench.iconTheme": "vscode-icons",
   "workbench.productIconTheme": "Default",
@@ -201,11 +202,9 @@
   "window.density.editorTabHeight": "default",
   "window.density.windowControlsStyle": "default",
   "window.restoreWindows": "all",
-
   // ─────────────────────────────────────────────
   // Explorer / search performance
   // ─────────────────────────────────────────────
-
   "explorer.compactFolders": false,
   "explorer.confirmDelete": false,
   "explorer.confirmDragAndDrop": false,
@@ -227,11 +226,9 @@
     "**/node_modules/**": true,
     "**/public/workers/*.js": true
   },
-
   // ─────────────────────────────────────────────
   // Git / diff experience
   // ─────────────────────────────────────────────
-
   "git.autofetch": true,
   "git.confirmSync": false,
   "git.enableSmartCommit": true,
@@ -241,34 +238,36 @@
   "diffEditor.ignoreTrimWhitespace": false,
   "diffEditor.wordWrap": "on",
   "mergeEditor.enabled": true,
-
   // ─────────────────────────────────────────────
   // Security / noise reduction
   // ─────────────────────────────────────────────
-
   "security.workspace.trust.untrustedFiles": "open",
   "telemetry.telemetryLevel": "off",
   "update.showReleaseNotes": false,
   "extensions.ignoreRecommendations": true,
-
   // ─────────────────────────────────────────────
   // Copilot / AI ergonomics
   // ─────────────────────────────────────────────
-
   "github.copilot.enable": {
     "*": true,
     "plaintext": false,
     "markdown": true,
     "scminput": false
   },
-
   // ─────────────────────────────────────────────
   // File associations
   // ─────────────────────────────────────────────
-
   "files.associations": {
     "*.css": "tailwindcss",
     "*.worker.ts": "typescript",
     "*.env.*": "dotenv"
+  },
+  "workbench.editorAssociations": {
+    "*.copilotmd": "vscode.markdown.preview.editor",
+    "*.skill": "default",
+    "*.parquet": "duckdb.dataFileViewer",
+    "*.csv": "duckdb.dataFileViewer",
+    "*.tsv": "duckdb.dataFileViewer",
+    "*.xlsx": "duckdb.dataFileViewer"
   }
 }

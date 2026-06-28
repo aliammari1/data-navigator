@@ -1,7 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { FuseV1Options, FuseVersion, flipFuses } from "@electron/fuses";
-import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerWix } from "@electron-forge/maker-wix";
 import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-natives";
 import { PublisherGithub } from "@electron-forge/publisher-github";
@@ -16,8 +15,7 @@ import { PRODUCTION_FUSE_CONFIG } from "./electron/security";
  *
  * Makers:
  * https://www.electronforge.io/config/makers
- * https://www.electronforge.io/config/makers/zip
- * https://www.electronforge.io/config/makers/msix
+ * https://www.electronforge.io/config/makers/wix-msi
  *
  * GitHub Publisher:
  * https://www.electronforge.io/config/publishers/github
@@ -44,6 +42,14 @@ const appExe = "data-navigator";
 const appId = "com.data-navigator.app";
 const manufacturer = "Ali Ammari";
 const protocolScheme = "com.data-navigator.app";
+
+// Stable MSI UpgradeCode. Windows uses this GUID to recognize that a newly-run MSI
+// is an UPGRADE of the same product (vs. a second app installed side by side). It
+// MUST stay constant across every release forever — regenerating it would orphan
+// all previously installed versions (no in-place upgrade, no clean uninstall). If
+// omitted, electron-wix-msi mints a fresh random one each build, which breaks
+// upgrades entirely, so we pin it here.
+const wixUpgradeCode = "9f2b6c1e-7a3d-4e58-bc90-1f2a3b4c5d6e";
 
 const publicDir = path.join(root, "public");
 const iconBase = path.join(publicDir, "icon");
@@ -904,42 +910,35 @@ const config: ForgeConfig = {
   // step is needed and `make` never spawns a rebuild child.
 
   makers: [
-    new MakerSquirrel(
+    // Traditional Windows MSI via electron-wix-msi. Requires the WiX Toolset v3
+    // (candle.exe / light.exe) on PATH at make time — on CI that means a
+    // `choco install wixtoolset --version=3.14.0` step before `make`.
+    new MakerWix(
       {
-        // NuGet package id — no hyphens allowed, so data-navigator -> data_navigator.
-        name: appSlug.replaceAll("-", "_"),
-        authors: manufacturer,
+        // Product + publisher identity shown in Add/Remove Programs.
+        name: appName,
+        manufacturer,
         description: "AI-powered local data analysis and visualization platform",
-        setupExe: "DataNavigatorSetup.exe",
-        setupIcon: iconIco,
-        noMsi: true,
+        // Must match packagerConfig.executableName ("data-navigator") so the MSI
+        // launches the right binary (electron-wix-msi appends ".exe").
+        exe: appExe,
+        icon: iconIco,
+        // Pinned so installs upgrade in place across releases (see constant above).
+        upgradeCode: wixUpgradeCode,
+        // Group the app under our own AppUserModelID (taskbar pinning / toast
+        // notifications) instead of the default com.squirrel.* identifier.
+        appUserModelId: appId,
+        // en-US (LCID 1033).
+        language: 1033,
+        // Show a directory chooser; the default is a silent per-user install into
+        // LocalAppData with no UI.
+        ui: {
+          chooseDirectory: true,
+        },
         ...windowsCertificateConfig,
       },
       ["win32"],
     ),
-
-    // new MakerMSIX(
-    //   {
-    //     manifestVariables: {
-    //       packageIdentity: "AliAmmari.DataNavigator",
-    //       appDisplayName: appName,
-    //       publisher: process.env.WINDOWS_PUBLISHER ?? "CN=Ali Ammari",
-    //       publisherDisplayName: manufacturer,
-    //       packageDescription:
-    //         "AI-powered local data analysis and visualization platform",
-    //     },
-
-    //     ...(hasWindowsCertificate
-    //       ? {
-    //           windowsSignOptions: {
-    //             certificateFile: process.env.WINDOWS_CERTIFICATE_FILE,
-    //             certificatePassword: process.env.WINDOWS_CERTIFICATE_PASSWORD,
-    //           },
-    //         }
-    //       : {}),
-    //   },
-    //   ["win32"],
-    // ),
   ],
 
   publishers: [
