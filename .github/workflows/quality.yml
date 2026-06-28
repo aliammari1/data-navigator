@@ -57,8 +57,13 @@ jobs:
         # First-party action: major-version tag is acceptable (auto-patched).
         uses: actions/checkout@v7
         with:
-          # LFS holds tracked model/binary fixtures; the build references them.
-          lfs: true
+          # lfs:false — do NOT fetch the ~636 MB of LFS models. The quality gate
+          # (lint / typecheck / test / storybook / next build) does not need the real
+          # model bytes: next build + the unit tests work against the LFS pointer files,
+          # and build:storybook deletes storybook-static/models anyway. Fetching them on
+          # every run was the main drain on the account's 1 GB/month LFS bandwidth
+          # (~636 MB × 31 runs in June alone). Models download at runtime.
+          lfs: false
 
       - name: Set up pnpm + Node + caches
         # Shared composite action (see CROSS-FILE DEPENDENCY note in the PR/return):
