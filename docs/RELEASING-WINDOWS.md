@@ -208,10 +208,10 @@ and the WiX maker will sign automatically — no code change needed.
 which uses the free `update.electronjs.org` service. That service has hard
 requirements your setup does **not** currently meet:
 
-1. **Repo must be public.** Your origin (`The-Data-Navigator/data-navigator`) is
+1. **Repo must be public.** Your origin (`aliammari1/data-navigator`) is
    **private**. The service ignores private repos.
 2. **Wrong repo target.** `main.ts` points at `aliammari1/data-navigator`, which is
-   **not** your release origin (`The-Data-Navigator/...`). Even made public, it'd
+   **not** your release origin (`aliammari1/...`). Even made public, it'd
    poll the wrong place.
 3. **Releases must be published, non-draft, non-prerelease, valid SemVer.** Your
    releases are created as **drafts** — they're invisible to the updater until you
