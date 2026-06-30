@@ -1,5 +1,12 @@
 # data-navigator
 
+## 0.1.1
+
+### Patch Changes
+
+- b100904: First release
+- 296a7d2: First Release
+
 ## 1.0.0
 
 ### Major Changes
