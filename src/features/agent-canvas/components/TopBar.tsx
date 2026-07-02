@@ -12,7 +12,7 @@ import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import type { AgentPhase } from "@/features/agent-canvas/core/types";
 import { useShallowSelector } from "@/platform/storage";
 import { cn } from "@/shared/utils";
-
+import { EventType } from "@ag-ui/core";
 const PHASE_COLOR: Record<AgentPhase, string> = {
   idle: "bg-slate-700 text-slate-400",
   "model-load": "bg-violet-900/60 text-violet-300 border-violet-700/50",
@@ -39,8 +39,6 @@ const EVENT_COLOR: Record<string, string> = {
   STEP_FINISHED: "text-blue-400",
   TOOL_CALL_START: "text-amber-400",
   TOOL_CALL_END: "text-amber-300",
-  TEXT_MESSAGE_CONTENT: "text-slate-400",
-  INTERRUPT: "text-rose-400",
   RUN_FINISHED: "text-emerald-300",
   RUN_ERROR: "text-red-400",
   STATE_SNAPSHOT: "text-violet-400",
@@ -132,7 +130,7 @@ export function TopBar({ onReset }: Props) {
         <AnimatePresence initial={false}>
           {latestEvents.map((ev, i) => (
             <motion.div
-              key={`${ev.messageId}-${i}`}
+              key={`${ev.type}-${ev.timestamp}-${i}`}
               initial={{ opacity: 0, x: 20 }}
               animate={{
                 opacity: i === latestEvents.length - 1 ? 1 : 0.4,
@@ -142,19 +140,18 @@ export function TopBar({ onReset }: Props) {
               transition={{ duration: 0.15 }}
               className={cn(
                 "shrink-0 text-[10px] font-mono whitespace-nowrap",
-                EVENT_COLOR[ev.type] ?? "text-slate-600",
-              )}
+                ev.type === EventType.RUN_FINISHED && ev.outcome?.type === "interrupt"
+                  ? "text-rose-400"
+                  : (EVENT_COLOR[ev.type] ?? "text-slate-600"),
+                )}
             >
-              {ev.type === "TEXT_MESSAGE_CONTENT"
-                ? `▸ ${(ev as { delta: string }).delta?.slice(0, 40) ?? ""}`
-                : ev.type === "STEP_STARTED"
-                  ? `⬡ ${(ev as { nodeName: string }).nodeName}`
-                  : ev.type === "TOOL_CALL_START"
-                    ? `⚙ ${(ev as { toolName: string }).toolName}`
-                    : ev.type === "INTERRUPT"
-                      ? `⏸ ${(ev as { reason: string }).reason}`
-                      : ev.type}
-            </motion.div>
+             {ev.type === EventType.STEP_STARTED
+               ? `⬡ ${ev.stepName}`
+               : ev.type === EventType.TOOL_CALL_START
+                 ? `⚙ ${ev.toolCallName}`
+                 : ev.type === EventType.RUN_FINISHED && ev.outcome?.type === "interrupt"
+                   ? "⏸ interrupted"
+                   : ev.type}            </motion.div>
           ))}
         </AnimatePresence>
       </div>

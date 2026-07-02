@@ -5,7 +5,7 @@
 
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
+
 import type { TraceNode } from "@/features/agent-canvas/core/event-bus";
 import type {
   AgentPhase,
@@ -13,6 +13,7 @@ import type {
   DashboardPlan,
   WidgetState,
 } from "@/features/agent-canvas/core/types";
+import { AGUIEvent } from "@ag-ui/core";
 
 // ─── SQL IDE state ────────────────────────────────────────────────────────────
 

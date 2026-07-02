@@ -8,7 +8,7 @@ import { useDuckDBQuery } from "@/core/queries/duckdb";
 import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
 import { buildAttributionFeaturesSql } from "@/features/deep-analytics/lib/sql";
 import { pickColumn, fmtRevenue, fmtInt, fmtPct } from "@/features/deep-analytics/lib/format";
-import { getMLClient } from "@/features/deep-analytics/lib/ml-client";
+import { getAnalysisProxy } from "@/platform/viz/analysis-client";
 import { saveRun } from "@/features/deep-analytics/lib/runs-store";
 import { AnalyticsChart } from "./AnalyticsChart";
 import {
@@ -112,8 +112,9 @@ export function RevenueAttributionModel() {
     try {
       const X = channels.map((c) => [c.volume, c.successRate, c.avgAmount]);
       const y = channels.map((c) => c.revenue);
-      const ml = getMLClient();
-      const result = await ml.attribution(X, y);
+      const proxy = getAnalysisProxy();
+      if (!proxy) throw new Error("Analysis worker unavailable");
+      const result = await proxy.attribution(X, y);;
       setAttr({ shares: result.shares, rSquared: result.rSquared });
       if (source.datasetId) {
         void saveRun("attribution", source.datasetId, {

@@ -20,7 +20,7 @@ import type { ZodType } from "zod";
  *    prompt+repair fallback otherwise.
  */
 
-export type ProviderId = "llamacpp" | "webllm" | "transformers" | "ollama" | "openai";
+export type ProviderId = "llamacpp" | "transformers" | "ollama" | "openai";
 
 export type AIRole = "system" | "user" | "assistant" | "tool";
 
