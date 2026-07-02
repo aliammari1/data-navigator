@@ -1,12 +1,10 @@
 /**
  * Offline statistical insights engine.
  * Powered by simple-statistics for robust math.
- * LLM layer uses the on-device engine when available; falls back to rule-based results.
  */
 
 import * as ss from "simple-statistics";
 import type { ColMeta } from "@/core/stores/data-store";
-import { generateText, isLLMReady } from "@/platform/ai/llm-engine";
 
 // ─── Correlation helper ───────────────────────────────────────────────────────
 
@@ -175,54 +173,7 @@ export async function generateInsights(
   rowCount: number,
   numericData?: Record<string, number[]>,
 ): Promise<Insight[]> {
-  const _numericData = numericData ?? {};
-
-  // Compute basic stats for each numeric column
-  const statsSummary: Record<
-    string,
-    { mean: number; stddev: number; skewness: number; nullPct: number }
-  > = {};
-  for (const [colName, values] of Object.entries(_numericData)) {
-    if (values.length < 2) continue;
-    const nullCol = cols.find((c) => c.name === colName);
-    statsSummary[colName] = {
-      mean: Number(ss.mean(values).toFixed(3)),
-      stddev: Number(ss.sampleStandardDeviation(values).toFixed(3)),
-      skewness: values.length >= 3 ? Number(ss.sampleSkewness(values).toFixed(3)) : 0,
-      nullPct:
-        nullCol && rowCount > 0 ? Number(((nullCol.nullCount / rowCount) * 100).toFixed(1)) : 0,
-    };
-  }
-
-  if (!isLLMReady()) {
-    return ruleBasedInsights(cols, rowCount, _numericData);
-  }
-
-  try {
-    const colNames = cols.map((c) => `${c.name}(${c.type})`).join(", ");
-    const statsJson = JSON.stringify(statsSummary);
-
-    const userPrompt = `Dataset: ${rowCount} rows, columns: ${colNames}. Stats: ${statsJson}`;
-
-    const raw = await generateText(userPrompt, {
-      systemPrompt:
-        "You are a data analyst. Given dataset stats, return 3-5 insights as a JSON array only — no prose, no markdown fences. Schema: [{type, severity, title, description}]. Types: trend|anomaly|correlation|distribution|quality. Severities: info|warning|critical. Be concise.",
-      maxTokens: 600,
-      temperature: 0.3,
-    });
-
-    // Extract JSON array from the response
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("No JSON array in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as Insight[];
-    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Empty or invalid array");
-
-    return parsed;
-  } catch {
-    // LLM failed — return rule-based results so the UI is never empty
-    return ruleBasedInsights(cols, rowCount, _numericData);
-  }
+  return ruleBasedInsights(cols, rowCount, numericData ?? {});
 }
 // ─── Chart type recommender ───────────────────────────────────────────────────
 
@@ -294,36 +245,4 @@ export async function recommendCharts(
   cols: ColMeta[],
   rowCount?: number,
 ): Promise<ChartRecommendation[]> {
-  if (!isLLMReady()) {
-    return ruleBasedCharts(cols, rowCount ?? 0);
-  }
-
-  try {
-    const colSchema = cols
-      .map((c) => {
-        const extras: string[] = [];
-        if (c.distinctCount) extras.push(`${c.distinctCount} distinct`);
-        return `${c.name}(${c.type}${extras.length ? `, ${extras.join(", ")}` : ""})`;
-      })
-      .join("; ");
-
-    const userPrompt = `Columns: ${colSchema}. Row count: ${rowCount ?? "unknown"}.`;
-
-    const raw = await generateText(userPrompt, {
-      systemPrompt:
-        "You are a data visualisation expert. Given column schema, recommend 2-3 chart types as a JSON array only — no prose, no markdown fences. Schema: [{type, title, reason, xCol, yCol, confidence}]. type must be one of: bar|line|scatter|pie|heatmap|histogram|box. confidence is 0-1.",
-      maxTokens: 400,
-      temperature: 0.3,
-    });
-
-    const jsonMatch = raw.match(/\[[\s\S]*\]/);
-    if (!jsonMatch) throw new Error("No JSON array in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as ChartRecommendation[];
-    if (!Array.isArray(parsed) || parsed.length === 0) throw new Error("Empty or invalid array");
-
-    return parsed;
-  } catch {
-    return ruleBasedCharts(cols, rowCount ?? 0);
-  }
-}
+return ruleBasedCharts(cols, rowCount ?? 0);}

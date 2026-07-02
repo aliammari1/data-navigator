@@ -6,8 +6,6 @@
  * NOTE: No "use client" — this module may run in a worker or server context.
  */
 
-import { generateText, isLLMReady } from "@/platform/ai/llm-engine";
-
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ReportSummary {
@@ -100,56 +98,7 @@ export async function generateReportSummary(
   topChannels: ChannelStat[],
   date?: string,
 ): Promise<ReportSummary> {
-  const fallback = ruleBasedSummary(statusSummary, topChannels, date);
-
-  if (!isLLMReady()) {
-    return fallback;
-  }
-
-  try {
-    const successRate =
-      statusSummary.total > 0
-        ? ((statusSummary.reussie / statusSummary.total) * 100).toFixed(1)
-        : "0";
-
-    const channelList = topChannels
-      .slice(0, 5)
-      .map((c) => `${c.canal}: ${c.nombre} txns, ${c.montant.toLocaleString()} amount`)
-      .join("; ");
-
-    const userPrompt =
-      `Date: ${date ?? "today"}. ` +
-      `Total: ${statusSummary.total}, ` +
-      `Success: ${statusSummary.reussie} (${successRate}%), ` +
-      `Cancellations: ${statusSummary.annulation}, ` +
-      `In-progress: ${statusSummary.instance}, ` +
-      `Failed: ${statusSummary.echec}. ` +
-      `Top channels: ${channelList}.`;
-
-    const raw = await generateText(userPrompt, {
-      systemPrompt:
-        "You are a telecom analyst. Analyze this daily transaction report and return JSON only — no prose, no markdown fences. Schema: {narrative, topChannels: string[], flags: string[], recommendation}. narrative: 2-3 sentences. topChannels: top 3 channel names. flags: up to 3 warning strings. recommendation: one actionable sentence.",
-      maxTokens: 500,
-      temperature: 0.3,
-    });
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as ReportSummary;
-    if (!parsed.narrative) throw new Error("Missing narrative field");
-
-    return {
-      narrative: parsed.narrative,
-      topChannels: Array.isArray(parsed.topChannels)
-        ? parsed.topChannels.slice(0, 3)
-        : fallback.topChannels,
-      flags: Array.isArray(parsed.flags) ? parsed.flags.slice(0, 3) : fallback.flags,
-      recommendation: parsed.recommendation ?? fallback.recommendation,
-    };
-  } catch {
-    return fallback;
-  }
+return ruleBasedSummary(statusSummary, topChannels, date);
 }
 
 /**
@@ -162,49 +111,8 @@ export async function askReportQuestion(
   columns: string[],
 ): Promise<{ sql: string; explanation: string }> {
   // Sensible fallback: show first 100 rows
-  const fallback = {
+  return {
     sql: `SELECT * FROM "${tableName}" LIMIT 100`,
     explanation: "Could not generate a specific query — showing first 100 rows.",
   };
-
-  if (!isLLMReady()) {
-    return fallback;
-  }
-
-  try {
-    const colList = columns.join(", ");
-
-    const userPrompt =
-      `Table: ${tableName}\n` +
-      `Columns: ${colList}\n` +
-      `Key columns: TRANSACTION_ID, TRANSACTION_DATE, ORIGINAL_AMOUNT, TRANSACTION_STATUS, BRAND_NAME, ACCOUNT_NAME, CHANNEL, NET_DEBIT_AMOUNT_SOURCE, SALES_PERSON\n` +
-      `Question: ${question}`;
-
-    const raw = await generateText(userPrompt, {
-      systemPrompt:
-        "You are a DuckDB SQL expert. Generate a DuckDB-compatible SQL query for the telecom transaction table. Return JSON only — no prose, no markdown fences. Schema: {sql, explanation}. Always include LIMIT 1000 if the query returns rows. Use double quotes for column and table names.",
-      maxTokens: 400,
-      temperature: 0.2,
-    });
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
-      sql: string;
-      explanation: string;
-    };
-    if (!parsed.sql) throw new Error("Missing sql field");
-
-    // Ensure LIMIT 1000 is present
-    const trimmed = parsed.sql.trim().replace(/;$/, "");
-    const sql = /\bLIMIT\s+\d+/i.test(trimmed) ? trimmed : `${trimmed} LIMIT 1000`;
-
-    return {
-      sql,
-      explanation: parsed.explanation ?? "",
-    };
-  } catch {
-    return fallback;
-  }
 }

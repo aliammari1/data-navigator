@@ -28,12 +28,12 @@ import {
 import { CohortAnalysis } from "@/features/deep-analytics/components/CohortAnalysis";
 import { RevenueAttributionModel } from "@/features/deep-analytics/components/RevenueAttributionModel";
 import { fmtBucket, fmtInt, fmtRevenue, pickColumn } from "@/features/deep-analytics/lib/format";
-import { getMLClient } from "@/features/deep-analytics/lib/ml-client";
+import { getAnalysisProxy } from "@/platform/viz/analysis-client";
 import { loadRun, saveRun } from "@/features/deep-analytics/lib/runs-store";
 import { buildClusterSampleSql, buildPeriodMetricsSql } from "@/features/deep-analytics/lib/sql";
 import { significanceFromP, welchTTest } from "@/features/deep-analytics/lib/stats";
 import { useAnalyticsSource } from "@/features/deep-analytics/lib/use-analytics-source";
-import type { KMeansResult } from "@/features/deep-analytics/workers/analytics.worker";
+import type { KMeansResult } from "@/workers/analysis.worker";
 import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
 import { useWindowId } from "@/features/desktop/core/menu/window-context";
 import { cn } from "@/shared/utils";
@@ -167,8 +167,9 @@ function ClusterAnalysis() {
     setRunError(null);
     try {
       const features = points.map((p) => [p.x, p.y]);
-      const ml = getMLClient();
-      const res = await ml.kMeans(features, { k, maxIterations: 50, seed: 42 });
+      const proxy = getAnalysisProxy();
+      if (!proxy) throw new Error("Analysis worker unavailable");
+      const res = await proxy.kMeans(features, { k, maxIterations: 50, seed: 42 });
       setResult(res);
       // Persist the chosen k + run metadata for reproducible reloads.
       if (source.datasetId) {

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
-import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
 
 import { TopBar } from "@/features/agent-canvas/components/TopBar";
+import {  AGUIEvent, EventType } from "@ag-ui/core";
 
 /**
  * TopBar reads everything (phase, model, ticker, stats) from the global
@@ -16,13 +16,13 @@ type StoreSeed = Partial<ReturnType<typeof useAgentStore.getState>>;
 
 const buildTicker = (): AGUIEvent[] =>
   [
-    { type: "RUN_STARTED", messageId: "m1" },
-    { type: "STEP_STARTED", messageId: "m2", nodeName: "schema" },
-    { type: "TOOL_CALL_START", messageId: "m3", toolName: "duckdb_query" },
-    { type: "TOOL_CALL_END", messageId: "m4" },
-    { type: "STEP_FINISHED", messageId: "m5" },
-    { type: "TEXT_MESSAGE_CONTENT", messageId: "m6", delta: "Revenue grew 12% MoM" },
-  ] as unknown as AGUIEvent[];
+    { type: EventType.RUN_STARTED, messageId: "m1" },
+    { type: EventType.STEP_STARTED, messageId: "m2", nodeName: "schema" },
+    { type: EventType.TOOL_CALL_START, messageId: "m3", toolName: "duckdb_query" },
+    { type: EventType.TOOL_CALL_END, messageId: "m4" },
+    { type: EventType.STEP_FINISHED, messageId: "m5" },
+    { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m6", delta: "Revenue grew 12% MoM" },
+  ]   as AGUIEvent[];
 
 const seedStore = (seed: StoreSeed) => {
   useAgentStore.getState().reset();
