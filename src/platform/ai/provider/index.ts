@@ -13,8 +13,7 @@ export { llamacppProvider } from "./adapters/llamacpp";
 export { ollamaProvider } from "./adapters/ollama";
 export { openaiProvider } from "./adapters/openai";
 export { transformersProvider } from "./adapters/transformers";
-export { isWebLLMOptIn, setWebLLMOptIn, webllmProvider } from "./adapters/webllm";
-export {
+ export {
   detectAvailability,
   getProvider,
   listProviders,

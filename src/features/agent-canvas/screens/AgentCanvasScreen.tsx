@@ -23,14 +23,12 @@ import {
   ResizablePanelGroup as PanelGroup,
   ResizableHandle as PanelResizeHandle,
 } from "@/components/ui/resizable";
-import { makeCtx, makeEvent } from "@/features/agent-canvas/core/ag-ui-types";
 import { useAgentStore } from "@/features/agent-canvas/core/agent-store";
 import { resetAI } from "@/features/agent-canvas/core/ai-bridge";
 import {
   buildTraceTree,
   clearEventLog,
   getEventLog,
-  publishEvent,
   subscribeEvents,
 } from "@/features/agent-canvas/core/event-bus";
 import { runPipeline } from "@/features/agent-canvas/core/pipeline";
@@ -242,15 +240,8 @@ export default function AgentCanvasScreen() {
       s.setRunning(true);
       s.setPhase("schema");
 
-      const ctx = makeCtx(s.model);
-      s.setThreadId(ctx.threadId);
-      publishEvent(
-        makeEvent(ctx, {
-          type: "RUN_STARTED",
-          model: s.model,
-          input: { tableName },
-        }),
-      );
+     const threadId = crypto.randomUUID();
+     s.setThreadId(threadId);
 
       // Set up flow nodes
       s.setFlowNodes([
@@ -278,6 +269,7 @@ export default function AgentCanvasScreen() {
         const handle = await runPipeline({
           tableName,
           model: s.model,
+          threadId,
           onWidget: handleWidget,
           onThought: handleThought,
           onPlan: handlePlan,

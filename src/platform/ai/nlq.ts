@@ -6,7 +6,7 @@
 
 import Fuse from "fuse.js";
 import type { ColMeta } from "@/core/stores/data-store";
-import { generateText, isLLMReady } from "@/platform/ai/llm-engine";
+
 
 interface NLQContext {
   tableName: string;
@@ -535,56 +535,14 @@ export function suggestQuestions(ctx: NLQContext): string[] {
 }
 
 // ─── LLM-powered NLQ fallback ─────────────────────────────────────────────────
-
-/**
- * Translate a natural language question to SQL.
- * 1. Tries the fast pattern-matcher first.
- * 2. If confidence is "low" AND the LLM is ready, upgrades with the LLM.
- * 3. Falls back to the original low-confidence result if the LLM fails.
- * Always ensures LIMIT 1000 is present.
- */
-export async function translateNLQWithLLM(
-  question: string,
-  ctx: { tableName: string; columns: ColMeta[] },
-): Promise<NLQResult> {
-  const patternResult = translateNLQ(question, ctx);
-
-  if (patternResult.confidence !== "low") {
-    return patternResult;
-  }
-
-  if (!isLLMReady()) {
-    return patternResult;
-  }
-
-  try {
-    const colList = ctx.columns.map((c) => `${c.name} (${c.type})`).join(", ");
-
-    const userPrompt = `Table: ${ctx.tableName}\nColumns: ${colList}\nQuestion: ${question}`;
-
-    const raw = await generateText(userPrompt, {
-      systemPrompt:
-        'You are a SQL expert. Generate DuckDB-compatible SQL for the given question. Return JSON only — no prose, no markdown fences. Schema: {sql, explanation, confidence, chartSuggestion}. confidence must be "high"|"medium"|"low". chartSuggestion must be one of: bar|line|pie|scatter|table|number.',
-      maxTokens: 400,
-      temperature: 0.2,
-    });
-
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as NLQResult;
-    if (!parsed.sql) throw new Error("Missing sql field");
-
-    // Guarantee LIMIT 1000
-    const sql = addLimit(parsed.sql, 1000);
-
-    return {
-      sql,
-      explanation: parsed.explanation ?? "",
-      confidence: parsed.confidence ?? "medium",
-      chartSuggestion: parsed.chartSuggestion,
-    };
-  } catch {
-    return patternResult;
-  }
-}
+ /**
+  * Translate a natural language question to SQL via the pattern-matcher.
+  * (Previously had an LLM-upgrade fallback via web-llm/WebGPU — removed;
+  * that path was unreachable in practice, see ADR/audit notes.)
+  */
+ export async function translateNLQWithLLM(
+   question: string,
+   ctx: { tableName: string; columns: ColMeta[] },
+ ): Promise<NLQResult> {
+   return translateNLQ(question, ctx);
+ }

@@ -19,7 +19,7 @@ export function ModelStatusBar({ onWarm, warming }: { onWarm?: () => void; warmi
   const { providerId, progress, availability } = useAI();
 
   const offlineCapable = availability.some(
-    (a) => a.available && (a.id === "transformers" || a.id === "webllm"),
+    (a) => a.available && (a.id === "transformers"  ),
   );
   const status = progress.status;
   const loading = status === "loading" || warming;
@@ -29,9 +29,7 @@ export function ModelStatusBar({ onWarm, warming }: { onWarm?: () => void; warmi
   const providerLabel =
     providerId === "transformers"
       ? "Transformers.js (WASM/WebGPU)"
-      : providerId === "webllm"
-        ? "WebLLM (WebGPU)"
-        : providerId === "ollama"
+  : providerId === "ollama"
           ? "Ollama (local)"
           : providerId === "openai"
             ? "OpenAI-compatible"

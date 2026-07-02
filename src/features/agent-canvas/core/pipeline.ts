@@ -10,12 +10,27 @@
  *         → sql_fan_out (sequential — single LLM worker)
  *         → narrator_node → END
  *
- * Architecture note: `AgentState` holds ONLY serializable data — no callback
- * closures. UI callbacks live in a thread-scoped sink registry (`SINKS`), so the
- * `MemorySaver` checkpointer can actually round-trip state for pause / replay /
- * crash-recovery. The graph emits AG-UI events via publishEvent() and pushes
- * data to the registered sink; the React layer reads both. Resume is driven by
- * `Command({ resume })`, the correct LangGraph interrupt-resume primitive.
+ * Streaming: nodes call config.writer?.(...) — LangGraph's own primitive for
+ * emitting data mid-node — and the caller consumes graph.stream(input,
+ * { streamMode: ["updates", "custom"] }). "updates" chunks arrive
+ * automatically whenever a node returns, carrying its state delta, so
+ * onPlan/onNarrative etc. are driven directly from that — nodes never call a
+ * UI callback themselves. "custom" chunks (config.writer output) cover the
+ * things node-return granularity can't: step-started, per-widget progress,
+ * tool calls, thoughts. Both docs:
+ * https://docs.langchain.com/oss/javascript/langgraph/streaming
+ *
+ * Interrupt handling is native too: after interrupt() pauses the graph, the
+ * pending value is read straight off getState().tasks[].interrupts[].value
+ * — no custom interrupt event needs to be written from inside the node.
+ *
+ * Event shapes (STEP_STARTED, TOOL_CALL_START, etc.) are @ag-ui/core's real
+ * types, imported directly — the union lives in event-bus.ts.
+ *
+ * Why not the official @ag-ui/langgraph adapter: it connects to a real
+ * LangGraph Agent Server (Docker + Postgres + Redis + a LangSmith API key,
+ * even for local dev per LangChain's own deployment docs). This graph runs
+ * in-process inside Electron main with no such deployment.
  */
 
 import {
@@ -27,12 +42,12 @@ import {
   MemorySaver,
   START,
   StateGraph,
+  type LangGraphRunnableConfig,
 } from "@langchain/langgraph";
+import { EventType } from "@ag-ui/core";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
-import type { AGUIThreadContext } from "./ag-ui-types";
-import { makeCtx, makeEvent } from "./ag-ui-types";
 import { buildEChartsOption, buildKPICards, buildTableData } from "./charts";
-import { publishEvent } from "./event-bus";
+import { publishEvent, type AGUIEvent } from "./event-bus";
 import { buildPlan } from "./planner";
 import { analyzeSchema } from "./schema";
 import { generateInsight, generateSQL } from "./sql";
@@ -44,25 +59,6 @@ import type {
   WidgetSpec,
   WidgetState,
 } from "./types";
-
-// ─── Thread-scoped UI sinks (kept OUT of graph state) ─────────────────────────
-
-interface PipelineSink {
-  ctx: AGUIThreadContext;
-  onWidget: (w: WidgetState) => void;
-  onThought: (t: AgentThought) => void;
-  onPlan: (p: DashboardPlan) => void;
-  onNarrative: (n: string) => void;
-  onInterrupt: (reason: string, payload: unknown) => void;
-  onDone: () => void;
-  onError?: (message: string) => void;
-}
-
-const SINKS = new Map<string, PipelineSink>();
-
-function sinkFor(state: State): PipelineSink | undefined {
-  return state.threadId ? SINKS.get(state.threadId) : undefined;
-}
 
 // ─── Graph state schema (DATA ONLY — fully serializable) ──────────────────────
 
@@ -93,12 +89,8 @@ const AgentState = Annotation.Root({
 
 type State = typeof AgentState.State;
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// ─── App-domain helpers (not AG-UI / LangGraph glue) ───────────────────────
 
-// Upstream nodes (schema_analysis / planner) always populate these channels
-// before the nodes below run, so these guards are defensive narrowing rather
-// than expected runtime paths. They replace non-null assertions while keeping
-// the same crash-on-misuse behavior an `x!` deref would have produced.
 function requireSchema(state: State): DataSchema {
   if (!state.schema) throw new Error("pipeline: schema not analyzed yet");
   return state.schema;
@@ -114,64 +106,57 @@ function mkThought(agent: string, kind: ThoughtKind, text: string): AgentThought
   return { id: `t${++_seq}`, agent, kind, text, ts: Date.now() };
 }
 
-function emitThought(state: State, agent: string, kind: ThoughtKind, text: string): AgentThought {
-  const t = mkThought(agent, kind, text);
-  const sink = sinkFor(state);
-  sink?.onThought(t);
-  if (sink) {
-    publishEvent(
-      makeEvent(sink.ctx, {
-        type: "TEXT_MESSAGE_CONTENT",
-        delta: `[${agent}] ${text}`,
-      }),
-    );
-  }
-  return t;
-}
-
-function emitStepStart(state: State, nodeName: string) {
-  const sink = sinkFor(state);
-  if (!sink) return;
-  publishEvent(makeEvent(sink.ctx, { type: "STEP_STARTED", nodeName, phase: nodeName }));
-}
-
-function emitStepEnd(state: State, nodeName: string, duration: number) {
-  const sink = sinkFor(state);
-  if (!sink) return;
-  publishEvent(makeEvent(sink.ctx, { type: "STEP_FINISHED", nodeName, duration }));
-}
-
 // ─── Nodes ────────────────────────────────────────────────────────────────────
+// Every node writes progress via config.writer — LangGraph's own mid-node
+// streaming primitive — using plain object literals typed against
+// @ag-ui/core's real event shapes. Nothing here is a wrapper function.
 
-async function schemaNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "schema");
+async function schemaNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  // stepName MUST equal the graph node name ("schema_analysis", not "schema"):
+  // STEP_FINISHED is derived in drive() from the "updates" chunk, which is
+  // keyed by node name — a mismatch leaves the trace node "running" forever.
+  config.writer?.({
+    type: EventType.STEP_STARTED,
+    stepName: "schema_analysis",
+    timestamp: Date.now(),
+  });
   const thoughts: AgentThought[] = [];
 
   const schema = await analyzeSchema(state.tableName, (text) => {
-    thoughts.push(emitThought(state, "SchemaAgent", "think", text));
+    const t = mkThought("SchemaAgent", "think", text);
+    thoughts.push(t);
+    config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
   });
 
-  thoughts.push(
-    emitThought(
-      state,
-      "SchemaAgent",
-      "ok",
-      `Schema ready: ${schema.category} | ${schema.dimensions.length} dims | ${schema.metrics.length} metrics`,
-    ),
+  const done = mkThought(
+    "SchemaAgent",
+    "ok",
+    `Schema ready: ${schema.category} | ${schema.dimensions.length} dims | ${schema.metrics.length} metrics`,
   );
-  emitStepEnd(state, "schema", Date.now() - t0);
+  thoughts.push(done);
+  config.writer?.({ type: EventType.CUSTOM, name: "thought", value: done, timestamp: Date.now() });
+
   return { schema, thoughts };
 }
 
-async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "react_sql_loop");
+async function reactSqlLoopNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({
+    type: EventType.STEP_STARTED,
+    stepName: "react_sql_loop",
+    timestamp: Date.now(),
+  });
   const thoughts: AgentThought[] = [];
   const schema = requireSchema(state);
-  const sink = sinkFor(state);
 
-  // ReAct: a few read-only exploration queries to ground later steps.
+  // ReAct: a few read-only exploration queries to ground later steps. These
+  // are internal grounding, not agent-visible tool calls, so they surface as
+  // thoughts only — real tool calls belong to sql_fan_out (see buildWidget).
   const explorations = [
     `SELECT COUNT(*) as total, ${schema.dimensions[0] ? `COUNT(DISTINCT "${schema.dimensions[0]}")` : "1"} as dim_count FROM "${state.tableName}"`,
     schema.metrics[0]
@@ -184,69 +169,47 @@ async function reactSqlLoopNode(state: State): Promise<Partial<State>> {
 
   for (const sql of explorations) {
     try {
-      if (sink) {
-        publishEvent(
-          makeEvent(sink.ctx, {
-            type: "TOOL_CALL_START",
-            toolCallId: `explore-${Date.now()}`,
-            toolName: "query_data",
-            parentNode: "react_sql_loop",
-          }),
-        );
-      }
       const rows = await runReadOnlyQuery(sql);
-      thoughts.push(emitThought(state, "ReActAgent", "exec", `query_data → ${rows.length} rows`));
+      const t = mkThought("ReActAgent", "exec", `query_data → ${rows.length} rows`);
+      thoughts.push(t);
+      config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
     } catch {
       /* skip failed explorations */
     }
   }
 
-  emitStepEnd(state, "react_sql_loop", Date.now() - t0);
   return { thoughts };
 }
 
-async function plannerNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "planner");
+async function plannerNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({ type: EventType.STEP_STARTED, stepName: "planner", timestamp: Date.now() });
   const thoughts: AgentThought[] = [];
-  const sink = sinkFor(state);
 
   const plan = await buildPlan(requireSchema(state), (text) => {
-    thoughts.push(emitThought(state, "PlannerAgent", "plan", text));
+    const t = mkThought("PlannerAgent", "plan", text);
+    thoughts.push(t);
+    config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
   });
 
-  sink?.onPlan(plan);
-  if (sink) {
-    publishEvent(makeEvent(sink.ctx, { type: "STATE_SNAPSHOT", snapshot: { plan } }));
-  }
-
-  thoughts.push(
-    emitThought(
-      state,
-      "PlannerAgent",
-      "ok",
-      `Plan: "${plan.title}" — ${plan.widgets.length} widgets`,
-    ),
+  const done = mkThought(
+    "PlannerAgent",
+    "ok",
+    `Plan: "${plan.title}" — ${plan.widgets.length} widgets`,
   );
-  emitStepEnd(state, "planner", Date.now() - t0);
+  thoughts.push(done);
+  config.writer?.({ type: EventType.CUSTOM, name: "thought", value: done, timestamp: Date.now() });
+
   return { plan, thoughts };
 }
 
+// Pure LangGraph node — no AG-UI code at all. interrupt() pauses the graph;
+// the caller (drive(), below) reads the pending value natively off
+// getState() once the stream stops, rather than the node announcing it.
 async function humanInterruptNode(state: State): Promise<Partial<State>> {
   const plan = requirePlan(state);
-  const sink = sinkFor(state);
-  sink?.onInterrupt("plan-review", plan);
-  if (sink) {
-    publishEvent(
-      makeEvent(sink.ctx, {
-        type: "INTERRUPT",
-        reason: "plan-review",
-        payload: plan,
-      }),
-    );
-  }
-
-  // LangGraph interrupt() — graph pauses here until resumed with a Command.
   const decision = interrupt({ reason: "plan-review", plan }) as {
     action: "approve" | "revise";
     plan?: DashboardPlan;
@@ -258,14 +221,15 @@ async function humanInterruptNode(state: State): Promise<Partial<State>> {
   return { approved: true };
 }
 
-async function critiqueNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "critique");
+async function critiqueNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({ type: EventType.STEP_STARTED, stepName: "critique", timestamp: Date.now() });
   const thoughts: AgentThought[] = [];
 
   const count = state.critiqueCount ?? 0;
   if (count >= 3 || state.approved) {
-    emitStepEnd(state, "critique", Date.now() - t0);
     return { approved: true, critiqueCount: count, thoughts };
   }
 
@@ -279,23 +243,26 @@ async function critiqueNode(state: State): Promise<Partial<State>> {
     issues.push("Add at least one trend chart");
 
   if (issues.length === 0) {
-    thoughts.push(emitThought(state, "CritiqueAgent", "ok", "Plan passes quality check"));
-    emitStepEnd(state, "critique", Date.now() - t0);
+    const t = mkThought("CritiqueAgent", "ok", "Plan passes quality check");
+    thoughts.push(t);
+    config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
     return { approved: true, critiqueCount: count + 1, thoughts };
   }
 
-  thoughts.push(emitThought(state, "CritiqueAgent", "warn", `Issues: ${issues.join("; ")}`));
-  emitStepEnd(state, "critique", Date.now() - t0);
+  const t = mkThought("CritiqueAgent", "warn", `Issues: ${issues.join("; ")}`);
+  thoughts.push(t);
+  config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
   return { approved: false, critiqueCount: count + 1, thoughts };
 }
 
-async function reviseNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "revise");
+async function reviseNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({ type: EventType.STEP_STARTED, stepName: "revise", timestamp: Date.now() });
   const thoughts: AgentThought[] = [];
   const plan = requirePlan(state);
   const schema = requireSchema(state);
-  const sink = sinkFor(state);
 
   const hasKPI = plan.widgets.some((w) => w.chartType === "kpi-grid");
   const hasBar = plan.widgets.some((w) => w.chartType === "bar");
@@ -331,56 +298,77 @@ async function reviseNode(state: State): Promise<Partial<State>> {
     widgets: [...additions, ...plan.widgets],
   };
 
-  thoughts.push(
-    emitThought(state, "ReviseAgent", "ok", `Revised plan: +${additions.length} widgets`),
-  );
-  sink?.onPlan(revised);
-  emitStepEnd(state, "revise", Date.now() - t0);
+  const t = mkThought("ReviseAgent", "ok", `Revised plan: +${additions.length} widgets`);
+  thoughts.push(t);
+  config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
+
   return { plan: revised, thoughts };
 }
 
 async function buildWidget(
   state: State,
+  config: LangGraphRunnableConfig,
   spec: WidgetSpec,
 ): Promise<{ widget: WidgetState; thoughts: AgentThought[] }> {
   const schema = requireSchema(state);
   const thoughts: AgentThought[] = [];
-  const sink = sinkFor(state);
 
-  sink?.onWidget({ spec, status: "querying" });
+  config.writer?.({
+    type: EventType.CUSTOM,
+    name: "widget",
+    value: { spec, status: "querying" },
+    timestamp: Date.now(),
+  });
 
-  // SQL generation (grammar-aware via the provider registry; EXPLAIN-validated).
   let sql = "";
   try {
     sql = await generateSQL(spec, schema, (text) => {
-      thoughts.push(emitThought(state, `Widget[${spec.id}]`, "sql", text));
+      const t = mkThought(`Widget[${spec.id}]`, "sql", text);
+      thoughts.push(t);
+      config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
     });
   } catch (err) {
     const w: WidgetState = { spec, status: "error", error: String(err) };
-    sink?.onWidget(w);
+    config.writer?.({ type: EventType.CUSTOM, name: "widget", value: w, timestamp: Date.now() });
     return { widget: w, thoughts };
   }
 
-  // Execute (read-only; DuckDB worker).
+  // This app's one real, externally-visible tool call — full
+  // TOOL_CALL_START → TOOL_CALL_END → TOOL_CALL_RESULT triad per the
+  // real @ag-ui/core protocol (END signals args complete; RESULT carries
+  // the output).
+  const toolCallId = `sql-${spec.id}`;
+  config.writer?.({
+    type: EventType.TOOL_CALL_START,
+    toolCallId,
+    toolCallName: "execute_query",
+    timestamp: Date.now(),
+  });
+
   let rawData: Record<string, unknown>[] = [];
   try {
     rawData = await runReadOnlyQuery(sql);
-    if (sink) {
-      publishEvent(
-        makeEvent(sink.ctx, {
-          type: "TOOL_CALL_END",
-          toolCallId: `sql-${spec.id}`,
-          result: { rows: rawData.length },
-        }),
-      );
-    }
+    config.writer?.({ type: EventType.TOOL_CALL_END, toolCallId, timestamp: Date.now() });
+    config.writer?.({
+      type: EventType.TOOL_CALL_RESULT,
+      messageId: crypto.randomUUID(),
+      toolCallId,
+      content: JSON.stringify({ rows: rawData.length }),
+      role: "tool",
+      timestamp: Date.now(),
+    });
   } catch (err) {
     const w: WidgetState = { spec, status: "error", sql, error: String(err) };
-    sink?.onWidget(w);
+    config.writer?.({ type: EventType.CUSTOM, name: "widget", value: w, timestamp: Date.now() });
     return { widget: w, thoughts };
   }
 
-  sink?.onWidget({ spec, status: "building", sql, rawData });
+  config.writer?.({
+    type: EventType.CUSTOM,
+    name: "widget",
+    value: { spec, status: "building", sql, rawData },
+    timestamp: Date.now(),
+  });
 
   let echartsOption: Record<string, unknown> | undefined;
   let kpis: WidgetState["kpis"];
@@ -401,7 +389,6 @@ async function buildWidget(
     /* partial build ok */
   }
 
-  // Emit the finished widget ONCE so the canvas renders it immediately.
   const base: WidgetState = {
     spec,
     status: "done",
@@ -412,47 +399,47 @@ async function buildWidget(
     tableHeaders,
     tableRows,
   };
-  sink?.onWidget(base);
+  config.writer?.({ type: EventType.CUSTOM, name: "widget", value: base, timestamp: Date.now() });
 
-  // Insight is a clearly-separated AWAITED enrich step (no fire-and-forget
-  // `.then()` double-render). It serializes on the single LLM worker anyway.
   const insight = await generateInsight(spec, rawData, (text) => {
-    thoughts.push(emitThought(state, `Widget[${spec.id}]`, "insight", text));
+    const t = mkThought(`Widget[${spec.id}]`, "insight", text);
+    thoughts.push(t);
+    config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
   }).catch(() => "");
 
   const w: WidgetState = insight ? { ...base, insight } : base;
-  if (insight) sink?.onWidget(w);
+  if (insight) config.writer?.({ type: EventType.CUSTOM, name: "widget", value: w, timestamp: Date.now() });
 
   return { widget: w, thoughts };
 }
 
-async function sqlFanOutNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "sql_fan_out");
+async function sqlFanOutNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({ type: EventType.STEP_STARTED, stepName: "sql_fan_out", timestamp: Date.now() });
 
   const widgets: WidgetState[] = [];
   const allThoughts: AgentThought[] = [];
 
   // Build widgets SEQUENTIALLY. Both SQL-gen and insight-gen are LLM-bound and
-  // there is exactly ONE global LLM worker, so they serialize on it regardless;
-  // an unbounded `Promise.all` only thrashes the worker and the main thread
-  // (6-9 simultaneous chart mounts). CONC=1 here is both correct and faster.
+  // there is exactly ONE global LLM worker, so they serialize on it regardless.
   const specs = state.plan?.widgets ?? [];
   for (const spec of specs) {
-    const { widget, thoughts } = await buildWidget(state, spec);
+    const { widget, thoughts } = await buildWidget(state, config, spec);
     widgets.push(widget);
     allThoughts.push(...thoughts);
   }
 
-  emitStepEnd(state, "sql_fan_out", Date.now() - t0);
   return { widgets, thoughts: allThoughts };
 }
 
-async function narratorNode(state: State): Promise<Partial<State>> {
-  const t0 = Date.now();
-  emitStepStart(state, "narrator");
+async function narratorNode(
+  state: State,
+  config: LangGraphRunnableConfig,
+): Promise<Partial<State>> {
+  config.writer?.({ type: EventType.STEP_STARTED, stepName: "narrator", timestamp: Date.now() });
   const thoughts: AgentThought[] = [];
-  const sink = sinkFor(state);
 
   const done = state.widgets.filter((w) => w.status === "done").length;
   const total = state.widgets.length;
@@ -477,20 +464,10 @@ async function narratorNode(state: State): Promise<Partial<State>> {
       .map((w) => `- **${w.spec.title}**: ${w.insight}`),
   ].join("\n");
 
-  sink?.onNarrative(summary);
-  thoughts.push(emitThought(state, "NarratorAgent", "ok", "Executive narrative ready"));
+  const t = mkThought("NarratorAgent", "ok", "Executive narrative ready");
+  thoughts.push(t);
+  config.writer?.({ type: EventType.CUSTOM, name: "thought", value: t, timestamp: Date.now() });
 
-  if (sink) {
-    publishEvent(
-      makeEvent(sink.ctx, {
-        type: "RUN_FINISHED",
-        totalTokens: 0,
-        totalDuration: Date.now() - t0,
-      }),
-    );
-  }
-
-  emitStepEnd(state, "narrator", Date.now() - t0);
   return { narrative: summary, thoughts };
 }
 
@@ -528,10 +505,9 @@ function buildGraph() {
   g.addEdge("sql_fan_out", "narrator");
   g.addEdge("narrator", END);
 
-  // No `interruptBefore`: the `human_interrupt` node runs (firing the UI prompt
-  // + INTERRUPT event), THEN its dynamic `interrupt()` pauses the graph. This is
-  // the correct modern pattern — `interruptBefore` would have skipped the node
-  // body, so the review prompt never fired before the pause.
+  // No `interruptBefore`: the `human_interrupt` node runs, THEN its dynamic
+  // `interrupt()` pauses the graph. `interruptBefore` would have skipped the
+  // node body entirely.
   return g.compile({ checkpointer });
 }
 
@@ -563,89 +539,147 @@ export interface PipelineHandle {
   dispose: () => void;
 }
 
-// The exact input the compiled graph accepts: its inferred `UpdateType`
-// (a partial of the channel keys) OR a resume `CommandInstance`. Deriving it
-// from the graph's own `stream` signature keeps it in lock-step with the
-// annotation, so a plain `Partial<State>` (e.g. `{ threadId, tableName }`) and
-// `new Command({ resume })` both type-check without widening the call site.
 type GraphInput = Parameters<ReturnType<typeof buildGraph>["stream"]>[0];
 
 /**
- * Drive the graph to completion (or to the first interrupt), translating
- * checkpoints into UI calls via the thread-scoped sink. Returns once the run
- * pauses at the human-review interrupt or finishes.
+ * Drive the graph to completion (or to the first interrupt). Consumes
+ * graph.stream() with streamMode ["updates", "custom"] — LangGraph's own
+ * combined streaming mode — and dispatches to the caller's callbacks
+ * directly from the chunks it yields. No sink registry: this function has
+ * the callbacks in closure already, since it's the one place watching the
+ * stream.
  */
 async function drive(
   graph: ReturnType<typeof buildGraph>,
   input: GraphInput,
   config: { configurable: { thread_id: string } },
-  sink: PipelineSink,
+  opts: PipelineOptions,
+  ids: { threadId: string; runId: string },
 ): Promise<"interrupted" | "done"> {
   try {
-    // streamMode "updates" surfaces each node's delta; we only need to pump the
-    // graph — the per-node sink calls already pushed the data to the UI.
     const stream = await graph.stream(input, {
       ...config,
-      streamMode: "updates",
+      streamMode: ["updates", "custom"],
     });
-    // Pump the graph to completion (or first interrupt). The per-node sink calls
-    // already pushed data to the UI; we only need to drain the stream here.
-    for await (const _ of stream) {
-      // intentionally empty — side effects happen in nodes
+
+    for await (const [mode, payload] of stream) {
+      if (mode === "custom") {
+        const event = payload as AGUIEvent;
+        if (event.type === EventType.CUSTOM && event.name === "widget") {
+          // Dispatch-only: WidgetState embeds rawData (potentially hundreds
+          // of rows per widget). No projection reads widget events, so
+          // publishing them would only bloat the append-only log and the
+          // store's eventTicker.
+          opts.onWidget(event.value as WidgetState);
+          continue;
+        }
+        publishEvent(event);
+        if (event.type === EventType.CUSTOM && event.name === "thought") {
+          opts.onThought(event.value as AgentThought);
+        }
+        continue;
+      }
+
+      // mode === "updates": payload is { [nodeName]: Partial<State> }
+      for (const [nodeName, update] of Object.entries(payload as Record<string, Partial<State>>)) {
+        publishEvent({ type: EventType.STEP_FINISHED, stepName: nodeName, timestamp: Date.now() });
+
+        if (update.plan) {
+          opts.onPlan(update.plan);
+          publishEvent({
+            type: EventType.STATE_SNAPSHOT,
+            snapshot: { plan: update.plan },
+            timestamp: Date.now(),
+          });
+        }
+        if (update.narrative) opts.onNarrative(update.narrative);
+      }
     }
   } catch (err) {
     if (!isGraphInterrupt(err)) {
-      sink.onError?.(String(err));
+      // Without this, buildTraceTree's RUN_ERROR branch is dead code and a
+      // failed run leaves its trace nodes "running" forever.
+      publishEvent({ type: EventType.RUN_ERROR, message: String(err), timestamp: Date.now() });
+      opts.onError?.(String(err));
       throw err;
     }
   }
 
-  // If the graph is paused at an interrupt, getState().next is non-empty.
+  // Interrupt payload read natively off the state snapshot. Path verified
+  // against @langchain/langgraph's own docs: the value passed to interrupt()
+  // "will be available in task.interrupts[].value".
   const snapshot = await graph.getState(config);
-  if (snapshot.next && snapshot.next.length > 0) return "interrupted";
+  if (snapshot.next && snapshot.next.length > 0) {
+    const pending = snapshot.tasks?.[0]?.interrupts?.[0]?.value as
+      | { reason: string; plan: DashboardPlan }
+      | undefined;
+    if (pending) {
+      opts.onInterrupt(pending.reason, pending.plan);
+      // Protocol-native interrupt signal (@ag-ui/core ≥0.0.5x):
+      // RUN_FINISHED with outcome { type: "interrupt", interrupts: [...] }.
+      publishEvent({
+        type: EventType.RUN_FINISHED,
+        threadId: ids.threadId,
+        runId: ids.runId,
+        outcome: {
+          type: "interrupt",
+          interrupts: [{ id: crypto.randomUUID(), reason: pending.reason }],
+        },
+        timestamp: Date.now(),
+      });
+    }
+    return "interrupted";
+  }
 
-  sink.onDone();
+  opts.onDone();
   return "done";
 }
 
 export async function runPipeline(opts: PipelineOptions): Promise<PipelineHandle> {
-  const ctx = makeCtx(opts.model);
-  const threadId = opts.threadId ?? ctx.threadId;
+  const threadId = opts.threadId ?? crypto.randomUUID();
+  const runId = crypto.randomUUID();
   const graph = getGraph();
 
-  const sink: PipelineSink = {
-    ctx,
-    onWidget: opts.onWidget,
-    onThought: opts.onThought,
-    onPlan: opts.onPlan,
-    onNarrative: opts.onNarrative,
-    onInterrupt: opts.onInterrupt,
-    onDone: opts.onDone,
-    onError: opts.onError,
-  };
-  SINKS.set(threadId, sink);
-
-  publishEvent(
-    makeEvent(ctx, {
-      type: "RUN_STARTED",
-      model: opts.model,
-      input: { tableName: opts.tableName },
-    }),
-  );
+  publishEvent({ type: EventType.RUN_STARTED, threadId, runId, timestamp: Date.now() });
 
   const config = { configurable: { thread_id: threadId } };
 
-  // Run until the first interrupt (plan-review). Errors surface via onError.
-  void drive(graph, { threadId, tableName: opts.tableName }, config, sink).catch(() => {});
+  void drive(graph, { threadId, tableName: opts.tableName }, config, opts, { threadId, runId })
+    .then((result) => {
+      if (result === "done") {
+        publishEvent({
+          type: EventType.RUN_FINISHED,
+          threadId,
+          runId,
+          outcome: { type: "success" },
+          timestamp: Date.now(),
+        });
+      }
+    })
+    .catch(() => {});
 
   return {
     threadId,
     resume: async (decision, plan) => {
-      // Correct LangGraph resume: feed a Command back into the interrupted node.
-      await drive(graph, new Command({ resume: { action: decision, plan } }), config, sink);
+      const result = await drive(
+        graph,
+        new Command({ resume: { action: decision, plan } }),
+        config,
+        opts,
+        { threadId, runId },
+      );
+      if (result === "done") {
+        publishEvent({
+          type: EventType.RUN_FINISHED,
+          threadId,
+          runId,
+          outcome: { type: "success" },
+          timestamp: Date.now(),
+        });
+      }
     },
     dispose: () => {
-      SINKS.delete(threadId);
+      // No sink registry to clean up anymore — nothing to do.
     },
   };
 }

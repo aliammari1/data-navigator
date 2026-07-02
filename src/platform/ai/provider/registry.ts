@@ -2,7 +2,6 @@ import { llamacppProvider } from "./adapters/llamacpp";
 import { ollamaProvider } from "./adapters/ollama";
 import { openaiProvider } from "./adapters/openai";
 import { transformersProvider } from "./adapters/transformers";
-import { isWebLLMOptIn, webllmProvider } from "./adapters/webllm";
 import type { AIProvider, ProviderId } from "./types";
 
 /**
@@ -13,15 +12,12 @@ import type { AIProvider, ProviderId } from "./types";
  *   1. llamacpp     — Electron main-process GGUF lane with grammar-constrained
  *                     JSON (the structured-output winner). Default in Electron.
  *   2. transformers — fully-offline WASM/CPU browser lane; the guaranteed floor.
- *   3. webllm       — WebGPU-only accelerator, DEMOTED: never auto-default, only
- *                     when a real WebGPU adapter is detected AND the user opts in.
- *   4. ollama       — optional local server escape hatch.
- *   5. openai       — optional OpenAI-compatible endpoint (not offline).
+  *   3. ollama       — optional local server escape hatch.
+  *   4. openai       — optional OpenAI-compatible endpoint (not offline).
  */
 export const PROVIDERS: readonly AIProvider[] = [
   llamacppProvider,
   transformersProvider,
-  webllmProvider,
   ollamaProvider,
   openaiProvider,
 ] as const;
@@ -74,15 +70,13 @@ export async function pickDefaultProvider(prefer?: ProviderId): Promise<AIProvid
   // the silent default on the no-WebGPU target — it is reachable only via an
   // explicit `prefer` (set when the user opts in).
   for (const provider of PROVIDERS) {
-    if (provider.id === "webllm" && !isWebLLMOptIn()) continue;
-    if (await provider.isAvailable().catch(() => false)) return provider;
+     if (await provider.isAvailable().catch(() => false)) return provider;
   }
 
   // Last resort: the first lane that is at least *available*, else the leading
   // provider (it surfaces its own unavailability when invoked).
   for (const provider of PROVIDERS) {
-    if (provider.id === "webllm") continue;
-    if (await provider.isAvailable().catch(() => false)) return provider;
+     if (await provider.isAvailable().catch(() => false)) return provider;
   }
   return PROVIDERS[0];
 }
