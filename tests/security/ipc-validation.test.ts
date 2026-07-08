@@ -76,9 +76,16 @@ describe("DatasetOnlySchema", () => {
 
 describe("ModelDownloadSchema", () => {
   it("requires a non-empty key", () => {
-    expect(ModelDownloadSchema.safeParse({ key: "qwen-1.5b" }).success).toBe(true);
+    // ModelKeySchema is an allowlist mirroring MODEL_DOWNLOADS' keys in
+    // electron/model-download-service.ts, not a free-form string.
+    expect(ModelDownloadSchema.safeParse({ key: "gemma-4-e4b-it-q4_k_m" }).success).toBe(true);
     expect(ModelDownloadSchema.safeParse({ key: "" }).success).toBe(false);
     expect(ModelDownloadSchema.safeParse({}).success).toBe(false);
+  });
+
+  it("rejects a key that isn't in the model-download allowlist", () => {
+    expect(ModelDownloadSchema.safeParse({ key: "qwen-1.5b" }).success).toBe(false);
+    expect(ModelDownloadSchema.safeParse({ key: "not-a-real-model" }).success).toBe(false);
   });
 });
 

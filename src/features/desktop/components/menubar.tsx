@@ -1,8 +1,10 @@
 "use client";
 
-import { Bell, Monitor, Moon, Palette, Sun, Wifi } from "lucide-react";
+import { Bell, CalendarDays, Monitor, Moon, Palette, Sun, Wifi, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { AppMenubar } from "@/features/desktop/components/app-menubar";
 import { Explainable } from "@/features/desktop/components/hover-explain";
 import {
@@ -16,9 +18,24 @@ import {
   GLASS_PALETTES,
   useDesktopActions,
   useGlassPalette,
+  useWidgetDate,
 } from "@/features/desktop/store/desktop-store";
 import { fmtPct } from "@/features/telecom/lib/format";
 import { useAppTheme } from "@/hooks/use-app-theme";
+
+/** Local calendar-day string ("YYYY-MM-DD") — no UTC shift, matches widgetDate's stored format. */
+function toDateKey(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+
+/** Parse a "YYYY-MM-DD" widgetDate string back into a local Date (avoids the UTC-midnight shift `new Date(str)` would introduce). */
+function fromDateKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
 
 /**
  * macOS-style glass menu bar (top). Left: brand + focused app name. Right: the
@@ -29,7 +46,8 @@ import { useAppTheme } from "@/hooks/use-app-theme";
 export function MenuBar({ clock, date }: { clock: string; date: string }) {
   const { theme, setTheme } = useAppTheme();
   const palette = useGlassPalette();
-  const { setGlassPalette } = useDesktopActions();
+  const { setGlassPalette, setWidgetDate } = useDesktopActions();
+  const widgetDate = useWidgetDate();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
 
@@ -169,6 +187,39 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
       >
         <ThemeIcon className="size-3.5" />
       </button>
+
+      {/* Widget date filter — picking a day filters the desktop home widgets to it */}
+      <Popover>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            title={widgetDate ? `Filtré : ${widgetDate}` : "Filtrer les widgets par date"}
+            aria-label="Filtrer les widgets par date"
+            className="rounded-md px-1.5 py-0.5 transition hover:bg-black/5"
+            style={{ color: widgetDate ? "hsl(var(--glass-accent))" : "var(--glass-text)" }}
+          >
+            <CalendarDays className="size-3.5" />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent align="end" className="w-auto p-0">
+          <Calendar
+            mode="single"
+            selected={widgetDate ? fromDateKey(widgetDate) : undefined}
+            onSelect={(d) => setWidgetDate(d ? toDateKey(d) : null)}
+            autoFocus
+          />
+          {widgetDate && (
+            <button
+              type="button"
+              onClick={() => setWidgetDate(null)}
+              className="flex w-full items-center justify-center gap-1.5 border-t border-border px-3 py-2 text-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              <X className="size-3.5" />
+              Effacer le filtre
+            </button>
+          )}
+        </PopoverContent>
+      </Popover>
 
       <Wifi className="size-3.5 opacity-70" />
       <span className="tabular-nums opacity-90">{date}</span>

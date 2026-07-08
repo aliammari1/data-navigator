@@ -1,6 +1,6 @@
 "use client";
 
-import { Activity, Database, HardDrive, Radio, Settings2, Signal, Upload } from "lucide-react";
+import { Database, HardDrive, Radio, Settings2, Signal, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -23,12 +23,17 @@ import { KPI_FIELDS } from "@/features/telecom/constants";
 import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
-import { getCachedAnalyticsForKey } from "@/features/telecom/lib/analytics-cache";
+import { migrateLegacyDexieAnalyticsSnapshots } from "@/features/telecom/lib/analytics-snapshot-legacy-migration";
 import {
-  type SQLiteAnalyticsSnapshot,
+  type AnalyticsSnapshotHistoryMeta,
+  getAnalyticsSnapshot,
+  listAnalyticsSnapshotMeta,
   loadAnalyticsSnapshotFromSQLite,
+  type SQLiteAnalyticsSnapshot,
+  saveAnalyticsSnapshot,
   saveAnalyticsSnapshotToSQLite,
 } from "@/features/telecom/lib/analytics-sqlite-snapshot";
+import { reattachCanalIcons, stripCanalIconsForPersist } from "@/features/telecom/lib/canal-config";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
@@ -51,12 +56,6 @@ import type * as Types from "@/features/telecom/types";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
-import {
-  type AnalyticsSnapshotMeta,
-  getAnalyticsSnapshot,
-  listAnalyticsSnapshotMeta,
-  saveAnalyticsSnapshot,
-} from "@/platform/storage/app-db";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 import { TelecomTabStrip } from "./telecom-tab-strip";
@@ -104,7 +103,7 @@ export interface TelecomReportRuntimeValue {
   overviewHourly: Types.HourlyRow[];
   overviewStatusData: Types.StatusRow[];
   overviewForecast: ForecastPoint[];
-  analyticsHistory: AnalyticsSnapshotMeta[];
+  analyticsHistory: AnalyticsSnapshotHistoryMeta[];
   snapshotedAt: number | null;
   selectedKpis: Set<keyof Types.KPISummary>;
   toggleKpi: (key: keyof Types.KPISummary) => void;
@@ -157,7 +156,7 @@ export interface TelecomReportRuntimeValue {
   fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<Types.ServiceCodeRow[]>;
   runCustomKPIExpr: (sqlExpr: string) => Promise<number>;
   refreshAnalyticsHistory: () => Promise<void>;
-  loadAnalyticsFromHistory: (key: string) => Promise<void>;
+  loadAnalyticsFromHistory: (id: number) => Promise<void>;
   exportActiveDatabase: () => Promise<void>;
 }
 
@@ -227,7 +226,7 @@ export function TelecomReportRuntimeProvider({
   const setAppContext = useAppContextStore((state) => state.setContext);
   const addActivity = useActivityStore((state) => state.addEvent);
 
-  const [analyticsHistory, setAnalyticsHistory] = useState<AnalyticsSnapshotMeta[]>([]);
+  const [analyticsHistory, setAnalyticsHistory] = useState<AnalyticsSnapshotHistoryMeta[]>([]);
 
   // Codes in the new file that aren't in the known taxonomy — shown in the
   // blocking dialog until the user explicitly assigns each one.
@@ -236,6 +235,19 @@ export function TelecomReportRuntimeProvider({
   const refreshAnalyticsHistory = useCallback(async () => {
     setAnalyticsHistory(await listAnalyticsSnapshotMeta());
   }, []);
+
+  // One-time, idempotent: lift any snapshots left over in the legacy Dexie
+  // store onto the durable SQLite history table, then refresh the list so
+  // they show up immediately. No-ops instantly on every run after the first.
+  useEffect(() => {
+    let cancelled = false;
+    void migrateLegacyDexieAnalyticsSnapshots().then(({ migrated }) => {
+      if (!cancelled && migrated > 0) void refreshAnalyticsHistory();
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [refreshAnalyticsHistory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -262,7 +274,6 @@ export function TelecomReportRuntimeProvider({
   const telecomRole = access.role === "owner" ? "admin" : "user";
 
   const {
-    mounted,
     showMapper,
     setShowMapper,
     installPrompt,
@@ -294,7 +305,11 @@ export function TelecomReportRuntimeProvider({
 
   const dashboardTableName = getDatasetViewName(activeTelecomDataset);
   const dashboardLoaded = Boolean(activeTelecomDataset && dashboardTableName);
-  const dashboardFileName = activeTelecomDataset?.name ?? "";
+  // Falls back to the table name so this is never empty when dashboardLoaded is
+  // true — activeTelecomDataset.name can be blank for datasets restored through
+  // the legacy zustand-persist migration (data-store.ts's migrateDataset), which
+  // backfills tableName/viewName independently of name.
+  const dashboardFileName = activeTelecomDataset?.name || dashboardTableName || "";
   const dashboardReportDate = getDatasetReportDate(activeTelecomDataset);
 
   useEffect(() => {
@@ -441,7 +456,10 @@ export function TelecomReportRuntimeProvider({
   const [snapshotedAt, setSnapshotedAt] = useState<number | null>(null);
 
   const handlePersistAnalytics = useCallback(async () => {
-    if (!kpi || !dashboardFileName || !dashboardTableName) return;
+    if (!kpi || !dashboardFileName || !dashboardTableName) {
+      toast.error("Impossible de sauvegarder : aucun jeu de données actif");
+      return;
+    }
 
     setPersistingSnapshot(true);
 
@@ -451,7 +469,7 @@ export function TelecomReportRuntimeProvider({
         fileName: dashboardFileName,
         tableName: dashboardTableName,
         kpi,
-        canals,
+        canals: stripCanalIconsForPersist(canals),
         hourly,
         statusData,
         operators,
@@ -476,8 +494,10 @@ export function TelecomReportRuntimeProvider({
       toast("Analytics sauvegardés", {
         description: dashboardFileName,
       });
-    } catch {
-      toast.error("Échec de la sauvegarde");
+    } catch (err) {
+      console.error("[telecom] handlePersistAnalytics failed:", err);
+      const detail = err instanceof Error ? err.message : String(err);
+      toast.error("Échec de la sauvegarde", { description: detail });
     } finally {
       setPersistingSnapshot(false);
     }
@@ -585,7 +605,7 @@ export function TelecomReportRuntimeProvider({
     void loadAnalyticsSnapshotFromSQLite(dashboardTableName).then((snapshot) => {
       if (cancelled || !snapshot?.kpi) return;
       analytics.setKpi(snapshot.kpi as Types.KPISummary);
-      analytics.setCanals(snapshot.canals as Types.CanalSummary[]);
+      analytics.setCanals(reattachCanalIcons(snapshot.canals));
       analytics.setHourly(snapshot.hourly as Types.HourlyRow[]);
       analytics.setStatusData(snapshot.statusData as Types.StatusRow[]);
       analytics.setOperators(snapshot.operators as Types.OperatorRow[]);
@@ -611,7 +631,7 @@ export function TelecomReportRuntimeProvider({
       tableName: dashboardTableName,
       fileName: dashboardFileName,
       kpi,
-      canals,
+      canals: stripCanalIconsForPersist(canals),
       hourly,
       statusData,
       operators,
@@ -620,7 +640,9 @@ export function TelecomReportRuntimeProvider({
       forecast,
       computedAt: Date.now(),
     };
-    void saveAnalyticsSnapshotToSQLite(payload).catch(() => {});
+    void saveAnalyticsSnapshotToSQLite(payload).catch((err) => {
+      console.error("[telecom] auto-save snapshot failed:", err);
+    });
   }, [
     kpi,
     dashboardTableName,
@@ -651,28 +673,23 @@ export function TelecomReportRuntimeProvider({
   const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
   const overviewForecast = sharedOverviewMode ? (remoteOverview?.forecast ?? []) : forecast;
 
-  async function loadAnalyticsFromHistory(key: string) {
-    const cached = (await getAnalyticsSnapshot(key)) ?? (await getCachedAnalyticsForKey(key));
+  async function loadAnalyticsFromHistory(id: number) {
+    const cached = await getAnalyticsSnapshot(id);
 
     if (!cached) return;
 
-    analytics.setKpi(cached.kpi as Types.KPISummary);
-    analytics.setCanals(cached.canals as Types.CanalSummary[]);
-    analytics.setHourly(cached.hourly as Types.HourlyRow[]);
-    analytics.setStatusData(cached.statusData as Types.StatusRow[]);
-    analytics.setOperators(cached.operators as Types.OperatorRow[]);
-    analytics.setRegions(cached.regions as Types.RegionRow[]);
-    analytics.setRawStatuses(cached.rawStatuses as Types.RawStatusRow[]);
-
-    const restoredTableName =
-      "tableName" in cached && typeof cached.tableName === "string"
-        ? cached.tableName
-        : dashboardTableName;
+    analytics.setKpi(cached.kpi);
+    analytics.setCanals(reattachCanalIcons(cached.canals));
+    analytics.setHourly(cached.hourly);
+    analytics.setStatusData(cached.statusData);
+    analytics.setOperators(cached.operators);
+    analytics.setRegions(cached.regions);
+    analytics.setRawStatuses(cached.rawStatuses);
 
     addActivity({
       type: "dataset_selected",
       message: `Loaded saved telecom analytics for ${cached.fileName}`,
-      tableName: restoredTableName,
+      tableName: cached.tableName,
     });
 
     if (onTabChange) onTabChange("overview");
@@ -871,19 +888,6 @@ export function TelecomReportRuntimeProvider({
                 {persistingSnapshot ? "Sauvegarde…" : "Persister"}
               </button>
             )}
-
-            {mounted &&
-              typeof Notification !== "undefined" &&
-              Notification.permission === "default" && (
-                <button
-                  type="button"
-                  onClick={() => Notification.requestPermission()}
-                  className="flex items-center gap-1.5 rounded-xl border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-                >
-                  <Activity className="h-3.5 w-3.5" />
-                  Notifications
-                </button>
-              )}
 
             {installPrompt && (
               <button

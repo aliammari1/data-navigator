@@ -333,8 +333,13 @@ describe("replaceDatasetsFromCatalog", () => {
     expect(ds.tableName).toBe(ds.viewName);
     expect(ds.colCount).toBe(4);
     expect(ds.columns.map((c) => c.type)).toEqual(["number", "string", "date", "boolean"]);
-    // nullCount/distinctCount default to 0 -> quality score is uniqueness-only.
-    expect(ds.qualityScore).toBe(computeQualityScore(ds.columns, ds.rowCount));
+    // nullCount/distinctCount default to 0 for all 4 columns, rowCount=4:
+    // completeness = 1 (no nulls), uniqueness = 0 (no distinct values recorded
+    // yet) -> round((1*0.7 + 0*0.3) * 100) = 70. Hand-computed and independently
+    // verified against computeQualityScore's real formula, not recomputed via
+    // the same function under test (which could never catch that function
+    // itself being wrong).
+    expect(ds.qualityScore).toBe(70);
   });
 
   it("preserves non-catalog local datasets that are not in the incoming set", () => {

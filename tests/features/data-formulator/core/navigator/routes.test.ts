@@ -171,20 +171,17 @@ describe("APP_ROUTES deduplication (seen.has branch)", () => {
       TELECOM_NAV_ITEMS: [],
     }));
 
-    const { APP_ROUTES: fresh } = await import(
-      "@/features/data-formulator/core/navigator/routes"
-    );
+    const { APP_ROUTES: fresh } = await import("@/features/data-formulator/core/navigator/routes");
 
     const matches = fresh.filter((r: { path: string }) => r.path === "/dup-path");
     expect(matches).toHaveLength(1);
     // First occurrence wins.
     expect(matches[0].label).toBe("Alpha");
 
-    // Restore the original hoisted mock for subsequent tests.
-    vi.doMock("@/features/dashboard-shell/nav/nav-config", () => ({
-      ALL_ITEMS: mockAllItems,
-      TELECOM_NAV_ITEMS: mockTelecomNavItems,
-    }));
+    // No restore needed: the rest of the suite uses the static top-level
+    // import (already evaluated against the hoisted mock), and queuing an
+    // extra doMock factory here would be consumed by the NEXT dynamic
+    // import — shadowing the factory that test registers.
     vi.resetModules();
   });
 
@@ -208,21 +205,13 @@ describe("APP_ROUTES deduplication (seen.has branch)", () => {
       ],
     }));
 
-    const { APP_ROUTES: fresh } = await import(
-      "@/features/data-formulator/core/navigator/routes"
-    );
+    const { APP_ROUTES: fresh } = await import("@/features/data-formulator/core/navigator/routes");
 
-    const matches = fresh.filter(
-      (r: { path: string }) => r.path === collisionPath,
-    );
+    const matches = fresh.filter((r: { path: string }) => r.path === collisionPath);
     expect(matches).toHaveLength(1);
     // The ALL_ITEMS entry wins (pushed first).
     expect(matches[0].label).toBe("Pre-registered Tab");
 
-    vi.doMock("@/features/dashboard-shell/nav/nav-config", () => ({
-      ALL_ITEMS: mockAllItems,
-      TELECOM_NAV_ITEMS: mockTelecomNavItems,
-    }));
     vi.resetModules();
   });
 });

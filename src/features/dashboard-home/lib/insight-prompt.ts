@@ -52,6 +52,28 @@ export const DatasetInsightSchema = z.object({
 
 export type DatasetInsight = z.infer<typeof DatasetInsightSchema>;
 
+/**
+ * System prompt handed to the model. This text is fully static — it never
+ * varies with the dataset overview or dataset name — so it is exported for
+ * exact-identity assertions in tests rather than substring keyword checks.
+ */
+export const DATASET_INSIGHT_SYSTEM_PROMPT =
+  "You are a senior data analyst writing a concise, factual overview of a " +
+  "freshly-imported dataset. Use ONLY the profile statistics provided — do " +
+  "NOT invent column names, counts, percentages, or trends. If something is " +
+  "not in the profile, do not claim it. Keep every item short and specific. " +
+  "Respond ONLY with the requested JSON object.";
+
+/**
+ * Closing writing-instructions sentence appended to every prompt. Also fully
+ * static (independent of the dataset overview), exported for the same reason
+ * as {@link DATASET_INSIGHT_SYSTEM_PROMPT}.
+ */
+export const DATASET_INSIGHT_PROMPT_FOOTER =
+  "Write: a one-line headline, 1-4 grounded observations, any data-quality " +
+  "flags (null-heavy / id-like / constant columns), and 1-3 suggested next " +
+  "analyses the user could run.";
+
 const NUM = (value: number): string =>
   Number.isFinite(value) ? value.toLocaleString("en-US") : "n/a";
 
@@ -96,12 +118,7 @@ export function buildDatasetInsightPrompt(
     : "";
 
   return {
-    system:
-      "You are a senior data analyst writing a concise, factual overview of a " +
-      "freshly-imported dataset. Use ONLY the profile statistics provided — do " +
-      "NOT invent column names, counts, percentages, or trends. If something is " +
-      "not in the profile, do not claim it. Keep every item short and specific. " +
-      "Respond ONLY with the requested JSON object.",
+    system: DATASET_INSIGHT_SYSTEM_PROMPT,
     prompt:
       `Dataset: "${datasetName}"\n` +
       `Shape: ${NUM(overview.rowCount)} rows × ${overview.columnCount} columns ` +
@@ -109,8 +126,6 @@ export function buildDatasetInsightPrompt(
       `${overview.categoricalColumnCount} categorical).\n` +
       `Overall completeness: ${completeness}% (${NUM(overview.totalNullCells)} null cells).\n\n` +
       `Columns (most-notable first):\n${columnLines}\n\n${topCat}\n\n` +
-      "Write: a one-line headline, 1-4 grounded observations, any data-quality " +
-      "flags (null-heavy / id-like / constant columns), and 1-3 suggested next " +
-      "analyses the user could run.",
+      DATASET_INSIGHT_PROMPT_FOOTER,
   };
 }

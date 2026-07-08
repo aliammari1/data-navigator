@@ -16,24 +16,16 @@ import { useAI } from "@/platform/ai/provider";
 import { cn } from "@/shared/utils";
 
 export function ModelStatusBar({ onWarm, warming }: { onWarm?: () => void; warming?: boolean }) {
-  const { providerId, progress, availability } = useAI();
+  const { progress, availability } = useAI();
 
   const offlineCapable = availability.some(
-    (a) => a.available && (a.id === "transformers"  ),
+    (a) => a.available,
   );
   const status = progress.status;
   const loading = status === "loading" || warming;
   const inferring = status === "inferring";
   const ready = status === "ready";
-
-  const providerLabel =
-    providerId === "transformers"
-      ? "Transformers.js (WASM/WebGPU)"
-  : providerId === "ollama"
-          ? "Ollama (local)"
-          : providerId === "openai"
-            ? "OpenAI-compatible"
-            : "Auto (offline-first)";
+  const providerLabel = "Auto (offline-first)";
 
   if (loading) {
     return (

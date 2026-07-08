@@ -28,6 +28,16 @@ export const ThresholdSuggestionSchema = z.object({
 
 export type ThresholdSuggestion = z.infer<typeof ThresholdSuggestionSchema>;
 
+/**
+ * The system prompt is static — it never varies with the input statuses —
+ * so it's exported for exact-match assertions in tests instead of
+ * substring keyword checks against a hardcoded copy.
+ */
+export const SUGGESTION_SYSTEM_PROMPT =
+  "You are a telecom channel-monitoring analyst. Recommend alerting thresholds " +
+  "that catch genuine degradations without flapping. Base them on the supplied " +
+  "live channel metrics. Respond ONLY with the requested JSON object.";
+
 /** Build a grounded prompt from the live channel snapshot (real numbers only). */
 export function buildSuggestionPrompt(statuses: ChannelStatus[]): {
   system: string;
@@ -46,10 +56,7 @@ export function buildSuggestionPrompt(statuses: ChannelStatus[]): {
       : "(no live channel metrics available)";
 
   return {
-    system:
-      "You are a telecom channel-monitoring analyst. Recommend alerting thresholds " +
-      "that catch genuine degradations without flapping. Base them on the supplied " +
-      "live channel metrics. Respond ONLY with the requested JSON object.",
+    system: SUGGESTION_SYSTEM_PROMPT,
     prompt:
       `Current per-channel metrics:\n${summary}\n\n` +
       "Suggest a single set of global alert thresholds: the success-rate floor (%), " +

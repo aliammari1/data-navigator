@@ -2,10 +2,8 @@
 
 import {
   Database,
-  FileText,
   HelpCircle,
   Lightbulb,
-  ListTree,
   RotateCcw,
   Sparkles,
   Square,
@@ -15,12 +13,12 @@ import {
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
 
 /**
- * App-specific menus for the "moudir" app (Studio IA — Moudir).
+ * App-specific menus for the "moudir" app (Formulateur — Studio IA).
  *
- * Moudir is a single-surface agentic data workspace (no internal pages), so we
- * ship a tailored Fichier plus an "Analyse" menu. Actions are wired to the
- * screen's real handlers over the app-command bus (`reset`, `cancel`) and to the
- * `moudir:ask` channel via `ctx.askMoudir` for the canned questions.
+ * The formulator derives visualisations from natural-language instructions, so
+ * we ship a tailored Fichier plus a "Formulation" menu. Actions ride the
+ * screen's app-command bus (`reset`, `cancel`, `ask`); the conversational
+ * canned questions moved to the Moudir assistant (see `./moudir-chat`).
  */
 export const buildMenu: AppMenuBuilder = (ctx) => [
   {
@@ -28,8 +26,8 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
     label: "Fichier",
     items: [
       {
-        id: "new-conversation",
-        label: "Nouvelle conversation",
+        id: "new-formulation",
+        label: "Nouvelle formulation",
         icon: RotateCcw,
         shortcut: "⌘N",
         run: () => ctx.command("reset"),
@@ -59,54 +57,47 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
     ],
   },
   {
-    id: "analyze",
-    label: "Analyse",
+    id: "formulate",
+    label: "Formulation",
     items: [
       {
-        id: "stop-analysis",
-        label: "Arrêter l'analyse",
+        id: "cancel-derivation",
+        label: "Annuler la dérivation",
         icon: Square,
         run: () => ctx.command("cancel"),
       },
-      { kind: "separator", id: "analyze-sep-1" },
+      { kind: "separator", id: "formulate-sep-1" },
       {
         kind: "submenu",
-        id: "quick-questions",
-        label: "Questions rapides",
+        id: "quick-instructions",
+        label: "Instructions rapides",
         icon: Lightbulb,
         items: [
           {
-            id: "q-success-rate",
-            label: "Pourquoi le taux de réussite a-t-il changé ?",
-            icon: Sparkles,
-            run: () => ctx.askMoudir("Pourquoi le taux de réussite a-t-il changé ?"),
-          },
-          {
-            id: "q-risks",
-            label: "Quels sont les plus gros risques ?",
-            icon: Sparkles,
-            run: () => ctx.askMoudir("Quels sont les plus gros risques dans ces données ?"),
-          },
-          {
-            id: "q-channels-time",
+            id: "i-channels-time",
             label: "Transactions par canal au fil du temps",
             icon: Sparkles,
-            run: () => ctx.askMoudir("Montre les transactions par canal au fil du temps"),
+            run: () =>
+              ctx.command("ask", {
+                prompt: "Montre les transactions par canal au fil du temps",
+              }),
+          },
+          {
+            id: "i-success-daily",
+            label: "Taux de réussite par jour",
+            icon: Sparkles,
+            run: () => ctx.command("ask", { prompt: "Calcule le taux de réussite par jour" }),
+          },
+          {
+            id: "i-top-errors",
+            label: "Top 10 des codes d'erreur",
+            icon: Sparkles,
+            run: () =>
+              ctx.command("ask", {
+                prompt: "Montre le top 10 des codes d'erreur par volume",
+              }),
           },
         ],
-      },
-      {
-        id: "exec-summary",
-        label: "Synthèse exécutive",
-        icon: FileText,
-        run: () => ctx.askMoudir("Donne-moi une synthèse exécutive en un paragraphe"),
-      },
-      { kind: "separator", id: "analyze-sep-2" },
-      {
-        id: "open-deep-analytics",
-        label: "Ouvrir l'analyse approfondie",
-        icon: ListTree,
-        run: () => ctx.openApp("deep-analytics"),
       },
     ],
   },

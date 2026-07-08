@@ -3,16 +3,15 @@ import type { ZodType } from "zod";
 /**
  * Unified AI provider contract.
  *
- * The app historically grew three independent inference stacks — Transformers.js
- * (`platform/ai/transformers-engine.ts`), MLC web-LLM (`platform/ai/llm-engine.ts`), and an
- * edge/Ollama worker (`data-formulator/core/ollama-provider.ts`). This module
- * unifies them behind ONE interface so feature code depends on a stable surface
- * and the runtime can be swapped (or auto-selected) based on capability.
+ * node-llama-cpp (`adapters/llamacpp.ts`) is the sole text-generation provider —
+ * a local GGUF model running in the Electron main process, offline by
+ * construction. This module still exists as a single stable interface (rather
+ * than feature code calling `adapters/llamacpp.ts` directly) so a future
+ * provider can be added without touching every call site, and so callers can
+ * ask about capabilities (streaming / structured output) generically.
  *
  * Design goals:
- *  - Offline-first: the default providers run fully in-browser (no server).
- *  - Pluggable: web-LLM, Transformers.js, Ollama (local), and OpenAI-compatible
- *    cloud are all adapters behind the same `AIProvider` interface.
+ *  - Offline-first: the provider runs fully local (no server, no network).
  *  - Capability-aware: callers can ask whether streaming / structured output /
  *    offline operation is supported before relying on it.
  *  - Structured output everywhere: `generateStructured` validates against a Zod
@@ -20,7 +19,7 @@ import type { ZodType } from "zod";
  *    prompt+repair fallback otherwise.
  */
 
-export type ProviderId = "llamacpp" | "transformers" | "ollama" | "openai";
+export type ProviderId = "llamacpp";
 
 export type AIRole = "system" | "user" | "assistant" | "tool";
 

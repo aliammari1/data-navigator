@@ -1,14 +1,32 @@
 #!/usr/bin/env node
 
 /**
- * Minimal LAN sync server for telecom dashboard (y-websocket v3 compatible).
- * Speaks y-protocols/sync + y-protocols/awareness over plain WebSocket so the
- * in-browser y-websocket client can join. Trusted-LAN use only — no auth.
+ * LAN sync server for the telecom dashboard — Hocuspocus edition.
+ *
+ * The Yjs relay is `@hocuspocus/server`'s core (`Hocuspocus`) embedded in this
+ * script's own HTTP server, so the existing discovery/file sidecar endpoints
+ * (`/lan/status`, `/lan/audit`, `/lan/files`) keep working unchanged while the
+ * sync layer gains real auth hooks:
+ *
+ *  - Token auth (`onAuthenticate`): the client sends `{code, peerId, peerName,
+ *    role}` in the Hocuspocus Auth frame — the code never rides the URL.
+ *  - Dual codes: the full PAIRING_CODE grants the requested role; the
+ *    GUEST_CODE only ever grants read-only viewer/reviewer. The server derives
+ *    the role from which code matched — a client cannot self-promote.
+ *  - Server-side read-only: viewers'/reviewers' document updates are dropped
+ *    by Hocuspocus (`connectionConfig.readOnly`), not trusted to the client.
+ *  - Awareness anti-spoofing: the server stamps its derived role onto every
+ *    presence state a connection broadcasts.
+ *
+ * There is deliberately NO "trusted peer" rejoin bypass anymore: peer ids are
+ * broadcast in awareness, so treating them as credentials let anyone who ever
+ * saw the peer list reconnect without a code. Every connection re-presents a
+ * code.
  *
  * Usage:
- *   node scripts/lan-server.mjs               # 0.0.0.0:1234
- *   PORT=4444 node scripts/lan-server.mjs
+ *   node scripts/lan-server.mjs               # 127.0.0.1:1234 (localhost-only)
  *   HOST=192.168.1.10 PORT=1234 node scripts/lan-server.mjs
+ *   PAIRING_CODE=123456 GUEST_CODE=654321 node scripts/lan-server.mjs
  */
 
 import crypto from "node:crypto";
@@ -16,35 +34,24 @@ import fs from "node:fs";
 import http from "node:http";
 import os from "node:os";
 import path from "node:path";
-import * as decoding from "lib0/decoding";
-import * as encoding from "lib0/encoding";
-import * as map from "lib0/map";
+import { Hocuspocus } from "@hocuspocus/server";
 import { WebSocketServer } from "ws";
-import * as awarenessProtocol from "y-protocols/awareness";
-import * as syncProtocol from "y-protocols/sync";
-import * as Y from "yjs";
 
 // Localhost-only by default (secure default). Set HOST explicitly to a LAN/mesh
 // interface address to opt into LAN collaboration — never default to 0.0.0.0.
 const HOST = process.env.HOST ?? "127.0.0.1";
 const REQUESTED_PORT = Number(process.env.PORT ?? 1234);
 const PORT_SCAN_LIMIT = Number(process.env.PORT_SCAN_LIMIT ?? 24);
-// CSPRNG pairing code — Math.random() (V8 xorshift128+) is predictable and must
-// never gate access. crypto.randomInt yields a uniform, unpredictable 6-digit code.
+// CSPRNG codes — Math.random() (V8 xorshift128+) is predictable and must never
+// gate access. crypto.randomInt yields uniform, unpredictable 6-digit codes.
 const PAIRING_CODE = process.env.PAIRING_CODE ?? String(crypto.randomInt(100000, 1000000));
+const GUEST_CODE = process.env.GUEST_CODE ?? String(crypto.randomInt(100000, 1000000));
 const MAX_INBOX_FILES = Number(process.env.MAX_INBOX_FILES ?? 200);
 const SESSION_NAME = process.env.SESSION_NAME ?? "Data Navigator LAN";
 const ALLOW_GUESTS = process.env.ALLOW_GUESTS !== "0";
 const MAX_FILE_BYTES = Number(process.env.MAX_FILE_BYTES ?? 512 * 1024 * 1024);
 const INBOX_DIR = path.resolve(process.env.LAN_INBOX_DIR ?? ".data/lan-inbox");
 
-const MSG_SYNC = 0;
-const MSG_AWARENESS = 1;
-
-const wsReadyStateOpen = 1;
-const pingTimeout = 30000;
-
-const docs = new Map();
 const audit = [];
 const files = [];
 
@@ -75,9 +82,10 @@ function safeFileName(name) {
 }
 
 /**
- * Constant-time pairing-code comparison. Plain `===` is a timing oracle; this
- * compares fixed-length buffers via crypto.timingSafeEqual and fails closed on
- * length mismatch without leaking length through an early return.
+ * Constant-time code comparison. Plain `===` is a timing oracle; this compares
+ * fixed-length buffers via crypto.timingSafeEqual and fails closed on length
+ * mismatch without leaking length through an early return.
+ * (Mirror of `electron/collab-pairing.ts` — keep the two in sync.)
  */
 function safeCodeEqual(a, b) {
   const ab = Buffer.from(String(a ?? ""), "utf8");
@@ -89,191 +97,127 @@ function safeCodeEqual(a, b) {
   return crypto.timingSafeEqual(ab, bb);
 }
 
-// Files persisted to the inbox this session (disk-exhaustion guard).
-let inboxFileCount = 0;
+function normalizeRequestedRole(requested) {
+  if (requested === "host" || requested === "reviewer" || requested === "viewer") return requested;
+  return "editor";
+}
 
-class Room {
-  constructor(name) {
-    this.name = name;
-    this.ydoc = new Y.Doc();
-    this.awareness = new awarenessProtocol.Awareness(this.ydoc);
-    this.awareness.setLocalState(null);
-    this.conns = new Map();
-    this.trustedPeers = new Map();
-
-    this.ydoc.on("update", (update, _origin) => {
-      const enc = encoding.createEncoder();
-      encoding.writeVarUint(enc, MSG_SYNC);
-      syncProtocol.writeUpdate(enc, update);
-      const buf = encoding.toUint8Array(enc);
-      for (const conn of this.conns.keys()) send(conn, buf);
-    });
-
-    this.awareness.on("update", ({ added, updated, removed }, conn) => {
-      const changedClients = [...added, ...updated, ...removed];
-      const enc = encoding.createEncoder();
-      encoding.writeVarUint(enc, MSG_AWARENESS);
-      encoding.writeVarUint8Array(
-        enc,
-        awarenessProtocol.encodeAwarenessUpdate(this.awareness, changedClients),
-      );
-      const buf = encoding.toUint8Array(enc);
-      for (const c of this.conns.keys()) {
-        if (c !== conn) send(c, buf);
-      }
-    });
+/**
+ * Dual-code role derivation (mirror of `deriveRoleFromCodes` in
+ * `electron/collab-pairing.ts`): the presented code decides the trust tier,
+ * the requested role is honored only within that tier.
+ */
+function deriveRoleFromCodes(presented, requestedRole) {
+  const requested = normalizeRequestedRole(requestedRole);
+  if (safeCodeEqual(PAIRING_CODE, presented)) {
+    return { role: requested, readOnly: requested === "viewer" || requested === "reviewer" };
   }
+  if (safeCodeEqual(GUEST_CODE, presented)) {
+    const role = requested === "reviewer" ? "reviewer" : "viewer";
+    return { role, readOnly: true };
+  }
+  return null;
 }
 
-function getRoom(name) {
-  return map.setIfUndefined(docs, name, () => new Room(name));
-}
-
-function send(conn, buf) {
-  if (conn.readyState !== wsReadyStateOpen) return closeConn(conn);
+/** Parse the auth token: JSON envelope {code, peerId, peerName, role} or bare code. */
+function parseCollabToken(token) {
+  if (!token) return { code: "" };
   try {
-    conn.send(buf, (err) => {
-      if (err) closeConn(conn);
-    });
+    const parsed = JSON.parse(token);
+    if (parsed && typeof parsed === "object" && typeof parsed.code === "string") {
+      return parsed;
+    }
   } catch {
-    closeConn(conn);
+    // bare string token — treat as the code
   }
+  return { code: String(token) };
 }
 
-function closeConn(conn) {
-  const room = conn._room;
-  if (room) {
-    const ids = room.conns.get(conn);
-    room.conns.delete(conn);
-    if (ids) awarenessProtocol.removeAwarenessStates(room.awareness, [...ids], null);
-    if (room.conns.size === 0) docs.delete(room.name);
+// ─── Peer tracking (for /lan/status) ─────────────────────────────────────────
+// Keyed by document (room) name → Map<socketId, peer>.
+
+const roomPeers = new Map();
+
+function trackPeer(documentName, socketId, peer) {
+  let peers = roomPeers.get(documentName);
+  if (!peers) {
+    peers = new Map();
+    roomPeers.set(documentName, peers);
   }
-  try {
-    conn.close();
-  } catch {}
+  peers.set(socketId, { ...peer, lastSeenAt: Date.now() });
 }
 
-function onMessage(conn, room, msg) {
-  try {
-    const enc = encoding.createEncoder();
-    const dec = decoding.createDecoder(msg);
-    const type = decoding.readVarUint(dec);
-    switch (type) {
-      case MSG_SYNC:
-        encoding.writeVarUint(enc, MSG_SYNC);
-        syncProtocol.readSyncMessage(dec, enc, room.ydoc, conn);
-        if (encoding.length(enc) > 1) send(conn, encoding.toUint8Array(enc));
-        break;
-      case MSG_AWARENESS:
-        awarenessProtocol.applyAwarenessUpdate(
-          room.awareness,
-          decoding.readVarUint8Array(dec),
-          conn,
-        );
-        break;
+function untrackPeer(documentName, socketId) {
+  const peers = roomPeers.get(documentName);
+  if (!peers) return;
+  peers.delete(socketId);
+  if (peers.size === 0) roomPeers.delete(documentName);
+}
+
+function roomSummaries() {
+  return [...roomPeers.entries()].map(([name, peers]) => ({
+    name,
+    peers: [...peers.values()],
+    connections: peers.size,
+  }));
+}
+
+// ─── Hocuspocus core (embedded — we own the HTTP server) ─────────────────────
+
+const hocuspocus = new Hocuspocus({
+  name: SESSION_NAME,
+  quiet: true,
+
+  async onAuthenticate({ token, requestParameters, connectionConfig, documentName, socketId }) {
+    const parsed = parseCollabToken(token);
+    // Legacy fallback: pre-token clients sent the code as a query param.
+    const presented = parsed.code || requestParameters.get("pairingCode") || "";
+    const requestedRole = parsed.role ?? requestParameters.get("role");
+    const peerId = parsed.peerId ?? requestParameters.get("peerId") ?? crypto.randomUUID();
+    const peerName = parsed.peerName ?? requestParameters.get("peerName") ?? "Unknown peer";
+
+    const access = deriveRoleFromCodes(presented, requestedRole);
+    if (!access) {
+      addAudit("pairing.rejected", { room: documentName, peerId, peerName });
+      throw new Error("Invalid access code");
     }
-  } catch (e) {
-    room.ydoc.emit("error", [e]);
-  }
-}
+    if (access.readOnly && !ALLOW_GUESTS) {
+      addAudit("guest.rejected", { room: documentName, peerId, peerName });
+      throw new Error("Guest mode disabled");
+    }
 
-function setupConn(conn, req) {
-  const url = new URL(req.url, "http://localhost");
-  const roomName = url.pathname.slice(1).split("?")[0] || "default";
-  const peerId = url.searchParams.get("peerId") || crypto.randomUUID();
-  const peerName = url.searchParams.get("peerName") || "Unknown peer";
-  const requestedRole = url.searchParams.get("role") || "viewer";
-  const pairingCode = url.searchParams.get("pairingCode") || "";
-  const role = ["host", "editor", "reviewer", "viewer"].includes(requestedRole)
-    ? requestedRole
-    : "viewer";
-  const room = getRoom(roomName);
-  const trusted = room.trustedPeers.get(peerId);
-  const codeOk = safeCodeEqual(pairingCode, PAIRING_CODE);
-  if (!trusted && !codeOk) {
-    addAudit("pairing.rejected", { room: roomName, peerId, peerName, role });
-    conn.close(4401, "Pairing code required");
-    return;
-  }
-  if (role === "viewer" && !ALLOW_GUESTS) {
-    addAudit("guest.rejected", { room: roomName, peerId, peerName });
-    conn.close(4403, "Guest mode disabled");
-    return;
-  }
-  room.trustedPeers.set(peerId, {
-    id: peerId,
-    name: peerName,
-    role,
-    pairedAt: trusted?.pairedAt ?? Date.now(),
-    lastSeenAt: Date.now(),
-  });
-  addAudit(trusted ? "peer.rejoined" : "peer.paired", {
-    room: roomName,
-    peerId,
-    peerName,
-    role,
-    remote: req.socket.remoteAddress,
-  });
-  conn._room = room;
-  conn._peer = { id: peerId, name: peerName, role };
-  conn.binaryType = "arraybuffer";
-  room.conns.set(conn, new Set());
+    // Server-side enforcement: read-only connections cannot mutate the doc.
+    connectionConfig.readOnly = access.readOnly;
 
-  conn.on("message", (data) => {
-    // Viewers/reviewers can receive shared state and publish awareness, but
-    // cannot mutate room CRDT content. This keeps read-only guest mode simple.
-    try {
-      const dec = decoding.createDecoder(new Uint8Array(data));
-      const type = decoding.readVarUint(dec);
-      if (type === MSG_SYNC && (role === "viewer" || role === "reviewer")) {
-        addAudit("sync.blocked_readonly", { room: roomName, peerId, role });
-        return;
-      }
-    } catch {}
-    onMessage(conn, room, new Uint8Array(data));
-  });
+    trackPeer(documentName, socketId, { id: peerId, name: peerName, role: access.role });
+    addAudit("peer.paired", { room: documentName, peerId, peerName, role: access.role });
 
-  // Ping/pong heartbeat
-  let pongReceived = true;
-  const pingInterval = setInterval(() => {
-    if (!pongReceived) {
-      if (room.conns.has(conn)) closeConn(conn);
-      clearInterval(pingInterval);
-    } else if (room.conns.has(conn)) {
-      pongReceived = false;
-      try {
-        conn.ping();
-      } catch {
-        closeConn(conn);
-        clearInterval(pingInterval);
+    return { role: access.role, peerId, peerName };
+  },
+
+  // Anti-spoofing: awareness identity is client-asserted; overwrite the role
+  // with the server-derived one so a guest can never present as host/editor.
+  async beforeHandleAwareness({ context, states }) {
+    if (!context) return;
+    for (const state of states.values()) {
+      if (state.user && typeof state.user === "object") {
+        state.user.role = context.role;
       }
     }
-  }, pingTimeout);
-  conn.on("close", () => {
-    addAudit("peer.left", { room: roomName, peerId, peerName, role });
-    closeConn(conn);
-    clearInterval(pingInterval);
-  });
-  conn.on("pong", () => {
-    pongReceived = true;
-  });
+  },
 
-  // Send initial sync step 1
-  {
-    const enc = encoding.createEncoder();
-    encoding.writeVarUint(enc, MSG_SYNC);
-    syncProtocol.writeSyncStep1(enc, room.ydoc);
-    send(conn, encoding.toUint8Array(enc));
-  }
-  // Send awareness state
-  const ids = [...room.awareness.getStates().keys()];
-  if (ids.length > 0) {
-    const enc = encoding.createEncoder();
-    encoding.writeVarUint(enc, MSG_AWARENESS);
-    encoding.writeVarUint8Array(enc, awarenessProtocol.encodeAwarenessUpdate(room.awareness, ids));
-    send(conn, encoding.toUint8Array(enc));
-  }
-}
+  async onDisconnect({ documentName, socketId, context }) {
+    untrackPeer(documentName, socketId);
+    addAudit("peer.left", {
+      room: documentName,
+      peerId: context?.peerId,
+      peerName: context?.peerName,
+      role: context?.role,
+    });
+  },
+});
+
+// ─── HTTP sidecar (discovery + file inbox) ───────────────────────────────────
 
 function lanAddresses() {
   const nets = os.networkInterfaces();
@@ -288,14 +232,8 @@ function lanAddresses() {
   return lans;
 }
 
-function roomSummaries() {
-  return [...docs.values()].map((room) => ({
-    name: room.name,
-    peers: [...room.trustedPeers.values()],
-    connections: room.conns.size,
-  }));
-}
-
+// Files persisted to the inbox this session (disk-exhaustion guard).
+let inboxFileCount = 0;
 let activePort = REQUESTED_PORT;
 
 const server = http.createServer((req, res) => {
@@ -353,8 +291,9 @@ const server = http.createServer((req, res) => {
     return;
   }
   if (url.pathname === "/lan/files" && req.method === "POST") {
-    const pairingCode = req.headers["x-pairing-code"];
-    if (!safeCodeEqual(pairingCode, PAIRING_CODE)) {
+    // Either code authorizes an upload; the inbox is read-shared with the room.
+    const presented = req.headers["x-pairing-code"];
+    if (!safeCodeEqual(presented, PAIRING_CODE) && !safeCodeEqual(presented, GUEST_CODE)) {
       addAudit("file.rejected_pairing", {
         peerId: req.headers["x-peer-id"],
         peerName: req.headers["x-peer-name"],
@@ -438,12 +377,14 @@ const server = http.createServer((req, res) => {
     });
     return;
   }
-  // SECURITY: never disclose the pairing code in an HTTP response — it is the
-  // sole access-control secret for the room. It lives only on the host console
+  // SECURITY: never disclose the codes in an HTTP response — they are the sole
+  // access-control secrets for the room. They live only on the host console
   // and the host's own UI. A health probe gets a generic OK, nothing else.
   res.writeHead(200, { "content-type": "text/plain" });
   res.end(`${SESSION_NAME} — OK\n`);
 });
+
+// ─── WebSocket layer → Hocuspocus ────────────────────────────────────────────
 
 const wss = new WebSocketServer({
   noServer: true,
@@ -452,7 +393,25 @@ const wss = new WebSocketServer({
   maxPayload: 64 * 1024 * 1024,
   perMessageDeflate: false,
 });
-wss.on("connection", setupConn);
+
+wss.on("connection", (ws, req) => {
+  // Bridge the Node upgrade request to the web-standard Request Hocuspocus v4
+  // expects (URL for requestParameters, headers for onAuthenticate payloads).
+  const webRequest = new Request(new URL(req.url ?? "/", `http://${req.headers.host ?? HOST}`), {
+    headers: Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : (v ?? "")]),
+  });
+  const clientConnection = hocuspocus.handleConnection(ws, webRequest);
+  ws.binaryType = "arraybuffer";
+  ws.on("message", (data) => {
+    clientConnection.handleMessage(new Uint8Array(data));
+  });
+  ws.on("close", (code, reason) => {
+    clientConnection.handleClose({ code, reason: reason?.toString() ?? "" });
+  });
+  ws.on("error", () => {
+    clientConnection.handleClose({ code: 1011, reason: "socket error" });
+  });
+});
 
 server.on("upgrade", (req, socket, head) => {
   wss.handleUpgrade(req, socket, head, (ws) => {
@@ -478,10 +437,11 @@ function listenWithPortScan(port, remaining) {
 }
 
 function printReady() {
-  console.log(`\n  Telecom LAN sync server`);
-  console.log(`  ───────────────────────`);
+  console.log(`\n  Telecom LAN sync server (hocuspocus)`);
+  console.log(`  ────────────────────────────────────`);
   console.log(`  bound:    ${HOST}:${activePort}`);
-  console.log(`  pairing: ${PAIRING_CODE}`);
+  console.log(`  pairing (full access): ${PAIRING_CODE}`);
+  console.log(`  guest   (view-only):   ${GUEST_CODE}`);
   console.log(`  guests:  ${ALLOW_GUESTS ? "read-only enabled" : "disabled"}`);
   const lans = lanAddresses().map((item) => item.address);
   if (lans.length > 0) {

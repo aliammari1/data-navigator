@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 // ─── Mock external dependencies ───────────────────────────────────────────────
@@ -6,6 +6,12 @@ import { z } from "zod";
 vi.mock("@/platform/electron/electron-fs", () => ({
   isElectron: vi.fn(),
 }));
+
+// electron/model-download-service.ts imports the real `electron` module at the
+// top level for app.getPath — stub it so we can import its (side-effect-free)
+// MODEL_DOWNLOADS export as the cross-check authority below (same pattern as
+// tests/platform/ai/models/model-manifest.test.ts).
+vi.mock("electron", () => ({ app: { getPath: () => "" } }));
 
 // Mock zodToInlineJsonSchema so we can control schema conversion
 vi.mock("@/platform/ai/provider/zod-json-schema", () => ({
@@ -18,11 +24,21 @@ vi.mock("@/platform/ai/provider/adapters/base", () => ({
   toSystemUser: vi.fn(),
 }));
 
+import { generateStructuredByPrompt, toSystemUser } from "@/platform/ai/provider/adapters/base";
 // ─── Import AFTER mocking ─────────────────────────────────────────────────────
 import { llamacppProvider } from "@/platform/ai/provider/adapters/llamacpp";
-import { isElectron } from "@/platform/electron/electron-fs";
 import { zodToInlineJsonSchema } from "@/platform/ai/provider/zod-json-schema";
-import { generateStructuredByPrompt, toSystemUser } from "@/platform/ai/provider/adapters/base";
+import { isElectron } from "@/platform/electron/electron-fs";
+import { MODEL_DOWNLOADS } from "../../../../../electron/model-download-service";
+
+/** The MODEL_DOWNLOADS entry for `id`, or throws — used to derive expected values. */
+function downloadEntry(id: string) {
+  const entry = MODEL_DOWNLOADS.find((m) => m.file === id);
+  if (!entry) {
+    throw new Error(`No MODEL_DOWNLOADS entry for "${id}" — update the cross-check test.`);
+  }
+  return entry;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -184,8 +200,8 @@ describe("llamacppProvider.listModels", () => {
 
     // Assert
     expect(models).toHaveLength(2);
-    expect(models[0].id).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
-    expect(models[1].id).toBe("qwen2.5-0.5b-instruct-q4_k_m.gguf");
+    expect(models[0].id).toBe("gemma-4-e4b-it-q4_k_m.gguf");
+    expect(models[1].id).toBe("granite-4.1-3b-instruct-q4_k_m.gguf");
   });
 
   it("each model has a label, family, sizeLabel, and downloadMb", async () => {
@@ -201,22 +217,26 @@ describe("llamacppProvider.listModels", () => {
     }
   });
 
-  it("first model is the 1.5B (larger) variant", async () => {
+  it("first model is the default Gemma 4 E4B variant", async () => {
     // Act
     const models = await llamacppProvider.listModels();
 
     // Assert
-    expect(models[0].sizeLabel).toBe("1.5B");
-    expect(models[0].downloadMb).toBe(1024);
+    expect(models[0].sizeLabel).toBe("E4B");
+    // Cross-checked against electron/model-download-service.ts's MODEL_DOWNLOADS
+    // (the canonical catalog, per this file's own doc comment) instead of a
+    // literal copied from the same MODELS array under test — this is what
+    // caught downloadMb having drifted stale for the Granite entry below.
+    expect(models[0].downloadMb).toBe(downloadEntry(models[0].id).bytes / 1_000_000);
   });
 
-  it("second model is the 0.5B (smaller) low-RAM fallback", async () => {
+  it("second model is the lower-resource Granite 4.1 3B alternative", async () => {
     // Act
     const models = await llamacppProvider.listModels();
 
     // Assert
-    expect(models[1].sizeLabel).toBe("0.5B");
-    expect(models[1].downloadMb).toBe(512);
+    expect(models[1].sizeLabel).toBe("3B");
+    expect(models[1].downloadMb).toBe(downloadEntry(models[1].id).bytes / 1_000_000);
   });
 });
 
@@ -226,39 +246,39 @@ describe("llamacppProvider.ensureReady", () => {
   it("calls api.ensureModel with the model file when a known GGUF id is passed", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
 
     // Act
-    await llamacppProvider.ensureReady("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf");
 
     // Assert
     expect(api.ensureModel).toHaveBeenCalledWith({
-      file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      file: "gemma-4-e4b-it-q4_k_m.gguf",
     });
   });
 
   it("falls back to the first GGUF model when an unknown model id is passed", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
 
     // Act: pass a HuggingFace id not in the catalog
     await llamacppProvider.ensureReady("some-transformers-hf-model");
 
     // Assert: should fall back to first catalog entry
     expect(api.ensureModel).toHaveBeenCalledWith({
-      file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      file: "gemma-4-e4b-it-q4_k_m.gguf",
     });
   });
 
   it("calls onProgress with loading (10%) then ready (100%) in order", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
     const onProgress = vi.fn();
 
     // Act
-    await llamacppProvider.ensureReady("qwen2.5-1.5b-instruct-q4_k_m.gguf", onProgress);
+    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress);
 
     // Assert
     expect(onProgress).toHaveBeenCalledTimes(2);
@@ -273,25 +293,25 @@ describe("llamacppProvider.ensureReady", () => {
   it("loading progress message mentions the file name", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
     const onProgress = vi.fn();
 
     // Act
-    await llamacppProvider.ensureReady("qwen2.5-1.5b-instruct-q4_k_m.gguf", onProgress);
+    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress);
 
     // Assert
     const [loadingCall] = onProgress.mock.calls;
-    expect(loadingCall[0].message).toContain("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(loadingCall[0].message).toContain("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
   it("does not throw when onProgress is omitted", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
 
     // Act / Assert: should resolve without error
     await expect(
-      llamacppProvider.ensureReady("qwen2.5-1.5b-instruct-q4_k_m.gguf"),
+      llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf"),
     ).resolves.toBeUndefined();
   });
 
@@ -302,36 +322,36 @@ describe("llamacppProvider.ensureReady", () => {
 
     // Act / Assert
     await expect(
-      llamacppProvider.ensureReady("qwen2.5-1.5b-instruct-q4_k_m.gguf", onProgress),
+      llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress),
     ).resolves.toBeUndefined();
     // onProgress is never called because bridge() returns null
     expect(onProgress).not.toHaveBeenCalled();
   });
 
-  it("uses the 0.5B fallback when model id does not match any catalog entry", async () => {
+  it("falls back to the default model when model id does not match any catalog entry", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-1.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
 
     // Act
     await llamacppProvider.ensureReady("unknown-model-xyz");
 
-    // Assert: falls back to first model (1.5B, index 0)
+    // Assert: falls back to the first (default) catalog entry
     const callArg = api.ensureModel.mock.calls[0][0];
-    expect(callArg.file).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(callArg.file).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
-  it("recognizes the second catalog model (0.5B) as a known id", async () => {
+  it("recognizes the second catalog model (Granite) as a known id", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "qwen2.5-0.5b-instruct-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "granite-4.1-3b-instruct-q4_k_m.gguf" });
 
     // Act
-    await llamacppProvider.ensureReady("qwen2.5-0.5b-instruct-q4_k_m.gguf");
+    await llamacppProvider.ensureReady("granite-4.1-3b-instruct-q4_k_m.gguf");
 
-    // Assert: the 0.5B model is passed directly (it's known)
+    // Assert: the Granite model is passed directly (it's known)
     expect(api.ensureModel).toHaveBeenCalledWith({
-      file: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
+      file: "granite-4.1-3b-instruct-q4_k_m.gguf",
     });
   });
 });
@@ -344,9 +364,9 @@ describe("llamacppProvider.generate", () => {
     uninstallLlama();
 
     // Act / Assert
-    await expect(
-      llamacppProvider.generate({ model: "test", prompt: "hello" }),
-    ).rejects.toThrow('"llamacpp" is not available');
+    await expect(llamacppProvider.generate({ model: "test", prompt: "hello" })).rejects.toThrow(
+      '"llamacpp" is not available',
+    );
   });
 
   it("returns text, model, provider, and elapsedMs from a successful generation", async () => {
@@ -440,7 +460,12 @@ describe("llamacppProvider.generate", () => {
     api.generate.mockResolvedValue({ text: "out", finishReason: "stop" });
 
     // Act
-    await llamacppProvider.generate({ model: "x", prompt: "hello", maxTokens: 256, temperature: 0.7 });
+    await llamacppProvider.generate({
+      model: "x",
+      prompt: "hello",
+      maxTokens: 256,
+      temperature: 0.7,
+    });
 
     // Assert
     const callArg = api.generate.mock.calls[0][0] as Record<string, unknown>;
@@ -667,10 +692,7 @@ describe("llamacppProvider.generateStructured", () => {
     vi.mocked(generateStructuredByPrompt).mockResolvedValue({ name: "Alice", value: 42 });
 
     // Act
-    const result = await llamacppProvider.generateStructured(
-      { model: "x", prompt: "p" },
-      schema,
-    );
+    const result = await llamacppProvider.generateStructured({ model: "x", prompt: "p" }, schema);
 
     // Assert
     expect(result).toEqual({ name: "Alice", value: 42 });
@@ -756,10 +778,7 @@ describe("llamacppProvider.generateStructured", () => {
     api.generateStructured.mockResolvedValue({ name: "Z", value: 0 });
 
     // Act
-    await llamacppProvider.generateStructured(
-      { model: "x", prompt: "p", maxTokens: 300 },
-      schema,
-    );
+    await llamacppProvider.generateStructured({ model: "x", prompt: "p", maxTokens: 300 }, schema);
 
     // Assert
     const callArg = api.generateStructured.mock.calls[0][0] as Record<string, unknown>;
@@ -904,9 +923,7 @@ describe("llamacppProvider — window undefined scenario", () => {
     delete globalThis.window;
 
     // Act / Assert
-    await expect(
-      llamacppProvider.ensureReady("some-model"),
-    ).resolves.toBeUndefined();
+    await expect(llamacppProvider.ensureReady("some-model")).resolves.toBeUndefined();
 
     // Restore
     globalThis.window = origWindow;
@@ -919,9 +936,9 @@ describe("llamacppProvider — window undefined scenario", () => {
     delete globalThis.window;
 
     // Act / Assert
-    await expect(
-      llamacppProvider.generate({ model: "x", prompt: "hello" }),
-    ).rejects.toThrow('"llamacpp" is not available');
+    await expect(llamacppProvider.generate({ model: "x", prompt: "hello" })).rejects.toThrow(
+      '"llamacpp" is not available',
+    );
 
     // Restore
     globalThis.window = origWindow;

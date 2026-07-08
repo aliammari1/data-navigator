@@ -2,8 +2,10 @@
 
 import { useCallback, useEffect } from "react";
 import type { ZodType } from "zod";
+import { useModelRequiredDialogStore } from "../models/model-required-dialog-store";
 import { useAIRuntimeStore } from "./store";
 import type { AIGenerateRequest, AIResult } from "./types";
+import { AIUnavailableError } from "./types";
 
 /**
  * `useAI()` — the single entry point feature code should use for inference.
@@ -44,6 +46,10 @@ export function useAI() {
       const provider = await resolveProvider();
       const target = overrideModel ?? model ?? (await provider.listModels())[0]?.id;
       if (!target) throw new Error(`No model available for provider "${provider.id}".`);
+      if (!(await provider.isAvailable())) {
+        useModelRequiredDialogStore.getState().show("Generating this needs a downloaded AI model.");
+        throw new AIUnavailableError(provider.id, "model not downloaded yet");
+      }
       await provider.ensureReady(target, setProgress, signal);
       return { provider, model: target };
     },

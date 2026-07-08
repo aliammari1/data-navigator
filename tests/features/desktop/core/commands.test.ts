@@ -28,7 +28,13 @@ const h = vi.hoisted(() => {
       icon: StubIcon,
       hue: 268,
     },
-    { id: "telecom", title: "Rapport Télécom", blurb: "DailyTransactions", icon: StubIcon, hue: 18 },
+    {
+      id: "telecom",
+      title: "Rapport Télécom",
+      blurb: "DailyTransactions",
+      icon: StubIcon,
+      hue: 18,
+    },
     { id: "geo", title: "Géographie", blurb: "Analyse spatiale", icon: StubIcon, hue: 168 },
   ];
 
@@ -304,7 +310,9 @@ describe("resolveCommands — empty query", () => {
   it("includes datasets on an empty query at the fixed score 30 (no fuzzy gate)", () => {
     // On an empty query the term guard `if (term && s <= 0) continue` is skipped,
     // so the dataset is pushed unconditionally with its empty-query score of 30.
-    setDatasets([{ id: "d1", name: "Ventes", rowCount: 100, colCount: 5, updatedAt: "2026-01-01" }]);
+    setDatasets([
+      { id: "d1", name: "Ventes", rowCount: 100, colCount: 5, updatedAt: "2026-01-01" },
+    ]);
     const results = resolveCommands("");
     // On empty query the dataset is pushed with score 30 (the guard requires term).
     expect(byKind(results, "dataset")).toHaveLength(1);
@@ -674,7 +682,7 @@ describe("resolveCommands — result invariants", () => {
 // ─── resolveCommands: moudir-hint run() on empty query ───────────────────────
 
 describe("resolveCommands — moudir-hint run()", () => {
-  it("run() on the empty-query moudir-hint dispatches a desktop:open-app event for moudir", () => {
+  it("run() on the empty-query moudir-hint dispatches a desktop:open-app event for the assistant", () => {
     const spy = vi.spyOn(window, "dispatchEvent");
     const results = resolveCommands("");
     const hint = byId(results, "moudir-hint");
@@ -683,18 +691,23 @@ describe("resolveCommands — moudir-hint run()", () => {
     const events = spy.mock.calls.map((c) => c[0] as CustomEvent);
     const openEv = events.find((e) => e.type === "desktop:open-app");
     expect(openEv).toBeDefined();
-    expect(openEv?.detail).toEqual({ appId: "moudir" });
+    expect(openEv?.detail).toEqual({ appId: "moudir-chat" });
     spy.mockRestore();
   });
 
-  it("run() on the whitespace-only query moudir-hint dispatches desktop:open-app for moudir", () => {
+  it("run() on the whitespace-only query moudir-hint dispatches desktop:open-app for the assistant", () => {
     const spy = vi.spyOn(window, "dispatchEvent");
     const results = resolveCommands("   ");
     const hint = byId(results, "moudir-hint");
     expect(hint).toBeDefined();
     hint?.run();
     const events = spy.mock.calls.map((c) => c[0] as CustomEvent);
-    expect(events.some((e) => e.type === "desktop:open-app" && (e.detail as { appId: string }).appId === "moudir")).toBe(true);
+    expect(
+      events.some(
+        (e) =>
+          e.type === "desktop:open-app" && (e.detail as { appId: string }).appId === "moudir-chat",
+      ),
+    ).toBe(true);
     spy.mockRestore();
   });
 });

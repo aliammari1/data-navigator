@@ -1,12 +1,20 @@
 /**
- * LAN collaboration over the local y-websocket relay.
+ * LAN collaboration over Hocuspocus.
  *
- * The relay is intentionally small: one PC hosts `scripts/lan-server.mjs` (or
- * the in-app Electron-main Hocuspocus hub), and peers join by IP address +
- * pairing code. Yjs carries shared report state, `y-protocols/awareness`
- * carries live presence (auto-pruned ~30s after a peer stalls — no hand-rolled
- * heartbeat), and discovery prefers Electron mDNS over IPC (the cross-origin
- * isolated renderer cannot reliably do cross-origin HTTP fetches under
+ * The relay is intentionally small: one PC hosts `scripts/lan-server.mjs` or
+ * the in-app Electron-main hub — both `@hocuspocus/server` — and peers join by
+ * IP address + access code. The client is `@hocuspocus/provider`: the code
+ * rides the wire-protocol Auth frame (never the URL, so it can't leak into
+ * HTTP logs), the SERVER derives the role from which code was presented (full
+ * pairing code → requested role; guest code → read-only viewer/reviewer), and
+ * read-only enforcement happens server-side. `onAuthenticated({scope})` tells
+ * us the granted scope, so the UI reflects the server's decision, not the
+ * client's claim.
+ *
+ * Yjs carries shared report state, `y-protocols/awareness` carries live
+ * presence (auto-pruned ~30s after a peer stalls — no hand-rolled heartbeat),
+ * and discovery prefers Electron mDNS over IPC (the cross-origin isolated
+ * renderer cannot reliably do cross-origin HTTP fetches under
  * COEP:require-corp — see architecture §8).
  *
  * Presence discipline: DURABLE identity (id/name/role/color) lives in awareness
@@ -128,6 +136,7 @@ interface ElectronCollabStatus {
   running: boolean;
   port: number | null;
   pairingCode: string | null;
+  guestCode: string | null;
   room: string | null;
   advertising: boolean;
   discovering: boolean;
@@ -151,6 +160,7 @@ interface ElectronCollabBridge {
   start(input?: {
     port?: number;
     pairingCode?: string;
+    guestCode?: string;
     room?: string;
     advertise?: boolean;
     discover?: boolean;
@@ -248,8 +258,6 @@ export function saveLANSettings(settings: LANSettings): void {
 interface ProviderHandle {
   destroy(): void;
   disconnect?(): void;
-  awareness?: Awareness;
-  on?(ev: string, fn: (st: { status: string }) => void): void;
 }
 
 let provider: ProviderHandle | null = null;
@@ -261,12 +269,29 @@ const watchers = new Set<() => void>();
 let status: LANStatus = "off";
 let peers: LANPeer[] = [];
 let activeSettings: LANSettings | null = null;
+// Server-granted access scope for the live session ("read-write"/"readonly"),
+// null while disconnected. Set from Hocuspocus `onAuthenticated` — the UI must
+// trust THIS, not the role the client asked for.
+let sessionScope: "read-write" | "readonly" | null = null;
+// Human-readable reason for the last authentication failure (wrong code, guest
+// mode disabled, …) so join UIs can explain instead of showing a dead spinner.
+let lastAuthError: string | null = null;
 
 /** Lazily create the shared Awareness for the app doc (browser only). */
 function getAwareness(): Awareness | null {
   if (typeof window === "undefined") return null;
   if (!sharedAwareness) sharedAwareness = new Awareness(ydoc);
   return sharedAwareness;
+}
+
+/**
+ * The shared Awareness bound to the app doc (presence + live cursors ride the
+ * LAN socket through it). Null under SSR. Consumers must treat its states as
+ * UNTRUSTED display data — the hub stamps `user.role`, everything else is
+ * client-asserted.
+ */
+export function getLANAwareness(): Awareness | null {
+  return getAwareness();
 }
 
 export function getLANStatus(): LANStatus {
@@ -279,6 +304,33 @@ export function getLANPeers(): LANPeer[] {
 
 export function getActiveLANSettings(): LANSettings | null {
   return activeSettings;
+}
+
+/**
+ * The SERVER-granted access scope for the live session, or null when not
+ * connected. "readonly" means the hub drops this client's document updates
+ * regardless of any locally-claimed role.
+ */
+export function getLANSessionScope(): "read-write" | "readonly" | null {
+  return sessionScope;
+}
+
+/**
+ * Effective role for the live session: the locally-requested role clamped by
+ * the server-granted scope. Null when not connected.
+ */
+export function getLANSessionRole(): LANRole | null {
+  if (status !== "connected" || !activeSettings) return null;
+  const requested = activeSettings.peer.role;
+  if (sessionScope === "readonly") {
+    return requested === "reviewer" ? "reviewer" : "viewer";
+  }
+  return requested;
+}
+
+/** Reason for the last authentication failure, cleared on the next connect. */
+export function getLANAuthError(): string | null {
+  return lastAuthError;
 }
 
 export function canMutateLAN(role: LANRole): boolean {
@@ -330,6 +382,25 @@ export function subscribeLANAudit(fn: () => void): () => void {
   return () => sharedAudit.unobserve(fn);
 }
 
+// Clear our awareness state when the tab goes away so peers prune us
+// immediately instead of after the 30s awareness timeout. `pagehide` covers
+// mobile Safari/bfcache where `beforeunload` is unreliable.
+function handlePageHide() {
+  sharedAwareness?.setLocalState(null);
+}
+
+function attachUnloadCleanup() {
+  if (typeof window === "undefined") return;
+  window.addEventListener("beforeunload", handlePageHide);
+  window.addEventListener("pagehide", handlePageHide);
+}
+
+function detachUnloadCleanup() {
+  if (typeof window === "undefined") return;
+  window.removeEventListener("beforeunload", handlePageHide);
+  window.removeEventListener("pagehide", handlePageHide);
+}
+
 export async function connectLAN(settings: LANSettings): Promise<void> {
   await disconnectLAN();
   if (!settings.url) {
@@ -339,6 +410,8 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
   }
   status = "connecting";
   activeSettings = settings;
+  lastAuthError = null;
+  sessionScope = null;
   emit();
 
   try {
@@ -348,40 +421,41 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
 
     const awareness = getAwareness();
 
-    const mod = await import("y-websocket");
-    const WebsocketProvider = (
-      mod as unknown as {
-        WebsocketProvider: new (
-          url: string,
-          room: string,
-          ydoc: unknown,
-          opts?: Record<string, unknown>,
-        ) => ProviderHandle;
-      }
-    ).WebsocketProvider;
+    const { HocuspocusProvider } = await import("@hocuspocus/provider");
 
-    provider = new WebsocketProvider(settings.url, settings.room, ydoc, {
-      connect: true,
+    provider = new HocuspocusProvider({
+      url: settings.url,
+      name: settings.room,
+      document: ydoc,
       // Reuse the shared Awareness so presence rides this same socket.
-      awareness: awareness ?? undefined,
-      params: {
+      awareness: awareness ?? null,
+      // The access code travels in the wire-protocol Auth frame — never the
+      // URL. The server decides the role from which code this matches.
+      token: JSON.stringify({
+        code: settings.pairingCode,
         peerId: settings.peer.id,
         peerName: settings.peer.name,
         role: settings.peer.role,
-        pairingCode: settings.pairingCode,
+      }),
+      onStatus: ({ status: next }) => {
+        status =
+          next === "connected" ? "connected" : next === "connecting" ? "connecting" : "off";
+        if (status === "connected") appendAudit("peer.connected");
+        emit();
       },
-    });
+      onAuthenticated: ({ scope }) => {
+        sessionScope = scope;
+        emit();
+      },
+      onAuthenticationFailed: ({ reason }) => {
+        lastAuthError = reason || "Invalid access code";
+        sessionScope = null;
+        status = "error";
+        emit();
+      },
+    }) as unknown as ProviderHandle;
 
-    provider.on?.("status", (event: { status: string }) => {
-      status =
-        event.status === "connected"
-          ? "connected"
-          : event.status === "connecting"
-            ? "connecting"
-            : "off";
-      if (status === "connected") appendAudit("peer.connected");
-      emit();
-    });
+    attachUnloadCleanup();
 
     if (awareness) {
       awareness.setLocalStateField("user", {
@@ -429,6 +503,7 @@ export async function disconnectLAN(): Promise<void> {
   if (provider) {
     try {
       appendAudit("peer.disconnected");
+      detachUnloadCleanup();
       sharedAwareness?.off("change", refreshPeers);
       // Drop our local presence so remote peers prune us immediately rather
       // than waiting for the 30s awareness timeout.
@@ -440,20 +515,64 @@ export async function disconnectLAN(): Promise<void> {
   status = "off";
   peers = [];
   activeSettings = null;
+  sessionScope = null;
   emit();
 }
 
-// rAF-throttled cursor writer: a flood of selection/scroll events coalesces to
-// at most one awareness write per frame, so remote peers don't re-render every
-// subscriber on a medium CPU.
-let pendingCursor: { page: string; selection?: string; at: number } | null = null;
+// Throttled cursor writer: pointer/selection floods coalesce into ONE merged
+// awareness write per interval. Every awareness update re-broadcasts the whole
+// local state to all peers, so ~80ms (12.5 msg/s, in the 50–100ms industry
+// band) is the network budget; rAF alone (60+/s) would be an order of
+// magnitude chattier for zero perceived benefit once receivers interpolate.
+const CURSOR_MIN_INTERVAL_MS = 80;
+
+interface CursorDraft {
+  page: string;
+  x?: number;
+  y?: number;
+  selection?: string;
+  at: number;
+}
+
+let pendingCursor: CursorDraft | null = null;
 let cursorRaf: number | null = null;
+let lastCursorFlushAt = 0;
+
+function currentPage(): string {
+  return typeof location !== "undefined" ? `${location.pathname}${location.search}` : "";
+}
 
 function flushCursor() {
   cursorRaf = null;
   const next = pendingCursor;
-  pendingCursor = null;
-  if (next) sharedAwareness?.setLocalStateField("cursor", next);
+  const now = Date.now();
+  if (next && now - lastCursorFlushAt >= CURSOR_MIN_INTERVAL_MS) {
+    pendingCursor = null;
+    lastCursorFlushAt = now;
+    sharedAwareness?.setLocalStateField("cursor", next);
+    return;
+  }
+  if (next) {
+    // Too soon — re-schedule for the remainder of the interval.
+    cursorRaf = setTimeout(
+      flushCursor,
+      CURSOR_MIN_INTERVAL_MS - (now - lastCursorFlushAt),
+    ) as unknown as number;
+  }
+}
+
+function queueCursor(patch: Partial<CursorDraft>) {
+  pendingCursor = {
+    ...(pendingCursor ?? {}),
+    ...patch,
+    page: currentPage(),
+    at: Date.now(),
+  };
+  if (cursorRaf !== null) return;
+  cursorRaf =
+    typeof requestAnimationFrame === "function"
+      ? requestAnimationFrame(flushCursor)
+      : (setTimeout(flushCursor, 16) as unknown as number);
 }
 
 /**
@@ -483,19 +602,24 @@ export function publishPresence(patch: Partial<LANPeer>) {
 
 /**
  * Publish EPHEMERAL cursor/selection. Goes to awareness `cursor` ONLY (never
- * the persisted doc) and is rAF-throttled. This is the high-frequency path.
+ * the persisted doc) and is throttled. This is the high-frequency path.
  */
 export function publishSelection(selection: string) {
-  pendingCursor = {
-    page: typeof location !== "undefined" ? `${location.pathname}${location.search}` : "",
-    selection,
-    at: Date.now(),
-  };
-  if (cursorRaf !== null) return;
-  cursorRaf =
-    typeof requestAnimationFrame === "function"
-      ? requestAnimationFrame(flushCursor)
-      : (setTimeout(flushCursor, 16) as unknown as number);
+  queueCursor({ selection });
+}
+
+/**
+ * Publish the live pointer position (EPHEMERAL, awareness only, throttled).
+ * `x` is a fraction (0–1) of the main content width; `y` is px from the top of
+ * the content in content coordinates — see LiveCursors for the mapping.
+ */
+export function publishPointer(x: number, y: number) {
+  queueCursor({ x, y });
+}
+
+/** Hide our pointer for peers (pointer left the shared surface). */
+export function clearPointer() {
+  queueCursor({ x: undefined, y: undefined });
 }
 
 export function publishFileDrop(file: File, mode: "metadata" | "request" = "metadata") {
@@ -609,10 +733,12 @@ export function subscribeHubDiscovery(
 export async function startInAppHub(input?: {
   port?: number;
   pairingCode?: string;
+  guestCode?: string;
   room?: string;
 }): Promise<{
   url: string;
   pairingCode: string;
+  guestCode: string;
   room: string;
   websocketUrls: string[];
 } | null> {
@@ -621,6 +747,7 @@ export async function startInAppHub(input?: {
   const st = await bridge.start({
     port: input?.port,
     pairingCode: input?.pairingCode,
+    guestCode: input?.guestCode,
     room: input?.room,
     advertise: true,
     discover: true,
@@ -630,6 +757,7 @@ export async function startInAppHub(input?: {
   return {
     url: st.websocketUrls[0] ?? local,
     pairingCode: st.pairingCode ?? "",
+    guestCode: st.guestCode ?? "",
     room: st.room ?? input?.room ?? "telecom-default",
     websocketUrls: st.websocketUrls,
   };
@@ -812,6 +940,7 @@ export async function uploadLANFile(file: File): Promise<LANSharedFile> {
 
 export function buildLANCommand(settings: LANSettings): string {
   const port = settings.url ? new URL(settings.url).port || "1234" : "1234";
+  // The server also prints a GUEST_CODE (view-only) — share that one with guests.
   return `PAIRING_CODE=${settings.pairingCode || "123456"} PORT=${port} npm run lan-server`;
 }
 

@@ -256,7 +256,11 @@ describe("runPipeline — run start + handle", () => {
     handle.dispose();
   });
 
-  it("publishes a RUN_STARTED event carrying the model and tableName", async () => {
+  it("publishes a RUN_STARTED event carrying the run's threadId and runId", async () => {
+    // The real @ag-ui/core RunStartedEvent has no `model`/`input` slot for
+    // arbitrary app data (its `input` is a full conversation-state shape, not
+    // a free-form bag) — runPipeline() only stamps threadId/runId/timestamp,
+    // matching the schema it actually imports.
     stageHappyPath();
     const sink = makeSink();
 
@@ -271,9 +275,9 @@ describe("runPipeline — run start + handle", () => {
     const started = log.find((e) => e.type === "RUN_STARTED");
     expect(started).toBeDefined();
     // @ts-expect-error narrowed by the find above
-    expect(started.model).toBe("test-model");
+    expect(started.threadId).toBe("thread-runstart");
     // @ts-expect-error narrowed by the find above
-    expect(started.input).toEqual({ tableName: "tx_view" });
+    expect(started.runId).toEqual(expect.any(String));
     handle.dispose();
   });
 
@@ -282,8 +286,12 @@ describe("runPipeline — run start + handle", () => {
     const sink = makeSink();
 
     const handle = await runPipeline({ ...baseOpts(), ...sink.callbacks });
-    // makeCtx() => `thread-<ts>-<rand>`
-    expect(handle.threadId).toMatch(/^thread-\d+-[a-z0-9]+$/);
+    // The old hand-rolled makeCtx() (which produced `thread-<ts>-<rand>`) was
+    // deleted in the @ag-ui/core migration; the fallback is now a plain
+    // crypto.randomUUID().
+    expect(handle.threadId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
+    );
     await waitForInterrupt(sink);
     handle.dispose();
   });
@@ -705,11 +713,16 @@ describe("event-bus integration — events emitted by the pipeline", () => {
     });
     await waitForInterrupt(sink);
 
-    // Up to the interrupt: schema/react/planner steps started, tool calls fired,
-    // and one INTERRUPT event.
+    // Up to the interrupt: schema/react/planner steps started, and one
+    // RUN_FINISHED with an "interrupt" outcome (the real protocol's only
+    // pause signal — there is no standalone INTERRUPT event type). No
+    // TOOL_CALL_START yet: the only real tool calls happen in sql_fan_out's
+    // buildWidget, which runs after the plan is approved/resumed, not before
+    // it. The react_sql_loop's exploration queries are internal grounding
+    // and surface only as thoughts, not AG-UI tool-call events.
     const preStats = projectRunStats(getEventLog());
     expect(preStats.stepCount).toBeGreaterThanOrEqual(3);
-    expect(preStats.toolCallCount).toBeGreaterThanOrEqual(1);
+    expect(preStats.toolCallCount).toBe(0);
     expect(preStats.interruptCount).toBe(1);
 
     await handle.resume("approve");
@@ -752,7 +765,14 @@ describe("runPipeline — error surfacing", () => {
 });
 
 describe("PipelineHandle.dispose — sink lifecycle", () => {
-  it("unregisters the thread sink so node-level side effects no longer reach it", async () => {
+  it("is an intentional no-op: callbacks keep firing normally after dispose()", async () => {
+    // There is no sink registry anymore (the old SINKS map / sinkFor()
+    // lookup was removed in the @ag-ui/core migration). opts.onWidget /
+    // onPlan / onThought / etc. are plain closures captured directly by
+    // drive() for the lifetime of the pipeline handle, so dispose() has
+    // nothing to unregister — per its own comment, "No sink registry to
+    // clean up anymore — nothing to do." Calling it does not stop any
+    // future callback from firing.
     stageHappyPath(makeGoodPlan());
     const sink = makeSink();
 
@@ -765,24 +785,15 @@ describe("PipelineHandle.dispose — sink lifecycle", () => {
     expect(sink.interrupts).toHaveLength(1);
 
     const widgetsBefore = sink.widgets.length;
-    const plansBefore = sink.plans.length;
     handle.dispose();
 
-    // After dispose the sink is removed from the SINKS registry. The graph nodes
-    // resolve their sink through `sinkFor(state)` (a registry lookup), so once
-    // unregistered NO node-level callbacks (onWidget / onPlan / onThought) reach
-    // this sink during the resumed run. `resume` awaits drive() fully, so the run
-    // is settled when this returns.
     await handle.resume("approve");
+    await waitForDone(sink);
 
-    // Node-level callbacks did not fire: widget/plan/thought counts are unchanged.
-    expect(sink.widgets.length).toBe(widgetsBefore);
-    expect(sink.plans.length).toBe(plansBefore);
-
-    // BUT `drive()` captured the sink object by reference (it is passed as an
-    // argument, not looked up from the registry), so its terminal `sink.onDone()`
-    // STILL fires even though the sink was unregistered. dispose() only governs
-    // the node-level registry lookups, not drive()'s own captured reference.
+    // Node-level callbacks fired normally despite dispose() having been
+    // called beforehand: the widgets built during sql_fan_out still reach
+    // the sink, and the run still completes.
+    expect(sink.widgets.length).toBeGreaterThan(widgetsBefore);
     expect(sink.doneCount).toBe(1);
   });
 });
@@ -1000,11 +1011,14 @@ describe("runPipeline — reviseNode false branches (lines 305/317)", () => {
   });
 });
 
-describe("runPipeline — sinkFor returns undefined (no-sink branches)", () => {
-  it("completes without error when the sink is disposed before resume finishes", async () => {
-    // This exercises the no-sink branches (sinkFor returns undefined when
-    // threadId not in SINKS) via the existing dispose() test pattern, but drives
-    // through sql_fan_out + narrator nodes that run without a registered sink.
+describe("runPipeline — dispose() called mid-run does not gate node-level callbacks", () => {
+  it("still delivers widget and thought callbacks emitted after dispose(), since dispose() is a no-op", async () => {
+    // There is no sink registry to remove a thread from anymore (no SINKS map,
+    // no sinkFor() lookup, no per-node `if (sink)` guard). opts.onWidget /
+    // opts.onThought are plain closures the drive() loop calls directly, so
+    // calling dispose() before resume() has no effect on whether later
+    // node-level callbacks (including the generateInsight emit callback)
+    // reach the sink.
     stageHappyPath(makeGoodPlan());
     generateInsight.mockImplementation(async (_spec, _data, emit) => {
       emit("insight cb");
@@ -1015,23 +1029,18 @@ describe("runPipeline — sinkFor returns undefined (no-sink branches)", () => {
     const handle = await runPipeline({
       ...baseOpts(),
       ...sink.callbacks,
-      threadId: "thread-no-sink-branches",
+      threadId: "thread-dispose-mid-run",
     });
     await waitForInterrupt(sink);
 
-    // Dispose removes the sink from the registry before the resumed drive runs.
     handle.dispose();
 
-    // resume still drives the graph to completion; nodes hit the !sink early-return
-    // paths inside emitStepStart / emitStepEnd / emitThought and the `if (sink)`
-    // guards in plannerNode, reactSqlLoopNode, etc.
     await handle.resume("approve");
+    await waitForDone(sink);
 
-    // drive() holds a captured reference so onDone fires regardless of dispose.
     expect(sink.doneCount).toBe(1);
-    // Node-level widget/thought callbacks do NOT fire after dispose (no sink in
-    // the registry).
-    const widgetCountAfterDispose = sink.widgets.length;
-    expect(widgetCountAfterDispose).toBe(0);
+    // Widgets AND the insight-emit thought both still arrive after dispose().
+    expect(sink.widgets.length).toBeGreaterThan(0);
+    expect(sink.thoughts.some((t) => t.text === "insight cb")).toBe(true);
   });
 });

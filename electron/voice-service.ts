@@ -1,8 +1,8 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 
-export type SherpaSttEngine = "sherpa-whisper-tiny";
-export type SherpaTtsEngine = "off" | "sherpa-kokoro";
+export type SherpaSttEngine = "sherpa-whisper-small";
+export type SherpaTtsEngine = "off" | "sherpa-kokoro" | "sherpa-supertonic";
 export type SherpaVoiceRuntime = "auto" | "webgpu" | "wasm";
 
 export type SherpaTranscribeInput = {
@@ -29,6 +29,8 @@ export type SherpaSpeakInput = {
   engine?: SherpaTtsEngine | string;
   voice?: string;
   speed?: number;
+  /** Language hint (e.g. "en" | "fr" | "ar"); used by multilingual engines like Supertonic. */
+  lang?: string;
   localModelPath?: string | null;
 };
 
@@ -74,23 +76,33 @@ type OfflineTts = {
 };
 
 const DEFAULT_SAMPLE_RATE = 16_000;
-const DEFAULT_STT_ENGINE: SherpaSttEngine = "sherpa-whisper-tiny";
+const DEFAULT_STT_ENGINE: SherpaSttEngine = "sherpa-whisper-small";
 const DEFAULT_TTS_ENGINE: Exclude<SherpaTtsEngine, "off"> = "sherpa-kokoro";
+const SUPERTONIC_DEFAULT_NUM_STEPS = 8;
+
 const DEFAULT_STT_MODEL_DIR = path.join(
   process.cwd(),
   "public",
   "models",
   "sherpa",
   "stt",
-  "sherpa-onnx-whisper-tiny.en",
+  "sherpa-onnx-whisper-small",
 );
-const DEFAULT_TTS_MODEL_DIR = path.join(
+const DEFAULT_KOKORO_MODEL_DIR = path.join(
   process.cwd(),
   "public",
   "models",
   "sherpa",
   "tts",
   "kokoro-en-v0_19",
+);
+const DEFAULT_SUPERTONIC_MODEL_DIR = path.join(
+  process.cwd(),
+  "public",
+  "models",
+  "sherpa",
+  "tts",
+  "supertonic-3",
 );
 
 const KOKORO_SPEAKER_IDS: Record<string, number> = {
@@ -113,13 +125,26 @@ function getSherpa(): Promise<SherpaModule> {
 }
 
 function normalizeSttEngine(value: unknown): SherpaSttEngine {
-  if (value === "sherpa-whisper-tiny") return value;
+  if (value === "sherpa-whisper-small") return value;
   return DEFAULT_STT_ENGINE;
 }
 
 function normalizeTtsEngine(value: unknown): SherpaTtsEngine {
   if (value === "off") return "off";
+  if (value === "sherpa-kokoro" || value === "sherpa-supertonic") return value;
   return DEFAULT_TTS_ENGINE;
+}
+
+/** Maps this app's language hints (auto/ar/fr/en) to a Supertonic 2-letter language code. */
+function mapLanguageHintToSupertonicLang(hint?: string): string {
+  const normalized = hint?.toLowerCase().trim();
+
+  if (!normalized || normalized === "auto") return "en";
+  if (normalized.startsWith("ar")) return "ar";
+  if (normalized.startsWith("fr")) return "fr";
+  if (normalized.startsWith("en")) return "en";
+
+  return "en";
 }
 
 function normalizeModelDir(value: string | null | undefined, fallback: string): string {
@@ -177,10 +202,10 @@ function getWhisperModelConfig(modelDir: string): Record<string, unknown> {
     },
     modelConfig: {
       whisper: {
-        encoder: requireFile(path.join(modelDir, "tiny.en-encoder.int8.onnx")),
-        decoder: requireFile(path.join(modelDir, "tiny.en-decoder.int8.onnx")),
+        encoder: requireFile(path.join(modelDir, "small-encoder.int8.onnx")),
+        decoder: requireFile(path.join(modelDir, "small-decoder.int8.onnx")),
       },
-      tokens: requireFile(path.join(modelDir, "tiny.en-tokens.txt")),
+      tokens: requireFile(path.join(modelDir, "small-tokens.txt")),
       numThreads: 2,
       provider: "cpu",
       debug: 0,
@@ -205,6 +230,26 @@ function getKokoroModelConfig(modelDir: string): Record<string, unknown> {
   };
 }
 
+function getSupertonicModelConfig(modelDir: string): Record<string, unknown> {
+  return {
+    model: {
+      supertonic: {
+        durationPredictor: requireFile(path.join(modelDir, "duration_predictor.int8.onnx")),
+        textEncoder: requireFile(path.join(modelDir, "text_encoder.int8.onnx")),
+        vectorEstimator: requireFile(path.join(modelDir, "vector_estimator.int8.onnx")),
+        vocoder: requireFile(path.join(modelDir, "vocoder.int8.onnx")),
+        ttsJson: requireFile(path.join(modelDir, "tts.json")),
+        unicodeIndexer: requireFile(path.join(modelDir, "unicode_indexer.bin")),
+        voiceStyle: requireFile(path.join(modelDir, "voice.bin")),
+      },
+      debug: false,
+      numThreads: 2,
+      provider: "cpu",
+    },
+    maxNumSentences: 1,
+  };
+}
+
 async function getRecognizer(modelDir: string): Promise<OfflineRecognizer> {
   const key = path.resolve(modelDir);
   let recognizer = recognizers.get(key);
@@ -219,12 +264,21 @@ async function getRecognizer(modelDir: string): Promise<OfflineRecognizer> {
   return recognizer;
 }
 
-async function getTts(modelDir: string): Promise<OfflineTts> {
-  const key = path.resolve(modelDir);
+async function getTts(
+  engine: Exclude<SherpaTtsEngine, "off">,
+  modelDir: string,
+): Promise<OfflineTts> {
+  const key = `${engine}:${path.resolve(modelDir)}`;
   let tts = ttsModels.get(key);
 
   if (!tts) {
-    tts = getSherpa().then((sherpa) => sherpa.OfflineTts.createAsync(getKokoroModelConfig(key)));
+    tts = getSherpa().then((sherpa) =>
+      sherpa.OfflineTts.createAsync(
+        engine === "sherpa-supertonic"
+          ? getSupertonicModelConfig(path.resolve(modelDir))
+          : getKokoroModelConfig(path.resolve(modelDir)),
+      ),
+    );
     ttsModels.set(key, tts);
   }
 
@@ -234,6 +288,15 @@ async function getTts(modelDir: string): Promise<OfflineTts> {
 function getSpeakerId(voice?: string): number {
   if (!voice) return KOKORO_SPEAKER_IDS.af_sky;
   return KOKORO_SPEAKER_IDS[voice] ?? KOKORO_SPEAKER_IDS.af_sky;
+}
+
+function getSupertonicSpeakerId(voice?: string): number {
+  const parsed = voice ? Number(voice) : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
+}
+
+function getDefaultTtsModelDir(engine: Exclude<SherpaTtsEngine, "off">): string {
+  return engine === "sherpa-supertonic" ? DEFAULT_SUPERTONIC_MODEL_DIR : DEFAULT_KOKORO_MODEL_DIR;
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): ArrayBuffer {
@@ -328,8 +391,8 @@ export async function preloadTts(
     };
   }
 
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
-  await getTts(modelDir);
+  const modelDir = normalizeModelDir(input.localModelPath, getDefaultTtsModelDir(engine));
+  await getTts(engine, modelDir);
 
   return {
     engine,
@@ -351,24 +414,34 @@ export async function speak(input: SherpaSpeakInput): Promise<SherpaSpeakResult>
   }
 
   const start = Date.now();
-  const modelDir = normalizeModelDir(input.localModelPath, DEFAULT_TTS_MODEL_DIR);
-  const tts = await getTts(modelDir);
+  const modelDir = normalizeModelDir(input.localModelPath, getDefaultTtsModelDir(engine));
+  const tts = await getTts(engine, modelDir);
   const speed =
     typeof input.speed === "number" && Number.isFinite(input.speed)
       ? Math.min(2, Math.max(0.5, input.speed))
       : 1;
   const sherpa = await getSherpa();
-  const generationConfig = new sherpa.GenerationConfig({
-    sid: getSpeakerId(input.voice),
-    speed,
-    silenceScale: 0.2,
-  });
-  const audio = await tts.generateAsync({
-    text,
-    sid: getSpeakerId(input.voice),
-    speed,
-    generationConfig,
-  });
+
+  const isSupertonic = engine === "sherpa-supertonic";
+  const sid = isSupertonic ? getSupertonicSpeakerId(input.voice) : getSpeakerId(input.voice);
+
+  const generationConfig = isSupertonic
+    ? new sherpa.GenerationConfig({
+        sid,
+        speed,
+        numSteps: SUPERTONIC_DEFAULT_NUM_STEPS,
+        extra: { lang: mapLanguageHintToSupertonicLang(input.lang) },
+      })
+    : new sherpa.GenerationConfig({
+        sid,
+        speed,
+        silenceScale: 0.2,
+      });
+
+  const audio = isSupertonic
+    ? await tts.generateAsync({ text, generationConfig })
+    : await tts.generateAsync({ text, sid, speed, generationConfig });
+
   const wav = encodeWav(sanitizeAudio(audio.samples), audio.sampleRate);
 
   return {
@@ -376,7 +449,7 @@ export async function speak(input: SherpaSpeakInput): Promise<SherpaSpeakResult>
     engine,
     model: modelDir,
     runtime: "cpu",
-    voice: input.voice || "af_sky",
+    voice: input.voice || (isSupertonic ? String(sid) : "af_sky"),
     text,
     sampleRate: audio.sampleRate,
     durationMs: Math.round((audio.samples.length / audio.sampleRate) * 1000),

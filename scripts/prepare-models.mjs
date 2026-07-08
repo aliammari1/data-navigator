@@ -29,7 +29,7 @@
  *   node scripts/prepare-models.mjs --only=minilm   # one group: minilm | llm
  *   node scripts/prepare-models.mjs --check         # report presence only, no download
  *   node scripts/prepare-models.mjs --llm-dest=/abs/path/to/userData/models/llm
- *   node scripts/prepare-models.mjs --low-ram       # also fetch the 0.5B fallback GGUF
+ *   node scripts/prepare-models.mjs --low-ram       # also fetch the Granite 3B alternative GGUF
  *
  * The manifest is intentionally embedded here (single source of truth shared in
  * spirit with src/platform/ai/models/model-manifest.ts) so the script has no
@@ -76,25 +76,29 @@ const HF = "https://huggingface.co";
  */
 export const MODEL_MANIFEST = [
   // ── (a) Instruct GGUF — Electron node-llama-cpp lane ───────────────────────
-  // Default: Qwen2.5-1.5B-Instruct q4_k_m (~0.99 GB). Repo: Qwen/Qwen2.5-1.5B-Instruct-GGUF.
+  // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
+  // canonical in-app catalog — keep both in lockstep.
+  // Default: Gemma 4 E4B Instruct q4_k_m (~5.34 GB). Repo: bartowski/google_gemma-4-E4B-it-GGUF.
   {
-    key: "qwen2.5-1.5b-instruct-q4_k_m",
+    key: "gemma-4-e4b-it-q4_k_m",
     group: "llm",
-    label: "Qwen2.5 1.5B Instruct (GGUF q4_k_m)",
-    url: `${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "qwen2.5-1.5b-instruct-q4_k_m.gguf"),
-    bytes: 0, // TODO: fill exact content-length from HF (≈1_070_000_000) before release
+    label: "Gemma 4 E4B Instruct (GGUF q4_k_m)",
+    url: `${HF}/bartowski/google_gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-q4_k_m.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "gemma-4-e4b-it-q4_k_m.gguf"),
+    bytes: 5_340_000_000,
     sha256: "", // TODO: fill sha256 of the released artifact before a verified build
   },
-  // Low-RAM fallback: Qwen2.5-0.5B-Instruct q4_k_m (~0.40 GB). Optional (--low-ram).
+  // Lower-resource alternative: Granite 4.1 3B Instruct q4_k_m (Apache 2.0). Optional (--low-ram).
   {
-    key: "qwen2.5-0.5b-instruct-q4_k_m",
+    key: "granite-4.1-3b-instruct-q4_k_m",
     group: "llm",
-    label: "Qwen2.5 0.5B Instruct (GGUF q4_k_m)",
+    label: "Granite 4.1 3B Instruct (GGUF q4_k_m, Apache 2.0)",
     optional: true,
-    url: `${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "qwen2.5-0.5b-instruct-q4_k_m.gguf"),
-    bytes: 0, // TODO: fill exact content-length (≈398_000_000) before release
+    // Repo has no "-instruct-" in its name or its filenames — Granite 4.1 3B IS
+    // the instruct model; see huggingface.co/ibm-granite/granite-4.1-3b-GGUF.
+    url: `${HF}/ibm-granite/granite-4.1-3b-GGUF/resolve/main/granite-4.1-3b-Q4_K_M.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "granite-4.1-3b-instruct-q4_k_m.gguf"),
+    bytes: 2_100_000_000, // TODO: fill exact content-length before release
     sha256: "", // TODO
   },
 

@@ -183,7 +183,7 @@ export function SelectToAsk() {
   const askMoudir = useCallback(() => {
     if (!bubble) return;
     const prompt = bubble.text;
-    openApp("moudir");
+    openApp("moudir-chat");
     window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
     dismiss();
   }, [bubble, openApp, dismiss]);

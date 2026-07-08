@@ -31,7 +31,10 @@ interface PerformanceSettings {
   maxMemoryMB: number;
   cacheQueries: boolean;
   virtualizeThreshold: number; // rows above which to enable virtual scroll
+  cacheMode: "balanced" | "low-memory";
 }
+
+export type DashboardRole = "owner" | "editor" | "viewer";
 
 export interface SettingsStore {
   // Legacy (preserved)
@@ -39,6 +42,9 @@ export interface SettingsStore {
   maxFiles: number;
   defaultFolderId: string | null;
   theme: "light" | "dark" | "system";
+
+  // Device role (local, non-authenticated — gates UI affordances, not real auth)
+  role: DashboardRole;
 
   // Appearance
   accentColor: AccentColor;
@@ -72,6 +78,7 @@ export interface SettingsStore {
   setMaxFiles: (count: number) => void;
   setDefaultFolderId: (id: string | null) => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
+  setRole: (role: DashboardRole) => void;
   setAccentColor: (color: AccentColor) => void;
   setDensity: (density: DensityMode) => void;
   setSidebarStyle: (style: SidebarStyle) => void;
@@ -103,6 +110,7 @@ const DEFAULT_PERFORMANCE: PerformanceSettings = {
   maxMemoryMB: 512,
   cacheQueries: true,
   virtualizeThreshold: 500,
+  cacheMode: "balanced",
 };
 
 const DEFAULT_NOTIFICATIONS: NotificationSettings = {
@@ -113,6 +121,23 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   digest: false,
 };
 
+/**
+ * One-time v5 migration read of the old `data-navigator-dashboard-access-v1`
+ * key (role + cache mode used to live in `src/platform/auth/dashboard-access.ts`,
+ * outside this store). Best-effort only — never throws.
+ */
+function readLegacyDashboardAccess(): { role?: string; cacheMode?: string } | null {
+  if (typeof localStorage === "undefined") return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem("data-navigator-dashboard-access-v1") ?? "null");
+    return parsed && typeof parsed === "object" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+const legacyDashboardAccess = readLegacyDashboardAccess();
+
 export const useSettingsStore = create<SettingsStore>()(
   persist(
     (set, get) => ({
@@ -120,6 +145,7 @@ export const useSettingsStore = create<SettingsStore>()(
       maxFiles: 20,
       defaultFolderId: null,
       theme: "dark",
+      role: "owner",
       accentColor: "blue",
       density: "comfortable",
       sidebarStyle: "dark",
@@ -137,6 +163,7 @@ export const useSettingsStore = create<SettingsStore>()(
       setMaxFiles: (count) => set({ maxFiles: count }),
       setDefaultFolderId: (id) => set({ defaultFolderId: id }),
       setTheme: (theme) => set({ theme }),
+      setRole: (role) => set({ role }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setDensity: (density) => set({ density }),
       setSidebarStyle: (sidebarStyle) => set({ sidebarStyle }),
@@ -158,6 +185,7 @@ export const useSettingsStore = create<SettingsStore>()(
       resetToDefaults: () =>
         set({
           theme: "dark",
+          role: "owner",
           accentColor: "blue",
           density: "comfortable",
           sidebarStyle: "dark",
@@ -174,7 +202,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: "data-navigator-settings",
-      version: 4,
+      version: 5,
       // Durable in drizzle (app_setting) with a synchronous localStorage
       // working copy — see createDrizzleStorage.
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "settings" })),
@@ -193,13 +221,22 @@ export const useSettingsStore = create<SettingsStore>()(
               ? "blue"
               : prev.accentColor,
           data: { ...DEFAULT_DATA, ...(prev.data ?? {}) },
-          performance: { ...DEFAULT_PERFORMANCE, ...(prev.performance ?? {}) },
+          performance: {
+            ...DEFAULT_PERFORMANCE,
+            ...(prev.performance ?? {}),
+            cacheMode: prev.performance?.cacheMode ?? legacyDashboardAccess?.cacheMode ?? "balanced",
+          },
           // New in this version — off by default for installs that predate it.
           enableAiCritic: prev.enableAiCritic ?? false,
           notifications: {
             ...DEFAULT_NOTIFICATIONS,
             ...(prev.notifications ?? {}),
           },
+          // →v5: role/cache-mode centralized here from the old
+          // `data-navigator-dashboard-access-v1` localStorage key (see
+          // src/platform/auth/dashboard-access.ts). Read directly (best-effort,
+          // one-time) so existing picks survive the move.
+          role: prev.role ?? legacyDashboardAccess?.role ?? "owner",
         } as SettingsStore;
       },
       // Persist only durable state keys; action functions and any future
@@ -209,6 +246,7 @@ export const useSettingsStore = create<SettingsStore>()(
         maxFiles: s.maxFiles,
         defaultFolderId: s.defaultFolderId,
         theme: s.theme,
+        role: s.role,
         accentColor: s.accentColor,
         density: s.density,
         sidebarStyle: s.sidebarStyle,
@@ -257,6 +295,7 @@ export const useSettingsActions = () =>
       setMaxFiles: s.setMaxFiles,
       setDefaultFolderId: s.setDefaultFolderId,
       setTheme: s.setTheme,
+      setRole: s.setRole,
       setAccentColor: s.setAccentColor,
       setDensity: s.setDensity,
       setSidebarStyle: s.setSidebarStyle,

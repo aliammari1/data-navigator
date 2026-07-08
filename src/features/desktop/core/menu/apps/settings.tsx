@@ -2,6 +2,8 @@
 
 import {
   Bell,
+  Brain,
+  Building2,
   Database,
   HardDrive,
   HelpCircle,
@@ -78,6 +80,12 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         run: () => ctx.setActivePage("performance"),
       },
       {
+        id: "go-ai",
+        label: "IA",
+        icon: Brain,
+        run: () => ctx.setActivePage("ai"),
+      },
+      {
         id: "go-account",
         label: "Compte",
         icon: User,
@@ -94,6 +102,12 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         label: "Stockage",
         icon: HardDrive,
         run: () => ctx.setActivePage("storage"),
+      },
+      {
+        id: "go-branding",
+        label: "Image de marque",
+        icon: Building2,
+        run: () => ctx.setActivePage("branding"),
       },
       {
         id: "go-shortcuts",

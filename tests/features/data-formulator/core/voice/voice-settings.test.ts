@@ -16,6 +16,7 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // ── Import target under test ──────────────────────────────────────────────────
+import type { SttEngine, TtsEngine } from "@/features/data-formulator/core/voice/voice-settings";
 import {
   applyVoiceSettingsPreset,
   clearVoiceSettings,
@@ -267,10 +268,12 @@ describe("normalizeVoiceSettings", () => {
     expect(normalizeVoiceSettings({ inputDeviceId: "mic-abc" }).inputDeviceId).toBe("mic-abc");
   });
 
-  it("maps legacy languageHint 'tounsi' -> 'ar-TN'", () => {
-    expect(normalizeVoiceSettings({ languageHint: "tounsi" as unknown }).languageHint).toBe(
-      "ar-TN",
-    );
+  it("maps legacy languageHint 'tounsi' -> 'ar'", () => {
+    expect(normalizeVoiceSettings({ languageHint: "tounsi" as unknown }).languageHint).toBe("ar");
+  });
+
+  it("maps legacy languageHint 'ar-TN' -> 'ar'", () => {
+    expect(normalizeVoiceSettings({ languageHint: "ar-TN" as unknown }).languageHint).toBe("ar");
   });
 
   it("maps legacy languageHint 'ar-SA' -> 'ar'", () => {
@@ -283,10 +286,6 @@ describe("normalizeVoiceSettings", () => {
 
   it("maps legacy languageHint 'en-US' -> 'en'", () => {
     expect(normalizeVoiceSettings({ languageHint: "en-US" as unknown }).languageHint).toBe("en");
-  });
-
-  it("passes through valid languageHint 'ar-TN'", () => {
-    expect(normalizeVoiceSettings({ languageHint: "ar-TN" }).languageHint).toBe("ar-TN");
   });
 
   it("falls back to default for invalid languageHint", () => {
@@ -551,10 +550,16 @@ describe("validateVoiceSettings", () => {
     expect(ttsWarn).toBe(false);
   });
 
-  it("warns when sttEngine is not enabled (moonshine is planned)", () => {
-    const s = makeSettings({ sttEngine: "moonshine" });
+  it("warns when sttEngine is a legacy value no longer in the registry (moonshine was removed)", () => {
+    // Construct settings directly to bypass normalizeVoiceSettings, which now
+    // coerces any unknown sttEngine (including the removed "moonshine" key) to
+    // the default. This simulates a user's persisted settings from before the
+    // migration that removed moonshine's dead placeholder registry entry.
+    const s = {
+      ...getDefaultVoiceSettings(),
+      sttEngine: "moonshine" as unknown as SttEngine,
+    };
     const result = validateVoiceSettings(s);
-    // moonshine status is 'planned' -> not enabled
     const warned = result.warnings.some((w) => w.includes("moonshine"));
     expect(warned).toBe(true);
   });
@@ -563,7 +568,6 @@ describe("validateVoiceSettings", () => {
     const cleanSettings = makeSettings();
     const { valid } = validateVoiceSettings(cleanSettings);
     // whisper-tiny is enabled; kokoro is enabled; mode is hold-to-talk
-    // Only potential issue: piper/moonshine not enabled but those aren't the defaults
     // Default ttsEngine is kokoro which IS enabled, so valid depends on no errors
     expect(typeof valid).toBe("boolean");
   });
@@ -1240,13 +1244,14 @@ describe("importVoiceSettings", () => {
 // ── Coverage gap: TTS engine not-enabled warning ──────────────────────────────
 
 describe("validateVoiceSettings – TTS engine not enabled warning", () => {
-  it("warns when ttsEngine is 'piper' (status=planned, not enabled)", () => {
-    // Construct settings directly to bypass normalizeVoiceSettings which may
-    // coerce piper to the default; piper IS a valid TtsEngine key but has
-    // status "planned" so getEnabledTtsEngines() does not include it.
+  it("warns when ttsEngine is a legacy value no longer in the registry (piper was removed)", () => {
+    // Construct settings directly to bypass normalizeVoiceSettings, which now
+    // coerces any unknown ttsEngine (including the removed "piper" key) to the
+    // default. This simulates a user's persisted settings from before the
+    // migration that removed piper's dead placeholder registry entry.
     const s = {
       ...getDefaultVoiceSettings(),
-      ttsEngine: "piper" as const,
+      ttsEngine: "piper" as unknown as TtsEngine,
     };
     const result = validateVoiceSettings(s);
     const warned = result.warnings.some((w) => w.includes("piper"));

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 // ─── Mock dependencies used by the real module ───────────────────────────────
@@ -17,10 +17,7 @@ import {
   toSystemUser,
 } from "@/platform/ai/provider/adapters/base";
 
-import {
-  buildJsonInstruction,
-  parseStructured,
-} from "@/platform/ai/provider/structured";
+import { buildJsonInstruction, parseStructured } from "@/platform/ai/provider/structured";
 
 // ─── Reset mocks between tests ────────────────────────────────────────────────
 
@@ -38,7 +35,12 @@ describe("generateStructuredByPrompt", () => {
 
   it("appends json instruction to an existing system prompt and calls provider.generate", async () => {
     // Arrange
-    const generated = { text: '{"name":"Alice"}', model: "m", provider: "ollama" as const, finishReason: "stop" as const };
+    const generated = {
+      text: '{"name":"Alice"}',
+      model: "m",
+      provider: "llamacpp" as const,
+      finishReason: "stop" as const,
+    };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "Alice" });
 
@@ -63,7 +65,7 @@ describe("generateStructuredByPrompt", () => {
 
   it("uses json instruction alone when no system prompt is provided", async () => {
     // Arrange
-    const generated = { text: '{"name":"Bob"}', model: "m", provider: "ollama" as const };
+    const generated = { text: '{"name":"Bob"}', model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "Bob" });
 
@@ -81,7 +83,7 @@ describe("generateStructuredByPrompt", () => {
 
   it("defaults temperature to 0 when temperature is undefined in req", async () => {
     // Arrange
-    const generated = { text: "{}", model: "m", provider: "ollama" as const };
+    const generated = { text: "{}", model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "x" });
 
@@ -97,7 +99,7 @@ describe("generateStructuredByPrompt", () => {
 
   it("preserves the caller-supplied temperature when provided", async () => {
     // Arrange
-    const generated = { text: "{}", model: "m", provider: "ollama" as const };
+    const generated = { text: "{}", model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "x" });
 
@@ -113,7 +115,7 @@ describe("generateStructuredByPrompt", () => {
 
   it("passes the generated text to parseStructured with the label 'structured-output'", async () => {
     // Arrange
-    const generated = { text: '{"name":"Carol"}', model: "m", provider: "ollama" as const };
+    const generated = { text: '{"name":"Carol"}', model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "Carol" });
 
@@ -123,11 +125,9 @@ describe("generateStructuredByPrompt", () => {
     await generateStructuredByPrompt(mockProvider, req, schema);
 
     // Assert
-    expect(parseStructured).toHaveBeenCalledWith(
-      '{"name":"Carol"}',
-      schema,
-      { label: "structured-output" },
-    );
+    expect(parseStructured).toHaveBeenCalledWith('{"name":"Carol"}', schema, {
+      label: "structured-output",
+    });
   });
 
   it("propagates errors thrown by provider.generate", async () => {
@@ -137,24 +137,30 @@ describe("generateStructuredByPrompt", () => {
     const req = { model: "my-model", prompt: "p" };
 
     // Act / Assert
-    await expect(generateStructuredByPrompt(mockProvider, req, schema)).rejects.toThrow("network error");
+    await expect(generateStructuredByPrompt(mockProvider, req, schema)).rejects.toThrow(
+      "network error",
+    );
   });
 
   it("propagates errors thrown by parseStructured", async () => {
     // Arrange
-    const generated = { text: "garbage", model: "m", provider: "ollama" as const };
+    const generated = { text: "garbage", model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
-    vi.mocked(parseStructured).mockImplementation(() => { throw new Error("parse failed"); });
+    vi.mocked(parseStructured).mockImplementation(() => {
+      throw new Error("parse failed");
+    });
 
     const req = { model: "my-model", prompt: "p" };
 
     // Act / Assert
-    await expect(generateStructuredByPrompt(mockProvider, req, schema)).rejects.toThrow("parse failed");
+    await expect(generateStructuredByPrompt(mockProvider, req, schema)).rejects.toThrow(
+      "parse failed",
+    );
   });
 
   it("spreads all original request fields into the generate call", async () => {
     // Arrange
-    const generated = { text: "{}", model: "m", provider: "ollama" as const };
+    const generated = { text: "{}", model: "m", provider: "llamacpp" as const };
     const mockProvider = { generate: vi.fn().mockResolvedValue(generated) };
     vi.mocked(parseStructured).mockReturnValue({ name: "x" });
 

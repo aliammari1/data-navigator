@@ -7,11 +7,21 @@
 import Fuse from "fuse.js";
 import type { ColMeta } from "@/core/stores/data-store";
 
-
 interface NLQContext {
   tableName: string;
   columns: ColMeta[];
 }
+
+/**
+ * Injected LLM text-generation callback. Callers bind this to
+ * `useAI().generate` (extracting `.text` from the `AIResult`); omitting it
+ * keeps `translateNLQWithLLM` a pure pass-through to the deterministic
+ * pattern matcher.
+ */
+type LLMGenerate = (
+  prompt: string,
+  opts: { systemPrompt: string; maxTokens: number; temperature: number },
+) => Promise<string>;
 
 export interface NLQResult {
   sql: string;
@@ -535,14 +545,59 @@ export function suggestQuestions(ctx: NLQContext): string[] {
 }
 
 // ─── LLM-powered NLQ fallback ─────────────────────────────────────────────────
- /**
-  * Translate a natural language question to SQL via the pattern-matcher.
-  * (Previously had an LLM-upgrade fallback via web-llm/WebGPU — removed;
-  * that path was unreachable in practice, see ADR/audit notes.)
-  */
- export async function translateNLQWithLLM(
-   question: string,
-   ctx: { tableName: string; columns: ColMeta[] },
- ): Promise<NLQResult> {
-   return translateNLQ(question, ctx);
- }
+
+/**
+ * Translate a natural language question to SQL.
+ * 1. Tries the fast pattern-matcher first.
+ * 2. If confidence is "low" AND a `generateText` callback was injected,
+ *    upgrades the result with the LLM.
+ * 3. Falls back to the original low-confidence result if the LLM fails (or
+ *    no callback was supplied, e.g. no model downloaded yet).
+ * Always ensures LIMIT 1000 is present.
+ */
+export async function translateNLQWithLLM(
+  question: string,
+  ctx: { tableName: string; columns: ColMeta[] },
+  generateText?: LLMGenerate,
+): Promise<NLQResult> {
+  const patternResult = translateNLQ(question, ctx);
+
+  if (patternResult.confidence !== "low") {
+    return patternResult;
+  }
+
+  if (!generateText) {
+    return patternResult;
+  }
+
+  try {
+    const colList = ctx.columns.map((c) => `${c.name} (${c.type})`).join(", ");
+
+    const userPrompt = `Table: ${ctx.tableName}\nColumns: ${colList}\nQuestion: ${question}`;
+
+    const raw = await generateText(userPrompt, {
+      systemPrompt:
+        'You are a SQL expert. Generate DuckDB-compatible SQL for the given question. Return JSON only — no prose, no markdown fences. Schema: {sql, explanation, confidence, chartSuggestion}. confidence must be "high"|"medium"|"low". chartSuggestion must be one of: bar|line|pie|scatter|table|number.',
+      maxTokens: 400,
+      temperature: 0.2,
+    });
+
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error("No JSON object in LLM response");
+
+    const parsed = JSON.parse(jsonMatch[0]) as NLQResult;
+    if (!parsed.sql) throw new Error("Missing sql field");
+
+    // Guarantee LIMIT 1000
+    const sql = addLimit(parsed.sql, 1000);
+
+    return {
+      sql,
+      explanation: parsed.explanation ?? "",
+      confidence: parsed.confidence ?? "medium",
+      chartSuggestion: parsed.chartSuggestion,
+    };
+  } catch {
+    return patternResult;
+  }
+}

@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
-import type { ChartSpec, FilterDef, Encoding } from "@/features/data-formulator/core/types";
+import { describe, expect, it } from "vitest";
 import { buildSQL } from "@/features/data-formulator/core/sql";
+import type { ChartSpec, Encoding, FilterDef } from "@/features/data-formulator/core/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -101,7 +101,7 @@ describe("buildWhereClause — filter operations", () => {
       filters: [makeFilter({ field: "channel", op: "IN", value: "USSD, APP, WEB" })],
     });
     const sql = buildSQL(spec, "tx");
-    expect(sql).toContain('"channel" IN (\'USSD\',\'APP\',\'WEB\')');
+    expect(sql).toContain("\"channel\" IN ('USSD','APP','WEB')");
   });
 
   it("escapes single quotes in IN values", () => {
@@ -128,7 +128,7 @@ describe("buildWhereClause — filter operations", () => {
       filters: [makeFilter({ field: "name", op: "LIKE", value: "%foo%" })],
     });
     const sql = buildSQL(spec, "tx");
-    expect(sql).toContain('CAST("name" AS VARCHAR) LIKE \'%foo%\'');
+    expect(sql).toContain("CAST(\"name\" AS VARCHAR) LIKE '%foo%'");
   });
 
   it("escapes single quotes in LIKE values", () => {
@@ -179,10 +179,7 @@ describe("buildWhereClause — filter operations", () => {
   it("joins multiple filters with AND", () => {
     const spec = makeSpec({
       encodings: [makeEncoding({ channel: "x", field: "amount" })],
-      filters: [
-        makeFilter({ op: ">", value: "10" }),
-        makeFilter({ op: "<", value: "100" }),
-      ],
+      filters: [makeFilter({ op: ">", value: "10" }), makeFilter({ op: "<", value: "100" })],
     });
     const sql = buildSQL(spec, "tx");
     expect(sql).toContain(" AND ");
@@ -305,15 +302,13 @@ describe("buildAgg — aggregation expressions", () => {
 // ── buildSQL() — histogram path ───────────────────────────────────────────────
 
 describe("buildSQL — histogram (bin + count)", () => {
-  it("builds a WIDTH_BUCKET histogram query when xEnc has bin=true and aggregate=count", () => {
+  it("builds a 30-bucket histogram query when xEnc has bin=true and aggregate=count", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" })],
       limit: 50,
     });
     const sql = buildSQL(spec, "my_table");
-    expect(sql).toContain("WIDTH_BUCKET");
+    expect(sql).toContain("LEAST(GREATEST(CAST(FLOOR(");
     expect(sql).toContain('"my_table"');
     expect(sql).toContain("COUNT(*) as y_val");
     expect(sql).toContain("GROUP BY x_val ORDER BY x_val LIMIT 50");
@@ -321,9 +316,7 @@ describe("buildSQL — histogram (bin + count)", () => {
 
   it("includes WHERE clause in histogram query when filters are present", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" })],
       filters: [makeFilter({ op: ">", value: "0" })],
       limit: 30,
     });
@@ -335,9 +328,7 @@ describe("buildSQL — histogram (bin + count)", () => {
 
   it("omits WHERE keyword when histogram has no filters (uses plain WHERE)", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "count" })],
       filters: [],
       limit: 30,
     });
@@ -357,14 +348,12 @@ describe("buildSQL — histogram (bin + count)", () => {
     const derived = [{ name: "derived_amt", sql: "amount * 2" }];
     const sql = buildSQL(spec, "tx", derived);
     expect(sql).toContain("(amount * 2)");
-    expect(sql).toContain("WIDTH_BUCKET");
+    expect(sql).toContain("LEAST(GREATEST(CAST(FLOOR(");
   });
 
   it("does NOT enter histogram path when bin=true but aggregate is not count", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "sum" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "amount", bin: true, aggregate: "sum" })],
       limit: 20,
     });
     const sql = buildSQL(spec, "tx");
@@ -373,9 +362,7 @@ describe("buildSQL — histogram (bin + count)", () => {
 
   it("does NOT enter histogram path when aggregate=count but bin is not set", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "amount", bin: false, aggregate: "count" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "amount", bin: false, aggregate: "count" })],
       limit: 20,
     });
     const sql = buildSQL(spec, "tx");
@@ -462,9 +449,7 @@ describe("buildSQL — main select path", () => {
 
   it("omits x from query when no x encoding is present", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ id: "e2", channel: "y", field: "amount" }),
-      ],
+      encodings: [makeEncoding({ id: "e2", channel: "y", field: "amount" })],
       limit: 10,
     });
     const sql = buildSQL(spec, "tx");
@@ -474,9 +459,7 @@ describe("buildSQL — main select path", () => {
 
   it("omits y from query when no y encoding is present", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "dim" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "dim" })],
       limit: 10,
     });
     const sql = buildSQL(spec, "tx");
@@ -486,9 +469,7 @@ describe("buildSQL — main select path", () => {
 
   it("omits color from query when no color encoding is present", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "dim" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "dim" })],
       limit: 10,
     });
     const sql = buildSQL(spec, "tx");
@@ -497,9 +478,7 @@ describe("buildSQL — main select path", () => {
 
   it("omits size from query when no size encoding is present", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "dim" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "dim" })],
       limit: 10,
     });
     const sql = buildSQL(spec, "tx");
@@ -620,9 +599,7 @@ describe("buildSQL — ORDER BY", () => {
 
   it("does NOT add ORDER BY when no sort encoding and no hasAgg+yEnc condition", () => {
     const spec = makeSpec({
-      encodings: [
-        makeEncoding({ channel: "x", field: "channel" }),
-      ],
+      encodings: [makeEncoding({ channel: "x", field: "channel" })],
       limit: 10,
     });
     const sql = buildSQL(spec, "tx");

@@ -329,6 +329,101 @@ describe("getWidgetsForPage", () => {
   });
 });
 
+// ─── pinWidget / unpinWidget / getPinnedWidgets ──────────────────────────────
+
+describe("pinWidget", () => {
+  it("sets pinnedAt to a timestamp on the matching widget", () => {
+    store().addWidget(makeWidgetInput({ title: "Pin me" }));
+    const id = store().widgets[0]?.id as string;
+
+    const before = Date.now();
+    store().pinWidget(id);
+    const after = Date.now();
+
+    const pinnedAt = store().widgets[0]?.pinnedAt;
+    expect(pinnedAt).toBeGreaterThanOrEqual(before);
+    expect(pinnedAt).toBeLessThanOrEqual(after);
+  });
+
+  it("does not modify widgets whose id does not match", () => {
+    store().addWidget(makeWidgetInput({ title: "A" }));
+    store().addWidget(makeWidgetInput({ title: "B" }));
+    const ids = store().widgets.map((w) => w.id);
+
+    store().pinWidget(ids[0] as string);
+    expect(store().widgets.find((w) => w.id === ids[1])?.pinnedAt).toBeUndefined();
+  });
+
+  it("is a no-op when the id does not match any widget", () => {
+    store().addWidget(makeWidgetInput());
+    store().pinWidget("nonexistent-id");
+    expect(store().widgets[0]?.pinnedAt).toBeUndefined();
+  });
+});
+
+describe("unpinWidget", () => {
+  it("clears pinnedAt on the matching widget", () => {
+    store().addWidget(makeWidgetInput({ title: "Unpin me" }));
+    const id = store().widgets[0]?.id as string;
+    store().pinWidget(id);
+    expect(store().widgets[0]?.pinnedAt).toBeDefined();
+
+    store().unpinWidget(id);
+    expect(store().widgets[0]?.pinnedAt).toBeUndefined();
+  });
+
+  it("does not modify widgets whose id does not match", () => {
+    store().addWidget(makeWidgetInput({ title: "A" }));
+    store().addWidget(makeWidgetInput({ title: "B" }));
+    const ids = store().widgets.map((w) => w.id);
+    store().pinWidget(ids[0] as string);
+    store().pinWidget(ids[1] as string);
+
+    store().unpinWidget(ids[0] as string);
+    expect(store().widgets.find((w) => w.id === ids[1])?.pinnedAt).toBeDefined();
+  });
+
+  it("is a no-op when the id does not match any widget", () => {
+    store().addWidget(makeWidgetInput());
+    const id = store().widgets[0]?.id as string;
+    store().pinWidget(id);
+    const pinnedAt = store().widgets[0]?.pinnedAt;
+
+    store().unpinWidget("nonexistent-id");
+    expect(store().widgets[0]?.pinnedAt).toBe(pinnedAt);
+  });
+});
+
+describe("getPinnedWidgets", () => {
+  it("returns an empty array when no widgets are pinned", () => {
+    store().addWidget(makeWidgetInput());
+    expect(store().getPinnedWidgets()).toEqual([]);
+  });
+
+  it("returns only the widgets whose pinnedAt is set", () => {
+    store().addWidget(makeWidgetInput({ title: "Pinned" }));
+    store().addWidget(makeWidgetInput({ title: "Not pinned" }));
+    const ids = store().widgets.map((w) => w.id);
+    const pinnedId = ids.find((_, i) => store().widgets[i]?.title === "Pinned") as string;
+    store().pinWidget(pinnedId);
+
+    const pinned = store().getPinnedWidgets();
+    expect(pinned).toHaveLength(1);
+    expect(pinned[0]?.title).toBe("Pinned");
+  });
+
+  it("reflects unpinWidget immediately (widget drops out of the pinned list)", () => {
+    store().addWidget(makeWidgetInput({ title: "Toggle" }));
+    const id = store().widgets[0]?.id as string;
+
+    store().pinWidget(id);
+    expect(store().getPinnedWidgets()).toHaveLength(1);
+
+    store().unpinWidget(id);
+    expect(store().getPinnedWidgets()).toHaveLength(0);
+  });
+});
+
 // ─── Cross-action integration ─────────────────────────────────────────────────
 
 describe("cross-action integration", () => {

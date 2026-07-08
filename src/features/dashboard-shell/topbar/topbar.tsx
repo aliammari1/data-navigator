@@ -16,7 +16,6 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { useAppTheme } from "@/hooks/use-app-theme";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -27,12 +26,13 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useSettingsStore } from "@/core/stores/settings-store";
-import { useShellActions } from "@/features/dashboard-shell/shell/shell-store";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
+import { useShellActions } from "@/features/dashboard-shell/shell/shell-store";
 import { AccessControlPill } from "@/features/dashboard-shell/topbar/access-control-pill";
 import { DatasetPicker } from "@/features/dashboard-shell/topbar/dataset-picker";
 import { ModelStatusPill } from "@/features/dashboard-shell/topbar/model-status-pill";
 import { NotificationsBell } from "@/features/dashboard-shell/topbar/notifications-bell";
+import { useAppTheme } from "@/hooks/use-app-theme";
 import { authClient } from "@/platform/auth/auth-client";
 import { cn } from "@/shared/utils";
 
@@ -115,7 +115,7 @@ export function Topbar({
   }
 
   return (
-    <header className="z-40 flex h-14 flex-none items-center gap-2 overflow-hidden border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
+    <header className="z-[var(--z-topbar)] flex h-14 flex-none items-center gap-2 overflow-hidden border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
       {showBreadcrumbs && (
         <nav className="hidden min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground sm:flex">
           {crumbs.map((crumb, i) => (

@@ -20,7 +20,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { getLANJoinUrl, getLANStatus, readLANSettings } from "@/platform/lan/lan-collab";
 import type { ApprovalHistoryEntry, ApprovalStatus } from "@/platform/collab";
-import { useCollabHubStore } from "../store/collab-hub-store";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import { currentUserName, recordAudit, useApprovalCRDT } from "../collab/collab-hub-crdt";
 
 // ─── Constants ────────────────────────────────────────────────────────────────

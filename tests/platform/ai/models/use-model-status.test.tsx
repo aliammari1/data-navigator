@@ -100,13 +100,13 @@ describe("ensureModelsReady", () => {
 
     const result = await ensureModelsReady();
 
-    // Two non-optional primaries exist: the 1.5B GGUF and the MiniLM embed.
+    // Two non-optional primaries exist: the Gemma GGUF and the MiniLM embed.
     expect(result.ready).toBe(false);
     expect(result.missing.map((r) => r.key).sort()).toEqual(
-      ["minilm-onnx-quantized", "qwen2.5-1.5b-instruct-q4_k_m"].sort(),
+      ["minilm-onnx-quantized", "gemma-4-e4b-it-q4_k_m"].sort(),
     );
     // records covers every manifest entry in the default ["llm","embed"] lanes.
-    expect(result.records.length).toBe(4);
+    expect(result.records.length).toBe(3);
   });
 
   it("excludes optional models from `missing` even when they are absent", async () => {
@@ -114,10 +114,9 @@ describe("ensureModelsReady", () => {
 
     const result = await ensureModelsReady();
 
-    // The 0.5B + 7B GGUFs are optional → present in records, absent from missing.
+    // The Granite GGUF is optional → present in records, absent from missing.
     const recordKeys = result.records.map((r) => r.key);
-    expect(recordKeys).toContain("qwen2.5-0.5b-instruct-q4_k_m");
-    expect(recordKeys).toContain("qwen2.5-7b-instruct-q4_k_m");
+    expect(recordKeys).toContain("granite-4.1-3b-instruct-q4_k_m");
     expect(result.missing.every((r) => r.optional === false)).toBe(true);
   });
 
@@ -126,8 +125,8 @@ describe("ensureModelsReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1_070_000_000,
         },
@@ -168,10 +167,10 @@ describe("ensureModelsReady", () => {
 
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("unknown");
     // `missing` is `state !== "present"`, so "unknown" counts as blocking.
-    expect(result.missing.map((r) => r.key)).toContain("qwen2.5-1.5b-instruct-q4_k_m");
+    expect(result.missing.map((r) => r.key)).toContain("gemma-4-e4b-it-q4_k_m");
     expect(result.ready).toBe(false);
   });
 
@@ -184,14 +183,14 @@ describe("ensureModelsReady", () => {
     });
     installLlamaBridge({
       listModels: vi.fn(async () => [
-        { id: "qwen2.5-1.5b-instruct-q4_k_m.gguf", present: true },
+        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: true },
       ]),
     });
     installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("present");
     expect(primary?.source).toBe("userData");
   });
@@ -204,14 +203,14 @@ describe("ensureModelsReady", () => {
     });
     installLlamaBridge({
       listModels: vi.fn(async () => [
-        { id: "qwen2.5-1.5b-instruct-q4_k_m.gguf", present: true },
+        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: true },
       ]),
     });
     installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m")?.state).toBe(
+    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.state).toBe(
       "present",
     );
   });
@@ -220,14 +219,14 @@ describe("ensureModelsReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         // key mismatch, but `file` equals the primary's ggufFile → matched.
-        { key: "mismatched", file: "qwen2.5-1.5b-instruct-q4_k_m.gguf", present: false, sizeBytes: 0 },
+        { key: "mismatched", file: "gemma-4-e4b-it-q4_k_m.gguf", present: false, sizeBytes: 0 },
       ]),
     });
     installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("missing");
     expect(primary?.source).toBe("userData");
   });
@@ -236,8 +235,8 @@ describe("ensureModelsReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1_234_567,
         },
@@ -247,7 +246,7 @@ describe("ensureModelsReady", () => {
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m")?.sizeBytes).toBe(
+    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.sizeBytes).toBe(
       1_234_567,
     );
   });
@@ -262,7 +261,7 @@ describe("ensureModelsReady", () => {
     const result = await ensureModelsReady(["llm"]);
 
     expect(
-      result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m")?.downloadable,
+      result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable,
     ).toBe(true);
   });
 
@@ -274,7 +273,7 @@ describe("ensureModelsReady", () => {
     const result = await ensureModelsReady(["llm"]);
 
     expect(
-      result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m")?.downloadable,
+      result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable,
     ).toBe(false);
   });
 
@@ -450,8 +449,8 @@ describe("isPrimaryLlmReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1,
         },
@@ -466,8 +465,8 @@ describe("isPrimaryLlmReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1,
         },
@@ -482,8 +481,8 @@ describe("isPrimaryLlmReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: false,
           sizeBytes: 0,
         },
@@ -515,7 +514,7 @@ describe("useModelStatus", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.records.length).toBe(4);
+    expect(result.current.records.length).toBe(3);
     // Nothing present → not ready.
     expect(result.current.ready).toBe(false);
   });
@@ -524,8 +523,8 @@ describe("useModelStatus", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1,
         },
@@ -555,8 +554,8 @@ describe("useModelStatus", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present,
           sizeBytes: present ? 1 : 0,
         },
@@ -603,15 +602,15 @@ describe("useModelStatus", () => {
         return unsubscribe;
       }),
       download: vi.fn(async () => ({
-        key: "qwen2.5-1.5b-instruct-q4_k_m",
+        key: "gemma-4-e4b-it-q4_k_m",
         present: true,
         sizeBytes: 1,
       })),
       // After download, refresh() re-probes; report present.
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1,
         },
@@ -622,13 +621,13 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
       // Drive a mid-flight progress event before download resolves.
       emit?.({ percent: 42, receivedBytes: 420, totalBytes: 1000, done: false });
       await p;
     });
 
-    const state = result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"];
+    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
     // Terminal state after a successful download.
     expect(state.percent).toBe(100);
     expect(state.active).toBe(false);
@@ -652,10 +651,10 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      await result.current.download("gemma-4-e4b-it-q4_k_m");
     });
 
-    const state = result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"];
+    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
     expect(state.error).toBe("disk full");
     expect(state.active).toBe(false);
     // Still cleaned up even on failure.
@@ -675,10 +674,10 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      await result.current.download("gemma-4-e4b-it-q4_k_m");
     });
 
-    expect(result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"].error).toBe(
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].error).toBe(
       "plain string failure",
     );
   });
@@ -704,13 +703,13 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
       emit?.({ percent: 100, receivedBytes: 1000, totalBytes: 1000, done: true });
       await p;
     });
 
     // active:false comes from the done:true event AND the success branch.
-    expect(result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
   });
 
   it("cancel() is a no-op when there is no active download for the key", async () => {
@@ -720,12 +719,12 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.cancel("qwen2.5-1.5b-instruct-q4_k_m");
+      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
     });
 
     // No active entry → abort never called, no download state created.
     expect(bridge.abort).not.toHaveBeenCalled();
-    expect(result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"]).toBeUndefined();
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"]).toBeUndefined();
   });
 
   it("cancel() aborts an in-flight download, unsubscribes, and marks inactive", async () => {
@@ -750,18 +749,18 @@ describe("useModelStatus", () => {
     // Kick off a download that never resolves until we cancel.
     let downloadPromise: Promise<void> | undefined;
     await act(async () => {
-      downloadPromise = result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      downloadPromise = result.current.download("gemma-4-e4b-it-q4_k_m");
       // Let the synchronous body register the active entry.
       await Promise.resolve();
     });
 
     await act(async () => {
-      await result.current.cancel("qwen2.5-1.5b-instruct-q4_k_m");
+      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
     });
 
     expect(abort).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalled();
-    expect(result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
 
     // Let the dangling download promise settle so no unhandled rejection leaks.
     await act(async () => {
@@ -791,16 +790,16 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      result.current.download("gemma-4-e4b-it-q4_k_m");
       await Promise.resolve();
     });
 
     // Should not throw despite abort() rejecting.
     await act(async () => {
-      await result.current.cancel("qwen2.5-1.5b-instruct-q4_k_m");
+      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
     });
 
-    expect(result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
 
     await act(async () => {
       resolveDownload?.({ present: true });

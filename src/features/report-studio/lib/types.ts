@@ -108,19 +108,9 @@ export interface PDFOptions {
   includeCharts: boolean;
 }
 
-/** Branding profile persisted in IndexedDB (Dexie). */
-export interface BrandingProfile {
-  /** Fixed singleton id, currently always `'active'`. */
-  id: string;
-  companyName: string;
-  primaryColor: string;
-  footerText: string;
-  applyToAll: boolean;
-  /** Local logo bytes (offline). Replaces the old remote `logoUrl`. */
-  logoBytes?: ArrayBuffer;
-  logoMime?: string;
-  logoName?: string;
-}
+// `BrandingProfile` moved to `@/core/branding/types` — it's an app-wide
+// default edited from Settings, not a report-studio-local type.
+export type { BrandingProfile } from "@/core/branding/types";
 
 /** MIME types used by the export pipeline + save dialog filters. */
 export const EXPORT_MIME = {

@@ -8,6 +8,7 @@ import {
   SPEC_DECLINED_FILTER,
   SPEC_STATUS_CODES,
   SPEC_SUCCESS_FILTER,
+  STATUS_AUTO_SEMANTIC_BY_CODE,
   STATUS_PRESENTATION,
   buildRawStatusFilter,
   buildRawStatusFilterForColumn,
@@ -50,11 +51,15 @@ describe("SPEC filters", () => {
     expect(SPEC_SUCCESS_FILTER).toContain("TRANSACTION_STATUS");
   });
 
-  it("exclude soft-declined extras (CAN/FLD/ERR) that exist only in the builtin set", () => {
-    // SPEC declined is a strict subset of BUILTIN declined.
-    expect(BUILTIN_STATUS_CODES.declined).toContain("CAN");
+  it("exclude soft-declined extras (CAN/FLD/ERR) — they are non-spec fallback codes, not builtin ones", () => {
+    // BUILTIN_STATUS_CODES is spec-exact; SPEC_STATUS_CODES is a plain alias of it.
+    expect(SPEC_STATUS_CODES).toBe(BUILTIN_STATUS_CODES);
+    expect(BUILTIN_STATUS_CODES.declined).not.toContain("CAN");
     expect(SPEC_STATUS_CODES.declined).not.toContain("CAN");
     expect(SPEC_DECLINED_FILTER).not.toContain("'CAN'");
+    // CAN is still recognised as a declined-shaped code, but only via the
+    // non-spec auto-detection fallback (STATUS_AUTO_SEMANTIC_BY_CODE).
+    expect(STATUS_AUTO_SEMANTIC_BY_CODE.CAN).toBe("declined");
   });
 });
 
@@ -95,13 +100,23 @@ describe("DEFAULT_STATUS_MAPPINGS", () => {
     expect(pst?.color).toBe(STATUS_PRESENTATION.success.color);
   });
 
-  it("honours per-code color overrides (CAN gets its own orange)", () => {
+  it("excludes non-spec codes like CAN — default mappings are spec-only", () => {
+    // CAN is not part of the telecom spec taxonomy, so it has no entry in
+    // DEFAULT_STATUS_MAPPINGS. It is still classified as "declined" through
+    // the separate STATUS_AUTO_SEMANTIC_BY_CODE fallback table.
     const can = DEFAULT_STATUS_MAPPINGS.find((m) => m.rawCode === "CAN");
 
-    expect(can?.semantic).toBe("declined");
-    // Override differs from the generic declined color.
-    expect(can?.color).not.toBe(STATUS_PRESENTATION.declined.color);
-    expect(can?.color).toBe("#f97316");
+    expect(can).toBeUndefined();
+    expect(STATUS_AUTO_SEMANTIC_BY_CODE.CAN).toBe("declined");
+  });
+
+  it("uses the shared semantic presentation for every entry (no per-code overrides)", () => {
+    for (const mapping of DEFAULT_STATUS_MAPPINGS) {
+      const presentation = STATUS_PRESENTATION[mapping.semantic];
+
+      expect(mapping.color).toBe(presentation.color);
+      expect(mapping.badgeClass).toBe(presentation.badgeClass);
+    }
   });
 
   it("contains no duplicate raw codes", () => {

@@ -1,27 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useBranding } from "@/core/branding/use-branding";
+import type { BrandingProfile } from "@/core/branding/types";
 import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
 import { useWindowId } from "@/features/desktop/core/menu/window-context";
-import { BrandingPanel } from "../components/BrandingPanel";
 import { ChannelSelector } from "../components/ChannelSelector";
 import { HourlyChartPreview } from "../components/HourlyChartPreview";
 import { PresentationOverlay } from "../components/PresentationOverlay";
-import { useBranding } from "../hooks/use-branding";
 import { useExportWorker } from "../hooks/use-export-worker";
 import { useReportData } from "../hooks/use-report-data";
 import { useReportNarrative } from "../hooks/use-report-narrative";
-import type {
-  BrandingProfile,
-  DocxOptions,
-  PDFOptions,
-  PptxTemplate,
-  ReportData,
-} from "../lib/types";
+import type { DocxOptions, PDFOptions, PptxTemplate, ReportData } from "../lib/types";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -161,7 +156,7 @@ export function ReportStudioScreen() {
   const [presentationOpen, setPresentationOpen] = useState(false);
   const [reportDate, setReportDate] = useState(() => new Date().toISOString().slice(0, 10));
 
-  const { branding, update, setLogoFromFile, clearLogo } = useBranding();
+  const { branding } = useBranding();
   const { data: rawData, isLoading, isDemo, datasetName } = useReportData(reportDate);
   const { exportPptx, exportDocx, exportPdf, exportXlsx } = useExportWorker();
   const narrative = useReportNarrative();
@@ -953,12 +948,33 @@ export function ReportStudioScreen() {
 
           {/* ── Branding ────────────────────────────────────────────────────── */}
           <TabsContent value="branding" className="mt-4">
-            <BrandingPanel
-              branding={branding}
-              update={update}
-              setLogoFromFile={setLogoFromFile}
-              clearLogo={clearLogo}
-            />
+            <Card>
+              <CardHeader>
+                <CardTitle>Brand Configuration</CardTitle>
+                <CardDescription>
+                  Applied to every generated export. Edited in Settings, not per-report.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-3 rounded-xl border border-border p-4">
+                  <div
+                    className="h-10 w-10 shrink-0 rounded-lg"
+                    style={{ backgroundColor: branding.primaryColor }}
+                  />
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-foreground">
+                      {branding.companyName}
+                    </div>
+                    <div className="truncate text-xs text-muted-foreground">
+                      {branding.footerText}
+                    </div>
+                  </div>
+                </div>
+                <Button asChild size="sm" variant="outline">
+                  <Link href="/dashboard/settings?tab=branding">Edit in Settings</Link>
+                </Button>
+              </CardContent>
+            </Card>
           </TabsContent>
         </Tabs>
       </div>

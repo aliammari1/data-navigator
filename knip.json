@@ -10,7 +10,6 @@
     "src/features/**/workers/*.worker.ts",
     "src/features/**/worker/*.worker.ts",
     "src/features/**/core/**/*.worker.ts",
-    "src/features/data-formulator/core/voice/voice-command-router.ts",
     "esbuild.workers.mjs",
     "scripts/**/*.{ts,mjs}",
     "src/**/*.stories.{ts,tsx}",
@@ -49,12 +48,12 @@
     "src/**/*.d.ts",
     "next-env.d.ts"
   ],
-  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "electron-forge", "powershell"],
-  "ignoreDependencies": [
-    "@huggingface/transformers",
-    "onnxruntime-web",
-    "onnxruntime-node",
-    "sharp"
+  "ignoreBinaries": [
+    "depcruise",
+    "lhci",
+    "test-storybook",
+    "electron-forge",
+    "powershell"
   ],
   "rules": {
     "files": "error",
@@ -78,7 +77,10 @@
   },
   "storybook": {
     "config": [".storybook/main.ts"],
-    "entry": [".storybook/{main,preview,test-runner}.{ts,tsx}", "src/**/*.stories.{ts,tsx}"]
+    "entry": [
+      ".storybook/{main,preview,test-runner}.{ts,tsx}",
+      "src/**/*.stories.{ts,tsx}"
+    ]
   },
   "vitest": {
     "config": ["vitest.config.ts"],

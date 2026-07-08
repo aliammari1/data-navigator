@@ -88,23 +88,28 @@ export function CanalSunburstExplorer({
   }, []);
 
   // ── ONE query feeds the whole explorer: per-canal status over all channels ──
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    fetchSpecCanalStatusMatrix(ALL_CANAL_CHANNELS, dateFrom, dateTo)
-      .then((rows) => {
-        if (!cancelled) setStatusRows(rows);
-      })
-      .catch(() => {
-        if (!cancelled) setStatusRows([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [dateFrom, dateTo, fetchSpecCanalStatusMatrix]);
+const fetchRef = useRef(fetchSpecCanalStatusMatrix);
+useEffect(() => {
+  fetchRef.current = fetchSpecCanalStatusMatrix;
+}, [fetchSpecCanalStatusMatrix]);
+
+useEffect(() => {
+  let cancelled = false;
+  setLoading(true);
+  fetchRef.current(ALL_CANAL_CHANNELS, dateFrom, dateTo)
+    .then((rows) => {
+      if (!cancelled) setStatusRows(rows);
+    })
+    .catch(() => {
+      if (!cancelled) setStatusRows([]);
+    })
+    .finally(() => {
+      if (!cancelled) setLoading(false);
+    });
+  return () => {
+    cancelled = true;
+  };
+}, [dateFrom, dateTo]);
 
   // canal name → its status row, for client-side aggregation by node.
   const statusByCanal = useMemo(() => {

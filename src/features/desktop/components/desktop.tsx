@@ -44,7 +44,7 @@ const DesktopIconsMemo = memo(DesktopIcons);
 
 /** Forward a question to the Moudir AI swarm (open + dispatch the listened event). */
 function askMoudir(openApp: (id: string) => unknown, prompt: string) {
-  openApp("moudir");
+  openApp("moudir-chat");
   window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
 }
 
@@ -259,19 +259,29 @@ export function Desktop({
         onDragLeave={onCanvasDragLeave}
         onDrop={onCanvasDrop}
       >
-        {/* Free-floating widgets + pinned snapshots sit above the wallpaper,
-            beneath the window layer. */}
-        <WidgetsLayerMemo />
-        <SnapshotsLayerMemo />
+        {/* Own stacking context, capped at --z-window (25) — below --z-topbar
+            (30) and --z-dock (40). Window z-index climbs unboundedly inside
+            here (focus order, pin-on-top) but can never escape past this
+            context to cover the chrome, no matter how high it gets.
+            `absolute inset-0` so it exactly fills .dn-desktop-canvas — Rnd's
+            "bounds=parent" and every absolutely-positioned child inside
+            (icons, widgets, windows) keep the same coordinate space they had
+            as direct children of the canvas. */}
+        <div className="absolute inset-0 z-[var(--z-window)]">
+          {/* Free-floating widgets + pinned snapshots sit above the wallpaper,
+              beneath the window layer. */}
+          <WidgetsLayerMemo />
+          <SnapshotsLayerMemo />
 
-        <DesktopIconsMemo />
+          <DesktopIconsMemo />
 
-        {windows.map((win) => (
-          <WindowFrameMemo key={win.id} win={win} />
-        ))}
+          {windows.map((win) => (
+            <WindowFrameMemo key={win.id} win={win} />
+          ))}
 
-        {/* Spotlight hero on the empty desktop */}
-        {visibleCount === 0 && <Spotlight inline greeting={greeting} />}
+          {/* Spotlight hero on the empty desktop */}
+          {visibleCount === 0 && <Spotlight inline greeting={greeting} />}
+        </div>
 
         {/* Right-docked Inspector (toggleable) */}
         <Inspector open={inspectorOpen} onClose={() => setInspectorOpen(false)} />

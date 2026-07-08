@@ -95,10 +95,8 @@ export default defineConfig({
         // `voice-settings/-model-cache/-model-registry`, `electron/sql-guard.ts`,
         // `upload-to-duckdb.ts`). Each exclusion is justified inline.
         "src/features/data-formulator/core/voice/voice-tts-worker.ts", // AudioWorklet/WASM TTS
-        "src/features/data-formulator/core/voice/voice-vad-worker.ts", // AudioWorklet VAD
         "src/features/data-formulator/core/voice/voice-stt-worker.ts", // AudioWorklet/WASM STT
         "src/features/data-formulator/core/voice/voice-vad-service.ts", // MediaStream VAD wiring
-        "src/features/data-formulator/core/voice/voice-capture.ts", // getUserMedia mic capture
         "src/features/eye-tracking/**", // webcam/MediaPipe hardware
         "src/platform/ai/transformers-engine.ts", // transformers.js WASM/WebGPU runtime
         "src/platform/ai/pyodide-ml.ts", // Pyodide WASM bootstrap
@@ -135,17 +133,20 @@ export default defineConfig({
       // of gated globs outward as coverage grows. This makes the gate
       // meaningful and green from day one.
       thresholds: {
-        // ── Global ratchet floor (2026-06-25) ──────────────────────────────
-        // Locks in the 80%+ logic coverage reached across the Hybrid-scoped
-        // surface (achieved: lines 85.9 / stmts 84.5 / funcs 80.4 / branch 78.2).
-        // Floors sit a hair below the measured numbers so CI tolerates minor
-        // run-to-run noise but fails on any real regression. Ratchet upward as
-        // coverage grows; raise `branches` to 80 once the remaining provider/
-        // adapter + report-studio branch paths are covered.
-        lines: 84,
-        statements: 83,
-        functions: 79,
-        branches: 77,
+        // ── Global ratchet floor (2026-07-05) ──────────────────────────────
+        // Locks in the near-ceiling logic coverage reached across the
+        // Hybrid-scoped surface (achieved: lines 99.64 / stmts 98.99 /
+        // funcs 99.49 / branch 96.5, after authoring tests for the previously
+        // 0%-covered desktop menu subsystem + a handful of partial-coverage
+        // cleanups). Floors sit a little below the measured numbers so CI
+        // tolerates minor run-to-run noise but fails on any real regression.
+        // The remaining gap to 100% is confirmed-unreachable-in-jsdom code
+        // (SSR `typeof window/document === "undefined"` guards, one
+        // intentionally-empty-in-production array) — not neglect.
+        lines: 99,
+        statements: 98,
+        functions: 98,
+        branches: 95,
         // Security-critical: the Electron trust boundary must stay fully tested.
         "electron/security.ts": {
           lines: 95,

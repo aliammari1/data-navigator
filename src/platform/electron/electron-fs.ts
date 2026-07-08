@@ -217,6 +217,7 @@ export interface ElectronVoiceBridge {
     engine?: string;
     voice?: string;
     speed?: number;
+    lang?: string;
     localModelPath?: string | null;
   }): Promise<{
     jobId: string;
@@ -321,13 +322,27 @@ export async function sherpaTranscribe(
   return text;
 }
 
-/** Offline text-to-speech via the bundled sherpa-onnx kokoro model. Returns WAV bytes. */
+/** Offline text-to-speech via the bundled sherpa-onnx voice lane. Returns WAV bytes. */
 export async function sherpaSpeak(
   text: string,
-  opts: { voice?: string; speed?: number } = {},
+  opts: { engine?: string; voice?: string; speed?: number; lang?: string } = {},
 ): Promise<{ wav: ArrayBuffer; sampleRate: number }> {
   const r = await voiceBridge().speak({ text, ...opts });
   return { wav: r.wav, sampleRate: r.sampleRate };
+}
+
+/**
+ * Picks which native sherpa-onnx TTS engine to use for a given language hint.
+ * Kokoro is English-only; Supertonic covers French and Arabic (MSA) as well.
+ */
+export function pickNativeTtsEngine(languageHint: string): "sherpa-kokoro" | "sherpa-supertonic" {
+  const normalized = languageHint.toLowerCase().trim();
+
+  if (normalized === "fr" || normalized.startsWith("ar")) {
+    return "sherpa-supertonic";
+  }
+
+  return "sherpa-kokoro";
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────

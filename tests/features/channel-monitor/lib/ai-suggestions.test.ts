@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   ThresholdSuggestionSchema,
   buildSuggestionPrompt,
+  SUGGESTION_SYSTEM_PROMPT,
 } from "@/features/channel-monitor/lib/ai-suggestions";
 import type { ChannelStatus } from "@/features/channel-monitor/store/monitor-store";
 
@@ -128,25 +129,25 @@ describe("ThresholdSuggestionSchema", () => {
 // ─── buildSuggestionPrompt — empty statuses branch ───────────────────────────
 
 describe("buildSuggestionPrompt — empty statuses", () => {
-  it("returns the no-metrics placeholder when statuses is empty", () => {
-    // Arrange
+  it("builds the exact prompt and system message when statuses is empty", () => {
+    // buildSuggestionPrompt has no LLM call to wire-test here — its entire
+    // observable behavior for an empty (fully deterministic) input IS these
+    // two strings. A full exact match is stronger than the individual
+    // toContain() checks this replaces: those could only ever catch removal
+    // of one specific phrase and would miss a reworded instruction, a
+    // dropped threshold field, or a rewritten placeholder that happened to
+    // keep one matching keyword.
     const statuses: ChannelStatus[] = [];
 
-    // Act
     const { system, prompt } = buildSuggestionPrompt(statuses);
 
-    // Assert
-    expect(prompt).toContain("(no live channel metrics available)");
-  });
-
-  it("includes the telecom-analyst system message regardless of input", () => {
-    const { system } = buildSuggestionPrompt([]);
-    expect(system).toContain("telecom channel-monitoring analyst");
-  });
-
-  it("still includes the global threshold instruction in the prompt", () => {
-    const { prompt } = buildSuggestionPrompt([]);
-    expect(prompt).toContain("global alert thresholds");
+    expect(system).toBe(SUGGESTION_SYSTEM_PROMPT);
+    expect(prompt).toBe(
+      "Current per-channel metrics:\n" +
+        "(no live channel metrics available)\n\n" +
+        "Suggest a single set of global alert thresholds: the success-rate floor (%), " +
+        "the hourly-volume ceiling, and the hourly-failure ceiling, with a brief rationale.",
+    );
   });
 });
 
@@ -215,9 +216,13 @@ describe("buildSuggestionPrompt — with channel statuses", () => {
     expect(prompt).not.toContain("(no live channel metrics available)");
   });
 
-  it("includes the ONLY-JSON instruction in the system message", () => {
+  it("uses the exact static system message even with live channel statuses supplied", () => {
+    // The system message never varies with the input statuses (see the
+    // empty-statuses exact-match test above) — asserting exact identity here
+    // with non-empty input proves that invariance, rather than a substring
+    // check that would miss a rewritten instruction keeping one keyword.
     const { system } = buildSuggestionPrompt([makeChannelStatus()]);
-    expect(system).toContain("Respond ONLY with the requested JSON object");
+    expect(system).toBe(SUGGESTION_SYSTEM_PROMPT);
   });
 
   it("handles txnPerMin values that produce a fractional hourly volume by rounding", () => {

@@ -1,0 +1,15 @@
+import { getLlama } from "node-llama-cpp";
+console.log("loading llama (cpu only)...");
+const llama = await getLlama({ gpu: false });
+console.log("llama loaded, loading model...");
+const modelPath = "/home/ali/.config/Electron/models/llm/granite-4.1-3b-instruct-q4_k_m.gguf";
+const model = await llama.loadModel({ modelPath });
+console.log("MODEL_LOADED_OK, creating context...");
+const context = await model.createContext();
+console.log("CONTEXT_CREATED_OK, getting sequence + evaluating a token...");
+const sequence = context.getSequence();
+const { LlamaChatSession } = await import("node-llama-cpp");
+const session = new LlamaChatSession({ contextSequence: sequence });
+const answer = await session.prompt("Say hi in one word.");
+console.log("ANSWER:", answer);
+process.exit(0);

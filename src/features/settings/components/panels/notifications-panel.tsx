@@ -1,12 +1,45 @@
 "use client";
 
-import { Bell } from "lucide-react";
+import { Bell, Monitor } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/shallow";
 import { Button } from "@/components/ui/button";
 import { useSettingsStore } from "@/core/stores/settings-store";
+import {
+  notificationPermission,
+  type NotificationPermissionState,
+  requestNotificationPermission,
+} from "@/platform/notifications/permission";
 import { notify } from "../../lib/notifications";
 import { Section, SettingRow, Toggle } from "../controls";
+
+function DesktopNotificationsSection() {
+  const [permission, setPermission] = useState<NotificationPermissionState>("default");
+
+  useEffect(() => {
+    setPermission(notificationPermission());
+  }, []);
+
+  return (
+    <Section title="Desktop Notifications" icon={Monitor}>
+      <SettingRow
+        label="OS-level alerts"
+        description={`Status: ${permission}. Used by Channel Monitor and Telecom Report to alert you when the window is in the background.`}
+      >
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={permission === "granted" || permission === "denied" || permission === "unsupported"}
+          onClick={async () => setPermission(await requestNotificationPermission())}
+        >
+          {permission === "granted" ? "Enabled" : "Enable"}
+        </Button>
+      </SettingRow>
+    </Section>
+  );
+}
 
 export function NotificationsPanel() {
   const { uploads, queries, errors, collaboration, digest } = useSettingsStore(
@@ -22,6 +55,7 @@ export function NotificationsPanel() {
 
   return (
     <>
+      <DesktopNotificationsSection />
       <Section title="Notification Preferences" icon={Bell}>
         <Toggle
           checked={uploads}

@@ -151,7 +151,7 @@ export interface SwarmContext {
   model: string;
   /**
    * The user's original question, verbatim. Lets the manager-facing agents
-   * mirror the user's language (English / French / Tunisian Derja) without any
+   * mirror the user's language (English / French / Arabic) without any
    * rule-based detection — the model replies in whatever language was asked.
    */
   userPrompt?: string;

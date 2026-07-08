@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useForm } from "@tanstack/react-form";
-import { KeyRound, LogIn, LogOut, User } from "lucide-react";
+import { KeyRound, LogIn, LogOut, ShieldCheck, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -10,8 +10,57 @@ import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
+import type { DashboardRole } from "@/core/stores/settings-store";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import { authClient, signOut, useSession } from "@/platform/auth/auth-client";
-import { Section, SettingRow } from "../controls";
+import { Section, SettingRow, SettingSelect } from "../controls";
+
+function AccessSection() {
+  const role = useSettingsStore((s) => s.role);
+  const setRole = useSettingsStore((s) => s.setRole);
+  const username = useCollabHubStore.use.username();
+  const setUsername = useCollabHubStore.use.setUsername();
+  const [nameDraft, setNameDraft] = useState(username);
+
+  return (
+    <Section title="Access & Identity" icon={ShieldCheck}>
+      <SettingRow
+        label="Display name"
+        description="Shown to teammates in collaboration, comments, and audit history"
+      >
+        <input
+          value={nameDraft}
+          onChange={(e) => setNameDraft(e.target.value)}
+          onBlur={() => {
+            const trimmed = nameDraft.trim();
+            if (trimmed && trimmed !== username) setUsername(trimmed);
+            else setNameDraft(username);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+          }}
+          className="w-40 bg-card border border-border text-sm text-foreground rounded-lg px-3 py-1.5 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
+        />
+      </SettingRow>
+      <SettingRow
+        label="Role"
+        description="Gates upload/export/rename/comment actions on this device"
+      >
+        <SettingSelect<DashboardRole>
+          value={role}
+          onChange={setRole}
+          ariaLabel="Role"
+          options={[
+            { value: "owner", label: "Owner" },
+            { value: "editor", label: "Editor" },
+            { value: "viewer", label: "Viewer" },
+          ]}
+        />
+      </SettingRow>
+    </Section>
+  );
+}
 
 // ─── Change-password form schema (TanStack Form consumes Zod via Standard Schema) ─
 
@@ -149,29 +198,35 @@ export function AccountPanel() {
 
   if (session.isPending) {
     return (
-      <Section title="Account" icon={User}>
-        <p className="text-sm text-muted-foreground">Loading session…</p>
-      </Section>
+      <>
+        <AccessSection />
+        <Section title="Account" icon={User}>
+          <p className="text-sm text-muted-foreground">Loading session…</p>
+        </Section>
+      </>
     );
   }
 
   if (!session.data) {
     return (
-      <Section title="Account" icon={User}>
-        <div className="flex items-center justify-between gap-4">
-          <div>
-            <div className="text-sm text-foreground">Not signed in</div>
-            <div className="text-xs text-muted-foreground">
-              Sign in to manage your local account and change your password.
+      <>
+        <AccessSection />
+        <Section title="Account" icon={User}>
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <div className="text-sm text-foreground">Not signed in</div>
+              <div className="text-xs text-muted-foreground">
+                Sign in to manage your local account and change your password.
+              </div>
             </div>
+            <Button asChild size="sm">
+              <Link href="/login?redirect=/dashboard/settings">
+                <LogIn className="w-3.5 h-3.5" /> Sign in
+              </Link>
+            </Button>
           </div>
-          <Button asChild size="sm">
-            <Link href="/login?redirect=/dashboard/settings">
-              <LogIn className="w-3.5 h-3.5" /> Sign in
-            </Link>
-          </Button>
-        </div>
-      </Section>
+        </Section>
+      </>
     );
   }
 
@@ -179,6 +234,7 @@ export function AccountPanel() {
 
   return (
     <>
+      <AccessSection />
       <Section title="Account" icon={User}>
         <SettingRow label="Signed in as">
           <span className="text-sm text-foreground font-mono">{user.email}</span>

@@ -13,7 +13,7 @@ import {
 import Link from "next/link";
 import { useState } from "react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
-import type { AnalyticsSnapshotMeta } from "@/platform/storage/app-db";
+import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import type { LoadedFile, TelecomIngestionMode } from "../types";
 
 export function FileManagementModal({
@@ -31,12 +31,12 @@ export function FileManagementModal({
   canExport = true,
 }: Readonly<{
   open: boolean;
-  analyticsHistory: AnalyticsSnapshotMeta[];
+  analyticsHistory: AnalyticsSnapshotHistoryMeta[];
   loadedFiles: LoadedFile[];
   activeFileIdx: number;
   onClose: () => void;
   onUpload: (mode: TelecomIngestionMode) => void;
-  onLoadAnalytics: (key: string) => void;
+  onLoadAnalytics: (id: number) => void;
   onExportDatabase: () => void;
   onSelectFile: (id: number) => void;
   onRenameFile: (id: number, name: string) => void;
@@ -218,8 +218,8 @@ export function FileManagementModal({
               {analyticsHistory.map((entry) => (
                 <button
                   type="button"
-                  key={entry.key}
-                  onClick={() => onLoadAnalytics(entry.key)}
+                  key={entry.id}
+                  onClick={() => onLoadAnalytics(entry.id)}
                   className="flex w-full items-center justify-between gap-3 rounded-2xl border border-border bg-muted/30 px-4 py-3 text-left transition hover:bg-muted"
                 >
                   <div className="min-w-0">

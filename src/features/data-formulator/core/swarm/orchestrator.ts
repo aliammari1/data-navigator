@@ -17,6 +17,7 @@
  */
 
 import { useSettingsStore } from "@/core/stores/settings-store";
+import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 import { useSwarmStore } from "../../store/swarm-store";
 import { runAnalysisPlan } from "./agents/analyze";
 import { runAnswer } from "./agents/answer";
@@ -102,7 +103,7 @@ export async function runSwarm(ctx: SwarmContext, prompt: string): Promise<Swarm
   store.begin(prompt, Date.now());
 
   // Carry the user's verbatim question so the manager-facing calls can mirror its
-  // language (English / French / Tunisian Derja) — AI-driven, no rule-based detection.
+  // language (English / French / Arabic) — AI-driven, no rule-based detection.
   const runCtx: SwarmContext = { ...ctx, userPrompt: prompt };
 
   try {
@@ -114,6 +115,7 @@ export async function runSwarm(ctx: SwarmContext, prompt: string): Promise<Swarm
     }
 
     if (!(await scheduler.isReady())) {
+      useModelRequiredDialogStore.getState().show("Asking Moudir needs a downloaded AI model.");
       throw new Error(
         "No offline model is ready. Open Model Readiness and warm up an edge model, then try again.",
       );

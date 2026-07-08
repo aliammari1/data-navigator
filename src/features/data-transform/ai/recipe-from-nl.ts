@@ -19,7 +19,11 @@ export interface RecipePromptInput {
   sourceRowCount: number;
 }
 
-const SYSTEM = [
+// Exported so tests can assert exact identity instead of substring
+// keyword checks — a substring check could only ever catch removal of one
+// word and would miss the prompt being rewritten to ask for something else
+// entirely while accidentally keeping one matching keyword.
+export const SYSTEM_PROMPT = [
   "You are a data-wrangling assistant that converts a natural-language request",
   "into an ordered list of transform steps over a single SQL table.",
   "",
@@ -49,5 +53,5 @@ export function buildRecipePrompt(input: RecipePromptInput): {
     "",
     "Return the ordered transform steps that fulfil the instruction.",
   ].join("\n");
-  return { system: SYSTEM, prompt };
+  return { system: SYSTEM_PROMPT, prompt };
 }

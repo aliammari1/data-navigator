@@ -17,17 +17,8 @@
  * the launcher renders a genuine `<a>` and we only intercept the plain-left-click.
  */
 
-export type DesktopAppId =
-  | "moudir"
-  | "telecom"
-  | "upload"
-  | "forecast"
-  | "ai-analysis"
-  | "report-studio"
-  | "monitor"
-  | "ai-briefing"
-  | "folders"
-  | "commander";
+/** Must match a `DESKTOP_APPS[].id` in `@/features/desktop/core/app-registry`. */
+export type DesktopAppId = string;
 
 export interface OpenAppDetail {
   appId: DesktopAppId;

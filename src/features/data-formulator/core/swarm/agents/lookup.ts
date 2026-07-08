@@ -13,7 +13,7 @@ import type { InferenceScheduler } from "../scheduler";
 import type { Artifact, SwarmContext, SwarmResult } from "../types";
 import { assertReadOnlySql, contextBlock, runTableArtifact } from "./base";
 
-const lookupSchema = z.object({
+export const lookupSchema = z.object({
   sql: z.string().describe("A single read-only DuckDB SELECT/WITH, no semicolons."),
   headline: z.string(),
   summary: z.string(),
@@ -25,7 +25,7 @@ const SYSTEM = [
   "Write ONE read-only DuckDB SELECT (optionally a leading WITH) over the single view in context.",
   "Use ONLY real columns; never invent. Always LIMIT <= 200. No semicolons, no DDL/DML.",
   "Then write a one-line headline and a tight summary of the answer.",
-  "Reply in the user's language (English / French / Tunisian Derja).",
+  "Reply in the user's language (English / French / Arabic).",
 ].join(" ");
 
 const MAX_ATTEMPTS = 2;

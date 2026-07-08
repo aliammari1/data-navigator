@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
+  AGENT_SYSTEM_PROMPT,
+  AgentAnswerSchema,
   type AgentContext,
   type AgentGenerate,
   type AgentGenerateStructured,
@@ -7,7 +9,9 @@ import {
   askAgent,
   computeRuleInsights,
   generateNarrative,
+  NARRATIVE_SYSTEM_PROMPT,
 } from "@/features/telecom/lib/ai-agent";
+import { fmtAmount, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type {
   PeriodKPI,
   RowAnomaly,
@@ -550,15 +554,18 @@ describe("askAgent", () => {
     );
 
     const [req, schema] = gen.mock.calls[0];
-    expect(req.system).toContain("agent télécom");
+    // Exact system-prompt identity, not a substring keyword check — a
+    // substring check could only ever catch removal of one word and would
+    // miss a rewritten instruction set that happened to keep "agent télécom".
+    expect(req.system).toBe(AGENT_SYSTEM_PROMPT);
     expect(req.prompt).toContain("Combien de transactions ?");
     expect(req.prompt).toContain("2026-02-01");
     expect(req.prompt).toContain("2026-02-28");
     expect(req.maxTokens).toBe(260);
     expect(req.temperature).toBeCloseTo(0.05);
-    // The Zod schema is passed as the second argument.
-    expect(schema).toBeDefined();
-    expect(typeof schema.parse).toBe("function");
+    // Exact schema identity — `toBeDefined()` would pass for any object at
+    // all and prove nothing about which validation is actually wired in.
+    expect(schema).toBe(AgentAnswerSchema);
   });
 
   it.each([
@@ -612,7 +619,14 @@ describe("askAgent", () => {
       gen as unknown as AgentGenerateStructured,
     );
 
-    expect(gen.mock.calls[0][0].prompt).toContain("Aucune donnée chargée.");
+    // Exact prompt match instead of a toContain() keyword check: with kpi
+    // null the summary is entirely the static "Aucune donnée chargée." line
+    // (no runtime interpolation at all), so the full prompt is fully known
+    // and a substring check would only prove the literal wasn't deleted, not
+    // that the template around it is still correct.
+    expect(gen.mock.calls[0][0].prompt).toBe(
+      "Données :\nAucune donnée chargée.\n\nQuestion : Q",
+    );
   });
 
   it("includes top sub-status and top account lines in the summary when present", async () => {
@@ -631,9 +645,28 @@ describe("askAgent", () => {
     );
     const prompt = gen.mock.calls[0][0].prompt as string;
 
-    expect(prompt).toContain("Top sous-statuts:");
-    expect(prompt).toContain("DCL=7");
-    expect(prompt).toContain("Top abonné: 21699112233");
+    // One exact full-string match built from the real summarizeContext
+    // template plus the same fmtN/fmtPct/fmtAmount formatters it uses,
+    // applied to this test's fully-deterministic ctx/kpi fixtures. This
+    // replaces three toContain() checks that individually could only catch
+    // deletion of one literal each and would miss a reordered/garbled
+    // summary that happened to still contain those substrings somewhere.
+    const k = kpi();
+    expect(prompt).toBe(
+      [
+        "Données :",
+        "Période: 2026-01-01 → 2026-01-31",
+        `Total: ${fmtN(k.total)} | Réussite: ${fmtPct(k.successRate)} (${fmtN(k.success)})`,
+        `Échec: ${fmtN(k.declined)} | Annulation: ${fmtN(k.refund)} | Instance: ${fmtN(k.instance)}`,
+        `Montant: ${fmtAmount(k.amount)} TND | Moyen: ${fmtAmount(k.avgAmount)} TND`,
+        `Abonnés uniques: ${fmtN(k.uniqueCustomers)} | Brands actifs: ${fmtN(k.uniqueBrands)}`,
+        "Anomalies détectées: 0",
+        "Top sous-statuts: DCL=7, DCT=4",
+        `Top abonné: 21699112233 (${fmtAmount(555)} TND)`,
+        "",
+        "Question : Q",
+      ].join("\n"),
+    );
   });
 });
 
@@ -676,15 +709,36 @@ describe("generateNarrative", () => {
 
   it("passes the analyst system prompt, summary, and decode params to the generator", async () => {
     const gen = vi.fn().mockResolvedValue({ text: "x" });
+    const k = kpi({ total: 7, successRate: 99, success: 7 });
 
     await generateNarrative(
-      ctx({ kpi: kpi({ total: 7, successRate: 99, success: 7 }) }),
+      ctx({ kpi: k }),
       gen as unknown as AgentGenerate,
     );
     const req = gen.mock.calls[0][0];
 
-    expect(req.system).toContain("analyste télécom");
-    expect(req.prompt).toContain("Données :");
+    // Exact system-prompt identity, not a substring keyword check — a
+    // substring check could only ever catch removal of one word and would
+    // miss the analyst instructions being rewritten to ask for something
+    // else entirely while accidentally keeping "analyste télécom".
+    expect(req.system).toBe(NARRATIVE_SYSTEM_PROMPT);
+    // Exact prompt match, built from the real summarizeContext template and
+    // its own fmtN/fmtPct/fmtAmount formatters applied to this deterministic
+    // ctx/kpi fixture — replaces a toContain("Données :") check that would
+    // pass even if the summary body underneath that header was wrong.
+    expect(req.prompt).toBe(
+      [
+        "Données :",
+        "Période: 2026-01-01 → 2026-01-31",
+        `Total: ${fmtN(k.total)} | Réussite: ${fmtPct(k.successRate)} (${fmtN(k.success)})`,
+        `Échec: ${fmtN(k.declined)} | Annulation: ${fmtN(k.refund)} | Instance: ${fmtN(k.instance)}`,
+        `Montant: ${fmtAmount(k.amount)} TND | Moyen: ${fmtAmount(k.avgAmount)} TND`,
+        `Abonnés uniques: ${fmtN(k.uniqueCustomers)} | Brands actifs: ${fmtN(k.uniqueBrands)}`,
+        "Anomalies détectées: 0",
+        "",
+        "Rédige.",
+      ].join("\n"),
+    );
     expect(req.maxTokens).toBe(220);
     expect(req.temperature).toBeCloseTo(0.1);
   });

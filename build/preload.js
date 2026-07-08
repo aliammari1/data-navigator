@@ -181,6 +181,65 @@ var electronSettings = {
   delete: (namespace, key) => electron.ipcRenderer.invoke("settings:delete", namespace, key),
   export: (namespace) => electron.ipcRenderer.invoke("settings:export", namespace)
 };
+var electronAnalyticsSnapshots = {
+  save: (input) => electron.ipcRenderer.invoke("analyticsSnapshots:save", input),
+  list: (tableName, limit, offset) => electron.ipcRenderer.invoke("analyticsSnapshots:list", tableName, limit, offset),
+  get: (id) => electron.ipcRenderer.invoke("analyticsSnapshots:get", id),
+  delete: (id) => electron.ipcRenderer.invoke("analyticsSnapshots:delete", id)
+};
+var electronChatHistory = {
+  create: (input) => electron.ipcRenderer.invoke("chatHistory:create", input),
+  list: (input) => electron.ipcRenderer.invoke("chatHistory:list", input),
+  rename: (id, title) => electron.ipcRenderer.invoke("chatHistory:rename", { id, title }),
+  pin: (id, pinned) => electron.ipcRenderer.invoke("chatHistory:pin", { id, pinned }),
+  delete: (id) => electron.ipcRenderer.invoke("chatHistory:delete", { id }),
+  appendMessage: (input) => electron.ipcRenderer.invoke("chatHistory:appendMessage", input),
+  messages: (conversationId, limit) => electron.ipcRenderer.invoke("chatHistory:messages", { conversationId, limit })
+};
+var electronChatSession = {
+  /** Open (or rehydrate from chat.db rows) the live session for a conversation. */
+  open: (input) => electron.ipcRenderer.invoke("chat:open", input),
+  /**
+   * One chat turn (prose + tools). Pass a `requestId` and subscribe via
+   * `onToken(requestId, …)` / `onTool(requestId, …)` for live streaming.
+   */
+  prompt: (input) => electron.ipcRenderer.invoke("chat:prompt", input),
+  abort: (requestId) => electron.ipcRenderer.invoke("chat:abort", requestId),
+  /** Pre-evaluate a drafted prompt into KV (near-instant first token later). */
+  preload: (input) => electron.ipcRenderer.invoke("chat:preload", input),
+  /** Snapshot of the model-side chat history (node-llama-cpp ChatHistoryItem[]). */
+  history: (conversationId) => electron.ipcRenderer.invoke("chat:history", { conversationId }),
+  /** Grammar-constrained side-call → short conversation title. */
+  title: (conversationId) => electron.ipcRenderer.invoke("chat:title", { conversationId }),
+  /** Grammar-constrained side-call → 2-3 suggested follow-up questions. */
+  followUps: (conversationId) => electron.ipcRenderer.invoke("chat:followups", { conversationId }),
+  dispose: (conversationId) => electron.ipcRenderer.invoke("chat:dispose", { conversationId }),
+  /**
+   * Subscribe to streaming tokens for a given requestId. Returns an
+   * unsubscribe function. Pass the same `requestId` to `prompt`.
+   */
+  onToken: (requestId, callback) => {
+    const handler = (_event, payload) => {
+      if (payload?.requestId === requestId) callback(payload.chunk);
+    };
+    electron.ipcRenderer.on("chat:token", handler);
+    return () => electron.ipcRenderer.removeListener("chat:token", handler);
+  },
+  /**
+   * Subscribe to streamed tool invocations for a given requestId. Returns an
+   * unsubscribe function.
+   */
+  onTool: (requestId, callback) => {
+    const handler = (_event, payload) => {
+      if (payload?.requestId === requestId) callback(payload.event);
+    };
+    electron.ipcRenderer.on("chat:tool", handler);
+    return () => electron.ipcRenderer.removeListener("chat:tool", handler);
+  }
+};
+var electronClipboard = {
+  writeImage: (dataUrl) => electron.ipcRenderer.invoke("clipboard:writeImage", { dataUrl })
+};
 electron.contextBridge.exposeInMainWorld("electronFS", electronFS);
 electron.contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 electron.contextBridge.exposeInMainWorld("electronVoice", electronVoice);
@@ -188,3 +247,7 @@ electron.contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 electron.contextBridge.exposeInMainWorld("electronModels", electronModels);
 electron.contextBridge.exposeInMainWorld("electronCollab", electronCollab);
 electron.contextBridge.exposeInMainWorld("electronSettings", electronSettings);
+electron.contextBridge.exposeInMainWorld("electronAnalyticsSnapshots", electronAnalyticsSnapshots);
+electron.contextBridge.exposeInMainWorld("electronChatHistory", electronChatHistory);
+electron.contextBridge.exposeInMainWorld("electronChatSession", electronChatSession);
+electron.contextBridge.exposeInMainWorld("electronClipboard", electronClipboard);

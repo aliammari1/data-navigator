@@ -41,7 +41,9 @@ jobs:
   quality:
     name: Quality / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Was 45; +~1min for the (model-free) deterministic eval suite and +~11min
+    # for the advisory mutation-testing step pushed real headroom needed.
+    timeout-minutes: 60
 
     permissions:
       contents: read
@@ -108,6 +110,32 @@ jobs:
         with:
           name: coverage-node-${{ matrix.node }}
           path: coverage
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Offline-LLM eval harness (deterministic — no model download)
+        # evals/*.eval.ts's own doc comments call the deterministic block "the
+        # real CI gate" (live/model-gated cases auto-skip without a GGUF, which
+        # CI never downloads — see the lfs:false note above). Required, not
+        # advisory: these are pure/fast (no model), same cost class as the
+        # unit suite.
+        run: pnpm run test:eval
+
+      - name: Mutation testing (Stryker)
+        # Advisory (user-approved 2026-07-06): runs on every push/PR and posts
+        # a visible score, but never blocks merging — a regression here is a
+        # test-quality signal to act on, not a hard gate. Found a real security
+        # bug in electron/sql-guard.ts on first run (an untested regex-evasion
+        # gap), so this is worth the ~11min/run even as advisory-only.
+        run: pnpm run test:mutation
+        continue-on-error: true
+
+      - name: Upload mutation report
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutation-report-node-${{ matrix.node }}
+          path: reports/mutation
           if-no-files-found: ignore
           retention-days: 7
 

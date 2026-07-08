@@ -2,9 +2,10 @@ $ErrorActionPreference = "Stop"
 
 $root = Split-Path -Parent $PSScriptRoot
 $sherpaRoot = Join-Path $root "public\models\sherpa"
-$sttDir = Join-Path $sherpaRoot "stt\sherpa-onnx-whisper-tiny.en"
+$sttDir = Join-Path $sherpaRoot "stt\sherpa-onnx-whisper-small"
 $ttsRoot = Join-Path $sherpaRoot "tts"
 $ttsDir = Join-Path $ttsRoot "kokoro-en-v0_19"
+$supertonicDir = Join-Path $ttsRoot "supertonic-3"
 $tmpDir = Join-Path $root ".tmp\sherpa-models"
 
 New-Item -ItemType Directory -Force -Path $sttDir, $ttsRoot, $tmpDir | Out-Null
@@ -33,10 +34,12 @@ function Get-ModelFile {
   Move-Item -LiteralPath $partialPath -Destination $OutputPath -Force
 }
 
-$whisperBase = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-tiny.en/resolve/main"
-Get-ModelFile "$whisperBase/tiny.en-encoder.int8.onnx?download=true" (Join-Path $sttDir "tiny.en-encoder.int8.onnx")
-Get-ModelFile "$whisperBase/tiny.en-decoder.int8.onnx?download=true" (Join-Path $sttDir "tiny.en-decoder.int8.onnx")
-Get-ModelFile "$whisperBase/tiny.en-tokens.txt?download=true" (Join-Path $sttDir "tiny.en-tokens.txt")
+# Multilingual (non-.en) Whisper small — covers English/French/Arabic (MSA), unlike
+# the previous English-only tiny.en model.
+$whisperBase = "https://huggingface.co/csukuangfj/sherpa-onnx-whisper-small/resolve/main"
+Get-ModelFile "$whisperBase/small-encoder.int8.onnx?download=true" (Join-Path $sttDir "small-encoder.int8.onnx")
+Get-ModelFile "$whisperBase/small-decoder.int8.onnx?download=true" (Join-Path $sttDir "small-decoder.int8.onnx")
+Get-ModelFile "$whisperBase/small-tokens.txt?download=true" (Join-Path $sttDir "small-tokens.txt")
 
 $kokoroArchive = Join-Path $tmpDir "kokoro-en-v0_19.tar.bz2"
 $kokoroRequired = @(
@@ -59,12 +62,52 @@ if ($needsKokoroExtract) {
   tar -xjf $kokoroArchive -C $ttsRoot
 }
 
-$required = @(
-  (Join-Path $sttDir "tiny.en-encoder.int8.onnx"),
-  (Join-Path $sttDir "tiny.en-decoder.int8.onnx"),
-  (Join-Path $sttDir "tiny.en-tokens.txt"),
-  $kokoroRequired
+# Supertonic 3 — multilingual (31-language, incl. French/Arabic) native TTS,
+# used alongside Kokoro (English) and selected by output language.
+$supertonicReleaseName = "sherpa-onnx-supertonic-3-tts-int8-2026-05-11"
+$supertonicArchive = Join-Path $tmpDir "$supertonicReleaseName.tar.bz2"
+$supertonicRequired = @(
+  (Join-Path $supertonicDir "duration_predictor.int8.onnx"),
+  (Join-Path $supertonicDir "text_encoder.int8.onnx"),
+  (Join-Path $supertonicDir "vector_estimator.int8.onnx"),
+  (Join-Path $supertonicDir "vocoder.int8.onnx"),
+  (Join-Path $supertonicDir "tts.json"),
+  (Join-Path $supertonicDir "unicode_indexer.bin"),
+  (Join-Path $supertonicDir "voice.bin")
 )
+
+$needsSupertonicExtract = ($supertonicRequired | Where-Object { -not (Test-Path -LiteralPath $_) }).Count -gt 0
+
+if ($needsSupertonicExtract) {
+  Get-ModelFile "https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/$supertonicReleaseName.tar.bz2" $supertonicArchive -Force
+
+  if (Test-Path -LiteralPath $supertonicDir) {
+    Remove-Item -LiteralPath $supertonicDir -Recurse -Force
+  }
+
+  $supertonicExtractRoot = Join-Path $tmpDir "supertonic-3-extract"
+  if (Test-Path -LiteralPath $supertonicExtractRoot) {
+    Remove-Item -LiteralPath $supertonicExtractRoot -Recurse -Force
+  }
+  New-Item -ItemType Directory -Force -Path $supertonicExtractRoot | Out-Null
+
+  Write-Host "extract $supertonicArchive"
+  tar -xjf $supertonicArchive -C $supertonicExtractRoot
+
+  $extractedDir = Get-ChildItem -LiteralPath $supertonicExtractRoot -Directory | Select-Object -First 1
+  if (-not $extractedDir) {
+    throw "Supertonic archive did not extract into a subdirectory as expected."
+  }
+
+  Move-Item -LiteralPath $extractedDir.FullName -Destination $supertonicDir -Force
+  Remove-Item -LiteralPath $supertonicExtractRoot -Recurse -Force
+}
+
+$required = @(
+  (Join-Path $sttDir "small-encoder.int8.onnx"),
+  (Join-Path $sttDir "small-decoder.int8.onnx"),
+  (Join-Path $sttDir "small-tokens.txt")
+) + $kokoroRequired + $supertonicRequired
 
 $missing = $required | Where-Object { -not (Test-Path -LiteralPath $_) }
 if ($missing.Count -gt 0) {
@@ -73,6 +116,10 @@ if ($missing.Count -gt 0) {
 
 if (Test-Path -LiteralPath $kokoroArchive) {
   Remove-Item -LiteralPath $kokoroArchive -Force
+}
+
+if (Test-Path -LiteralPath $supertonicArchive) {
+  Remove-Item -LiteralPath $supertonicArchive -Force
 }
 
 Write-Host "Sherpa STT/TTS models ready under $sherpaRoot"

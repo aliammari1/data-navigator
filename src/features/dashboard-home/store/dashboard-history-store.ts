@@ -39,9 +39,22 @@ interface DashboardHistoryState {
   /** Unpin a formulator chart widget from dashboard + desktop + record. */
   doUnpinFormulatorWidget: (widgetId: string, title: string) => void;
   /** Pin a KPI/amount/customers widget from the dashboard KPI cards + record. */
-  doPinWidget: (widgetType: string, config: Record<string, unknown>, x: number, y: number, label: string) => void;
+  doPinWidget: (
+    widgetType: string,
+    config: Record<string, unknown>,
+    x: number,
+    y: number,
+    label: string,
+  ) => void;
   /** Remove a desktop widget (called from widgets-layer right-click) + record. */
-  doRemoveWidget: (widgetId: string, widgetType: string, config: Record<string, unknown>, x: number, y: number, label: string) => void;
+  doRemoveWidget: (
+    widgetId: string,
+    widgetType: string,
+    config: Record<string, unknown>,
+    x: number,
+    y: number,
+    label: string,
+  ) => void;
 
   undoEntry: (id: string) => void;
   redoEntry: (id: string) => void;
@@ -72,7 +85,9 @@ function findDesktopChartWidget(formulatorWidgetId: string) {
 function findDesktopKpiWidget(widgetType: string, config: Record<string, unknown>) {
   const { widgets } = getDesktopStore();
   const configStr = JSON.stringify(config);
-  return widgets.find((w) => w.type === widgetType && JSON.stringify(w.config) === configStr) ?? null;
+  return (
+    widgets.find((w) => w.type === widgetType && JSON.stringify(w.config) === configStr) ?? null
+  );
 }
 
 type SetFn = (fn: (s: DashboardHistoryState) => Partial<DashboardHistoryState>) => void;
@@ -114,8 +129,18 @@ export const useDashboardHistoryStore = create<DashboardHistoryState>()(
       doUnpinFormulatorWidget: (widgetId, title) => {
         const desktopWidget = findDesktopChartWidget(widgetId);
         const snap: HistoryEntry["widgetSnapshot"] = desktopWidget
-          ? { widgetType: "pinned-chart", config: desktopWidget.config, x: desktopWidget.x, y: desktopWidget.y }
-          : { widgetType: "pinned-chart", config: { formulatorWidgetId: widgetId, title }, x: 20, y: 20 };
+          ? {
+              widgetType: "pinned-chart",
+              config: desktopWidget.config,
+              x: desktopWidget.x,
+              y: desktopWidget.y,
+            }
+          : {
+              widgetType: "pinned-chart",
+              config: { formulatorWidgetId: widgetId, title },
+              x: 20,
+              y: 20,
+            };
 
         getRegistry().unpinWidget(widgetId);
         if (desktopWidget) getDesktopStore().removeWidget(desktopWidget.id);
@@ -202,7 +227,10 @@ export const useDashboardHistoryStore = create<DashboardHistoryState>()(
           case "pin-kpi-widget":
             // Reverse: remove the desktop widget
             if (entry.widgetSnapshot) {
-              const w = findDesktopKpiWidget(entry.widgetSnapshot.widgetType, entry.widgetSnapshot.config);
+              const w = findDesktopKpiWidget(
+                entry.widgetSnapshot.widgetType,
+                entry.widgetSnapshot.config,
+              );
               if (w) ds.removeWidget(w.id);
             }
             break;
@@ -271,7 +299,10 @@ export const useDashboardHistoryStore = create<DashboardHistoryState>()(
           case "remove-kpi-widget":
             if (entry.widgetSnapshot) {
               if (entry.formulatorWidgetId) reg.unpinWidget(entry.formulatorWidgetId);
-              const w = findDesktopKpiWidget(entry.widgetSnapshot.widgetType, entry.widgetSnapshot.config);
+              const w = findDesktopKpiWidget(
+                entry.widgetSnapshot.widgetType,
+                entry.widgetSnapshot.config,
+              );
               if (w) ds.removeWidget(w.id);
             }
             break;

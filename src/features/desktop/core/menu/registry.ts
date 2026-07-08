@@ -39,6 +39,7 @@ import { buildMenu as home } from "@/features/desktop/core/menu/apps/home";
 import { buildMenu as lineage } from "@/features/desktop/core/menu/apps/lineage";
 import { buildMenu as monitor } from "@/features/desktop/core/menu/apps/monitor";
 import { buildMenu as moudir } from "@/features/desktop/core/menu/apps/moudir";
+import { buildMenu as moudirChat } from "@/features/desktop/core/menu/apps/moudir-chat";
 import { buildMenu as parsed } from "@/features/desktop/core/menu/apps/parsed";
 import { buildMenu as reconciliation } from "@/features/desktop/core/menu/apps/reconciliation";
 import { buildMenu as recycleBin } from "@/features/desktop/core/menu/apps/recycle-bin";
@@ -65,9 +66,10 @@ import {
   windowGroup,
 } from "@/features/desktop/core/menu/universal";
 
-const APP_MENUS: Record<string, AppMenuBuilder> = {
+export const APP_MENUS: Record<string, AppMenuBuilder> = {
   home,
   moudir,
+  "moudir-chat": moudirChat,
   commander,
   "eye-tracking": eyeTracking,
   telecom,

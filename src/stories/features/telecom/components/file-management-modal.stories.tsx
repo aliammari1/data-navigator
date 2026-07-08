@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
-import type { AnalyticsSnapshotMeta } from "@/platform/storage/app-db";
+import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { FileManagementModal } from "@/features/telecom/components/file-management-modal";
 import type { LoadedFile } from "@/features/telecom/types";
 
@@ -28,21 +28,27 @@ const loadedFiles: LoadedFile[] = [
   },
 ];
 
-const analyticsHistory: AnalyticsSnapshotMeta[] = [
+const analyticsHistory: AnalyticsSnapshotHistoryMeta[] = [
   {
-    key: "snap-2024-06-01",
+    id: 1,
+    tableName: "telecom_2024_06_01",
+    label: "Rapport transactions 2024-06-01",
     fileName: "Rapport transactions 2024-06-01",
     savedAt: Date.parse("2024-06-01T18:45:00Z"),
+    sizeBytes: 4096,
     totalTransactions: 24_812,
     successRate: 0.962,
-  } as AnalyticsSnapshotMeta,
+  },
   {
-    key: "snap-2024-05-31",
+    id: 2,
+    tableName: "telecom_2024_05_31",
+    label: "Rapport transactions 2024-05-31",
     fileName: "Rapport transactions 2024-05-31",
     savedAt: Date.parse("2024-05-31T18:45:00Z"),
+    sizeBytes: 4096,
     totalTransactions: 22_104,
     successRate: 0.948,
-  } as AnalyticsSnapshotMeta,
+  },
 ];
 
 const meta = {
@@ -112,6 +118,6 @@ export const LoadsAnalyticsSnapshot: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByText("Rapport transactions 2024-05-31"));
-    await expect(args.onLoadAnalytics).toHaveBeenCalledWith("snap-2024-05-31");
+    await expect(args.onLoadAnalytics).toHaveBeenCalledWith(2);
   },
 };

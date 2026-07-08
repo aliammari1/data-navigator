@@ -13,8 +13,8 @@
  * dataset still gets a meaningful landing page.
  */
 
-import { runReadOnlyQuery, summarizeRegisteredDataset } from "@/platform/duckdb/duckdb";
 import { qc } from "@/features/telecom/lib/sql";
+import { runReadOnlyQuery, summarizeRegisteredDataset } from "@/platform/duckdb/duckdb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 

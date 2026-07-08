@@ -3,7 +3,7 @@
 import { Database, FolderClock } from "lucide-react";
 import { memo } from "react";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
-import type { AnalyticsSnapshotMeta } from "@/platform/storage/app-db";
+import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 
 export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   entries,
@@ -11,9 +11,9 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   onLoad,
   onExportDatabase,
 }: {
-  entries: AnalyticsSnapshotMeta[];
+  entries: AnalyticsSnapshotHistoryMeta[];
   onRefresh: () => void;
-  onLoad: (key: string) => void;
+  onLoad: (id: number) => void;
   onExportDatabase: () => void;
 }) {
   return (
@@ -58,8 +58,8 @@ export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
           {entries.map((entry) => (
             <button
               type="button"
-              key={entry.key}
-              onClick={() => onLoad(entry.key)}
+              key={entry.id}
+              onClick={() => onLoad(entry.id)}
               className="rounded-3xl border border-border bg-card p-4 text-left transition hover:border-cyan-500/40 hover:bg-cyan-500/5"
             >
               <div className="truncate text-sm font-bold text-foreground">{entry.fileName}</div>

@@ -3,7 +3,16 @@
 import { BarChart3, ExternalLink, Layers, Sparkles, Table2, X } from "lucide-react";
 import { useEffect } from "react";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
+import { usePreviewRows } from "@/features/folders/hooks/usePreviewRows";
 import { formatBytes } from "../lib/format";
+
+const PREVIEW_ROW_LIMIT = 20;
+
+function cellText(value: unknown): string {
+  if (value === null || value === undefined || value === "") return "—";
+  if (value instanceof Date) return value.toLocaleString("fr-FR");
+  return String(value);
+}
 
 const TYPE_STYLE: Record<string, string> = {
   number: "text-blue-400 bg-blue-400/10 border-blue-400/20",
@@ -85,6 +94,7 @@ export function DatasetPreview({
   onAskMoudir,
 }: DatasetPreviewProps) {
   const columns = dataset.columns;
+  const { rows, loading, error } = usePreviewRows(dataset.viewName, PREVIEW_ROW_LIMIT);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -169,6 +179,58 @@ export function DatasetPreview({
               ))}
             </div>
           )}
+
+          {/* Rows preview — first PREVIEW_ROW_LIMIT rows via a single read-only query */}
+          <div className="mt-4">
+            <div className="mb-1.5 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Aperçu des données
+            </div>
+            {loading ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                Chargement de l'aperçu…
+              </div>
+            ) : error ? (
+              <div className="p-6 text-center text-sm text-destructive">
+                Aperçu indisponible : {error}
+              </div>
+            ) : rows.length === 0 ? (
+              <div className="p-6 text-center text-sm text-muted-foreground">
+                Aucune ligne à prévisualiser.
+              </div>
+            ) : (
+              <div className="overflow-auto rounded-lg border border-border">
+                <table className="w-full border-collapse text-left text-xs">
+                  <thead className="sticky top-0 bg-card">
+                    <tr className="border-b border-border">
+                      {columns.map((col) => (
+                        <th
+                          key={col.name}
+                          className="whitespace-nowrap px-3 py-2 font-semibold text-muted-foreground"
+                        >
+                          {col.name}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((row, i) => (
+                      <tr key={i} className="border-b border-border/60 last:border-0">
+                        {columns.map((col) => (
+                          <td
+                            key={col.name}
+                            className="max-w-[16rem] truncate px-3 py-1.5 text-foreground"
+                            title={cellText(row[col.name])}
+                          >
+                            {cellText(row[col.name])}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Footer actions */}

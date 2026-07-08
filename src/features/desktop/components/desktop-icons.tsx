@@ -207,7 +207,7 @@ export function DesktopIcons() {
             openApp,
             setSelection,
             askMoudir: (prompt) => {
-              openApp("moudir");
+              openApp("moudir-chat");
               window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
             },
           },

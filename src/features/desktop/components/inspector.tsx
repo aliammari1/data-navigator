@@ -119,7 +119,7 @@ export function Inspector({ open, onClose }: InspectorProps) {
   }, [kindLabel, title, selection.id, metaEntries]);
 
   const askMoudir = useCallback(() => {
-    openApp("moudir");
+    openApp("moudir-chat");
     window.dispatchEvent(
       new CustomEvent("moudir:ask", {
         detail: { prompt: `Analyse ${selectionPrompt}.` },

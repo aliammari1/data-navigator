@@ -7,9 +7,19 @@ import {
   reservoirSampleIndices,
 } from "@/platform/viz/seeded-rng";
 
+// DEFAULT_SEED is an arbitrary human choice with no independent "correct"
+// value (any reasonable seed works) — asserting the literal from the source
+// file back at itself would only catch an accidental future edit, not a
+// wrong value. Instead assert the structural invariant mulberry32 actually
+// depends on: a finite, non-negative integer (mulberry32 does `seed >>> 0`,
+// which is only well-behaved for values in this range). Reproducibility
+// itself is covered separately by "uses DEFAULT_SEED when no seed is
+// provided" below.
 describe("DEFAULT_SEED", () => {
-  it("exports the value 42", () => {
-    expect(DEFAULT_SEED).toBe(42);
+  it("is a finite, non-negative integer suitable as a 32-bit PRNG seed", () => {
+    expect(Number.isInteger(DEFAULT_SEED)).toBe(true);
+    expect(DEFAULT_SEED).toBeGreaterThanOrEqual(0);
+    expect(Number.isFinite(DEFAULT_SEED)).toBe(true);
   });
 });
 

@@ -2,16 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ColMeta } from "@/core/stores/data-store";
 
 // ─── Mock the LLM boundary ────────────────────────────────────────────────────
-// generateInsights / recommendCharts call the on-device inference engine when
-// it is ready. We keep it "not ready" by default so the pure rule-based paths
-// run, and flip it on only for the few tests that exercise the LLM branch.
-const isLLMReady = vi.fn<() => boolean>(() => false);
+// generateInsights / recommendCharts take an optional, dependency-injected
+// `generateText` callback (the caller binds it to `useAI().generate`). We omit
+// it by default so the pure rule-based paths run, and pass the mock only for
+// the few tests that exercise the LLM branch.
 const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
-
-vi.mock("@/platform/ai/llm-engine", () => ({
-  isLLMReady: () => isLLMReady(),
-  generateText: (prompt: string, opts?: unknown) => generateText(prompt, opts),
-}));
 
 import { generateInsights, linearForecast, recommendCharts } from "@/platform/ai/insights";
 
@@ -29,7 +24,6 @@ function col(name: string, type: ColMeta["type"], extra: Partial<ColMeta> = {}):
 }
 
 beforeEach(() => {
-  isLLMReady.mockReturnValue(false);
   generateText.mockReset();
   generateText.mockResolvedValue("");
 });
@@ -198,7 +192,6 @@ describe("generateInsights rule-based trend / distribution / correlation", () =>
 
 describe("generateInsights LLM path", () => {
   it("returns parsed LLM insights when the model is ready and replies with valid JSON", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify([
         {
@@ -211,9 +204,14 @@ describe("generateInsights LLM path", () => {
     );
 
     const cols = [col("amount", "number")];
-    const insights = await generateInsights(cols, 10, {
-      amount: [1, 2, 3, 4, 5],
-    });
+    const insights = await generateInsights(
+      cols,
+      10,
+      {
+        amount: [1, 2, 3, 4, 5],
+      },
+      generateText,
+    );
 
     expect(generateText).toHaveBeenCalledTimes(1);
     expect(insights).toHaveLength(1);
@@ -221,53 +219,69 @@ describe("generateInsights LLM path", () => {
   });
 
   it("extracts a JSON array embedded in prose from the LLM", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       'Here are insights:\n[{"type":"quality","severity":"warning","title":"t","description":"d"}]\nDone.',
     );
 
     const cols = [col("amount", "number")];
-    const insights = await generateInsights(cols, 10, {
-      amount: [1, 2, 3, 4, 5],
-    });
+    const insights = await generateInsights(
+      cols,
+      10,
+      {
+        amount: [1, 2, 3, 4, 5],
+      },
+      generateText,
+    );
 
     expect(insights).toHaveLength(1);
     expect(insights[0].title).toBe("t");
   });
 
   it("falls back to rule-based insights when the LLM returns no JSON array", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("the model produced prose only");
 
     const cols = [col("amount", "number", { nullCount: 80 })];
-    const insights = await generateInsights(cols, 100, {
-      amount: [1, 2, 3, 4, 5],
-    });
+    const insights = await generateInsights(
+      cols,
+      100,
+      {
+        amount: [1, 2, 3, 4, 5],
+      },
+      generateText,
+    );
 
     // Rule-based quality insight is returned instead.
     expect(insights.some((i) => i.type === "quality")).toBe(true);
   });
 
   it("falls back to rule-based insights when the LLM returns an empty array", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("[]");
 
     const cols = [col("amount", "number", { nullCount: 80 })];
-    const insights = await generateInsights(cols, 100, {
-      amount: [1, 2, 3, 4, 5],
-    });
+    const insights = await generateInsights(
+      cols,
+      100,
+      {
+        amount: [1, 2, 3, 4, 5],
+      },
+      generateText,
+    );
 
     expect(insights.some((i) => i.type === "quality")).toBe(true);
   });
 
   it("falls back to rule-based insights when generateText rejects", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("inference failed"));
 
     const cols = [col("amount", "number", { nullCount: 80 })];
-    const insights = await generateInsights(cols, 100, {
-      amount: [1, 2, 3, 4, 5],
-    });
+    const insights = await generateInsights(
+      cols,
+      100,
+      {
+        amount: [1, 2, 3, 4, 5],
+      },
+      generateText,
+    );
 
     expect(insights.some((i) => i.type === "quality")).toBe(true);
   });
@@ -349,7 +363,6 @@ describe("recommendCharts rule-based path", () => {
 
 describe("recommendCharts LLM path", () => {
   it("returns parsed LLM chart recommendations when the model is ready", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify([
         {
@@ -362,7 +375,7 @@ describe("recommendCharts LLM path", () => {
     );
 
     const cols = [col("a", "number"), col("b", "number")];
-    const recs = await recommendCharts(cols, 100);
+    const recs = await recommendCharts(cols, 100, generateText);
 
     expect(generateText).toHaveBeenCalledTimes(1);
     expect(recs).toHaveLength(1);
@@ -371,37 +384,33 @@ describe("recommendCharts LLM path", () => {
   });
 
   it("falls back to rule-based recommendations when the LLM returns no array", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("no json at all");
 
     const cols = [col("region", "string"), col("revenue", "number")];
-    const recs = await recommendCharts(cols, 100);
+    const recs = await recommendCharts(cols, 100, generateText);
 
     expect(recs.some((r) => r.type === "bar")).toBe(true);
   });
 
   it("falls back to rule-based recommendations when generateText rejects", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("inference failed"));
 
     const cols = [col("region", "string"), col("revenue", "number")];
-    const recs = await recommendCharts(cols, 100);
+    const recs = await recommendCharts(cols, 100, generateText);
 
     expect(recs.some((r) => r.type === "bar")).toBe(true);
   });
 
   it("falls back to rule-based recommendations when the LLM returns an empty array", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("[]");
 
     const cols = [col("region", "string"), col("revenue", "number")];
-    const recs = await recommendCharts(cols, 100);
+    const recs = await recommendCharts(cols, 100, generateText);
 
     expect(recs.some((r) => r.type === "bar")).toBe(true);
   });
 
   it("includes distinctCount in the column schema sent to the LLM", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify([
         {
@@ -414,7 +423,7 @@ describe("recommendCharts LLM path", () => {
     );
 
     const cols = [col("region", "string", { distinctCount: 5 }), col("revenue", "number")];
-    const recs = await recommendCharts(cols, 100);
+    const recs = await recommendCharts(cols, 100, generateText);
 
     expect(generateText).toHaveBeenCalledTimes(1);
     const promptArg = generateText.mock.calls[0][0] as string;
@@ -424,7 +433,6 @@ describe("recommendCharts LLM path", () => {
   });
 
   it("uses 'unknown' for row count in the LLM prompt when rowCount is omitted", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify([
         {
@@ -437,7 +445,7 @@ describe("recommendCharts LLM path", () => {
     );
 
     const cols = [col("a", "number"), col("b", "number")];
-    const recs = await recommendCharts(cols);
+    const recs = await recommendCharts(cols, undefined, generateText);
 
     expect(generateText).toHaveBeenCalledTimes(1);
     const promptArg = generateText.mock.calls[0][0] as string;
@@ -561,12 +569,11 @@ describe("pearsonCorr edge cases via ruleBasedInsights", () => {
 
 describe("recommendCharts LLM path with undefined rowCount in catch", () => {
   it("falls back with rowCount defaulting to 0 when LLM rejects and rowCount is omitted", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("inference failed"));
 
     const cols = [col("category", "string")];
     // No rowCount passed, so the fallback uses rowCount ?? 0 = 0.
-    const recs = await recommendCharts(cols);
+    const recs = await recommendCharts(cols, undefined, generateText);
 
     // With rowCount=0, pie is suppressed (0 is not > 0 and not < 20000 matters but 0 fails > 0).
     expect(Array.isArray(recs)).toBe(true);

@@ -2,7 +2,6 @@
 
 import { useEffect } from "react";
 import { useSettingsStore } from "@/core/stores/settings-store";
-import { initReactScanDev } from "@/platform/perf/react-scan-dev";
 import { initWebVitals } from "@/platform/perf/web-vitals";
 import { applySettings, ensurePersistentStorage } from "@/platform/storage";
 
@@ -33,9 +32,6 @@ export function DashboardBoot() {
   // dead-code-eliminated from packaged builds.
   useEffect(() => {
     initWebVitals();
-    if (process.env.NODE_ENV !== "production") {
-      initReactScanDev();
-    }
   }, []);
 
   const theme = useSettingsStore((s) => s.theme);

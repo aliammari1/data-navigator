@@ -25,7 +25,7 @@ const ctx: SwarmContext = {
   columns,
   rowSample: [],
   rowCount: 100,
-  model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  model: "gemma-4-e4b-it-q4_k_m.gguf",
 };
 
 function task(overrides: Partial<AgentTask> = {}): AgentTask {

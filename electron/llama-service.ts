@@ -27,6 +27,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { app } from "electron";
 import type { Llama, LlamaContext, LlamaModel } from "node-llama-cpp";
+import { MODEL_DOWNLOADS } from "./model-download-service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -85,23 +86,20 @@ export type LlamaModelInfo = {
 };
 
 // ─── Constants ──────────────────────────────────────────────────────────────
+// Derived from model-download-service.ts's MODEL_DOWNLOADS — the single source
+// of truth for which GGUF models this app ships. Both files run in the same
+// Electron main process, so importing the array directly (rather than
+// hand-duplicating it, as the renderer-side catalogs must) keeps this list
+// impossible to drift out of sync with what's actually downloadable.
 
-export const DEFAULT_LLM_MODEL = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+export const DEFAULT_LLM_MODEL = MODEL_DOWNLOADS[0].file;
 
-const KNOWN_MODELS: Array<Omit<LlamaModelInfo, "present" | "path">> = [
-  {
-    id: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
-    family: "Qwen2.5",
-    sizeLabel: "1.5B",
-  },
-  {
-    id: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-    label: "Qwen2.5 0.5B Instruct (GGUF q4)",
-    family: "Qwen2.5",
-    sizeLabel: "0.5B",
-  },
-];
+const KNOWN_MODELS: Array<Omit<LlamaModelInfo, "present" | "path">> = MODEL_DOWNLOADS.map((m) => ({
+  id: m.file,
+  label: m.label,
+  family: m.family,
+  sizeLabel: m.sizeLabel,
+}));
 
 const DEFAULT_CONTEXT_SIZE = 4096;
 const DEFAULT_MAX_TOKENS = 512;
@@ -379,6 +377,28 @@ export async function ensureModel(file: string = DEFAULT_LLM_MODEL): Promise<{ m
   model = await llama.loadModel({ modelPath: target });
   loadedModelPath = target;
   return { model: target };
+}
+
+/**
+ * A2 seam for chat-session-service: ensure `file` is loaded and hand back the
+ * live LlamaModel so the chat runtime can create its own per-session contexts
+ * without duplicating model-resolution/loading logic here.
+ */
+export async function getLoadedModel(
+  file: string = DEFAULT_LLM_MODEL,
+): Promise<{ model: LlamaModel; modelPath: string }> {
+  await ensureModel(file);
+  // biome-ignore lint/style/noNonNullAssertion: ensureModel() above guarantees `model`.
+  return { model: model!, modelPath: loadedModelPath ?? modelPath(file) };
+}
+
+/**
+ * A2 seam for chat-session-service: share THIS module's single generation queue
+ * so chat prompts never overlap swarm/structured calls on the native runtime
+ * (one model, serialized evaluation — same discipline as generate()).
+ */
+export function enqueueLlamaTask<T>(task: () => Promise<T>): Promise<T> {
+  return enqueue(task);
 }
 
 /** Free-form generation with optional streaming via `input.onToken`. */

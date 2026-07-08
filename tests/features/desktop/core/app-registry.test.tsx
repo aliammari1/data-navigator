@@ -41,15 +41,23 @@ vi.mock("next/dynamic", () => ({
   ),
 }));
 
-// Mock all lucide-react icons used by the registry so jsdom never has to
-// render SVG or complain about missing browser APIs.
-vi.mock("lucide-react", () => {
+// Mock lucide-react icons the registry itself uses (cheap, stable stubs), and
+// fall back to the REAL exports (via importOriginal) for everything else. This
+// test's captured dynamic() loaders transitively import whichever screens the
+// desktop registry lazy-loads, so the icon surface here is effectively
+// "every icon any screen in the app uses", not just the registry's own icons —
+// a hand-enumerated list drifts every time a screen adds a new icon. Falling
+// back to the real component for unlisted icons removes that maintenance trap
+// (per vitest's own guidance for partial-mocking a module).
+vi.mock("lucide-react", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("lucide-react")>();
   const icon = (name: string) => {
     const C = () => null;
     C.displayName = name;
     return C;
   };
   return {
+    ...actual,
     Activity: icon("Activity"),
     BarChart3: icon("BarChart3"),
     Bot: icon("Bot"),
@@ -67,6 +75,7 @@ vi.mock("lucide-react", () => {
     History: icon("History"),
     LayoutDashboard: icon("LayoutDashboard"),
     Map: icon("Map"),
+    MessageCircle: icon("MessageCircle"),
     Microscope: icon("Microscope"),
     Radio: icon("Radio"),
     Receipt: icon("Receipt"),
@@ -86,7 +95,10 @@ vi.mock("lucide-react", () => {
 // actually resolved (they return undefined — the loader fn never runs in tests
 // because next/dynamic itself is mocked above).
 vi.mock("@/features/dashboard-home/screens/DashboardHomeScreen", () => ({ default: () => null }));
-vi.mock("@/features/data-formulator/screens/MoudirSwarmScreen", () => ({ default: () => null }));
+vi.mock("@/features/data-formulator/screens/FormulatorScreen", () => ({ default: () => null }));
+vi.mock("@/features/data-formulator/screens/MoudirAssistantScreen", () => ({
+  default: () => null,
+}));
 vi.mock("@/features/ai-commander/screens/CommanderScreen", () => ({ default: () => null }));
 vi.mock("@/features/eye-tracking/screens/EyeTrackingScreen", () => ({ default: () => null }));
 vi.mock("@/features/ai-briefing/screens/AIBriefingScreen", () => ({ default: () => null }));
@@ -128,15 +140,18 @@ vi.mock("@/features/dashboard-shell/screens/shell-overview-screen", () => ({
 }));
 vi.mock("@/features/help/screens/HelpScreen", () => ({ default: () => null }));
 vi.mock("@/features/desktop/apps/RecycleBinScreen", () => ({ default: () => null }));
+vi.mock("@/features/desktop/screens/TelecomDesktopScreen", () => ({
+  TelecomDesktopScreen: () => null,
+}));
 vi.mock("@/features/settings/screens/SettingsScreen", () => ({ default: () => null }));
 
 // ── Import the real module AFTER mocks are registered ────────────────────────
 import {
   DESKTOP_APPS,
+  type DesktopApp,
+  getApp,
   LAUNCHER_APPS,
   PINNED_APPS,
-  getApp,
-  type DesktopApp,
 } from "@/features/desktop/core/app-registry";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -145,6 +160,7 @@ import {
 const KNOWN_IDS = [
   "home",
   "moudir",
+  "moudir-chat",
   "commander",
   "eye-tracking",
   "telecom",
@@ -184,9 +200,9 @@ describe("DESKTOP_APPS", () => {
     expect(DESKTOP_APPS.length).toBeGreaterThan(0);
   });
 
-  it("contains exactly 29 app entries", () => {
-    // Cross-checked against the 29 entries defined in the source file.
-    expect(DESKTOP_APPS).toHaveLength(29);
+  it("contains exactly 30 app entries", () => {
+    // Cross-checked against the 30 entries defined in the source file.
+    expect(DESKTOP_APPS).toHaveLength(30);
   });
 
   it("every entry has a non-empty string id", () => {
@@ -249,7 +265,9 @@ describe("DESKTOP_APPS", () => {
     for (const app of DESKTOP_APPS) {
       const hasComponent = app.Component !== undefined;
       const hasRoute = typeof app.route === "string" && app.route.length > 0;
-      expect(hasComponent || hasRoute, `App "${app.id}" has neither Component nor route`).toBe(true);
+      expect(hasComponent || hasRoute, `App "${app.id}" has neither Component nor route`).toBe(
+        true,
+      );
     }
   });
 
@@ -294,10 +312,10 @@ describe("individual app property contracts", () => {
     expect(app.route).toBeUndefined();
   });
 
-  it("telecom uses a route instead of a Component", () => {
+  it("telecom uses a native Component (shares IPC bridge + stores), not a route", () => {
     const app = DESKTOP_APPS.find((a) => a.id === "telecom")!;
-    expect(app.route).toBe("/dashboard/telecom-report/overview");
-    expect(app.Component).toBeUndefined();
+    expect(app.Component).toBeDefined();
+    expect(app.route).toBeUndefined();
   });
 
   it("recycle-bin has inLauncher set to false", () => {
@@ -398,9 +416,10 @@ describe("getApp", () => {
     }
   });
 
-  it("returns the telecom app with the correct route", () => {
+  it("returns the telecom app with its native Component", () => {
     const app = getApp("telecom");
-    expect(app?.route).toBe("/dashboard/telecom-report/overview");
+    expect(app?.Component).toBeDefined();
+    expect(app?.route).toBeUndefined();
   });
 
   it("returned app object is the same reference as in DESKTOP_APPS", () => {
@@ -450,9 +469,9 @@ describe("LAUNCHER_APPS", () => {
     expect(LAUNCHER_APPS.length).toBeLessThan(DESKTOP_APPS.length);
   });
 
-  it("has exactly 28 entries (all apps minus recycle-bin)", () => {
-    // 29 total apps, 1 with inLauncher:false → 28 launcher apps
-    expect(LAUNCHER_APPS).toHaveLength(28);
+  it("has exactly 29 entries (all apps minus recycle-bin)", () => {
+    // 30 total apps, 1 with inLauncher:false → 29 launcher apps
+    expect(LAUNCHER_APPS).toHaveLength(29);
   });
 });
 
@@ -511,9 +530,9 @@ describe("PINNED_APPS", () => {
     expect(ids).not.toContain("recycle-bin");
   });
 
-  it("has exactly 6 pinned apps", () => {
-    // home, moudir, commander, eye-tracking, telecom, settings
-    expect(PINNED_APPS).toHaveLength(6);
+  it("has exactly 7 pinned apps", () => {
+    // home, moudir, moudir-chat, commander, eye-tracking, telecom, settings
+    expect(PINNED_APPS).toHaveLength(7);
   });
 
   it("every pinned app is also in LAUNCHER_APPS or at least in DESKTOP_APPS", () => {
@@ -527,7 +546,14 @@ describe("PINNED_APPS", () => {
 
 describe("DesktopApp type shape at runtime", () => {
   it("every app has an id, title, blurb, icon, hue, and defaultSize", () => {
-    const requiredKeys: (keyof DesktopApp)[] = ["id", "title", "blurb", "icon", "hue", "defaultSize"];
+    const requiredKeys: (keyof DesktopApp)[] = [
+      "id",
+      "title",
+      "blurb",
+      "icon",
+      "hue",
+      "defaultSize",
+    ];
     for (const app of DESKTOP_APPS) {
       for (const key of requiredKeys) {
         expect(app[key], `App "${app.id}" is missing key "${key}"`).toBeDefined();
@@ -556,9 +582,9 @@ describe("dynamic loader invocation via captured calls", () => {
   //   • the `name ? () => loader().then(m => m[name]) : loader` branch (line 91)
   // Both paths are needed to reach 100 % branch coverage on the ternary.
 
-  it("dynamic was called once per Component-bearing app (29 apps minus 1 route-only app)", () => {
-    // 28 apps have a Component; telecom has only a route and never calls d().
-    expect(dynamicCalls.length).toBe(28);
+  it("dynamic was called once per Component-bearing app (all 30 apps)", () => {
+    // Every app in the registry now carries a Component (telecom included).
+    expect(dynamicCalls.length).toBe(30);
   });
 
   it("every captured dynamic call received ssr:false and a loading option", () => {

@@ -56,6 +56,27 @@ export const GeoInsightSchema = z.object({
 
 export type GeoInsight = z.infer<typeof GeoInsightSchema>;
 
+/**
+ * Static system instructions for the regional-performance analyst persona.
+ * Exported so tests can assert exact identity instead of a substring keyword
+ * check — a substring check could only ever catch removal of one word and
+ * would miss any other degradation of the analyst instructions.
+ */
+export const GEO_INSIGHT_SYSTEM_PROMPT =
+  "You are a telecom regional-performance analyst. Interpret the supplied, " +
+  "already-computed regional aggregates and channel mix. Use ONLY the numbers " +
+  "given — never invent figures or regions. Reference regions by their exact " +
+  "supplied names. Respond ONLY with the requested JSON object.";
+
+/**
+ * Static closing instruction appended to every prompt, independent of the
+ * supplied context. Exported for the same reason as {@link GEO_INSIGHT_SYSTEM_PROMPT}.
+ */
+export const GEO_INSIGHT_SUMMARY_INSTRUCTION =
+  "Summarise the regional landscape: a headline, the standout regions, the " +
+  "regions that need attention, one channel-distribution observation, and one " +
+  "concrete recommendation.";
+
 interface GeoInsightContext {
   datasetName: string | null;
   regions: GeoRegion[];
@@ -101,11 +122,7 @@ export function buildGeoInsightPrompt(ctx: GeoInsightContext): {
       : "No statistically anomalous success rates detected.";
 
   return {
-    system:
-      "You are a telecom regional-performance analyst. Interpret the supplied, " +
-      "already-computed regional aggregates and channel mix. Use ONLY the numbers " +
-      "given — never invent figures or regions. Reference regions by their exact " +
-      "supplied names. Respond ONLY with the requested JSON object.",
+    system: GEO_INSIGHT_SYSTEM_PROMPT,
     prompt:
       `Dataset: ${ctx.datasetName ?? "active dataset"}\n` +
       `Totals: ${fmtN(ctx.totalTransactions)} transactions, ` +
@@ -113,8 +130,6 @@ export function buildGeoInsightPrompt(ctx: GeoInsightContext): {
       `Per-region metrics (busiest first):\n${regionLines}\n\n` +
       `Dominant channel per region:\n${dominantLines}\n\n` +
       `${anomalyLine}\n\n` +
-      "Summarise the regional landscape: a headline, the standout regions, the " +
-      "regions that need attention, one channel-distribution observation, and one " +
-      "concrete recommendation.",
+      GEO_INSIGHT_SUMMARY_INSTRUCTION,
   };
 }

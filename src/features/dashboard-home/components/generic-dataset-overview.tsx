@@ -1,6 +1,6 @@
 "use client";
 
-import ReactEChartsCore from "echarts-for-react/lib/core";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import Fuse from "fuse.js";
 import {
   AlertCircle,
@@ -14,9 +14,11 @@ import {
   Search,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
-import { useVirtualizer } from "@tanstack/react-virtual";
-import type { Dataset } from "@/core/stores/data-store";
 import { Button } from "@/components/ui/button";
+import type { Dataset } from "@/core/stores/data-store";
+import { KpiStat } from "@/design-system/kpi-stat";
+import { StaggerGrid, StaggerItem } from "@/design-system/motion-components";
+import { ExploreGrid } from "@/features/dashboard-home/components/explore-grid";
 import { GenericInsightPanel } from "@/features/dashboard-home/components/generic-insight-panel";
 import { useGenericOverview } from "@/features/dashboard-home/hooks/use-generic-overview";
 import type {
@@ -25,34 +27,13 @@ import type {
   GenericOverview,
   NumericBucket,
 } from "@/features/dashboard-home/lib/generic-overview";
+import { EChart } from "@/features/telecom/components/echart";
+import { chartTheme } from "@/features/telecom/lib/chart-options";
 import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
-import { type EChartsOption, OffscreenChart, supportsOffscreenChart } from "@/platform/viz";
-import { echarts } from "@/platform/viz/echarts-core";
+import type { EChartsOption } from "@/platform/viz";
 
 function ChartSkeleton() {
   return <div className="h-56 w-full animate-pulse rounded-xl bg-muted/40" />;
-}
-
-/**
- * Heavy bar/histogram charts rendered OFF the main thread via the shared
- * OffscreenChart worker (transferred OffscreenCanvas). When OffscreenCanvas /
- * Worker is unavailable, falls back to `echarts-for-react` bound to the SAME
- * tree-shaken `echarts/core` instance — never the full build — so the route
- * chunk stays small and the overview still renders everywhere.
- */
-function WorkerChart({ option, height }: { option: EChartsOption; height: number }) {
-  const fallback = (
-    <ReactEChartsCore
-      echarts={echarts}
-      option={option}
-      style={{ height, width: "100%" }}
-      lazyUpdate
-    />
-  );
-
-  if (!supportsOffscreenChart()) return fallback;
-
-  return <OffscreenChart option={option} height={height} fallback={fallback} />;
 }
 
 const ROLE_LABEL: Record<GenericColumnSummary["role"], string> = {
@@ -63,9 +44,9 @@ const ROLE_LABEL: Record<GenericColumnSummary["role"], string> = {
 };
 
 const ROLE_TONE: Record<GenericColumnSummary["role"], string> = {
-  numeric: "text-sky-600 dark:text-sky-400",
-  temporal: "text-violet-600 dark:text-violet-400",
-  categorical: "text-emerald-600 dark:text-emerald-400",
+  numeric: "text-primary",
+  temporal: "text-ai",
+  categorical: "text-foreground/70",
   other: "text-muted-foreground",
 };
 
@@ -73,27 +54,17 @@ export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
   const { data, isPending, isError, error, isFetching, refetch } = useGenericOverview(dataset);
 
   return (
-    <div className=" flex-1 overflow-y-auto">
-      <div className=" px-4 py-3 md:px-6">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-indigo-600 to-sky-600">
-              <Database className="h-5 w-5 text-white" />
-            </div>
-            <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold text-foreground">
-                Vue d'ensemble du dataset
-              </h1>
-              <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                <span className="truncate font-mono">{dataset.name}</span>
-                <span>·</span>
-                <span className="font-semibold text-indigo-600 dark:text-indigo-300">
-                  {fmtN(dataset.rowCount)} lignes
-                </span>
-                <span>·</span>
-                <span>{dataset.colCount} colonnes</span>
-              </div>
-            </div>
+    <div className="flex-1 overflow-y-auto">
+      <div className="mx-auto flex max-w-[1400px] flex-col gap-6 px-4 py-6 md:px-8">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-border pb-4">
+          <div className="min-w-0">
+            <p className="text-sm text-muted-foreground">Vue d'ensemble du dataset</p>
+            <h1 className="mt-1 truncate text-3xl font-black tracking-tight text-foreground md:text-4xl">
+              {dataset.name}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {fmtN(dataset.rowCount)} lignes · {dataset.colCount} colonnes
+            </p>
           </div>
 
           <Button
@@ -102,18 +73,18 @@ export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
             size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
-            className="h-9 rounded-xl text-xs"
           >
-            <RefreshCw className={`mr-1.5 h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`} />
+            <RefreshCw
+              className={`size-3.5 ${isFetching ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />
             Actualiser
           </Button>
         </div>
-      </div>
 
-      <main className=" space-y-5">
         {isError && (
           <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 p-4 text-sm">
-            <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-destructive" />
+            <AlertCircle className="mt-0.5 h-4 w-4 flex-none text-destructive" aria-hidden="true" />
             <div>
               <p className="font-semibold text-foreground">Impossible d'analyser le dataset</p>
               <p className="mt-0.5 text-xs text-muted-foreground">
@@ -126,7 +97,7 @@ export function GenericDatasetOverview({ dataset }: { dataset: Dataset }) {
         {isPending && !data && <OverviewSkeleton />}
 
         {data && <OverviewContent overview={data} datasetName={dataset.name} />}
-      </main>
+      </div>
     </div>
   );
 }
@@ -184,76 +155,62 @@ function OverviewContent({
 
       <ColumnTable columns={overview.columns} rowCount={overview.rowCount} />
 
-      <p className="pb-6 text-center text-[11px] text-muted-foreground">
+      <p className="text-center text-xs text-muted-foreground">
         Analyse calculée localement via DuckDB · {datasetName}
       </p>
+
+      <ExploreGrid />
     </>
   );
 }
 
 function KpiRow({ overview }: { overview: GenericOverview }) {
   const completeness = 100 - overview.avgNullPercentage;
-  const cards = [
-    {
-      label: "Lignes",
-      value: fmtN(overview.rowCount),
-      hint: fmtCompact(overview.rowCount),
-      icon: <Rows3 className="h-3.5 w-3.5" />,
-      tone: "text-indigo-600 dark:text-indigo-400",
-    },
-    {
-      label: "Colonnes",
-      value: fmtN(overview.columnCount),
-      hint: `${overview.numericColumnCount} num · ${overview.categoricalColumnCount} cat`,
-      icon: <Columns3 className="h-3.5 w-3.5" />,
-      tone: "text-sky-600 dark:text-sky-400",
-    },
-    {
-      label: "Complétude",
-      value: fmtPct(completeness),
-      hint: `${fmtN(overview.totalNullCells)} cellules nulles`,
-      icon: <Percent className="h-3.5 w-3.5" />,
-      tone:
-        completeness >= 95
-          ? "text-emerald-600 dark:text-emerald-400"
-          : "text-amber-600 dark:text-amber-400",
-    },
-    {
-      label: "Colonnes numériques",
-      value: fmtN(overview.numericColumnCount),
-      hint: `${overview.temporalColumnCount} temporelles`,
-      icon: <Hash className="h-3.5 w-3.5" />,
-      tone: "text-violet-600 dark:text-violet-400",
-    },
-    {
-      label: "Cellules totales",
-      value: fmtCompact(overview.rowCount * overview.columnCount),
-      hint: `${fmtN(overview.rowCount)} × ${overview.columnCount}`,
-      icon: <Database className="h-3.5 w-3.5" />,
-      tone: "text-foreground",
-    },
-  ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-      {cards.map((card) => (
-        <div
-          key={card.label}
-          className="rounded-2xl border border-border bg-card p-3.5 transition-colors hover:bg-accent/40"
-        >
-          <div className="mb-1.5 flex items-center justify-between gap-2">
-            <span className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-              {card.label}
-            </span>
-            <span className={card.tone}>{card.icon}</span>
-          </div>
-          <div className={`text-xl font-bold leading-none tabular-nums ${card.tone}`}>
-            {card.value}
-          </div>
-          <div className="mt-1.5 truncate text-[11px] text-muted-foreground">{card.hint}</div>
-        </div>
-      ))}
-    </div>
+    <StaggerGrid className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
+      <StaggerItem>
+        <KpiStat
+          label="Lignes"
+          numericValue={overview.rowCount}
+          icon={<Rows3 />}
+          sub={fmtCompact(overview.rowCount)}
+        />
+      </StaggerItem>
+      <StaggerItem>
+        <KpiStat
+          label="Colonnes"
+          numericValue={overview.columnCount}
+          icon={<Columns3 />}
+          sub={`${overview.numericColumnCount} num · ${overview.categoricalColumnCount} cat`}
+        />
+      </StaggerItem>
+      <StaggerItem>
+        <KpiStat
+          label="Complétude"
+          value={fmtPct(completeness)}
+          icon={<Percent />}
+          trend={completeness >= 95 ? "up" : "down"}
+          trendValue={`${fmtN(overview.totalNullCells)} nulles`}
+        />
+      </StaggerItem>
+      <StaggerItem>
+        <KpiStat
+          label="Colonnes numériques"
+          numericValue={overview.numericColumnCount}
+          icon={<Hash />}
+          sub={`${overview.temporalColumnCount} temporelles`}
+        />
+      </StaggerItem>
+      <StaggerItem>
+        <KpiStat
+          label="Cellules totales"
+          value={fmtCompact(overview.rowCount * overview.columnCount)}
+          icon={<Database />}
+          sub={`${fmtN(overview.rowCount)} × ${overview.columnCount}`}
+        />
+      </StaggerItem>
+    </StaggerGrid>
   );
 }
 
@@ -271,7 +228,7 @@ function ChartCard({
   return (
     <div className="rounded-2xl border border-border bg-card p-4">
       <div className="mb-3 flex items-start gap-2.5">
-        <div className="mt-0.5 text-indigo-600 dark:text-indigo-400">{icon}</div>
+        <div className="mt-0.5 text-primary">{icon}</div>
         <div className="min-w-0">
           <h3 className="truncate text-sm font-semibold text-foreground">{title}</h3>
           <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
@@ -300,14 +257,14 @@ function CategoricalBar({ values }: { values: CategoryCount[] }) {
         {
           type: "bar",
           data: counts,
-          itemStyle: { color: "#6366f1", borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: chartTheme().primary, borderRadius: [0, 4, 4, 0] },
           barMaxWidth: 18,
         },
       ],
     };
   }, [values]);
 
-  return <WorkerChart option={option} height={Math.max(224, values.length * 26)} />;
+  return <EChart option={option} height={Math.max(224, values.length * 26)} />;
 }
 
 function NumericHistogram({ buckets }: { buckets: NumericBucket[] }) {
@@ -338,13 +295,13 @@ function NumericHistogram({ buckets }: { buckets: NumericBucket[] }) {
         {
           type: "bar",
           data: counts,
-          itemStyle: { color: "#0ea5e9", borderRadius: [4, 4, 0, 0] },
+          itemStyle: { color: chartTheme().ai, borderRadius: [4, 4, 0, 0] },
         },
       ],
     };
   }, [buckets]);
 
-  return <WorkerChart option={option} height={224} />;
+  return <EChart option={option} height={224} />;
 }
 
 function ColumnTable({ columns, rowCount }: { columns: GenericColumnSummary[]; rowCount: number }) {
@@ -392,7 +349,7 @@ function ColumnTable({ columns, rowCount }: { columns: GenericColumnSummary[]; r
         </div>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_72px_72px_minmax(0,1.4fr)] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+      <div className="grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)_72px_72px_minmax(0,1.4fr)] gap-2 border-b border-border bg-muted/30 px-4 py-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
         <span>Colonne</span>
         <span>Type</span>
         <span className="text-right">Uniques</span>
@@ -432,9 +389,7 @@ function ColumnTable({ columns, rowCount }: { columns: GenericColumnSummary[]; r
                   </span>
                   <span
                     className={`text-right tabular-nums ${
-                      col.nullPercentage > 5
-                        ? "text-amber-600 dark:text-amber-400"
-                        : "text-muted-foreground"
+                      col.nullPercentage > 5 ? "text-warning" : "text-muted-foreground"
                     }`}
                   >
                     {col.nullPercentage.toFixed(1)}
@@ -447,7 +402,7 @@ function ColumnTable({ columns, rowCount }: { columns: GenericColumnSummary[]; r
         </div>
       )}
 
-      <div className="border-t border-border px-4 py-2 text-[11px] text-muted-foreground">
+      <div className="border-t border-border px-4 py-2 text-xs text-muted-foreground">
         {fmtN(rowCount)} lignes analysées
       </div>
     </div>
