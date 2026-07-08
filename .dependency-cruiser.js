@@ -105,7 +105,7 @@ module.exports = {
         //    This intentionally does NOT broaden to all of src/features.
         pathNot: ["^src/(?:platform/ai|workers)/", "[.-]worker[.]ts$"],
       },
-      to: { path: "(?:@mlc-ai/web-llm|@huggingface/transformers|@xenova/transformers)" },
+      to: { path: "(?:@mlc-ai/web-llm)" },
     },
     {
       name: "renderer-no-main-only-natives",
@@ -124,7 +124,7 @@ module.exports = {
         ],
       },
       to: {
-        path: "node_modules/(?:@duckdb/node-api|@duckdb[+]node-api|better-sqlite3|better-sqlite3-multiple-ciphers|node-llama-cpp|sherpa-onnx-node|@hocuspocus/server|@hocuspocus[+]server|bonjour-service)(?:[@/]|$)",
+        path: "node_modules/(?:@duckdb/node-api|@duckdb[+]node-api|better-sqlite3|better-sqlite3-multiple-ciphers|node-llama-cpp)(?:[@/]|$)",
       },
     },
     {

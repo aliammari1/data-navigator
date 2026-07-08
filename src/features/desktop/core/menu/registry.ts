@@ -20,7 +20,6 @@
  * never blanks the whole bar.
  */
 
-import { buildMenu as collaboration } from "@/features/desktop/core/menu/apps/collaboration";
 import { buildMenu as csvParser } from "@/features/desktop/core/menu/apps/csv-parser";
 import { buildMenu as diagnostics } from "@/features/desktop/core/menu/apps/diagnostics";
 import { buildMenu as folders } from "@/features/desktop/core/menu/apps/folders";
@@ -54,7 +53,6 @@ export const APP_MENUS: Record<string, AppMenuBuilder> = {
   upload,
   "csv-parser": csvParser,
   folders,
-  collaboration,
   diagnostics,
   help,
   "recycle-bin": recycleBin,

@@ -4,7 +4,7 @@
  * Moudir — composer. The line you talk to Moudir through. Warm, calm, no neon.
  */
 
-import { ArrowUp, Mic, MicOff, Square } from "lucide-react";
+import { ArrowUp, Square } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { cn } from "@/shared/utils";
@@ -19,7 +19,6 @@ export function MoudirComposer({
   onPick,
   onCancel,
   suggestions,
-  voice,
 }: {
   disabled: boolean;
   running: boolean;
@@ -31,16 +30,6 @@ export function MoudirComposer({
   onPick: (text: string) => void;
   onCancel: () => void;
   suggestions?: string[];
-  /** Optional offline voice capture. When `supported`, a mic button appears to
-   * the left of the send button; toggling it starts/stops listening. A failed
-   * start surfaces `error` as inline text with a retry affordance. */
-  voice?: {
-    supported: boolean;
-    listening: boolean;
-    onToggle: () => void;
-    error?: string | null;
-    onRetry?: () => void;
-  };
 }) {
   const motionOn = useMotionOn();
   const ref = useRef<HTMLTextAreaElement>(null);
@@ -111,31 +100,6 @@ export function MoudirComposer({
           spellCheck={false}
           className="block max-h-[160px] w-full resize-none bg-transparent text-base leading-relaxed text-foreground outline-none placeholder:text-muted-foreground"
         />
-        {voice?.supported && (
-          <button
-            type="button"
-            onClick={voice.onToggle}
-            aria-label={voice.listening ? "Arrêter l'écoute" : "Parler"}
-            aria-pressed={voice.listening}
-            className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#17a2c9]/50 active:scale-[0.96]"
-            style={{
-              background: voice.listening ? "rgba(23, 162, 201,0.15)" : "var(--glass-bg)",
-              color: voice.listening ? MOUDIR.coral : "hsl(var(--muted-foreground))",
-            }}
-          >
-            {voice.listening && (
-              <span
-                className="absolute inset-0 animate-ping rounded-xl"
-                style={{ boxShadow: "inset 0 0 0 1px rgba(23, 162, 201,0.4)" }}
-              />
-            )}
-            {voice.listening ? (
-              <Mic className="relative h-4 w-4" strokeWidth={2.25} />
-            ) : (
-              <MicOff className="relative h-4 w-4" strokeWidth={2.25} />
-            )}
-          </button>
-        )}
         <button
           type="button"
           onClick={running ? onCancel : canSubmit ? onSubmit : undefined}
@@ -154,21 +118,6 @@ export function MoudirComposer({
           )}
         </button>
       </div>
-
-      {voice?.supported && voice.error && (
-        <div className="mt-2 flex items-center gap-2 px-1 text-[12px] text-[#e06a55]">
-          <span>{voice.error}</span>
-          {voice.onRetry && (
-            <button
-              type="button"
-              onClick={voice.onRetry}
-              className="rounded-md border border-[#e06a55]/40 px-2 py-0.5 text-[11px] text-[#e06a55] transition-colors hover:border-[#e06a55]/70 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#e06a55]/50"
-            >
-              Réessayer
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }

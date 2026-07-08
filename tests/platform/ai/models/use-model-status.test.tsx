@@ -10,9 +10,11 @@ import {
 //
 // `use-model-status` reads `window.electronModels` / `window.electronLlama`
 // (presence + download) and `window.electronFS` + `window.electronDuckDB`
-// (isElectron) live on every call, so the cheapest, most faithful boundary to
-// fake is the global `window` + `fetch` + `caches` + `navigator.storage`. No
-// module is mocked — only true IO/host boundaries are stubbed.
+// (isElectron) live on every call. Both the `llm` and `embed` lanes are GGUF
+// weights probed the same way (node-llama-cpp migration removed the old
+// transformers.js browser lane — no fetch/Cache Storage/OPFS probing exists
+// anymore), so the electronModels/electronLlama bridges are the only
+// boundaries that need faking here.
 
 type AnyRecord = Record<string, unknown>;
 
@@ -51,29 +53,6 @@ function installLlamaBridge(overrides: AnyRecord = {}): AnyRecord {
   return bridge;
 }
 
-/** A transformers HEAD/cache/OPFS world where the embed asset is absent. */
-function installEmbedMissing(): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response(null, { status: 404 })),
-  );
-  // No Cache Storage, no OPFS.
-  vi.stubGlobal("caches", undefined);
-  vi.stubGlobal("navigator", { storage: undefined });
-}
-
-/** A world where the embed asset 200s on the public path. */
-function installEmbedPublicPresent(): void {
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(async () => new Response(null, { status: 200 })),
-  );
-  vi.stubGlobal("caches", undefined);
-  vi.stubGlobal("navigator", { storage: undefined });
-}
-
-const ORIGINAL_FETCH = globalThis.fetch;
-
 beforeEach(() => {
   // Default: not Electron, no GGUF/embed presence anywhere.
   clearElectronShell();
@@ -88,30 +67,26 @@ afterEach(() => {
   win.electronLlama = undefined;
   win.electronFS = undefined;
   win.electronDuckDB = undefined;
-  // jsdom's fetch can be left stubbed; ensure a clean baseline.
-  globalThis.fetch = ORIGINAL_FETCH;
 });
 
 // ─── ensureModelsReady ──────────────────────────────────────────────────────────
 
 describe("ensureModelsReady", () => {
   it("reports ready=false with the GGUF + embed primaries missing in a bare browser", async () => {
-    installEmbedMissing();
+    // No electronModels/electronLlama bridges → every lane probes to "unknown".
 
     const result = await ensureModelsReady();
 
-    // Two non-optional primaries exist: the Gemma GGUF and the MiniLM embed.
+    // Two non-optional primaries exist: the Gemma GGUF and the Qwen3 embed GGUF.
     expect(result.ready).toBe(false);
     expect(result.missing.map((r) => r.key).sort()).toEqual(
-      ["minilm-onnx-quantized", "gemma-4-e4b-it-q4_k_m"].sort(),
+      ["qwen3-embedding-0.6b-q8_0", "gemma-4-e4b-it-q4_k_m"].sort(),
     );
     // records covers every manifest entry in the default ["llm","embed"] lanes.
     expect(result.records.length).toBe(3);
   });
 
   it("excludes optional models from `missing` even when they are absent", async () => {
-    installEmbedMissing();
-
     const result = await ensureModelsReady();
 
     // The Granite GGUF is optional → present in records, absent from missing.
@@ -121,7 +96,7 @@ describe("ensureModelsReady", () => {
   });
 
   it("reports ready=true once both non-optional primaries are present", async () => {
-    // GGUF primary present via listPresence; embed present via public HEAD 200.
+    // Both the instruct and embed GGUFs ride the same models-bridge presence lane.
     installModelsBridge({
       listPresence: vi.fn(async () => [
         {
@@ -130,9 +105,14 @@ describe("ensureModelsReady", () => {
           present: true,
           sizeBytes: 1_070_000_000,
         },
+        {
+          key: "qwen3-embedding-0.6b-q8_0",
+          file: "qwen3-embedding-0.6b-q8_0.gguf",
+          present: true,
+          sizeBytes: 400_000_000,
+        },
       ]),
     });
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady();
 
@@ -141,18 +121,14 @@ describe("ensureModelsReady", () => {
   });
 
   it("restricts probing to the requested lanes", async () => {
-    installEmbedMissing();
-
     const result = await ensureModelsReady(["embed"]);
 
     // Only the single embed entry is probed when lane filter is ["embed"].
-    expect(result.records.map((r) => r.key)).toEqual(["minilm-onnx-quantized"]);
-    expect(result.missing.map((r) => r.key)).toEqual(["minilm-onnx-quantized"]);
+    expect(result.records.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
+    expect(result.missing.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
   });
 
   it("returns empty records + ready=true for an empty lane list", async () => {
-    installEmbedMissing();
-
     const result = await ensureModelsReady([]);
 
     // No wanted models → nothing missing → vacuously ready.
@@ -163,7 +139,6 @@ describe("ensureModelsReady", () => {
 
   it("treats an `unknown` GGUF state as still-missing (blocks readiness)", async () => {
     // No bridges at all → probeGguf returns state:"unknown".
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
@@ -182,11 +157,8 @@ describe("ensureModelsReady", () => {
       ]),
     });
     installLlamaBridge({
-      listModels: vi.fn(async () => [
-        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: true },
-      ]),
+      listModels: vi.fn(async () => [{ id: "gemma-4-e4b-it-q4_k_m.gguf", present: true }]),
     });
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
@@ -202,17 +174,12 @@ describe("ensureModelsReady", () => {
       }),
     });
     installLlamaBridge({
-      listModels: vi.fn(async () => [
-        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: true },
-      ]),
+      listModels: vi.fn(async () => [{ id: "gemma-4-e4b-it-q4_k_m.gguf", present: true }]),
     });
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.state).toBe(
-      "present",
-    );
+    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.state).toBe("present");
   });
 
   it("matches a GGUF by file when key differs but ggufFile matches", async () => {
@@ -222,7 +189,6 @@ describe("ensureModelsReady", () => {
         { key: "mismatched", file: "gemma-4-e4b-it-q4_k_m.gguf", present: false, sizeBytes: 0 },
       ]),
     });
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
@@ -242,7 +208,6 @@ describe("ensureModelsReady", () => {
         },
       ]),
     });
-    installEmbedPublicPresent();
 
     const result = await ensureModelsReady(["llm"]);
 
@@ -256,188 +221,39 @@ describe("ensureModelsReady", () => {
     installModelsBridge({
       listPresence: vi.fn(async () => []),
     });
-    installEmbedMissing();
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(
-      result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable,
-    ).toBe(true);
+    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable).toBe(true);
   });
 
   it("marks the GGUF record NOT downloadable in a browser (no Electron shell)", async () => {
     // models bridge present but not Electron → downloadable false.
     installModelsBridge();
-    installEmbedMissing();
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(
-      result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable,
-    ).toBe(false);
+    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable).toBe(false);
   });
 
-  it("never marks the transformers/embed record downloadable", async () => {
+  it("marks the embed GGUF record downloadable the same way as the llm lane", async () => {
+    // The embed model now rides the same in-app GGUF downloader as the llm
+    // lane (node-llama-cpp migration), so it is downloadable under the exact
+    // same condition: inside Electron with the models bridge present.
     makeElectron();
     installModelsBridge();
-    installEmbedPublicPresent();
+
+    const result = await ensureModelsReady(["embed"]);
+
+    expect(result.records[0].downloadable).toBe(true);
+  });
+
+  it("marks the embed GGUF record NOT downloadable in a browser (no Electron shell)", async () => {
+    installModelsBridge();
 
     const result = await ensureModelsReady(["embed"]);
 
     expect(result.records[0].downloadable).toBe(false);
-  });
-});
-
-// ─── transformers-asset presence probing (via ensureModelsReady) ─────────────────
-
-describe("transformers asset probing", () => {
-  it("reports present + public-asset when the HEAD probe 200s", async () => {
-    const fetchMock = vi.fn(async () => new Response(null, { status: 200 }));
-    vi.stubGlobal("fetch", fetchMock);
-    vi.stubGlobal("caches", undefined);
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("present");
-    expect(result.records[0].source).toBe("public-asset");
-    // HEAD avoids downloading the body.
-    expect(fetchMock).toHaveBeenCalledWith(
-      "/models/transformers/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx",
-      { method: "HEAD" },
-    );
-  });
-
-  it("falls through to Cache Storage when HEAD is non-OK and a cached weight exists", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 404 })),
-    );
-    const cache = {
-      keys: vi.fn(async () => [
-        { url: "https://huggingface.co/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model_quantized.onnx" },
-      ]),
-    };
-    vi.stubGlobal("caches", {
-      keys: vi.fn(async () => ["transformers-cache"]),
-      open: vi.fn(async () => cache),
-    });
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("present");
-    expect(result.records[0].source).toBe("browser-cache");
-  });
-
-  it("ignores cached requests that do not match the model weight URL", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 404 })),
-    );
-    const cache = {
-      // URL lacks `model_quantized` → no match → keep probing.
-      keys: vi.fn(async () => [{ url: "https://example.com/all-MiniLM-L6-v2/tokenizer.json" }]),
-    };
-    vi.stubGlobal("caches", {
-      keys: vi.fn(async () => ["c"]),
-      open: vi.fn(async () => cache),
-    });
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("missing");
-    expect(result.records[0].source).toBe("none");
-  });
-
-  it("falls through to OPFS when the model dir is walkable", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 404 })),
-    );
-    vi.stubGlobal("caches", undefined);
-
-    const minilmDir = {};
-    const xenovaDir = {
-      getDirectoryHandle: vi.fn(async (name: string) =>
-        name === "all-MiniLM-L6-v2" ? minilmDir : undefined,
-      ),
-    };
-    const modelsDir = {
-      getDirectoryHandle: vi.fn(async (name: string) =>
-        name === "Xenova" ? xenovaDir : undefined,
-      ),
-    };
-    const root = {
-      getDirectoryHandle: vi.fn(async (name: string) =>
-        name === "models" ? modelsDir : undefined,
-      ),
-    };
-    vi.stubGlobal("navigator", {
-      storage: { getDirectory: vi.fn(async () => root) },
-    });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("present");
-    expect(result.records[0].source).toBe("browser-cache");
-  });
-
-  it("reports missing when the OPFS model dir is absent", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 404 })),
-    );
-    vi.stubGlobal("caches", undefined);
-    const root = {
-      // No "models" directory → getDirectoryHandle rejects.
-      getDirectoryHandle: vi.fn(async () => {
-        throw new Error("not found");
-      }),
-    };
-    vi.stubGlobal("navigator", {
-      storage: { getDirectory: vi.fn(async () => root) },
-    });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("missing");
-    expect(result.records[0].source).toBe("none");
-  });
-
-  it("treats a thrown HEAD fetch as non-present and continues to the cache probe", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => {
-        throw new TypeError("network down");
-      }),
-    );
-    vi.stubGlobal("caches", undefined);
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    // fetch threw, no caches, no OPFS → missing/none (no crash).
-    expect(result.records[0].state).toBe("missing");
-    expect(result.records[0].source).toBe("none");
-  });
-
-  it("swallows a throwing Cache Storage probe and falls through to missing", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(async () => new Response(null, { status: 404 })),
-    );
-    vi.stubGlobal("caches", {
-      keys: vi.fn(async () => {
-        throw new Error("cache exploded");
-      }),
-    });
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("missing");
   });
 });
 
@@ -504,8 +320,6 @@ describe("isPrimaryLlmReady", () => {
 
 describe("useModelStatus", () => {
   it("starts loading then resolves records + ready for the default lanes", async () => {
-    installEmbedMissing();
-
     const { result } = renderHook(() => useModelStatus());
 
     // Initial synchronous state: loading, empty.
@@ -528,9 +342,14 @@ describe("useModelStatus", () => {
           present: true,
           sizeBytes: 1,
         },
+        {
+          key: "qwen3-embedding-0.6b-q8_0",
+          file: "qwen3-embedding-0.6b-q8_0.gguf",
+          present: true,
+          sizeBytes: 1,
+        },
       ]),
     });
-    installEmbedPublicPresent();
 
     const { result } = renderHook(() => useModelStatus());
 
@@ -539,12 +358,21 @@ describe("useModelStatus", () => {
   });
 
   it("tracks only the requested lane when given a lane filter", async () => {
-    installEmbedPublicPresent();
+    installModelsBridge({
+      listPresence: vi.fn(async () => [
+        {
+          key: "qwen3-embedding-0.6b-q8_0",
+          file: "qwen3-embedding-0.6b-q8_0.gguf",
+          present: true,
+          sizeBytes: 1,
+        },
+      ]),
+    });
 
     const { result } = renderHook(() => useModelStatus(["embed"]));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.records.map((r) => r.key)).toEqual(["minilm-onnx-quantized"]);
+    expect(result.current.records.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
     // The single tracked non-optional model is present → ready.
     expect(result.current.ready).toBe(true);
   });
@@ -561,7 +389,6 @@ describe("useModelStatus", () => {
         },
       ]),
     });
-    installEmbedPublicPresent();
 
     const { result } = renderHook(() => useModelStatus(["llm"]));
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -578,19 +405,18 @@ describe("useModelStatus", () => {
 
   it("download() sets an error and no-ops when the models bridge is absent", async () => {
     // No electronModels installed.
-    installEmbedMissing();
 
     const { result } = renderHook(() => useModelStatus(["embed"]));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("minilm-onnx-quantized");
+      await result.current.download("qwen3-embedding-0.6b-q8_0");
     });
 
-    expect(result.current.downloads["minilm-onnx-quantized"]).toMatchObject({
+    expect(result.current.downloads["qwen3-embedding-0.6b-q8_0"]).toMatchObject({
       error: "Model download requires the desktop app.",
     });
-    expect(result.current.downloads["minilm-onnx-quantized"].active).toBe(false);
+    expect(result.current.downloads["qwen3-embedding-0.6b-q8_0"].active).toBe(false);
   });
 
   it("download() subscribes to progress, drives percent, then completes at 100", async () => {
@@ -677,9 +503,7 @@ describe("useModelStatus", () => {
       await result.current.download("gemma-4-e4b-it-q4_k_m");
     });
 
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].error).toBe(
-      "plain string failure",
-    );
+    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].error).toBe("plain string failure");
   });
 
   it("a progress event with done=true clears the active flag", async () => {

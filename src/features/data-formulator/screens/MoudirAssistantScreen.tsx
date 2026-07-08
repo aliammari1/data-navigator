@@ -48,7 +48,6 @@ import { KpiPanel } from "../components/moudir/canvas/kpi-panel";
 import { MoudirComposer } from "../components/moudir/moudir-composer";
 import { Kicker, MoudirBackdrop, MoudirMark, Pill } from "../components/moudir/moudir-kit";
 import { SwarmConsole } from "../components/moudir/swarm/swarm-console";
-import { useMoudirVoice } from "../components/moudir/use-moudir-voice";
 import { inferType } from "../core/helpers";
 import { sanitizeJsonValue } from "../core/json";
 import { cancelActiveSwarm, runSwarm } from "../core/swarm/orchestrator";
@@ -304,29 +303,6 @@ export default function MoudirAssistantScreen() {
     router.push(path);
   }, [navigation, router, setNavigation]);
 
-  // Offline voice: capture → transcript fills the composer (no auto-submit).
-  const voice = useMoudirVoice();
-  const {
-    supported: voiceSupported,
-    listening: voiceListening,
-    error: voiceError,
-    start: voiceStart,
-    stop: voiceStop,
-    retry: voiceRetry,
-    onTranscript: voiceOnTranscript,
-  } = voice;
-
-  useEffect(() => {
-    // A final transcript drops into the text box; the user decides when to send.
-    voiceOnTranscript((text) => {
-      setValue((prev) => {
-        const trimmed = text.trim();
-        if (!trimmed) return prev;
-        return prev.trim() ? `${prev.trim()} ${trimmed}` : trimmed;
-      });
-    });
-  }, [voiceOnTranscript]);
-
   useEffect(() => {
     let cancelled = false;
     async function load() {
@@ -581,21 +557,6 @@ export default function MoudirAssistantScreen() {
             onSubmit={() => submit(value)}
             onPick={onAsk}
             onCancel={cancelActiveSwarm}
-            voice={{
-              supported: voiceSupported,
-              listening: voiceListening,
-              error: voiceError,
-              onToggle: () => {
-                if (voiceListening) {
-                  void voiceStop();
-                } else {
-                  void voiceStart();
-                }
-              },
-              onRetry: () => {
-                void voiceRetry();
-              },
-            }}
           />
         </div>
       </div>

@@ -57,7 +57,6 @@ import {
   isTelecomDataset,
   TELECOM_REQUIRED_COLUMNS,
 } from "@/features/telecom/lib/dataset-detection";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import {
   getDroppedFilePaths,
   isElectron,
@@ -156,7 +155,6 @@ function useFile(id: string): ParsedFileInfo | undefined {
 }
 
 export default function DataImportScreen() {
-  const access = useDashboardAccess();
   const { addDataset, setActiveDataset } = useDataStore();
 
   const router = useRouter();
@@ -220,22 +218,14 @@ export default function DataImportScreen() {
   const pipelineContext = useMemo<ImportPipelineContext>(
     () => ({
       isTelecomMode,
-      canUpload: access.permissions.canUpload,
+      canUpload: true,
       encoding,
       addDataset,
       setActiveDataset,
       setAppContext,
       addActivity,
     }),
-    [
-      isTelecomMode,
-      access.permissions.canUpload,
-      encoding,
-      addDataset,
-      setActiveDataset,
-      setAppContext,
-      addActivity,
-    ],
+    [isTelecomMode, encoding, addDataset, setActiveDataset, setAppContext, addActivity],
   );
 
   const runImport = useCallback(
@@ -267,7 +257,7 @@ export default function DataImportScreen() {
   );
 
   const importFromFiles = useCallback(async () => {
-    if (!access.permissions.canUpload || !isElectron()) return;
+    if (!isElectron()) return;
 
     const selected = await openFileDialog({
       title: "Select dataset files",
@@ -298,10 +288,10 @@ export default function DataImportScreen() {
     }
 
     await runImport(supported);
-  }, [access.permissions.canUpload, runImport]);
+  }, [runImport]);
 
   const importFromFolder = useCallback(async () => {
-    if (!access.permissions.canUpload || !isElectron()) return;
+    if (!isElectron()) return;
 
     const selected = await openFileDialog({
       title: "Select dataset folder",
@@ -322,13 +312,13 @@ export default function DataImportScreen() {
     }
 
     await runImport(supported);
-  }, [access.permissions.canUpload, runImport]);
+  }, [runImport]);
 
   // Real drag-and-drop: resolve dropped files to trusted on-disk paths via
   // Electron webUtils, then run the same pipeline as the native picker (§3).
   const onDrop = useCallback(
     (accepted: File[]) => {
-      if (!access.permissions.canUpload || accepted.length === 0) return;
+      if (accepted.length === 0) return;
 
       if (!isElectron()) {
         setDropNotice(
@@ -347,12 +337,12 @@ export default function DataImportScreen() {
 
       void runImport(supported);
     },
-    [access.permissions.canUpload, runImport],
+    [runImport],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    disabled: !access.permissions.canUpload || importing,
+    disabled: importing,
     noClick: true,
     noKeyboard: true,
     accept: {
@@ -424,7 +414,7 @@ export default function DataImportScreen() {
                   size="sm"
                   variant="outline"
                   onClick={importFromFolder}
-                  disabled={!access.permissions.canUpload || importing}
+                  disabled={importing}
                   className="h-9 rounded-xl text-xs"
                 >
                   <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -435,7 +425,7 @@ export default function DataImportScreen() {
                   type="button"
                   size="sm"
                   onClick={importFromFiles}
-                  disabled={!access.permissions.canUpload || importing}
+                  disabled={importing}
                   className="h-9 rounded-xl text-xs font-bold"
                 >
                   {importing ? (
@@ -460,7 +450,6 @@ export default function DataImportScreen() {
               getRootProps={getRootProps}
               getInputProps={getInputProps}
               isDragActive={isDragActive}
-              canUpload={access.permissions.canUpload}
               electronAvailable={electronAvailable}
               dropNotice={dropNotice}
               onBrowse={importFromFiles}
@@ -483,7 +472,7 @@ export default function DataImportScreen() {
             <ImportSettingsCard
               encoding={encoding}
               onEncodingChange={setEncoding}
-              disabled={importing || !access.permissions.canUpload}
+              disabled={importing}
             />
 
             <UploadPipelineCard selectedFile={selectedFile} />
@@ -549,7 +538,6 @@ function UploadDropzone({
   getRootProps,
   getInputProps,
   isDragActive,
-  canUpload,
   electronAvailable,
   dropNotice,
   onBrowse,
@@ -557,7 +545,6 @@ function UploadDropzone({
   getRootProps: DropzoneRootGetter;
   getInputProps: DropzoneInputGetter;
   isDragActive: boolean;
-  canUpload: boolean;
   electronAvailable: boolean;
   dropNotice: string | null;
   onBrowse: () => void;
@@ -569,9 +556,7 @@ function UploadDropzone({
         "group relative overflow-hidden rounded-3xl border p-10 transition-all",
         isDragActive
           ? "border-primary bg-primary/10"
-          : canUpload
-            ? "border-border bg-card hover:border-primary/50 hover:bg-muted/20"
-            : "border-border bg-muted/20 opacity-70",
+          : "border-border bg-card hover:border-primary/50 hover:bg-muted/20",
       )}
     >
       <input {...getInputProps()} />
@@ -591,32 +576,27 @@ function UploadDropzone({
           <Upload className="h-8 w-8" />
         </motion.div>
 
-        <h2 className="mt-6 text-lg font-bold text-foreground">
-          {canUpload ? "Importez un dataset local" : "Votre rôle ne permet pas l'import"}
-        </h2>
+        <h2 className="mt-6 text-lg font-bold text-foreground">Importez un dataset local</h2>
 
         <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-          {canUpload
-            ? "Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur votre machine et sont lus directement par DuckDB."
-            : "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."}
+          Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur
+          votre machine et sont lus directement par DuckDB.
         </p>
 
-        {canUpload && (
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
-            <Button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-                onBrowse();
-              }}
-              disabled={!electronAvailable}
-              className="rounded-xl px-5 text-xs font-bold"
-            >
-              <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
-              Sélectionner un fichier local
-            </Button>
-          </div>
-        )}
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onBrowse();
+            }}
+            disabled={!electronAvailable}
+            className="rounded-xl px-5 text-xs font-bold"
+          >
+            <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+            Sélectionner un fichier local
+          </Button>
+        </div>
 
         {!electronAvailable && (
           <div className="mt-4 max-w-md rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">

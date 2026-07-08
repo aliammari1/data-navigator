@@ -277,58 +277,6 @@ const electronDuckDB = {
     ipcRenderer.invoke("duckdb:resetCancelToken", token),
 } as const;
 
-const electronVoice = {
-  getMicrophoneAccessStatus: (): Promise<
-    "not-determined" | "granted" | "denied" | "restricted" | "unknown"
-  > => ipcRenderer.invoke("voice:getMicrophoneAccessStatus"),
-  preloadStt: (input: {
-    engine?: string;
-    localModelPath?: string | null;
-  }): Promise<{ engine: string; model: string; runtime: "cpu" }> =>
-    ipcRenderer.invoke("voice:preloadStt", input),
-  transcribe: (input: {
-    audio: ArrayBuffer | Float32Array | number[];
-    sampleRate?: number;
-    engine?: string;
-    language?: string;
-    localModelPath?: string | null;
-  }): Promise<{
-    text: string;
-    engine: string;
-    model: string;
-    runtime: "cpu";
-    sampleRate: number;
-    audioDurationMs: number;
-    latencyMs: number;
-    language?: string;
-  }> => ipcRenderer.invoke("voice:transcribe", input),
-  preloadTts: (input: {
-    engine?: string;
-    localModelPath?: string | null;
-  }): Promise<{ engine: string; model: string; runtime: "cpu" }> =>
-    ipcRenderer.invoke("voice:preloadTts", input),
-  speak: (input: {
-    text: string;
-    engine?: string;
-    voice?: string;
-    speed?: number;
-    lang?: string;
-    localModelPath?: string | null;
-  }): Promise<{
-    jobId: string;
-    engine: string;
-    model: string;
-    runtime: "cpu";
-    voice: string;
-    text: string;
-    sampleRate: number;
-    durationMs: number;
-    latencyMs: number;
-    wav: ArrayBuffer;
-  }> => ipcRenderer.invoke("voice:speak", input),
-  clearModels: (): Promise<{ stt: number; tts: number }> => ipcRenderer.invoke("voice:clearModels"),
-} as const;
-
 // ─── node-llama-cpp bridge ────────────────────────────────────────────────────
 
 export type LlamaGenerateResult = {
@@ -391,6 +339,16 @@ const electronLlama = {
     ipcRenderer.on("llama:token", handler);
     return () => ipcRenderer.removeListener("llama:token", handler);
   },
+
+  // ── node-llama-cpp embedding lane (electron/embed-service.ts) ───────────────
+
+  /** Embed a batch of texts in a single IPC round-trip (same order as input). */
+  embed: (texts: string[]): Promise<Float32Array[]> => ipcRenderer.invoke("llama:embed", { texts }),
+
+  ensureEmbedModel: (input?: { file?: string }): Promise<void> =>
+    ipcRenderer.invoke("llama:ensureEmbedModel", input),
+
+  isEmbedAvailable: (): Promise<boolean> => ipcRenderer.invoke("llama:isEmbedAvailable"),
 } as const;
 
 // ─── Offline model download bridge ────────────────────────────────────────────
@@ -435,66 +393,6 @@ const electronModels = {
     };
     ipcRenderer.on("models:progress", handler);
     return () => ipcRenderer.removeListener("models:progress", handler);
-  },
-} as const;
-
-// ─── LAN collaboration hub bridge ─────────────────────────────────────────────
-
-export type CollabHubStatus = {
-  running: boolean;
-  port: number | null;
-  pairingCode: string | null;
-  guestCode: string | null;
-  room: string | null;
-  advertising: boolean;
-  discovering: boolean;
-  websocketUrls: string[];
-  ips: Array<{ name: string; address: string }>;
-  dbPath: string | null;
-  startedAt: string | null;
-};
-
-export type DiscoveredHub = {
-  name: string;
-  host: string;
-  port: number;
-  url: string;
-  addresses: string[];
-  room?: string;
-  pairingRequired: boolean;
-};
-
-const electronCollab = {
-  start: (input?: {
-    port?: number;
-    pairingCode?: string;
-    guestCode?: string;
-    room?: string;
-    advertise?: boolean;
-    discover?: boolean;
-  }): Promise<CollabHubStatus> => ipcRenderer.invoke("collabHub:start", input),
-
-  stop: (): Promise<{ stopped: boolean }> => ipcRenderer.invoke("collabHub:stop"),
-
-  status: (): Promise<CollabHubStatus> => ipcRenderer.invoke("collabHub:status"),
-
-  discover: (): Promise<DiscoveredHub[]> => ipcRenderer.invoke("collabHub:discover"),
-
-  getDiscovered: (): Promise<DiscoveredHub[]> => ipcRenderer.invoke("collabHub:getDiscovered"),
-
-  /**
-   * Subscribe to live mDNS discovery up/down events. Returns an unsubscribe
-   * function.
-   */
-  onDiscovered: (
-    callback: (event: { type: "up" | "down"; hub: DiscoveredHub }) => void,
-  ): (() => void) => {
-    const handler = (
-      _event: IpcRendererEvent,
-      payload: { type: "up" | "down"; hub: DiscoveredHub },
-    ): void => callback(payload);
-    ipcRenderer.on("collab:discovered", handler);
-    return () => ipcRenderer.removeListener("collab:discovered", handler);
   },
 } as const;
 
@@ -686,10 +584,8 @@ const electronClipboard = {
 
 contextBridge.exposeInMainWorld("electronFS", electronFS);
 contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
-contextBridge.exposeInMainWorld("electronVoice", electronVoice);
 contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 contextBridge.exposeInMainWorld("electronModels", electronModels);
-contextBridge.exposeInMainWorld("electronCollab", electronCollab);
 contextBridge.exposeInMainWorld("electronSettings", electronSettings);
 contextBridge.exposeInMainWorld("electronAnalyticsSnapshots", electronAnalyticsSnapshots);
 contextBridge.exposeInMainWorld("electronChatHistory", electronChatHistory);
@@ -704,10 +600,8 @@ declare global {
   interface Window {
     electronFS: typeof electronFS;
     electronDuckDB: typeof electronDuckDB;
-    electronVoice: typeof electronVoice;
     electronLlama: typeof electronLlama;
     electronModels: typeof electronModels;
-    electronCollab: typeof electronCollab;
     electronSettings: typeof electronSettings;
     electronAnalyticsSnapshots: typeof electronAnalyticsSnapshots;
     electronChatHistory: typeof electronChatHistory;

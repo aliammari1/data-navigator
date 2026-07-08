@@ -1,14 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 import {
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
-  LOCAL_TRANSFORMERS_PATH,
-  manifestByKey,
   MODEL_MANIFEST,
+  manifestByKey,
   primaryForLane,
-  transformersAssetUrl,
 } from "@/platform/ai/models/model-manifest";
-import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 
 // electron/model-download-service.ts imports the `electron` module at the top
 // level (for `app.getPath`), which isn't resolvable outside a real Electron
@@ -36,16 +34,12 @@ function downloadEntryFor(key: string) {
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
 describe("MODULE CONSTANTS", () => {
-  it("LOCAL_TRANSFORMERS_PATH is the expected public path prefix", () => {
-    expect(LOCAL_TRANSFORMERS_PATH).toBe("/models/transformers/");
-  });
-
   it("DEFAULT_GGUF_MODEL matches the primary GGUF filename", () => {
     expect(DEFAULT_GGUF_MODEL).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
-  it("EMBED_MODEL_ID is the Xenova MiniLM model id", () => {
-    expect(EMBED_MODEL_ID).toBe("Xenova/all-MiniLM-L6-v2");
+  it("EMBED_MODEL_ID is the Qwen3 Embedding GGUF filename", () => {
+    expect(EMBED_MODEL_ID).toBe("qwen3-embedding-0.6b-q8_0.gguf");
   });
 });
 
@@ -84,23 +78,17 @@ describe("MODEL_MANIFEST", () => {
     expect(entry?.ggufFile).toBe("granite-4.1-3b-instruct-q4_k_m.gguf");
   });
 
-  it("has a non-optional embed entry (minilm-onnx-quantized)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "minilm-onnx-quantized");
+  it("has a non-optional embed entry (qwen3-embedding-0.6b-q8_0)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen3-embedding-0.6b-q8_0");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("embed");
-    expect(entry?.presence).toBe("transformers-asset");
+    expect(entry?.presence).toBe("electron-gguf");
     expect(entry?.optional).toBe(false);
-    expect(entry?.assetPath).toBe("Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx");
-    // Unlike the two GGUF entries above, there is no independent authority to
-    // check this against yet: the entry's own `bytes: 0, // TODO` field, and
-    // prepare-models.mjs's matching `bytes: 0, // TODO: fill exact
-    // content-length` both mark the real size as not yet measured. Asserting
-    // an exact `23` here would just be re-copying this same file's literal, so
-    // instead assert it's a plausible positive download size (MiniLM's
-    // quantized ONNX weight is documented elsewhere as tens of MB, not KB or
-    // GB) until a real content-length is filled in.
-    expect(entry?.downloadMb).toBeGreaterThan(0);
-    expect(entry?.downloadMb).toBeLessThan(200);
+    expect(entry?.ggufFile).toBe("qwen3-embedding-0.6b-q8_0.gguf");
+    // Same cross-check pattern as the two llm entries above — the embed model
+    // now rides the same GGUF download/progress/sha256/IPC infrastructure
+    // (node-llama-cpp), replacing the old transformers.js MiniLM ONNX asset.
+    expect(entry?.downloadMb).toBe(downloadEntryFor("qwen3-embedding-0.6b-q8_0").bytes / 1_000_000);
   });
 
   it("every entry has the required fields populated", () => {
@@ -108,7 +96,7 @@ describe("MODEL_MANIFEST", () => {
       expect(typeof entry.key).toBe("string");
       expect(entry.key.length).toBeGreaterThan(0);
       expect(["llm", "embed"]).toContain(entry.lane);
-      expect(["electron-gguf", "transformers-asset"]).toContain(entry.presence);
+      expect(entry.presence).toBe("electron-gguf");
       expect(typeof entry.label).toBe("string");
       expect(typeof entry.family).toBe("string");
       expect(typeof entry.sizeLabel).toBe("string");
@@ -119,7 +107,7 @@ describe("MODEL_MANIFEST", () => {
 
   it("GGUF entries carry a ggufFile matching their key's model filename", () => {
     const ggufEntries = MODEL_MANIFEST.filter((m) => m.presence === "electron-gguf");
-    expect(ggufEntries.length).toBeGreaterThanOrEqual(2);
+    expect(ggufEntries.length).toBe(MODEL_MANIFEST.length);
     for (const entry of ggufEntries) {
       expect(entry.ggufFile).toBe(`${entry.key}.gguf`);
     }
@@ -140,7 +128,7 @@ describe("primaryForLane", () => {
     const result = primaryForLane("embed");
     expect(result.lane).toBe("embed");
     expect(result.optional).toBe(false);
-    expect(result.key).toBe("minilm-onnx-quantized");
+    expect(result.key).toBe("qwen3-embedding-0.6b-q8_0");
   });
 
   it("returns a ModelManifestEntry with the correct shape", () => {
@@ -175,7 +163,7 @@ describe("manifestByKey", () => {
   });
 
   it("returns the embed entry for its key", () => {
-    const entry = manifestByKey("minilm-onnx-quantized");
+    const entry = manifestByKey("qwen3-embedding-0.6b-q8_0");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("embed");
   });
@@ -188,65 +176,5 @@ describe("manifestByKey", () => {
   it("returns undefined for an empty string key", () => {
     const entry = manifestByKey("");
     expect(entry).toBeUndefined();
-  });
-});
-
-// ─── transformersAssetUrl ────────────────────────────────────────────────────────
-
-describe("transformersAssetUrl", () => {
-  it("returns the full public URL for the embed entry", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "minilm-onnx-quantized");
-    if (!entry) throw new Error("expected minilm-onnx-quantized entry to exist");
-    const url = transformersAssetUrl(entry);
-    expect(url).toBe("/models/transformers/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx");
-  });
-
-  it("prepends LOCAL_TRANSFORMERS_PATH to the assetPath", () => {
-    const fakeEntry: ModelManifestEntry = {
-      key: "test-embed",
-      lane: "embed",
-      presence: "transformers-asset",
-      label: "Test Embed",
-      family: "Test",
-      sizeLabel: "1 MB",
-      downloadMb: 1,
-      optional: false,
-      assetPath: "some/model/path/model.onnx",
-    };
-    const url = transformersAssetUrl(fakeEntry);
-    expect(url).toBe(`${LOCAL_TRANSFORMERS_PATH}some/model/path/model.onnx`);
-  });
-
-  it("throws when assetPath is absent (covers the no-assetPath throw branch)", () => {
-    const entryWithoutAssetPath: ModelManifestEntry = {
-      key: "gemma-4-e4b-it-q4_k_m",
-      lane: "llm",
-      presence: "electron-gguf",
-      label: "Gemma 4 E4B Instruct (GGUF q4)",
-      family: "Gemma 4",
-      sizeLabel: "E4B",
-      downloadMb: 5340,
-      optional: false,
-      ggufFile: "gemma-4-e4b-it-q4_k_m.gguf",
-      // assetPath is intentionally omitted
-    };
-    expect(() => transformersAssetUrl(entryWithoutAssetPath)).toThrow(
-      "gemma-4-e4b-it-q4_k_m has no assetPath",
-    );
-  });
-
-  it("throws when assetPath is explicitly set to undefined", () => {
-    const entry: ModelManifestEntry = {
-      key: "no-asset-entry",
-      lane: "embed",
-      presence: "transformers-asset",
-      label: "No Asset",
-      family: "None",
-      sizeLabel: "0 MB",
-      downloadMb: 0,
-      optional: true,
-      assetPath: undefined,
-    };
-    expect(() => transformersAssetUrl(entry)).toThrow("no-asset-entry has no assetPath");
   });
 });

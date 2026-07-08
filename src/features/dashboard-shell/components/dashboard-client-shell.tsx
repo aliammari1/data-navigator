@@ -3,10 +3,6 @@
 import { useEffect } from "react";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
-import { useSettingsStore } from "@/core/stores/settings-store";
-import { LanAccessGate } from "@/features/dashboard-shell/components/lan-access-gate";
-import { LanStatusDock } from "@/features/dashboard-shell/components/lan-status-dock";
-import { LiveCursors } from "@/features/dashboard-shell/components/live-cursors";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import { DashboardBoot } from "@/features/dashboard-shell/shell/dashboard-boot";
 import { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
@@ -22,9 +18,6 @@ export function DashboardClientShell({
   const activeDatasetId = useDataStore((state) => state.activeDatasetId);
   const datasets = useDataStore((state) => state.datasets);
   const setAppContext = useAppContextStore((state) => state.setContext);
-  // Guest devices (Settings > Account > Role = Viewer) must join a LAN session
-  // before the dashboard shows: they exist to view someone else's shared data.
-  const deviceRole = useSettingsStore((s) => s.role);
 
   useEffect(() => {
     const activeDataset = datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
@@ -41,11 +34,7 @@ export function DashboardClientShell({
           the Settings screen (blueprint §4). */}
       <SettingsEffects />
       <DashboardBoot />
-      <LanAccessGate isAdmin={Boolean(user) && deviceRole !== "viewer"}>{children}</LanAccessGate>
-
-      <LanStatusDock />
-      {/* Multiplayer cursors + presence page sync (renders only while connected). */}
-      <LiveCursors />
+      {children}
     </DashboardLayout>
   );
 }

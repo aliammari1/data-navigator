@@ -9,13 +9,8 @@ import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { useFoldersStore } from "@/core/stores/folders-store";
-import {
-  ALL_ITEMS,
-  type NavItem,
-  navItemVisibleForRole,
-} from "@/features/dashboard-shell/nav/nav-config";
+import { ALL_ITEMS, type NavItem } from "@/features/dashboard-shell/nav/nav-config";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { cn } from "@/shared/utils";
 
 /**
@@ -127,13 +122,11 @@ function CommandBody({
   cycleTheme: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const { role } = useDashboardAccess();
 
   const pages = useMemo<NavItem[]>(() => {
     const matches = query.trim() ? navFuse.search(query).map((r) => r.item) : ALL_ITEMS;
-    // Same visibility rule as the sidebar: guests only reach viewer-safe pages.
-    return matches.filter((item) => navItemVisibleForRole(item, role)).slice(0, 8);
-  }, [query, role]);
+    return matches.slice(0, 8);
+  }, [query]);
 
   const datasetMatches = useMemo(() => {
     const q = query.trim().toLowerCase();

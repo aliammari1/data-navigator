@@ -80,22 +80,25 @@ function requirePath(label: string, targetPath: string) {
 }
 
 /**
- * Shared copy options for the bulk directory copies below. `dereference: true`
- * is set as a best-effort hint, but note it is INERT for Windows DIRECTORY
- * symlinks on this build host (verified) — cpSync copies pnpm's dir symlinks
- * verbatim regardless. The real portability fix is `makeNodeModulesPortable`,
- * which runs AFTER these copies and manually resolves every symlink to real
- * files (see that function). These copies just stage the trees (including the
- * local `.pnpm` store under `app/node_modules`) for the flattening pass.
+ * Bulk directory copies (stage the trees, including the local `.pnpm` store
+ * under `app/node_modules`, for the later flattening pass — see
+ * `makeNodeModulesPortable`) go through `copyRealTree`, NOT `fs.cpSync`.
+ *
+ * `fs.cpSync(..., { dereference: true })` reproducibly CRASHES the process
+ * (native STATUS_STACK_BUFFER_OVERRUN, 0xC0000409 — no catchable JS error)
+ * on this build host when copying a pnpm-symlink-heavy tree such as
+ * `.next/standalone/node_modules` — verified with Node 24.15.0 on Windows: a
+ * manual cycle-detecting walk of the same tree completes fine (612 entries,
+ * max depth 10, zero symlink cycles), so this is a Node/Windows `cpSync` bug,
+ * not a genuinely pathological directory structure. `copyRealTree` (below)
+ * does the equivalent dereferencing copy in plain JS and does not crash.
  */
-const COPY_OPTS = { recursive: true, force: true, dereference: true } as const;
-
 function copyDir(label: string, from: string, to: string) {
   requirePath(label, from);
 
   console.log(`[forge] Copying ${label}`);
   fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(from, to, COPY_OPTS);
+  copyRealTree(from, to);
 }
 
 function copyDirIfExists(label: string, from: string, to: string) {
@@ -103,7 +106,7 @@ function copyDirIfExists(label: string, from: string, to: string) {
 
   console.log(`[forge] Copying ${label}`);
   fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(from, to, COPY_OPTS);
+  copyRealTree(from, to);
 }
 
 /**
@@ -128,7 +131,7 @@ function copyPackageIfExists(packageName: string, buildPath: string) {
 
   console.log(`[forge] Copying runtime package: ${packageName}`);
   fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(from, to, COPY_OPTS);
+  copyRealTree(from, to);
 }
 
 // ─── pnpm → flat node_modules dereferencing ──────────────────────────────────
@@ -179,22 +182,32 @@ function tryRealpath(p: string): string | null {
 
 /**
  * Copy a directory of REAL files to `dest`, dereferencing any symlink it
- * encounters (manually — cpSync's dereference is inert for dir symlinks here).
+ * encounters (manually — cpSync's dereference is inert for dir symlinks here,
+ * and reproducibly CRASHES on some pnpm-symlink-heavy trees — see copyDir).
  * Package dirs inside `.pnpm/<id>/node_modules/<name>` normally contain only
  * real files, so this is mostly a plain recursive copy; the symlink handling is
  * defensive (and resolves any stray nested links to real files).
+ *
+ * `seen` guards against a symlink cycling back to one of ITS OWN ancestors —
+ * it must be a fresh copy per branch (`new Set(seen)`, not the same mutated
+ * reference) so legitimate cross-branch SHARING of one real target (the whole
+ * point of pnpm's symlink store — many packages pointing at the same shared
+ * dependency) still gets copied to every distinct destination path. A shared,
+ * mutated `seen` across sibling branches previously caused every occurrence of
+ * a shared package after the first to be silently skipped — verified losing
+ * ~50% of files when copying `.next/standalone/node_modules` this way.
  */
 function copyRealTree(src: string, dest: string, seen: Set<string> = new Set()): void {
   const realSrc = tryRealpath(src);
   if (!realSrc) return;
   if (seen.has(realSrc)) return; // guard against symlink cycles
-  seen.add(realSrc);
+  const branchSeen = new Set(seen).add(realSrc);
 
   const stat = fs.statSync(realSrc); // follows links → real target
   if (stat.isDirectory()) {
     fs.mkdirSync(dest, { recursive: true });
     for (const entry of fs.readdirSync(realSrc, { withFileTypes: true })) {
-      copyRealTree(path.join(realSrc, entry.name), path.join(dest, entry.name), seen);
+      copyRealTree(path.join(realSrc, entry.name), path.join(dest, entry.name), branchSeen);
     }
   } else if (stat.isFile()) {
     fs.mkdirSync(path.dirname(dest), { recursive: true });
@@ -653,7 +666,7 @@ function dereferenceAnyRemainingLinks(rootDir: string): number {
           // Copy the package itself from the most COMPLETE source (dev store beats
           // a pruned standalone). We deliberately do NOT materialize a private
           // nested node_modules here: the dependents (e.g. Next-externalized
-          // @huggingface/transformers) resolve their deps from the fully-hoisted,
+          // node-llama-cpp) resolve their deps from the fully-hoisted,
           // fully-UNPACKED top-level `app/node_modules` (which `asarUnpackDirs`
           // already covers, including sharp's libvips DLLs). Nesting a second copy
           // of a native module would leave its dependent DLLs packed inside the
@@ -821,7 +834,6 @@ const asarUnpackDirs = [
   "node_modules/next",
   "node_modules/onnxruntime-node",
   "node_modules/sharp",
-  "node_modules/sherpa-onnx-node",
   "node_modules/sqlite-vec",
   "node_modules/better-sqlite3",
   // node-llama-cpp ships a JS wrapper + prebuilt native binaries in the
@@ -837,7 +849,6 @@ const asarUnpackDirs = [
   "app/node_modules/next",
   "app/node_modules/onnxruntime-node",
   "app/node_modules/sharp",
-  "app/node_modules/sherpa-onnx-node",
   "app/node_modules/sqlite-vec",
   "app/node_modules/better-sqlite3",
   "app/node_modules/node-llama-cpp",
@@ -998,14 +1009,10 @@ const config: ForgeConfig = {
         "detect-libc",
         "onnxruntime-node",
         "sharp",
-        "sherpa-onnx-node",
         "sqlite-vec",
         // node-llama-cpp generative lane (Electron main) + its platform binaries.
         "node-llama-cpp",
         "@node-llama-cpp",
-        // Embedded LAN collaboration hub (optional) + mDNS discovery.
-        "@hocuspocus",
-        "bonjour-service",
       ]) {
         copyPackageIfExists(packageName, buildPath);
       }

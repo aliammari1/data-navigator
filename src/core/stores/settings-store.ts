@@ -34,17 +34,12 @@ interface PerformanceSettings {
   cacheMode: "balanced" | "low-memory";
 }
 
-export type DashboardRole = "owner" | "editor" | "viewer";
-
 export interface SettingsStore {
   // Legacy (preserved)
   maxFileSize: number;
   maxFiles: number;
   defaultFolderId: string | null;
   theme: "light" | "dark" | "system";
-
-  // Device role (local, non-authenticated — gates UI affordances, not real auth)
-  role: DashboardRole;
 
   // Appearance
   accentColor: AccentColor;
@@ -78,7 +73,6 @@ export interface SettingsStore {
   setMaxFiles: (count: number) => void;
   setDefaultFolderId: (id: string | null) => void;
   setTheme: (theme: "light" | "dark" | "system") => void;
-  setRole: (role: DashboardRole) => void;
   setAccentColor: (color: AccentColor) => void;
   setDensity: (density: DensityMode) => void;
   setSidebarStyle: (style: SidebarStyle) => void;
@@ -123,10 +117,14 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
 
 /**
  * One-time v5 migration read of the old `data-navigator-dashboard-access-v1`
- * key (role + cache mode used to live in `src/platform/auth/dashboard-access.ts`,
+ * key (cache mode used to live in `src/platform/auth/dashboard-access.ts`,
  * outside this store). Best-effort only — never throws.
+ *
+ * The `role` field this used to also read is gone — the multi-role
+ * permission system was collapsed to a single implicit admin in v6 (see the
+ * migrate() step below), so only `cacheMode` is read here now.
  */
-function readLegacyDashboardAccess(): { role?: string; cacheMode?: string } | null {
+function readLegacyDashboardAccess(): { cacheMode?: string } | null {
   if (typeof localStorage === "undefined") return null;
   try {
     const parsed = JSON.parse(localStorage.getItem("data-navigator-dashboard-access-v1") ?? "null");
@@ -145,7 +143,6 @@ export const useSettingsStore = create<SettingsStore>()(
       maxFiles: 20,
       defaultFolderId: null,
       theme: "dark",
-      role: "owner",
       accentColor: "blue",
       density: "comfortable",
       sidebarStyle: "dark",
@@ -163,7 +160,6 @@ export const useSettingsStore = create<SettingsStore>()(
       setMaxFiles: (count) => set({ maxFiles: count }),
       setDefaultFolderId: (id) => set({ defaultFolderId: id }),
       setTheme: (theme) => set({ theme }),
-      setRole: (role) => set({ role }),
       setAccentColor: (accentColor) => set({ accentColor }),
       setDensity: (density) => set({ density }),
       setSidebarStyle: (sidebarStyle) => set({ sidebarStyle }),
@@ -185,7 +181,6 @@ export const useSettingsStore = create<SettingsStore>()(
       resetToDefaults: () =>
         set({
           theme: "dark",
-          role: "owner",
           accentColor: "blue",
           density: "comfortable",
           sidebarStyle: "dark",
@@ -202,7 +197,7 @@ export const useSettingsStore = create<SettingsStore>()(
     }),
     {
       name: "data-navigator-settings",
-      version: 5,
+      version: 6,
       // Durable in drizzle (app_setting) with a synchronous localStorage
       // working copy — see createDrizzleStorage.
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "settings" })),
@@ -210,7 +205,15 @@ export const useSettingsStore = create<SettingsStore>()(
       // backfill and unknown/renamed keys are dropped (zustand only shallow
       // merges the top level, leaking stale nested keys without this).
       migrate: (persisted, _version) => {
-        const prev = (persisted ?? {}) as Partial<SettingsStore>;
+        // →v6: the multi-role permission system (owner/editor/viewer) was
+        // collapsed to a single implicit admin — every user now has full
+        // access, so `role` no longer exists on SettingsStore. Deliberately
+        // drop it from whatever was persisted (rather than just omitting it
+        // from the returned object) so existing installs don't carry a dead
+        // field forward through future shallow-merges.
+        const { role: _droppedRole, ...prev } = (persisted ?? {}) as Partial<SettingsStore> & {
+          role?: unknown;
+        };
         return {
           ...prev,
           // →v3: brand accent is now Electric Blue. Carry the old defaults
@@ -233,11 +236,6 @@ export const useSettingsStore = create<SettingsStore>()(
             ...DEFAULT_NOTIFICATIONS,
             ...(prev.notifications ?? {}),
           },
-          // →v5: role/cache-mode centralized here from the old
-          // `data-navigator-dashboard-access-v1` localStorage key (see
-          // src/platform/auth/dashboard-access.ts). Read directly (best-effort,
-          // one-time) so existing picks survive the move.
-          role: prev.role ?? legacyDashboardAccess?.role ?? "owner",
         } as SettingsStore;
       },
       // Persist only durable state keys; action functions and any future
@@ -247,7 +245,6 @@ export const useSettingsStore = create<SettingsStore>()(
         maxFiles: s.maxFiles,
         defaultFolderId: s.defaultFolderId,
         theme: s.theme,
-        role: s.role,
         accentColor: s.accentColor,
         density: s.density,
         sidebarStyle: s.sidebarStyle,
@@ -296,7 +293,6 @@ export const useSettingsActions = () =>
       setMaxFiles: s.setMaxFiles,
       setDefaultFolderId: s.setDefaultFolderId,
       setTheme: s.setTheme,
-      setRole: s.setRole,
       setAccentColor: s.setAccentColor,
       setDensity: s.setDensity,
       setSidebarStyle: s.setSidebarStyle,

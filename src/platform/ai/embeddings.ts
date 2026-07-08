@@ -2,10 +2,10 @@
  * Browser-side text embeddings for semantic column matching, NLQ understanding,
  * and smart insight generation.
  *
- * The actual ONNX model (all-MiniLM-L6-v2, int8) runs in the Lane B inference
- * WEB WORKER (`src/workers/inference.worker.ts`) via Comlink — NOT on the
- * renderer main thread. This module is a thin, stable API over that worker;
- * `@huggingface/transformers` is never imported here anymore.
+ * The actual embedding model runs in the Electron MAIN process via
+ * node-llama-cpp — NOT on the renderer main thread. This module is a thin,
+ * stable API over `inference-client.ts`, which talks to that process over IPC;
+ * `@huggingface/transformers` is never imported here.
  */
 
 import type { ColMeta } from "@/core/stores/data-store";

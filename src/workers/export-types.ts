@@ -20,7 +20,7 @@ export interface TableSection {
 export interface ChartImage {
   /** ECharts SVG string (from chart.worker.renderToSVGString). */
   svg?: string;
-  /** Pre-rasterized PNG bytes (skip resvg if provided). */
+  /** Pre-rasterized PNG bytes (required for docx/pptx embedding; pdf can use `svg` directly). */
   png?: Uint8Array;
   /** Target render width in px. */
   width?: number;

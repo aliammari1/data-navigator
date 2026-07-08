@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  HelpCircle,
-  Radio,
-  RefreshCw,
-  Settings,
-  Sparkles,
-  SquarePlus,
-  Upload,
-  X,
-} from "lucide-react";
+import { HelpCircle, RefreshCw, Settings, Sparkles, SquarePlus, Upload, X } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
 
 /**
@@ -58,12 +49,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         run: () => ctx.openApp("settings"),
       },
       {
-        id: "open-collaboration",
-        label: "Collaboration LAN",
-        icon: Radio,
-        run: () => ctx.openApp("collaboration"),
-      },
-      {
         id: "open-upload",
         label: "Téléverser des données",
         icon: Upload,
@@ -76,7 +61,7 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         icon: Sparkles,
         run: () =>
           ctx.askMoudir(
-            "Analyse l'état du runtime hors-ligne (moteur DuckDB, modèle IA local, collaboration LAN, stockage durable) et signale les anomalies.",
+            "Analyse l'état du runtime hors-ligne (moteur DuckDB, modèle IA local, stockage durable) et signale les anomalies.",
           ),
       },
     ],

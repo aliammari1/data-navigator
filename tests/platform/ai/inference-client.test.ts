@@ -1,451 +1,161 @@
 /**
  * Tests for src/platform/ai/inference-client.ts
  *
- * Mocks Comlink and the Worker constructor so no real Worker/ONNX code runs.
- * Every branch, early return, and catch block in the module is exercised.
+ * inference-client.ts is a thin main-thread wrapper around the
+ * `window.electronLlama` IPC bridge (electron/preload.ts →
+ * electron/embed-service.ts). No Worker, no Comlink, no ONNX — every branch
+ * here is about the bridge lookup and the two embed entry points.
  */
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// ─── Mock Comlink ─────────────────────────────────────────────────────────────
-// Controllable proxy that returns mocks for every method the
-// inference-client calls: embedBatch, embed, loadEmbedder, generate, loadGenerator, dispose.
-
-const mockProxy = {
-  embedBatch: vi.fn(),
-  embed: vi.fn(),
-  loadEmbedder: vi.fn(),
-  generate: vi.fn(),
-  loadGenerator: vi.fn(),
-  dispose: vi.fn(),
-};
-
-const mockComlinkProxy = vi.fn((fn: unknown) => fn);
-const mockWrap = vi.fn(() => mockProxy);
-
-vi.mock("comlink", () => ({
-  wrap: (...args: unknown[]) => mockWrap(...args),
-  proxy: (fn: unknown) => mockComlinkProxy(fn),
-}));
-
-// ─── Worker mock factory ──────────────────────────────────────────────────────
-// Must be a class / regular function so it can be used with `new`.
-const mockWorkerTerminate = vi.fn();
-function makeMockWorker() {
-  return { terminate: mockWorkerTerminate };
-}
-// A proper constructor function (not an arrow fn) that returns a worker-like object.
-function MockWorkerConstructor(this: object) {
-  return { terminate: mockWorkerTerminate };
-}
-
-// ─── Import the real module AFTER mocks are in place ─────────────────────────
-import {
-  browserGenerate,
-  disposeInferenceWorker,
-  embedText,
-  embedTexts,
-  getInferenceWorker,
-  preloadBrowserGenerator,
-  preloadEmbedder,
-} from "@/platform/ai/inference-client";
+import { embedText, embedTexts, preloadEmbedder } from "@/platform/ai/inference-client";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-/**
- * Reset singleton state between tests by disposing the worker, then
- * re-install the Worker global stub so subsequent tests can call getInferenceWorker().
- */
-async function resetWorker() {
-  mockProxy.dispose.mockResolvedValue(undefined);
-  await disposeInferenceWorker();
-  vi.clearAllMocks();
-  // Re-install our mock Worker global after clearAllMocks.
-  // unstubGlobals:true restores the original after each test, so we must re-stub.
-  // Must be a regular function (not arrow) to support `new`.
-  const MockWorkerCtor = vi.fn(MockWorkerConstructor);
-  vi.stubGlobal("Worker", MockWorkerCtor);
-  // Re-configure mockWrap to return mockProxy each time.
-  mockWrap.mockReturnValue(mockProxy);
-  mockComlinkProxy.mockImplementation((fn: unknown) => fn);
-  return MockWorkerCtor;
+/** Build a mock electronLlama API exposing only what inference-client.ts uses. */
+function makeApi() {
+  return {
+    embed: vi.fn<(texts: string[]) => Promise<Float32Array[]>>(),
+    ensureEmbedModel: vi.fn<(input?: { file?: string }) => Promise<void>>(),
+  };
 }
 
-// ─── getInferenceWorker ───────────────────────────────────────────────────────
+/** Install a mock electronLlama on the window and return it. */
+function installLlama() {
+  const api = makeApi();
+  Object.defineProperty(window, "electronLlama", {
+    value: api,
+    writable: true,
+    configurable: true,
+  });
+  return api;
+}
 
-describe("getInferenceWorker", () => {
-  it("creates a Worker and returns a Comlink proxy on first call", async () => {
-    // Arrange
-    const MockWorkerCtor = await resetWorker();
+/** Remove electronLlama from the window so bridge() falls through to null. */
+function uninstallLlama() {
+  Object.defineProperty(window, "electronLlama", {
+    value: undefined,
+    writable: true,
+    configurable: true,
+  });
+}
+
+afterEach(() => {
+  uninstallLlama();
+  vi.unstubAllGlobals();
+});
+
+// ─── embedTexts ──────────────────────────────────────────────────────────────
+
+describe("embedTexts", () => {
+  it("returns an empty array immediately when texts is empty, without touching the bridge", async () => {
+    // Arrange: no electronLlama installed at all — the empty-array early
+    // return must short-circuit before the bridge is ever consulted.
+    uninstallLlama();
 
     // Act
-    const result = getInferenceWorker();
+    const result = await embedTexts([]);
 
     // Assert
-    expect(MockWorkerCtor).toHaveBeenCalledOnce();
-    expect(mockWrap).toHaveBeenCalledOnce();
-    expect(result).toBe(mockProxy);
+    expect(result).toEqual([]);
   });
 
-  it("returns the same proxy on subsequent calls without creating a new Worker", async () => {
+  it("calls electronLlama.embed with the provided texts and returns its result", async () => {
     // Arrange
-    const MockWorkerCtor = await resetWorker();
+    const api = installLlama();
+    const expected = [new Float32Array([1, 2, 3])];
+    api.embed.mockResolvedValue(expected);
 
     // Act
-    const first = getInferenceWorker();
-    const second = getInferenceWorker();
+    const result = await embedTexts(["hello", "world"]);
 
-    // Assert: only one Worker instantiation.
-    expect(MockWorkerCtor).toHaveBeenCalledTimes(1);
-    expect(first).toBe(second);
+    // Assert
+    expect(api.embed).toHaveBeenCalledWith(["hello", "world"]);
+    expect(result).toBe(expected);
   });
 
   it("throws when window is undefined (non-browser context)", async () => {
-    // Arrange: reset then remove window.
-    await resetWorker();
+    // Arrange
     const originalWindow = globalThis.window;
     // @ts-expect-error — intentionally removing window for test.
     delete globalThis.window;
 
     try {
       // Act / Assert
-      expect(() => getInferenceWorker()).toThrow(
-        "Inference worker is only available in a browser/renderer context.",
+      await expect(embedTexts(["hello"])).rejects.toThrow(
+        "node-llama-cpp embeddings require the Electron desktop app.",
       );
     } finally {
-      // Restore window so subsequent tests are not affected.
       globalThis.window = originalWindow;
     }
   });
 
-  it("throws when Worker is undefined (non-browser context)", async () => {
-    // Arrange: reset to clean state, then stub Worker away.
-    await resetWorker();
-    vi.stubGlobal("Worker", undefined);
+  it("throws when electronLlama is not present on window", async () => {
+    // Arrange
+    uninstallLlama();
 
     // Act / Assert
-    expect(() => getInferenceWorker()).toThrow(
-      "Inference worker is only available in a browser/renderer context.",
+    await expect(embedTexts(["hello"])).rejects.toThrow(
+      "node-llama-cpp embeddings require the Electron desktop app.",
     );
-    // Restore for following tests — unstubGlobals handles it, but be explicit.
-    await resetWorker();
-  });
-});
-
-// ─── embedTexts ──────────────────────────────────────────────────────────────
-
-describe("embedTexts", () => {
-  beforeEach(async () => {
-    await resetWorker();
-  });
-
-  it("returns an empty array immediately when texts is empty", async () => {
-    // Act
-    const result = await embedTexts([]);
-
-    // Assert: proxy never contacted.
-    expect(result).toEqual([]);
-    expect(mockProxy.embedBatch).not.toHaveBeenCalled();
-  });
-
-  it("calls embedBatch with the provided texts and optional model", async () => {
-    // Arrange
-    const expected = [new Float32Array([1, 2, 3])];
-    mockProxy.embedBatch.mockResolvedValue(expected);
-
-    // Act
-    const result = await embedTexts(["hello", "world"], "my-model");
-
-    // Assert
-    expect(mockProxy.embedBatch).toHaveBeenCalledWith(["hello", "world"], "my-model");
-    expect(result).toBe(expected);
-  });
-
-  it("calls embedBatch without a model when model is omitted", async () => {
-    // Arrange
-    mockProxy.embedBatch.mockResolvedValue([]);
-
-    // Act
-    await embedTexts(["text"]);
-
-    // Assert
-    expect(mockProxy.embedBatch).toHaveBeenCalledWith(["text"], undefined);
   });
 });
 
 // ─── embedText ───────────────────────────────────────────────────────────────
 
 describe("embedText", () => {
-  beforeEach(async () => {
-    await resetWorker();
+  beforeEach(() => {
+    installLlama();
   });
 
-  it("calls embed on the proxy with the text and optional model", async () => {
+  it("embeds a single text and returns the first vector", async () => {
     // Arrange
+    const api = vi.mocked(window.electronLlama);
     const expected = new Float32Array([0.1, 0.2]);
-    mockProxy.embed.mockResolvedValue(expected);
+    api.embed.mockResolvedValue([expected]);
 
     // Act
-    const result = await embedText("hello", "model-x");
+    const result = await embedText("hello");
 
-    // Assert
-    expect(mockProxy.embed).toHaveBeenCalledWith("hello", "model-x");
+    // Assert: embedText delegates to embedTexts with a single-item array.
+    expect(api.embed).toHaveBeenCalledWith(["hello"]);
     expect(result).toBe(expected);
   });
 
-  it("calls embed without model when model is omitted", async () => {
+  it("throws when the bridge is unavailable", async () => {
     // Arrange
-    mockProxy.embed.mockResolvedValue(new Float32Array([0]));
+    uninstallLlama();
 
-    // Act
-    await embedText("foo");
-
-    // Assert
-    expect(mockProxy.embed).toHaveBeenCalledWith("foo", undefined);
+    // Act / Assert
+    await expect(embedText("hello")).rejects.toThrow(
+      "node-llama-cpp embeddings require the Electron desktop app.",
+    );
   });
 });
 
 // ─── preloadEmbedder ─────────────────────────────────────────────────────────
 
 describe("preloadEmbedder", () => {
-  beforeEach(async () => {
-    await resetWorker();
-  });
-
-  it("calls loadEmbedder on the proxy with the provided model", async () => {
+  it("calls electronLlama.ensureEmbedModel to warm the embedding model", async () => {
     // Arrange
-    mockProxy.loadEmbedder.mockResolvedValue(undefined);
-
-    // Act
-    await preloadEmbedder("model-y");
-
-    // Assert
-    expect(mockProxy.loadEmbedder).toHaveBeenCalledWith("model-y");
-  });
-
-  it("calls loadEmbedder without a model when omitted", async () => {
-    // Arrange
-    mockProxy.loadEmbedder.mockResolvedValue(undefined);
+    const api = installLlama();
+    api.ensureEmbedModel.mockResolvedValue(undefined);
 
     // Act
     await preloadEmbedder();
 
     // Assert
-    expect(mockProxy.loadEmbedder).toHaveBeenCalledWith(undefined);
-  });
-});
-
-// ─── browserGenerate ─────────────────────────────────────────────────────────
-
-describe("browserGenerate", () => {
-  beforeEach(async () => {
-    await resetWorker();
+    expect(api.ensureEmbedModel).toHaveBeenCalledOnce();
   });
 
-  it("calls generate with the input and undefined when no onToken callback is provided", async () => {
+  it("throws when the bridge is unavailable", async () => {
     // Arrange
-    const expected = { text: "hello" };
-    mockProxy.generate.mockResolvedValue(expected);
+    uninstallLlama();
 
-    // Act
-    const result = await browserGenerate({ prompt: "say hello" });
-
-    // Assert: no Comlink.proxy wrapping, undefined passed.
-    expect(mockComlinkProxy).not.toHaveBeenCalled();
-    expect(mockProxy.generate).toHaveBeenCalledWith({ prompt: "say hello" }, undefined);
-    expect(result).toBe(expected);
-  });
-
-  it("wraps onToken with Comlink.proxy when onToken is provided", async () => {
-    // Arrange
-    const expected = { text: "streamed" };
-    mockProxy.generate.mockResolvedValue(expected);
-    const onToken = vi.fn();
-    // mockComlinkProxy is an identity function by default.
-
-    // Act
-    const result = await browserGenerate({ prompt: "stream", maxTokens: 50 }, onToken);
-
-    // Assert: Comlink.proxy was called with the callback.
-    expect(mockComlinkProxy).toHaveBeenCalledWith(onToken);
-    expect(mockProxy.generate).toHaveBeenCalledWith(
-      { prompt: "stream", maxTokens: 50 },
-      onToken, // identity mock returns the same fn
+    // Act / Assert
+    await expect(preloadEmbedder()).rejects.toThrow(
+      "node-llama-cpp embeddings require the Electron desktop app.",
     );
-    expect(result).toBe(expected);
-  });
-
-  it("passes all BrowserGenerateInput fields through to generate", async () => {
-    // Arrange
-    mockProxy.generate.mockResolvedValue({ text: "ok" });
-
-    // Act
-    await browserGenerate({
-      system: "You are helpful.",
-      prompt: "hi",
-      maxTokens: 100,
-      temperature: 0.5,
-      model: "tiny",
-    });
-
-    // Assert
-    expect(mockProxy.generate).toHaveBeenCalledWith(
-      {
-        system: "You are helpful.",
-        prompt: "hi",
-        maxTokens: 100,
-        temperature: 0.5,
-        model: "tiny",
-      },
-      undefined,
-    );
-  });
-});
-
-// ─── preloadBrowserGenerator ─────────────────────────────────────────────────
-
-describe("preloadBrowserGenerator", () => {
-  beforeEach(async () => {
-    await resetWorker();
-  });
-
-  it("calls loadGenerator with model and undefined when no onProgress is provided", async () => {
-    // Arrange
-    mockProxy.loadGenerator.mockResolvedValue(undefined);
-
-    // Act
-    await preloadBrowserGenerator("gen-model");
-
-    // Assert: no Comlink.proxy wrapping.
-    expect(mockComlinkProxy).not.toHaveBeenCalled();
-    expect(mockProxy.loadGenerator).toHaveBeenCalledWith("gen-model", undefined);
-  });
-
-  it("wraps onProgress with Comlink.proxy when onProgress is provided", async () => {
-    // Arrange
-    mockProxy.loadGenerator.mockResolvedValue(undefined);
-    const onProgress = vi.fn();
-
-    // Act
-    await preloadBrowserGenerator("gen-model", onProgress);
-
-    // Assert
-    expect(mockComlinkProxy).toHaveBeenCalledWith(onProgress);
-    expect(mockProxy.loadGenerator).toHaveBeenCalledWith("gen-model", onProgress);
-  });
-
-  it("calls loadGenerator with undefined model when model is omitted", async () => {
-    // Arrange
-    mockProxy.loadGenerator.mockResolvedValue(undefined);
-
-    // Act
-    await preloadBrowserGenerator();
-
-    // Assert
-    expect(mockProxy.loadGenerator).toHaveBeenCalledWith(undefined, undefined);
-  });
-});
-
-// ─── disposeInferenceWorker ──────────────────────────────────────────────────
-
-describe("disposeInferenceWorker", () => {
-  it("does nothing when no worker has been created (proxy is null)", async () => {
-    // Arrange: clean state.
-    await resetWorker();
-
-    // Act / Assert: safe to call when proxy is null.
-    await expect(disposeInferenceWorker()).resolves.toBeUndefined();
-    expect(mockProxy.dispose).not.toHaveBeenCalled();
-  });
-
-  it("calls proxy.dispose and worker.terminate when a worker exists", async () => {
-    // Arrange: create the worker with a tracked terminate fn.
-    const terminate = vi.fn();
-    await resetWorker();
-    // Override the Worker constructor to return our trackable fake.
-    vi.stubGlobal(
-      "Worker",
-      vi.fn(function (this: object) {
-        return { terminate };
-      }),
-    );
-    mockProxy.dispose.mockResolvedValue(undefined);
-    getInferenceWorker();
-
-    // Act
-    await disposeInferenceWorker();
-
-    // Assert
-    expect(mockProxy.dispose).toHaveBeenCalledOnce();
-    expect(terminate).toHaveBeenCalledOnce();
-  });
-
-  it("sets proxy and worker to null after disposal (second dispose is a no-op)", async () => {
-    // Arrange: create worker.
-    const terminate = vi.fn();
-    await resetWorker();
-    vi.stubGlobal(
-      "Worker",
-      vi.fn(function (this: object) {
-        return { terminate };
-      }),
-    );
-    mockProxy.dispose.mockResolvedValue(undefined);
-    getInferenceWorker();
-
-    // Act: first dispose clears both proxy and worker.
-    await disposeInferenceWorker();
-
-    // Record call counts after the first dispose.
-    const disposeCalls = mockProxy.dispose.mock.calls.length;
-    const terminateCalls = terminate.mock.calls.length;
-
-    // Second dispose — proxy is null so it should be a complete no-op.
-    await disposeInferenceWorker();
-
-    // Assert: no additional calls were made.
-    expect(mockProxy.dispose.mock.calls.length).toBe(disposeCalls);
-    expect(terminate.mock.calls.length).toBe(terminateCalls);
-  });
-
-  it("swallows errors thrown by proxy.dispose and still terminates the worker", async () => {
-    // Arrange: make dispose throw.
-    const terminate = vi.fn();
-    await resetWorker();
-    vi.stubGlobal(
-      "Worker",
-      vi.fn(function (this: object) {
-        return { terminate };
-      }),
-    );
-    mockProxy.dispose.mockRejectedValue(new Error("dispose failed"));
-    getInferenceWorker();
-
-    // Act: must not throw even if dispose rejects.
-    await expect(disposeInferenceWorker()).resolves.toBeUndefined();
-
-    // Assert: terminate was still called.
-    expect(terminate).toHaveBeenCalledOnce();
-  });
-
-  it("still sets proxy and worker to null even when dispose throws", async () => {
-    // Arrange
-    const terminate = vi.fn();
-    await resetWorker();
-    vi.stubGlobal(
-      "Worker",
-      vi.fn(function (this: object) {
-        return { terminate };
-      }),
-    );
-    mockProxy.dispose.mockRejectedValue(new Error("oops"));
-    getInferenceWorker();
-
-    // Act
-    await disposeInferenceWorker();
-
-    // Assert: second dispose is a no-op (singletons are cleared).
-    await disposeInferenceWorker();
-    expect(terminate).toHaveBeenCalledTimes(1); // only once from first dispose
   });
 });

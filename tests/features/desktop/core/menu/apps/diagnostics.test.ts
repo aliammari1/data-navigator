@@ -54,13 +54,6 @@ describe("diagnostics buildMenu — système group", () => {
     expect(ctx.openApp).toHaveBeenCalledWith("settings");
   });
 
-  it("run() on 'open-collaboration' opens the collaboration app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    getAction(findGroup(groups, "diagnostics")!.items, "open-collaboration").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("collaboration");
-  });
-
   it("run() on 'open-upload' opens the upload app", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
