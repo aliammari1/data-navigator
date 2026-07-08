@@ -98,12 +98,10 @@ export default defineConfig({
         "src/features/data-formulator/core/voice/voice-stt-worker.ts", // AudioWorklet/WASM STT
         "src/features/data-formulator/core/voice/voice-vad-service.ts", // MediaStream VAD wiring
         "src/features/eye-tracking/**", // webcam/MediaPipe hardware
-        "src/platform/ai/transformers-engine.ts", // transformers.js WASM/WebGPU runtime
         "src/platform/ai/pyodide-ml.ts", // Pyodide WASM bootstrap
         "src/features/forecast-intelligence/core/forecast-pyodide.ts", // Pyodide forecast bootstrap
         "src/platform/browser/forecast-onnx.ts", // ONNX Runtime Web init
         "src/workers/export.worker.ts", // Comlink Worker-realm entry shell
-        "src/workers/inference.worker.ts", // Comlink Worker-realm entry shell
         "src/workers/parse.worker.ts", // Comlink Worker-realm entry shell
         "src/workers/python-sandbox.worker.ts", // onmessage Worker-realm entry shell
         "src/workers/chart.worker.ts", // Comlink Worker-realm entry shell
@@ -112,8 +110,6 @@ export default defineConfig({
         "electron/workers/**", // electron utility-process workers
         "electron/duckdb-service.ts", // native DuckDB binding
         "electron/llama-service.ts", // node-llama-cpp native binding
-        "electron/voice-service.ts", // native voice IPC
-        "electron/collab-hub-service.ts", // native LAN hub server
         "electron/model-download-service.ts", // streaming model downloader
         "electron/duckdb-arrow.ts", // native Arrow bridge
         "electron/auth-client.ts", // IPC client glue
@@ -123,8 +119,6 @@ export default defineConfig({
         "src/platform/duckdb/arrow-ipc.ts", // Arrow IPC binding
         "src/platform/storage/app-db.ts", // IndexedDB/OPFS app database
         "src/platform/storage/opfs-handles.ts", // OPFS file handles
-        "src/platform/collab/**", // Yjs/WebRTC collab transport
-        "src/platform/lan/lan-collab.ts", // LAN WebSocket transport
         "src/platform/auth/auth-database.ts", // better-sqlite3 native auth DB
       ],
       // Quality gate strategy (see TESTING.md): rather than a single global

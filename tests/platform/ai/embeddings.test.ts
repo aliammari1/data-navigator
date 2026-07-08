@@ -1,10 +1,10 @@
 /**
  * Tests for src/platform/ai/embeddings.ts
  *
- * The module is a thin API over the inference worker (via inference-client).
- * We mock the entire inference-client boundary so no real ONNX / Worker /
- * Comlink code runs — that keeps the tests fast, deterministic, and
- * offline-safe while still exercising every branch in the target file.
+ * The module is a thin API over the node-llama-cpp IPC bridge (via
+ * inference-client). We mock the entire inference-client boundary so no real
+ * IPC / node-llama-cpp code runs — that keeps the tests fast, deterministic,
+ * and offline-safe while still exercising every branch in the target file.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -186,11 +186,7 @@ describe("semanticColumnMatch — happy path", () => {
     // embed() is called with [query, ...colTexts]
     mockEmbedTexts.mockResolvedValue([query, vecA, vecB, vecC]);
 
-    const columns = [
-      col("metric_a", "number"),
-      col("category_b", "string"),
-      col("date_c", "date"),
-    ];
+    const columns = [col("metric_a", "number"), col("category_b", "string"), col("date_c", "date")];
 
     // Act
     const matches = await semanticColumnMatch("metric", columns, 2);
@@ -213,7 +209,11 @@ describe("semanticColumnMatch — happy path", () => {
       new Float32Array([1, 0]),
     ]);
 
-    const columns = [col("total_value", "number"), col("region_name", "string"), col("sale_date", "date")];
+    const columns = [
+      col("total_value", "number"),
+      col("region_name", "string"),
+      col("sale_date", "date"),
+    ];
     await semanticColumnMatch("query text", columns, 3);
 
     // The first element passed to embed() is the raw query; subsequent ones are

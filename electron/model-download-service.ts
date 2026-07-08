@@ -112,6 +112,17 @@ export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
     sizeLabel: "3B",
     optional: true,
   },
+  {
+    key: "qwen3-embedding-0.6b-q8_0",
+    file: "qwen3-embedding-0.6b-q8_0.gguf",
+    uri: "hf:Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
+    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 400_000_000,
+    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
+    family: "Qwen3 Embedding",
+    sizeLabel: "0.6B",
+    optional: false,
+  },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────

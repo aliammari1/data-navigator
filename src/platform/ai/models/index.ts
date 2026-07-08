@@ -9,21 +9,19 @@
 export {
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
-  LOCAL_TRANSFORMERS_PATH,
-  manifestByKey,
   MODEL_MANIFEST,
   type ModelLane,
   type ModelManifestEntry,
   type ModelPresenceKind,
+  manifestByKey,
   primaryForLane,
-  transformersAssetUrl,
 } from "./model-manifest";
 export {
   type DownloadState,
   ensureModelsReady,
   isPrimaryLlmReady,
-  type ModelReadiness,
   type ModelPresenceState,
+  type ModelReadiness,
   type ModelStatusRecord,
   type UseModelStatus,
   useModelStatus,

@@ -1,12 +1,7 @@
 import { build } from "esbuild";
-import { copyWorkerAssets } from "./scripts/copy-worker-assets.mjs";
 
 const isWatch = process.argv.includes("--watch");
 const isProduction = process.env.NODE_ENV === "production";
-
-// Self-host worker runtime assets (resvg wasm) BEFORE bundling so the offline
-// zero-network invariant holds — never fetched from a CDN at runtime.
-copyWorkerAssets();
 
 const workers = [
   {

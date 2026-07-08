@@ -38,26 +38,6 @@ vi.mock("@/features/telecom/lib/channel", () => ({
   onBroadcast: (handler: (msg: unknown) => void) => onBroadcast(handler),
 }));
 
-const collabCleanup = vi.fn();
-const startCollabSync = vi.fn(() => collabCleanup);
-
-const yMappingStore = new Map<string, string>();
-const observers = new Set<() => void>();
-
-const sharedMapping = {
-  get: (key: string) => yMappingStore.get(key),
-  set: (key: string, value: string) => {
-    yMappingStore.set(key, value);
-  },
-  observe: vi.fn((fn: () => void) => observers.add(fn)),
-  unobserve: vi.fn((fn: () => void) => observers.delete(fn)),
-};
-
-vi.mock("@/platform/collab/collab", () => ({
-  startCollabSync,
-  sharedMapping,
-}));
-
 const toast = vi.fn();
 vi.mock("sonner", () => ({ toast: (...args: unknown[]) => toast(...args) }));
 
@@ -87,8 +67,6 @@ function renderTelecomUI(
 
 beforeEach(() => {
   localStorage.clear();
-  yMappingStore.clear();
-  observers.clear();
   vi.clearAllMocks();
   // Restore localStorage in case a previous test stubbed it away.
   vi.unstubAllGlobals();

@@ -4,17 +4,12 @@
  * Offline-model preflight + download state (renderer side).
  *
  * Answers, for the Setup UI and any AI feature: "are the model weights present,
- * and if not, can I download them while online?" It unifies the two acquisition
- * lanes behind one status surface:
+ * and if not, can I download them while online?"
  *
- *   - GGUF instruct (Electron node-llama-cpp): presence via
- *     `window.electronLlama.listModels()` (which stats `<userData>/models/llm`),
+ *   - Both lanes (GGUF instruct + GGUF embedding, Electron node-llama-cpp):
+ *     presence via `window.electronModels.listPresence()` /
+ *     `window.electronLlama.listModels()` (which stat `<userData>/models/llm`),
  *     download via `window.electronModels.download(...)` with progress events.
- *   - all-MiniLM ONNX (transformers.js embeddings worker): presence via a HEAD
- *     probe of the public `/models/transformers/...` asset plus an OPFS / Cache
- *     Storage check (populated by a first online run). There is no main-process
- *     downloader for this lane — the transformers.js worker fetches + caches it
- *     itself on first use; we surface that as "browser-cache" readiness.
  *
  * Exports:
  *   - useModelStatus()      — reactive presence + download progress for the UI.
@@ -24,11 +19,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isElectron } from "@/platform/electron/electron-fs";
 import {
+  MODEL_MANIFEST,
   type ModelLane,
   type ModelManifestEntry,
-  MODEL_MANIFEST,
   primaryForLane,
-  transformersAssetUrl,
 } from "./model-manifest";
 
 // ─── Presence probing ──────────────────────────────────────────────────────────
@@ -47,7 +41,7 @@ export interface ModelStatusRecord {
   /** Bytes on disk (GGUF) when known. */
   sizeBytes?: number;
   /** Where the presence signal came from (for UI copy / debugging). */
-  source: "userData" | "public-asset" | "browser-cache" | "none";
+  source: "userData" | "none";
   /** True only for the GGUF lane in Electron — drives the Download button. */
   downloadable: boolean;
 }
@@ -60,63 +54,6 @@ function bridgeLlama() {
 function bridgeModels() {
   if (typeof window === "undefined") return null;
   return (window as Window & { electronModels?: Window["electronModels"] }).electronModels ?? null;
-}
-
-/** Probe a transformers.js asset: present if the public file 200s OR it's cached. */
-async function probeTransformersAsset(entry: ModelManifestEntry): Promise<{
-  state: ModelPresenceState;
-  source: ModelStatusRecord["source"];
-}> {
-  if (typeof window === "undefined") return { state: "unknown", source: "none" };
-
-  // 1. Pre-bundled under /public (strict air-gap install). HEAD avoids the body.
-  try {
-    const url = transformersAssetUrl(entry);
-    const res = await fetch(url, { method: "HEAD" });
-    if (res.ok) return { state: "present", source: "public-asset" };
-  } catch {
-    // ignore — fall through to cache probes
-  }
-
-  // 2. Browser cache populated by a first online transformers.js run (Cache
-  // Storage keyed on the HF URL) — the worker is then offline-capable.
-  try {
-    if ("caches" in window) {
-      const names = await caches.keys();
-      for (const name of names) {
-        const cache = await caches.open(name);
-        const keys = await cache.keys();
-        if (
-          keys.some(
-            (req) => req.url.includes("all-MiniLM-L6-v2") && req.url.includes("model_quantized"),
-          )
-        ) {
-          return { state: "present", source: "browser-cache" };
-        }
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  // 3. OPFS (some transformers.js builds persist weights to the Origin Private
-  // File System). Best-effort directory walk for the model dir.
-  try {
-    const root = await navigator.storage?.getDirectory?.();
-    if (root) {
-      // transformers.js OPFS layout mirrors the model id path.
-      const models = await root.getDirectoryHandle("models").catch(() => null);
-      if (models) {
-        const xenova = await models.getDirectoryHandle("Xenova").catch(() => null);
-        const dir = await xenova?.getDirectoryHandle("all-MiniLM-L6-v2").catch(() => null);
-        if (dir) return { state: "present", source: "browser-cache" };
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return { state: "missing", source: "none" };
 }
 
 /** Probe the GGUF lane via the Electron bridges. */
@@ -159,7 +96,8 @@ async function probeGguf(entry: ModelManifestEntry): Promise<{
 }
 
 async function probeEntry(entry: ModelManifestEntry): Promise<ModelStatusRecord> {
-  const base: Omit<ModelStatusRecord, "state" | "source" | "sizeBytes" | "downloadable"> = {
+  const { state, source, sizeBytes } = await probeGguf(entry);
+  return {
     key: entry.key,
     lane: entry.lane,
     label: entry.label,
@@ -167,22 +105,12 @@ async function probeEntry(entry: ModelManifestEntry): Promise<ModelStatusRecord>
     sizeLabel: entry.sizeLabel,
     downloadMb: entry.downloadMb,
     optional: entry.optional,
+    state,
+    source,
+    sizeBytes,
+    // Both lanes are Electron GGUF now, so both have an in-app downloader.
+    downloadable: isElectron() && !!bridgeModels(),
   };
-
-  if (entry.presence === "electron-gguf") {
-    const { state, source, sizeBytes } = await probeGguf(entry);
-    return {
-      ...base,
-      state,
-      source,
-      sizeBytes,
-      // Only the Electron GGUF lane has an in-app downloader.
-      downloadable: isElectron() && !!bridgeModels(),
-    };
-  }
-
-  const { state, source } = await probeTransformersAsset(entry);
-  return { ...base, state, source, downloadable: false };
 }
 
 // ─── Imperative guard (call before generation) ──────────────────────────────────

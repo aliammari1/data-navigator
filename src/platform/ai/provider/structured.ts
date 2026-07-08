@@ -15,8 +15,7 @@ import { zodToInlineJsonSchema } from "./zod-json-schema";
  *     then validates it against a Zod schema.
  *
  * These helpers are intentionally pure (no logging, no globals) so they are fast
- * and unit testable, unlike the debug-heavy `parseJSON` in
- * platform/ai/transformers-engine.ts.
+ * and unit testable.
  */
 
 /**

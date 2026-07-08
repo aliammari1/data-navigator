@@ -5,9 +5,10 @@ provider — behind one `AIProvider` interface, so feature code depends on a
 stable surface (`useAI()`) rather than importing the Electron IPC bridge
 directly. The app previously carried three parallel inference stacks
 (Transformers.js, MLC web-LLM, an Ollama/OpenAI HTTP lane); those adapters have
-been removed. `@huggingface/transformers` itself is still a dependency — it
-now serves only the embeddings worker (`src/workers/inference.worker.ts`) and
-voice speech-to-text (`voice-stt-worker.ts`), unrelated to text generation.
+been removed, and `@huggingface/transformers` itself is gone. The embeddings
+lane (`src/platform/ai/embeddings.ts` / `inference-client.ts`) now also runs
+through node-llama-cpp in the Electron main process — see
+`electron/embed-service.ts` — unrelated to text generation.
 
 ## Architecture
 
@@ -96,8 +97,9 @@ optional, lower resource use). `electron/ipc-validation.ts`'s `ModelKeySchema`
 allowlists exactly these two keys for the `models:*` IPC channels.
 
 Voice models (STT/TTS — `voice-model-registry.ts`, `electron/voice-service.ts`)
-and the embeddings model (MiniLM, also in `model-manifest.ts`) are a separate,
-non-overlapping catalog — they don't run through node-llama-cpp.
+are a separate catalog. The embeddings model (Qwen3 Embedding 0.6B GGUF, also
+in `model-manifest.ts`) now runs through node-llama-cpp as well, via
+`electron/embed-service.ts`.
 
 ## Configuration
 

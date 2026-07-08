@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, HardDrive, Radio, Settings2, Signal, Upload } from "lucide-react";
+import { Database, HardDrive, Settings2, Signal, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -20,7 +20,6 @@ import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useTelecomSessionStore } from "@/core/stores/app-session-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { KPI_FIELDS } from "@/features/telecom/constants";
-import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
 import { migrateLegacyDexieAnalyticsSnapshots } from "@/features/telecom/lib/analytics-snapshot-legacy-migration";
@@ -53,7 +52,6 @@ import {
 import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/telecom-dataset";
 import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
 import { ColumnMapper } from "./column-mapper";
@@ -80,12 +78,9 @@ interface BeforeInstallPromptEvent extends Event {
 
 export interface TelecomReportRuntimeValue {
   dashboardLoaded: boolean;
-  sharedOverviewMode: boolean;
   dashboardFileName: string;
   dashboardReportDate: string;
   dashboardTableName: string;
-  telecomRole: "admin" | "user";
-  access: ReturnType<typeof useDashboardAccess>;
   mapping: Types.ColumnMapping;
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
@@ -207,7 +202,6 @@ export function TelecomReportRuntimeProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const access = useDashboardAccess();
 
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
@@ -270,8 +264,6 @@ export function TelecomReportRuntimeProvider({
       cancelled = true;
     };
   }, [replaceDatasetsFromCatalog]);
-
-  const telecomRole = access.role === "owner" ? "admin" : "user";
 
   const {
     showMapper,
@@ -576,17 +568,6 @@ export function TelecomReportRuntimeProvider({
 
   const { forecast, rawStatuses, isFetching: analyticsIsFetching } = analytics;
 
-  const { remoteOverview } = useSharedOverview({
-    enabled: Boolean(dashboardLoaded && kpi),
-    fileName: dashboardFileName,
-    reportDate: dashboardReportDate,
-    kpi,
-    canals,
-    hourly,
-    statusData,
-    forecast,
-  });
-
   // Reset snapshot tracking whenever the active table changes (dataset switch).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dashboardTableName is only a re-run trigger, not read in the body
   useEffect(() => {
@@ -658,21 +639,19 @@ export function TelecomReportRuntimeProvider({
     forecast,
   ]);
 
-  const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
   const restoredSnapshotMode = Boolean(kpi) && !dashboardLoaded;
   // In desktop-window mode use the local activeTab state; otherwise derive from URL.
   const historyRoute = activeTabProp
     ? activeTabProp === "history"
     : pathname.endsWith("/telecom-report/history");
 
-  const reportContentVisible =
-    dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute;
+  const reportContentVisible = dashboardLoaded || restoredSnapshotMode || historyRoute;
 
-  const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
-  const overviewCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
-  const overviewHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
-  const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
-  const overviewForecast = sharedOverviewMode ? (remoteOverview?.forecast ?? []) : forecast;
+  const overviewKpi = kpi;
+  const overviewCanals = canals;
+  const overviewHourly = hourly;
+  const overviewStatusData = statusData;
+  const overviewForecast = forecast;
 
   async function loadAnalyticsFromHistory(id: number) {
     const cached = await getAnalyticsSnapshot(id);
@@ -698,8 +677,6 @@ export function TelecomReportRuntimeProvider({
   }
 
   async function exportActiveDatabase() {
-    if (!access.permissions.canExport) return;
-
     if (!activeTelecomDataset?.id) {
       toast.error("Aucun dataset actif à exporter");
       return;
@@ -725,12 +702,9 @@ export function TelecomReportRuntimeProvider({
 
   const runtimeValue: TelecomReportRuntimeValue = {
     dashboardLoaded,
-    sharedOverviewMode,
     dashboardFileName,
     dashboardReportDate,
     dashboardTableName,
-    telecomRole,
-    access,
     mapping,
     setMapping,
     statusMapping,
@@ -907,7 +881,6 @@ export function TelecomReportRuntimeProvider({
             <button
               type="button"
               onClick={goToTelecomUpload}
-              disabled={!access.permissions.canUpload}
               className="flex items-center gap-1.5 rounded-xl border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -968,7 +941,6 @@ export function TelecomReportRuntimeProvider({
               <button
                 type="button"
                 onClick={goToTelecomUpload}
-                disabled={!access.permissions.canUpload}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
@@ -980,37 +952,6 @@ export function TelecomReportRuntimeProvider({
 
         {reportContentVisible && (
           <TelecomReportRuntimeContext.Provider value={runtimeValue}>
-            {sharedOverviewMode && remoteOverview && (
-              <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                      <Radio className="h-4 w-4" />
-                    </div>
-
-                    <div>
-                      <div className="text-sm font-bold text-foreground">
-                        Vue d&apos;ensemble partagée
-                      </div>
-
-                      <div className="text-xs text-muted-foreground">
-                        Analytics agrégées reçues de{" "}
-                        <span className="font-semibold text-foreground">
-                          {remoteOverview.presenterName}
-                        </span>
-                        . Aucun fichier source ni ligne brute n&apos;est transféré sur cet appareil.
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="text-[11px] tabular-nums text-muted-foreground">
-                    {remoteOverview.fileName} · {remoteOverview.reportDate} ·{" "}
-                    {new Date(remoteOverview.updatedAt).toLocaleTimeString()}
-                  </div>
-                </div>
-              </div>
-            )}
-
             <div className="flex min-h-0 gap-4">
               <section
                 id="telecom-report-panel"
@@ -1040,14 +981,6 @@ export function TelecomReportRuntimeProvider({
             columns={dashboardCsvCols}
             onChange={(m) => {
               setMapping(m);
-
-              import("@/platform/collab/collab").then(({ sharedMapping: yMapping, ydoc }) => {
-                ydoc.transact(() => {
-                  for (const [k, v] of Object.entries(m)) {
-                    yMapping.set(k, v as string);
-                  }
-                });
-              });
             }}
             onClose={() => setShowMapper(false)}
             defaultMapping={DEFAULT_MAPPING}

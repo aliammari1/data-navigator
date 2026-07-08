@@ -60,12 +60,6 @@
   },
 
   {
-    "name": "worker: inference / embeddings (Lane B, gzip)",
-    "path": ".next/static/chunks/**/inference.worker*.js",
-    "limit": "300 kB",
-    "gzip": true
-  },
-  {
     "name": "worker: chart (OffscreenCanvas echarts, time budget)",
     "path": "public/workers/chart.worker.js",
     "limit": "500 ms",

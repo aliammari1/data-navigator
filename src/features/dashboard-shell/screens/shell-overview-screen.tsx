@@ -1,13 +1,12 @@
 "use client";
 
-import { Brain, Database, HardDrive, Keyboard, Radio, Sparkles } from "lucide-react";
+import { Brain, Database, HardDrive, Keyboard, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { PageHeader } from "@/features/dashboard-shell/components/page-header";
 import { useShellStore } from "@/features/dashboard-shell/shell/shell-store";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
-import { useLanStatus } from "@/features/dashboard-shell/shell/use-lan-status";
 import { useModelStatus } from "@/features/dashboard-shell/shell/use-model-status";
 import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import { getStorageInfo, type StorageInfo } from "@/platform/storage";
@@ -17,14 +16,13 @@ import { cn } from "@/shared/utils";
  * Shell overview / diagnostics.
  *
  * Surfaces the live shell runtime — the resolved DuckDB engine, the local AI
- * model status, the LAN resting state, durable storage quota, and the persisted
- * layout state — all from real sources (no fabricated numbers). Useful as a
- * self-test surface for the offline-first wire-in this feature owns.
+ * model status, durable storage quota, and the persisted layout state — all
+ * from real sources (no fabricated numbers). Useful as a self-test surface
+ * for the offline-first wire-in this feature owns.
  */
 export function ShellOverviewScreen() {
   const engine = useEngineInfo();
   const model = useModelStatus();
-  const lan = useLanStatus();
   const datasetCount = useDataStore((s) => s.datasets.length);
   const activityCount = useActivityStore((s) => s.events.length);
   const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
@@ -62,13 +60,6 @@ export function ShellOverviewScreen() {
           ? `${model.providerId ?? "provider"} · ${model.model ?? "model"}`
           : "Rule-based NL→SQL until a model is downloaded",
       tone: model.kind === "ready" ? "text-emerald-400" : "text-blue-400",
-    },
-    {
-      icon: Radio,
-      label: "LAN collaboration",
-      value: lan.state,
-      hint: lan.state === "connected" ? `${lan.peerCount} peer(s)` : "No active hub session",
-      tone: lan.state === "connected" ? "text-emerald-400" : "text-muted-foreground",
     },
     {
       icon: HardDrive,

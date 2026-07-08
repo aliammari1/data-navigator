@@ -401,6 +401,11 @@ export function enqueueLlamaTask<T>(task: () => Promise<T>): Promise<T> {
   return enqueue(task);
 }
 
+/** Seam for embed-service.ts: reuse this module's native Llama core instance instead of double-initializing the backend. */
+export function getSharedLlama(): Promise<Llama> {
+  return getLlamaInstance();
+}
+
 /** Free-form generation with optional streaming via `input.onToken`. */
 export async function generate(input: LlamaGenerateInput): Promise<LlamaGenerateResult> {
   return enqueue(async () => {

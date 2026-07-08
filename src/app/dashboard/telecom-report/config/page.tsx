@@ -1,7 +1,6 @@
 "use client";
 
 import { ConfigTab } from "@/features/telecom/components/config-tab";
-import { LanCollabPanel } from "@/features/telecom/components/lan-collab-panel";
 import {
   TelecomLoadingPanel,
   useTelecomReportRuntime,
@@ -17,11 +16,7 @@ export default function ConfigPage() {
 
   return (
     <div className="space-y-4">
-      <UserManagementPanel
-        currentRole={report.telecomRole}
-        onRoleChange={(role) => report.access.setRole(role === "admin" ? "owner" : "viewer")}
-      />
-      <LanCollabPanel />
+      <UserManagementPanel />
       <ConfigTab
         kpi={report.kpi}
         canals={report.canals}

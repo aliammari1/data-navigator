@@ -1,12 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, within } from "storybook/test";
 
 import { UserManagementPanel } from "@/features/telecom/components/user-management-panel";
 
 /**
  * `UserManagementPanel` manages accounts through the `users` module (local
- * store) and bootstraps a default admin on mount. Props control the current
- * role and surface role changes to the parent.
+ * store) and bootstraps a default admin on mount. The app now has a single
+ * implicit admin role, so the panel always renders the full account
+ * management UI (create-user form, role edit, delete).
  */
 const meta = {
   title: "Src/Features/Telecom/Components/UserManagementPanel",
@@ -14,14 +15,6 @@ const meta = {
   tags: ["autodocs"],
   parameters: {
     layout: "fullscreen",
-  },
-  args: {
-    currentRole: "admin",
-    onRoleChange: fn(),
-  },
-  argTypes: {
-    currentRole: { control: "inline-radio", options: ["admin", "user"] },
-    onRoleChange: { control: false },
   },
   decorators: [
     (Story) => (
@@ -36,21 +29,9 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const AdminView: Story = {};
-
-export const UserView: Story = {
-  args: { currentRole: "user" },
+export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText(/création de comptes désactivée/i)).toBeVisible();
-  },
-};
-
-export const SwitchesRoleOnClick: Story = {
-  args: { currentRole: "admin" },
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: /User/i }));
-    await expect(args.onRoleChange).toHaveBeenCalledWith("user");
+    await expect(canvas.getByRole("button", { name: /Créer/i })).toBeVisible();
   },
 };

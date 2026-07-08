@@ -1,20 +1,19 @@
 /**
  * Unit tests for src/platform/electron/electron-fs.ts
  *
- * The module is a thin IPC bridge – it reads/writes window.electronFS,
- * window.electronDuckDB, and window.electronVoice. We stub those globals
- * and exercise every exported function and branch.
+ * The module is a thin IPC bridge – it reads/writes window.electronFS
+ * and window.electronDuckDB. We stub those globals and exercise every
+ * exported function and branch.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-  ElectronFSBridge,
+  DuckDBStatus,
   ElectronDuckDBBridge,
-  ElectronVoiceBridge,
+  ElectronFSBridge,
+  QueryMetric,
   RegisteredDataset,
   RegisteredDatasetWithPreview,
-  DuckDBStatus,
-  QueryMetric,
 } from "@/platform/electron/electron-fs";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -71,43 +70,13 @@ function makeDuckDBBridge(overrides: Partial<ElectronDuckDBBridge> = {}): Electr
       pendingReads: 0,
       pendingWrites: 0,
     } satisfies DuckDBStatus),
-    getQueryMetrics: vi.fn().mockResolvedValue([
-      { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
-    ]),
+    getQueryMetrics: vi
+      .fn()
+      .mockResolvedValue([
+        { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
+      ]),
     clearQueryMetrics: vi.fn().mockResolvedValue(undefined),
     runReadOnlyQuery: vi.fn().mockResolvedValue([{ result: 1 }]),
-    ...overrides,
-  };
-}
-
-function makeVoiceBridge(overrides: Partial<ElectronVoiceBridge> = {}): ElectronVoiceBridge {
-  return {
-    getMicrophoneAccessStatus: vi.fn().mockResolvedValue("granted"),
-    preloadStt: vi.fn().mockResolvedValue({ engine: "whisper", model: "tiny", runtime: "cpu" }),
-    transcribe: vi.fn().mockResolvedValue({
-      text: "hello world",
-      engine: "whisper",
-      model: "tiny",
-      runtime: "cpu",
-      sampleRate: 16000,
-      audioDurationMs: 1000,
-      latencyMs: 200,
-      language: "en",
-    }),
-    preloadTts: vi.fn().mockResolvedValue({ engine: "kokoro", model: "v1", runtime: "cpu" }),
-    speak: vi.fn().mockResolvedValue({
-      jobId: "job-1",
-      engine: "kokoro",
-      model: "v1",
-      runtime: "cpu",
-      voice: "af",
-      text: "hi",
-      sampleRate: 22050,
-      durationMs: 500,
-      latencyMs: 100,
-      wav: new ArrayBuffer(8),
-    }),
-    clearModels: vi.fn().mockResolvedValue({ stt: 1, tts: 1 }),
     ...overrides,
   };
 }
@@ -119,7 +88,6 @@ beforeEach(() => {
   vi.stubGlobal("window", {
     electronFS: undefined,
     electronDuckDB: undefined,
-    electronVoice: undefined,
   });
 });
 
@@ -127,19 +95,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
-
-// Helper: install all three bridges on window
-function installBridges(
-  fs: ElectronFSBridge,
-  duckdb: ElectronDuckDBBridge,
-  voice: ElectronVoiceBridge,
-) {
-  vi.stubGlobal("window", {
-    electronFS: fs,
-    electronDuckDB: duckdb,
-    electronVoice: voice,
-  });
-}
 
 // ─── Runtime Detection ────────────────────────────────────────────────────────
 
@@ -197,19 +152,6 @@ describe("hasElectronDuckDB()", () => {
   });
 });
 
-describe("hasElectronVoice()", () => {
-  it("returns false when electronVoice is absent", async () => {
-    const { hasElectronVoice } = await import("@/platform/electron/electron-fs");
-    expect(hasElectronVoice()).toBe(false);
-  });
-
-  it("returns true when electronVoice is present", async () => {
-    vi.stubGlobal("window", { electronVoice: makeVoiceBridge() });
-    const { hasElectronVoice } = await import("@/platform/electron/electron-fs");
-    expect(hasElectronVoice()).toBe(true);
-  });
-});
-
 // ─── Internal Bridge Accessor error paths ────────────────────────────────────
 
 describe("duckdbBridge() exported accessor", () => {
@@ -225,22 +167,6 @@ describe("duckdbBridge() exported accessor", () => {
     vi.stubGlobal("window", { electronDuckDB: db });
     const { duckdbBridge } = await import("@/platform/electron/electron-fs");
     expect(duckdbBridge()).toBe(db);
-  });
-});
-
-describe("voiceBridge() exported accessor", () => {
-  it("throws when electronVoice is absent", async () => {
-    const { voiceBridge } = await import("@/platform/electron/electron-fs");
-    expect(() => voiceBridge()).toThrow(
-      "electronVoice not available — ensure the app is running inside Electron.",
-    );
-  });
-
-  it("returns the bridge when electronVoice is present", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { voiceBridge } = await import("@/platform/electron/electron-fs");
-    expect(voiceBridge()).toBe(voice);
   });
 });
 
@@ -380,9 +306,7 @@ describe("openFileDialog()", () => {
 describe("saveFileDialog()", () => {
   it("returns filePath when dialog is not canceled and filePath is present", async () => {
     const fs = makeFsBridge({
-      saveDialog: vi
-        .fn()
-        .mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
+      saveDialog: vi.fn().mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
     });
     vi.stubGlobal("window", { electronFS: fs });
     const { saveFileDialog } = await import("@/platform/electron/electron-fs");
@@ -648,192 +572,9 @@ describe("DuckDB Dataset API — error paths (missing bridge)", () => {
   });
 });
 
-// ─── Voice API ────────────────────────────────────────────────────────────────
-
-describe("getMicrophoneAccessStatus()", () => {
-  it("returns the microphone status from the voice bridge", async () => {
-    const voice = makeVoiceBridge({
-      getMicrophoneAccessStatus: vi.fn().mockResolvedValue("granted"),
-    });
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { getMicrophoneAccessStatus } = await import("@/platform/electron/electron-fs");
-    await expect(getMicrophoneAccessStatus()).resolves.toBe("granted");
-  });
-
-  it("returns 'denied' status correctly", async () => {
-    const voice = makeVoiceBridge({
-      getMicrophoneAccessStatus: vi.fn().mockResolvedValue("denied"),
-    });
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { getMicrophoneAccessStatus } = await import("@/platform/electron/electron-fs");
-    await expect(getMicrophoneAccessStatus()).resolves.toBe("denied");
-  });
-
-  it("returns 'not-determined' status correctly", async () => {
-    const voice = makeVoiceBridge({
-      getMicrophoneAccessStatus: vi.fn().mockResolvedValue("not-determined"),
-    });
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { getMicrophoneAccessStatus } = await import("@/platform/electron/electron-fs");
-    await expect(getMicrophoneAccessStatus()).resolves.toBe("not-determined");
-  });
-
-  it("throws when electronVoice is absent", async () => {
-    const { getMicrophoneAccessStatus } = await import("@/platform/electron/electron-fs");
-    expect(() => getMicrophoneAccessStatus()).toThrow("electronVoice not available");
-  });
-});
-
-// ─── sherpaTranscribe ─────────────────────────────────────────────────────────
-
-describe("sherpaTranscribe()", () => {
-  it("returns the text field from the transcription result", async () => {
-    const voice = makeVoiceBridge({
-      transcribe: vi.fn().mockResolvedValue({
-        text: "hello electron",
-        engine: "whisper",
-        model: "tiny",
-        runtime: "cpu",
-        sampleRate: 16000,
-        audioDurationMs: 800,
-        latencyMs: 150,
-      }),
-    });
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaTranscribe } = await import("@/platform/electron/electron-fs");
-    const buf = new ArrayBuffer(1600);
-    const result = await sherpaTranscribe(buf, { sampleRate: 16000, language: "en" });
-    expect(result).toBe("hello electron");
-    expect(voice.transcribe).toHaveBeenCalledWith({
-      audio: buf,
-      sampleRate: 16000,
-      language: "en",
-    });
-  });
-
-  it("passes Float32Array audio correctly", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaTranscribe } = await import("@/platform/electron/electron-fs");
-    const float32 = new Float32Array(1024);
-    await sherpaTranscribe(float32);
-    expect(voice.transcribe).toHaveBeenCalledWith({ audio: float32 });
-  });
-
-  it("passes number[] audio correctly", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaTranscribe } = await import("@/platform/electron/electron-fs");
-    const samples = [0.1, -0.2, 0.3];
-    await sherpaTranscribe(samples);
-    expect(voice.transcribe).toHaveBeenCalledWith({ audio: samples });
-  });
-
-  it("uses empty opts by default (no extra fields sent)", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaTranscribe } = await import("@/platform/electron/electron-fs");
-    const buf = new ArrayBuffer(8);
-    await sherpaTranscribe(buf);
-    // When opts={}, spread adds no keys beyond `audio`
-    expect(voice.transcribe).toHaveBeenCalledWith({ audio: buf });
-  });
-
-  it("rejects when electronVoice is absent", async () => {
-    const { sherpaTranscribe } = await import("@/platform/electron/electron-fs");
-    await expect(sherpaTranscribe(new ArrayBuffer(0))).rejects.toThrow(
-      "electronVoice not available",
-    );
-  });
-});
-
-// ─── sherpaSpeak ──────────────────────────────────────────────────────────────
-
-describe("sherpaSpeak()", () => {
-  it("returns wav and sampleRate from the speak result", async () => {
-    const wav = new ArrayBuffer(22050 * 2);
-    const voice = makeVoiceBridge({
-      speak: vi.fn().mockResolvedValue({
-        jobId: "job-xyz",
-        engine: "kokoro",
-        model: "v1",
-        runtime: "cpu",
-        voice: "af",
-        text: "test",
-        sampleRate: 22050,
-        durationMs: 1000,
-        latencyMs: 80,
-        wav,
-      }),
-    });
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaSpeak } = await import("@/platform/electron/electron-fs");
-    const result = await sherpaSpeak("test", { voice: "af", speed: 1.0 });
-    expect(result.wav).toBe(wav);
-    expect(result.sampleRate).toBe(22050);
-    expect(voice.speak).toHaveBeenCalledWith({ text: "test", voice: "af", speed: 1.0 });
-  });
-
-  it("uses empty opts by default (no extra fields sent)", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaSpeak } = await import("@/platform/electron/electron-fs");
-    await sherpaSpeak("hello");
-    expect(voice.speak).toHaveBeenCalledWith({ text: "hello" });
-  });
-
-  it("passes optional voice and speed through to the bridge", async () => {
-    const voice = makeVoiceBridge();
-    vi.stubGlobal("window", { electronVoice: voice });
-    const { sherpaSpeak } = await import("@/platform/electron/electron-fs");
-    await sherpaSpeak("speak this", { voice: "bf", speed: 1.5 });
-    expect(voice.speak).toHaveBeenCalledWith({ text: "speak this", voice: "bf", speed: 1.5 });
-  });
-
-  it("rejects when electronVoice is absent", async () => {
-    const { sherpaSpeak } = await import("@/platform/electron/electron-fs");
-    await expect(sherpaSpeak("text")).rejects.toThrow("electronVoice not available");
-  });
-});
-
-// ─── pickNativeTtsEngine ──────────────────────────────────────────────────────
-
-describe("pickNativeTtsEngine()", () => {
-  it("picks sherpa-kokoro for English", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("en")).toBe("sherpa-kokoro");
-  });
-
-  it("picks sherpa-kokoro for auto", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("auto")).toBe("sherpa-kokoro");
-  });
-
-  it("picks sherpa-supertonic for French", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("fr")).toBe("sherpa-supertonic");
-  });
-
-  it("picks sherpa-supertonic for Arabic", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("ar")).toBe("sherpa-supertonic");
-  });
-
-  it("picks sherpa-supertonic for any ar-* Arabic locale variant via prefix match", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("ar-SA")).toBe("sherpa-supertonic");
-  });
-
-  it("is case-insensitive", async () => {
-    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
-    expect(pickNativeTtsEngine("FR")).toBe("sherpa-supertonic");
-    expect(pickNativeTtsEngine("AR")).toBe("sherpa-supertonic");
-  });
-});
-
 // ─── window === undefined branches ───────────────────────────────────────────
-// Cover the typeof window === "undefined" early-exit paths inside fsBridge(),
-// duckdbBridge(), and voiceBridge(). We delete the global so the guard fires.
+// Cover the typeof window === "undefined" early-exit paths inside fsBridge()
+// and duckdbBridge(). We delete the global so the guard fires.
 
 describe("fsBridge() — window undefined branch", () => {
   it("throws 'window is not available' when window is undefined (via getDataDir)", async () => {
@@ -848,13 +589,5 @@ describe("duckdbBridge() — window undefined branch", () => {
     vi.stubGlobal("window", undefined);
     const { duckdbBridge } = await import("@/platform/electron/electron-fs");
     expect(() => duckdbBridge()).toThrow("window is not available.");
-  });
-});
-
-describe("voiceBridge() — window undefined branch", () => {
-  it("throws 'window is not available' when window is undefined", async () => {
-    vi.stubGlobal("window", undefined);
-    const { voiceBridge } = await import("@/platform/electron/electron-fs");
-    expect(() => voiceBridge()).toThrow("window is not available.");
   });
 });

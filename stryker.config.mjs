@@ -21,7 +21,6 @@
  *   - src/platform/ai/provider/structured.ts                     (JSON repair/parse for AI output)
  *   - src/features/data-formulator/core/swarm/agents/validate.ts (swarm artifact safety gate)
  *   - electron/sql-guard.ts                                      (main-process read-only SQL guard)
- *   - electron/collab-pairing.ts                                 (CSPRNG pairing-code generation)
  *   - src/features/desktop/core/menu/registry.ts                 (menu bar composition rules)
  *
  * NOT mutated despite being a candidate: src/features/ai-analysis/model/sql.ts
@@ -66,7 +65,6 @@ export default {
     "src/platform/ai/provider/structured.ts",
     "src/features/data-formulator/core/swarm/agents/validate.ts",
     "electron/sql-guard.ts",
-    "electron/collab-pairing.ts",
     "src/features/desktop/core/menu/registry.ts",
   ],
   // Be conservative on a medium-end PC: leave cores free for the OS / dev work.

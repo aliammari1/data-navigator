@@ -116,13 +116,21 @@ export const LlamaGenerateStructuredSchema = z.object({
 
 export const LlamaEnsureModelSchema = z.object({ file: z.string().max(512).optional() }).optional();
 
+// Cap batch size defensively (mirrors MAX_SQL_CHARS/MAX_PROMPT_CHARS above): one
+// IPC call must not be able to pin memory/CPU embedding an unbounded batch.
+export const LlamaEmbedSchema = z.object({ texts: z.array(z.string()).min(1).max(256) });
+
 // ─── Offline model download channels ──────────────────────────────────────────
 export const RequestIdSchema = z.string().min(1).max(512);
 // Allowlist, not a free-form string: mirrors MODEL_DOWNLOADS' keys in
 // electron/model-download-service.ts (that module imports `electron`, so it
 // can't be imported here — this file is deliberately electron-free, see the
-// module doc comment above). Keep these two keys in sync with that array.
-export const ModelKeySchema = z.enum(["gemma-4-e4b-it-q4_k_m", "granite-4.1-3b-instruct-q4_k_m"]);
+// module doc comment above). Keep these three keys in sync with that array.
+export const ModelKeySchema = z.enum([
+  "gemma-4-e4b-it-q4_k_m",
+  "granite-4.1-3b-instruct-q4_k_m",
+  "qwen3-embedding-0.6b-q8_0",
+]);
 export const ModelDownloadSchema = z.object({ key: ModelKeySchema, requestId });
 
 // ─── Moudir chat history channels ─────────────────────────────────────────────

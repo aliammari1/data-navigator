@@ -128,36 +128,6 @@ export function useTelecomUI({
     return unsub;
   }, [fileNameRef]);
 
-  // F4 — Yjs cross-tab CRDT sync (filter + mapping)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: subscribe to the singleton Yjs maps once
-  useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    import("@/platform/collab/collab").then(
-      ({ startCollabSync: start, sharedMapping: yMapping }) => {
-        cleanup = start();
-
-        const mappingObs = () => {
-          setMapping((prev) => {
-            const next = { ...prev };
-            for (const key of Object.keys(prev) as (keyof Types.ColumnMapping)[]) {
-              const v = yMapping.get(key);
-              if (v !== undefined) (next as Record<string, string>)[key] = v;
-            }
-            return normalizeColumnMapping(next);
-          });
-        };
-        yMapping.observe(mappingObs);
-
-        const originalCleanup = cleanup;
-        cleanup = () => {
-          originalCleanup?.();
-          yMapping.unobserve(mappingObs);
-        };
-      },
-    );
-    return () => cleanup?.();
-  }, []);
-
   // F19 — ⌘K / Ctrl+K keyboard shortcut
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {

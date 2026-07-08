@@ -34,8 +34,8 @@ import {
   closeChatStore,
   configureChatStore,
 } from "./chat-store";
-import * as collabHubService from "./collab-hub-service";
 import * as duckdbService from "./duckdb-service";
+import * as embedService from "./embed-service";
 import { createConcurrencyLimiter, runBounded } from "./ipc-concurrency";
 import {
   ChatAppendMessageSchema,
@@ -50,11 +50,11 @@ import {
   ChatRenameSchema,
   ChatSessionIdSchema,
   ClipboardImageSchema,
-  CollabStartSchema,
   CountRowsSchema,
   DatasetOnlySchema,
   ExportDatasetSchema,
   KeysetPageSchema,
+  LlamaEmbedSchema,
   LlamaEnsureModelSchema,
   LlamaGenerateSchema,
   LlamaGenerateStructuredSchema,
@@ -96,7 +96,6 @@ import {
   saveAnalyticsSnapshotHistory,
   setSetting,
 } from "./settings-store";
-import * as voiceService from "./voice-service";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
 
 // Squirrel.Windows fires the app with --squirrel-install / --squirrel-updated /
@@ -181,16 +180,6 @@ if (app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
     .catch((error) => {
       console.warn("[electron] auto-update setup failed:", error);
     });
-}
-
-// ─── GPU / WebGPU Configuration ──────────────────────────────────────────────
-// Enable WebGPU for @huggingface/transformers in renderer + workers.
-// Required for GPU-accelerated Whisper STT and local model inference.
-app.commandLine.appendSwitch("enable-unsafe-webgpu");
-
-// Linux requires Vulkan backend for WebGPU adapter discovery.
-if (process.platform === "linux") {
-  app.commandLine.appendSwitch("enable-features", "Vulkan");
 }
 
 // Enforce the Chromium sandbox for EVERY current/future renderer (and devtools)
@@ -740,36 +729,6 @@ function installMediaPermissionHandlers(): void {
   );
 }
 
-ipcMain.handle("voice:getMicrophoneAccessStatus", async (event) =>
-  withTrustedSender(event, () => {
-    if (process.platform !== "darwin" && process.platform !== "win32") {
-      return "unknown";
-    }
-
-    return systemPreferences.getMediaAccessStatus("microphone");
-  }),
-);
-
-ipcMain.handle("voice:preloadStt", async (event, input) =>
-  withTrustedSender(event, () => voiceService.preloadStt(input)),
-);
-
-ipcMain.handle("voice:transcribe", async (event, input) =>
-  withTrustedSender(event, () => voiceService.transcribe(input)),
-);
-
-ipcMain.handle("voice:preloadTts", async (event, input) =>
-  withTrustedSender(event, () => voiceService.preloadTts(input)),
-);
-
-ipcMain.handle("voice:speak", async (event, input) =>
-  withTrustedSender(event, () => voiceService.speak(input)),
-);
-
-ipcMain.handle("voice:clearModels", async (event) =>
-  withTrustedSender(event, () => voiceService.clearVoiceModels()),
-);
-
 ipcMain.handle("duckdb:runReadOnlyQuery", async (event, sql: string) =>
   withBoundedHeavyQuery(event, "duckdb:runReadOnlyQuery", async () => {
     const safeSql = parseIpc(SqlSchema, sql, "duckdb:runReadOnlyQuery");
@@ -956,6 +915,29 @@ ipcMain.handle("llama:isAvailable", async (event, input?: { file?: string }) =>
   ),
 );
 
+// ─── IPC: node-llama-cpp Embedding Service ────────────────────────────────────
+// Separate lane from the generative handlers above — its own model + context
+// (embed-service.ts), sharing only the native Llama core via getSharedLlama().
+
+ipcMain.handle("llama:embed", async (event, input: { texts: string[] }) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(LlamaEmbedSchema, input, "llama:embed");
+    return embedService.embedBatch(parsed.texts);
+  }),
+);
+
+ipcMain.handle("llama:ensureEmbedModel", async (event, input?: { file?: string }) =>
+  withTrustedSender(event, () =>
+    embedService.ensureEmbedModel(
+      parseIpc(LlamaEnsureModelSchema, input, "llama:ensureEmbedModel")?.file,
+    ),
+  ),
+);
+
+ipcMain.handle("llama:isEmbedAvailable", async (event) =>
+  withTrustedSender(event, () => embedService.isEmbedAvailable()),
+);
+
 // ─── IPC: Moudir Chat Session Runtime ─────────────────────────────────────────
 // Live per-conversation LlamaChatSession (chat-session-service.ts). Prompt
 // tokens stream on "chat:token" and tool invocations on "chat:tool", both
@@ -1113,32 +1095,6 @@ ipcMain.handle("models:delete", async (event, key: string) =>
   ),
 );
 
-// ─── IPC: LAN Collaboration Hub Service ──────────────────────────────────────
-// Optional embedded Hocuspocus hub + bonjour-service mDNS. The renderer connects
-// as an ordinary y-websocket client; this just exposes start/stop/discover.
-
-ipcMain.handle("collabHub:start", async (event, input?: collabHubService.CollabHubStartInput) =>
-  withTrustedSender(event, () =>
-    collabHubService.start(parseIpc(CollabStartSchema, input, "collabHub:start")),
-  ),
-);
-
-ipcMain.handle("collabHub:stop", async (event) =>
-  withTrustedSender(event, () => collabHubService.stop()),
-);
-
-ipcMain.handle("collabHub:status", async (event) =>
-  withTrustedSender(event, () => collabHubService.status()),
-);
-
-ipcMain.handle("collabHub:discover", async (event) =>
-  withTrustedSender(event, () => collabHubService.discover()),
-);
-
-ipcMain.handle("collabHub:getDiscovered", async (event) =>
-  withTrustedSender(event, () => collabHubService.getDiscovered()),
-);
-
 // ─── Window ──────────────────────────────────────────────────────────────────
 
 async function createWindow(): Promise<void> {
@@ -1218,14 +1174,6 @@ async function createWindow(): Promise<void> {
 
   mainWindow.webContents.on("will-attach-webview", (event) => {
     event.preventDefault();
-  });
-
-  // Forward mDNS hub discovery events to the renderer (collab-client subscribes
-  // via the `collab:discovered` channel exposed in preload).
-  collabHubService.setDiscoveryListener((discoveryEvent) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("collab:discovered", discoveryEvent);
-    }
   });
 
   if (isDev) {
@@ -1503,8 +1451,8 @@ app.on("before-quit", () => {
     console.error("[electron] llama cleanup error:", error);
   });
 
-  collabHubService.dispose().catch((error) => {
-    console.error("[electron] collab-hub cleanup error:", error);
+  embedService.disposeEmbed().catch((error) => {
+    console.error("[electron] embed cleanup error:", error);
   });
 
   // Flush WAL + close the settings/analytics/chat SQLite handles cleanly.

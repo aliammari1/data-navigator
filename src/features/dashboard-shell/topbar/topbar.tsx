@@ -15,7 +15,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -185,6 +185,7 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
       <DropdownMenu>
         <DropdownMenuTrigger className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Avatar className="size-8 rounded-xl">
+            <AvatarImage src="/icon-192.png" alt="Data Navigator" className="rounded-xl" />
             <AvatarFallback className="rounded-xl bg-primary text-primary-foreground text-xs font-semibold">
               {userInitials || "DN"}
             </AvatarFallback>
@@ -194,6 +195,7 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
           <DropdownMenuLabel>
             <div className="flex items-center gap-3">
               <Avatar className="size-9 rounded-xl">
+                <AvatarImage src="/icon-192.png" alt="Data Navigator" className="rounded-xl" />
                 <AvatarFallback className="rounded-xl text-xs font-semibold">
                   {userInitials || "DN"}
                 </AvatarFallback>

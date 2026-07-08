@@ -2,12 +2,12 @@
  * Additional coverage for src/platform/ai/models/use-model-status.ts
  *
  * The existing .test.tsx covers most paths. This file targets the remaining
- * uncovered branches (88.33% → 100%):
+ * uncovered branches, all on the Electron GGUF probing path (`probeGguf`) —
+ * there is no browser/transformers.js lane anymore (node-llama-cpp migration
+ * removed the Cache Storage / OPFS asset probing entirely):
  *
- *  - Line  84: `if ("caches" in window)` false branch (key truly absent).
- *  - Line 112: `if (dir)` false branch (xenova dir is null → no OPFS match).
- *  - Line 151: llama-bridge match present:false ternary false branch.
- *  - Line 283: `if (!alive) return` true branch (unmount races async probe).
+ *  - llama-bridge match present:false ternary false branch.
+ *  - `if (!alive) return` true branch (unmount races the async probe).
  *  - setDownload: `prev[key] ?? EMPTY_DOWNLOAD` with existing key (both sides).
  *  - cancel() with models bridge absent but active entry present (no-op).
  *  - cancel() with active entry but no models bridge.
@@ -85,128 +85,7 @@ afterEach(() => {
   win.electronDuckDB = undefined;
 });
 
-// ─── Branch: "caches" not in window (line 84 false branch) ───────────────────
-//
-// When `"caches"` key is completely absent from window (not just undefined),
-// the `if ("caches" in window)` guard evaluates false and the whole Cache
-// Storage probe block is skipped. We achieve this by deleting the key after
-// unstubbing all globals and before the test runs.
-
-describe("probeTransformersAsset — Cache Storage skipped when `caches` key absent", () => {
-  it("falls through to OPFS when caches is not a property of window at all", async () => {
-    // Arrange: HEAD returns 404, caches key is absent from window, OPFS absent.
-    stubFetch404();
-
-    // Delete the caches key entirely so `"caches" in window` is false.
-    // vi.stubGlobal sets the key; we must delete it rather than set it to undefined.
-    const hasOwn = Object.prototype.hasOwnProperty.call(window, "caches");
-    const originalCaches = (window as AnyRecord).caches;
-    try {
-      // Remove the key so the `in` check returns false.
-      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
-      delete (window as AnyRecord).caches;
-    } catch {
-      // jsdom may not allow delete; fall back to a defineProperty trick.
-      Object.defineProperty(window, "caches", {
-        configurable: true,
-        enumerable: false,
-        get: undefined,
-        // There is no `value` here — we rely on the getter being undefined
-        // so that the `in` operator still finds the descriptor. This path
-        // may not reproduce the exact branch; see inline note below.
-      });
-    }
-
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    // Act
-    const result = await ensureModelsReady(["embed"]);
-
-    // Assert: regardless of how the cache probe falls through, we land on missing/none.
-    expect(result.records[0].state).toBe("missing");
-    expect(result.records[0].source).toBe("none");
-
-    // Restore caches if it existed before.
-    if (hasOwn) {
-      (window as AnyRecord).caches = originalCaches;
-    }
-  });
-});
-
-// ─── Branch: OPFS models dir present, Xenova dir absent (line 112 false) ──────
-//
-// When `root.getDirectoryHandle("models")` succeeds but
-// `models.getDirectoryHandle("Xenova")` returns null, the `dir` variable
-// (from `xenova?.getDirectoryHandle(...)`) is null/undefined — so the
-// `if (dir)` branch evaluates false and we fall through to missing.
-
-describe("probeTransformersAsset — OPFS models dir present but Xenova absent", () => {
-  it("reports missing when OPFS models dir exists but Xenova dir is absent", async () => {
-    // Arrange
-    stubFetch404();
-    vi.stubGlobal("caches", undefined);
-
-    const modelsDir = {
-      // "Xenova" is not available → return null
-      getDirectoryHandle: vi.fn(async (name: string) => {
-        if (name === "Xenova") return null;
-        return undefined;
-      }),
-    };
-    const root = {
-      getDirectoryHandle: vi.fn(async (name: string) => {
-        if (name === "models") return modelsDir;
-        return undefined;
-      }),
-    };
-    vi.stubGlobal("navigator", {
-      storage: { getDirectory: vi.fn(async () => root) },
-    });
-
-    // Act
-    const result = await ensureModelsReady(["embed"]);
-
-    // Assert: xenova is null so xenova?.getDirectoryHandle(...) → undefined,
-    // catch(() => null) → null, if (dir) is false → falls to missing.
-    expect(result.records[0].state).toBe("missing");
-    expect(result.records[0].source).toBe("none");
-  });
-
-  it("reports missing when OPFS models dir exists but all-MiniLM dir is absent under Xenova", async () => {
-    // Arrange: xenova dir exists but all-MiniLM-L6-v2 dir throws (caught → null).
-    stubFetch404();
-    vi.stubGlobal("caches", undefined);
-
-    const xenovaDir = {
-      getDirectoryHandle: vi.fn(async (_name: string) => {
-        throw new Error("DOMException: not found");
-      }),
-    };
-    const modelsDir = {
-      getDirectoryHandle: vi.fn(async (name: string) => {
-        if (name === "Xenova") return xenovaDir;
-        return null;
-      }),
-    };
-    const root = {
-      getDirectoryHandle: vi.fn(async (name: string) => {
-        if (name === "models") return modelsDir;
-        return null;
-      }),
-    };
-    vi.stubGlobal("navigator", {
-      storage: { getDirectory: vi.fn(async () => root) },
-    });
-
-    // Act
-    const result = await ensureModelsReady(["embed"]);
-
-    // Assert: xenovaDir.getDirectoryHandle throws → .catch(() => null) → dir is null
-    expect(result.records[0].state).toBe("missing");
-  });
-});
-
-// ─── Branch: llama bridge match with present:false (line 151 false ternary) ───
+// ─── Branch: llama bridge match with present:false (false ternary) ───────────
 //
 // `probeGguf` falls back to the llama bridge when `listPresence` has no match.
 // The match's `present` flag drives the ternary on line 151; `present:false`
@@ -275,7 +154,7 @@ describe("probeGguf — llama bridge match where present:false", () => {
   });
 });
 
-// ─── Branch: `!alive` race on unmount (line 283 true branch) ─────────────────
+// ─── Branch: `!alive` race on unmount (true branch) ───────────────────────────
 //
 // When the component unmounts while the initial async probe is still pending,
 // the `if (!alive) return` guard fires and setRecords/setLoading are NOT called
@@ -284,31 +163,29 @@ describe("probeGguf — llama bridge match where present:false", () => {
 
 describe("useModelStatus useEffect — unmount race with in-flight probe", () => {
   it("does not update state when the hook unmounts before the probe resolves", async () => {
-    // Arrange: make the probe take a microtask so we can unmount first.
-    let resolveFetch!: (r: Response) => void;
-    vi.stubGlobal(
-      "fetch",
-      vi.fn(
+    // Arrange: make the probe (electronModels.listPresence) hang so we can
+    // unmount before it resolves.
+    let resolveListPresence!: (v: unknown[]) => void;
+    installModelsBridge({
+      listPresence: vi.fn(
         () =>
-          new Promise<Response>((resolve) => {
-            resolveFetch = resolve;
+          new Promise<unknown[]>((resolve) => {
+            resolveListPresence = resolve;
           }),
       ),
-    );
-    vi.stubGlobal("caches", undefined);
-    vi.stubGlobal("navigator", { storage: undefined });
+    });
 
     const { result, unmount } = renderHook(() => useModelStatus(["embed"]));
 
     // Synchronous initial state — still loading.
     expect(result.current.loading).toBe(true);
 
-    // Unmount before the fetch resolves → `alive` becomes false.
+    // Unmount before listPresence resolves → `alive` becomes false.
     unmount();
 
-    // Now let the deferred fetch settle.
+    // Now let the deferred probe settle.
     await act(async () => {
-      resolveFetch(new Response(null, { status: 200 }));
+      resolveListPresence([]);
       await Promise.resolve();
     });
 
@@ -380,11 +257,11 @@ describe("useModelStatus cancel() — no-op when models bridge absent", () => {
 
     // Should not throw even without a bridge.
     await act(async () => {
-      await result.current.cancel("minilm-onnx-quantized");
+      await result.current.cancel("qwen3-embedding-0.6b-q8_0");
     });
 
     // No download state was ever set.
-    expect(result.current.downloads["minilm-onnx-quantized"]).toBeUndefined();
+    expect(result.current.downloads["qwen3-embedding-0.6b-q8_0"]).toBeUndefined();
   });
 });
 
@@ -411,66 +288,6 @@ describe("isPrimaryLlmReady — extra branches", () => {
     // No electronModels bridge so we fall through to the llama bridge directly.
     const ready = await isPrimaryLlmReady();
     expect(ready).toBe(true);
-  });
-});
-
-// ─── Branch: Cache Storage loop with multiple caches (covers loop body fully) ─
-
-describe("probeTransformersAsset — Cache Storage with multiple caches", () => {
-  it("checks every cache bucket until a matching request URL is found", async () => {
-    stubFetch404();
-
-    const cacheWithMatch = {
-      keys: vi.fn(async () => [
-        {
-          url: "https://cdn.example.com/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx",
-        },
-      ]),
-    };
-    const cacheWithoutMatch = {
-      keys: vi.fn(async () => [{ url: "https://cdn.example.com/some-other-file.js" }]),
-    };
-    vi.stubGlobal("caches", {
-      keys: vi.fn(async () => ["no-match-cache", "matching-cache"]),
-      open: vi.fn(async (name: string) => {
-        if (name === "matching-cache") return cacheWithMatch;
-        return cacheWithoutMatch;
-      }),
-    });
-    vi.stubGlobal("navigator", { storage: undefined });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("present");
-    expect(result.records[0].source).toBe("browser-cache");
-  });
-});
-
-// ─── Branch: OPFS navigator.storage present but getDirectory returns falsy ────
-
-describe("probeTransformersAsset — OPFS storage present but getDirectory returns null", () => {
-  it("falls through to missing when getDirectory returns null", async () => {
-    stubFetch404();
-    vi.stubGlobal("caches", undefined);
-    vi.stubGlobal("navigator", {
-      storage: { getDirectory: vi.fn(async () => null) },
-    });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("missing");
-  });
-
-  it("falls through to missing when navigator.storage is present but getDirectory is absent", async () => {
-    stubFetch404();
-    vi.stubGlobal("caches", undefined);
-    vi.stubGlobal("navigator", {
-      storage: {}, // no getDirectory method
-    });
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].state).toBe("missing");
   });
 });
 
