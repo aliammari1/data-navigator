@@ -47,12 +47,6 @@
     "gzip": true
   },
   {
-    "name": "route: /dashboard/agent-canvas",
-    "path": ".next/static/chunks/app/dashboard/agent-canvas/page-*.js",
-    "limit": "360 kB",
-    "gzip": true
-  },
-  {
     "name": "route: /dashboard/deep-analytics",
     "path": ".next/static/chunks/app/dashboard/deep-analytics/page-*.js",
     "limit": "320 kB",

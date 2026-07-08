@@ -2,22 +2,14 @@
 
 import type { IconHandle } from "@animateicons/react";
 import {
-  ActivityIcon,
   AtomIcon,
-  BrainIcon,
-  ChartColumnIcon,
   CreditCardIcon,
   DashboardIcon,
-  EyeIcon,
   FolderIcon,
-  GitBranchIcon,
   LayoutGridIcon,
   MessageCircleIcon,
-  MicIcon,
   SettingsIcon,
-  SparklesIcon,
   Trash2Icon,
-  TrendingUpIcon,
   UploadIcon,
   UsersIcon,
 } from "@animateicons/react/lucide";
@@ -55,19 +47,11 @@ const ANIMATED_ICONS: Record<string, AnimatedIcon> = {
   home: DashboardIcon,
   moudir: AtomIcon,
   "moudir-chat": MessageCircleIcon,
-  commander: MicIcon,
-  "eye-tracking": EyeIcon,
   telecom: CreditCardIcon,
   settings: SettingsIcon,
-  "ai-briefing": SparklesIcon,
-  "ai-analysis": BrainIcon,
-  forecast: TrendingUpIcon,
   upload: UploadIcon,
   folders: FolderIcon,
-  "data-browser": ChartColumnIcon,
-  lineage: GitBranchIcon,
   collaboration: UsersIcon,
-  "agent-canvas": ActivityIcon,
 };
 
 const ICON_PX = 24;

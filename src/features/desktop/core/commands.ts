@@ -13,7 +13,6 @@
  * Result families (mirrors a KRunner):
  *  - App launches            → "ouvrir <app>" (fuzzy over the app registry)
  *  - Moudir data questions   → "Demander à Moudir : « … »" (routed to the agent)
- *  - Recent datasets         → activate a dataset + open the explorer
  *  - Appearance              → set wallpaper / set glass palette
  *  - Calculator              → inline math eval ("= 12 * 3")
  *  - Report export           → "Exporter le rapport"
@@ -23,15 +22,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import {
-  Calculator,
-  Database,
-  FileDown,
-  Image as ImageIcon,
-  Palette,
-  Sparkles,
-} from "lucide-react";
-import { useDataStore } from "@/core/stores/data-store";
+import { Calculator, Image as ImageIcon, Palette, Sparkles } from "lucide-react";
 import { DESKTOP_APPS, LAUNCHER_APPS } from "@/features/desktop/core/app-registry";
 import {
   GLASS_PALETTES,
@@ -42,14 +33,7 @@ import {
 } from "@/features/desktop/store/desktop-store";
 
 /** Coarse grouping so the integration can section / icon-tint results. */
-export type CommandKind =
-  | "app"
-  | "moudir"
-  | "dataset"
-  | "wallpaper"
-  | "palette"
-  | "math"
-  | "export";
+export type CommandKind = "app" | "moudir" | "wallpaper" | "palette" | "math" | "export";
 
 /** A single resolved, runnable command surfaced in the Spotlight list. */
 export interface CommandResult {
@@ -281,27 +265,6 @@ export function resolveCommands(query: string): CommandResult[] {
     });
   }
 
-  // 3) Recent datasets — activate + open the explorer.
-  const { datasets, setActiveDataset } = useDataStore.getState();
-  const recent = [...datasets].sort((a, b) => (b.updatedAt > a.updatedAt ? 1 : -1)).slice(0, 6);
-  for (const ds of recent) {
-    const s = term ? fuzzyScore(ds.name, term) : 0;
-    if (term && s <= 0) continue;
-    results.push({
-      id: `dataset:${ds.id}`,
-      kind: "dataset",
-      title: ds.name,
-      subtitle: `${ds.rowCount.toLocaleString("fr-FR")} lignes · ${ds.colCount} colonnes`,
-      icon: Database,
-      hue: 200,
-      score: term ? 1500 + s : 30,
-      run: () => {
-        setActiveDataset(ds.id);
-        openAppEvent("data-browser", { datasetId: ds.id });
-      },
-    });
-  }
-
   // 4) Appearance — set wallpaper (matches "fond", "papier peint", or label).
   if (term && /fond|papier|wall|theme|thème|aube|encre|crépus|cr.pus|papier/i.test(term)) {
     const { setWallpaper } = useDesktopStore.getState();
@@ -338,20 +301,6 @@ export function resolveCommands(query: string): CommandResult[] {
         run: () => setGlassPalette(gp.id as GlassPaletteId),
       });
     }
-  }
-
-  // 6) Export report — surfaced on intent keywords.
-  if (term && /export|rapport|report|pdf|imprim|t.l.charger|telecharger/i.test(term)) {
-    results.push({
-      id: "export-report",
-      kind: "export",
-      title: "Exporter le rapport",
-      subtitle: "Ouvrir le Studio de rapports",
-      icon: FileDown,
-      hue: 18,
-      score: 1300 + fuzzyScore("exporter le rapport", term),
-      run: () => openAppEvent("report-studio", { intent: "export" }),
-    });
   }
 
   // 7) Moudir fallback — always offered for any non-empty text query so a

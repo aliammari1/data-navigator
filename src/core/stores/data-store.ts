@@ -502,7 +502,7 @@ function migrateDataset(raw: unknown): Dataset {
 }
 
 // ─── Selector hooks ───────────────────────────────────────────────────────────
-// Narrow slices so wholesale consumers (ai-analysis, sidebar-nav, parsed-data)
+// Narrow slices so wholesale consumers (sidebar-nav, parsed-data)
 // can subscribe only what they read instead of the whole store.
 
 export const useDatasets = () => useDataStore((s) => s.datasets);

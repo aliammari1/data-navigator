@@ -1,5 +1,4 @@
-import type { ChartType } from "@/features/agent-canvas/core/types";
-import type { AggregateFn, FilterDef } from "./types";
+import type { AggregateFn, ChartType, FilterDef } from "./types";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const CHART_TYPES: Array<{ type: ChartType; label: string }> = [

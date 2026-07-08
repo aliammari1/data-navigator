@@ -28,8 +28,6 @@ export function ShellOverviewScreen() {
   const datasetCount = useDataStore((s) => s.datasets.length);
   const activityCount = useActivityStore((s) => s.events.length);
   const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
-  const aiPanelOpen = useShellStore((s) => s.aiPanelOpen);
-  const aiPanelTab = useShellStore((s) => s.aiPanelTab);
 
   const [storage, setStorage] = useState<StorageInfo | null>(null);
 
@@ -116,12 +114,7 @@ export function ShellOverviewScreen() {
       <div className="mt-6 grid gap-3 sm:grid-cols-3">
         <Stat label="Datasets" value={datasetCount} />
         <Stat label="Activity events" value={activityCount} />
-        <Stat
-          label="Persisted layout"
-          value={`${sidebarCollapsed ? "collapsed" : "expanded"} · ${
-            aiPanelOpen ? "AI open" : "AI closed"
-          } · ${aiPanelTab}`}
-        />
+        <Stat label="Persisted layout" value={sidebarCollapsed ? "collapsed" : "expanded"} />
       </div>
 
       <div className="mt-6 rounded-2xl border border-border bg-card p-4">
@@ -132,7 +125,6 @@ export function ShellOverviewScreen() {
         <dl className="grid gap-2 sm:grid-cols-3">
           {[
             ["Command palette", "Ctrl / Cmd + K"],
-            ["Toggle AI copilot", "Ctrl / Cmd + \\"],
             ["Toggle sidebar", "Ctrl / Cmd + B"],
           ].map(([label, keys]) => (
             <div key={label} className="flex items-center justify-between gap-2 text-xs">

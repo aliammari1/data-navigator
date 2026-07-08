@@ -9,7 +9,7 @@
  * request is navigation vs analysis — there is no rule-based keyword routing.
  */
 
-import { ALL_ITEMS, TELECOM_NAV_ITEMS } from "@/features/dashboard-shell/nav/nav-config";
+import { ALL_ITEMS } from "@/features/dashboard-shell/nav/nav-config";
 
 export interface AppRoute {
   /** Canonical path (also used as the id). */
@@ -19,8 +19,6 @@ export interface AppRoute {
   /** Short hint + keywords to help the model match intent. */
   hint: string;
 }
-
-const TELECOM_BASE = "/dashboard/telecom-report";
 
 /** Every navigable destination, deduped by path. */
 export const APP_ROUTES: AppRoute[] = (() => {
@@ -38,10 +36,6 @@ export const APP_ROUTES: AppRoute[] = (() => {
       item.title,
       [item.description, ...(item.keywords ?? [])].filter(Boolean).join(" · "),
     );
-  }
-  // Telecom in-page tabs are real destinations too (?tab=…).
-  for (const tab of TELECOM_NAV_ITEMS) {
-    push(`${TELECOM_BASE}?tab=${tab.key}`, `Rapport Télécom — ${tab.label}`, tab.description);
   }
   return routes;
 })();

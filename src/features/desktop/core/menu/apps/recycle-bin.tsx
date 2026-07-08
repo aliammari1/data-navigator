@@ -1,6 +1,6 @@
 "use client";
 
-import { FolderClosed, FolderOpen, PlusSquare, RotateCcw, Trash2, X } from "lucide-react";
+import { FolderOpen, PlusSquare, RotateCcw, Trash2, X } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
 
 /**
@@ -62,12 +62,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         label: "Ouvrir les dossiers",
         icon: FolderOpen,
         run: () => ctx.openApp("folders"),
-      },
-      {
-        id: "open-parsed",
-        label: "Ouvrir les jeux de données",
-        icon: FolderClosed,
-        run: () => ctx.openApp("parsed"),
       },
     ],
   },

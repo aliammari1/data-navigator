@@ -1,14 +1,12 @@
 "use client";
 
 import {
-  Brain,
   Database,
   FileDown,
   FileInput,
   MessageCircleQuestion,
   PlusSquare,
   RefreshCw,
-  Sparkles,
   X,
 } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
@@ -72,19 +70,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         run: () => ctx.command("export"),
       },
       { kind: "separator", id: "report-sep-1" },
-      {
-        id: "ai-briefing",
-        label: "Briefing IA",
-        icon: Sparkles,
-        run: () => ctx.openApp("ai-briefing"),
-      },
-      {
-        id: "ai-analysis",
-        label: "Analyse IA",
-        icon: Brain,
-        run: () => ctx.openApp("ai-analysis"),
-      },
-      { kind: "separator", id: "report-sep-2" },
       {
         id: "ask-moudir",
         label: "Demander à Moudir",

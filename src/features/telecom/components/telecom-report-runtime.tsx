@@ -588,6 +588,7 @@ export function TelecomReportRuntimeProvider({
   });
 
   // Reset snapshot tracking whenever the active table changes (dataset switch).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: dashboardTableName is only a re-run trigger, not read in the body
   useEffect(() => {
     snapshotLoadedForRef.current = "";
     setSnapshotedAt(null);
@@ -942,9 +943,11 @@ export function TelecomReportRuntimeProvider({
           </div>
         </div>
 
-        <div className="mt-3 border-b border-border">
-          <TelecomTabStrip activeTab={activeTabProp} onTabChange={onTabChange} />
-        </div>
+        {onTabChange && (
+          <div className="mt-3 border-b border-border">
+            <TelecomTabStrip activeTab={activeTabProp} onTabChange={onTabChange} />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 space-y-6 overflow-y-auto p-6">

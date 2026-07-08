@@ -49,7 +49,7 @@ describe("Settings Store", () => {
     expect(result.current.sidebarPinned).toBe(true);
     expect(result.current.showBreadcrumbs).toBe(true);
     expect(result.current.compactNumbers).toBe(true);
-    expect(result.current.pinnedItems).toContain("/dashboard");
+    expect(result.current.pinnedItems).toContain("/dashboard/telecom-report/overview");
     expect(result.current.pinnedItems).toContain("/dashboard/upload");
   });
 
@@ -210,20 +210,20 @@ describe("Settings Store", () => {
   it("should toggle pinned items", () => {
     const { result } = renderHook(() => useSettingsStore());
 
-    // "/dashboard" is already in pinnedItems by default
-    expect(result.current.pinnedItems).toContain("/dashboard");
+    // "/dashboard/telecom-report/overview" is already in pinnedItems by default
+    expect(result.current.pinnedItems).toContain("/dashboard/telecom-report/overview");
 
     act(() => {
-      result.current.togglePinnedItem("/dashboard");
+      result.current.togglePinnedItem("/dashboard/telecom-report/overview");
     });
 
-    expect(result.current.pinnedItems).not.toContain("/dashboard");
+    expect(result.current.pinnedItems).not.toContain("/dashboard/telecom-report/overview");
 
     act(() => {
-      result.current.togglePinnedItem("/dashboard");
+      result.current.togglePinnedItem("/dashboard/telecom-report/overview");
     });
 
-    expect(result.current.pinnedItems).toContain("/dashboard");
+    expect(result.current.pinnedItems).toContain("/dashboard/telecom-report/overview");
   });
 
   it("should reset to defaults", () => {
@@ -249,9 +249,8 @@ describe("Settings Store", () => {
     expect(result.current.sidebarPinned).toBe(true);
     expect(result.current.showBreadcrumbs).toBe(true);
     expect(result.current.compactNumbers).toBe(true);
-    expect(result.current.pinnedItems).toContain("/dashboard");
+    expect(result.current.pinnedItems).toContain("/dashboard/telecom-report/overview");
     expect(result.current.pinnedItems).toContain("/dashboard/upload");
-    expect(result.current.pinnedItems).toContain("/dashboard/ai-analysis");
   });
 
   it("should enable and disable AI critic", () => {
@@ -308,7 +307,7 @@ describe("Settings Store", () => {
 
     it("usePinnedItems returns pinned items", () => {
       const { result } = renderHook(() => usePinnedItems());
-      expect(result.current).toContain("/dashboard");
+      expect(result.current).toContain("/dashboard/telecom-report/overview");
     });
 
     it("useSettingsActions returns all action functions", () => {
@@ -336,8 +335,11 @@ describe("Settings Store", () => {
   describe("migrate function", () => {
     // Access the migrate function directly from persist options to test all branches
     // without requiring a full storage hydration round-trip.
-    const getMigrate = () => useSettingsStore.persist.getOptions().migrate as
-      (persisted: unknown, version: number) => unknown;
+    const getMigrate = () =>
+      useSettingsStore.persist.getOptions().migrate as (
+        persisted: unknown,
+        version: number,
+      ) => unknown;
 
     it("migrates null/undefined persisted state using empty object fallback", () => {
       const migrate = getMigrate();

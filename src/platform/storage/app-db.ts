@@ -145,7 +145,7 @@ export interface SavedQuery {
 /**
  * Achievement state: a per-achievement unlock row PLUS the capped event stream
  * used to drive progress (replaces the synchronous parse-per-call localStorage
- * blob in ux-innovations).
+ * blob in achievements).
  */
 export interface AchievementRecord {
   id: string; // achievement id, or `evt:<uuid>` for stream rows
@@ -478,34 +478,6 @@ export async function deleteColumnProfilesForDataset(datasetId: string): Promise
   await appDb.columnProfiles.where("datasetId").equals(datasetId).delete();
 }
 
-// ─── Transform recipes ───────────────────────────────────────────────────────
-
-export async function putTransformRecipe(
-  recipe: Omit<TransformRecipe, "updatedAt" | "steps"> & { steps: unknown[] },
-): Promise<string> {
-  await appDb.transformRecipes.put({
-    ...recipe,
-    steps: toCloneSafeArray(recipe.steps),
-    updatedAt: Date.now(),
-  });
-  return recipe.id;
-}
-
-export async function listTransformRecipes(datasetId?: string): Promise<TransformRecipe[]> {
-  if (datasetId) {
-    return appDb.transformRecipes
-      .where("datasetId")
-      .equals(datasetId)
-      .reverse()
-      .sortBy("updatedAt");
-  }
-  return appDb.transformRecipes.orderBy("updatedAt").reverse().toArray();
-}
-
-export async function deleteTransformRecipe(id: string): Promise<void> {
-  await appDb.transformRecipes.delete(id);
-}
-
 // ─── Import history (append + paged read + retention) ────────────────────────
 
 export async function addImportRecord(
@@ -617,28 +589,6 @@ export async function deleteSavedQuery(id: string): Promise<void> {
 
 // ─── Achievements (unlock rows + capped event stream) ────────────────────────
 
-export async function unlockAchievement(achievementId: string, data?: unknown): Promise<void> {
-  await appDb.achievements.put({
-    id: achievementId,
-    kind: "unlock",
-    ts: Date.now(),
-    ref: achievementId,
-    data: data === undefined ? undefined : toCloneSafeValue(data),
-  });
-}
-
-export async function recordAchievementEvent(triggerType: string, data?: unknown): Promise<string> {
-  const id = `evt:${newId()}`;
-  await appDb.achievements.put({
-    id,
-    kind: "event",
-    ts: Date.now(),
-    ref: triggerType,
-    data: data === undefined ? undefined : toCloneSafeValue(data),
-  });
-  return id;
-}
-
 export async function listUnlockedAchievements(): Promise<AchievementRecord[]> {
   return appDb.achievements
     .where("[kind+ts]")
@@ -650,27 +600,6 @@ export async function listUnlockedAchievements(): Promise<AchievementRecord[]> {
 export async function isAchievementUnlocked(id: string): Promise<boolean> {
   const row = await appDb.achievements.get(id);
   return row?.kind === "unlock";
-}
-
-// ─── Report definitions ──────────────────────────────────────────────────────
-
-export async function putReportDefinition(
-  def: Omit<ReportDefinitionRecord, "updatedAt">,
-): Promise<string> {
-  await appDb.reportDefinitions.put({
-    ...def,
-    config: toCloneSafeValue(def.config) ?? null,
-    updatedAt: Date.now(),
-  });
-  return def.id;
-}
-
-export async function listReportDefinitions(): Promise<ReportDefinitionRecord[]> {
-  return appDb.reportDefinitions.orderBy("updatedAt").reverse().toArray();
-}
-
-export async function deleteReportDefinition(id: string): Promise<void> {
-  await appDb.reportDefinitions.delete(id);
 }
 
 // ─── Settings drift ──────────────────────────────────────────────────────────

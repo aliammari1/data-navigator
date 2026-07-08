@@ -2,7 +2,6 @@
 
 import {
   BarChart3,
-  ExternalLink,
   Image as ImageIcon,
   type LucideIcon,
   MessageSquareText,
@@ -18,8 +17,8 @@ import { type DesktopSnapshot, useDesktopActions } from "@/features/desktop/stor
  *
  * Snapshots are "frozen" artifacts captured from a producing app (a chart, a
  * table, an AI answer or an image). They render as draggable macOS-glass cards
- * showing the captured title + payload, with two actions: re-open the artifact
- * in Report Studio, or remove it from the canvas.
+ * showing the captured title + payload, with a single action: remove it from
+ * the canvas.
  *
  * Dragging uses pointer capture (same protocol as desktop icons) and persists
  * the new position through `moveSnapshot` only once the drag actually moved.
@@ -38,7 +37,7 @@ export interface SnapshotArtifactProps {
 }
 
 export function SnapshotArtifact({ snapshot }: SnapshotArtifactProps) {
-  const { moveSnapshot, removeSnapshot, openApp } = useDesktopActions();
+  const { moveSnapshot, removeSnapshot } = useDesktopActions();
 
   const [drag, setDrag] = useState<{ x: number; y: number } | null>(null);
   const dragInfo = useRef<{ offX: number; offY: number; moved: boolean } | null>(null);
@@ -83,10 +82,6 @@ export function SnapshotArtifact({ snapshot }: SnapshotArtifactProps) {
     },
     [moveSnapshot, snapshot.id],
   );
-
-  const openInReportStudio = useCallback(() => {
-    openApp("report-studio", { props: { snapshotId: snapshot.id, snapshot } });
-  }, [openApp, snapshot]);
 
   const pos = drag ?? { x: snapshot.x, y: snapshot.y };
   const w = snapshot.w || 280;
@@ -173,21 +168,9 @@ export function SnapshotArtifact({ snapshot }: SnapshotArtifactProps) {
 
       {/* Actions */}
       <div
-        className="flex items-center justify-between gap-2 px-2.5 py-2"
+        className="flex items-center justify-end gap-2 px-2.5 py-2"
         style={{ borderTop: "1px solid var(--glass-hairline)" }}
       >
-        <button
-          type="button"
-          onClick={openInReportStudio}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[11px] font-medium transition-colors hover:brightness-110"
-          style={{
-            background: "hsl(var(--glass-accent) / 0.16)",
-            color: "hsl(var(--glass-accent))",
-          }}
-        >
-          <ExternalLink className="size-3.5" />
-          Ouvrir dans Report Studio
-        </button>
         <button
           type="button"
           onClick={() => removeSnapshot(snapshot.id)}

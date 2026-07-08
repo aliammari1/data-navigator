@@ -14,12 +14,11 @@
  */
 
 import { z } from "zod";
-import type { ChartType } from "@/features/agent-canvas/core/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { genId } from "../../helpers";
 import { sanitizeJsonValue } from "../../json";
 import { buildSQL } from "../../sql";
-import type { ChartSpec, ColumnInfo, QueryResult } from "../../types";
+import type { ChartSpec, ChartType, ColumnInfo, QueryResult } from "../../types";
 import type { InferenceScheduler } from "../scheduler";
 import type {
   AgentTask,

@@ -1,8 +1,8 @@
 import { expect, test } from "@playwright/test";
 
 /**
- * Data Import and Processing User Journey Tests
- * Covers: Upload page, file handling, parsed data view
+ * Data Import User Journey Tests
+ * Covers: Upload page, file handling, catalog handoff
  */
 
 test.describe("Data Import Workflow Journey", () => {
@@ -21,19 +21,6 @@ test.describe("Data Import Workflow Journey", () => {
     expect(count).toBeGreaterThan(0);
   });
 
-  test("should navigate from upload to parsed data", async ({ page }) => {
-    // Upload page should be loaded
-    await expect(page).toHaveURL(/.*upload.*/);
-
-    // Navigate to parsed data page
-    await page.goto("/dashboard/parsed");
-    await page.waitForLoadState("networkidle");
-
-    // Verify parsed data page loads
-    await expect(page.locator("body")).toBeVisible();
-    await expect(page).toHaveURL(/.*parsed.*/);
-  });
-
   test("should navigate from upload to folders", async ({ page }) => {
     await expect(page).toHaveURL(/.*upload.*/);
 
@@ -43,27 +30,5 @@ test.describe("Data Import Workflow Journey", () => {
 
     await expect(page.locator("body")).toBeVisible();
     await expect(page).toHaveURL(/.*folders.*/);
-  });
-
-  test("should navigate through data processing pipeline", async ({ page }) => {
-    // Step 1: Upload
-    await page.goto("/dashboard/upload");
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/.*upload.*/);
-
-    // Step 2: Transform
-    await page.goto("/dashboard/transform");
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/.*transform.*/);
-
-    // Step 3: Parsed Data
-    await page.goto("/dashboard/parsed");
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/.*parsed.*/);
-
-    // Step 4: History
-    await page.goto("/dashboard/history");
-    await page.waitForLoadState("networkidle");
-    await expect(page).toHaveURL(/.*history.*/);
   });
 });

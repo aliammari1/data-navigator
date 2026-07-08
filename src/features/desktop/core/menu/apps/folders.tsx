@@ -8,7 +8,6 @@ import {
   LayoutGrid,
   List,
   Sparkles,
-  Table2,
   Upload,
   X,
 } from "lucide-react";
@@ -60,12 +59,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
     id: "catalogue",
     label: "Catalogue",
     items: [
-      {
-        id: "open-browser",
-        label: "Explorateur de données",
-        icon: Table2,
-        run: () => ctx.openApp("data-browser"),
-      },
       {
         id: "open-report",
         label: "Rapport télécom",

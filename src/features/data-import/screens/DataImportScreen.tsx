@@ -209,12 +209,12 @@ export default function DataImportScreen() {
 
   // Route by DETECTION, not the legacy ?context fork: if the file we just
   // imported is a telecom dataset (tags set by getTelecomDatasetProfile during
-  // the pipeline), open the report; otherwise go to the data profile (§3).
+  // the pipeline), open the report; otherwise go to the dataset catalog.
   const getUploadSuccessPath = useCallback(() => {
     const state = useDataStore.getState();
     const active = state.datasets.find((d) => d.id === state.activeDatasetId);
     if (active && isTelecomDataset(active)) return "/dashboard/telecom-report";
-    return "/dashboard/parsed";
+    return "/dashboard/folders";
   }, []);
 
   const pipelineContext = useMemo<ImportPipelineContext>(

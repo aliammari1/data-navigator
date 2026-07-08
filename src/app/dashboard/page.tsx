@@ -1,13 +1,12 @@
-import DashboardHomeScreen from "@/features/dashboard-home/screens/DashboardHomeScreen";
+import { redirect } from "next/navigation";
 
 /**
  * Dashboard index.
  *
- * Renders the dataset-agnostic landing/KPI overview (telecom datasets get the
- * rich telecom view, any other dataset gets a generic DuckDB-backed overview).
- * Previously this route hard-redirected to /dashboard/telecom-report, which
- * made the home screen unreachable; the screen now routes by dataset kind.
+ * There is no standalone Accueil/home screen — the telecom report's Vue
+ * d'ensemble tab is the landing page. It already has its own empty state
+ * ("Aucun rapport télécom chargé" + an Upload CTA) for the no-dataset case.
  */
 export default function Page() {
-  return <DashboardHomeScreen />;
+  redirect("/dashboard/telecom-report/overview");
 }

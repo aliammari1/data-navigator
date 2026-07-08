@@ -54,7 +54,7 @@ export const WithBreadcrumbs: Story = {
       },
       {
         label: "Data",
-        href: "/dashboard/data",
+        href: "/dashboard/folders",
       },
       {
         label: "Datasets",

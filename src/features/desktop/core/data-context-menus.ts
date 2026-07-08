@@ -162,10 +162,6 @@ export function buildDatasetMenu(ds: DatasetMenuTarget, actions: DataMenuActions
 
   return clean([
     openApp && {
-      label: "Ouvrir dans l'explorateur",
-      onClick: () => openApp("data-browser", { props: { datasetId: ds.id } }),
-    },
-    openApp && {
       label: "Ouvrir dans Télécom",
       onClick: () => openApp("telecom", { props: { datasetId: ds.id } }),
     },
@@ -182,14 +178,6 @@ export function buildDatasetMenu(ds: DatasetMenuTarget, actions: DataMenuActions
     askMoudir && {
       label: "Analyser avec Moudir",
       onClick: () => askMoudir(`Analyse le jeu de données « ${ds.name} » et résume-le.`),
-    },
-    openApp && {
-      label: "Prévoir les tendances",
-      onClick: () => openApp("forecast", { props: { datasetId: ds.id } }),
-    },
-    openApp && {
-      label: "Générer un rapport",
-      onClick: () => openApp("report-studio", { props: { datasetId: ds.id } }),
     },
   ]);
 }
@@ -230,11 +218,10 @@ export function buildFolderMenu(folder: FolderMenuTarget, actions: DataMenuActio
  * Context menu for a chart inside a feature window (right-click on a chart).
  */
 export function buildChartMenu(ctx: ChartMenuTarget, actions: DataMenuActions): MenuItem[] {
-  const { pinSnapshot, askMoudir, setCrossFilter, clearCrossFilter, setSelection, openApp } =
-    actions;
+  const { pinSnapshot, askMoudir, setCrossFilter, clearCrossFilter, setSelection } = actions;
 
   const title = ctx.title?.trim() || "Graphique";
-  const appId = ctx.appId ?? "data-browser";
+  const appId = ctx.appId ?? "telecom";
   const hasFilter = Boolean(ctx.dimension && ctx.value);
 
   return clean([
@@ -284,11 +271,6 @@ export function buildChartMenu(ctx: ChartMenuTarget, actions: DataMenuActions): 
             : `Explique le graphique « ${title} » et ses enseignements.`,
         ),
     },
-    openApp &&
-      Boolean(ctx.datasetId) && {
-        label: "Ouvrir le jeu de données source",
-        onClick: () => openApp("data-browser", { props: { datasetId: ctx.datasetId } }),
-      },
   ]);
 }
 

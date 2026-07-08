@@ -5,52 +5,32 @@
  * metadata can be imported by server components and tree-shaken cleanly, and so
  * desktop / mobile / command-palette surfaces never drift from a single source.
  *
- * IA v2 (redesign blueprint §2): French-first, 5 groups
- *   Accueil · Rapport · Intelligence · Données · Sorties + footer (Aide/Paramètres).
- * Telecom's 8 sub-tabs LEAVE the sidebar (they live in an in-page tab rail);
- * the sidebar shows a single "Rapport Télécom" entry. Two group headers are hub
- * pages (/dashboard/analysis, /dashboard/data) whose children expand inline.
+ * IA v3: French-first, 4 groups
+ *   Rapport · Intelligence · Données · Sorties + footer (Aide/Paramètres).
+ * "Rapport Télécom" is a hub whose 8 tabs (previously an in-page tab rail)
+ * are now sidebar children — "Vue d'ensemble" doubles as the app's landing
+ * page (bare /dashboard redirects there; there is no separate Accueil
+ * screen).
  */
 
 import {
   Activity,
   BarChart3,
-  Brain,
   CalendarDays,
-  Clapperboard,
-  Database,
-  FileText,
   FlaskConical,
   Folders,
-  GitBranch,
   HelpCircle,
   History,
   Layers,
   LayoutDashboard,
-  Map as MapIcon,
   MessageCircle,
-  Microscope,
-  Radio,
   Receipt,
-  Scale,
   Settings,
   Settings2,
-  Sparkles,
   Table2,
-  TrendingUp,
   Upload,
   Users,
 } from "lucide-react";
-
-export type TelecomDashboardTab =
-  | "overview"
-  | "canals"
-  | "analysis"
-  | "grid"
-  | "period"
-  | "day"
-  | "history"
-  | "config";
 
 /** Tokenized badge tones — no raw colors. Only real/meaningful states. */
 export type NavBadgeTone = "live" | "ai" | "info";
@@ -104,77 +84,7 @@ export interface DashboardUser {
   image?: string | null;
 }
 
-/** Telecom in-page tab rail (rendered inside the report, not the sidebar). */
-export const TELECOM_NAV_ITEMS: Array<{
-  key: TelecomDashboardTab;
-  label: string;
-  description: string;
-  icon: React.ElementType;
-}> = [
-  {
-    key: "overview",
-    label: "Vue d'ensemble",
-    description: "KPIs, statut global et synthèse",
-    icon: LayoutDashboard,
-  },
-  {
-    key: "canals",
-    label: "Canaux",
-    description: "Analyse par canal transactionnel",
-    icon: Layers,
-  },
-  {
-    key: "analysis",
-    label: "Analyse",
-    description: "Erreurs, opérateurs, régions et tendances",
-    icon: BarChart3,
-  },
-  {
-    key: "grid",
-    label: "Données brutes",
-    description: "Exploration filtrée des transactions",
-    icon: Table2,
-  },
-  {
-    key: "period",
-    label: "Période",
-    description: "Studio de période et comparaisons",
-    icon: CalendarDays,
-  },
-  {
-    key: "day",
-    label: "Journalier",
-    description: "Analytics par jour",
-    icon: Activity,
-  },
-  {
-    key: "history",
-    label: "Historique",
-    description: "Analyses et fichiers en cache",
-    icon: History,
-  },
-  {
-    key: "config",
-    label: "Configuration",
-    description: "Mapping, statuts et paramètres",
-    icon: Settings2,
-  },
-];
-
 export const NAV_SECTIONS: NavSection[] = [
-  {
-    label: "Accueil",
-    items: [
-      {
-        title: "Accueil",
-        href: "/dashboard",
-        icon: LayoutDashboard,
-        description: "Tableau de bord et synthèse du jour",
-        keywords: ["accueil", "home", "overview", "mission control", "kpi"],
-        minRole: "viewer",
-      },
-    ],
-  },
   {
     label: "Rapport",
     items: [
@@ -183,18 +93,67 @@ export const NAV_SECTIONS: NavSection[] = [
         href: "/dashboard/telecom-report",
         icon: Receipt,
         description: "Rapport DailyTransactions — KPIs, canaux, analyse",
-        keywords: ["telecom", "rapport", "report", "kpi", "canal", "daily"],
+        keywords: ["telecom", "rapport", "report", "kpi", "canal", "daily", "accueil", "home"],
         minRole: "viewer",
-      },
-      {
-        title: "Surveillance Canaux",
-        href: "/dashboard/monitor",
-        icon: Radio,
-        description: "Surveillance des opérations en direct",
-        badge: "LIVE",
-        badgeTone: "live",
-        keywords: ["monitor", "surveillance", "live", "ops", "temps réel", "alerte"],
-        minRole: "viewer",
+        children: [
+          {
+            title: "Vue d'ensemble",
+            href: "/dashboard/telecom-report/overview",
+            icon: LayoutDashboard,
+            description: "KPIs, statut global et synthèse",
+            keywords: ["accueil", "home", "overview", "mission control", "kpi"],
+            minRole: "viewer",
+          },
+          {
+            title: "Canaux",
+            href: "/dashboard/telecom-report/canals",
+            icon: Layers,
+            description: "Analyse par canal transactionnel",
+            minRole: "viewer",
+          },
+          {
+            title: "Analyse",
+            href: "/dashboard/telecom-report/analysis",
+            icon: BarChart3,
+            description: "Erreurs, opérateurs, régions et tendances",
+            minRole: "viewer",
+          },
+          {
+            title: "Données brutes",
+            href: "/dashboard/telecom-report/grid",
+            icon: Table2,
+            description: "Exploration filtrée des transactions",
+            minRole: "viewer",
+          },
+          {
+            title: "Période",
+            href: "/dashboard/telecom-report/period",
+            icon: CalendarDays,
+            description: "Studio de période et comparaisons",
+            minRole: "viewer",
+          },
+          {
+            title: "Journalier",
+            href: "/dashboard/telecom-report/day",
+            icon: Activity,
+            description: "Analytics par jour",
+            minRole: "viewer",
+          },
+          {
+            title: "Historique",
+            href: "/dashboard/telecom-report/history",
+            icon: History,
+            description: "Analyses et fichiers en cache",
+            minRole: "viewer",
+          },
+          {
+            title: "Configuration",
+            href: "/dashboard/telecom-report/config",
+            icon: Settings2,
+            description: "Mapping, statuts et paramètres",
+            minRole: "viewer",
+          },
+        ],
       },
     ],
   },
@@ -219,52 +178,6 @@ export const NAV_SECTIONS: NavSection[] = [
         badgeTone: "ai",
         keywords: ["moudir", "assistant", "ia", "ai", "chat", "question", "voix", "swarm"],
       },
-      {
-        title: "Briefing IA",
-        href: "/dashboard/ai-briefing",
-        icon: Sparkles,
-        description: "Briefings narratifs et synthèses vocales",
-        badge: "IA",
-        badgeTone: "ai",
-        keywords: ["briefing", "narratif", "ia", "ai", "synthèse", "tts", "story"],
-      },
-      {
-        title: "Analyse",
-        href: "/dashboard/analysis",
-        icon: Brain,
-        description: "Statistiques, prévisions et géographie",
-        keywords: ["analyse", "analysis", "stats", "intelligence"],
-        children: [
-          {
-            title: "Analyse statistique",
-            href: "/dashboard/ai-analysis",
-            icon: Brain,
-            description: "Insights, anomalies, corrélations",
-            keywords: ["stats", "anomalie", "corrélation", "insight", "analyse"],
-          },
-          {
-            title: "Analyses approfondies",
-            href: "/dashboard/deep-analytics",
-            icon: Microscope,
-            description: "Cohortes, attribution, clustering",
-            keywords: ["deep", "approfondie", "cohorte", "cluster", "attribution"],
-          },
-          {
-            title: "Prévisions",
-            href: "/dashboard/forecast",
-            icon: TrendingUp,
-            description: "Prévisions et scénarios",
-            keywords: ["prévision", "forecast", "predict", "tendance", "ml", "scénario"],
-          },
-          {
-            title: "Géographie",
-            href: "/dashboard/geo-analysis",
-            icon: MapIcon,
-            description: "Analyse spatiale et régionale",
-            keywords: ["géo", "geo", "carte", "map", "région", "spatial"],
-          },
-        ],
-      },
     ],
   },
   {
@@ -278,61 +191,19 @@ export const NAV_SECTIONS: NavSection[] = [
         keywords: ["import", "importer", "upload", "csv", "fichier", "json"],
       },
       {
-        title: "Données",
-        href: "/dashboard/data",
-        icon: Database,
-        description: "Catalogue, profil, exploration et transformations",
-        keywords: ["données", "data", "catalogue", "dataset"],
-        children: [
-          {
-            title: "Catalogue",
-            href: "/dashboard/folders",
-            icon: Folders,
-            description: "Organisation des jeux de données",
-            keywords: ["catalogue", "dossier", "folder", "tag", "organiser"],
-          },
-          {
-            title: "Profil des données",
-            href: "/dashboard/parsed",
-            icon: Table2,
-            description: "Profilage des colonnes et qualité",
-            keywords: ["profil", "profile", "colonne", "qualité", "parsed"],
-          },
-          {
-            title: "Explorateur",
-            href: "/dashboard/data-browser",
-            icon: BarChart3,
-            description: "Explorateur générique de jeux de données",
-            keywords: ["explorateur", "browser", "explorer", "table"],
-          },
-          {
-            title: "Transformations",
-            href: "/dashboard/transform",
-            icon: Layers,
-            description: "Pipelines et ETL",
-            keywords: ["transform", "etl", "pipeline", "transformation"],
-          },
-          {
-            title: "Lignage",
-            href: "/dashboard/lineage",
-            icon: GitBranch,
-            description: "Suivi du flux des données",
-            keywords: ["lignage", "lineage", "graph", "dag", "flux"],
-          },
-          {
-            title: "Réconciliation",
-            href: "/dashboard/reconciliation",
-            icon: Scale,
-            description: "Rapprochement et audit des écarts",
-            keywords: ["réconciliation", "reconcile", "écart", "audit", "balance"],
-          },
-          {
-            title: "Journal d'activité",
-            href: "/dashboard/history",
-            icon: History,
-            description: "Historique des actions et versions",
-            keywords: ["journal", "history", "historique", "version", "activité"],
-          },
+        title: "Catalogue",
+        href: "/dashboard/folders",
+        icon: Folders,
+        description: "Organisation des jeux de données",
+        keywords: [
+          "catalogue",
+          "dossier",
+          "folder",
+          "tag",
+          "organiser",
+          "données",
+          "data",
+          "dataset",
         ],
       },
     ],
@@ -340,20 +211,6 @@ export const NAV_SECTIONS: NavSection[] = [
   {
     label: "Sorties",
     items: [
-      {
-        title: "Studio de Rapports",
-        href: "/dashboard/report-studio",
-        icon: FileText,
-        description: "Composer et exporter des rapports",
-        keywords: ["rapport", "report", "studio", "export", "pdf", "publier"],
-      },
-      {
-        title: "Théâtre Analytique",
-        href: "/dashboard/analytics-theater",
-        icon: Clapperboard,
-        description: "Présentations immersives en scrollytelling",
-        keywords: ["théâtre", "theater", "présentation", "scrollytelling", "cinema"],
-      },
       {
         title: "Collaboration",
         // collab-hub (annotations / approval / audit) is now folded into the
@@ -407,15 +264,16 @@ export function filterNavItemsForRole(items: NavItem[], role: NavAccessRole): Na
   return items
     .filter((item) => navItemVisibleForRole(item, role))
     .map((item) =>
-      item.children
-        ? { ...item, children: filterNavItemsForRole(item.children, role) }
-        : item,
+      item.children ? { ...item, children: filterNavItemsForRole(item.children, role) } : item,
     )
     .filter((item) => !item.children || item.children.length > 0);
 }
 
 /** Filter grouped sections, dropping sections left empty for the role. */
-export function filterNavSectionsForRole(sections: NavSection[], role: NavAccessRole): NavSection[] {
+export function filterNavSectionsForRole(
+  sections: NavSection[],
+  role: NavAccessRole,
+): NavSection[] {
   return sections
     .map((section) => ({ ...section, items: filterNavItemsForRole(section.items, role) }))
     .filter((section) => section.items.length > 0);

@@ -4,7 +4,6 @@ import {
   Activity,
   CheckCircle2,
   ClipboardList,
-  FileText,
   GitBranch,
   MessageSquare,
   Plus,
@@ -38,12 +37,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         run: () => ctx.openApp("collaboration", { forceNew: true }),
       },
       { kind: "separator", id: "sep-open" },
-      {
-        id: "open-report",
-        label: "Ouvrir le rapport",
-        icon: FileText,
-        run: () => ctx.openApp("report-studio"),
-      },
       {
         id: "invite",
         label: "Inviter un collaborateur…",

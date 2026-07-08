@@ -12,8 +12,6 @@
  * inside the platform AI layer (enforced by the `ai-engine-only-in-platform-or-workers`
  * dependency-cruiser rule). Feature/UI code must reach it through
  * `@/platform/ai/provider` (the transformers adapter wraps this module).
- * `src/features/agent-canvas/core/llm.ts` is kept as a thin re-export shim for
- * backwards compatibility.
  */
 
 import {

@@ -46,7 +46,6 @@ describe("recycle-bin buildMenu — shape", () => {
       "empty-bin",
       "sep-bin",
       "open-folders",
-      "open-parsed",
     ]);
   });
 
@@ -106,12 +105,5 @@ describe("recycle-bin buildMenu — Corbeille actions", () => {
     const bin = findGroup(buildMenu(ctx), "bin");
     getAction(bin?.items ?? [], "open-folders").run();
     expect(ctx.openApp).toHaveBeenCalledWith("folders");
-  });
-
-  it("'open-parsed' opens the parsed app", () => {
-    const ctx = makeMenuContext();
-    const bin = findGroup(buildMenu(ctx), "bin");
-    getAction(bin?.items ?? [], "open-parsed").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("parsed");
   });
 });

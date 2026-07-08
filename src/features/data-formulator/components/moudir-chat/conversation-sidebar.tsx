@@ -39,8 +39,8 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
-import { relativeTime } from "@/features/dashboard-home/lib/relative-time";
 import type { ConversationMeta } from "@/platform/chat/chat-history-client";
+import { relativeTime } from "@/shared/relative-time";
 import { cn } from "@/shared/utils";
 import { useMoudirChatStore } from "../../store/moudir-chat-store";
 import { EASE, Kicker, MoudirMark, useMotionOn } from "../moudir/moudir-kit";

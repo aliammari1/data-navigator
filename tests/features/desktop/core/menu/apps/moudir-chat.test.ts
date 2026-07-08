@@ -45,13 +45,6 @@ describe("moudir-chat buildMenu — file group actions", () => {
     expect(ctx.openApp).toHaveBeenCalledWith("upload");
   });
 
-  it("browse-data opens the data-browser app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    runAction(findGroup(groups, "file")!.items, "browse-data");
-    expect(ctx.openApp).toHaveBeenCalledWith("data-browser");
-  });
-
   it("close is a danger action that runs ctx.closeWindow()", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
@@ -85,16 +78,7 @@ describe("moudir-chat buildMenu — analyze group actions", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
     runAction(findGroup(groups, "analyze")!.items, "exec-summary");
-    expect(ctx.askMoudir).toHaveBeenCalledWith(
-      "Donne-moi une synthèse exécutive en un paragraphe",
-    );
-  });
-
-  it("open-deep-analytics opens the deep-analytics app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    runAction(findGroup(groups, "analyze")!.items, "open-deep-analytics");
-    expect(ctx.openApp).toHaveBeenCalledWith("deep-analytics");
+    expect(ctx.askMoudir).toHaveBeenCalledWith("Donne-moi une synthèse exécutive en un paragraphe");
   });
 });
 

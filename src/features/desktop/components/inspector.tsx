@@ -11,7 +11,6 @@ import {
   Layers,
   Loader2,
   Sparkles,
-  TrendingUp,
   X,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -31,7 +30,6 @@ import { useAI } from "@/platform/ai/provider/use-ai";
  *  - Analyser  → opens Moudir and dispatches `moudir:ask` with a short prompt
  *  - Rapport   → opens the Telecom report
  *  - Prévision → opens the Forecast app
- *  - Profiler  → opens the Parsed-data profiler
  *
  * Plus "Expliquer avec l'IA" which runs a short `useAI().generate` over the
  * selection and shows the reply inline. When nothing is selected it shows a calm
@@ -277,16 +275,6 @@ export function Inspector({ open, onClose }: InspectorProps) {
                   icon={<FileText className="size-3.5" />}
                   label="Rapport"
                   onClick={() => openApp("telecom")}
-                />
-                <ActionButton
-                  icon={<TrendingUp className="size-3.5" />}
-                  label="Prévision"
-                  onClick={() => openApp("forecast")}
-                />
-                <ActionButton
-                  icon={<Columns3 className="size-3.5" />}
-                  label="Profiler"
-                  onClick={() => openApp("parsed")}
                 />
               </div>
             </section>

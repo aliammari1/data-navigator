@@ -24,11 +24,9 @@ import { Desktop } from "@/features/desktop/components/desktop";
  */
 export function DashboardLayout({
   children,
-  onAiToggle,
   user,
 }: {
   children: React.ReactNode;
-  onAiToggle?: () => void;
   user?: DashboardUser;
 }) {
   const collapsed = useShellStore((s) => s.sidebarCollapsed);
@@ -49,15 +47,13 @@ export function DashboardLayout({
 
   const togglePalette = useCallback(() => setCmdOpen((v) => !v), []);
   const closePalette = useCallback(() => setCmdOpen(false), []);
-  const handleAiToggle = useCallback(() => onAiToggle?.(), [onAiToggle]);
 
   const shortcutActions = useMemo(
     () => ({
       togglePalette,
-      toggleAi: handleAiToggle,
       toggleSidebar,
     }),
-    [togglePalette, handleAiToggle, toggleSidebar],
+    [togglePalette, toggleSidebar],
   );
 
   useShellShortcuts(shortcutActions);
@@ -92,14 +88,14 @@ export function DashboardLayout({
       >
         Aller au contenu principal
       </a>
-      <AppSidebar collapsed={collapsed} onToggle={toggleSidebar} onAiToggle={onAiToggle} />
+      <AppSidebar collapsed={collapsed} onToggle={toggleSidebar} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <Topbar onCmdPalette={() => setCmdOpen(true)} onAiToggle={onAiToggle} user={user} />
+        <Topbar onCmdPalette={() => setCmdOpen(true)} user={user} />
         <main id="main-content" className="min-w-0 flex-1 overflow-auto">
           {children}
         </main>
       </div>
-      <CommandPalette open={cmdOpen} onClose={closePalette} onToggleAi={onAiToggle} />
+      <CommandPalette open={cmdOpen} onClose={closePalette} />
       <ShortcutsButton />
     </div>
   );

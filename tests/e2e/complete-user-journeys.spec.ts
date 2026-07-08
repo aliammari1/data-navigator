@@ -15,24 +15,14 @@ const DASHBOARD_ROUTES = [
   { path: "/dashboard/upload", anchor: /importer|glissez|upload|fichier/i },
   { path: "/dashboard/csv-parser", anchor: /advanced csv parser|parse/i },
   { path: "/dashboard/folders", anchor: /folders|my datasets|new folder/i },
-  { path: "/dashboard/transform", anchor: /pipeline|transform|run/i },
-  { path: "/dashboard/parsed", anchor: /parsed|column|profile|dataset/i },
-  { path: "/dashboard/history", anchor: /history|version|changes|message/i },
-  { path: "/dashboard/ai-analysis", anchor: /ai analysis|insight|anomaly/i },
   { path: "/dashboard/auto-analyst", anchor: /auto|analyst|analysis/i },
   {
     path: "/dashboard/data-formulator",
     anchor: /moudir|ai|canvas|import data/i,
   },
-  { path: "/dashboard/agent-canvas", anchor: /agent canvas|choose ai model/i },
-  { path: "/dashboard/lineage", anchor: /lineage|node|graph|dag/i },
   {
     path: "/dashboard/collaborative",
     anchor: /collaborative|team|comment|workspace/i,
-  },
-  {
-    path: "/dashboard/data-browser",
-    anchor: /data browser|duckdb|sql|search rows/i,
   },
   { path: "/dashboard/settings", anchor: /settings|theme|appearance/i },
   { path: "/dashboard/help", anchor: /help|documentation|features/i },
@@ -183,10 +173,6 @@ test.describe("Complete user journey coverage", () => {
       /duckdb|electronduckdb|erreur|error|prêt|ready/i,
     );
 
-    await gotoPage(page, "/dashboard/data-browser", /data browser|duckdb|sql|search rows/i);
-
-    await gotoPage(page, "/dashboard/transform", /pipeline|run|deduplicate|limit/i);
-
     await gotoPage(page, "/dashboard/folders", /folders|my datasets/i);
   });
 
@@ -208,85 +194,6 @@ test.describe("Complete user journey coverage", () => {
 
     await page.getByRole("button", { name: /stats/i }).click();
     await expect(page.locator("body")).toContainText(/total files|total folders/i);
-  });
-
-  test("transform page journey edits pipeline steps and reviews generated SQL surfaces", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/transform");
-
-    await expectUsablePage(page, /transform pipeline/i);
-    await page.getByRole("button", { name: /^add$/i }).click();
-    await page.getByRole("button", { name: /^filter$/i }).click();
-
-    await expect(page.getByText(/new filter/i)).toBeVisible();
-    await page.getByPlaceholder("1=1").fill("AMOUNT > 1000");
-    await expect(page.getByText(/where condition/i)).toBeVisible();
-    await expect(page.locator("body")).toContainText(/generated sql/i);
-
-    await page.getByRole("tab", { name: /preview/i }).click();
-    await expect(page.locator("body")).toContainText(/run the pipeline/i);
-    await page.getByRole("tab", { name: /^sql$/i }).click();
-    await expect(page.locator("body")).toContainText(/generated pipeline sql/i);
-    await page.getByRole("tab", { name: /analytics/i }).click();
-    await expect(page.locator("body")).toContainText(/row reduction|run/i);
-
-    await page.getByRole("button", { name: /reset/i }).click();
-    await expect(page.getByText(/remove duplicate rows/i)).toBeVisible();
-  });
-
-  test("parsed data and history pages expose search, filter, refresh, and empty-state journeys", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/parsed");
-
-    await expectUsablePage(page, /column profiler|parsed|profile|no loaded/i);
-    await page.getByPlaceholder(/search columns/i).fill("amount");
-    await expect(page.getByRole("button", { name: /export csv/i })).toBeDisabled();
-    await page.getByRole("button", { name: /refresh/i }).click();
-    await expect(page.locator("body")).toContainText(
-      /dataset quality overview|no loaded duckdb table/i,
-    );
-
-    await gotoPage(page, "/dashboard/history");
-    await expectUsablePage(page, /workspace history/i);
-    await page.getByPlaceholder(/search by message/i).fill("not-a-real-event");
-    await expect(page.locator("body")).toContainText(/no events match/i);
-    await page.locator("select").selectOption("dataset");
-    await expect(page.locator("body")).toContainText(/datasets|event/i);
-  });
-
-  test("lineage page journey uses graph controls, table search, impact, and column views", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/lineage");
-
-    await expectUsablePage(page, /data lineage|lineage records|graph/i);
-    if (
-      await page
-        .getByTitle(/zoom in/i)
-        .isVisible()
-        .catch(() => false)
-    ) {
-      await page.getByTitle(/zoom in/i).click();
-      await page.getByTitle(/zoom out/i).click();
-    }
-
-    await page.getByRole("button", { name: /table/i }).click();
-    if (
-      await page
-        .getByPlaceholder(/search nodes/i)
-        .isVisible()
-        .catch(() => false)
-    ) {
-      await page.getByPlaceholder(/search nodes/i).fill("upload");
-    }
-    await expect(page.locator("body")).toContainText(/node|type|status|lineage/i);
-
-    await page.getByRole("button", { name: /impact/i }).click();
-    await expect(page.locator("body")).toContainText(/select a node|impact/i);
-    await page.getByRole("button", { name: /columns/i }).click();
-    await expect(page.locator("body")).toContainText(/column-level|columns/i);
   });
 
   test("collaboration page journey adds a comment, searches it, resolves it, and sends chat", async ({
@@ -316,38 +223,6 @@ test.describe("Complete user journey coverage", () => {
     await expect(page.getByText("Journey chat ping")).toBeVisible();
   });
 
-  test("data browser page journey opens available data browsing, SQL, filter, and column surfaces", async ({
-    page,
-  }) => {
-    // Generic SQL/DuckDB explorer (the legacy /dashboard/browser route was
-    // removed and now redirects to the telecom grid). This relocated coverage
-    // exercises the surviving data-browser explorer instead.
-    await gotoPage(page, "/dashboard/data-browser", /data browser|duckdb/i);
-
-    // Header is always present regardless of whether a dataset is catalogued.
-    await expect(page.locator("body")).toContainText(/data browser|duckdb/i);
-
-    // The SQL view toggle exposes the Monaco-backed SQL editor surface.
-    const sqlToggle = page.getByRole("button", { name: /^sql$/i }).first();
-    if (await sqlToggle.isVisible().catch(() => false)) {
-      await sqlToggle.click();
-      await expect(page.locator("body")).toContainText(/sql editor|run query|write a sql query/i);
-    }
-
-    // Column manager + filter panels are reachable via accessible icon buttons.
-    const columnsButton = page.getByRole("button", { name: /columns/i }).first();
-    if (await columnsButton.isVisible().catch(() => false)) {
-      await columnsButton.click();
-      await expect(page.locator("body")).toContainText(/columns|search columns|show all/i);
-    }
-
-    const filtersButton = page.getByRole("button", { name: /filters/i }).first();
-    if (await filtersButton.isVisible().catch(() => false)) {
-      await filtersButton.click();
-      await expect(page.locator("body")).toContainText(/filters|add rule|clear all/i);
-    }
-  });
-
   test("help, settings, and documentation journeys cover discoverability and preferences", async ({
     page,
   }) => {
@@ -373,27 +248,15 @@ test.describe("Complete user journey coverage", () => {
   }) => {
     const aiRoutes = [
       {
-        path: "/dashboard/ai-analysis",
-        anchor: /upload or select|ai analysis/i,
-      },
-      {
         path: "/dashboard/auto-analyst",
         anchor: /auto|analyst|upload|analysis/i,
       },
       { path: "/dashboard/data-formulator", anchor: /import data|moudir|ai/i },
-      {
-        path: "/dashboard/agent-canvas",
-        anchor: /choose ai model|agent canvas/i,
-      },
     ] as const;
 
     for (const route of aiRoutes) {
       await gotoPage(page, route.path, route.anchor);
     }
-
-    await gotoPage(page, "/dashboard/agent-canvas");
-    await page.getByRole("button", { name: /skip/i }).click();
-    await expect(page.locator("body")).toContainText(/load data|drop your data file/i);
   });
 
   test("data formulator page journey opens command, model, and right-panel controls", async ({

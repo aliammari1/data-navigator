@@ -3,7 +3,7 @@ import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary"
 
 /**
  * Locks in the shared DuckDB SUMMARIZE coercion helpers consolidated out of
- * parsed-data / data-import / agent-canvas. Both are pure and dependency-free.
+ * parsed-data / data-import. Both are pure and dependency-free.
  */
 
 describe("numberOrUndefined", () => {

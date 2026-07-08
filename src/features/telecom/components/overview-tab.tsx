@@ -16,9 +16,14 @@ import {
 import { motion } from "motion/react";
 import dynamic from "next/dynamic";
 import { memo, useMemo, useState } from "react";
+import { useDashboardHistoryStore } from "@/core/stores/dashboard-history-store";
+import { buildOption } from "@/features/data-formulator/core/chart-options";
+import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
+import { type DesktopWidget, useWidgets } from "@/features/desktop/store/desktop-store";
 import { CANAL_CONFIG, STATUS_COLORS } from "@/features/telecom/lib/canal-config";
 import { fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
+import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import type * as Types from "@/features/telecom/types";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { cn } from "@/shared/utils";
@@ -27,11 +32,6 @@ import { AnimCounter } from "./anim-counter";
 import { type DashboardCardItem, DraggableAutoGrid } from "./draggable-auto-grid";
 import { KPICard, type KPICardProps } from "./kpi-card";
 import { Section } from "./section";
-import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
-import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
-import { buildOption } from "@/features/data-formulator/core/chart-options";
-import { useDashboardHistoryStore } from "@/features/dashboard-home/store/dashboard-history-store";
-import { type DesktopWidget, useWidgets } from "@/features/desktop/store/desktop-store";
 
 // Custom data-formulator widgets render through the shared telecom EChart
 // surface (OffscreenCanvas worker + tree-shaken core, with an echarts-for-react
@@ -109,14 +109,24 @@ function saveCardOrder(order: string[]) {
   } catch {}
 }
 
-function PinChartButton({ widgetId, title, isPinned }: { widgetId: string; title: string; isPinned: boolean }) {
+function PinChartButton({
+  widgetId,
+  title,
+  isPinned,
+}: {
+  widgetId: string;
+  title: string;
+  isPinned: boolean;
+}) {
   const doPinFormulatorWidget = useDashboardHistoryStore((s) => s.doPinFormulatorWidget);
   const doUnpinFormulatorWidget = useDashboardHistoryStore((s) => s.doUnpinFormulatorWidget);
 
   return (
     <button
       type="button"
-      onClick={() => isPinned ? doUnpinFormulatorWidget(widgetId, title) : doPinFormulatorWidget(widgetId, title)}
+      onClick={() =>
+        isPinned ? doUnpinFormulatorWidget(widgetId, title) : doPinFormulatorWidget(widgetId, title)
+      }
       title={isPinned ? "Désépingler du tableau de bord" : "Épingler au tableau de bord"}
       className={`absolute right-3 top-3 z-10 grid size-7 place-items-center rounded-lg border transition-all ${
         isPinned
@@ -150,7 +160,14 @@ function usePinToDesktop(opts: {
     pinned: Boolean(existing),
     toggle: () => {
       if (existing) {
-        doRemoveWidget(existing.id, existing.type, existing.config, existing.x, existing.y, opts.label);
+        doRemoveWidget(
+          existing.id,
+          existing.type,
+          existing.config,
+          existing.x,
+          existing.y,
+          opts.label,
+        );
       } else {
         const offset = 20 + widgets.length * 16;
         doPinWidget(opts.type, opts.config, offset, offset, opts.label);

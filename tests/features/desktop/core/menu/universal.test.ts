@@ -190,12 +190,6 @@ describe("universalFileGroup", () => {
     expect(ctx.openApp).toHaveBeenCalledWith("upload");
   });
 
-  it("export-report opens report-studio with the export intent prop", () => {
-    const ctx = makeCtx();
-    action(findId(universalFileGroup(ctx).items, "export-report")).run();
-    expect(ctx.openApp).toHaveBeenCalledWith("report-studio", { props: { intent: "export" } });
-  });
-
   it("close calls closeWindow and is disabled without a focused window", () => {
     const ctx = makeCtx({ windowId: null });
     const close = action(findId(universalFileGroup(ctx).items, "close"));

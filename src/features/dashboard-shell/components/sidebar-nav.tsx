@@ -10,13 +10,11 @@
  * working unchanged.
  */
 
-export { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
 export {
-  type DashboardUser,
-  type NavItem,
-  NAV_SECTIONS,
-  FOOTER_ITEMS,
   ALL_ITEMS,
-  type TelecomDashboardTab,
-  TELECOM_NAV_ITEMS,
+  type DashboardUser,
+  FOOTER_ITEMS,
+  NAV_SECTIONS,
+  type NavItem,
 } from "@/features/dashboard-shell/nav/nav-config";
+export { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
