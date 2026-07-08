@@ -1,10 +1,10 @@
 'use strict';
 
 var fs = require('fs/promises');
-var path9 = require('path');
+var path = require('path');
 var electron = require('electron');
 var fs3 = require('fs');
-var os4 = require('os');
+var os3 = require('os');
 var betterAuth = require('better-auth');
 var crypto = require('better-auth/crypto');
 var z = require('zod');
@@ -45,10 +45,10 @@ function _interopNamespace(e) {
 }
 
 var fs__default = /*#__PURE__*/_interopDefault(fs);
-var path9__default = /*#__PURE__*/_interopDefault(path9);
+var path__default = /*#__PURE__*/_interopDefault(path);
 var electron__default = /*#__PURE__*/_interopDefault(electron);
 var fs3__default = /*#__PURE__*/_interopDefault(fs3);
-var os4__default = /*#__PURE__*/_interopDefault(os4);
+var os3__default = /*#__PURE__*/_interopDefault(os3);
 var z__namespace = /*#__PURE__*/_interopNamespace(z);
 var Conf__default = /*#__PURE__*/_interopDefault(Conf);
 var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
@@ -537,12 +537,12 @@ var require_src = __commonJS({
 // node_modules/.pnpm/electron-squirrel-startup@1.0.1/node_modules/electron-squirrel-startup/index.js
 var require_electron_squirrel_startup = __commonJS({
   "node_modules/.pnpm/electron-squirrel-startup@1.0.1/node_modules/electron-squirrel-startup/index.js"(exports, module) {
-    var path14 = __require("path");
+    var path13 = __require("path");
     var spawn = __require("child_process").spawn;
     var debug = require_src()("electron-squirrel-startup");
     var app10 = __require("electron").app;
     var run = function(args, done) {
-      var updateExe = path14.resolve(path14.dirname(process.execPath), "..", "Update.exe");
+      var updateExe = path13.resolve(path13.dirname(process.execPath), "..", "Update.exe");
       debug("Spawning `%s` with args `%s`", updateExe, args);
       spawn(updateExe, args, {
         detached: true
@@ -552,7 +552,7 @@ var require_electron_squirrel_startup = __commonJS({
       if (process.platform === "win32") {
         var cmd = process.argv[1];
         debug("processing squirrel command `%s`", cmd);
-        var target = path14.basename(process.execPath);
+        var target = path13.basename(process.execPath);
         if (cmd === "--squirrel-install" || cmd === "--squirrel-updated") {
           run(["--createShortcut=" + target], app10.quit);
           return true;
@@ -3423,8 +3423,8 @@ var require_utils = __commonJS({
       var result = transform[inputType][outputType](input);
       return result;
     };
-    exports.resolve = function(path14) {
-      var parts = path14.split("/");
+    exports.resolve = function(path13) {
+      var parts = path13.split("/");
       var result = [];
       for (var index3 = 0; index3 < parts.length; index3++) {
         var part = parts[index3];
@@ -5410,7 +5410,7 @@ var require_deflate = __commonJS({
       s.pending_buf[s.pending++] = b >>> 8 & 255;
       s.pending_buf[s.pending++] = b & 255;
     }
-    function read_buf(strm, buf, start2, size) {
+    function read_buf(strm, buf, start, size) {
       var len = strm.avail_in;
       if (len > size) {
         len = size;
@@ -5419,11 +5419,11 @@ var require_deflate = __commonJS({
         return 0;
       }
       strm.avail_in -= len;
-      utils.arraySet(buf, strm.input, strm.next_in, len, start2);
+      utils.arraySet(buf, strm.input, strm.next_in, len, start);
       if (strm.state.wrap === 1) {
-        strm.adler = adler32(strm.adler, buf, len, start2);
+        strm.adler = adler32(strm.adler, buf, len, start);
       } else if (strm.state.wrap === 2) {
-        strm.adler = crc32(strm.adler, buf, len, start2);
+        strm.adler = crc32(strm.adler, buf, len, start);
       }
       strm.next_in += len;
       strm.total_in += len;
@@ -6274,16 +6274,16 @@ var require_deflate = __commonJS({
       return s.pending !== 0 ? Z_OK : Z_STREAM_END;
     }
     function deflateEnd(strm) {
-      var status2;
+      var status;
       if (!strm || !strm.state) {
         return Z_STREAM_ERROR;
       }
-      status2 = strm.state.status;
-      if (status2 !== INIT_STATE && status2 !== EXTRA_STATE && status2 !== NAME_STATE && status2 !== COMMENT_STATE && status2 !== HCRC_STATE && status2 !== BUSY_STATE && status2 !== FINISH_STATE) {
+      status = strm.state.status;
+      if (status !== INIT_STATE && status !== EXTRA_STATE && status !== NAME_STATE && status !== COMMENT_STATE && status !== HCRC_STATE && status !== BUSY_STATE && status !== FINISH_STATE) {
         return err(strm, Z_STREAM_ERROR);
       }
       strm.state = null;
-      return status2 === BUSY_STATE ? err(strm, Z_DATA_ERROR) : Z_OK;
+      return status === BUSY_STATE ? err(strm, Z_DATA_ERROR) : Z_OK;
     }
     function deflateSetDictionary(strm, dictionary) {
       var dictLength = dictionary.length;
@@ -6564,7 +6564,7 @@ var require_deflate2 = __commonJS({
       this.chunks = [];
       this.strm = new ZStream();
       this.strm.avail_out = 0;
-      var status2 = zlib_deflate.deflateInit2(
+      var status = zlib_deflate.deflateInit2(
         this.strm,
         opt.level,
         opt.method,
@@ -6572,8 +6572,8 @@ var require_deflate2 = __commonJS({
         opt.memLevel,
         opt.strategy
       );
-      if (status2 !== Z_OK) {
-        throw new Error(msg[status2]);
+      if (status !== Z_OK) {
+        throw new Error(msg[status]);
       }
       if (opt.header) {
         zlib_deflate.deflateSetHeader(this.strm, opt.header);
@@ -6587,9 +6587,9 @@ var require_deflate2 = __commonJS({
         } else {
           dict = opt.dictionary;
         }
-        status2 = zlib_deflate.deflateSetDictionary(this.strm, dict);
-        if (status2 !== Z_OK) {
-          throw new Error(msg[status2]);
+        status = zlib_deflate.deflateSetDictionary(this.strm, dict);
+        if (status !== Z_OK) {
+          throw new Error(msg[status]);
         }
         this._dict_set = true;
       }
@@ -6597,7 +6597,7 @@ var require_deflate2 = __commonJS({
     Deflate.prototype.push = function(data, mode) {
       var strm = this.strm;
       var chunkSize = this.options.chunkSize;
-      var status2, _mode;
+      var status, _mode;
       if (this.ended) {
         return false;
       }
@@ -6617,9 +6617,9 @@ var require_deflate2 = __commonJS({
           strm.next_out = 0;
           strm.avail_out = chunkSize;
         }
-        status2 = zlib_deflate.deflate(strm, _mode);
-        if (status2 !== Z_STREAM_END && status2 !== Z_OK) {
-          this.onEnd(status2);
+        status = zlib_deflate.deflate(strm, _mode);
+        if (status !== Z_STREAM_END && status !== Z_OK) {
+          this.onEnd(status);
           this.ended = true;
           return false;
         }
@@ -6630,12 +6630,12 @@ var require_deflate2 = __commonJS({
             this.onData(utils.shrinkBuf(strm.output, strm.next_out));
           }
         }
-      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status2 !== Z_STREAM_END);
+      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== Z_STREAM_END);
       if (_mode === Z_FINISH) {
-        status2 = zlib_deflate.deflateEnd(this.strm);
-        this.onEnd(status2);
+        status = zlib_deflate.deflateEnd(this.strm);
+        this.onEnd(status);
         this.ended = true;
-        return status2 === Z_OK;
+        return status === Z_OK;
       }
       if (_mode === Z_SYNC_FLUSH) {
         this.onEnd(Z_OK);
@@ -6647,8 +6647,8 @@ var require_deflate2 = __commonJS({
     Deflate.prototype.onData = function(chunk) {
       this.chunks.push(chunk);
     };
-    Deflate.prototype.onEnd = function(status2) {
-      if (status2 === Z_OK) {
+    Deflate.prototype.onEnd = function(status) {
+      if (status === Z_OK) {
         if (this.options.to === "string") {
           this.result = this.chunks.join("");
         } else {
@@ -6656,7 +6656,7 @@ var require_deflate2 = __commonJS({
         }
       }
       this.chunks = [];
-      this.err = status2;
+      this.err = status;
       this.msg = this.strm.msg;
     };
     function deflate(input, options) {
@@ -6689,7 +6689,7 @@ var require_inffast = __commonJS({
   "node_modules/.pnpm/pako@1.0.11/node_modules/pako/lib/zlib/inffast.js"(exports, module) {
     var BAD = 30;
     var TYPE = 12;
-    module.exports = function inflate_fast(strm, start2) {
+    module.exports = function inflate_fast(strm, start) {
       var state;
       var _in;
       var last;
@@ -6720,7 +6720,7 @@ var require_inffast = __commonJS({
       last = _in + (strm.avail_in - 5);
       _out = strm.next_out;
       output = strm.output;
-      beg = _out - (start2 - strm.avail_out);
+      beg = _out - (start - strm.avail_out);
       end = _out + (strm.avail_out - 257);
       dmax = state.dmax;
       wsize = state.wsize;
@@ -8566,12 +8566,12 @@ var require_inflate2 = __commonJS({
       this.chunks = [];
       this.strm = new ZStream();
       this.strm.avail_out = 0;
-      var status2 = zlib_inflate.inflateInit2(
+      var status = zlib_inflate.inflateInit2(
         this.strm,
         opt.windowBits
       );
-      if (status2 !== c.Z_OK) {
-        throw new Error(msg[status2]);
+      if (status !== c.Z_OK) {
+        throw new Error(msg[status]);
       }
       this.header = new GZheader();
       zlib_inflate.inflateGetHeader(this.strm, this.header);
@@ -8582,9 +8582,9 @@ var require_inflate2 = __commonJS({
           opt.dictionary = new Uint8Array(opt.dictionary);
         }
         if (opt.raw) {
-          status2 = zlib_inflate.inflateSetDictionary(this.strm, opt.dictionary);
-          if (status2 !== c.Z_OK) {
-            throw new Error(msg[status2]);
+          status = zlib_inflate.inflateSetDictionary(this.strm, opt.dictionary);
+          if (status !== c.Z_OK) {
+            throw new Error(msg[status]);
           }
         }
       }
@@ -8593,7 +8593,7 @@ var require_inflate2 = __commonJS({
       var strm = this.strm;
       var chunkSize = this.options.chunkSize;
       var dictionary = this.options.dictionary;
-      var status2, _mode;
+      var status, _mode;
       var next_out_utf8, tail, utf8str;
       var allowBufError = false;
       if (this.ended) {
@@ -8615,21 +8615,21 @@ var require_inflate2 = __commonJS({
           strm.next_out = 0;
           strm.avail_out = chunkSize;
         }
-        status2 = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);
-        if (status2 === c.Z_NEED_DICT && dictionary) {
-          status2 = zlib_inflate.inflateSetDictionary(this.strm, dictionary);
+        status = zlib_inflate.inflate(strm, c.Z_NO_FLUSH);
+        if (status === c.Z_NEED_DICT && dictionary) {
+          status = zlib_inflate.inflateSetDictionary(this.strm, dictionary);
         }
-        if (status2 === c.Z_BUF_ERROR && allowBufError === true) {
-          status2 = c.Z_OK;
+        if (status === c.Z_BUF_ERROR && allowBufError === true) {
+          status = c.Z_OK;
           allowBufError = false;
         }
-        if (status2 !== c.Z_STREAM_END && status2 !== c.Z_OK) {
-          this.onEnd(status2);
+        if (status !== c.Z_STREAM_END && status !== c.Z_OK) {
+          this.onEnd(status);
           this.ended = true;
           return false;
         }
         if (strm.next_out) {
-          if (strm.avail_out === 0 || status2 === c.Z_STREAM_END || strm.avail_in === 0 && (_mode === c.Z_FINISH || _mode === c.Z_SYNC_FLUSH)) {
+          if (strm.avail_out === 0 || status === c.Z_STREAM_END || strm.avail_in === 0 && (_mode === c.Z_FINISH || _mode === c.Z_SYNC_FLUSH)) {
             if (this.options.to === "string") {
               next_out_utf8 = strings.utf8border(strm.output, strm.next_out);
               tail = strm.next_out - next_out_utf8;
@@ -8648,15 +8648,15 @@ var require_inflate2 = __commonJS({
         if (strm.avail_in === 0 && strm.avail_out === 0) {
           allowBufError = true;
         }
-      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status2 !== c.Z_STREAM_END);
-      if (status2 === c.Z_STREAM_END) {
+      } while ((strm.avail_in > 0 || strm.avail_out === 0) && status !== c.Z_STREAM_END);
+      if (status === c.Z_STREAM_END) {
         _mode = c.Z_FINISH;
       }
       if (_mode === c.Z_FINISH) {
-        status2 = zlib_inflate.inflateEnd(this.strm);
-        this.onEnd(status2);
+        status = zlib_inflate.inflateEnd(this.strm);
+        this.onEnd(status);
         this.ended = true;
-        return status2 === c.Z_OK;
+        return status === c.Z_OK;
       }
       if (_mode === c.Z_SYNC_FLUSH) {
         this.onEnd(c.Z_OK);
@@ -8668,8 +8668,8 @@ var require_inflate2 = __commonJS({
     Inflate.prototype.onData = function(chunk) {
       this.chunks.push(chunk);
     };
-    Inflate.prototype.onEnd = function(status2) {
-      if (status2 === c.Z_OK) {
+    Inflate.prototype.onEnd = function(status) {
+      if (status === c.Z_OK) {
         if (this.options.to === "string") {
           this.result = this.chunks.join("");
         } else {
@@ -8677,7 +8677,7 @@ var require_inflate2 = __commonJS({
         }
       }
       this.chunks = [];
-      this.err = status2;
+      this.err = status;
       this.msg = this.strm.msg;
     };
     function inflate(input, options) {
@@ -9239,18 +9239,18 @@ var require_object = __commonJS({
       var object2 = new ZipObject(name, zipObjectContent, o);
       this.files[name] = object2;
     };
-    var parentFolder = function(path14) {
-      if (path14.slice(-1) === "/") {
-        path14 = path14.substring(0, path14.length - 1);
+    var parentFolder = function(path13) {
+      if (path13.slice(-1) === "/") {
+        path13 = path13.substring(0, path13.length - 1);
       }
-      var lastSlash = path14.lastIndexOf("/");
-      return lastSlash > 0 ? path14.substring(0, lastSlash) : "";
+      var lastSlash = path13.lastIndexOf("/");
+      return lastSlash > 0 ? path13.substring(0, lastSlash) : "";
     };
-    var forceTrailingSlash = function(path14) {
-      if (path14.slice(-1) !== "/") {
-        path14 += "/";
+    var forceTrailingSlash = function(path13) {
+      if (path13.slice(-1) !== "/") {
+        path13 += "/";
       }
-      return path14;
+      return path13;
     };
     var folderAdd = function(name, createFolders) {
       createFolders = typeof createFolders !== "undefined" ? createFolders : defaults.createFolders;
@@ -10270,23 +10270,23 @@ function crxToZip(buf) {
   return buf.slice(zipStartOffset, buf.length);
 }
 async function unzip(crxFilePath, destination) {
-  const filePath = path9__default.default.resolve(crxFilePath);
+  const filePath = path__default.default.resolve(crxFilePath);
   let dest;
   if (destination) {
     dest = destination;
   } else {
-    const extname = path9__default.default.extname(crxFilePath);
-    const basename = path9__default.default.basename(crxFilePath, extname);
-    const dirname = path9__default.default.dirname(crxFilePath);
-    dest = path9__default.default.resolve(dirname, basename);
+    const extname = path__default.default.extname(crxFilePath);
+    const basename = path__default.default.basename(crxFilePath, extname);
+    const dirname = path__default.default.dirname(crxFilePath);
+    dest = path__default.default.resolve(dirname, basename);
   }
   const buf = await fs__default.default.readFile(filePath);
   const { files } = await import_jszip.default.loadAsync(crxToZip(buf));
   return Promise.all(
     Object.keys(files).map(async (filename) => {
       const isFile = !files[filename].dir;
-      const fullPath = path9__default.default.join(dest, filename);
-      const directory = isFile && path9__default.default.dirname(fullPath) || fullPath;
+      const fullPath = path__default.default.join(dest, filename);
+      const directory = isFile && path__default.default.dirname(fullPath) || fullPath;
       await mkdirp(directory);
       if (isFile) {
         const content = await files[filename].async("nodebuffer");
@@ -10364,13 +10364,13 @@ function downloadFile(url, filePath) {
 }
 function changePermissions(dir, mode) {
   fs3__default.default.readdirSync(dir).forEach((file) => {
-    const filePath = path9__default.default.join(dir, file);
+    const filePath = path__default.default.join(dir, file);
     fs3__default.default.chmodSync(filePath, Number.parseInt(`${mode}`, 8));
     if (fs3__default.default.statSync(filePath).isDirectory()) changePermissions(filePath, mode);
   });
 }
 function getExtensionPath() {
-  return path9__default.default.join(electron.app.getPath("userData"), "extensions");
+  return path__default.default.join(electron.app.getPath("userData"), "extensions");
 }
 async function downloadExtension(extensionId, options) {
   const opts = Object.assign({
@@ -10381,9 +10381,9 @@ async function downloadExtension(extensionId, options) {
   const outPath = opts.outPath || getExtensionPath();
   const source = opts.source || (new Intl.NumberFormat().resolvedOptions().locale === "zh-CN" ? "npmmirror" : "unpkg");
   mkdirp2(outPath);
-  const unzipPath = path9__default.default.join(outPath, extensionId);
+  const unzipPath = path__default.default.join(outPath, extensionId);
   return new Promise((resolve2, reject) => {
-    const filePath = path9__default.default.resolve(`${unzipPath}.crx`);
+    const filePath = path__default.default.resolve(`${unzipPath}.crx`);
     const unzipExtension = () => {
       mkdirp2(unzipPath, true);
       src_default(filePath, unzipPath).then(() => {
@@ -10393,7 +10393,7 @@ async function downloadExtension(extensionId, options) {
           unzipPath
         });
       }).catch((err) => {
-        if (!fs3__default.default.existsSync(path9__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
+        if (!fs3__default.default.existsSync(path__default.default.resolve(unzipPath, "manifest.json"))) return reject(err);
       });
     };
     if (fs3__default.default.existsSync(filePath) && !opts.force) {
@@ -10406,7 +10406,7 @@ async function downloadExtension(extensionId, options) {
         unzipPath
       });
     }
-    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os4__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
+    let fileUrl = `https://clients2.google.com/service/update2/crx?response=redirect&prodversion=135.0.0.0&x=id%3D${extensionId}%26installsource%3Dondemand%26uc&nacl_arch=${os3__default.default.arch() === "arm64" ? "arm64" : "x86-64"}&acceptformat=crx2,crx3`;
     if ([
       "unpkg",
       "jsdelivr",
@@ -11129,7 +11129,7 @@ function registerProtocolScheme($fetch, options, getWindow, clientOptions) {
   }]);
   let hasSetupProtocolClient = false;
   if (process?.defaultApp) {
-    if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path9.resolve(process.argv[1])]);
+    if (process.argv.length >= 2 && typeof process.argv[1] === "string") hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme, process.execPath, [path.resolve(process.argv[1])]);
   } else hasSetupProtocolClient = app$1.setAsDefaultProtocolClient(scheme);
   if (!hasSetupProtocolClient) console.error(`Failed to register protocol ${scheme} as default protocol client.`);
   if (!app$1.requestSingleInstanceLock()) app$1.quit();
@@ -11676,10 +11676,10 @@ function pushMetric(metric) {
   }
 }
 async function measureRows(conn, sql3) {
-  const start2 = performance.now();
+  const start = performance.now();
   const result = await conn.run(sql3);
   const rows = await result.getRowObjectsJS();
-  const durationMs = Math.round(performance.now() - start2);
+  const durationMs = Math.round(performance.now() - start);
   pushMetric({
     sql: truncateSql(sql3),
     durationMs,
@@ -11689,9 +11689,9 @@ async function measureRows(conn, sql3) {
   return rows;
 }
 async function measureRun(conn, sql3) {
-  const start2 = performance.now();
+  const start = performance.now();
   await conn.run(sql3);
-  const durationMs = Math.round(performance.now() - start2);
+  const durationMs = Math.round(performance.now() - start);
   pushMetric({
     sql: truncateSql(sql3),
     durationMs,
@@ -11706,19 +11706,19 @@ function enqueueRead(operation) {
   return readQueue.add(operation);
 }
 function getDuckDBRootDir() {
-  return path9__default.default.join(electron.app.getPath("userData"), "data-navigator");
+  return path__default.default.join(electron.app.getPath("userData"), "data-navigator");
 }
 function getDuckDBPath() {
-  return path9__default.default.join(getDuckDBRootDir(), "data-navigator.duckdb");
+  return path__default.default.join(getDuckDBRootDir(), "data-navigator.duckdb");
 }
 function getDatasetsDirPath() {
-  return path9__default.default.join(getDuckDBRootDir(), "datasets");
+  return path__default.default.join(getDuckDBRootDir(), "datasets");
 }
 async function ensureDirectory(dir) {
   await fs__default.default.mkdir(dir, { recursive: true });
 }
 async function assertReadableFile(filePath) {
-  const resolved = path9__default.default.resolve(filePath);
+  const resolved = path__default.default.resolve(filePath);
   const stat = await fs__default.default.stat(resolved);
   if (!stat.isFile()) {
     throw new Error(`Path is not a file: ${resolved}`);
@@ -11726,17 +11726,17 @@ async function assertReadableFile(filePath) {
   return resolved;
 }
 async function assertManagedCachePath(cachePath) {
-  const datasetsDir = path9__default.default.resolve(getDatasetsDirPath());
-  const resolved = path9__default.default.resolve(cachePath);
-  const relative = path9__default.default.relative(datasetsDir, resolved);
-  const isInsideDatasetsDir = relative !== "" && !relative.startsWith("..") && !path9__default.default.isAbsolute(relative);
+  const datasetsDir = path__default.default.resolve(getDatasetsDirPath());
+  const resolved = path__default.default.resolve(cachePath);
+  const relative = path__default.default.relative(datasetsDir, resolved);
+  const isInsideDatasetsDir = relative !== "" && !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
   if (!isInsideDatasetsDir) {
     throw new Error(`Refusing to access unmanaged cache path: ${resolved}`);
   }
   return resolved;
 }
 async function ensureParentDirectory(filePath) {
-  await fs__default.default.mkdir(path9__default.default.dirname(path9__default.default.resolve(filePath)), { recursive: true });
+  await fs__default.default.mkdir(path__default.default.dirname(path__default.default.resolve(filePath)), { recursive: true });
 }
 function quoteSqlString(value) {
   return `'${value.replaceAll("'", "''")}'`;
@@ -11748,7 +11748,7 @@ function quoteSqlPathList(paths) {
   return `[${paths.map((p) => quoteSqlString(p)).join(", ")}]`;
 }
 async function applyReadConnectionSandbox(conn, allowedDirs) {
-  const resolvedDirs = allowedDirs.filter((dir) => typeof dir === "string" && dir.length > 0).map((dir) => path9__default.default.resolve(dir));
+  const resolvedDirs = allowedDirs.filter((dir) => typeof dir === "string" && dir.length > 0).map((dir) => path__default.default.resolve(dir));
   if (resolvedDirs.length === 0) return;
   const setting = `SET allowed_directories = ${quoteSqlPathList(resolvedDirs)}`;
   try {
@@ -12006,14 +12006,14 @@ async function ensureInit() {
     try {
       const rootDir = getDuckDBRootDir();
       const datasetsDir = getDatasetsDirPath();
-      const dbPath2 = getDuckDBPath();
+      const dbPath = getDuckDBPath();
       await ensureDirectory(rootDir);
       await ensureDirectory(datasetsDir);
-      const tmpSpillDir = path9__default.default.join(rootDir, "tmp");
+      const tmpSpillDir = path__default.default.join(rootDir, "tmp");
       await ensureDirectory(tmpSpillDir);
-      const cores = os4__default.default.availableParallelism?.() ?? 4;
+      const cores = os3__default.default.availableParallelism?.() ?? 4;
       const threads = String(Math.max(2, Math.min(cores - 1, 6)));
-      instance = await nodeApi.DuckDBInstance.create(dbPath2, {
+      instance = await nodeApi.DuckDBInstance.create(dbPath, {
         threads,
         // enable_external_access is a startup-only GLOBAL setting in DuckDB 1.x;
         // it cannot be changed via SET after the database is open. Default is
@@ -12025,7 +12025,7 @@ async function ensureInit() {
       for (let i = 0; i < READ_CONN_COUNT; i += 1) {
         readConns.push(await instance.connect());
       }
-      activeDbPath = dbPath2;
+      activeDbPath = dbPath;
       activeDatasetsDir = datasetsDir;
       const pragmas = [
         `PRAGMA threads = ${threads}`,
@@ -12075,8 +12075,8 @@ async function registerCSVPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = input.displayName ?? path9__default.default.basename(sourcePath);
-    const cachePath = path9__default.default.join(datasetsDir, `${id}.parquet`);
+    const displayName = input.displayName ?? path__default.default.basename(sourcePath);
+    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
     const csvOptions = buildCsvOptions({
       hasHeader: input.hasHeader,
       delimiter: input.delimiter,
@@ -12182,8 +12182,8 @@ async function registerParquetPathDataset(rawInput) {
     await ensureDirectory(datasetsDir);
     const id = makeDatasetId();
     const viewName = datasetViewName(id);
-    const displayName = input.displayName ?? path9__default.default.basename(sourcePath);
-    const cachePath = path9__default.default.join(datasetsDir, `${id}.parquet`);
+    const displayName = input.displayName ?? path__default.default.basename(sourcePath);
+    const cachePath = path__default.default.join(datasetsDir, `${id}.parquet`);
     await fs__default.default.copyFile(sourcePath, cachePath);
     await measureRun(
       conn,
@@ -12332,7 +12332,7 @@ async function exportDataset(rawInput) {
     const sourceCachePath = await assertManagedCachePath(dataset.cachePath);
     await fs__default.default.access(sourceCachePath);
     await ensureParentDirectory(input.targetPath);
-    await fs__default.default.copyFile(sourceCachePath, path9__default.default.resolve(input.targetPath));
+    await fs__default.default.copyFile(sourceCachePath, path__default.default.resolve(input.targetPath));
   });
 }
 async function deleteDataset(rawInput) {
@@ -12449,12 +12449,12 @@ async function runCancellableRead(token, body) {
   });
 }
 async function measureArrow(conn, sql3) {
-  const start2 = performance.now();
+  const start = performance.now();
   const reader = await conn.runAndReadAll(sql3);
   const cols = reader.getColumnsObjectJS();
   reader.columnTypes();
   const bytes = encodeColumnsToArrowIPC(cols);
-  const durationMs = Math.round(performance.now() - start2);
+  const durationMs = Math.round(performance.now() - start);
   const firstCol = Object.values(cols)[0];
   const rowCount = Array.isArray(firstCol) ? firstCol.length : 0;
   pushMetric({
@@ -12575,11 +12575,11 @@ async function fetchKeysetPage(rawInput) {
     }
     const cachePath = await assertManagedCachePath(dataset.cachePath);
     const { sql: sql3, params } = buildKeysetPage(cachePath, input);
-    const start2 = performance.now();
+    const start = performance.now();
     const reader = params.length > 0 ? await conn.runAndReadAll(sql3, params) : await conn.runAndReadAll(sql3);
     const cols = reader.getColumnsObjectJS();
     const types = reader.columnTypes();
-    const durationMs = Math.round(performance.now() - start2);
+    const durationMs = Math.round(performance.now() - start);
     const rowidCol = cols.rowid ?? [];
     const rowCount = rowidCol.length;
     pushMetric({
@@ -12724,10 +12724,22 @@ var MODEL_DOWNLOADS = [
     family: "Granite 4.1",
     sizeLabel: "3B",
     optional: true
+  },
+  {
+    key: "qwen3-embedding-0.6b-q8_0",
+    file: "qwen3-embedding-0.6b-q8_0.gguf",
+    uri: "hf:Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
+    sha256: "",
+    // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 4e8,
+    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
+    family: "Qwen3 Embedding",
+    sizeLabel: "0.6B",
+    optional: false
   }
 ];
 function llmDir() {
-  return path9__default.default.join(electron.app.getPath("userData"), "models", "llm");
+  return path__default.default.join(electron.app.getPath("userData"), "models", "llm");
 }
 function entryFor(key) {
   const entry = MODEL_DOWNLOADS.find((m) => m.key === key);
@@ -12740,7 +12752,7 @@ function abortError() {
   return error;
 }
 function presenceFor(entry) {
-  const p = path9__default.default.join(llmDir(), entry.file);
+  const p = path__default.default.join(llmDir(), entry.file);
   const present = fs3.existsSync(p);
   return {
     key: entry.key,
@@ -12767,14 +12779,14 @@ function listModelPresence() {
 }
 function isModelPresent(key) {
   const entry = entryFor(key);
-  return fs3.existsSync(path9__default.default.join(llmDir(), entry.file));
+  return fs3.existsSync(path__default.default.join(llmDir(), entry.file));
 }
 async function downloadModel(input) {
   const entry = entryFor(input.key);
   const existing = inFlightDownloads.get(entry.key);
   if (existing) return attachToInFlightDownload(existing, input);
   const dir = llmDir();
-  const dest = path9__default.default.join(dir, entry.file);
+  const dest = path__default.default.join(dir, entry.file);
   if (input.signal?.aborted) throw abortError();
   if (fs3.existsSync(dest)) {
     const size = fs3.statSync(dest).size;
@@ -12902,7 +12914,7 @@ async function attachToInFlightDownload(existing, input) {
 }
 async function deleteModel(key) {
   const entry = entryFor(key);
-  const dest = path9__default.default.join(llmDir(), entry.file);
+  const dest = path__default.default.join(llmDir(), entry.file);
   if (!fs3.existsSync(dest)) return { deleted: false };
   await fs.rm(dest, { force: true });
   return { deleted: true };
@@ -13032,10 +13044,10 @@ function enqueue(task) {
   return run;
 }
 function modelDir() {
-  return path9__default.default.join(electron.app.getPath("userData"), "models", "llm");
+  return path__default.default.join(electron.app.getPath("userData"), "models", "llm");
 }
 function modelPath(file) {
-  return path9__default.default.join(modelDir(), file);
+  return path__default.default.join(modelDir(), file);
 }
 function gpuExplicitlyEnabled() {
   const value = process.env.DN_LLAMA_GPU?.trim().toLowerCase();
@@ -13093,9 +13105,12 @@ async function getLoadedModel(file = DEFAULT_LLM_MODEL) {
 function enqueueLlamaTask(task) {
   return enqueue(task);
 }
+function getSharedLlama() {
+  return getLlamaInstance();
+}
 async function generate(input) {
   return enqueue(async () => {
-    const start2 = Date.now();
+    const start = Date.now();
     await ensureModel();
     if (input.signal?.aborted) throw abortError2();
     const effectivePrompt = input.systemPrefix ? `${input.systemPrefix}
@@ -13131,7 +13146,7 @@ ${input.prompt}` : input.prompt;
             promptTokens: countTokens(`${input.systemPrefix}
 ${user}`),
             completionTokens: warmCompletion,
-            elapsedMs: Date.now() - start2
+            elapsedMs: Date.now() - start
           };
         } catch {
           if (input.signal?.aborted) throw abortError2();
@@ -13175,7 +13190,7 @@ ${effectivePrompt}` : effectivePrompt
         finishReason: finishReason === "abort" ? "abort" : completionTokens >= (input.maxTokens ?? DEFAULT_MAX_TOKENS) ? "length" : "stop",
         promptTokens,
         completionTokens,
-        elapsedMs: Date.now() - start2
+        elapsedMs: Date.now() - start
       };
     } finally {
       sequence.dispose();
@@ -13449,7 +13464,7 @@ async function buildTools(onEvent) {
   const { defineChatSessionFunction } = await import('node-llama-cpp');
   const wrap = (name, handler) => {
     return async (params) => {
-      const start2 = Date.now();
+      const start = Date.now();
       let result;
       try {
         result = await handler(params);
@@ -13460,7 +13475,7 @@ async function buildTools(onEvent) {
         name,
         params,
         resultSummary: truncateText(result, TOOL_SUMMARY_MAX_CHARS),
-        durationMs: Date.now() - start2
+        durationMs: Date.now() - start
       });
       return result;
     };
@@ -13519,9 +13534,9 @@ async function buildTools(onEvent) {
 }
 async function openSession(input) {
   const systemPrompt = input.systemPrompt?.trim() ? input.systemPrompt.trim() : DEFAULT_SYSTEM_PROMPT;
-  const { model: model2, modelPath: modelPath2 } = await getLoadedModel(input.modelFile);
+  const { model: model2, modelPath: modelPath3 } = await getLoadedModel(input.modelFile);
   for (const [id, entry] of [...sessions]) {
-    if (entry.modelPath !== modelPath2) {
+    if (entry.modelPath !== modelPath3) {
       sessions.delete(id);
       await disposeNative(entry);
     }
@@ -13530,7 +13545,7 @@ async function openSession(input) {
   if (existing) {
     if (input.history) existing.session.setChatHistory(toChatHistory(systemPrompt, input.history));
     requireSession(input.conversationId);
-    return { model: modelPath2, reused: true };
+    return { model: modelPath3, reused: true };
   }
   const { LlamaChatSession } = await import('node-llama-cpp');
   const context = await model2.createContext({ contextSize: CHAT_CONTEXT_SIZE });
@@ -13545,12 +13560,12 @@ async function openSession(input) {
     session: session4,
     context,
     sequence,
-    modelPath: modelPath2,
+    modelPath: modelPath3,
     systemPrompt,
     lastUsed: Date.now()
   });
   await evictOverCap();
-  return { model: modelPath2, reused: false };
+  return { model: modelPath3, reused: false };
 }
 async function promptSession(input) {
   const entry = requireSession(input.conversationId);
@@ -13725,7 +13740,7 @@ function open() {
   if (handle) return handle;
   if (!baseDir) throw new Error("chat-store: configureChatStore() was not called");
   fs3.mkdirSync(baseDir, { recursive: true });
-  const sqlite = new Database2__default.default(path9__default.default.join(baseDir, DB_FILE));
+  const sqlite = new Database2__default.default(path__default.default.join(baseDir, DB_FILE));
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(SCHEMA_SQL);
@@ -13850,292 +13865,77 @@ function closeChatStore() {
   handle?.sqlite.close();
   handle = null;
 }
-function generatePairingCode() {
-  return String(crypto$1.randomInt(1e5, 1e6));
+var DEFAULT_EMBED_MODEL_ENTRY = MODEL_DOWNLOADS.find(
+  (m) => m.key === "qwen3-embedding-0.6b-q8_0"
+);
+if (!DEFAULT_EMBED_MODEL_ENTRY) {
+  throw new Error(
+    "embed-service.ts: MODEL_DOWNLOADS is missing the 'qwen3-embedding-0.6b-q8_0' entry"
+  );
 }
-function pairingCodesMatch(expected, actual) {
-  if (!expected || !actual) return false;
-  const a = Buffer.from(expected, "utf8");
-  const b = Buffer.from(actual, "utf8");
-  if (a.length !== b.length) return false;
-  return crypto$1.timingSafeEqual(a, b);
+var DEFAULT_EMBED_MODEL = DEFAULT_EMBED_MODEL_ENTRY.file;
+var embedModel = null;
+var embedContext = null;
+var loadedEmbedModelPath = null;
+function modelDir2() {
+  return path__default.default.join(electron.app.getPath("userData"), "models", "llm");
 }
-function normalizeRequestedRole(requested) {
-  if (requested === "host" || requested === "reviewer" || requested === "viewer") return requested;
-  return "editor";
+function modelPath2(file) {
+  return path__default.default.join(modelDir2(), file);
 }
-function deriveRoleFromCodes(codes, presented, requestedRole) {
-  const requested = normalizeRequestedRole(requestedRole);
-  if (pairingCodesMatch(codes.pairingCode, presented)) {
-    return { role: requested, readOnly: requested === "viewer" || requested === "reviewer" };
+async function ensureEmbedModel(file = DEFAULT_EMBED_MODEL) {
+  const target = modelPath2(file);
+  if (!fs3.existsSync(target)) {
+    throw new Error(
+      `Missing GGUF embedding model: ${target}. Download it while online into ${modelDir2()}.`
+    );
   }
-  if (codes.guestCode && pairingCodesMatch(codes.guestCode, presented)) {
-    const role = requested === "reviewer" ? "reviewer" : "viewer";
-    return { role, readOnly: true };
+  if (embedModel && embedContext && loadedEmbedModelPath === target) {
+    return;
   }
-  return null;
+  if (embedModel) {
+    await disposeEmbed();
+  }
+  const llama = await getSharedLlama();
+  embedModel = await llama.loadModel({ modelPath: target });
+  embedContext = await embedModel.createEmbeddingContext();
+  loadedEmbedModelPath = target;
 }
-function parseCollabToken(token) {
-  if (!token) return { code: "" };
+async function embedBatch(texts) {
+  if (texts.length === 0) return [];
+  await ensureEmbedModel();
+  const context = embedContext;
+  const embeddings = await Promise.all(texts.map((text3) => context.getEmbeddingFor(text3)));
+  return embeddings.map((embedding) => Float32Array.from(embedding.vector));
+}
+async function isEmbedAvailable(file = DEFAULT_EMBED_MODEL) {
   try {
-    const parsed = JSON.parse(token);
-    if (parsed && typeof parsed === "object" && typeof parsed.code === "string") {
-      return {
-        code: parsed.code,
-        peerId: typeof parsed.peerId === "string" ? parsed.peerId : void 0,
-        peerName: typeof parsed.peerName === "string" ? parsed.peerName : void 0,
-        role: typeof parsed.role === "string" ? parsed.role : void 0
-      };
-    }
+    if (!fs3.existsSync(modelPath2(file))) return false;
+    await ensureEmbedModel(file);
+    return true;
   } catch {
+    return false;
   }
-  return { code: token };
 }
-
-// electron/collab-hub-service.ts
-var DEFAULT_PORT = 1234;
-var SERVICE_TYPE = "dn-collab";
-var SERVICE_NAME = "Data Navigator LAN";
-var HUB_NAME = "data-navigator-hub";
-var server = null;
-var bonjour = null;
-var publishedService = null;
-var browser = null;
-var activePort = null;
-var activePairingCode = null;
-var activeGuestCode = null;
-var activeRoom = null;
-var startedAt = null;
-var dbPath = null;
-var discovered = /* @__PURE__ */ new Map();
-var discoveryListener = null;
-function dataDir() {
-  return path9__default.default.join(electron.app.getPath("userData"), "data-navigator", "collab");
-}
-function lanAddresses() {
-  const nets = os4__default.default.networkInterfaces();
-  const lans = [];
-  for (const name of Object.keys(nets)) {
-    for (const net3 of nets[name] ?? []) {
-      if (net3.family === "IPv4" && !net3.internal) {
-        lans.push({ name, address: net3.address });
-      }
+async function disposeEmbed() {
+  try {
+    if (embedContext) {
+      await embedContext.dispose();
     }
+  } catch (error) {
+    console.warn("[embed] embedding context dispose error:", error);
+  } finally {
+    embedContext = null;
   }
-  return lans;
-}
-function websocketUrls(port) {
-  return lanAddresses().map((ip) => `ws://${ip.address}:${port}`);
-}
-function pickIpv4(addresses) {
-  return addresses?.find((a) => /^\d+\.\d+\.\d+\.\d+$/.test(a));
-}
-function serviceKey(svc) {
-  return `${svc.name ?? svc.host ?? "hub"}:${svc.port}`;
-}
-function toDiscoveredHub(svc) {
-  const ip = pickIpv4(svc.addresses) ?? svc.host;
-  if (!ip) return null;
-  return {
-    name: svc.name ?? SERVICE_NAME,
-    host: svc.host ?? ip,
-    port: svc.port,
-    url: `ws://${ip}:${svc.port}`,
-    addresses: svc.addresses ?? [],
-    room: svc.txt?.room,
-    pairingRequired: svc.txt?.pairingRequired === "1"
-  };
-}
-function setDiscoveryListener(listener) {
-  discoveryListener = listener;
-}
-async function start(input = {}) {
-  if (server) {
-    return status();
-  }
-  const port = input.port ?? DEFAULT_PORT;
-  const pairingCode = input.pairingCode?.trim() || generatePairingCode();
-  const guestCode = input.guestCode?.trim() || generatePairingCode();
-  const room = input.room ?? "telecom-default";
-  const { Server } = await import('@hocuspocus/server');
-  const { SQLite } = await import('@hocuspocus/extension-sqlite');
-  const fs5 = await import('fs/promises');
-  await fs5.mkdir(dataDir(), { recursive: true });
-  dbPath = path9__default.default.join(dataDir(), "collab-hub.sqlite");
-  const instance2 = new Server({
-    name: HUB_NAME,
-    port,
-    quiet: true,
-    // DoS hardening: cap frame size well below the crossws default.
-    websocketOptions: { maxPayload: 64 * 1024 * 1024 },
-    extensions: [new SQLite({ database: dbPath })],
-    // Token-based auth (Hocuspocus Auth frame — the code never rides the URL,
-    // so it cannot leak into HTTP/proxy logs). The token is a JSON envelope
-    // {code, peerId, peerName, role}; which CODE matches decides the role:
-    // pairing code → requested role, guest code → read-only viewer/reviewer.
-    async onAuthenticate(payload) {
-      const parsed = parseCollabToken(payload.token);
-      const presented = parsed.code || payload.requestParameters.get("pairingCode");
-      const requestedRole = parsed.role ?? payload.requestParameters.get("role");
-      const access = deriveRoleFromCodes({ pairingCode, guestCode }, presented, requestedRole);
-      if (!access) {
-        throw new Error("Invalid access code");
-      }
-      payload.connectionConfig.readOnly = access.readOnly;
-      return { role: access.role, peerId: parsed.peerId, peerName: parsed.peerName };
-    },
-    // Anti-spoofing: awareness is client-asserted, so stamp the SERVER-derived
-    // role onto every presence state this connection broadcasts. A guest can
-    // rename themselves, but can never present as host/editor to peers.
-    async beforeHandleAwareness(payload) {
-      if (!payload.context) return;
-      for (const state of payload.states.values()) {
-        const user = state.user;
-        if (user && typeof user === "object") {
-          user.role = payload.context.role;
-        }
-      }
-    },
-    async onListen() {
-      if (input.advertise !== false) {
-        startAdvertising(port, room, Boolean(pairingCode));
-      }
+  try {
+    if (embedModel) {
+      await embedModel.dispose();
     }
-  });
-  await instance2.listen();
-  server = instance2;
-  activePort = port;
-  activePairingCode = pairingCode;
-  activeGuestCode = guestCode;
-  activeRoom = room;
-  startedAt = (/* @__PURE__ */ new Date()).toISOString();
-  if (input.discover) {
-    startDiscovery();
-  }
-  return status();
-}
-async function stop() {
-  stopDiscovery();
-  await stopAdvertising();
-  if (server) {
-    try {
-      await server.destroy();
-    } catch (error) {
-      console.warn("[collab-hub] server destroy error:", error);
-    }
-    server = null;
-  }
-  activePort = null;
-  activePairingCode = null;
-  activeGuestCode = null;
-  activeRoom = null;
-  startedAt = null;
-  dbPath = null;
-  return { stopped: true };
-}
-function status() {
-  return {
-    running: server !== null,
-    port: activePort,
-    pairingCode: activePairingCode,
-    guestCode: activeGuestCode,
-    room: activeRoom,
-    advertising: publishedService !== null,
-    discovering: browser !== null,
-    websocketUrls: activePort ? websocketUrls(activePort) : [],
-    ips: lanAddresses(),
-    dbPath,
-    startedAt
-  };
-}
-async function discover() {
-  startDiscovery();
-  return [...discovered.values()];
-}
-function getDiscovered() {
-  return [...discovered.values()];
-}
-async function ensureBonjour() {
-  if (!bonjour) {
-    const mod = await import('bonjour-service');
-    const Ctor = mod.Bonjour ?? mod.default;
-    if (!Ctor) throw new Error("bonjour-service: missing Bonjour export");
-    bonjour = new Ctor();
-  }
-  return bonjour;
-}
-function startAdvertising(port, room, pairingRequired) {
-  void (async () => {
-    try {
-      const inst = await ensureBonjour();
-      publishedService = inst.publish({
-        name: SERVICE_NAME,
-        type: SERVICE_TYPE,
-        port,
-        protocol: "tcp",
-        txt: { room, pairingRequired: pairingRequired ? "1" : "0" }
-      });
-    } catch (error) {
-      console.warn("[collab-hub] mDNS advertise failed:", error);
-    }
-  })();
-}
-async function stopAdvertising() {
-  if (!publishedService) return;
-  publishedService = null;
-  const inst = bonjour;
-  if (inst) {
-    await new Promise((resolve2) => {
-      try {
-        inst.unpublishAll(() => resolve2());
-      } catch {
-        resolve2();
-      }
-    });
-  }
-}
-function startDiscovery() {
-  if (browser) return;
-  void (async () => {
-    try {
-      const inst = await ensureBonjour();
-      const b = inst.find({ type: SERVICE_TYPE });
-      browser = b;
-      b.on("up", (svc) => {
-        const hub = toDiscoveredHub(svc);
-        if (!hub) return;
-        discovered.set(serviceKey(svc), hub);
-        discoveryListener?.({ type: "up", hub });
-      });
-      b.on("down", (svc) => {
-        const key = serviceKey(svc);
-        const hub = discovered.get(key);
-        discovered.delete(key);
-        if (hub) discoveryListener?.({ type: "down", hub });
-      });
-    } catch (error) {
-      console.warn("[collab-hub] mDNS discovery failed:", error);
-    }
-  })();
-}
-function stopDiscovery() {
-  if (browser) {
-    try {
-      browser.stop?.();
-    } catch {
-    }
-    browser = null;
-  }
-  discovered.clear();
-}
-async function dispose2() {
-  await stop();
-  if (bonjour) {
-    try {
-      bonjour.destroy();
-    } catch {
-    }
-    bonjour = null;
+  } catch (error) {
+    console.warn("[embed] model dispose error:", error);
+  } finally {
+    embedModel = null;
+    loadedEmbedModelPath = null;
   }
 }
 
@@ -14315,8 +14115,13 @@ var LlamaGenerateStructuredSchema = z.z.object({
   temperature: z.z.number().optional()
 });
 var LlamaEnsureModelSchema = z.z.object({ file: z.z.string().max(512).optional() }).optional();
+var LlamaEmbedSchema = z.z.object({ texts: z.z.array(z.z.string()).min(1).max(256) });
 var RequestIdSchema = z.z.string().min(1).max(512);
-var ModelKeySchema = z.z.enum(["gemma-4-e4b-it-q4_k_m", "granite-4.1-3b-instruct-q4_k_m"]);
+var ModelKeySchema = z.z.enum([
+  "gemma-4-e4b-it-q4_k_m",
+  "granite-4.1-3b-instruct-q4_k_m",
+  "qwen3-embedding-0.6b-q8_0"
+]);
 var ModelDownloadSchema = z.z.object({ key: ModelKeySchema, requestId });
 var conversationId = z.z.string().min(1).max(128);
 var messageParts = z.z.unknown().optional().refine((v) => v === void 0 || JSON.stringify(v).length <= 2e6, {
@@ -14375,7 +14180,7 @@ var ClipboardImageSchema = z.z.object({
     message: "must be a data:image/ URL"
   })
 });
-var CollabStartSchema = z.z.object({
+z.z.object({
   port: z.z.number().int().min(0).max(65535).optional(),
   pairingCode: z.z.string().max(256).optional(),
   guestCode: z.z.string().max(256).optional(),
@@ -14388,7 +14193,7 @@ var ENCRYPT_AUTH_DB_ENV = "DN_ENCRYPT_AUTH_DB";
 var WRAPPED_KEY_FILE_NAME = "auth-db-key.enc";
 var DEK_BYTES = 32;
 function getWrappedKeyPath(userDataDir) {
-  return path9__default.default.join(path9__default.default.resolve(userDataDir), WRAPPED_KEY_FILE_NAME);
+  return path__default.default.join(path__default.default.resolve(userDataDir), WRAPPED_KEY_FILE_NAME);
 }
 function isEncryptionEnabledByFlag(env2 = process.env) {
   const raw = env2[ENCRYPT_AUTH_DB_ENV];
@@ -14414,7 +14219,7 @@ function loadOrCreateWrappedDek(userDataDir, safeStorage2) {
   }
   const dekHex = crypto__default.default.randomBytes(DEK_BYTES).toString("hex");
   const wrapped = safeStorage2.encryptString(dekHex);
-  fs3.mkdirSync(path9__default.default.dirname(keyPath), { recursive: true });
+  fs3.mkdirSync(path__default.default.dirname(keyPath), { recursive: true });
   fs3.writeFileSync(keyPath, wrapped, { mode: 384 });
   return dekHex;
 }
@@ -14433,13 +14238,13 @@ function ensureAuthDbKeyEnv(userDataDir, safeStorage2, env2 = process.env) {
   return dekHex;
 }
 function normalizePath(filePath) {
-  return path9__default.default.resolve(filePath);
+  return path__default.default.resolve(filePath);
 }
 function isPathInside(childPath, parentPath) {
   const child2 = normalizePath(childPath);
   const parent = normalizePath(parentPath);
-  const relative = path9__default.default.relative(parent, child2);
-  return relative === "" || !relative.startsWith("..") && !path9__default.default.isAbsolute(relative);
+  const relative = path__default.default.relative(parent, child2);
+  return relative === "" || !relative.startsWith("..") && !path__default.default.isAbsolute(relative);
 }
 function isAllowedAppOrigin(value) {
   if (!value) return false;
@@ -14465,12 +14270,12 @@ function wantsMicrophone(details) {
 }
 var _dataDir, _allowedReadPaths, _allowedWritePaths, _allowedDirectoryPaths;
 var PathAccessController = class {
-  constructor(dataDir2) {
+  constructor(dataDir) {
     __privateAdd(this, _dataDir);
     __privateAdd(this, _allowedReadPaths, /* @__PURE__ */ new Set());
     __privateAdd(this, _allowedWritePaths, /* @__PURE__ */ new Set());
     __privateAdd(this, _allowedDirectoryPaths, /* @__PURE__ */ new Set());
-    __privateSet(this, _dataDir, normalizePath(dataDir2));
+    __privateSet(this, _dataDir, normalizePath(dataDir));
   }
   get dataDir() {
     return __privateGet(this, _dataDir);
@@ -14640,7 +14445,7 @@ function assertLoopbackHostname(hostname) {
 }
 var SECRET_FILE_NAME = "better-auth-secret";
 function loadOrCreateAuthSecret(userDataDir) {
-  const secretPath = path9__default.default.join(normalizePath(userDataDir), SECRET_FILE_NAME);
+  const secretPath = path__default.default.join(normalizePath(userDataDir), SECRET_FILE_NAME);
   if (fs3.existsSync(secretPath)) {
     const existing = fs3.readFileSync(secretPath, "utf8").trim();
     if (existing.length >= 32) {
@@ -14648,7 +14453,7 @@ function loadOrCreateAuthSecret(userDataDir) {
     }
   }
   const secret = crypto__default.default.randomBytes(32).toString("hex");
-  fs3.mkdirSync(path9__default.default.dirname(secretPath), { recursive: true });
+  fs3.mkdirSync(path__default.default.dirname(secretPath), { recursive: true });
   fs3.writeFileSync(secretPath, secret, { encoding: "utf8", mode: 384 });
   return secret;
 }
@@ -14745,7 +14550,7 @@ function openDomain(domain) {
     throw new Error("settings-store: configureSettingsStore() was not called");
   }
   fs3.mkdirSync(baseDir2, { recursive: true });
-  const sqlite = new Database2__default.default(path9__default.default.join(baseDir2, DB_FILES[domain]));
+  const sqlite = new Database2__default.default(path__default.default.join(baseDir2, DB_FILES[domain]));
   sqlite.pragma("journal_mode = WAL");
   sqlite.pragma("foreign_keys = ON");
   sqlite.exec(SCHEMA_SQL2);
@@ -14930,320 +14735,6 @@ function closeSettingsStore() {
   }
   handles.clear();
 }
-var DEFAULT_SAMPLE_RATE = 16e3;
-var DEFAULT_STT_ENGINE = "sherpa-whisper-small";
-var DEFAULT_TTS_ENGINE = "sherpa-kokoro";
-var SUPERTONIC_DEFAULT_NUM_STEPS = 8;
-var DEFAULT_STT_MODEL_DIR = path9__default.default.join(
-  process.cwd(),
-  "public",
-  "models",
-  "sherpa",
-  "stt",
-  "sherpa-onnx-whisper-small"
-);
-var DEFAULT_KOKORO_MODEL_DIR = path9__default.default.join(
-  process.cwd(),
-  "public",
-  "models",
-  "sherpa",
-  "tts",
-  "kokoro-en-v0_19"
-);
-var DEFAULT_SUPERTONIC_MODEL_DIR = path9__default.default.join(
-  process.cwd(),
-  "public",
-  "models",
-  "sherpa",
-  "tts",
-  "supertonic-3"
-);
-var KOKORO_SPEAKER_IDS = {
-  af_sky: 6,
-  af_heart: 0,
-  am_adam: 1,
-  am_michael: 2
-};
-var sherpaModulePromise = null;
-var recognizers = /* @__PURE__ */ new Map();
-var ttsModels = /* @__PURE__ */ new Map();
-function getSherpa() {
-  sherpaModulePromise ?? (sherpaModulePromise = import('sherpa-onnx-node').then(
-    (module) => module.default ?? module
-  ));
-  return sherpaModulePromise;
-}
-function normalizeSttEngine(value) {
-  if (value === "sherpa-whisper-small") return value;
-  return DEFAULT_STT_ENGINE;
-}
-function normalizeTtsEngine(value) {
-  if (value === "off") return "off";
-  if (value === "sherpa-kokoro" || value === "sherpa-supertonic") return value;
-  return DEFAULT_TTS_ENGINE;
-}
-function mapLanguageHintToSupertonicLang(hint) {
-  const normalized = hint?.toLowerCase().trim();
-  if (!normalized || normalized === "auto") return "en";
-  if (normalized.startsWith("ar")) return "ar";
-  if (normalized.startsWith("fr")) return "fr";
-  if (normalized.startsWith("en")) return "en";
-  return "en";
-}
-function normalizeModelDir(value, fallback) {
-  return path9__default.default.resolve(value?.trim() || fallback);
-}
-function requireFile(filePath) {
-  if (!fs3.existsSync(filePath)) {
-    throw new Error(`Missing Sherpa model file: ${filePath}`);
-  }
-  return filePath;
-}
-function normalizeAudioInput(input) {
-  if (input instanceof Float32Array) {
-    return sanitizeAudio(input);
-  }
-  if (input instanceof ArrayBuffer) {
-    return sanitizeAudio(new Float32Array(input));
-  }
-  if (Array.isArray(input)) {
-    return sanitizeAudio(Float32Array.from(input));
-  }
-  throw new Error("Unsupported audio payload for Sherpa STT.");
-}
-function sanitizeAudio(samples) {
-  const out = new Float32Array(samples.length);
-  for (let i = 0; i < samples.length; i += 1) {
-    const sample = Number.isFinite(samples[i]) ? samples[i] : 0;
-    out[i] = Math.max(-1, Math.min(1, sample));
-  }
-  return out;
-}
-function normalizeSampleRate(sampleRate) {
-  if (!sampleRate || !Number.isFinite(sampleRate) || sampleRate <= 0) {
-    return DEFAULT_SAMPLE_RATE;
-  }
-  return Math.round(sampleRate);
-}
-function getWhisperModelConfig(modelDir2) {
-  return {
-    featConfig: {
-      sampleRate: DEFAULT_SAMPLE_RATE,
-      featureDim: 80
-    },
-    modelConfig: {
-      whisper: {
-        encoder: requireFile(path9__default.default.join(modelDir2, "small-encoder.int8.onnx")),
-        decoder: requireFile(path9__default.default.join(modelDir2, "small-decoder.int8.onnx"))
-      },
-      tokens: requireFile(path9__default.default.join(modelDir2, "small-tokens.txt")),
-      numThreads: 2,
-      provider: "cpu",
-      debug: 0
-    }
-  };
-}
-function getKokoroModelConfig(modelDir2) {
-  return {
-    model: {
-      kokoro: {
-        model: requireFile(path9__default.default.join(modelDir2, "model.onnx")),
-        voices: requireFile(path9__default.default.join(modelDir2, "voices.bin")),
-        tokens: requireFile(path9__default.default.join(modelDir2, "tokens.txt")),
-        dataDir: requireFile(path9__default.default.join(modelDir2, "espeak-ng-data"))
-      },
-      debug: false,
-      numThreads: 2,
-      provider: "cpu"
-    },
-    maxNumSentences: 1
-  };
-}
-function getSupertonicModelConfig(modelDir2) {
-  return {
-    model: {
-      supertonic: {
-        durationPredictor: requireFile(path9__default.default.join(modelDir2, "duration_predictor.int8.onnx")),
-        textEncoder: requireFile(path9__default.default.join(modelDir2, "text_encoder.int8.onnx")),
-        vectorEstimator: requireFile(path9__default.default.join(modelDir2, "vector_estimator.int8.onnx")),
-        vocoder: requireFile(path9__default.default.join(modelDir2, "vocoder.int8.onnx")),
-        ttsJson: requireFile(path9__default.default.join(modelDir2, "tts.json")),
-        unicodeIndexer: requireFile(path9__default.default.join(modelDir2, "unicode_indexer.bin")),
-        voiceStyle: requireFile(path9__default.default.join(modelDir2, "voice.bin"))
-      },
-      debug: false,
-      numThreads: 2,
-      provider: "cpu"
-    },
-    maxNumSentences: 1
-  };
-}
-async function getRecognizer(modelDir2) {
-  const key = path9__default.default.resolve(modelDir2);
-  let recognizer = recognizers.get(key);
-  if (!recognizer) {
-    recognizer = getSherpa().then(
-      (sherpa) => sherpa.OfflineRecognizer.createAsync(getWhisperModelConfig(key))
-    );
-    recognizers.set(key, recognizer);
-  }
-  return recognizer;
-}
-async function getTts(engine, modelDir2) {
-  const key = `${engine}:${path9__default.default.resolve(modelDir2)}`;
-  let tts = ttsModels.get(key);
-  if (!tts) {
-    tts = getSherpa().then(
-      (sherpa) => sherpa.OfflineTts.createAsync(
-        engine === "sherpa-supertonic" ? getSupertonicModelConfig(path9__default.default.resolve(modelDir2)) : getKokoroModelConfig(path9__default.default.resolve(modelDir2))
-      )
-    );
-    ttsModels.set(key, tts);
-  }
-  return tts;
-}
-function getSpeakerId(voice) {
-  if (!voice) return KOKORO_SPEAKER_IDS.af_sky;
-  return KOKORO_SPEAKER_IDS[voice] ?? KOKORO_SPEAKER_IDS.af_sky;
-}
-function getSupertonicSpeakerId(voice) {
-  const parsed = voice ? Number(voice) : Number.NaN;
-  return Number.isFinite(parsed) && parsed >= 0 ? Math.floor(parsed) : 0;
-}
-function getDefaultTtsModelDir(engine) {
-  return engine === "sherpa-supertonic" ? DEFAULT_SUPERTONIC_MODEL_DIR : DEFAULT_KOKORO_MODEL_DIR;
-}
-function encodeWav(samples, sampleRate) {
-  const numChannels = 1;
-  const bytesPerSample = 2;
-  const dataSize = samples.length * bytesPerSample;
-  const buffer = new ArrayBuffer(44 + dataSize);
-  const view = new DataView(buffer);
-  writeAscii(view, 0, "RIFF");
-  view.setUint32(4, 36 + dataSize, true);
-  writeAscii(view, 8, "WAVE");
-  writeAscii(view, 12, "fmt ");
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, numChannels, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * numChannels * bytesPerSample, true);
-  view.setUint16(32, numChannels * bytesPerSample, true);
-  view.setUint16(34, 16, true);
-  writeAscii(view, 36, "data");
-  view.setUint32(40, dataSize, true);
-  let offset = 44;
-  for (let i = 0; i < samples.length; i += 1, offset += 2) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, clamped < 0 ? clamped * 32768 : clamped * 32767, true);
-  }
-  return buffer;
-}
-function writeAscii(view, offset, value) {
-  for (let i = 0; i < value.length; i += 1) {
-    view.setUint8(offset + i, value.charCodeAt(i));
-  }
-}
-async function preloadStt(input = {}) {
-  const engine = normalizeSttEngine(input.engine);
-  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
-  await getRecognizer(modelDir2);
-  return {
-    engine,
-    model: modelDir2,
-    runtime: "cpu"
-  };
-}
-async function transcribe(input) {
-  const start2 = Date.now();
-  const engine = normalizeSttEngine(input.engine);
-  const sampleRate = normalizeSampleRate(input.sampleRate);
-  const samples = normalizeAudioInput(input.audio);
-  const modelDir2 = normalizeModelDir(input.localModelPath, DEFAULT_STT_MODEL_DIR);
-  const recognizer = await getRecognizer(modelDir2);
-  const stream = recognizer.createStream();
-  stream.acceptWaveform({
-    sampleRate,
-    samples
-  });
-  const result = await recognizer.decodeAsync(stream);
-  const text3 = (result.text ?? recognizer.getResult(stream).text ?? "").trim();
-  return {
-    text: text3,
-    engine,
-    model: modelDir2,
-    runtime: "cpu",
-    sampleRate,
-    audioDurationMs: Math.round(samples.length / sampleRate * 1e3),
-    latencyMs: Date.now() - start2,
-    language: result.lang || input.language
-  };
-}
-async function preloadTts(input = {}) {
-  const engine = normalizeTtsEngine(input.engine);
-  if (engine === "off") {
-    return {
-      engine,
-      model: "text-only",
-      runtime: "cpu"
-    };
-  }
-  const modelDir2 = normalizeModelDir(input.localModelPath, getDefaultTtsModelDir(engine));
-  await getTts(engine, modelDir2);
-  return {
-    engine,
-    model: modelDir2,
-    runtime: "cpu"
-  };
-}
-async function speak(input) {
-  const engine = normalizeTtsEngine(input.engine);
-  if (engine === "off") {
-    throw new Error("TTS engine is set to text-only mode.");
-  }
-  const text3 = input.text.trim();
-  if (!text3) {
-    throw new Error("No text was provided for Sherpa TTS.");
-  }
-  const start2 = Date.now();
-  const modelDir2 = normalizeModelDir(input.localModelPath, getDefaultTtsModelDir(engine));
-  const tts = await getTts(engine, modelDir2);
-  const speed = typeof input.speed === "number" && Number.isFinite(input.speed) ? Math.min(2, Math.max(0.5, input.speed)) : 1;
-  const sherpa = await getSherpa();
-  const isSupertonic = engine === "sherpa-supertonic";
-  const sid = isSupertonic ? getSupertonicSpeakerId(input.voice) : getSpeakerId(input.voice);
-  const generationConfig = isSupertonic ? new sherpa.GenerationConfig({
-    sid,
-    speed,
-    numSteps: SUPERTONIC_DEFAULT_NUM_STEPS,
-    extra: { lang: mapLanguageHintToSupertonicLang(input.lang) }
-  }) : new sherpa.GenerationConfig({
-    sid,
-    speed,
-    silenceScale: 0.2
-  });
-  const audio = isSupertonic ? await tts.generateAsync({ text: text3, generationConfig }) : await tts.generateAsync({ text: text3, sid, speed, generationConfig });
-  const wav = encodeWav(sanitizeAudio(audio.samples), audio.sampleRate);
-  return {
-    jobId: `tts_${Date.now().toString(36)}`,
-    engine,
-    model: modelDir2,
-    runtime: "cpu",
-    voice: input.voice || (isSupertonic ? String(sid) : "af_sky"),
-    text: text3,
-    sampleRate: audio.sampleRate,
-    durationMs: Math.round(audio.samples.length / audio.sampleRate * 1e3),
-    latencyMs: Date.now() - start2,
-    wav
-  };
-}
-function clearVoiceModels() {
-  const stt = recognizers.size;
-  const tts = ttsModels.size;
-  recognizers.clear();
-  ttsModels.clear();
-  return { stt, tts };
-}
 
 // electron/workers/duckdb-utility-protocol.ts
 function isErrorResponse(value) {
@@ -15255,16 +14746,16 @@ var REQUEST_TIMEOUT_MS = 12e4;
 var FORK_SPAWN_TIMEOUT_MS = 15e3;
 var UTILITY_MEMORY_LIMIT = "2GB";
 function getDuckDBRootDir2() {
-  return path9__default.default.join(electron.app.getPath("userData"), "data-navigator");
+  return path__default.default.join(electron.app.getPath("userData"), "data-navigator");
 }
 function getDatasetsDirPath2() {
-  return path9__default.default.join(getDuckDBRootDir2(), "datasets");
+  return path__default.default.join(getDuckDBRootDir2(), "datasets");
 }
 function getTmpSpillDir() {
-  return path9__default.default.join(getDuckDBRootDir2(), "tmp");
+  return path__default.default.join(getDuckDBRootDir2(), "tmp");
 }
 function getUtilityModulePath() {
-  return path9__default.default.join(__dirname, "workers", "duckdb.utility.js");
+  return path__default.default.join(__dirname, "workers", "duckdb.utility.js");
 }
 function isEnabled() {
   return process.env.DN_DUCKDB_UTILITY === "1";
@@ -15360,7 +14851,7 @@ var initialized = false;
 async function ensureInitialized() {
   await ensureSpawned();
   if (initialized) return;
-  const cores = os4__default.default.availableParallelism?.() ?? 4;
+  const cores = os3__default.default.availableParallelism?.() ?? 4;
   const threads = Math.max(1, Math.min(cores - 1, 6));
   const response = await request({
     kind: "init",
@@ -15386,7 +14877,7 @@ async function runReadOnlyQuery2(sql3) {
   }
   return response.rows;
 }
-function dispose3() {
+function dispose2() {
   const active = child;
   initialized = false;
   if (active) {
@@ -15407,13 +14898,13 @@ function bootLog(message2) {
 `;
   const nodeFs = __require("fs");
   try {
-    nodeFs.appendFileSync(path9__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
+    nodeFs.appendFileSync(path__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
     return;
   } catch {
   }
   try {
-    const os5 = __require("os");
-    nodeFs.appendFileSync(path9__default.default.join(os5.tmpdir(), "data-navigator-boot.log"), line);
+    const os4 = __require("os");
+    nodeFs.appendFileSync(path__default.default.join(os4.tmpdir(), "data-navigator-boot.log"), line);
   } catch {
   }
 }
@@ -15442,10 +14933,6 @@ if (electron.app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
     console.warn("[electron] auto-update setup failed:", error);
   });
 }
-electron.app.commandLine.appendSwitch("enable-unsafe-webgpu");
-if (process.platform === "linux") {
-  electron.app.commandLine.appendSwitch("enable-features", "Vulkan");
-}
 electron.app.enableSandbox();
 if (!electron.app.requestSingleInstanceLock()) {
   electron.app.quit();
@@ -15466,15 +14953,15 @@ if (electron.app.isPackaged) {
     electron.app.quit();
   }
 }
-var DATA_DIR = path9__default.default.join(electron.app.getPath("userData"), "data-navigator");
-var DATABASES_DIR = path9__default.default.join(electron.app.getPath("userData"), "databases");
+var DATA_DIR = path__default.default.join(electron.app.getPath("userData"), "data-navigator");
+var DATABASES_DIR = path__default.default.join(electron.app.getPath("userData"), "databases");
 var AUTH_DB_FILENAME = "data-navigator-auth.sqlite";
 var pathAccess = new PathAccessController(DATA_DIR);
 async function ensureDataDir() {
   await fs__default.default.mkdir(DATA_DIR, { recursive: true });
 }
 async function ensureParentDirectory2(filePath) {
-  await fs__default.default.mkdir(path9__default.default.dirname(path9__default.default.resolve(filePath)), { recursive: true });
+  await fs__default.default.mkdir(path__default.default.dirname(path__default.default.resolve(filePath)), { recursive: true });
 }
 function assertAllowedReadPath(filePath) {
   return pathAccess.assertAllowedReadPath(filePath);
@@ -15669,7 +15156,7 @@ async function walkFilesRecursive(rootDir) {
   const out = [];
   const entries = await fs__default.default.readdir(rootDir, { withFileTypes: true });
   for (const entry of entries) {
-    const full = path9__default.default.join(rootDir, entry.name);
+    const full = path__default.default.join(rootDir, entry.name);
     if (entry.isDirectory()) {
       out.push(...await walkFilesRecursive(full));
       continue;
@@ -15847,35 +15334,6 @@ function installMediaPermissionHandlers() {
   );
 }
 electron.ipcMain.handle(
-  "voice:getMicrophoneAccessStatus",
-  async (event) => withTrustedSender(event, () => {
-    if (process.platform !== "darwin" && process.platform !== "win32") {
-      return "unknown";
-    }
-    return electron.systemPreferences.getMediaAccessStatus("microphone");
-  })
-);
-electron.ipcMain.handle(
-  "voice:preloadStt",
-  async (event, input) => withTrustedSender(event, () => preloadStt(input))
-);
-electron.ipcMain.handle(
-  "voice:transcribe",
-  async (event, input) => withTrustedSender(event, () => transcribe(input))
-);
-electron.ipcMain.handle(
-  "voice:preloadTts",
-  async (event, input) => withTrustedSender(event, () => preloadTts(input))
-);
-electron.ipcMain.handle(
-  "voice:speak",
-  async (event, input) => withTrustedSender(event, () => speak(input))
-);
-electron.ipcMain.handle(
-  "voice:clearModels",
-  async (event) => withTrustedSender(event, () => clearVoiceModels())
-);
-electron.ipcMain.handle(
   "duckdb:runReadOnlyQuery",
   async (event, sql3) => withBoundedHeavyQuery(event, "duckdb:runReadOnlyQuery", async () => {
     const safeSql = parseIpc(SqlSchema, sql3, "duckdb:runReadOnlyQuery");
@@ -16026,6 +15484,26 @@ electron.ipcMain.handle(
     () => isAvailable(parseIpc(LlamaEnsureModelSchema, input, "llama:isAvailable")?.file)
   )
 );
+electron.ipcMain.handle(
+  "llama:embed",
+  async (event, input) => withTrustedSender(event, () => {
+    const parsed = parseIpc(LlamaEmbedSchema, input, "llama:embed");
+    return embedBatch(parsed.texts);
+  })
+);
+electron.ipcMain.handle(
+  "llama:ensureEmbedModel",
+  async (event, input) => withTrustedSender(
+    event,
+    () => ensureEmbedModel(
+      parseIpc(LlamaEnsureModelSchema, input, "llama:ensureEmbedModel")?.file
+    )
+  )
+);
+electron.ipcMain.handle(
+  "llama:isEmbedAvailable",
+  async (event) => withTrustedSender(event, () => isEmbedAvailable())
+);
 var chatAbortControllers = /* @__PURE__ */ new Map();
 electron.ipcMain.handle(
   "chat:open",
@@ -16161,29 +15639,6 @@ electron.ipcMain.handle(
     () => deleteModel(parseIpc(ModelKeySchema, key, "models:delete"))
   )
 );
-electron.ipcMain.handle(
-  "collabHub:start",
-  async (event, input) => withTrustedSender(
-    event,
-    () => start(parseIpc(CollabStartSchema, input, "collabHub:start"))
-  )
-);
-electron.ipcMain.handle(
-  "collabHub:stop",
-  async (event) => withTrustedSender(event, () => stop())
-);
-electron.ipcMain.handle(
-  "collabHub:status",
-  async (event) => withTrustedSender(event, () => status())
-);
-electron.ipcMain.handle(
-  "collabHub:discover",
-  async (event) => withTrustedSender(event, () => discover())
-);
-electron.ipcMain.handle(
-  "collabHub:getDiscovered",
-  async (event) => withTrustedSender(event, () => getDiscovered())
-);
 async function createWindow() {
   await ensureDataDir();
   mainWindow = new electron.BrowserWindow({
@@ -16199,7 +15654,7 @@ async function createWindow() {
     backgroundColor: "#0b0e15",
     show: false,
     webPreferences: {
-      preload: path9__default.default.join(__dirname, "preload.js"),
+      preload: path__default.default.join(__dirname, "preload.js"),
       contextIsolation: true,
       nodeIntegration: false,
       // Renderer sandbox ON (Chromium OS-level sandbox). The preload uses only
@@ -16249,11 +15704,6 @@ async function createWindow() {
   });
   mainWindow.webContents.on("will-attach-webview", (event) => {
     event.preventDefault();
-  });
-  setDiscoveryListener((discoveryEvent) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send("collab:discovered", discoveryEvent);
-    }
   });
   if (isDev) {
     await installReactDevTools();
@@ -16311,7 +15761,7 @@ async function startNextJSServer() {
     const authUrl = new URL(BETTER_AUTH_BASE_URL);
     const hostname = assertLoopbackHostname(authUrl.hostname);
     const nextJSPort = authUrl.port ? Number(authUrl.port) : 3e3;
-    const webDir = path9__default.default.join(electron.app.getAppPath(), "app");
+    const webDir = path__default.default.join(electron.app.getAppPath(), "app");
     process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
     process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
     process.env.APP_USER_DATA = electron.app.getPath("userData");
@@ -16330,7 +15780,7 @@ async function startNextJSServer() {
       `${ELECTRON_AUTH_PROTOCOL}://`
     ];
     process.env.BETTER_AUTH_TRUSTED_ORIGINS = Array.from(new Set(trustedOrigins)).join(",");
-    const standaloneStartServer = path9__default.default.join(
+    const standaloneStartServer = path__default.default.join(
       webDir,
       "node_modules",
       "next",
@@ -16378,7 +15828,7 @@ electron.app.whenReady().then(async () => {
   configureSettingsStore(DATABASES_DIR);
   configureChatStore(DATABASES_DIR);
   try {
-    const authDbPath = path9__default.default.join(electron.app.getPath("userData"), "data", AUTH_DB_FILENAME);
+    const authDbPath = path__default.default.join(electron.app.getPath("userData"), "data", AUTH_DB_FILENAME);
     const { migrated } = migrateLegacyAppSettings(authDbPath);
     bootLog(`settings-store: ready at ${DATABASES_DIR}; legacy lift migrated ${migrated} rows`);
   } catch (error) {
@@ -16429,7 +15879,7 @@ ${error.stack}` : String(error)}`
   );
 });
 electron.app.on("before-quit", () => {
-  dispose3();
+  dispose2();
   close().catch((error) => {
     console.error("[electron] DuckDB cleanup error:", error);
   });
@@ -16439,8 +15889,8 @@ electron.app.on("before-quit", () => {
   dispose().catch((error) => {
     console.error("[electron] llama cleanup error:", error);
   });
-  dispose2().catch((error) => {
-    console.error("[electron] collab-hub cleanup error:", error);
+  disposeEmbed().catch((error) => {
+    console.error("[electron] embed cleanup error:", error);
   });
   closeSettingsStore();
   closeChatStore();

@@ -14,16 +14,11 @@ export default defineConfig({
     "electron",
     "@duckdb/node-api",
     "@duckdb/node-bindings",
-    "sherpa-onnx-node",
     // Native / prebuilt-binary modules: must load from node_modules at runtime,
     // never be bundled into build/main.js (bundling breaks binary resolution).
     "node-llama-cpp",
     "@node-llama-cpp",
-    "@hocuspocus/server",
-    "@hocuspocus/extension-sqlite",
-    "@hocuspocus/extension-database",
     "better-sqlite3",
-    "bonjour-service",
     // Next's server must never be bundled into build/main.js — it is loaded at
     // runtime from the self-contained Next standalone bundle (startNextJSServer).
     "next",

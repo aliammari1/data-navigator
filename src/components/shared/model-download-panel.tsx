@@ -4,15 +4,10 @@
  * ModelDownloadPanel — "Download AI models (while online)" Setup affordance.
  *
  * Surfaces the offline-model preflight (src/platform/ai/models): for each
- * required model it shows present/size and, for the Electron GGUF lane, a
- * Download button wired through `window.electronModels.*` (IPC →
- * electron/model-download-service.ts) with live progress.
- *
- * The all-MiniLM (transformers.js) lane has no in-app downloader — its weights
- * are either pre-bundled under `/public/models/transformers/` (run
- * `pnpm run prepare:models`) or fetched + cached by the embeddings worker on a
- * first online run. This panel shows that lane's presence read-only and links to
- * the prepare:models script for strict air-gap installs.
+ * required model (both the instruct GGUF and the embedding GGUF ride the same
+ * Electron node-llama-cpp lane) it shows present/size and a Download button
+ * wired through `window.electronModels.*` (IPC → electron/model-download-service.ts)
+ * with live progress.
  */
 
 import {
@@ -64,8 +59,8 @@ export function ModelDownloadPanel() {
 
       <p className="text-[11px] leading-relaxed text-muted-foreground">
         Fetch model weights once while you have a connection — afterwards everything runs fully
-        offline. Weights are stored locally (the LLM in your app data folder, embeddings in the
-        browser cache); nothing leaves your machine at inference time.
+        offline. Weights are stored locally in your app data folder; nothing leaves your machine at
+        inference time.
       </p>
 
       {loading ? (
@@ -108,18 +103,6 @@ export function ModelDownloadPanel() {
                       {present ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                           Installed{record.sizeBytes ? ` · ${humanBytes(record.sizeBytes)}` : ""}
-                          {record.source === "browser-cache"
-                            ? " · browser cache"
-                            : record.source === "public-asset"
-                              ? " · bundled"
-                              : ""}
-                        </span>
-                      ) : record.lane === "embed" ? (
-                        <span>
-                          Not bundled — runs from browser cache after first online use, or run{" "}
-                          <code className="rounded bg-muted px-1 text-foreground">
-                            pnpm run prepare:models
-                          </code>
                         </span>
                       ) : (
                         <span>~{record.downloadMb} MB download</span>
@@ -186,9 +169,8 @@ export function ModelDownloadPanel() {
 
       {!electron && !loading && (
         <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] text-primary">
-          In-app GGUF download requires the desktop app. On the web build, the embeddings model is
-          cached by the browser on first use; for a fully air-gapped install pre-bundle weights with{" "}
-          <code className="rounded bg-muted px-1 text-foreground">pnpm run prepare:models</code>.
+          Offline AI (generation and embeddings) requires the desktop app — the web build cannot
+          download or run these models.
         </p>
       )}
     </div>

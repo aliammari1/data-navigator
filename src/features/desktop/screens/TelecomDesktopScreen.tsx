@@ -19,7 +19,6 @@ import { AnalyticsHistoryTab } from "@/features/telecom/components/analytics-his
 import { CanalTab } from "@/features/telecom/components/canal-tab";
 import { ConfigTab } from "@/features/telecom/components/config-tab";
 import { DayAnalyticsTab } from "@/features/telecom/components/day-analytics-tab";
-import { LanCollabPanel } from "@/features/telecom/components/lan-collab-panel";
 import { OverviewTab } from "@/features/telecom/components/overview-tab";
 import { PeriodStudioTab } from "@/features/telecom/components/period-studio-tab";
 import { RawDataTab } from "@/features/telecom/components/raw-data-tab";
@@ -67,11 +66,7 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           toggleKpi={report.toggleKpi}
           selectedOverviewSections={report.selectedOverviewSections}
           toggleOverviewSection={report.toggleOverviewSection}
-          fetchDailyTrend={
-            report.sharedOverviewMode
-              ? async () => []
-              : () => report.fetchDailyTrend(report.mapping)
-          }
+          fetchDailyTrend={() => report.fetchDailyTrend(report.mapping)}
         />
       );
 
@@ -139,11 +134,7 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
       if (!report.kpi) return <TelecomLoadingPanel label="Chargement de la configuration…" />;
       return (
         <div className="space-y-4">
-          <UserManagementPanel
-            currentRole={report.telecomRole}
-            onRoleChange={(role) => report.access.setRole(role === "admin" ? "owner" : "viewer")}
-          />
-          <LanCollabPanel />
+          <UserManagementPanel />
           <ConfigTab
             kpi={report.kpi}
             canals={report.canals}

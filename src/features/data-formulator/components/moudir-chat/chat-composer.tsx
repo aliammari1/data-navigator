@@ -8,8 +8,6 @@
  *     newline, and Esc-to-stop while a turn streams;
  *   - a primary action button that MORPHS between Send (idle) and a Stop square
  *     (streaming), reading `store.status` so it is always honest about state;
- *   - offline voice (useMoudirVoice): a mic toggle that drops the transcript into
- *     the textarea — never auto-sending — plus honest, spinner-free status text;
  *   - "@" mentions of datasets/columns (see mention-popover) so prompts can name
  *     real fields, and follow-up chips that re-ask suggested next questions.
  *
@@ -18,14 +16,12 @@
  * runtime resolves the default).
  */
 
-import { Mic, MicOff, Send, Square } from "lucide-react";
+import { Send, Square } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useActiveDatasetId, useDatasets } from "@/core/stores/data-store";
-import { cn } from "@/shared/utils";
 import { useMoudirChatStore } from "../../store/moudir-chat-store";
-import { useMoudirVoice } from "../moudir/use-moudir-voice";
 import {
   applyMention,
   detectMention,
@@ -55,8 +51,6 @@ export function ChatComposer() {
   const [mention, setMention] = useState<MentionQuery | null>(null);
   const [activeMentionId, setActiveMentionId] = useState<string | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-
-  const voice = useMoudirVoice();
 
   // ─── Mention data ───────────────────────────────────────────────────────
 
@@ -235,25 +229,6 @@ export function ChatComposer() {
     });
   }, [value]);
 
-  // ─── Voice ──────────────────────────────────────────────────────────────
-
-  useEffect(() => {
-    voice.onTranscript((text) => {
-      const trimmed = text.trim();
-      if (!trimmed) return;
-      setValue((current) => {
-        const sep = current && !current.endsWith(" ") ? " " : "";
-        return current + sep + trimmed;
-      });
-      requestAnimationFrame(() => textareaRef.current?.focus());
-    });
-  }, [voice.onTranscript]);
-
-  const toggleMic = useCallback(() => {
-    if (voice.listening) void voice.stop();
-    else void voice.start();
-  }, [voice]);
-
   // ─── Focus bridge ───────────────────────────────────────────────────────
 
   useEffect(() => {
@@ -261,16 +236,6 @@ export function ChatComposer() {
     window.addEventListener(FOCUS_EVENT, focus);
     return () => window.removeEventListener(FOCUS_EVENT, focus);
   }, []);
-
-  // ─── Honest status line (never a spinner) ────────────────────────────────
-
-  const voiceStatus = voice.error
-    ? { text: voice.error, tone: "error" as const }
-    : voice.transcribing
-      ? { text: "Transcription…", tone: "live" as const }
-      : voice.listening
-        ? { text: "À l'écoute…", tone: "live" as const }
-        : null;
 
   const canSend = value.trim().length > 0;
 
@@ -303,20 +268,6 @@ export function ChatComposer() {
           <div className="flex items-center gap-1 px-2 pt-0 pb-2">
             <Button
               type="button"
-              variant={voice.listening ? "secondary" : "ghost"}
-              size="icon-sm"
-              onClick={toggleMic}
-              disabled={!voice.supported}
-              aria-pressed={voice.listening}
-              aria-label={voice.listening ? "Arrêter le micro" : "Dicter"}
-              title={voice.listening ? "Arrêter le micro" : "Dicter"}
-              className={cn(voice.listening && "text-ai")}
-            >
-              {voice.listening ? <MicOff /> : <Mic />}
-            </Button>
-
-            <Button
-              type="button"
               variant="ghost"
               size="icon-sm"
               onClick={openMention}
@@ -326,20 +277,6 @@ export function ChatComposer() {
             >
               @
             </Button>
-
-            {voiceStatus ? (
-              <span
-                className={cn(
-                  "ml-1 inline-flex items-center gap-1.5 truncate text-xs",
-                  voiceStatus.tone === "error" ? "text-destructive" : "text-ai",
-                )}
-              >
-                {voiceStatus.tone === "live" ? (
-                  <span className="size-1.5 animate-pulse rounded-full bg-ai" />
-                ) : null}
-                <span className="truncate">{voiceStatus.text}</span>
-              </span>
-            ) : null}
 
             <div className="ml-auto" />
 

@@ -6,7 +6,6 @@
  * Injected by electron/preload.ts as:
  * - window.electronFS
  * - window.electronDuckDB
- * - window.electronVoice
  *
  * Dataset-only DuckDB model:
  * - No raw SQL from renderer.
@@ -175,71 +174,11 @@ export interface ElectronDuckDBBridge {
   runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]>;
 }
 
-// ─── Voice Bridge Types ───────────────────────────────────────────────────────
-
-export type MicrophoneAccessStatus =
-  | "not-determined"
-  | "granted"
-  | "denied"
-  | "restricted"
-  | "unknown";
-
-export interface ElectronVoiceBridge {
-  getMicrophoneAccessStatus(): Promise<MicrophoneAccessStatus>;
-  preloadStt(input: { engine?: string; localModelPath?: string | null }): Promise<{
-    engine: string;
-    model: string;
-    runtime: "cpu";
-  }>;
-  transcribe(input: {
-    audio: ArrayBuffer | Float32Array | number[];
-    sampleRate?: number;
-    engine?: string;
-    language?: string;
-    localModelPath?: string | null;
-  }): Promise<{
-    text: string;
-    engine: string;
-    model: string;
-    runtime: "cpu";
-    sampleRate: number;
-    audioDurationMs: number;
-    latencyMs: number;
-    language?: string;
-  }>;
-  preloadTts(input: { engine?: string; localModelPath?: string | null }): Promise<{
-    engine: string;
-    model: string;
-    runtime: "cpu";
-  }>;
-  speak(input: {
-    text: string;
-    engine?: string;
-    voice?: string;
-    speed?: number;
-    lang?: string;
-    localModelPath?: string | null;
-  }): Promise<{
-    jobId: string;
-    engine: string;
-    model: string;
-    runtime: "cpu";
-    voice: string;
-    text: string;
-    sampleRate: number;
-    durationMs: number;
-    latencyMs: number;
-    wav: ArrayBuffer;
-  }>;
-  clearModels(): Promise<{ stt: number; tts: number }>;
-}
-
 // ─── Window Type ──────────────────────────────────────────────────────────────
 
 type ElectronWindow = Window & {
   electronFS?: ElectronFSBridge;
   electronDuckDB?: ElectronDuckDBBridge;
-  electronVoice?: ElectronVoiceBridge;
 };
 
 // ─── Internal Bridge Accessors ────────────────────────────────────────────────
@@ -272,20 +211,6 @@ export function duckdbBridge(): ElectronDuckDBBridge {
   return bridge;
 }
 
-export function voiceBridge(): ElectronVoiceBridge {
-  if (typeof window === "undefined") {
-    throw new Error("window is not available.");
-  }
-
-  const bridge = (window as ElectronWindow).electronVoice;
-
-  if (!bridge) {
-    throw new Error("electronVoice not available — ensure the app is running inside Electron.");
-  }
-
-  return bridge;
-}
-
 // ─── Runtime Detection ────────────────────────────────────────────────────────
 
 export function isElectron(): boolean {
@@ -302,47 +227,6 @@ export function hasElectronFS(): boolean {
 
 export function hasElectronDuckDB(): boolean {
   return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronDuckDB);
-}
-
-export function hasElectronVoice(): boolean {
-  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronVoice);
-}
-
-// ─── Native (sherpa-onnx) Voice Helpers ───────────────────────────────────────
-// Thin wrappers over the bundled, fully-offline sherpa-onnx STT/TTS lane
-// (electron/voice-service.ts via IPC). Renderer voice features prefer these over
-// the transformers.js / kokoro-js web workers, which need HuggingFace at runtime.
-
-/** Offline speech-to-text via the bundled sherpa-onnx whisper model. */
-export async function sherpaTranscribe(
-  audio: ArrayBuffer | Float32Array | number[],
-  opts: { sampleRate?: number; language?: string } = {},
-): Promise<string> {
-  const { text } = await voiceBridge().transcribe({ audio, ...opts });
-  return text;
-}
-
-/** Offline text-to-speech via the bundled sherpa-onnx voice lane. Returns WAV bytes. */
-export async function sherpaSpeak(
-  text: string,
-  opts: { engine?: string; voice?: string; speed?: number; lang?: string } = {},
-): Promise<{ wav: ArrayBuffer; sampleRate: number }> {
-  const r = await voiceBridge().speak({ text, ...opts });
-  return { wav: r.wav, sampleRate: r.sampleRate };
-}
-
-/**
- * Picks which native sherpa-onnx TTS engine to use for a given language hint.
- * Kokoro is English-only; Supertonic covers French and Arabic (MSA) as well.
- */
-export function pickNativeTtsEngine(languageHint: string): "sherpa-kokoro" | "sherpa-supertonic" {
-  const normalized = languageHint.toLowerCase().trim();
-
-  if (normalized === "fr" || normalized.startsWith("ar")) {
-    return "sherpa-supertonic";
-  }
-
-  return "sherpa-kokoro";
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────
@@ -465,10 +349,4 @@ export function getDuckDBQueryMetrics(): Promise<QueryMetric[]> {
 
 export function clearDuckDBQueryMetrics(): Promise<void> {
   return duckdbBridge().clearQueryMetrics();
-}
-
-// ─── Voice API ────────────────────────────────────────────────────────────────
-
-export function getMicrophoneAccessStatus(): Promise<MicrophoneAccessStatus> {
-  return voiceBridge().getMicrophoneAccessStatus();
 }

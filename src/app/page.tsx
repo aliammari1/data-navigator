@@ -30,7 +30,6 @@ import {
   Radar,
   Shield,
   Sparkles,
-  Users,
   X,
 } from "lucide-react";
 import {
@@ -440,9 +439,11 @@ function TopNav() {
         ].join(" ")}
       >
         <Link href="#top" className="flex items-center gap-2.5">
-          <span className="grid size-9 place-items-center rounded-xl border border-blue-400/30 bg-blue-400/5">
-            <Radar className="size-[18px] text-blue-300" />
-          </span>
+          <img
+            src="/icon-192.png"
+            alt="Data Navigator"
+            className="size-9 rounded-xl border border-blue-400/30"
+          />
           <span className="font-display text-[15px] font-semibold tracking-tight text-white">
             Data Navigator
           </span>
@@ -1225,32 +1226,8 @@ function Capabilities() {
           </Spotlight>
         </Reveal>
 
-        {/* collaboration */}
-        <Reveal delay={0.06} className="md:col-span-3">
-          <Spotlight className="h-full p-6">
-            <div className="flex items-start justify-between gap-4">
-              <BentoTitle
-                icon={Users}
-                title="LAN collaboration"
-                sub="Shared cursors, comments and live presence over the local network — CRDT-synced, no server in the cloud."
-              />
-              <div className="flex -space-x-2">
-                {["AS", "KB", "MT"].map((u, i) => (
-                  <span
-                    key={u}
-                    className="grid size-8 place-items-center rounded-lg border border-white/15 bg-[#0b101c] font-mono text-[10px] text-slate-300"
-                    style={{ zIndex: 3 - i }}
-                  >
-                    {u}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </Spotlight>
-        </Reveal>
-
         {/* voice */}
-        <Reveal delay={0.1} className="md:col-span-3">
+        <Reveal delay={0.06} className="md:col-span-6">
           <Spotlight className="h-full p-6">
             <div className="flex items-start justify-between gap-4">
               <BentoTitle
@@ -1499,9 +1476,11 @@ function Footer() {
     <footer className="border-t border-white/8 px-5 py-10 sm:px-6">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 md:flex-row">
         <div className="flex items-center gap-2.5">
-          <span className="grid size-8 place-items-center rounded-lg border border-blue-400/30 bg-blue-400/5">
-            <Radar className="size-4 text-blue-300" />
-          </span>
+          <img
+            src="/icon-192.png"
+            alt="Data Navigator"
+            className="size-8 rounded-lg border border-blue-400/30"
+          />
           <span className="font-display text-sm font-semibold text-white">Data Navigator</span>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-400">

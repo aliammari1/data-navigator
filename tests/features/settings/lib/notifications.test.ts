@@ -9,7 +9,7 @@
  * is kept real.
  */
 
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------- mocks (must be declared before any import of the target) ----------
 
@@ -39,18 +39,16 @@ vi.mock("@/core/stores/settings-store", () => {
 
 // ---- import the module under test and mock handles ----
 
-import {
-  isNotificationEnabled,
-  notify,
-  notifyUpload,
-  notifyQuery,
-  notifyError,
-  notifyCollaboration,
-  type NotificationCategory,
-} from "@/features/settings/lib/notifications";
-
 import { toast } from "sonner";
 import { useSettingsStore } from "@/core/stores/settings-store";
+import {
+  isNotificationEnabled,
+  type NotificationCategory,
+  notify,
+  notifyError,
+  notifyQuery,
+  notifyUpload,
+} from "@/features/settings/lib/notifications";
 
 const mockGetState = useSettingsStore.getState as ReturnType<typeof vi.fn>;
 const mockToast = toast as {
@@ -355,32 +353,5 @@ describe("notifyError", () => {
     // The spread is { kind: 'error', force: true, ...{ kind: 'warning' } }
     // so kind ends up 'warning' from the caller override
     expect(mockToast.warning).toHaveBeenCalledWith("oops", undefined);
-  });
-});
-
-describe("notifyCollaboration", () => {
-  it("delegates to notify('collaboration', ...) and returns true when enabled", () => {
-    setNotifications({ collaboration: true });
-
-    const result = notifyCollaboration("user joined");
-
-    expect(result).toBe(true);
-    expect(mockToast.info).toHaveBeenCalledWith("user joined", undefined);
-  });
-
-  it("returns false when collaboration is disabled", () => {
-    setNotifications({ collaboration: false });
-
-    const result = notifyCollaboration("user joined");
-
-    expect(result).toBe(false);
-  });
-
-  it("forwards options to notify", () => {
-    setNotifications({ collaboration: true });
-
-    notifyCollaboration("someone joined", { kind: "success", description: "collab detail" });
-
-    expect(mockToast.success).toHaveBeenCalledWith("someone joined", { description: "collab detail" });
   });
 });

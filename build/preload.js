@@ -109,14 +109,6 @@ var electronDuckDB = {
   cancelQueries: (token) => electron.ipcRenderer.invoke("duckdb:cancelQueries", token),
   resetCancelToken: (token) => electron.ipcRenderer.invoke("duckdb:resetCancelToken", token)
 };
-var electronVoice = {
-  getMicrophoneAccessStatus: () => electron.ipcRenderer.invoke("voice:getMicrophoneAccessStatus"),
-  preloadStt: (input) => electron.ipcRenderer.invoke("voice:preloadStt", input),
-  transcribe: (input) => electron.ipcRenderer.invoke("voice:transcribe", input),
-  preloadTts: (input) => electron.ipcRenderer.invoke("voice:preloadTts", input),
-  speak: (input) => electron.ipcRenderer.invoke("voice:speak", input),
-  clearModels: () => electron.ipcRenderer.invoke("voice:clearModels")
-};
 var electronLlama = {
   ensureModel: (input) => electron.ipcRenderer.invoke("llama:ensureModel", input),
   generate: (input) => electron.ipcRenderer.invoke("llama:generate", input),
@@ -134,7 +126,12 @@ var electronLlama = {
     };
     electron.ipcRenderer.on("llama:token", handler);
     return () => electron.ipcRenderer.removeListener("llama:token", handler);
-  }
+  },
+  // ── node-llama-cpp embedding lane (electron/embed-service.ts) ───────────────
+  /** Embed a batch of texts in a single IPC round-trip (same order as input). */
+  embed: (texts) => electron.ipcRenderer.invoke("llama:embed", { texts }),
+  ensureEmbedModel: (input) => electron.ipcRenderer.invoke("llama:ensureEmbedModel", input),
+  isEmbedAvailable: () => electron.ipcRenderer.invoke("llama:isEmbedAvailable")
 };
 var electronModels = {
   /** Presence + on-disk size for every known GGUF model. */
@@ -157,22 +154,6 @@ var electronModels = {
     };
     electron.ipcRenderer.on("models:progress", handler);
     return () => electron.ipcRenderer.removeListener("models:progress", handler);
-  }
-};
-var electronCollab = {
-  start: (input) => electron.ipcRenderer.invoke("collabHub:start", input),
-  stop: () => electron.ipcRenderer.invoke("collabHub:stop"),
-  status: () => electron.ipcRenderer.invoke("collabHub:status"),
-  discover: () => electron.ipcRenderer.invoke("collabHub:discover"),
-  getDiscovered: () => electron.ipcRenderer.invoke("collabHub:getDiscovered"),
-  /**
-   * Subscribe to live mDNS discovery up/down events. Returns an unsubscribe
-   * function.
-   */
-  onDiscovered: (callback) => {
-    const handler = (_event, payload) => callback(payload);
-    electron.ipcRenderer.on("collab:discovered", handler);
-    return () => electron.ipcRenderer.removeListener("collab:discovered", handler);
   }
 };
 var electronSettings = {
@@ -242,10 +223,8 @@ var electronClipboard = {
 };
 electron.contextBridge.exposeInMainWorld("electronFS", electronFS);
 electron.contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
-electron.contextBridge.exposeInMainWorld("electronVoice", electronVoice);
 electron.contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 electron.contextBridge.exposeInMainWorld("electronModels", electronModels);
-electron.contextBridge.exposeInMainWorld("electronCollab", electronCollab);
 electron.contextBridge.exposeInMainWorld("electronSettings", electronSettings);
 electron.contextBridge.exposeInMainWorld("electronAnalyticsSnapshots", electronAnalyticsSnapshots);
 electron.contextBridge.exposeInMainWorld("electronChatHistory", electronChatHistory);

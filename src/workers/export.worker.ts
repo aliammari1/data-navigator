@@ -9,25 +9,24 @@
  * Generators (each lazy-imported so the chunk only loads what is used):
  *  - pdf  → pdfmake (bundled Roboto vfs; charts via vector {svg} when possible)
  *  - xlsx → exceljs in-memory writeBuffer (small/medium; big files stream in main)
- *  - docx → docx ImageRun (v9: `type` required) with resvg PNG charts
- *  - pptx → pptxgenjs write({outputType:'arraybuffer'}) with resvg PNG charts
+ *  - docx → docx ImageRun (v9: `type` required) with a pre-rasterized PNG chart
+ *  - pptx → pptxgenjs write({outputType:'arraybuffer'}) with a pre-rasterized PNG chart
  *
  * Comlink proxy name (renderer): `export` (see export-client.ts).
  *
- * Offline: all generators are pure JS; resvg wasm is self-hosted (resvg-raster).
- * ZIP outputs (xlsx/docx/pptx) start with PK; pdf starts with %PDF.
+ * Offline: all generators are pure JS. ZIP outputs (xlsx/docx/pptx) start with
+ * PK; pdf starts with %PDF.
  */
 
 import * as Comlink from "comlink";
-import { pngToDataUri, svgToPng } from "./resvg-raster";
 import type { ChartImage, ReportDocument } from "./export-types";
+import { pngToDataUri } from "./png-data-uri";
 
-// ─── Chart resolution (SVG → PNG once, reused across generators) ─────────────
+// ─── Chart resolution (docx/pptx only take a pre-rasterized PNG; pdf embeds
+// the vector SVG directly, see buildPdf) ──────────────────────────────────────
 
 async function resolveChartPng(chart: ChartImage): Promise<Uint8Array | null> {
-  if (chart.png) return chart.png;
-  if (chart.svg) return svgToPng(chart.svg, chart.width ?? 1200);
-  return null;
+  return chart.png ?? null;
 }
 
 /**
@@ -328,8 +327,6 @@ const api = {
   xlsx: buildXlsx,
   docx: buildDocx,
   pptx: buildPptx,
-  /** Rasterize an ECharts SVG to PNG bytes (offline) — reusable by callers. */
-  svgToPng: (svg: string, width?: number): Promise<Uint8Array> => svgToPng(svg, width),
 };
 
 export type ExportWorkerApi = typeof api;

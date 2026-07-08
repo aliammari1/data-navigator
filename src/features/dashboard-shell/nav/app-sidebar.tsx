@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Database } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { usePinnedItems } from "@/core/stores/settings-store";
@@ -8,16 +8,12 @@ import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
 import {
   ALL_ITEMS,
   FOOTER_ITEMS,
-  filterNavItemsForRole,
-  filterNavSectionsForRole,
   isNavGroupActive,
   isNavItemActive,
   NAV_SECTIONS,
-  navItemVisibleForRole,
 } from "@/features/dashboard-shell/nav/nav-config";
 import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { cn } from "@/shared/utils";
 
 /**
@@ -32,20 +28,11 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
   const pinnedItems = usePinnedItems();
   const pathname = usePathname();
   const engine = useEngineInfo();
-  // Effective role: the device role capped by the live LAN session grant, so
-  // a guest joining a shared session sees only the viewer-safe entries.
-  const { role } = useDashboardAccess();
 
   const pinnedNavItems = useMemo(
-    () =>
-      ALL_ITEMS.filter(
-        (item) => pinnedItems.includes(item.href) && navItemVisibleForRole(item, role),
-      ),
-    [pinnedItems, role],
+    () => ALL_ITEMS.filter((item) => pinnedItems.includes(item.href)),
+    [pinnedItems],
   );
-
-  const sections = useMemo(() => filterNavSectionsForRole(NAV_SECTIONS, role), [role]);
-  const footerItems = useMemo(() => filterNavItemsForRole(FOOTER_ITEMS, role), [role]);
 
   return (
     <aside
@@ -60,9 +47,11 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           collapsed && "justify-center",
         )}
       >
-        <div className="flex size-7 flex-none shrink-0 items-center justify-center rounded-lg border border-primary/25 bg-primary/15">
-          <Database className="size-3.5 text-primary" />
-        </div>
+        <img
+          src="/icon-192.png"
+          alt="Data Navigator"
+          className="size-7 flex-none shrink-0 rounded-lg border border-primary/25"
+        />
         {!collapsed && (
           <div className="min-w-0 flex-1">
             <div className="truncate text-sm font-semibold leading-none text-sidebar-foreground">
@@ -114,7 +103,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
           </div>
         )}
 
-        {sections.map((section) => (
+        {NAV_SECTIONS.map((section) => (
           <div key={section.label} className="mb-1 space-y-px px-2">
             {!collapsed ? (
               <SectionLabel>{section.label}</SectionLabel>
@@ -145,7 +134,7 @@ export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onTogg
 
       {/* Footer */}
       <div className="flex-none space-y-px border-t border-sidebar-border px-2 py-2">
-        {footerItems.map((item) => (
+        {FOOTER_ITEMS.map((item) => (
           <NavButton
             key={item.href}
             item={item}

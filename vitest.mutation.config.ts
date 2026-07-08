@@ -34,7 +34,6 @@ export default defineConfig({
       "tests/platform/ai/provider-structured.test.ts",
       "tests/features/data-formulator/core/swarm/agents/validate.test.ts",
       "tests/electron/sql-guard.test.ts",
-      "tests/electron/collab-pairing.test.ts",
       "tests/features/desktop/core/menu/registry.test.ts",
     ],
     exclude: ["node_modules", ".next", "out", "dist", "tests/e2e", "tests/visual"],

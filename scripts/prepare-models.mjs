@@ -1,23 +1,24 @@
 /**
  * prepare-models.mjs — build/setup-time offline-model acquisition.
  *
- * Downloads the offline AI model weights from Hugging Face into the two local
- * destinations the runtime expects, then verifies size + sha256 against the
+ * Downloads the offline AI model weights from Hugging Face into the local
+ * destination the runtime expects, then verifies size + sha256 against the
  * embedded {@link MODEL_MANIFEST}. Idempotent: a model whose file already exists
  * with the expected byte length (and, when `--verify-hash`, the expected sha256)
  * is skipped.
  *
- *   (a) Instruct GGUF for the Electron node-llama-cpp lane
- *       (electron/llama-service.ts → <userData>/models/llm/<file>). Because this
- *       script runs at build/setup time — not inside Electron — it cannot resolve
- *       the per-OS userData path. It therefore stages the GGUF under a repo-local
- *       cache dir (`<repo>/.model-cache/llm/`) that the in-app downloader
- *       (electron/model-download-service.ts) and packaging step can copy from, or
- *       you point `--llm-dest` at a real userData/models/llm directory.
+ * Both lanes are GGUF weights for the Electron node-llama-cpp lane
+ * (electron/llama-service.ts / electron/embed-service.ts →
+ * <userData>/models/llm/<file>). Because this script runs at build/setup time —
+ * not inside Electron — it cannot resolve the per-OS userData path. It
+ * therefore stages every GGUF under a repo-local cache dir
+ * (`<repo>/.model-cache/llm/`) that the in-app downloader
+ * (electron/model-download-service.ts) and packaging step can copy from, or
+ * you point `--llm-dest` at a real userData/models/llm directory.
  *
- *   (b) all-MiniLM-L6-v2 int8 ONNX weights for the transformers.js embeddings
- *       worker → `public/models/transformers/Xenova/all-MiniLM-L6-v2/` (matches
- *       `transformers-env.ts` localModelPath = "/models/transformers/").
+ *   (a) Instruct GGUF — the generative lane.
+ *   (b) Qwen3 Embedding GGUF — the embedding lane (node-llama-cpp; replaced the
+ *       old transformers.js all-MiniLM-L6-v2 ONNX asset).
  *
  * NETWORK: this script is the ONLY model path that touches the network, and only
  * when run explicitly (`pnpm run prepare:models`). The app itself never downloads
@@ -26,7 +27,7 @@
  * USAGE
  *   node scripts/prepare-models.mjs                 # download missing + verify size
  *   node scripts/prepare-models.mjs --verify-hash   # also verify sha256 (slow)
- *   node scripts/prepare-models.mjs --only=minilm   # one group: minilm | llm
+ *   node scripts/prepare-models.mjs --only=embed    # one group: embed | llm
  *   node scripts/prepare-models.mjs --check         # report presence only, no download
  *   node scripts/prepare-models.mjs --llm-dest=/abs/path/to/userData/models/llm
  *   node scripts/prepare-models.mjs --low-ram       # also fetch the Granite 3B alternative GGUF
@@ -48,9 +49,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
 // Repo-local staging dir for GGUF weights (copied into userData by the app /
-// packaging step). Keep out of git — see note in return summary.
+// packaging step). Keep out of git — see note in return summary. Both the
+// instruct and embedding lanes are GGUF now, so they share this one dir.
 const LLM_STAGING_DIR = path.join(ROOT, ".model-cache", "llm");
-const TRANSFORMERS_DIR = path.join(ROOT, "public", "models", "transformers");
 
 const HF = "https://huggingface.co";
 
@@ -102,50 +103,18 @@ export const MODEL_MANIFEST = [
     sha256: "", // TODO
   },
 
-  // ── (b) all-MiniLM-L6-v2 int8 ONNX — transformers.js embeddings worker ──────
-  // Layout under localModelPath: Xenova/all-MiniLM-L6-v2/{config,tokenizer,...}
-  // + onnx/model_quantized.onnx (int8, ~23 MB) used by dtype:"q8".
+  // ── (b) Qwen3 Embedding GGUF — Electron node-llama-cpp embedding lane ──────
+  // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS entry for
+  // "qwen3-embedding-0.6b-q8_0" — keep both in lockstep. Replaces the old
+  // transformers.js all-MiniLM-L6-v2 ONNX asset (node-llama-cpp migration).
   {
-    key: "minilm-onnx-quantized",
+    key: "qwen3-embedding-0.6b-q8_0",
     group: "embed",
-    label: "all-MiniLM-L6-v2 ONNX (int8/quantized)",
-    url: `${HF}/Xenova/all-MiniLM-L6-v2/resolve/main/onnx/model_quantized.onnx?download=true`,
-    destPath: path.join(
-      TRANSFORMERS_DIR,
-      "Xenova",
-      "all-MiniLM-L6-v2",
-      "onnx",
-      "model_quantized.onnx",
-    ),
-    bytes: 0, // TODO: fill exact content-length (≈23_000_000) before release
-    sha256: "", // TODO
-  },
-  {
-    key: "minilm-config",
-    group: "embed",
-    label: "all-MiniLM-L6-v2 config.json",
-    url: `${HF}/Xenova/all-MiniLM-L6-v2/resolve/main/config.json?download=true`,
-    destPath: path.join(TRANSFORMERS_DIR, "Xenova", "all-MiniLM-L6-v2", "config.json"),
-    bytes: 0,
-    sha256: "",
-  },
-  {
-    key: "minilm-tokenizer",
-    group: "embed",
-    label: "all-MiniLM-L6-v2 tokenizer.json",
-    url: `${HF}/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer.json?download=true`,
-    destPath: path.join(TRANSFORMERS_DIR, "Xenova", "all-MiniLM-L6-v2", "tokenizer.json"),
-    bytes: 0,
-    sha256: "",
-  },
-  {
-    key: "minilm-tokenizer-config",
-    group: "embed",
-    label: "all-MiniLM-L6-v2 tokenizer_config.json",
-    url: `${HF}/Xenova/all-MiniLM-L6-v2/resolve/main/tokenizer_config.json?download=true`,
-    destPath: path.join(TRANSFORMERS_DIR, "Xenova", "all-MiniLM-L6-v2", "tokenizer_config.json"),
-    bytes: 0,
-    sha256: "",
+    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
+    url: `${HF}/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "qwen3-embedding-0.6b-q8_0.gguf"),
+    bytes: 400_000_000, // matches model-download-service.ts's bytes: 400_000_000
+    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
   },
 ];
 
@@ -156,7 +125,7 @@ function parseArgs(argv) {
     verifyHash: false,
     checkOnly: false,
     lowRam: false,
-    only: null, // "llm" | "minilm" | "embed" | null
+    only: null, // "llm" | "embed" | null
     llmDest: null,
   };
   for (const arg of argv) {
@@ -172,7 +141,7 @@ function parseArgs(argv) {
 function matchesOnly(entry, only) {
   if (!only) return true;
   if (only === "llm") return entry.group === "llm";
-  if (only === "embed" || only === "minilm") return entry.group === "embed";
+  if (only === "embed") return entry.group === "embed";
   return entry.key === only;
 }
 
