@@ -74,27 +74,6 @@ export const GLOBAL_TOUR: TourDefinition = {
       },
     },
     {
-      route: "/dashboard/ai-analysis",
-      element: '[href="/dashboard/ai-analysis"]',
-      popover: {
-        title: "Offline analysis",
-        description:
-          "Distributions, outliers, correlations and trends are computed by seeded statistics workers — deterministic, and never leave your machine.",
-        side: "right",
-        align: "start",
-      },
-    },
-    {
-      route: "/dashboard/forecast",
-      element: '[href="/dashboard/forecast"]',
-      popover: {
-        title: "Forecasting",
-        description: "Holt-Winters and STL run locally in a worker — no cloud, no API key.",
-        side: "right",
-        align: "start",
-      },
-    },
-    {
       route: "/dashboard/collaborative",
       element: '[href="/dashboard/collaborative"]',
       popover: {
@@ -128,53 +107,5 @@ export const GLOBAL_TOUR: TourDefinition = {
   ],
 };
 
-/**
- * Contextual micro-tour reusing the orphan `data-tour="deep-analytics"` anchor
- * already present on the Deep Analytics screen.
- */
-export const DEEP_ANALYTICS_TOUR: TourDefinition = {
-  id: "deep-analytics",
-  title: "Deep Analytics",
-  description: "How clustering, anomalies and correlations come together.",
-  steps: [
-    {
-      route: "/dashboard/deep-analytics",
-      element: '[data-tour="deep-analytics"]',
-      popover: {
-        title: "Deep Analytics",
-        description:
-          "Cluster rows (k-means / DBSCAN), flag anomalies (GESD / MAD) and explore correlations — all seeded and computed in a worker.",
-        align: "center",
-      },
-    },
-  ],
-};
-
-/**
- * Contextual micro-tour reusing the orphan `data-tour="reconciliation"` anchor
- * already present on the Reconciliation screen.
- */
-export const RECONCILIATION_TOUR: TourDefinition = {
-  id: "reconciliation",
-  title: "Reconciliation",
-  description: "Match two datasets row-by-row.",
-  steps: [
-    {
-      route: "/dashboard/reconciliation",
-      element: '[data-tour="reconciliation"]',
-      popover: {
-        title: "Reconciliation",
-        description:
-          "Compare two datasets key-by-key to surface matches, mismatches and orphans — entirely in DuckDB on this machine.",
-        align: "center",
-      },
-    },
-  ],
-};
-
 /** Every tour the launcher / palette can offer. The global tour comes first. */
-export const ALL_TOURS: readonly TourDefinition[] = [
-  GLOBAL_TOUR,
-  DEEP_ANALYTICS_TOUR,
-  RECONCILIATION_TOUR,
-] as const;
+export const ALL_TOURS: readonly TourDefinition[] = [GLOBAL_TOUR] as const;

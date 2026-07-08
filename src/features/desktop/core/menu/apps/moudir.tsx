@@ -1,15 +1,6 @@
 "use client";
 
-import {
-  Database,
-  HelpCircle,
-  Lightbulb,
-  RotateCcw,
-  Sparkles,
-  Square,
-  Upload,
-  X,
-} from "lucide-react";
+import { HelpCircle, Lightbulb, RotateCcw, Sparkles, Square, Upload, X } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
 
 /**
@@ -38,12 +29,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         label: "Importer des données…",
         icon: Upload,
         run: () => ctx.openApp("upload"),
-      },
-      {
-        id: "browse-data",
-        label: "Explorer les jeux de données",
-        icon: Database,
-        run: () => ctx.openApp("data-browser"),
       },
       { kind: "separator", id: "file-sep-2" },
       {

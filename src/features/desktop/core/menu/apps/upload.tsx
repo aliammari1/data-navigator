@@ -2,14 +2,11 @@
 
 import {
   Database,
-  FileDown,
   FolderOpen,
   HelpCircle,
   MousePointerClick,
   RefreshCw,
-  Table2,
   Trash2,
-  Wand2,
   X,
 } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
@@ -68,29 +65,10 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
     label: "Données",
     items: [
       {
-        id: "open-parsed",
-        label: "Ouvrir les données importées",
-        icon: Table2,
-        run: () => ctx.openApp("parsed"),
-      },
-      {
         id: "open-telecom",
         label: "Ouvrir le rapport télécom",
         icon: Database,
         run: () => ctx.openApp("telecom"),
-      },
-      { kind: "separator", id: "data-sep" },
-      {
-        id: "open-data-browser",
-        label: "Explorer les données",
-        icon: FileDown,
-        run: () => ctx.openApp("data-browser"),
-      },
-      {
-        id: "open-transform",
-        label: "Transformer",
-        icon: Wand2,
-        run: () => ctx.openApp("transform"),
       },
     ],
   },

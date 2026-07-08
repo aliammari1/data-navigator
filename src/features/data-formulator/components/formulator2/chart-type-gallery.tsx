@@ -12,9 +12,9 @@ import { ChevronDown } from "lucide-react";
 import { type ReactElement, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import type { ChartType } from "@/features/agent-canvas/core/types";
 import { cn } from "@/shared/utils";
 import { CHART_TYPES } from "../../core/constants";
+import type { ChartType } from "../../core/types";
 import { useFormulatorV2Store } from "../../store/formulator-store";
 
 type GalleryKey = ChartType | "auto";

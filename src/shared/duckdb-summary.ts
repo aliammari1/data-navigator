@@ -4,8 +4,8 @@
  * DuckDB emits SUMMARIZE fields with version- and type-dependent shapes: numbers
  * may arrive as `bigint` (large COUNT/approx_unique), and `null_percentage` may
  * be a plain number (`12.5`) or a `%`-suffixed string (`"12.5%"`). These two
- * helpers were copy-pasted across `parsed-data` (canonical), `data-import`, and
- * `agent-canvas`; this module is the single source of truth.
+ * helpers were copy-pasted across `parsed-data` (canonical) and `data-import`;
+ * this module is the single source of truth.
  *
  * Kept dependency-free so it can run on the main thread or inside a Web Worker.
  */

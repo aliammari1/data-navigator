@@ -1,8 +1,8 @@
 /**
  * Zustand selector discipline helpers (architecture §4 / §0 invariant 6).
  *
- * The systemic perf defect across dashboard-shell, channel-monitor, collab-hub,
- * agent-canvas and ux-innovations is bare `useStore()` subscriptions that
+ * The systemic perf defect across dashboard-shell, collab-hub,
+ * and achievements is bare `useStore()` subscriptions that
  * re-render the whole tree on every state change. The remedy is *narrow
  * selectors + `useShallow`* everywhere. These helpers make the correct path the
  * easy path:

@@ -15,8 +15,7 @@
  *
  * NOTE: the ELK layered-DAG (`layoutGraph`) and supercluster point-clustering
  * surfaces were removed as dead code — lineage ships its own
- * `src/features/lineage/core/elk-layout.ts`, and geo-analysis renders region
- * aggregates without supercluster point clustering.
+ * `src/features/lineage/core/elk-layout.ts`.
  */
 
 import * as Comlink from "comlink";

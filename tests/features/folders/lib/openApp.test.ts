@@ -13,7 +13,7 @@ describe("openDesktopApp", () => {
   });
 
   it("returns false when no listener calls preventDefault", () => {
-    const result = openDesktopApp("data-browser");
+    const result = openDesktopApp("upload");
     expect(result).toBe(false);
   });
 
@@ -28,10 +28,8 @@ describe("openDesktopApp", () => {
 
   it("includes the correct route for each app", () => {
     const cases: Array<[Parameters<typeof openDesktopApp>[0], string]> = [
-      ["data-browser", "/dashboard/data-browser"],
+      ["upload", "/dashboard/upload"],
       ["telecom", "/dashboard/telecom-report/overview"],
-      ["parsed", "/dashboard/parsed"],
-      ["transform", "/dashboard/transform"],
       ["moudir", "/dashboard/data-formulator"],
       ["moudir-chat", "/dashboard/moudir"],
     ];
@@ -51,7 +49,7 @@ describe("openDesktopApp", () => {
     const handler = (e: Event) => e.preventDefault();
     window.addEventListener("desktop:open-app", handler);
     try {
-      const result = openDesktopApp("data-browser");
+      const result = openDesktopApp("upload");
       expect(result).toBe(true);
     } finally {
       window.removeEventListener("desktop:open-app", handler);
@@ -59,7 +57,7 @@ describe("openDesktopApp", () => {
   });
 
   it("dispatches a cancelable event", () => {
-    openDesktopApp("parsed");
+    openDesktopApp("upload");
     const event = (window.dispatchEvent as ReturnType<typeof vi.spyOn>).mock
       .calls[0][0] as CustomEvent;
     expect(event.cancelable).toBe(true);
@@ -71,7 +69,7 @@ describe("openDesktopApp", () => {
     // @ts-expect-error intentionally deleting window to simulate server environment
     delete globalThis.window;
     try {
-      const result = openDesktopApp("data-browser");
+      const result = openDesktopApp("upload");
       expect(result).toBe(false);
     } finally {
       globalThis.window = originalWindow;

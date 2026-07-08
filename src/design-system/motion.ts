@@ -2,7 +2,7 @@
  * Data Navigator motion system — the only sanctioned motions.
  *
  * Doctrine ("Cockpit & Cinéma"): working screens get restrained micro-motion,
- * cinema surfaces (landing, Accueil hero, Theater) get scroll depth. Every
+ * cinema surfaces (landing hero) get scroll depth. Every
  * primitive here animates ONLY transform / opacity / clip-path so it stays on
  * the compositor and never competes with CSV/report work on the main thread.
  *

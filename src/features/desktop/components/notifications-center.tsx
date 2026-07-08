@@ -19,9 +19,8 @@ import { useShallow } from "zustand/react/shallow";
  * Notifications Center — the desktop's alert hub.
  *
  * A glass flyout that drops from under the menu-bar bell (top-right) and lists
- * data alerts: channel-monitor threshold breaches, statistical anomalies and
- * finished AI briefings. Other features push into it through `pushNotification`
- * so they don't need to import the store directly.
+ * data alerts. Other features push into it through `pushNotification` so they
+ * don't need to import the store directly.
  *
  * No fake seeds — the panel starts empty and shows a calm empty state.
  */
@@ -83,9 +82,8 @@ export const useNotifications = create<NotificationsState>((set) => ({
 }));
 
 /**
- * Imperative helper for other features (channel monitor, AI briefings, anomaly
- * scans). Call from anywhere without wiring the hook:
- *   pushNotification({ kind: "threshold", title: "Canal USSD < 90 %", appId: "monitor" });
+ * Imperative helper for other features. Call from anywhere without wiring the hook:
+ *   pushNotification({ kind: "threshold", title: "Canal USSD < 90 %", appId: "telecom" });
  * Returns the new notification id.
  */
 export function pushNotification(n: NotificationInput): string {

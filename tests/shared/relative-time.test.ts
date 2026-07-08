@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
-import { relativeTime } from "@/features/dashboard-home/lib/relative-time";
+import { describe, expect, it } from "vitest";
+import { relativeTime } from "@/shared/relative-time";
 
 describe("relativeTime", () => {
   it("returns an empty string for undefined input", () => {

@@ -21,7 +21,6 @@ import { cn } from "@/shared/utils";
 const KIND_HUE: Record<CommandKind, number> = {
   app: 28,
   moudir: 268,
-  dataset: 200,
   wallpaper: 36,
   palette: 286,
   math: 142,
@@ -32,7 +31,6 @@ const KIND_HUE: Record<CommandKind, number> = {
 const KIND_TAG: Record<CommandKind, string> = {
   app: "Ouvrir",
   moudir: "IA",
-  dataset: "Jeu de données",
   wallpaper: "Apparence",
   palette: "Apparence",
   math: "Calcul",

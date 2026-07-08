@@ -10521,10 +10521,10 @@ var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
 var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
 
-// node_modules/.pnpm/@better-auth+electron@1.6.23_@better-auth+core@1.6.23_@better-auth+utils@0.4.2_@better-_1f1b2cb4d9853db6d87b61ee3b987d7d/node_modules/@better-auth/electron/dist/version-YIydhdrs.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.2_1f1b2cb4d9853db6d87b61ee3b987d7d/node_modules/@better-auth/electron/dist/version-YIydhdrs.mjs
 var PACKAGE_VERSION = "1.6.23";
 
-// node_modules/.pnpm/@better-auth+electron@1.6.23_@better-auth+core@1.6.23_@better-auth+utils@0.4.2_@better-_1f1b2cb4d9853db6d87b61ee3b987d7d/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
+// node_modules/.pnpm/@better-auth+electron@1.6.2_1f1b2cb4d9853db6d87b61ee3b987d7d/node_modules/@better-auth/electron/dist/utils-DxDKRT6e.mjs
 function isProcessType(type) {
   return typeof process !== "undefined" && process.type === type;
 }
@@ -10542,7 +10542,7 @@ function getChannelPrefixWithDelimiter(ns = "better-auth") {
   return ns.length > 0 ? ns + ":" : ns;
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.23_@better-auth+utils@0.4.2_@better-fetch+fetch@1.3.1_@openteleme_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/error/index.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.23_@b_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/error/index.mjs
 var BetterAuthError = class extends Error {
   constructor(message2, options) {
     super(message2, options);
@@ -10649,7 +10649,7 @@ function createHash(algorithm, encoding) {
   };
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.23_@better-auth+utils@0.4.2_@better-fetch+fetch@1.3.1_@openteleme_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/env/env-impl.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.23_@b_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/env/env-impl.mjs
 var _envShim = /* @__PURE__ */ Object.create(null);
 var _getEnv = (useShim) => globalThis.process?.env || globalThis.Deno?.env.toObject() || globalThis.__env__ || (useShim ? _envShim : globalThis);
 var env = new Proxy(_envShim, {
@@ -10742,7 +10742,7 @@ function normalizeIP(ip, options = {}) {
   return normalizeIPv6(ip, options.ipv6Subnet ?? 64);
 }
 
-// node_modules/.pnpm/@better-auth+core@1.6.23_@better-auth+utils@0.4.2_@better-fetch+fetch@1.3.1_@openteleme_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/utils/host.mjs
+// node_modules/.pnpm/@better-auth+core@1.6.23_@b_732fb2bd717cfae2764ea0575be42412/node_modules/@better-auth/core/dist/utils/host.mjs
 var CLOUD_METADATA_HOSTS = /* @__PURE__ */ new Set([
   "metadata.google.internal",
   "metadata.goog",

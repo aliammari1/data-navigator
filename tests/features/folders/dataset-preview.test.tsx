@@ -37,9 +37,6 @@ function renderPreview(overrides: Partial<Parameters<typeof DatasetPreview>[0]> 
   const props = {
     dataset: makeDataset(),
     onClose: vi.fn(),
-    onOpenExplorer: vi.fn(),
-    onProfile: vi.fn(),
-    onTransform: vi.fn(),
     onAskMoudir: vi.fn(),
     ...overrides,
   };
@@ -64,25 +61,13 @@ describe("DatasetPreview", () => {
     expect(screen.getByText("WEB")).toBeInTheDocument();
   });
 
-  it("fires onOpenExplorer when the 'Ouvrir dans l'Explorateur' button is clicked", async () => {
+  it("wires the quick action to its handler", async () => {
     runReadOnlyQueryMock.mockResolvedValue([]);
     const user = userEvent.setup();
     const props = renderPreview();
 
-    await user.click(screen.getByRole("button", { name: /ouvrir dans l'explorateur/i }));
-
-    expect(props.onOpenExplorer).toHaveBeenCalledTimes(1);
-  });
-
-  it("wires the quick actions to their handlers", async () => {
-    runReadOnlyQueryMock.mockResolvedValue([]);
-    const user = userEvent.setup();
-    const props = renderPreview();
-
-    await user.click(screen.getByRole("button", { name: /profiler/i }));
     await user.click(screen.getByRole("button", { name: /demander à moudir/i }));
 
-    expect(props.onProfile).toHaveBeenCalledTimes(1);
     expect(props.onAskMoudir).toHaveBeenCalledTimes(1);
   });
 

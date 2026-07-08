@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { useDashboardHistoryStore } from "@/features/dashboard-home/store/dashboard-history-store";
+import { useDashboardHistoryStore } from "@/core/stores/dashboard-history-store";
 import {
   type ContextMenuState,
   IconContextMenu,

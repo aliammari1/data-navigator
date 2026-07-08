@@ -27,8 +27,7 @@
  */
 
 import { z } from "zod";
-import type { ChartType } from "@/features/agent-canvas/core/types";
-import type { ColumnInfo } from "../types";
+import type { ChartType, ColumnInfo } from "../types";
 
 // ─── Rows & tables ────────────────────────────────────────────────────────────
 

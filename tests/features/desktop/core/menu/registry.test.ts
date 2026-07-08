@@ -9,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  * can drive `composeAppGroups`'s override/merge/containment rules with fully
  * controlled inputs, without depending on (or being broken by future edits to)
  * any real app's actual menu content:
- *   - "home"        → a controllable stand-in builder (see `h.homeImpl`)
+ *   - "settings" → a controllable stand-in builder (see `h.settingsImpl`)
  *   - "diagnostics" → always throws, to exercise `safeBuild`'s containment
  *
  * Every other app module (moudir, telecom, geo, …) is left real: they are pure,
@@ -23,11 +23,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 const h = vi.hoisted(() => ({
-  homeImpl: (_ctx: unknown) => [] as unknown[],
+  settingsImpl: (_ctx: unknown) => [] as unknown[],
 }));
 
-vi.mock("@/features/desktop/core/menu/apps/home", () => ({
-  buildMenu: (ctx: unknown) => h.homeImpl(ctx),
+vi.mock("@/features/desktop/core/menu/apps/settings", () => ({
+  buildMenu: (ctx: unknown) => h.settingsImpl(ctx),
 }));
 
 vi.mock("@/features/desktop/core/menu/apps/diagnostics", () => ({
@@ -99,7 +99,7 @@ const sep = (id: string): MenuItem => ({ kind: "separator", id });
 const act = (id: string): MenuItem => ({ id, label: id, run: () => {} });
 
 beforeEach(() => {
-  h.homeImpl = () => [];
+  h.settingsImpl = () => [];
   vi.clearAllMocks();
 });
 
@@ -135,31 +135,31 @@ describe("getAppMenuGroups — appId with no registered builder", () => {
 
 describe("getAppMenuGroups — 'file' and 'edit' override rule", () => {
   it("an app's 'file' group entirely REPLACES the universal Fichier (no universal items bleed through)", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "file", label: "Fichier", items: [act("only-mine")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "file").items)).toEqual(["only-mine"]);
   });
 
   it("without an app 'file' group, the universal Fichier fallback is used", () => {
-    h.homeImpl = () => [];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    h.settingsImpl = () => [];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     // Universal fallback always includes "import" and "export-report".
     expect(itemIds(group(groups, "file").items)).toContain("import");
   });
 
   it("an app's 'edit' group entirely REPLACES the universal Édition (no universal items bleed through)", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "edit", label: "Édition", items: [act("only-mine")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "edit").items)).toEqual(["only-mine"]);
   });
 
   it("without an app 'edit' group, the universal Édition (undo/redo/…) is used", () => {
-    h.homeImpl = () => [];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    h.settingsImpl = () => [];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "edit").items)).toContain("undo");
   });
 });
@@ -168,10 +168,10 @@ describe("getAppMenuGroups — 'file' and 'edit' override rule", () => {
 
 describe("getAppMenuGroups — 'view' and 'help' prepend rule", () => {
   it("an app's 'view' items are PREPENDED before the universal Affichage items, joined by a separator", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "view", label: "Affichage", items: [act("app-view-item")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     const items = itemIds(group(groups, "view").items);
     expect(items[0]).toBe("app-view-item");
     expect(items[1]).toBe("view-merge-sep");
@@ -180,10 +180,10 @@ describe("getAppMenuGroups — 'view' and 'help' prepend rule", () => {
   });
 
   it("an app's 'help' items are PREPENDED before the universal Aide items, joined by a separator", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "help", label: "Aide", items: [act("app-help-item")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     const items = itemIds(group(groups, "help").items);
     expect(items[0]).toBe("app-help-item");
     expect(items[1]).toBe("help-merge-sep");
@@ -191,15 +191,15 @@ describe("getAppMenuGroups — 'view' and 'help' prepend rule", () => {
   });
 
   it("without an app 'view'/'help' group, the universal groups are used unmerged (no stray separator)", () => {
-    h.homeImpl = () => [];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    h.settingsImpl = () => [];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "view").items)).not.toContain("view-merge-sep");
     expect(itemIds(group(groups, "help").items)).not.toContain("help-merge-sep");
   });
 
   it("an app 'view'/'help' group with zero items after cleaning does not merge (prepend is skipped, base group is untouched)", () => {
-    h.homeImpl = () => [{ id: "view", label: "Affichage", items: [] } satisfies MenuGroup];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    h.settingsImpl = () => [{ id: "view", label: "Affichage", items: [] } satisfies MenuGroup];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "view").items)).not.toContain("view-merge-sep");
   });
 });
@@ -208,11 +208,11 @@ describe("getAppMenuGroups — 'view' and 'help' prepend rule", () => {
 
 describe("getAppMenuGroups — app-specific (non-standard) group ids", () => {
   it("an app group with a custom id is placed after 'view' and before 'window', preserving app order", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "dashboard", label: "Tableau de bord", items: [act("a")] } satisfies MenuGroup,
       { id: "extra", label: "Extra", items: [act("b")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     const order = ids(groups);
     const viewIdx = order.indexOf("view");
     const dashIdx = order.indexOf("dashboard");
@@ -224,10 +224,12 @@ describe("getAppMenuGroups — app-specific (non-standard) group ids", () => {
   });
 
   it("a group with id 'app' returned by an app builder is dropped entirely (not used as the leading group, not kept as an extra group)", () => {
-    h.homeImpl = () => [{ id: "app", label: "Hijacked", items: [act("evil")] } satisfies MenuGroup];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home", title: "Accueil" }));
+    h.settingsImpl = () => [
+      { id: "app", label: "Hijacked", items: [act("evil")] } satisfies MenuGroup,
+    ];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings", title: "Paramètres" }));
     // The leading group still comes from the universal appLeadingGroup(ctx), not the app's "app" group.
-    expect(group(groups, "app").label).toBe("Accueil");
+    expect(group(groups, "app").label).toBe("Paramètres");
     expect(itemIds(group(groups, "app").items)).not.toContain("evil");
     // And it must not reappear as a second/duplicate group anywhere in the output.
     expect(ids(groups).filter((id) => id === "app")).toHaveLength(1);
@@ -251,9 +253,9 @@ describe("getAppMenuGroups — a throwing app builder is contained", () => {
   it("a builder that returns a non-array value is also contained (no app-specific groups, no crash)", () => {
     // Defensive guard alongside the try/catch: some non-conforming builder could
     // return e.g. undefined instead of MenuGroup[]; safeBuild coerces this to [].
-    h.homeImpl = () => undefined as unknown as unknown[];
-    expect(() => getAppMenuGroups(makeCtx({ appId: "home" }))).not.toThrow();
-    const groups = getAppMenuGroups(makeCtx({ appId: "home", title: "Accueil" }));
+    h.settingsImpl = () => undefined as unknown as unknown[];
+    expect(() => getAppMenuGroups(makeCtx({ appId: "settings" }))).not.toThrow();
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings", title: "Paramètres" }));
     expect(ids(groups)).toEqual(["app", "file", "edit", "view", "window", "help"]);
   });
 });
@@ -262,44 +264,44 @@ describe("getAppMenuGroups — a throwing app builder is contained", () => {
 
 describe("getAppMenuGroups — cleanItems collapses separators", () => {
   it("drops a leading separator", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "extra", label: "Extra", items: [sep("lead"), act("a")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "extra").items)).toEqual(["a"]);
   });
 
   it("drops a trailing separator", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "extra", label: "Extra", items: [act("a"), sep("trail")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "extra").items)).toEqual(["a"]);
   });
 
   it("collapses consecutive duplicate separators into one", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       {
         id: "extra",
         label: "Extra",
         items: [act("a"), sep("s1"), sep("s2"), sep("s3"), act("b")],
       } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(itemIds(group(groups, "extra").items)).toEqual(["a", "s1", "b"]);
   });
 
   it("drops a group entirely (from the final output) when every item is a separator", () => {
-    h.homeImpl = () => [
+    h.settingsImpl = () => [
       { id: "extra", label: "Extra", items: [sep("s1"), sep("s2")] } satisfies MenuGroup,
     ];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(ids(groups)).not.toContain("extra");
   });
 
   it("drops a group entirely when it has zero items to begin with", () => {
-    h.homeImpl = () => [{ id: "extra", label: "Extra", items: [] } satisfies MenuGroup];
-    const groups = getAppMenuGroups(makeCtx({ appId: "home" }));
+    h.settingsImpl = () => [{ id: "extra", label: "Extra", items: [] } satisfies MenuGroup];
+    const groups = getAppMenuGroups(makeCtx({ appId: "settings" }));
     expect(ids(groups)).not.toContain("extra");
   });
 

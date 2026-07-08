@@ -1,9 +1,8 @@
 "use client";
 
-import { Brain, ChevronRight, Database } from "lucide-react";
+import { ChevronRight, Database } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePinnedItems } from "@/core/stores/settings-store";
 import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
 import {
@@ -29,15 +28,7 @@ import { cn } from "@/shared/utils";
  * 56px icon rail when collapsed with keyboard-accessible Radix tooltips.
  * Active state is computed once here and passed down to memoized buttons.
  */
-export function AppSidebar({
-  collapsed,
-  onToggle,
-  onAiToggle,
-}: {
-  collapsed: boolean;
-  onToggle: () => void;
-  onAiToggle?: () => void;
-}) {
+export function AppSidebar({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const pinnedItems = usePinnedItems();
   const pathname = usePathname();
   const engine = useEngineInfo();
@@ -162,7 +153,6 @@ export function AppSidebar({
             active={isNavItemActive(pathname, item.href)}
           />
         ))}
-        {onAiToggle && <AiAssistantButton collapsed={collapsed} onClick={onAiToggle} />}
       </div>
     </aside>
   );
@@ -173,29 +163,5 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
     <div className="px-2 py-1 text-xs font-semibold uppercase tracking-[0.08em] text-muted-foreground/50">
       {children}
     </div>
-  );
-}
-
-function AiAssistantButton({ collapsed, onClick }: { collapsed: boolean; onClick: () => void }) {
-  const button = (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center gap-2.5 rounded-lg border-l-2 border-transparent py-1.5 text-sm text-muted-foreground transition-colors hover:bg-ai/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-        collapsed ? "justify-center px-3" : "pr-2 pl-3",
-      )}
-    >
-      <Brain className="size-4 flex-none shrink-0 text-ai" />
-      {!collapsed && <span className="flex-1 text-left">Assistant IA</span>}
-    </button>
-  );
-
-  if (!collapsed) return button;
-  return (
-    <Tooltip>
-      <TooltipTrigger asChild>{button}</TooltipTrigger>
-      <TooltipContent side="right">Assistant IA</TooltipContent>
-    </Tooltip>
   );
 }

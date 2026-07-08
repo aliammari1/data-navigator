@@ -33,13 +33,6 @@ describe("collaboration buildMenu — file group", () => {
     expect(ctx.openApp).toHaveBeenCalledWith("collaboration", { forceNew: true });
   });
 
-  it("run() on 'open-report' opens the report-studio app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    getAction(findGroup(groups, "file")!.items, "open-report").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("report-studio");
-  });
-
   it("run() on 'invite' sends the invite command", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);

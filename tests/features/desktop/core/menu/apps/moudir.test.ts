@@ -26,11 +26,7 @@ describe("moudir buildMenu — structure", () => {
     const quick = findItem(formulate.items, "quick-instructions");
     expect(quick?.kind).toBe("submenu");
     const nested = (quick as { items: { id: string }[] }).items;
-    expect(nested.map((i) => i.id)).toEqual([
-      "i-channels-time",
-      "i-success-daily",
-      "i-top-errors",
-    ]);
+    expect(nested.map((i) => i.id)).toEqual(["i-channels-time", "i-success-daily", "i-top-errors"]);
   });
 });
 
@@ -47,13 +43,6 @@ describe("moudir buildMenu — file group actions", () => {
     const groups = buildMenu(ctx);
     runAction(findGroup(groups, "file")!.items, "import-data");
     expect(ctx.openApp).toHaveBeenCalledWith("upload");
-  });
-
-  it("browse-data opens the data-browser app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    runAction(findGroup(groups, "file")!.items, "browse-data");
-    expect(ctx.openApp).toHaveBeenCalledWith("data-browser");
   });
 
   it("close is a danger action that runs ctx.closeWindow()", () => {

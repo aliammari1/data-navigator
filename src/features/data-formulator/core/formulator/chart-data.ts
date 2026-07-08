@@ -15,8 +15,7 @@
  * Keep this file dependency-light: pure functions over core types only.
  */
 
-import type { ChartType } from "@/features/agent-canvas/core/types";
-import type { AggregateFn, ChartSpec, ColumnInfo, Encoding, FilterDef } from "../types";
+import type { AggregateFn, ChartSpec, ChartType, ColumnInfo, Encoding, FilterDef } from "../types";
 import type { Row } from "./model";
 
 // ─── Shelf shape (structural, so the core never imports the store) ───────────

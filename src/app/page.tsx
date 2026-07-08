@@ -24,14 +24,12 @@ import {
   Database,
   FileSpreadsheet,
   FileText,
-  Globe2,
   Lock,
   Menu,
   Mic,
   Radar,
   Shield,
   Sparkles,
-  TrendingUp,
   Users,
   X,
 } from "lucide-react";
@@ -65,18 +63,12 @@ const TICKER_A = [
   "DuckDB SQL",
   "Visual query builder",
   "Transform pipelines",
-  "Data lineage",
-  "Reconciliation",
   "Version history",
   "Folder workspaces",
 ] as const;
 
 const TICKER_B = [
-  "Offline AI briefings",
   "Anomaly detection",
-  "Forecasting",
-  "Geographic analysis",
-  "Report studio · PDF · DOCX · PPTX",
   "LAN collaboration",
   "Voice readout",
   "Command palette",
@@ -391,86 +383,6 @@ function GaugeViz({ value = 97.4 }: { value?: number }) {
         </span>
       </div>
     </div>
-  );
-}
-
-/** Forecast sparkline: solid history + dashed projection with confidence band. */
-function ForecastViz() {
-  const reduce = useReducedMotion();
-  return (
-    <svg viewBox="0 0 300 90" className="h-full w-full" preserveAspectRatio="none" aria-hidden>
-      <path
-        d="M190,40 L230,32 L270,26 L300,18 L300,60 L270,52 L230,54 L190,52 Z"
-        fill="#5e8bff"
-        fillOpacity="0.07"
-      />
-      <motion.path
-        d="M0,70 L40,62 L80,66 L120,52 L160,46 L190,40"
-        fill="none"
-        stroke="#5e8bff"
-        strokeWidth="2"
-        initial={reduce ? false : { pathLength: 0 }}
-        whileInView={{ pathLength: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 1, ease: "easeOut" }}
-      />
-      <motion.path
-        d="M190,40 L230,34 L270,30 L300,24"
-        fill="none"
-        stroke="#5e8bff"
-        strokeWidth="2"
-        strokeDasharray="5 5"
-        strokeOpacity="0.7"
-        initial={reduce ? false : { pathLength: 0 }}
-        whileInView={{ pathLength: 1 }}
-        viewport={{ once: true }}
-        transition={{ duration: 0.8, delay: 0.9, ease: "easeOut" }}
-      />
-      <circle cx="190" cy="40" r="3.5" fill="#5e8bff" stroke="#05070d" strokeWidth="2" />
-    </svg>
-  );
-}
-
-/** Dotted region map with active markers — abstract, no real geodata. */
-function GeoViz() {
-  const reduce = useReducedMotion();
-  const dots: Array<[number, number]> = [];
-  for (let r = 0; r < 7; r++) {
-    for (let c = 0; c < 16; c++) {
-      // organic landmass-ish mask
-      const on =
-        (r > 0 && r < 6 && c > 1 && c < 14 && !((r === 1 || r === 5) && (c < 4 || c > 11))) ||
-        (r === 0 && c > 5 && c < 10);
-      if (on) dots.push([14 + c * 18, 12 + r * 13]);
-    }
-  }
-  const hot: Array<[number, number]> = [
-    [86, 38],
-    [176, 51],
-    [122, 77],
-  ];
-  return (
-    <svg viewBox="0 0 300 104" className="h-full w-full" aria-hidden>
-      {dots.map(([x, y]) => (
-        <circle key={`${x}-${y}`} cx={x} cy={y} r="1.6" fill="rgba(148,163,184,0.35)" />
-      ))}
-      {hot.map(([x, y], i) => (
-        <g key={`${x}-${y}`}>
-          <circle cx={x} cy={y} r="3" fill="#5e8bff" />
-          <circle cx={x} cy={y} r="7" fill="none" stroke="#5e8bff" strokeOpacity="0.5">
-            {!reduce && (
-              <animate
-                attributeName="r"
-                values="4;12;4"
-                dur="3s"
-                begin={`${i * 0.8}s`}
-                repeatCount="indefinite"
-              />
-            )}
-          </circle>
-        </g>
-      ))}
-    </svg>
   );
 }
 
@@ -1264,7 +1176,7 @@ function Capabilities() {
               <BentoTitle
                 icon={Brain}
                 title="Embedded intelligence"
-                sub="Briefings, anomaly explanations and natural-language queries from a model that lives in the app."
+                sub="Natural-language questions, answered by a model that lives in the app."
               />
               <div className="mt-5 flex-1 space-y-2.5">
                 <div className="ml-auto w-fit max-w-[90%] rounded-xl rounded-br-sm bg-blue-400/10 px-3 py-2 text-xs text-blue-100">
@@ -1300,7 +1212,7 @@ function Capabilities() {
         </Reveal>
 
         {/* telecom KPI */}
-        <Reveal delay={0.05} className="md:col-span-2">
+        <Reveal delay={0.05} className="md:col-span-4">
           <Spotlight className="h-full p-6">
             <BentoTitle
               icon={BarChart3}
@@ -1309,59 +1221,6 @@ function Capabilities() {
             />
             <div className="mt-4 h-24">
               <GaugeViz value={97.4} />
-            </div>
-          </Spotlight>
-        </Reveal>
-
-        {/* forecasting */}
-        <Reveal delay={0.1} className="md:col-span-2">
-          <Spotlight className="h-full p-6">
-            <BentoTitle
-              icon={TrendingUp}
-              title="Forecasting"
-              sub="Volume projections with confidence bands, computed on-device."
-            />
-            <div className="mt-4 h-24">
-              <ForecastViz />
-            </div>
-          </Spotlight>
-        </Reveal>
-
-        {/* geo */}
-        <Reveal delay={0.05} className="md:col-span-2">
-          <Spotlight className="h-full p-6">
-            <BentoTitle
-              icon={Globe2}
-              title="Geographic analysis"
-              sub="Regional drill-downs on offline map tiles — incidents localised at a glance."
-            />
-            <div className="mt-4 h-24">
-              <GeoViz />
-            </div>
-          </Spotlight>
-        </Reveal>
-
-        {/* reports */}
-        <Reveal delay={0.08} className="md:col-span-2">
-          <Spotlight className="h-full p-6">
-            <BentoTitle
-              icon={FileText}
-              title="Report studio"
-              sub="Branded PDF, DOCX, PPTX and XLSX exports from the same live data."
-            />
-            <div className="mt-5 flex items-center gap-2">
-              {["PDF", "DOCX", "PPTX", "XLSX"].map((f, i) => (
-                <motion.span
-                  key={f}
-                  initial={{ opacity: 0, y: 10 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ delay: i * 0.07, duration: 0.4, ease: EASE }}
-                  className="rounded-lg border border-blue-400/20 bg-blue-400/[0.06] px-3 py-1.5 font-mono text-[11px] text-blue-200"
-                >
-                  {f}
-                </motion.span>
-              ))}
             </div>
           </Spotlight>
         </Reveal>
@@ -1397,7 +1256,7 @@ function Capabilities() {
               <BentoTitle
                 icon={Mic}
                 title="Voice in, voice out"
-                sub="Ask questions aloud and have the briefing read back — on-device speech models, even the microphone stays local."
+                sub="Ask questions aloud and have the answer read back — on-device speech models, even the microphone stays local."
               />
               <div className="flex h-8 items-end gap-[3px]" aria-hidden>
                 {[5, 12, 8, 16, 10, 14, 6].map((h, i) => (

@@ -157,7 +157,7 @@ export const useSettingsStore = create<SettingsStore>()(
       performance: DEFAULT_PERFORMANCE,
       enableAiCritic: false,
       notifications: DEFAULT_NOTIFICATIONS,
-      pinnedItems: ["/dashboard", "/dashboard/upload", "/dashboard/ai-analysis"],
+      pinnedItems: ["/dashboard/telecom-report/overview", "/dashboard/upload"],
 
       setMaxFileSize: (size) => set({ maxFileSize: size }),
       setMaxFiles: (count) => set({ maxFiles: count }),
@@ -197,7 +197,7 @@ export const useSettingsStore = create<SettingsStore>()(
           performance: DEFAULT_PERFORMANCE,
           enableAiCritic: false,
           notifications: DEFAULT_NOTIFICATIONS,
-          pinnedItems: ["/dashboard", "/dashboard/upload", "/dashboard/ai-analysis"],
+          pinnedItems: ["/dashboard/telecom-report/overview", "/dashboard/upload"],
         }),
     }),
     {
@@ -224,7 +224,8 @@ export const useSettingsStore = create<SettingsStore>()(
           performance: {
             ...DEFAULT_PERFORMANCE,
             ...(prev.performance ?? {}),
-            cacheMode: prev.performance?.cacheMode ?? legacyDashboardAccess?.cacheMode ?? "balanced",
+            cacheMode:
+              prev.performance?.cacheMode ?? legacyDashboardAccess?.cacheMode ?? "balanced",
           },
           // New in this version — off by default for installs that predate it.
           enableAiCritic: prev.enableAiCritic ?? false,

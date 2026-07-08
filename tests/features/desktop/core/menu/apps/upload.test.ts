@@ -44,13 +44,7 @@ describe("upload buildMenu — shape", () => {
   it("declares the expected Données item ids in order", () => {
     const groups = buildMenu(makeMenuContext());
     const data = findGroup(groups, "data");
-    expect(data?.items.map((i) => i.id)).toEqual([
-      "open-parsed",
-      "open-telecom",
-      "data-sep",
-      "open-data-browser",
-      "open-transform",
-    ]);
+    expect(data?.items.map((i) => i.id)).toEqual(["open-telecom"]);
   });
 
   it("declares the Aide item", () => {
@@ -109,32 +103,11 @@ describe("upload buildMenu — Fichier actions", () => {
 // ─── Données actions ──────────────────────────────────────────────────────────
 
 describe("upload buildMenu — Données actions", () => {
-  it("'open-parsed' opens the parsed app", () => {
-    const ctx = makeMenuContext();
-    const data = findGroup(buildMenu(ctx), "data");
-    getAction(data?.items ?? [], "open-parsed").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("parsed");
-  });
-
   it("'open-telecom' opens the telecom app", () => {
     const ctx = makeMenuContext();
     const data = findGroup(buildMenu(ctx), "data");
     getAction(data?.items ?? [], "open-telecom").run();
     expect(ctx.openApp).toHaveBeenCalledWith("telecom");
-  });
-
-  it("'open-data-browser' opens the data-browser app", () => {
-    const ctx = makeMenuContext();
-    const data = findGroup(buildMenu(ctx), "data");
-    getAction(data?.items ?? [], "open-data-browser").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("data-browser");
-  });
-
-  it("'open-transform' opens the transform app", () => {
-    const ctx = makeMenuContext();
-    const data = findGroup(buildMenu(ctx), "data");
-    getAction(data?.items ?? [], "open-transform").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("transform");
   });
 });
 

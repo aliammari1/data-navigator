@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart3, ExternalLink, Layers, Sparkles, Table2, X } from "lucide-react";
+import { Sparkles, Table2, X } from "lucide-react";
 import { useEffect } from "react";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
 import { usePreviewRows } from "@/features/folders/hooks/usePreviewRows";
@@ -23,14 +23,11 @@ const TYPE_STYLE: Record<string, string> = {
 };
 
 function ColumnCard({ col, rowCount }: { col: ColMeta; rowCount: number }) {
-  const fillPct =
-    rowCount > 0 ? Math.max(0, 100 - (col.nullCount / rowCount) * 100) : 100;
+  const fillPct = rowCount > 0 ? Math.max(0, 100 - (col.nullCount / rowCount) * 100) : 100;
   const typeStyle = TYPE_STYLE[col.type] ?? TYPE_STYLE.unknown;
 
   const rangeLabel =
-    col.min !== undefined && col.max !== undefined
-      ? `[${col.min}, ${col.max}]`
-      : null;
+    col.min !== undefined && col.max !== undefined ? `[${col.min}, ${col.max}]` : null;
 
   const meanLabel =
     col.mean !== undefined
@@ -40,10 +37,7 @@ function ColumnCard({ col, rowCount }: { col: ColMeta; rowCount: number }) {
   return (
     <div className="space-y-1.5 rounded-lg border border-border bg-muted/30 p-2.5">
       <div className="flex items-center justify-between gap-2">
-        <span
-          className="truncate text-xs font-medium text-foreground"
-          title={col.name}
-        >
+        <span className="truncate text-xs font-medium text-foreground" title={col.name}>
           {col.name}
         </span>
         <span
@@ -79,20 +73,10 @@ function ColumnCard({ col, rowCount }: { col: ColMeta; rowCount: number }) {
 export interface DatasetPreviewProps {
   dataset: Dataset;
   onClose: () => void;
-  onOpenExplorer: () => void;
-  onProfile: () => void;
-  onTransform: () => void;
   onAskMoudir: () => void;
 }
 
-export function DatasetPreview({
-  dataset,
-  onClose,
-  onOpenExplorer,
-  onProfile,
-  onTransform,
-  onAskMoudir,
-}: DatasetPreviewProps) {
+export function DatasetPreview({ dataset, onClose, onAskMoudir }: DatasetPreviewProps) {
   const columns = dataset.columns;
   const { rows, loading, error } = usePreviewRows(dataset.viewName, PREVIEW_ROW_LIMIT);
 
@@ -106,10 +90,7 @@ export function DatasetPreview({
 
   const avgFillPct =
     columns.length > 0 && dataset.rowCount > 0
-      ? (columns.reduce(
-          (sum, col) => sum + (1 - col.nullCount / dataset.rowCount),
-          0,
-        ) /
+      ? (columns.reduce((sum, col) => sum + (1 - col.nullCount / dataset.rowCount), 0) /
           columns.length) *
         100
       : 100;
@@ -137,8 +118,7 @@ export function DatasetPreview({
               {dataset.name}
             </h2>
             <p className="mt-0.5 text-xs text-muted-foreground">
-              {dataset.format.toUpperCase()} ·{" "}
-              {dataset.rowCount.toLocaleString("fr-FR")} lignes ·{" "}
+              {dataset.format.toUpperCase()} · {dataset.rowCount.toLocaleString("fr-FR")} lignes ·{" "}
               {dataset.colCount} colonnes · {formatBytes(dataset.sizeBytes)}
             </p>
           </div>
@@ -171,11 +151,7 @@ export function DatasetPreview({
           ) : (
             <div className="grid gap-2 sm:grid-cols-2">
               {columns.map((col) => (
-                <ColumnCard
-                  key={col.name}
-                  col={col}
-                  rowCount={dataset.rowCount}
-                />
+                <ColumnCard key={col.name} col={col} rowCount={dataset.rowCount} />
               ))}
             </div>
           )}
@@ -237,30 +213,8 @@ export function DatasetPreview({
         <div className="flex flex-wrap items-center gap-2 border-t border-border px-4 py-3">
           <button
             type="button"
-            onClick={onOpenExplorer}
-            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
-          >
-            <ExternalLink className="h-4 w-4" /> Ouvrir dans l'Explorateur
-          </button>
-          <span className="mx-1 h-5 w-px bg-border" aria-hidden />
-          <button
-            type="button"
-            onClick={onProfile}
-            className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80"
-          >
-            <BarChart3 className="h-4 w-4" /> Profiler
-          </button>
-          <button
-            type="button"
-            onClick={onTransform}
-            className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80"
-          >
-            <Layers className="h-4 w-4" /> Transformer
-          </button>
-          <button
-            type="button"
             onClick={onAskMoudir}
-            className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80"
+            className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
           >
             <Sparkles className="h-4 w-4" /> Demander à Moudir
           </button>

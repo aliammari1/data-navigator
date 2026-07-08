@@ -121,11 +121,6 @@ export function universalFileGroup(ctx: MenuContext): MenuGroup {
       icon: Upload,
       run: () => ctx.openApp("upload"),
     },
-    {
-      id: "export-report",
-      label: "Exporter le rapport…",
-      run: () => ctx.openApp("report-studio", { props: { intent: "export" } }),
-    },
     sep("file-sep"),
     {
       id: "close",
