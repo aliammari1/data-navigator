@@ -68,66 +68,42 @@ export interface ModelManifestEntry {
 /** transformers.js localModelPath — matches `transformers-env.ts` LOCAL_MODEL_PATH. */
 export const LOCAL_TRANSFORMERS_PATH = "/models/transformers/";
 
-const HF = "https://huggingface.co";
-
 /**
  * The default GGUF instruct model used by the Electron generative lane
  * (electron/llama-service.ts DEFAULT_LLM_MODEL). Kept here too so the Setup UI
  * and preflight agree on the "primary" model id without importing main-process
- * code.
+ * code. Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
+ * canonical catalog — keep the two in lockstep when it changes.
  */
-export const DEFAULT_GGUF_MODEL = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+export const DEFAULT_GGUF_MODEL = "gemma-4-e4b-it-q4_k_m.gguf";
 
 /** The MiniLM embeddings model id used by the inference worker. */
 export const EMBED_MODEL_ID = "Xenova/all-MiniLM-L6-v2";
 
 export const MODEL_MANIFEST: ModelManifestEntry[] = [
-  // ── Instruct GGUF (Electron node-llama-cpp) ────────────────────────────────
+  // ── Instruct GGUF (Electron node-llama-cpp) — mirrors
+  // electron/model-download-service.ts's MODEL_DOWNLOADS ────────────────────
   {
-    key: "qwen2.5-1.5b-instruct-q4_k_m",
+    key: "gemma-4-e4b-it-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",
-    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
-    family: "Qwen2.5",
-    sizeLabel: "1.5B",
-    downloadMb: 1020,
+    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    family: "Gemma 4",
+    sizeLabel: "E4B",
+    downloadMb: 5340, // matches model-download-service.ts's bytes: 5_340_000_000
     optional: false,
-    ggufFile: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    downloadUrl: `${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true`,
-    sha256: "", // TODO: fill before verified release
-    bytes: 0, // TODO: fill exact content-length (≈1_070_000_000)
+    ggufFile: "gemma-4-e4b-it-q4_k_m.gguf",
   },
   {
-    key: "qwen2.5-0.5b-instruct-q4_k_m",
+    key: "granite-4.1-3b-instruct-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",
-    label: "Qwen2.5 0.5B Instruct (GGUF q4) — low-RAM fallback",
-    family: "Qwen2.5",
-    sizeLabel: "0.5B",
-    downloadMb: 400,
+    label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.1",
+    sizeLabel: "3B",
+    downloadMb: 2100, // matches model-download-service.ts's bytes: 2_100_000_000
     optional: true,
-    ggufFile: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-    downloadUrl: `${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true`,
-    sha256: "", // TODO
-    bytes: 0, // TODO (≈398_000_000)
-  },
-  {
-    // OPTIONAL upgrade for stronger machines (≈8GB+ free RAM). Qwen2.5-7B
-    // understands Tunisian Derja and Arabic noticeably better than the 1.5B
-    // default — see docs/TUNISIAN-MODEL.md. Drop the GGUF into
-    // <userData>/models/llm/ and select it; nothing else needs to change.
-    key: "qwen2.5-7b-instruct-q4_k_m",
-    lane: "llm",
-    presence: "electron-gguf",
-    label: "Qwen2.5 7B Instruct (GGUF q4) — stronger Derja/Arabic, high-RAM",
-    family: "Qwen2.5",
-    sizeLabel: "7B",
-    downloadMb: 4680,
-    optional: true,
-    ggufFile: "qwen2.5-7b-instruct-q4_k_m.gguf",
-    downloadUrl: `${HF}/Qwen/Qwen2.5-7B-Instruct-GGUF/resolve/main/qwen2.5-7b-instruct-q4_k_m.gguf?download=true`,
-    sha256: "", // TODO: fill before verified release
-    bytes: 0, // TODO: fill exact content-length (≈4_680_000_000)
+    ggufFile: "granite-4.1-3b-instruct-q4_k_m.gguf",
   },
 
   // ── all-MiniLM-L6-v2 int8 ONNX (transformers.js embeddings worker) ─────────

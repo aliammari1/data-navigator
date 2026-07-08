@@ -796,6 +796,41 @@ describe("sherpaSpeak()", () => {
   });
 });
 
+// ─── pickNativeTtsEngine ──────────────────────────────────────────────────────
+
+describe("pickNativeTtsEngine()", () => {
+  it("picks sherpa-kokoro for English", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("en")).toBe("sherpa-kokoro");
+  });
+
+  it("picks sherpa-kokoro for auto", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("auto")).toBe("sherpa-kokoro");
+  });
+
+  it("picks sherpa-supertonic for French", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("fr")).toBe("sherpa-supertonic");
+  });
+
+  it("picks sherpa-supertonic for Arabic", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("ar")).toBe("sherpa-supertonic");
+  });
+
+  it("picks sherpa-supertonic for any ar-* Arabic locale variant via prefix match", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("ar-SA")).toBe("sherpa-supertonic");
+  });
+
+  it("is case-insensitive", async () => {
+    const { pickNativeTtsEngine } = await import("@/platform/electron/electron-fs");
+    expect(pickNativeTtsEngine("FR")).toBe("sherpa-supertonic");
+    expect(pickNativeTtsEngine("AR")).toBe("sherpa-supertonic");
+  });
+});
+
 // ─── window === undefined branches ───────────────────────────────────────────
 // Cover the typeof window === "undefined" early-exit paths inside fsBridge(),
 // duckdbBridge(), and voiceBridge(). We delete the global so the guard fires.

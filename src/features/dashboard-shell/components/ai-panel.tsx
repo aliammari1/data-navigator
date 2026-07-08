@@ -34,6 +34,7 @@ import { useNlqTranslator } from "@/features/dashboard-shell/command/use-nlq-tra
 import { useShellActions, useShellStore } from "@/features/dashboard-shell/shell/shell-store";
 import { generateInsights, recommendCharts } from "@/platform/ai/insights";
 import { suggestQuestions } from "@/platform/ai/nlq";
+import { useAI } from "@/platform/ai/provider";
 import {
   arrowColumnNames,
   arrowToRows,
@@ -335,6 +336,15 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
   const [insights, setInsights] = useState<import("@/platform/ai/insights").Insight[]>([]);
   const [recs, setRecs] = useState<import("@/platform/ai/insights").ChartRecommendation[]>([]);
 
+  // Optional LLM upgrade: only wired up once a provider is already known to be
+  // available (a passive probe — never triggers the "download a model" dialog
+  // just from opening this tab). When no model is ready, `llm` stays undefined
+  // and generateInsights/recommendCharts silently stay rule-based, exactly as
+  // before.
+  const ai = useAI();
+  const aiGenerate = ai.generate;
+  const llmAvailable = ai.availability.some((a) => a.available);
+
   useEffect(() => {
     if (!ctx) {
       setInsights([]);
@@ -342,14 +352,28 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
       return;
     }
     let cancelled = false;
-    generateInsights(ctx.columns, ctx.rowCount)
+    const llm = llmAvailable
+      ? async (
+          prompt: string,
+          opts: { systemPrompt: string; maxTokens: number; temperature: number },
+        ) => {
+          const result = await aiGenerate({
+            prompt,
+            system: opts.systemPrompt,
+            maxTokens: opts.maxTokens,
+            temperature: opts.temperature,
+          });
+          return result.text;
+        }
+      : undefined;
+    generateInsights(ctx.columns, ctx.rowCount, undefined, llm)
       .then((result) => {
         if (!cancelled) setInsights(result);
       })
       .catch(() => {
         /* keep empty */
       });
-    recommendCharts(ctx.columns, ctx.rowCount)
+    recommendCharts(ctx.columns, ctx.rowCount, llm)
       .then((result) => {
         if (!cancelled) setRecs(result);
       })
@@ -359,7 +383,7 @@ function InsightsPanel({ ctx }: { ctx: TableCtx | null }) {
     return () => {
       cancelled = true;
     };
-  }, [ctx]);
+  }, [ctx, llmAvailable, aiGenerate]);
 
   if (!ctx) {
     return (

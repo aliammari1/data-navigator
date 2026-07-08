@@ -4,9 +4,11 @@ import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import { AIToggle } from "@/features/dashboard-shell/components/ai-panel";
 import { LanAccessGate } from "@/features/dashboard-shell/components/lan-access-gate";
 import { LanStatusDock } from "@/features/dashboard-shell/components/lan-status-dock";
+import { LiveCursors } from "@/features/dashboard-shell/components/live-cursors";
 import { SettingsEffects } from "@/features/settings/components/settings-effects";
 import { DashboardBoot } from "@/features/dashboard-shell/shell/dashboard-boot";
 import { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
@@ -41,6 +43,9 @@ export function DashboardClientShell({
   const activeDatasetId = useDataStore((state) => state.activeDatasetId);
   const datasets = useDataStore((state) => state.datasets);
   const setAppContext = useAppContextStore((state) => state.setContext);
+  // Guest devices (Settings > Account > Role = Viewer) must join a LAN session
+  // before the dashboard shows: they exist to view someone else's shared data.
+  const deviceRole = useSettingsStore((s) => s.role);
 
   // If the persisted layout restored with the panel open (or it is opened via a
   // keyboard shortcut / command palette without going through the toggle button),
@@ -73,11 +78,13 @@ export function DashboardClientShell({
           the Settings screen (blueprint §4). */}
       <SettingsEffects />
       <DashboardBoot />
-      <LanAccessGate isAdmin={Boolean(user)}>{children}</LanAccessGate>
+      <LanAccessGate isAdmin={Boolean(user) && deviceRole !== "viewer"}>{children}</LanAccessGate>
 
       {aiEverOpened && <AIPanel open={aiOpen} onClose={closeAiPanel} />}
       <AIToggle onClick={handleAiToggle} active={aiOpen} />
       <LanStatusDock />
+      {/* Multiplayer cursors + presence page sync (renders only while connected). */}
+      <LiveCursors />
     </DashboardLayout>
   );
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted state so vi.mock factory can reference it ────────────────────────
 const { toJSONSchemaSpy, mockState } = vi.hoisted(() => ({
@@ -178,19 +178,31 @@ describe("zodToInlineJsonSchema", () => {
   });
 
   it("strips uniqueItems from the output", () => {
-    toJSONSchemaSpy.mockReturnValue({ type: "array", uniqueItems: true, items: { type: "string" } });
+    toJSONSchemaSpy.mockReturnValue({
+      type: "array",
+      uniqueItems: true,
+      items: { type: "string" },
+    });
     const result = zodToInlineJsonSchema(z.string());
     expect(result).not.toHaveProperty("uniqueItems");
   });
 
   it("strips minProperties from the output", () => {
-    toJSONSchemaSpy.mockReturnValue({ type: "object", minProperties: 1, properties: { x: { type: "string" } } });
+    toJSONSchemaSpy.mockReturnValue({
+      type: "object",
+      minProperties: 1,
+      properties: { x: { type: "string" } },
+    });
     const result = zodToInlineJsonSchema(z.string());
     expect(result).not.toHaveProperty("minProperties");
   });
 
   it("strips maxProperties from the output", () => {
-    toJSONSchemaSpy.mockReturnValue({ type: "object", maxProperties: 10, properties: { x: { type: "string" } } });
+    toJSONSchemaSpy.mockReturnValue({
+      type: "object",
+      maxProperties: 10,
+      properties: { x: { type: "string" } },
+    });
     const result = zodToInlineJsonSchema(z.string());
     expect(result).not.toHaveProperty("maxProperties");
   });
@@ -249,30 +261,39 @@ describe("zodToInlineJsonSchema", () => {
   });
 
   it("strips top-level additionalProperties when stripAdditionalProperties:true", () => {
-    const result = zodToInlineJsonSchema(z.object({ x: z.string() }), { stripAdditionalProperties: true });
+    const result = zodToInlineJsonSchema(z.object({ x: z.string() }), {
+      stripAdditionalProperties: true,
+    });
     expect(result).not.toBeNull();
     expect(result).not.toHaveProperty("additionalProperties");
   });
 
   it("strips nested additionalProperties when stripAdditionalProperties:true", () => {
-    const result = zodToInlineJsonSchema(
-      z.object({ nested: z.object({ y: z.number() }) }),
-      { stripAdditionalProperties: true }
-    );
+    const result = zodToInlineJsonSchema(z.object({ nested: z.object({ y: z.number() }) }), {
+      stripAdditionalProperties: true,
+    });
     expect(result).not.toBeNull();
-    const nested = (result!.properties as Record<string, unknown>)?.nested as Record<string, unknown> | undefined;
+    const nested = (result!.properties as Record<string, unknown>)?.nested as
+      | Record<string, unknown>
+      | undefined;
     if (nested) {
       expect(nested).not.toHaveProperty("additionalProperties");
     }
   });
 
   it("does not strip additionalProperties when stripAdditionalProperties:false", () => {
-    const result = zodToInlineJsonSchema(z.object({ x: z.string() }), { stripAdditionalProperties: false });
+    const result = zodToInlineJsonSchema(z.object({ x: z.string() }), {
+      stripAdditionalProperties: false,
+    });
     expect(result).not.toBeNull();
   });
 
   it("strips additionalProperties:true value as well", () => {
-    toJSONSchemaSpy.mockReturnValue({ type: "object", additionalProperties: true, properties: { x: { type: "string" } } });
+    toJSONSchemaSpy.mockReturnValue({
+      type: "object",
+      additionalProperties: true,
+      properties: { x: { type: "string" } },
+    });
     const result = zodToInlineJsonSchema(z.string(), { stripAdditionalProperties: true });
     expect(result).not.toBeNull();
     expect(result).not.toHaveProperty("additionalProperties");
@@ -310,13 +331,19 @@ describe("zodToInlineJsonSchema", () => {
       type: "object",
       additionalProperties: false,
       properties: {
-        inner: { type: "object", additionalProperties: false, properties: { z: { type: "boolean" } } },
+        inner: {
+          type: "object",
+          additionalProperties: false,
+          properties: { z: { type: "boolean" } },
+        },
       },
     });
     const result = zodToInlineJsonSchema(z.string(), { stripAdditionalProperties: true });
     expect(result).not.toBeNull();
     expect(result).not.toHaveProperty("additionalProperties");
-    const inner = (result!.properties as Record<string, unknown>)?.inner as Record<string, unknown> | undefined;
+    const inner = (result!.properties as Record<string, unknown>)?.inner as
+      | Record<string, unknown>
+      | undefined;
     if (inner) {
       expect(inner).not.toHaveProperty("additionalProperties");
     }
@@ -339,7 +366,9 @@ describe("zodToInlineJsonSchema", () => {
   });
 
   it("returns null when both toJSONSchema calls throw", () => {
-    toJSONSchemaSpy.mockImplementation(() => { throw new Error("always fails"); });
+    toJSONSchemaSpy.mockImplementation(() => {
+      throw new Error("always fails");
+    });
 
     const result = zodToInlineJsonSchema(z.string());
 
@@ -532,7 +561,7 @@ describe("zodToInlineJsonSchema", () => {
 
   it("handles deeply nested objects", () => {
     const result = zodToInlineJsonSchema(
-      z.object({ user: z.object({ id: z.number(), tags: z.array(z.string()) }) })
+      z.object({ user: z.object({ id: z.number(), tags: z.array(z.string()) }) }),
     );
     expect(result).not.toBeNull();
     expect(result!.type).toBe("object");

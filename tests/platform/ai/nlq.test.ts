@@ -2,15 +2,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ColMeta } from "@/core/stores/data-store";
 
 // ─── Mock the LLM boundary ────────────────────────────────────────────────────
-// translateNLQWithLLM depends on the on-device inference engine. We never invoke
-// a real model: isLLMReady / generateText are vi.fn()s controlled per-test.
-const isLLMReady = vi.fn<() => boolean>(() => false);
+// translateNLQWithLLM takes an optional, dependency-injected `generateText`
+// callback (the caller binds it to `useAI().generate`). We never invoke a real
+// model: `generateText` is a vi.fn() passed explicitly by the tests that
+// exercise the LLM branch; omitting it exercises the "not ready" path.
 const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
-
-vi.mock("@/platform/ai/llm-engine", () => ({
-  isLLMReady: () => isLLMReady(),
-  generateText: (prompt: string, opts?: unknown) => generateText(prompt, opts),
-}));
 
 import { explainSQL, suggestQuestions, translateNLQ, translateNLQWithLLM } from "@/platform/ai/nlq";
 
@@ -41,7 +37,6 @@ const COLS: ColMeta[] = [
 const ctx = { tableName: TABLE, columns: COLS };
 
 beforeEach(() => {
-  isLLMReady.mockReturnValue(false);
   generateText.mockReset();
   generateText.mockResolvedValue("");
 });
@@ -463,15 +458,14 @@ describe("suggestQuestions", () => {
 
 describe("translateNLQWithLLM", () => {
   it("returns the pattern result directly when confidence is not low", async () => {
-    const result = await translateNLQWithLLM("how many rows", ctx);
+    const result = await translateNLQWithLLM("how many rows", ctx, generateText);
 
     expect(result.confidence).toBe("high");
     expect(generateText).not.toHaveBeenCalled();
   });
 
   it("returns the low-confidence pattern result without calling the LLM when it is not ready", async () => {
-    isLLMReady.mockReturnValue(false);
-
+    // No generateText callback injected — same as "no model downloaded yet".
     const result = await translateNLQWithLLM("blah blah unparseable", ctx);
 
     expect(result.confidence).toBe("low");
@@ -479,7 +473,6 @@ describe("translateNLQWithLLM", () => {
   });
 
   it("upgrades a low-confidence result with the LLM when it is ready", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         sql: "SELECT region FROM sales",
@@ -489,7 +482,7 @@ describe("translateNLQWithLLM", () => {
       }),
     );
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(generateText).toHaveBeenCalledTimes(1);
     expect(result.explanation).toBe("LLM generated");
@@ -499,49 +492,44 @@ describe("translateNLQWithLLM", () => {
   });
 
   it("recovers JSON embedded in surrounding prose from the LLM", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       'Sure, here you go:\n{"sql":"SELECT 1","explanation":"e","confidence":"medium"}\nHope that helps!',
     );
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(result.sql).toBe("SELECT 1 LIMIT 1000");
     expect(result.confidence).toBe("medium");
   });
 
   it("falls back to the pattern result when the LLM returns no JSON", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("I cannot help with that.");
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(result.confidence).toBe("low");
   });
 
   it("falls back to the pattern result when the LLM JSON lacks a sql field", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue('{"explanation":"no sql here"}');
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(result.confidence).toBe("low");
   });
 
   it("falls back to the pattern result when generateText rejects", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("model crashed"));
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(result.confidence).toBe("low");
   });
 
   it("defaults confidence to medium when the LLM omits it", async () => {
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue('{"sql":"SELECT 2"}');
 
-    const result = await translateNLQWithLLM("blah blah unparseable", ctx);
+    const result = await translateNLQWithLLM("blah blah unparseable", ctx, generateText);
 
     expect(result.confidence).toBe("medium");
     expect(result.sql).toBe("SELECT 2 LIMIT 1000");

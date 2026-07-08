@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import path from "node:path";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock node:fs (used by loadOrCreateAuthSecret) ───────────────────────────
 
@@ -24,26 +24,25 @@ vi.mock("node:fs", () => {
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
 
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import {
-  normalizePath,
-  isPathInside,
-  isAllowedAppOrigin,
-  wantsMicrophone,
-  getStringProperty,
-  PathAccessController,
-  CROSS_ORIGIN_ISOLATION_HEADERS,
-  withCrossOriginIsolationHeaders,
-  buildRendererCsp,
-  STATIC_SECURITY_HEADERS,
-  withRendererSecurityHeaders,
-  isLoopbackHostname,
   assertLoopbackHostname,
-  loadOrCreateAuthSecret,
+  buildRendererCsp,
+  CROSS_ORIGIN_ISOLATION_HEADERS,
   ensureAuthSecretEnv,
+  getStringProperty,
+  isAllowedAppOrigin,
+  isLoopbackHostname,
+  isPathInside,
+  loadOrCreateAuthSecret,
+  normalizePath,
+  PathAccessController,
   PRODUCTION_FUSE_CONFIG,
+  STATIC_SECURITY_HEADERS,
+  wantsMicrophone,
+  withCrossOriginIsolationHeaders,
+  withRendererSecurityHeaders,
 } from "../../electron/security";
-
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from "node:fs";
 
 // ─── normalizePath ────────────────────────────────────────────────────────────
 
@@ -175,19 +174,27 @@ describe("getStringProperty", () => {
   });
 
   it("throws when input is null", () => {
-    expect(() => getStringProperty(null, "key")).toThrow('Expected object input with property "key".');
+    expect(() => getStringProperty(null, "key")).toThrow(
+      'Expected object input with property "key".',
+    );
   });
 
   it("throws when input is undefined", () => {
-    expect(() => getStringProperty(undefined, "key")).toThrow('Expected object input with property "key".');
+    expect(() => getStringProperty(undefined, "key")).toThrow(
+      'Expected object input with property "key".',
+    );
   });
 
   it("throws when input is a number", () => {
-    expect(() => getStringProperty(42, "key")).toThrow('Expected object input with property "key".');
+    expect(() => getStringProperty(42, "key")).toThrow(
+      'Expected object input with property "key".',
+    );
   });
 
   it("throws when input is a string", () => {
-    expect(() => getStringProperty("text", "key")).toThrow('Expected object input with property "key".');
+    expect(() => getStringProperty("text", "key")).toThrow(
+      'Expected object input with property "key".',
+    );
   });
 
   it("throws when property is missing", () => {
@@ -195,15 +202,21 @@ describe("getStringProperty", () => {
   });
 
   it("throws when property is an empty string", () => {
-    expect(() => getStringProperty({ key: "" }, "key")).toThrow('Expected non-empty string property "key".');
+    expect(() => getStringProperty({ key: "" }, "key")).toThrow(
+      'Expected non-empty string property "key".',
+    );
   });
 
   it("throws when property is only whitespace", () => {
-    expect(() => getStringProperty({ key: "   " }, "key")).toThrow('Expected non-empty string property "key".');
+    expect(() => getStringProperty({ key: "   " }, "key")).toThrow(
+      'Expected non-empty string property "key".',
+    );
   });
 
   it("throws when property is a number", () => {
-    expect(() => getStringProperty({ key: 123 }, "key")).toThrow('Expected non-empty string property "key".');
+    expect(() => getStringProperty({ key: 123 }, "key")).toThrow(
+      'Expected non-empty string property "key".',
+    );
   });
 
   it("returns string with whitespace (non-empty after trim check)", () => {
@@ -344,10 +357,27 @@ describe("PathAccessController", () => {
 // ─── CROSS_ORIGIN_ISOLATION_HEADERS constant ──────────────────────────────────
 
 describe("CROSS_ORIGIN_ISOLATION_HEADERS", () => {
+  /**
+   * These pin the exact isolation policy chosen (and reviewed) in
+   * electron/security.ts. A unit test cannot prove same-origin/require-corp is
+   * the "right" choice — that's a security-review judgment — but it does catch
+   * accidental drift (refactor, merge, copy-paste) away from the reviewed value.
+   */
   it("has the correct keys and values", () => {
     expect(CROSS_ORIGIN_ISOLATION_HEADERS["Cross-Origin-Opener-Policy"]).toEqual(["same-origin"]);
-    expect(CROSS_ORIGIN_ISOLATION_HEADERS["Cross-Origin-Embedder-Policy"]).toEqual(["require-corp"]);
+    expect(CROSS_ORIGIN_ISOLATION_HEADERS["Cross-Origin-Embedder-Policy"]).toEqual([
+      "require-corp",
+    ]);
     expect(CROSS_ORIGIN_ISOLATION_HEADERS["Cross-Origin-Resource-Policy"]).toEqual(["same-origin"]);
+  });
+
+  it("never permits the isolation-defeating 'unsafe-none' value on any header", () => {
+    // Independent invariant, not copied from the constant: whatever the exact
+    // policy in force, isolation headers must never regress to the permissive
+    // default — that is the one property this module exists to guarantee.
+    for (const values of Object.values(CROSS_ORIGIN_ISOLATION_HEADERS)) {
+      expect(values).not.toContain("unsafe-none");
+    }
   });
 });
 
@@ -454,6 +484,14 @@ describe("STATIC_SECURITY_HEADERS", () => {
   it("contains Referrer-Policy: no-referrer", () => {
     expect(STATIC_SECURITY_HEADERS["Referrer-Policy"]).toEqual(["no-referrer"]);
   });
+
+  it("never sets X-Frame-Options to a clickjacking-permissive value", () => {
+    // Independent invariant: ALLOWALL / ALLOW-FROM would defeat the clickjacking
+    // protection this header exists for, regardless of the currently pinned value.
+    const value = STATIC_SECURITY_HEADERS["X-Frame-Options"][0];
+    expect(value).not.toMatch(/^ALLOW-FROM/i);
+    expect(value.toUpperCase()).not.toBe("ALLOWALL");
+  });
 });
 
 // ─── withRendererSecurityHeaders ──────────────────────────────────────────────
@@ -500,10 +538,7 @@ describe("withRendererSecurityHeaders", () => {
   });
 
   it("keeps unmanaged headers", () => {
-    const result = withRendererSecurityHeaders(
-      { "Cache-Control": "no-store" },
-      { dev: true },
-    );
+    const result = withRendererSecurityHeaders({ "Cache-Control": "no-store" }, { dev: true });
     expect(result["Cache-Control"]).toBe("no-store");
   });
 
@@ -565,9 +600,7 @@ describe("assertLoopbackHostname", () => {
   });
 
   it("throws for an external domain", () => {
-    expect(() => assertLoopbackHostname("example.com")).toThrow(
-      "localhost-only",
-    );
+    expect(() => assertLoopbackHostname("example.com")).toThrow("localhost-only");
   });
 });
 
@@ -605,10 +638,7 @@ describe("loadOrCreateAuthSecret", () => {
     // Should be a 64-char hex string (32 bytes)
     expect(result).toMatch(/^[0-9a-f]{64}$/);
     expect(writeFileSyncMock).toHaveBeenCalledOnce();
-    expect(mkdirSyncMock).toHaveBeenCalledWith(
-      expect.any(String),
-      { recursive: true },
-    );
+    expect(mkdirSyncMock).toHaveBeenCalledWith(expect.any(String), { recursive: true });
   });
 
   it("generates and writes a new secret when file does not exist", () => {
@@ -622,10 +652,7 @@ describe("loadOrCreateAuthSecret", () => {
       result,
       { encoding: "utf8", mode: 0o600 },
     );
-    expect(mkdirSyncMock).toHaveBeenCalledWith(
-      expect.any(String),
-      { recursive: true },
-    );
+    expect(mkdirSyncMock).toHaveBeenCalledWith(expect.any(String), { recursive: true });
   });
 
   it("each new secret is a 64-char hex string", () => {
@@ -701,23 +728,50 @@ describe("ensureAuthSecretEnv", () => {
 // ─── PRODUCTION_FUSE_CONFIG constant ─────────────────────────────────────────
 
 describe("PRODUCTION_FUSE_CONFIG", () => {
-  it("has RunAsNode set to false", () => {
+  /**
+   * These pin the exact values chosen (and reviewed) in electron/security.ts,
+   * each with its own security rationale documented there. A vitest unit test
+   * cannot PROVE a fuse value is correct — e.g. that RunAsNode:false actually
+   * blocks ELECTRON_RUN_AS_NODE in the packaged binary — that requires launching
+   * the real fused build, out of scope here. What these tests DO catch: a
+   * refactor, merge, or copy-paste that silently flips a reviewed value.
+   * Grouped by security intent (not just "field X equals Y") and backed by a
+   * completeness check below, so a new fuse can't ship silently unpinned.
+   */
+  it("disables every fuse that would grant a dangerous capability", () => {
     expect(PRODUCTION_FUSE_CONFIG.RunAsNode).toBe(false);
-  });
-
-  it("has EnableCookieEncryption set to true", () => {
-    expect(PRODUCTION_FUSE_CONFIG.EnableCookieEncryption).toBe(true);
-  });
-
-  it("has OnlyLoadAppFromAsar set to true", () => {
-    expect(PRODUCTION_FUSE_CONFIG.OnlyLoadAppFromAsar).toBe(true);
-  });
-
-  it("has GrantFileProtocolExtraPrivileges set to false", () => {
+    expect(PRODUCTION_FUSE_CONFIG.EnableNodeOptionsEnvironmentVariable).toBe(false);
+    expect(PRODUCTION_FUSE_CONFIG.EnableNodeCliInspectArguments).toBe(false);
     expect(PRODUCTION_FUSE_CONFIG.GrantFileProtocolExtraPrivileges).toBe(false);
   });
 
-  it("has LoadBrowserProcessSpecificV8Snapshot set to true", () => {
-    expect(PRODUCTION_FUSE_CONFIG.LoadBrowserProcessSpecificV8Snapshot).toBe(true);
+  it("enables every fuse that hardens integrity/confidentiality", () => {
+    expect(PRODUCTION_FUSE_CONFIG.EnableCookieEncryption).toBe(true);
+    expect(PRODUCTION_FUSE_CONFIG.EnableEmbeddedAsarIntegrityValidation).toBe(true);
+    expect(PRODUCTION_FUSE_CONFIG.OnlyLoadAppFromAsar).toBe(true);
+  });
+
+  it("keeps LoadBrowserProcessSpecificV8Snapshot off (no per-process snapshot is generated)", () => {
+    // Turning this fuse on without shipping a generated
+    // browser_v8_context_snapshot.bin crashes Electron at boot (fatal V8
+    // snapshot error before main.js) — see electron/security.ts.
+    expect(PRODUCTION_FUSE_CONFIG.LoadBrowserProcessSpecificV8Snapshot).toBe(false);
+  });
+
+  it("has no extra or missing fuse keys (every fuse the type declares is pinned above)", () => {
+    // Independent structural check: if a fuse is ever added to or removed from
+    // the source object, this fails until the tests above are updated too.
+    expect(Object.keys(PRODUCTION_FUSE_CONFIG).sort()).toEqual(
+      [
+        "RunAsNode",
+        "EnableCookieEncryption",
+        "EnableNodeOptionsEnvironmentVariable",
+        "EnableNodeCliInspectArguments",
+        "EnableEmbeddedAsarIntegrityValidation",
+        "OnlyLoadAppFromAsar",
+        "LoadBrowserProcessSpecificV8Snapshot",
+        "GrantFileProtocolExtraPrivileges",
+      ].sort(),
+    );
   });
 });

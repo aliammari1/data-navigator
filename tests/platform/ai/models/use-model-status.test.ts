@@ -220,7 +220,7 @@ describe("probeGguf — llama bridge match where present:false", () => {
     });
     installLlamaBridge({
       listModels: vi.fn(async () => [
-        { id: "qwen2.5-1.5b-instruct-q4_k_m.gguf", present: false },
+        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: false },
       ]),
     });
     stubFetch200();
@@ -229,7 +229,7 @@ describe("probeGguf — llama bridge match where present:false", () => {
     const result = await ensureModelsReady(["llm"]);
 
     // Assert
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("missing");
     expect(primary?.source).toBe("userData");
   });
@@ -249,7 +249,7 @@ describe("probeGguf — llama bridge match where present:false", () => {
     // Act
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("unknown");
     expect(primary?.source).toBe("none");
   });
@@ -269,7 +269,7 @@ describe("probeGguf — llama bridge match where present:false", () => {
     // Act
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "qwen2.5-1.5b-instruct-q4_k_m");
+    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
     expect(primary?.state).toBe("unknown");
     expect(primary?.source).toBe("none");
   });
@@ -349,7 +349,7 @@ describe("useModelStatus — setDownload merges into existing key", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
       // First event initialises the key.
       emit?.({ percent: 10, receivedBytes: 100, totalBytes: 1000, done: false });
       // Second event merges into the already-existing key.
@@ -358,7 +358,7 @@ describe("useModelStatus — setDownload merges into existing key", () => {
     });
 
     // After the full download resolves, percent is 100.
-    const state = result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"];
+    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
     expect(state.percent).toBe(100);
     expect(state.active).toBe(false);
   });
@@ -405,7 +405,7 @@ describe("isPrimaryLlmReady — extra branches", () => {
     makeElectron();
     installLlamaBridge({
       listModels: vi.fn(async () => [
-        { id: "qwen2.5-1.5b-instruct-q4_k_m.gguf", present: true },
+        { id: "gemma-4-e4b-it-q4_k_m.gguf", present: true },
       ]),
     });
     // No electronModels bridge so we fall through to the llama bridge directly.
@@ -503,8 +503,8 @@ describe("useModelStatus — download initialises from EMPTY_DOWNLOAD for a new 
       download: vi.fn(async () => ({})),
       listPresence: vi.fn(async () => [
         {
-          key: "qwen2.5-1.5b-instruct-q4_k_m",
-          file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+          key: "gemma-4-e4b-it-q4_k_m",
+          file: "gemma-4-e4b-it-q4_k_m.gguf",
           present: true,
           sizeBytes: 1,
         },
@@ -516,14 +516,14 @@ describe("useModelStatus — download initialises from EMPTY_DOWNLOAD for a new 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("qwen2.5-1.5b-instruct-q4_k_m");
+      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
       emit?.({ percent: 5, receivedBytes: 50, totalBytes: 1000, done: false });
       await p;
     });
 
     // Key was initialised from EMPTY_DOWNLOAD; midpoint progress was applied.
     expect(bridge.onProgress).toHaveBeenCalled();
-    const state = result.current.downloads["qwen2.5-1.5b-instruct-q4_k_m"];
+    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
     expect(state.percent).toBe(100);
     expect(state.error).toBeNull();
   });

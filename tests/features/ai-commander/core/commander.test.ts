@@ -230,47 +230,37 @@ describe("buildCommanderSystemPrompt", () => {
     expect(prompt.length).toBeGreaterThan(0);
   });
 
-  it("includes the Commander role description", () => {
+  it("builds the exact prompt from the mocked app list", () => {
+    // buildCommanderSystemPrompt has no LLM call to wire-test — its entire
+    // observable behavior IS this string. With LAUNCHER_APPS fully mocked and
+    // deterministic (above), a full exact match is stronger than the individual
+    // toContain() checks this replaces: those could only ever catch removal of
+    // one specific word, and would miss a rewritten action list, a dropped
+    // action kind, a wrong wallpaper id, or a language-support regression that
+    // happened to keep one matching keyword.
     const prompt = buildCommanderSystemPrompt();
-    expect(prompt).toContain("Commander");
-  });
-
-  it("describes all six action kinds", () => {
-    const prompt = buildCommanderSystemPrompt();
-    expect(prompt).toContain("open_app");
-    expect(prompt).toContain("ask_data");
-    expect(prompt).toContain("set_wallpaper");
-    expect(prompt).toContain("arrange");
-    expect(prompt).toContain("close_all");
-    expect(prompt).toContain("none");
-  });
-
-  it("lists all mocked LAUNCHER_APPS by their id and title", () => {
-    const prompt = buildCommanderSystemPrompt();
-    for (const app of h.LAUNCHER_APPS) {
-      expect(prompt).toContain(app.id);
-      expect(prompt).toContain(app.title);
-    }
-  });
-
-  it("includes the wallpaper color ids in the rules section", () => {
-    const prompt = buildCommanderSystemPrompt();
-    expect(prompt).toContain("dawn");
-    expect(prompt).toContain("paper");
-    expect(prompt).toContain("dusk");
-    expect(prompt).toContain("ink");
-  });
-
-  it("mentions the language rules (French, English, Tunisian Derja)", () => {
-    const prompt = buildCommanderSystemPrompt();
-    expect(prompt).toContain("French");
-    expect(prompt).toContain("English");
-    expect(prompt).toContain("Derja");
-  });
-
-  it("mentions the `reply` field convention", () => {
-    const prompt = buildCommanderSystemPrompt();
-    expect(prompt).toContain("reply");
+    expect(prompt).toBe(
+      [
+        "You are the Commander, the navigator of a local-first telecom analytics desktop app.",
+        "You translate ONE user instruction into ONE structured action. Reply in the user's language (French by default; support English and Arabic).",
+        "",
+        "Decide the single best action:",
+        '- "open_app": open a feature window. Set appId to one of the app ids below.',
+        '- "ask_data": the user asked an analytical/data question about their transactions. Put a clear, self-contained question in `query` (this is sent to the Moudir data agent which writes SQL + charts).',
+        '- "set_wallpaper": change the desktop background. Set wallpaper to dawn|paper|dusk|ink.',
+        '- "arrange": tidy / cascade the open windows.',
+        '- "close_all": close every open window.',
+        '- "none": small talk or unclear — just reply, take no action.',
+        "",
+        "Available apps (appId: title):",
+        "- telecom: Rapport Télécom (DailyTransactions)",
+        "- moudir: Studio IA — Moudir (Agent conversationnel)",
+        "- geo: Géographie (Analyse spatiale)",
+        "- ai-briefing: Briefing IA (Synthèses narratives)",
+        "",
+        "Rules: prefer ask_data for any question about numbers, trends, channels, errors, regions, days, forecasts. Prefer open_app when the user names a tool/screen. Keep `reply` short and confirm what you did.",
+      ].join("\n"),
+    );
   });
 });
 

@@ -30,7 +30,7 @@ vi.mock("electron", () => ({ app: { getPath: () => holder.userDataDir } }));
 // Real temp userData dir + a stub GGUF file so the real `existsSync` gate passes
 // (the model is only stat-checked here; `loadModel` is mocked).
 const USER_DATA_DIR = path.join(os.tmpdir(), "dn-llama-service-test");
-const DEFAULT_MODEL_FILE = "qwen2.5-1.5b-instruct-q4_k_m.gguf";
+const DEFAULT_MODEL_FILE = "gemma-4-e4b-it-q4_k_m.gguf";
 holder.userDataDir = USER_DATA_DIR;
 
 describe("llama-service backend selection", () => {

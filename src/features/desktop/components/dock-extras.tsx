@@ -163,7 +163,7 @@ export function DockJumpList({
   };
 
   const askMoudir = () => {
-    openApp("moudir");
+    openApp("moudir-chat");
     // Defer so the Moudir window is mounted before it receives the prompt.
     requestAnimationFrame(() => {
       window.dispatchEvent(

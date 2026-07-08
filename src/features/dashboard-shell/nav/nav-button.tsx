@@ -3,14 +3,8 @@
 import Link from "next/link";
 import { memo } from "react";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { NavBadgeTone, NavItem } from "@/features/dashboard-shell/nav/nav-config";
+import { NAV_BADGE_TONE_CLASSES, type NavItem } from "@/features/dashboard-shell/nav/nav-config";
 import { cn } from "@/shared/utils";
-
-const BADGE_TONE: Record<NavBadgeTone, string> = {
-  live: "bg-[color-mix(in_oklab,var(--negative)_18%,transparent)] text-negative",
-  ai: "bg-[color-mix(in_oklab,var(--ai)_18%,transparent)] text-ai",
-  info: "bg-muted text-muted-foreground",
-};
 
 /**
  * Memoized navigation leaf button.
@@ -62,7 +56,7 @@ export const NavButton = memo(function NavButton({
             <span
               className={cn(
                 "rounded-full px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-                BADGE_TONE[item.badgeTone ?? "info"],
+                NAV_BADGE_TONE_CLASSES[item.badgeTone ?? "info"],
               )}
             >
               {item.badge}

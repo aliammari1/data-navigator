@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { openDesktopApp, askMoudirAbout } from "@/features/folders/lib/openApp";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { askMoudirAbout, openDesktopApp } from "@/features/folders/lib/openApp";
 
 // The jsdom environment provides window, so we can spy on dispatchEvent directly.
 
@@ -33,6 +33,7 @@ describe("openDesktopApp", () => {
       ["parsed", "/dashboard/parsed"],
       ["transform", "/dashboard/transform"],
       ["moudir", "/dashboard/data-formulator"],
+      ["moudir-chat", "/dashboard/moudir"],
     ];
 
     for (const [appId, expectedRoute] of cases) {
@@ -87,7 +88,7 @@ describe("askMoudirAbout", () => {
     vi.restoreAllMocks();
   });
 
-  it("dispatches desktop:open-app for moudir then moudir:ask", () => {
+  it("dispatches desktop:open-app for the assistant then moudir:ask", () => {
     askMoudirAbout("Transactions");
 
     const calls = (window.dispatchEvent as ReturnType<typeof vi.spyOn>).mock.calls;
@@ -95,7 +96,7 @@ describe("askMoudirAbout", () => {
 
     const firstEvent = calls[0][0] as CustomEvent;
     expect(firstEvent.type).toBe("desktop:open-app");
-    expect(firstEvent.detail.appId).toBe("moudir");
+    expect(firstEvent.detail.appId).toBe("moudir-chat");
 
     const secondEvent = calls[1][0] as CustomEvent;
     expect(secondEvent.type).toBe("moudir:ask");
@@ -138,8 +139,6 @@ describe("askMoudirAbout", () => {
     }
     // After restoring window, the spy was on the now-restored window.
     // Since the deletion happened before the call, no events were dispatched.
-    expect(
-      (window.dispatchEvent as ReturnType<typeof vi.spyOn>).mock.calls,
-    ).toHaveLength(0);
+    expect((window.dispatchEvent as ReturnType<typeof vi.spyOn>).mock.calls).toHaveLength(0);
   });
 });

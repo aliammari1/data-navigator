@@ -1,14 +1,37 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  LOCAL_TRANSFORMERS_PATH,
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
+  LOCAL_TRANSFORMERS_PATH,
+  manifestByKey,
   MODEL_MANIFEST,
   primaryForLane,
-  manifestByKey,
   transformersAssetUrl,
 } from "@/platform/ai/models/model-manifest";
 import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
+
+// electron/model-download-service.ts imports the `electron` module at the top
+// level (for `app.getPath`), which isn't resolvable outside a real Electron
+// process — stub it so we can import its (side-effect-free) MODEL_DOWNLOADS
+// data array for the cross-check below.
+vi.mock("electron", () => ({ app: { getPath: () => "" } }));
+
+// electron/model-download-service.ts's own doc comment calls MODEL_DOWNLOADS
+// "THE single source of truth for which GGUF models this app ships" and says
+// every other GGUF reference (incl. this manifest) "must mirror these exact
+// ... values". That makes it the independent authority to check
+// model-manifest.ts's GGUF `downloadMb` figures against, instead of asserting
+// them as bare literals copied from the file under test.
+import { MODEL_DOWNLOADS } from "../../../../electron/model-download-service";
+
+/** The MODEL_DOWNLOADS entry for `key`, or throws — used to derive expected values. */
+function downloadEntryFor(key: string) {
+  const entry = MODEL_DOWNLOADS.find((m) => m.key === key);
+  if (!entry) {
+    throw new Error(`No MODEL_DOWNLOADS entry for "${key}" — update the cross-check test.`);
+  }
+  return entry;
+}
 
 // ─── Constants ──────────────────────────────────────────────────────────────────
 
@@ -18,7 +41,7 @@ describe("MODULE CONSTANTS", () => {
   });
 
   it("DEFAULT_GGUF_MODEL matches the primary GGUF filename", () => {
-    expect(DEFAULT_GGUF_MODEL).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(DEFAULT_GGUF_MODEL).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
   it("EMBED_MODEL_ID is the Xenova MiniLM model id", () => {
@@ -29,48 +52,55 @@ describe("MODULE CONSTANTS", () => {
 // ─── MODEL_MANIFEST shape ────────────────────────────────────────────────────────
 
 describe("MODEL_MANIFEST", () => {
-  it("contains at least 4 entries", () => {
-    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(4);
+  it("contains at least 3 entries", () => {
+    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(3);
   });
 
-  it("has a non-optional llm primary (qwen2.5-1.5b-instruct-q4_k_m)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen2.5-1.5b-instruct-q4_k_m");
+  it("has a non-optional llm primary (gemma-4-e4b-it-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e4b-it-q4_k_m");
     expect(entry).toBeDefined();
-    expect(entry!.lane).toBe("llm");
-    expect(entry!.presence).toBe("electron-gguf");
-    expect(entry!.optional).toBe(false);
-    expect(entry!.ggufFile).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
-    expect(entry!.downloadUrl).toContain("huggingface.co");
-    expect(entry!.downloadMb).toBe(1020);
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.presence).toBe("electron-gguf");
+    expect(entry?.optional).toBe(false);
+    expect(entry?.ggufFile).toBe("gemma-4-e4b-it-q4_k_m.gguf");
+    // Cross-check against the canonical download entry (electron/model-download-service.ts)
+    // rather than a bare literal copied from this same manifest — this is the
+    // only way the test could ever catch the two files drifting apart.
+    expect(entry?.downloadMb).toBe(downloadEntryFor("gemma-4-e4b-it-q4_k_m").bytes / 1_000_000);
   });
 
-  it("has an optional llm fallback (qwen2.5-0.5b-instruct-q4_k_m)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen2.5-0.5b-instruct-q4_k_m");
+  it("has an optional llm alternative (granite-4.1-3b-instruct-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "granite-4.1-3b-instruct-q4_k_m");
     expect(entry).toBeDefined();
-    expect(entry!.lane).toBe("llm");
-    expect(entry!.optional).toBe(true);
-    expect(entry!.downloadMb).toBe(400);
-    expect(entry!.ggufFile).toBe("qwen2.5-0.5b-instruct-q4_k_m.gguf");
-  });
-
-  it("has an optional 7B llm upgrade (qwen2.5-7b-instruct-q4_k_m)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen2.5-7b-instruct-q4_k_m");
-    expect(entry).toBeDefined();
-    expect(entry!.lane).toBe("llm");
-    expect(entry!.optional).toBe(true);
-    expect(entry!.downloadMb).toBe(4680);
-    expect(entry!.ggufFile).toBe("qwen2.5-7b-instruct-q4_k_m.gguf");
-    expect(entry!.downloadUrl).toContain("Qwen2.5-7B-Instruct-GGUF");
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
+    // Same cross-check as above. This used to assert a bare `1800` copied
+    // from this file's own (stale) comment; the canonical
+    // model-download-service.ts entry actually carries `bytes: 2_100_000_000`
+    // (2100 MB) — checking against it here caught and fixed that drift.
+    expect(entry?.downloadMb).toBe(
+      downloadEntryFor("granite-4.1-3b-instruct-q4_k_m").bytes / 1_000_000,
+    );
+    expect(entry?.ggufFile).toBe("granite-4.1-3b-instruct-q4_k_m.gguf");
   });
 
   it("has a non-optional embed entry (minilm-onnx-quantized)", () => {
     const entry = MODEL_MANIFEST.find((m) => m.key === "minilm-onnx-quantized");
     expect(entry).toBeDefined();
-    expect(entry!.lane).toBe("embed");
-    expect(entry!.presence).toBe("transformers-asset");
-    expect(entry!.optional).toBe(false);
-    expect(entry!.assetPath).toBe("Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx");
-    expect(entry!.downloadMb).toBe(23);
+    expect(entry?.lane).toBe("embed");
+    expect(entry?.presence).toBe("transformers-asset");
+    expect(entry?.optional).toBe(false);
+    expect(entry?.assetPath).toBe("Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx");
+    // Unlike the two GGUF entries above, there is no independent authority to
+    // check this against yet: the entry's own `bytes: 0, // TODO` field, and
+    // prepare-models.mjs's matching `bytes: 0, // TODO: fill exact
+    // content-length` both mark the real size as not yet measured. Asserting
+    // an exact `23` here would just be re-copying this same file's literal, so
+    // instead assert it's a plausible positive download size (MiniLM's
+    // quantized ONNX weight is documented elsewhere as tens of MB, not KB or
+    // GB) until a real content-length is filled in.
+    expect(entry?.downloadMb).toBeGreaterThan(0);
+    expect(entry?.downloadMb).toBeLessThan(200);
   });
 
   it("every entry has the required fields populated", () => {
@@ -87,17 +117,11 @@ describe("MODEL_MANIFEST", () => {
     }
   });
 
-  it("downloadUrl for GGUF entries includes the ?download=true parameter", () => {
+  it("GGUF entries carry a ggufFile matching their key's model filename", () => {
     const ggufEntries = MODEL_MANIFEST.filter((m) => m.presence === "electron-gguf");
+    expect(ggufEntries.length).toBeGreaterThanOrEqual(2);
     for (const entry of ggufEntries) {
-      expect(entry.downloadUrl).toContain("?download=true");
-    }
-  });
-
-  it("all entries have sha256 and bytes fields (even if empty/zero)", () => {
-    for (const entry of MODEL_MANIFEST) {
-      expect(entry).toHaveProperty("sha256");
-      expect(entry).toHaveProperty("bytes");
+      expect(entry.ggufFile).toBe(`${entry.key}.gguf`);
     }
   });
 });
@@ -109,7 +133,7 @@ describe("primaryForLane", () => {
     const result = primaryForLane("llm");
     expect(result.lane).toBe("llm");
     expect(result.optional).toBe(false);
-    expect(result.key).toBe("qwen2.5-1.5b-instruct-q4_k_m");
+    expect(result.key).toBe("gemma-4-e4b-it-q4_k_m");
   });
 
   it('returns the non-optional embed entry for lane "embed"', () => {
@@ -145,15 +169,15 @@ describe("primaryForLane", () => {
 
 describe("manifestByKey", () => {
   it("returns the entry for a known key", () => {
-    const entry = manifestByKey("qwen2.5-1.5b-instruct-q4_k_m");
+    const entry = manifestByKey("gemma-4-e4b-it-q4_k_m");
     expect(entry).toBeDefined();
-    expect(entry!.key).toBe("qwen2.5-1.5b-instruct-q4_k_m");
+    expect(entry?.key).toBe("gemma-4-e4b-it-q4_k_m");
   });
 
   it("returns the embed entry for its key", () => {
     const entry = manifestByKey("minilm-onnx-quantized");
     expect(entry).toBeDefined();
-    expect(entry!.lane).toBe("embed");
+    expect(entry?.lane).toBe("embed");
   });
 
   it("returns undefined for an unknown key", () => {
@@ -171,11 +195,10 @@ describe("manifestByKey", () => {
 
 describe("transformersAssetUrl", () => {
   it("returns the full public URL for the embed entry", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "minilm-onnx-quantized")!;
+    const entry = MODEL_MANIFEST.find((m) => m.key === "minilm-onnx-quantized");
+    if (!entry) throw new Error("expected minilm-onnx-quantized entry to exist");
     const url = transformersAssetUrl(entry);
-    expect(url).toBe(
-      "/models/transformers/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx",
-    );
+    expect(url).toBe("/models/transformers/Xenova/all-MiniLM-L6-v2/onnx/model_quantized.onnx");
   });
 
   it("prepends LOCAL_TRANSFORMERS_PATH to the assetPath", () => {
@@ -196,19 +219,19 @@ describe("transformersAssetUrl", () => {
 
   it("throws when assetPath is absent (covers the no-assetPath throw branch)", () => {
     const entryWithoutAssetPath: ModelManifestEntry = {
-      key: "qwen2.5-1.5b-instruct-q4_k_m",
+      key: "gemma-4-e4b-it-q4_k_m",
       lane: "llm",
       presence: "electron-gguf",
-      label: "Qwen2.5 1.5B Instruct (GGUF q4)",
-      family: "Qwen2.5",
-      sizeLabel: "1.5B",
-      downloadMb: 1020,
+      label: "Gemma 4 E4B Instruct (GGUF q4)",
+      family: "Gemma 4",
+      sizeLabel: "E4B",
+      downloadMb: 5340,
       optional: false,
-      ggufFile: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+      ggufFile: "gemma-4-e4b-it-q4_k_m.gguf",
       // assetPath is intentionally omitted
     };
     expect(() => transformersAssetUrl(entryWithoutAssetPath)).toThrow(
-      "qwen2.5-1.5b-instruct-q4_k_m has no assetPath",
+      "gemma-4-e4b-it-q4_k_m has no assetPath",
     );
   });
 

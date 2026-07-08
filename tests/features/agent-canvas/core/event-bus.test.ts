@@ -3,20 +3,27 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   buildTraceTree,
   clearEventLog,
+  EventType,
   getEventLog,
   projectRunStats,
   publishEvent,
   subscribeEvents,
+  type AGUIEvent,
 } from "@/features/agent-canvas/core/event-bus";
-import type { AGUIEvent } from "@/features/agent-canvas/core/ag-ui-types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
+//
+// AGUIEvent is @ag-ui/core's own real event union. Every schema in it is a
+// zod "passthrough" object, so extra fields are harmless — but the fields the
+// app's event-bus.ts actually reads are: threadId/runId/outcome (RUN_STARTED /
+// RUN_FINISHED), stepName (STEP_STARTED / STEP_FINISHED), toolCallId /
+// toolCallName (TOOL_CALL_START), toolCallId / content (TOOL_CALL_RESULT — NOT
+// TOOL_CALL_END, which carries no output), and message (RUN_ERROR).
 
-/** Build a minimal base event with required fields. */
-function baseEvent(type: AGUIEvent["type"], overrides: Record<string, unknown> = {}): AGUIEvent {
+/** Build a minimal base event with the fields most event types share. */
+function baseEvent(type: EventType, overrides: Record<string, unknown> = {}): AGUIEvent {
   return {
     type,
-    messageId: "msg-1",
     timestamp: 1000,
     threadId: "thread-1",
     runId: "run-1",
@@ -25,39 +32,59 @@ function baseEvent(type: AGUIEvent["type"], overrides: Record<string, unknown> =
 }
 
 function makeRunStarted(timestamp = 1000): AGUIEvent {
-  return baseEvent("RUN_STARTED", { timestamp, model: "gpt-4", input: null });
+  return baseEvent(EventType.RUN_STARTED, { timestamp });
 }
 
-function makeRunFinished(totalTokens = 500, totalDuration = 2000): AGUIEvent {
-  return baseEvent("RUN_FINISHED", { totalTokens, totalDuration });
+/** RUN_FINISHED with a plain "success" outcome. */
+function makeRunFinished(timestamp = 2000): AGUIEvent {
+  return baseEvent(EventType.RUN_FINISHED, { timestamp, outcome: { type: "success" } });
 }
 
-function makeToolCallStart(
-  toolCallId = "tc-1",
-  toolName = "search",
-  parentNode = "node-a",
-): AGUIEvent {
-  return baseEvent("TOOL_CALL_START", { toolCallId, toolName, parentNode });
+/**
+ * RUN_FINISHED carrying an "interrupt" outcome — the real @ag-ui/core protocol
+ * has no standalone INTERRUPT event type; a pause is signaled via
+ * RUN_FINISHED.outcome = { type: "interrupt", interrupts: [...] }.
+ */
+function makeRunFinishedInterrupt(interruptCount = 1, timestamp = 2000): AGUIEvent {
+  return baseEvent(EventType.RUN_FINISHED, {
+    timestamp,
+    outcome: {
+      type: "interrupt",
+      interrupts: Array.from({ length: interruptCount }, (_, i) => ({
+        id: `int-${i}`,
+        reason: "user-pause",
+      })),
+    },
+  });
 }
 
-function makeToolCallEnd(toolCallId = "tc-1", result?: unknown): AGUIEvent {
-  return baseEvent("TOOL_CALL_END", { toolCallId, result });
+function makeToolCallStart(toolCallId = "tc-1", toolCallName = "search", timestamp = 2000): AGUIEvent {
+  return baseEvent(EventType.TOOL_CALL_START, { toolCallId, toolCallName, timestamp });
 }
 
-function makeStepStarted(nodeName = "node-a", timestamp = 2000): AGUIEvent {
-  return baseEvent("STEP_STARTED", { nodeName, timestamp, phase: "execute" });
+/**
+ * TOOL_CALL_RESULT carries the tool output as a required `content` string.
+ * TOOL_CALL_END (args-complete signal only) is not read by buildTraceTree.
+ */
+function makeToolCallResult(toolCallId = "tc-1", content = "", timestamp = 3000): AGUIEvent {
+  return baseEvent(EventType.TOOL_CALL_RESULT, {
+    toolCallId,
+    content,
+    messageId: "msg-tool-1",
+    timestamp,
+  });
 }
 
-function makeStepFinished(nodeName = "node-a", timestamp = 3000, duration = 1000): AGUIEvent {
-  return baseEvent("STEP_FINISHED", { nodeName, timestamp, duration });
+function makeStepStarted(stepName = "node-a", timestamp = 2000): AGUIEvent {
+  return baseEvent(EventType.STEP_STARTED, { stepName, timestamp });
 }
 
-function makeInterrupt(): AGUIEvent {
-  return baseEvent("INTERRUPT", { reason: "user-pause", payload: {} });
+function makeStepFinished(stepName = "node-a", timestamp = 3000): AGUIEvent {
+  return baseEvent(EventType.STEP_FINISHED, { stepName, timestamp });
 }
 
 function makeRunError(message = "something broke"): AGUIEvent {
-  return baseEvent("RUN_ERROR", { message, code: "ERR_500" });
+  return baseEvent(EventType.RUN_ERROR, { message });
 }
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
@@ -263,10 +290,10 @@ describe("projectRunStats — empty log", () => {
     // Act
     const stats = projectRunStats([]);
 
-    // Assert
+    // Assert — RunStats has no tokenCount: the real @ag-ui/core RUN_FINISHED
+    // event carries no totalTokens field, so that counter was removed entirely.
     expect(stats).toEqual({
       startTime: 0,
-      tokenCount: 0,
       toolCallCount: 0,
       stepCount: 0,
       interruptCount: 0,
@@ -298,37 +325,13 @@ describe("projectRunStats — startTime from RUN_STARTED", () => {
   });
 });
 
-describe("projectRunStats — tokenCount from RUN_FINISHED", () => {
-  it("captures totalTokens from RUN_FINISHED", () => {
-    // Arrange
-    const log: AGUIEvent[] = [makeRunFinished(1234)];
-
-    // Act
-    const stats = projectRunStats(log);
-
-    // Assert
-    expect(stats.tokenCount).toBe(1234);
-  });
-
-  it("uses the last RUN_FINISHED totalTokens when multiple are present", () => {
-    // Arrange
-    const log: AGUIEvent[] = [makeRunFinished(100), makeRunFinished(999)];
-
-    // Act
-    const stats = projectRunStats(log);
-
-    // Assert
-    expect(stats.tokenCount).toBe(999);
-  });
-});
-
 describe("projectRunStats — toolCallCount from TOOL_CALL_START", () => {
   it("counts each TOOL_CALL_START event", () => {
     // Arrange
     const log: AGUIEvent[] = [
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallStart("tc-2", "fetch", "node-a"),
-      makeToolCallStart("tc-3", "write", "node-b"),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallStart("tc-2", "fetch"),
+      makeToolCallStart("tc-3", "write"),
     ];
 
     // Act
@@ -347,10 +350,7 @@ describe("projectRunStats — toolCallCount from TOOL_CALL_START", () => {
 describe("projectRunStats — stepCount from STEP_STARTED", () => {
   it("counts each STEP_STARTED event", () => {
     // Arrange
-    const log: AGUIEvent[] = [
-      makeStepStarted("node-a"),
-      makeStepStarted("node-b"),
-    ];
+    const log: AGUIEvent[] = [makeStepStarted("node-a"), makeStepStarted("node-b")];
 
     // Act
     const stats = projectRunStats(log);
@@ -364,10 +364,10 @@ describe("projectRunStats — stepCount from STEP_STARTED", () => {
   });
 });
 
-describe("projectRunStats — interruptCount from INTERRUPT", () => {
-  it("counts each INTERRUPT event", () => {
-    // Arrange
-    const log: AGUIEvent[] = [makeInterrupt(), makeInterrupt(), makeInterrupt()];
+describe("projectRunStats — interruptCount from RUN_FINISHED's interrupt outcome", () => {
+  it("counts the interrupts array length on a RUN_FINISHED interrupt outcome", () => {
+    // Arrange — a single RUN_FINISHED carrying 3 interrupts
+    const log: AGUIEvent[] = [makeRunFinishedInterrupt(3)];
 
     // Act
     const stats = projectRunStats(log);
@@ -376,24 +376,42 @@ describe("projectRunStats — interruptCount from INTERRUPT", () => {
     expect(stats.interruptCount).toBe(3);
   });
 
-  it("returns 0 when no INTERRUPT events are present", () => {
+  it("accumulates interrupt counts across multiple RUN_FINISHED interrupt events", () => {
+    // Arrange — two separate pause points in the same run
+    const log: AGUIEvent[] = [makeRunFinishedInterrupt(1), makeRunFinishedInterrupt(2)];
+
+    // Act
+    const stats = projectRunStats(log);
+
+    // Assert
+    expect(stats.interruptCount).toBe(3);
+  });
+
+  it("does not count a RUN_FINISHED with a success outcome", () => {
+    const log: AGUIEvent[] = [makeRunFinished()];
+    expect(projectRunStats(log).interruptCount).toBe(0);
+  });
+
+  it("returns 0 when no RUN_FINISHED events are present", () => {
     expect(projectRunStats([makeRunStarted()]).interruptCount).toBe(0);
   });
 });
 
 describe("projectRunStats — mixed event log", () => {
-  it("accumulates all counters correctly across a realistic run", () => {
-    // Arrange
+  it("accumulates all counters correctly across a realistic run (interrupt then completion)", () => {
+    // Arrange — schema/planner-style run that pauses once (interrupt outcome)
+    // then is resumed to a final "success" RUN_FINISHED, as the real pipeline
+    // actually drives it.
     const log: AGUIEvent[] = [
       makeRunStarted(1000),
       makeStepStarted("node-a", 1100),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallStart("tc-2", "fetch", "node-a"),
-      makeStepFinished("node-a", 1500, 400),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallStart("tc-2", "fetch"),
+      makeStepFinished("node-a", 1500),
       makeStepStarted("node-b", 1600),
-      makeInterrupt(),
-      makeStepFinished("node-b", 2000, 400),
-      makeRunFinished(750, 1200),
+      makeRunFinishedInterrupt(1, 1700),
+      makeStepFinished("node-b", 2000),
+      makeRunFinished(2100),
     ];
 
     // Act
@@ -401,7 +419,6 @@ describe("projectRunStats — mixed event log", () => {
 
     // Assert
     expect(stats.startTime).toBe(1000);
-    expect(stats.tokenCount).toBe(750);
     expect(stats.toolCallCount).toBe(2);
     expect(stats.stepCount).toBe(2);
     expect(stats.interruptCount).toBe(1);
@@ -410,12 +427,12 @@ describe("projectRunStats — mixed event log", () => {
   it("ignores non-counting event types (TEXT_MESSAGE_CONTENT, STATE_SNAPSHOT, etc.)", () => {
     // Arrange — events that should NOT affect any counter
     const log: AGUIEvent[] = [
-      baseEvent("TEXT_MESSAGE_START", { role: "assistant" }),
-      baseEvent("TEXT_MESSAGE_CONTENT", { delta: "hello" }),
-      baseEvent("TEXT_MESSAGE_END"),
-      baseEvent("STATE_SNAPSHOT", { snapshot: {} }),
-      baseEvent("STATE_DELTA", { delta: [] }),
-      baseEvent("CUSTOM", { name: "my-event", value: 42 }),
+      baseEvent(EventType.TEXT_MESSAGE_START, { messageId: "m1", role: "assistant" }),
+      baseEvent(EventType.TEXT_MESSAGE_CONTENT, { messageId: "m1", delta: "hello" }),
+      baseEvent(EventType.TEXT_MESSAGE_END, { messageId: "m1" }),
+      baseEvent(EventType.STATE_SNAPSHOT, { snapshot: {} }),
+      baseEvent(EventType.STATE_DELTA, { delta: [] }),
+      baseEvent(EventType.CUSTOM, { name: "my-event", value: 42 }),
     ];
 
     // Act
@@ -424,7 +441,6 @@ describe("projectRunStats — mixed event log", () => {
     // Assert — all counters stay at zero
     expect(stats).toEqual({
       startTime: 0,
-      tokenCount: 0,
       toolCallCount: 0,
       stepCount: 0,
       interruptCount: 0,
@@ -475,12 +491,10 @@ describe("buildTraceTree — STEP_STARTED creates root node", () => {
 });
 
 describe("buildTraceTree — STEP_FINISHED updates an existing node", () => {
-  it("marks a started node as done with endTime and duration", () => {
-    // Arrange
-    const log: AGUIEvent[] = [
-      makeStepStarted("node-a", 1000),
-      makeStepFinished("node-a", 2000, 1000),
-    ];
+  it("marks a started node as done, computing duration as endTime - startTime", () => {
+    // Arrange — STEP_FINISHED carries no `duration` field in the real
+    // @ag-ui/core schema; buildTraceTree computes it from the two timestamps.
+    const log: AGUIEvent[] = [makeStepStarted("node-a", 1000), makeStepFinished("node-a", 2500)];
 
     // Act
     const roots = buildTraceTree(log);
@@ -489,14 +503,14 @@ describe("buildTraceTree — STEP_FINISHED updates an existing node", () => {
     expect(roots[0]).toMatchObject({
       name: "node-a",
       status: "done",
-      endTime: 2000,
-      duration: 1000,
+      endTime: 2500,
+      duration: 1500,
     });
   });
 
-  it("ignores STEP_FINISHED for an unknown nodeName (no crash)", () => {
+  it("ignores STEP_FINISHED for an unknown stepName (no crash)", () => {
     // Arrange — finish with no corresponding start
-    const log: AGUIEvent[] = [makeStepFinished("ghost-node", 9999, 500)];
+    const log: AGUIEvent[] = [makeStepFinished("ghost-node", 9999)];
 
     // Act + Assert — no throw, empty roots
     expect(() => buildTraceTree(log)).not.toThrow();
@@ -504,13 +518,10 @@ describe("buildTraceTree — STEP_FINISHED updates an existing node", () => {
   });
 });
 
-describe("buildTraceTree — TOOL_CALL_START", () => {
-  it("attaches a tool-type child to its parent node", () => {
+describe("buildTraceTree — TOOL_CALL_START attaches to the currently running step", () => {
+  it("attaches a tool-type child to the currently running step", () => {
     // Arrange
-    const log: AGUIEvent[] = [
-      makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-    ];
+    const log: AGUIEvent[] = [makeStepStarted("node-a", 1000), makeToolCallStart("tc-1", "search")];
 
     // Act
     const roots = buildTraceTree(log);
@@ -527,9 +538,9 @@ describe("buildTraceTree — TOOL_CALL_START", () => {
     });
   });
 
-  it("adds a tool call as a root when its parentNode is unknown", () => {
-    // Arrange — no STEP_STARTED for "node-a"
-    const log: AGUIEvent[] = [makeToolCallStart("tc-1", "search", "node-a")];
+  it("adds a tool call as a root when no step is currently running", () => {
+    // Arrange — no STEP_STARTED at all
+    const log: AGUIEvent[] = [makeToolCallStart("tc-1", "search")];
 
     // Act
     const roots = buildTraceTree(log);
@@ -543,12 +554,33 @@ describe("buildTraceTree — TOOL_CALL_START", () => {
     });
   });
 
-  it("attaches multiple tool calls to the same parent", () => {
+  it("adds a tool call as a root once its step has already finished (not attached to a done step)", () => {
+    // Arrange — the real protocol has no explicit parent-node field on
+    // TOOL_CALL_START; a tool attaches to whichever step is *currently
+    // running* only. A step that has already finished no longer qualifies.
+    const log: AGUIEvent[] = [
+      makeStepStarted("node-a", 1000),
+      makeStepFinished("node-a", 1500),
+      makeToolCallStart("tc-1", "search", 1600),
+    ];
+
+    // Act
+    const roots = buildTraceTree(log);
+
+    // Assert — two independent roots, tool call NOT nested under the done step
+    expect(roots).toHaveLength(2);
+    const nodeA = roots.find((n) => n.name === "node-a");
+    const toolRoot = roots.find((n) => n.id === "tc-1");
+    expect(nodeA?.children).toHaveLength(0);
+    expect(toolRoot?.type).toBe("tool");
+  });
+
+  it("attaches multiple tool calls to the same running step", () => {
     // Arrange
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallStart("tc-2", "fetch", "node-a"),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallStart("tc-2", "fetch"),
     ];
 
     // Act
@@ -562,13 +594,10 @@ describe("buildTraceTree — TOOL_CALL_START", () => {
 
   it("stores tool call startTime from the event timestamp", () => {
     // Arrange
-    const ev = baseEvent("TOOL_CALL_START", {
-      toolCallId: "tc-1",
-      toolName: "search",
-      parentNode: "node-a",
-      timestamp: 5555,
-    }) as AGUIEvent;
-    const log: AGUIEvent[] = [makeStepStarted("node-a", 1000), ev];
+    const log: AGUIEvent[] = [
+      makeStepStarted("node-a", 1000),
+      makeToolCallStart("tc-1", "search", 5555),
+    ];
 
     // Act
     const roots = buildTraceTree(log);
@@ -578,13 +607,13 @@ describe("buildTraceTree — TOOL_CALL_START", () => {
   });
 });
 
-describe("buildTraceTree — TOOL_CALL_END", () => {
-  it("marks the tool node as done with endTime", () => {
+describe("buildTraceTree — TOOL_CALL_RESULT", () => {
+  it("marks the tool node as done with endTime and duration", () => {
     // Arrange
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallEnd("tc-1"),
+      makeToolCallStart("tc-1", "search", 1000),
+      makeToolCallResult("tc-1", "ok", 1800),
     ];
 
     // Act
@@ -593,16 +622,17 @@ describe("buildTraceTree — TOOL_CALL_END", () => {
 
     // Assert
     expect(toolNode?.status).toBe("done");
-    expect(toolNode?.endTime).toBe(1000); // default timestamp from baseEvent
+    expect(toolNode?.endTime).toBe(1800);
+    expect(toolNode?.duration).toBe(800);
   });
 
-  it("stores JSON-serialized output when result is present", () => {
+  it("stores the result content (sliced to 200 chars) as output", () => {
     // Arrange
-    const result = { rows: [{ a: 1 }, { b: 2 }] };
+    const content = JSON.stringify({ rows: [{ a: 1 }, { b: 2 }] });
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallEnd("tc-1", result),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallResult("tc-1", content),
     ];
 
     // Act
@@ -610,32 +640,34 @@ describe("buildTraceTree — TOOL_CALL_END", () => {
     const toolNode = roots[0]?.children[0];
 
     // Assert
-    expect(toolNode?.output).toBe(JSON.stringify(result).slice(0, 200));
+    expect(toolNode?.output).toBe(content.slice(0, 200));
   });
 
-  it("does not set output when result is undefined", () => {
-    // Arrange
+  it("sets output to an empty string (not undefined) when content is empty", () => {
+    // Arrange — the real protocol's TOOL_CALL_RESULT.content is a required
+    // string (unlike the old hand-rolled TOOL_CALL_END.result, which was
+    // optional). An empty result still produces a defined, empty output.
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallEnd("tc-1", undefined),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallResult("tc-1", ""),
     ];
 
     // Act
     const roots = buildTraceTree(log);
     const toolNode = roots[0]?.children[0];
 
-    // Assert — no output field set when result is falsy
-    expect(toolNode?.output).toBeUndefined();
+    // Assert
+    expect(toolNode?.output).toBe("");
   });
 
-  it("truncates large result output to 200 characters", () => {
-    // Arrange — a result that stringifies to more than 200 chars
-    const result = { data: "x".repeat(300) };
+  it("truncates large result content to 200 characters", () => {
+    // Arrange — content that stringifies to more than 200 chars
+    const content = JSON.stringify({ data: "x".repeat(300) });
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
-      makeToolCallEnd("tc-1", result),
+      makeToolCallStart("tc-1", "search"),
+      makeToolCallResult("tc-1", content),
     ];
 
     // Act
@@ -644,12 +676,12 @@ describe("buildTraceTree — TOOL_CALL_END", () => {
 
     // Assert — output capped at 200 chars
     expect(toolNode?.output).toHaveLength(200);
-    expect(toolNode?.output).toBe(JSON.stringify(result).slice(0, 200));
+    expect(toolNode?.output).toBe(content.slice(0, 200));
   });
 
-  it("ignores TOOL_CALL_END for an unknown toolCallId (no crash)", () => {
-    // Arrange — end without start
-    const log: AGUIEvent[] = [makeToolCallEnd("ghost-tc-99")];
+  it("ignores TOOL_CALL_RESULT for an unknown toolCallId (no crash)", () => {
+    // Arrange — result without a matching start
+    const log: AGUIEvent[] = [makeToolCallResult("ghost-tc-99", "x")];
 
     // Act + Assert — no throw
     expect(() => buildTraceTree(log)).not.toThrow();
@@ -663,7 +695,7 @@ describe("buildTraceTree — RUN_ERROR marks all running nodes as error", () => 
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
       makeStepStarted("node-b", 1100),
-      makeStepFinished("node-a", 1500, 500), // node-a transitions to done
+      makeStepFinished("node-a", 1500), // node-a transitions to done
       makeRunError("fatal timeout"),
     ];
 
@@ -682,7 +714,7 @@ describe("buildTraceTree — RUN_ERROR marks all running nodes as error", () => 
     // Arrange
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeToolCallStart("tc-1", "search", "node-a"),
+      makeToolCallStart("tc-1", "search"),
       makeRunError("network failure"),
     ];
 
@@ -702,7 +734,7 @@ describe("buildTraceTree — RUN_ERROR marks all running nodes as error", () => 
     // Arrange — all nodes completed before the error
     const log: AGUIEvent[] = [
       makeStepStarted("node-a", 1000),
-      makeStepFinished("node-a", 1500, 500),
+      makeStepFinished("node-a", 1500),
       makeRunError("spurious error"),
     ];
 
@@ -720,11 +752,11 @@ describe("buildTraceTree — complex multi-node scenario", () => {
     const log: AGUIEvent[] = [
       makeRunStarted(1000),
       makeStepStarted("planner", 1050),
-      makeToolCallStart("tc-plan", "outline", "planner"),
-      makeToolCallEnd("tc-plan", { plan: "step A then B" }),
-      makeStepFinished("planner", 1500, 450),
+      makeToolCallStart("tc-plan", "outline"),
+      makeToolCallResult("tc-plan", JSON.stringify({ plan: "step A then B" })),
+      makeStepFinished("planner", 1500),
       makeStepStarted("executor", 1510),
-      makeToolCallStart("tc-exec", "run", "executor"),
+      makeToolCallStart("tc-exec", "run"),
       // executor is still running when we check
     ];
 

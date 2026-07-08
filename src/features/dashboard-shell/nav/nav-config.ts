@@ -28,6 +28,7 @@ import {
   Layers,
   LayoutDashboard,
   Map as MapIcon,
+  MessageCircle,
   Microscope,
   Radio,
   Receipt,
@@ -54,6 +55,21 @@ export type TelecomDashboardTab =
 /** Tokenized badge tones — no raw colors. Only real/meaningful states. */
 export type NavBadgeTone = "live" | "ai" | "info";
 
+/** Shared badge color classes — one definition for every surface that renders a NavItem badge. */
+export const NAV_BADGE_TONE_CLASSES: Record<NavBadgeTone, string> = {
+  live: "bg-[color-mix(in_oklab,var(--negative)_18%,transparent)] text-negative",
+  ai: "bg-[color-mix(in_oklab,var(--ai)_18%,transparent)] text-ai",
+  info: "bg-muted text-muted-foreground",
+};
+
+/**
+ * Access tier for nav filtering. Mirrors `DashboardRole` (settings store)
+ * without importing it, so this module stays server-safe data.
+ */
+export type NavAccessRole = "viewer" | "editor" | "owner";
+
+const NAV_ROLE_RANK: Record<NavAccessRole, number> = { viewer: 0, editor: 1, owner: 2 };
+
 export interface NavItem {
   title: string;
   href: string;
@@ -67,6 +83,14 @@ export interface NavItem {
   keywords?: string[];
   /** Group children — when present this item is a collapsible hub header. */
   children?: NavItem[];
+  /**
+   * Minimum role that sees this item (default "editor"). Guests joining a
+   * shared session as read-only viewers keep only the `minRole: "viewer"`
+   * entries — shared report views, live monitoring, collaboration, help and
+   * settings. This is UX shaping; real write protection is enforced by the
+   * collab hub (server-side read-only) and per-screen permission checks.
+   */
+  minRole?: NavAccessRole;
 }
 
 export interface NavSection {
@@ -147,6 +171,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: LayoutDashboard,
         description: "Tableau de bord et synthèse du jour",
         keywords: ["accueil", "home", "overview", "mission control", "kpi"],
+        minRole: "viewer",
       },
     ],
   },
@@ -159,6 +184,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Receipt,
         description: "Rapport DailyTransactions — KPIs, canaux, analyse",
         keywords: ["telecom", "rapport", "report", "kpi", "canal", "daily"],
+        minRole: "viewer",
       },
       {
         title: "Surveillance Canaux",
@@ -168,6 +194,7 @@ export const NAV_SECTIONS: NavSection[] = [
         badge: "LIVE",
         badgeTone: "live",
         keywords: ["monitor", "surveillance", "live", "ops", "temps réel", "alerte"],
+        minRole: "viewer",
       },
     ],
   },
@@ -175,13 +202,22 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Intelligence",
     items: [
       {
-        title: "Studio IA",
+        title: "Formulateur",
         href: "/dashboard/data-formulator",
         icon: FlaskConical,
-        description: "Atelier IA : NL→SQL, agents, voix, RAG",
+        description: "Visualisations par concepts, dérivées par l'IA",
         badge: "IA",
         badgeTone: "ai",
-        keywords: ["studio", "formulator", "ia", "ai", "sql", "agent", "voix", "query"],
+        keywords: ["formulateur", "formulator", "studio", "ia", "ai", "visualisation", "concept"],
+      },
+      {
+        title: "Moudir",
+        href: "/dashboard/moudir",
+        icon: MessageCircle,
+        description: "Assistant IA — posez vos questions en langage naturel",
+        badge: "IA",
+        badgeTone: "ai",
+        keywords: ["moudir", "assistant", "ia", "ai", "chat", "question", "voix", "swarm"],
       },
       {
         title: "Briefing IA",
@@ -326,6 +362,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Users,
         description: "Espace d'équipe, commentaires et approbations",
         keywords: ["collaboration", "équipe", "team", "commentaire", "partage"],
+        minRole: "viewer",
       },
     ],
   },
@@ -338,6 +375,7 @@ export const FOOTER_ITEMS: NavItem[] = [
     icon: HelpCircle,
     description: "Documentation et visite guidée",
     keywords: ["aide", "help", "docs", "support", "visite"],
+    minRole: "viewer",
   },
   {
     title: "Paramètres",
@@ -345,6 +383,7 @@ export const FOOTER_ITEMS: NavItem[] = [
     icon: Settings,
     description: "Préférences et diagnostics",
     keywords: ["paramètres", "settings", "préférences", "thème", "langue"],
+    minRole: "viewer",
   },
 ];
 
@@ -355,6 +394,32 @@ export const ALL_ITEMS: NavItem[] = [
   ),
   ...FOOTER_ITEMS,
 ];
+
+// ─── Role-based visibility ────────────────────────────────────────────────────
+
+/** True when `role` may see an item with the given `minRole` (default editor). */
+export function navItemVisibleForRole(item: NavItem, role: NavAccessRole): boolean {
+  return NAV_ROLE_RANK[role] >= NAV_ROLE_RANK[item.minRole ?? "editor"];
+}
+
+/** Filter a flat item list (children pruned recursively, childless hubs dropped). */
+export function filterNavItemsForRole(items: NavItem[], role: NavAccessRole): NavItem[] {
+  return items
+    .filter((item) => navItemVisibleForRole(item, role))
+    .map((item) =>
+      item.children
+        ? { ...item, children: filterNavItemsForRole(item.children, role) }
+        : item,
+    )
+    .filter((item) => !item.children || item.children.length > 0);
+}
+
+/** Filter grouped sections, dropping sections left empty for the role. */
+export function filterNavSectionsForRole(sections: NavSection[], role: NavAccessRole): NavSection[] {
+  return sections
+    .map((section) => ({ ...section, items: filterNavItemsForRole(section.items, role) }))
+    .filter((section) => section.items.length > 0);
+}
 
 /**
  * Active-state predicate. Computed once in the parent and passed down so nav

@@ -11,7 +11,7 @@ import { zodToInlineJsonSchema } from "../zod-json-schema";
 import { generateStructuredByPrompt, toSystemUser } from "./base";
 
 /**
- * node-llama-cpp adapter — the PRIMARY generative + structured lane.
+ * node-llama-cpp adapter — the sole generative + structured lane.
  *
  * node-llama-cpp can ONLY run in the Electron MAIN process (it crashes the
  * renderer), so this adapter is a *thin IPC client*: it calls
@@ -20,12 +20,12 @@ import { generateStructuredByPrompt, toSystemUser } from "./base";
  * `electronDuckDB` / `electronVoice` bridges). The decisive feature is
  * grammar-constrained decoding: a JSON schema (derived from the caller's Zod
  * schema) constrains the sampler so structured output is valid *by
- * construction* — no regex-repair brute force like the browser lanes need.
+ * construction* — no regex-repair brute force needed.
  *
  * Availability is gated on `window.electronLlama` existing AND the main-process
- * service reporting a loadable model, so on the web build (or before the GGUF is
- * downloaded) the registry transparently falls through to the transformers.js
- * lane.
+ * service reporting a loadable model — so on the web build, or before a GGUF is
+ * downloaded, `isAvailable()` is simply false and callers see the "no offline
+ * model is ready" error rather than a silent fallback to a different provider.
  */
 
 /**
@@ -42,23 +42,25 @@ type ElectronLlama = Window["electronLlama"];
 
 /**
  * Curated GGUF models stored under `<userData>/models/llm/`. The `id` is the
- * filename passed straight to `electronLlama.ensureModel({ file })`. Smaller
- * model is the low-RAM fallback for the 8 GB target.
+ * filename passed straight to `electronLlama.ensureModel({ file })`. Mirrors
+ * electron/model-download-service.ts's MODEL_DOWNLOADS — the canonical
+ * catalog — and src/platform/ai/models/model-manifest.ts; keep all three in
+ * lockstep when the catalog changes.
  */
 const MODELS: AIModelInfo[] = [
   {
-    id: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
-    family: "Qwen2.5",
-    sizeLabel: "1.5B",
-    downloadMb: 1024,
+    id: "gemma-4-e4b-it-q4_k_m.gguf",
+    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    family: "Gemma 4",
+    sizeLabel: "E4B",
+    downloadMb: 5340,
   },
   {
-    id: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-    label: "Qwen2.5 0.5B Instruct (GGUF q4)",
-    family: "Qwen2.5",
-    sizeLabel: "0.5B",
-    downloadMb: 512,
+    id: "granite-4.1-3b-instruct-q4_k_m.gguf",
+    label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.1",
+    sizeLabel: "3B",
+    downloadMb: 2100, // matches model-download-service.ts's bytes: 2_100_000_000
   },
 ];
 

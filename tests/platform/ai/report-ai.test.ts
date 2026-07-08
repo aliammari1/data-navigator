@@ -1,16 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock the LLM boundary ────────────────────────────────────────────────────
-// generateReportSummary / askReportQuestion delegate to the on-device LLM when
-// ready. Keep it "not ready" by default so the rule-based fallback paths execute,
-// and flip it on only for tests that exercise the LLM branch.
-const isLLMReady = vi.fn<() => boolean>(() => false);
+// generateReportSummary / askReportQuestion take an optional, dependency-
+// injected `generateText` callback (the caller binds it to `useAI().generate`).
+// We omit it by default so the rule-based fallback paths execute, and pass the
+// mock only for tests that exercise the LLM branch.
 const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
-
-vi.mock("@/platform/ai/llm-engine", () => ({
-  isLLMReady: () => isLLMReady(),
-  generateText: (prompt: string, opts?: unknown) => generateText(prompt, opts),
-}));
 
 import {
   askReportQuestion,
@@ -40,7 +35,6 @@ function makeChannels(n = 3): ChannelStat[] {
 }
 
 beforeEach(() => {
-  isLLMReady.mockReturnValue(false);
   generateText.mockReset();
   generateText.mockResolvedValue("");
 });
@@ -258,7 +252,6 @@ describe("generateReportSummary — rule-based fallback (LLM not ready)", () => 
 describe("generateReportSummary — LLM path", () => {
   it("returns parsed LLM summary when the model is ready and replies with valid JSON", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     const llmResponse = JSON.stringify({
       narrative: "LLM narrative here.",
       topChannels: ["Alpha", "Beta", "Gamma"],
@@ -268,7 +261,12 @@ describe("generateReportSummary — LLM path", () => {
     generateText.mockResolvedValue(`${llmResponse}`);
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), "2024-01-15");
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      "2024-01-15",
+      generateText,
+    );
 
     // Assert
     expect(generateText).toHaveBeenCalledTimes(1);
@@ -280,13 +278,12 @@ describe("generateReportSummary — LLM path", () => {
 
   it("extracts JSON embedded in prose from the LLM response", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       'Here is the analysis: {"narrative":"Embedded narrative.","topChannels":["X"],"flags":[],"recommendation":"Do X."} Done.',
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert
     expect(result.narrative).toBe("Embedded narrative.");
@@ -295,7 +292,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("caps topChannels at 3 when LLM returns more than 3", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "narrative",
@@ -306,7 +302,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert
     expect(result.topChannels).toHaveLength(3);
@@ -314,7 +310,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("caps flags at 3 when LLM returns more than 3", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "narrative",
@@ -325,7 +320,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert
     expect(result.flags).toHaveLength(3);
@@ -333,7 +328,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based topChannels when LLM returns non-array topChannels", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "narrative",
@@ -345,7 +339,7 @@ describe("generateReportSummary — LLM path", () => {
     const channels = makeChannels(3);
 
     // Act
-    const result = await generateReportSummary(makeStatus(), channels);
+    const result = await generateReportSummary(makeStatus(), channels, undefined, generateText);
 
     // Assert: falls back to rule-based channels
     expect(result.topChannels).toEqual(["Channel1", "Channel2", "Channel3"]);
@@ -353,7 +347,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based flags when LLM returns non-array flags", async () => {
     // Arrange: 15% failure rate so rule-based would produce a flag
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "narrative",
@@ -365,7 +358,7 @@ describe("generateReportSummary — LLM path", () => {
     const status = makeStatus({ total: 100, echec: 15, reussie: 85, annulation: 0, instance: 0 });
 
     // Act
-    const result = await generateReportSummary(status, []);
+    const result = await generateReportSummary(status, [], undefined, generateText);
 
     // Assert: falls back to rule-based flags (has failure-rate flag)
     expect(result.flags.some((f) => f.includes("failure rate"))).toBe(true);
@@ -373,7 +366,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("uses fallback recommendation when LLM omits recommendation field", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "narrative",
@@ -384,7 +376,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert: falls back to rule-based recommendation
     expect(typeof result.recommendation).toBe("string");
@@ -393,11 +385,10 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based summary when LLM response has no JSON object", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("the model produced only prose, no JSON here");
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert: rule-based narrative contains total count
     expect(result.narrative).toContain("1,000");
@@ -405,7 +396,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based summary when JSON is missing narrative field", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         topChannels: ["A"],
@@ -416,7 +406,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert: rule-based fallback
     expect(result.narrative).toContain("1,000");
@@ -424,11 +414,10 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based summary when JSON is malformed", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("{broken json{{");
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert: rule-based fallback
     expect(result.narrative).toContain("1,000");
@@ -436,11 +425,10 @@ describe("generateReportSummary — LLM path", () => {
 
   it("falls back to rule-based summary when generateText rejects", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("inference failed"));
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels());
+    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert: rule-based fallback is returned without throwing
     expect(result.narrative).toContain("1,000");
@@ -448,7 +436,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("includes date in user prompt when date is provided", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "n",
@@ -459,7 +446,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    await generateReportSummary(makeStatus(), makeChannels(), "2024-06-01");
+    await generateReportSummary(makeStatus(), makeChannels(), "2024-06-01", generateText);
 
     // Assert: the user prompt passed to generateText contains the date
     const calledPrompt = generateText.mock.calls[0][0] as string;
@@ -468,7 +455,6 @@ describe("generateReportSummary — LLM path", () => {
 
   it("uses 'today' in user prompt when date is not provided", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         narrative: "n",
@@ -479,7 +465,7 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    await generateReportSummary(makeStatus(), makeChannels());
+    await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert
     const calledPrompt = generateText.mock.calls[0][0] as string;
@@ -488,13 +474,12 @@ describe("generateReportSummary — LLM path", () => {
 
   it("passes maxTokens=500 and temperature=0.3 to generateText", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ narrative: "n", topChannels: [], flags: [], recommendation: "r" }),
     );
 
     // Act
-    await generateReportSummary(makeStatus(), makeChannels());
+    await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
 
     // Assert
     const opts = generateText.mock.calls[0][1] as Record<string, unknown>;
@@ -504,14 +489,13 @@ describe("generateReportSummary — LLM path", () => {
 
   it("includes channel stats in the user prompt (up to 5 channels)", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ narrative: "n", topChannels: [], flags: [], recommendation: "r" }),
     );
     const channels = makeChannels(5);
 
     // Act
-    await generateReportSummary(makeStatus(), channels);
+    await generateReportSummary(makeStatus(), channels, undefined, generateText);
 
     // Assert: prompt contains the channel names
     const calledPrompt = generateText.mock.calls[0][0] as string;
@@ -521,14 +505,13 @@ describe("generateReportSummary — LLM path", () => {
 
   it("uses '0' success rate in prompt when total is 0", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ narrative: "n", topChannels: [], flags: [], recommendation: "r" }),
     );
     const status = makeStatus({ total: 0, reussie: 0, echec: 0, annulation: 0, instance: 0 });
 
     // Act
-    await generateReportSummary(status, []);
+    await generateReportSummary(status, [], undefined, generateText);
 
     // Assert: prompt should contain "0%" for the success rate
     const calledPrompt = generateText.mock.calls[0][0] as string;
@@ -569,7 +552,6 @@ describe("askReportQuestion — rule-based fallback (LLM not ready)", () => {
 describe("askReportQuestion — LLM path", () => {
   it("returns parsed SQL and explanation when LLM replies with valid JSON", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         sql: 'SELECT "CHANNEL", COUNT(*) FROM "transactions" GROUP BY "CHANNEL" LIMIT 1000',
@@ -582,6 +564,7 @@ describe("askReportQuestion — LLM path", () => {
       "how many transactions per channel?",
       "transactions",
       ["CHANNEL", "TRANSACTION_ID"],
+      generateText,
     );
 
     // Assert
@@ -592,13 +575,12 @@ describe("askReportQuestion — LLM path", () => {
 
   it("extracts JSON embedded in prose from the LLM response", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       'Here is the SQL: {"sql":"SELECT 1 LIMIT 1000","explanation":"Simple."} End.',
     );
 
     // Act
-    const result = await askReportQuestion("q", "t", ["c"]);
+    const result = await askReportQuestion("q", "t", ["c"], generateText);
 
     // Assert
     expect(result.sql).toBe("SELECT 1 LIMIT 1000");
@@ -607,7 +589,6 @@ describe("askReportQuestion — LLM path", () => {
 
   it("appends LIMIT 1000 when the LLM-generated SQL does not include LIMIT", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         sql: 'SELECT * FROM "transactions"',
@@ -616,7 +597,7 @@ describe("askReportQuestion — LLM path", () => {
     );
 
     // Act
-    const result = await askReportQuestion("show all", "transactions", ["id"]);
+    const result = await askReportQuestion("show all", "transactions", ["id"], generateText);
 
     // Assert: LIMIT appended
     expect(result.sql).toMatch(/LIMIT 1000$/i);
@@ -625,7 +606,6 @@ describe("askReportQuestion — LLM path", () => {
 
   it("does not duplicate LIMIT when the LLM SQL already includes one", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         sql: 'SELECT * FROM "transactions" LIMIT 500',
@@ -634,7 +614,7 @@ describe("askReportQuestion — LLM path", () => {
     );
 
     // Act
-    const result = await askReportQuestion("show first 500", "transactions", ["id"]);
+    const result = await askReportQuestion("show first 500", "transactions", ["id"], generateText);
 
     // Assert: no double LIMIT
     const limitCount = (result.sql.match(/LIMIT/gi) ?? []).length;
@@ -643,7 +623,6 @@ describe("askReportQuestion — LLM path", () => {
 
   it("strips a trailing semicolon from the SQL", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({
         sql: 'SELECT 1 LIMIT 1000;',
@@ -652,7 +631,7 @@ describe("askReportQuestion — LLM path", () => {
     );
 
     // Act
-    const result = await askReportQuestion("q", "t", ["c"]);
+    const result = await askReportQuestion("q", "t", ["c"], generateText);
 
     // Assert: no trailing semicolon
     expect(result.sql.trim().endsWith(";")).toBe(false);
@@ -660,11 +639,10 @@ describe("askReportQuestion — LLM path", () => {
 
   it("falls back to the default SELECT when LLM response has no JSON", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("no json here");
 
     // Act
-    const result = await askReportQuestion("q", "sales", ["id"]);
+    const result = await askReportQuestion("q", "sales", ["id"], generateText);
 
     // Assert
     expect(result.sql).toBe('SELECT * FROM "sales" LIMIT 100');
@@ -672,13 +650,12 @@ describe("askReportQuestion — LLM path", () => {
 
   it("falls back to the default SELECT when JSON is missing the sql field", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ explanation: "no sql field" }),
     );
 
     // Act
-    const result = await askReportQuestion("q", "sales", ["id"]);
+    const result = await askReportQuestion("q", "sales", ["id"], generateText);
 
     // Assert
     expect(result.sql).toBe('SELECT * FROM "sales" LIMIT 100');
@@ -686,11 +663,10 @@ describe("askReportQuestion — LLM path", () => {
 
   it("falls back to the default SELECT when JSON is malformed", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue("{bad json{{{");
 
     // Act
-    const result = await askReportQuestion("q", "sales", ["id"]);
+    const result = await askReportQuestion("q", "sales", ["id"], generateText);
 
     // Assert
     expect(result.sql).toBe('SELECT * FROM "sales" LIMIT 100');
@@ -698,11 +674,10 @@ describe("askReportQuestion — LLM path", () => {
 
   it("falls back to the default SELECT when generateText rejects", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockRejectedValue(new Error("inference failed"));
 
     // Act
-    const result = await askReportQuestion("q", "sales", ["id"]);
+    const result = await askReportQuestion("q", "sales", ["id"], generateText);
 
     // Assert: no throw, fallback returned
     expect(result.sql).toBe('SELECT * FROM "sales" LIMIT 100');
@@ -710,13 +685,12 @@ describe("askReportQuestion — LLM path", () => {
 
   it("includes the table name and question in the user prompt", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ sql: "SELECT 1 LIMIT 1000", explanation: "e" }),
     );
 
     // Act
-    await askReportQuestion("what is the total?", "my_sales", ["AMOUNT", "DATE"]);
+    await askReportQuestion("what is the total?", "my_sales", ["AMOUNT", "DATE"], generateText);
 
     // Assert
     const calledPrompt = generateText.mock.calls[0][0] as string;
@@ -728,13 +702,12 @@ describe("askReportQuestion — LLM path", () => {
 
   it("passes maxTokens=400 and temperature=0.2 to generateText", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ sql: "SELECT 1 LIMIT 1000", explanation: "e" }),
     );
 
     // Act
-    await askReportQuestion("q", "t", ["c"]);
+    await askReportQuestion("q", "t", ["c"], generateText);
 
     // Assert
     const opts = generateText.mock.calls[0][1] as Record<string, unknown>;
@@ -744,13 +717,12 @@ describe("askReportQuestion — LLM path", () => {
 
   it("uses empty string for explanation when LLM omits the field", async () => {
     // Arrange
-    isLLMReady.mockReturnValue(true);
     generateText.mockResolvedValue(
       JSON.stringify({ sql: "SELECT 1 LIMIT 1000" }),
     );
 
     // Act
-    const result = await askReportQuestion("q", "t", ["c"]);
+    const result = await askReportQuestion("q", "t", ["c"], generateText);
 
     // Assert: explanation defaults to ""
     expect(result.explanation).toBe("");

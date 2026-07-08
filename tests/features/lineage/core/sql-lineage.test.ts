@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { Parser } from "node-sql-parser/build/postgresql";
+import { describe, expect, it, vi } from "vitest";
 import { parseProjectionLineage } from "@/features/lineage/core/sql-lineage";
 
 describe("parseProjectionLineage", () => {
@@ -125,5 +126,100 @@ describe("parseProjectionLineage", () => {
     expect(result).toHaveLength(1);
     expect(result?.[0].targetCol).toBe("x");
     expect(result?.[0].sourceCols).toContain("column1");
+  });
+
+  it("collects a source column through a CAST-to-array-type expression", () => {
+    // node-sql-parser nests `array: { dimension: 1, length: [null] }` under the
+    // cast target for an array-typed cast — the literal `null` inside that
+    // array exercises collectSourceCols' non-object short-circuit (a primitive
+    // array item), and the cast itself is a non-bare-column expression whose
+    // transform label comes from a successful exprToSQL round-trip.
+    const result = parseProjectionLineage("SELECT x::INTEGER[] AS y FROM t");
+    expect(result).toHaveLength(1);
+    expect(result?.[0].targetCol).toBe("y");
+    expect(result?.[0].sourceCols).toEqual(["x"]);
+    expect(result?.[0].transform).toBe("x::INTEGER[]");
+  });
+});
+
+// ─── Defensive branches for AST shapes the postgres dialect itself never
+// produces from real SQL ─────────────────────────────────────────────────────
+//
+// node-sql-parser's AST is "loosely typed; we narrow only the fields we read"
+// (module doc comment) — some guards exist for shapes only OTHER dialects (or
+// parser versions) emit, e.g. a `star`-typed projection expr (this dialect
+// represents `SELECT *` as a `column_ref` with `column: '*'` instead — see the
+// "returns null for a SELECT * projection" test above). These tests reach
+// those defensive branches by stubbing `Parser.prototype.astify` — the exact
+// class `parseProjectionLineage` instantiates — with a fabricated AST, rather
+// than by writing SQL text that could never legally produce those shapes.
+describe("parseProjectionLineage — defensive branches for unexpected parser output", () => {
+  it("returns null when the parsed statement has no columns field at all", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({ type: "select" } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toBeNull();
+  });
+
+  it("returns null for a 'star'-typed projection expr (a shape only other dialects emit)", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({
+      type: "select",
+      columns: [{ as: null, expr: { type: "star", value: "*" } }],
+    } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toBeNull();
+  });
+
+  it("skips a non-object projection entry but still returns lineage for well-formed siblings", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({
+      type: "select",
+      columns: [
+        null,
+        {
+          as: null,
+          expr: { type: "column_ref", column: { expr: { type: "default", value: "amount" } } },
+        },
+      ],
+    } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toEqual([
+      { targetCol: "amount", sourceCols: ["amount"], transform: undefined },
+    ]);
+  });
+
+  it("drops a column_ref whose column shape can't resolve to a name, without dropping its sibling", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({
+      type: "select",
+      columns: [
+        // `column` is neither a string nor a { expr: { value } } / { value } shape,
+        // so columnName() falls through to its `return null` branch. With no
+        // alias, targetCol resolves to null too, so `if (!targetCol) continue`
+        // drops the whole projection rather than emitting a nameless entry.
+        { as: null, expr: { type: "column_ref", column: { unexpected: "shape" } } },
+        {
+          as: null,
+          expr: { type: "column_ref", column: { expr: { type: "default", value: "amount" } } },
+        },
+      ],
+    } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toEqual([
+      { targetCol: "amount", sourceCols: ["amount"], transform: undefined },
+    ]);
+  });
+
+  it("returns an undefined transform for a projection with no expr at all (alias only)", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({
+      type: "select",
+      columns: [{ as: "aliasOnly" }],
+    } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toEqual([
+      { targetCol: "aliasOnly", sourceCols: [], transform: undefined },
+    ]);
+  });
+
+  it("falls back to the coarse node.type label when exprToSQL can't stringify an unrecognized expr shape", () => {
+    vi.spyOn(Parser.prototype, "astify").mockReturnValueOnce({
+      type: "select",
+      columns: [{ as: "w", expr: { type: "weird_type", foo: "bar" } }],
+    } as never);
+    expect(parseProjectionLineage("SELECT whatever")).toEqual([
+      { targetCol: "w", sourceCols: [], transform: "weird_type" },
+    ]);
   });
 });

@@ -1,14 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
+import { useMemo, useSyncExternalStore } from "react";
+import { type DashboardRole, useSettingsStore } from "@/core/stores/settings-store";
+import { getLANSessionRole, subscribeLAN } from "@/platform/lan/lan-collab";
 
-export type DashboardRole = "owner" | "editor" | "viewer";
-
-export interface DashboardAccessState {
-  role: DashboardRole;
-  cacheMode: "balanced" | "low-memory";
-}
+export type { DashboardRole };
 
 export interface DashboardPermissionSet {
   canUpload: boolean;
@@ -19,14 +15,6 @@ export interface DashboardPermissionSet {
   canEditComments: boolean;
   canShareView: boolean;
 }
-
-const ACCESS_KEY = "data-navigator-dashboard-access-v1";
-const ACCESS_EVENT = "data-navigator-dashboard-access-change";
-
-const DEFAULT_ACCESS: DashboardAccessState = {
-  role: "owner",
-  cacheMode: "balanced",
-};
 
 const ROLE_LABELS: Record<DashboardRole, string> = {
   owner: "Owner",
@@ -50,87 +38,56 @@ export function permissionsForRole(role: DashboardRole): DashboardPermissionSet 
   };
 }
 
-export function readDashboardAccess(): DashboardAccessState {
-  if (typeof localStorage === "undefined") return DEFAULT_ACCESS;
-  try {
-    const parsed = JSON.parse(
-      localStorage.getItem(ACCESS_KEY) ?? "null",
-    ) as Partial<DashboardAccessState> | null;
-    return coerceAccess(parsed);
-  } catch {
-    return DEFAULT_ACCESS;
-  }
+/**
+ * Cap the device role by the live LAN session role. While connected to
+ * someone else's session with a read-only grant, even an "owner" device acts
+ * as a viewer — the hub is already dropping its writes server-side, so the UI
+ * should say so instead of pretending. Disconnected → device role as-is.
+ */
+export function capRoleBySession(
+  device: DashboardRole,
+  session: ReturnType<typeof getLANSessionRole>,
+): DashboardRole {
+  if (!session || session === "host") return device;
+  if (session === "editor") return device === "owner" ? "editor" : device;
+  return "viewer"; // reviewer / viewer sessions are read-only
 }
 
-export function writeDashboardAccess(next: DashboardAccessState): void {
-  if (typeof localStorage === "undefined") return;
-  localStorage.setItem(ACCESS_KEY, JSON.stringify(next));
-  globalThis.window.dispatchEvent(new CustomEvent(ACCESS_EVENT, { detail: next }));
-  // Best-effort durable mirror into drizzle settings. localStorage stays the
-  // synchronous source of truth; this adds durability + settings-backup inclusion.
-  void putAppSettingRemote("settings", ACCESS_KEY, next).catch(() => {});
+/** Server-value snapshot must be referentially stable for useSyncExternalStore. */
+function getServerSessionRole(): null {
+  return null;
 }
 
-/** Coerce an untrusted payload into a valid access state (defaults on bad input). */
-function coerceAccess(value: Partial<DashboardAccessState> | null): DashboardAccessState {
-  return {
-    role:
-      value?.role === "viewer" || value?.role === "editor" || value?.role === "owner"
-        ? value.role
-        : DEFAULT_ACCESS.role,
-    cacheMode: value?.cacheMode === "low-memory" ? "low-memory" : DEFAULT_ACCESS.cacheMode,
-  };
-}
-
+/**
+ * Role + cache mode, centralized in the Settings store (Account / Performance
+ * tabs) — see src/core/stores/settings-store.ts. The exposed `role` is the
+ * EFFECTIVE role: the device role capped by the live LAN session grant, so
+ * permissions everywhere (telecom, data-import, collaboration, the topbar
+ * pill) automatically tighten while in a guest session.
+ */
 export function useDashboardAccess() {
-  const [state, setState] = useState<DashboardAccessState>(readDashboardAccess);
+  const deviceRole = useSettingsStore((s) => s.role);
+  const cacheMode = useSettingsStore((s) => s.performance.cacheMode);
+  const setRole = useSettingsStore((s) => s.setRole);
+  const setPerformance = useSettingsStore((s) => s.setPerformance);
 
-  useEffect(() => {
-    const sync = () => setState(readDashboardAccess());
-    globalThis.window.addEventListener(ACCESS_EVENT, sync);
-    globalThis.window.addEventListener("storage", sync);
-    return () => {
-      globalThis.window.removeEventListener(ACCESS_EVENT, sync);
-      globalThis.window.removeEventListener("storage", sync);
-    };
-  }, []);
+  const sessionRole = useSyncExternalStore(subscribeLAN, getLANSessionRole, getServerSessionRole);
+  const role = capRoleBySession(deviceRole, sessionRole);
 
-  // One-time cold restore: with no local working copy (fresh profile / cleared
-  // cache), pull the durable access prefs from drizzle settings and adopt them.
-  useEffect(() => {
-    let hasLocal = true;
-    try {
-      hasLocal = localStorage.getItem(ACCESS_KEY) !== null;
-    } catch {
-      hasLocal = true;
-    }
-    if (hasLocal) return;
-
-    let cancelled = false;
-    void getAppSettingRemote<Partial<DashboardAccessState>>("settings", ACCESS_KEY)
-      .then(({ value }) => {
-        if (cancelled || value == null) return;
-        writeDashboardAccess(coerceAccess(value));
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const permissions = useMemo(() => permissionsForRole(state.role), [state.role]);
-
-  const updateAccess = (patch: Partial<DashboardAccessState>) => {
-    const next = { ...readDashboardAccess(), ...patch };
-    setState(next);
-    writeDashboardAccess(next);
-  };
+  const permissions = useMemo(() => permissionsForRole(role), [role]);
 
   return {
-    ...state,
+    role,
+    /** The persisted device role, before any session capping. */
+    deviceRole,
+    /** LAN session role while connected (host/editor/reviewer/viewer), else null. */
+    sessionRole,
+    /** True while connected to a session that caps this device below its own role. */
+    isGuestSession: role !== deviceRole,
+    cacheMode,
     permissions,
-    roleLabel: getRoleLabel(state.role),
-    setRole: (role: DashboardRole) => updateAccess({ role }),
-    setCacheMode: (cacheMode: DashboardAccessState["cacheMode"]) => updateAccess({ cacheMode }),
+    roleLabel: getRoleLabel(role),
+    setRole,
+    setCacheMode: (mode: "balanced" | "low-memory") => setPerformance({ cacheMode: mode }),
   };
 }

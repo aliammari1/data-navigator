@@ -35,7 +35,12 @@ import {
   isVoiceVadSupported,
   type VoiceVadService,
 } from "../../core/voice/voice-vad-service";
-import { hasElectronVoice, sherpaSpeak, sherpaTranscribe } from "@/platform/electron/electron-fs";
+import {
+  hasElectronVoice,
+  pickNativeTtsEngine,
+  sherpaSpeak,
+  sherpaTranscribe,
+} from "@/platform/electron/electron-fs";
 
 export interface UseMoudirVoice {
   supported: boolean;
@@ -477,7 +482,15 @@ export function useMoudirVoice(): UseMoudirVoice {
 
       if (hasElectronVoice()) {
         // Native sherpa-onnx TTS (fully offline, bundled) — preferred lane.
-        void sherpaSpeak(text, { voice: settings.ttsVoice, speed: settings.ttsSpeed })
+        // Kokoro (English) vs Supertonic (French/Arabic) is picked by language hint;
+        // the Kokoro-only ttsVoice setting only applies when Kokoro is selected.
+        const nativeEngine = pickNativeTtsEngine(settings.languageHint);
+        void sherpaSpeak(text, {
+          engine: nativeEngine,
+          voice: nativeEngine === "sherpa-kokoro" ? settings.ttsVoice : undefined,
+          speed: settings.ttsSpeed,
+          lang: settings.languageHint,
+        })
           .then(({ wav }) => {
             if (audioUrlRef.current) {
               URL.revokeObjectURL(audioUrlRef.current);

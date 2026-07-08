@@ -55,6 +55,25 @@ export type GenerateStructured = <T>(
   schema: ZodType<T>,
 ) => Promise<T>;
 
+/**
+ * Exact system prompt sent to the offline LLM for the deck brief. Exported so
+ * tests can assert prompt-wording identity instead of a substring keyword
+ * check — a substring check could only ever catch removal of one word and
+ * would miss the instructions being rewritten to ask for something else
+ * entirely while accidentally keeping one matching keyword (e.g. "analyste").
+ */
+export const DECK_BRIEF_SYSTEM_PROMPT =
+  "Tu es un analyste de reporting télécom qui tourne 100% hors-ligne. Produis une narration de slides exécutives de qualité NotebookLM en français. Sois spécifique, opérationnel, et fonde-toi UNIQUEMENT sur les métriques fournies — n'invente jamais de chiffre.";
+
+/**
+ * Static French instruction prefix prepended to the JSON metrics payload in
+ * the deck-brief user prompt (the payload itself is runtime data, appended
+ * after this prefix). Exported so tests can assert this wording exactly
+ * instead of a loose "contains a keyword" check.
+ */
+export const DECK_BRIEF_PROMPT_PREFIX =
+  "Génère un brief de deck pour un dashboard de recharges télécom à partir de ce JSON de métriques (toutes les valeurs sont exactes) :\n\n";
+
 export interface TelecomDeckBriefInput {
   reportDate: string;
   fileName: string;
@@ -193,9 +212,8 @@ export async function generateTelecomDeckBrief(
     try {
       const brief = await generateStructured(
         {
-          system:
-            "Tu es un analyste de reporting télécom qui tourne 100% hors-ligne. Produis une narration de slides exécutives de qualité NotebookLM en français. Sois spécifique, opérationnel, et fonde-toi UNIQUEMENT sur les métriques fournies — n'invente jamais de chiffre.",
-          prompt: `Génère un brief de deck pour un dashboard de recharges télécom à partir de ce JSON de métriques (toutes les valeurs sont exactes) :\n\n${JSON.stringify(payload)}`,
+          system: DECK_BRIEF_SYSTEM_PROMPT,
+          prompt: `${DECK_BRIEF_PROMPT_PREFIX}${JSON.stringify(payload)}`,
           maxTokens: 1600,
           temperature: 0.15,
         },

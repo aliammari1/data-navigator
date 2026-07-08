@@ -29,7 +29,7 @@ function makeCtx(overrides: Partial<SwarmContext> = {}): SwarmContext {
     columns,
     rowSample: [],
     rowCount: 500,
-    model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    model: "gemma-4-e4b-it-q4_k_m.gguf",
     ...overrides,
   };
 }
@@ -84,7 +84,7 @@ describe("runAnswer", () => {
     expect(result.evidence).toEqual(["USSD total = 10", "APP total = 4"]);
     expect(result.followUps).toEqual(["Break down by week"]);
     expect(result.artifacts).toBe(artifacts);
-    expect(result.modelUsed).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(result.modelUsed).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
   it("keeps the model's confidence when real data backs the answer", async () => {
@@ -213,7 +213,7 @@ describe("runAnswer — onToken streaming path", () => {
     // Result is correctly shaped.
     expect(result.goal).toBe("Top channel");
     expect(result.headline).toBe("USSD leads revenue");
-    expect(result.modelUsed).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(result.modelUsed).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
   it("propagates the error when streaming fails and the signal is aborted", async () => {

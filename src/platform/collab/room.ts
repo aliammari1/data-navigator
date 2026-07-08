@@ -8,7 +8,7 @@
  *   1. durable offline persistence  (y-indexeddb, gated by `whenStored`)
  *   2. presence                     (y-protocols Awareness, auto-pruned)
  *   3. same-origin cross-tab sync   (BroadcastChannel Yjs provider)
- *   4. optional LAN transport       (y-websocket, lazy, COEP-safe ws://)
+ *   4. optional LAN transport       (Hocuspocus provider, lazy, COEP-safe ws://)
  *
  * Rooms are reference-counted: balance every `getRoomDoc`/`acquireRoom` with a
  * `releaseRoom`. The doc + persistence + awareness + providers tear down when
@@ -209,8 +209,10 @@ function emitRoomStatus(entry: RoomEntry, status: CollabTransportStatus): void {
 }
 
 /**
- * Attach a room doc to a LAN hub over y-websocket. Lazy-imports y-websocket so
- * the provider stays out of routes that never collaborate.
+ * Attach a room doc to a LAN hub over Hocuspocus. Lazy-imports the provider so
+ * it stays out of routes that never collaborate. The access code travels in
+ * the wire-protocol Auth frame (never the URL); the server derives the role
+ * from which code is presented and enforces read-only server-side.
  *
  * Honors the offline ordering invariant: awaits `whenStored` (local load)
  * before connecting so offline edits are never clobbered by remote state.
@@ -235,39 +237,33 @@ export async function connectRoomLAN(roomId: string, opts: CollabConnectOptions)
 
   emitRoomStatus(entry, "connecting");
 
-  const mod = await import("y-websocket");
-  const WebsocketProvider = (
-    mod as unknown as {
-      WebsocketProvider: new (
-        url: string,
-        room: string,
-        doc: Y.Doc,
-        config?: Record<string, unknown>,
-      ) => ProviderHandle;
-    }
-  ).WebsocketProvider;
+  const { HocuspocusProvider } = await import("@hocuspocus/provider");
 
   // Reuse the room's awareness so presence rides the same socket as the doc.
-  const provider = new WebsocketProvider(opts.url, opts.room, entry.room.doc, {
-    connect: true,
-    awareness: entry.room.awareness ?? undefined,
-    params: {
+  const provider = new HocuspocusProvider({
+    url: opts.url,
+    name: opts.room,
+    document: entry.room.doc,
+    awareness: entry.room.awareness ?? null,
+    token: JSON.stringify({
+      code: opts.pairingCode,
       peerId: opts.identity.id,
       peerName: opts.identity.name,
       role: opts.identity.role,
-      pairingCode: opts.pairingCode,
+    }),
+    onStatus: ({ status }) => {
+      const next: CollabTransportStatus =
+        status === "connected"
+          ? "connected"
+          : status === "connecting"
+            ? "connecting"
+            : "disconnected";
+      emitRoomStatus(entry, next);
     },
-  });
-
-  provider.on?.("status", (event: { status: string }) => {
-    const next: CollabTransportStatus =
-      event.status === "connected"
-        ? "connected"
-        : event.status === "connecting"
-          ? "connecting"
-          : "disconnected";
-    emitRoomStatus(entry, next);
-  });
+    onAuthenticationFailed: () => {
+      emitRoomStatus(entry, "error");
+    },
+  }) as unknown as ProviderHandle;
 
   entry.provider = provider;
 }

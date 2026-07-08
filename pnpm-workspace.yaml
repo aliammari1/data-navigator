@@ -1,25 +1,38 @@
-blockExoticSubdeps: true
+allowBuilds:
+  "@bitdisaster/exe-icon-extractor": true
+  "@swc/core": true
+  autoevals: true
+  better-sqlite3: true
+  better-sqlite3-multiple-ciphers: true
+  core-js: true
+  core-js-pure: true
+  electron: true
+  electron-winstaller: true
+  esbuild: true
+  lefthook: true
+  msw: true
+  node-llama-cpp: true
+  onnxruntime-node: true
+  protobufjs: true
+  sharp: true
+  unrs-resolver: true
 
-minimumReleaseAge: 10080
+blockExoticSubdeps: false
 
-onlyBuiltDependencies:
-  - '@bitdisaster/exe-icon-extractor'
-  - '@swc/core'
-  - '@vaadin/vaadin-usage-statistics'
-  - autoevals
-  - better-sqlite3
-  - better-sqlite3-multiple-ciphers
-  - core-js
-  - core-js-pure
-  - electron
-  - electron-winstaller
-  - es5-ext
-  - esbuild
-  - lefthook
-  - msgpackr-extract
-  - msw
-  - node-llama-cpp
-  - onnxruntime-node
-  - protobufjs
-  - sharp
-  - unrs-resolver
+overrides:
+  tar: ">=7.5.16"
+  tmp: ">=0.2.6"
+  esbuild: ">=0.28.1"
+  dompurify: ">=3.4.11"
+  postcss: ">=8.5.10"
+  uuid: ">=11.1.1"
+  qs: ">=6.15.2"
+
+minimumReleaseAgeExclude:
+  - tar@7.5.16
+  - tmp@0.2.6
+  - esbuild@0.28.1
+  - dompurify@3.4.11
+  - postcss@8.5.10
+  - uuid@11.1.1
+  - qs@6.15.2

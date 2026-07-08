@@ -203,10 +203,12 @@
   /* Z-index scale — only these values may be used */
   --z-sticky: 10;
   --z-sidebar: 20;
+  --z-window: 25;
   --z-topbar: 30;
   --z-dock: 40;
   --z-drawer: 50;
   --z-modal: 60;
+  --z-popover: 65;
   --z-palette: 70;
   --z-toast: 80;
   --z-tour: 90;

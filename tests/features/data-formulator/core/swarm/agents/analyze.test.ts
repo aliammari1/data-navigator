@@ -20,7 +20,7 @@ function makeCtx(overrides: Partial<SwarmContext> = {}): SwarmContext {
     columns,
     rowSample: [{ channel: "USSD", amount: 10 }],
     rowCount: 500,
-    model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    model: "gemma-4-e4b-it-q4_k_m.gguf",
     ...overrides,
   };
 }
@@ -58,7 +58,7 @@ describe("runAnalysisPlan", () => {
     expect(generateStructured).toHaveBeenCalledOnce();
     const [req, schema] = generateStructured.mock.calls[0];
     expect(schema).toBe(analysisPlanSchema);
-    expect(req.model).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(req.model).toBe("gemma-4-e4b-it-q4_k_m.gguf");
     expect(req.temperature).toBe(0);
     expect(req.maxTokens).toBe(1024);
     // The analyst-planner system prompt is used.

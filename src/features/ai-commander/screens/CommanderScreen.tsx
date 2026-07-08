@@ -116,15 +116,15 @@ export default function CommanderScreen() {
           }
           case "ask_data": {
             const q = a.query?.trim() || text;
-            openApp("moudir");
-            // Decoupled handoff — MoudirScreen listens and runs the swarm.
+            openApp("moudir-chat");
+            // Decoupled handoff — the Moudir assistant listens and runs the swarm.
             window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt: q } }));
-            const moud = getApp("moudir");
+            const moud = getApp("moudir-chat");
             action = {
               label: "Analyse confiée à Moudir",
               icon: moud?.icon ?? Sparkles,
               hue: moud?.hue ?? 268,
-              appId: "moudir",
+              appId: "moudir-chat",
             };
             break;
           }

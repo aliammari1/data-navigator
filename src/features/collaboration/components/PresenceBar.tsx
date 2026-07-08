@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "motion/react";
-import { Users, Wifi, WifiOff, Check, Pencil } from "lucide-react";
+import { Users, Wifi, WifiOff } from "lucide-react";
 import { cn } from "@/shared/utils";
-import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -14,10 +14,9 @@ import {
   type LANStatus,
   publishPresence,
   readLANSettings,
-  saveLANSettings,
   subscribeLAN,
 } from "@/platform/lan/lan-collab";
-import { useCollabHubStore } from "../store/collab-hub-store";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 
 // ─── Color hash (fallback only — peers carry their own color) ─────────────────
 
@@ -133,21 +132,32 @@ function usePresence(username: string, currentPage: string) {
 function PresenceAvatar({ user, isMe }: { user: LANPeer; isMe?: boolean }) {
   const [showTip, setShowTip] = useState(false);
   const status = statusFromLastSeen(user.lastSeenAt);
+  const router = useRouter();
+  // "Jump to user": a peer publishing a page can be followed with one click.
+  const canJump = Boolean(user.page && !isMe && user.page.startsWith("/dashboard"));
 
   return (
     <div className="relative">
-      <Avatar
+      <button
+        type="button"
+        disabled={!canJump}
+        onClick={() => {
+          if (canJump && user.page) router.push(user.page);
+        }}
         onMouseEnter={() => setShowTip(true)}
         onMouseLeave={() => setShowTip(false)}
-        className="cursor-default"
+        title={canJump ? `Aller à la page de ${user.name}` : undefined}
+        className={cn("block rounded-full", canJump ? "cursor-pointer" : "cursor-default")}
       >
-        <AvatarFallback
-          className={cn("text-white text-xs font-semibold", hashColor(user.name))}
-          style={user.color ? { backgroundColor: user.color } : undefined}
-        >
-          {initials(user.name)}
-        </AvatarFallback>
-      </Avatar>
+        <Avatar>
+          <AvatarFallback
+            className={cn("text-white text-xs font-semibold", hashColor(user.name))}
+            style={user.color ? { backgroundColor: user.color } : undefined}
+          >
+            {initials(user.name)}
+          </AvatarFallback>
+        </Avatar>
+      </button>
 
       {/* Status dot */}
       <span
@@ -180,76 +190,7 @@ function PresenceAvatar({ user, isMe }: { user: LANPeer; isMe?: boolean }) {
               {status} · {user.role}
             </p>
             {user.page && <p className="text-muted-foreground truncate max-w-40">{user.page}</p>}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
-  );
-}
-
-// ─── Set Name popover ─────────────────────────────────────────────────────────
-
-function SetNamePopover({ current, onSave }: { current: string; onSave: (name: string) => void }) {
-  const [open, setOpen] = useState(false);
-  const [draft, setDraft] = useState(current);
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    if (open) {
-      inputRef.current?.focus();
-    }
-  }, [open]);
-
-  return (
-    <div className="relative">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        onClick={() => {
-          setDraft(current);
-          setOpen((v) => !v);
-        }}
-        title="Set your name"
-      >
-        <Pencil className="size-3.5" />
-      </Button>
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            className="absolute right-0 top-full z-50 mt-1.5 w-52 rounded-lg border border-border bg-popover p-3 shadow-lg"
-          >
-            <p className="mb-2 text-xs font-medium">Your display name</p>
-            <input
-              ref={inputRef}
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-2.5 py-1.5 text-sm outline-none focus:ring-2 focus:ring-ring/50 dark:bg-input/30"
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  onSave(draft.trim() || current);
-                  setOpen(false);
-                }
-              }}
-            />
-            <div className="mt-2 flex gap-1.5">
-              <Button
-                size="xs"
-                className="flex-1 h-7"
-                onClick={() => {
-                  onSave(draft.trim() || current);
-                  setOpen(false);
-                }}
-              >
-                <Check className="size-3" />
-                Save
-              </Button>
-              <Button size="xs" variant="outline" className="h-7" onClick={() => setOpen(false)}>
-                Cancel
-              </Button>
-            </div>
+            {canJump && <p className="text-primary">Cliquer pour rejoindre</p>}
           </motion.div>
         )}
       </AnimatePresence>
@@ -265,7 +206,6 @@ interface PresenceBarProps {
 
 export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
   const username = useCollabHubStore.use.username();
-  const setUsername = useCollabHubStore.use.setUsername();
   const { me, peers, connected } = usePresence(username, currentPage);
 
   const allUsers = useMemo<LANPeer[]>(
@@ -276,17 +216,6 @@ export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
     () => allUsers.filter((u) => statusFromLastSeen(u.lastSeenAt) === "active").length,
     [allUsers],
   );
-
-  // Keep the durable LAN peer name in sync with the chosen display name so the
-  // identity used by awareness/audit/annotations stays consistent.
-  const handleRename = (name: string) => {
-    setUsername(name);
-    const settings = readLANSettings();
-    if (settings.peer.name !== name) {
-      saveLANSettings({ ...settings, peer: { ...settings.peer, name } });
-      if (connected) publishPresence({ name });
-    }
-  };
 
   return (
     <div className="flex items-center gap-3 rounded-xl border border-border bg-card px-4 py-2.5 shadow-xs">
@@ -335,12 +264,11 @@ export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
         )}
       </div>
 
-      {/* Set name */}
+      {/* Display name — editable in Settings > Account */}
       <div className="ml-auto flex items-center gap-2">
         <span className="text-xs text-muted-foreground">
           You are <span className="font-medium text-foreground">{username}</span>
         </span>
-        <SetNamePopover current={username} onSave={handleRename} />
       </div>
     </div>
   );

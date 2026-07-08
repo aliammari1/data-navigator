@@ -182,10 +182,19 @@ const FORBIDDEN_SQL =
   /\b(insert|update|delete|drop|alter|create|attach|copy|pragma|truncate|replace|grant|revoke|vacuum|export|install|load)\b/i;
 
 /**
- * Assert an AI-written statement is a single read-only SELECT/WITH. DuckDB is
- * opened read-only too, but this fails fast with a clear message and keeps the
- * model honest. NOT a heuristic answer path — purely a safety assertion.
+ * Zero-width / invisible Unicode formatting characters (zero-width space,
+ * zero-width non-joiner/joiner, word joiner, BOM). These have zero legitimate
+ * use inside generated SQL, but a model that has been prompt-injected via a
+ * malicious data value could try to smuggle a forbidden keyword past the
+ * `FORBIDDEN_SQL` regex by splitting it with one, e.g. inserting a zero-width
+ * space between "DR" and "OP" so `\bdrop\b` never matches across the gap.
+ * Stripping them before every other check only narrows toward the real
+ * statement; it can never turn an unsafe statement into a "safe" one. Written
+ * as explicit `\u` escapes (never literal invisible characters) so the source
+ * stays diff-safe — see project memory on NUL-byte/invisible-char git traps.
  */
+const INVISIBLE_CHARS = /[\u200B-\u200D\u2060\uFEFF]/g;
+
 /**
  * Strip the wrapping the 1.5B model frequently adds around SQL — markdown code
  * fences, leading `--`/block comments, and trailing semicolons — so a valid
@@ -194,7 +203,7 @@ const FORBIDDEN_SQL =
  * is permitted.
  */
 export function sanitizeSql(sql: string): string {
-  let s = sql.trim();
+  let s = sql.replace(INVISIBLE_CHARS, "").trim();
   const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
   if (fence?.[1]) s = fence[1].trim();
   s = s.replace(/^(\s*(?:--[^\n]*\n|\/\*[\s\S]*?\*\/)\s*)+/i, "").trim();
@@ -202,6 +211,11 @@ export function sanitizeSql(sql: string): string {
   return s;
 }
 
+/**
+ * Assert an AI-written statement is a single read-only SELECT/WITH. DuckDB is
+ * opened read-only too, but this fails fast with a clear message and keeps the
+ * model honest. NOT a heuristic answer path — purely a safety assertion.
+ */
 export function assertReadOnlySql(sql: string): string {
   const trimmed = sanitizeSql(sql);
   if (!/^\s*(select|with)\b/i.test(trimmed)) {

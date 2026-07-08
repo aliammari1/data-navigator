@@ -48,7 +48,7 @@ export const HypothesisSchema = z.object({
 
 export type Hypothesis = z.infer<typeof HypothesisSchema>;
 
-const SYSTEM_PROMPT =
+export const SYSTEM_PROMPT =
   "You are a financial data reconciliation analyst. Given an expected-vs-actual " +
   "variance for a single key, choose the single most likely reason code and " +
   "write one concise paragraph explaining the most plausible cause. Be specific " +

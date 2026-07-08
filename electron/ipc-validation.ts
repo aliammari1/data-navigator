@@ -118,14 +118,113 @@ export const LlamaEnsureModelSchema = z.object({ file: z.string().max(512).optio
 
 // ─── Offline model download channels ──────────────────────────────────────────
 export const RequestIdSchema = z.string().min(1).max(512);
-export const ModelKeySchema = z.string().min(1).max(256);
+// Allowlist, not a free-form string: mirrors MODEL_DOWNLOADS' keys in
+// electron/model-download-service.ts (that module imports `electron`, so it
+// can't be imported here — this file is deliberately electron-free, see the
+// module doc comment above). Keep these two keys in sync with that array.
+export const ModelKeySchema = z.enum(["gemma-4-e4b-it-q4_k_m", "granite-4.1-3b-instruct-q4_k_m"]);
 export const ModelDownloadSchema = z.object({ key: ModelKeySchema, requestId });
+
+// ─── Moudir chat history channels ─────────────────────────────────────────────
+const conversationId = z.string().min(1).max(128);
+/** Message parts are renderer-owned JSON; bound serialized size (local-DoS cap). */
+const messageParts = z
+  .unknown()
+  .optional()
+  .refine((v) => v === undefined || JSON.stringify(v).length <= 2_000_000, {
+    message: "parts too large",
+  });
+
+export const ChatCreateConversationSchema = z.object({
+  id: conversationId,
+  title: z.string().min(1).max(300),
+  datasetId: z.string().max(512).nullish(),
+  model: z.string().max(300).nullish(),
+});
+
+export const ChatListConversationsSchema = z
+  .object({
+    limit: z.number().optional(),
+    search: z.string().max(500).optional(),
+  })
+  .optional();
+
+export const ChatRenameSchema = z.object({
+  id: conversationId,
+  title: z.string().min(1).max(300),
+});
+
+export const ChatPinSchema = z.object({ id: conversationId, pinned: z.boolean() });
+
+export const ChatConversationIdSchema = z.object({ id: conversationId });
+
+export const ChatAppendMessageSchema = z.object({
+  conversationId,
+  role: z.enum(["user", "assistant", "tool"]),
+  content: z.string().max(MAX_PROMPT_CHARS),
+  parts: messageParts,
+});
+
+export const ChatGetMessagesSchema = z.object({
+  conversationId,
+  limit: z.number().optional(),
+});
+
+// ─── Moudir chat session runtime channels (live LlamaChatSession) ─────────────
+// History rows only need role + content for model-side rehydration (`parts`
+// stays a renderer/chat.db concern); the array cap mirrors chat-store's
+// getMessages ceiling.
+
+export const ChatOpenSchema = z.object({
+  conversationId,
+  modelFile: z.string().max(512).optional(),
+  systemPrompt: z.string().max(32_000).optional(),
+  history: z
+    .array(
+      z.object({
+        role: z.enum(["user", "assistant", "tool"]),
+        content: z.string().max(MAX_PROMPT_CHARS),
+      }),
+    )
+    .max(2000)
+    .optional(),
+});
+
+export const ChatPromptSchema = z.object({
+  conversationId,
+  text: z.string().min(1).max(MAX_PROMPT_CHARS),
+  requestId,
+});
+
+export const ChatPreloadSchema = z.object({
+  conversationId,
+  text: z.string().min(1).max(MAX_PROMPT_CHARS),
+});
+
+export const ChatSessionIdSchema = z.object({ conversationId });
+
+// ─── Clipboard image channel ──────────────────────────────────────────────────
+// PNG data URL from a chart export, written to the OS clipboard as a native
+// image. Cap the base64 payload (a 30 MB data URL is already a very large
+// export) and require the `data:image/` prefix so only image URLs reach
+// `nativeImage.createFromDataURL`.
+const MAX_CLIPBOARD_IMAGE_CHARS = 30_000_000;
+export const ClipboardImageSchema = z.object({
+  dataUrl: z
+    .string()
+    .min(1)
+    .max(MAX_CLIPBOARD_IMAGE_CHARS)
+    .refine((value) => value.startsWith("data:image/"), {
+      message: "must be a data:image/ URL",
+    }),
+});
 
 // ─── LAN collaboration hub ────────────────────────────────────────────────────
 export const CollabStartSchema = z
   .object({
     port: z.number().int().min(0).max(65535).optional(),
     pairingCode: z.string().max(256).optional(),
+    guestCode: z.string().max(256).optional(),
     room: z.string().max(256).optional(),
     advertise: z.boolean().optional(),
     discover: z.boolean().optional(),

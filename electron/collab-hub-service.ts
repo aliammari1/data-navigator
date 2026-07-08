@@ -25,13 +25,15 @@
 import os from "node:os";
 import path from "node:path";
 import { app } from "electron";
-import { generatePairingCode, pairingCodesMatch } from "./collab-pairing";
+import { deriveRoleFromCodes, generatePairingCode, parseCollabToken } from "./collab-pairing";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export type CollabHubStartInput = {
   port?: number;
   pairingCode?: string;
+  /** Read-only guest code. Generated when omitted. */
+  guestCode?: string;
   room?: string;
   /** Advertise this hub over mDNS so peers can auto-discover it. */
   advertise?: boolean;
@@ -43,6 +45,8 @@ export type CollabHubStatus = {
   running: boolean;
   port: number | null;
   pairingCode: string | null;
+  /** Share this one with view-only guests — it can never grant write access. */
+  guestCode: string | null;
   room: string | null;
   advertising: boolean;
   discovering: boolean;
@@ -108,6 +112,7 @@ let browser: BonjourBrowser | null = null;
 
 let activePort: number | null = null;
 let activePairingCode: string | null = null;
+let activeGuestCode: string | null = null;
 let activeRoom: string | null = null;
 let startedAt: string | null = null;
 let dbPath: string | null = null;
@@ -176,6 +181,7 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
 
   const port = input.port ?? DEFAULT_PORT;
   const pairingCode = input.pairingCode?.trim() || generatePairingCode();
+  const guestCode = input.guestCode?.trim() || generatePairingCode();
   const room = input.room ?? "telecom-default";
 
   const { Server } = (await import("@hocuspocus/server")) as {
@@ -189,32 +195,58 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
   await fs.mkdir(dataDir(), { recursive: true });
   dbPath = path.join(dataDir(), "collab-hub.sqlite");
 
+  interface HubContext {
+    role: string;
+    peerId?: string;
+    peerName?: string;
+  }
+
   const instance = new Server({
     name: HUB_NAME,
     port,
     quiet: true,
+    // DoS hardening: cap frame size well below the crossws default.
+    websocketOptions: { maxPayload: 64 * 1024 * 1024 },
     extensions: [new SQLite({ database: dbPath })],
 
-    // v4: payload is web-standard. Read query params via URLSearchParams.get.
-    // Pairing-code gate = the existing lan-server.mjs contract.
+    // Token-based auth (Hocuspocus Auth frame — the code never rides the URL,
+    // so it cannot leak into HTTP/proxy logs). The token is a JSON envelope
+    // {code, peerId, peerName, role}; which CODE matches decides the role:
+    // pairing code → requested role, guest code → read-only viewer/reviewer.
     async onAuthenticate(payload: {
+      token: string;
       requestParameters: URLSearchParams;
-      connection: { readOnly: boolean };
+      connectionConfig: { readOnly: boolean; isAuthenticated: boolean };
       documentName: string;
+    }): Promise<HubContext> {
+      const parsed = parseCollabToken(payload.token);
+      // Legacy fallback: pre-token clients sent the code as a query param.
+      const presented = parsed.code || payload.requestParameters.get("pairingCode");
+      const requestedRole = parsed.role ?? payload.requestParameters.get("role");
+      const access = deriveRoleFromCodes({ pairingCode, guestCode }, presented, requestedRole);
+      if (!access) {
+        throw new Error("Invalid access code");
+      }
+      // Server-side enforcement: read-only connections cannot mutate the doc
+      // (MessageReceiver drops their sync updates), whatever the client claims.
+      payload.connectionConfig.readOnly = access.readOnly;
+      return { role: access.role, peerId: parsed.peerId, peerName: parsed.peerName };
+    },
+
+    // Anti-spoofing: awareness is client-asserted, so stamp the SERVER-derived
+    // role onto every presence state this connection broadcasts. A guest can
+    // rename themselves, but can never present as host/editor to peers.
+    async beforeHandleAwareness(payload: {
+      context: HubContext | undefined;
+      states: Map<number, Record<string, unknown>>;
     }) {
-      // Fail-closed, constant-time pairing-code check (see collab-pairing.ts):
-      // a missing/empty/wrong code is rejected, and the comparison does not leak
-      // via timing how many leading digits matched.
-      const code = payload.requestParameters.get("pairingCode");
-      if (!pairingCodesMatch(pairingCode, code)) {
-        throw new Error("Invalid pairing code");
+      if (!payload.context) return;
+      for (const state of payload.states.values()) {
+        const user = state.user as Record<string, unknown> | undefined;
+        if (user && typeof user === "object") {
+          user.role = payload.context.role;
+        }
       }
-      const role = payload.requestParameters.get("role");
-      // Server-side role enforcement: read-only roles cannot mutate the doc.
-      if (role === "viewer" || role === "reviewer") {
-        payload.connection.readOnly = true;
-      }
-      return { role, documentName: payload.documentName };
     },
 
     async onListen() {
@@ -228,6 +260,7 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
   server = instance;
   activePort = port;
   activePairingCode = pairingCode;
+  activeGuestCode = guestCode;
   activeRoom = room;
   startedAt = new Date().toISOString();
 
@@ -254,6 +287,7 @@ export async function stop(): Promise<{ stopped: boolean }> {
 
   activePort = null;
   activePairingCode = null;
+  activeGuestCode = null;
   activeRoom = null;
   startedAt = null;
   dbPath = null;
@@ -266,6 +300,7 @@ export function status(): CollabHubStatus {
     running: server !== null,
     port: activePort,
     pairingCode: activePairingCode,
+    guestCode: activeGuestCode,
     room: activeRoom,
     advertising: publishedService !== null,
     discovering: browser !== null,

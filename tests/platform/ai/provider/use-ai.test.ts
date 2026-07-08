@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 
 // ─── Mock the Zustand store so we control every piece of state/actions ─────────
@@ -9,20 +9,29 @@ vi.mock("@/platform/ai/provider/store", () => ({
   useAIRuntimeStore: vi.fn(),
 }));
 
+import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
+import { useAIRuntimeStore } from "@/platform/ai/provider/store";
 // ─── Import target AFTER mocks ─────────────────────────────────────────────────
 import { useAI } from "@/platform/ai/provider/use-ai";
-import { useAIRuntimeStore } from "@/platform/ai/provider/store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 /** Build a minimal fake AIProvider. */
-function makeProvider(overrides: Partial<{
-  id: string;
-  listModels: () => Promise<{ id: string }[]>;
-  ensureReady: (...args: unknown[]) => Promise<void>;
-  generate: (...args: unknown[]) => Promise<{ text: string; model: string; provider: string; finishReason?: string; elapsedMs?: number }>;
-  generateStructured: (...args: unknown[]) => Promise<unknown>;
-}> = {}) {
+function makeProvider(
+  overrides: Partial<{
+    id: string;
+    listModels: () => Promise<{ id: string }[]>;
+    ensureReady: (...args: unknown[]) => Promise<void>;
+    generate: (...args: unknown[]) => Promise<{
+      text: string;
+      model: string;
+      provider: string;
+      finishReason?: string;
+      elapsedMs?: number;
+    }>;
+    generateStructured: (...args: unknown[]) => Promise<unknown>;
+  }> = {},
+) {
   return {
     id: "llamacpp",
     label: "llama.cpp",
@@ -43,18 +52,20 @@ function makeProvider(overrides: Partial<{
 }
 
 /** Build the default store return value. */
-function makeStoreState(overrides: Partial<{
-  providerId: string | null;
-  model: string | null;
-  progress: { status: string; progress: number };
-  availability: { id: string; label: string; available: boolean }[];
-  detecting: boolean;
-  setProvider: (id: string) => void;
-  setModel: (model: string) => void;
-  setProgress: (p: { status: string; progress: number }) => void;
-  refreshAvailability: () => Promise<void>;
-  resolveProvider: () => Promise<ReturnType<typeof makeProvider>>;
-}> = {}) {
+function makeStoreState(
+  overrides: Partial<{
+    providerId: string | null;
+    model: string | null;
+    progress: { status: string; progress: number };
+    availability: { id: string; label: string; available: boolean }[];
+    detecting: boolean;
+    setProvider: (id: string) => void;
+    setModel: (model: string) => void;
+    setProgress: (p: { status: string; progress: number }) => void;
+    refreshAvailability: () => Promise<void>;
+    resolveProvider: () => Promise<ReturnType<typeof makeProvider>>;
+  }> = {},
+) {
   const provider = makeProvider();
   return {
     providerId: "llamacpp" as string | null,
@@ -73,6 +84,7 @@ function makeStoreState(overrides: Partial<{
 
 beforeEach(() => {
   vi.clearAllMocks();
+  useModelRequiredDialogStore.setState({ open: false, reason: null });
 });
 
 // ─── Return value shape ────────────────────────────────────────────────────────
@@ -102,14 +114,14 @@ describe("useAI return value shape", () => {
 
   it("forwards providerId from the store", () => {
     // Arrange
-    const state = makeStoreState({ providerId: "ollama" });
+    const state = makeStoreState({ providerId: "llamacpp" });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
     const { result } = renderHook(() => useAI());
 
     // Assert
-    expect(result.current.providerId).toBe("ollama");
+    expect(result.current.providerId).toBe("llamacpp");
   });
 
   it("forwards model from the store", () => {
@@ -263,7 +275,10 @@ describe("useAI.ensureReady", () => {
   it("resolves the provider and returns { provider, model } using the store model", async () => {
     // Arrange
     const provider = makeProvider({ id: "llamacpp" });
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -281,7 +296,10 @@ describe("useAI.ensureReady", () => {
   it("uses the overrideModel argument when provided", async () => {
     // Arrange
     const provider = makeProvider();
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -300,7 +318,10 @@ describe("useAI.ensureReady", () => {
     const provider = makeProvider({
       listModels: vi.fn().mockResolvedValue([{ id: "first-from-list" }, { id: "second" }]),
     });
-    const state = makeStoreState({ model: null, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: null,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -319,7 +340,10 @@ describe("useAI.ensureReady", () => {
     const provider = makeProvider({
       listModels: vi.fn().mockResolvedValue([]),
     });
-    const state = makeStoreState({ model: null, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: null,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -340,8 +364,11 @@ describe("useAI.ensureReady", () => {
 
   it("includes the provider id in the error message when no model available", async () => {
     // Arrange
-    const provider = makeProvider({ id: "ollama", listModels: vi.fn().mockResolvedValue([]) });
-    const state = makeStoreState({ model: null, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({ id: "llamacpp", listModels: vi.fn().mockResolvedValue([]) });
+    const state = makeStoreState({
+      model: null,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -356,14 +383,17 @@ describe("useAI.ensureReady", () => {
     });
 
     // Assert
-    expect((thrownError as Error).message).toContain("ollama");
+    expect((thrownError as Error).message).toContain("llamacpp");
   });
 
   it("calls provider.ensureReady with the resolved model", async () => {
     // Arrange
     const ensureReady = vi.fn().mockResolvedValue(undefined);
     const provider = makeProvider({ ensureReady });
-    const state = makeStoreState({ model: "chosen-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "chosen-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -380,7 +410,10 @@ describe("useAI.ensureReady", () => {
     // Arrange
     const ensureReady = vi.fn().mockResolvedValue(undefined);
     const provider = makeProvider({ ensureReady });
-    const state = makeStoreState({ model: "m", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "m",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
     const controller = new AbortController();
 
@@ -395,14 +428,76 @@ describe("useAI.ensureReady", () => {
   });
 });
 
+// ─── ensureReady — model unavailable ───────────────────────────────────────────
+
+describe("useAI.ensureReady — model unavailable", () => {
+  it("shows the model-required dialog and throws instead of calling provider.ensureReady", async () => {
+    // Arrange
+    const ensureReadyFn = vi.fn().mockResolvedValue(undefined);
+    const provider = makeProvider({
+      isAvailable: vi.fn().mockResolvedValue(false),
+      ensureReady: ensureReadyFn,
+    });
+    const state = makeStoreState({
+      model: "chosen-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
+    vi.mocked(useAIRuntimeStore).mockReturnValue(state);
+
+    // Act
+    const { result } = renderHook(() => useAI());
+    let thrownError: unknown;
+    await act(async () => {
+      try {
+        await result.current.ensureReady();
+      } catch (e) {
+        thrownError = e;
+      }
+    });
+
+    // Assert
+    expect(thrownError).toBeInstanceOf(Error);
+    expect(ensureReadyFn).not.toHaveBeenCalled();
+    expect(useModelRequiredDialogStore.getState().open).toBe(true);
+  });
+
+  it("does not show the dialog or throw when the model is available", async () => {
+    // Arrange
+    const provider = makeProvider({ isAvailable: vi.fn().mockResolvedValue(true) });
+    const state = makeStoreState({
+      model: "chosen-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
+    vi.mocked(useAIRuntimeStore).mockReturnValue(state);
+
+    // Act
+    const { result } = renderHook(() => useAI());
+    await act(async () => {
+      await result.current.ensureReady();
+    });
+
+    // Assert
+    expect(useModelRequiredDialogStore.getState().open).toBe(false);
+  });
+});
+
 // ─── generate ─────────────────────────────────────────────────────────────────
 
 describe("useAI.generate", () => {
   it("returns the result from provider.generate", async () => {
     // Arrange
-    const expectedResult = { text: "gen output", model: "model-a", provider: "llamacpp", finishReason: "stop", elapsedMs: 10 };
+    const expectedResult = {
+      text: "gen output",
+      model: "model-a",
+      provider: "llamacpp",
+      finishReason: "stop",
+      elapsedMs: 10,
+    };
     const provider = makeProvider({ generate: vi.fn().mockResolvedValue(expectedResult) });
-    const state = makeStoreState({ model: "model-a", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "model-a",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -422,8 +517,14 @@ describe("useAI.generate", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generate: vi.fn().mockResolvedValue({ text: "ok", model: "m", provider: "llamacpp" }) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generate: vi.fn().mockResolvedValue({ text: "ok", model: "m", provider: "llamacpp" }),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -444,8 +545,14 @@ describe("useAI.generate", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generate: vi.fn().mockResolvedValue({ text: "ok", model: "m", provider: "llamacpp" }) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generate: vi.fn().mockResolvedValue({ text: "ok", model: "m", provider: "llamacpp" }),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -466,8 +573,14 @@ describe("useAI.generate", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generate: vi.fn().mockRejectedValue(new Error("generate failed")) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generate: vi.fn().mockRejectedValue(new Error("generate failed")),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -491,7 +604,10 @@ describe("useAI.generate", () => {
     // Arrange
     const generateFn = vi.fn().mockResolvedValue({ text: "ok", model: "m", provider: "llamacpp" });
     const provider = makeProvider({ generate: generateFn });
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -509,9 +625,14 @@ describe("useAI.generate", () => {
 
   it("overrides the model in the request when req.model is provided", async () => {
     // Arrange
-    const generateFn = vi.fn().mockResolvedValue({ text: "ok", model: "custom", provider: "llamacpp" });
+    const generateFn = vi
+      .fn()
+      .mockResolvedValue({ text: "ok", model: "custom", provider: "llamacpp" });
     const provider = makeProvider({ generate: generateFn });
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -528,7 +649,10 @@ describe("useAI.generate", () => {
     // Arrange
     const ensureReady = vi.fn().mockResolvedValue(undefined);
     const provider = makeProvider({ ensureReady });
-    const state = makeStoreState({ model: "m", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "m",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
     const controller = new AbortController();
 
@@ -554,7 +678,10 @@ describe("useAI.generateStructured", () => {
     const provider = makeProvider({
       generateStructured: vi.fn().mockResolvedValue(expectedResult),
     });
-    const state = makeStoreState({ model: "model-a", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "model-a",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -574,8 +701,14 @@ describe("useAI.generateStructured", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generateStructured: vi.fn().mockResolvedValue({ name: "Bob", age: 25 }) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generateStructured: vi.fn().mockResolvedValue({ name: "Bob", age: 25 }),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -596,8 +729,14 @@ describe("useAI.generateStructured", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generateStructured: vi.fn().mockResolvedValue({ name: "Bob", age: 25 }) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generateStructured: vi.fn().mockResolvedValue({ name: "Bob", age: 25 }),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -618,8 +757,14 @@ describe("useAI.generateStructured", () => {
     const calls: { status: string; progress: number }[] = [];
     setProgress.mockImplementation((p: { status: string; progress: number }) => calls.push(p));
 
-    const provider = makeProvider({ generateStructured: vi.fn().mockRejectedValue(new Error("structured failed")) });
-    const state = makeStoreState({ model: "m", setProgress, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      generateStructured: vi.fn().mockRejectedValue(new Error("structured failed")),
+    });
+    const state = makeStoreState({
+      model: "m",
+      setProgress,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -643,13 +788,19 @@ describe("useAI.generateStructured", () => {
     // Arrange
     const generateStructuredFn = vi.fn().mockResolvedValue({ name: "Carol", age: 20 });
     const provider = makeProvider({ generateStructured: generateStructuredFn });
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
     const { result } = renderHook(() => useAI());
     await act(async () => {
-      await result.current.generateStructured({ prompt: "get carol", system: "be precise" }, PersonSchema);
+      await result.current.generateStructured(
+        { prompt: "get carol", system: "be precise" },
+        PersonSchema,
+      );
     });
 
     // Assert
@@ -663,7 +814,10 @@ describe("useAI.generateStructured", () => {
     // Arrange
     const generateStructuredFn = vi.fn().mockResolvedValue({ name: "Dave", age: 40 });
     const provider = makeProvider({ generateStructured: generateStructuredFn });
-    const state = makeStoreState({ model: "m", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "m",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -680,13 +834,19 @@ describe("useAI.generateStructured", () => {
     // Arrange
     const generateStructuredFn = vi.fn().mockResolvedValue({ name: "Eve", age: 28 });
     const provider = makeProvider({ generateStructured: generateStructuredFn });
-    const state = makeStoreState({ model: "store-model", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: "store-model",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
     const { result } = renderHook(() => useAI());
     await act(async () => {
-      await result.current.generateStructured({ prompt: "get", model: "override-model" }, PersonSchema);
+      await result.current.generateStructured(
+        { prompt: "get", model: "override-model" },
+        PersonSchema,
+      );
     });
 
     // Assert
@@ -696,15 +856,24 @@ describe("useAI.generateStructured", () => {
   it("passes the AbortSignal from the request to ensureReady for generateStructured", async () => {
     // Arrange
     const ensureReady = vi.fn().mockResolvedValue(undefined);
-    const provider = makeProvider({ ensureReady, generateStructured: vi.fn().mockResolvedValue({ name: "F", age: 1 }) });
-    const state = makeStoreState({ model: "m", resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const provider = makeProvider({
+      ensureReady,
+      generateStructured: vi.fn().mockResolvedValue({ name: "F", age: 1 }),
+    });
+    const state = makeStoreState({
+      model: "m",
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
     const controller = new AbortController();
 
     // Act
     const { result } = renderHook(() => useAI());
     await act(async () => {
-      await result.current.generateStructured({ prompt: "hi", signal: controller.signal }, PersonSchema);
+      await result.current.generateStructured(
+        { prompt: "hi", signal: controller.signal },
+        PersonSchema,
+      );
     });
 
     // Assert
@@ -718,7 +887,10 @@ describe("useAI edge cases", () => {
   it("throws from generate when ensureReady throws (no model error)", async () => {
     // Arrange
     const provider = makeProvider({ listModels: vi.fn().mockResolvedValue([]) });
-    const state = makeStoreState({ model: null, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: null,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
 
     // Act
@@ -740,7 +912,10 @@ describe("useAI edge cases", () => {
   it("throws from generateStructured when ensureReady throws (no model error)", async () => {
     // Arrange
     const provider = makeProvider({ listModels: vi.fn().mockResolvedValue([]) });
-    const state = makeStoreState({ model: null, resolveProvider: vi.fn().mockResolvedValue(provider) });
+    const state = makeStoreState({
+      model: null,
+      resolveProvider: vi.fn().mockResolvedValue(provider),
+    });
     vi.mocked(useAIRuntimeStore).mockReturnValue(state);
     const schema = z.object({ x: z.string() });
 

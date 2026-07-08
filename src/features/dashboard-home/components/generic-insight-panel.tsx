@@ -14,12 +14,12 @@
 import { Lightbulb, ListChecks, Loader2, ShieldAlert, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { GenericOverview } from "@/features/dashboard-home/lib/generic-overview";
 import {
   buildDatasetInsightPrompt,
   type DatasetInsight,
   DatasetInsightSchema,
 } from "@/features/dashboard-home/lib/insight-prompt";
-import type { GenericOverview } from "@/features/dashboard-home/lib/generic-overview";
 import { useAI } from "@/platform/ai/provider";
 
 type PanelState =
@@ -68,12 +68,12 @@ export function GenericInsightPanel({
     <section className="rounded-2xl border border-border bg-card">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
         <div className="flex items-center gap-2.5">
-          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-linear-to-br from-amber-500 to-orange-500 text-white">
-            <Sparkles className="h-3.5 w-3.5" />
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg border border-ai/25 bg-ai/10 text-ai">
+            <Sparkles className="h-3.5 w-3.5" aria-hidden="true" />
           </div>
           <div className="min-w-0">
             <h3 className="text-sm font-semibold text-foreground">Analyse IA du dataset</h3>
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Résumé local généré à partir du profil DuckDB
             </p>
           </div>
@@ -134,21 +134,21 @@ function InsightBody({ insight }: { insight: DatasetInsight }) {
       <p className="text-sm font-medium leading-snug text-foreground">{insight.headline}</p>
 
       <InsightList
-        icon={<Lightbulb className="h-3.5 w-3.5 text-amber-500" />}
+        icon={<Lightbulb className="h-3.5 w-3.5 text-primary" aria-hidden="true" />}
         title="Observations"
         items={insight.observations}
       />
 
       {insight.dataQualityFlags.length > 0 && (
         <InsightList
-          icon={<ShieldAlert className="h-3.5 w-3.5 text-rose-500" />}
+          icon={<ShieldAlert className="h-3.5 w-3.5 text-warning" aria-hidden="true" />}
           title="Qualité des données"
           items={insight.dataQualityFlags}
         />
       )}
 
       <InsightList
-        icon={<ListChecks className="h-3.5 w-3.5 text-emerald-500" />}
+        icon={<ListChecks className="h-3.5 w-3.5 text-positive" aria-hidden="true" />}
         title="Étapes suivantes"
         items={insight.suggestedNextSteps}
       />
@@ -167,7 +167,7 @@ function InsightList({
 }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+      <div className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted-foreground">
         {icon}
         {title}
       </div>

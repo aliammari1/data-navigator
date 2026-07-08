@@ -6,12 +6,10 @@
  * Single persistent settings layer for the full voice-agent stack.
  *
  * Used by:
- * - voice-button.tsx
+ * - use-moudir-voice.ts
  * - voice-vad-service.ts
  * - voice-stt-worker.ts
  * - voice-tts-worker.ts
- * - voice-settings-panel.tsx
- * - voice-debug-panel.tsx
  *
  * Storage:
  * - Drizzle app_setting row: namespace="voice", key="settings"
@@ -253,8 +251,7 @@ export type SttEngineLegacy =
   | "whisper-base"
   | "whisper-small"
   | "whisper-multilingual"
-  | "whisper-tunisian"
-  | "moonshine";
+  | "whisper-tunisian";
 
 export type VoiceLanguageHintLegacy = VoiceLanguageHint | "tounsi" | "ar-SA" | "fr-FR" | "en-US";
 
@@ -487,7 +484,7 @@ function normalizeTtsVoice(value: unknown): string {
 }
 
 function normalizeLegacyLanguageHint(value: unknown): VoiceLanguageHint {
-  if (value === "tounsi" || value === "ar-TN") return "ar-TN";
+  if (value === "tounsi" || value === "ar-TN") return "ar";
   if (value === "ar-SA") return "ar";
   if (value === "fr-FR") return "fr";
   if (value === "en-US") return "en";

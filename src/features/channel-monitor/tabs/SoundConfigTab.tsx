@@ -1,16 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { cn } from "@/shared/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { playSoundAlert, unlockAudio } from "../lib/audio";
-import {
-  notificationPermission,
-  type NotificationPermissionState,
-  requestNotificationPermission,
-} from "../lib/notify";
+import { notificationPermission, type NotificationPermissionState } from "../lib/notify";
 import { VirtualNotificationList } from "../components/VirtualNotificationList";
 import { useMonitorStore } from "../store/monitor-store";
 import type { AlertSeverity } from "../store/monitor-store";
@@ -115,7 +112,7 @@ export function SoundConfigTab() {
         </CardContent>
       </Card>
 
-      {/* OS notifications */}
+      {/* OS notifications — enable control lives in Settings > Notifications */}
       <Card className="bg-slate-900/80 border-slate-800">
         <CardHeader>
           <CardTitle className="text-slate-100 text-base">Desktop Notifications</CardTitle>
@@ -141,15 +138,8 @@ export function SoundConfigTab() {
               </span>
             </div>
           </div>
-          <Button
-            size="sm"
-            variant="outline"
-            disabled={
-              permission === "granted" || permission === "denied" || permission === "unsupported"
-            }
-            onClick={async () => setPermission(await requestNotificationPermission())}
-          >
-            {permission === "granted" ? "Enabled" : "Enable"}
+          <Button size="sm" variant="outline" asChild>
+            <Link href="/dashboard/settings?tab=notifications">Manage in Settings</Link>
           </Button>
         </CardContent>
       </Card>

@@ -37,6 +37,7 @@ vi.mock("@/platform/ai/provider", () => ({
 import {
   REASON_CODES,
   HypothesisSchema,
+  SYSTEM_PROMPT,
   useHypotheses,
   type HypothesisProgress,
   type ReasonCode,
@@ -83,6 +84,13 @@ function makeHypothesisResult(reasonCode: ReasonCode = "Human Error") {
 // ---------------------------------------------------------------------------
 
 describe("REASON_CODES", () => {
+  /**
+   * This is a business-domain classification (which reason codes a
+   * reconciliation analyst can choose from), not computed logic — a unit test
+   * can pin the reviewed set and catch accidental drift, but can't prove the
+   * set is complete for every real analyst need (that's a product/domain
+   * decision, tracked wherever this list's requirements live, not here).
+   */
   it("exports the canonical 7-element tuple", () => {
     // Verify the full set so callers relying on this list don't silently drift.
     expect(REASON_CODES).toHaveLength(7);
@@ -92,6 +100,19 @@ describe("REASON_CODES", () => {
     expect(REASON_CODES).toContain("Pricing Change");
     expect(REASON_CODES).toContain("Campaign Effect");
     expect(REASON_CODES).toContain("Timing / Cutoff");
+    expect(REASON_CODES).toContain("Unknown");
+  });
+
+  it("has no duplicate reason codes", () => {
+    // Independent structural invariant: catches an accidental copy-paste
+    // duplicate silently eating one of the 7 intended distinct codes.
+    expect(new Set(REASON_CODES).size).toBe(REASON_CODES.length);
+  });
+
+  it("includes a catch-all 'Unknown' code so every hypothesis has a valid fallback", () => {
+    // z.enum(REASON_CODES) grammar-constrains the model's output — if "Unknown"
+    // were ever removed, there would be no valid code for a genuinely unclear
+    // case, and the model would be forced to guess among the specific reasons.
     expect(REASON_CODES).toContain("Unknown");
   });
 });
@@ -437,8 +458,10 @@ describe("useHypotheses", () => {
     expect(mockGenerateStructured).toHaveBeenCalledTimes(1);
     const [req, schema] = mockGenerateStructured.mock.calls[0];
 
-    // System prompt must mention "reconciliation".
-    expect(req.system).toContain("reconciliation");
+    // Exact system prompt, not a substring keyword check — a substring check
+    // could only ever catch removal of one word ("reconciliation") and would
+    // miss any other degradation of the analyst instructions.
+    expect(req.system).toBe(SYSTEM_PROMPT);
     // Prompt must reference the row key.
     expect(req.prompt).toContain("USSD");
     // Temperature and maxTokens must be set.

@@ -23,7 +23,7 @@ import {
   type Annotation,
 } from "../hooks/useAnnotations";
 import { currentUserName } from "../collab/collab-hub-crdt";
-import { useCollabHubStore } from "../store/collab-hub-store";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 
 // ─── Color config ─────────────────────────────────────────────────────────────
 

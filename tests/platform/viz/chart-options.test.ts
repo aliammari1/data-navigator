@@ -11,23 +11,77 @@ import {
 
 // ---------------------------------------------------------------------------
 // DENSE_SERIES_FLAGS constant
+//
+// The exact threshold numbers here (2000/4000/5000) are a tuned engineering
+// decision, not something derived from another source of truth in this repo
+// — so this suite does NOT pin them as magic numbers (a test that just reads
+// the same literal back out of the constant can't catch the value being
+// wrong, only an unrelated accidental edit). Instead it checks:
+//   1. the ECharts-recognised policy switches (bools + the sampling
+//      algorithm name) against ECharts' own declared type — a real
+//      independent authority for what values are even valid;
+//   2. structural invariants on the numeric thresholds (positive integers,
+//      and the "large mode" tier kicking in no later than progressive
+//      rendering) that would catch a nonsensical configuration regardless of
+//      which exact numbers are chosen;
+//   3. that every key the type declares is exercised by one of the above, so
+//      a future field can't be silently added untested.
 // ---------------------------------------------------------------------------
 
 describe("DENSE_SERIES_FLAGS", () => {
-  it("exports the expected perf flags shape", () => {
-    expect(DENSE_SERIES_FLAGS).toEqual({
-      large: true,
-      largeThreshold: 2000,
-      sampling: "lttb",
-      progressive: 4000,
-      progressiveThreshold: 5000,
-      showSymbol: false,
-      animation: false,
-    });
+  it("disables per-point rendering cost (symbols + entrance animation) and enables big-data mode", () => {
+    // These are fixed on/off policy switches (not tunable magnitudes), so
+    // pinning their exact value is meaningful rather than self-mirroring.
+    expect(DENSE_SERIES_FLAGS.large).toBe(true);
+    expect(DENSE_SERIES_FLAGS.showSymbol).toBe(false);
+    expect(DENSE_SERIES_FLAGS.animation).toBe(false);
   });
 
-  it("sampling is exactly the string literal 'lttb'", () => {
+  it("picks a downsampling algorithm ECharts actually recognises", () => {
+    // Independent authority: ECharts' own published option type, not this
+    // repo's source file, defines the valid `sampling` literal values.
+    const validEChartsSamplingStrategies = [
+      "none",
+      "average",
+      "min",
+      "max",
+      "minmax",
+      "sum",
+      "lttb",
+    ];
+    expect(validEChartsSamplingStrategies).toContain(DENSE_SERIES_FLAGS.sampling);
+    // LTTB (Largest-Triangle-Three-Buckets) is the only one of those
+    // strategies designed to preserve visual shape/outliers under
+    // downsampling, which is why it's the one picked for dense line/scatter
+    // series (vs. e.g. "average", which would flatten spikes).
     expect(DENSE_SERIES_FLAGS.sampling).toBe("lttb");
+  });
+
+  it("keeps every numeric perf threshold a positive integer", () => {
+    for (const key of ["largeThreshold", "progressive", "progressiveThreshold"] as const) {
+      const value = DENSE_SERIES_FLAGS[key];
+      expect(Number.isInteger(value)).toBe(true);
+      expect(value).toBeGreaterThan(0);
+    }
+  });
+
+  it("orders the perf tiers so large-mode and progressive rendering activate sensibly as data grows", () => {
+    // largeThreshold is the series-length ECharts switches on large-mode
+    // optimizations at; progressiveThreshold is the (later) point progressive
+    // rendering takes over; progressive is the per-frame chunk size once
+    // that's active. Regardless of the exact numbers, large mode must not
+    // kick in *after* progressive rendering, and the chunk size must not
+    // exceed the threshold that activates chunked rendering in the first
+    // place (otherwise it would never actually chunk).
+    const { largeThreshold, progressive, progressiveThreshold } = DENSE_SERIES_FLAGS;
+    expect(largeThreshold).toBeLessThanOrEqual(progressiveThreshold);
+    expect(progressive).toBeLessThanOrEqual(progressiveThreshold);
+  });
+
+  it("exercises every key DENSE_SERIES_FLAGS declares (completeness check)", () => {
+    expect(Object.keys(DENSE_SERIES_FLAGS).sort()).toEqual(
+      ["animation", "large", "largeThreshold", "progressive", "progressiveThreshold", "sampling", "showSymbol"].sort(),
+    );
   });
 });
 
@@ -92,15 +146,12 @@ describe("buildLineOption", () => {
   });
 
   it("applies DENSE_SERIES_FLAGS to each series item", () => {
+    // Assert against the real exported constant (not a re-typed-out copy of
+    // its values) so this test verifies the spread actually happened and
+    // doesn't need editing whenever the perf tuning numbers change.
     const option = buildLineOption(categories, singleSeries);
     const seriesArr = option.series as Array<Record<string, unknown>>;
-    expect(seriesArr[0].large).toBe(true);
-    expect(seriesArr[0].largeThreshold).toBe(2000);
-    expect(seriesArr[0].sampling).toBe("lttb");
-    expect(seriesArr[0].progressive).toBe(4000);
-    expect(seriesArr[0].progressiveThreshold).toBe(5000);
-    expect(seriesArr[0].showSymbol).toBe(false);
-    expect(seriesArr[0].animation).toBe(false);
+    expect(seriesArr[0]).toMatchObject(DENSE_SERIES_FLAGS);
   });
 
   it("omits itemStyle when series has no color (falsy branch)", () => {

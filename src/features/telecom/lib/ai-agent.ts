@@ -201,7 +201,7 @@ export type AgentIntent =
  * via grammar-constrained decoding, no regex parsing of an "INTENT:" suffix is
  * needed — the action is a real, validated field.
  */
-const AgentAnswerSchema = z.object({
+export const AgentAnswerSchema = z.object({
   reply: z.string(),
   action: z
     .enum([
@@ -239,13 +239,17 @@ function actionToIntent(action: AgentAnswerJson["action"]): AgentIntent | null {
   }
 }
 
-const SYSTEM = `Tu es l'agent télécom d'un dashboard de recharges. Tu as accès aux KPI agrégés.
+export const AGENT_SYSTEM_PROMPT = `Tu es l'agent télécom d'un dashboard de recharges. Tu as accès aux KPI agrégés.
 - Réponds en français, court (<= 4 phrases) dans le champ "reply".
 - N'invente jamais de chiffres. Cite uniquement ceux fournis.
 - Si l'utilisateur demande une action UI possible, renseigne le champ "action"
   avec l'une des valeurs: show_anomalies, show_top_accounts_amount,
   show_top_accounts_count, show_sub_status, compare_periods, show_brands,
   explain_kpi. Sinon, mets "none".`;
+
+/** System prompt for {@link generateNarrative}'s executive-summary call. */
+export const NARRATIVE_SYSTEM_PROMPT =
+  "Tu es l'analyste télécom. Rédige un résumé exécutif (4 phrases max) en français, fondé uniquement sur les chiffres fournis.";
 
 function summarizeContext(ctx: AgentContext): string {
   const k = ctx.kpi;
@@ -292,7 +296,7 @@ export async function askAgent(
   try {
     const json = await generateStructured(
       {
-        system: SYSTEM,
+        system: AGENT_SYSTEM_PROMPT,
         prompt: `Données :\n${summary}\n\nQuestion : ${question}`,
         maxTokens: 260,
         temperature: 0.05,
@@ -324,8 +328,7 @@ export async function generateNarrative(
   const summary = summarizeContext(ctx);
   try {
     const { text } = await generate({
-      system:
-        "Tu es l'analyste télécom. Rédige un résumé exécutif (4 phrases max) en français, fondé uniquement sur les chiffres fournis.",
+      system: NARRATIVE_SYSTEM_PROMPT,
       prompt: `Données :\n${summary}\n\nRédige.`,
       maxTokens: 220,
       temperature: 0.1,

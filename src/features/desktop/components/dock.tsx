@@ -12,6 +12,7 @@ import {
   FolderIcon,
   GitBranchIcon,
   LayoutGridIcon,
+  MessageCircleIcon,
   MicIcon,
   SettingsIcon,
   SparklesIcon,
@@ -20,6 +21,7 @@ import {
   UploadIcon,
   UsersIcon,
 } from "@animateicons/react/lucide";
+import { Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { type ComponentType, type Ref, useEffect, useRef, useState } from "react";
 import {
@@ -52,6 +54,7 @@ type AnimatedIcon = ComponentType<{
 const ANIMATED_ICONS: Record<string, AnimatedIcon> = {
   home: DashboardIcon,
   moudir: AtomIcon,
+  "moudir-chat": MessageCircleIcon,
   commander: MicIcon,
   "eye-tracking": EyeIcon,
   telecom: CreditCardIcon,
@@ -101,7 +104,8 @@ export function Dock() {
   const windows = useDesktopWindows();
   const recycleBin = useRecycleBin();
   const dockProgress = useDockProgress();
-  const { openApp, focusWindow, restoreWindow, toggleLauncher } = useDesktopActions();
+  const { openApp, focusWindow, restoreWindow, toggleLauncher, toggleSpotlight } =
+    useDesktopActions();
 
   // macOS fisheye magnify, keyed by the direct-child index of the pill row.
   const rowRef = useRef<HTMLDivElement>(null);
@@ -176,15 +180,22 @@ export function Dock() {
           </span>
         </DockItem>
 
-        {/* index 1 — divider */}
+        {/* index 1 — Search (Spotlight), same action as Ctrl/Cmd+K */}
+        <DockItem label="Rechercher (⌘K)" scale={scaleFor(1)} onClick={toggleSpotlight}>
+          <span className={TILE_CLASS}>
+            <Search size={ICON_PX - 4} />
+          </span>
+        </DockItem>
+
+        {/* index 2 — divider */}
         <div className="mx-1 h-8 w-px self-center bg-border" />
 
-        {/* indices 2 .. 2 + items.length - 1 — pinned + running apps */}
+        {/* indices 3 .. 3 + items.length - 1 — pinned + running apps */}
         {items.map((app, i) => (
           <DockAppButton
             key={app.id}
             app={app}
-            scale={scaleFor(2 + i)}
+            scale={scaleFor(3 + i)}
             running={topWinId.has(app.id)}
             progress={dockProgress[app.id]}
             appWindows={windowsByApp.get(app.id) ?? []}
@@ -199,7 +210,7 @@ export function Dock() {
         {/* last index — Trash */}
         <DockItem
           label={recycleBin.length ? `Corbeille (${recycleBin.length})` : "Corbeille"}
-          scale={scaleFor(items.length + 3)}
+          scale={scaleFor(items.length + 4)}
           onClick={() => openApp("recycle-bin")}
           onHoverStart={() => trashRef.current?.startAnimation()}
           onHoverEnd={() => trashRef.current?.stopAnimation()}

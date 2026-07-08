@@ -6,7 +6,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (sql: string) => runReadOnlyQuery(sql),
 }));
 
-import { runLookup } from "@/features/data-formulator/core/swarm/agents/lookup";
+import { lookupSchema, runLookup } from "@/features/data-formulator/core/swarm/agents/lookup";
 import type { SwarmContext } from "@/features/data-formulator/core/swarm/types";
 import type { ColumnInfo } from "@/features/data-formulator/core/types";
 import type { InferenceScheduler } from "@/features/data-formulator/core/swarm/scheduler";
@@ -24,7 +24,7 @@ function makeCtx(overrides: Partial<SwarmContext> = {}): SwarmContext {
     columns,
     rowSample: [],
     rowCount: 500,
-    model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+    model: "gemma-4-e4b-it-q4_k_m.gguf",
     ...overrides,
   };
 }
@@ -76,7 +76,7 @@ describe("runLookup", () => {
     expect(result.artifacts).toHaveLength(1);
     expect(result.artifacts[0].kind).toBe("table");
     expect(result.artifacts[0]).toMatchObject({ rows: [{ channel: "USSD", n: 3 }] });
-    expect(result.modelUsed).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(result.modelUsed).toBe("gemma-4-e4b-it-q4_k_m.gguf");
   });
 
   it("falls back to the headline as the goal when there is no user prompt", async () => {
@@ -157,12 +157,13 @@ describe("runLookup", () => {
     await runLookup(scheduler, makeCtx({ userPrompt: "How many rows?" }));
 
     const [req, schema] = generateStructured.mock.calls[0];
-    expect(req.model).toBe("qwen2.5-1.5b-instruct-q4_k_m.gguf");
+    expect(req.model).toBe("gemma-4-e4b-it-q4_k_m.gguf");
     expect(req.temperature).toBe(0);
     expect(req.system).toMatch(/direct data lookup/i);
     expect(req.prompt).toContain('DuckDB view (query this exact name): "tx_view"');
     expect(req.prompt).toContain("Question: How many rows?");
-    // The lookup schema is passed for grammar-constrained decoding.
-    expect(schema).toBeDefined();
+    // The exact lookup schema must be passed for grammar-constrained decoding —
+    // toBeDefined() would still pass if the wrong schema were wired in by mistake.
+    expect(schema).toBe(lookupSchema);
   });
 });

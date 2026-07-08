@@ -496,9 +496,9 @@ var require_lib = __commonJS({
   }
 });
 
-// node_modules/.pnpm/ml-matrix@6.12.2/node_modules/ml-matrix/matrix.js
+// node_modules/.pnpm/ml-matrix@6.13.0/node_modules/ml-matrix/matrix.js
 var require_matrix = __commonJS({
-  "node_modules/.pnpm/ml-matrix@6.12.2/node_modules/ml-matrix/matrix.js"(exports) {
+  "node_modules/.pnpm/ml-matrix@6.13.0/node_modules/ml-matrix/matrix.js"(exports) {
     "use strict";
     Object.defineProperty(exports, "__esModule", { value: true });
     var toString = Object.prototype.toString;
@@ -2389,6 +2389,60 @@ ${indentData}`);
         }
         return result;
       }
+      gram() {
+        const rows = this.rows;
+        const n = this.columns;
+        const gramData = new Float64Array(n * n);
+        for (let r = 0; r < rows; r++) {
+          for (let i = 0; i < n; i++) {
+            const value = this.get(r, i);
+            if (value === 0) continue;
+            const offset = i * n;
+            for (let j = i; j < n; j++) {
+              gramData[offset + j] += value * this.get(r, j);
+            }
+          }
+        }
+        const result = new Matrix3(n, n);
+        for (let i = 0; i < n; i++) {
+          const offset = i * n;
+          for (let j = i; j < n; j++) {
+            const value = gramData[offset + j];
+            result.set(i, j, value);
+            result.set(j, i, value);
+          }
+        }
+        return result;
+      }
+      mmulByTranspose(scale) {
+        let m = this.rows;
+        let n = this.columns;
+        if (scale !== void 0 && scale.length !== n) {
+          throw new RangeError("scale must have one value per column");
+        }
+        let result = new Matrix3(m, m);
+        let rowj = new Float64Array(n);
+        for (let j = 0; j < m; j++) {
+          if (scale === void 0) {
+            for (let k = 0; k < n; k++) {
+              rowj[k] = this.get(j, k);
+            }
+          } else {
+            for (let k = 0; k < n; k++) {
+              rowj[k] = scale[k] * this.get(j, k);
+            }
+          }
+          for (let i = j; i < m; i++) {
+            let s = 0;
+            for (let k = 0; k < n; k++) {
+              s += this.get(i, k) * rowj[k];
+            }
+            result.set(i, j, s);
+            result.set(j, i, s);
+          }
+        }
+        return result;
+      }
       mpow(scalar) {
         if (!this.isSquare()) {
           throw new RangeError("Matrix must be square");
@@ -3767,6 +3821,19 @@ ${indentData}`);
         return Array.from(this.pivotVector);
       }
     };
+    function transposeSquareInPlace(matrix2) {
+      const data = matrix2.data;
+      const n = matrix2.rows;
+      for (let i = 0; i < n; i++) {
+        const rowI = data[i];
+        for (let j = i + 1; j < n; j++) {
+          const tmp = rowI[j];
+          rowI[j] = data[j][i];
+          data[j][i] = tmp;
+        }
+      }
+      return matrix2;
+    }
     function hypotenuse(a, b) {
       let r = 0;
       if (Math.abs(a) > Math.abs(b)) {
@@ -3924,29 +3991,29 @@ ${indentData}`);
         let wantu = Boolean(computeLeftSingularVectors);
         let wantv = Boolean(computeRightSingularVectors);
         let swapped = false;
-        let a;
+        let at;
         if (m < n) {
           if (!autoTranspose) {
-            a = value.clone();
             console.warn(
               "Computing SVD on a matrix with more columns than rows. Consider enabling autoTranspose"
             );
+            at = value.transpose();
           } else {
-            a = value.transpose();
-            m = a.rows;
-            n = a.columns;
+            at = value.clone();
+            m = value.columns;
+            n = value.rows;
             swapped = true;
             let aux = wantu;
             wantu = wantv;
             wantv = aux;
           }
         } else {
-          a = value.clone();
+          at = value.transpose();
         }
         let nu = Math.min(m, n);
         let ni = Math.min(m + 1, n);
         let s = new Float64Array(ni);
-        let U = new Matrix3(m, nu);
+        let U = new Matrix3(nu, m);
         let V = new Matrix3(n, n);
         let e = new Float64Array(n);
         let work = new Float64Array(m);
@@ -3959,16 +4026,16 @@ ${indentData}`);
           if (k < nct) {
             s[k] = 0;
             for (let i = k; i < m; i++) {
-              s[k] = hypotenuse(s[k], a.get(i, k));
+              s[k] = hypotenuse(s[k], at.get(k, i));
             }
             if (s[k] !== 0) {
-              if (a.get(k, k) < 0) {
+              if (at.get(k, k) < 0) {
                 s[k] = -s[k];
               }
               for (let i = k; i < m; i++) {
-                a.set(i, k, a.get(i, k) / s[k]);
+                at.set(k, i, at.get(k, i) / s[k]);
               }
-              a.set(k, k, a.get(k, k) + 1);
+              at.set(k, k, at.get(k, k) + 1);
             }
             s[k] = -s[k];
           }
@@ -3976,18 +4043,18 @@ ${indentData}`);
             if (k < nct && s[k] !== 0) {
               let t = 0;
               for (let i = k; i < m; i++) {
-                t += a.get(i, k) * a.get(i, j);
+                t += at.get(k, i) * at.get(j, i);
               }
-              t = -t / a.get(k, k);
+              t = -t / at.get(k, k);
               for (let i = k; i < m; i++) {
-                a.set(i, j, a.get(i, j) + t * a.get(i, k));
+                at.set(j, i, at.get(j, i) + t * at.get(k, i));
               }
             }
-            e[j] = a.get(k, j);
+            e[j] = at.get(j, k);
           }
           if (wantu && k < nct) {
             for (let i = k; i < m; i++) {
-              U.set(i, k, a.get(i, k));
+              U.set(k, i, at.get(k, i));
             }
           }
           if (k < nrt) {
@@ -4011,38 +4078,38 @@ ${indentData}`);
               }
               for (let i = k + 1; i < m; i++) {
                 for (let j = k + 1; j < n; j++) {
-                  work[i] += e[j] * a.get(i, j);
+                  work[i] += e[j] * at.get(j, i);
                 }
               }
               for (let j = k + 1; j < n; j++) {
                 let t = -e[j] / e[k + 1];
                 for (let i = k + 1; i < m; i++) {
-                  a.set(i, j, a.get(i, j) + t * work[i]);
+                  at.set(j, i, at.get(j, i) + t * work[i]);
                 }
               }
             }
             if (wantv) {
               for (let i = k + 1; i < n; i++) {
-                V.set(i, k, e[i]);
+                V.set(k, i, e[i]);
               }
             }
           }
         }
         let p = Math.min(n, m + 1);
         if (nct < n) {
-          s[nct] = a.get(nct, nct);
+          s[nct] = at.get(nct, nct);
         }
         if (m < p) {
           s[p - 1] = 0;
         }
         if (nrt + 1 < p) {
-          e[nrt] = a.get(nrt, p - 1);
+          e[nrt] = at.get(p - 1, nrt);
         }
         e[p - 1] = 0;
         if (wantu) {
           for (let j = nct; j < nu; j++) {
             for (let i = 0; i < m; i++) {
-              U.set(i, j, 0);
+              U.set(j, i, 0);
             }
             U.set(j, j, 1);
           }
@@ -4051,23 +4118,23 @@ ${indentData}`);
               for (let j = k + 1; j < nu; j++) {
                 let t = 0;
                 for (let i = k; i < m; i++) {
-                  t += U.get(i, k) * U.get(i, j);
+                  t += U.get(k, i) * U.get(j, i);
                 }
                 t = -t / U.get(k, k);
                 for (let i = k; i < m; i++) {
-                  U.set(i, j, U.get(i, j) + t * U.get(i, k));
+                  U.set(j, i, U.get(j, i) + t * U.get(k, i));
                 }
               }
               for (let i = k; i < m; i++) {
-                U.set(i, k, -U.get(i, k));
+                U.set(k, i, -U.get(k, i));
               }
               U.set(k, k, 1 + U.get(k, k));
               for (let i = 0; i < k - 1; i++) {
-                U.set(i, k, 0);
+                U.set(k, i, 0);
               }
             } else {
               for (let i = 0; i < m; i++) {
-                U.set(i, k, 0);
+                U.set(k, i, 0);
               }
               U.set(k, k, 1);
             }
@@ -4079,16 +4146,16 @@ ${indentData}`);
               for (let j = k + 1; j < n; j++) {
                 let t = 0;
                 for (let i = k + 1; i < n; i++) {
-                  t += V.get(i, k) * V.get(i, j);
+                  t += V.get(k, i) * V.get(j, i);
                 }
-                t = -t / V.get(k + 1, k);
+                t = -t / V.get(k, k + 1);
                 for (let i = k + 1; i < n; i++) {
-                  V.set(i, j, V.get(i, j) + t * V.get(i, k));
+                  V.set(j, i, V.get(j, i) + t * V.get(k, i));
                 }
               }
             }
             for (let i = 0; i < n; i++) {
-              V.set(i, k, 0);
+              V.set(k, i, 0);
             }
             V.set(k, k, 1);
           }
@@ -4146,9 +4213,9 @@ ${indentData}`);
                 }
                 if (wantv) {
                   for (let i = 0; i < n; i++) {
-                    t = cs * V.get(i, j) + sn * V.get(i, p - 1);
-                    V.set(i, p - 1, -sn * V.get(i, j) + cs * V.get(i, p - 1));
-                    V.set(i, j, t);
+                    t = cs * V.get(j, i) + sn * V.get(p - 1, i);
+                    V.set(p - 1, i, -sn * V.get(j, i) + cs * V.get(p - 1, i));
+                    V.set(j, i, t);
                   }
                 }
               }
@@ -4166,9 +4233,9 @@ ${indentData}`);
                 e[j] = cs * e[j];
                 if (wantu) {
                   for (let i = 0; i < m; i++) {
-                    t = cs * U.get(i, j) + sn * U.get(i, k - 1);
-                    U.set(i, k - 1, -sn * U.get(i, j) + cs * U.get(i, k - 1));
-                    U.set(i, j, t);
+                    t = cs * U.get(j, i) + sn * U.get(k - 1, i);
+                    U.set(k - 1, i, -sn * U.get(j, i) + cs * U.get(k - 1, i));
+                    U.set(j, i, t);
                   }
                 }
               }
@@ -4214,9 +4281,9 @@ ${indentData}`);
                 s[j + 1] = cs * s[j + 1];
                 if (wantv) {
                   for (let i = 0; i < n; i++) {
-                    t = cs * V.get(i, j) + sn * V.get(i, j + 1);
-                    V.set(i, j + 1, -sn * V.get(i, j) + cs * V.get(i, j + 1));
-                    V.set(i, j, t);
+                    t = cs * V.get(j, i) + sn * V.get(j + 1, i);
+                    V.set(j + 1, i, -sn * V.get(j, i) + cs * V.get(j + 1, i));
+                    V.set(j, i, t);
                   }
                 }
                 t = hypotenuse(f, g);
@@ -4230,9 +4297,9 @@ ${indentData}`);
                 e[j + 1] = cs * e[j + 1];
                 if (wantu && j < m - 1) {
                   for (let i = 0; i < m; i++) {
-                    t = cs * U.get(i, j) + sn * U.get(i, j + 1);
-                    U.set(i, j + 1, -sn * U.get(i, j) + cs * U.get(i, j + 1));
-                    U.set(i, j, t);
+                    t = cs * U.get(j, i) + sn * U.get(j + 1, i);
+                    U.set(j + 1, i, -sn * U.get(j, i) + cs * U.get(j + 1, i));
+                    U.set(j, i, t);
                   }
                 }
               }
@@ -4244,7 +4311,7 @@ ${indentData}`);
                 s[k] = s[k] < 0 ? -s[k] : 0;
                 if (wantv) {
                   for (let i = 0; i <= pp; i++) {
-                    V.set(i, k, -V.get(i, k));
+                    V.set(k, i, -V.get(k, i));
                   }
                 }
               }
@@ -4257,16 +4324,16 @@ ${indentData}`);
                 s[k + 1] = t;
                 if (wantv && k < n - 1) {
                   for (let i = 0; i < n; i++) {
-                    t = V.get(i, k + 1);
-                    V.set(i, k + 1, V.get(i, k));
-                    V.set(i, k, t);
+                    t = V.get(k + 1, i);
+                    V.set(k + 1, i, V.get(k, i));
+                    V.set(k, i, t);
                   }
                 }
                 if (wantu && k < m - 1) {
                   for (let i = 0; i < m; i++) {
-                    t = U.get(i, k + 1);
-                    U.set(i, k + 1, U.get(i, k));
-                    U.set(i, k, t);
+                    t = U.get(k + 1, i);
+                    U.set(k + 1, i, U.get(k, i));
+                    U.set(k, i, t);
                   }
                 }
                 k++;
@@ -4276,6 +4343,8 @@ ${indentData}`);
             }
           }
         }
+        U = U.isSquare() ? transposeSquareInPlace(U) : U.transpose();
+        V = transposeSquareInPlace(V);
         if (swapped) {
           let tmp = V;
           V = U;
@@ -4577,11 +4646,12 @@ ${indentData}`);
         if (isSymmetric) {
           for (i = 0; i < n; i++) {
             for (j = 0; j < n; j++) {
-              V.set(i, j, value.get(i, j));
+              V.set(j, i, value.get(i, j));
             }
           }
           tred2(n, e, d, V);
           tql2(n, e, d, V);
+          transposeSquareInPlace(V);
         } else {
           let H = new Matrix3(n, n);
           let ort = new Float64Array(n);
@@ -4630,7 +4700,7 @@ ${indentData}`);
     function tred2(n, e, d, V) {
       let f, g, h, i, j, k, hh, scale;
       for (j = 0; j < n; j++) {
-        d[j] = V.get(n - 1, j);
+        d[j] = V.get(j, n - 1);
       }
       for (i = n - 1; i > 0; i--) {
         scale = 0;
@@ -4641,9 +4711,9 @@ ${indentData}`);
         if (scale === 0) {
           e[i] = d[i - 1];
           for (j = 0; j < i; j++) {
-            d[j] = V.get(i - 1, j);
-            V.set(i, j, 0);
+            d[j] = V.get(j, i - 1);
             V.set(j, i, 0);
+            V.set(i, j, 0);
           }
         } else {
           for (k = 0; k < i; k++) {
@@ -4663,11 +4733,11 @@ ${indentData}`);
           }
           for (j = 0; j < i; j++) {
             f = d[j];
-            V.set(j, i, f);
+            V.set(i, j, f);
             g = e[j] + V.get(j, j) * f;
             for (k = j + 1; k <= i - 1; k++) {
-              g += V.get(k, j) * d[k];
-              e[k] += V.get(k, j) * f;
+              g += V.get(j, k) * d[k];
+              e[k] += V.get(j, k) * f;
             }
             e[j] = g;
           }
@@ -4684,39 +4754,39 @@ ${indentData}`);
             f = d[j];
             g = e[j];
             for (k = j; k <= i - 1; k++) {
-              V.set(k, j, V.get(k, j) - (f * e[k] + g * d[k]));
+              V.set(j, k, V.get(j, k) - (f * e[k] + g * d[k]));
             }
-            d[j] = V.get(i - 1, j);
-            V.set(i, j, 0);
+            d[j] = V.get(j, i - 1);
+            V.set(j, i, 0);
           }
         }
         d[i] = h;
       }
       for (i = 0; i < n - 1; i++) {
-        V.set(n - 1, i, V.get(i, i));
+        V.set(i, n - 1, V.get(i, i));
         V.set(i, i, 1);
         h = d[i + 1];
         if (h !== 0) {
           for (k = 0; k <= i; k++) {
-            d[k] = V.get(k, i + 1) / h;
+            d[k] = V.get(i + 1, k) / h;
           }
           for (j = 0; j <= i; j++) {
             g = 0;
             for (k = 0; k <= i; k++) {
-              g += V.get(k, i + 1) * V.get(k, j);
+              g += V.get(i + 1, k) * V.get(j, k);
             }
             for (k = 0; k <= i; k++) {
-              V.set(k, j, V.get(k, j) - g * d[k]);
+              V.set(j, k, V.get(j, k) - g * d[k]);
             }
           }
         }
         for (k = 0; k <= i; k++) {
-          V.set(k, i + 1, 0);
+          V.set(i + 1, k, 0);
         }
       }
       for (j = 0; j < n; j++) {
-        d[j] = V.get(n - 1, j);
-        V.set(n - 1, j, 0);
+        d[j] = V.get(j, n - 1);
+        V.set(j, n - 1, 0);
       }
       V.set(n - 1, n - 1, 1);
       e[0] = 0;
@@ -4775,9 +4845,9 @@ ${indentData}`);
               p = c * d[i] - s * g;
               d[i + 1] = h + s * (c * g + s * d[i]);
               for (k = 0; k < n; k++) {
-                h = V.get(k, i + 1);
-                V.set(k, i + 1, s * V.get(k, i) + c * h);
-                V.set(k, i, c * V.get(k, i) - s * h);
+                h = V.get(i + 1, k);
+                V.set(i + 1, k, s * V.get(i, k) + c * h);
+                V.set(i, k, c * V.get(i, k) - s * h);
               }
             }
             p = -s * s2 * c3 * el1 * e[l] / dl1;
@@ -4801,9 +4871,9 @@ ${indentData}`);
           d[k] = d[i];
           d[i] = p;
           for (j = 0; j < n; j++) {
-            p = V.get(j, i);
-            V.set(j, i, V.get(j, k));
-            V.set(j, k, p);
+            p = V.get(i, j);
+            V.set(i, j, V.get(k, j));
+            V.set(k, j, p);
           }
         }
       }
@@ -5744,7 +5814,7 @@ function generateUUID() {
 // src/workers/analysis.worker.ts
 var import_density_clustering = __toESM(require_lib());
 
-// node_modules/.pnpm/ml-matrix@6.12.2/node_modules/ml-matrix/matrix.mjs
+// node_modules/.pnpm/ml-matrix@6.13.0/node_modules/ml-matrix/matrix.mjs
 var matrix = __toESM(require_matrix(), 1);
 var Matrix2 = matrix.Matrix;
 var SVD2 = matrix.SVD;

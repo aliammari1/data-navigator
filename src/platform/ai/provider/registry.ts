@@ -1,26 +1,16 @@
 import { llamacppProvider } from "./adapters/llamacpp";
-import { ollamaProvider } from "./adapters/ollama";
-import { openaiProvider } from "./adapters/openai";
-import { transformersProvider } from "./adapters/transformers";
 import type { AIProvider, ProviderId } from "./types";
 
 /**
  * Provider registry + offline-first auto-selection.
  *
- * Order matters: it is the preference order used by `pickDefaultProvider` when
- * several providers are available. Preference, best → fallback:
- *   1. llamacpp     — Electron main-process GGUF lane with grammar-constrained
- *                     JSON (the structured-output winner). Default in Electron.
- *   2. transformers — fully-offline WASM/CPU browser lane; the guaranteed floor.
-  *   3. ollama       — optional local server escape hatch.
-  *   4. openai       — optional OpenAI-compatible endpoint (not offline).
+ * node-llama-cpp is the sole provider: an Electron main-process GGUF lane with
+ * grammar-constrained JSON (the structured-output winner), offline by
+ * construction. The registry/`pickDefaultProvider` shape stays in place (rather
+ * than callers reaching for `llamacppProvider` directly) so a future provider
+ * can be added without touching every call site.
  */
-export const PROVIDERS: readonly AIProvider[] = [
-  llamacppProvider,
-  transformersProvider,
-  ollamaProvider,
-  openaiProvider,
-] as const;
+export const PROVIDERS: readonly AIProvider[] = [llamacppProvider] as const;
 
 const BY_ID = new Map<ProviderId, AIProvider>(PROVIDERS.map((p) => [p.id, p]));
 
@@ -58,25 +48,14 @@ export async function detectAvailability(): Promise<ProviderAvailability[]> {
  * unavailability when invoked).
  */
 export async function pickDefaultProvider(prefer?: ProviderId): Promise<AIProvider> {
-  // An explicit preference is always honoured (this is how a user opts in to
-  // webllm), provided the runtime is actually usable right now.
   if (prefer) {
     const preferred = BY_ID.get(prefer);
     if (preferred && (await preferred.isAvailable().catch(() => false))) return preferred;
   }
 
-  // Auto-selection walks the registry order (llamacpp → transformers → …). The
-  // WebGPU-only webllm lane is intentionally skipped here so it can never become
-  // the silent default on the no-WebGPU target — it is reachable only via an
-  // explicit `prefer` (set when the user opts in).
   for (const provider of PROVIDERS) {
-     if (await provider.isAvailable().catch(() => false)) return provider;
+    if (await provider.isAvailable().catch(() => false)) return provider;
   }
 
-  // Last resort: the first lane that is at least *available*, else the leading
-  // provider (it surfaces its own unavailability when invoked).
-  for (const provider of PROVIDERS) {
-     if (await provider.isAvailable().catch(() => false)) return provider;
-  }
   return PROVIDERS[0];
 }

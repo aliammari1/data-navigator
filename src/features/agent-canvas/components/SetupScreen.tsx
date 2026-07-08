@@ -23,7 +23,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { warmAI } from "@/features/agent-canvas/core/ai-bridge";
-import { ModelDownloadPanel } from "@/features/agent-canvas/components/ModelDownloadPanel";
+import { ModelDownloadPanel } from "@/components/shared/model-download-panel";
 import type { AIModelInfo } from "@/platform/ai/provider";
 import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
 import { loadUploadPathToDuckDB, type UploadFileFormat } from "@/platform/duckdb/upload-to-duckdb";

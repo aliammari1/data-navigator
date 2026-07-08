@@ -312,6 +312,7 @@ const electronVoice = {
     engine?: string;
     voice?: string;
     speed?: number;
+    lang?: string;
     localModelPath?: string | null;
   }): Promise<{
     jobId: string;
@@ -393,24 +394,13 @@ const electronLlama = {
 } as const;
 
 // ─── Offline model download bridge ────────────────────────────────────────────
+// Types imported (type-only, erased at compile time — no bundling cost) from
+// the main-process module that owns them, so this bridge can never drift out
+// of shape with the real service.
 
-export type ModelDownloadProgress = {
-  key: string;
-  receivedBytes: number;
-  totalBytes: number;
-  percent: number;
-  done: boolean;
-};
+export type { ModelDownloadProgress, ModelPresence } from "./model-download-service";
 
-export type ModelPresence = {
-  key: string;
-  file: string;
-  label: string;
-  optional: boolean;
-  present: boolean;
-  sizeBytes: number;
-  path: string;
-};
+import type { ModelDownloadProgress, ModelPresence } from "./model-download-service";
 
 const electronModels = {
   /** Presence + on-disk size for every known GGUF model. */
@@ -454,6 +444,7 @@ export type CollabHubStatus = {
   running: boolean;
   port: number | null;
   pairingCode: string | null;
+  guestCode: string | null;
   room: string | null;
   advertising: boolean;
   discovering: boolean;
@@ -477,6 +468,7 @@ const electronCollab = {
   start: (input?: {
     port?: number;
     pairingCode?: string;
+    guestCode?: string;
     room?: string;
     advertise?: boolean;
     discover?: boolean;
@@ -530,6 +522,168 @@ const electronSettings = {
     ipcRenderer.invoke("settings:export", namespace),
 } as const;
 
+export type AnalyticsSnapshotHistoryMeta = {
+  id: number;
+  tableName: string;
+  label: string;
+  fileName: string | null;
+  savedAt: number;
+  sizeBytes: number;
+  totalTransactions: number;
+  successRate: number;
+};
+
+export type AnalyticsSnapshotHistoryRow = AnalyticsSnapshotHistoryMeta & { payload: unknown };
+
+const electronAnalyticsSnapshots = {
+  save: (input: {
+    tableName: string;
+    label: string;
+    fileName?: string | null;
+    payload: unknown;
+    totalTransactions?: number;
+    successRate?: number;
+    savedAt?: number;
+  }): Promise<AnalyticsSnapshotHistoryMeta> => ipcRenderer.invoke("analyticsSnapshots:save", input),
+
+  list: (
+    tableName?: string,
+    limit?: number,
+    offset?: number,
+  ): Promise<AnalyticsSnapshotHistoryMeta[]> =>
+    ipcRenderer.invoke("analyticsSnapshots:list", tableName, limit, offset),
+
+  get: (id: number): Promise<AnalyticsSnapshotHistoryRow | undefined> =>
+    ipcRenderer.invoke("analyticsSnapshots:get", id),
+
+  delete: (id: number): Promise<void> => ipcRenderer.invoke("analyticsSnapshots:delete", id),
+} as const;
+
+// ─── Moudir chat history bridge (chat.db, main-process SQLite) ────────────────
+
+export type { ChatMessageRow, ChatRole, ConversationMeta } from "./chat-store";
+
+import type { ChatMessageRow, ChatRole, ConversationMeta } from "./chat-store";
+
+const electronChatHistory = {
+  create: (input: {
+    id: string;
+    title: string;
+    datasetId?: string | null;
+    model?: string | null;
+  }): Promise<ConversationMeta> => ipcRenderer.invoke("chatHistory:create", input),
+
+  list: (input?: { limit?: number; search?: string }): Promise<ConversationMeta[]> =>
+    ipcRenderer.invoke("chatHistory:list", input),
+
+  rename: (id: string, title: string): Promise<void> =>
+    ipcRenderer.invoke("chatHistory:rename", { id, title }),
+
+  pin: (id: string, pinned: boolean): Promise<void> =>
+    ipcRenderer.invoke("chatHistory:pin", { id, pinned }),
+
+  delete: (id: string): Promise<void> => ipcRenderer.invoke("chatHistory:delete", { id }),
+
+  appendMessage: (input: {
+    conversationId: string;
+    role: ChatRole;
+    content: string;
+    parts?: unknown;
+  }): Promise<ChatMessageRow> => ipcRenderer.invoke("chatHistory:appendMessage", input),
+
+  messages: (conversationId: string, limit?: number): Promise<ChatMessageRow[]> =>
+    ipcRenderer.invoke("chatHistory:messages", { conversationId, limit }),
+} as const;
+
+// ─── Moudir chat session bridge (live LlamaChatSession, main-process) ─────────
+// Type-only imports from the owning service — erased at compile time, so the
+// bridge can never drift out of shape with the real runtime.
+
+export type { ChatToolEvent } from "./chat-session-service";
+
+import type { ChatToolEvent } from "./chat-session-service";
+
+const electronChatSession = {
+  /** Open (or rehydrate from chat.db rows) the live session for a conversation. */
+  open: (input: {
+    conversationId: string;
+    modelFile?: string;
+    systemPrompt?: string;
+    history?: Array<{ role: ChatRole; content: string }>;
+  }): Promise<{ model: string; reused: boolean }> => ipcRenderer.invoke("chat:open", input),
+
+  /**
+   * One chat turn (prose + tools). Pass a `requestId` and subscribe via
+   * `onToken(requestId, …)` / `onTool(requestId, …)` for live streaming.
+   */
+  prompt: (input: {
+    conversationId: string;
+    text: string;
+    requestId?: string;
+  }): Promise<{ text: string; toolEvents: ChatToolEvent[] }> =>
+    ipcRenderer.invoke("chat:prompt", input),
+
+  abort: (requestId: string): Promise<boolean> => ipcRenderer.invoke("chat:abort", requestId),
+
+  /** Pre-evaluate a drafted prompt into KV (near-instant first token later). */
+  preload: (input: { conversationId: string; text: string }): Promise<void> =>
+    ipcRenderer.invoke("chat:preload", input),
+
+  /** Snapshot of the model-side chat history (node-llama-cpp ChatHistoryItem[]). */
+  history: (conversationId: string): Promise<unknown[]> =>
+    ipcRenderer.invoke("chat:history", { conversationId }),
+
+  /** Grammar-constrained side-call → short conversation title. */
+  title: (conversationId: string): Promise<string> =>
+    ipcRenderer.invoke("chat:title", { conversationId }),
+
+  /** Grammar-constrained side-call → 2-3 suggested follow-up questions. */
+  followUps: (conversationId: string): Promise<string[]> =>
+    ipcRenderer.invoke("chat:followups", { conversationId }),
+
+  dispose: (conversationId: string): Promise<boolean> =>
+    ipcRenderer.invoke("chat:dispose", { conversationId }),
+
+  /**
+   * Subscribe to streaming tokens for a given requestId. Returns an
+   * unsubscribe function. Pass the same `requestId` to `prompt`.
+   */
+  onToken: (requestId: string, callback: (chunk: string) => void): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: { requestId: string; chunk: string },
+    ): void => {
+      if (payload?.requestId === requestId) callback(payload.chunk);
+    };
+    ipcRenderer.on("chat:token", handler);
+    return () => ipcRenderer.removeListener("chat:token", handler);
+  },
+
+  /**
+   * Subscribe to streamed tool invocations for a given requestId. Returns an
+   * unsubscribe function.
+   */
+  onTool: (requestId: string, callback: (event: ChatToolEvent) => void): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: { requestId: string; event: ChatToolEvent },
+    ): void => {
+      if (payload?.requestId === requestId) callback(payload.event);
+    };
+    ipcRenderer.on("chat:tool", handler);
+    return () => ipcRenderer.removeListener("chat:tool", handler);
+  },
+} as const;
+
+// ─── Clipboard bridge (chart image export → OS clipboard) ─────────────────────
+// Renderer can't reach the native clipboard directly; hand a PNG data URL to
+// the main process, which writes it as a NativeImage. Fully offline.
+
+const electronClipboard = {
+  writeImage: (dataUrl: string): Promise<void> =>
+    ipcRenderer.invoke("clipboard:writeImage", { dataUrl }),
+} as const;
+
 contextBridge.exposeInMainWorld("electronFS", electronFS);
 contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 contextBridge.exposeInMainWorld("electronVoice", electronVoice);
@@ -537,6 +691,10 @@ contextBridge.exposeInMainWorld("electronLlama", electronLlama);
 contextBridge.exposeInMainWorld("electronModels", electronModels);
 contextBridge.exposeInMainWorld("electronCollab", electronCollab);
 contextBridge.exposeInMainWorld("electronSettings", electronSettings);
+contextBridge.exposeInMainWorld("electronAnalyticsSnapshots", electronAnalyticsSnapshots);
+contextBridge.exposeInMainWorld("electronChatHistory", electronChatHistory);
+contextBridge.exposeInMainWorld("electronChatSession", electronChatSession);
+contextBridge.exposeInMainWorld("electronClipboard", electronClipboard);
 
 declare global {
   type AuthBridges = typeof authClient.$Infer.Bridges;
@@ -551,5 +709,9 @@ declare global {
     electronModels: typeof electronModels;
     electronCollab: typeof electronCollab;
     electronSettings: typeof electronSettings;
+    electronAnalyticsSnapshots: typeof electronAnalyticsSnapshots;
+    electronChatHistory: typeof electronChatHistory;
+    electronChatSession: typeof electronChatSession;
+    electronClipboard: typeof electronClipboard;
   }
 }

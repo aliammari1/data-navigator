@@ -25,7 +25,7 @@ export type Tier =
 /** Minimum cosine score for a navigation match; below this we never auto-navigate. */
 const NAV_THRESHOLD = 0.5;
 
-/** Exemplar utterances per data tier (EN / FR / Tunisian Derja). */
+/** Exemplar utterances per data tier (EN / FR / Arabic). */
 const LOOKUP_UTTERANCES = [
   "top 5 channels by volume",
   "what was revenue yesterday",

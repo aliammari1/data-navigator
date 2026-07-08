@@ -43,16 +43,16 @@ export interface BuildInfo {
  * a headline dependency; everything else reads from here.
  */
 export const BUILD_INFO: BuildInfo = {
-  version: "0.1.0",
+  version: "0.1.1",
   commit: "250657a",
-  duckdb: "@duckdb/node-api 1.5.3",
+  duckdb: "@duckdb/node-api 1.5.4-r.1",
   echarts: "6.1.0",
-  motion: "12.40.0",
-  next: "16.2.7",
-  react: "19.2.6",
+  motion: "12.42.2",
+  next: "16.2.10",
+  react: "19.2.7",
   transformers: "@huggingface/transformers 4.2.0",
   maplibre: "maplibre-gl 5.24.0",
-  betterAuth: "1.6.14",
+  betterAuth: "1.6.23",
   license: "MIT",
 };
 
