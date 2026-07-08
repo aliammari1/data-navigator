@@ -10,10 +10,9 @@ import {
   RefreshCw,
   X,
 } from "lucide-react";
-import Link from "next/link";
 import { useState } from "react";
-import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
+import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type { LoadedFile, TelecomIngestionMode } from "../types";
 
 export function FileManagementModal({
@@ -68,20 +67,11 @@ export function FileManagementModal({
         </div>
 
         <div className="border-b border-border p-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <GitBranch className="h-4 w-4 text-cyan-500" />
-              <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                Versions chargées dans la période
-              </span>
-            </div>
-            <Link
-              href="/dashboard/lineage"
-              onClick={onClose}
-              className="rounded-lg border border-border px-2 py-1 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              Voir la lignée globale
-            </Link>
+          <div className="mb-3 flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-cyan-500" />
+            <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">
+              Versions chargées dans la période
+            </span>
           </div>
 
           {loadedFiles.length === 0 ? (

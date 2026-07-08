@@ -61,7 +61,7 @@ export function buildTimeSeriesOptions(
 
 /**
  * Compact sparkline options (no axes/legend/cursor) for tiny inline trends
- * (channel-monitor SparklineCell, data-browser column previews).
+ * (data-browser column previews).
  */
 export function buildSparklineOptions(
   width: number,

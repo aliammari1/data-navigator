@@ -1,4 +1,27 @@
-import type { ChartType } from "@/features/agent-canvas/core/types";
+/**
+ * Chart type union — the canonical home for every renderable chart kind in
+ * this app (Formulator's manual shelf, the swarm agents, and Moudir chat's
+ * `make_chart` tool artifacts all compile down to one of these).
+ */
+export type ChartType =
+  | "bar"
+  | "horizontal-bar"
+  | "stacked-bar"
+  | "stacked-horizontal-bar"
+  | "line"
+  | "area"
+  | "multi-line"
+  | "pie"
+  | "donut"
+  | "scatter"
+  | "bubble"
+  | "heatmap"
+  | "treemap"
+  | "radar"
+  | "gauge"
+  | "funnel"
+  | "kpi-grid"
+  | "data-table";
 
 export type ColType = "number" | "string" | "date" | "boolean" | "unknown";
 

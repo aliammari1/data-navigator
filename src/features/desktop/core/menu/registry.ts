@@ -20,36 +20,17 @@
  * never blanks the whole bar.
  */
 
-import { buildMenu as agentCanvas } from "@/features/desktop/core/menu/apps/agent-canvas";
-import { buildMenu as aiAnalysis } from "@/features/desktop/core/menu/apps/ai-analysis";
-import { buildMenu as aiBriefing } from "@/features/desktop/core/menu/apps/ai-briefing";
 import { buildMenu as collaboration } from "@/features/desktop/core/menu/apps/collaboration";
-import { buildMenu as commander } from "@/features/desktop/core/menu/apps/commander";
 import { buildMenu as csvParser } from "@/features/desktop/core/menu/apps/csv-parser";
-import { buildMenu as dataBrowser } from "@/features/desktop/core/menu/apps/data-browser";
-import { buildMenu as deepAnalytics } from "@/features/desktop/core/menu/apps/deep-analytics";
 import { buildMenu as diagnostics } from "@/features/desktop/core/menu/apps/diagnostics";
-import { buildMenu as eyeTracking } from "@/features/desktop/core/menu/apps/eye-tracking";
 import { buildMenu as folders } from "@/features/desktop/core/menu/apps/folders";
-import { buildMenu as forecast } from "@/features/desktop/core/menu/apps/forecast";
-import { buildMenu as geo } from "@/features/desktop/core/menu/apps/geo";
 import { buildMenu as help } from "@/features/desktop/core/menu/apps/help";
-import { buildMenu as history } from "@/features/desktop/core/menu/apps/history";
-import { buildMenu as home } from "@/features/desktop/core/menu/apps/home";
-import { buildMenu as lineage } from "@/features/desktop/core/menu/apps/lineage";
-import { buildMenu as monitor } from "@/features/desktop/core/menu/apps/monitor";
 import { buildMenu as moudir } from "@/features/desktop/core/menu/apps/moudir";
 import { buildMenu as moudirChat } from "@/features/desktop/core/menu/apps/moudir-chat";
-import { buildMenu as parsed } from "@/features/desktop/core/menu/apps/parsed";
-import { buildMenu as reconciliation } from "@/features/desktop/core/menu/apps/reconciliation";
 import { buildMenu as recycleBin } from "@/features/desktop/core/menu/apps/recycle-bin";
-import { buildMenu as reportStudio } from "@/features/desktop/core/menu/apps/report-studio";
 import { buildMenu as settings } from "@/features/desktop/core/menu/apps/settings";
 import { buildMenu as telecom } from "@/features/desktop/core/menu/apps/telecom";
-import { buildMenu as theater } from "@/features/desktop/core/menu/apps/theater";
-import { buildMenu as transform } from "@/features/desktop/core/menu/apps/transform";
 import { buildMenu as upload } from "@/features/desktop/core/menu/apps/upload";
-import { buildMenu as uxInnovations } from "@/features/desktop/core/menu/apps/ux-innovations";
 import type {
   AppMenuBuilder,
   MenuContext,
@@ -67,32 +48,13 @@ import {
 } from "@/features/desktop/core/menu/universal";
 
 export const APP_MENUS: Record<string, AppMenuBuilder> = {
-  home,
   moudir,
   "moudir-chat": moudirChat,
-  commander,
-  "eye-tracking": eyeTracking,
   telecom,
-  "ai-briefing": aiBriefing,
-  "ai-analysis": aiAnalysis,
-  "deep-analytics": deepAnalytics,
-  forecast,
-  geo,
-  monitor,
   upload,
   "csv-parser": csvParser,
   folders,
-  parsed,
-  "data-browser": dataBrowser,
-  transform,
-  lineage,
-  reconciliation,
-  history,
-  "report-studio": reportStudio,
-  theater,
   collaboration,
-  "agent-canvas": agentCanvas,
-  "ux-innovations": uxInnovations,
   diagnostics,
   help,
   "recycle-bin": recycleBin,

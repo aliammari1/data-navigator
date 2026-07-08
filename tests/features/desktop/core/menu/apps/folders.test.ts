@@ -67,13 +67,6 @@ describe("folders buildMenu — file group actions", () => {
 });
 
 describe("folders buildMenu — catalogue group actions", () => {
-  it("open-browser opens the data-browser app", () => {
-    const ctx = makeMenuContext();
-    const groups = buildMenu(ctx);
-    runAction(findGroup(groups, "catalogue")!.items, "open-browser");
-    expect(ctx.openApp).toHaveBeenCalledWith("data-browser");
-  });
-
   it("open-report opens the telecom app", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);

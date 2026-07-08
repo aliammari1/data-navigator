@@ -1,6 +1,6 @@
 /**
  * OS/browser Notification permission — shared by every feature that wants to
- * alert the user outside the app window (channel-monitor, telecom) and by
+ * alert the user outside the app window (telecom) and by
  * Settings > Notifications, which is the single place users enable it.
  *
  * Pure Web Notification API wrapper (works in both the Electron renderer and a

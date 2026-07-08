@@ -1,11 +1,9 @@
 "use client";
 
 import {
-  Database,
   FileText,
   HelpCircle,
   Lightbulb,
-  ListTree,
   RotateCcw,
   Sparkles,
   Square,
@@ -41,12 +39,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         label: "Importer des données…",
         icon: Upload,
         run: () => ctx.openApp("upload"),
-      },
-      {
-        id: "browse-data",
-        label: "Explorer les jeux de données",
-        icon: Database,
-        run: () => ctx.openApp("data-browser"),
       },
       { kind: "separator", id: "file-sep-2" },
       {
@@ -101,13 +93,6 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         label: "Synthèse exécutive",
         icon: FileText,
         run: () => ctx.askMoudir("Donne-moi une synthèse exécutive en un paragraphe"),
-      },
-      { kind: "separator", id: "analyze-sep-2" },
-      {
-        id: "open-deep-analytics",
-        label: "Ouvrir l'analyse approfondie",
-        icon: ListTree,
-        run: () => ctx.openApp("deep-analytics"),
       },
     ],
   },

@@ -8,19 +8,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import {
-  Brain,
-  Code2,
-  FileText,
-  Folder,
-  GitBranch,
-  History,
-  Layers,
-  Receipt,
-  Table2,
-  Upload,
-  Users,
-} from "lucide-react";
+import { Code2, FileText, Folder, Receipt, Upload, Users } from "lucide-react";
 
 export interface ShortcutDef {
   keys: string[];
@@ -95,72 +83,6 @@ export const FEATURES: readonly FeatureDef[] = [
       "Upload the file in the Telecom Report page — not the generic Upload page",
       "KPIs only count transactions with status REUSSIE (PST, PST1…PST9)",
       "Use the date picker to filter a specific period",
-    ],
-  },
-  {
-    id: "ai-analysis",
-    icon: Brain,
-    color: "text-violet-400 bg-violet-500/10 border-violet-500/20",
-    title: "AI Analysis",
-    href: "/dashboard/ai-analysis",
-    summary:
-      "Runs automated statistical analysis on the active dataset: distributions, outliers, correlations and trend detection — all offline.",
-    tips: [
-      "Select the active dataset from the header picker first",
-      "Click a column to drill down into its distribution",
-      "Anomalies are flagged with a z-score threshold of ±2.5",
-    ],
-  },
-  {
-    id: "parsed",
-    icon: Table2,
-    color: "text-cyan-400 bg-cyan-500/10 border-cyan-500/20",
-    title: "Parsed Data",
-    href: "/dashboard/parsed",
-    summary:
-      "Column-level profiler for the active dataset: type breakdown, null rates, unique counts, min/max/mean and sample values.",
-    tips: [
-      "Sort columns by null rate to quickly spot quality issues",
-      "Click a column to see the full value distribution",
-    ],
-  },
-  {
-    id: "transform",
-    icon: Layers,
-    color: "text-orange-400 bg-orange-500/10 border-orange-500/20",
-    title: "Transform",
-    href: "/dashboard/transform",
-    summary:
-      "Build visual ETL pipelines: filter, aggregate, join, pivot and rename steps that chain together with full SQL under the hood.",
-    tips: [
-      "Each step generates a DuckDB CTE — view the SQL at any time",
-      "Save a pipeline to reuse it on new data uploads",
-    ],
-  },
-  {
-    id: "lineage",
-    icon: GitBranch,
-    color: "text-pink-400 bg-pink-500/10 border-pink-500/20",
-    title: "Data Lineage",
-    href: "/dashboard/lineage",
-    summary:
-      "Interactive DAG that shows where each dataset came from, what transformed it, and what depends on it.",
-    tips: [
-      "Click a node to see its full metadata",
-      "Impact analysis: what breaks if this table changes?",
-    ],
-  },
-  {
-    id: "history",
-    icon: History,
-    color: "text-slate-400 bg-slate-500/10 border-slate-500/20",
-    title: "History",
-    href: "/dashboard/history",
-    summary:
-      "Version history for datasets: diff two versions, restore a previous snapshot, or see who changed what.",
-    tips: [
-      "Snapshots are taken automatically on each upload",
-      "Diff view highlights added/removed rows",
     ],
   },
   {

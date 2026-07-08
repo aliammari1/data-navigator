@@ -28,7 +28,6 @@ import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useDataStore } from "@/core/stores/data-store";
-import type { ChartType } from "@/features/agent-canvas/core/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { type EChartsOption, OffscreenChart, supportsOffscreenChart } from "@/platform/viz";
 import { echarts } from "@/platform/viz/echarts-core";
@@ -36,7 +35,7 @@ import { cn } from "@/shared/utils";
 import { buildOption } from "../../core/chart-options";
 import type { Row } from "../../core/formulator/model";
 import { buildSQL } from "../../core/sql";
-import type { AggregateFn, ChartSpec } from "../../core/types";
+import type { AggregateFn, ChartSpec, ChartType } from "../../core/types";
 import { useWidgetRegistry } from "../../core/widget-registry";
 import type { ChartPart } from "../../store/moudir-chat-store";
 

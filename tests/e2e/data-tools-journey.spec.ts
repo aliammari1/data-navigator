@@ -3,10 +3,8 @@ import { warmUpOnce } from "./_warmup";
 
 /**
  * Data Tooling Journeys
- * Smoke coverage for the three data-tooling routes:
+ * Smoke coverage for the data-tooling route:
  *   - /dashboard/csv-parser   (Advanced CSV Parser: dropzone + parse controls)
- *   - /dashboard/data-browser (Data Browser: explorer grid / SQL surface)
- *   - /dashboard/report-studio (Executive Report Studio: report builder)
  *
  * Each route must load (no 404 / app-error) and expose its primary surface.
  * Anchors stay tolerant (case-insensitive, alternations) so they survive the
@@ -35,16 +33,6 @@ const DATA_TOOL_ROUTES = [
     path: "/dashboard/csv-parser",
     anchor: /advanced csv parser|parse settings|delimiter|paste delimited/i,
   },
-  {
-    name: "data-browser",
-    path: "/dashboard/data-browser",
-    anchor: /data browser|duckdb|search rows|select table/i,
-  },
-  {
-    name: "report-studio",
-    path: "/dashboard/report-studio",
-    anchor: /executive report studio|powerpoint|report configuration|generate/i,
-  },
 ] as const;
 
 test.describe("Data tooling journeys", () => {
@@ -52,7 +40,7 @@ test.describe("Data tooling journeys", () => {
   // a single failure isolates instead of skipping the rest of the group.
   test.setTimeout(60_000);
 
-  // One-time, cross-worker warm-up of the three data-tooling routes so on-demand
+  // One-time, cross-worker warm-up of the data-tooling route so on-demand
   // `next dev` compilation is paid once (serially, on a single worker) instead
   // of as a parallel thundering herd inside the tests' first assertions.
   test.beforeAll(async ({ browser }) => {
@@ -95,40 +83,5 @@ test.describe("Data tooling journeys", () => {
 
     // Parse settings (delimiter / header toggles) are part of the surface.
     await expect(page.locator("body")).toContainText(/parse settings|delimiter/i);
-  });
-
-  test("data browser route shows the explorer grid and SQL/search surface", async ({ page }) => {
-    await gotoPage(page, "/dashboard/data-browser");
-
-    await expectUsablePage(page, /data browser|duckdb/i);
-
-    // The header heading is always present regardless of dataset state.
-    await expect(page.getByRole("heading", { name: /data browser/i })).toBeVisible();
-
-    // Row search is the always-rendered explorer control.
-    await expect(page.getByPlaceholder(/search rows/i)).toBeVisible();
-
-    // Upload entry point into the browser is exposed via its aria-label.
-    await expect(page.getByRole("button", { name: /upload file/i }).first()).toBeVisible();
-
-    // The explorer exposes an SQL surface (view mode tab when a dataset is
-    // loaded, or the dataset picker / DuckDB init copy otherwise). Keep this
-    // tolerant of the no-data state.
-    await expect(page.locator("body")).toContainText(/sql|select table|duckdb|search rows/i);
-  });
-
-  test("report studio route shows the report builder and export tabs", async ({ page }) => {
-    await gotoPage(page, "/dashboard/report-studio");
-
-    await expectUsablePage(page, /executive report studio/i);
-
-    await expect(page.getByRole("heading", { name: /executive report studio/i })).toBeVisible();
-
-    // Report builder export format tabs (PowerPoint / Word / PDF / Excel).
-    await expect(page.getByRole("tab", { name: /powerpoint/i })).toBeVisible();
-    await expect(page.getByRole("tab", { name: /word document/i })).toBeVisible();
-
-    // Builder configuration + a generate action are part of the surface.
-    await expect(page.locator("body")).toContainText(/report configuration|report date|generate/i);
   });
 });

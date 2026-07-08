@@ -16,10 +16,6 @@ test.describe("Dashboard Navigation Journey", () => {
     const pages = [
       { path: "/dashboard/upload", label: "Upload" },
       { path: "/dashboard/folders", label: "Folders" },
-      { path: "/dashboard/transform", label: "Transform" },
-      { path: "/dashboard/parsed", label: "Parsed" },
-      { path: "/dashboard/history", label: "History" },
-      { path: "/dashboard/ai-analysis", label: "AI Analysis" },
       { path: "/dashboard/settings", label: "Settings" },
     ];
 
@@ -35,27 +31,6 @@ test.describe("Dashboard Navigation Journey", () => {
         await expect(page).toHaveURL(/.*dashboard.*/);
       }
     }
-  });
-
-  test("should access AI features from dashboard", async ({ page }) => {
-    // Navigate to AI Analysis
-    await page.goto("/dashboard/ai-analysis");
-    await page.waitForLoadState("networkidle");
-
-    // Verify page loads
-    await expect(page.locator("body")).toBeVisible();
-
-    // Navigate to Auto-Analyst
-    await page.goto("/dashboard/auto-analyst");
-    await page.waitForLoadState("networkidle");
-    await expect(page.locator("body")).toBeVisible();
-  });
-
-  test("should navigate to data lineage page", async ({ page }) => {
-    await page.goto("/dashboard/lineage");
-    await page.waitForLoadState("networkidle");
-
-    await expect(page.locator("body")).toBeVisible();
   });
 
   test("should navigate to collaborative workspace", async ({ page }) => {

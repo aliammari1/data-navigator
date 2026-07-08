@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  Brain,
   ChevronRight,
   Command,
   LayoutGrid,
@@ -55,15 +54,7 @@ function userInitialsFrom(displayName: string): string {
  * would trigger a network fetch of a remote URL in a no-internet Electron build.
  * Keyboard shortcuts (Cmd+K) are owned centrally by `useShellShortcuts`.
  */
-export function Topbar({
-  onCmdPalette,
-  onAiToggle,
-  user,
-}: {
-  onCmdPalette: () => void;
-  onAiToggle?: () => void;
-  user?: DashboardUser;
-}) {
+export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?: DashboardUser }) {
   const pathname = usePathname();
   const router = useRouter();
   const showBreadcrumbs = useSettingsStore((s) => s.showBreadcrumbs);
@@ -182,17 +173,6 @@ export function Topbar({
       </button>
 
       <NotificationsBell />
-
-      {onAiToggle && (
-        <button
-          type="button"
-          onClick={onAiToggle}
-          className="hidden h-8 w-8 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400 transition-colors hover:bg-blue-500/20 hover:text-blue-300 sm:flex"
-          title="AI Assistant (Ctrl+\)"
-        >
-          <Brain className="w-4 h-4" />
-        </button>
-      )}
 
       <Link
         href="/dashboard/settings"

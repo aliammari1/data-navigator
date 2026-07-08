@@ -2,10 +2,9 @@
 
 import { Command } from "cmdk";
 import Fuse from "fuse.js";
-import { ArrowRight, Brain, Database, Folders, Palette, Search, Table2 } from "lucide-react";
+import { ArrowRight, Database, Folders, Palette, Search, Table2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { useAppTheme } from "@/hooks/use-app-theme";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
@@ -15,6 +14,7 @@ import {
   type NavItem,
   navItemVisibleForRole,
 } from "@/features/dashboard-shell/nav/nav-config";
+import { useAppTheme } from "@/hooks/use-app-theme";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { cn } from "@/shared/utils";
 
@@ -36,7 +36,6 @@ const navFuse = new Fuse(ALL_ITEMS, {
 export interface CommandPaletteProps {
   open: boolean;
   onClose: () => void;
-  onToggleAi?: () => void;
 }
 
 /**
@@ -45,7 +44,7 @@ export interface CommandPaletteProps {
  * and Actions — folding the old separate `GlobalDataSearch` popover into one
  * accessible surface.
  */
-export function CommandPalette({ open, onClose, onToggleAi }: CommandPaletteProps) {
+export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const router = useRouter();
   const { theme, setTheme } = useAppTheme();
 
@@ -107,14 +106,6 @@ export function CommandPalette({ open, onClose, onToggleAi }: CommandPaletteProp
         folders={folders}
         openFolder={openFolder}
         cycleTheme={cycleTheme}
-        onToggleAi={
-          onToggleAi
-            ? () => {
-                onToggleAi();
-                onClose();
-              }
-            : undefined
-        }
       />
     </Command.Dialog>
   );
@@ -127,7 +118,6 @@ function CommandBody({
   folders,
   openFolder,
   cycleTheme,
-  onToggleAi,
 }: {
   navigate: (item: NavItem) => void;
   datasets: ReturnType<typeof useDataStore.getState>["datasets"];
@@ -135,7 +125,6 @@ function CommandBody({
   folders: ReturnType<typeof useFoldersStore.getState>["folders"];
   openFolder: () => void;
   cycleTheme: () => void;
-  onToggleAi?: () => void;
 }) {
   const [query, setQuery] = useState("");
   const { role } = useDashboardAccess();
@@ -273,19 +262,6 @@ function CommandBody({
           heading="Actions"
           className="px-1 [&_[cmdk-group-heading]]:px-3 [&_[cmdk-group-heading]]:py-1.5 [&_[cmdk-group-heading]]:text-[10px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-wide [&_[cmdk-group-heading]]:text-muted-foreground/50"
         >
-          {onToggleAi && (
-            <Command.Item
-              value="action:toggle-ai"
-              keywords={["ai", "copilot", "assistant", "toggle"]}
-              onSelect={onToggleAi}
-              className="group flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2.5 data-[selected=true]:bg-accent"
-            >
-              <span className="flex h-8 w-8 flex-none items-center justify-center rounded-lg bg-accent group-data-[selected=true]:bg-blue-500/20">
-                <Brain className="h-4 w-4 text-muted-foreground group-data-[selected=true]:text-blue-400" />
-              </span>
-              <span className="text-sm font-medium text-foreground">Toggle AI Copilot</span>
-            </Command.Item>
-          )}
           <Command.Item
             value="action:cycle-theme"
             keywords={["theme", "dark", "light", "appearance"]}

@@ -1,7 +1,9 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { fn } from "storybook/test";
 
-import { DashboardLayout, type DashboardUser } from "@/features/dashboard-shell/components/sidebar-nav";
+import {
+  DashboardLayout,
+  type DashboardUser,
+} from "@/features/dashboard-shell/components/sidebar-nav";
 
 const demoUser: DashboardUser = {
   name: "Ali Ammari",
@@ -15,7 +17,6 @@ const meta = {
   tags: ["autodocs"],
   args: {
     user: demoUser,
-    onAiToggle: fn(),
     children: (
       <div className="min-h-full bg-background p-6">
         <div className="rounded-2xl border border-border bg-card p-6">
@@ -30,9 +31,6 @@ const meta = {
   argTypes: {
     user: {
       control: "object",
-    },
-    onAiToggle: {
-      control: false,
     },
     children: {
       control: false,
@@ -52,12 +50,6 @@ export const Default: Story = {};
 export const AnonymousUser: Story = {
   args: {
     user: undefined,
-  },
-};
-
-export const WithoutAiToggle: Story = {
-  args: {
-    onAiToggle: undefined,
   },
 };
 

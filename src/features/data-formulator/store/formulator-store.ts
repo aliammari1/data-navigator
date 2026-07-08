@@ -24,13 +24,19 @@ import { temporal } from "zundo";
 import { create, useStore } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import type { ChartType } from "@/features/agent-canvas/core/types";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import { deriveNode } from "../core/formulator/derive-service";
 import type { ConceptItem, DeriveMessage, TableNode } from "../core/formulator/model";
 import { disposeDerivationSession } from "../core/formulator/python-engine";
 import { bigIntJsonReplacer } from "../core/json";
-import type { AggregateFn, ColumnInfo, Encoding, FilterDef, FilterOp } from "../core/types";
+import type {
+  AggregateFn,
+  ChartType,
+  ColumnInfo,
+  Encoding,
+  FilterDef,
+  FilterOp,
+} from "../core/types";
 
 export type ShelfChannel = Encoding["channel"];
 

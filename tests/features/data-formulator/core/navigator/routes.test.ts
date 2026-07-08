@@ -50,28 +50,12 @@ const mockAllItems = vi.hoisted(() => [
   },
 ]);
 
-const mockTelecomNavItems = vi.hoisted(() => [
-  {
-    key: "overview",
-    label: "Vue d'ensemble",
-    description: "KPIs et synthèse",
-    icon: {},
-  },
-  {
-    key: "analysis",
-    label: "Analyse",
-    description: "Erreurs et tendances",
-    icon: {},
-  },
-]);
-
 // ---------------------------------------------------------------------------
 // Module mock — must be a top-level vi.mock() call
 // ---------------------------------------------------------------------------
 
 vi.mock("@/features/dashboard-shell/nav/nav-config", () => ({
   ALL_ITEMS: mockAllItems,
-  TELECOM_NAV_ITEMS: mockTelecomNavItems,
 }));
 
 // ---------------------------------------------------------------------------
@@ -101,22 +85,6 @@ describe("APP_ROUTES", () => {
     expect(paths).toContain("/dashboard/no-desc");
   });
 
-  it("includes telecom tab routes generated from TELECOM_NAV_ITEMS", () => {
-    const paths = APP_ROUTES.map((r) => r.path);
-    expect(paths).toContain("/dashboard/telecom-report?tab=overview");
-    expect(paths).toContain("/dashboard/telecom-report?tab=analysis");
-  });
-
-  it("produces the correct label for telecom tab routes", () => {
-    const r = APP_ROUTES.find((x) => x.path === "/dashboard/telecom-report?tab=overview");
-    expect(r?.label).toBe("Rapport Télécom — Vue d'ensemble");
-  });
-
-  it("uses the tab description as the hint for telecom tab routes", () => {
-    const r = APP_ROUTES.find((x) => x.path === "/dashboard/telecom-report?tab=overview");
-    expect(r?.hint).toBe("KPIs et synthèse");
-  });
-
   it("joins description and keywords with ' · ' separator when both are present", () => {
     const home = APP_ROUTES.find((x) => x.path === "/dashboard");
     expect(home?.hint).toBe("Home dashboard · home · accueil");
@@ -135,9 +103,8 @@ describe("APP_ROUTES", () => {
     expect(noDesc?.hint).not.toMatch(/^ · /);
   });
 
-  it("total count equals ALL_ITEMS count plus TELECOM_NAV_ITEMS count when no duplicates", () => {
-    // 4 (ALL_ITEMS) + 2 (TELECOM_NAV_ITEMS) = 6
-    expect(APP_ROUTES).toHaveLength(6);
+  it("total count equals ALL_ITEMS count when no duplicates", () => {
+    expect(APP_ROUTES).toHaveLength(4);
   });
 
   it("each route has path, label, and hint string properties", () => {
@@ -168,7 +135,6 @@ describe("APP_ROUTES deduplication (seen.has branch)", () => {
         { title: "Alpha", href: "/dup-path", icon: {}, description: "first", keywords: [] },
         { title: "Beta", href: "/dup-path", icon: {}, description: "second", keywords: [] },
       ],
-      TELECOM_NAV_ITEMS: [],
     }));
 
     const { APP_ROUTES: fresh } = await import("@/features/data-formulator/core/navigator/routes");
@@ -182,36 +148,6 @@ describe("APP_ROUTES deduplication (seen.has branch)", () => {
     // import (already evaluated against the hoisted mock), and queuing an
     // extra doMock factory here would be consumed by the NEXT dynamic
     // import — shadowing the factory that test registers.
-    vi.resetModules();
-  });
-
-  it("skips a TELECOM_NAV_ITEMS tab whose path was already registered by ALL_ITEMS", async () => {
-    vi.resetModules();
-
-    // An ALL_ITEMS entry whose href matches what the tab push would generate.
-    const collisionPath = "/dashboard/telecom-report?tab=overview";
-    vi.doMock("@/features/dashboard-shell/nav/nav-config", () => ({
-      ALL_ITEMS: [
-        {
-          title: "Pre-registered Tab",
-          href: collisionPath,
-          icon: {},
-          description: "already there",
-          keywords: [],
-        },
-      ],
-      TELECOM_NAV_ITEMS: [
-        { key: "overview", label: "Vue d'ensemble", description: "KPIs", icon: {} },
-      ],
-    }));
-
-    const { APP_ROUTES: fresh } = await import("@/features/data-formulator/core/navigator/routes");
-
-    const matches = fresh.filter((r: { path: string }) => r.path === collisionPath);
-    expect(matches).toHaveLength(1);
-    // The ALL_ITEMS entry wins (pushed first).
-    expect(matches[0].label).toBe("Pre-registered Tab");
-
     vi.resetModules();
   });
 });
@@ -274,17 +210,17 @@ describe("resolveRoute", () => {
 
   // Stage 2: path startsWith match (only reached when stage 1 fails)
   it("resolves by path prefix when no exact path match exists (stage 2)", () => {
-    // '/dashboard/telecom' is not an exact path but is a prefix of some route
-    const r = resolveRoute("/dashboard/telecom-report?tab");
+    // '/dashboard/telecom-repo' is not an exact path but is a prefix of some route
+    const r = resolveRoute("/dashboard/telecom-repo");
     expect(r).not.toBeNull();
-    expect(r?.path.startsWith("/dashboard/telecom-report?tab")).toBe(true);
+    expect(r?.path.startsWith("/dashboard/telecom-repo")).toBe(true);
   });
 
   it("stage 2 prefix match is case-insensitive", () => {
-    const r = resolveRoute("/DASHBOARD/TELECOM-REPORT?TAB");
+    const r = resolveRoute("/DASHBOARD/TELECOM-REPO");
     expect(r).not.toBeNull();
-    // Should match a route whose path starts with "/dashboard/telecom-report?tab"
-    expect(r?.path.toLowerCase().startsWith("/dashboard/telecom-report?tab")).toBe(true);
+    // Should match a route whose path starts with "/dashboard/telecom-repo"
+    expect(r?.path.toLowerCase().startsWith("/dashboard/telecom-repo")).toBe(true);
   });
 
   // Stage 3: exact label match
@@ -369,13 +305,6 @@ describe("resolveRoute", () => {
     } else {
       expect(r).toBeNull();
     }
-  });
-
-  it("resolves telecom tab route by exact path match", () => {
-    const r = resolveRoute("/dashboard/telecom-report?tab=overview");
-    expect(r).not.toBeNull();
-    expect(r?.path).toBe("/dashboard/telecom-report?tab=overview");
-    expect(r?.label).toBe("Rapport Télécom — Vue d'ensemble");
   });
 
   it("stage 1 exact path wins over stage 2 prefix when exact match exists", () => {

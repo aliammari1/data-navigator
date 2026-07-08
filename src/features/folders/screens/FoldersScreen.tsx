@@ -13,13 +13,13 @@
  *   - data-store:    datasets[], setActiveDataset, removeDataset
  *
  * Interactions:
- *   - Click selects, double-click opens (folder → navigate, dataset → Browser).
+ *   - Click selects, double-click opens (folder → navigate, dataset → preview).
  *   - Full folder CRUD: New (in current folder), inline Rename, Delete (confirm),
  *     Set color, Star.
  *   - HTML5 drag-and-drop: drag a dataset onto a folder → moveDataset; drag a
  *     folder onto another → moveFolder (cycle-guarded).
  *   - Right-click / kebab → context menu with dataset/folder actions, including
- *     "Open", "Open report", "Move to folder…", "Star", "Remove".
+ *     "Aperçu", "Open report", "Move to folder…", "Star", "Remove".
  *   - Opening apps uses the desktop `desktop:open-app` CustomEvent contract.
  *
  * The optional `initialFolderId` prop lets the desktop open the catalog directly
@@ -45,7 +45,6 @@ import {
   Search,
   Sparkles,
   Star,
-  Table2,
   Trash2,
   Upload,
 } from "lucide-react";
@@ -314,19 +313,15 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     setSelected(id);
   }, []);
 
-  const navigateInto = useCallback(
-    (node: FSNode) => {
-      if (node.type === "folder") {
-        setSelected(node.id);
-        setExpanded((prev) => new Set(prev).add(node.id));
-      } else {
-        // Open dataset in the Data Browser (frozen, shared store).
-        setActiveDataset(node.id);
-        openDesktopApp("data-browser");
-      }
-    },
-    [setActiveDataset],
-  );
+  const navigateInto = useCallback((node: FSNode) => {
+    if (node.type === "folder") {
+      setSelected(node.id);
+      setExpanded((prev) => new Set(prev).add(node.id));
+    } else {
+      // Open the dataset preview (the standalone Explorer app was removed).
+      setPreviewId(node.id);
+    }
+  }, []);
 
   // ── Handlers: store mutations ──────────────────────────────────────────────
   const handleStar = useCallback(
@@ -427,14 +422,6 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
   }, [selectedIds, removeDataset, removeDatasetFromMap, clearSelection]);
 
   const closePreview = useCallback(() => setPreviewId(null), []);
-
-  const openInExplorer = useCallback(
-    (id: string) => {
-      setActiveDataset(id);
-      openDesktopApp("data-browser");
-    },
-    [setActiveDataset],
-  );
 
   /** Switch the smart filter; cross-view selections would be confusing, so clear them. */
   const changeFilter = useCallback((filter: CatalogFilter) => {
@@ -574,15 +561,6 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
         onSelect: () => setPreviewId(node.id),
       },
       {
-        id: "open",
-        label: "Ouvrir dans l'explorateur",
-        icon: Table2,
-        onSelect: () => {
-          setActiveDataset(node.id);
-          openDesktopApp("data-browser");
-        },
-      },
-      {
         id: "report",
         label: "Ouvrir le rapport (analytique figée)",
         icon: BarChart3,
@@ -633,7 +611,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
       setNewFolderName("");
       setShowNewFolder(true);
     },
-    import: () => openDesktopApp("data-browser"),
+    import: () => openDesktopApp("upload"),
     "auto-organize": () => {
       if (!organizer.running && ungroupedCount > 0) void handleAutoOrganize();
     },
@@ -757,7 +735,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           <div className="flex flex-wrap items-center gap-2">
             <button
               type="button"
-              onClick={() => openDesktopApp("data-browser")}
+              onClick={() => openDesktopApp("upload")}
               className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80"
             >
               <Upload className="h-4 w-4" /> Importer
@@ -955,7 +933,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
               <EmptyState
                 hasDatasets={datasets.length > 0}
                 searching={!!searchMatchIds}
-                onImport={() => openDesktopApp("data-browser")}
+                onImport={() => openDesktopApp("upload")}
                 onNewFolder={() => setShowNewFolder(true)}
               />
             ) : (
@@ -1002,7 +980,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           <RecentRail
             nodes={recentNodes}
             onPreview={(n) => setPreviewId(n.id)}
-            onOpen={(n) => openInExplorer(n.id)}
+            onOpen={(n) => setPreviewId(n.id)}
           />
           <div className="rounded-xl border border-border bg-card p-3">
             <h3 className="mb-2 text-sm font-semibold">Stockage par dossier</h3>
@@ -1165,25 +1143,11 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
         <ContextMenu x={menu.x} y={menu.y} items={menuItems} onClose={() => setMenu(null)} />
       )}
 
-      {/* Dataset preview ("review of the file") with open-in-Explorer + quick actions */}
+      {/* Dataset preview ("review of the file") */}
       {previewDataset && (
         <DatasetPreview
           dataset={previewDataset}
           onClose={closePreview}
-          onOpenExplorer={() => {
-            openInExplorer(previewDataset.id);
-            closePreview();
-          }}
-          onProfile={() => {
-            setActiveDataset(previewDataset.id);
-            openDesktopApp("parsed");
-            closePreview();
-          }}
-          onTransform={() => {
-            setActiveDataset(previewDataset.id);
-            openDesktopApp("transform");
-            closePreview();
-          }}
           onAskMoudir={() => {
             askMoudirAbout(previewDataset.name);
             closePreview();

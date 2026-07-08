@@ -85,7 +85,6 @@ vi.mock("lucide-react", async (importOriginal) => {
     Table2: icon("Table2"),
     Trash2: icon("Trash2"),
     TrendingUp: icon("TrendingUp"),
-    Trophy: icon("Trophy"),
     Upload: icon("Upload"),
     Users: icon("Users"),
   };
@@ -94,47 +93,16 @@ vi.mock("lucide-react", async (importOriginal) => {
 // Mock all the feature screen imports so the dynamic loaders are never
 // actually resolved (they return undefined — the loader fn never runs in tests
 // because next/dynamic itself is mocked above).
-vi.mock("@/features/dashboard-home/screens/DashboardHomeScreen", () => ({ default: () => null }));
 vi.mock("@/features/data-formulator/screens/FormulatorScreen", () => ({ default: () => null }));
 vi.mock("@/features/data-formulator/screens/MoudirAssistantScreen", () => ({
   default: () => null,
 }));
-vi.mock("@/features/ai-commander/screens/CommanderScreen", () => ({ default: () => null }));
-vi.mock("@/features/eye-tracking/screens/EyeTrackingScreen", () => ({ default: () => null }));
-vi.mock("@/features/ai-briefing/screens/AIBriefingScreen", () => ({ default: () => null }));
-vi.mock("@/features/ai-analysis/screens/AiAnalysisScreen", () => ({ default: () => null }));
-vi.mock("@/features/deep-analytics/screens/DeepAnalyticsScreen", () => ({
-  DeepAnalyticsScreen: () => null,
-}));
-vi.mock("@/features/forecast-intelligence/screens/ForecastScreen", () => ({
-  ForecastScreen: () => null,
-}));
-vi.mock("@/features/geo-analysis/screens/GeoAnalysisScreen", () => ({ default: () => null }));
-vi.mock("@/features/channel-monitor/screens/ChannelMonitorScreen", () => ({
-  ChannelMonitorScreen: () => null,
-}));
 vi.mock("@/features/data-import/screens/DataImportScreen", () => ({ default: () => null }));
 vi.mock("@/features/csv-parser/screens/CsvParserScreen", () => ({ default: () => null }));
 vi.mock("@/features/folders/screens/FoldersScreen", () => ({ default: () => null }));
-vi.mock("@/features/parsed-data/screens/ParsedDataScreen", () => ({ default: () => null }));
-vi.mock("@/features/data-browser/screens/DataBrowserScreen", () => ({ default: () => null }));
-vi.mock("@/features/data-transform/screens/DataTransformScreen", () => ({ default: () => null }));
-vi.mock("@/features/lineage/screens/LineageScreen", () => ({ default: () => null }));
-vi.mock("@/features/reconciliation/screens/ReconciliationScreen", () => ({
-  ReconciliationScreen: () => null,
-}));
-vi.mock("@/features/history/screens/HistoryScreen", () => ({ default: () => null }));
-vi.mock("@/features/report-studio/screens/ReportStudioScreen", () => ({
-  ReportStudioScreen: () => null,
-}));
-vi.mock("@/features/analytics-theater/screens/AnalyticsTheaterScreen", () => ({
-  AnalyticsTheaterScreen: () => null,
-}));
 vi.mock("@/features/collaboration/screens/CollaborationHostedScreen", () => ({
   default: () => null,
 }));
-vi.mock("@/features/agent-canvas/screens/AgentCanvasScreen", () => ({ default: () => null }));
-vi.mock("@/features/ux-innovations/screens/UxInnovationsScreen", () => ({ default: () => null }));
 vi.mock("@/features/dashboard-shell/screens/shell-overview-screen", () => ({
   ShellOverviewScreen: () => null,
 }));
@@ -158,32 +126,13 @@ import {
 
 /** Known IDs that must exist in the registry. */
 const KNOWN_IDS = [
-  "home",
   "moudir",
   "moudir-chat",
-  "commander",
-  "eye-tracking",
   "telecom",
-  "ai-briefing",
-  "ai-analysis",
-  "deep-analytics",
-  "forecast",
-  "geo",
-  "monitor",
   "upload",
   "csv-parser",
   "folders",
-  "parsed",
-  "data-browser",
-  "transform",
-  "lineage",
-  "reconciliation",
-  "history",
-  "report-studio",
-  "theater",
   "collaboration",
-  "agent-canvas",
-  "ux-innovations",
   "diagnostics",
   "help",
   "recycle-bin",
@@ -200,9 +149,9 @@ describe("DESKTOP_APPS", () => {
     expect(DESKTOP_APPS.length).toBeGreaterThan(0);
   });
 
-  it("contains exactly 30 app entries", () => {
-    // Cross-checked against the 30 entries defined in the source file.
-    expect(DESKTOP_APPS).toHaveLength(30);
+  it("contains exactly 11 app entries", () => {
+    // Cross-checked against the 11 entries defined in the source file.
+    expect(DESKTOP_APPS).toHaveLength(11);
   });
 
   it("every entry has a non-empty string id", () => {
@@ -299,19 +248,6 @@ describe("DESKTOP_APPS", () => {
 // ── Individual app properties ─────────────────────────────────────────────────
 
 describe("individual app property contracts", () => {
-  it("home is singleInstance, inLauncher, and pinned", () => {
-    const app = DESKTOP_APPS.find((a) => a.id === "home")!;
-    expect(app.singleInstance).toBe(true);
-    expect(app.inLauncher).toBe(true);
-    expect(app.pinned).toBe(true);
-  });
-
-  it("home has a Component (not a route)", () => {
-    const app = DESKTOP_APPS.find((a) => a.id === "home")!;
-    expect(app.Component).toBeDefined();
-    expect(app.route).toBeUndefined();
-  });
-
   it("telecom uses a native Component (shares IPC bridge + stores), not a route", () => {
     const app = DESKTOP_APPS.find((a) => a.id === "telecom")!;
     expect(app.Component).toBeDefined();
@@ -330,12 +266,6 @@ describe("individual app property contracts", () => {
     expect(app.pinned).toBe(true);
   });
 
-  it("commander is singleInstance and pinned", () => {
-    const app = DESKTOP_APPS.find((a) => a.id === "commander")!;
-    expect(app.singleInstance).toBe(true);
-    expect(app.pinned).toBe(true);
-  });
-
   it("moudir is singleInstance and pinned", () => {
     const app = DESKTOP_APPS.find((a) => a.id === "moudir")!;
     expect(app.singleInstance).toBe(true);
@@ -351,18 +281,6 @@ describe("individual app property contracts", () => {
     const app = DESKTOP_APPS.find((a) => a.id === "telecom")!;
     expect(app.singleInstance).toBe(true);
     expect(app.inLauncher).toBe(true);
-  });
-
-  it("ai-briefing has no singleInstance (it is undefined)", () => {
-    // ai-briefing is NOT singleInstance — multiple briefing windows are allowed.
-    const app = DESKTOP_APPS.find((a) => a.id === "ai-briefing")!;
-    expect(app.singleInstance).toBeUndefined();
-  });
-
-  it("home defaultSize is 1100 x 760", () => {
-    // Cross-checked against the source.
-    const app = DESKTOP_APPS.find((a) => a.id === "home")!;
-    expect(app.defaultSize).toEqual({ w: 1100, h: 760 });
   });
 
   it("recycle-bin defaultSize is 620 x 540", () => {
@@ -386,10 +304,10 @@ describe("individual app property contracts", () => {
 describe("getApp", () => {
   it("returns the correct app for a known id", () => {
     // Arrange
-    const expected = DESKTOP_APPS.find((a) => a.id === "home");
+    const expected = DESKTOP_APPS.find((a) => a.id === "moudir");
 
     // Act
-    const result = getApp("home");
+    const result = getApp("moudir");
 
     // Assert
     expect(result).toBe(expected);
@@ -405,7 +323,7 @@ describe("getApp", () => {
 
   it("is case-sensitive (uppercase id is not found)", () => {
     // The MAP key is the lowercase id; uppercase misses.
-    expect(getApp("HOME")).toBeUndefined();
+    expect(getApp("TELECOM")).toBeUndefined();
   });
 
   it("returns each known app by id", () => {
@@ -450,11 +368,6 @@ describe("LAUNCHER_APPS", () => {
     expect(ids).not.toContain("recycle-bin");
   });
 
-  it("includes the home app (inLauncher: true)", () => {
-    const ids = LAUNCHER_APPS.map((a) => a.id);
-    expect(ids).toContain("home");
-  });
-
   it("includes the settings app (inLauncher: true)", () => {
     const ids = LAUNCHER_APPS.map((a) => a.id);
     expect(ids).toContain("settings");
@@ -469,9 +382,9 @@ describe("LAUNCHER_APPS", () => {
     expect(LAUNCHER_APPS.length).toBeLessThan(DESKTOP_APPS.length);
   });
 
-  it("has exactly 29 entries (all apps minus recycle-bin)", () => {
-    // 30 total apps, 1 with inLauncher:false → 29 launcher apps
-    expect(LAUNCHER_APPS).toHaveLength(29);
+  it("has exactly 10 entries (all apps minus recycle-bin)", () => {
+    // 11 total apps, 1 with inLauncher:false → 10 launcher apps
+    expect(LAUNCHER_APPS).toHaveLength(10);
   });
 });
 
@@ -490,11 +403,6 @@ describe("PINNED_APPS", () => {
     }
   });
 
-  it("includes home (pinned: true)", () => {
-    const ids = PINNED_APPS.map((a) => a.id);
-    expect(ids).toContain("home");
-  });
-
   it("includes settings (pinned: true)", () => {
     const ids = PINNED_APPS.map((a) => a.id);
     expect(ids).toContain("settings");
@@ -505,24 +413,9 @@ describe("PINNED_APPS", () => {
     expect(ids).toContain("moudir");
   });
 
-  it("includes commander (pinned: true)", () => {
-    const ids = PINNED_APPS.map((a) => a.id);
-    expect(ids).toContain("commander");
-  });
-
-  it("includes eye-tracking (pinned: true)", () => {
-    const ids = PINNED_APPS.map((a) => a.id);
-    expect(ids).toContain("eye-tracking");
-  });
-
   it("includes telecom (pinned: true)", () => {
     const ids = PINNED_APPS.map((a) => a.id);
     expect(ids).toContain("telecom");
-  });
-
-  it("does not include ai-briefing (pinned is not set)", () => {
-    const ids = PINNED_APPS.map((a) => a.id);
-    expect(ids).not.toContain("ai-briefing");
   });
 
   it("does not include recycle-bin (not pinned)", () => {
@@ -530,9 +423,9 @@ describe("PINNED_APPS", () => {
     expect(ids).not.toContain("recycle-bin");
   });
 
-  it("has exactly 7 pinned apps", () => {
-    // home, moudir, moudir-chat, commander, eye-tracking, telecom, settings
-    expect(PINNED_APPS).toHaveLength(7);
+  it("has exactly 4 pinned apps", () => {
+    // moudir, moudir-chat, telecom, settings
+    expect(PINNED_APPS).toHaveLength(4);
   });
 
   it("every pinned app is also in LAUNCHER_APPS or at least in DESKTOP_APPS", () => {
@@ -582,9 +475,9 @@ describe("dynamic loader invocation via captured calls", () => {
   //   • the `name ? () => loader().then(m => m[name]) : loader` branch (line 91)
   // Both paths are needed to reach 100 % branch coverage on the ternary.
 
-  it("dynamic was called once per Component-bearing app (all 30 apps)", () => {
+  it("dynamic was called once per Component-bearing app (all 11 apps)", () => {
     // Every app in the registry now carries a Component (telecom included).
-    expect(dynamicCalls.length).toBe(30);
+    expect(dynamicCalls.length).toBe(11);
   });
 
   it("every captured dynamic call received ssr:false and a loading option", () => {
@@ -614,8 +507,6 @@ describe("dynamic loader invocation via captured calls", () => {
     // Apps that use d(loader, name) wrap the loader: () => loader().then(m => m[name]).
     // Those wrapped loaders return a function directly (the named export component)
     // instead of a { default: fn } object.
-    // deep-analytics (index 7) uses "DeepAnalyticsScreen"; its mock returns
-    // { DeepAnalyticsScreen: () => null }.
     const namedResults: unknown[] = [];
     for (const { loader } of dynamicCalls) {
       const result = await loader();
@@ -625,8 +516,8 @@ describe("dynamic loader invocation via captured calls", () => {
         namedResults.push(result);
       }
     }
-    // Apps using named exports: deep-analytics, forecast, monitor, reconciliation,
-    // report-studio, theater, diagnostics — at least one must be a plain function.
+    // Apps using named exports:
+    // diagnostics — at least one must be a plain function.
     expect(namedResults.length).toBeGreaterThan(0);
   }, 30000);
 });

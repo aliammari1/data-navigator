@@ -13,7 +13,7 @@
  * It also provides an idempotent one-time backfill (guarded by a version row)
  * to lift any pre-existing localStorage-as-DB data into Dexie exactly once.
  *
- * Usage (in a feature, e.g. ux-innovations or history):
+ * Usage (in a feature, e.g. achievements or history):
  *   import { mirrorStoreToDexie, runOnceBackfill } from "@/platform/storage/store-mirror";
  *   import { appDb, addActivityRecord } from "@/platform/storage/app-db";
  *

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Behavioral test suite for data-context-menus builders.
@@ -9,20 +9,18 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
  * runtime value). Every test exercises REAL module logic.
  */
 
-import {
-  buildDatasetMenu,
-  buildFolderMenu,
-  buildChartMenu,
-  buildKpiMenu,
-} from "@/features/desktop/core/data-context-menus";
 import type {
+  ChartMenuTarget,
+  DataMenuActions,
   DatasetMenuTarget,
   FolderMenuTarget,
-  ChartMenuTarget,
   KpiMenuTarget,
-  DataMenuActions,
-  MenuSelection,
-  MenuCrossFilter,
+} from "@/features/desktop/core/data-context-menus";
+import {
+  buildChartMenu,
+  buildDatasetMenu,
+  buildFolderMenu,
+  buildKpiMenu,
 } from "@/features/desktop/core/data-context-menus";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -100,17 +98,6 @@ describe("buildDatasetMenu — all actions wired", () => {
     actions = { openApp, setActiveDataset, askMoudir, setSelection };
   });
 
-  it("includes 'Ouvrir dans l'explorateur' when openApp is provided", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    expect(byLabel(menu, "Ouvrir dans l'explorateur")).toBeDefined();
-  });
-
-  it("clicking 'Ouvrir dans l'explorateur' calls openApp with data-browser and datasetId", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    byLabel(menu, "Ouvrir dans l'explorateur")?.onClick?.();
-    expect(openApp).toHaveBeenCalledWith("data-browser", { props: { datasetId: "ds1" } });
-  });
-
   it("includes 'Ouvrir dans Télécom' when openApp is provided", () => {
     const menu = buildDatasetMenu(ds, actions);
     expect(byLabel(menu, "Ouvrir dans Télécom")).toBeDefined();
@@ -159,28 +146,6 @@ describe("buildDatasetMenu — all actions wired", () => {
     expect(askMoudir).toHaveBeenCalledWith(
       `Analyse le jeu de données « Ventes 2026 » et résume-le.`,
     );
-  });
-
-  it("includes 'Prévoir les tendances' when openApp is provided", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    expect(byLabel(menu, "Prévoir les tendances")).toBeDefined();
-  });
-
-  it("clicking 'Prévoir les tendances' calls openApp with forecast and datasetId", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    byLabel(menu, "Prévoir les tendances")?.onClick?.();
-    expect(openApp).toHaveBeenCalledWith("forecast", { props: { datasetId: "ds1" } });
-  });
-
-  it("includes 'Générer un rapport' when openApp is provided", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    expect(byLabel(menu, "Générer un rapport")).toBeDefined();
-  });
-
-  it("clicking 'Générer un rapport' calls openApp with report-studio and datasetId", () => {
-    const menu = buildDatasetMenu(ds, actions);
-    byLabel(menu, "Générer un rapport")?.onClick?.();
-    expect(openApp).toHaveBeenCalledWith("report-studio", { props: { datasetId: "ds1" } });
   });
 
   it("contains a separator between the open-actions and the active/selection actions", () => {
@@ -276,7 +241,9 @@ describe("buildFolderMenu — all actions wired", () => {
   });
 
   it("includes 'Ouvrir dans une nouvelle fenêtre' when openApp is provided", () => {
-    expect(byLabel(buildFolderMenu(folder, actions), "Ouvrir dans une nouvelle fenêtre")).toBeDefined();
+    expect(
+      byLabel(buildFolderMenu(folder, actions), "Ouvrir dans une nouvelle fenêtre"),
+    ).toBeDefined();
   });
 
   it("clicking 'Ouvrir dans une nouvelle fenêtre' calls openApp with forceNew: true", () => {
@@ -290,7 +257,9 @@ describe("buildFolderMenu — all actions wired", () => {
   });
 
   it("includes 'Sélectionner pour l'inspecteur' when setSelection is provided", () => {
-    expect(byLabel(buildFolderMenu(folder, actions), "Sélectionner pour l'inspecteur")).toBeDefined();
+    expect(
+      byLabel(buildFolderMenu(folder, actions), "Sélectionner pour l'inspecteur"),
+    ).toBeDefined();
   });
 
   it("clicking 'Sélectionner pour l'inspecteur' calls setSelection with folder kind/id/label", () => {
@@ -376,9 +345,7 @@ describe("buildChartMenu — title fallback", () => {
     const askMoudir = vi.fn();
     const menu = buildChartMenu({}, { askMoudir });
     byLabel(menu, "Expliquer ce graphique")?.onClick?.();
-    expect(askMoudir).toHaveBeenCalledWith(
-      expect.stringContaining("Graphique"),
-    );
+    expect(askMoudir).toHaveBeenCalledWith(expect.stringContaining("Graphique"));
   });
 
   it("uses 'Graphique' as the title when ctx.title is blank/whitespace", () => {
@@ -430,7 +397,11 @@ describe("buildChartMenu — pin snapshot", () => {
 
   it("clicking pin with image calls pinSnapshot with kind='image'", () => {
     const pinSnapshot = vi.fn();
-    const ctx: ChartMenuTarget = { title: "Screenshot", image: "data:image/png;base64,abc", appId: "telecom" };
+    const ctx: ChartMenuTarget = {
+      title: "Screenshot",
+      image: "data:image/png;base64,abc",
+      appId: "telecom",
+    };
     buildChartMenu(ctx, { pinSnapshot })
       .find((i) => i.label === "Épingler sur le bureau")
       ?.onClick?.();
@@ -439,14 +410,12 @@ describe("buildChartMenu — pin snapshot", () => {
     );
   });
 
-  it("uses 'data-browser' as default appId when ctx.appId is not provided", () => {
+  it("uses 'telecom' as default appId when ctx.appId is not provided", () => {
     const pinSnapshot = vi.fn();
     buildChartMenu({ html: "<div/>" }, { pinSnapshot })
       .find((i) => i.label === "Épingler sur le bureau")
       ?.onClick?.();
-    expect(pinSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ appId: "data-browser" }),
-    );
+    expect(pinSnapshot).toHaveBeenCalledWith(expect.objectContaining({ appId: "telecom" }));
   });
 });
 
@@ -458,10 +427,7 @@ describe("buildChartMenu — selection", () => {
 
   it("clicking selection calls setSelection with chart kind, id, label, and meta.datasetId", () => {
     const setSelection = vi.fn();
-    buildChartMenu(
-      { id: "c1", title: "Bar", datasetId: "ds1" },
-      { setSelection },
-    )
+    buildChartMenu({ id: "c1", title: "Bar", datasetId: "ds1" }, { setSelection })
       .find((i) => i.label === "Sélectionner pour l'inspecteur")
       ?.onClick?.();
     expect(setSelection).toHaveBeenCalledWith({
@@ -483,10 +449,7 @@ describe("buildChartMenu — cross-filter", () => {
   });
 
   it("omits cross-filter entry when dimension is missing", () => {
-    const menu = buildChartMenu(
-      { title: "Canaux", value: "SMS" },
-      { setCrossFilter: vi.fn() },
-    );
+    const menu = buildChartMenu({ title: "Canaux", value: "SMS" }, { setCrossFilter: vi.fn() });
     expect(byLabel(menu, `Filtrer le bureau sur « SMS »`)).toBeUndefined();
   });
 
@@ -499,19 +462,13 @@ describe("buildChartMenu — cross-filter", () => {
   });
 
   it("omits cross-filter entry when setCrossFilter is not provided", () => {
-    const menu = buildChartMenu(
-      { dimension: "channel", value: "SMS" },
-      {},
-    );
+    const menu = buildChartMenu({ dimension: "channel", value: "SMS" }, {});
     expect(menu.find((i) => i.label?.startsWith("Filtrer le bureau"))).toBeUndefined();
   });
 
   it("clicking cross-filter calls setCrossFilter with dimension and value", () => {
     const setCrossFilter = vi.fn();
-    buildChartMenu(
-      { dimension: "channel", value: "SMS" },
-      { setCrossFilter },
-    )
+    buildChartMenu({ dimension: "channel", value: "SMS" }, { setCrossFilter })
       .find((i) => i.label?.startsWith("Filtrer le bureau"))
       ?.onClick?.();
     expect(setCrossFilter).toHaveBeenCalledWith({ dimension: "channel", value: "SMS" });
@@ -554,43 +511,12 @@ describe("buildChartMenu — askMoudir", () => {
 
   it("prompt with filter: includes dimension and value in the prompt", () => {
     const askMoudir = vi.fn();
-    buildChartMenu(
-      { title: "Tendances", dimension: "channel", value: "DATA" },
-      { askMoudir },
-    )
+    buildChartMenu({ title: "Tendances", dimension: "channel", value: "DATA" }, { askMoudir })
       .find((i) => i.label === "Expliquer ce graphique")
       ?.onClick?.();
     expect(askMoudir).toHaveBeenCalledWith(
       `Explique le graphique « Tendances » pour channel = DATA.`,
     );
-  });
-});
-
-describe("buildChartMenu — open source dataset", () => {
-  it("includes 'Ouvrir le jeu de données source' when openApp + datasetId are present", () => {
-    const menu = buildChartMenu(
-      { datasetId: "ds1" },
-      { openApp: vi.fn() },
-    );
-    expect(byLabel(menu, "Ouvrir le jeu de données source")).toBeDefined();
-  });
-
-  it("omits 'Ouvrir le jeu de données source' when datasetId is absent", () => {
-    const menu = buildChartMenu({}, { openApp: vi.fn() });
-    expect(byLabel(menu, "Ouvrir le jeu de données source")).toBeUndefined();
-  });
-
-  it("omits 'Ouvrir le jeu de données source' when openApp is absent", () => {
-    const menu = buildChartMenu({ datasetId: "ds1" }, {});
-    expect(byLabel(menu, "Ouvrir le jeu de données source")).toBeUndefined();
-  });
-
-  it("clicking it calls openApp with data-browser and the datasetId", () => {
-    const openApp = vi.fn();
-    buildChartMenu({ datasetId: "ds99" }, { openApp })
-      .find((i) => i.label === "Ouvrir le jeu de données source")
-      ?.onClick?.();
-    expect(openApp).toHaveBeenCalledWith("data-browser", { props: { datasetId: "ds99" } });
   });
 });
 
@@ -680,9 +606,7 @@ describe("buildKpiMenu — pinSnapshot", () => {
     buildKpiMenu(kpiNoVal, { pinSnapshot })
       .find((i) => i.label === "Épingler la valeur sur le bureau")
       ?.onClick?.();
-    expect(pinSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Top erreur" }),
-    );
+    expect(pinSnapshot).toHaveBeenCalledWith(expect.objectContaining({ text: "Top erreur" }));
   });
 
   it("text includes no value suffix when kpi.value is null", () => {
@@ -691,9 +615,7 @@ describe("buildKpiMenu — pinSnapshot", () => {
     buildKpiMenu(kpiNull, { pinSnapshot })
       .find((i) => i.label === "Épingler la valeur sur le bureau")
       ?.onClick?.();
-    expect(pinSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Top erreur" }),
-    );
+    expect(pinSnapshot).toHaveBeenCalledWith(expect.objectContaining({ text: "Top erreur" }));
   });
 
   it("text includes numeric value when kpi.value is a number", () => {
@@ -702,9 +624,7 @@ describe("buildKpiMenu — pinSnapshot", () => {
     buildKpiMenu(kpiNum, { pinSnapshot })
       .find((i) => i.label === "Épingler la valeur sur le bureau")
       ?.onClick?.();
-    expect(pinSnapshot).toHaveBeenCalledWith(
-      expect.objectContaining({ text: "Total : 42000" }),
-    );
+    expect(pinSnapshot).toHaveBeenCalledWith(expect.objectContaining({ text: "Total : 42000" }));
   });
 });
 
@@ -755,7 +675,12 @@ describe("buildKpiMenu — cross-filter", () => {
   });
 
   it("omits cross-filter when setCrossFilter is not provided", () => {
-    const kpi: KpiMenuTarget = { key: "k", label: "K", dimension: "errorCode", filterValue: "E002" };
+    const kpi: KpiMenuTarget = {
+      key: "k",
+      label: "K",
+      dimension: "errorCode",
+      filterValue: "E002",
+    };
     const menu = buildKpiMenu(kpi, {});
     expect(menu.find((i) => i.label?.startsWith("Filtrer"))).toBeUndefined();
   });
@@ -847,10 +772,7 @@ describe("clean() helper behavior (via public builders)", () => {
 
   it("does not emit a leading separator even when the first real items are absent", () => {
     // pinSnapshot absent, setSelection absent → first emitted item must not be sep
-    const menu = buildChartMenu(
-      { title: "Bar" },
-      { clearCrossFilter: vi.fn() },
-    );
+    const menu = buildChartMenu({ title: "Bar" }, { clearCrossFilter: vi.fn() });
     if (menu.length > 0) {
       expect(menu[0].separator).toBeFalsy();
     }

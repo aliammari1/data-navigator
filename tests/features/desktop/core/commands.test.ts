@@ -3,8 +3,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 /**
  * Behavioral test suite for the KRunner-style Spotlight command resolver.
  *
- * The module reads two zustand stores via `getState()` and iterates the desktop
- * app registry. All three boundaries are mocked so the suite is deterministic,
+ * The module reads one zustand store via `getState()` and iterates the desktop
+ * app registry. Both boundaries are mocked so the suite is deterministic,
  * dependency-free (no `next/dynamic`, no zustand persistence, no real DB) and
  * fast. Every assertion is on a REAL computed output of the module under test.
  */
@@ -12,8 +12,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 // ─── Boundary mocks ──────────────────────────────────────────────────────────
 
 // All shared mock state lives inside `vi.hoisted` so the (hoisted) `vi.mock`
-// factories can reference it without a TDZ error. `datasets` is mutated per-test
-// to drive the data-store snapshot; the spies capture `run()` side effects.
+// factories can reference it without a TDZ error. The spies capture `run()`
+// side effects.
 const h = vi.hoisted(() => {
   // A stub Lucide icon — the resolver only forwards the reference, never renders.
   const StubIcon = () => null;
@@ -58,15 +58,6 @@ const h = vi.hoisted(() => {
     GLASS_PALETTES,
     setWallpaper: vi.fn(),
     setGlassPalette: vi.fn(),
-    setActiveDataset: vi.fn(),
-    // Mutable per-test data-store datasets snapshot.
-    datasets: [] as Array<{
-      id: string;
-      name: string;
-      rowCount: number;
-      colCount: number;
-      updatedAt: string;
-    }>,
   };
 });
 
@@ -83,17 +74,10 @@ vi.mock("@/features/desktop/store/desktop-store", () => ({
   },
 }));
 
-vi.mock("@/core/stores/data-store", () => ({
-  useDataStore: {
-    getState: () => ({ datasets: h.datasets, setActiveDataset: h.setActiveDataset }),
-  },
-}));
-
 // Convenience aliases used throughout the suite.
 const LAUNCHER_APPS = h.LAUNCHER_APPS;
 const setWallpaper = h.setWallpaper;
 const setGlassPalette = h.setGlassPalette;
-const setActiveDataset = h.setActiveDataset;
 
 // Import AFTER the mocks are registered (hoisted by vitest, but explicit here).
 import { resolveCommands, tryEvalMath } from "@/features/desktop/core/commands";
@@ -107,13 +91,7 @@ function byId(results: ReturnType<typeof resolveCommands>, id: string) {
   return results.find((r) => r.id === id);
 }
 
-/** Replace the mocked data-store datasets snapshot for the current test. */
-function setDatasets(next: typeof h.datasets): void {
-  h.datasets = next;
-}
-
 beforeEach(() => {
-  setDatasets([]);
   vi.clearAllMocks();
 });
 
@@ -306,18 +284,6 @@ describe("resolveCommands — empty query", () => {
     expect(byId(results, "moudir-hint")).toBeDefined();
     expect(byId(results, "moudir")).toBeUndefined();
   });
-
-  it("includes datasets on an empty query at the fixed score 30 (no fuzzy gate)", () => {
-    // On an empty query the term guard `if (term && s <= 0) continue` is skipped,
-    // so the dataset is pushed unconditionally with its empty-query score of 30.
-    setDatasets([
-      { id: "d1", name: "Ventes", rowCount: 100, colCount: 5, updatedAt: "2026-01-01" },
-    ]);
-    const results = resolveCommands("");
-    // On empty query the dataset is pushed with score 30 (the guard requires term).
-    expect(byKind(results, "dataset")).toHaveLength(1);
-    expect(byId(results, "dataset:d1")?.score).toBe(30);
-  });
 });
 
 // ─── resolveCommands: calculator family ──────────────────────────────────────
@@ -416,72 +382,6 @@ describe("resolveCommands — app launches", () => {
   });
 });
 
-// ─── resolveCommands: recent datasets ────────────────────────────────────────
-
-describe("resolveCommands — recent datasets", () => {
-  beforeEach(() => {
-    setDatasets([
-      { id: "d1", name: "Ventes Janvier", rowCount: 1234, colCount: 5, updatedAt: "2026-01-10" },
-      { id: "d2", name: "Clients", rowCount: 50, colCount: 3, updatedAt: "2026-02-01" },
-    ]);
-  });
-
-  it("matches a dataset by name and tags it as kind 'dataset'", () => {
-    const results = resolveCommands("ventes");
-    const ds = byId(results, "dataset:d1");
-    expect(ds).toBeDefined();
-    expect(ds?.kind).toBe("dataset");
-  });
-
-  it("builds a French-formatted subtitle with row/column counts", () => {
-    const results = resolveCommands("ventes");
-    const ds = byId(results, "dataset:d1");
-    // "1 234 lignes · 5 colonnes" — verify the digits and the structure.
-    expect(ds?.subtitle).toContain("lignes");
-    expect(ds?.subtitle).toContain("5 colonnes");
-    expect(ds?.subtitle?.replace(/[\s  ]/g, "")).toContain("1234lignes");
-  });
-
-  it("excludes non-matching datasets for a specific term", () => {
-    const results = resolveCommands("ventes");
-    expect(byId(results, "dataset:d2")).toBeUndefined();
-  });
-
-  it("sorts recent datasets by updatedAt descending and caps at 6", () => {
-    setDatasets(
-      Array.from({ length: 8 }, (_, i) => ({
-        id: `ds${i}`,
-        // distinct names but all containing 'data' so they all fuzzy-match
-        name: `data ${String(i).padStart(2, "0")}`,
-        rowCount: i,
-        colCount: i,
-        // i=7 newest
-        updatedAt: `2026-01-${String(i + 1).padStart(2, "0")}`,
-      })),
-    );
-    const results = resolveCommands("data");
-    const dsResults = byKind(results, "dataset");
-    // Only the 6 most-recent datasets (ds7..ds2) are considered.
-    expect(byId(results, "dataset:ds7")).toBeDefined();
-    expect(byId(results, "dataset:ds2")).toBeDefined();
-    // ds1 and ds0 are the two oldest → dropped before fuzzy matching.
-    expect(byId(results, "dataset:ds0")).toBeUndefined();
-    expect(byId(results, "dataset:ds1")).toBeUndefined();
-    expect(dsResults.length).toBeLessThanOrEqual(6);
-  });
-
-  it("run() activates the dataset and opens the data-browser with its id", () => {
-    const spy = vi.spyOn(window, "dispatchEvent");
-    const results = resolveCommands("clients");
-    byId(results, "dataset:d2")?.run();
-    expect(setActiveDataset).toHaveBeenCalledWith("d2");
-    const ev = spy.mock.calls.at(-1)?.[0] as CustomEvent;
-    expect(ev.type).toBe("desktop:open-app");
-    expect(ev.detail).toEqual({ appId: "data-browser", props: { datasetId: "d2" } });
-    spy.mockRestore();
-  });
-});
-
 // ─── resolveCommands: wallpaper appearance ───────────────────────────────────
 
 describe("resolveCommands — wallpaper", () => {
@@ -546,43 +446,6 @@ describe("resolveCommands — glass palette", () => {
   });
 });
 
-// ─── resolveCommands: export report ──────────────────────────────────────────
-
-describe("resolveCommands — export report", () => {
-  it("surfaces the export command on the 'export' keyword", () => {
-    const results = resolveCommands("export");
-    const exp = byId(results, "export-report");
-    expect(exp).toBeDefined();
-    expect(exp?.kind).toBe("export");
-    expect(exp?.title).toBe("Exporter le rapport");
-  });
-
-  it("surfaces the export command on the 'rapport' keyword", () => {
-    const results = resolveCommands("rapport");
-    expect(byId(results, "export-report")).toBeDefined();
-  });
-
-  it("surfaces the export command on the 'pdf' keyword", () => {
-    const results = resolveCommands("pdf");
-    expect(byId(results, "export-report")).toBeDefined();
-  });
-
-  it("does NOT surface the export command for an unrelated query", () => {
-    const results = resolveCommands("clients");
-    expect(byId(results, "export-report")).toBeUndefined();
-  });
-
-  it("run() opens report-studio with the export intent", () => {
-    const spy = vi.spyOn(window, "dispatchEvent");
-    const results = resolveCommands("export");
-    byId(results, "export-report")?.run();
-    const ev = spy.mock.calls.at(-1)?.[0] as CustomEvent;
-    expect(ev.type).toBe("desktop:open-app");
-    expect(ev.detail).toEqual({ appId: "report-studio", props: { intent: "export" } });
-    spy.mockRestore();
-  });
-});
-
 // ─── resolveCommands: Moudir fallback ────────────────────────────────────────
 
 describe("resolveCommands — Moudir fallback", () => {
@@ -632,16 +495,6 @@ describe("resolveCommands — sorting and MAX_RESULTS cap", () => {
   });
 
   it("never returns more than 8 results (MAX_RESULTS)", () => {
-    setDatasets(
-      Array.from({ length: 6 }, (_, i) => ({
-        id: `d${i}`,
-        name: `report data ${i}`,
-        rowCount: i,
-        colCount: i,
-        updatedAt: `2026-03-0${i + 1}`,
-      })),
-    );
-    // 'report' triggers export + datasets + apps + moudir → would exceed 8.
     const results = resolveCommands("report");
     expect(results.length).toBeLessThanOrEqual(8);
   });
@@ -656,9 +509,6 @@ describe("resolveCommands — sorting and MAX_RESULTS cap", () => {
 
 describe("resolveCommands — result invariants", () => {
   it("gives every result a stable id, a numeric score, and a run() function", () => {
-    setDatasets([
-      { id: "d1", name: "report ventes", rowCount: 1, colCount: 1, updatedAt: "2026-01-01" },
-    ]);
     const results = resolveCommands("report");
     for (const r of results) {
       expect(typeof r.id).toBe("string");
@@ -670,9 +520,6 @@ describe("resolveCommands — result invariants", () => {
   });
 
   it("produces unique ids across a mixed result set", () => {
-    setDatasets([
-      { id: "d1", name: "report ventes", rowCount: 1, colCount: 1, updatedAt: "2026-01-01" },
-    ]);
     const results = resolveCommands("report");
     const ids = results.map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);

@@ -45,9 +45,6 @@ describe("telecom buildMenu — shape", () => {
       "refresh-history",
       "export-db-2",
       "report-sep-1",
-      "ai-briefing",
-      "ai-analysis",
-      "report-sep-2",
       "ask-moudir",
     ]);
   });
@@ -106,20 +103,6 @@ describe("telecom buildMenu — Rapport actions", () => {
     const report = findGroup(buildMenu(ctx), "report");
     getAction(report?.items ?? [], "export-db-2").run();
     expect(ctx.command).toHaveBeenCalledWith("export");
-  });
-
-  it("'ai-briefing' opens the ai-briefing app", () => {
-    const ctx = makeMenuContext();
-    const report = findGroup(buildMenu(ctx), "report");
-    getAction(report?.items ?? [], "ai-briefing").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("ai-briefing");
-  });
-
-  it("'ai-analysis' opens the ai-analysis app", () => {
-    const ctx = makeMenuContext();
-    const report = findGroup(buildMenu(ctx), "report");
-    getAction(report?.items ?? [], "ai-analysis").run();
-    expect(ctx.openApp).toHaveBeenCalledWith("ai-analysis");
   });
 
   it("'ask-moudir' asks Moudir to summarize the telecom KPIs", () => {

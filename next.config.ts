@@ -12,18 +12,6 @@ const nextConfig: NextConfig = {
     // app's ES2017 target rejects — they must not gate `next build`.
     tsconfigPath: "tsconfig.build.json",
   },
-  async rewrites() {
-    return {
-      beforeFiles: [
-        {
-          source: "/mediapipe/face_mesh/:asset*",
-          destination: "/vendor/webgazer/mediapipe/face_mesh/:asset*",
-        },
-      ],
-      afterFiles: [],
-      fallback: [],
-    };
-  },
   async redirects() {
     return [
       // Legacy raw-data route removed (dedup) — it was a hardcoded-table twin of
