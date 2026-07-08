@@ -47,17 +47,42 @@ describe("auth.ts — authConfig shape", () => {
     expect(authConfig.appName).toBe("DataNavigator");
   });
 
-  it("includes a database field produced by drizzleAdapter", () => {
-    // The mock returns { type: "mock-drizzle-adapter" } for any input
-    expect(authConfig.database).toEqual({ type: "mock-drizzle-adapter" });
+  it("calls drizzleAdapter with the real auth db, sqlite provider, and schema", async () => {
+    // The mock always returns { type: "mock-drizzle-adapter" } regardless of
+    // input, so asserting on authConfig.database alone (as this test used to)
+    // could never catch a wrong provider/schema/db being passed. Assert on the
+    // actual call arguments instead — a real regression (wrong provider name,
+    // missing schema, wrong db instance) fails this.
+    //
+    // auth.ts calls drizzleAdapter() once, at module-import time, and this repo's
+    // global `clearMocks: true` wipes call history before every test body runs —
+    // so the top-level import's call is never observable here. Reset modules and
+    // re-import fresh within this test instead (same pattern the branch tests
+    // below already use), so the call happens after this test's own mock state
+    // is live.
+    vi.resetModules();
+    const { drizzleAdapter } = await import("@better-auth/drizzle-adapter");
+    const { authDb } = await import("@/platform/auth/auth-database");
+    const schema = await import("@/db/schema");
+
+    await import("@/platform/auth/auth");
+
+    expect(drizzleAdapter).toHaveBeenCalledWith(authDb, {
+      provider: "sqlite",
+      schema,
+    });
   });
 
-  it("enables email and password auth with minPasswordLength 8 and autoSignIn true", () => {
-    expect(authConfig.emailAndPassword).toEqual({
-      enabled: true,
-      minPasswordLength: 8,
-      autoSignIn: true,
-    });
+  it("enables email/password auth with autoSignIn true", () => {
+    expect(authConfig.emailAndPassword.enabled).toBe(true);
+    expect(authConfig.emailAndPassword.autoSignIn).toBe(true);
+  });
+
+  it("enforces a minimum password length that meets a real security floor", () => {
+    // Independent invariant (NIST SP 800-63B's minimum), not copied from the
+    // source literal: a future edit that weakens this to e.g. 4 fails here even
+    // if the same person "helpfully" updates this number to match.
+    expect(authConfig.emailAndPassword.minPasswordLength).toBeGreaterThanOrEqual(8);
   });
 
   it("registers exactly one plugin (nextCookies)", () => {
@@ -80,10 +105,14 @@ describe("auth.ts — auth export", () => {
     expect(auth).toBeTruthy();
   });
 
-  it("auth object reflects the authConfig passed to betterAuth", () => {
-    // The mock betterAuth stores the config under _cfg so we can verify it
-    expect((auth as { _cfg: unknown })._cfg).toBe(authConfig);
-  });
+  // A test asserting `auth._cfg === authConfig` was removed here: with
+  // `betterAuth` fully mocked to stash whatever it's given under `_cfg`, that
+  // assertion only proved the mock does what the mock was told to do — it gave
+  // no signal about whether the real betterAuth() call is wired correctly.
+  // `toBeTruthy()` above already covers "auth.ts calls betterAuth(authConfig)
+  // without throwing"; anything deeper (real session/password-policy
+  // enforcement) needs an integration test against a real better-auth
+  // instance, not a fully-mocked unit test.
 });
 
 // ---------------------------------------------------------------------------

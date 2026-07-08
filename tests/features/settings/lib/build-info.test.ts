@@ -11,54 +11,80 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
+import packageJson from "../../../../package.json";
 import { BUILD_INFO, runtimeLabel } from "@/features/settings/lib/build-info";
+
+/** Strip a semver range prefix (^, ~, >=, etc.) from a package.json version string. */
+function bareVersion(range: string): string {
+  return range.replace(/^[\^~>=<]+/, "");
+}
+
+function installedVersion(pkgName: string): string {
+  const deps = packageJson.dependencies as Record<string, string>;
+  const version = deps[pkgName];
+  if (!version) {
+    throw new Error(`"${pkgName}" not found in package.json dependencies — update this test.`);
+  }
+  return bareVersion(version);
+}
 
 // ---------------------------------------------------------------------------
 // BUILD_INFO constant
 // ---------------------------------------------------------------------------
+//
+// BUILD_INFO's own doc comment says it "mirrors the relevant package.json
+// ranges... keep in sync with package.json when bumping a headline
+// dependency" — i.e. it's meant to track package.json, not an arbitrary
+// hardcoded string. Asserting each field against a copy-pasted literal (as
+// this file used to) could never catch that sync breaking: it already had —
+// checking against package.json while fixing this test found BUILD_INFO's
+// version/duckdb/motion/next/react/betterAuth fields had drifted stale versus
+// what's actually installed (fixed in the same change as this test).
 
 describe("BUILD_INFO", () => {
-  it("has the expected version", () => {
-    expect(BUILD_INFO.version).toBe("0.1.0");
+  it("app version matches package.json's version", () => {
+    expect(BUILD_INFO.version).toBe(packageJson.version);
   });
 
   it("has a non-empty commit hash", () => {
-    expect(BUILD_INFO.commit).toBe("250657a");
+    // The build commit isn't derivable from package.json — this remains a pin.
+    expect(BUILD_INFO.commit).toMatch(/^[0-9a-f]{7,40}$/);
   });
 
-  it("has the duckdb field", () => {
-    expect(BUILD_INFO.duckdb).toBe("@duckdb/node-api 1.5.3");
+  it("duckdb field matches the installed @duckdb/node-api version", () => {
+    expect(BUILD_INFO.duckdb).toContain(installedVersion("@duckdb/node-api"));
   });
 
-  it("has the echarts field", () => {
-    expect(BUILD_INFO.echarts).toBe("6.1.0");
+  it("echarts field matches the installed echarts version", () => {
+    expect(BUILD_INFO.echarts).toBe(installedVersion("echarts"));
   });
 
-  it("has the motion field", () => {
-    expect(BUILD_INFO.motion).toBe("12.40.0");
+  it("motion field matches the installed motion version", () => {
+    expect(BUILD_INFO.motion).toBe(installedVersion("motion"));
   });
 
-  it("has the next field", () => {
-    expect(BUILD_INFO.next).toBe("16.2.7");
+  it("next field matches the installed next version", () => {
+    expect(BUILD_INFO.next).toBe(installedVersion("next"));
   });
 
-  it("has the react field", () => {
-    expect(BUILD_INFO.react).toBe("19.2.6");
+  it("react field matches the installed react version", () => {
+    expect(BUILD_INFO.react).toBe(installedVersion("react"));
   });
 
-  it("has the transformers field", () => {
-    expect(BUILD_INFO.transformers).toBe("@huggingface/transformers 4.2.0");
+  it("transformers field matches the installed @huggingface/transformers version", () => {
+    expect(BUILD_INFO.transformers).toContain(installedVersion("@huggingface/transformers"));
   });
 
-  it("has the maplibre field", () => {
-    expect(BUILD_INFO.maplibre).toBe("maplibre-gl 5.24.0");
+  it("maplibre field matches the installed maplibre-gl version", () => {
+    expect(BUILD_INFO.maplibre).toContain(installedVersion("maplibre-gl"));
   });
 
-  it("has the betterAuth field", () => {
-    expect(BUILD_INFO.betterAuth).toBe("1.6.14");
+  it("betterAuth field matches the installed better-auth version", () => {
+    expect(BUILD_INFO.betterAuth).toBe(installedVersion("better-auth"));
   });
 
   it("has the MIT license", () => {
+    // Not package.json-derivable the same way; a real static project fact.
     expect(BUILD_INFO.license).toBe("MIT");
   });
 });

@@ -4,10 +4,12 @@ import {
   CHART_PALETTE,
   STATUS_COLORS,
   enrichCanalSummaries,
+  reattachCanalIcons,
+  stripCanalIconsForPersist,
 } from "@/features/telecom/lib/canal-config";
 import type { RawCanalRow } from "@/features/telecom/lib/queries";
 import { STATUS_PRESENTATION } from "@/features/telecom/lib/status-definitions";
-import type { CanalKey } from "@/features/telecom/types";
+import type { CanalKey, CanalSummary } from "@/features/telecom/types";
 
 const ALL_CANAL_KEYS: CanalKey[] = [
   "bill_payment",
@@ -129,5 +131,94 @@ describe("enrichCanalSummaries", () => {
     ]);
 
     expect(enriched.map((c) => c.key)).toEqual(["data_sabba", "bill_payment"]);
+  });
+});
+
+describe("stripCanalIconsForPersist", () => {
+  it("drops the icon field while keeping every other field intact", () => {
+    // Arrange
+    const enriched = enrichCanalSummaries([
+      rawCanal({ key: "bill_payment", total: 100, success: 90, successRate: 90 }),
+    ]);
+
+    // Act
+    const stripped = stripCanalIconsForPersist(enriched);
+
+    // Assert
+    expect(stripped[0]).not.toHaveProperty("icon");
+    expect(stripped[0]).toMatchObject({
+      key: "bill_payment",
+      total: 100,
+      success: 90,
+      successRate: 90,
+      color: CANAL_CONFIG.bill_payment.color,
+      bgColor: CANAL_CONFIG.bill_payment.bg,
+      borderColor: CANAL_CONFIG.bill_payment.border,
+    });
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(stripCanalIconsForPersist([])).toEqual([]);
+  });
+
+  it("maps every element, preserving order", () => {
+    const enriched = enrichCanalSummaries([
+      rawCanal({ key: "data_sabba" }),
+      rawCanal({ key: "voucher_convergent" }),
+    ]);
+
+    const stripped = stripCanalIconsForPersist(enriched);
+
+    expect(stripped.map((c) => c.key)).toEqual(["data_sabba", "voucher_convergent"]);
+    expect(stripped.every((c) => !("icon" in c))).toBe(true);
+  });
+});
+
+describe("reattachCanalIcons", () => {
+  it("re-derives the icon component from CANAL_CONFIG by key", () => {
+    // Arrange
+    const enriched = enrichCanalSummaries([rawCanal({ key: "credit_transfer" })]);
+    const stripped = stripCanalIconsForPersist(enriched);
+
+    // Act
+    const reattached = reattachCanalIcons(stripped);
+
+    // Assert
+    expect(reattached[0].icon).toBe(CANAL_CONFIG.credit_transfer.icon);
+  });
+
+  it("round-trips through strip + reattach back to an equivalent CanalSummary", () => {
+    const enriched = enrichCanalSummaries([
+      rawCanal({ key: "voice_mobile_ttcash", total: 50, amount: 999.5 }),
+    ]);
+
+    const roundTripped = reattachCanalIcons(stripCanalIconsForPersist(enriched));
+
+    expect(roundTripped).toEqual(enriched);
+  });
+
+  it("returns an empty array for empty input", () => {
+    expect(reattachCanalIcons([])).toEqual([]);
+  });
+
+  it("maps every element, preserving order and length", () => {
+    const stripped = stripCanalIconsForPersist(
+      enrichCanalSummaries([
+        rawCanal({ key: "data_evoucher" }),
+        rawCanal({ key: "voucher_for_payment" }),
+        rawCanal({ key: "voice_fixed_voucher" }),
+      ]),
+    );
+
+    const reattached: CanalSummary[] = reattachCanalIcons(stripped);
+
+    expect(reattached.map((c) => c.key)).toEqual([
+      "data_evoucher",
+      "voucher_for_payment",
+      "voice_fixed_voucher",
+    ]);
+    expect(reattached[0].icon).toBe(CANAL_CONFIG.data_evoucher.icon);
+    expect(reattached[1].icon).toBe(CANAL_CONFIG.voucher_for_payment.icon);
+    expect(reattached[2].icon).toBe(CANAL_CONFIG.voice_fixed_voucher.icon);
   });
 });

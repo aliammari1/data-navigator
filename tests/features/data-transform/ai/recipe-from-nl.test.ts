@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildRecipePrompt } from "@/features/data-transform/ai/recipe-from-nl";
+import {
+  buildRecipePrompt,
+  SYSTEM_PROMPT,
+} from "@/features/data-transform/ai/recipe-from-nl";
 
 const baseInput = {
   instruction: "  keep only rows where amount > 100  ",
@@ -12,38 +15,58 @@ const baseInput = {
 };
 
 describe("buildRecipePrompt", () => {
-  it("returns a fixed system prompt describing the step vocabulary", () => {
+  it("returns the exact static system prompt describing the step vocabulary", () => {
+    // buildRecipePrompt has no LLM call to wire-test here — the system prompt
+    // is a fully static, input-independent string, so an exact match is
+    // strictly stronger than substring checks: those could only ever catch
+    // removal of one specific phrase and would miss the rest of the step
+    // vocabulary or rules being rewritten while accidentally keeping one
+    // matching keyword.
     const { system } = buildRecipePrompt(baseInput);
-    expect(system).toContain("data-wrangling assistant");
-    expect(system).toContain("filter, select, rename, derive, aggregate");
-    expect(system).toContain("never invent columns");
+    expect(system).toBe(SYSTEM_PROMPT);
   });
 
-  it("embeds the table name and a locale-formatted row count", () => {
+  it("builds the exact prompt from the table, columns, row count, and instruction", () => {
+    // The user prompt IS built from runtime input, but that input is fully
+    // deterministic here (a hand-written fixture), so a single exact-string
+    // match — built by reading the real builder and this fixture — is
+    // strictly stronger than the cluster of toContain() checks it replaces
+    // (table name, locale-formatted row count, per-column listing, trimmed
+    // instruction, and the closing instruction line). Those individual
+    // substring checks could each pass even if e.g. a column were dropped,
+    // the row count lost its separator, or the trailing ask were reworded,
+    // as long as some other matching keyword survived.
     const { prompt } = buildRecipePrompt(baseInput);
-    expect(prompt).toContain('Table: "transactions"');
-    expect(prompt).toContain("12,345 rows");
+    expect(prompt).toBe(
+      [
+        'Table: "transactions" (12,345 rows)',
+        "Columns:",
+        "  - amount (number)",
+        "  - region (string)",
+        "",
+        "Instruction: keep only rows where amount > 100",
+        "",
+        "Return the ordered transform steps that fulfil the instruction.",
+      ].join("\n"),
+    );
   });
 
-  it("lists each column with its type", () => {
-    const { prompt } = buildRecipePrompt(baseInput);
-    expect(prompt).toContain("- amount (number)");
-    expect(prompt).toContain("- region (string)");
-  });
-
-  it("trims the instruction before embedding it", () => {
-    const { prompt } = buildRecipePrompt(baseInput);
-    expect(prompt).toContain("Instruction: keep only rows where amount > 100");
-    expect(prompt).not.toContain("  keep only rows");
-  });
-
-  it("falls back to a schema-unavailable note when there are no columns", () => {
+  it("falls back to the exact schema-unavailable prompt when there are no columns", () => {
+    // Same reasoning as above, for the empty-columns branch specifically:
+    // the fallback text is a fixed literal, and the whole prompt is
+    // deterministic for this fixture, so assert the full string rather than
+    // just toContain("(schema unavailable)").
     const { prompt } = buildRecipePrompt({ ...baseInput, columns: [] });
-    expect(prompt).toContain("(schema unavailable)");
-  });
-
-  it("always asks the model to return ordered steps", () => {
-    const { prompt } = buildRecipePrompt(baseInput);
-    expect(prompt).toContain("Return the ordered transform steps");
+    expect(prompt).toBe(
+      [
+        'Table: "transactions" (12,345 rows)',
+        "Columns:",
+        "  (schema unavailable)",
+        "",
+        "Instruction: keep only rows where amount > 100",
+        "",
+        "Return the ordered transform steps that fulfil the instruction.",
+      ].join("\n"),
+    );
   });
 });

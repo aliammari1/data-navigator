@@ -12,7 +12,7 @@ const ctx = {
   ],
   rowSample: [],
   rowCount: 100,
-  model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  model: "gemma-4-e4b-it-q4_k_m.gguf",
 } as unknown as SwarmContext;
 
 function chart(rows: Record<string, unknown>[], field: string): Artifact {

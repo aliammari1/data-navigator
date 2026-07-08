@@ -13,16 +13,23 @@ import {
 } from "../controls";
 
 export function PerformancePanel() {
-  const { duckdbWorkers, maxMemoryMB, enableWASMStreaming, cacheQueries, virtualizeThreshold } =
-    useSettingsStore(
-      useShallow((s) => ({
-        duckdbWorkers: s.performance.duckdbWorkers,
-        maxMemoryMB: s.performance.maxMemoryMB,
-        enableWASMStreaming: s.performance.enableWASMStreaming,
-        cacheQueries: s.performance.cacheQueries,
-        virtualizeThreshold: s.performance.virtualizeThreshold,
-      })),
-    );
+  const {
+    duckdbWorkers,
+    maxMemoryMB,
+    enableWASMStreaming,
+    cacheQueries,
+    virtualizeThreshold,
+    cacheMode,
+  } = useSettingsStore(
+    useShallow((s) => ({
+      duckdbWorkers: s.performance.duckdbWorkers,
+      maxMemoryMB: s.performance.maxMemoryMB,
+      enableWASMStreaming: s.performance.enableWASMStreaming,
+      cacheQueries: s.performance.cacheQueries,
+      virtualizeThreshold: s.performance.virtualizeThreshold,
+      cacheMode: s.performance.cacheMode,
+    })),
+  );
   const setPerformance = useSettingsStore((s) => s.setPerformance);
 
   return (
@@ -89,6 +96,20 @@ export function PerformancePanel() {
             onCommit={(v) => setPerformance({ virtualizeThreshold: v })}
             suffix="rows"
             className="w-20"
+          />
+        </SettingRow>
+        <SettingRow
+          label="Cache profile"
+          description="Low memory trims caches more aggressively on constrained machines"
+        >
+          <SettingSelect<"balanced" | "low-memory">
+            value={cacheMode}
+            onChange={(v) => setPerformance({ cacheMode: v })}
+            ariaLabel="Cache profile"
+            options={[
+              { value: "balanced", label: "Balanced" },
+              { value: "low-memory", label: "Low memory" },
+            ]}
           />
         </SettingRow>
       </Section>

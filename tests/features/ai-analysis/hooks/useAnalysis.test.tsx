@@ -50,6 +50,7 @@ vi.mock("@/platform/ai/provider", () => ({
   useAI: () => aiState,
 }));
 
+import { type UseAnalysisArgs, useAnalysis } from "@/features/ai-analysis/hooks/useAnalysis";
 import type {
   Anomaly,
   ClusterGroup,
@@ -57,7 +58,6 @@ import type {
   Correlation,
   ForecastPoint,
 } from "@/features/ai-analysis/model/types";
-import { useAnalysis, type UseAnalysisArgs } from "@/features/ai-analysis/hooks/useAnalysis";
 
 // ─── Builders ──────────────────────────────────────────────────────────────────
 
@@ -132,7 +132,11 @@ const richResult = (over: Partial<WorkerResult> = {}): WorkerResult => ({
     forecastPoint({ period: "2026-05", actual: undefined, predicted: 180, lower: 150, upper: 210 }),
   ],
   clusters: over.clusters ?? [cluster()],
-  forecastMeta: over.forecastMeta ?? { metricCol: "amount", dateCol: "date", method: "holt-winters" },
+  forecastMeta: over.forecastMeta ?? {
+    metricCol: "amount",
+    dateCol: "date",
+    method: "holt-winters",
+  },
 });
 
 // ── DuckDB SHOW TABLES / COUNT(*) responder ──
@@ -156,7 +160,7 @@ const baseArgs = (o: Partial<UseAnalysisArgs> = {}): UseAnalysisArgs => ({
 beforeEach(() => {
   vi.clearAllMocks();
   aiState = {
-    availability: [{ id: "transformers", label: "Transformers", available: false }],
+    availability: [{ id: "llamacpp", label: "llama.cpp", available: false }],
     generateStructured: vi.fn(),
   };
   // Default: worker resolves a rich result; cache empty; persist resolves.
@@ -442,7 +446,7 @@ describe("useAnalysis — cache hydration", () => {
 
 describe("useAnalysis — aiAvailable", () => {
   it("is false when no provider reports availability", async () => {
-    aiState.availability = [{ id: "transformers", label: "T", available: false }];
+    aiState.availability = [{ id: "llamacpp", label: "T", available: false }];
     const { result } = renderHook(() => useAnalysis(baseArgs()));
 
     await waitFor(() => expect(result.current.state.status).toBe("done"));
@@ -451,7 +455,7 @@ describe("useAnalysis — aiAvailable", () => {
 
   it("is true when at least one provider is available", async () => {
     aiState.availability = [
-      { id: "transformers", label: "T", available: false },
+      { id: "llamacpp", label: "T", available: false },
       { id: "llamacpp", label: "L", available: true },
     ];
     const { result } = renderHook(() => useAnalysis(baseArgs()));
@@ -462,7 +466,7 @@ describe("useAnalysis — aiAvailable", () => {
 
 describe("useAnalysis — LLM narration", () => {
   it("does not narrate when no provider is available (narrated stays false)", async () => {
-    aiState.availability = [{ id: "transformers", label: "T", available: false }];
+    aiState.availability = [{ id: "llamacpp", label: "T", available: false }];
     const { result } = renderHook(() => useAnalysis(baseArgs()));
 
     await waitFor(() => expect(result.current.state.status).toBe("done"));

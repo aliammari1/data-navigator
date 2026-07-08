@@ -73,8 +73,9 @@ vi.mock("@/features/data-formulator/core/swarm/compute", () => ({
 
 // Import the real store (zustand) and the system under test AFTER the mocks.
 import { useSettingsStore } from "@/core/stores/settings-store";
-import { useSwarmStore } from "@/features/data-formulator/store/swarm-store";
 import { cancelActiveSwarm, runSwarm } from "@/features/data-formulator/core/swarm/orchestrator";
+import { useSwarmStore } from "@/features/data-formulator/store/swarm-store";
+import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 const baseCtx: SwarmContext = {
@@ -87,7 +88,7 @@ const baseCtx: SwarmContext = {
   ] as SwarmContext["columns"],
   rowSample: [],
   rowCount: 1000,
-  model: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
+  model: "gemma-4-e4b-it-q4_k_m.gguf",
 };
 
 function tableArtifact(id: string): Artifact {
@@ -126,6 +127,7 @@ function result(headline: string): SwarmResult {
 
 beforeEach(() => {
   useSwarmStore.getState().reset();
+  useModelRequiredDialogStore.setState({ open: false, reason: null });
   // The batched AI critic is opt-in; tests that exercise it enable it explicitly.
   useSettingsStore.setState({ enableAiCritic: false });
   lookupCachedAnswer.mockReset().mockResolvedValue(null);
@@ -174,6 +176,23 @@ describe("runSwarm — model readiness gate", () => {
     expect(state.phase).toBe("failed");
     expect(state.error).toMatch(/No offline model is ready/);
     expect(routeQuestion).not.toHaveBeenCalled();
+  });
+
+  it("shows the model-required dialog when no offline model is ready", async () => {
+    schedulerStub.isReady.mockResolvedValue(false);
+
+    await expect(runSwarm(baseCtx, "anything")).rejects.toThrow();
+
+    expect(useModelRequiredDialogStore.getState().open).toBe(true);
+  });
+
+  it("does not show the model-required dialog when a model is ready", async () => {
+    routeQuestion.mockResolvedValue({ tier: "lookup" });
+    runLookup.mockResolvedValue({ ...result("ok"), artifacts: [] });
+
+    await runSwarm(baseCtx, "anything");
+
+    expect(useModelRequiredDialogStore.getState().open).toBe(false);
   });
 });
 
@@ -480,14 +499,14 @@ describe("runSwarm — warming progress callback (line 131)", () => {
     const warmingMessages: string[] = [];
     const origState = useSwarmStore.getState();
     const origSetWarming = origState.setWarming.bind(origState);
-    const spySetWarming = vi.spyOn(useSwarmStore.getState(), "setWarming").mockImplementation(
-      (w) => {
+    const spySetWarming = vi
+      .spyOn(useSwarmStore.getState(), "setWarming")
+      .mockImplementation((w) => {
         if (w && typeof w === "object" && "message" in w) {
           warmingMessages.push(w.message as string);
         }
         origSetWarming(w as Parameters<typeof origSetWarming>[0]);
-      },
-    );
+      });
 
     schedulerStub.ensureReady.mockImplementation(
       async (_model: string, onProgress: (progress: number, message: string) => void) => {

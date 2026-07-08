@@ -85,8 +85,8 @@ function DatasetEmptyState() {
         icon={Database}
         title="Aucun jeu de données chargé"
         description="Importez d'abord un fichier CSV, TXT, TSV ou Parquet. Une fois dans le catalogue DuckDB, cette page génère un profil complet des colonnes."
-        action={{ label: "Importer un fichier", href: "/dashboard/upload" }}
-        secondary={{ label: "Explorateur", href: "/dashboard/data-browser" }}
+        action={{ kind: "link", label: "Importer un fichier", href: "/dashboard/upload" }}
+        secondary={{ kind: "link", label: "Explorateur", href: "/dashboard/data-browser" }}
         className="max-w-xl"
       />
     </div>

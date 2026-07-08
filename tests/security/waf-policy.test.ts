@@ -1,10 +1,11 @@
 import type { IgnoreContext } from "@coraza/core";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   CRS_RULE_EXCLUSIONS,
   classifyWafBody,
   formatWafBlockDiagnostics,
   TRUSTED_SKIP_BODY_ROUTES,
+  type TrustedSkipBodyRoute,
 } from "../../src/platform/security/waf-policy";
 
 /**
@@ -87,6 +88,59 @@ describe("TRUSTED_SKIP_BODY_ROUTES allowlist invariants", () => {
       expect(route.pattern.test("/api/auth/sign-in")).toBe(false);
       expect(route.pattern.test("/api/auth/callback/google")).toBe(false);
     }
+  });
+});
+
+describe("classifyWafBody — route-matching logic, exercised via a temporary route", () => {
+  // TRUSTED_SKIP_BODY_ROUTES is intentionally empty in production (see the
+  // module doc comment): no test can reach the `if (route.method === method
+  // && route.pattern.test(path)) return "skip-body"` loop body through real
+  // traffic today. `readonly` on its type is a compile-time-only annotation —
+  // the array itself is a plain, un-frozen JS array at runtime — so we push a
+  // throwaway route to prove the matching logic itself is correct, then
+  // restore the empty invariant afterwards for every other test in the suite.
+  const mutableRoutes = TRUSTED_SKIP_BODY_ROUTES as unknown as TrustedSkipBodyRoute[];
+
+  afterEach(() => {
+    mutableRoutes.length = 0;
+  });
+
+  it("returns 'skip-body' when both the method and the path pattern match a registered route", () => {
+    mutableRoutes.push({
+      name: "temp-test-route",
+      method: "PUT",
+      pattern: /^\/api\/test\/skip$/,
+      reason: "test-only",
+    });
+    expect(classifyWafBody(ctx("PUT", "/api/test/skip"))).toBe("skip-body");
+  });
+
+  it("does not match when the method differs from the registered route", () => {
+    mutableRoutes.push({
+      name: "temp-test-route",
+      method: "PUT",
+      pattern: /^\/api\/test\/skip$/,
+      reason: "test-only",
+    });
+    expect(classifyWafBody(ctx("POST", "/api/test/skip"))).toBe(false);
+  });
+
+  it("does not match when the path does not satisfy the registered pattern", () => {
+    mutableRoutes.push({
+      name: "temp-test-route",
+      method: "PUT",
+      pattern: /^\/api\/test\/skip$/,
+      reason: "test-only",
+    });
+    expect(classifyWafBody(ctx("PUT", "/api/other"))).toBe(false);
+  });
+
+  it("continues past a non-matching route to find a later matching one", () => {
+    mutableRoutes.push(
+      { name: "r1", method: "GET", pattern: /^\/nope$/, reason: "t" },
+      { name: "r2", method: "PUT", pattern: /^\/api\/test\/skip$/, reason: "t" },
+    );
+    expect(classifyWafBody(ctx("PUT", "/api/test/skip"))).toBe("skip-body");
   });
 });
 

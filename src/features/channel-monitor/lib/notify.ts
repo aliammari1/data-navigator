@@ -9,9 +9,25 @@
  * If an Electron main-process notification IPC channel is exposed in future
  * (see `electron/preload.ts`), prefer it via `window.electronNotify` — this
  * bridge auto-detects and uses it when present.
+ *
+ * Permission state/request lives in `@/platform/notifications/permission` — the
+ * enable control is centralized in Settings > Notifications, not here.
  */
 
+import {
+  notificationPermission,
+  type NotificationPermissionState,
+  notificationsSupported,
+  requestNotificationPermission,
+} from "@/platform/notifications/permission";
 import type { AlertSeverity } from "../store/monitor-store";
+
+export {
+  notificationPermission,
+  type NotificationPermissionState,
+  notificationsSupported,
+  requestNotificationPermission,
+};
 
 type ElectronNotifyApi = {
   notify: (title: string, body: string) => void;
@@ -24,31 +40,6 @@ type WindowWithElectronNotify = Window & {
 function getElectronNotify(): ElectronNotifyApi | null {
   if (typeof window === "undefined") return null;
   return (window as WindowWithElectronNotify).electronNotify ?? null;
-}
-
-/** Whether the browser exposes the Notification API at all. */
-export function notificationsSupported(): boolean {
-  return typeof window !== "undefined" && "Notification" in window;
-}
-
-export type NotificationPermissionState = "default" | "granted" | "denied" | "unsupported";
-
-export function notificationPermission(): NotificationPermissionState {
-  if (!notificationsSupported()) return "unsupported";
-  return Notification.permission as NotificationPermissionState;
-}
-
-/** Request OS notification permission. Resolves with the resulting state. */
-export async function requestNotificationPermission(): Promise<NotificationPermissionState> {
-  if (!notificationsSupported()) return "unsupported";
-  if (Notification.permission === "granted") return "granted";
-  if (Notification.permission === "denied") return "denied";
-  try {
-    const result = await Notification.requestPermission();
-    return result as NotificationPermissionState;
-  } catch {
-    return "denied";
-  }
 }
 
 const SEVERITY_PREFIX: Record<AlertSeverity, string> = {

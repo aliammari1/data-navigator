@@ -33,6 +33,10 @@ export interface AwarenessUser extends CollabIdentity {
 /** Ephemeral cursor/selection — awareness only, NEVER persisted into the doc. */
 export interface AwarenessCursor {
   page: string;
+  /** Pointer x as a fraction (0–1) of the main content area width. */
+  x?: number;
+  /** Pointer y in px from the top of the main content (content coordinates, scroll-independent). */
+  y?: number;
   selection?: string;
   at: number;
 }
@@ -86,7 +90,7 @@ export interface CollabRoomDoc {
 
 export type CollabTransportStatus = "off" | "connecting" | "connected" | "disconnected" | "error";
 
-/** Settings to attach a room/doc to a LAN hub over y-websocket. */
+/** Settings to attach a room/doc to a LAN hub over Hocuspocus. */
 export interface CollabConnectOptions {
   /** ws:// hub URL (LAN ip or localhost). Never a public/CDN URL. */
   url: string;

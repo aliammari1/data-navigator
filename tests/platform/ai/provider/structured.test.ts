@@ -1,11 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import {
-  schemaToGrammarJson,
-  extractJsonBlock,
-  repairJson,
-  parseStructured,
   buildJsonInstruction,
+  extractJsonBlock,
+  parseStructured,
+  repairJson,
+  schemaToGrammarJson,
 } from "@/platform/ai/provider/structured";
 
 // ── schemaToGrammarJson ────────────────────────────────────────────────────────
@@ -206,9 +206,9 @@ describe("parseStructured", () => {
   });
 
   it("uses a custom label in the thrown error message", () => {
-    expect(() =>
-      parseStructured('{"bad":"data"}', Schema, { label: "my-custom-label" }),
-    ).toThrow(/my-custom-label/);
+    expect(() => parseStructured('{"bad":"data"}', Schema, { label: "my-custom-label" })).toThrow(
+      /my-custom-label/,
+    );
   });
 
   it("uses default label when options is an empty object", () => {
@@ -289,7 +289,9 @@ describe("parseStructured", () => {
     const throwNonError = () => {
       throw new Error("non-error-sentinel-99");
     };
-    const schema = z.object({ title: z.string() }).transform(throwNonError) as unknown as typeof Schema;
+    const schema = z
+      .object({ title: z.string() })
+      .transform(throwNonError) as unknown as typeof Schema;
 
     let errorMessage = "";
     try {
@@ -315,9 +317,13 @@ describe("parseStructured", () => {
   it("the String(lastError) branch: mock schema throws a plain object to avoid instanceof Error", () => {
     // Build a fake schema that throws a plain object (no prototype chain to Error).
     // Object.create(null) is not instanceof Error, so String() is used.
-    const plainObjError = Object.assign(Object.create(null), { toString: () => "plain-object-error" });
+    const plainObjError = Object.assign(Object.create(null), {
+      toString: () => "plain-object-error",
+    });
     const schema = {
-      parse: () => { throw plainObjError; },
+      parse: () => {
+        throw plainObjError;
+      },
     } as unknown as typeof Schema;
 
     let errorMessage = "";

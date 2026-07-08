@@ -141,3 +141,23 @@ export function enrichCanalSummaries(raw: RawCanalRow[]): CanalSummary[] {
     };
   });
 }
+
+/** `CanalSummary` minus the `icon` component reference — the only field that
+ * can't cross the Electron IPC boundary (structured clone rejects functions). */
+export type PersistableCanalSummary = Omit<CanalSummary, "icon">;
+
+/**
+ * Drop the `icon` component reference before sending canals through an IPC
+ * bridge (analytics-snapshot save, SQLite auto-save). Passing the enriched
+ * `CanalSummary[]` as-is throws `DataCloneError: An object could not be
+ * cloned` at the contextBridge boundary, since `icon` is a live React
+ * component function.
+ */
+export function stripCanalIconsForPersist(canals: CanalSummary[]): PersistableCanalSummary[] {
+  return canals.map(({ icon: _icon, ...rest }) => rest);
+}
+
+/** Re-derive `icon` from `CANAL_CONFIG` after loading canals back from persistence. */
+export function reattachCanalIcons(canals: PersistableCanalSummary[]): CanalSummary[] {
+  return canals.map((c) => ({ ...c, icon: CANAL_CONFIG[c.key].icon }));
+}

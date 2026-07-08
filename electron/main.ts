@@ -4,9 +4,11 @@ import path from "node:path";
 import {
   app,
   BrowserWindow,
+  clipboard,
   dialog,
   type IpcMainInvokeEvent,
   ipcMain,
+  nativeImage,
   type OpenDialogOptions,
   type SaveDialogOptions,
   session,
@@ -20,10 +22,34 @@ import {
   ELECTRON_AUTH_PROTOCOL,
 } from "../src/platform/auth/electron-options";
 import { authClient } from "./auth-client";
+import * as chatSessionService from "./chat-session-service";
+import {
+  appendMessage as chatAppendMessage,
+  createConversation as chatCreateConversation,
+  deleteConversation as chatDeleteConversation,
+  getMessages as chatGetMessages,
+  listConversations as chatListConversations,
+  renameConversation as chatRenameConversation,
+  setConversationPinned as chatSetConversationPinned,
+  closeChatStore,
+  configureChatStore,
+} from "./chat-store";
 import * as collabHubService from "./collab-hub-service";
 import * as duckdbService from "./duckdb-service";
 import { createConcurrencyLimiter, runBounded } from "./ipc-concurrency";
 import {
+  ChatAppendMessageSchema,
+  ChatConversationIdSchema,
+  ChatCreateConversationSchema,
+  ChatGetMessagesSchema,
+  ChatListConversationsSchema,
+  ChatOpenSchema,
+  ChatPinSchema,
+  ChatPreloadSchema,
+  ChatPromptSchema,
+  ChatRenameSchema,
+  ChatSessionIdSchema,
+  ClipboardImageSchema,
   CollabStartSchema,
   CountRowsSchema,
   DatasetOnlySchema,
@@ -59,10 +85,15 @@ import {
 import {
   closeSettingsStore,
   configureSettingsStore,
+  deleteAnalyticsSnapshotHistoryById,
   deleteSetting,
   exportSettings,
+  getAnalyticsSnapshotHistoryById,
   getSetting,
+  listAnalyticsSnapshotHistory,
+  migrateLegacyAnalyticsSnapshotKV,
   migrateLegacyAppSettings,
+  saveAnalyticsSnapshotHistory,
   setSetting,
 } from "./settings-store";
 import * as voiceService from "./voice-service";
@@ -97,6 +128,25 @@ function bootLog(message: string): void {
     // give up silently
   }
 }
+
+// Native download deps (ipull, via node-llama-cpp's model downloader) run
+// several chunk writers in parallel and only await/catch the FIRST one to
+// settle; when multiple chunks reject around the same moment (e.g. every
+// writer hitting ENOSPC at once because the disk filled up mid-download),
+// the rest are orphaned rejections that Node prints as raw
+// UnhandledPromiseRejectionWarning stack dumps — one per orphaned chunk,
+// unbounded. That's a bug in the dependency's internal Promise.race loop,
+// not something reachable from our own try/catch around downloader.download().
+// A process-level handler is the only interception point available to us: it
+// can't fix the leak, but it stops Node's noisy default printer and (per
+// Node's docs) prevents an unhandled rejection from ever terminating the
+// main process outright, which is the real risk once Node's default
+// unhandled-rejection behavior tightens in a future major version.
+process.on("unhandledRejection", (reason) => {
+  const detail = reason instanceof Error ? (reason.stack ?? reason.message) : String(reason);
+  bootLog(`unhandledRejection: ${detail}`);
+  console.error("[electron] unhandled promise rejection:", reason);
+});
 
 bootLog(`main.js loaded; isPackaged=${app.isPackaged}`);
 
@@ -142,9 +192,6 @@ app.commandLine.appendSwitch("enable-unsafe-webgpu");
 if (process.platform === "linux") {
   app.commandLine.appendSwitch("enable-features", "Vulkan");
 }
-
-// Optional: allow GPUs that Chromium normally blocklists.
-app.commandLine.appendSwitch("ignore-gpu-blocklist");
 
 // Enforce the Chromium sandbox for EVERY current/future renderer (and devtools)
 // before app ready, so a new BrowserWindow can never silently forget
@@ -318,6 +365,111 @@ ipcMain.handle("settings:delete", async (event, namespace: string, key: string) 
 
 ipcMain.handle("settings:export", async (event, namespace?: string) =>
   withTrustedSender(event, () => exportSettings(namespace)),
+);
+
+// ─── IPC: Analytics Snapshot History Bridge ───────────────────────────────────
+// The telecom "Persister" button + Analytics History list. One method per
+// message (not a generic query passthrough) per Electron's own IPC security
+// guidance — the renderer gets save/list/get/delete, never raw SQL access.
+// `limit` is clamped inside listAnalyticsSnapshotHistory so a bad renderer call
+// can't force an oversized structured-clone payload across the bridge.
+
+ipcMain.handle(
+  "analyticsSnapshots:save",
+  async (
+    event,
+    input: {
+      tableName: string;
+      label: string;
+      fileName?: string | null;
+      payload: unknown;
+      totalTransactions?: number;
+      successRate?: number;
+      savedAt?: number;
+    },
+  ) => withTrustedSender(event, () => saveAnalyticsSnapshotHistory(input)),
+);
+
+ipcMain.handle(
+  "analyticsSnapshots:list",
+  async (event, tableName?: string, limit?: number, offset?: number) =>
+    withTrustedSender(event, () => listAnalyticsSnapshotHistory(tableName, limit, offset)),
+);
+
+ipcMain.handle("analyticsSnapshots:get", async (event, id: number) =>
+  withTrustedSender(event, () => getAnalyticsSnapshotHistoryById(id)),
+);
+
+ipcMain.handle("analyticsSnapshots:delete", async (event, id: number) =>
+  withTrustedSender(event, () => deleteAnalyticsSnapshotHistoryById(id)),
+);
+
+// ─── IPC: Clipboard Bridge ────────────────────────────────────────────────────
+// Write a chart's PNG export (as a data URL) to the OS clipboard as a native
+// image. The renderer can't reach the clipboard directly; the schema caps the
+// payload and enforces the `data:image/` prefix, and an empty decode is
+// rejected so a malformed URL surfaces as an error instead of a silent no-op.
+
+ipcMain.handle("clipboard:writeImage", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const { dataUrl } = parseIpc(ClipboardImageSchema, input, "clipboard:writeImage");
+    const image = nativeImage.createFromDataURL(dataUrl);
+    if (image.isEmpty()) {
+      throw new Error("clipboard:writeImage received an unreadable image data URL");
+    }
+    clipboard.writeImage(image);
+  }),
+);
+
+// ─── IPC: Moudir Chat History Bridge ─────────────────────────────────────────
+// Durable conversations for the assistant (chat.db). One method per message,
+// no raw SQL across the bridge — same shape as the analytics-snapshot bridge.
+
+ipcMain.handle("chatHistory:create", async (event, input: unknown) =>
+  withTrustedSender(event, () =>
+    chatCreateConversation(parseIpc(ChatCreateConversationSchema, input, "chatHistory:create")),
+  ),
+);
+
+ipcMain.handle("chatHistory:list", async (event, input?: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatListConversationsSchema, input, "chatHistory:list");
+    return chatListConversations(parsed?.limit ?? 100, parsed?.search);
+  }),
+);
+
+ipcMain.handle("chatHistory:rename", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatRenameSchema, input, "chatHistory:rename");
+    chatRenameConversation(parsed.id, parsed.title);
+  }),
+);
+
+ipcMain.handle("chatHistory:pin", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatPinSchema, input, "chatHistory:pin");
+    chatSetConversationPinned(parsed.id, parsed.pinned);
+  }),
+);
+
+ipcMain.handle("chatHistory:delete", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatConversationIdSchema, input, "chatHistory:delete");
+    chatDeleteConversation(parsed.id);
+  }),
+);
+
+ipcMain.handle("chatHistory:appendMessage", async (event, input: unknown) =>
+  withTrustedSender(event, () =>
+    chatAppendMessage(parseIpc(ChatAppendMessageSchema, input, "chatHistory:appendMessage")),
+  ),
+);
+
+ipcMain.handle("chatHistory:messages", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatGetMessagesSchema, input, "chatHistory:messages");
+    return chatGetMessages(parsed.conversationId, parsed.limit);
+  }),
 );
 
 // ─── IPC: Filesystem Bridge ──────────────────────────────────────────────────
@@ -804,6 +956,102 @@ ipcMain.handle("llama:isAvailable", async (event, input?: { file?: string }) =>
   ),
 );
 
+// ─── IPC: Moudir Chat Session Runtime ─────────────────────────────────────────
+// Live per-conversation LlamaChatSession (chat-session-service.ts). Prompt
+// tokens stream on "chat:token" and tool invocations on "chat:tool", both
+// keyed by the caller's requestId; "chat:abort" cancels by id (same pattern as
+// llama:* / models:*).
+
+const chatAbortControllers = new Map<string, AbortController>();
+
+ipcMain.handle("chat:open", async (event, input: unknown) =>
+  withTrustedSender(event, () =>
+    chatSessionService.openSession(parseIpc(ChatOpenSchema, input, "chat:open")),
+  ),
+);
+
+ipcMain.handle("chat:prompt", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatPromptSchema, input, "chat:prompt");
+    const requestId = parsed.requestId;
+    const controller = new AbortController();
+    if (requestId) chatAbortControllers.set(requestId, controller);
+
+    return chatSessionService
+      .promptSession({
+        conversationId: parsed.conversationId,
+        text: parsed.text,
+        requestId,
+        signal: controller.signal,
+        onToken: requestId
+          ? (chunk) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send("chat:token", { requestId, chunk });
+              }
+            }
+          : undefined,
+        onTool: requestId
+          ? (toolEvent) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send("chat:tool", { requestId, event: toolEvent });
+              }
+            }
+          : undefined,
+      })
+      .finally(() => {
+        if (requestId) chatAbortControllers.delete(requestId);
+      });
+  }),
+);
+
+ipcMain.handle("chat:abort", async (event, requestId: string) =>
+  withTrustedSender(event, () => {
+    parseIpc(RequestIdSchema, requestId, "chat:abort");
+    const controller = chatAbortControllers.get(requestId);
+    if (controller) {
+      controller.abort();
+      chatAbortControllers.delete(requestId);
+      return true;
+    }
+    return false;
+  }),
+);
+
+ipcMain.handle("chat:preload", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatPreloadSchema, input, "chat:preload");
+    return chatSessionService.preloadSessionPrompt(parsed.conversationId, parsed.text);
+  }),
+);
+
+ipcMain.handle("chat:history", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatSessionIdSchema, input, "chat:history");
+    return chatSessionService.getSessionHistory(parsed.conversationId);
+  }),
+);
+
+ipcMain.handle("chat:title", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatSessionIdSchema, input, "chat:title");
+    return chatSessionService.generateTitle(parsed.conversationId);
+  }),
+);
+
+ipcMain.handle("chat:followups", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatSessionIdSchema, input, "chat:followups");
+    return chatSessionService.suggestFollowUps(parsed.conversationId);
+  }),
+);
+
+ipcMain.handle("chat:dispose", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatSessionIdSchema, input, "chat:dispose");
+    return chatSessionService.disposeSession(parsed.conversationId);
+  }),
+);
+
 // ─── IPC: Offline Model Download Service ─────────────────────────────────────
 // Streams GGUF weights to <userData>/models/llm while online, with progress on
 // the per-request `models:progress` channel; `models:abort` cancels by id. Only
@@ -1172,6 +1420,7 @@ app
     // rather than in startNextJSServer so it also runs in dev, where the renderer is
     // served by an external `next dev` and startNextJSServer never runs.
     configureSettingsStore(DATABASES_DIR);
+    configureChatStore(DATABASES_DIR);
     try {
       const authDbPath = path.join(app.getPath("userData"), "data", AUTH_DB_FILENAME);
       const { migrated } = migrateLegacyAppSettings(authDbPath);
@@ -1179,6 +1428,14 @@ app
     } catch (error) {
       bootLog(
         `settings-store: init/migration error: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    try {
+      const { migrated } = migrateLegacyAnalyticsSnapshotKV();
+      bootLog(`settings-store: analytics snapshot history lift migrated ${migrated} rows`);
+    } catch (error) {
+      bootLog(
+        `settings-store: analytics snapshot history lift error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
 
@@ -1238,6 +1495,10 @@ app.on("before-quit", () => {
     console.error("[electron] DuckDB cleanup error:", error);
   });
 
+  chatSessionService.disposeAll().catch((error) => {
+    console.error("[electron] chat-session cleanup error:", error);
+  });
+
   llamaService.dispose().catch((error) => {
     console.error("[electron] llama cleanup error:", error);
   });
@@ -1246,8 +1507,9 @@ app.on("before-quit", () => {
     console.error("[electron] collab-hub cleanup error:", error);
   });
 
-  // Flush WAL + close the settings/analytics SQLite handles cleanly.
+  // Flush WAL + close the settings/analytics/chat SQLite handles cleanly.
   closeSettingsStore();
+  closeChatStore();
 });
 
 app.on("window-all-closed", () => {

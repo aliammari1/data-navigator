@@ -9,6 +9,8 @@
 
 import { describe, expect, it } from "vitest";
 import {
+  DATASET_INSIGHT_PROMPT_FOOTER,
+  DATASET_INSIGHT_SYSTEM_PROMPT,
   DatasetInsightSchema,
   buildDatasetInsightPrompt,
 } from "@/features/dashboard-home/lib/insight-prompt";
@@ -219,11 +221,27 @@ describe("DatasetInsightSchema", () => {
 // ─── buildDatasetInsightPrompt — system prompt ────────────────────────────────
 
 describe("buildDatasetInsightPrompt — system prompt", () => {
-  it("returns a system string that instructs the model to use only supplied stats", () => {
+  it("returns the exact static system prompt", () => {
     const { system } = buildDatasetInsightPrompt(emptyOverview(), "MyDataset");
-    expect(system).toContain("ONLY the profile statistics provided");
-    expect(system).toContain("NOT invent");
-    expect(system).toContain("JSON object");
+    // The system string is never built from overview/datasetName — it is a
+    // fixed constant. A substring check (e.g. toContain("NOT invent")) would
+    // still pass if the surrounding analyst instructions were rewritten to
+    // ask for something entirely different while accidentally keeping one
+    // matching keyword, so assert exact identity against the real constant
+    // instead.
+    expect(system).toBe(DATASET_INSIGHT_SYSTEM_PROMPT);
+  });
+
+  it("returns the same system string regardless of overview/datasetName inputs", () => {
+    // Confirms the prompt is truly static and not silently datasetName/overview
+    // dependent — if it ever became input-dependent, this would catch the
+    // drift (the "system prompt" test above would then need loosening).
+    const a = buildDatasetInsightPrompt(emptyOverview(), "MyDataset").system;
+    const b = buildDatasetInsightPrompt(
+      emptyOverview({ rowCount: 999, columns: [col({ name: "x" })] }),
+      "SomethingElse",
+    ).system;
+    expect(a).toBe(b);
   });
 });
 
@@ -585,12 +603,15 @@ describe("buildDatasetInsightPrompt — topCategorical", () => {
 // ─── buildDatasetInsightPrompt — prompt footer ───────────────────────────────
 
 describe("buildDatasetInsightPrompt — prompt footer", () => {
-  it("includes writing instructions in the prompt", () => {
+  it("ends with the exact static writing-instructions footer", () => {
     const { prompt } = buildDatasetInsightPrompt(emptyOverview(), "Test");
-    expect(prompt).toContain("one-line headline");
-    expect(prompt).toContain("grounded observations");
-    expect(prompt).toContain("data-quality");
-    expect(prompt).toContain("suggested next");
+    // The closing writing-instructions sentence is fully static (independent
+    // of the overview/datasetName, unlike the rest of the prompt), so assert
+    // it exactly rather than four independent toContain() keyword checks —
+    // those could all still pass after the instructions were reworded to ask
+    // for something different while keeping isolated words like "headline"
+    // or "data-quality".
+    expect(prompt.endsWith(DATASET_INSIGHT_PROMPT_FOOTER)).toBe(true);
   });
 });
 

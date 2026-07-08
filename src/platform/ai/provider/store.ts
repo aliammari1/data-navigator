@@ -63,18 +63,22 @@ export const useAIRuntimeStore = create<AIRuntimeState>()(
 
       async resolveProvider() {
         const { providerId } = get();
-        // Honor an explicit, currently-available choice — EXCEPT a persisted
-        // "transformers", which is almost always a stale browser fallback that
-        // was auto-selected before the Electron GGUF bridge (window.electronLlama)
-        // finished initializing. Returning it blindly stranded callers like the
-        // AI Commander on the WASM lane (which then failed to load a backend
-        // offline) even though the canonical llamacpp lane was live. Re-pick so
-        // llamacpp wins whenever it is actually available.
-        if (providerId && providerId !== "transformers") {
-          const chosen = getProvider(providerId);
-          if (await chosen.isAvailable().catch(() => false)) return chosen;
+        // Honor an explicit, currently-available choice. `providerId` is typed
+        // as the current `ProviderId` union, but the persisted value is
+        // untyped JSON — a profile from before a provider was removed (e.g.
+        // "transformers", "ollama", "openai" pre-dating the node-llama-cpp-only
+        // migration) can still be sitting in storage. `getProvider` throws for
+        // anything the registry doesn't recognize, so treat that the same as
+        // "no preference" and fall through to pickDefaultProvider().
+        if (providerId) {
+          try {
+            const chosen = getProvider(providerId);
+            if (await chosen.isAvailable().catch(() => false)) return chosen;
+          } catch {
+            // Stale/unknown persisted providerId — fall through below.
+          }
         }
-        const def = await pickDefaultProvider(); // walks llamacpp → transformers → …
+        const def = await pickDefaultProvider();
         set({ providerId: def.id });
         return def;
       },

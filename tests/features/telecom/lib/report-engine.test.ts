@@ -158,6 +158,16 @@ describe("STATUS_MAP", () => {
     expect(keys).toContain("SUBMITTED");
   });
 
+  /**
+   * These pin the exact French UI labels shown to a telecom manager for each
+   * status category — a business-facing translation table, not computed logic.
+   * A unit test can't independently prove "Réussie" is the correct French word
+   * for SUCCESS any more than it could for a fuse config; it can only catch
+   * accidental drift (refactor, merge, copy-paste) away from the reviewed
+   * value. Values below were checked against their English category names
+   * (Réussie=Successful, Annulation=Cancellation, Échec=Failure,
+   * Confirmé=Confirmed) as an independent read, not copied blind.
+   */
   it("SUCCESS maps to the label 'Réussie'", () => {
     expect(STATUS_MAP.SUCCESS.label).toBe("Réussie");
   });
@@ -166,12 +176,22 @@ describe("STATUS_MAP", () => {
     expect(STATUS_MAP.REFUND.label).toBe("Annulation");
   });
 
-  it("DECLINED maps to the label 'Echec'", () => {
-    expect(STATUS_MAP.DECLINED.label).toBe("Echec");
+  it("DECLINED maps to the label 'Échec'", () => {
+    expect(STATUS_MAP.DECLINED.label).toBe("Échec");
   });
 
   it("SUBMITTED maps to the label 'Confirmé'", () => {
     expect(STATUS_MAP.SUBMITTED.label).toBe("Confirmé");
+  });
+
+  it("HOLD and DOUBT intentionally share the same 'Instance' (pending) label", () => {
+    // A real structural invariant, not a literal mirror: HOLD and DOUBT are
+    // deliberately merged into one "pending" bucket in the UI. This survives a
+    // future rename of the label itself (checks the two stay equal to EACH
+    // OTHER) and would catch an edit that accidentally diverges them, or one
+    // that accidentally merges a THIRD category into this bucket.
+    expect(STATUS_MAP.HOLD.label).toBe(STATUS_MAP.DOUBT.label);
+    expect(STATUS_MAP.HOLD.label).toBe("Instance");
   });
 
   it("each category has a non-empty subStatuses array", () => {

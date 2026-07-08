@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { buildGeoInsightPrompt, GeoInsightSchema } from "@/features/geo-analysis/lib/ai-insights";
+import {
+  buildGeoInsightPrompt,
+  GEO_INSIGHT_SUMMARY_INSTRUCTION,
+  GEO_INSIGHT_SYSTEM_PROMPT,
+  GeoInsightSchema,
+} from "@/features/geo-analysis/lib/ai-insights";
 import type { GeoRegion, UseGeoDataResult } from "@/features/geo-analysis/hooks/use-geo-data";
+import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -247,8 +253,11 @@ describe("buildGeoInsightPrompt — system message", () => {
       anomalousRegions: [],
     });
 
-    expect(system).toContain("telecom regional-performance analyst");
-    expect(system).toContain("JSON");
+    // Exact system prompt, not substring keyword checks — a substring check
+    // could only ever catch removal of one word ("telecom regional-performance
+    // analyst" or "JSON") and would miss any other degradation of the analyst
+    // instructions (e.g. dropping the "never invent figures" guardrail).
+    expect(system).toBe(GEO_INSIGHT_SYSTEM_PROMPT);
   });
 });
 
@@ -470,9 +479,12 @@ describe("buildGeoInsightPrompt — totals formatting", () => {
       anomalousRegions: [],
     });
 
-    expect(prompt).toContain("Totals:");
-    expect(prompt).toContain("transactions");
-    expect(prompt).toContain("weighted success");
+    // Exact totals line, built from the real fmtN/fmtPct formatters — the prior
+    // toContain("transactions")/toContain("weighted success") checks never
+    // verified the actual computed figures (5000, 87.3) appeared at all, so a
+    // regression that dropped or mis-formatted the real numbers while keeping
+    // the surrounding words would have passed silently.
+    expect(prompt).toContain(`Totals: ${fmtN(5000)} transactions, weighted success ${fmtPct(87.3)}.`);
   });
 
   it("includes the summary instruction at the end of the prompt", () => {
@@ -485,12 +497,10 @@ describe("buildGeoInsightPrompt — totals formatting", () => {
       anomalousRegions: [],
     });
 
-    expect(prompt).toContain("Summarise the regional landscape");
-    expect(prompt).toContain("headline");
-    expect(prompt).toContain("standout regions");
-    expect(prompt).toContain("regions that need attention");
-    expect(prompt).toContain("channel-distribution observation");
-    expect(prompt).toContain("concrete recommendation");
+    // Exact closing instruction, not five separate word-fragment checks — this
+    // text is fully static (independent of ctx), so an exact match catches any
+    // rewrite of the instruction that a keyword-fragment check would miss.
+    expect(prompt).toContain(GEO_INSIGHT_SUMMARY_INSTRUCTION);
   });
 });
 
@@ -507,11 +517,13 @@ describe("buildGeoInsightPrompt — region line formatting", () => {
       anomalousRegions: [],
     });
 
-    expect(prompt).toContain("Central");
-    expect(prompt).toContain("tx");
-    expect(prompt).toContain("revenue");
-    expect(prompt).toContain("success");
-    expect(prompt).toContain("rank #1");
+    // Exact region line, built from the real fmtN/fmtPct formatters — the prior
+    // toContain("tx")/toContain("revenue")/toContain("success") checks never
+    // verified the actual computed figures (2500, 1250000, 92.5) were present
+    // or correctly formatted, only that those literal words appeared somewhere.
+    expect(prompt).toContain(
+      `Central: ${fmtN(2500)} tx, revenue ${fmtN(1250000)}, success ${fmtPct(92.5)} (rank #1)`,
+    );
   });
 });
 

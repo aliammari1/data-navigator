@@ -216,4 +216,12 @@ describe("assertSafeFilterFragment", () => {
       assertSafeFilterFragment("x IN (SELECT * FROM parquet_scan('/data.parquet'))")
     ).toThrow("file/IO functions are not allowed");
   });
+
+  it("throws on a file/IO function with whitespace before the opening paren", () => {
+    // The guard's regex allows whitespace between the function name and `(`
+    // (`\s*\(`) specifically so a space can't be used to dodge detection.
+    expect(() =>
+      assertSafeFilterFragment("x IN (SELECT * FROM read_csv ('/etc/passwd'))")
+    ).toThrow("file/IO functions are not allowed");
+  });
 });

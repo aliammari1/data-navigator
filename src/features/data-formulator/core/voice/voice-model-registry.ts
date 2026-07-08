@@ -23,11 +23,11 @@ export type VoiceModelPrecision = "fp32" | "fp16" | "q8" | "q4" | "q4f16";
 
 export type VadEngine = "silero-v5";
 
-export type SttEngine = "whisper-tiny" | "whisper-base" | "whisper-small" | "moonshine";
+export type SttEngine = "whisper-tiny" | "whisper-base" | "whisper-small";
 
-export type TtsEngine = "off" | "kokoro" | "piper";
+export type TtsEngine = "off" | "kokoro";
 
-export type VoiceLanguageHint = "auto" | "ar" | "ar-TN" | "fr" | "en";
+export type VoiceLanguageHint = "auto" | "ar" | "fr" | "en";
 
 export type SpeakMode = "off" | "summary" | "full";
 
@@ -102,9 +102,6 @@ export interface VoiceOfflineReadinessItem {
 export const VOICE_PUBLIC_PATHS = {
   vad: "/vad",
   sttModels: "/models/stt",
-  ttsModels: "/models/tts",
-  kokoroModels: "/models/kokoro",
-  piperModels: "/models/piper",
   onnxRuntime: "/models/onnx-runtime",
 } as const;
 
@@ -155,7 +152,7 @@ export const VAD_MODELS: Record<VadEngine, VoiceModelDefinition> = {
     supportedRuntimes: ["wasm"],
     quality: "high",
     speed: "very-fast",
-    languages: ["auto", "ar", "ar-TN", "fr", "en"],
+    languages: ["auto", "ar", "fr", "en"],
     assets: [
       {
         filename: "silero_vad_v5.onnx",
@@ -210,7 +207,7 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     sizeHintMb: 75,
     quality: "medium",
     speed: "very-fast",
-    languages: ["auto", "ar", "ar-TN", "fr", "en"],
+    languages: ["auto", "ar", "fr", "en"],
     assets: [],
     notes: [
       "Current safest default.",
@@ -236,7 +233,7 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     sizeHintMb: 145,
     quality: "high",
     speed: "fast",
-    languages: ["auto", "ar", "ar-TN", "fr", "en"],
+    languages: ["auto", "ar", "fr", "en"],
     assets: [],
     notes: [
       "Enable after the STT worker supports model switching.",
@@ -261,36 +258,12 @@ export const STT_MODELS: Record<SttEngine, VoiceModelDefinition> = {
     sizeHintMb: 480,
     quality: "best",
     speed: "medium",
-    languages: ["auto", "ar", "ar-TN", "fr", "en"],
+    languages: ["auto", "ar", "fr", "en"],
     assets: [],
     notes: [
       "Prefer WebGPU.",
       "Can be too heavy for low-end machines.",
       "Use as a high-quality mode, not as the default.",
-    ],
-  },
-  moonshine: {
-    id: "stt:moonshine",
-    kind: "stt",
-    engine: "moonshine",
-    label: "Moonshine Tiny",
-    shortLabel: "Moonshine",
-    description: "Experimental lightweight STT option for fast command transcription.",
-    status: "planned",
-    source: "huggingface-cache",
-    modelId: "onnx-community/moonshine-tiny-ONNX",
-    sampleRate: 16_000,
-    recommendedRuntime: "auto",
-    supportedRuntimes: ["auto", "webgpu", "wasm"],
-    recommendedPrecision: "q8",
-    supportedPrecisions: ["fp32", "q8"],
-    quality: "medium",
-    speed: "very-fast",
-    languages: ["auto", "en"],
-    assets: [],
-    notes: [
-      "Do not expose as enabled until the STT worker implements its input/output differences.",
-      "Useful later for very fast command mode.",
     ],
   },
 };
@@ -310,7 +283,7 @@ export const TTS_MODELS: Record<TtsEngine, VoiceModelDefinition> = {
     supportedRuntimes: ["wasm"],
     quality: "low",
     speed: "very-fast",
-    languages: ["auto", "ar", "ar-TN", "fr", "en"],
+    languages: ["auto", "ar", "fr", "en"],
     assets: [],
     notes: ["Use this when TTS is disabled or unavailable."],
   },
@@ -333,46 +306,7 @@ export const TTS_MODELS: Record<TtsEngine, VoiceModelDefinition> = {
     speed: "fast",
     languages: ["en"],
     assets: [],
-    notes: [
-      "Use through kokoro-js.",
-      "Best quality option for English voice output.",
-      "Use Piper fallback for lower-end devices or wider language coverage.",
-    ],
-  },
-  piper: {
-    id: "tts:piper",
-    modelId: "piper",
-    kind: "tts",
-    engine: "piper",
-    label: "Piper",
-    shortLabel: "Piper",
-    description: "Fast local TTS fallback. Good for latency and mobile.",
-    status: "planned",
-    source: "local-assets",
-    baseAssetPath: `${VOICE_PUBLIC_PATHS.piperModels}/`,
-    recommendedRuntime: "wasm",
-    supportedRuntimes: ["wasm"],
-    recommendedPrecision: "q8",
-    supportedPrecisions: ["q8"],
-    quality: "medium",
-    speed: "very-fast",
-    languages: ["en", "fr", "ar"],
-    assets: [
-      {
-        filename: "voice.onnx",
-        publicPath: `${VOICE_PUBLIC_PATHS.piperModels}/voice.onnx`,
-        required: false,
-      },
-      {
-        filename: "voice.onnx.json",
-        publicPath: `${VOICE_PUBLIC_PATHS.piperModels}/voice.onnx.json`,
-        required: false,
-      },
-    ],
-    notes: [
-      "Add a concrete Piper voice package before enabling.",
-      "Useful fallback when Kokoro is too heavy.",
-    ],
+    notes: ["Use through kokoro-js.", "Best quality option for English voice output."],
   },
 };
 
@@ -416,13 +350,6 @@ export const VOICE_OFFLINE_READINESS_ITEMS: VoiceOfflineReadinessItem[] = [
     required: asset.required,
     path: asset.publicPath,
     kind: "vad" as const,
-  })),
-  ...TTS_MODELS.piper.assets.map((asset) => ({
-    key: `piper:${asset.filename}`,
-    label: `Piper asset: ${asset.filename}`,
-    required: asset.required,
-    path: asset.publicPath,
-    kind: "tts" as const,
   })),
 ];
 
@@ -547,7 +474,7 @@ export function normalizeVoiceRuntime(value: unknown): VoiceRuntime {
 }
 
 export function normalizeLanguageHint(value: unknown): VoiceLanguageHint {
-  if (value === "auto" || value === "ar" || value === "ar-TN" || value === "fr" || value === "en") {
+  if (value === "auto" || value === "ar" || value === "fr" || value === "en") {
     return value;
   }
 
@@ -569,7 +496,6 @@ export function mapLanguageHintToWhisperLanguage(
 
 export function mapLanguageHintToDisplayLabel(language: VoiceLanguageHint | string): string {
   if (language === "auto") return "Auto";
-  if (language === "ar-TN") return "Tounsi";
   if (language === "ar") return "Arabic";
   if (language === "fr") return "French";
   if (language === "en") return "English";

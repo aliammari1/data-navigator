@@ -13,19 +13,39 @@
  *     This service owns the GGUF lane (the only one that needs a trusted FS path
  *     outside the sandbox) and exposes presence for both.
  *
+ * ─── Downloader: node-llama-cpp, not hand-rolled fetch ────────────────────────
+ * Downloads are delegated to node-llama-cpp's own `createModelDownloader` — the
+ * same high-speed, resumable, chunked `ipull`-based downloader the
+ * `node-llama-cpp pull` CLI uses — instead of a bespoke `fetch()` + stream copy.
+ *
+ * This is ALSO a correctness fix. The entries in MODEL_DOWNLOADS use
+ * node-llama-cpp *model URIs* (`hf:<user>/<model>:<quant>`), which are NOT
+ * fetchable: `fetch("hf:…")` throws because `hf:` is not a real URL scheme. Only
+ * node-llama-cpp knows how to resolve an `hf:` URI to the concrete Hugging Face
+ * `…/resolve/<branch>/<file>.gguf` URL(s). Delegating to it gives us, for free:
+ *   - resumable + auto-retried downloads (survives flaky mobile/African links);
+ *   - parallel chunked transfer, and multi-part / binary-split GGUF stitching
+ *     (pass only the first file's URI and the rest are pulled automatically);
+ *   - remote content-length verification + skip-if-already-present-and-sized;
+ *   - automatic gated-model auth via HF_TOKEN / ~/.cache/huggingface/token,
+ *     or an explicit `tokens: { huggingFace }`.
+ *
  * Mirrors the existing service+IPC pattern (duckdb-service / llama-service):
  *   - pure functions over module state, reached via `ipcMain.handle("models:*")`
  *   - progress pushed on `models:progress` (per requestId), abort via `models:abort`.
  *
- * SECURITY: only the URLs in MODEL_DOWNLOADS are fetchable. The renderer passes a
- * `key`, never a raw URL, so this cannot be turned into an SSRF primitive.
+ * SECURITY: only the URIs in MODEL_DOWNLOADS are downloadable. The renderer passes
+ * a `key`, never a raw URI/URL, so this cannot be turned into an SSRF primitive.
+ * We additionally pin `fileName` and `dirPath` so a manifest entry can only ever
+ * write to `<userData>/models/llm/<file>` — never an attacker-chosen path — and,
+ * when a sha256 is pinned, we re-hash the finished file and refuse to keep a
+ * mismatch (see the integrity gate below).
  */
 
 import { createHash } from "node:crypto";
-import { createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
-import { rename, rm } from "node:fs/promises";
+import { createReadStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { rm } from "node:fs/promises";
 import path from "node:path";
-import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { app } from "electron";
 
@@ -33,45 +53,63 @@ import { app } from "electron";
 
 export interface ModelDownloadEntry {
   key: string;
-  /** GGUF filename under <userData>/models/llm. */
+  /** GGUF filename under <userData>/models/llm. Pinned as the downloader's fileName. */
   file: string;
-  url: string;
+  /**
+   * node-llama-cpp model URI. Hugging Face scheme:
+   *   `hf:<user>/<model>:<quant>`               (recommended — resolves offline/faster)
+   *   `hf:<user>/<model>/<file-path>#<branch>`  (exact file / branch)
+   * For split / multi-part GGUFs, use the FIRST part's URI; the rest are pulled
+   * automatically.
+   */
+  uri: string;
   /** Expected sha256 (lowercase hex). "" = unknown → download proceeds, warns. */
   sha256: string;
-  /** Expected content-length. 0 = unknown. */
+  /** Expected content-length. 0 = unknown. Display/estimate only; the downloader
+   *  verifies the real size against the remote itself. */
   bytes: number;
   label: string;
+  /** Model family, for grouping in menus (e.g. "Gemma 4"). */
+  family: string;
+  /** Short size/variant label (e.g. "E4B", "3B"). */
+  sizeLabel: string;
   optional: boolean;
 }
 
-const HF = "https://huggingface.co";
-
-const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
+/**
+ * THE single source of truth for which GGUF models this app ships. Every other
+ * GGUF-model reference in the codebase (electron/llama-service.ts's
+ * DEFAULT_LLM_MODEL/KNOWN_MODELS, src/platform/ai/models/model-manifest.ts,
+ * src/platform/ai/provider/adapters/llamacpp.ts's MODELS) must mirror these
+ * exact `key`/`file`/`label` values — llama-service.ts imports this array
+ * directly (same main process); the renderer-side files can't (bundling
+ * boundary: this module imports `electron` + `node:fs`) so they hand-mirror it
+ * — keep them in lockstep when this list changes.
+ */
+export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
   {
-    key: "qwen2.5-1.5b-instruct-q4_k_m",
-    file: "qwen2.5-1.5b-instruct-q4_k_m.gguf",
-    // Pinned-revision form (recommended for a verified release — swap `main` for the
-    // commit once hashes below are pinned so the URL and sha256 describe the SAME bytes):
-    //   ${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/91cad51170dc346986eccefdc2dd33a9da36ead9/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true
-    // HF commit at time of writing: 91cad51170dc346986eccefdc2dd33a9da36ead9 (2024-09-20).
-    url: `${HF}/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf?download=true`,
-    // INTEGRITY: empty sha256 → unverified (download proceeds + warns). Fill via
-    // `pnpm run models:hash` before a verified release. Do NOT guess these values.
-    sha256: "", // TODO: paste sha256 from `pnpm run models:hash` (must match the pinned revision)
-    bytes: 0, // TODO: paste exact byte length from `pnpm run models:hash` (≈1_117_320_736)
-    label: "Qwen2.5 1.5B Instruct (GGUF q4)",
+    key: "gemma-4-e4b-it-q4_k_m",
+    file: "gemma-4-e4b-it-q4_k_m.gguf",
+    uri: "hf:bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M",
+    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 5_340_000_000,
+    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    family: "Gemma 4",
+    sizeLabel: "E4B",
     optional: false,
   },
   {
-    key: "qwen2.5-0.5b-instruct-q4_k_m",
-    file: "qwen2.5-0.5b-instruct-q4_k_m.gguf",
-    // Pinned-revision form (see note above):
-    //   ${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/9217f5db79a29953eb74d5343926648285ec7e67/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true
-    // HF commit at time of writing: 9217f5db79a29953eb74d5343926648285ec7e67.
-    url: `${HF}/Qwen/Qwen2.5-0.5B-Instruct-GGUF/resolve/main/qwen2.5-0.5b-instruct-q4_k_m.gguf?download=true`,
-    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
-    bytes: 0, // TODO: paste exact byte length from `pnpm run models:hash` (≈398_000_000)
-    label: "Qwen2.5 0.5B Instruct (GGUF q4)",
+    key: "granite-4.1-3b-instruct-q4_k_m",
+    file: "granite-4.1-3b-instruct-q4_k_m.gguf",
+    // Repo has no "-instruct-" in its name — Granite 4.1 3B IS the instruct
+    // model (finetuned from the separate "-Base" checkpoint); IBM just doesn't
+    // suffix the flagship chat variant. Verified at huggingface.co/ibm-granite/granite-4.1-3b-GGUF.
+    uri: "hf:ibm-granite/granite-4.1-3b-GGUF:Q4_K_M",
+    sha256: "",
+    bytes: 2_100_000_000, // TODO: paste exact sha256 from `pnpm run models:hash`
+    label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.1",
+    sizeLabel: "3B",
     optional: true,
   },
 ];
@@ -124,24 +162,61 @@ function abortError(): Error {
   return error;
 }
 
+function presenceFor(entry: ModelDownloadEntry): ModelPresence {
+  const p = path.join(llmDir(), entry.file);
+  const present = existsSync(p);
+  return {
+    key: entry.key,
+    file: entry.file,
+    label: entry.label,
+    optional: entry.optional,
+    present,
+    sizeBytes: present ? statSync(p).size : 0,
+    path: p,
+  };
+}
+
+/** Streaming sha256 of a file on disk (never loads the whole GGUF into memory). */
+async function sha256OfFile(filePath: string): Promise<string> {
+  const hash = createHash("sha256");
+  await pipeline(createReadStream(filePath), hash);
+  return hash.digest("hex");
+}
+
+/**
+ * Optional HF access token for gated models. node-llama-cpp already reads
+ * HF_TOKEN / ~/.cache/huggingface/token automatically, but forwarding an explicit
+ * token keeps behaviour deterministic when the env is set in-process.
+ */
+function hfTokens(): { huggingFace: string } | undefined {
+  const token = process.env.HF_TOKEN?.trim() || process.env.HUGGING_FACE_TOKEN?.trim();
+  return token ? { huggingFace: token } : undefined;
+}
+
+/**
+ * One real download per model key, keyed for the lifetime of the download
+ * (not the caller). The renderer's model-required dialog closes without
+ * aborting anything (see useModelStatus's unmount effect — it only tears
+ * down its own progress listener), so if the user reopens the dialog and
+ * hits Download again while the first attempt is still running, that second
+ * call must attach to THIS entry instead of starting a competing
+ * `ModelDownloader` against the same destination file.
+ */
+interface InFlightDownload {
+  promise: Promise<ModelPresence>;
+  listeners: Set<(p: ModelDownloadProgress) => void>;
+  lastProgress: ModelDownloadProgress;
+  /** Cancels the real underlying download, however many callers are attached. */
+  cancel: () => void;
+}
+
+const inFlightDownloads = new Map<string, InFlightDownload>();
+
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 /** Presence + on-disk size for every GGUF model the app knows about. */
 export function listModelPresence(): ModelPresence[] {
-  const dir = llmDir();
-  return MODEL_DOWNLOADS.map((m) => {
-    const p = path.join(dir, m.file);
-    const present = existsSync(p);
-    return {
-      key: m.key,
-      file: m.file,
-      label: m.label,
-      optional: m.optional,
-      present,
-      sizeBytes: present ? statSync(p).size : 0,
-      path: p,
-    };
-  });
+  return MODEL_DOWNLOADS.map(presenceFor);
 }
 
 export function isModelPresent(key: string): boolean {
@@ -150,16 +225,33 @@ export function isModelPresent(key: string): boolean {
 }
 
 /**
- * Stream a GGUF model to `<userData>/models/llm/<file>`, verifying size/sha256
- * before promoting the temp file. Idempotent: returns early if already present
- * and size-consistent. Reports progress via `input.onProgress`.
+ * Stream a GGUF model to `<userData>/models/llm/<file>` using node-llama-cpp's
+ * downloader, then (when a sha256 is pinned) verify integrity before returning.
+ * Idempotent: returns early if already present and size-consistent, and the
+ * downloader itself re-skips on an exact remote-size match. Reports progress via
+ * `input.onProgress`.
+ *
+ * If `key` already has a download running (from an earlier call whose caller
+ * went away — e.g. the model-required dialog was closed and reopened), this
+ * attaches to that SAME in-flight download instead of starting a second one:
+ * the caller's `onProgress` is synced to the current byte count immediately
+ * and then streamed the rest of the way, so the UI picks up mid-progress
+ * rather than restarting from 0%.
  */
 export async function downloadModel(input: DownloadModelInput): Promise<ModelPresence> {
   const entry = entryFor(input.key);
+
+  const existing = inFlightDownloads.get(entry.key);
+  if (existing) return attachToInFlightDownload(existing, input);
+
   const dir = llmDir();
   const dest = path.join(dir, entry.file);
 
-  // Idempotent skip: present and (when known) the right size.
+  if (input.signal?.aborted) throw abortError();
+
+  // Fast idempotent skip: present and (when known) the right size. The downloader
+  // would also skip via `skipExisting`, but short-circuiting here avoids spinning
+  // up ipull just to emit a single "done" event for an already-installed model.
   if (existsSync(dest)) {
     const size = statSync(dest).size;
     if (entry.bytes === 0 || size === entry.bytes) {
@@ -170,111 +262,161 @@ export async function downloadModel(input: DownloadModelInput): Promise<ModelPre
         percent: 100,
         done: true,
       });
-      return {
-        key: entry.key,
-        file: entry.file,
-        label: entry.label,
-        optional: entry.optional,
-        present: true,
-        sizeBytes: size,
-        path: dest,
-      };
+      return presenceFor(entry);
     }
   }
 
   mkdirSync(dir, { recursive: true });
 
-  const res = await fetch(entry.url, {
-    redirect: "follow",
-    signal: input.signal,
-    headers: { "user-agent": "data-navigator/model-download" },
+  const listeners = new Set<(p: ModelDownloadProgress) => void>();
+  if (input.onProgress) listeners.add(input.onProgress);
+
+  let lastProgress: ModelDownloadProgress = {
+    key: entry.key,
+    receivedBytes: 0,
+    totalBytes: entry.bytes,
+    percent: entry.bytes ? 0 : -1,
+    done: false,
+  };
+
+  // Throttle progress to ~10/s so we don't flood IPC (the renderer only needs a
+  // smooth bar, not every chunk). node-llama-cpp reports absolute byte counts.
+  let lastEmit = 0;
+  const emitProgress = (downloadedSize: number, totalSize: number, done: boolean) => {
+    const now = Date.now();
+    if (!done && now - lastEmit < 100) return;
+    lastEmit = now;
+    lastProgress = {
+      key: entry.key,
+      receivedBytes: downloadedSize,
+      totalBytes: totalSize,
+      percent: totalSize > 0 ? Math.min(100, Math.floor((downloadedSize / totalSize) * 100)) : -1,
+      done,
+    };
+    for (const listener of listeners) listener(lastProgress);
+  };
+
+  const { createModelDownloader } = await import("node-llama-cpp");
+
+  const downloader = await createModelDownloader({
+    modelUri: entry.uri,
+    dirPath: dir,
+    // Pin the on-disk name so it matches what llama-service.ts loads by exact
+    // filename, and so a manifest entry can only write to this one path.
+    fileName: entry.file,
+    // Present + exact remote size → skip re-download (default, made explicit).
+    skipExisting: true,
+    // Remove the partial temp file if we cancel/abort (default, made explicit).
+    deleteTempFileOnCancel: true,
+    // We surface our own progress bar; keep node's CLI renderer quiet.
+    showCliProgress: false,
+    tokens: hfTokens(),
+    onProgress: ({ totalSize, downloadedSize }) => {
+      emitProgress(downloadedSize, totalSize || entry.bytes || 0, false);
+    },
   });
-  if (!res.ok || !res.body) {
-    throw new Error(`HTTP ${res.status} downloading ${entry.key}`);
+
+  // Shared across every caller attached to this key — any one of them
+  // cancelling (e.g. hitting Cancel from a re-opened dialog) stops the real
+  // download for everyone, since there's only ever one download per key.
+  const ownController = new AbortController();
+  const cancel = () => {
+    void downloader.cancel({ deleteTempFile: true }).catch(() => {
+      // best-effort — the download() rejection is what we actually act on
+    });
+    ownController.abort();
+  };
+  if (input.signal) {
+    if (input.signal.aborted) cancel();
+    else input.signal.addEventListener("abort", cancel, { once: true });
   }
 
-  const total = entry.bytes || Number(res.headers.get("content-length")) || 0;
-  const tmp = `${dest}.download`;
-  const hash = entry.sha256 ? createHash("sha256") : null;
-
-  let received = 0;
-  let lastEmit = 0;
-
-  const source = Readable.fromWeb(res.body as Parameters<typeof Readable.fromWeb>[0]);
-  source.on("data", (chunk: Buffer) => {
-    received += chunk.length;
-    hash?.update(chunk);
-    const now = Date.now();
-    // Throttle progress events to ~10/s to avoid flooding IPC.
-    if (now - lastEmit > 100) {
-      lastEmit = now;
-      input.onProgress?.({
-        key: entry.key,
-        receivedBytes: received,
-        totalBytes: total,
-        percent: total > 0 ? Math.floor((received / total) * 100) : -1,
-        done: false,
-      });
+  const promise = (async (): Promise<ModelPresence> => {
+    try {
+      await downloader.download({ signal: ownController.signal });
+    } catch (err) {
+      if (ownController.signal.aborted) throw abortError();
+      throw err;
     }
+
+    // ── Integrity gate (ENFORCING) — the downloader already verified the
+    // remote size; when an entry pins a non-empty sha256 we additionally
+    // re-hash the finished file and DELETE + throw on mismatch (the weights
+    // never stay on disk). Empty sha256 → integrity is UNVERIFIED; we log
+    // loudly but keep the file, so a verified release can fill the manifest.
+    if (entry.sha256) {
+      const sha = await sha256OfFile(dest);
+      if (sha !== entry.sha256) {
+        await rm(dest, { force: true });
+        throw new Error(
+          `${entry.key}: sha256 mismatch (got ${sha}, expected ${entry.sha256}) — deleted, refusing to install`,
+        );
+      }
+    } else {
+      console.warn(
+        `[model-download] ${entry.key}: integrity UNVERIFIED — no sha256 pinned in the registry. ` +
+          `node-llama-cpp verified the download against the remote content-length, but the weights ` +
+          `were NOT authenticated by hash. Run \`pnpm run models:hash\` and paste the sha256 into ` +
+          `MODEL_DOWNLOADS before a verified release.`,
+      );
+    }
+
+    const size = existsSync(dest) ? statSync(dest).size : 0;
+    emitProgress(size, size, true);
+    return presenceFor(entry);
+  })();
+
+  inFlightDownloads.set(entry.key, {
+    promise,
+    listeners,
+    // Live view: emitProgress REASSIGNS the local `lastProgress` binding, so a
+    // plain property here would freeze the initial 0% snapshot and late
+    // attachers would be synced to 0% instead of the current byte count.
+    get lastProgress() {
+      return lastProgress;
+    },
+    cancel,
   });
 
   try {
-    await pipeline(source, createWriteStream(tmp));
-  } catch (err) {
-    await rm(tmp, { force: true });
-    if (input.signal?.aborted) throw abortError();
-    throw err;
+    return await promise;
+  } finally {
+    inFlightDownloads.delete(entry.key);
   }
+}
 
-  // ── Integrity gate (ENFORCING) — runs before promoting the temp file ────────
-  // Contract: when an entry pins a non-empty sha256 (and/or bytes), a mismatch
-  // DELETES the temp download and throws (the file never reaches `dest`). When
-  // sha256 is empty (hashes not yet pinned), we cannot verify authenticity, so
-  // we log a clear unverified-integrity warning but do not block the download.
-  if (entry.bytes > 0 && received !== entry.bytes) {
-    await rm(tmp, { force: true });
-    throw new Error(
-      `${entry.key}: byte mismatch (got ${received}, expected ${entry.bytes}) — deleted, refusing to install`,
-    );
+/** Attach a caller to a download already running for this key (see downloadModel). */
+async function attachToInFlightDownload(
+  existing: InFlightDownload,
+  input: DownloadModelInput,
+): Promise<ModelPresence> {
+  const listener = input.onProgress;
+  if (listener) {
+    listener(existing.lastProgress);
+    existing.listeners.add(listener);
   }
-  if (entry.sha256 && hash) {
-    const sha = hash.digest("hex");
-    if (sha !== entry.sha256) {
-      await rm(tmp, { force: true });
-      throw new Error(
-        `${entry.key}: sha256 mismatch (got ${sha}, expected ${entry.sha256}) — deleted, refusing to install`,
-      );
-    }
-  } else {
-    // No pinned hash → integrity is UNVERIFIED. Surface this loudly so a verified
-    // release fills the manifest. Use `pnpm run models:hash` to compute the values.
-    console.warn(
-      `[model-download] ${entry.key}: integrity UNVERIFIED — no sha256 pinned in the registry. ` +
-        `The downloaded weights were NOT authenticated. Run \`pnpm run models:hash\` and paste ` +
-        `the sha256/bytes into MODEL_DOWNLOADS before a verified release.`,
-    );
+  const onAbort = () => existing.cancel();
+  if (input.signal) {
+    if (input.signal.aborted) onAbort();
+    else input.signal.addEventListener("abort", onAbort, { once: true });
   }
+  try {
+    return await existing.promise;
+  } finally {
+    if (listener) existing.listeners.delete(listener);
+    if (input.signal) input.signal.removeEventListener("abort", onAbort);
+  }
+}
 
-  await rename(tmp, dest);
-
-  const size = statSync(dest).size;
-  input.onProgress?.({
-    key: entry.key,
-    receivedBytes: size,
-    totalBytes: size,
-    percent: 100,
-    done: true,
-  });
-
-  return {
-    key: entry.key,
-    file: entry.file,
-    label: entry.label,
-    optional: entry.optional,
-    present: true,
-    sizeBytes: size,
-    path: dest,
-  };
+/**
+ * Cancel an in-flight download by model key. Complements the AbortSignal path
+ * for the `models:abort` IPC handler; safe to call when nothing is running.
+ */
+export function cancelModelDownload(key: string): { canceled: boolean } {
+  const existing = inFlightDownloads.get(key);
+  if (!existing) return { canceled: false };
+  existing.cancel();
+  return { canceled: true };
 }
 
 /** Delete a downloaded GGUF (free disk / re-download). */

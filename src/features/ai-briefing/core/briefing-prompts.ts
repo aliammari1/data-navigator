@@ -41,50 +41,78 @@ export function buildContextSummary(ctx: BriefingContext): string {
 
 // ─── Daily briefing ───────────────────────────────────────────────────────────
 
+/**
+ * Exact system prompt for the daily briefing, exported so tests can assert
+ * identity rather than a hardcoded substring.
+ */
+export const DAILY_BRIEFING_SYSTEM_PROMPT =
+  "You are a professional data analyst presenting a daily briefing in a clear, news-anchor style. " +
+  "Write exactly 3 short paragraphs separated by a blank line: (1) overall scale and what the data covers, " +
+  "(2) the most notable numeric patterns, (3) concerns or things to watch. Plain prose only, no headings, no bullet lists.";
+
 export function buildDailyBriefingPrompt(ctx: BriefingContext): {
   system: string;
   prompt: string;
 } {
   return {
-    system:
-      "You are a professional data analyst presenting a daily briefing in a clear, news-anchor style. " +
-      "Write exactly 3 short paragraphs separated by a blank line: (1) overall scale and what the data covers, " +
-      "(2) the most notable numeric patterns, (3) concerns or things to watch. Plain prose only, no headings, no bullet lists.",
+    system: DAILY_BRIEFING_SYSTEM_PROMPT,
     prompt: buildContextSummary(ctx),
   };
 }
 
 // ─── Executive summary ────────────────────────────────────────────────────────
 
+/**
+ * Exact system prompt for the executive summary, exported so tests can
+ * assert identity rather than a hardcoded substring.
+ */
+export const EXECUTIVE_SUMMARY_SYSTEM_PROMPT =
+  "You are a senior business analyst writing for executive management. Be concise, data-driven, and action-oriented. " +
+  "Write exactly 3 paragraphs: Overview, Key drivers, Recommendations. No headings, no markdown fences.";
+
 export function buildExecutiveSummaryPrompt(ctx: BriefingContext): {
   system: string;
   prompt: string;
 } {
   return {
-    system:
-      "You are a senior business analyst writing for executive management. Be concise, data-driven, and action-oriented. " +
-      "Write exactly 3 paragraphs: Overview, Key drivers, Recommendations. No headings, no markdown fences.",
+    system: EXECUTIVE_SUMMARY_SYSTEM_PROMPT,
     prompt: buildContextSummary(ctx),
   };
 }
 
 // ─── Action plan ──────────────────────────────────────────────────────────────
 
+/**
+ * Exact system prompt for the action plan, exported so tests can assert
+ * identity rather than a hardcoded substring.
+ */
+export const ACTION_PLAN_SYSTEM_PROMPT =
+  "You are an operations expert. Analyse the dataset summary and produce a prioritised action plan. " +
+  'Return a JSON object: {"items": [{ "priority": 1-5, "category": "critical"|"high"|"medium"|"low", ' +
+  '"action": string, "rationale": string, "estimatedImpact": string }]}. ' +
+  "Provide 5 items ordered by priority (1 = most urgent). Ground every action in the data provided.";
+
 export function buildActionPlanPrompt(ctx: BriefingContext): {
   system: string;
   prompt: string;
 } {
   return {
-    system:
-      "You are an operations expert. Analyse the dataset summary and produce a prioritised action plan. " +
-      'Return a JSON object: {"items": [{ "priority": 1-5, "category": "critical"|"high"|"medium"|"low", ' +
-      '"action": string, "rationale": string, "estimatedImpact": string }]}. ' +
-      "Provide 5 items ordered by priority (1 = most urgent). Ground every action in the data provided.",
+    system: ACTION_PLAN_SYSTEM_PROMPT,
     prompt: buildContextSummary(ctx),
   };
 }
 
 // ─── Anomaly explanation ──────────────────────────────────────────────────────
+
+/**
+ * Exact system prompt for the anomaly explanation, exported so tests can
+ * assert identity rather than a hardcoded substring.
+ */
+export const ANOMALY_EXPLANATION_SYSTEM_PROMPT =
+  "You are a senior data analyst. Given a numeric anomaly, return a JSON object " +
+  '{"explanation": string, "hypotheses": [string, string, string]}. ' +
+  "The explanation is 1-2 sentences on what the anomaly means for the business. " +
+  "Provide exactly 3 concrete, distinct root-cause hypotheses.";
 
 export function buildAnomalyExplanationPrompt(args: {
   datasetName: string;
@@ -96,11 +124,7 @@ export function buildAnomalyExplanationPrompt(args: {
   examples: number[];
 }): { system: string; prompt: string } {
   return {
-    system:
-      "You are a senior data analyst. Given a numeric anomaly, return a JSON object " +
-      '{"explanation": string, "hypotheses": [string, string, string]}. ' +
-      "The explanation is 1-2 sentences on what the anomaly means for the business. " +
-      "Provide exactly 3 concrete, distinct root-cause hypotheses.",
+    system: ANOMALY_EXPLANATION_SYSTEM_PROMPT,
     prompt:
       `Dataset "${args.datasetName}". Column "${args.column}": ${args.count} anomalous values, ` +
       `z-score up to ${args.maxZ}, observed range ${fmt(args.min)}–${fmt(args.max)}, ` +
@@ -110,31 +134,43 @@ export function buildAnomalyExplanationPrompt(args: {
 
 // ─── Anomaly investigation report ─────────────────────────────────────────────
 
+/**
+ * Exact system prompt for the anomaly investigation report, exported so
+ * tests can assert identity rather than a hardcoded substring.
+ */
+export const ANOMALY_REPORT_SYSTEM_PROMPT =
+  "You are a senior data analyst writing a formal investigation report. Structure it with these sections " +
+  "(use plain paragraph headers): Executive Summary, Findings, Risk Assessment, Recommended Actions. " +
+  "Be thorough and professional. No markdown fences.";
+
 export function buildAnomalyReportPrompt(args: { datasetName: string; summary: string }): {
   system: string;
   prompt: string;
 } {
   return {
-    system:
-      "You are a senior data analyst writing a formal investigation report. Structure it with these sections " +
-      "(use plain paragraph headers): Executive Summary, Findings, Risk Assessment, Recommended Actions. " +
-      "Be thorough and professional. No markdown fences.",
+    system: ANOMALY_REPORT_SYSTEM_PROMPT,
     prompt: `Dataset "${args.datasetName}". Detected anomalies:\n${args.summary}`,
   };
 }
 
 // ─── Data story (single constrained call) ─────────────────────────────────────
 
+/**
+ * Exact system prompt for the data story, exported so tests can assert
+ * identity rather than a hardcoded substring.
+ */
+export const DATA_STORY_SYSTEM_PROMPT =
+  "You are a data storyteller. Given a dataset summary, return a JSON object with three rich narrative " +
+  'paragraphs: {"setup": string, "conflict": string, "resolution": string}. ' +
+  '"setup" introduces the data and context; "conflict" highlights the problems, anomalies, or weak spots; ' +
+  '"resolution" is forward-looking and recommends next steps. Each paragraph is one cohesive paragraph, no headings.';
+
 export function buildDataStoryPrompt(ctx: BriefingContext): {
   system: string;
   prompt: string;
 } {
   return {
-    system:
-      "You are a data storyteller. Given a dataset summary, return a JSON object with three rich narrative " +
-      'paragraphs: {"setup": string, "conflict": string, "resolution": string}. ' +
-      '"setup" introduces the data and context; "conflict" highlights the problems, anomalies, or weak spots; ' +
-      '"resolution" is forward-looking and recommends next steps. Each paragraph is one cohesive paragraph, no headings.',
+    system: DATA_STORY_SYSTEM_PROMPT,
     prompt: buildContextSummary(ctx),
   };
 }

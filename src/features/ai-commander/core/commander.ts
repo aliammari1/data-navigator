@@ -40,7 +40,7 @@ export function buildCommanderSystemPrompt(): string {
   const apps = LAUNCHER_APPS.map((a) => `- ${a.id}: ${a.title} (${a.blurb})`).join("\n");
   return [
     "You are the Commander, the navigator of a local-first telecom analytics desktop app.",
-    "You translate ONE user instruction into ONE structured action. Reply in the user's language (French by default; support English and Tunisian Derja).",
+    "You translate ONE user instruction into ONE structured action. Reply in the user's language (French by default; support English and Arabic).",
     "",
     "Decide the single best action:",
     '- "open_app": open a feature window. Set appId to one of the app ids below.',

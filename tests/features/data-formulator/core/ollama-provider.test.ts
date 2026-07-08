@@ -25,15 +25,15 @@ vi.mock("@/platform/ai/provider", () => ({
 // the mocks and contributes to coverage.
 // ---------------------------------------------------------------------------
 import {
-  EDGE_AI_HOST,
-  EDGE_LLM_MODELS,
   checkOllamaAvailable,
   discoverOllamaModels,
+  EDGE_AI_HOST,
+  EDGE_LLM_MODELS,
   generateWithOllama,
   generateWithOllamaStructured,
-  streamOllamaChat,
   type LLMModel,
   type LLMProvider,
+  streamOllamaChat,
 } from "@/features/data-formulator/core/ollama-provider";
 
 // ---------------------------------------------------------------------------
@@ -66,8 +66,7 @@ beforeEach(() => {
   mockExtractJsonBlock.mockImplementation((t: string) => t);
   mockRepairJson.mockImplementation((t: string) => t);
   mockBuildJsonInstruction.mockImplementation(
-    (hint?: string) =>
-      "Respond with ONLY a single valid JSON value" + (hint ? `\n${hint}` : ""),
+    (hint?: string) => "Respond with ONLY a single valid JSON value" + (hint ? `\n${hint}` : ""),
   );
   // Ensure window is defined (jsdom) and strip any Electron-specific property.
   if (typeof window !== "undefined") {
@@ -584,9 +583,9 @@ describe("generateWithOllamaStructured — fallback (prompt-only) path", () => {
   it("propagates errors from the provider generate call", async () => {
     mockGenerate.mockRejectedValue(new Error("provider failure"));
 
-    await expect(
-      generateWithOllamaStructured("m", "s", "u", testSchema),
-    ).rejects.toThrow("provider failure");
+    await expect(generateWithOllamaStructured("m", "s", "u", testSchema)).rejects.toThrow(
+      "provider failure",
+    );
   });
 
   it("throws when both extractJsonBlock result and repairJson result are invalid JSON", async () => {
@@ -594,9 +593,7 @@ describe("generateWithOllamaStructured — fallback (prompt-only) path", () => {
     mockExtractJsonBlock.mockReturnValue("still not json");
     mockRepairJson.mockReturnValue("also not json");
 
-    await expect(
-      generateWithOllamaStructured("m", "s", "u", testSchema),
-    ).rejects.toThrow();
+    await expect(generateWithOllamaStructured("m", "s", "u", testSchema)).rejects.toThrow();
   });
 });
 

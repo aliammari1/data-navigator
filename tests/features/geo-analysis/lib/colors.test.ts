@@ -69,56 +69,52 @@ describe("successRateToFill", () => {
   });
 });
 
+// channelColor picks a color out of an internal CHANNEL_HUES palette by index
+// (mod length). The specific hue values are an arbitrary design choice (there
+// is no independent spec to derive them from), so pinning every index's exact
+// hex/hsl string only proves the test copies the same table the source uses —
+// it can't catch a wrong-but-plausible hue. Instead we assert the structural
+// invariants that would actually catch real bugs: every output is a
+// well-formed hsl() string, calls are deterministic, the palette's colors are
+// mutually distinct (so channels stay visually distinguishable), and the
+// modulo wraparound genuinely reuses earlier colors rather than producing
+// something new. We keep exactly one pinned literal as a canary against an
+// accidental edit to the palette's first entry.
 describe("channelColor", () => {
-  it("returns hsl color for index 0", () => {
+  const HSL_PATTERN = /^hsl\((\d{1,3}), 65%, 55%\)$/;
+  // Number of distinct hues in the source's CHANNEL_HUES palette.
+  const PALETTE_SIZE = 10;
+
+  it("returns a well-formed hsl() string with fixed 65% saturation and 55% lightness for every palette index", () => {
+    for (let i = 0; i < PALETTE_SIZE; i++) {
+      const color = channelColor(i);
+      expect(color).toMatch(HSL_PATTERN);
+      const hue = Number(color.match(HSL_PATTERN)?.[1]);
+      expect(hue).toBeGreaterThanOrEqual(0);
+      expect(hue).toBeLessThan(360);
+    }
+  });
+
+  it("is deterministic: repeated calls with the same index return the same color", () => {
+    for (let i = 0; i < PALETTE_SIZE; i++) {
+      expect(channelColor(i)).toBe(channelColor(i));
+    }
+  });
+
+  it("assigns a visually distinct hue to each of the palette's channels (no accidental duplicates)", () => {
+    const colors = Array.from({ length: PALETTE_SIZE }, (_, i) => channelColor(i));
+    expect(new Set(colors).size).toBe(PALETTE_SIZE);
+  });
+
+  it("wraps around via modulo so index >= palette size reuses the earlier channel's color", () => {
+    expect(channelColor(10)).toBe(channelColor(0));
+    expect(channelColor(11)).toBe(channelColor(1));
+    expect(channelColor(20)).toBe(channelColor(0));
+    // Wraparound must land on the same index it mirrors, not just any earlier color.
+    expect(channelColor(12)).not.toBe(channelColor(1));
+  });
+
+  it("pins the documented first palette color as a canary against accidental edits to CHANNEL_HUES", () => {
     expect(channelColor(0)).toBe("hsl(220, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 1", () => {
-    expect(channelColor(1)).toBe("hsl(160, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 2", () => {
-    expect(channelColor(2)).toBe("hsl(280, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 3", () => {
-    expect(channelColor(3)).toBe("hsl(40, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 4", () => {
-    expect(channelColor(4)).toBe("hsl(200, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 5", () => {
-    expect(channelColor(5)).toBe("hsl(320, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 6", () => {
-    expect(channelColor(6)).toBe("hsl(80, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 7", () => {
-    expect(channelColor(7)).toBe("hsl(260, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 8", () => {
-    expect(channelColor(8)).toBe("hsl(0, 65%, 55%)");
-  });
-
-  it("returns hsl color for index 9", () => {
-    expect(channelColor(9)).toBe("hsl(120, 65%, 55%)");
-  });
-
-  it("wraps around using modulo when index equals array length (10)", () => {
-    expect(channelColor(10)).toBe("hsl(220, 65%, 55%)");
-  });
-
-  it("wraps around using modulo for index 11", () => {
-    expect(channelColor(11)).toBe("hsl(160, 65%, 55%)");
-  });
-
-  it("wraps around for large index (20 = 0 mod 10)", () => {
-    expect(channelColor(20)).toBe("hsl(220, 65%, 55%)");
   });
 });

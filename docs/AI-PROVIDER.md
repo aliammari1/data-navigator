@@ -1,15 +1,13 @@
 # Unified AI provider layer
 
-The app previously had three independent inference stacks that feature code
-imported directly and inconsistently:
-
-- **Transformers.js** — `src/features/agent-canvas/core/llm.ts` (ONNX in a Web
-  Worker, WASM/WebGPU).
-- **MLC web-LLM** — `src/platform/ai/llm-engine.ts` (WebGPU, quantized weights).
-- **Edge/Ollama worker** — `src/features/data-formulator/core/ollama-provider.ts`.
-
-`src/platform/ai/provider/` unifies them behind one `AIProvider` interface so
-features depend on a stable surface and the runtime is swappable / auto-selected.
+`src/platform/ai/provider/` wraps node-llama-cpp — the app's sole text-generation
+provider — behind one `AIProvider` interface, so feature code depends on a
+stable surface (`useAI()`) rather than importing the Electron IPC bridge
+directly. The app previously carried three parallel inference stacks
+(Transformers.js, MLC web-LLM, an Ollama/OpenAI HTTP lane); those adapters have
+been removed. `@huggingface/transformers` itself is still a dependency — it
+now serves only the embeddings worker (`src/workers/inference.worker.ts`) and
+voice speech-to-text (`voice-stt-worker.ts`), unrelated to text generation.
 
 ## Architecture
 
@@ -19,15 +17,16 @@ provider/
   structured.ts     robust JSON extraction + Zod validation (pure, tested)
   adapters/
     base.ts         prompt-based structured fallback + message flattening
-    webllm.ts       wraps llm-engine.ts (MLC, WebGPU)        [offline]
-    transformers.ts wraps agent-canvas/core/llm.ts (ONNX)    [offline, streaming]
-    ollama.ts       local Ollama HTTP (native JSON schema)   [offline, streaming]
-    openai.ts       OpenAI-compatible cloud (opt-in)         [cloud, structured]
-  registry.ts       capability detection + offline-first default selection
+    llamacpp.ts      thin IPC client for the Electron main-process GGUF lane
+                      (grammar-constrained JSON, offline)              [sole provider]
+  registry.ts       PROVIDERS = [llamacppProvider]; pickDefaultProvider()
   store.ts          persisted provider/model selection + live progress (zustand)
   use-ai.ts         useAI() React hook — the entry point for feature code
   index.ts          public barrel ("@/platform/ai/provider")
 ```
+
+The registry/store shape stays in place even with one provider so a future
+lane can be added without every call site changing.
 
 ## Using it from a component
 
@@ -43,7 +42,7 @@ const ChartPlan = z.object({
 });
 
 function Suggest() {
-  const ai = useAI(); // auto-detects an offline runtime on mount
+  const ai = useAI(); // resolves the llamacpp lane on mount
   async function run() {
     const plan = await ai.generateStructured(
       { system: "You are a data viz expert.", prompt: "Plan a chart for revenue by channel." },
@@ -51,58 +50,57 @@ function Suggest() {
     );
     // plan is fully typed + schema-validated
   }
-  // ai.progress drives a loading bar; ai.availability lists runtimes
+  // ai.progress drives a loading bar; ai.availability reports readiness
 }
 ```
 
-## Offline-first selection
+## The llamacpp lane
 
-`registry.pickDefaultProvider()` probes providers in preference order and returns
-the first available one:
-
-1. **web-LLM** when WebGPU is present (best offline quality),
-2. **Transformers.js** otherwise (runs anywhere with Web Workers + WASM),
-3. **Ollama** if a local daemon answers on `127.0.0.1:11434`,
-4. **OpenAI-compatible** only when the user configures a base URL.
-
-Nothing leaves the machine unless the user explicitly configures the cloud
-adapter. Selection persists in `localStorage` under `ai-runtime`.
+node-llama-cpp can only run in the Electron main process (it crashes the
+renderer), so `adapters/llamacpp.ts` is a thin IPC client: it calls
+`window.electronLlama.*`, exposed by `electron/preload.ts` over the `llama:*`
+channels and backed by `electron/llama-service.ts`. `isAvailable()` is gated on
+`window.electronLlama` existing AND the main-process service reporting a
+loadable model — on the web build, or before a GGUF is downloaded, it's simply
+`false`; there is no fallback to a different provider, so callers see an
+`AIUnavailableError` and should prompt the user through the Setup / model
+download flow rather than silently degrading.
 
 ## Structured output
 
-`generateStructured(req, zodSchema)` returns typed, validated data:
-
-- **Ollama / OpenAI** use native JSON-schema constrained decoding (Zod →
-  JSON-Schema via `z.toJSONSchema`).
-- **web-LLM / Transformers.js** use a strict "JSON only" prompt, then
-  `parseStructured` recovers the JSON (fence-stripping, balanced-block
-  extraction, trailing-comma/smart-quote repair) and validates it with Zod.
-
-`parseStructured` / `extractJsonBlock` are pure and covered by
+`generateStructured(req, zodSchema)` returns typed, validated data using
+grammar-constrained decoding: a JSON schema (derived from the caller's Zod
+schema via `zodToInlineJsonSchema`) constrains the sampler so the output is
+valid JSON *by construction* — no regex-repair fallback needed for the happy
+path. `parseStructured` / `extractJsonBlock` (pure, in `structured.ts`) remain
+as a defensive net for edge cases and are covered by
 `tests/platform/ai/provider-structured.test.ts`.
 
-## Configuration (localStorage keys)
+## The model catalog
 
-| Key | Purpose |
+**`electron/model-download-service.ts`'s `MODEL_DOWNLOADS` array is the single
+source of truth** for which GGUF models this app ships. Three other files
+mirror it (hand-synced — see the comment on each explaining why they can't
+just import it):
+
+| File | Role |
 | --- | --- |
-| `ai-runtime` | persisted `{ providerId, model }` |
-| `ai.ollama.host` | override Ollama host (default `http://127.0.0.1:11434`) |
-| `ai.openai.baseUrl` | enable cloud adapter (e.g. `https://api.openai.com`) |
-| `ai.openai.apiKey` | bearer token for the cloud adapter |
-| `ai.openai.models` | comma-separated model ids for the menu |
+| `electron/model-download-service.ts` | Canonical catalog (key, file, HF URI, sha256, bytes, family, sizeLabel) + the in-app downloader (node-llama-cpp's `createModelDownloader`) |
+| `electron/llama-service.ts` | Imports `MODEL_DOWNLOADS` directly (same main process) for `DEFAULT_LLM_MODEL` / `KNOWN_MODELS` |
+| `src/platform/ai/models/model-manifest.ts` | Renderer-side mirror (adds `downloadMb`, presence-probe metadata for the Setup UI) — can't import the main-process file across the bundling boundary |
+| `src/platform/ai/provider/adapters/llamacpp.ts` | Renderer-side `AIModelInfo[]` mirror, feeds the model picker in Setup |
 
-## Migration guide
+Currently ships: **Gemma 4 E4B Instruct** (`gemma-4-e4b-it-q4_k_m.gguf`,
+default) and **Granite 4.1 3B Instruct** (`granite-4.1-3b-instruct-q4_k_m.gguf`,
+optional, lower resource use). `electron/ipc-validation.ts`'s `ModelKeySchema`
+allowlists exactly these two keys for the `models:*` IPC channels.
 
-Replace direct engine imports with the hook:
+Voice models (STT/TTS — `voice-model-registry.ts`, `electron/voice-service.ts`)
+and the embeddings model (MiniLM, also in `model-manifest.ts`) are a separate,
+non-overlapping catalog — they don't run through node-llama-cpp.
 
-```diff
-- import { generateText } from "@/platform/ai/llm-engine";
-- const text = await generateText(prompt, { systemPrompt });
-+ import { useAI } from "@/platform/ai/provider";
-+ const ai = useAI();
-+ const { text } = await ai.generate({ system, prompt });
-```
+## Configuration
 
-The old engine modules remain as the adapter implementations — do not import them
-directly from feature code anymore; go through the provider so runtime selection,
-progress, and structured output behave consistently everywhere.
+Provider/model selection persists via `useAIRuntimeStore`, durable in the
+`"settings"` drizzle namespace (survives reloads, included in settings
+backup/restore) — see `store.ts`.

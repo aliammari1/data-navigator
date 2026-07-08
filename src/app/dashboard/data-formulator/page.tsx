@@ -1,5 +1,5 @@
-import MoudirSwarmScreen from "@/features/data-formulator/screens/MoudirSwarmScreen";
+import FormulatorScreen from "@/features/data-formulator/screens/FormulatorScreen";
 
 export default function Page() {
-  return <MoudirSwarmScreen />;
+  return <FormulatorScreen />;
 }

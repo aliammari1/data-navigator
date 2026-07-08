@@ -2,6 +2,8 @@
 
 import {
   Bell,
+  Brain,
+  Building2,
   ChevronRight,
   Database,
   HardDrive,
@@ -14,6 +16,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
+import { useSearchParams } from "next/navigation";
 import { lazy, Suspense, useState } from "react";
 import { toast } from "sonner";
 import { useSettingsStore } from "@/core/stores/settings-store";
@@ -75,14 +78,26 @@ const AboutPanel = lazy(() =>
     default: m.AboutPanel,
   })),
 );
+const AiPanel = lazy(() =>
+  import("../components/panels/ai-panel").then((m) => ({
+    default: m.AiPanel,
+  })),
+);
+const BrandingPanel = lazy(() =>
+  import("../components/panels/branding-panel").then((m) => ({
+    default: m.BrandingPanel,
+  })),
+);
 
 const TABS = [
   { id: "appearance", label: "Appearance", icon: Palette, Panel: AppearancePanel },
   { id: "data", label: "Data", icon: Database, Panel: DataPanel },
   { id: "performance", label: "Performance", icon: Zap, Panel: PerformancePanel },
+  { id: "ai", label: "AI", icon: Brain, Panel: AiPanel },
   { id: "account", label: "Account", icon: User, Panel: AccountPanel },
   { id: "notifications", label: "Notifications", icon: Bell, Panel: NotificationsPanel },
   { id: "storage", label: "Storage", icon: HardDrive, Panel: StoragePanel },
+  { id: "branding", label: "Branding", icon: Building2, Panel: BrandingPanel },
   { id: "shortcuts", label: "Shortcuts", icon: Keyboard, Panel: ShortcutsPanel },
   { id: "about", label: "About", icon: Info, Panel: AboutPanel },
 ] as const;
@@ -94,9 +109,11 @@ const MENU_PAGES: { id: TabId; label: string; icon: (typeof TABS)[number]["icon"
   { id: "appearance", label: "Apparence", icon: Palette },
   { id: "data", label: "Données", icon: Database },
   { id: "performance", label: "Performances", icon: Zap },
+  { id: "ai", label: "IA", icon: Brain },
   { id: "account", label: "Compte", icon: User },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "storage", label: "Stockage", icon: HardDrive },
+  { id: "branding", label: "Image de marque", icon: Building2 },
   { id: "shortcuts", label: "Raccourcis", icon: Keyboard },
   { id: "about", label: "À propos", icon: Info },
 ];
@@ -111,8 +128,17 @@ function PanelFallback() {
   );
 }
 
+function isTabId(value: string | null): value is TabId {
+  return value != null && TAB_IDS.has(value);
+}
+
 export default function SettingsScreen() {
-  const [activeTab, setActiveTab] = useState<TabId>("appearance");
+  // Lets other screens deep-link straight to a tab, e.g.
+  // `/dashboard/settings?tab=branding` from a "manage in Settings" link.
+  const requestedTab = useSearchParams().get("tab");
+  const [activeTab, setActiveTab] = useState<TabId>(
+    isTabId(requestedTab) ? requestedTab : "appearance",
+  );
 
   // Animations respect BOTH the user's app setting and OS reduced-motion.
   const animationsEnabled = useSettingsStore((s) => s.animationsEnabled);

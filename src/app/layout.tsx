@@ -3,7 +3,9 @@ import { Fira_Code, Fraunces, JetBrains_Mono, Poppins } from "next/font/google";
 import { QueryProvider } from "@/components/query-provider";
 import { SWRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { ModelRequiredDialog } from "@/platform/ai/models/ModelRequiredDialog";
 import { cn } from "@/shared/utils";
 import "./globals.css";
 
@@ -100,6 +102,8 @@ export default function RootLayout({
           <QueryProvider>
             <TooltipProvider>{children}</TooltipProvider>
           </QueryProvider>
+          <ModelRequiredDialog />
+          <Toaster />
         </ThemeProvider>
 
         {/* F2 — PWA Service Worker */}

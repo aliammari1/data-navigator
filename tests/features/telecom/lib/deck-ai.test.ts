@@ -1,6 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import {
   TelecomDeckBriefSchema,
+  DECK_BRIEF_SYSTEM_PROMPT,
+  DECK_BRIEF_PROMPT_PREFIX,
   generateTelecomDeckBrief,
   type TelecomDeckBrief,
   type TelecomDeckBriefInput,
@@ -588,8 +590,20 @@ describe("generateTelecomDeckBrief — with generator (AI path)", () => {
     expect(gen).toHaveBeenCalledTimes(1);
     const [req, schema] = (gen as ReturnType<typeof vi.fn>).mock.calls[0];
 
-    expect(req.system).toContain("analyste");
-    expect(req.prompt).toContain("JSON");
+    // Exact system prompt, not a substring keyword check — a substring check
+    // (e.g. toContain("analyste")) could only ever catch removal of one word
+    // and would still pass if the instructions were rewritten to ask for
+    // something else entirely while accidentally keeping that one keyword.
+    expect(req.system).toBe(DECK_BRIEF_SYSTEM_PROMPT);
+    // The prompt is `DECK_BRIEF_PROMPT_PREFIX + JSON.stringify(payload)`. The
+    // payload's field mapping, canal slicing, and interpolated values (dates,
+    // filenames, KPI numbers) are exercised by the dedicated payload tests
+    // below with real runtime data, so here we only need to prove the static
+    // instructional wording sent to the model is intact — asserting exact
+    // prefix identity instead of a loose "contains the word JSON" check,
+    // which would pass even if the wording were rewritten to ask for
+    // something unrelated as long as it still mentioned JSON somewhere.
+    expect(req.prompt.startsWith(DECK_BRIEF_PROMPT_PREFIX)).toBe(true);
     expect(req.maxTokens).toBe(1600);
     expect(req.temperature).toBeCloseTo(0.15);
     expect(typeof schema.parse).toBe("function");
@@ -672,20 +686,13 @@ describe("generateTelecomDeckBrief — with generator (AI path)", () => {
     expect(parsed.canals).toHaveLength(12);
   });
 
-  it("passes system prompt in French about offline analysis", async () => {
-    const gen: GenerateStructured = vi.fn().mockResolvedValue({
-      executiveSummary: "x",
-      keyFindings: [],
-      recommendedActions: [],
-      speakerNotes: [],
-    });
-
-    await generateTelecomDeckBrief(makeInput(), gen);
-
-    const [req] = (gen as ReturnType<typeof vi.fn>).mock.calls[0];
-    expect(req.system).toContain("hors-ligne");
-    expect(req.system).toContain("français");
-  });
+  // A dedicated "passes system prompt in French about offline analysis" test
+  // used to live here, checking req.system for the substrings "hors-ligne"
+  // and "français". That's now fully subsumed (and superseded) by the exact
+  // `expect(req.system).toBe(DECK_BRIEF_SYSTEM_PROMPT)` assertion in "passes
+  // correct request parameters to the generator" above — an exact-identity
+  // check is strictly stronger than any substring check on the same field,
+  // so keeping both would just be duplicate coverage.
 });
 
 // ─── generateTelecomDeckBrief: payload structure ──────────────────────────────

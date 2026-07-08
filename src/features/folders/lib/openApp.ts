@@ -15,7 +15,13 @@
  * though the folders screen is normally hosted inside the desktop.
  */
 
-export type FolderTargetApp = "data-browser" | "telecom" | "parsed" | "transform" | "moudir";
+export type FolderTargetApp =
+  | "data-browser"
+  | "telecom"
+  | "parsed"
+  | "transform"
+  | "moudir"
+  | "moudir-chat";
 
 const ROUTE_BY_APP: Record<FolderTargetApp, string> = {
   "data-browser": "/dashboard/data-browser",
@@ -23,6 +29,7 @@ const ROUTE_BY_APP: Record<FolderTargetApp, string> = {
   parsed: "/dashboard/parsed",
   transform: "/dashboard/transform",
   moudir: "/dashboard/data-formulator",
+  "moudir-chat": "/dashboard/moudir",
 };
 
 /**
@@ -40,12 +47,12 @@ export function openDesktopApp(appId: FolderTargetApp): boolean {
 }
 
 /**
- * Open Moudir (Studio IA) and hand off a question about a dataset via the
+ * Open the Moudir assistant and hand off a question about a dataset via the
  * `moudir:ask` CustomEvent contract (same handoff Spotlight / Commander use).
  */
 export function askMoudirAbout(datasetName: string): void {
   if (typeof window === "undefined") return;
-  openDesktopApp("moudir");
+  openDesktopApp("moudir-chat");
   window.dispatchEvent(
     new CustomEvent("moudir:ask", {
       detail: {

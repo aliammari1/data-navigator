@@ -2,8 +2,8 @@
 
 import { ArrowRight } from "lucide-react";
 import Link from "next/link";
-import { PageHeader } from "@/design-system/page-header";
 import { StaggerGrid, StaggerItem } from "@/design-system/motion-components";
+import { PageHeader } from "@/design-system/page-header";
 import { useSpotlight } from "@/design-system/use-spotlight";
 import type { NavItem } from "@/features/dashboard-shell/nav/nav-config";
 

@@ -8,7 +8,13 @@
  * weights, PMTiles) live in OPFS via `opfs-handles.ts`, NOT here.
  *
  * Architecture mapping (architecture.md §2/§4) → table:
- *   analyticsSnapshots — manually pinned analytics (KPIs, canals, etc.)  [v1]
+ *   analyticsSnapshots — LEGACY, read/clear-only [v1]. The telecom "Persister"
+ *     button + Analytics History list moved to the durable SQLite
+ *     `analytics_snapshot_history` table (electron/settings-store.ts) — see
+ *     src/features/telecom/lib/analytics-sqlite-snapshot.ts. This table stays
+ *     declared, with no write helpers, only so
+ *     analytics-snapshot-legacy-migration.ts can lift any pre-existing rows
+ *     out of it on first boot after the upgrade, then clear it.
  *   tableParquet       — DuckDB table exported as Parquet bytes          [v1]
  *   sessionState       — lightweight session metadata                    [v1]
  *   columnProfiles     — per-column profile keyed by datasetId+updatedAt [v2]
@@ -51,11 +57,6 @@ export interface AnalyticsSnapshot {
   totalTransactions: number;
   successRate: number;
 }
-
-export type AnalyticsSnapshotMeta = Pick<
-  AnalyticsSnapshot,
-  "key" | "savedAt" | "fileName" | "totalTransactions" | "successRate"
->;
 
 export interface TableParquet {
   key: string; // tableName
@@ -291,12 +292,6 @@ class AppDatabase extends Dexie {
 
 export const appDb = new AppDatabase();
 
-// ─── Analytics snapshot helpers ───────────────────────────────────────────────
-
-function toFiniteNumber(value: unknown): number {
-  return typeof value === "number" && Number.isFinite(value) ? value : 0;
-}
-
 /**
  * Deep-clone a value into a structured-clone-safe form for IndexedDB:
  * strips functions/symbols/React elements, converts Date→ISO string and
@@ -359,58 +354,6 @@ export function toCloneSafeValue(value: unknown, seen = new WeakSet<object>()): 
 export function toCloneSafeArray(value: unknown): unknown[] {
   const cloneSafeValue = toCloneSafeValue(value);
   return Array.isArray(cloneSafeValue) ? cloneSafeValue : [];
-}
-
-export async function saveAnalyticsSnapshot(
-  snapshot: Omit<AnalyticsSnapshot, "key" | "savedAt">,
-): Promise<string> {
-  const savedAt = Date.now();
-  const key = `snapshot:${snapshot.tableName}:${savedAt}`;
-  await appDb.analyticsSnapshots.put({
-    key,
-    savedAt,
-    label: String(snapshot.label || snapshot.fileName || "Analytics"),
-    fileName: String(snapshot.fileName || snapshot.label || "Analytics"),
-    tableName: String(snapshot.tableName || ""),
-    kpi: toCloneSafeValue(snapshot.kpi) ?? null,
-    canals: toCloneSafeArray(snapshot.canals),
-    hourly: toCloneSafeArray(snapshot.hourly),
-    statusData: toCloneSafeArray(snapshot.statusData),
-    operators: toCloneSafeArray(snapshot.operators),
-    regions: toCloneSafeArray(snapshot.regions),
-    rawStatuses: toCloneSafeArray(snapshot.rawStatuses),
-    totalTransactions: toFiniteNumber(snapshot.totalTransactions),
-    successRate: toFiniteNumber(snapshot.successRate),
-  });
-  return key;
-}
-
-export async function listAnalyticsSnapshots(): Promise<AnalyticsSnapshot[]> {
-  return appDb.analyticsSnapshots.orderBy("savedAt").reverse().toArray();
-}
-
-export async function listAnalyticsSnapshotMeta(): Promise<AnalyticsSnapshotMeta[]> {
-  const snapshots = await appDb.analyticsSnapshots.orderBy("savedAt").reverse().toArray();
-
-  return snapshots.map(({ key, savedAt, fileName, totalTransactions, successRate }) => ({
-    key,
-    savedAt,
-    fileName,
-    totalTransactions,
-    successRate,
-  }));
-}
-
-export async function getAnalyticsSnapshot(key: string): Promise<AnalyticsSnapshot | undefined> {
-  return appDb.analyticsSnapshots.get(key);
-}
-
-export async function deleteAnalyticsSnapshot(key: string): Promise<void> {
-  await appDb.analyticsSnapshots.delete(key);
-}
-
-export async function getLatestSnapshot(tableName: string): Promise<AnalyticsSnapshot | undefined> {
-  return appDb.analyticsSnapshots.where("tableName").equals(tableName).reverse().first();
 }
 
 // ─── Parquet persistence (replaces OPFS) ─────────────────────────────────────

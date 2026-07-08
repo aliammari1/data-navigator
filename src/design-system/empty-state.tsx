@@ -6,8 +6,14 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/utils";
 
 type Action =
-  | { label: string; href: string; onClick?: never }
-  | { label: string; onClick: () => void; href?: never };
+  | {
+      kind: "link";
+      label: string;
+      href: string;
+      /** Optional progressive-enhancement handler (e.g. a desktop-window launcher intercept) — the href still navigates when nothing claims the click. */
+      onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
+    }
+  | { kind: "button"; label: string; onClick: () => void };
 
 /**
  * EmptyState kit — one component for every data-dependent screen so no surface
@@ -65,10 +71,12 @@ function ActionButton({
   action: Action;
   variant?: "default" | "ghost";
 }) {
-  if (action.href) {
+  if (action.kind === "link") {
     return (
       <Button asChild variant={variant}>
-        <Link href={action.href}>{action.label}</Link>
+        <Link href={action.href} onClick={action.onClick}>
+          {action.label}
+        </Link>
       </Button>
     );
   }

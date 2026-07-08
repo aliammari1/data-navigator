@@ -59,14 +59,16 @@ import {
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-function setupProvider(opts: {
-  model?: string;
-  providerId?: string;
-  modelList?: { id: string; label: string }[];
-  generateText?: string;
-  structuredResult?: unknown;
-  isAvailable?: boolean;
-} = {}) {
+function setupProvider(
+  opts: {
+    model?: string;
+    providerId?: string;
+    modelList?: { id: string; label: string }[];
+    generateText?: string;
+    structuredResult?: unknown;
+    isAvailable?: boolean;
+  } = {},
+) {
   const {
     model = "test-model-id",
     modelList = [{ id: "test-model-id", label: "Test Model" }],
@@ -82,7 +84,11 @@ function setupProvider(opts: {
   mockProvider.isAvailable.mockResolvedValue(isAvailable);
   mockProvider.listModels.mockResolvedValue(modelList);
   mockProvider.ensureReady.mockResolvedValue(undefined);
-  mockProvider.generate.mockResolvedValue({ text: `  ${generateText}  `, model, provider: "llamacpp" });
+  mockProvider.generate.mockResolvedValue({
+    text: `  ${generateText}  `,
+    model,
+    provider: "llamacpp",
+  });
   mockProvider.generateStructured.mockResolvedValue(structuredResult);
 }
 
@@ -154,10 +160,7 @@ describe("warmAI", () => {
     setupProvider({ model: "chosen-model" });
     await warmAI("chosen-model");
 
-    expect(mockProvider.ensureReady).toHaveBeenCalledWith(
-      "chosen-model",
-      expect.any(Function),
-    );
+    expect(mockProvider.ensureReady).toHaveBeenCalledWith("chosen-model", expect.any(Function));
   });
 
   it("calls setModel on the store when a modelId is provided", async () => {
@@ -197,9 +200,7 @@ describe("warmAI", () => {
     mockStoreState.model = null;
     mockPickDefaultProvider.mockResolvedValue(mockProvider);
     mockProvider.isAvailable.mockResolvedValue(true);
-    mockProvider.listModels.mockResolvedValue([
-      { id: "auto-detected-model", label: "Auto" },
-    ]);
+    mockProvider.listModels.mockResolvedValue([{ id: "auto-detected-model", label: "Auto" }]);
     mockProvider.ensureReady.mockResolvedValue(undefined);
 
     await warmAI();
@@ -290,12 +291,12 @@ describe("aiReady", () => {
 
   it("uses the providerId from the store when probing", async () => {
     mockStoreState.model = null;
-    mockStoreState.providerId = "ollama";
+    mockStoreState.providerId = "llamacpp";
     mockPickDefaultProvider.mockResolvedValue(mockProvider);
     mockProvider.isAvailable.mockResolvedValue(true);
 
     await aiReady();
-    expect(mockPickDefaultProvider).toHaveBeenCalledWith("ollama");
+    expect(mockPickDefaultProvider).toHaveBeenCalledWith("llamacpp");
   });
 
   it("re-probes when store model differs from the cached model", async () => {
@@ -351,9 +352,7 @@ describe("aiChat", () => {
     await warmAI("m");
 
     await aiChat("s", "u");
-    expect(mockProvider.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxTokens: 512 }),
-    );
+    expect(mockProvider.generate).toHaveBeenCalledWith(expect.objectContaining({ maxTokens: 512 }));
   });
 
   it("uses default temperature=0 when not specified", async () => {
@@ -361,9 +360,7 @@ describe("aiChat", () => {
     await warmAI("m");
 
     await aiChat("s", "u");
-    expect(mockProvider.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ temperature: 0 }),
-    );
+    expect(mockProvider.generate).toHaveBeenCalledWith(expect.objectContaining({ temperature: 0 }));
   });
 
   it("passes caller-specified maxTokens", async () => {
@@ -371,9 +368,7 @@ describe("aiChat", () => {
     await warmAI("m");
 
     await aiChat("s", "u", { maxTokens: 256 });
-    expect(mockProvider.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ maxTokens: 256 }),
-    );
+    expect(mockProvider.generate).toHaveBeenCalledWith(expect.objectContaining({ maxTokens: 256 }));
   });
 
   it("passes caller-specified temperature", async () => {
@@ -403,9 +398,7 @@ describe("aiChat", () => {
 
     const onToken = vi.fn();
     await aiChat("s", "u", { onToken });
-    expect(mockProvider.generate).toHaveBeenCalledWith(
-      expect.objectContaining({ onToken }),
-    );
+    expect(mockProvider.generate).toHaveBeenCalledWith(expect.objectContaining({ onToken }));
   });
 
   it("resolves provider lazily when not yet warmed", async () => {
@@ -503,7 +496,9 @@ describe("concurrent warmAI / aiChat calls (deduplication)", () => {
     // Slow ensureReady to make concurrent overlap possible
     let resolveEnsure!: () => void;
     mockProvider.ensureReady.mockReturnValue(
-      new Promise<void>((r) => { resolveEnsure = r; }),
+      new Promise<void>((r) => {
+        resolveEnsure = r;
+      }),
     );
     mockProvider.generate.mockResolvedValue({
       text: "result",

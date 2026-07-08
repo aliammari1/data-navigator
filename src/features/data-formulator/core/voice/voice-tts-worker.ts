@@ -10,9 +10,6 @@
  * Primary engine:
  * - kokoro-js using onnx-community/Kokoro-82M-ONNX
  *
- * Secondary engine slot:
- * - Piper local assets / adapter-ready path
- *
  * Features:
  * - Kokoro model loading with dtype/runtime selection.
  * - Sentence chunking for long assistant responses.
@@ -492,20 +489,11 @@ async function loadTtsModel({
   /**
    * Graceful degradation: any engine without a real browser adapter (today only
    * Kokoro is implemented) falls back to Kokoro instead of throwing and killing
-   * the speak pipeline. Piper is registered but has no adapter yet.
+   * the speak pipeline.
    */
   let effectiveEngine = engine;
 
-  if (engine === "piper") {
-    console.warn("[voice-tts] Piper has no browser adapter yet; falling back to Kokoro.");
-    postStatus({
-      status: "loading-model",
-      detail: "Piper voice unavailable. Using Kokoro instead.",
-      engine,
-      runtime,
-    });
-    effectiveEngine = "kokoro";
-  } else if (engine !== "kokoro") {
+  if (engine !== "kokoro") {
     console.warn(`[voice-tts] Unsupported TTS engine "${engine}"; falling back to Kokoro.`);
     postStatus({
       status: "loading-model",

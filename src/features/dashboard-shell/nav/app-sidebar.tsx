@@ -9,12 +9,16 @@ import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
 import {
   ALL_ITEMS,
   FOOTER_ITEMS,
+  filterNavItemsForRole,
+  filterNavSectionsForRole,
   isNavGroupActive,
   isNavItemActive,
   NAV_SECTIONS,
+  navItemVisibleForRole,
 } from "@/features/dashboard-shell/nav/nav-config";
 import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { cn } from "@/shared/utils";
 
 /**
@@ -37,11 +41,20 @@ export function AppSidebar({
   const pinnedItems = usePinnedItems();
   const pathname = usePathname();
   const engine = useEngineInfo();
+  // Effective role: the device role capped by the live LAN session grant, so
+  // a guest joining a shared session sees only the viewer-safe entries.
+  const { role } = useDashboardAccess();
 
   const pinnedNavItems = useMemo(
-    () => ALL_ITEMS.filter((item) => pinnedItems.includes(item.href)),
-    [pinnedItems],
+    () =>
+      ALL_ITEMS.filter(
+        (item) => pinnedItems.includes(item.href) && navItemVisibleForRole(item, role),
+      ),
+    [pinnedItems, role],
   );
+
+  const sections = useMemo(() => filterNavSectionsForRole(NAV_SECTIONS, role), [role]);
+  const footerItems = useMemo(() => filterNavItemsForRole(FOOTER_ITEMS, role), [role]);
 
   return (
     <aside
@@ -110,7 +123,7 @@ export function AppSidebar({
           </div>
         )}
 
-        {NAV_SECTIONS.map((section) => (
+        {sections.map((section) => (
           <div key={section.label} className="mb-1 space-y-px px-2">
             {!collapsed ? (
               <SectionLabel>{section.label}</SectionLabel>
@@ -141,7 +154,7 @@ export function AppSidebar({
 
       {/* Footer */}
       <div className="flex-none space-y-px border-t border-sidebar-border px-2 py-2">
-        {FOOTER_ITEMS.map((item) => (
+        {footerItems.map((item) => (
           <NavButton
             key={item.href}
             item={item}

@@ -44,10 +44,6 @@ describe("VOICE_PUBLIC_PATHS", () => {
     expect(VOICE_PUBLIC_PATHS.sttModels).toBe("/models/stt");
   });
 
-  it("exposes piperModels under /models/piper", () => {
-    expect(VOICE_PUBLIC_PATHS.piperModels).toBe("/models/piper");
-  });
-
   it("exposes onnxRuntime under /models/onnx-runtime", () => {
     expect(VOICE_PUBLIC_PATHS.onnxRuntime).toBe("/models/onnx-runtime");
   });
@@ -160,13 +156,8 @@ describe("VAD_MODELS", () => {
 // ─── STT_MODELS ───────────────────────────────────────────────────────────────
 
 describe("STT_MODELS", () => {
-  it("contains whisper-tiny, whisper-base, whisper-small, and moonshine", () => {
-    expect(Object.keys(STT_MODELS)).toEqual([
-      "whisper-tiny",
-      "whisper-base",
-      "whisper-small",
-      "moonshine",
-    ]);
+  it("contains whisper-tiny, whisper-base, and whisper-small", () => {
+    expect(Object.keys(STT_MODELS)).toEqual(["whisper-tiny", "whisper-base", "whisper-small"]);
   });
 
   it("whisper-tiny has status=ready", () => {
@@ -180,10 +171,6 @@ describe("STT_MODELS", () => {
   it("whisper-small has status=experimental and recommendedRuntime=webgpu", () => {
     expect(STT_MODELS["whisper-small"].status).toBe("experimental");
     expect(STT_MODELS["whisper-small"].recommendedRuntime).toBe("webgpu");
-  });
-
-  it("moonshine has status=planned", () => {
-    expect(STT_MODELS["moonshine"].status).toBe("planned");
   });
 
   it("whisper-tiny sizeHintMb is 75", () => {
@@ -214,8 +201,8 @@ describe("STT_MODELS", () => {
 // ─── TTS_MODELS ───────────────────────────────────────────────────────────────
 
 describe("TTS_MODELS", () => {
-  it("contains off, kokoro, and piper", () => {
-    expect(Object.keys(TTS_MODELS)).toEqual(["off", "kokoro", "piper"]);
+  it("contains off and kokoro", () => {
+    expect(Object.keys(TTS_MODELS)).toEqual(["off", "kokoro"]);
   });
 
   it("tts:off has status=ready and kind=tts", () => {
@@ -225,17 +212,6 @@ describe("TTS_MODELS", () => {
 
   it("kokoro has status=experimental", () => {
     expect(TTS_MODELS.kokoro.status).toBe("experimental");
-  });
-
-  it("piper has status=planned", () => {
-    expect(TTS_MODELS.piper.status).toBe("planned");
-  });
-
-  it("piper has 2 assets with publicPaths rooted under /models/piper", () => {
-    expect(TTS_MODELS.piper.assets).toHaveLength(2);
-    for (const asset of TTS_MODELS.piper.assets) {
-      expect(asset.publicPath).toMatch(/^\/models\/piper\//);
-    }
   });
 
   it("kokoro sizeHintMb is 320", () => {
@@ -283,10 +259,9 @@ describe("VOICE_OFFLINE_READINESS_ITEMS", () => {
     expect(vadItems).toHaveLength(5);
   });
 
-  it("includes items derived from piper TTS assets", () => {
+  it("has no TTS items (Kokoro has no static local-asset entries)", () => {
     const ttsItems = VOICE_OFFLINE_READINESS_ITEMS.filter((i) => i.kind === "tts");
-    // piper has 2 assets
-    expect(ttsItems).toHaveLength(2);
+    expect(ttsItems).toHaveLength(0);
   });
 
   it("VAD items have keys prefixed with vad:", () => {
@@ -296,23 +271,11 @@ describe("VOICE_OFFLINE_READINESS_ITEMS", () => {
     }
   });
 
-  it("TTS items have keys prefixed with piper:", () => {
-    const ttsItems = VOICE_OFFLINE_READINESS_ITEMS.filter((i) => i.kind === "tts");
-    for (const item of ttsItems) {
-      expect(item.key).toMatch(/^piper:/);
-    }
-  });
-
   it("VAD items inherit the required flag from their source asset", () => {
     // silero_vad_v5.onnx and vad.worklet.bundle.min.js are required=true
     const vadItems = VOICE_OFFLINE_READINESS_ITEMS.filter((i) => i.kind === "vad");
     const required = vadItems.filter((i) => i.required);
     expect(required).toHaveLength(2);
-  });
-
-  it("TTS piper items are all required=false", () => {
-    const ttsItems = VOICE_OFFLINE_READINESS_ITEMS.filter((i) => i.kind === "tts");
-    expect(ttsItems.every((i) => !i.required)).toBe(true);
   });
 });
 
@@ -340,10 +303,6 @@ describe("getSttModel", () => {
   it("returns whisper-small model", () => {
     expect(getSttModel("whisper-small")).toBe(STT_MODELS["whisper-small"]);
   });
-
-  it("returns moonshine model", () => {
-    expect(getSttModel("moonshine")).toBe(STT_MODELS["moonshine"]);
-  });
 });
 
 // ─── getTtsModel ──────────────────────────────────────────────────────────────
@@ -355,10 +314,6 @@ describe("getTtsModel", () => {
 
   it("returns the kokoro model", () => {
     expect(getTtsModel("kokoro")).toBe(TTS_MODELS.kokoro);
-  });
-
-  it("returns the piper model", () => {
-    expect(getTtsModel("piper")).toBe(TTS_MODELS.piper);
   });
 });
 
@@ -500,8 +455,10 @@ describe("isModelEnabled", () => {
   });
 
   it("returns false for status=planned", () => {
-    expect(isModelEnabled(STT_MODELS["moonshine"])).toBe(false);
-    expect(isModelEnabled(TTS_MODELS.piper)).toBe(false);
+    const plannedStt = { ...STT_MODELS["whisper-tiny"], status: "planned" as const };
+    const plannedTts = { ...TTS_MODELS.kokoro, status: "planned" as const };
+    expect(isModelEnabled(plannedStt)).toBe(false);
+    expect(isModelEnabled(plannedTts)).toBe(false);
   });
 
   it("returns false for status=disabled", () => {
@@ -524,10 +481,6 @@ describe("isSttEngineEnabled", () => {
   it("returns true for whisper-small (experimental)", () => {
     expect(isSttEngineEnabled("whisper-small")).toBe(true);
   });
-
-  it("returns false for moonshine (planned)", () => {
-    expect(isSttEngineEnabled("moonshine")).toBe(false);
-  });
 });
 
 // ─── isTtsEngineEnabled ──────────────────────────────────────────────────────
@@ -540,21 +493,16 @@ describe("isTtsEngineEnabled", () => {
   it("returns true for kokoro (experimental)", () => {
     expect(isTtsEngineEnabled("kokoro")).toBe(true);
   });
-
-  it("returns false for piper (planned)", () => {
-    expect(isTtsEngineEnabled("piper")).toBe(false);
-  });
 });
 
 // ─── getEnabledSttEngines ────────────────────────────────────────────────────
 
 describe("getEnabledSttEngines", () => {
-  it("returns only ready/experimental engines (excludes moonshine)", () => {
+  it("returns all registered STT engines (all ready/experimental today)", () => {
     const enabled = getEnabledSttEngines();
     expect(enabled).toContain("whisper-tiny");
     expect(enabled).toContain("whisper-base");
     expect(enabled).toContain("whisper-small");
-    expect(enabled).not.toContain("moonshine");
   });
 
   it("returns 3 enabled STT engines", () => {
@@ -565,11 +513,10 @@ describe("getEnabledSttEngines", () => {
 // ─── getEnabledTtsEngines ────────────────────────────────────────────────────
 
 describe("getEnabledTtsEngines", () => {
-  it("returns only ready/experimental engines (excludes piper)", () => {
+  it("returns all registered TTS engines (all ready/experimental today)", () => {
     const enabled = getEnabledTtsEngines();
     expect(enabled).toContain("off");
     expect(enabled).toContain("kokoro");
-    expect(enabled).not.toContain("piper");
   });
 
   it("returns 2 enabled TTS engines", () => {
@@ -592,11 +539,14 @@ describe("normalizeSttEngine", () => {
     expect(normalizeSttEngine("whisper-tiny")).toBe("whisper-tiny");
     expect(normalizeSttEngine("whisper-base")).toBe("whisper-base");
     expect(normalizeSttEngine("whisper-small")).toBe("whisper-small");
-    expect(normalizeSttEngine("moonshine")).toBe("moonshine");
   });
 
   it("returns the default sttEngine for unknown string values", () => {
     expect(normalizeSttEngine("gpt-turbo")).toBe(VOICE_REGISTRY_DEFAULTS.sttEngine);
+  });
+
+  it("returns the default sttEngine for the removed moonshine key", () => {
+    expect(normalizeSttEngine("moonshine")).toBe(VOICE_REGISTRY_DEFAULTS.sttEngine);
   });
 
   it("returns the default sttEngine for non-string values", () => {
@@ -613,11 +563,14 @@ describe("normalizeTtsEngine", () => {
   it("passes through known TTS engine keys unchanged", () => {
     expect(normalizeTtsEngine("off")).toBe("off");
     expect(normalizeTtsEngine("kokoro")).toBe("kokoro");
-    expect(normalizeTtsEngine("piper")).toBe("piper");
   });
 
   it("returns the default ttsEngine for unknown strings", () => {
     expect(normalizeTtsEngine("espeak")).toBe(VOICE_REGISTRY_DEFAULTS.ttsEngine);
+  });
+
+  it("returns the default ttsEngine for the removed piper key", () => {
+    expect(normalizeTtsEngine("piper")).toBe(VOICE_REGISTRY_DEFAULTS.ttsEngine);
   });
 
   it("returns the default ttsEngine for non-string values", () => {
@@ -656,7 +609,6 @@ describe("normalizeLanguageHint", () => {
   it("passes through all valid language hints", () => {
     expect(normalizeLanguageHint("auto")).toBe("auto");
     expect(normalizeLanguageHint("ar")).toBe("ar");
-    expect(normalizeLanguageHint("ar-TN")).toBe("ar-TN");
     expect(normalizeLanguageHint("fr")).toBe("fr");
     expect(normalizeLanguageHint("en")).toBe("en");
   });
@@ -664,6 +616,10 @@ describe("normalizeLanguageHint", () => {
   it("returns the default languageHint for unknown strings", () => {
     expect(normalizeLanguageHint("de")).toBe(VOICE_REGISTRY_DEFAULTS.languageHint);
     expect(normalizeLanguageHint("zh")).toBe(VOICE_REGISTRY_DEFAULTS.languageHint);
+  });
+
+  it("returns the default languageHint for the removed ar-TN locale variant", () => {
+    expect(normalizeLanguageHint("ar-TN")).toBe(VOICE_REGISTRY_DEFAULTS.languageHint);
   });
 
   it("returns the default languageHint for non-string values", () => {
@@ -692,8 +648,8 @@ describe("mapLanguageHintToWhisperLanguage", () => {
     expect(mapLanguageHintToWhisperLanguage("ar")).toBe("arabic");
   });
 
-  it("returns 'arabic' for 'ar-TN' (starts with ar)", () => {
-    expect(mapLanguageHintToWhisperLanguage("ar-TN")).toBe("arabic");
+  it("returns 'arabic' for any ar-* regional variant (starts with ar)", () => {
+    expect(mapLanguageHintToWhisperLanguage("ar-SA")).toBe("arabic");
   });
 
   it("returns 'arabic' for uppercase 'AR' (case-insensitive)", () => {
@@ -734,8 +690,8 @@ describe("mapLanguageHintToDisplayLabel", () => {
     expect(mapLanguageHintToDisplayLabel("auto")).toBe("Auto");
   });
 
-  it("returns 'Tounsi' for 'ar-TN'", () => {
-    expect(mapLanguageHintToDisplayLabel("ar-TN")).toBe("Tounsi");
+  it("returns the raw string for the removed 'ar-TN' locale variant", () => {
+    expect(mapLanguageHintToDisplayLabel("ar-TN")).toBe("ar-TN");
   });
 
   it("returns 'Arabic' for 'ar'", () => {

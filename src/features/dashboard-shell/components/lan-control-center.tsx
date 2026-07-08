@@ -13,18 +13,23 @@ import {
   WifiOff,
 } from "lucide-react";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import {
   buildLANCommand,
   connectLAN,
   disconnectLAN,
+  getLANAuthError,
   getLANJoinUrl,
   getLANPeers,
   getLANStatus,
+  hasCollabHubBridge,
   readLANSettings,
   saveLANSettings,
   scanLANSubnet,
+  startInAppHub,
   subscribeLAN,
   type LANPeer,
   type LANRole,
@@ -33,6 +38,7 @@ import {
 import { generatePairingCode } from "@/platform/lan/pairing";
 
 export function LanControlCenter() {
+  const router = useRouter();
   const [mode, setMode] = useState<"host" | "join">("host");
   const [settings, setSettings] = useState(() => readLANSettings());
   const [status, setStatus] = useState(getLANStatus());
@@ -43,12 +49,21 @@ export function LanControlCenter() {
   const [qrDataUrl, setQrDataUrl] = useState("");
   const [scanResults, setScanResults] = useState<LANScanResult[]>([]);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  // View-only guest code of the in-app hub (Electron) — shown next to the full
+  // access code so hosts can hand guests a code that can never grant writes.
+  const [guestCode, setGuestCode] = useState("");
   const scanRef = useRef(false);
 
   useEffect(() => {
     return subscribeLAN(() => {
-      setStatus(getLANStatus());
+      const next = getLANStatus();
+      setStatus(next);
       setPeers(getLANPeers());
+      // Surface async auth rejections (wrong code, guests disabled).
+      if (next === "error") {
+        const reason = getLANAuthError();
+        if (reason) setError(reason);
+      }
     });
   }, []);
 
@@ -72,6 +87,11 @@ export function LanControlCenter() {
     };
     setSettings(next);
     saveLANSettings(next);
+    // Keep the app-wide display name (Settings > Account, PresenceBar) in sync
+    // when it's changed from here instead of there.
+    if (patch.peer?.name && patch.peer.name !== settings.peer.name) {
+      useCollabHubStore.getState().setUsername(patch.peer.name);
+    }
   };
 
   const run = async (fn: () => Promise<void>) => {
@@ -105,6 +125,29 @@ export function LanControlCenter() {
 
   const connected = status === "connected";
   const serverCommand = buildLANCommand(settings);
+  const canStartInAppHub = hasCollabHubBridge();
+
+  // One-click host path (Electron): boot the embedded Hocuspocus hub in the
+  // main process — no separate terminal — then connect to it as host.
+  const startHubAndConnect = () =>
+    run(async () => {
+      const hub = await startInAppHub({
+        pairingCode: settings.pairingCode || undefined,
+        room: settings.room,
+      });
+      if (!hub) throw new Error("Built-in hub unavailable");
+      setGuestCode(hub.guestCode);
+      const next = {
+        ...settings,
+        url: hub.url,
+        pairingCode: hub.pairingCode,
+        room: hub.room,
+        peer: { ...settings.peer, role: "host" as LANRole },
+      };
+      setSettings(next);
+      saveLANSettings(next);
+      await connectLAN(next);
+    });
 
   return (
     <div className="w-[min(480px,calc(100vw-24px))] overflow-hidden rounded-2xl border border-border bg-background shadow-2xl">
@@ -156,6 +199,17 @@ export function LanControlCenter() {
                   </span>
                   Start the server on this computer
                 </div>
+                {canStartInAppHub && (
+                  <button
+                    type="button"
+                    onClick={startHubAndConnect}
+                    disabled={busy}
+                    className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600 text-xs font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
+                  >
+                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                    Start built-in hub (no terminal needed)
+                  </button>
+                )}
                 <div className="flex items-center gap-2 rounded-lg bg-muted px-3 py-2">
                   <code className="min-w-0 flex-1 truncate font-mono text-[11px] text-foreground">
                     {serverCommand}
@@ -173,7 +227,9 @@ export function LanControlCenter() {
                   </button>
                 </div>
                 <p className="text-[10px] text-muted-foreground">
-                  Open a terminal and run this command, then come back here.
+                  {canStartInAppHub
+                    ? "Or open a terminal and run this command, then come back here."
+                    : "Open a terminal and run this command, then come back here."}
                 </p>
               </div>
             )}
@@ -273,11 +329,21 @@ export function LanControlCenter() {
                       <div className="text-xs font-medium">{settings.room}</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">Access code</div>
+                      <div className="text-[10px] text-muted-foreground">Access code (can edit)</div>
                       <div className="font-mono text-sm font-bold tracking-widest">
                         {settings.pairingCode}
                       </div>
                     </div>
+                    {guestCode && (
+                      <div className="space-y-1">
+                        <div className="text-[10px] text-muted-foreground">
+                          Guest code (view-only)
+                        </div>
+                        <div className="font-mono text-sm font-bold tracking-widest text-muted-foreground">
+                          {guestCode}
+                        </div>
+                      </div>
+                    )}
                     <button
                       type="button"
                       onClick={() => copyText(joinUrl)}
@@ -302,16 +368,25 @@ export function LanControlCenter() {
                   <Users className="h-3.5 w-3.5" /> {peers.length} connected
                 </div>
                 <div className="flex flex-wrap gap-1.5">
-                  {peers.map((peer) => (
-                    <span
-                      key={peer.id}
-                      className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px]"
-                    >
-                      <span className="h-2 w-2 rounded-full" style={{ background: peer.color }} />
-                      {peer.name}
-                      <span className="text-muted-foreground">· {peer.role}</span>
-                    </span>
-                  ))}
+                  {peers.map((peer) => {
+                    const canJump = Boolean(peer.page?.startsWith("/dashboard"));
+                    return (
+                      <button
+                        key={peer.id}
+                        type="button"
+                        disabled={!canJump}
+                        onClick={() => {
+                          if (peer.page) router.push(peer.page);
+                        }}
+                        title={canJump ? `Go to ${peer.name}'s page (${peer.page})` : undefined}
+                        className="inline-flex items-center gap-1 rounded-full border border-border bg-muted/40 px-2 py-0.5 text-[11px] enabled:cursor-pointer enabled:hover:bg-muted"
+                      >
+                        <span className="h-2 w-2 rounded-full" style={{ background: peer.color }} />
+                        {peer.name}
+                        <span className="text-muted-foreground">· {peer.role}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             )}

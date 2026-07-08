@@ -7,6 +7,12 @@ import {
   buildAnomalyExplanationPrompt,
   buildAnomalyReportPrompt,
   buildDataStoryPrompt,
+  DAILY_BRIEFING_SYSTEM_PROMPT,
+  EXECUTIVE_SUMMARY_SYSTEM_PROMPT,
+  ACTION_PLAN_SYSTEM_PROMPT,
+  ANOMALY_EXPLANATION_SYSTEM_PROMPT,
+  ANOMALY_REPORT_SYSTEM_PROMPT,
+  DATA_STORY_SYSTEM_PROMPT,
 } from "@/features/ai-briefing/core/briefing-prompts";
 import type { BriefingContext, NumericColumnStat } from "@/features/ai-briefing/core/briefing-context";
 
@@ -325,17 +331,19 @@ describe("buildDailyBriefingPrompt", () => {
     expect(typeof result.prompt).toBe("string");
   });
 
-  it("system prompt describes a news-anchor-style analyst", () => {
-    // Arrange
+  it("system prompt matches the exact daily-briefing analyst instructions", () => {
+    // Arrange: the system prompt is a static string, not built from ctx —
+    // a substring check could only ever catch removal of one phrase and
+    // would miss any other degradation of the analyst instructions (e.g. an
+    // accidental paragraph-count or tone change). Assert full identity
+    // against the exported constant instead.
     const ctx = makeCtx();
 
     // Act
     const result = buildDailyBriefingPrompt(ctx);
 
     // Assert
-    expect(result.system).toContain("daily briefing");
-    expect(result.system).toContain("3 short paragraphs");
-    expect(result.system).toContain("no bullet lists");
+    expect(result.system).toBe(DAILY_BRIEFING_SYSTEM_PROMPT);
   });
 
   it("prompt equals the context summary", () => {
@@ -378,17 +386,18 @@ describe("buildExecutiveSummaryPrompt", () => {
     expect(result).toHaveProperty("prompt");
   });
 
-  it("system prompt references executive management and 3 paragraphs", () => {
-    // Arrange
+  it("system prompt matches the exact executive-summary analyst instructions", () => {
+    // Arrange: static system prompt — a substring check could only ever
+    // catch removal of one phrase and would miss other degradations (e.g.
+    // dropping "action-oriented" or changing the paragraph structure).
+    // Assert full identity against the exported constant instead.
     const ctx = makeCtx();
 
     // Act
     const result = buildExecutiveSummaryPrompt(ctx);
 
     // Assert
-    expect(result.system).toContain("executive management");
-    expect(result.system).toContain("3 paragraphs");
-    expect(result.system).toContain("No headings");
+    expect(result.system).toBe(EXECUTIVE_SUMMARY_SYSTEM_PROMPT);
   });
 
   it("prompt equals the context summary", () => {
@@ -419,18 +428,18 @@ describe("buildActionPlanPrompt", () => {
     expect(result).toHaveProperty("prompt");
   });
 
-  it("system prompt requests a JSON object with 'items' and 5 prioritised actions", () => {
-    // Arrange
+  it("system prompt matches the exact action-plan instructions and JSON schema", () => {
+    // Arrange: static system prompt — a substring check could only ever
+    // catch removal of one phrase and would miss other degradations (e.g. a
+    // change to the JSON shape or the number of requested items). Assert
+    // full identity against the exported constant instead.
     const ctx = makeCtx();
 
     // Act
     const result = buildActionPlanPrompt(ctx);
 
     // Assert
-    expect(result.system).toContain("JSON object");
-    expect(result.system).toContain('"items"');
-    expect(result.system).toContain("5 items");
-    expect(result.system).toContain("operations expert");
+    expect(result.system).toBe(ACTION_PLAN_SYSTEM_PROMPT);
   });
 
   it("prompt equals the context summary", () => {
@@ -469,8 +478,12 @@ describe("buildAnomalyExplanationPrompt", () => {
     expect(result).toHaveProperty("prompt");
   });
 
-  it("system prompt asks for JSON with explanation and hypotheses", () => {
-    // Arrange
+  it("system prompt matches the exact anomaly-explanation instructions and JSON schema", () => {
+    // Arrange: the system prompt is static (independent of args) — a
+    // substring check could only ever catch removal of one phrase and would
+    // miss other degradations (e.g. a change to the JSON shape or the
+    // requested hypothesis count). Assert full identity against the
+    // exported constant instead.
     const args = {
       datasetName: "DS",
       column: "col",
@@ -485,9 +498,7 @@ describe("buildAnomalyExplanationPrompt", () => {
     const result = buildAnomalyExplanationPrompt(args);
 
     // Assert
-    expect(result.system).toContain('"explanation"');
-    expect(result.system).toContain('"hypotheses"');
-    expect(result.system).toContain("3 concrete");
+    expect(result.system).toBe(ANOMALY_EXPLANATION_SYSTEM_PROMPT);
   });
 
   it("prompt includes datasetName, column, count, maxZ, and range", () => {
@@ -609,19 +620,19 @@ describe("buildAnomalyReportPrompt", () => {
     expect(result).toHaveProperty("prompt");
   });
 
-  it("system prompt mentions investigation report sections", () => {
-    // Arrange
+  it("system prompt matches the exact investigation-report instructions", () => {
+    // Arrange: static system prompt (independent of args) — a substring
+    // check could only ever catch removal of one section name and would
+    // miss other degradations (e.g. dropping a whole section or the
+    // "thorough and professional" tone requirement). Assert full identity
+    // against the exported constant instead.
     const args = { datasetName: "D", summary: "summary text" };
 
     // Act
     const result = buildAnomalyReportPrompt(args);
 
     // Assert
-    expect(result.system).toContain("Executive Summary");
-    expect(result.system).toContain("Findings");
-    expect(result.system).toContain("Risk Assessment");
-    expect(result.system).toContain("Recommended Actions");
-    expect(result.system).toContain("No markdown fences");
+    expect(result.system).toBe(ANOMALY_REPORT_SYSTEM_PROMPT);
   });
 
   it("prompt includes datasetName and summary text", () => {
@@ -667,18 +678,18 @@ describe("buildDataStoryPrompt", () => {
     expect(result).toHaveProperty("prompt");
   });
 
-  it("system prompt requests JSON with setup, conflict, resolution fields", () => {
-    // Arrange
+  it("system prompt matches the exact data-story instructions and JSON schema", () => {
+    // Arrange: static system prompt — a substring check could only ever
+    // catch removal of one field name and would miss other degradations
+    // (e.g. a changed JSON shape or dropped narrative guidance). Assert full
+    // identity against the exported constant instead.
     const ctx = makeCtx();
 
     // Act
     const result = buildDataStoryPrompt(ctx);
 
     // Assert
-    expect(result.system).toContain('"setup"');
-    expect(result.system).toContain('"conflict"');
-    expect(result.system).toContain('"resolution"');
-    expect(result.system).toContain("data storyteller");
+    expect(result.system).toBe(DATA_STORY_SYSTEM_PROMPT);
   });
 
   it("prompt equals the context summary", () => {

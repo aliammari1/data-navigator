@@ -12,11 +12,28 @@
  * suite that exercises it via `vitest.mutation.config.ts` (the runner's config).
  *
  * Modules under test:
- *   - src/features/data-formulator/core/swarm/agents/base.ts (SQL read-only guard)
- *   - src/shared/duckdb-summary.ts                           (SUMMARIZE coercion)
- *   - src/features/ai-analysis/model/stats.ts                (statistics helpers)
- *   - src/features/data-import/model/summarize.ts            (column-info mapping)
- *   - src/platform/ai/nlq.ts                                 (NL->SQL translation)
+ *   - src/features/data-formulator/core/swarm/agents/base.ts     (SQL read-only guard)
+ *   - src/shared/duckdb-summary.ts                               (SUMMARIZE coercion)
+ *   - src/features/ai-analysis/model/stats.ts                    (statistics helpers)
+ *   - src/features/data-import/model/summarize.ts                (column-info mapping)
+ *   - src/platform/ai/nlq.ts                                     (NL->SQL translation)
+ *   - src/features/telecom/lib/sql.ts                            (SQL-escaping + canal/status SQL builders)
+ *   - src/platform/ai/provider/structured.ts                     (JSON repair/parse for AI output)
+ *   - src/features/data-formulator/core/swarm/agents/validate.ts (swarm artifact safety gate)
+ *   - electron/sql-guard.ts                                      (main-process read-only SQL guard)
+ *   - electron/collab-pairing.ts                                 (CSPRNG pairing-code generation)
+ *   - src/features/desktop/core/menu/registry.ts                 (menu bar composition rules)
+ *
+ * NOT mutated despite being a candidate: src/features/ai-analysis/model/sql.ts
+ * (buildHistogramSQL et al). Its only coverage is indirect, through
+ * tests/features/ai-analysis/model/pipeline.test.ts, which re-derives the
+ * "expected" SQL by calling the SAME builder functions the pipeline calls, then
+ * matches by equality/prefix. Verified empirically: mutating a literal quantile
+ * argument in `buildNumericStatsSQL` (0.25/0.75 -> 0.35/0.85) left all 62 tests
+ * in that file green, because both sides of the match were built from the same
+ * (mutated) function. Mutating this file would mostly produce "survived" noise
+ * rather than signal; it needs direct unit tests asserting exact SQL text
+ * before it belongs in this list.
  *
  * Run: `pnpm run test:mutation`  (alias for `stryker run`).
  */
@@ -45,9 +62,22 @@ export default {
     "src/features/ai-analysis/model/stats.ts",
     "src/features/data-import/model/summarize.ts",
     "src/platform/ai/nlq.ts",
+    "src/features/telecom/lib/sql.ts",
+    "src/platform/ai/provider/structured.ts",
+    "src/features/data-formulator/core/swarm/agents/validate.ts",
+    "electron/sql-guard.ts",
+    "electron/collab-pairing.ts",
+    "src/features/desktop/core/menu/registry.ts",
   ],
   // Be conservative on a medium-end PC: leave cores free for the OS / dev work.
   concurrency: 4,
+  // Cache mutant results across runs so re-runs after small diffs are fast
+  // (2026 best practice for scaling mutation testing without runaway CI time).
+  // Kept outside `tempDirName` (which `cleanTempDir` wipes every run) and
+  // inside the already-gitignored `reports/mutation/` dir alongside the other
+  // reporters.
+  incremental: true,
+  incrementalFile: "reports/mutation/stryker-incremental.json",
   // Skip mutants in a test as soon as one survives long enough — keeps runtime
   // bounded without changing the score (timeout for hung mutants only).
   timeoutMS: 60000,

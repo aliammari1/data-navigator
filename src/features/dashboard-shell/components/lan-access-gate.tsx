@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from "react";
 import {
   connectLAN,
   disconnectLAN,
+  getLANAuthError,
   getLANStatus,
   type LANScanResult,
   readLANSettings,
@@ -16,6 +17,7 @@ import {
 } from "@/platform/lan/lan-collab";
 import { generatePairingCode } from "@/platform/lan/pairing";
 import { useTheme } from "@/components/theme-provider";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 
 /* ── Clock ────────────────────────────────────────────────────────────── */
 
@@ -95,6 +97,15 @@ export function LanAccessGate({
           setStableConnected(true);
           setConnecting(false);
         } else {
+          // Authentication rejections (wrong code, guests disabled) arrive
+          // async from the hub — surface the reason instead of spinning.
+          if (next === "error") {
+            const reason = getLANAuthError();
+            if (reason) {
+              setError(reason);
+              setConnecting(false);
+            }
+          }
           if (debounceRef.current) clearTimeout(debounceRef.current);
           debounceRef.current = setTimeout(() => setStableConnected(false), 800);
         }
@@ -109,6 +120,11 @@ export function LanAccessGate({
     const next = { ...settings, ...patch, peer: { ...settings.peer, ...(patch.peer ?? {}) } };
     setSettings(next);
     saveLANSettings(next);
+    // Keep the app-wide display name (Settings > Account, PresenceBar) in sync
+    // when it's changed from here instead of there.
+    if (patch.peer?.name && patch.peer.name !== settings.peer.name) {
+      useCollabHubStore.getState().setUsername(patch.peer.name);
+    }
   };
 
   const connect = async (role: "host" | "viewer") => {

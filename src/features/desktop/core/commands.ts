@@ -87,7 +87,7 @@ function openAppEvent(appId: string, props?: Record<string, unknown>): void {
 
 function askMoudir(prompt: string): void {
   if (typeof window === "undefined") return;
-  openAppEvent("moudir");
+  openAppEvent("moudir-chat");
   window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
 }
 
@@ -379,7 +379,7 @@ export function resolveCommands(query: string): CommandResult[] {
       icon: Sparkles,
       hue: 268,
       score: 1,
-      run: () => openAppEvent("moudir"),
+      run: () => openAppEvent("moudir-chat"),
     });
   }
 

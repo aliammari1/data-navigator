@@ -98,7 +98,9 @@ export function useMenuContext(): { ctx: MenuContext; groups: MenuGroup[] } {
       closeAll: () => actions.closeAll(),
       exitDesktop: () => setDesktopMode(false),
       askMoudir: (prompt) => {
-        actions.openApp("moudir");
+        // The Moudir assistant (app "moudir-chat") owns the `moudir:ask`
+        // channel; the formulator (app "moudir") listens on its command bus.
+        actions.openApp("moudir-chat");
         if (typeof window !== "undefined") {
           window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
         }
