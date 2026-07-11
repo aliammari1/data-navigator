@@ -10,6 +10,41 @@ export type CanalKey =
   | "credit_transfer"
   | "voucher_convergent";
 
+/**
+ * A user-confirmed classification for a raw account combo that none of the 10
+ * hardcoded `canalCaseExpr` rules matched. Detected via
+ * `fetchUnclassifiedCanalCombos` and assigned through the "new canal
+ * detected" dialog — the same resolve-unknowns flow `StatusMapping` uses for
+ * unrecognised status codes (see `unknown-status-dialog.tsx`).
+ *
+ * BRAND_D is always the anchor (every `ChannelDef` condition in
+ * report-engine.ts starts with it), but the real rules narrow by anywhere
+ * from 0 to 2 more fields — never all 3. `null` on a field means "matches any
+ * value", so a rule can key on just BRAND_D, BRAND_D + one field, or
+ * BRAND_D + layer + group, matching how these channels are actually defined
+ * (see `canal-mapping-scope.ts`).
+ */
+export interface CanalMapping {
+  brandD: string;
+  accountLayerId: string | null;
+  accountGroupId: string | null;
+  accountMsisdn: string | null;
+  /** One of the 10 known canals. Every detected combo must be assigned a
+   * real canal through the dialog — there is no "leave unclassified" option. */
+  key: CanalKey;
+}
+
+/** A distinct raw account combo among rows the hardcoded rules can't
+ * classify, with its transaction volume — what the "new canal detected"
+ * dialog shows the user to assign. */
+export interface UnclassifiedCanalCombo {
+  brandD: string;
+  accountLayerId: string;
+  accountGroupId: string;
+  accountMsisdn: string;
+  total: number;
+}
+
 export type SortDir = "asc" | "desc";
 export type OverviewExportSectionKey =
   | "assistant"

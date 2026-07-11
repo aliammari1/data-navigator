@@ -3,6 +3,7 @@ import { betterAuth } from "better-auth/minimal";
 import { nextCookies } from "better-auth/next-js";
 import * as schema from "@/db/schema";
 import { authDb } from "@/platform/auth/auth-database";
+import { getBetterAuthBaseUrl } from "@/platform/auth/electron-options";
 
 export const authConfig = {
   appName: "DataNavigator",
@@ -14,7 +15,7 @@ export const authConfig = {
 
   secret: process.env.BETTER_AUTH_SECRET ?? "data-navigator-local-dev-secret-change-me",
 
-  baseURL: process.env.BETTER_AUTH_URL ?? "http://localhost:3000",
+  baseURL: getBetterAuthBaseUrl(),
 
   emailAndPassword: {
     enabled: true,

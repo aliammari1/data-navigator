@@ -22,7 +22,7 @@ import {
   SPEC_STATUS_CODES,
   SPEC_SUBMITTED_FILTER,
 } from "@/features/telecom/lib/status-definitions";
-import type { ColumnMapping } from "@/features/telecom/types";
+import type { CanalMapping, ColumnMapping } from "@/features/telecom/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface PeriodKPI {
@@ -228,11 +228,12 @@ export async function fetchTopAccounts(
   dateTo: string,
   limit = 25,
   by: "amount" | "count" = "amount",
+  cm: CanalMapping[] = [],
 ): Promise<TopAccountRow[]> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
   const ms = qc(m.msisdn);
   const nm = qc(m.serviceName);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const orderCol = by === "amount" ? "amount" : "total";
 
   try {
@@ -344,9 +345,10 @@ export async function fetchCanalHourPeriod(
   m: ColumnMapping,
   dateFrom: string,
   dateTo: string,
+  cm: CanalMapping[] = [],
 ): Promise<CanalHourMatrix[]> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const hr = transactionHourExpr(m.transactionDate);
 
   try {

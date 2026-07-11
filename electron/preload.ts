@@ -1,6 +1,6 @@
 import { setupRenderer } from "@better-auth/electron/preload";
 import { contextBridge, type IpcRendererEvent, ipcRenderer, webUtils } from "electron";
-import type { authClient } from "./auth-client";
+import type { ElectronAuthClient } from "./auth-client";
 
 setupRenderer();
 
@@ -593,7 +593,7 @@ contextBridge.exposeInMainWorld("electronChatSession", electronChatSession);
 contextBridge.exposeInMainWorld("electronClipboard", electronClipboard);
 
 declare global {
-  type AuthBridges = typeof authClient.$Infer.Bridges;
+  type AuthBridges = ElectronAuthClient["$Infer"]["Bridges"];
 
   interface Window extends AuthBridges {}
 
