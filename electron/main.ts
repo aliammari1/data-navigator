@@ -15,13 +15,14 @@ import {
   shell,
   systemPreferences,
 } from "electron";
+import getPort, { portNumbers } from "get-port";
 import type { startServer as StartServerFn } from "next/dist/server/lib/start-server";
 import { isAuthDbEncryptionRequested } from "../src/platform/auth/auth-db-encryption";
 import {
-  BETTER_AUTH_BASE_URL,
   ELECTRON_AUTH_PROTOCOL,
+  getBetterAuthBaseUrl,
 } from "../src/platform/auth/electron-options";
-import { authClient } from "./auth-client";
+import { createElectronAuthClient, type ElectronAuthClient } from "./auth-client";
 import * as chatSessionService from "./chat-session-service";
 import {
   appendMessage as chatAppendMessage,
@@ -151,14 +152,20 @@ bootLog(`main.js loaded; isPackaged=${app.isPackaged}`);
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+let electronAuthClient: ElectronAuthClient | null = null;
 
-authClient.setupMain({
-  getWindow: () => mainWindow,
-  // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
-  // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
-  // edit can't silently activate a competing onHeadersReceived CSP handler.
-  csp: false,
-});
+function setupElectronAuthClient(): void {
+  if (electronAuthClient) return;
+
+  electronAuthClient = createElectronAuthClient();
+  electronAuthClient.setupMain({
+    getWindow: () => mainWindow,
+    // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
+    // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
+    // edit can't silently activate a competing onHeadersReceived CSP handler.
+    csp: false,
+  });
+}
 
 // ─── App Update ───────────────────────────────────────────────────────────────
 // Offline-first: auto-update is OFF by default so a packaged launch makes ZERO
@@ -1139,6 +1146,8 @@ async function createWindow(): Promise<void> {
     mainWindow?.show();
   });
 
+  setupElectronAuthClient();
+
   // ─── Navigation hardening ──────────────────────────────────────────────────
   // The renderer must never spawn new windows or navigate cross-origin. Deny all
   // window.open (route real external https links to the OS browser); restrict
@@ -1245,18 +1254,36 @@ async function createWindow(): Promise<void> {
 async function startNextJSServer(): Promise<string> {
   try {
     bootLog("startNextJSServer: begin");
-    const authUrl = new URL(BETTER_AUTH_BASE_URL);
+    const authUrl = new URL(getBetterAuthBaseUrl());
     // Enforce localhost-only: fail closed if the (env-overridable) base URL ever
     // resolves to a non-loopback host. Makes "localhost-only" an invariant, not
     // a convention (closes the Model-D loopback-bind gap).
     const hostname = assertLoopbackHostname(authUrl.hostname);
-    const nextJSPort = authUrl.port ? Number(authUrl.port) : 3000;
+    const host =
+      hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+    const preferredPort = authUrl.port ? Number(authUrl.port) : null;
+    if (preferredPort !== null && (!Number.isInteger(preferredPort) || preferredPort <= 0)) {
+      throw new Error(`Invalid BETTER_AUTH_URL port: ${authUrl.port}`);
+    }
+
+    const preferredPorts =
+      preferredPort !== null && preferredPort >= 20000 && preferredPort <= 20100
+        ? [preferredPort, ...portNumbers(20000, 20100)]
+        : portNumbers(20000, 20100);
+
+    const nextJSPort = await getPort({
+      port: preferredPorts,
+      host,
+      reserve: true,
+    });
+    authUrl.port = String(nextJSPort);
+    const baseUrl = authUrl.toString();
 
     const webDir = path.join(app.getAppPath(), "app");
 
-    process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
-    process.env.APP_USER_DATA = app.getPath("userData"); // ← add
+    process.env.BETTER_AUTH_URL = baseUrl;
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = baseUrl;
+    process.env.APP_USER_DATA = app.getPath("userData");
     process.env.PORT = nextJSPort.toString();
 
     // Replace the shipped constant BETTER_AUTH_SECRET with a per-install random
@@ -1284,7 +1311,7 @@ async function startNextJSServer(): Promise<string> {
     // set in config, so we set it here without editing the (out-of-scope)
     // auth.ts.
     const trustedOrigins = [
-      BETTER_AUTH_BASE_URL,
+      baseUrl,
       "http://localhost:3000",
       "http://127.0.0.1:3000",
       // Exact custom-protocol origin only — the `://*` wildcard widened trusted
@@ -1323,16 +1350,16 @@ async function startNextJSServer(): Promise<string> {
     await startServer({
       dir: webDir,
       isDev: false,
-      hostname,
+      hostname: host,
       port: nextJSPort,
       customServer: true,
       allowRetry: false,
       keepAliveTimeout: 5000,
       minimalMode: true,
     });
-    bootLog(`startServer resolved; listening at ${BETTER_AUTH_BASE_URL}`);
+    bootLog(`startServer resolved; listening at ${baseUrl}`);
 
-    return BETTER_AUTH_BASE_URL;
+    return baseUrl;
   } catch (error) {
     bootLog(
       `ERROR: ${error instanceof Error ? `${error.message}\n${error.stack}` : String(error)}`,

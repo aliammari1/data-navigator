@@ -12,6 +12,7 @@ const TELECOM_UI_STORAGE_KEY = "telecom-session-v1";
 interface PersistedTelecomUiState {
   columnMapping?: Partial<Types.ColumnMapping>;
   statusMapping?: Types.StatusMapping[];
+  canalMapping?: Types.CanalMapping[];
 }
 
 function readPersistedUiState(): PersistedTelecomUiState {
@@ -52,6 +53,8 @@ export interface UseTelecomUIReturn {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
+  canalMapping: Types.CanalMapping[];
+  setCanalMapping: React.Dispatch<React.SetStateAction<Types.CanalMapping[]>>;
 }
 
 interface UseTelecomUIParams {
@@ -80,6 +83,7 @@ export function useTelecomUI({
   const [statusMapping, setStatusMapping] = useState<Types.StatusMapping[]>([
     ...DEFAULT_STATUS_MAPPINGS,
   ]);
+  const [canalMapping, setCanalMapping] = useState<Types.CanalMapping[]>([]);
 
   // Mount + store hydration
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate persisted UI state once after client mount
@@ -89,6 +93,9 @@ export function useTelecomUI({
     setMapping(normalizeColumnMapping(persisted.columnMapping ?? defaultMapping));
     if (persisted.statusMapping?.length) {
       setStatusMapping(persisted.statusMapping);
+    }
+    if (persisted.canalMapping?.length) {
+      setCanalMapping(persisted.canalMapping);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -103,6 +110,11 @@ export function useTelecomUI({
     writePersistedUiState({ statusMapping });
     useTelecomStore.getState().setStatusMapping(statusMapping);
   }, [statusMapping]);
+
+  useEffect(() => {
+    writePersistedUiState({ canalMapping });
+    useTelecomStore.getState().setCanalMapping(canalMapping);
+  }, [canalMapping]);
 
   // F2 — PWA install prompt
   useEffect(() => {
@@ -152,5 +164,7 @@ export function useTelecomUI({
     setMapping,
     statusMapping,
     setStatusMapping,
+    canalMapping,
+    setCanalMapping,
   };
 }

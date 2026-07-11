@@ -1,6 +1,7 @@
 import { safeNum } from "@/features/telecom/lib/format";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import {
+  CANAL_KEY_TO_LABEL,
   canalCaseExpr,
   canalWhere,
   colExpr,
@@ -21,6 +22,7 @@ import {
 import type {
   CanalHourCell,
   CanalKey,
+  CanalMapping,
   ColumnMapping,
   CustomerProfileData,
   DailyTrendRow,
@@ -35,23 +37,11 @@ import type {
   SortDir,
   StatusMapping,
   StatusRow,
+  UnclassifiedCanalCombo,
 } from "@/features/telecom/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
-// ─── Canal label map (must stay in sync with canalCaseExpr THEN clauses) ────────
-
-export const CANAL_KEY_TO_LABEL: Record<CanalKey, string> = {
-  bill_payment: "Bill Payment",
-  voice_fixed_ttcash: "Fixed by TTCASH",
-  voice_fixed_voucher: "Fixed by Voucher",
-  voice_mobile_ttcash: "Mobile by TTCASH",
-  voice_mobile_voucher: "Mobile by Voucher",
-  data_sabba: "Internet Sabba",
-  data_evoucher: "Data by Voucher",
-  voucher_for_payment: "Voucher For Payment",
-  credit_transfer: "Credit Transfer",
-  voucher_convergent: "Voucher Convergent Management",
-};
+export { CANAL_KEY_TO_LABEL };
 
 // ─── Raw canal row (no React.ElementType — enrichment happens in page.tsx) ───────
 
@@ -243,10 +233,11 @@ export async function fetchRawCanalSummaries(
   m: ColumnMapping,
   totalTx: number,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  cm: CanalMapping[] = [],
 ): Promise<RawCanalRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const keyMap: Record<string, CanalKey> = {
     "Bill Payment": "bill_payment",
     "Fixed by TTCASH": "voice_fixed_ttcash",
@@ -258,6 +249,12 @@ export async function fetchRawCanalSummaries(
     "Voucher For Payment": "voucher_for_payment",
     "Credit Transfer": "credit_transfer",
     "Voucher Convergent Management": "voucher_convergent",
+    // 'Other' (canalCaseExpr's ELSE fallback) is intentionally absent: every
+    // row that could land here has already been offered to the user via
+    // fetchUnclassifiedCanalCombos + the "new canal detected" dialog, which
+    // requires assigning a real canal — so once resolved it matches a `cm`
+    // override above instead of 'Other'. A row genuinely still 'Other' means
+    // it hasn't been through that dialog yet.
   };
   try {
     const rows = await runReadOnlyQuery(`
@@ -415,11 +412,12 @@ export async function fetchOperatorsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  cm: CanalMapping[] = [],
 ): Promise<OperatorRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const op = qc(m.operator);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
@@ -451,11 +449,12 @@ export async function fetchRegionsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  cm: CanalMapping[] = [],
 ): Promise<RegionRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const reg = qc(m.region);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
@@ -485,11 +484,12 @@ export async function fetchDestinationsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  cm: CanalMapping[] = [],
 ): Promise<OperatorRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const dst = qc("GENERATION_ACCOUNT_NAME");
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
@@ -584,10 +584,11 @@ export async function fetchCanalHourly(
 export async function fetchCanalHourlyMatrix(
   tableName: string,
   m: ColumnMapping,
+  cm: CanalMapping[] = [],
 ): Promise<CanalHourCell[]> {
   const sn = statusNorm(m);
   const hr = hourExpr(m);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -652,12 +653,13 @@ export async function fetchCustomerProfile(
   tableName: string,
   m: ColumnMapping,
   msisdn: string,
+  cm: CanalMapping[] = [],
 ): Promise<CustomerProfileData | null> {
   const sn = statusNorm(m);
   const amt = qc(m.amount);
   const ms = qc(m.msisdn);
   const hr = hourExpr(m);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   const ec = qc(m.errorCode);
   const cname = qc(m.serviceName);
   const msLiteral = sqlLiteral(msisdn);
@@ -867,6 +869,47 @@ export async function fetchDistinctStatuses(
       rawCode: String(r.raw_code ?? ""),
       count: safeNum(r.count),
       amount: safeNum(r.amount),
+    }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Distinct (BRAND_D, ACCOUNT_LAYER_ID, ACCOUNT_GROUP_ID, ACCOUNT_MSISDN)
+ * combos among rows `canalCaseExpr` currently classifies as `'Other'`, with
+ * their transaction volume — mirrors `fetchDistinctStatuses`, but for canal
+ * classification instead of status codes. Passing the already-confirmed `cm`
+ * means combos the user already resolved are excluded automatically: a real
+ * canal override makes `canalCaseExpr` stop returning `'Other'` for that
+ * combo, so it no longer matches the WHERE clause below.
+ */
+export async function fetchUnclassifiedCanalCombos(
+  tableName: string,
+  m: ColumnMapping,
+  cm: CanalMapping[] = [],
+): Promise<UnclassifiedCanalCombo[]> {
+  const canal = canalCaseExpr(m, cm);
+  try {
+    const rows = await runReadOnlyQuery(`
+      SELECT
+        CAST(BRAND_D AS VARCHAR)           AS brand_d,
+        CAST(ACCOUNT_LAYER_ID AS VARCHAR)  AS account_layer_id,
+        CAST(ACCOUNT_GROUP_ID AS VARCHAR)  AS account_group_id,
+        CAST(ACCOUNT_MSISDN AS VARCHAR)    AS account_msisdn,
+        COUNT(*)                           AS total
+      FROM ${qc(tableName)}
+      WHERE (${canal}) = 'Other'
+      GROUP BY 1, 2, 3, 4
+      ORDER BY 5 DESC
+      LIMIT 200
+    `);
+    return rows.map((r) => ({
+      brandD: String(r.brand_d ?? ""),
+      accountLayerId: String(r.account_layer_id ?? ""),
+      accountGroupId: String(r.account_group_id ?? ""),
+      accountMsisdn: String(r.account_msisdn ?? ""),
+      total: safeNum(r.total),
     }));
   } catch {
     return [];
@@ -1098,10 +1141,11 @@ export async function fetchSpecUnitAmountStats(
 export async function fetchServiceCodeRows(
   tableName: string,
   m: ColumnMapping,
+  cm: CanalMapping[] = [],
 ): Promise<ServiceCodeRow[]> {
   const svc = colExpr(m.serviceCode);
   const cat = colExpr(m.transactionType);
-  const canal = canalCaseExpr(m);
+  const canal = canalCaseExpr(m, cm);
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -1164,6 +1208,7 @@ export async function createTelecomEnrichedView(
   tableName: string,
   m: ColumnMapping,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
+  cm: CanalMapping[] = [],
 ): Promise<void> {
   const viewName = enrichedViewName(tableName);
   const sn = statusNorm(m, sm);
@@ -1172,7 +1217,7 @@ export async function createTelecomEnrichedView(
   const id = colExpr(m.msisdn);
   const ec = colExpr(m.errorCode);
 
-  const cn = canalCaseExpr(m);
+  const cn = canalCaseExpr(m, cm);
 
   // Materialized TABLE (not VIEW): the derived columns are computed once and
   // stored physically so every aggregate downstream scans typed columns with

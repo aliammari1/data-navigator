@@ -57,6 +57,7 @@ import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 import { TelecomTabStrip } from "./telecom-tab-strip";
+import { UnknownCanalDialog } from "./unknown-canal-dialog";
 import { UnknownStatusDialog } from "./unknown-status-dialog";
 
 const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
@@ -85,6 +86,8 @@ export interface TelecomReportRuntimeValue {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
+  canalMapping: Types.CanalMapping[];
+  setCanalMapping: React.Dispatch<React.SetStateAction<Types.CanalMapping[]>>;
   kpi: Types.KPISummary | null;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
@@ -226,6 +229,14 @@ export function TelecomReportRuntimeProvider({
   // blocking dialog until the user explicitly assigns each one.
   const [pendingUnknown, setPendingUnknown] = useState<Types.StatusMapping[] | null>(null);
 
+  // Account combos in the new file that match none of the 10 canal rules —
+  // shown in the blocking dialog until the user assigns or acknowledges each
+  // one. Left unresolved, these transactions would count toward "Transactions
+  // Totales" but stay invisible in every canal/product/revenue breakdown.
+  const [pendingUnknownCanals, setPendingUnknownCanals] = useState<
+    Types.UnclassifiedCanalCombo[] | null
+  >(null);
+
   const refreshAnalyticsHistory = useCallback(async () => {
     setAnalyticsHistory(await listAnalyticsSnapshotMeta());
   }, []);
@@ -274,6 +285,8 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
+    canalMapping,
+    setCanalMapping,
   } = useTelecomUI({
     defaultMapping: DEFAULT_MAPPING,
     fileNameRef,
@@ -405,12 +418,18 @@ export function TelecomReportRuntimeProvider({
     mapping,
     loaded: dashboardLoaded,
     statusMapping,
+    canalMapping,
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
       // Show the blocking dialog — do NOT merge into statusMapping yet.
       // The user must explicitly assign every code before we proceed.
       setPendingUnknown(additions);
+    },
+    onUnclassifiedCanalCombos: (combos) => {
+      // Show the blocking dialog — do NOT merge into canalMapping yet.
+      // The user must explicitly assign a real canal to every combo first.
+      setPendingUnknownCanals(combos);
     },
   });
 
@@ -709,6 +728,8 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
+    canalMapping,
+    setCanalMapping,
     kpi,
     canals,
     hourly,
@@ -999,6 +1020,20 @@ export function TelecomReportRuntimeProvider({
           }}
         />
       )}
+
+      {/* ── Unknown-canal gate — resolves after the status gate above so the two
+          blocking dialogs never stack when a file introduces both at once. ── */}
+      {(!pendingUnknown || pendingUnknown.length === 0) &&
+        pendingUnknownCanals &&
+        pendingUnknownCanals.length > 0 && (
+          <UnknownCanalDialog
+            pending={pendingUnknownCanals}
+            onConfirm={(confirmed) => {
+              setCanalMapping((prev) => [...prev, ...confirmed]);
+              setPendingUnknownCanals(null);
+            }}
+          />
+        )}
     </div>
   );
 }

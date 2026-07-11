@@ -5,8 +5,9 @@ var path = require('path');
 var electron = require('electron');
 var fs3 = require('fs');
 var os3 = require('os');
+var getPort = require('get-port');
 var betterAuth = require('better-auth');
-var crypto = require('better-auth/crypto');
+var crypto$1 = require('better-auth/crypto');
 var z = require('zod');
 var buffer = require('buffer');
 var api = require('better-auth/api');
@@ -17,7 +18,7 @@ var nodeApi = require('@duckdb/node-api');
 var nanoid = require('nanoid');
 var PQueue = require('p-queue');
 var apacheArrow = require('apache-arrow');
-var crypto$1 = require('crypto');
+var crypto = require('crypto');
 var promises = require('stream/promises');
 var Database2 = require('better-sqlite3');
 var drizzleOrm = require('drizzle-orm');
@@ -49,10 +50,11 @@ var path__default = /*#__PURE__*/_interopDefault(path);
 var electron__default = /*#__PURE__*/_interopDefault(electron);
 var fs3__default = /*#__PURE__*/_interopDefault(fs3);
 var os3__default = /*#__PURE__*/_interopDefault(os3);
+var getPort__default = /*#__PURE__*/_interopDefault(getPort);
 var z__namespace = /*#__PURE__*/_interopNamespace(z);
 var Conf__default = /*#__PURE__*/_interopDefault(Conf);
 var PQueue__default = /*#__PURE__*/_interopDefault(PQueue);
-var crypto__default = /*#__PURE__*/_interopDefault(crypto$1);
+var crypto__default = /*#__PURE__*/_interopDefault(crypto);
 var Database2__default = /*#__PURE__*/_interopDefault(Database2);
 
 var __create = Object.create;
@@ -10515,11 +10517,22 @@ function isAuthDbEncryptionRequested(env2 = process.env) {
 }
 
 // src/platform/auth/electron-options.ts
-var BETTER_AUTH_BASE_URL = process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? "http://localhost:3000";
+var DEFAULT_BETTER_AUTH_BASE_URL = "http://localhost:3000";
+function isElectronRenderer() {
+  return typeof window !== "undefined" && typeof navigator !== "undefined" && navigator.userAgent.includes("Electron");
+}
+function getBetterAuthBaseUrl() {
+  if (isElectronRenderer()) {
+    return window.location.origin;
+  }
+  return process.env.NEXT_PUBLIC_BETTER_AUTH_URL ?? process.env.BETTER_AUTH_URL ?? DEFAULT_BETTER_AUTH_BASE_URL;
+}
 var ELECTRON_AUTH_PROTOCOL = "com.data-navigator.app";
 var ELECTRON_AUTH_CALLBACK_PATH = "/auth/callback";
 var ELECTRON_AUTH_CLIENT_ID = "electron";
-var ELECTRON_AUTH_SIGN_IN_URL = `${BETTER_AUTH_BASE_URL}/login`;
+function getElectronAuthSignInUrl(baseUrl = getBetterAuthBaseUrl()) {
+  return `${baseUrl}/login`;
+}
 
 // node_modules/.pnpm/@better-auth+electron@1.6.2_1f1b2cb4d9853db6d87b61ee3b987d7d/node_modules/@better-auth/electron/dist/version-YIydhdrs.mjs
 var PACKAGE_VERSION = "1.6.23";
@@ -11019,7 +11032,7 @@ var kElectron = /* @__PURE__ */ Symbol.for("better-auth:electron");
 async function requestAuth(clientOptions, options, cfg) {
   if (!isProcessType("browser")) throw new BetterAuthError("`requestAuth` can only be called in the main process");
   const { randomBytes } = await import('crypto');
-  const state = crypto.generateRandomString(16, "A-Z", "a-z", "0-9");
+  const state = crypto$1.generateRandomString(16, "A-Z", "a-z", "0-9");
   const codeVerifier = base64Url.encode(randomBytes(32));
   const codeChallenge = base64Url.encode(await createHash("SHA-256").digest(codeVerifier));
   (globalThis[kElectron] ?? (globalThis[kElectron] = /* @__PURE__ */ new Map())).set(state, codeVerifier);
@@ -11525,25 +11538,28 @@ var storage = (opts) => {
     }
   };
 };
-var authClient = client.createAuthClient({
-  baseURL: BETTER_AUTH_BASE_URL,
-  plugins: [
-    electronClient({
-      callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
-      clientID: ELECTRON_AUTH_CLIENT_ID,
-      protocol: {
-        scheme: ELECTRON_AUTH_PROTOCOL
-      },
-      signInURL: ELECTRON_AUTH_SIGN_IN_URL,
-      storage: storage(),
-      // Offline/defense-in-depth: never register the bypassCSP "user-image://"
-      // proxy that net.fetches a remote avatar URL from the main process. Auth is
-      // local email/password (no remote avatars), so this only closes a latent,
-      // un-CSP'd egress surface.
-      userImageProxy: { enabled: false }
-    })
-  ]
-});
+function createElectronAuthClient() {
+  const baseUrl = getBetterAuthBaseUrl();
+  return client.createAuthClient({
+    baseURL: baseUrl,
+    plugins: [
+      electronClient({
+        callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
+        clientID: ELECTRON_AUTH_CLIENT_ID,
+        protocol: {
+          scheme: ELECTRON_AUTH_PROTOCOL
+        },
+        signInURL: getElectronAuthSignInUrl(baseUrl),
+        storage: storage(),
+        // Offline/defense-in-depth: never register the bypassCSP "user-image://"
+        // proxy that net.fetches a remote avatar URL from the main process. Auth is
+        // local email/password (no remote avatars), so this only closes a latent,
+        // un-CSP'd egress surface.
+        userImageProxy: { enabled: false }
+      })
+    ]
+  });
+}
 function normalizeColumnsForArrow(cols, _types) {
   const out = {};
   for (const [name, values] of Object.entries(cols)) {
@@ -12765,7 +12781,7 @@ function presenceFor(entry) {
   };
 }
 async function sha256OfFile(filePath) {
-  const hash = crypto$1.createHash("sha256");
+  const hash = crypto.createHash("sha256");
   await promises.pipeline(fs3.createReadStream(filePath), hash);
   return hash.digest("hex");
 }
@@ -14916,13 +14932,18 @@ process.on("unhandledRejection", (reason) => {
 bootLog(`main.js loaded; isPackaged=${electron.app.isPackaged}`);
 var isDev = !electron.app.isPackaged;
 var mainWindow = null;
-authClient.setupMain({
-  getWindow: () => mainWindow,
-  // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
-  // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
-  // edit can't silently activate a competing onHeadersReceived CSP handler.
-  csp: false
-});
+var electronAuthClient = null;
+function setupElectronAuthClient() {
+  if (electronAuthClient) return;
+  electronAuthClient = createElectronAuthClient();
+  electronAuthClient.setupMain({
+    getWindow: () => mainWindow,
+    // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
+    // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
+    // edit can't silently activate a competing onHeadersReceived CSP handler.
+    csp: false
+  });
+}
 if (electron.app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
   import('update-electron-app').then(({ updateElectronApp }) => {
     updateElectronApp({
@@ -15678,6 +15699,7 @@ async function createWindow() {
   mainWindow.once("ready-to-show", () => {
     mainWindow?.show();
   });
+  setupElectronAuthClient();
   const isAllowedNavigation = (target) => {
     if (isAllowedAppOrigin(target)) return true;
     try {
@@ -15758,12 +15780,24 @@ See boot.log in the app data folder for details.`
 async function startNextJSServer() {
   try {
     bootLog("startNextJSServer: begin");
-    const authUrl = new URL(BETTER_AUTH_BASE_URL);
+    const authUrl = new URL(getBetterAuthBaseUrl());
     const hostname = assertLoopbackHostname(authUrl.hostname);
-    const nextJSPort = authUrl.port ? Number(authUrl.port) : 3e3;
+    const host = hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
+    const preferredPort = authUrl.port ? Number(authUrl.port) : null;
+    if (preferredPort !== null && (!Number.isInteger(preferredPort) || preferredPort <= 0)) {
+      throw new Error(`Invalid BETTER_AUTH_URL port: ${authUrl.port}`);
+    }
+    const preferredPorts = preferredPort !== null && preferredPort >= 2e4 && preferredPort <= 20100 ? [preferredPort, ...getPort.portNumbers(2e4, 20100)] : getPort.portNumbers(2e4, 20100);
+    const nextJSPort = await getPort__default.default({
+      port: preferredPorts,
+      host,
+      reserve: true
+    });
+    authUrl.port = String(nextJSPort);
+    const baseUrl = authUrl.toString();
     const webDir = path__default.default.join(electron.app.getAppPath(), "app");
-    process.env.BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = BETTER_AUTH_BASE_URL;
+    process.env.BETTER_AUTH_URL = baseUrl;
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = baseUrl;
     process.env.APP_USER_DATA = electron.app.getPath("userData");
     process.env.PORT = nextJSPort.toString();
     ensureAuthSecretEnv(electron.app.getPath("userData"));
@@ -15772,7 +15806,7 @@ async function startNextJSServer() {
       ensureAuthDbKeyEnv(electron.app.getPath("userData"), safeStorage2);
     }
     const trustedOrigins = [
-      BETTER_AUTH_BASE_URL,
+      baseUrl,
       "http://localhost:3000",
       "http://127.0.0.1:3000",
       // Exact custom-protocol origin only — the `://*` wildcard widened trusted
@@ -15801,15 +15835,15 @@ async function startNextJSServer() {
     await startServer({
       dir: webDir,
       isDev: false,
-      hostname,
+      hostname: host,
       port: nextJSPort,
       customServer: true,
       allowRetry: false,
       keepAliveTimeout: 5e3,
       minimalMode: true
     });
-    bootLog(`startServer resolved; listening at ${BETTER_AUTH_BASE_URL}`);
-    return BETTER_AUTH_BASE_URL;
+    bootLog(`startServer resolved; listening at ${baseUrl}`);
+    return baseUrl;
   } catch (error) {
     bootLog(
       `ERROR: ${error instanceof Error ? `${error.message}
