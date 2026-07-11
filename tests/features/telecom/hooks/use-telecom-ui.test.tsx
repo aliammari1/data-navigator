@@ -18,13 +18,14 @@ import type * as Types from "@/features/telecom/types";
 
 const setColumnMapping = vi.fn();
 const setStatusMapping = vi.fn();
+const setCanalMapping = vi.fn();
 
 vi.mock("@/features/telecom/store", async (importActual) => {
   const actual = await importActual<typeof import("@/features/telecom/store")>();
   return {
     ...actual,
     useTelecomStore: {
-      getState: () => ({ setColumnMapping, setStatusMapping }),
+      getState: () => ({ setColumnMapping, setStatusMapping, setCanalMapping }),
     },
   };
 });
@@ -111,6 +112,13 @@ describe("useTelecomUI — initial state", () => {
     expect(result.current.statusMapping).not.toBe(DEFAULT_STATUS_MAPPINGS);
     expect(result.current.statusMapping.length).toBeGreaterThan(0);
   });
+
+  it("seeds canalMapping as an empty array (no built-in defaults, unlike statusMapping)", () => {
+    const { result } = renderTelecomUI();
+
+    expect(typeof result.current.setCanalMapping).toBe("function");
+    expect(result.current.canalMapping).toEqual([]);
+  });
 });
 
 // ─── Mount + hydration effect ────────────────────────────────────────────────
@@ -165,6 +173,34 @@ describe("useTelecomUI — mount hydration", () => {
     expect(result.current.statusMapping).toEqual(DEFAULT_STATUS_MAPPINGS);
   });
 
+  it("hydrates canalMapping when the persisted array is non-empty", () => {
+    const persisted: Types.CanalMapping[] = [
+      {
+        brandD: "99",
+        accountLayerId: "1",
+        accountGroupId: "1",
+        accountMsisdn: "216000",
+        key: "credit_transfer",
+      },
+    ];
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ state: { canalMapping: persisted }, version: 0 }),
+    );
+
+    const { result } = renderTelecomUI();
+
+    expect(result.current.canalMapping).toEqual(persisted);
+  });
+
+  it("keeps canalMapping empty when the persisted array is empty", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { canalMapping: [] }, version: 0 }));
+
+    const { result } = renderTelecomUI();
+
+    expect(result.current.canalMapping).toEqual([]);
+  });
+
   it("ignores corrupt JSON in localStorage and uses defaults", () => {
     localStorage.setItem(STORAGE_KEY, "{not valid json");
 
@@ -210,6 +246,28 @@ describe("useTelecomUI — persistence + store sync", () => {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
     expect(parsed.state.statusMapping).toEqual(DEFAULT_STATUS_MAPPINGS);
     expect(setStatusMapping).toHaveBeenCalledWith(DEFAULT_STATUS_MAPPINGS);
+  });
+
+  it("pushes canalMapping updates to localStorage and the store", () => {
+    const { result } = renderTelecomUI();
+    const next: Types.CanalMapping[] = [
+      {
+        brandD: "99",
+        accountLayerId: "1",
+        accountGroupId: "1",
+        accountMsisdn: "216000",
+        key: "credit_transfer",
+      },
+    ];
+
+    act(() => {
+      result.current.setCanalMapping(next);
+    });
+
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
+    expect(parsed.state.canalMapping).toEqual(next);
+    expect(setCanalMapping).toHaveBeenLastCalledWith(next);
+    expect(result.current.canalMapping).toEqual(next);
   });
 
   it("merges new writes with previously persisted state (does not clobber)", () => {

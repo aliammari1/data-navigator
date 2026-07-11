@@ -30,6 +30,7 @@ const fetchOperatorsMock = vi.fn();
 const fetchRegionsMock = vi.fn();
 const fetchDistinctStatusesMock = vi.fn();
 const fetchRawCanalSummariesMock = vi.fn();
+const fetchUnclassifiedCanalCombosMock = vi.fn();
 
 vi.mock("@/features/telecom/lib/queries", () => ({
   ensureTelecomEnrichedView: (...args: unknown[]) => ensureTelecomEnrichedViewMock(...args),
@@ -40,6 +41,7 @@ vi.mock("@/features/telecom/lib/queries", () => ({
   fetchRegions: (...args: unknown[]) => fetchRegionsMock(...args),
   fetchDistinctStatuses: (...args: unknown[]) => fetchDistinctStatusesMock(...args),
   fetchRawCanalSummaries: (...args: unknown[]) => fetchRawCanalSummariesMock(...args),
+  fetchUnclassifiedCanalCombos: (...args: unknown[]) => fetchUnclassifiedCanalCombosMock(...args),
 }));
 
 const enrichCanalSummariesMock = vi.fn((raw: unknown[]) => raw);
@@ -124,10 +126,19 @@ const SAMPLE_HOURLY: Types.HourlyRow[] = [
 const SAMPLE_STATUS: Types.StatusRow[] = [{ status: "SUCCESS", count: 800, amount: 1234 }];
 
 const SAMPLE_OPERATORS: Types.OperatorRow[] = [
-  { operator: "OOREDOO", total: 100, success: 80, amount: 500, successRate: 80, accountType: "source" },
+  {
+    operator: "OOREDOO",
+    total: 100,
+    success: 80,
+    amount: 500,
+    successRate: 80,
+    accountType: "source",
+  },
 ];
 
-const SAMPLE_REGIONS: Types.RegionRow[] = [{ region: "TUNIS", total: 70, success: 60, amount: 300 }];
+const SAMPLE_REGIONS: Types.RegionRow[] = [
+  { region: "TUNIS", total: 70, success: 60, amount: 300 },
+];
 
 const SAMPLE_RAW_CANALS = [
   {
@@ -179,10 +190,12 @@ type RenderParams = {
   getTableName?: () => string;
   mapping?: Types.ColumnMapping;
   statusMapping?: Types.StatusMapping[];
+  canalMapping?: Types.CanalMapping[];
   loaded?: boolean;
   firstLoad?: React.RefObject<boolean>;
   fileNameRef?: React.RefObject<string>;
   onStatusMappingAdditions?: (additions: Types.StatusMapping[]) => void;
+  onUnclassifiedCanalCombos?: (combos: Types.UnclassifiedCanalCombo[]) => void;
   client?: QueryClient;
 };
 
@@ -191,10 +204,12 @@ function renderAnalyticsHook(overrides: RenderParams = {}) {
   const getTableName = overrides.getTableName ?? (() => "txns");
   const mapping = overrides.mapping ?? MAPPING;
   const statusMapping = overrides.statusMapping ?? SM;
+  const canalMapping = overrides.canalMapping ?? [];
   const loaded = overrides.loaded ?? true;
   const firstLoad = overrides.firstLoad ?? makeRef(true);
   const fileNameRef = overrides.fileNameRef ?? makeRef("report.csv");
   const onStatusMappingAdditions = overrides.onStatusMappingAdditions ?? vi.fn();
+  const onUnclassifiedCanalCombos = overrides.onUnclassifiedCanalCombos ?? vi.fn();
 
   const result = renderHook(
     () =>
@@ -202,14 +217,16 @@ function renderAnalyticsHook(overrides: RenderParams = {}) {
         getTableName,
         mapping,
         statusMapping,
+        canalMapping,
         loaded,
         firstLoad,
         fileNameRef,
         onStatusMappingAdditions,
+        onUnclassifiedCanalCombos,
       }),
     { wrapper: makeWrapper(client) },
   );
-  return { ...result, client, onStatusMappingAdditions };
+  return { ...result, client, onStatusMappingAdditions, onUnclassifiedCanalCombos };
 }
 
 // ─── Default mock return values for happy-path tests ─────────────────────────
@@ -224,6 +241,7 @@ function setupHappyPathMocks() {
   fetchRegionsMock.mockResolvedValue(SAMPLE_REGIONS);
   fetchRawCanalSummariesMock.mockResolvedValue(SAMPLE_RAW_CANALS);
   fetchDistinctStatusesMock.mockResolvedValue(SAMPLE_RAW_STATUSES);
+  fetchUnclassifiedCanalCombosMock.mockResolvedValue([]);
   enrichCanalSummariesMock.mockImplementation((raw: unknown[]) => raw);
   forecastNextHoursMock.mockResolvedValue([
     { hour: 10, predictedTotal: 110, predictedSuccessRate: 91, isForecast: true as const },
@@ -241,6 +259,7 @@ beforeEach(() => {
   fetchRegionsMock.mockResolvedValue([]);
   fetchRawCanalSummariesMock.mockResolvedValue([]);
   fetchDistinctStatusesMock.mockResolvedValue([]);
+  fetchUnclassifiedCanalCombosMock.mockResolvedValue([]);
   enrichCanalSummariesMock.mockImplementation((raw: unknown[]) => raw);
   forecastNextHoursMock.mockResolvedValue([]);
 });
@@ -504,9 +523,7 @@ describe("useTelecomAnalytics — firstLoad gate", () => {
   it("calls onStatusMappingAdditions with new codes not already in statusMapping", async () => {
     setupHappyPathMocks();
     // Return a code not in the current SM
-    fetchDistinctStatusesMock.mockResolvedValue([
-      { rawCode: "NEW_CODE", count: 5, amount: 0 },
-    ]);
+    fetchDistinctStatusesMock.mockResolvedValue([{ rawCode: "NEW_CODE", count: 5, amount: 0 }]);
 
     const onStatusMappingAdditions = vi.fn();
     const firstLoad = makeRef(true);
@@ -592,6 +609,125 @@ describe("useTelecomAnalytics — firstLoad gate", () => {
     const [additions] = onStatusMappingAdditions.mock.calls[0];
     expect(additions[0].rawCode).toBe("PST");
     expect(additions[0].semantic).toBe("success");
+  });
+});
+
+// ─── Unclassified canal detection (mirrors the status-mapping gate above) ────
+
+describe("useTelecomAnalytics — unclassified canal detection", () => {
+  it("calls onUnclassifiedCanalCombos when fetchUnclassifiedCanalCombos returns combos", async () => {
+    setupHappyPathMocks();
+    const combos: Types.UnclassifiedCanalCombo[] = [
+      { brandD: "99", accountLayerId: "1", accountGroupId: "2", accountMsisdn: "216000", total: 5 },
+    ];
+    fetchUnclassifiedCanalCombosMock.mockResolvedValue(combos);
+
+    const onUnclassifiedCanalCombos = vi.fn();
+    const firstLoad = makeRef(true);
+
+    renderAnalyticsHook({ firstLoad, onUnclassifiedCanalCombos });
+
+    await waitFor(() => {
+      expect(onUnclassifiedCanalCombos).toHaveBeenCalledWith(combos);
+    });
+  });
+
+  it("does NOT call onUnclassifiedCanalCombos when nothing is unclassified", async () => {
+    setupHappyPathMocks();
+    fetchUnclassifiedCanalCombosMock.mockResolvedValue([]);
+
+    const onUnclassifiedCanalCombos = vi.fn();
+    const firstLoad = makeRef(true);
+
+    renderAnalyticsHook({ firstLoad, onUnclassifiedCanalCombos });
+
+    await waitFor(() => {
+      expect(fetchUnclassifiedCanalCombosMock).toHaveBeenCalled();
+    });
+
+    expect(onUnclassifiedCanalCombos).not.toHaveBeenCalled();
+  });
+
+  it("does NOT fetch unclassified canal combos when firstLoad is already false", async () => {
+    setupHappyPathMocks();
+
+    const firstLoad = makeRef(false);
+
+    renderAnalyticsHook({ firstLoad });
+
+    await waitFor(() => {
+      expect(broadcastMock).toHaveBeenCalled();
+    });
+
+    expect(fetchUnclassifiedCanalCombosMock).not.toHaveBeenCalled();
+  });
+
+  it("passes the current canalMapping through to fetchRawCanalSummaries and fetchUnclassifiedCanalCombos", async () => {
+    setupHappyPathMocks();
+    const cm: Types.CanalMapping[] = [
+      {
+        brandD: "1",
+        accountLayerId: "2",
+        accountGroupId: "3",
+        accountMsisdn: "4",
+        key: "data_sabba",
+      },
+    ];
+
+    renderAnalyticsHook({ canalMapping: cm });
+
+    await waitFor(() => {
+      expect(fetchRawCanalSummariesMock).toHaveBeenCalled();
+    });
+
+    expect(fetchRawCanalSummariesMock.mock.calls[0]).toContain(cm);
+    expect(fetchUnclassifiedCanalCombosMock.mock.calls[0]).toContain(cm);
+  });
+
+  it("carries a previously-confirmed canalMapping into a later file with a different table (does not reset on upload)", async () => {
+    setupHappyPathMocks();
+    // A combo confirmed while viewing an earlier file, persisted in the
+    // parent (telecom-report-runtime.tsx never clears canalMapping on a new
+    // upload — it only resets `firstLoad`, per the dataset-switch effect).
+    const cm: Types.CanalMapping[] = [
+      {
+        brandD: "99",
+        accountLayerId: "1",
+        accountGroupId: "2",
+        accountMsisdn: "216000",
+        key: "credit_transfer",
+      },
+    ];
+    const client = makeQueryClient();
+
+    // First file: "txns" — cm already resolves this combo, so nothing new here.
+    renderAnalyticsHook({
+      getTableName: () => "txns",
+      firstLoad: makeRef(true),
+      canalMapping: cm,
+      client,
+    });
+
+    await waitFor(() => {
+      expect(fetchUnclassifiedCanalCombosMock).toHaveBeenCalledWith("txns", MAPPING, cm);
+    });
+
+    // Second file uploaded: a different table, firstLoad reset to true (as
+    // telecom-report-runtime.tsx's dataset-switch effect does), same cm
+    // still passed in by the parent — the earlier classification must carry
+    // over instead of re-flagging that combo as new.
+    const onUnclassifiedCanalCombos = vi.fn();
+    renderAnalyticsHook({
+      getTableName: () => "txns2",
+      firstLoad: makeRef(true),
+      canalMapping: cm,
+      onUnclassifiedCanalCombos,
+      client,
+    });
+
+    await waitFor(() => {
+      expect(fetchUnclassifiedCanalCombosMock).toHaveBeenCalledWith("txns2", MAPPING, cm);
+    });
   });
 });
 
@@ -1002,10 +1138,12 @@ describe("useTelecomAnalytics — query key composition", () => {
           getTableName: () => "txns",
           mapping: MAPPING,
           statusMapping: SM,
+          canalMapping: [],
           loaded: true,
           firstLoad: makeRef(false),
           fileNameRef: makeRef("a.csv"),
           onStatusMappingAdditions: vi.fn(),
+          onUnclassifiedCanalCombos: vi.fn(),
         }),
       { wrapper: makeWrapper(client) },
     );
@@ -1023,10 +1161,12 @@ describe("useTelecomAnalytics — query key composition", () => {
           getTableName: () => "txns2",
           mapping: MAPPING,
           statusMapping: SM,
+          canalMapping: [],
           loaded: true,
           firstLoad: makeRef(false),
           fileNameRef: makeRef("b.csv"),
           onStatusMappingAdditions: vi.fn(),
+          onUnclassifiedCanalCombos: vi.fn(),
         }),
       { wrapper: makeWrapper(client) },
     );

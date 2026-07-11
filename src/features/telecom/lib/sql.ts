@@ -4,7 +4,7 @@ import {
   DEFAULT_STATUS_MAPPINGS,
   SEMANTIC_TO_CATEGORY,
 } from "@/features/telecom/lib/status-definitions";
-import type { CanalKey, ColumnMapping, StatusMapping } from "../types";
+import type { CanalKey, CanalMapping, ColumnMapping, StatusMapping } from "../types";
 import {
   BILL_PAYMENT_CHANNELS,
   type ChannelDef,
@@ -114,6 +114,21 @@ export function hourExpr(m: ColumnMapping): string {
 
 // ─── Canal classification ─────────────────────────────────────────────────────
 
+// SINGLE SOURCE OF TRUTH for canal keys → their canalCaseExpr THEN label.
+// Re-exported from queries.ts for backward compatibility.
+export const CANAL_KEY_TO_LABEL: Record<CanalKey, string> = {
+  bill_payment: "Bill Payment",
+  voice_fixed_ttcash: "Fixed by TTCASH",
+  voice_fixed_voucher: "Fixed by Voucher",
+  voice_mobile_ttcash: "Mobile by TTCASH",
+  voice_mobile_voucher: "Mobile by Voucher",
+  data_sabba: "Internet Sabba",
+  data_evoucher: "Data by Voucher",
+  voucher_for_payment: "Voucher For Payment",
+  credit_transfer: "Credit Transfer",
+  voucher_convergent: "Voucher Convergent Management",
+};
+
 function anyChannel(channels: ChannelDef[]): string {
   return `(${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`;
 }
@@ -134,8 +149,37 @@ export function canalWhere(m: ColumnMapping): Record<CanalKey, string> {
   };
 }
 
-export function canalCaseExpr(m: ColumnMapping): string {
+/** WHERE fragment matching one user-confirmed unclassified combo (see
+ * `CanalMapping`). BRAND_D is always required; a `null` layer/group/msisdn is
+ * skipped entirely rather than compared, so the rule matches ANY value for
+ * that field — this is what lets a rule key on just BRAND_D, or BRAND_D plus
+ * only the fields that actually distinguish it, instead of always requiring
+ * an exact 4-field match. */
+function canalMappingCondition(o: CanalMapping): string {
+  const fields: Array<[string, string | null]> = [
+    ["BRAND_D", o.brandD],
+    ["ACCOUNT_LAYER_ID", o.accountLayerId],
+    ["ACCOUNT_GROUP_ID", o.accountGroupId],
+    ["ACCOUNT_MSISDN", o.accountMsisdn],
+  ];
+  return fields
+    .filter((field): field is [string, string] => field[1] !== null)
+    .map(([col, val]) => `TRIM(CAST(${col} AS VARCHAR)) = ${sqlLiteral(val)}`)
+    .join(" AND ");
+}
+
+/**
+ * Classify each row into one of the 10 canals, an operator-confirmed override
+ * from `cm` (see `CanalMapping`), or the `'Other'` fallback. Overrides are
+ * checked after the hardcoded rules (which stay authoritative) and only
+ * cover combos the hardcoded rules miss — see `fetchUnclassifiedCanalCombos`
+ * for how those combos get surfaced to the user in the first place.
+ */
+export function canalCaseExpr(m: ColumnMapping, cm: CanalMapping[] = []): string {
   const w = canalWhere(m);
+  const overrideClauses = cm
+    .map((o) => `WHEN ${canalMappingCondition(o)} THEN ${sqlLiteral(CANAL_KEY_TO_LABEL[o.key])}`)
+    .join("\n    ");
   return `CASE
     WHEN ${w.voucher_for_payment}  THEN 'Voucher For Payment'
     WHEN ${w.credit_transfer}      THEN 'Credit Transfer'
@@ -147,6 +191,6 @@ export function canalCaseExpr(m: ColumnMapping): string {
     WHEN ${w.data_evoucher}        THEN 'Data by Voucher'
     WHEN ${w.data_sabba}           THEN 'Internet Sabba'
     WHEN ${w.voice_mobile_voucher} THEN 'Mobile by Voucher'
-    ELSE 'Other'
+    ${overrideClauses ? `${overrideClauses}\n    ` : ""}ELSE 'Other'
   END`;
 }

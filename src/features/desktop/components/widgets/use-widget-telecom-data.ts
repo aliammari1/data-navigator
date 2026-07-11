@@ -23,6 +23,9 @@ import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
  * the (relatively heavy) DuckDB analytics pipeline runs a single time for all
  * tiles instead of once per widget.
  */
+// Stable empty reference — see the canalMapping comment in useWidgetTelecomData.
+const EMPTY_CANAL_MAPPING: Types.CanalMapping[] = [];
+
 export interface WidgetTelecomData {
   /** Whether a telecom dataset is loaded and its KPIs are available. */
   ready: boolean;
@@ -71,11 +74,18 @@ export function useWidgetTelecomData(): WidgetTelecomData {
     mapping: DEFAULT_MAPPING,
     loaded: tableReady,
     statusMapping,
+    // The widget layer has no blocking-dialog UI (unlike the full report
+    // page), so it can't resolve unclassified canal combos itself — leave
+    // canalMapping empty and no-op the callback. Those transactions still
+    // count toward the widget's total KPI; they're just excluded from its
+    // canal breakdown until resolved on the full report page.
+    canalMapping: EMPTY_CANAL_MAPPING,
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
       setStatusMapping((prev) => [...prev, ...additions]);
     },
+    onUnclassifiedCanalCombos: () => {},
   });
 
   const dateQuery = useQuery({
