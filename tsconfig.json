@@ -41,6 +41,8 @@
     "node_modules",
     "out",
     "dist",
-    "tests"
+    "tests",
+    "evals",
+    "./src/stories/**/*.stories.tsx"
   ]
 }

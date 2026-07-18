@@ -3,6 +3,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
 import { enrichCanalSummaries } from "@/features/telecom/lib/canal-config";
+import { ALL_CANAL_CHANNELS } from "@/features/telecom/lib/canal-hierarchy";
 import { broadcast } from "@/features/telecom/lib/channel";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
@@ -21,7 +22,6 @@ import {
   STATUS_AUTO_SEMANTIC_BY_CODE,
 } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
-import { type ForecastPoint, forecastNextHours } from "@/platform/browser/forecast-onnx";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface UseTelecomAnalyticsParams {
@@ -35,7 +35,7 @@ export interface UseTelecomAnalyticsParams {
   /** Column status mapping used as part of the TanStack Query cache key. */
   statusMapping: Types.StatusMapping[];
   /** User-confirmed canal overrides for combos the hardcoded rules miss. */
-  canalMapping: Types.CanalMapping[];
+  canalRule: Types.CanalRule[];
   /** Whether a file has been loaded into DuckDB */
   loaded: boolean;
   /** Ref that is true until the first analytics run completes */
@@ -61,7 +61,6 @@ export interface UseTelecomAnalyticsReturn {
   setOperators: (v: Types.OperatorRow[]) => void;
   regions: Types.RegionRow[];
   setRegions: (v: Types.RegionRow[]) => void;
-  forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
   setRawStatuses: (v: Types.RawStatusRow[]) => void;
   isFetching: boolean;
@@ -69,7 +68,7 @@ export interface UseTelecomAnalyticsReturn {
   runAnalytics: (
     m: Types.ColumnMapping,
     sm: Types.StatusMapping[],
-    cm?: Types.CanalMapping[],
+    cm?: Types.CanalRule[],
   ) => Promise<void>;
 }
 
@@ -80,7 +79,6 @@ interface TelecomAnalyticsPayload {
   statusData: Types.StatusRow[];
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
-  forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
 }
 
@@ -91,12 +89,43 @@ const EMPTY_ANALYTICS: TelecomAnalyticsPayload = {
   statusData: [],
   operators: [],
   regions: [],
-  forecast: [],
   rawStatuses: [],
 };
 
 function stableHash(value: unknown) {
   return JSON.stringify(value);
+}
+
+/**
+ * Merges default system canal rules with custom user-defined rules.
+ * Custom rules with the same ID as default rules will override the defaults.
+ * This ensures that the hardcoded rules from report-engine.ts are always included
+ * in canal classification, preventing transactions from being incorrectly flagged as
+ * "unclassified" when they match a default rule.
+ */
+function mergeCanalRules(customRules: Types.CanalRule[]): Types.CanalRule[] {
+  // Create a map of custom rules by ID for quick lookup
+  const customById = new Map<string, Types.CanalRule>();
+  for (const rule of customRules) {
+    customById.set(rule.id, rule);
+  }
+
+  // Start with all default rules
+  const merged: Types.CanalRule[] = [];
+
+  // Add custom rules that override defaults or are new
+  for (const rule of customRules) {
+    merged.push(rule);
+  }
+
+  // Add default rules that aren't overridden by custom rules
+  for (const defaultRule of ALL_CANAL_CHANNELS) {
+    if (!customById.has(defaultRule.id)) {
+      merged.push(defaultRule);
+    }
+  }
+
+  return merged;
 }
 
 /**
@@ -114,7 +143,7 @@ export function useTelecomAnalytics({
   loaded,
   mapping,
   statusMapping,
-  canalMapping,
+  canalRule,
   firstLoad,
   fileNameRef,
   onStatusMappingAdditions,
@@ -128,7 +157,7 @@ export function useTelecomAnalytics({
     tableName,
     stableHash(mapping),
     stableHash(statusMapping),
-    stableHash(canalMapping),
+    stableHash(canalRule),
   ] as const;
 
   const computeAnalytics = useCallback(
@@ -136,8 +165,11 @@ export function useTelecomAnalytics({
       table: string,
       m: Types.ColumnMapping,
       sm: Types.StatusMapping[],
-      cm: Types.CanalMapping[],
+      cm: Types.CanalRule[],
     ): Promise<TelecomAnalyticsPayload> => {
+      // Merge custom rules with default system rules
+      const mergedCanalRules = mergeCanalRules(cm);
+
       try {
         const check = await runReadOnlyQuery(
           `SELECT 1 FROM information_schema.tables WHERE table_name = '${table}' LIMIT 1`,
@@ -158,13 +190,12 @@ export function useTelecomAnalytics({
 
         const total = kpiResult?.totalTransactions ?? 0;
         const [rawCanalsResult, operatorsResult, regionsResult] = await Promise.all([
-          fetchRawCanalSummaries(table, m, total, sm, cm),
+          fetchRawCanalSummaries(table, m, total, sm, mergedCanalRules),
           _fetchOperators(table, m, sm),
           _fetchRegions(table, m, sm),
         ]);
         const canalsResult = enrichCanalSummaries(rawCanalsResult);
 
-        const forecastResult = await forecastNextHours(hourlyResult, 4);
         let rawStatuses: Types.RawStatusRow[] =
           queryClient.getQueryData<TelecomAnalyticsPayload>(analyticsQueryKey)?.rawStatuses ?? [];
 
@@ -194,7 +225,7 @@ export function useTelecomAnalytics({
           // match — this is what makes the canal/product/revenue-group
           // breakdown always reconcile to kpi.totalTransactions instead of
           // silently undercounting by whatever falls through unnoticed.
-          const unclassifiedCombos = await _fetchUnclassifiedCanalCombos(table, m, cm);
+          const unclassifiedCombos = await _fetchUnclassifiedCanalCombos(table, m, mergedCanalRules);
           if (unclassifiedCombos.length > 0) onUnclassifiedCanalCombos(unclassifiedCombos);
         }
 
@@ -205,7 +236,6 @@ export function useTelecomAnalytics({
           canals: canalsResult,
           operators: operatorsResult,
           regions: regionsResult,
-          forecast: forecastResult,
           rawStatuses,
         };
 
@@ -255,7 +285,7 @@ export function useTelecomAnalytics({
 
   const query = useQuery({
     queryKey: analyticsQueryKey,
-    queryFn: () => computeAnalytics(tableName, mapping, statusMapping, canalMapping),
+    queryFn: () => computeAnalytics(tableName, mapping, statusMapping, canalRule),
     enabled: loaded && Boolean(tableName),
     staleTime: Infinity,
     gcTime: 30 * 60 * 1000,
@@ -279,7 +309,7 @@ export function useTelecomAnalytics({
   }, [query]);
 
   const runAnalytics = useCallback(
-    async (m: Types.ColumnMapping, sm: Types.StatusMapping[], cm: Types.CanalMapping[] = []) => {
+    async (m: Types.ColumnMapping, sm: Types.StatusMapping[], cm: Types.CanalRule[] = []) => {
       await queryClient.fetchQuery({
         queryKey: [
           "telecom",
@@ -309,7 +339,6 @@ export function useTelecomAnalytics({
     setOperators: (operators) => patchAnalytics({ operators }),
     regions: data.regions,
     setRegions: (regions) => patchAnalytics({ regions }),
-    forecast: data.forecast,
     rawStatuses: data.rawStatuses,
     setRawStatuses: (rawStatuses) => patchAnalytics({ rawStatuses }),
     isFetching: query.isFetching,

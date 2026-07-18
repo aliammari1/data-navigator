@@ -1,20 +1,18 @@
 "use client";
 
-import { Database, FlaskConical, ListFilter, Sparkles, Tag } from "lucide-react";
+import { Database, FlaskConical, ListFilter, Tag } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useMemo, useState } from "react";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import type * as Types from "@/features/telecom/types";
-import type { ServiceCodeRow } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
-import { CanalDetectorPanel } from "./canal-detector-panel";
+import { CanalRulesPanel } from "./canal-rules-panel";
 import { CustomKPIBuilder } from "./custom-kpi-builder";
-import { DeepAnalysisPanel } from "./deep-analysis-panel";
 import { Section } from "./section";
 import { StatusConfigPanel } from "./status-config-panel";
 import { StorageInfoPanel } from "./storage-info-panel";
 
-type ConfigSection = "insights" | "status" | "canals" | "kpis" | "storage";
+type ConfigSection = "status" | "canals" | "kpis" | "storage";
 
 export const ConfigTab = memo(function ConfigTab({
   kpi,
@@ -25,9 +23,11 @@ export const ConfigTab = memo(function ConfigTab({
   rawStatuses,
   statusMapping,
   onStatusMappingChange,
+  canalRule,
+  onCanalRuleChange,
   reportDate,
   tableName,
-  fetchServiceCodeRows,
+  fetchUnclassifiedCanalCombos,
   runCustomKPIExpr,
 }: {
   kpi: Types.KPISummary;
@@ -35,15 +35,25 @@ export const ConfigTab = memo(function ConfigTab({
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
   m: Types.ColumnMapping;
+
   rawStatuses: Types.RawStatusRow[];
   statusMapping: Types.StatusMapping[];
-  onStatusMappingChange: (m: Types.StatusMapping[]) => void;
+  onStatusMappingChange: (mappings: Types.StatusMapping[]) => void;
+
+  canalRule: Types.CanalRule[];
+
+  onCanalRuleChange: React.Dispatch<React.SetStateAction<Types.CanalRule[]>>;
   reportDate: string;
   tableName: string;
-  fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<ServiceCodeRow[]>;
+
+  fetchUnclassifiedCanalCombos: (
+    mapping: Types.ColumnMapping,
+    mappings: Types.CanalRule[],
+  ) => Promise<Types.UnclassifiedCanalCombo[]>;
+
   runCustomKPIExpr: (sqlExpr: string) => Promise<number | null>;
 }) {
-  const [section, setSection] = useState<ConfigSection>("insights");
+  const [section, setSection] = useState<ConfigSection>("status");
 
   const criticalCount = useMemo(
     () =>
@@ -60,13 +70,6 @@ export const ConfigTab = memo(function ConfigTab({
     activeClass: string;
   }> = [
     {
-      key: "insights",
-      label: "Assistant métier",
-      icon: Sparkles,
-      badge: criticalCount > 0 ? String(criticalCount) : undefined,
-      activeClass: "bg-violet-600 dark:bg-violet-500 text-white shadow-sm shadow-violet-500/30",
-    },
-    {
       key: "status",
       label: "Config. Statuts",
       icon: Tag,
@@ -78,10 +81,12 @@ export const ConfigTab = memo(function ConfigTab({
     },
     {
       key: "canals",
-      label: "Détection Canal",
+      label: "Règles de canaux",
       icon: ListFilter,
+      badge: canalRule.length > 0 ? String(canalRule.length) : undefined,
       activeClass: "bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm shadow-emerald-500/30",
     },
+
     {
       key: "kpis",
       label: "KPIs Personnalisés",
@@ -131,15 +136,6 @@ export const ConfigTab = memo(function ConfigTab({
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.15 }}
         >
-          {section === "insights" && (
-            <DeepAnalysisPanel
-              kpi={kpi}
-              canals={canals}
-              hourly={hourly}
-              statusData={statusData}
-              reportDate={reportDate}
-            />
-          )}
           {section === "status" && (
             <Section title="Configuration des Codes Statut" icon={<Tag className="w-4 h-4" />}>
               <StatusConfigPanel
@@ -151,11 +147,13 @@ export const ConfigTab = memo(function ConfigTab({
             </Section>
           )}
           {section === "canals" && (
-            <Section
-              title="Détecteur de Classification Canal"
-              icon={<ListFilter className="w-4 h-4" />}
-            >
-              <CanalDetectorPanel m={m} fetchServiceCodeRows={fetchServiceCodeRows} />
+            <Section title="Règles de canaux" icon={<ListFilter className="w-4 h-4" />}>
+              <CanalRulesPanel
+                mapping={m}
+                rules={canalRule}
+                onRulesChange={onCanalRuleChange}
+                fetchUnclassifiedCanalCombos={fetchUnclassifiedCanalCombos}
+              />
             </Section>
           )}
           {section === "kpis" && (

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
+import { toast } from "sonner";
 import { onBroadcast } from "@/features/telecom/lib/channel";
 import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import { normalizeColumnMapping, useTelecomStore } from "@/features/telecom/store";
@@ -12,7 +12,7 @@ const TELECOM_UI_STORAGE_KEY = "telecom-session-v1";
 interface PersistedTelecomUiState {
   columnMapping?: Partial<Types.ColumnMapping>;
   statusMapping?: Types.StatusMapping[];
-  canalMapping?: Types.CanalMapping[];
+  canalRule?: Types.CanalRule[];
 }
 
 function readPersistedUiState(): PersistedTelecomUiState {
@@ -53,8 +53,8 @@ export interface UseTelecomUIReturn {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
-  canalMapping: Types.CanalMapping[];
-  setCanalMapping: React.Dispatch<React.SetStateAction<Types.CanalMapping[]>>;
+  canalRule: Types.CanalRule[];
+  setCanalRule: React.Dispatch<React.SetStateAction<Types.CanalRule[]>>;
 }
 
 interface UseTelecomUIParams {
@@ -83,7 +83,7 @@ export function useTelecomUI({
   const [statusMapping, setStatusMapping] = useState<Types.StatusMapping[]>([
     ...DEFAULT_STATUS_MAPPINGS,
   ]);
-  const [canalMapping, setCanalMapping] = useState<Types.CanalMapping[]>([]);
+  const [canalRule, setCanalRule] = useState<Types.CanalRule[]>([]);
 
   // Mount + store hydration
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate persisted UI state once after client mount
@@ -94,8 +94,8 @@ export function useTelecomUI({
     if (persisted.statusMapping?.length) {
       setStatusMapping(persisted.statusMapping);
     }
-    if (persisted.canalMapping?.length) {
-      setCanalMapping(persisted.canalMapping);
+    if (persisted.canalRule?.length) {
+      setCanalRule(persisted.canalRule);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -112,9 +112,9 @@ export function useTelecomUI({
   }, [statusMapping]);
 
   useEffect(() => {
-    writePersistedUiState({ canalMapping });
-    useTelecomStore.getState().setCanalMapping(canalMapping);
-  }, [canalMapping]);
+    writePersistedUiState({ canalRule });
+    useTelecomStore.getState().setCanalRule(canalRule);
+  }, [canalRule]);
 
   // F2 — PWA install prompt
   useEffect(() => {
@@ -130,11 +130,9 @@ export function useTelecomUI({
   useEffect(() => {
     const unsub = onBroadcast((msg) => {
       if (msg.type === "FILE_LOADED" && msg.fileName !== fileNameRef.current) {
-        import("sonner").then(({ toast }) =>
-          toast(`Fichier chargé dans un autre onglet: ${msg.fileName}`, {
-            description: "Rechargez la page pour synchroniser.",
-          }),
-        );
+        toast(`Fichier chargé dans un autre onglet: ${msg.fileName}`, {
+          description: "Rechargez la page pour synchroniser.",
+        });
       }
     });
     return unsub;
@@ -164,7 +162,7 @@ export function useTelecomUI({
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalMapping,
-    setCanalMapping,
+    canalRule,
+    setCanalRule,
   };
 }

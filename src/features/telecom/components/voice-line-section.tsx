@@ -1,9 +1,9 @@
 "use client";
 
 import type { SpecChRow, SpecChStatusRow } from "@/features/telecom/lib/queries";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
+import { type ChannelGroup, GroupSummaryChart } from "./group-summary-chart";
 import { SpecChannelTable } from "./spec-channel-table";
+import { CanalRule } from "../types";
 
 export function VoiceLineSection({
   ttcash,
@@ -13,17 +13,17 @@ export function VoiceLineSection({
   fetchSpecChannelStats,
   fetchSpecCanalStatusMatrix,
 }: {
-  ttcash: ChannelDef[];
-  voucher: ChannelDef[];
+  ttcash: CanalRule[];
+  voucher: CanalRule[];
   dateFrom: string;
   dateTo: string;
   fetchSpecChannelStats: (
-    channels: ChannelDef[],
+    channels: CanalRule[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<{ rows: SpecChRow[]; total: SpecChRow }>;
   fetchSpecCanalStatusMatrix?: (
-    channels: ChannelDef[],
+    channels: CanalRule[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<SpecChStatusRow[]>;

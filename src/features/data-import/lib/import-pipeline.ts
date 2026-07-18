@@ -370,6 +370,7 @@ export async function processFilePath(
       datasetId: loaded.datasetId,
       metadataSource,
       rejectCount: csvLike ? (loaded.rejects?.rejectedRowCount ?? 0) : undefined,
+      rejectSample: csvLike ? (loaded.rejects?.sample ?? []) : undefined,
       ...quality,
     });
 

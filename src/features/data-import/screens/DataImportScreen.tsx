@@ -32,6 +32,7 @@ import { Progress } from "@/components/ui/progress";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { RejectRowsDialog } from "@/features/data-import/components/reject-rows-dialog";
 import {
   fileNameFromPath,
   type ImportPipelineContext,
@@ -175,6 +176,14 @@ export default function DataImportScreen() {
   // an explicit choice forces DuckDB `read_csv(encoding=…)` for Latin-1/UTF-16
   // exports that would otherwise mojibake.
   const [encoding, setEncoding] = useState<ImportEncoding>("auto");
+  // Files from the just-completed batch that had rejected rows, plus where to
+  // navigate once the user has seen and dismissed the reject dialog. Kept out
+  // of the normal `router.push` path so the warning can't be navigated past
+  // before it's shown.
+  const [rejectDialog, setRejectDialog] = useState<{
+    files: ParsedFileInfo[];
+    navigateTo: string;
+  } | null>(null);
 
   const { history, loading: historyLoading, refresh: refreshHistory } = useImportHistory();
 
@@ -245,8 +254,17 @@ export default function DataImportScreen() {
 
         await refreshHistory();
 
+        const doneFiles = doneIds
+          .map((id) => useImportSession.getState().files[id])
+          .filter((file): file is ParsedFileInfo => Boolean(file));
+        const filesWithRejects = doneFiles.filter((file) => (file.rejectCount ?? 0) > 0);
+
         // Navigate exactly once, after the whole batch settles — never per file.
-        if (doneIds.length > 0) {
+        // But hold off if any file had rows DuckDB silently dropped: show them
+        // first so the loss isn't invisible, then navigate on dismissal.
+        if (filesWithRejects.length > 0) {
+          setRejectDialog({ files: filesWithRejects, navigateTo: getUploadSuccessPath() });
+        } else if (doneIds.length > 0) {
           router.push(getUploadSuccessPath());
         }
       } finally {
@@ -503,6 +521,15 @@ export default function DataImportScreen() {
           </aside>
         </div>
       </main>
+
+      <RejectRowsDialog
+        files={rejectDialog?.files ?? []}
+        onContinue={() => {
+          const navigateTo = rejectDialog?.navigateTo;
+          setRejectDialog(null);
+          if (navigateTo) router.push(navigateTo);
+        }}
+      />
     </div>
   );
 }

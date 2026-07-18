@@ -33,6 +33,7 @@ import {
   saveAnalyticsSnapshotToSQLite,
 } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { reattachCanalIcons, stripCanalIconsForPersist } from "@/features/telecom/lib/canal-config";
+import { ALL_CANAL_CHANNELS } from "@/features/telecom/lib/canal-hierarchy";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
@@ -47,13 +48,14 @@ import {
   fetchRegions as _fetchRegions,
   fetchRegionsForGroup as _fetchRegionsForGroup,
   fetchServiceCodeRows as _fetchServiceCodeRows,
+  fetchUnclassifiedCanalCombos as _fetchUnclassifiedCanalCombos,
   runCustomKPIExpr as _runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
 import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/telecom-dataset";
 import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
+import { exportDatasetSnapshotFile } from "@/platform/duckdb/duckdb-fs";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 import { TelecomTabStrip } from "./telecom-tab-strip";
@@ -86,8 +88,8 @@ export interface TelecomReportRuntimeValue {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
-  canalMapping: Types.CanalMapping[];
-  setCanalMapping: React.Dispatch<React.SetStateAction<Types.CanalMapping[]>>;
+  canalRule: Types.CanalRule[];
+  setCanalRule: React.Dispatch<React.SetStateAction<Types.CanalRule[]>>;
   kpi: Types.KPISummary | null;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
@@ -95,12 +97,10 @@ export interface TelecomReportRuntimeValue {
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
   rawStatuses: Types.RawStatusRow[];
-  forecast: ForecastPoint[];
   overviewKpi: Types.KPISummary | null;
   overviewCanals: Types.CanalSummary[];
   overviewHourly: Types.HourlyRow[];
   overviewStatusData: Types.StatusRow[];
-  overviewForecast: ForecastPoint[];
   analyticsHistory: AnalyticsSnapshotHistoryMeta[];
   snapshotedAt: number | null;
   selectedKpis: Set<keyof Types.KPISummary>;
@@ -156,6 +156,10 @@ export interface TelecomReportRuntimeValue {
   refreshAnalyticsHistory: () => Promise<void>;
   loadAnalyticsFromHistory: (id: number) => Promise<void>;
   exportActiveDatabase: () => Promise<void>;
+  fetchUnclassifiedCanalCombos: (
+    m: Types.ColumnMapping,
+    mappings: Types.CanalRule[],
+  ) => Promise<Types.UnclassifiedCanalCombo[]>;
 }
 
 const TelecomReportRuntimeContext = createContext<TelecomReportRuntimeValue | null>(null);
@@ -285,12 +289,30 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalMapping,
-    setCanalMapping,
+    canalRule,
+    setCanalRule,
   } = useTelecomUI({
     defaultMapping: DEFAULT_MAPPING,
     fileNameRef,
   });
+
+  // Canal classification needs default system rules layered under any custom
+  // overrides — canalRule only holds the custom/persisted subset. Without this
+  // merge, canal-filtered queries (Top 50, canal heatmap) see zero rules and
+  // every row falls through to "Other", so nothing ever matches a group.
+  const mergedCanalRule = useMemo(() => {
+    const customById = new Map<string, Types.CanalRule>();
+    for (const rule of canalRule) {
+      customById.set(rule.id, rule);
+    }
+    const merged: Types.CanalRule[] = [...canalRule];
+    for (const defaultRule of ALL_CANAL_CHANNELS) {
+      if (!customById.has(defaultRule.id)) {
+        merged.push(defaultRule);
+      }
+    }
+    return merged;
+  }, [canalRule]);
 
   const telecomDatasets = useMemo(
     () =>
@@ -337,25 +359,25 @@ export function TelecomReportRuntimeProvider({
 
   const fetchOperatorsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys),
-    [],
+      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
+    [mergedCanalRule],
   );
 
   const fetchRegionsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys),
-    [],
+      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
+    [mergedCanalRule],
   );
 
   const fetchDestinationsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys),
-    [],
+      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
+    [mergedCanalRule],
   );
 
   const fetchCanalHourlyMatrix = useCallback(
-    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m),
-    [],
+    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m, mergedCanalRule),
+    [mergedCanalRule],
   );
 
   const fetchDailyTrend = useCallback(
@@ -406,6 +428,12 @@ export function TelecomReportRuntimeProvider({
     [],
   );
 
+  const fetchUnclassifiedCanalCombos = useCallback(
+    (m: Types.ColumnMapping, mappings: Types.CanalRule[]) =>
+      _fetchUnclassifiedCanalCombos(tableNameRef.current, m, mappings),
+    [],
+  );
+
   const runCustomKPIExpr = useCallback(
     (sqlExpr: string) => _runCustomKPIExpr(tableNameRef.current, sqlExpr),
     [],
@@ -418,7 +446,7 @@ export function TelecomReportRuntimeProvider({
     mapping,
     loaded: dashboardLoaded,
     statusMapping,
-    canalMapping,
+    canalRule,
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
@@ -427,7 +455,7 @@ export function TelecomReportRuntimeProvider({
       setPendingUnknown(additions);
     },
     onUnclassifiedCanalCombos: (combos) => {
-      // Show the blocking dialog — do NOT merge into canalMapping yet.
+      // Show the blocking dialog — do NOT merge into canalRule yet.
       // The user must explicitly assign a real canal to every combo first.
       setPendingUnknownCanals(combos);
     },
@@ -585,7 +613,7 @@ export function TelecomReportRuntimeProvider({
     setTelecomSession,
   ]);
 
-  const { forecast, rawStatuses, isFetching: analyticsIsFetching } = analytics;
+  const { rawStatuses, isFetching: analyticsIsFetching } = analytics;
 
   // Reset snapshot tracking whenever the active table changes (dataset switch).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dashboardTableName is only a re-run trigger, not read in the body
@@ -638,7 +666,6 @@ export function TelecomReportRuntimeProvider({
       operators,
       regions,
       rawStatuses: rawStatuses ?? [],
-      forecast,
       computedAt: Date.now(),
     };
     void saveAnalyticsSnapshotToSQLite(payload).catch((err) => {
@@ -655,7 +682,6 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
-    forecast,
   ]);
 
   const restoredSnapshotMode = Boolean(kpi) && !dashboardLoaded;
@@ -670,7 +696,6 @@ export function TelecomReportRuntimeProvider({
   const overviewCanals = canals;
   const overviewHourly = hourly;
   const overviewStatusData = statusData;
-  const overviewForecast = forecast;
 
   async function loadAnalyticsFromHistory(id: number) {
     const cached = await getAnalyticsSnapshot(id);
@@ -701,8 +726,6 @@ export function TelecomReportRuntimeProvider({
       return;
     }
 
-    const { exportDatasetSnapshotFile } = await import("@/platform/duckdb/duckdb-fs");
-
     await exportDatasetSnapshotFile({
       datasetId: activeTelecomDataset.id,
       defaultPath: `${dashboardFileName || activeTelecomDataset.name || activeTelecomDataset.id}.parquet`,
@@ -728,8 +751,8 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalMapping,
-    setCanalMapping,
+    canalRule,
+    setCanalRule,
     kpi,
     canals,
     hourly,
@@ -737,12 +760,10 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
-    forecast,
     overviewKpi,
     overviewCanals,
     overviewHourly,
     overviewStatusData,
-    overviewForecast,
     analyticsHistory,
     snapshotedAt,
     selectedKpis,
@@ -766,6 +787,7 @@ export function TelecomReportRuntimeProvider({
     refreshAnalyticsHistory,
     loadAnalyticsFromHistory,
     exportActiveDatabase,
+    fetchUnclassifiedCanalCombos,
   };
 
   return (
@@ -1029,7 +1051,7 @@ export function TelecomReportRuntimeProvider({
           <UnknownCanalDialog
             pending={pendingUnknownCanals}
             onConfirm={(confirmed) => {
-              setCanalMapping((prev) => [...prev, ...confirmed]);
+              setCanalRule((prev) => [...prev, ...confirmed]);
               setPendingUnknownCanals(null);
             }}
           />

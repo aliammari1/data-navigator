@@ -5,7 +5,6 @@ import {
   TelecomLoadingPanel,
   useTelecomReportRuntime,
 } from "@/features/telecom/components/telecom-report-runtime";
-import { UserManagementPanel } from "@/features/telecom/components/user-management-panel";
 
 export default function ConfigPage() {
   const report = useTelecomReportRuntime();
@@ -16,7 +15,6 @@ export default function ConfigPage() {
 
   return (
     <div className="space-y-4">
-      <UserManagementPanel />
       <ConfigTab
         kpi={report.kpi}
         canals={report.canals}
@@ -26,9 +24,11 @@ export default function ConfigPage() {
         rawStatuses={report.rawStatuses}
         statusMapping={report.statusMapping}
         onStatusMappingChange={report.setStatusMapping}
+        canalRule={report.canalRule}
+        onCanalRuleChange={report.setCanalRule}
         reportDate={report.dashboardReportDate}
         tableName={report.dashboardTableName}
-        fetchServiceCodeRows={report.fetchServiceCodeRows}
+        fetchUnclassifiedCanalCombos={report.fetchUnclassifiedCanalCombos}
         runCustomKPIExpr={report.runCustomKPIExpr}
       />
     </div>

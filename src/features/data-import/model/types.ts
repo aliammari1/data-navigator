@@ -1,3 +1,5 @@
+import type { RejectError } from "@/platform/duckdb/duckdb";
+
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 export type UploadStatus =
@@ -78,6 +80,12 @@ export interface ParsedFileInfo {
    * `store_rejects`. `undefined` when reject capture did not run (e.g. Parquet).
    */
   rejectCount?: number;
+  /**
+   * Up to `REJECT_SAMPLE_LIMIT` (50) rejected rows — row/column/error detail —
+   * for a data-quality dialog. Same source as `rejectCount`; `undefined` when
+   * reject capture did not run.
+   */
+  rejectSample?: RejectError[];
   completeness: number;
   accuracy: number;
   consistency: number;

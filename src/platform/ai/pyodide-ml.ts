@@ -275,8 +275,6 @@ export interface PyTrendResult {
   intercept: number;
   /** R² coefficient of determination (0-1). */
   r2: number;
-  /** Forecast values for `horizon` steps beyond the last observed index. */
-  forecast: number[];
 }
 
 /**
