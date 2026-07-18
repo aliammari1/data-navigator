@@ -81,8 +81,6 @@ export const queryKeys = {
     regions: (tableName: string) => [...queryKeys.telecom.all(), "regions", tableName] as const,
     statusBreakdown: (tableName: string) =>
       [...queryKeys.telecom.all(), "statusBreakdown", tableName] as const,
-    forecast: (tableName: string, hours: number) =>
-      [...queryKeys.telecom.all(), "forecast", tableName, hours] as const,
   },
 
   // Settings (persisted in Zustand, but can be cached in RQ for SSR)

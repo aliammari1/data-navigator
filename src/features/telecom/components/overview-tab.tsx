@@ -25,7 +25,6 @@ import { fmtAmount, fmtDuration, fmtN, fmtPct } from "@/features/telecom/lib/for
 import { computeAIInsights } from "@/features/telecom/lib/insights";
 import { REVENUE_GROUPS } from "@/features/telecom/lib/revenue-groups";
 import type * as Types from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { cn } from "@/shared/utils";
 import { AlertBanner } from "./alert-banner";
 import { AnimCounter } from "./anim-counter";
@@ -289,7 +288,6 @@ export const OverviewTab = memo(function OverviewTab({
   canals,
   hourly,
   statusData,
-  forecast = [],
   m,
   selectedKpis,
   toggleKpi,
@@ -301,7 +299,6 @@ export const OverviewTab = memo(function OverviewTab({
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
-  forecast?: ForecastPoint[];
   m: Types.ColumnMapping;
   selectedKpis: Set<keyof Types.KPISummary>;
   toggleKpi: (key: keyof Types.KPISummary) => void;
@@ -380,13 +377,6 @@ export const OverviewTab = memo(function OverviewTab({
           <Section
             title="Distribution Horaire des Transactions"
             icon={<Clock className="w-4 h-4" />}
-            badge={
-              forecast.length > 0 ? (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-violet-50 text-violet-700 border border-violet-200 dark:bg-violet-500/20 dark:text-violet-300 dark:border-violet-500/30">
-                  IA
-                </span>
-              ) : null
-            }
             action={
               <>
                 <ChartPinButton type="hourly-bar" label="Distribution horaire" />
@@ -397,7 +387,7 @@ export const OverviewTab = memo(function OverviewTab({
               </>
             }
           >
-            <HourlyChart data={hourly} forecast={forecast} />
+            <HourlyChart data={hourly} />
           </Section>
         ),
       },
@@ -613,7 +603,6 @@ export const OverviewTab = memo(function OverviewTab({
       kpi,
       selectedOverviewSections,
       toggleOverviewSection,
-      forecast,
       hourly,
       canals,
       fetchDailyTrend,

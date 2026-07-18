@@ -4,20 +4,8 @@ import {
   DEFAULT_STATUS_MAPPINGS,
   SEMANTIC_TO_CATEGORY,
 } from "@/features/telecom/lib/status-definitions";
-import type { CanalKey, CanalMapping, ColumnMapping, StatusMapping } from "../types";
-import {
-  BILL_PAYMENT_CHANNELS,
-  type ChannelDef,
-  CREDIT_TRANSFER,
-  RECHARGE_DATA_EVOUCHER,
-  RECHARGE_DATA_SABBA,
-  RECHARGE_VOICE_FIXED_TTCASH,
-  RECHARGE_VOICE_FIXED_VOUCHER,
-  RECHARGE_VOICE_MOBILE_TTCASH,
-  RECHARGE_VOICE_MOBILE_VOUCHER,
-  VOUCHER_CONVERGENT,
-  VOUCHER_FOR_PAYMENT,
-} from "./report-engine";
+import type { CanalKey, CanalRule, ColumnMapping, StatusMapping } from "../types";
+import { canalRuleCondition } from "./canal-rule-condition";
 
 export { BUILTIN_STATUS_CODES, SEMANTIC_TO_CATEGORY };
 
@@ -113,84 +101,144 @@ export function hourExpr(m: ColumnMapping): string {
 }
 
 // ─── Canal classification ─────────────────────────────────────────────────────
+// ─── Canal classification ─────────────────────────────────────────────────────
 
-// SINGLE SOURCE OF TRUTH for canal keys → their canalCaseExpr THEN label.
-// Re-exported from queries.ts for backward compatibility.
+/**
+ * Single source of truth for report-category labels.
+ * CanalRule.canalKey maps to one of these labels.
+ */
 export const CANAL_KEY_TO_LABEL: Record<CanalKey, string> = {
   bill_payment: "Bill Payment",
+
   voice_fixed_ttcash: "Fixed by TTCASH",
   voice_fixed_voucher: "Fixed by Voucher",
+
   voice_mobile_ttcash: "Mobile by TTCASH",
   voice_mobile_voucher: "Mobile by Voucher",
+
   data_sabba: "Internet Sabba",
   data_evoucher: "Data by Voucher",
+
   voucher_for_payment: "Voucher For Payment",
+
   credit_transfer: "Credit Transfer",
+
   voucher_convergent: "Voucher Convergent Management",
+
+  evoucher_on_demand: "Evoucher on Demand",
+
+  voucher_convergent_carte_generation: "Voucher Convergent — Generation",
+
+  voucher_convergent_carte_activation: "Voucher Convergent — Activation",
 };
 
-function anyChannel(channels: ChannelDef[]): string {
-  return `(${channels.map((ch) => `(${ch.condition})`).join(" OR ")})`;
-}
-
-export function canalWhere(m: ColumnMapping): Record<CanalKey, string> {
-  void m;
-  return {
-    bill_payment: anyChannel(BILL_PAYMENT_CHANNELS),
-    voice_fixed_ttcash: anyChannel(RECHARGE_VOICE_FIXED_TTCASH),
-    voice_fixed_voucher: anyChannel(RECHARGE_VOICE_FIXED_VOUCHER),
-    voice_mobile_ttcash: anyChannel(RECHARGE_VOICE_MOBILE_TTCASH),
-    voice_mobile_voucher: anyChannel(RECHARGE_VOICE_MOBILE_VOUCHER),
-    data_sabba: anyChannel(RECHARGE_DATA_SABBA),
-    data_evoucher: anyChannel(RECHARGE_DATA_EVOUCHER),
-    voucher_for_payment: anyChannel(VOUCHER_FOR_PAYMENT),
-    credit_transfer: anyChannel(CREDIT_TRANSFER),
-    voucher_convergent: anyChannel(VOUCHER_CONVERGENT),
-  };
-}
-
-/** WHERE fragment matching one user-confirmed unclassified combo (see
- * `CanalMapping`). BRAND_D is always required; a `null` layer/group/msisdn is
- * skipped entirely rather than compared, so the rule matches ANY value for
- * that field — this is what lets a rule key on just BRAND_D, or BRAND_D plus
- * only the fields that actually distinguish it, instead of always requiring
- * an exact 4-field match. */
-function canalMappingCondition(o: CanalMapping): string {
-  const fields: Array<[string, string | null]> = [
-    ["BRAND_D", o.brandD],
-    ["ACCOUNT_LAYER_ID", o.accountLayerId],
-    ["ACCOUNT_GROUP_ID", o.accountGroupId],
-    ["ACCOUNT_MSISDN", o.accountMsisdn],
-  ];
-  return fields
-    .filter((field): field is [string, string] => field[1] !== null)
-    .map(([col, val]) => `TRIM(CAST(${col} AS VARCHAR)) = ${sqlLiteral(val)}`)
-    .join(" AND ");
+function ruleSpecificity(rule: CanalRule): number {
+  switch (rule.match.kind) {
+    case "brand":
+      return 0;
+    case "brand-layer":
+    case "brand-msisdn":
+      return 1;
+    case "brand-layer-group":
+      return 2;
+    default:
+      return 0;
+  }
 }
 
 /**
- * Classify each row into one of the 10 canals, an operator-confirmed override
- * from `cm` (see `CanalMapping`), or the `'Other'` fallback. Overrides are
- * checked after the hardcoded rules (which stay authoritative) and only
- * cover combos the hardcoded rules miss — see `fetchUnclassifiedCanalCombos`
- * for how those combos get surfaced to the user in the first place.
+ * Rules with more account constraints must win over broad rules.
+ *
+ * If two rules have the same field specificity, a rule matching fewer BRAND_D
+ * values is more specific. Final ordering by ID makes SQL deterministic.
+ *
+ * The rule editor should prevent equally-specific overlapping rules from
+ * pointing to different canal categories.
  */
-export function canalCaseExpr(m: ColumnMapping, cm: CanalMapping[] = []): string {
-  const w = canalWhere(m);
-  const overrideClauses = cm
-    .map((o) => `WHEN ${canalMappingCondition(o)} THEN ${sqlLiteral(CANAL_KEY_TO_LABEL[o.key])}`)
+function orderedEnabledCanalRules(rules: CanalRule[]): CanalRule[] {
+  return rules
+    .filter((rule) => rule.enabled)
+    .slice()
+    .sort((left, right) => {
+      const fieldDelta = ruleSpecificity(right) - ruleSpecificity(left);
+
+      if (fieldDelta !== 0) {
+        return fieldDelta;
+      }
+
+      const brandDelta = left.match.brandDValues.length - right.match.brandDValues.length;
+
+      if (brandDelta !== 0) {
+        return brandDelta;
+      }
+
+      return left.id.localeCompare(right.id);
+    });
+}
+
+/**
+ * Generates the one canonical CASE expression for canal categorisation.
+ *
+ * There are no hardcoded CanalRule arrays and no custom override layer.
+ * Every enabled default or custom CanalRule participates equally.
+ */
+export function canalCaseExpr(_mapping: ColumnMapping, rules: CanalRule[]): string {
+  const whenClauses = orderedEnabledCanalRules(rules)
+    .map(
+      (rule) =>
+        `WHEN ${canalRuleCondition(rule)} THEN ${sqlLiteral(CANAL_KEY_TO_LABEL[rule.canalKey])}`,
+    )
     .join("\n    ");
+
+  if (!whenClauses) {
+    return "'Other'";
+  }
+
   return `CASE
-    WHEN ${w.voucher_for_payment}  THEN 'Voucher For Payment'
-    WHEN ${w.credit_transfer}      THEN 'Credit Transfer'
-    WHEN ${w.voucher_convergent}   THEN 'Voucher Convergent Management'
-    WHEN ${w.bill_payment}         THEN 'Bill Payment'
-    WHEN ${w.voice_fixed_ttcash}   THEN 'Fixed by TTCASH'
-    WHEN ${w.voice_fixed_voucher}  THEN 'Fixed by Voucher'
-    WHEN ${w.voice_mobile_ttcash}  THEN 'Mobile by TTCASH'
-    WHEN ${w.data_evoucher}        THEN 'Data by Voucher'
-    WHEN ${w.data_sabba}           THEN 'Internet Sabba'
-    WHEN ${w.voice_mobile_voucher} THEN 'Mobile by Voucher'
-    ${overrideClauses ? `${overrideClauses}\n    ` : ""}ELSE 'Other'
+    ${whenClauses}
+    ELSE 'Other'
   END`;
+}
+
+/**
+ * Returns an exact category WHERE condition based on the same CASE expression.
+ *
+ * Do not use simple OR conditions per category: overlapping rules could make
+ * the same transaction appear in multiple categories. Comparing the canonical
+ * CASE result ensures every row belongs to at most one canal category.
+ */
+export function canalWhere(mapping: ColumnMapping, rules: CanalRule[]): Record<CanalKey, string> {
+  const canal = canalCaseExpr(mapping, rules);
+
+  return {
+    bill_payment: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.bill_payment)}`,
+
+    voice_fixed_ttcash: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voice_fixed_ttcash)}`,
+
+    voice_fixed_voucher: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voice_fixed_voucher)}`,
+
+    voice_mobile_ttcash: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voice_mobile_ttcash)}`,
+
+    voice_mobile_voucher: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voice_mobile_voucher)}`,
+
+    data_sabba: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.data_sabba)}`,
+
+    data_evoucher: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.data_evoucher)}`,
+
+    voucher_for_payment: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voucher_for_payment)}`,
+
+    credit_transfer: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.credit_transfer)}`,
+
+    voucher_convergent: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.voucher_convergent)}`,
+
+    evoucher_on_demand: `(${canal}) = ${sqlLiteral(CANAL_KEY_TO_LABEL.evoucher_on_demand)}`,
+
+    voucher_convergent_carte_generation: `(${canal}) = ${sqlLiteral(
+      CANAL_KEY_TO_LABEL.voucher_convergent_carte_generation,
+    )}`,
+
+    voucher_convergent_carte_activation: `(${canal}) = ${sqlLiteral(
+      CANAL_KEY_TO_LABEL.voucher_convergent_carte_activation,
+    )}`,
+  };
 }

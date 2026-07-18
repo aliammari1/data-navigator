@@ -18,6 +18,7 @@ export default function CanalsPage() {
       getTableName={report.getTableName}
       mapping={report.mapping}
       key={report.dashboardTableName}
+      canalRule={report.canalRule}
     />
   );
 }

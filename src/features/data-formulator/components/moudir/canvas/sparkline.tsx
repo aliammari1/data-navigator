@@ -22,11 +22,6 @@ import { MOUDIR } from "../moudir-kit";
 export interface SparklineProps {
   /** The trend series. Empty/short series degrade to a flat baseline. */
   values: number[];
-  /**
-   * Optional forecast continuation (rendered dashed, after the main path). The
-   * first forecast point connects to the last real point for a seamless tail.
-   */
-  forecast?: number[];
   /** Stroke color. Defaults to the coral signal for the focus metric. */
   color?: string;
   width?: number;
@@ -71,7 +66,6 @@ function toPath(
 
 export function Sparkline({
   values,
-  forecast,
   color = MOUDIR.coral,
   width = 88,
   height = 28,
@@ -81,7 +75,6 @@ export function Sparkline({
 }: SparklineProps) {
   const pad = strokeWidth + 1;
   const clean = values.filter((v) => Number.isFinite(v));
-  const fcClean = (forecast ?? []).filter((v) => Number.isFinite(v));
 
   // Flat / empty data → a quiet baseline so the card never looks broken.
   if (clean.length < 2) {
@@ -107,23 +100,17 @@ export function Sparkline({
   }
 
   // Shared min/max across real + forecast so the tail aligns to the same scale.
-  const all = [...clean, ...fcClean];
+  const all = [...clean];
   const min = Math.min(...all);
   const max = Math.max(...all);
 
   // Split the horizontal space: real series gets the lead, forecast the tail.
-  const hasForecast = fcClean.length > 0;
-  const realEnd = hasForecast ? width - pad - (width - pad * 2) * 0.28 : width - pad;
+  const realEnd = width - pad;
   const main = toPath(clean, min, max, width, height, pad, pad, realEnd);
   if (!main) return null;
 
   // Forecast path starts at the last real point for a seamless dashed tail.
   let fcD: string | null = null;
-  if (hasForecast) {
-    const fcSeries = [clean[clean.length - 1], ...fcClean];
-    const fc = toPath(fcSeries, min, max, width, height, pad, main.lastX, width - pad);
-    fcD = fc?.d ?? null;
-  }
 
   const span = max - min || 1;
   const innerH = height - pad * 2;

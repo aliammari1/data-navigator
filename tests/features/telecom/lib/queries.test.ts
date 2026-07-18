@@ -54,7 +54,7 @@ import {
   fetchUnclassifiedCanalCombos,
   runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import type { CanalRule } from "@/features/telecom/lib/report-engine";
 import type { CanalKey, ColumnMapping, FilterState } from "@/features/telecom/types";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -279,7 +279,7 @@ describe("fetchRawCanalSummaries", () => {
     runReadOnlyQuery.mockResolvedValue([
       { canal_group: "Credit Transfer", total: 51, success: 41 },
     ]);
-    const cm: import("@/features/telecom/types").CanalMapping[] = [
+    const cm: import("@/features/telecom/types").CanalRule[] = [
       {
         brandD: "99",
         accountLayerId: "1",
@@ -301,7 +301,7 @@ describe("fetchRawCanalSummaries", () => {
 
   it("passes a BRAND_D-only cm override (null layer/group/msisdn) through without those columns", async () => {
     runReadOnlyQuery.mockResolvedValue([{ canal_group: "Internet Sabba", total: 12, success: 9 }]);
-    const cm: import("@/features/telecom/types").CanalMapping[] = [
+    const cm: import("@/features/telecom/types").CanalRule[] = [
       {
         brandD: "777",
         accountLayerId: null,
@@ -386,7 +386,7 @@ describe("fetchUnclassifiedCanalCombos", () => {
     // classifies it as 'Other', so the SQL itself won't return it — nothing
     // extra to filter in JS for this case.
     runReadOnlyQuery.mockResolvedValue([]);
-    const cm: import("@/features/telecom/types").CanalMapping[] = [
+    const cm: import("@/features/telecom/types").CanalRule[] = [
       {
         brandD: "99",
         accountLayerId: "1",
@@ -991,7 +991,7 @@ describe("fetchDistinctStatuses", () => {
 // fetchSpecChannelStats — single-pass conditional aggregation
 // ──────────────────────────────────────────────────────────────────────────────
 
-const channels: ChannelDef[] = [
+const channels: CanalRule[] = [
   { name: "Alpha", condition: "TRY_CAST(BRAND_D AS INT) = 1" },
   { name: "Beta", condition: "TRY_CAST(BRAND_D AS INT) = 2" },
 ];

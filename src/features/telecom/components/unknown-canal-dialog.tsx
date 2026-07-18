@@ -20,10 +20,11 @@ import { AlertTriangle, Check, ChevronDown, SplitSquareHorizontal } from "lucide
 import { useEffect, useMemo, useState } from "react";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
 import {
-  buildCanalMapping,
-  type CanalFieldChoice,
+  availableMatchKinds,
+  buildCanalRule,
+  type CanalMatchKind,
   comboMatchesRule,
-  defaultFieldChoice,
+  defaultMatchKind,
 } from "@/features/telecom/lib/canal-mapping-scope";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
@@ -35,8 +36,10 @@ const CANAL_OPTIONS = Object.entries(CANAL_CONFIG) as Array<
 type Assignment = Types.CanalKey | "";
 
 interface RowState {
+  name: string;
   canal: Assignment;
-  fields: CanalFieldChoice;
+  matchKind: CanalMatchKind;
+  reportGroup: Types.CanalRuleReportGroup;
 }
 
 function comboKey(p: {
@@ -50,8 +53,55 @@ function comboKey(p: {
 
 function initialRows(pending: Types.UnclassifiedCanalCombo[]): Record<string, RowState> {
   return Object.fromEntries(
-    pending.map((p) => [comboKey(p), { canal: "" as Assignment, fields: defaultFieldChoice(p) }]),
+    pending.map((combo) => [
+      comboKey(combo),
+      {
+        name: "",
+        canal: "" as Assignment,
+        matchKind: defaultMatchKind(combo),
+        reportGroup: null,
+      },
+    ]),
   );
+}
+
+const DRAFT_TIMESTAMP = "2026-01-01T00:00:00.000Z";
+
+function rowStateIsComplete(state: RowState | undefined): state is RowState & {
+  canal: Types.CanalKey;
+} {
+  if (!state) return false;
+  if (!state.name.trim()) return false;
+  if (!state.canal) return false;
+
+  if (state.canal === "voucher_for_payment" && state.reportGroup === null) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Builds a deterministic temporary rule for coverage calculation.
+ *
+ * This rule is never persisted, so it must not generate a random ID or a new
+ * timestamp on every render.
+ */
+function buildDraftRule(
+  combo: Types.UnclassifiedCanalCombo,
+  state: RowState,
+): Types.CanalRule | null {
+  if (!rowStateIsComplete(state)) {
+    return null;
+  }
+
+  return buildCanalRule(combo, state.matchKind, state.canal, state.name, {
+    id: `draft:${comboKey(combo)}`,
+    timestamp: DRAFT_TIMESTAMP,
+    reportGroup: state.reportGroup,
+    origin: "custom",
+    enabled: true,
+  });
 }
 
 /** For each combo, the comboKey of another pending combo whose CURRENTLY
@@ -62,48 +112,32 @@ function computeCoverage(
   rows: Record<string, RowState>,
 ): Map<string, string> {
   const coverage = new Map<string, string>();
+
   for (const combo of pending) {
     const key = comboKey(combo);
-    for (const other of pending) {
-      const otherKey = comboKey(other);
-      if (otherKey === key) continue;
-      const otherState = rows[otherKey];
-      if (!otherState?.canal) continue;
-      const rule = buildCanalMapping(other, otherState.fields, otherState.canal);
+
+    for (const candidate of pending) {
+      const candidateKey = comboKey(candidate);
+
+      if (candidateKey === key) {
+        continue;
+      }
+
+      const candidateState = rows[candidateKey];
+      const rule = candidateState ? buildDraftRule(candidate, candidateState) : null;
+
+      if (!rule) {
+        continue;
+      }
+
       if (comboMatchesRule(combo, rule)) {
-        coverage.set(key, otherKey);
+        coverage.set(key, candidateKey);
         break;
       }
     }
   }
+
   return coverage;
-}
-
-/* ─── Field-scope chips ─────────────────────────────────────────────────── */
-
-function FieldChip({
-  label,
-  checked,
-  onChange,
-}: {
-  label: string;
-  checked: boolean;
-  onChange: (v: boolean) => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={cn(
-        "rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
-        checked
-          ? "border-[#2f6bff]/40 bg-[#2f6bff]/10 text-[#2f6bff]"
-          : "border-border bg-muted/50 text-muted-foreground hover:bg-muted",
-      )}
-    >
-      + {label}
-    </button>
-  );
 }
 
 /* ─── Canal selector ────────────────────────────────────────────────────── */
@@ -143,112 +177,249 @@ function CanalSelect({
   );
 }
 
-/* ─── Row ───────────────────────────────────────────────────────────────── */
-
-function ComboRow({
+function ComboListItem({
   combo,
   total,
   state,
-  onCanalChange,
-  onFieldsChange,
+  active,
+  coveredBy,
+  onClick,
 }: {
   combo: Types.UnclassifiedCanalCombo;
   total: number;
   state: RowState;
-  onCanalChange: (v: Assignment) => void;
-  onFieldsChange: (v: CanalFieldChoice) => void;
+  active: boolean;
+  coveredBy?: Types.UnclassifiedCanalCombo;
+  onClick: () => void;
 }) {
   const pct = total > 0 ? (combo.total / total) * 100 : 0;
-  const isUnassigned = state.canal === "";
-  const cfg = state.canal ? CANAL_CONFIG[state.canal] : null;
-
-  const hasLayer = combo.accountLayerId !== "";
-  const hasGroup = combo.accountGroupId !== "";
-  const hasMsisdn = combo.accountMsisdn !== "";
-  const showScopeChips = hasLayer || hasGroup || hasMsisdn;
-
-  // Group requires layer in every real rule (report-engine.ts never uses
-  // GROUP alone) — keep the toggle UI consistent with that.
-  const toggleLayer = (v: boolean) =>
-    onFieldsChange({ ...state.fields, layer: v, group: v ? state.fields.group : false });
-  const toggleGroup = (v: boolean) =>
-    onFieldsChange({ ...state.fields, layer: v || state.fields.layer, group: v });
-  const toggleMsisdn = (v: boolean) => onFieldsChange({ ...state.fields, msisdn: v });
+  const isAssigned = state.canal !== "" && state.name.trim() !== "";
 
   return (
-    <div
+    <button
+      type="button"
+      onClick={onClick}
       className={cn(
-        "grid grid-cols-[1fr_auto_220px] items-start gap-4 rounded-xl border px-4 py-3 transition-colors",
-        isUnassigned
-          ? "border-amber-300/60 bg-amber-50/60 dark:border-amber-500/25 dark:bg-amber-500/5"
-          : "border-border bg-card",
+        "w-full rounded-xl border p-3 text-left transition-colors",
+        active && "border-[#2f6bff] bg-[#2f6bff]/10 ring-1 ring-[#2f6bff]",
+        !active &&
+          !isAssigned &&
+          "border-amber-300/60 bg-amber-50/60 dark:border-amber-500/25 dark:bg-amber-500/5",
+        !active && isAssigned && "border-border bg-card hover:bg-muted/30",
       )}
     >
-      {/* Raw account combo + volume + match scope */}
-      <div className="min-w-0">
-        <div className="flex items-center gap-2">
-          {isUnassigned && <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />}
-          <code className="text-[12px] font-semibold tracking-wide text-foreground">
-            BRAND_D={combo.brandD || "∅"}
-            {hasLayer && ` · LAYER=${combo.accountLayerId}`}
-            {hasGroup && ` · GROUP=${combo.accountGroupId}`}
-            {hasMsisdn && ` · MSISDN=${combo.accountMsisdn}`}
-          </code>
-          {cfg && (
-            <span
-              className={cn(
-                "rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                cfg.bg,
-                cfg.border,
-                cfg.color,
-              )}
-            >
-              {cfg.shortLabel}
-            </span>
+      <div className="flex items-start justify-between gap-3">
+        <code className="min-w-0 text-[11px] font-semibold text-foreground">
+          BRAND_D={combo.brandD || "∅"}
+          {combo.accountLayerId && ` · LAYER=${combo.accountLayerId}`}
+          {combo.accountGroupId && ` · GROUP=${combo.accountGroupId}`}
+          {combo.accountMsisdn && ` · MSISDN=${combo.accountMsisdn}`}
+        </code>
+
+        <span
+          className={cn(
+            "shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold",
+            coveredBy
+              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300"
+              : isAssigned
+                ? "bg-blue-100 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                : "bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300",
           )}
+        >
+          {coveredBy ? "Couvert" : isAssigned ? "Configuré" : "À classer"}
+        </span>
+      </div>
+
+      <div className="mt-2 flex items-center gap-2">
+        <div className="h-1 w-24 overflow-hidden rounded-full bg-muted">
+          <div
+            className="h-full rounded-full bg-[#2f6bff]"
+            style={{ width: `${Math.min(pct, 100)}%` }}
+          />
         </div>
-        <div className="mt-1.5 flex items-center gap-2">
-          <div className="h-1 w-32 overflow-hidden rounded-full bg-muted">
-            <div
-              className="h-full rounded-full bg-[#2f6bff]/60 transition-all"
-              style={{ width: `${Math.min(pct, 100)}%` }}
+
+        <span className="text-[11px] text-muted-foreground">
+          {combo.total.toLocaleString()} ({pct.toFixed(1)}%)
+        </span>
+      </div>
+
+      {coveredBy && (
+        <p className="mt-1.5 text-[11px] text-emerald-600 dark:text-emerald-400">
+          ✓ Couvert par une règle pour BRAND_D={coveredBy.brandD}
+        </p>
+      )}
+
+      {!coveredBy && isAssigned && (
+        <p className="mt-1.5 text-[11px] text-muted-foreground">
+          {state.name} · {CANAL_CONFIG[state.canal as Types.CanalKey].shortLabel}
+        </p>
+      )}
+    </button>
+  );
+}
+
+function RuleEditor({
+  combo,
+  state,
+  onChange,
+}: {
+  combo: Types.UnclassifiedCanalCombo;
+  state: RowState;
+  onChange: (patch: Partial<RowState>) => void;
+}) {
+  const availableKinds = availableMatchKinds(combo);
+
+  const category = state.canal ? CANAL_CONFIG[state.canal] : null;
+
+  return (
+    <aside className="h-fit rounded-xl border border-border bg-card p-4 md:sticky md:top-0">
+      <h3 className="text-[13px] font-semibold text-foreground">Créer la règle</h3>
+
+      <p className="mt-1 text-[11px] text-muted-foreground">BRAND_D={combo.brandD || "∅"}</p>
+
+      <div className="mt-4 space-y-4">
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Nom du canal
+          </span>
+
+          <input
+            type="text"
+            value={state.name}
+            onChange={(event) =>
+              onChange({
+                name: event.target.value,
+              })
+            }
+            placeholder="Ex. IZIPAY, SMT, NEWPAY"
+            autoComplete="off"
+            className={cn(
+              "mt-1 h-9 w-full rounded-lg border bg-background px-3",
+              "text-[13px] text-foreground outline-none",
+              "placeholder:text-muted-foreground/60",
+              "focus:border-[#2f6bff] focus:ring-2 focus:ring-[#2f6bff]/15",
+              state.name.trim() ? "border-border" : "border-amber-300 dark:border-amber-500/40",
+            )}
+          />
+        </label>
+
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Catégorie de rapport
+          </span>
+
+          <div className="mt-1">
+            <CanalSelect
+              value={state.canal}
+              onChange={(canal) =>
+                onChange({
+                  canal,
+                  /*
+                   * A report group is only meaningful for Voucher For
+                   * Payment. Clear it when another category is selected.
+                   */
+                  reportGroup: canal === "voucher_for_payment" ? state.reportGroup : null,
+                })
+              }
             />
           </div>
-          <span className="text-[11px] text-muted-foreground">
-            {combo.total.toLocaleString()} ({pct.toFixed(1)}%)
-          </span>
-        </div>
+        </label>
 
-        {showScopeChips && (
-          <div className="mt-2 flex flex-wrap items-center gap-1.5">
-            <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
-              Restreindre aussi par :
+        {state.canal === "voucher_for_payment" && (
+          <label className="block">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Type Voucher For Payment
             </span>
-            {hasLayer && (
-              <FieldChip label="Couche" checked={state.fields.layer} onChange={toggleLayer} />
-            )}
-            {hasGroup && (
-              <FieldChip label="Groupe" checked={state.fields.group} onChange={toggleGroup} />
-            )}
-            {hasMsisdn && (
-              <FieldChip label="MSISDN" checked={state.fields.msisdn} onChange={toggleMsisdn} />
-            )}
+
+            <select
+              value={state.reportGroup ?? ""}
+              onChange={(event) =>
+                onChange({
+                  reportGroup:
+                    event.target.value === ""
+                      ? null
+                      : (event.target.value as Exclude<Types.CanalRuleReportGroup, null>),
+                })
+              }
+              className={cn(
+                "mt-1 h-9 w-full rounded-lg border bg-background px-3",
+                "text-[13px] text-foreground outline-none",
+                "focus:border-[#2f6bff] focus:ring-2 focus:ring-[#2f6bff]/15",
+                state.reportGroup ? "border-border" : "border-amber-300 dark:border-amber-500/40",
+              )}
+            >
+              <option value="" disabled>
+                Choisir un type
+              </option>
+
+              <option value="voucher_for_payment_generation">Génération</option>
+
+              <option value="voucher_for_payment_redemption">Rédemption & Remboursement</option>
+            </select>
+          </label>
+        )}
+
+        <fieldset>
+          <legend className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+            Appliquer la règle à
+          </legend>
+
+          <div className="mt-1.5 space-y-1.5">
+            {(
+              [
+                ["brand", "BRAND_D seulement"],
+                ["brand-layer", "BRAND_D + Couche"],
+                ["brand-layer-group", "BRAND_D + Couche + Groupe"],
+                ["brand-msisdn", "BRAND_D + MSISDN"],
+              ] as const satisfies ReadonlyArray<readonly [CanalMatchKind, string]>
+            ).map(([matchKind, label]) => {
+              const enabled = availableKinds.includes(matchKind);
+
+              return (
+                <label
+                  key={matchKind}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg border px-2.5 py-2 text-[11px]",
+                    state.matchKind === matchKind
+                      ? "border-[#2f6bff] bg-[#2f6bff]/10"
+                      : "border-border bg-muted/30",
+                    !enabled && "cursor-not-allowed opacity-45",
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={`match-${comboKey(combo)}`}
+                    checked={state.matchKind === matchKind}
+                    disabled={!enabled}
+                    onChange={() =>
+                      onChange({
+                        matchKind,
+                      })
+                    }
+                    className="accent-[#2f6bff]"
+                  />
+
+                  {label}
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        {state.canal && state.name.trim() && category && (
+          <div className="rounded-lg border border-border bg-muted/30 p-3">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+              Résultat
+            </p>
+
+            <p className="mt-1.5 text-[12px] leading-relaxed text-foreground">
+              Cette règle classera <strong>{state.name.trim()}</strong> dans{" "}
+              <strong>{category.label}</strong>.
+            </p>
           </div>
         )}
       </div>
-
-      {/* Status indicator */}
-      <div className="flex size-6 items-center justify-center">
-        {isUnassigned ? (
-          <span className="size-2 rounded-full bg-amber-400" />
-        ) : (
-          <Check className="size-4 text-emerald-500" />
-        )}
-      </div>
-
-      {/* Selector */}
-      <CanalSelect value={state.canal} onChange={onCanalChange} />
-    </div>
+    </aside>
   );
 }
 
@@ -293,11 +464,14 @@ export interface UnknownCanalDialogProps {
   /** New combos detected in the uploaded file that match none of the 10 canal rules. */
   pending: Types.UnclassifiedCanalCombo[];
   /** Called when the user confirms — receives the finalized mappings. */
-  onConfirm: (confirmed: Types.CanalMapping[]) => void;
+  onConfirm: (confirmed: Types.CanalRule[]) => void;
 }
 
 export function UnknownCanalDialog({ pending, onConfirm }: UnknownCanalDialogProps) {
   const [rows, setRows] = useState<Record<string, RowState>>(() => initialRows(pending));
+  const [selectedKey, setSelectedKey] = useState<string>(() =>
+    pending[0] ? comboKey(pending[0]) : "",
+  );
   // Combos the user explicitly pulled out of an auto-covering rule to
   // classify on their own, even though a broader rule would otherwise cover them.
   const [splitOut, setSplitOut] = useState<Set<string>>(new Set());
@@ -306,6 +480,7 @@ export function UnknownCanalDialog({ pending, onConfirm }: UnknownCanalDialogPro
   useEffect(() => {
     setRows(initialRows(pending));
     setSplitOut(new Set());
+    setSelectedKey(pending[0] ? comboKey(pending[0]) : "");
   }, [pending]);
 
   const total = pending.reduce((s, p) => s + p.total, 0);
@@ -314,21 +489,66 @@ export function UnknownCanalDialog({ pending, onConfirm }: UnknownCanalDialogPro
 
   const isCovered = (key: string) => coverage.has(key) && !splitOut.has(key);
 
-  const unresolved = pending.filter(
-    (p) => !isCovered(comboKey(p)) && rows[comboKey(p)]?.canal === "",
-  );
+  const selectedCombo = pending.find((combo) => comboKey(combo) === selectedKey) ?? pending[0];
+
+  const selectedState = selectedCombo ? rows[comboKey(selectedCombo)] : undefined;
+
+  function updateSelectedRow(patch: Partial<RowState>) {
+    if (!selectedCombo) return;
+
+    const key = comboKey(selectedCombo);
+
+    setRows((previous) => ({
+      ...previous,
+      [key]: {
+        ...previous[key],
+        ...patch,
+      },
+    }));
+  }
+
+  const unresolved = pending.filter((combo) => {
+    const key = comboKey(combo);
+
+    if (isCovered(key)) {
+      return false;
+    }
+
+    return !rowStateIsComplete(rows[key]);
+  });
 
   const canConfirm = unresolved.length === 0;
 
   const handleConfirm = () => {
     if (!canConfirm) return;
-    const confirmed: Types.CanalMapping[] = [];
-    for (const p of pending) {
-      const key = comboKey(p);
-      if (isCovered(key)) continue; // already resolved by another rule below
+
+    const confirmed: Types.CanalRule[] = [];
+    const timestamp = new Date().toISOString();
+
+    for (const combo of pending) {
+      const key = comboKey(combo);
+
+      if (isCovered(key)) {
+        continue;
+      }
+
       const state = rows[key];
-      confirmed.push(buildCanalMapping(p, state.fields, state.canal as Types.CanalKey));
+
+      if (!rowStateIsComplete(state)) {
+        continue;
+      }
+
+      confirmed.push(
+        buildCanalRule(combo, state.matchKind, state.canal, state.name, {
+          id: crypto.randomUUID(),
+          timestamp,
+          reportGroup: state.reportGroup,
+          origin: "custom",
+          enabled: true,
+        }),
+      );
     }
+
     onConfirm(confirmed);
   };
 
@@ -341,7 +561,7 @@ export function UnknownCanalDialog({ pending, onConfirm }: UnknownCanalDialogPro
       style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(4px)" }}
     >
       <div
-        className="flex w-full max-w-[760px] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
+        className="flex w-full max-w-[920px] flex-col overflow-hidden rounded-2xl border border-border bg-background shadow-2xl"
         style={{ maxHeight: "min(720px, 90vh)" }}
       >
         {/* ── Header ── */}
@@ -386,38 +606,47 @@ export function UnknownCanalDialog({ pending, onConfirm }: UnknownCanalDialogPro
 
         {/* ── Scrollable combo list ── */}
         <div className="flex-1 overflow-y-auto px-6 py-4">
-          <div className="flex flex-col gap-2.5">
-            {pending.map((p) => {
-              const key = comboKey(p);
-              const coveringKey = coverage.get(key);
-              if (coveringKey && !splitOut.has(key)) {
-                const coveringCombo = pending.find((c) => comboKey(c) === coveringKey);
-                if (coveringCombo) {
-                  return (
-                    <CoveredRow
-                      key={key}
-                      combo={p}
-                      coveringCombo={coveringCombo}
-                      onSplitOut={() => setSplitOut((prev) => new Set(prev).add(key))}
-                    />
-                  );
-                }
-              }
-              return (
-                <ComboRow
-                  key={key}
-                  combo={p}
-                  total={total}
-                  state={rows[key]}
-                  onCanalChange={(v) =>
-                    setRows((prev) => ({ ...prev, [key]: { ...prev[key], canal: v } }))
-                  }
-                  onFieldsChange={(fields) =>
-                    setRows((prev) => ({ ...prev, [key]: { ...prev[key], fields } }))
-                  }
-                />
-              );
-            })}
+          <div className="grid gap-5 md:grid-cols-[1fr_320px]">
+            <div className="flex flex-col gap-2.5">
+              {pending.map((combo) => {
+                const key = comboKey(combo);
+                const coveringKey = coverage.get(key);
+
+                const coveringCombo = coveringKey
+                  ? pending.find((item) => comboKey(item) === coveringKey)
+                  : undefined;
+
+                return (
+                  <ComboListItem
+                    key={key}
+                    combo={combo}
+                    total={total}
+                    state={rows[key]}
+                    active={key === selectedKey}
+                    coveredBy={coveringCombo && !splitOut.has(key) ? coveringCombo : undefined}
+                    onClick={() => {
+                      setSelectedKey(key);
+
+                      if (splitOut.has(key)) return;
+
+                      setSplitOut((previous) => {
+                        const next = new Set(previous);
+                        next.add(key);
+                        return next;
+                      });
+                    }}
+                  />
+                );
+              })}
+            </div>
+
+            {selectedCombo && selectedState && (
+              <RuleEditor
+                combo={selectedCombo}
+                state={selectedState}
+                onChange={updateSelectedRow}
+              />
+            )}
           </div>
         </div>
 

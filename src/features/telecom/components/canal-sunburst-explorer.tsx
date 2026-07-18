@@ -26,12 +26,12 @@ import {
 } from "@/features/telecom/lib/canal-hierarchy";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type { SpecChStatusRow } from "@/features/telecom/lib/queries";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { type EChartsOption, echarts } from "@/platform/viz";
 import { cn } from "@/shared/utils";
+import { CanalRule } from "../types";
 
 type FetchStatusMatrix = (
-  channels: ChannelDef[],
+  channels: CanalRule[],
   dateFrom: string,
   dateTo: string,
 ) => Promise<SpecChStatusRow[]>;
@@ -88,28 +88,29 @@ export function CanalSunburstExplorer({
   }, []);
 
   // ── ONE query feeds the whole explorer: per-canal status over all channels ──
-const fetchRef = useRef(fetchSpecCanalStatusMatrix);
-useEffect(() => {
-  fetchRef.current = fetchSpecCanalStatusMatrix;
-}, [fetchSpecCanalStatusMatrix]);
+  const fetchRef = useRef(fetchSpecCanalStatusMatrix);
+  useEffect(() => {
+    fetchRef.current = fetchSpecCanalStatusMatrix;
+  }, [fetchSpecCanalStatusMatrix]);
 
-useEffect(() => {
-  let cancelled = false;
-  setLoading(true);
-  fetchRef.current(ALL_CANAL_CHANNELS, dateFrom, dateTo)
-    .then((rows) => {
-      if (!cancelled) setStatusRows(rows);
-    })
-    .catch(() => {
-      if (!cancelled) setStatusRows([]);
-    })
-    .finally(() => {
-      if (!cancelled) setLoading(false);
-    });
-  return () => {
-    cancelled = true;
-  };
-}, [dateFrom, dateTo]);
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    fetchRef
+      .current(ALL_CANAL_CHANNELS, dateFrom, dateTo)
+      .then((rows) => {
+        if (!cancelled) setStatusRows(rows);
+      })
+      .catch(() => {
+        if (!cancelled) setStatusRows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [dateFrom, dateTo]);
 
   // canal name → its status row, for client-side aggregation by node.
   const statusByCanal = useMemo(() => {
@@ -118,9 +119,25 @@ useEffect(() => {
     return map;
   }, [statusRows]);
 
+  // Cache aggregation results to avoid recalculating for the same channel sets
+  const aggregateCache = useRef(new Map<string, StatusAgg>());
+  
+  // Clear cache when status data changes
+  useEffect(() => {
+    aggregateCache.current.clear();
+  }, [statusRows]);
+
   const aggregate = useCallback(
-    (channels: ChannelDef[]): StatusAgg =>
-      channels.reduce<StatusAgg>((a, ch) => {
+    (channels: CanalRule[]): StatusAgg => {
+      // Create a cache key based on channel names
+      const cacheKey = channels.map(ch => ch.name).sort().join('|');
+      
+      // Check cache first
+      if (aggregateCache.current.has(cacheKey)) {
+        return aggregateCache.current.get(cacheKey)!;
+      }
+      
+      const result = channels.reduce<StatusAgg>((a, ch) => {
         const r = statusByCanal.get(ch.name);
         if (!r) return a;
         return {
@@ -130,7 +147,12 @@ useEffect(() => {
           échec: a.échec + r.échec,
           total: a.total + r.total,
         };
-      }, ZERO_AGG),
+      }, ZERO_AGG);
+      
+      // Cache the result
+      aggregateCache.current.set(cacheKey, result);
+      return result;
+    },
     [statusByCanal],
   );
 
@@ -143,7 +165,7 @@ useEffect(() => {
       }
     }
     return acc;
-  }, [aggregate]);
+  }, [aggregate, statusByCanal]); // Recalculate when aggregate function or status data changes
 
   const selectedNode: CanalNode | null =
     selectedId === ROOT_ID ? null : (CANAL_NODE_BY_ID.get(selectedId) ?? null);

@@ -36,6 +36,8 @@ const mapping: ColumnMapping = {
 const operators: OperatorRow[] = [
   {
     operator: "Ooredoo",
+    msisdn: "",
+    accountName: "",
     total: 12_400,
     success: 11_980,
     amount: 248_100,
@@ -44,6 +46,8 @@ const operators: OperatorRow[] = [
   },
   {
     operator: "Orange",
+    msisdn: "",
+    accountName: "",
     total: 8_100,
     success: 7_540,
     amount: 121_500,
@@ -52,6 +56,8 @@ const operators: OperatorRow[] = [
   },
   {
     operator: "Tunisie Telecom",
+    msisdn: "",
+    accountName: "",
     total: 4_300,
     success: 3_650,
     amount: 64_500,

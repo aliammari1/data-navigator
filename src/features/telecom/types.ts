@@ -1,3 +1,17 @@
+/**
+ * A user-confirmed classification for a raw account combo that none of the 10
+ * hardcoded `canalCaseExpr` rules matched. Detected via
+ * `fetchUnclassifiedCanalCombos` and assigned through the "new canal
+ * detected" dialog — the same resolve-unknowns flow `StatusMapping` uses for
+ * unrecognised status codes (see `unknown-status-dialog.tsx`).
+ *
+ * BRAND_D is always the anchor (every `CanalRule` condition in
+ * report-engine.ts starts with it), but the real rules narrow by anywhere
+ * from 0 to 2 more fields — never all 3. `null` on a field means "matches any
+ * value", so a rule can key on just BRAND_D, BRAND_D + one field, or
+ * BRAND_D + layer + group, matching how these channels are actually defined
+ * (see `canal-mapping-scope.ts`).
+ */
 export type CanalKey =
   | "bill_payment"
   | "voice_fixed_ttcash"
@@ -8,30 +22,66 @@ export type CanalKey =
   | "data_evoucher"
   | "voucher_for_payment"
   | "credit_transfer"
-  | "voucher_convergent";
+  | "voucher_convergent"
+  | "evoucher_on_demand"
+  | "voucher_convergent_carte_generation"
+  | "voucher_convergent_carte_activation";
 
-/**
- * A user-confirmed classification for a raw account combo that none of the 10
- * hardcoded `canalCaseExpr` rules matched. Detected via
- * `fetchUnclassifiedCanalCombos` and assigned through the "new canal
- * detected" dialog — the same resolve-unknowns flow `StatusMapping` uses for
- * unrecognised status codes (see `unknown-status-dialog.tsx`).
- *
- * BRAND_D is always the anchor (every `ChannelDef` condition in
- * report-engine.ts starts with it), but the real rules narrow by anywhere
- * from 0 to 2 more fields — never all 3. `null` on a field means "matches any
- * value", so a rule can key on just BRAND_D, BRAND_D + one field, or
- * BRAND_D + layer + group, matching how these channels are actually defined
- * (see `canal-mapping-scope.ts`).
- */
-export interface CanalMapping {
+export type NonEmptyArray<T> = readonly [T, ...T[]];
+
+export type CanalRuleMatch =
+  | {
+      kind: "brand";
+      brandDValues: NonEmptyArray<string>;
+    }
+  | {
+      kind: "brand-layer";
+      brandDValues: NonEmptyArray<string>;
+      accountLayerId: string;
+    }
+  | {
+      kind: "brand-layer-group";
+      brandDValues: NonEmptyArray<string>;
+      accountLayerId: string;
+      accountGroupId: string;
+    }
+  | {
+      kind: "brand-msisdn";
+      brandDValues: NonEmptyArray<string>;
+      accountMsisdn: string;
+    };
+
+export type CanalRuleOrigin = "default" | "custom";
+
+export type CanalRuleReportGroup =
+  | "voucher_for_payment_generation"
+  | "voucher_for_payment_redemption"
+  | null;
+
+export interface CanalRule {
+  id: string;
+  name: string;
+  canalKey: CanalKey;
+  match: CanalRuleMatch;
+  reportGroup: CanalRuleReportGroup;
+  origin: CanalRuleOrigin;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UnclassifiedCanalCombo {
   brandD: string;
-  accountLayerId: string | null;
-  accountGroupId: string | null;
-  accountMsisdn: string | null;
-  /** One of the 10 known canals. Every detected combo must be assigned a
-   * real canal through the dialog — there is no "leave unclassified" option. */
-  key: CanalKey;
+  accountLayerId: string;
+  accountGroupId: string;
+  accountMsisdn: string;
+  total: number;
+}
+
+export interface CanalFieldScope {
+  layer: boolean;
+  group: boolean;
+  msisdn: boolean;
 }
 
 /** A distinct raw account combo among rows the hardcoded rules can't
@@ -141,6 +191,8 @@ export interface SpecUnitAmountResult {
 
 export interface OperatorRow {
   operator: string;
+  msisdn: string;
+  accountName: string;
   total: number;
   success: number;
   amount: number;
@@ -210,12 +262,15 @@ export interface RawStatusRow {
 
 export type StatusSemantic = "success" | "declined" | "refund" | "instance" | "submitted" | "other";
 
+export type StatusMappingOrigin = "default" | "custom";
+
 export interface StatusMapping {
   rawCode: string;
   label: string;
   semantic: StatusSemantic;
   color: string;
   badgeClass: string;
+  origin?: StatusMappingOrigin;
 }
 
 export interface ServiceCodeRow {

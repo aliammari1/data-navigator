@@ -8,9 +8,9 @@
 import { create } from "zustand";
 import { createJSONStorage, persist, subscribeWithSelector } from "zustand/middleware";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
-import type { CanalMapping, ColumnMapping, CustomKPI, StatusMapping } from "./types";
+import type { CanalRule, ColumnMapping, CustomKPI, StatusMapping } from "./types";
 
-export type { CanalMapping, ColumnMapping, CustomKPI, StatusMapping };
+export type { CanalRule, ColumnMapping, CustomKPI, StatusMapping };
 
 export const DEFAULT_MAPPING: ColumnMapping = {
   transactionId: "TRANSACTION_ID",
@@ -73,14 +73,14 @@ export function normalizeColumnMapping(mapping?: Partial<ColumnMapping> | null):
 interface TelecomStore {
   columnMapping: ColumnMapping;
   statusMapping: StatusMapping[];
-  canalMapping: CanalMapping[];
+  canalRule: CanalRule[];
   customKPIs: CustomKPI[];
   fileName: string;
   reportDate: string;
   commandOpen: boolean;
   setColumnMapping: (m: ColumnMapping) => void;
   setStatusMapping: (sm: StatusMapping[]) => void;
-  setCanalMapping: (cm: CanalMapping[]) => void;
+  setCanalRule: (cm: CanalRule[]) => void;
   addCustomKPI: (kpi: CustomKPI) => void;
   updateCustomKPI: (id: string, patch: Partial<CustomKPI>) => void;
   removeCustomKPI: (id: string) => void;
@@ -99,7 +99,7 @@ export const useTelecomStore = create<TelecomStore>()(
     subscribeWithSelector((set) => ({
       columnMapping: DEFAULT_MAPPING,
       statusMapping: [],
-      canalMapping: [],
+      canalRule: [],
       customKPIs: [],
       fileName: "",
       reportDate: "",
@@ -112,7 +112,7 @@ export const useTelecomStore = create<TelecomStore>()(
 
       setStatusMapping: (statusMapping) => set({ statusMapping }),
 
-      setCanalMapping: (canalMapping) => set({ canalMapping }),
+      setCanalRule: (canalRule) => set({ canalRule }),
 
       addCustomKPI: (kpi) => set((s) => ({ customKPIs: [...s.customKPIs, kpi] })),
 
@@ -138,7 +138,7 @@ export const useTelecomStore = create<TelecomStore>()(
           reportDate: "",
           columnMapping: DEFAULT_MAPPING,
           statusMapping: [],
-          canalMapping: [],
+          canalRule: [],
           customKPIs: [],
         }),
     })),
@@ -149,7 +149,7 @@ export const useTelecomStore = create<TelecomStore>()(
       partialize: (s) => ({
         columnMapping: normalizeColumnMapping(s.columnMapping),
         statusMapping: s.statusMapping,
-        canalMapping: s.canalMapping,
+        canalRule: s.canalRule,
         customKPIs: s.customKPIs,
         fileName: s.fileName,
         reportDate: s.reportDate,

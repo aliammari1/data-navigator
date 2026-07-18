@@ -128,6 +128,8 @@ const SAMPLE_STATUS: Types.StatusRow[] = [{ status: "SUCCESS", count: 800, amoun
 const SAMPLE_OPERATORS: Types.OperatorRow[] = [
   {
     operator: "OOREDOO",
+    msisdn: "",
+    accountName: "",
     total: 100,
     success: 80,
     amount: 500,
@@ -190,7 +192,7 @@ type RenderParams = {
   getTableName?: () => string;
   mapping?: Types.ColumnMapping;
   statusMapping?: Types.StatusMapping[];
-  canalMapping?: Types.CanalMapping[];
+  canalRule?: Types.CanalRule[];
   loaded?: boolean;
   firstLoad?: React.RefObject<boolean>;
   fileNameRef?: React.RefObject<string>;
@@ -204,7 +206,7 @@ function renderAnalyticsHook(overrides: RenderParams = {}) {
   const getTableName = overrides.getTableName ?? (() => "txns");
   const mapping = overrides.mapping ?? MAPPING;
   const statusMapping = overrides.statusMapping ?? SM;
-  const canalMapping = overrides.canalMapping ?? [];
+  const canalRule = overrides.canalRule ?? [];
   const loaded = overrides.loaded ?? true;
   const firstLoad = overrides.firstLoad ?? makeRef(true);
   const fileNameRef = overrides.fileNameRef ?? makeRef("report.csv");
@@ -217,7 +219,7 @@ function renderAnalyticsHook(overrides: RenderParams = {}) {
         getTableName,
         mapping,
         statusMapping,
-        canalMapping,
+        canalRule,
         loaded,
         firstLoad,
         fileNameRef,
@@ -662,9 +664,9 @@ describe("useTelecomAnalytics — unclassified canal detection", () => {
     expect(fetchUnclassifiedCanalCombosMock).not.toHaveBeenCalled();
   });
 
-  it("passes the current canalMapping through to fetchRawCanalSummaries and fetchUnclassifiedCanalCombos", async () => {
+  it("passes the current canalRule through to fetchRawCanalSummaries and fetchUnclassifiedCanalCombos", async () => {
     setupHappyPathMocks();
-    const cm: Types.CanalMapping[] = [
+    const cm: Types.CanalRule[] = [
       {
         brandD: "1",
         accountLayerId: "2",
@@ -674,7 +676,7 @@ describe("useTelecomAnalytics — unclassified canal detection", () => {
       },
     ];
 
-    renderAnalyticsHook({ canalMapping: cm });
+    renderAnalyticsHook({ canalRule: cm });
 
     await waitFor(() => {
       expect(fetchRawCanalSummariesMock).toHaveBeenCalled();
@@ -684,12 +686,12 @@ describe("useTelecomAnalytics — unclassified canal detection", () => {
     expect(fetchUnclassifiedCanalCombosMock.mock.calls[0]).toContain(cm);
   });
 
-  it("carries a previously-confirmed canalMapping into a later file with a different table (does not reset on upload)", async () => {
+  it("carries a previously-confirmed canalRule into a later file with a different table (does not reset on upload)", async () => {
     setupHappyPathMocks();
     // A combo confirmed while viewing an earlier file, persisted in the
-    // parent (telecom-report-runtime.tsx never clears canalMapping on a new
+    // parent (telecom-report-runtime.tsx never clears canalRule on a new
     // upload — it only resets `firstLoad`, per the dataset-switch effect).
-    const cm: Types.CanalMapping[] = [
+    const cm: Types.CanalRule[] = [
       {
         brandD: "99",
         accountLayerId: "1",
@@ -704,7 +706,7 @@ describe("useTelecomAnalytics — unclassified canal detection", () => {
     renderAnalyticsHook({
       getTableName: () => "txns",
       firstLoad: makeRef(true),
-      canalMapping: cm,
+      canalRule: cm,
       client,
     });
 
@@ -720,7 +722,7 @@ describe("useTelecomAnalytics — unclassified canal detection", () => {
     renderAnalyticsHook({
       getTableName: () => "txns2",
       firstLoad: makeRef(true),
-      canalMapping: cm,
+      canalRule: cm,
       onUnclassifiedCanalCombos,
       client,
     });
@@ -1138,7 +1140,7 @@ describe("useTelecomAnalytics — query key composition", () => {
           getTableName: () => "txns",
           mapping: MAPPING,
           statusMapping: SM,
-          canalMapping: [],
+          canalRule: [],
           loaded: true,
           firstLoad: makeRef(false),
           fileNameRef: makeRef("a.csv"),
@@ -1161,7 +1163,7 @@ describe("useTelecomAnalytics — query key composition", () => {
           getTableName: () => "txns2",
           mapping: MAPPING,
           statusMapping: SM,
-          canalMapping: [],
+          canalRule: [],
           loaded: true,
           firstLoad: makeRef(false),
           fileNameRef: makeRef("b.csv"),

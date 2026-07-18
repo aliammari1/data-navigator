@@ -66,8 +66,8 @@ const SUGGESTIONS = [
 const DATASET_SAMPLE_LIMIT = 2000;
 const ROW_SAMPLE_SIZE = 8;
 
-// Stable empty reference — see the canalMapping comment where `telecom` is built.
-const EMPTY_TELECOM_CANAL_MAPPING: TelecomTypes.CanalMapping[] = [];
+// Stable empty reference — see the canalRule comment where `telecom` is built.
+const EMPTY_TELECOM_CANAL_MAPPING: TelecomTypes.CanalRule[] = [];
 
 function quoteIdentifier(value: string): string {
   return `"${value.replaceAll('"', '""')}"`;
@@ -276,10 +276,10 @@ export default function MoudirAssistantScreen() {
     statusMapping: telecomStatusMapping,
     // This panel is a read-only KPI view, not the full report page — no
     // blocking-dialog UI here to resolve unclassified canal combos, so leave
-    // canalMapping empty and no-op the callback. Those combos still count
+    // canalRule empty and no-op the callback. Those combos still count
     // toward the panel's total KPI; they're excluded from its canal
     // breakdown until resolved on the full report page.
-    canalMapping: EMPTY_TELECOM_CANAL_MAPPING,
+    canalRule: EMPTY_TELECOM_CANAL_MAPPING,
     loaded: isTelecom && Boolean(tableName),
     firstLoad: telecomFirstLoad,
     fileNameRef: telecomFileNameRef,
@@ -545,7 +545,6 @@ export default function MoudirAssistantScreen() {
               hourly={telecom.hourly}
               canals={telecom.canals}
               statusData={telecom.statusData}
-              forecast={telecom.forecast}
               result={phase === "done" ? swarmResult : null}
               onFollowUp={onAsk}
             />

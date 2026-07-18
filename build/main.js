@@ -14217,15 +14217,15 @@ function isEncryptionEnabledByFlag(env2 = process.env) {
   const normalized = raw.trim().toLowerCase();
   return normalized !== "0" && normalized !== "false" && normalized !== "off";
 }
-function loadOrCreateWrappedDek(userDataDir, safeStorage2) {
-  if (!safeStorage2.isEncryptionAvailable()) {
+function loadOrCreateWrappedDek(userDataDir, safeStorage3) {
+  if (!safeStorage3.isEncryptionAvailable()) {
     return null;
   }
   const keyPath = getWrappedKeyPath(userDataDir);
   if (fs3.existsSync(keyPath)) {
     try {
       const wrapped2 = fs3.readFileSync(keyPath);
-      const hex = safeStorage2.decryptString(wrapped2).trim();
+      const hex = safeStorage3.decryptString(wrapped2).trim();
       if (/^[0-9a-f]{64}$/i.test(hex)) {
         return hex.toLowerCase();
       }
@@ -14234,12 +14234,12 @@ function loadOrCreateWrappedDek(userDataDir, safeStorage2) {
     }
   }
   const dekHex = crypto__default.default.randomBytes(DEK_BYTES).toString("hex");
-  const wrapped = safeStorage2.encryptString(dekHex);
+  const wrapped = safeStorage3.encryptString(dekHex);
   fs3.mkdirSync(path__default.default.dirname(keyPath), { recursive: true });
   fs3.writeFileSync(keyPath, wrapped, { mode: 384 });
   return dekHex;
 }
-function ensureAuthDbKeyEnv(userDataDir, safeStorage2, env2 = process.env) {
+function ensureAuthDbKeyEnv(userDataDir, safeStorage3, env2 = process.env) {
   const existing = env2[AUTH_DB_KEY_ENV];
   if (existing && /^[0-9a-f]{64}$/i.test(existing.trim())) {
     return existing.trim().toLowerCase();
@@ -14247,7 +14247,7 @@ function ensureAuthDbKeyEnv(userDataDir, safeStorage2, env2 = process.env) {
   if (!isEncryptionEnabledByFlag(env2)) {
     return null;
   }
-  const dekHex = loadOrCreateWrappedDek(userDataDir, safeStorage2);
+  const dekHex = loadOrCreateWrappedDek(userDataDir, safeStorage3);
   if (dekHex) {
     env2[AUTH_DB_KEY_ENV] = dekHex;
   }
@@ -14904,23 +14904,19 @@ function dispose2() {
   }
   teardown(new Error("DuckDB utility broker disposed."));
 }
-
-// electron/main.ts
 if (require_electron_squirrel_startup()) {
   electron.app.quit();
 }
 function bootLog(message2) {
   const line = `[${(/* @__PURE__ */ new Date()).toISOString()}] ${message2}
 `;
-  const nodeFs = __require("fs");
   try {
-    nodeFs.appendFileSync(path__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
+    fs3.appendFileSync(path__default.default.join(electron.app.getPath("userData"), "boot.log"), line);
     return;
   } catch {
   }
   try {
-    const os4 = __require("os");
-    nodeFs.appendFileSync(path__default.default.join(os4.tmpdir(), "data-navigator-boot.log"), line);
+    fs3.appendFileSync(path__default.default.join(os3.tmpdir(), "data-navigator-boot.log"), line);
   } catch {
   }
 }
@@ -14942,16 +14938,6 @@ function setupElectronAuthClient() {
     // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
     // edit can't silently activate a competing onHeadersReceived CSP handler.
     csp: false
-  });
-}
-if (electron.app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
-  import('update-electron-app').then(({ updateElectronApp }) => {
-    updateElectronApp({
-      repo: "aliammari1/data-navigator",
-      updateInterval: "1 hour"
-    });
-  }).catch((error) => {
-    console.warn("[electron] auto-update setup failed:", error);
   });
 }
 electron.app.enableSandbox();
@@ -15802,8 +15788,7 @@ async function startNextJSServer() {
     process.env.PORT = nextJSPort.toString();
     ensureAuthSecretEnv(electron.app.getPath("userData"));
     if (isAuthDbEncryptionRequested()) {
-      const { safeStorage: safeStorage2 } = __require("electron");
-      ensureAuthDbKeyEnv(electron.app.getPath("userData"), safeStorage2);
+      ensureAuthDbKeyEnv(electron.app.getPath("userData"), electron.safeStorage);
     }
     const trustedOrigins = [
       baseUrl,

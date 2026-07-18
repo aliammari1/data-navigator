@@ -67,6 +67,8 @@ const hourly: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => ({
 const operators: OperatorRow[] = [
   {
     operator: "Tunisie Telecom",
+    msisdn: "",
+    accountName: "",
     total: 9200,
     success: 8740,
     amount: 6_900_000,
