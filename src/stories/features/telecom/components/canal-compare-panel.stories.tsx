@@ -1,13 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-
-import type { SpecChRow } from "@/features/telecom/lib/queries";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { CanalComparePanel } from "@/features/telecom/components/canal-compare-panel";
+import type { SpecChRow } from "@/features/telecom/lib/queries";
+import type { CanalRule } from "@/features/telecom/types";
 
 // Resolve deterministic per-channel stats so the bar chart + scorecard fill in.
 const fetchSpecChannelStats = async (
-  channels: ChannelDef[],
+  channels: CanalRule[],
   _dateFrom: string,
   _dateTo: string,
 ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> => {

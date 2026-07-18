@@ -27,7 +27,6 @@ import {
   TelecomReportRuntimeProvider,
   useTelecomReportRuntime,
 } from "@/features/telecom/components/telecom-report-runtime";
-import { UserManagementPanel } from "@/features/telecom/components/user-management-panel";
 
 /** Separate component so useEffect is called unconditionally (Rules of Hooks). */
 function HistoryTabContent() {
@@ -60,7 +59,6 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           canals={report.overviewCanals}
           hourly={report.overviewHourly}
           statusData={report.overviewStatusData}
-          forecast={report.overviewForecast}
           m={report.mapping}
           selectedKpis={report.selectedKpis}
           toggleKpi={report.toggleKpi}
@@ -78,6 +76,7 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           getTableName={report.getTableName}
           mapping={report.mapping}
           key={report.dashboardTableName}
+          canalRule={report.canalRule}
         />
       );
 
@@ -134,7 +133,6 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
       if (!report.kpi) return <TelecomLoadingPanel label="Chargement de la configuration…" />;
       return (
         <div className="space-y-4">
-          <UserManagementPanel />
           <ConfigTab
             kpi={report.kpi}
             canals={report.canals}
@@ -144,9 +142,11 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
             rawStatuses={report.rawStatuses}
             statusMapping={report.statusMapping}
             onStatusMappingChange={report.setStatusMapping}
+            canalRule={report.canalRule}
+            onCanalRuleChange={report.setCanalRule}
             reportDate={report.dashboardReportDate}
             tableName={report.dashboardTableName}
-            fetchServiceCodeRows={report.fetchServiceCodeRows}
+            fetchUnclassifiedCanalCombos={report.fetchUnclassifiedCanalCombos}
             runCustomKPIExpr={report.runCustomKPIExpr}
           />
         </div>

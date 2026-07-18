@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, LineChart, PanelRight, Sparkles, X } from "lucide-react";
+import { AlertTriangle, PanelRight, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useCallback, useEffect, useRef, useState } from "react";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
@@ -195,7 +195,7 @@ export function Desktop({
   );
 
   const runSmartDrop = useCallback(
-    (action: "report" | "forecast" | "anomalies") => {
+    (action: "report" | "anomalies") => {
       const drop = smartDrop;
       if (!drop) return;
       const name = drop.payload.label ?? drop.payload.id;
@@ -203,11 +203,6 @@ export function Desktop({
         askMoudir(
           openApp,
           `Génère un rapport synthétique pour le jeu de données « ${name} » : KPIs clés, tendances et points d'attention.`,
-        );
-      } else if (action === "forecast") {
-        askMoudir(
-          openApp,
-          `Établis une prévision à partir du jeu de données « ${name} » et explique les hypothèses retenues.`,
         );
       } else {
         askMoudir(
@@ -330,11 +325,6 @@ export function Desktop({
                 icon={<Sparkles className="size-3.5" />}
                 label="Rapport"
                 onClick={() => runSmartDrop("report")}
-              />
-              <SmartDropChip
-                icon={<LineChart className="size-3.5" />}
-                label="Prévision"
-                onClick={() => runSmartDrop("forecast")}
               />
               <SmartDropChip
                 icon={<AlertTriangle className="size-3.5" />}

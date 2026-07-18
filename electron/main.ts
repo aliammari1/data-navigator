@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { appendFileSync, existsSync } from "node:fs";
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
@@ -11,6 +11,7 @@ import {
   nativeImage,
   type OpenDialogOptions,
   type SaveDialogOptions,
+  safeStorage,
   session,
   shell,
   systemPreferences,
@@ -98,6 +99,7 @@ import {
   setSetting,
 } from "./settings-store";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
+import { tmpdir } from "node:os";
 
 // Squirrel.Windows fires the app with --squirrel-install / --squirrel-updated /
 // --squirrel-uninstall / --squirrel-obsolete on (un)install + update. electron-
@@ -114,16 +116,14 @@ if (require("electron-squirrel-startup")) {
 // resolve yet) it falls back to the OS temp dir. Best-effort — never throws.
 function bootLog(message: string): void {
   const line = `[${new Date().toISOString()}] ${message}\n`;
-  const nodeFs = require("node:fs");
   try {
-    nodeFs.appendFileSync(path.join(app.getPath("userData"), "boot.log"), line);
+    appendFileSync(path.join(app.getPath("userData"), "boot.log"), line);
     return;
   } catch {
     // userData not ready / not writable — fall through to temp.
   }
   try {
-    const os = require("node:os");
-    nodeFs.appendFileSync(path.join(os.tmpdir(), "data-navigator-boot.log"), line);
+    appendFileSync(path.join(tmpdir(), "data-navigator-boot.log"), line);
   } catch {
     // give up silently
   }
@@ -165,28 +165,6 @@ function setupElectronAuthClient(): void {
     // edit can't silently activate a competing onHeadersReceived CSP handler.
     csp: false,
   });
-}
-
-// ─── App Update ───────────────────────────────────────────────────────────────
-// Offline-first: auto-update is OFF by default so a packaged launch makes ZERO
-// outbound network requests. Otherwise update-electron-app polls
-// update.electronjs.org on launch AND hourly — in the MAIN process, so the
-// renderer CSP cannot stop it, and it leaks app version + platform. Opt back in
-// by setting DN_ENABLE_AUTO_UPDATE=1 in the environment. (Auto-update is also
-// non-functional for this private-repo MSI — see docs/RELEASING-WINDOWS.md — so
-// disabling it by default only removes a dead, guarantee-violating network call.)
-
-if (app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
-  import("update-electron-app")
-    .then(({ updateElectronApp }) => {
-      updateElectronApp({
-        repo: "aliammari1/data-navigator",
-        updateInterval: "1 hour",
-      });
-    })
-    .catch((error) => {
-      console.warn("[electron] auto-update setup failed:", error);
-    });
 }
 
 // Enforce the Chromium sandbox for EVERY current/future renderer (and devtools)
@@ -1301,7 +1279,6 @@ async function startNextJSServer(): Promise<string> {
     // unchanged. If safeStorage is unavailable the DEK is not exposed and the
     // auth layer transparently stays on plaintext.
     if (isAuthDbEncryptionRequested()) {
-      const { safeStorage } = require("electron") as typeof import("electron");
       ensureAuthDbKeyEnv(app.getPath("userData"), safeStorage);
     }
 

@@ -29,7 +29,6 @@ import { motion } from "motion/react";
 import { useMemo } from "react";
 import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type { CanalSummary, HourlyRow, KPISummary, StatusRow } from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { cn } from "@/shared/utils";
 import type { SwarmResult } from "../../../core/swarm/types";
 import { MoudirArtifact } from "../moudir-artifact";
@@ -47,8 +46,6 @@ export interface KpiPanelProps {
   canals: CanalSummary[];
   /** Status breakdown — drives the "top erreur" card. */
   statusData: StatusRow[];
-  /** Offline ONNX forecast (next hours) — dashed tail on the volume sparkline. */
-  forecast?: ForecastPoint[];
   /** The synthesized swarm result, when a run has completed. */
   result?: SwarmResult | null;
   /** Tapping a follow-up chip re-asks Moudir. */
@@ -129,13 +126,11 @@ function KpiRail({
   hourly,
   canals,
   statusData,
-  forecast,
 }: {
   kpi: KPISummary | null;
   hourly: HourlyRow[];
   canals: CanalSummary[];
   statusData: StatusRow[];
-  forecast: ForecastPoint[];
 }) {
   const motionOn = useMotionOn();
 
@@ -144,7 +139,6 @@ function KpiRail({
     successSeries,
     successDelta,
     volumeSeries,
-    forecastVolume,
     activeChannels,
     topChannel,
     topError,
@@ -161,9 +155,6 @@ function KpiRail({
       const mean = prior.reduce((a, b) => a + b, 0) / prior.length;
       successDelta = last - mean;
     }
-
-    const forecastVolume = (forecast ?? []).map((f) => f.predictedTotal);
-
     const activeChannels = canals.filter((c) => c.total > 0).length;
     const topChannel = canals.length > 0 ? [...canals].sort((a, b) => b.total - a.total)[0] : null;
 
@@ -188,12 +179,11 @@ function KpiRail({
       successSeries,
       successDelta,
       volumeSeries,
-      forecastVolume,
       activeChannels,
       topChannel,
       topError,
     };
-  }, [hourly, canals, statusData, forecast, kpi]);
+  }, [hourly, canals, statusData, kpi]);
 
   const severeError = topError != null && topError.share >= 5;
 
@@ -227,7 +217,7 @@ function KpiRail({
         </div>
       </MetricCard>
 
-      {/* ── Transactions (volume sparkline + forecast tail) ── */}
+      {/* ── Transactions (volume sparkline) ── */}
       <MetricCard>
         <CardLabel>Transactions</CardLabel>
         <span className="text-2xl font-semibold tabular-nums leading-none text-foreground">
@@ -235,7 +225,6 @@ function KpiRail({
         </span>
         <Sparkline
           values={volumeSeries}
-          forecast={forecastVolume}
           color={MOUDIR.coral}
           width={120}
           height={28}
@@ -395,7 +384,6 @@ export function KpiPanel({
   hourly,
   canals,
   statusData,
-  forecast = [],
   result = null,
   onFollowUp,
   scrollable = true,
@@ -436,7 +424,6 @@ export function KpiPanel({
           hourly={hourly}
           canals={canals}
           statusData={statusData}
-          forecast={forecast}
         />
       </div>
     </motion.aside>

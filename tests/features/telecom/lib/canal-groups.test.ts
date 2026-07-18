@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // ─── Boundary mocks ───────────────────────────────────────────────────────────
 // canal-groups.ts re-exports slices of constants from report-engine.ts.
@@ -27,6 +27,7 @@ vi.mock("@/features/telecom/lib/queries", () => ({
 import {
   ALL_VOICE_FIXED,
   ALL_VOICE_MOBILE,
+  type ChannelGroup,
   COMPARE_GROUPS,
   DATA_SUMMARY_GROUPS,
   RECHARGE_SUMMARY_GROUPS,
@@ -35,12 +36,11 @@ import {
   VOUCHER_FOR_PAYMENT_GENERATION,
   VOUCHER_FOR_PAYMENT_REDEMPTION,
   VOUCHER_PAYMENT_SUMMARY_GROUPS,
-  type ChannelGroup,
 } from "@/features/telecom/lib/canal-groups";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────
-/** Every ChannelDef entry must have a non-empty name and condition string. */
-function isValidChannelDef(cd: { name: string; condition: string }) {
+/** Every CanalRule entry must have a non-empty name and condition string. */
+function isValidCanalRule(cd: { name: string; condition: string }) {
   return typeof cd.name === "string" && cd.name.length > 0 && typeof cd.condition === "string";
 }
 
@@ -60,7 +60,7 @@ describe("canal-groups — VOUCHER_FOR_PAYMENT splits", () => {
   it("VOUCHER_FOR_PAYMENT_GENERATION contains exactly the first element of VOUCHER_FOR_PAYMENT", () => {
     // The generation slice is always a single-element array (index 0)
     expect(VOUCHER_FOR_PAYMENT_GENERATION).toHaveLength(1);
-    expect(isValidChannelDef(VOUCHER_FOR_PAYMENT_GENERATION[0])).toBe(true);
+    expect(isValidCanalRule(VOUCHER_FOR_PAYMENT_GENERATION[0])).toBe(true);
     expect(VOUCHER_FOR_PAYMENT_GENERATION[0].name).toMatch(/generation/i);
   });
 
@@ -68,7 +68,7 @@ describe("canal-groups — VOUCHER_FOR_PAYMENT splits", () => {
     // Redemption = slice(1), which includes REDEMPTION + REFUND rows
     expect(VOUCHER_FOR_PAYMENT_REDEMPTION.length).toBeGreaterThanOrEqual(1);
     for (const cd of VOUCHER_FOR_PAYMENT_REDEMPTION) {
-      expect(isValidChannelDef(cd)).toBe(true);
+      expect(isValidCanalRule(cd)).toBe(true);
     }
   });
 
@@ -91,10 +91,10 @@ describe("canal-groups — ALL_VOICE_FIXED", () => {
     );
   });
 
-  it("contains only valid ChannelDef entries", () => {
+  it("contains only valid CanalRule entries", () => {
     expect(ALL_VOICE_FIXED.length).toBeGreaterThan(0);
     for (const cd of ALL_VOICE_FIXED) {
-      expect(isValidChannelDef(cd)).toBe(true);
+      expect(isValidCanalRule(cd)).toBe(true);
     }
   });
 });
@@ -109,10 +109,10 @@ describe("canal-groups — ALL_VOICE_MOBILE", () => {
     );
   });
 
-  it("contains only valid ChannelDef entries", () => {
+  it("contains only valid CanalRule entries", () => {
     expect(ALL_VOICE_MOBILE.length).toBeGreaterThan(0);
     for (const cd of ALL_VOICE_MOBILE) {
-      expect(isValidChannelDef(cd)).toBe(true);
+      expect(isValidCanalRule(cd)).toBe(true);
     }
   });
 });

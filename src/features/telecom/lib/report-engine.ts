@@ -16,9 +16,11 @@ import {
   SPEC_STATUS_CODES,
   sqlStatusInList,
 } from "@/features/telecom/lib/status-definitions";
+import * as Types from "@/features/telecom/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { registerLocalDatasetFile } from "@/platform/duckdb/duckdb-fs";
 import { localDataPath, writeLocalFile } from "@/platform/electron/electron-fs";
+import { canalRuleCondition } from "./canal-rule-condition";
 // ─── Constants ────────────────────────────────────────────────────────────────
 
 export const REPORT_TABLE = TELECOM_TABLE_BASE;
@@ -113,425 +115,1320 @@ const DECLINED_STATUSES = STATUS_MAP.DECLINED.subStatuses;
 
 // ─── Channel definitions ──────────────────────────────────────────────────────
 
-export interface ChannelDef {
-  name: string;
-  condition: string;
-}
+const SYSTEM_RULE_TIMESTAMP = "2026-01-01T00:00:00.000Z";
 
-export const BILL_PAYMENT_CHANNELS: ChannelDef[] = [
+export const BILL_PAYMENT_CHANNELS_RULES: Types.CanalRule[] = [
   {
+    id: "bill-payment-izipay",
     name: "IZIPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619444555'",
+    canalKey: "bill_payment",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["39"],
+      accountMsisdn: "21619444555",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "bill-payment-smt",
     name: "SMT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619777888'",
+    canalKey: "bill_payment",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["39"],
+      accountMsisdn: "21619777888",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "bill-payment-endatao",
     name: "ENDATAO",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692507919'",
+    canalKey: "bill_payment",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["39"],
+      accountMsisdn: "21692507919",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "bill-payment-atb",
     name: "ATB",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 35 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
+    canalKey: "bill_payment",
+    match: {
+      kind: "brand-layer-group",
+      brandDValues: ["35"],
+      accountLayerId: "14",
+      accountGroupId: "152",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "bill-payment-kashy",
     name: "KASHY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 39 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160000111222'",
+    canalKey: "bill_payment",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["39"],
+      accountMsisdn: "2160000111222",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
 ];
 
-export const RECHARGE_VOICE_FIXED_TTCASH: ChannelDef[] = [
+export const RECHARGE_VOICE_FIXED_TTCASH_RULES: Types.CanalRule[] = [
   {
+    id: "voice-fixed-ttcash-espaces-tt",
     name: "Espaces TT",
-    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["61"],
+      accountLayerId: "12",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-ussd-136",
     name: "USSD 136",
-    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["61"],
+      accountLayerId: "9",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-ussd-170",
     name: "USSD 170",
-    condition: "TRY_CAST(BRAND_D AS INT) = 61 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["61"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-atb",
     name: "ATB",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 9 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-layer-group",
+      brandDValues: ["9"],
+      accountLayerId: "14",
+      accountGroupId: "152",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-stb",
     name: "STB",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 9 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 162",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-layer-group",
+      brandDValues: ["9"],
+      accountLayerId: "14",
+      accountGroupId: "162",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-smt",
     name: "SMT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 9 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["9"],
+      accountMsisdn: "21619111222",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-izipay",
     name: "IZIPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["61"],
+      accountMsisdn: "21699270724",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-endatao",
     name: "ENDATAO",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["61"],
+      accountMsisdn: "21692509273",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-runpay",
     name: "RUNPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (61, 147) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["61", "147"],
+      accountMsisdn: "21693033354",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-edc",
     name: "EDC",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["61"],
+      accountMsisdn: "21698276912",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-paypos",
     name: "PAYPOS",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 61 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
-  },
-  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 118" },
-  { name: "PORTAILTT", condition: "TRY_CAST(BRAND_D AS INT) = 132" },
-  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 149" },
-  { name: "Eshop", condition: "TRY_CAST(BRAND_D AS INT) = 156" },
-  {
-    name: "Callcenter/XV",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 38 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
-  },
-];
-
-export const RECHARGE_VOICE_FIXED_VOUCHER: ChannelDef[] = [
-  {
-    name: "USSD 123",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 108 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["61"],
+      accountMsisdn: "21692836704",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
-    name: "USSD 170",
-    condition: "TRY_CAST(BRAND_D AS INT) = 108 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
-  },
-  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 122" },
-  { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 136" },
-  { name: "CallCenter/XV", condition: "TRY_CAST(BRAND_D AS INT) = 162" },
-  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 153" },
-];
-
-export const RECHARGE_VOICE_MOBILE_TTCASH: ChannelDef[] = [
-  {
-    name: "Espaces TT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
-  },
-  {
-    name: "USSD 136",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
-  },
-  {
-    name: "USSD 170",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
-  },
-  {
-    name: "ATB",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (8, 31) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 152",
-  },
-  {
-    name: "STB",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (8, 31) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 14 AND TRY_CAST(ACCOUNT_GROUP_ID AS INT) = 162",
-  },
-  {
-    name: "SMT",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21619111222'",
-  },
-  {
-    name: "IZIPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
-  },
-  {
-    name: "ENDATAO",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
-  },
-  {
-    name: "RUNPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59, 146) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
-  },
-  {
-    name: "EDC",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
-  },
-  {
-    name: "PAYPOS",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (56, 57, 58, 59) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
-  },
-  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 117" },
-  { name: "PORTAILTT", condition: "TRY_CAST(BRAND_D AS INT) = 131" },
-  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 148" },
-  { name: "Eshop", condition: "TRY_CAST(BRAND_D AS INT) = 155" },
-  {
-    name: "Callcenter/XV",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (7, 37) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885461'",
-  },
-  {
-    name: "DTOne",
-    condition: "TRY_CAST(BRAND_D AS INT) IN (42, 43, 44, 45, 46, 47)",
-  },
-  {
-    name: "Bonus DTone",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 48 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885410'",
-  },
-  {
-    name: "Bonus suite recharge DATA",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 96 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692885467'",
-  },
-];
-
-export const RECHARGE_VOICE_MOBILE_VOUCHER: ChannelDef[] = [
-  {
-    name: "USSD 123",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 109 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '2160123456789'",
-  },
-  {
-    name: "USSD 170",
-    condition: "TRY_CAST(BRAND_D AS INT) = 109 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
-  },
-  { name: "MyTT", condition: "TRY_CAST(BRAND_D AS INT) = 121" },
-  { name: "PortailTT", condition: "TRY_CAST(BRAND_D AS INT) = 135" },
-  { name: "CallCenter/XV", condition: "TRY_CAST(BRAND_D AS INT) = 161" },
-  { name: "PO9", condition: "TRY_CAST(BRAND_D AS INT) = 152" },
-];
-
-export const RECHARGE_DATA_SABBA: ChannelDef[] = [
-  {
-    name: "USSD 236",
-    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 9",
-  },
-  {
-    name: "USSD 170",
-    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
-  },
-  {
-    name: "ESPACES TT",
-    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 12",
-  },
-  { name: "PORTAIL TT", condition: "TRY_CAST(BRAND_D AS INT) = 137" },
-  { name: "MYTT", condition: "TRY_CAST(BRAND_D AS INT) = 123" },
-  {
-    name: "RUNPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
-  },
-  {
-    name: "PAYSPOS",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
-  },
-  {
-    name: "EDC",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
-  },
-  {
-    name: "ENDATAO",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692509273'",
-  },
-  {
-    name: "IZIPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) = 95 AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21699270724'",
-  },
-  {
-    name: "TOPNET",
-    condition: "TRY_CAST(BRAND_D AS INT) = 95 AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 5",
-  },
-];
-
-export const RECHARGE_DATA_EVOUCHER: ChannelDef[] = [
-  { name: "USSD 227", condition: "TRY_CAST(BRAND_D AS INT) = 158" },
-];
-
-export const VOUCHER_FOR_PAYMENT: ChannelDef[] = [
-  {
-    name: "Voucher For Payment GENERATION",
-    condition: "TRY_CAST(BRAND_D AS INT) = 98",
-  },
-  {
-    name: "Voucher For Payment REDEMPTION",
-    condition: "TRY_CAST(BRAND_D AS INT) = 99",
-  },
-  {
-    name: "REFUND OF VOUCHER REDEEMED",
-    condition: "TRY_CAST(BRAND_D AS INT) = 100",
-  },
-];
-
-export const CREDIT_TRANSFER: ChannelDef[] = [
-  { name: "Credit Transfer", condition: "TRY_CAST(BRAND_D AS INT) = 88" },
-  { name: "Credit Transfer Bonus", condition: "TRY_CAST(BRAND_D AS INT) = 89" },
-  {
-    name: "CreditTransfer_CashOut",
-    condition: "TRY_CAST(BRAND_D AS INT) = 111",
-  },
-  {
-    name: "Credit_Elec_Personnel_TT",
-    condition: "TRY_CAST(BRAND_D AS INT) = 159",
-  },
-];
-
-export const EVOUCHER_ON_DEMAND_GENERATION: ChannelDef[] = [
-  {
+    id: "voice-fixed-ttcash-mytt",
     name: "MyTT",
-    condition: "TRY_CAST(BRAND_D AS INT) IN (119, 120)",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["118"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
-    name: "PortailTT",
-    condition: "TRY_CAST(BRAND_D AS INT) IN (133, 134)",
+    id: "voice-fixed-ttcash-portailtt",
+    name: "PORTAILTT",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["132"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voice-fixed-ttcash-po9",
     name: "PO9",
-    condition: "TRY_CAST(BRAND_D AS INT) IN (150, 151)",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["149"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
-    name: "AZIZA",
-    condition: "TRY_CAST(BRAND_D AS INT) = 160",
+    id: "voice-fixed-ttcash-eshop",
+    name: "Eshop",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["156"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
-    name: "RUNPAY",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21693033354'",
+    id: "voice-fixed-ttcash-callcenter-xv",
+    name: "Callcenter/XV",
+    canalKey: "voice_fixed_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["38"],
+      accountMsisdn: "21692885461",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const RECHARGE_VOICE_FIXED_VOUCHER_RULES: Types.CanalRule[] = [
+  {
+    id: "voice-fixed-voucher-ussd-123",
+    name: "USSD 123",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["108"],
+      accountMsisdn: "2160123456789",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
-    name: "EDC",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21698276912'",
-  },
-  {
-    name: "PAYPOS",
-    condition:
-      "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRIM(CAST(ACCOUNT_MSISDN AS VARCHAR)) = '21692836704'",
-  },
-  {
+    id: "voice-fixed-voucher-ussd-170",
     name: "USSD 170",
-    condition: "TRY_CAST(BRAND_D AS INT) IN (107, 115) AND TRY_CAST(ACCOUNT_LAYER_ID AS INT) = 6",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["108"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-fixed-voucher-mytt",
+    name: "MyTT",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["122"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-fixed-voucher-portailtt",
+    name: "PortailTT",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["136"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-fixed-voucher-callcenter-xv",
+    name: "CallCenter/XV",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["162"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-fixed-voucher-po9",
+    name: "PO9",
+    canalKey: "voice_fixed_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["153"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
 ];
 
-export const VOUCHER_CONVERGENT_CARTE_GENERATION: ChannelDef[] = [
+export const RECHARGE_VOICE_MOBILE_TTCASH_RULES: Types.CanalRule[] = [
   {
+    id: "voice-mobile-ttcash-espaces-tt",
+    name: "Espaces TT",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["56", "57", "58", "59"],
+      accountLayerId: "12",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-ussd-136",
+    name: "USSD 136",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["56", "57", "58", "59"],
+      accountLayerId: "9",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-ussd-170",
+    name: "USSD 170",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["56", "57", "58", "59"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-atb",
+    name: "ATB",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-layer-group",
+      brandDValues: ["8", "31"],
+      accountLayerId: "14",
+      accountGroupId: "152",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-stb",
+    name: "STB",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-layer-group",
+      brandDValues: ["8", "31"],
+      accountLayerId: "14",
+      accountGroupId: "162",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-smt",
+    name: "SMT",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59"],
+      accountMsisdn: "21619111222",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-izipay",
+    name: "IZIPAY",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59"],
+      accountMsisdn: "21699270724",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-endatao",
+    name: "ENDATAO",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59"],
+      accountMsisdn: "21692509273",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-runpay",
+    name: "RUNPAY",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59", "146"],
+      accountMsisdn: "21693033354",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-edc",
+    name: "EDC",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59"],
+      accountMsisdn: "21698276912",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-paypos",
+    name: "PAYPOS",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["56", "57", "58", "59"],
+      accountMsisdn: "21692836704",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-mytt",
+    name: "MyTT",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["117"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-portailtt",
+    name: "PORTAILTT",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["131"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-po9",
+    name: "PO9",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["148"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-eshop",
+    name: "Eshop",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["155"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-callcenter-xv",
+    name: "Callcenter/XV",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["7", "37"],
+      accountMsisdn: "21692885461",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-dtone",
+    name: "DTOne",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand",
+      brandDValues: ["42", "43", "44", "45", "46", "47"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-bonus-dtone",
+    name: "Bonus DTone",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["48"],
+      accountMsisdn: "21692885410",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-ttcash-bonus-suite-recharge-data",
+    name: "Bonus suite recharge DATA",
+    canalKey: "voice_mobile_ttcash",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["96"],
+      accountMsisdn: "21692885467",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const RECHARGE_VOICE_MOBILE_VOUCHER_RULES: Types.CanalRule[] = [
+  {
+    id: "voice-mobile-voucher-ussd-123",
+    name: "USSD 123",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["109"],
+      accountMsisdn: "2160123456789",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-voucher-ussd-170",
+    name: "USSD 170",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["109"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-voucher-mytt",
+    name: "MyTT",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["121"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-voucher-portailtt",
+    name: "PortailTT",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["135"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-voucher-callcenter-xv",
+    name: "CallCenter/XV",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["161"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voice-mobile-voucher-po9",
+    name: "PO9",
+    canalKey: "voice_mobile_voucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["152"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const RECHARGE_DATA_SABBA_RULES: Types.CanalRule[] = [
+  {
+    id: "data-sabba-ussd-236",
+    name: "USSD 236",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["95"],
+      accountLayerId: "9",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-ussd-170",
+    name: "USSD 170",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["95"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-espaces-tt",
+    name: "ESPACES TT",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["95"],
+      accountLayerId: "12",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-portail-tt",
+    name: "PORTAIL TT",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand",
+      brandDValues: ["137"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-mytt",
+    name: "MYTT",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand",
+      brandDValues: ["123"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-runpay",
+    name: "RUNPAY",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["95"],
+      accountMsisdn: "21693033354",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-payspos",
+    name: "PAYSPOS",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["95"],
+      accountMsisdn: "21692836704",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-edc",
+    name: "EDC",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["95"],
+      accountMsisdn: "21698276912",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-endatao",
+    name: "ENDATAO",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["95"],
+      accountMsisdn: "21692509273",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-izipay",
+    name: "IZIPAY",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["95"],
+      accountMsisdn: "21699270724",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "data-sabba-topnet",
+    name: "TOPNET",
+    canalKey: "data_sabba",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["95"],
+      accountLayerId: "5",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const RECHARGE_DATA_EVOUCHER_RULES: Types.CanalRule[] = [
+  {
+    id: "data-evoucher-ussd-227",
+    name: "USSD 227",
+    canalKey: "data_evoucher",
+    match: {
+      kind: "brand",
+      brandDValues: ["158"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const VOUCHER_FOR_PAYMENT_RULES: Types.CanalRule[] = [
+  {
+    id: "voucher-for-payment-voucher-for-payment-generation",
+    name: "Voucher For Payment GENERATION",
+    canalKey: "voucher_for_payment",
+    match: {
+      kind: "brand",
+      brandDValues: ["98"],
+    },
+    reportGroup: "voucher_for_payment_generation",
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voucher-for-payment-voucher-for-payment-redemption",
+    name: "Voucher For Payment REDEMPTION",
+    canalKey: "voucher_for_payment",
+    match: {
+      kind: "brand",
+      brandDValues: ["99"],
+    },
+    reportGroup: "voucher_for_payment_redemption",
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "voucher-for-payment-refund-of-voucher-redeemed",
+    name: "REFUND OF VOUCHER REDEEMED",
+    canalKey: "voucher_for_payment",
+    match: {
+      kind: "brand",
+      brandDValues: ["100"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const CREDIT_TRANSFER_RULES: Types.CanalRule[] = [
+  {
+    id: "credit-transfer-credit-transfer",
+    name: "Credit Transfer",
+    canalKey: "credit_transfer",
+    match: {
+      kind: "brand",
+      brandDValues: ["88"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "credit-transfer-credit-transfer-bonus",
+    name: "Credit Transfer Bonus",
+    canalKey: "credit_transfer",
+    match: {
+      kind: "brand",
+      brandDValues: ["89"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "credit-transfer-credittransfer-cashout",
+    name: "CreditTransfer_CashOut",
+    canalKey: "credit_transfer",
+    match: {
+      kind: "brand",
+      brandDValues: ["111"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "credit-transfer-credit-elec-personnel-tt",
+    name: "Credit_Elec_Personnel_TT",
+    canalKey: "credit_transfer",
+    match: {
+      kind: "brand",
+      brandDValues: ["159"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const EVOUCHER_ON_DEMAND_GENERATION_RULES: Types.CanalRule[] = [
+  {
+    id: "evoucher-on-demand-mytt",
+    name: "MyTT",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand",
+      brandDValues: ["119", "120"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-portailtt",
+    name: "PortailTT",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand",
+      brandDValues: ["133", "134"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-po9",
+    name: "PO9",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand",
+      brandDValues: ["150", "151"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-aziza",
+    name: "AZIZA",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand",
+      brandDValues: ["160"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-runpay",
+    name: "RUNPAY",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["107", "115"],
+      accountMsisdn: "21693033354",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-edc",
+    name: "EDC",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["107", "115"],
+      accountMsisdn: "21698276912",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-paypos",
+    name: "PAYPOS",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand-msisdn",
+      brandDValues: ["107", "115"],
+      accountMsisdn: "21692836704",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+  {
+    id: "evoucher-on-demand-ussd-170",
+    name: "USSD 170",
+    canalKey: "evoucher_on_demand",
+    match: {
+      kind: "brand-layer",
+      brandDValues: ["107", "115"],
+      accountLayerId: "6",
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
+  },
+];
+
+export const VOUCHER_CONVERGENT_CARTE_GENERATION_RULES: Types.CanalRule[] = [
+  {
+    id: "voucher-convergent-carte-generation-tbt-carte-convergante-batch-generation",
     name: "TBT_Carte_Convergante_Batch_Generation",
-    condition: "TRY_CAST(BRAND_D AS INT) = 166",
+    canalKey: "voucher_convergent_carte_generation",
+    match: {
+      kind: "brand",
+      brandDValues: ["166"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
 ];
 
-export const VOUCHER_CONVERGENT_CARTE_ACTIVATION: ChannelDef[] = [
+export const VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES: Types.CanalRule[] = [
   {
+    id: "voucher-convergent-carte-activation-activation-des-cartes-de-recharge-convergente",
     name: "Activation des cartes de recharge convergente",
-    condition: "TRY_CAST(BRAND_D AS INT) = 163",
+    canalKey: "voucher_convergent_carte_activation",
+    match: {
+      kind: "brand",
+      brandDValues: ["163"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
   {
+    id: "voucher-convergent-carte-activation-annulation-de-l-activation-des-cartes-de-recharge",
     name: "Annulation de l'activation des cartes de recharge",
-    condition: "TRY_CAST(BRAND_D AS INT) = 167",
+    canalKey: "voucher_convergent_carte_activation",
+    match: {
+      kind: "brand",
+      brandDValues: ["167"],
+    },
+    reportGroup: null,
+    enabled: true,
+    origin: "default",
+    createdAt: SYSTEM_RULE_TIMESTAMP,
+    updatedAt: SYSTEM_RULE_TIMESTAMP,
   },
 ];
 
-export const VOUCHER_CONVERGENT: ChannelDef[] = [
-  ...EVOUCHER_ON_DEMAND_GENERATION,
-  ...VOUCHER_CONVERGENT_CARTE_GENERATION,
-  ...VOUCHER_CONVERGENT_CARTE_ACTIVATION,
+export const VOUCHER_CONVERGENT: Types.CanalRule[] = [
+  ...EVOUCHER_ON_DEMAND_GENERATION_RULES,
+  ...VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
+  ...VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
 ];
 
 // ─── Report section definition ────────────────────────────────────────────────
 
 export interface ReportSection {
-  id: string;
+  id: Types.CanalKey;
   title: string;
   subtitle?: string;
-  channels: ChannelDef[];
+  channels: Types.CanalRule[];
 }
 
 export const REPORT_SECTIONS: ReportSection[] = [
   {
-    id: "bill-payment",
+    id: "bill_payment",
     title: "I. Paiement des factures",
-    channels: BILL_PAYMENT_CHANNELS,
+    channels: BILL_PAYMENT_CHANNELS_RULES,
   },
   {
-    id: "voice-fixed-ttcash",
+    id: "voice_fixed_ttcash",
     title: "II. Recharge Voix — Lignes Fixes — TTCASH",
-    channels: RECHARGE_VOICE_FIXED_TTCASH,
+    channels: RECHARGE_VOICE_FIXED_TTCASH_RULES,
   },
   {
-    id: "voice-fixed-voucher",
+    id: "voice_fixed_voucher",
     title: "II. Recharge Voix — Lignes Fixes — Voucher",
-    channels: RECHARGE_VOICE_FIXED_VOUCHER,
+    channels: RECHARGE_VOICE_FIXED_VOUCHER_RULES,
   },
   {
-    id: "voice-mobile-ttcash",
+    id: "voice_mobile_ttcash",
     title: "II. Recharge Voix — Lignes Mobiles — TTCASH",
-    channels: RECHARGE_VOICE_MOBILE_TTCASH,
+    channels: RECHARGE_VOICE_MOBILE_TTCASH_RULES,
   },
   {
-    id: "voice-mobile-voucher",
+    id: "voice_mobile_voucher",
     title: "II. Recharge Voix — Lignes Mobiles — Voucher",
-    channels: RECHARGE_VOICE_MOBILE_VOUCHER,
+    channels: RECHARGE_VOICE_MOBILE_VOUCHER_RULES,
   },
   {
-    id: "data-sabba",
+    id: "data_sabba",
     title: "III. DATA — Internet Sabba (électronique)",
-    channels: RECHARGE_DATA_SABBA,
+    channels: RECHARGE_DATA_SABBA_RULES,
   },
   {
-    id: "data-evoucher",
+    id: "data_evoucher",
     title: "III. DATA — Evoucher",
-    channels: RECHARGE_DATA_EVOUCHER,
+    channels: RECHARGE_DATA_EVOUCHER_RULES,
   },
   {
-    id: "voucher-for-payment",
+    id: "voucher_for_payment",
     title: "IV. Voucher For Payment",
-    channels: VOUCHER_FOR_PAYMENT,
+    channels: VOUCHER_FOR_PAYMENT_RULES,
   },
   {
-    id: "credit-transfer",
+    id: "credit_transfer",
     title: "V. Credit Transfer",
-    channels: CREDIT_TRANSFER,
+    channels: CREDIT_TRANSFER_RULES,
   },
   {
-    id: "evoucher-on-demand",
+    id: "evoucher_on_demand",
     title: "VI. Voucher Convergent — Evoucher on Demand — Génération",
-    channels: EVOUCHER_ON_DEMAND_GENERATION,
+    channels: EVOUCHER_ON_DEMAND_GENERATION_RULES,
   },
   {
-    id: "voucher-convergent-carte-generation",
+    id: "voucher_convergent_carte_generation",
     title: "VI. Voucher Convergent — Génération",
-    channels: VOUCHER_CONVERGENT_CARTE_GENERATION,
+    channels: VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
   },
   {
-    id: "voucher-convergent-carte-activation",
+    id: "voucher_convergent_carte_activation",
     title: "VI. Voucher Convergent — Activation",
-    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION,
+    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
   },
 ];
 
@@ -583,38 +1480,57 @@ function buildDateFilter(dateFrom?: string, dateTo?: string): string {
 }
 
 export async function getChannelStats(
-  channels: ChannelDef[],
+  channels: Types.CanalRule[],
   dateFrom?: string,
   dateTo?: string,
 ): Promise<{
   rows: ChannelResult[];
   totals: { nombre: number; montant: number };
 }> {
-  const df = buildDateFilter(dateFrom, dateTo);
+  const dateFilter = buildDateFilter(dateFrom, dateTo);
+
+  const enabledChannels = channels.filter((rule) => rule.enabled);
+
   const results: ChannelResult[] = [];
   let totalNombre = 0;
   let totalMontant = 0;
 
-  for (const ch of channels) {
+  for (const rule of enabledChannels) {
+    const condition = canalRuleCondition(rule);
+
     const sql = `
       SELECT
-        COUNT(*) as nombre,
-        COALESCE(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)), 0) as montant
+        COUNT(*) AS nombre,
+        COALESCE(
+          SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)),
+          0
+        ) AS montant
       FROM "${REPORT_TABLE}"
       WHERE ${successFilter}
-        AND (${ch.condition})${df}
+        AND (${condition})${dateFilter}
     `;
+
     const rows = await runReadOnlyQuery(sql);
+
     const nombre = Number(rows[0]?.nombre ?? 0);
     const montant = Number(rows[0]?.montant ?? 0);
-    results.push({ canal: ch.name, nombre, montant });
+
+    results.push({
+      canal: rule.name,
+      nombre,
+      montant,
+    });
+
     totalNombre += nombre;
     totalMontant += montant;
   }
 
   return {
     rows: results,
-    totals: { nombre: totalNombre, montant: totalMontant },
+    totals: {
+      nombre: totalNombre,
+      montant: totalMontant,
+    },
   };
 }
 
@@ -633,7 +1549,7 @@ function safeTelecomReportName(): string {
 
 export async function loadReportCSV(
   csvContent: string,
-  mapping?: import("@/features/telecom/types").ColumnMapping,
+  mapping?: Types.ColumnMapping,
 ): Promise<{
   datasetId: string;
   tableName: string;

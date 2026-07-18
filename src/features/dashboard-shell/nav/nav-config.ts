@@ -86,7 +86,7 @@ export const NAV_SECTIONS: NavSection[] = [
             keywords: ["accueil", "home", "overview", "mission control", "kpi"],
           },
           {
-            title: "Canaux",
+            title: "Categories",
             href: "/dashboard/telecom-report/canals",
             icon: Layers,
             description: "Analyse par canal transactionnel",

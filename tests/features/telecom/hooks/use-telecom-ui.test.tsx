@@ -18,14 +18,14 @@ import type * as Types from "@/features/telecom/types";
 
 const setColumnMapping = vi.fn();
 const setStatusMapping = vi.fn();
-const setCanalMapping = vi.fn();
+const setCanalRule = vi.fn();
 
 vi.mock("@/features/telecom/store", async (importActual) => {
   const actual = await importActual<typeof import("@/features/telecom/store")>();
   return {
     ...actual,
     useTelecomStore: {
-      getState: () => ({ setColumnMapping, setStatusMapping, setCanalMapping }),
+      getState: () => ({ setColumnMapping, setStatusMapping, setCanalRule }),
     },
   };
 });
@@ -113,11 +113,11 @@ describe("useTelecomUI — initial state", () => {
     expect(result.current.statusMapping.length).toBeGreaterThan(0);
   });
 
-  it("seeds canalMapping as an empty array (no built-in defaults, unlike statusMapping)", () => {
+  it("seeds canalRule as an empty array (no built-in defaults, unlike statusMapping)", () => {
     const { result } = renderTelecomUI();
 
-    expect(typeof result.current.setCanalMapping).toBe("function");
-    expect(result.current.canalMapping).toEqual([]);
+    expect(typeof result.current.setCanalRule).toBe("function");
+    expect(result.current.canalRule).toEqual([]);
   });
 });
 
@@ -173,8 +173,8 @@ describe("useTelecomUI — mount hydration", () => {
     expect(result.current.statusMapping).toEqual(DEFAULT_STATUS_MAPPINGS);
   });
 
-  it("hydrates canalMapping when the persisted array is non-empty", () => {
-    const persisted: Types.CanalMapping[] = [
+  it("hydrates canalRule when the persisted array is non-empty", () => {
+    const persisted: Types.CanalRule[] = [
       {
         brandD: "99",
         accountLayerId: "1",
@@ -185,20 +185,20 @@ describe("useTelecomUI — mount hydration", () => {
     ];
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ state: { canalMapping: persisted }, version: 0 }),
+      JSON.stringify({ state: { canalRule: persisted }, version: 0 }),
     );
 
     const { result } = renderTelecomUI();
 
-    expect(result.current.canalMapping).toEqual(persisted);
+    expect(result.current.canalRule).toEqual(persisted);
   });
 
-  it("keeps canalMapping empty when the persisted array is empty", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { canalMapping: [] }, version: 0 }));
+  it("keeps canalRule empty when the persisted array is empty", () => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { canalRule: [] }, version: 0 }));
 
     const { result } = renderTelecomUI();
 
-    expect(result.current.canalMapping).toEqual([]);
+    expect(result.current.canalRule).toEqual([]);
   });
 
   it("ignores corrupt JSON in localStorage and uses defaults", () => {
@@ -248,9 +248,9 @@ describe("useTelecomUI — persistence + store sync", () => {
     expect(setStatusMapping).toHaveBeenCalledWith(DEFAULT_STATUS_MAPPINGS);
   });
 
-  it("pushes canalMapping updates to localStorage and the store", () => {
+  it("pushes canalRule updates to localStorage and the store", () => {
     const { result } = renderTelecomUI();
-    const next: Types.CanalMapping[] = [
+    const next: Types.CanalRule[] = [
       {
         brandD: "99",
         accountLayerId: "1",
@@ -261,13 +261,13 @@ describe("useTelecomUI — persistence + store sync", () => {
     ];
 
     act(() => {
-      result.current.setCanalMapping(next);
+      result.current.setCanalRule(next);
     });
 
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
-    expect(parsed.state.canalMapping).toEqual(next);
-    expect(setCanalMapping).toHaveBeenLastCalledWith(next);
-    expect(result.current.canalMapping).toEqual(next);
+    expect(parsed.state.canalRule).toEqual(next);
+    expect(setCanalRule).toHaveBeenLastCalledWith(next);
+    expect(result.current.canalRule).toEqual(next);
   });
 
   it("merges new writes with previously persisted state (does not clobber)", () => {

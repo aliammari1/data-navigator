@@ -152,6 +152,7 @@ export const DEFAULT_STATUS_MAPPINGS: StatusMapping[] = DEFAULT_STATUS_MAPPING_D
       semantic,
       color: presentation.color,
       badgeClass: presentation.badgeClass,
+      origin: "default" as const,
     };
   },
 );

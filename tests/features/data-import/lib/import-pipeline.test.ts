@@ -505,6 +505,30 @@ describe("processFilePath — DuckDB reject summary", () => {
     expect(spies.addActivity.mock.calls[0][0].metadata.rejectedRows).toBe(3);
   });
 
+  it("records the full reject sample on the session row for CSV imports", async () => {
+    const sample = [
+      { line: 5, columnName: "amount", errorType: "CAST", errorMessage: "bad number" },
+      { line: 9, columnName: null, errorType: "CAST", errorMessage: null },
+    ];
+    loadUploadPathToDuckDB.mockResolvedValue(
+      makeLoaded({ rejects: { rejectedRowCount: 2, sample } }),
+    );
+    const { ctx } = makeContext();
+
+    const id = (await processFilePath("/data/dirty.csv", ctx)) as string;
+
+    expect(useImportSession.getState().files[id].rejectSample).toEqual(sample);
+  });
+
+  it("leaves rejectSample undefined for Parquet imports", async () => {
+    loadUploadPathToDuckDB.mockResolvedValue(makeLoaded({ format: "parquet" }));
+    const { ctx } = makeContext();
+
+    const id = (await processFilePath("/data/clean.parquet", ctx)) as string;
+
+    expect(useImportSession.getState().files[id].rejectSample).toBeUndefined();
+  });
+
   it("adds no reject issue when rejectedRowCount is zero", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(
       makeLoaded({ rejects: { rejectedRowCount: 0, sample: [] } }),

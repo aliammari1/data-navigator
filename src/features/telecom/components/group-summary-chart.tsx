@@ -10,7 +10,7 @@ import {
   buildGroupSummaryHbarOption,
 } from "@/features/telecom/lib/chart-options";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { CanalRule } from "../types";
 
 export type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 
@@ -34,7 +34,7 @@ const MemoHbarChart = memo(function MemoHbarChart({
 });
 
 type FetchSpecChannelStats = (
-  channels: ChannelDef[],
+  channels: CanalRule[],
   dateFrom: string,
   dateTo: string,
 ) => Promise<{
@@ -47,11 +47,14 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
   dateFrom,
   dateTo,
   fetchSpecChannelStats,
+  forcePieChart = false,
 }: Readonly<{
   groups: ChannelGroup[];
   dateFrom: string;
   dateTo: string;
   fetchSpecChannelStats: FetchSpecChannelStats;
+  /** Force pie chart even with many groups */
+  forcePieChart?: boolean;
 }>) {
   const [data, setData] = useState<Array<{
     label: string;
@@ -108,7 +111,8 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
   const totalN = data.reduce((a, d) => a + d.nombre, 0);
   const totalM = data.reduce((a, d) => a + d.montant, 0);
   const maxN = Math.max(...data.map((d) => d.nombre), 1);
-  const useDonut = groups.length <= 5;
+  // Use pie chart for smaller groups or when forced, otherwise use horizontal bar
+  const useDonut = forcePieChart || groups.length <= 10;
 
   return (
     <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden">

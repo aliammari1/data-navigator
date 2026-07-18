@@ -20,14 +20,14 @@ import type * as Types from "@/features/telecom/types";
 
 const setColumnMapping = vi.fn();
 const setStatusMapping = vi.fn();
-const setCanalMapping = vi.fn();
+const setCanalRule = vi.fn();
 
 vi.mock("@/features/telecom/store", async (importActual) => {
   const actual = await importActual<typeof import("@/features/telecom/store")>();
   return {
     ...actual,
     useTelecomStore: {
-      getState: () => ({ setColumnMapping, setStatusMapping, setCanalMapping }),
+      getState: () => ({ setColumnMapping, setStatusMapping, setCanalRule }),
     },
   };
 });

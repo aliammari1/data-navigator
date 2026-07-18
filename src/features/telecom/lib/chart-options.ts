@@ -8,7 +8,6 @@ import type {
   HourlyRow,
   StatusRow,
 } from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 
 // ─── Theme resolver ───────────────────────────────────────────────────────────
 //
@@ -159,21 +158,17 @@ export function retintOption(option: unknown, from: ChartTheme, to: ChartTheme):
   return walk(option);
 }
 
-// ─── Hourly stacked-bar with optional AI forecast ────────────────────────────
+// ─── Hourly stacked-bar with ────────────────────────────
 
-export function buildHourlyChartOption(data: HourlyRow[], forecast: ForecastPoint[]): object {
+export function buildHourlyChartOption(data: HourlyRow[]): object {
   const byHour: Record<number, HourlyRow> = {};
   for (const r of data) byHour[r.hour] = r;
-  const byForecastHour: Record<number, ForecastPoint> = {};
-  for (const f of forecast) byForecastHour[f.hour] = f;
 
-  const forecastOnlyHours = forecast.map((f) => f.hour).filter((h) => byHour[h] === undefined);
   const hours = Array.from({ length: 24 }, (_, i) => i);
-  const allHours = [...hours, ...forecastOnlyHours];
+  const allHours = [...hours];
   const allLabels = allHours.map((h) => `${h}`.padStart(2, "0"));
 
   const legendData = ["Réussie", "Échec", "Autre"];
-  if (forecast.length > 0) legendData.push("Prévision IA");
 
   const t = chartTheme();
   return {
@@ -186,23 +181,10 @@ export function buildHourlyChartOption(data: HourlyRow[], forecast: ForecastPoin
       formatter: (ps: { name: string; value: number; seriesName: string }[]) => {
         const h = Number(ps[0]?.name);
         const row = byHour[h];
-        const fRow = byForecastHour[h];
-        if (!row && !fRow) return `${h}:00`;
-        if (fRow && !row) {
-          return [
-            `<b>${h.toString().padStart(2, "0")}:00 [Prévision IA]</b>`,
-            `Total prévu: <b>${fmtN(fRow.predictedTotal)}</b>`,
-            `Taux réussite prévu: ${fmtPct(fRow.predictedSuccessRate * 100)}`,
-          ].join("<br/>");
-        }
         if (!row) return `${h}:00`;
         const rate = row.total > 0 ? fmtPct((row.success / row.total) * 100) : "—";
-        const forecastLine = fRow
-          ? `<br/>Prévision: <span style="color:${t.ai}">${fmtN(fRow.predictedTotal)}</span>`
-          : "";
         return [
           `<b>${h.toString().padStart(2, "0")}:00 – ${h.toString().padStart(2, "0")}:59</b>`,
-          `Total: <b>${fmtN(row.total)}</b>${forecastLine}`,
           `Réussie: <span style="color:${t.success}">${fmtN(row.success)}</span>`,
           `Échec: <span style="color:${t.danger}">${fmtN(row.declined)}</span>`,
           `Taux: ${rate}`,
@@ -259,38 +241,6 @@ export function buildHourlyChartOption(data: HourlyRow[], forecast: ForecastPoin
         itemStyle: { color: t.warning, borderRadius: [3, 3, 0, 0] },
         barMaxWidth: 20,
       },
-      ...(forecast.length > 0
-        ? [
-            {
-              name: "Prévision IA",
-              type: "bar",
-              stack: "total",
-              data: allHours.map((h) =>
-                byForecastHour[h] && !byHour[h] ? byForecastHour[h].predictedTotal : null,
-              ),
-              itemStyle: {
-                color: t.ai,
-                opacity: 0.55,
-                borderRadius: [3, 3, 0, 0],
-              },
-              barMaxWidth: 20,
-            },
-            {
-              name: "Prévision IA (overlay)",
-              type: "line",
-              showSymbol: true,
-              symbol: "diamond",
-              symbolSize: 7,
-              lineStyle: { type: "dashed", color: t.ai, width: 2 },
-              itemStyle: { color: t.ai },
-              data: allHours.map((h) =>
-                byForecastHour[h] ? byForecastHour[h].predictedTotal : null,
-              ),
-              tooltip: { show: false },
-              legend: { show: false },
-            },
-          ]
-        : []),
     ],
   };
 }
