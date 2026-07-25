@@ -96,7 +96,7 @@
     "@duckdb/node-api": "1.5.4-r.1",
     "@electron-forge/shared-types": "7.11.2",
     "@storybook/nextjs-vite": "10.4.6",
-    "@tanstack/react-form": "1.33.0",
+    "@tanstack/react-form": "1.33.2",
     "@tanstack/react-query": "5.101.2",
     "@tanstack/react-query-devtools": "5.101.2",
     "@tanstack/react-table": "8.21.3",
