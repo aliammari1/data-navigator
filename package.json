@@ -202,7 +202,7 @@
   "devDependencies": {
     "@axe-core/playwright": "4.12.1",
     "@biomejs/biome": "2.5.2",
-    "@changesets/cli": "2.31.0",
+    "@changesets/cli": "3.0.2",
     "@electron/rebuild": "4.1.0",
     "@fast-check/vitest": "0.4.1",
     "@playwright/test": "1.62.1",
