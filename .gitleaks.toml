@@ -6,13 +6,9 @@ useDefault = true
 [allowlist]
 description = "Ignore model quantization slugs, documentation, and test fixtures"
 paths = [
-  '''(^|/)docs/''',
-  '''(^|/)\.e2e-electron-profile/''',
   '''(^|/)tests?/''',
   '''(^|/)evals/''',
-  '''(^|/)graphify-out/''',
   '''(^|/)scripts/''',
-  '''DailyTransactions_.*\.csv'''
 ]
 regexes = [
   '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)'''
