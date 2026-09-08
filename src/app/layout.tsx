@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fira_Code, Fraunces, JetBrains_Mono, Poppins } from "next/font/google";
+import { Fira_Code, Fraunces, JetBrains_Mono, Outfit, Poppins } from "next/font/google";
 import { QueryProvider } from "@/components/query-provider";
 import { SWRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -9,14 +9,20 @@ import { ModelRequiredDialog } from "@/platform/ai/models/ModelRequiredDialog";
 import { cn } from "@/shared/utils";
 import "./globals.css";
 
-// Poppins — the standard UI sans for the whole app (chrome, headings, KPI
-// numbers, labels). Self-hosted by next/font so it works fully offline. Static
-// weights (Poppins is not a variable font on Google Fonts); 800/900 cover the
-// font-black KPI values.
+// Outfit — top-tier modern enterprise UI sans for the whole app (chrome,
+// headings, KPI numbers, labels). Self-hosted by next/font for offline resilience.
+const outfit = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800", "900"],
+  variable: "--font-data-navigator-sans",
+  display: "swap",
+});
+
+// Poppins — companion modern geometric display font for prominent headings & badges
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800", "900"],
-  variable: "--font-data-navigator-sans",
+  variable: "--font-data-navigator-display",
   display: "swap",
 });
 
@@ -75,6 +81,7 @@ export default function RootLayout({
       suppressHydrationWarning
       className={cn(
         "h-full antialiased dark",
+        outfit.variable,
         poppins.variable,
         firaCode.variable,
         fraunces.variable,

@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { CanalRulesPanel } from "@/features/telecom/components/canal-rules-panel";
+
 import type { ColumnMapping, ServiceCodeRow } from "@/features/telecom/types";
+import { CanalDetectorPanel } from "@/features/telecom/components/canal-detector-panel";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",
@@ -46,8 +47,8 @@ const rows: ServiceCodeRow[] = [
 ];
 
 const meta = {
-  title: "Src/Features/Telecom/Components/CanalRulesPanel",
-  component: CanalRulesPanel,
+  title: "Src/Features/Telecom/Components/CanalDetectorPanel",
+  component: CanalDetectorPanel,
   tags: ["autodocs"],
   parameters: {
     layout: "padded",
@@ -60,7 +61,7 @@ const meta = {
     m: { control: false },
     fetchServiceCodeRows: { control: false },
   },
-} satisfies Meta<typeof CanalRulesPanel>;
+} satisfies Meta<typeof CanalDetectorPanel>;
 
 export default meta;
 

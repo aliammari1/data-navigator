@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import Database from "better-sqlite3";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   closeSettingsStore,
@@ -19,6 +18,7 @@ import {
   saveAnalyticsSnapshotHistory,
   setSetting,
 } from "../../electron/settings-store";
+import { createSqliteConnection } from "../../src/platform/storage/db-bootstrap";
 
 let dir: string;
 
@@ -342,7 +342,7 @@ describe("migrateLegacyAppSettings", () => {
     rows: Array<{ namespace: string; key: string; value: string }>,
   ): string {
     const dbPath = path.join(dir, "legacy-auth.db");
-    const db = new Database(dbPath);
+    const db = createSqliteConnection(dbPath);
     db.exec(
       "CREATE TABLE app_setting (namespace text NOT NULL, key text NOT NULL, value text NOT NULL)",
     );
@@ -418,7 +418,7 @@ describe("migrateLegacyAppSettings", () => {
 
   it("skips the lift and does not throw when the auth DB has no app_setting table", () => {
     const dbPath = path.join(dir, "malformed-auth.db");
-    const db = new Database(dbPath);
+    const db = createSqliteConnection(dbPath);
     db.exec("CREATE TABLE something_else (id integer)");
     db.close();
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});

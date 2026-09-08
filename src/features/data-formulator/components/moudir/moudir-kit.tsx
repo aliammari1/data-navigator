@@ -13,7 +13,7 @@
  * light and dark mode (the user toggles theme), so surfaces and text resolve to
  * the shared design tokens (--background / --foreground / --card /
  * --muted-foreground / --border) and the glass tokens (--glass-*). The only fixed
- * signal is the Signal-Cyan brand accent + the م mark; status hues (gold/green/
+ * signal is the Signal-Cyan brand accent + the M mark; status hues (gold/green/
  * rose) stay fixed so meaning is stable across themes.
  *
  * Visual grammar:
@@ -21,7 +21,7 @@
  *     radial glow + faint dot-grid that read on light AND dark — never a dark slab.
  *   - ONE Signal-Cyan accent (shared with telecom). Status uses emerald/amber/rose.
  *   - Bold editorial type; whitespace and hairlines carry structure, not boxes.
- *   - Moudir has an identity: the Arabic letter م (mīm, for مدير "director").
+ *   - Moudir has an identity: the letter M (m, for "moudir" = "director").
  *   - Motion is restrained and reduced-motion aware.
  *
  * NOTE: the brand token is still keyed `MOUDIR.coral` for call-site stability
@@ -41,10 +41,8 @@ import {
 import { useReducedMotion, type Variants } from "motion/react";
 import type { ReactNode } from "react";
 import { cn } from "@/shared/utils";
-import type { AgentRole, AgentStatus } from "../../core/swarm/types";
 
 // ─── Palette ─────────────────────────────────────────────────────────────────
-//
 // Surfaces/text are THEME-AWARE: they resolve to the app design tokens so Moudir
 // looks right in light and dark mode. Brand + status hues stay FIXED 6-digit hex
 // (downstream code concatenates hex-alpha, e.g. `${MOUDIR.coral}1f`).
@@ -131,7 +129,7 @@ export function MoudirBackdrop({ lit = false }: { lit?: boolean }) {
 
 // ─── Identity ──────────────────────────────────────────────────────────────────
 
-/** Moudir's mark: the Arabic letter م in a warm coral chip. */
+/** Moudir's mark: the letter M in a warm coral chip. */
 export function MoudirMark({
   size = 36,
   thinking = false,
@@ -165,11 +163,12 @@ export function MoudirMark({
         style={{
           color: MOUDIR.coral,
           fontSize: size * 0.5,
-          // Arabic glyph — Moudir = مدير ("director").
-          fontFamily: "'Geist', system-ui, 'Segoe UI', 'Noto Sans Arabic', sans-serif",
+          // Latin glyph — Moudir = "director" (M is the brand mark).
+          fontFamily: "'Geist', system-ui, 'Segoe UI', sans-serif",
+          letterSpacing: size * 0.01,
         }}
       >
-        م
+        M
       </span>
     </span>
   );
@@ -250,54 +249,4 @@ export function Pill({
       {children}
     </span>
   );
-}
-
-// ─── Swarm helpers (viz phase) ──────────────────────────────────────────────────
-//
-// Shared metadata so every screen renders the swarm's roles + agent status
-// identically. `hue` is a warm HSL hue number (0–360) for per-role accents.
-
-/** Per-role label, icon, and warm accent hue (HSL hue, 0–360). */
-export const ROLE_META: Record<AgentRole, { label: string; Icon: LucideIcon; hue: number }> = {
-  planner: { label: "Planificateur", Icon: Sparkles, hue: 11 }, // coral — the conductor
-  query: { label: "Requête", Icon: Database, hue: 35 }, // amber/gold — data plumbing
-  chart: { label: "Graphique", Icon: BarChart3, hue: 150 }, // emerald — visual
-  narrative: { label: "Récit", Icon: PenLine, hue: 28 }, // warm sand — writing
-  anomaly: { label: "Anomalie", Icon: AlertTriangle, hue: 8 }, // rose-coral — risk
-  critic: { label: "Critique", Icon: ShieldCheck, hue: 48 }, // gold — verification
-  synthesizer: { label: "Synthèse", Icon: Activity, hue: 18 }, // warm coral-amber — compose
-};
-
-/**
- * Maps an agent status to a French label, a Pill tone, and whether the indicator
- * should pulse (live work in progress).
- *   queued  → neutral (waiting)
- *   thinking/streaming/running → coral|gold, pulsing (live)
- *   done    → green
- *   failed  → rose
- *   skipped → neutral
- */
-export function statusMeta(status: AgentStatus): {
-  label: string;
-  tone: "neutral" | "coral" | "green" | "rose" | "gold";
-  pulse: boolean;
-} {
-  switch (status) {
-    case "queued":
-      return { label: "En attente", tone: "neutral", pulse: false };
-    case "thinking":
-      return { label: "Réflexion", tone: "coral", pulse: true };
-    case "streaming":
-      return { label: "En cours", tone: "coral", pulse: true };
-    case "running":
-      return { label: "Exécution", tone: "gold", pulse: true };
-    case "done":
-      return { label: "Terminé", tone: "green", pulse: false };
-    case "failed":
-      return { label: "Échec", tone: "rose", pulse: false };
-    case "skipped":
-      return { label: "Ignoré", tone: "neutral", pulse: false };
-    default:
-      return { label: "En attente", tone: "neutral", pulse: false };
-  }
 }

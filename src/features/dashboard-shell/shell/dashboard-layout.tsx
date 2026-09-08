@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CommandPalette } from "@/features/dashboard-shell/command/command-palette";
 import { AppSidebar } from "@/features/dashboard-shell/nav/app-sidebar";
@@ -10,6 +10,8 @@ import { ShortcutsButton } from "@/features/dashboard-shell/shell/shortcuts-over
 import { useShellShortcuts } from "@/features/dashboard-shell/shell/use-shell-shortcuts";
 import { Topbar } from "@/features/dashboard-shell/topbar/topbar";
 import { Desktop } from "@/features/desktop/components/desktop";
+import { toast } from "sonner";
+import { lockApp, onLockChanged, onSessionExpired, onSessionExpiringSoon } from "@/platform/auth/auth-ipc-client";
 
 /**
  * Dashboard composition root.
@@ -35,6 +37,7 @@ export function DashboardLayout({
   const [cmdOpen, setCmdOpen] = useState(false);
   const [framed, setFramed] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     try {
@@ -45,6 +48,39 @@ export function DashboardLayout({
     }
   }, []);
 
+  const handleLock = useCallback(async () => {
+    await lockApp();
+    router.replace("/login?reason=locked");
+    router.refresh();
+  }, [router]);
+
+  useEffect(() => {
+    const unsubExpired = onSessionExpired(() => {
+      router.replace("/login?reason=expired");
+      router.refresh();
+    });
+
+    const unsubLocked = onLockChanged((isLocked) => {
+      if (isLocked) {
+        router.replace("/login?reason=locked");
+        router.refresh();
+      }
+    });
+
+    const unsubWarning = onSessionExpiringSoon(({ minutesRemaining }) => {
+      toast.warning("Session expires at midnight (00:00)", {
+        description: `Your daily session will lock in ${minutesRemaining} minutes. Please save your active work.`,
+        duration: 12000,
+      });
+    });
+
+    return () => {
+      unsubExpired();
+      unsubLocked();
+      unsubWarning();
+    };
+  }, [router]);
+
   const togglePalette = useCallback(() => setCmdOpen((v) => !v), []);
   const closePalette = useCallback(() => setCmdOpen(false), []);
 
@@ -52,8 +88,9 @@ export function DashboardLayout({
     () => ({
       togglePalette,
       toggleSidebar,
+      lockApp: handleLock,
     }),
-    [togglePalette, toggleSidebar],
+    [togglePalette, toggleSidebar, handleLock],
   );
 
   useShellShortcuts(shortcutActions);
@@ -88,7 +125,7 @@ export function DashboardLayout({
       >
         Aller au contenu principal
       </a>
-      <AppSidebar collapsed={collapsed} onToggle={toggleSidebar} />
+      <AppSidebar collapsed={collapsed} onToggle={toggleSidebar} user={user} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onCmdPalette={() => setCmdOpen(true)} user={user} />
         <main id="main-content" className="min-w-0 flex-1 overflow-auto">

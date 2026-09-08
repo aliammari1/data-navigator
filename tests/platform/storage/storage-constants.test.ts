@@ -27,8 +27,8 @@ describe("storage-constants", () => {
   });
 
   describe("AUTH_DB_FILE", () => {
-    it("is the string 'data-navigator-auth.sqlite'", () => {
-      expect(AUTH_DB_FILE).toBe("data-navigator-auth.sqlite");
+    it("is the string 'auth.db'", () => {
+      expect(AUTH_DB_FILE).toBe("auth.db");
     });
 
     it("is a string", () => {

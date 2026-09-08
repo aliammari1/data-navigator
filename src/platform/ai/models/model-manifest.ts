@@ -24,6 +24,13 @@ export type ModelPresenceKind =
   /** GGUF in userData; probed via `window.electronLlama.listModels()`. */
   "electron-gguf";
 
+/** Verified capability flags. Mirrors electron/model-download-service.ts. */
+export interface ModelCapabilities {
+  tools: boolean;
+  thinking: boolean;
+  vision: boolean;
+}
+
 export interface ModelManifestEntry {
   /** Stable id (matches prepare-models.mjs `key` where they overlap). */
   key: string;
@@ -37,6 +44,10 @@ export interface ModelManifestEntry {
   downloadMb: number;
   /** Whether the app can function (degraded) without it. */
   optional: boolean;
+  /** Verified against vendor docs/cards — never assumed from size. */
+  capabilities: ModelCapabilities;
+  /** Why a capability is off (shown in the picker). */
+  capabilityNote?: string;
   /**
    * For `electron-gguf`: the GGUF filename as it appears in
    * `<userData>/models/llm/<file>` and `electronLlama.listModels()` ids.
@@ -64,29 +75,78 @@ export interface ModelManifestEntry {
  * code. Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
  * canonical catalog — keep the two in lockstep when it changes.
  */
-export const DEFAULT_GGUF_MODEL = "gemma-4-e4b-it-q4_k_m.gguf";
+export const DEFAULT_GGUF_MODEL = "gemma-4-e2b-qat-mobile-text-only.gguf";
 
 /**
- * The GGUF embedding model used by the Electron node-llama-cpp embedding lane
- * (electron/embed-service.ts DEFAULT_EMBED_MODEL). Mirrors
- * electron/model-download-service.ts's MODEL_DOWNLOADS entry for
- * "qwen3-embedding-0.6b-q8_0" — keep the two in lockstep when it changes.
+ * The default GGUF embedding model used by the Electron embeddings lane
+ * (electron/embedding-service.ts DEFAULT_EMBED_MODEL). Mirrors
+ * electron/model-download-service.ts's MODEL_DOWNLOADS — keep in lockstep.
  */
-export const EMBED_MODEL_ID = "qwen3-embedding-0.6b-q8_0.gguf";
+export const EMBED_MODEL_ID = "all-minilm-l6-v2-embed-q8_0.gguf";
 
 export const MODEL_MANIFEST: ModelManifestEntry[] = [
   // ── Instruct GGUF (Electron node-llama-cpp) — mirrors
   // electron/model-download-service.ts's MODEL_DOWNLOADS ────────────────────
   {
+    key: "gemma-4-e2b-qat-mobile-text-only",
+    lane: "llm",
+    presence: "electron-gguf",
+    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
+    family: "Gemma 4",
+    sizeLabel: "E2B",
+    downloadMb: 840, // matches model-download-service.ts's bytes: 840_000_000
+    optional: false,
+    ggufFile: "gemma-4-e2b-qat-mobile-text-only.gguf",
+    capabilities: { tools: true, thinking: true, vision: false },
+  },
+  {
+    key: "lfm2-5-2.6b-q4_k_m",
+    lane: "llm",
+    presence: "electron-gguf",
+    label: "LFM2.5-2.6B Instruct (Q4_K_M, Liquid AI 2026)",
+    family: "LFM",
+    sizeLabel: "2.6B",
+    downloadMb: 1674.45504, // matches model-download-service.ts's bytes: 1_674_455_040
+    optional: true,
+    ggufFile: "lfm2-5-2.6b-q4_k_m.gguf",
+    capabilities: { tools: false, thinking: true, vision: false },
+    capabilityNote: "Sans appels d'outils sur le chemin générique.",
+  },
+  {
+    key: "granite-4.0-1b-q4_k_m",
+    lane: "llm",
+    presence: "electron-gguf",
+    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.0",
+    sizeLabel: "1B",
+    downloadMb: 1023.64544, // matches model-download-service.ts's bytes: 1_023_645_440
+    optional: true,
+    ggufFile: "granite-4.0-1b-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: false, vision: false },
+  },
+  {
+    key: "qwen3-1.7b-q4_k_m",
+    lane: "llm",
+    presence: "electron-gguf",
+    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    family: "Qwen3",
+    sizeLabel: "1.7B",
+    downloadMb: 1100, // matches model-download-service.ts's bytes: 1_100_000_000
+    optional: true,
+    ggufFile: "qwen3-1.7b-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: true, vision: false },
+  },
+  {
     key: "gemma-4-e4b-it-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",
-    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
     family: "Gemma 4",
     sizeLabel: "E4B",
     downloadMb: 5340, // matches model-download-service.ts's bytes: 5_340_000_000
-    optional: false,
+    optional: true,
     ggufFile: "gemma-4-e4b-it-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: true, vision: false },
   },
   {
     key: "granite-4.1-3b-instruct-q4_k_m",
@@ -95,25 +155,25 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
     label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
     family: "Granite 4.1",
     sizeLabel: "3B",
-    downloadMb: 2100, // matches model-download-service.ts's bytes: 2_100_000_000
+    downloadMb: 2099.501664, // matches model-download-service.ts's bytes: 2_099_501_664
     optional: true,
     ggufFile: "granite-4.1-3b-instruct-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: false, vision: false },
   },
 
-  // ── Qwen3 Embedding 0.6B GGUF (Electron node-llama-cpp embedding lane) ─────
-  // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS entry for
-  // "qwen3-embedding-0.6b-q8_0" — rides the same download/progress/sha256/IPC
-  // infrastructure as the instruct GGUFs above.
+  // ── all-MiniLM-L6-v2 embedding GGUF (Electron node-llama-cpp) — mirrors
+  // electron/model-download-service.ts's MODEL_DOWNLOADS ────────────────────
   {
-    key: "qwen3-embedding-0.6b-q8_0",
+    key: "all-minilm-l6-v2-embed-q8_0",
     lane: "embed",
     presence: "electron-gguf",
-    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
-    family: "Qwen3 Embedding",
-    sizeLabel: "0.6B",
-    downloadMb: 400, // matches model-download-service.ts's bytes: 400_000_000
+    label: "all-MiniLM-L6-v2 Embeddings (GGUF Q8_0)",
+    family: "MiniLM",
+    sizeLabel: "22.7M params",
+    downloadMb: 25.008064, // matches model-download-service.ts's bytes: 25_008_064
     optional: false,
-    ggufFile: "qwen3-embedding-0.6b-q8_0.gguf",
+    ggufFile: "all-minilm-l6-v2-embed-q8_0.gguf",
+    capabilities: { tools: false, thinking: false, vision: false },
   },
 ];
 

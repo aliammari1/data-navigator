@@ -243,23 +243,42 @@ export function withCrossOriginIsolationHeaders(
 //  - REPORT-ONLY: a stricter nonce-free target (no 'unsafe-inline') so DevTools
 //    violations map the path to a future nonce-based enforce policy.
 
-const CSP_CONNECT_SRC = [
-  "'self'",
-  "blob:",
-  "http://localhost:3000",
-  "http://127.0.0.1:3000",
-  "ws://localhost:3000",
-  "ws://127.0.0.1:3000",
-  // LAN collaboration peers are discovered dynamically (any host:port).
-  "ws:",
-  "wss:",
-].join(" ");
+function buildConnectSrc(port?: number): string {
+  const sources = [
+    "'self'",
+    "blob:",
+    // Sandboxed Pyodide iframe (opaque origin) fetches runtime files via pyodide://host/….
+    "pyodide:",
+    "http://localhost:*",
+    "http://127.0.0.1:*",
+    "ws://localhost:*",
+    "ws://127.0.0.1:*",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "ws://localhost:3000",
+    "ws://127.0.0.1:3000",
+    // LAN collaboration peers are discovered dynamically (any host:port).
+    "ws:",
+    "wss:",
+  ];
+  if (port) {
+    sources.push(
+      `http://localhost:${port}`,
+      `http://127.0.0.1:${port}`,
+      `ws://localhost:${port}`,
+      `ws://127.0.0.1:${port}`,
+    );
+  }
+  return Array.from(new Set(sources)).join(" ");
+}
 
-function rendererCspDirectives(options: { strict: boolean; dev: boolean }): string {
-  const scriptSrc = ["'self'", "'wasm-unsafe-eval'"];
+function rendererCspDirectives(options: { strict: boolean; dev: boolean; port?: number }): string {
+  // pyodide: lets the sandboxed Pyodide iframe load its runtime module. The
+  // scheme only ever serves files from <userData>/pyodide, never remote code.
+  const scriptSrc = ["'self'", "'wasm-unsafe-eval'", "pyodide:"];
   if (!options.strict) scriptSrc.push("'unsafe-inline'");
   if (options.dev) scriptSrc.push("'unsafe-eval'"); // dev HMR / source maps only
-  const styleSrc = options.strict ? ["'self'"] : ["'self'", "'unsafe-inline'"];
+  const styleSrc = options.strict && !options.dev ? ["'self'"] : ["'self'", "'unsafe-inline'"];
 
   return [
     "default-src 'self'",
@@ -274,19 +293,19 @@ function rendererCspDirectives(options: { strict: boolean; dev: boolean }): stri
     "media-src 'self' blob:",
     "worker-src 'self' blob:",
     "child-src 'self' blob:",
-    `connect-src ${CSP_CONNECT_SRC}`,
+    `connect-src ${buildConnectSrc(options.port)}`,
     "manifest-src 'self'",
   ].join("; ");
 }
 
 /** Build the enforce + report-only renderer CSP strings. Pure + testable. */
-export function buildRendererCsp(options: { dev: boolean }): {
+export function buildRendererCsp(options: { dev: boolean; port?: number }): {
   enforce: string;
   reportOnly: string;
 } {
   return {
-    enforce: rendererCspDirectives({ strict: false, dev: options.dev }),
-    reportOnly: rendererCspDirectives({ strict: true, dev: options.dev }),
+    enforce: rendererCspDirectives({ strict: false, dev: options.dev, port: options.port }),
+    reportOnly: rendererCspDirectives({ strict: true, dev: options.dev, port: options.port }),
   };
 }
 
@@ -309,7 +328,7 @@ export const STATIC_SECURITY_HEADERS = {
  */
 export function withRendererSecurityHeaders(
   responseHeaders: Record<string, string | string[]> | undefined,
-  options: { dev: boolean; enforceCsp?: boolean },
+  options: { dev: boolean; enforceCsp?: boolean; port?: number },
 ): Record<string, string | string[]> {
   const next = withCrossOriginIsolationHeaders(responseHeaders);
 
@@ -327,7 +346,7 @@ export function withRendererSecurityHeaders(
     if (managed.has(key.toLowerCase())) delete next[key];
   }
 
-  const csp = buildRendererCsp({ dev: options.dev });
+  const csp = buildRendererCsp({ dev: options.dev, port: options.port });
   if (options.enforceCsp !== false) {
     next["Content-Security-Policy"] = [csp.enforce];
   }
@@ -346,8 +365,12 @@ export function withRendererSecurityHeaders(
 // Next server's hostname is derived from BETTER_AUTH_BASE_URL, which is
 // env-overridable. If it ever resolves to a non-loopback host the whole web
 // threat surface would apply. Fail closed.
+//
+// NOTE: 0.0.0.0 and [::] are allowed when LAN collaboration is enabled, as the
+// server must listen on all interfaces to be reachable by peers. Access control
+// is then enforced at the application level in src/proxy.ts.
 
-const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
+const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]", "0.0.0.0", "::", "[::]"]);
 
 export function isLoopbackHostname(hostname: string | undefined): boolean {
   if (!hostname) return false;
@@ -414,14 +437,13 @@ export function ensureAuthSecretEnv(userDataDir: string): string {
 
 // ─── @electron/fuses production hardening ──────────────────────────────────────
 //
-// Pure configuration object consumed by the Electron Forge `FusesPlugin` in the
-// prod build path (forge.config.ts — cross-cutting, out of this slice's scope).
-// Flipping these fuses at package time bakes the hardening into the binary so it
-// cannot be re-enabled at runtime via env vars or CLI flags.
+// Pure configuration object consumed by electron-builder in the prod build path
+// (electron-builder.config.ts). Flipping these fuses at package time bakes the
+// hardening into the binary so it cannot be re-enabled at runtime via env vars or
+// CLI flags.
 //
 // String keys (not the FuseV1Options enum) are used so this module stays free of
-// an `@electron/fuses` import — keeping it pure and unit-testable. FusesPlugin
-// accepts the enum members; forge.config.ts maps these flags onto them.
+// an `@electron/fuses` import — keeping it pure and unit-testable.
 export const PRODUCTION_FUSE_CONFIG = {
   /** Disallow `ELECTRON_RUN_AS_NODE` — no arbitrary Node execution via the app. */
   RunAsNode: false,

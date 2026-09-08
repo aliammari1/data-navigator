@@ -1,7 +1,14 @@
 import { build } from "esbuild";
+import { copyWorkerAssets } from "./scripts/copy-worker-assets.mjs";
 
 const isWatch = process.argv.includes("--watch");
 const isProduction = process.env.NODE_ENV === "production";
+
+// Self-host any worker runtime assets BEFORE bundling so the offline
+// zero-network invariant holds — never fetched from a CDN at runtime.
+// (Currently a no-op: chart rasterization uses native OffscreenCanvas /
+// createImageBitmap — see src/workers/svg-raster.ts — no wasm asset needed.)
+copyWorkerAssets();
 
 const workers = [
   {

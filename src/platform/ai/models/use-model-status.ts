@@ -4,12 +4,11 @@
  * Offline-model preflight + download state (renderer side).
  *
  * Answers, for the Setup UI and any AI feature: "are the model weights present,
- * and if not, can I download them while online?"
- *
- *   - Both lanes (GGUF instruct + GGUF embedding, Electron node-llama-cpp):
- *     presence via `window.electronModels.listPresence()` /
- *     `window.electronLlama.listModels()` (which stat `<userData>/models/llm`),
- *     download via `window.electronModels.download(...)` with progress events.
+ * and if not, can I download them while online?" Both the chat GGUF and the
+ * embedding GGUF are `electron-gguf` entries and share one probing/download
+ * path: presence via `window.electronModels.listPresence()` /
+ * `window.electronLlama.listModels()` (which stat `<userData>/models/<lane>`),
+ * download via `window.electronModels.download(...)` with progress events.
  *
  * Exports:
  *   - useModelStatus()      — reactive presence + download progress for the UI.
@@ -19,9 +18,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isElectron } from "@/platform/electron/electron-fs";
 import {
-  MODEL_MANIFEST,
+  type ModelCapabilities,
   type ModelLane,
   type ModelManifestEntry,
+  MODEL_MANIFEST,
   primaryForLane,
 } from "./model-manifest";
 
@@ -37,23 +37,22 @@ export interface ModelStatusRecord {
   sizeLabel: string;
   downloadMb: number;
   optional: boolean;
+  capabilities: ModelCapabilities;
+  capabilityNote?: string;
   state: ModelPresenceState;
-  /** Bytes on disk (GGUF) when known. */
   sizeBytes?: number;
-  /** Where the presence signal came from (for UI copy / debugging). */
   source: "userData" | "none";
-  /** True only for the GGUF lane in Electron — drives the Download button. */
   downloadable: boolean;
 }
 
 function bridgeLlama() {
   if (typeof window === "undefined") return null;
-  return (window as Window & { electronLlama?: Window["electronLlama"] }).electronLlama ?? null;
+  return window.electronLlama ?? null;
 }
 
 function bridgeModels() {
   if (typeof window === "undefined") return null;
-  return (window as Window & { electronModels?: Window["electronModels"] }).electronModels ?? null;
+  return window.electronModels ?? null;
 }
 
 /** Probe the GGUF lane via the Electron bridges. */
@@ -105,10 +104,12 @@ async function probeEntry(entry: ModelManifestEntry): Promise<ModelStatusRecord>
     sizeLabel: entry.sizeLabel,
     downloadMb: entry.downloadMb,
     optional: entry.optional,
+    capabilities: entry.capabilities,
+    capabilityNote: entry.capabilityNote,
     state,
     source,
     sizeBytes,
-    // Both lanes are Electron GGUF now, so both have an in-app downloader.
+    // The in-app downloader only works inside Electron with the models bridge.
     downloadable: isElectron() && !!bridgeModels(),
   };
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
+
 import { onBroadcast } from "@/features/telecom/lib/channel";
 import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import { normalizeColumnMapping, useTelecomStore } from "@/features/telecom/store";
@@ -12,7 +12,6 @@ const TELECOM_UI_STORAGE_KEY = "telecom-session-v1";
 interface PersistedTelecomUiState {
   columnMapping?: Partial<Types.ColumnMapping>;
   statusMapping?: Types.StatusMapping[];
-  canalRule?: Types.CanalRule[];
 }
 
 function readPersistedUiState(): PersistedTelecomUiState {
@@ -53,8 +52,6 @@ export interface UseTelecomUIReturn {
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
-  canalRule: Types.CanalRule[];
-  setCanalRule: React.Dispatch<React.SetStateAction<Types.CanalRule[]>>;
 }
 
 interface UseTelecomUIParams {
@@ -83,7 +80,6 @@ export function useTelecomUI({
   const [statusMapping, setStatusMapping] = useState<Types.StatusMapping[]>([
     ...DEFAULT_STATUS_MAPPINGS,
   ]);
-  const [canalRule, setCanalRule] = useState<Types.CanalRule[]>([]);
 
   // Mount + store hydration
   // biome-ignore lint/correctness/useExhaustiveDependencies: hydrate persisted UI state once after client mount
@@ -93,9 +89,6 @@ export function useTelecomUI({
     setMapping(normalizeColumnMapping(persisted.columnMapping ?? defaultMapping));
     if (persisted.statusMapping?.length) {
       setStatusMapping(persisted.statusMapping);
-    }
-    if (persisted.canalRule?.length) {
-      setCanalRule(persisted.canalRule);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -111,11 +104,6 @@ export function useTelecomUI({
     useTelecomStore.getState().setStatusMapping(statusMapping);
   }, [statusMapping]);
 
-  useEffect(() => {
-    writePersistedUiState({ canalRule });
-    useTelecomStore.getState().setCanalRule(canalRule);
-  }, [canalRule]);
-
   // F2 — PWA install prompt
   useEffect(() => {
     const handler = (e: Event) => {
@@ -130,13 +118,45 @@ export function useTelecomUI({
   useEffect(() => {
     const unsub = onBroadcast((msg) => {
       if (msg.type === "FILE_LOADED" && msg.fileName !== fileNameRef.current) {
-        toast(`Fichier chargé dans un autre onglet: ${msg.fileName}`, {
-          description: "Rechargez la page pour synchroniser.",
-        });
+        import("sonner").then(({ toast }) =>
+          toast(`Fichier chargé dans un autre onglet: ${msg.fileName}`, {
+            description: "Rechargez la page pour synchroniser.",
+          }),
+        );
       }
     });
     return unsub;
   }, [fileNameRef]);
+
+  // F4 — Yjs cross-tab CRDT sync (filter + mapping)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: subscribe to the singleton Yjs maps once
+  useEffect(() => {
+    let cleanup: (() => void) | undefined;
+    import("@/platform/collab/collab").then(
+      ({ startCollabSync: start, sharedMapping: yMapping }) => {
+        cleanup = start();
+
+        const mappingObs = () => {
+          setMapping((prev) => {
+            const next = { ...prev };
+            for (const key of Object.keys(prev) as (keyof Types.ColumnMapping)[]) {
+              const v = yMapping.get(key);
+              if (v !== undefined) (next as Record<string, string>)[key] = v;
+            }
+            return normalizeColumnMapping(next);
+          });
+        };
+        yMapping.observe(mappingObs);
+
+        const originalCleanup = cleanup;
+        cleanup = () => {
+          originalCleanup?.();
+          yMapping.unobserve(mappingObs);
+        };
+      },
+    );
+    return () => cleanup?.();
+  }, []);
 
   // F19 — ⌘K / Ctrl+K keyboard shortcut
   useEffect(() => {
@@ -162,7 +182,5 @@ export function useTelecomUI({
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalRule,
-    setCanalRule,
   };
 }

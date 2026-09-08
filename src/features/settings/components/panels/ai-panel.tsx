@@ -23,6 +23,7 @@ export function AiPanel() {
   const enableAiCritic = useSettingsStore((s) => s.enableAiCritic);
   const setEnableAiCritic = useSettingsStore((s) => s.setEnableAiCritic);
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: run once on mount — `selected`/`setModel` seed the initial choice; including them would refetch providers/models on every model change.
   useEffect(() => {
     let alive = true;
     void (async () => {
@@ -38,7 +39,6 @@ export function AiPanel() {
     return () => {
       alive = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

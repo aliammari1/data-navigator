@@ -5,7 +5,6 @@ import {
   computeFolderSizes,
   wouldCreateCycle,
   breadcrumbPath,
-  type FolderIndex,
 } from "@/features/folders/lib/folderTree";
 import type { FSNode } from "@/features/folders/types";
 

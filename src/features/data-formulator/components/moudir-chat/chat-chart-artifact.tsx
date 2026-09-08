@@ -23,21 +23,41 @@
  */
 
 import ReactEChartsCore from "echarts-for-react/lib/core";
-import { BarChart3, Pin, TriangleAlert } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  BarChart3,
+  Filter,
+  Maximize2,
+  MessageSquare,
+  Pin,
+  Search,
+  Sparkles,
+  TriangleAlert,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
+import {
+  Artifact,
+  ArtifactActions,
+  ArtifactContent,
+  ArtifactDescription,
+  ArtifactHeader,
+  ArtifactTitle,
+} from "@/components/ai-elements/artifact";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataStore } from "@/core/stores/data-store";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
-import { type EChartsOption, OffscreenChart, supportsOffscreenChart } from "@/platform/viz";
+import { type EChartsOption } from "@/platform/viz";
 import { echarts } from "@/platform/viz/echarts-core";
 import { cn } from "@/shared/utils";
 import { buildOption } from "../../core/chart-options";
-import type { Row } from "../../core/formulator/model";
 import { buildSQL } from "../../core/sql";
-import type { AggregateFn, ChartSpec, ChartType } from "../../core/types";
+import type { AggregateFn, ChartSpec, ChartType, FilterDef } from "../../core/types";
+
+type Row = Record<string, unknown>;
 import { useWidgetRegistry } from "../../core/widget-registry";
-import type { ChartPart } from "../../store/moudir-chat-store";
+import { type ChartPart, useMoudirChatStore } from "../../store/moudir-chat-store";
 
 const CHART_HEIGHT = 300;
 
@@ -89,6 +109,15 @@ function provenanceLine(x: string, y: string, aggregate: AggregateFn): string {
   return label ? `${x} · ${label}(${y})` : `${x} · ${y}`;
 }
 
+function formatMetricValue(val: unknown): string {
+  if (val === null || val === undefined) return "";
+  const num = Number(val);
+  if (!Number.isNaN(num)) {
+    return num.toLocaleString("fr-FR");
+  }
+  return String(val);
+}
+
 /** Minimal deterministic spec — the shelf-less equivalent of shelfToChartSpec. */
 function buildSpec(
   chartType: string,
@@ -96,6 +125,7 @@ function buildSpec(
   y: string,
   aggregate: AggregateFn,
   title: string,
+  filters: FilterDef[] = [],
 ): ChartSpec {
   return {
     id: `moudir-chart-${x}-${y}`,
@@ -104,7 +134,7 @@ function buildSpec(
       { id: "enc-x", channel: "x", field: x, aggregate: "none" },
       { id: "enc-y", channel: "y", field: y, aggregate },
     ],
-    filters: [],
+    filters,
     limit: 500,
     title,
   };
@@ -161,51 +191,99 @@ function PinChartButton({
 /** Honest placeholder — pulsing surfaces, deliberately no spinner. */
 function ArtifactSkeleton() {
   return (
-    <div
-      role="status"
+    <Artifact
       aria-busy="true"
       aria-label="Résolution du graphique"
-      className="flex flex-col gap-3 rounded-xl border border-ai/30 bg-card p-4"
+      className="mb-4 border-ai/30"
+      role="status"
       style={{ height: CHART_HEIGHT }}
     >
-      <div className="h-3.5 w-40 animate-pulse rounded bg-muted" />
-      <div className="flex-1 animate-pulse rounded-lg bg-muted" />
-    </div>
+      <ArtifactContent className="flex flex-col gap-3">
+        <div className="h-3.5 w-40 animate-pulse rounded bg-muted" />
+        <div className="flex-1 animate-pulse rounded-lg bg-muted" />
+      </ArtifactContent>
+    </Artifact>
   );
 }
 
 function ArtifactError({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2 rounded-xl border border-destructive/30 bg-destructive/10 p-3">
-      <TriangleAlert className="mt-0.5 size-3.5 shrink-0 text-destructive" aria-hidden="true" />
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-destructive">Graphique indisponible</p>
-        <p className="truncate font-mono text-xs text-destructive/80" title={message}>
-          {message}
-        </p>
-      </div>
-    </div>
+    <Artifact className="mb-4 border-destructive/30 bg-destructive/10">
+      <ArtifactContent className="flex items-start gap-2 p-3">
+        <TriangleAlert aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+        <div className="min-w-0">
+          <ArtifactTitle className="text-destructive">Graphique indisponible</ArtifactTitle>
+          <ArtifactDescription
+            className="truncate font-mono text-xs text-destructive/80"
+            title={message}
+          >
+            {message}
+          </ArtifactDescription>
+        </div>
+      </ArtifactContent>
+    </Artifact>
   );
 }
 
 // ─── Artifact ──────────────────────────────────────────────────────────────────
 
 export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
-  // Stable dataset object reference; the effect re-resolves when it changes.
-  const dataset = useDataStore((s) => s.datasets.find((d) => d.id === s.activeDatasetId));
+  // Stable dataset object reference; prefer part.datasetId if specified
+  const dataset = useDataStore((s) =>
+    part.datasetId
+      ? s.datasets.find((d) => d.id === part.datasetId)
+      : s.datasets.find((d) => d.id === s.activeDatasetId),
+  );
   const tableName = dataset?.viewName || dataset?.tableName || "";
+  const openCanvas = useMoudirChatStore((s) => s.openCanvas);
+  const activeFilters = useMoudirChatStore((s) => s.activeFilters);
+  const addFilter = useMoudirChatStore((s) => s.addFilter);
 
   const { chartType, x, y, aggregate: rawAggregate, title } = part;
   const aggregate = coerceAggregate(rawAggregate);
 
   const [state, setState] = useState<ResolveState>({ status: "loading" });
+  const [selectedPoint, setSelectedPoint] = useState<{
+    name: string;
+    value: string;
+  } | null>(null);
   const requestIdRef = useRef(0);
+
+  const filterDefs: FilterDef[] = useMemo(() => {
+    return activeFilters.map((af) => ({
+      id: `filter-${af.field}`,
+      field: af.field,
+      op: "=" as const,
+      value: String(af.value),
+    }));
+  }, [activeFilters]);
 
   useEffect(() => {
     const requestId = ++requestIdRef.current;
     const commit = (next: ResolveState) => {
       if (requestIdRef.current === requestId) setState(next);
     };
+
+    // Synthetic chart: the model supplied its own rows, no dataset needed.
+    if (part.rows && part.rows.length > 0) {
+      const normalizedRows = part.rows.map((row) => {
+        const xVal = row.x_val ?? row[x] ?? row.label ?? row.Label ?? Object.values(row)[0];
+        const yVal = row.y_val ?? row[y] ?? row.value ?? row.Value ?? Object.values(row)[1] ?? 0;
+        return {
+          ...row,
+          x_val: xVal !== undefined && xVal !== null ? String(xVal) : "",
+          y_val: Number(yVal) || 0,
+        };
+      });
+      const spec = buildSpec(chartType, x || "label", y || "value", aggregate, title, filterDefs);
+      const option = buildOption(spec, normalizedRows);
+      if (!option) {
+        commit({ status: "error", message: "Aucune donnée à afficher." });
+        return;
+      }
+      commit({ status: "ok", option, rows: normalizedRows, spec, sql: "-- données synthétiques" });
+      return;
+    }
 
     if (!tableName) {
       commit({ status: "error", message: "Aucun jeu de données actif." });
@@ -216,7 +294,27 @@ export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
       return;
     }
 
-    const spec = buildSpec(chartType, x, y, aggregate, title);
+    // Resolve exact column names (case-insensitive) against dataset.columns
+    let actualX = x;
+    let actualY = y;
+    if (dataset?.columns && dataset.columns.length > 0) {
+      const matchX = dataset.columns.find((c) => c.name.toLowerCase() === x.toLowerCase());
+      const matchY = dataset.columns.find((c) => c.name.toLowerCase() === y.toLowerCase());
+
+      if (!matchX || !matchY) {
+        const missing = !matchX ? x : y;
+        const available = dataset.columns.map((c) => c.name).slice(0, 8).join(", ");
+        commit({
+          status: "error",
+          message: `La colonne « ${missing} » n'existe pas dans la table "${dataset.name || tableName}". Colonnes disponibles : ${available}${dataset.columns.length > 8 ? "…" : ""}`,
+        });
+        return;
+      }
+      actualX = matchX.name;
+      actualY = matchY.name;
+    }
+
+    const spec = buildSpec(chartType, actualX, actualY, aggregate, title, filterDefs);
     let sql: string;
     try {
       sql = buildSQL(spec, tableName);
@@ -228,7 +326,7 @@ export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
     commit({ status: "loading" });
     void runReadOnlyQuery(sql)
       .then((rows) => {
-        const option = buildOption(spec, rows) as unknown as EChartsOption | null;
+        const option = buildOption(spec, rows);
         if (!option) {
           commit({ status: "error", message: "Aucune donnée à afficher." });
           return;
@@ -238,45 +336,247 @@ export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
       .catch((error) => {
         commit({ status: "error", message: errorMessage(error) });
       });
-  }, [tableName, chartType, x, y, aggregate, title]);
+  }, [tableName, dataset, chartType, x, y, aggregate, title, filterDefs, part.rows]);
+
+  const interactiveOption = useMemo(() => {
+    if (state.status !== "ok" || !state.option) return null;
+    const opt = state.option as Record<string, unknown>;
+    const series = Array.isArray(opt.series)
+      ? opt.series.map((s) =>
+          typeof s === "object" && s !== null
+            ? { ...(s as Record<string, unknown>), cursor: "pointer" }
+            : s,
+        )
+      : opt.series;
+    return {
+      ...opt,
+      series,
+    };
+  }, [state]);
 
   if (state.status === "loading") return <ArtifactSkeleton />;
   if (state.status === "error") return <ArtifactError message={state.message} />;
 
   const { option, rows, spec, sql } = state;
-  const fallback = (
-    <ReactEChartsCore
-      echarts={echarts}
-      option={option}
-      style={{ height: CHART_HEIGHT, width: "100%" }}
-      lazyUpdate
-    />
-  );
+
+  const handleChartClick = (params: {
+    name?: string;
+    value?: unknown;
+    seriesName?: string;
+    data?: Record<string, unknown>;
+  }) => {
+    let name = "";
+    let valStr = "";
+
+    if (params.name) {
+      name = String(params.name);
+    } else if (Array.isArray(params.value)) {
+      name = String(params.value[0]);
+    } else if (params.data && typeof params.data === "object") {
+      name = String(params.data.name ?? (x ? params.data[x] : "") ?? "");
+    }
+
+    if (Array.isArray(params.value)) {
+      valStr = formatMetricValue(params.value[1] ?? params.value[0]);
+    } else if (params.value !== undefined && params.value !== null) {
+      valStr = formatMetricValue(params.value);
+    } else if (params.data && typeof params.data === "object") {
+      valStr = formatMetricValue(params.data.value ?? (y ? params.data[y] : "") ?? "");
+    }
+
+    if (!name && !valStr) return;
+    setSelectedPoint({ name: name || String(valStr), value: valStr });
+  };
 
   return (
-    <div className="rounded-xl border border-ai/30 bg-card p-3">
-      <div className="mb-2 flex items-start justify-between gap-2">
+    <Artifact className="mb-4 border-ai/30 shadow-xs">
+      <ArtifactHeader className="items-start px-3 py-2">
         <div className="flex min-w-0 items-start gap-2">
-          <BarChart3 className="mt-0.5 size-3.5 shrink-0 text-ai" aria-hidden="true" />
+          <BarChart3 aria-hidden="true" className="mt-0.5 size-3.5 shrink-0 text-ai" />
           <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-foreground">{title}</p>
-            <p className={cn("truncate font-mono text-[11px] text-muted-foreground")}>
+            <div className="flex items-center gap-2">
+              <ArtifactTitle className="truncate">{title}</ArtifactTitle>
+              <Badge
+                variant="outline"
+                className="h-4.5 gap-1 border-ai/40 bg-ai/10 px-1.5 py-0 text-[10px] font-medium text-ai shadow-xs"
+              >
+                <Sparkles className="size-2.5 text-ai animate-pulse" />
+                Chat-with-Chart
+              </Badge>
+            </div>
+            <ArtifactDescription className={cn("truncate font-mono text-[11px]")}>
               {provenanceLine(x, y, aggregate)}
-            </p>
+              {filterDefs.length > 0 && ` · ${filterDefs.length} filtre(s) actif(s)`}
+            </ArtifactDescription>
           </div>
         </div>
-        <PinChartButton spec={spec} rows={rows} sql={sql} title={title} tableName={tableName} />
-      </div>
-      {supportsOffscreenChart() ? (
-        <OffscreenChart
-          option={option}
-          height={CHART_HEIGHT}
-          className="w-full"
-          fallback={fallback}
-        />
-      ) : (
-        fallback
-      )}
-    </div>
+        <ArtifactActions>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+            onClick={() =>
+              openCanvas({
+                kind: "chart",
+                title,
+                chartType,
+                x,
+                y,
+                aggregate,
+                datasetId: part.datasetId,
+                rows: state.status === "ok" ? state.rows : part.rows,
+              })
+            }
+            title="Agrandir dans le canevas latéral"
+          >
+            <Maximize2 className="size-3.5" />
+            <span className="hidden sm:inline">Canevas</span>
+          </Button>
+          <PinChartButton rows={rows} spec={spec} sql={sql} tableName={tableName} title={title} />
+        </ArtifactActions>
+      </ArtifactHeader>
+      <ArtifactContent className="p-3">
+        <div className="relative w-full">
+          <ReactEChartsCore
+            echarts={echarts}
+            option={interactiveOption ?? option}
+            style={{ height: CHART_HEIGHT, width: "100%" }}
+            onEvents={{
+              click: handleChartClick,
+            }}
+            lazyUpdate
+          />
+        </div>
+
+        {!selectedPoint && (
+          <div className="mt-2.5 flex flex-wrap items-center justify-between gap-1.5 rounded-lg border border-ai/20 bg-ai/5 px-2.5 py-1.5 text-xs">
+            <span className="flex items-center gap-1.5 text-foreground/80 text-[11px]">
+              <Sparkles className="size-3 text-ai shrink-0" />
+              <span>
+                <strong>Chat-with-Chart :</strong> Cliquez sur une barre ou valeur pour forer ou filtrer
+              </span>
+            </span>
+            <div className="flex items-center gap-1">
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-5 text-[10px] px-1.5 text-ai hover:bg-ai/15"
+                onClick={() => {
+                  const prompt = `Analyse les grandes tendances et enseignements majeurs de ce graphique "${title}".`;
+                  window.dispatchEvent(
+                    new CustomEvent("moudir-chat:prefill-composer", {
+                      detail: { text: prompt, autoSend: true },
+                    }),
+                  );
+                }}
+              >
+                <MessageSquare className="size-2.5 mr-1" />
+                Analyser tendances
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="h-5 text-[10px] px-1.5 text-ai hover:bg-ai/15"
+                onClick={() => {
+                  const prompt = `Y a-t-il des anomalies ou des valeurs atypiques remarquables dans "${title}" ?`;
+                  window.dispatchEvent(
+                    new CustomEvent("moudir-chat:prefill-composer", {
+                      detail: { text: prompt, autoSend: true },
+                    }),
+                  );
+                }}
+              >
+                <Search className="size-2.5 mr-1" />
+                Détecter anomalies
+              </Button>
+            </div>
+          </div>
+        )}
+
+        {selectedPoint && (
+          <div className="mt-3 flex flex-col gap-2 rounded-lg border border-primary/20 bg-primary/5 p-2.5 text-xs transition-all">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5 font-medium text-foreground">
+                <Sparkles className="size-3.5 text-primary shrink-0" />
+                <span>Point sélectionné :</span>
+                <span className="font-mono font-semibold text-primary">{selectedPoint.name}</span>
+                {selectedPoint.value ? (
+                  <span className="text-muted-foreground font-mono">({selectedPoint.value})</span>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="xs"
+                className="size-5 p-0 text-muted-foreground hover:text-foreground"
+                onClick={() => setSelectedPoint(null)}
+                aria-label="Fermer"
+              >
+                <X className="size-3" />
+              </Button>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+              <Button
+                type="button"
+                variant="secondary"
+                size="xs"
+                className="h-6 gap-1 text-[11px] bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                onClick={() => {
+                  if (x) {
+                    addFilter({ field: x, value: selectedPoint.name, datasetId: part.datasetId });
+                    toast("Filtre appliqué", {
+                      description: `${x} = ${selectedPoint.name} appliqué en direct (DuckDB).`,
+                    });
+                  }
+                }}
+              >
+                <Filter className="size-3 text-primary" />
+                Filtrer sur cette valeur
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="h-6 gap-1 text-[11px] bg-background/80 hover:bg-muted"
+                onClick={() => {
+                  const prompt = `Explique la valeur de "${selectedPoint.name}" (${selectedPoint.value ? `${y}: ${selectedPoint.value}` : ""}) pour ${y} par rapport aux autres données dans le graphique "${title}".`;
+                  window.dispatchEvent(
+                    new CustomEvent("moudir-chat:prefill-composer", {
+                      detail: { text: prompt, autoSend: true },
+                    }),
+                  );
+                }}
+              >
+                <MessageSquare className="size-3 text-primary" />
+                Expliquer ce pic
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                className="h-6 gap-1 text-[11px] bg-background/80 hover:bg-muted"
+                onClick={() => {
+                  const prompt = `Détaille la répartition et les sous-catégories pour "${selectedPoint.name}".`;
+                  window.dispatchEvent(
+                    new CustomEvent("moudir-chat:prefill-composer", {
+                      detail: { text: prompt, autoSend: true },
+                    }),
+                  );
+                }}
+              >
+                <BarChart3 className="size-3 text-primary" />
+                Explorer les sous-catégories
+              </Button>
+            </div>
+          </div>
+        )}
+      </ArtifactContent>
+    </Artifact>
   );
 }

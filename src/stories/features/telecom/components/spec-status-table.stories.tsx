@@ -1,20 +1,13 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
+
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import type { SpecStatusResult } from "@/features/telecom/types";
 import { SpecStatusTable } from "@/features/telecom/components/spec-status-table";
-import type { CanalRule, SpecStatusResult } from "@/features/telecom/types";
 
-const mockRule = (name: string): CanalRule => ({
-  id: name.toLowerCase(),
-  name,
-  canalKey: "bill_payment",
-  match: { kind: "brand", brandDValues: ["0"] },
-  reportGroup: null,
-  origin: "default",
-  enabled: true,
-  createdAt: "",
-  updatedAt: "",
-});
-
-const channels: CanalRule[] = [mockRule("IZIPAY"), mockRule("SMT")];
+const channels: ChannelDef[] = [
+  { name: "IZIPAY", condition: "BRAND_D = 39" },
+  { name: "SMT", condition: "BRAND_D = 12" },
+];
 
 const result: SpecStatusResult = {
   rows: [

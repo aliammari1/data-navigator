@@ -21,6 +21,7 @@
  *   - src/platform/ai/provider/structured.ts                     (JSON repair/parse for AI output)
  *   - src/features/data-formulator/core/swarm/agents/validate.ts (swarm artifact safety gate)
  *   - electron/sql-guard.ts                                      (main-process read-only SQL guard)
+ *   - electron/collab-pairing.ts                                 (CSPRNG pairing-code generation)
  *   - src/features/desktop/core/menu/registry.ts                 (menu bar composition rules)
  *
  * NOT mutated despite being a candidate: src/features/ai-analysis/model/sql.ts
@@ -56,15 +57,14 @@ export default {
   // Tight scope keeps the run sane. Only mutate the high-value pure modules;
   // restrict to their exported logic so the score reflects the public contract.
   mutate: [
-    "src/features/data-formulator/core/swarm/agents/base.ts",
     "src/shared/duckdb-summary.ts",
     "src/features/ai-analysis/model/stats.ts",
     "src/features/data-import/model/summarize.ts",
     "src/platform/ai/nlq.ts",
     "src/features/telecom/lib/sql.ts",
     "src/platform/ai/provider/structured.ts",
-    "src/features/data-formulator/core/swarm/agents/validate.ts",
     "electron/sql-guard.ts",
+    "electron/collab-pairing.ts",
     "src/features/desktop/core/menu/registry.ts",
   ],
   // Be conservative on a medium-end PC: leave cores free for the OS / dev work.

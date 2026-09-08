@@ -73,17 +73,19 @@ export function normalizeColumnMapping(mapping?: Partial<ColumnMapping> | null):
 interface TelecomStore {
   columnMapping: ColumnMapping;
   statusMapping: StatusMapping[];
-  canalRule: CanalRule[];
   customKPIs: CustomKPI[];
+  canalRules: CanalRule[];
   fileName: string;
   reportDate: string;
   commandOpen: boolean;
   setColumnMapping: (m: ColumnMapping) => void;
   setStatusMapping: (sm: StatusMapping[]) => void;
-  setCanalRule: (cm: CanalRule[]) => void;
   addCustomKPI: (kpi: CustomKPI) => void;
   updateCustomKPI: (id: string, patch: Partial<CustomKPI>) => void;
   removeCustomKPI: (id: string) => void;
+  setCanalRules: (rules: CanalRule[]) => void;
+  upsertCanalRule: (rule: CanalRule) => void;
+  removeCanalRule: (id: string) => void;
   setFileName: (name: string) => void;
   setReportDate: (date: string) => void;
   setCommandOpen: (v: boolean) => void;
@@ -99,8 +101,8 @@ export const useTelecomStore = create<TelecomStore>()(
     subscribeWithSelector((set) => ({
       columnMapping: DEFAULT_MAPPING,
       statusMapping: [],
-      canalRule: [],
       customKPIs: [],
+      canalRules: [],
       fileName: "",
       reportDate: "",
       commandOpen: false,
@@ -112,8 +114,6 @@ export const useTelecomStore = create<TelecomStore>()(
 
       setStatusMapping: (statusMapping) => set({ statusMapping }),
 
-      setCanalRule: (canalRule) => set({ canalRule }),
-
       addCustomKPI: (kpi) => set((s) => ({ customKPIs: [...s.customKPIs, kpi] })),
 
       updateCustomKPI: (id, patch) =>
@@ -124,6 +124,24 @@ export const useTelecomStore = create<TelecomStore>()(
       removeCustomKPI: (id) =>
         set((s) => ({
           customKPIs: s.customKPIs.filter((k) => k.id !== id),
+        })),
+
+      setCanalRules: (canalRules) => set({ canalRules }),
+
+      upsertCanalRule: (rule) =>
+        set((s) => {
+          const existingIndex = s.canalRules.findIndex((r) => r.id === rule.id);
+          if (existingIndex >= 0) {
+            const next = s.canalRules.slice();
+            next[existingIndex] = rule;
+            return { canalRules: next };
+          }
+          return { canalRules: [...s.canalRules, rule] };
+        }),
+
+      removeCanalRule: (id) =>
+        set((s) => ({
+          canalRules: s.canalRules.filter((r) => r.id !== id),
         })),
 
       setFileName: (fileName) => set({ fileName }),
@@ -138,8 +156,8 @@ export const useTelecomStore = create<TelecomStore>()(
           reportDate: "",
           columnMapping: DEFAULT_MAPPING,
           statusMapping: [],
-          canalRule: [],
           customKPIs: [],
+          canalRules: [],
         }),
     })),
     {
@@ -149,8 +167,8 @@ export const useTelecomStore = create<TelecomStore>()(
       partialize: (s) => ({
         columnMapping: normalizeColumnMapping(s.columnMapping),
         statusMapping: s.statusMapping,
-        canalRule: s.canalRule,
         customKPIs: s.customKPIs,
+        canalRules: s.canalRules,
         fileName: s.fileName,
         reportDate: s.reportDate,
       }),

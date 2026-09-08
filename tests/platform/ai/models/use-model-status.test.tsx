@@ -5,20 +5,29 @@ import {
   isPrimaryLlmReady,
   useModelStatus,
 } from "@/platform/ai/models/use-model-status";
+import { MODEL_MANIFEST, primaryForLane } from "@/platform/ai/models/model-manifest";
 
 // ─── Bridge fakes ───────────────────────────────────────────────────────────────
 //
 // `use-model-status` reads `window.electronModels` / `window.electronLlama`
 // (presence + download) and `window.electronFS` + `window.electronDuckDB`
-// (isElectron) live on every call. Both the `llm` and `embed` lanes are GGUF
-// weights probed the same way (node-llama-cpp migration removed the old
-// transformers.js browser lane — no fetch/Cache Storage/OPFS probing exists
-// anymore), so the electronModels/electronLlama bridges are the only
-// boundaries that need faking here.
+// (isElectron) live on every call, so the cheapest, most faithful boundary to
+// fake is the global `window`. No module is mocked — only true IO/host
+// boundaries are stubbed. Both the chat GGUF and the embedding GGUF are
+// `electron-gguf` entries now, so both are probed the same way (no more
+// fetch/Cache Storage/OPFS simulation for a separate transformers.js lane).
 
 type AnyRecord = Record<string, unknown>;
 
 const win = window as unknown as AnyRecord;
+
+// The primaries are DERIVED from the manifest so a catalog change updates the
+// pins instead of failing them.
+const LLM_KEY = primaryForLane("llm").key;
+const LLM_FILE = primaryForLane("llm").ggufFile ?? "";
+const EMBED_PRIMARY = primaryForLane("embed");
+const EMBED_KEY = EMBED_PRIMARY.key;
+const EMBED_FILE = EMBED_PRIMARY.ggufFile ?? "";
 
 /** Mark the renderer as "running inside Electron" (isElectron() reads both). */
 function makeElectron(): void {
@@ -53,8 +62,13 @@ function installLlamaBridge(overrides: AnyRecord = {}): AnyRecord {
   return bridge;
 }
 
+/** A `listPresence()` row for a given key/file. */
+function presenceRow(key: string, file: string, present: boolean, sizeBytes = 0): AnyRecord {
+  return { key, file, present, sizeBytes };
+}
+
 beforeEach(() => {
-  // Default: not Electron, no GGUF/embed presence anywhere.
+  // Default: not Electron, no bridges installed → every model probes "unknown".
   clearElectronShell();
   win.electronModels = undefined;
   win.electronLlama = undefined;
@@ -72,18 +86,14 @@ afterEach(() => {
 // ─── ensureModelsReady ──────────────────────────────────────────────────────────
 
 describe("ensureModelsReady", () => {
-  it("reports ready=false with the GGUF + embed primaries missing in a bare browser", async () => {
-    // No electronModels/electronLlama bridges → every lane probes to "unknown".
-
+  it("reports ready=false with the GGUF + embed primaries missing when no bridge is installed", async () => {
     const result = await ensureModelsReady();
 
-    // Two non-optional primaries exist: the Gemma GGUF and the Qwen3 embed GGUF.
+    // Two non-optional primaries exist: the Gemma GGUF and the MiniLM embed GGUF.
     expect(result.ready).toBe(false);
-    expect(result.missing.map((r) => r.key).sort()).toEqual(
-      ["qwen3-embedding-0.6b-q8_0", "gemma-4-e4b-it-q4_k_m"].sort(),
-    );
+    expect(result.missing.map((r) => r.key).sort()).toEqual([EMBED_KEY, LLM_KEY].sort());
     // records covers every manifest entry in the default ["llm","embed"] lanes.
-    expect(result.records.length).toBe(3);
+    expect(result.records.length).toBe(MODEL_MANIFEST.length);
   });
 
   it("excludes optional models from `missing` even when they are absent", async () => {
@@ -96,21 +106,10 @@ describe("ensureModelsReady", () => {
   });
 
   it("reports ready=true once both non-optional primaries are present", async () => {
-    // Both the instruct and embed GGUFs ride the same models-bridge presence lane.
     installModelsBridge({
       listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1_070_000_000,
-        },
-        {
-          key: "qwen3-embedding-0.6b-q8_0",
-          file: "qwen3-embedding-0.6b-q8_0.gguf",
-          present: true,
-          sizeBytes: 400_000_000,
-        },
+        presenceRow(LLM_KEY, LLM_FILE, true, 1_070_000_000),
+        presenceRow(EMBED_KEY, EMBED_FILE, true, 25_008_064),
       ]),
     });
 
@@ -124,8 +123,8 @@ describe("ensureModelsReady", () => {
     const result = await ensureModelsReady(["embed"]);
 
     // Only the single embed entry is probed when lane filter is ["embed"].
-    expect(result.records.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
-    expect(result.missing.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
+    expect(result.records.map((r) => r.key)).toEqual([EMBED_KEY]);
+    expect(result.missing.map((r) => r.key)).toEqual([EMBED_KEY]);
   });
 
   it("returns empty records + ready=true for an empty lane list", async () => {
@@ -139,30 +138,27 @@ describe("ensureModelsReady", () => {
 
   it("treats an `unknown` GGUF state as still-missing (blocks readiness)", async () => {
     // No bridges at all → probeGguf returns state:"unknown".
-
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
+    const primary = result.records.find((r) => r.key === LLM_KEY);
     expect(primary?.state).toBe("unknown");
     // `missing` is `state !== "present"`, so "unknown" counts as blocking.
-    expect(result.missing.map((r) => r.key)).toContain("gemma-4-e4b-it-q4_k_m");
+    expect(result.missing.map((r) => r.key)).toContain(LLM_KEY);
     expect(result.ready).toBe(false);
   });
 
   it("falls back to the llama bridge when listPresence has no matching entry", async () => {
     installModelsBridge({
       // Returns a list, but nothing matching the primary's key/file.
-      listPresence: vi.fn(async () => [
-        { key: "some-other", file: "other.gguf", present: true, sizeBytes: 1 },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow("some-other", "other.gguf", true, 1)]),
     });
     installLlamaBridge({
-      listModels: vi.fn(async () => [{ id: "gemma-4-e4b-it-q4_k_m.gguf", present: true }]),
+      listModels: vi.fn(async () => [{ id: LLM_FILE, present: true }]),
     });
 
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
+    const primary = result.records.find((r) => r.key === LLM_KEY);
     expect(primary?.state).toBe("present");
     expect(primary?.source).toBe("userData");
   });
@@ -174,57 +170,46 @@ describe("ensureModelsReady", () => {
       }),
     });
     installLlamaBridge({
-      listModels: vi.fn(async () => [{ id: "gemma-4-e4b-it-q4_k_m.gguf", present: true }]),
+      listModels: vi.fn(async () => [{ id: LLM_FILE, present: true }]),
     });
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.state).toBe("present");
+    expect(result.records.find((r) => r.key === LLM_KEY)?.state).toBe("present");
   });
 
   it("matches a GGUF by file when key differs but ggufFile matches", async () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
         // key mismatch, but `file` equals the primary's ggufFile → matched.
-        { key: "mismatched", file: "gemma-4-e4b-it-q4_k_m.gguf", present: false, sizeBytes: 0 },
+        presenceRow("mismatched", LLM_FILE, false, 0),
       ]),
     });
 
     const result = await ensureModelsReady(["llm"]);
 
-    const primary = result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m");
+    const primary = result.records.find((r) => r.key === LLM_KEY);
     expect(primary?.state).toBe("missing");
     expect(primary?.source).toBe("userData");
   });
 
   it("carries sizeBytes from listPresence onto the GGUF record", async () => {
     installModelsBridge({
-      listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1_234_567,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(LLM_KEY, LLM_FILE, true, 1_234_567)]),
     });
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.sizeBytes).toBe(
-      1_234_567,
-    );
+    expect(result.records.find((r) => r.key === LLM_KEY)?.sizeBytes).toBe(1_234_567);
   });
 
   it("marks the GGUF record downloadable only inside Electron with the models bridge", async () => {
     makeElectron();
-    installModelsBridge({
-      listPresence: vi.fn(async () => []),
-    });
+    installModelsBridge();
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable).toBe(true);
+    expect(result.records.find((r) => r.key === LLM_KEY)?.downloadable).toBe(true);
   });
 
   it("marks the GGUF record NOT downloadable in a browser (no Electron shell)", async () => {
@@ -233,27 +218,16 @@ describe("ensureModelsReady", () => {
 
     const result = await ensureModelsReady(["llm"]);
 
-    expect(result.records.find((r) => r.key === "gemma-4-e4b-it-q4_k_m")?.downloadable).toBe(false);
+    expect(result.records.find((r) => r.key === LLM_KEY)?.downloadable).toBe(false);
   });
 
-  it("marks the embed GGUF record downloadable the same way as the llm lane", async () => {
-    // The embed model now rides the same in-app GGUF downloader as the llm
-    // lane (node-llama-cpp migration), so it is downloadable under the exact
-    // same condition: inside Electron with the models bridge present.
+  it("marks the embed record downloadable exactly like the llm record (same electron-gguf rule)", async () => {
     makeElectron();
     installModelsBridge();
 
     const result = await ensureModelsReady(["embed"]);
 
     expect(result.records[0].downloadable).toBe(true);
-  });
-
-  it("marks the embed GGUF record NOT downloadable in a browser (no Electron shell)", async () => {
-    installModelsBridge();
-
-    const result = await ensureModelsReady(["embed"]);
-
-    expect(result.records[0].downloadable).toBe(false);
   });
 });
 
@@ -263,14 +237,7 @@ describe("isPrimaryLlmReady", () => {
   it("returns false immediately when not running in Electron", async () => {
     // Even if a models bridge claims presence, the browser short-circuits.
     installModelsBridge({
-      listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(LLM_KEY, LLM_FILE, true, 1)]),
     });
 
     await expect(isPrimaryLlmReady()).resolves.toBe(false);
@@ -279,14 +246,7 @@ describe("isPrimaryLlmReady", () => {
   it("returns true when in Electron and the primary GGUF is present", async () => {
     makeElectron();
     installModelsBridge({
-      listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(LLM_KEY, LLM_FILE, true, 1)]),
     });
 
     await expect(isPrimaryLlmReady()).resolves.toBe(true);
@@ -295,14 +255,7 @@ describe("isPrimaryLlmReady", () => {
   it("returns false when in Electron but the primary GGUF is missing", async () => {
     makeElectron();
     installModelsBridge({
-      listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: false,
-          sizeBytes: 0,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(LLM_KEY, LLM_FILE, false, 0)]),
     });
 
     await expect(isPrimaryLlmReady()).resolves.toBe(false);
@@ -328,7 +281,7 @@ describe("useModelStatus", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.records.length).toBe(3);
+    expect(result.current.records.length).toBe(7);
     // Nothing present → not ready.
     expect(result.current.ready).toBe(false);
   });
@@ -336,18 +289,8 @@ describe("useModelStatus", () => {
   it("computes ready=true when every non-optional tracked model is present", async () => {
     installModelsBridge({
       listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
-        {
-          key: "qwen3-embedding-0.6b-q8_0",
-          file: "qwen3-embedding-0.6b-q8_0.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
+        presenceRow(LLM_KEY, LLM_FILE, true, 1),
+        presenceRow(EMBED_KEY, EMBED_FILE, true, 1),
       ]),
     });
 
@@ -359,20 +302,13 @@ describe("useModelStatus", () => {
 
   it("tracks only the requested lane when given a lane filter", async () => {
     installModelsBridge({
-      listPresence: vi.fn(async () => [
-        {
-          key: "qwen3-embedding-0.6b-q8_0",
-          file: "qwen3-embedding-0.6b-q8_0.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(EMBED_KEY, EMBED_FILE, true, 1)]),
     });
 
     const { result } = renderHook(() => useModelStatus(["embed"]));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
-    expect(result.current.records.map((r) => r.key)).toEqual(["qwen3-embedding-0.6b-q8_0"]);
+    expect(result.current.records.map((r) => r.key)).toEqual([EMBED_KEY]);
     // The single tracked non-optional model is present → ready.
     expect(result.current.ready).toBe(true);
   });
@@ -381,12 +317,7 @@ describe("useModelStatus", () => {
     let present = false;
     installModelsBridge({
       listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present,
-          sizeBytes: present ? 1 : 0,
-        },
+        { key: LLM_KEY, file: LLM_FILE, present, sizeBytes: present ? 1 : 0 },
       ]),
     });
 
@@ -405,18 +336,17 @@ describe("useModelStatus", () => {
 
   it("download() sets an error and no-ops when the models bridge is absent", async () => {
     // No electronModels installed.
-
     const { result } = renderHook(() => useModelStatus(["embed"]));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("qwen3-embedding-0.6b-q8_0");
+      await result.current.download(EMBED_KEY);
     });
 
-    expect(result.current.downloads["qwen3-embedding-0.6b-q8_0"]).toMatchObject({
+    expect(result.current.downloads[EMBED_KEY]).toMatchObject({
       error: "Model download requires the desktop app.",
     });
-    expect(result.current.downloads["qwen3-embedding-0.6b-q8_0"].active).toBe(false);
+    expect(result.current.downloads[EMBED_KEY].active).toBe(false);
   });
 
   it("download() subscribes to progress, drives percent, then completes at 100", async () => {
@@ -428,32 +358,25 @@ describe("useModelStatus", () => {
         return unsubscribe;
       }),
       download: vi.fn(async () => ({
-        key: "gemma-4-e4b-it-q4_k_m",
+        key: LLM_KEY,
         present: true,
         sizeBytes: 1,
       })),
       // After download, refresh() re-probes; report present.
-      listPresence: vi.fn(async () => [
-        {
-          key: "gemma-4-e4b-it-q4_k_m",
-          file: "gemma-4-e4b-it-q4_k_m.gguf",
-          present: true,
-          sizeBytes: 1,
-        },
-      ]),
+      listPresence: vi.fn(async () => [presenceRow(LLM_KEY, LLM_FILE, true, 1)]),
     });
 
     const { result } = renderHook(() => useModelStatus(["llm"]));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
+      const p = result.current.download(LLM_KEY);
       // Drive a mid-flight progress event before download resolves.
       emit?.({ percent: 42, receivedBytes: 420, totalBytes: 1000, done: false });
       await p;
     });
 
-    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
+    const state = result.current.downloads[LLM_KEY];
     // Terminal state after a successful download.
     expect(state.percent).toBe(100);
     expect(state.active).toBe(false);
@@ -477,10 +400,10 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("gemma-4-e4b-it-q4_k_m");
+      await result.current.download(LLM_KEY);
     });
 
-    const state = result.current.downloads["gemma-4-e4b-it-q4_k_m"];
+    const state = result.current.downloads[LLM_KEY];
     expect(state.error).toBe("disk full");
     expect(state.active).toBe(false);
     // Still cleaned up even on failure.
@@ -500,10 +423,10 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.download("gemma-4-e4b-it-q4_k_m");
+      await result.current.download(LLM_KEY);
     });
 
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].error).toBe("plain string failure");
+    expect(result.current.downloads[LLM_KEY].error).toBe("plain string failure");
   });
 
   it("a progress event with done=true clears the active flag", async () => {
@@ -527,13 +450,13 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      const p = result.current.download("gemma-4-e4b-it-q4_k_m");
+      const p = result.current.download(LLM_KEY);
       emit?.({ percent: 100, receivedBytes: 1000, totalBytes: 1000, done: true });
       await p;
     });
 
     // active:false comes from the done:true event AND the success branch.
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads[LLM_KEY].active).toBe(false);
   });
 
   it("cancel() is a no-op when there is no active download for the key", async () => {
@@ -543,12 +466,12 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
+      await result.current.cancel(LLM_KEY);
     });
 
     // No active entry → abort never called, no download state created.
     expect(bridge.abort).not.toHaveBeenCalled();
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"]).toBeUndefined();
+    expect(result.current.downloads[LLM_KEY]).toBeUndefined();
   });
 
   it("cancel() aborts an in-flight download, unsubscribes, and marks inactive", async () => {
@@ -573,18 +496,18 @@ describe("useModelStatus", () => {
     // Kick off a download that never resolves until we cancel.
     let downloadPromise: Promise<void> | undefined;
     await act(async () => {
-      downloadPromise = result.current.download("gemma-4-e4b-it-q4_k_m");
+      downloadPromise = result.current.download(LLM_KEY);
       // Let the synchronous body register the active entry.
       await Promise.resolve();
     });
 
     await act(async () => {
-      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
+      await result.current.cancel(LLM_KEY);
     });
 
     expect(abort).toHaveBeenCalledTimes(1);
     expect(unsubscribe).toHaveBeenCalled();
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads[LLM_KEY].active).toBe(false);
 
     // Let the dangling download promise settle so no unhandled rejection leaks.
     await act(async () => {
@@ -614,16 +537,16 @@ describe("useModelStatus", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
-      result.current.download("gemma-4-e4b-it-q4_k_m");
+      result.current.download(LLM_KEY);
       await Promise.resolve();
     });
 
     // Should not throw despite abort() rejecting.
     await act(async () => {
-      await result.current.cancel("gemma-4-e4b-it-q4_k_m");
+      await result.current.cancel(LLM_KEY);
     });
 
-    expect(result.current.downloads["gemma-4-e4b-it-q4_k_m"].active).toBe(false);
+    expect(result.current.downloads[LLM_KEY].active).toBe(false);
 
     await act(async () => {
       resolveDownload?.({ present: true });

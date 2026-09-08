@@ -7,8 +7,8 @@ import { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
 import { buildCanalCompareBarOption } from "@/features/telecom/lib/chart-options";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { cn } from "@/shared/utils";
-import { CanalRule } from "../types";
 
 export { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
 
@@ -20,7 +20,7 @@ export function CanalComparePanel({
   dateFrom: string;
   dateTo: string;
   fetchSpecChannelStats: (
-    channels: CanalRule[],
+    channels: ChannelDef[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<{ rows: SpecChRow[]; total: SpecChRow }>;

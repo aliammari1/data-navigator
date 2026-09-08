@@ -19,10 +19,10 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (sql: string) => runReadOnlyQuery(sql),
 }));
 
-import * as QueriesModule from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import {
-  buildSpecDateFilter,
   CANAL_KEY_TO_LABEL,
+  buildSpecDateFilter,
   createTelecomDailyAgg,
   createTelecomEnrichedView,
   dailyAggTableName,
@@ -51,10 +51,9 @@ import {
   fetchSpecStatusStats,
   fetchSpecUnitAmountStats,
   fetchStatusBreakdown,
-  fetchUnclassifiedCanalCombos,
   runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
-import type { CanalRule } from "@/features/telecom/lib/report-engine";
+import * as QueriesModule from "@/features/telecom/lib/queries";
 import type { CanalKey, ColumnMapping, FilterState } from "@/features/telecom/types";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -275,52 +274,6 @@ describe("fetchRawCanalSummaries", () => {
     expect(rows[0].key).toBe("bill_payment");
   });
 
-  it("passes cm overrides into canalCaseExpr so a confirmed combo is queried as its assigned canal, not 'Other'", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { canal_group: "Credit Transfer", total: 51, success: 41 },
-    ]);
-    const cm: import("@/features/telecom/types").CanalRule[] = [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "1",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ];
-
-    const rows = await fetchRawCanalSummaries(TABLE, m, 1000, undefined, cm);
-
-    const [sql] = runReadOnlyQuery.mock.calls.at(-1) ?? [];
-    expect(sql).toContain("BRAND_D");
-    expect(sql).toContain("'99'");
-    expect(rows).toHaveLength(1);
-    expect(rows[0].key).toBe("credit_transfer");
-    expect(rows[0].total).toBe(51);
-  });
-
-  it("passes a BRAND_D-only cm override (null layer/group/msisdn) through without those columns", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ canal_group: "Internet Sabba", total: 12, success: 9 }]);
-    const cm: import("@/features/telecom/types").CanalRule[] = [
-      {
-        brandD: "777",
-        accountLayerId: null,
-        accountGroupId: null,
-        accountMsisdn: null,
-        key: "data_sabba",
-      },
-    ];
-
-    const rows = await fetchRawCanalSummaries(TABLE, m, 1000, undefined, cm);
-
-    const [sql] = runReadOnlyQuery.mock.calls.at(-1) ?? [];
-    expect(sql).toContain("'777'");
-    expect(sql).not.toContain("ACCOUNT_LAYER_ID");
-    expect(sql).not.toContain("ACCOUNT_GROUP_ID");
-    expect(sql).not.toContain("ACCOUNT_MSISDN");
-    expect(rows[0].key).toBe("data_sabba");
-  });
-
   it("falls back to summing row totals for share when totalTx is 0", async () => {
     runReadOnlyQuery.mockResolvedValue([
       { canal_group: "Bill Payment", total: 100, success: 50 },
@@ -335,7 +288,9 @@ describe("fetchRawCanalSummaries", () => {
   });
 
   it("guards successRate (0) when a canal has zero total", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ canal_group: "Bill Payment", total: 0, success: 0 }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { canal_group: "Bill Payment", total: 0, success: 0 },
+    ]);
 
     const rows = await fetchRawCanalSummaries(TABLE, m, 0);
 
@@ -347,66 +302,6 @@ describe("fetchRawCanalSummaries", () => {
     runReadOnlyQuery.mockRejectedValue(new Error("x"));
 
     expect(await fetchRawCanalSummaries(TABLE, m, 1000)).toEqual([]);
-  });
-});
-
-// ──────────────────────────────────────────────────────────────────────────────
-// fetchUnclassifiedCanalCombos
-// ──────────────────────────────────────────────────────────────────────────────
-
-describe("fetchUnclassifiedCanalCombos", () => {
-  it("maps distinct account combos still classified as 'Other'", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      {
-        brand_d: "99",
-        account_layer_id: "1",
-        account_group_id: "2",
-        account_msisdn: "216000",
-        total: 5,
-      },
-    ]);
-
-    const combos = await fetchUnclassifiedCanalCombos(TABLE, m);
-
-    expect(combos).toEqual([
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        total: 5,
-      },
-    ]);
-    const [sql] = runReadOnlyQuery.mock.calls.at(-1) ?? [];
-    expect(sql).toContain("= 'Other'");
-  });
-
-  it("excludes combos already resolved by a real cm override (they no longer evaluate to 'Other')", async () => {
-    // Once a combo is given a real canal override, canalCaseExpr no longer
-    // classifies it as 'Other', so the SQL itself won't return it — nothing
-    // extra to filter in JS for this case.
-    runReadOnlyQuery.mockResolvedValue([]);
-    const cm: import("@/features/telecom/types").CanalRule[] = [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ];
-
-    const combos = await fetchUnclassifiedCanalCombos(TABLE, m, cm);
-
-    expect(combos).toEqual([]);
-    const [sql] = runReadOnlyQuery.mock.calls.at(-1) ?? [];
-    expect(sql).toContain("'216000'");
-  });
-
-  it("returns an empty array when the query throws", async () => {
-    runReadOnlyQuery.mockRejectedValue(new Error("x"));
-
-    expect(await fetchUnclassifiedCanalCombos(TABLE, m)).toEqual([]);
   });
 });
 
@@ -566,7 +461,9 @@ describe("fetchOperatorsForGroup", () => {
 
 describe("fetchDestinationsForGroup", () => {
   it("maps rows with destination accountType", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ operator: "DEST", total: 10, success: 10, amount: 5 }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { operator: "DEST", total: 10, success: 10, amount: 5 },
+    ]);
 
     const rows = await fetchDestinationsForGroup(TABLE, m, ["bill_payment"]);
 
@@ -582,7 +479,9 @@ describe("fetchDestinationsForGroup", () => {
 
 describe("fetchRegionsForGroup", () => {
   it("maps region rows with numeric coercion", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ region: "TUNIS", total: 70, success: 60, amount: 300 }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { region: "TUNIS", total: 70, success: 60, amount: 300 },
+    ]);
 
     const rows = await fetchRegionsForGroup(TABLE, m, ["bill_payment"]);
 
@@ -609,7 +508,9 @@ describe("fetchRegionsForGroup", () => {
 
 describe("fetchRegions", () => {
   it("maps region rows and excludes empty/NULL region strings in SQL", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ region: "SFAX", total: 12, success: 9, amount: 33 }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { region: "SFAX", total: 12, success: 9, amount: 33 },
+    ]);
 
     const rows = await fetchRegions(TABLE, m);
 
@@ -991,7 +892,7 @@ describe("fetchDistinctStatuses", () => {
 // fetchSpecChannelStats — single-pass conditional aggregation
 // ──────────────────────────────────────────────────────────────────────────────
 
-const channels: CanalRule[] = [
+const channels: ChannelDef[] = [
   { name: "Alpha", condition: "TRY_CAST(BRAND_D AS INT) = 1" },
   { name: "Beta", condition: "TRY_CAST(BRAND_D AS INT) = 2" },
 ];
@@ -1065,7 +966,9 @@ describe("fetchSpecChannelStats", () => {
 
 describe("fetchSpecStatusStats", () => {
   it("maps the four spec status rows and the in-scope grand total", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ n_0: 100, n_1: 5, n_2: 8, n_3: 12, total_all: 130 }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { n_0: 100, n_1: 5, n_2: 8, n_3: 12, total_all: 130 },
+    ]);
 
     const res = await fetchSpecStatusStats(TABLE, channels, "2024-01-01", "2024-01-31", m);
 
@@ -1303,22 +1206,23 @@ describe("French-decimal money bug (characterization)", () => {
     ["fetchStatusBreakdown", () => fetchStatusBreakdown(TABLE, m)],
     ["fetchRegions", () => fetchRegions(TABLE, m)],
     ["fetchDistinctStatuses", () => fetchDistinctStatuses(TABLE, m)],
-  ] as const)("%s sums money via the unguarded DOUBLE cast (no comma normalisation)", async (_name, run) => {
-    runReadOnlyQuery.mockResolvedValue([]);
+  ] as const)(
+    "%s sums money via the unguarded DOUBLE cast (no comma normalisation)",
+    async (_name, run) => {
+      runReadOnlyQuery.mockResolvedValue([]);
 
-    await run();
+      await run();
 
-    const sql = lastSql();
-    expect(sql).toContain("TRY_CAST");
-    expect(sql).toContain("AS DOUBLE");
-    expect(sql).not.toContain("REPLACE");
-  });
+      const sql = lastSql();
+      expect(sql).toContain("TRY_CAST");
+      expect(sql).toContain("AS DOUBLE");
+      expect(sql).not.toContain("REPLACE");
+    },
+  );
 
   it("passes whatever the DOUBLE cast yields straight through safeNum (NULL → 0)", async () => {
     // Simulate DuckDB returning NULL for a comma-decimal amount that failed the cast.
-    runReadOnlyQuery.mockResolvedValue([
-      { hour: 9, total: 3, success: 3, declined: 0, amount: null },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ hour: 9, total: 3, success: 3, declined: 0, amount: null }]);
 
     const rows = await fetchHourly(TABLE, m);
 

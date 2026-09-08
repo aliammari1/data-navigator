@@ -90,22 +90,3 @@ export interface QueryResult {
   duration: number;
   rowCount: number;
 }
-
-export interface DerivedField {
-  id: string;
-  name: string;
-  sql: string;
-  prompt: string;
-  parents: string[];
-  createdAt: number;
-}
-
-export interface DataThreadEntry {
-  id: string;
-  kind: "derive" | "chart" | "refine" | "filter" | "sandbox";
-  message: string;
-  detail?: string;
-  ts: number;
-  chartId?: string;
-  fieldId?: string;
-}

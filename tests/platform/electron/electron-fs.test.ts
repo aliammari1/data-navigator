@@ -1,19 +1,19 @@
 /**
  * Unit tests for src/platform/electron/electron-fs.ts
  *
- * The module is a thin IPC bridge – it reads/writes window.electronFS
- * and window.electronDuckDB. We stub those globals and exercise every
- * exported function and branch.
+ * The module is a thin IPC bridge – it reads/writes window.electronFS and
+ * window.electronDuckDB. We stub those globals and exercise every exported
+ * function and branch.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import type {
-  DuckDBStatus,
-  ElectronDuckDBBridge,
   ElectronFSBridge,
-  QueryMetric,
+  ElectronDuckDBBridge,
   RegisteredDataset,
   RegisteredDatasetWithPreview,
+  DuckDBStatus,
+  QueryMetric,
 } from "@/platform/electron/electron-fs";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,11 +70,9 @@ function makeDuckDBBridge(overrides: Partial<ElectronDuckDBBridge> = {}): Electr
       pendingReads: 0,
       pendingWrites: 0,
     } satisfies DuckDBStatus),
-    getQueryMetrics: vi
-      .fn()
-      .mockResolvedValue([
-        { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
-      ]),
+    getQueryMetrics: vi.fn().mockResolvedValue([
+      { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
+    ]),
     clearQueryMetrics: vi.fn().mockResolvedValue(undefined),
     runReadOnlyQuery: vi.fn().mockResolvedValue([{ result: 1 }]),
     ...overrides,
@@ -306,7 +304,9 @@ describe("openFileDialog()", () => {
 describe("saveFileDialog()", () => {
   it("returns filePath when dialog is not canceled and filePath is present", async () => {
     const fs = makeFsBridge({
-      saveDialog: vi.fn().mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
+      saveDialog: vi
+        .fn()
+        .mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
     });
     vi.stubGlobal("window", { electronFS: fs });
     const { saveFileDialog } = await import("@/platform/electron/electron-fs");

@@ -1,11 +1,12 @@
 /**
- * Browser-side text embeddings for semantic column matching, NLQ understanding,
- * and smart insight generation.
+ * Text embeddings for semantic column matching, NLQ understanding, and smart
+ * insight generation.
  *
- * The actual embedding model runs in the Electron MAIN process via
- * node-llama-cpp — NOT on the renderer main thread. This module is a thin,
- * stable API over `inference-client.ts`, which talks to that process over IPC;
- * `@huggingface/transformers` is never imported here.
+ * The actual model (all-MiniLM-L6-v2, GGUF Q8_0) runs via node-llama-cpp in
+ * the Electron MAIN process (`electron/embedding-service.ts`) — NOT in the
+ * renderer. This module is a thin, stable API over the IPC bridge
+ * (`src/platform/ai/inference-client.ts`); `@huggingface/transformers` is
+ * never imported here.
  */
 
 import type { ColMeta } from "@/core/stores/data-store";

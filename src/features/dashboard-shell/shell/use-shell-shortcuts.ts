@@ -6,6 +6,7 @@ import { tinykeys } from "tinykeys";
 export interface ShellShortcutActions {
   togglePalette: () => void;
   toggleSidebar: () => void;
+  lockApp?: () => void;
 }
 
 /**
@@ -26,6 +27,10 @@ export function useShellShortcuts(actions: ShellShortcutActions): void {
       "$mod+b": (event) => {
         event.preventDefault();
         actions.toggleSidebar();
+      },
+      "$mod+l": (event) => {
+        event.preventDefault();
+        actions.lockApp?.();
       },
     });
   }, [actions]);

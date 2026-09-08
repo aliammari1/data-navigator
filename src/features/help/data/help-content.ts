@@ -8,7 +8,7 @@
  */
 
 import type { LucideIcon } from "lucide-react";
-import { Code2, FileText, Folder, Receipt, Upload } from "lucide-react";
+import { Code2, FileText, Folder, Receipt, Upload, Users } from "lucide-react";
 
 export interface ShortcutDef {
   keys: string[];
@@ -83,6 +83,19 @@ export const FEATURES: readonly FeatureDef[] = [
       "Upload the file in the Telecom Report page — not the generic Upload page",
       "KPIs only count transactions with status REUSSIE (PST, PST1…PST9)",
       "Use the date picker to filter a specific period",
+    ],
+  },
+  {
+    id: "collaborative",
+    icon: Users,
+    color: "text-rose-400 bg-rose-500/10 border-rose-500/20",
+    title: "Collaborative",
+    href: "/dashboard/collaborative",
+    summary:
+      "Leave comments on columns or datasets, track changes with team chat, and see live cursors from other open tabs.",
+    tips: [
+      "Uses Yjs CRDT — works offline-first, syncs when tabs reconnect",
+      "Mention a colleague with @name in comments",
     ],
   },
   {

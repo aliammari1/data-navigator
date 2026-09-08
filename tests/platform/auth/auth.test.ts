@@ -90,9 +90,43 @@ describe("auth.ts — authConfig shape", () => {
     expect(authConfig.plugins[0]).toEqual({ name: "next-cookies-plugin" });
   });
 
-  it("uses the default secret when BETTER_AUTH_SECRET env var is not set at load time", () => {
-    // At import time no env var was set, so the ?? right-hand side is used.
-    expect(authConfig.secret).toBe("data-navigator-local-dev-secret-change-me");
+  it("uses the default secret when BETTER_AUTH_SECRET env var is not set at load time", async () => {
+    // Asserting on the top-level `authConfig` singleton here would be
+    // environment-dependent: local dev checkouts commonly have a `.env` with
+    // a real BETTER_AUTH_SECRET, which Vite/Vitest's config bootstrap loads
+    // into `process.env` before this file's top-level import even runs. So
+    // instead of relying on ambient env state, explicitly clear the var and
+    // re-import a fresh module instance — same isolation pattern as the
+    // "secret branch" describe block below.
+    vi.resetModules();
+    vi.stubEnv("BETTER_AUTH_SECRET", undefined as unknown as string);
+
+    vi.doMock("@better-auth/drizzle-adapter", () => ({
+      drizzleAdapter: vi.fn().mockReturnValue({ type: "mock-drizzle-adapter" }),
+    }));
+    vi.doMock("better-auth/next-js", () => ({
+      nextCookies: vi.fn().mockReturnValue({ name: "next-cookies-plugin" }),
+    }));
+    vi.doMock("better-auth/minimal", () => ({
+      betterAuth: vi.fn().mockImplementation((cfg: unknown) => ({
+        $Infer: { Session: null },
+        _cfg: cfg,
+      })),
+    }));
+    vi.doMock("@/db/schema", () => ({
+      user: { tableName: "user" },
+      session: { tableName: "session" },
+      account: { tableName: "account" },
+      verification: { tableName: "verification" },
+    }));
+    vi.doMock("@/platform/auth/auth-database", () => ({
+      authDb: { __isMock: true },
+      authSqlite: { __isMock: true },
+      authDatabasePath: "/mock/auth.db",
+    }));
+
+    const mod = await import("@/platform/auth/auth");
+    expect(mod.authConfig.secret).toBe("data-navigator-local-dev-secret-change-me");
   });
 
   it("uses the default baseURL when BETTER_AUTH_URL env var is not set at load time", () => {

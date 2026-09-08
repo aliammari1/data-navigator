@@ -13,14 +13,14 @@ const meta = {
   args: {
     onLoad: fn(async () => {}),
     defaultMode: "replace",
-    canAppend: false,
+    canUpload: false,
   },
   argTypes: {
     defaultMode: {
       control: "inline-radio",
       options: ["replace", "append", "replace-active"],
     },
-    canAppend: { control: "boolean" },
+    canUpload: { control: "boolean" },
     onLoad: { control: false },
   },
   decorators: [
@@ -50,7 +50,7 @@ export const Default: Story = {
  */
 export const AppendEnabled: Story = {
   args: {
-    canAppend: true,
+    canUpload: true,
     defaultMode: "append",
   },
 };

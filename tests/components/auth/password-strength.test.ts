@@ -31,4 +31,10 @@ describe("scorePassword", () => {
       expect(scorePassword(pw).tone).toMatch(/^bg-/);
     }
   });
+
+  it("detects common passwords and returns actionable zxcvbn feedback", () => {
+    const feedback = scorePassword("password123");
+    expect(feedback.warning).toBeTruthy();
+    expect(feedback.suggestions?.length).toBeGreaterThan(0);
+  });
 });

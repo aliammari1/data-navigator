@@ -9,19 +9,19 @@
 export {
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
+  manifestByKey,
   MODEL_MANIFEST,
   type ModelLane,
   type ModelManifestEntry,
   type ModelPresenceKind,
-  manifestByKey,
   primaryForLane,
 } from "./model-manifest";
 export {
   type DownloadState,
   ensureModelsReady,
   isPrimaryLlmReady,
-  type ModelPresenceState,
   type ModelReadiness,
+  type ModelPresenceState,
   type ModelStatusRecord,
   type UseModelStatus,
   useModelStatus,

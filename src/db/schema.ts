@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type InferInsertModel, type InferSelectModel, relations, sql } from "drizzle-orm";
 import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
@@ -71,3 +71,29 @@ export const verification = sqliteTable(
   },
   (table) => [index("verification_identifier_idx").on(table.identifier)],
 );
+
+export const userRelations = relations(user, ({ many }) => ({
+  sessions: many(session),
+  accounts: many(account),
+}));
+
+export const sessionRelations = relations(session, ({ one }) => ({
+  user: one(user, { fields: [session.userId], references: [user.id] }),
+}));
+
+export const accountRelations = relations(account, ({ one }) => ({
+  user: one(user, { fields: [account.userId], references: [user.id] }),
+}));
+
+export type User = InferSelectModel<typeof user>;
+export type NewUser = InferInsertModel<typeof user>;
+export type Session = InferSelectModel<typeof session>;
+export type NewSession = InferInsertModel<typeof session>;
+export type Account = InferSelectModel<typeof account>;
+export type NewAccount = InferInsertModel<typeof account>;
+export type Verification = InferSelectModel<typeof verification>;
+export type NewVerification = InferInsertModel<typeof verification>;
+
+export * from "./schema-settings";
+export * from "./schema-chat";
+export * from "./schema-analytics";

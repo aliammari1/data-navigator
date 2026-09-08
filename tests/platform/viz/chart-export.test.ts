@@ -9,7 +9,7 @@
  * Blob rather than reimplementing jsdom).
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildChartPngDataUrl,
   copyChartPng,

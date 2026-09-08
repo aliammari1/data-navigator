@@ -124,7 +124,7 @@ export class AIProviderError extends Error {
   constructor(
     message: string,
     readonly provider: ProviderId,
-    readonly cause?: unknown,
+    override readonly cause?: unknown,
   ) {
     super(message);
     this.name = "AIProviderError";

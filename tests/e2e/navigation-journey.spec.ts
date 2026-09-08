@@ -33,6 +33,13 @@ test.describe("Dashboard Navigation Journey", () => {
     }
   });
 
+  test("should navigate to collaborative workspace", async ({ page }) => {
+    await page.goto("/dashboard/collaborative");
+    await page.waitForLoadState("networkidle");
+
+    await expect(page.locator("body")).toBeVisible();
+  });
+
   test("should navigate through telecom report sections", async ({ page }) => {
     const telecomPages = [
       "/dashboard/telecom-report/overview",

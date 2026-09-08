@@ -20,14 +20,13 @@ import type * as Types from "@/features/telecom/types";
 
 const setColumnMapping = vi.fn();
 const setStatusMapping = vi.fn();
-const setCanalRule = vi.fn();
 
 vi.mock("@/features/telecom/store", async (importActual) => {
   const actual = await importActual<typeof import("@/features/telecom/store")>();
   return {
     ...actual,
     useTelecomStore: {
-      getState: () => ({ setColumnMapping, setStatusMapping, setCanalRule }),
+      getState: () => ({ setColumnMapping, setStatusMapping }),
     },
   };
 });
@@ -37,6 +36,26 @@ const onBroadcast = vi.fn((_handler: (msg: unknown) => void) => broadcastUnsub);
 
 vi.mock("@/features/telecom/lib/channel", () => ({
   onBroadcast: (handler: (msg: unknown) => void) => onBroadcast(handler),
+}));
+
+const collabCleanup = vi.fn();
+const startCollabSync = vi.fn(() => collabCleanup);
+
+const yMappingStore = new Map<string, string>();
+const observers = new Set<() => void>();
+
+const sharedMapping = {
+  get: (key: string) => yMappingStore.get(key),
+  set: (key: string, value: string) => {
+    yMappingStore.set(key, value);
+  },
+  observe: vi.fn((fn: () => void) => observers.add(fn)),
+  unobserve: vi.fn((fn: () => void) => observers.delete(fn)),
+};
+
+vi.mock("@/platform/collab/collab", () => ({
+  startCollabSync,
+  sharedMapping,
 }));
 
 const toast = vi.fn();
@@ -68,6 +87,8 @@ function renderTelecomUI(
 
 beforeEach(() => {
   localStorage.clear();
+  yMappingStore.clear();
+  observers.clear();
   vi.clearAllMocks();
   // Restore localStorage in case a previous test stubbed it away.
   vi.unstubAllGlobals();

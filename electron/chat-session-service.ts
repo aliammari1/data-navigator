@@ -23,6 +23,8 @@
  *   model can read the failure and self-correct.
  */
 
+import path from "node:path";
+
 import type {
   ChatHistoryItem,
   ChatModelFunctionCall,
@@ -40,6 +42,13 @@ export type ChatToolEvent = {
   params: unknown;
   resultSummary: string;
   durationMs: number;
+  failed?: boolean;
+  /**
+   * True for the start of a call (no result yet). Lets the renderer show the
+   * running state from the examples' tool lifecycle instead of only the
+   * completed state. Never persisted: completion events supersede these.
+   */
+  started?: boolean;
 };
 
 export type ChatHistoryRowInput = {
@@ -63,6 +72,7 @@ export type PromptSessionInput = {
   requestId?: string;
   onToken?: (chunk: string) => void;
   onTool?: (event: ChatToolEvent) => void;
+  onToolStart?: (event: ChatToolEvent) => void;
   signal?: AbortSignal;
 };
 
@@ -102,10 +112,17 @@ const DEFAULT_SYSTEM_PROMPT = [
   "- run_sql(sql): exécute une requête SQL DuckDB en lecture seule et retourne les lignes.",
   "- get_schema(): liste les jeux de données enregistrés avec leurs colonnes et types.",
   "- profile_column(table, column): statistiques d'une colonne (min, max, distincts, nulls).",
-  "- make_chart(chart_type, x, y, aggregate, title): prépare un graphique affiché par l'application.",
+  "- make_chart(chart_type, x, y, aggregate, title, data): prépare un graphique interactif affiché par l'application (Chat-with-Chart).",
   "Commence par get_schema si tu ne connais pas les tables.",
   "Réponds dans la langue de l'utilisateur (français par défaut), de façon concise.",
   "Ne cite que des chiffres provenant des résultats d'outils.",
+  "Si tu dois raisonner avant de répondre, enveloppe ton raisonnement dans des balises <think>...</think>. Ne raconte jamais ton raisonnement en texte libre : réponds directement.",
+  "Pour agir, appelle les vraies fonctions fournies. N'écris jamais d'appels factices entre crochets comme [get_schema()] ou [make_chart(...)] dans ta réponse.",
+  "make_chart n'est pas du code Python : c'est un outil à appeler via les fonctions. Ne l'écris jamais dans un bloc de code python.",
+  "Sans jeu de données, passe des paires label/valeur dans le paramètre data de make_chart (ex. 50/50 : deux parts à 50).",
+  "OBLIGATION POUR LES GRAPHIQUES : Dès que l'utilisateur demande un graphique ou quand tu illustres une analyse avec des séries de données (même synthétiques), tu DOIS appeler l'outil make_chart. N'écris JAMAIS 'le graphique est prêt à être affiché' ni un tableau Markdown seul sans appeler make_chart !",
+  "Protocole d'outils (obligatoire) : appelle les fonctions via le protocole d'appel, jamais en texte. N'écris jamais [nom_fonction()], ni de JSON de questionnaire, ni le récit de tes appels.",
+  "Devant toute question sur les données : appelle get_schema en premier, puis run_sql ou profile_column avec de vrais noms. S'il manque un choix : appelle request_clarification puis termine ta réponse sans inventer.",
 ].join("\n");
 
 // ─── Session registry (Map insertion order = LRU order) ─────────────────────
@@ -298,6 +315,11 @@ export type MakeChartParams = {
   y: string;
   aggregate: "none" | "count" | "sum" | "avg" | "min" | "max";
   title: string;
+  /**
+   * Synthetic data when no table applies: [{label, value}, …] (max ~20).
+   * Omit for dataset-backed charts — the renderer queries the columns.
+   */
+  data?: { label: string; value: number }[];
 };
 
 /**
@@ -310,20 +332,39 @@ async function makeChartTool(params: MakeChartParams): Promise<string> {
 }
 
 /**
- * Build the per-prompt tool set. Every handler invocation pushes a
- * ChatToolEvent (name/params/resultSummary/durationMs) AND streams it via
- * `onEvent` immediately; errors become readable strings fed back to the model.
+ * request_clarification surfaces as a Questionnaire card from the streamed
+ * tool event (the renderer promotes it in clarificationPartFrom). The handler
+ * only tells the model to stop there: the user's click arrives as the next
+ * turn via answerClarification(), never through this return value.
  */
-async function buildTools(onEvent: (event: ChatToolEvent) => void) {
+async function clarificationTool(params: { question: string; options: string[] }): Promise<string> {
+  const count = Array.isArray(params.options) ? params.options.length : 0;
+  return `Question affichée à l'utilisateur (${count} options). Termine ta réponse là : ne répète ni la question ni les options, et ne choisis pas à sa place. Sa réponse arrivera au prochain tour.`;
+}
+
+/**
+ * Build the per-prompt tool set. Every handler invocation streams a start
+ * event via `onToolStart` BEFORE running, then pushes the completed
+ * ChatToolEvent via `onEvent`; errors become readable strings fed back to
+ * the model. The start/completion pair drives the running → done lifecycle
+ * the renderer shows.
+ */
+async function buildTools(
+  onEvent: (event: ChatToolEvent) => void,
+  onToolStart?: (event: ChatToolEvent) => void,
+) {
   const { defineChatSessionFunction } = await import("node-llama-cpp");
 
   const wrap = <P>(name: string, handler: (params: P) => Promise<string>) => {
     return async (params: P): Promise<string> => {
       const start = Date.now();
+      onToolStart?.({ name, params, resultSummary: "", durationMs: 0, started: true });
       let result: string;
+      let failed = false;
       try {
         result = await handler(params);
       } catch (error) {
+        failed = true;
         result = `Erreur ${name}: ${error instanceof Error ? error.message : String(error)}`;
       }
       onEvent({
@@ -331,6 +372,7 @@ async function buildTools(onEvent: (event: ChatToolEvent) => void) {
         params,
         resultSummary: truncateText(result, TOOL_SUMMARY_MAX_CHARS),
         durationMs: Date.now() - start,
+        failed,
       });
       return result;
     };
@@ -339,7 +381,7 @@ async function buildTools(onEvent: (event: ChatToolEvent) => void) {
   return {
     run_sql: defineChatSessionFunction({
       description:
-        "Exécute une requête SQL DuckDB en lecture seule (SELECT/WITH/SUMMARIZE/DESCRIBE) et retourne les lignes.",
+        "OBLIGATOIRE pour lire des données : exécute une requête SQL DuckDB en lecture seule (SELECT/WITH/SUMMARIZE/DESCRIBE) et retourne les lignes. Appelle get_schema d'abord pour les noms exacts. Appelle la fonction, ne l'écris jamais en texte.",
       params: {
         type: "object",
         properties: {
@@ -353,13 +395,13 @@ async function buildTools(onEvent: (event: ChatToolEvent) => void) {
     }),
     get_schema: defineChatSessionFunction({
       description:
-        "Liste les jeux de données enregistrés avec leurs colonnes et types. À appeler avant d'écrire du SQL.",
+        "OBLIGATOIRE en premier devant toute question sur les données : liste les jeux enregistrés avec leurs colonnes et types. Appelle-la vraiment, ne la raconte pas.",
       params: { type: "object", properties: {} } as const,
       handler: wrap("get_schema", getSchemaTool),
     }),
     profile_column: defineChatSessionFunction({
       description:
-        "Statistiques d'une colonne d'une table: min, max, valeurs distinctes, nulls, total.",
+        "Statistiques d'une colonne d'une table: min, max, valeurs distinctes, nulls, total. Appelle la fonction, ne l'écris jamais en texte.",
       params: {
         type: "object",
         properties: {
@@ -369,9 +411,37 @@ async function buildTools(onEvent: (event: ChatToolEvent) => void) {
       } as const,
       handler: wrap("profile_column", profileColumnTool),
     }),
+    request_clarification: defineChatSessionFunction({
+      description:
+        "OBLIGATOIRE quand un choix manque (table, colonne, période, type de graphique). Le questionnaire s'affiche tout seul : question = UNE phrase courte SANS les options dedans, options = 2 à 8 libellés courts (6 mots max, pas de numéros). multiSelect = true si plusieurs choix possibles.",
+      params: {
+        type: "object",
+        properties: {
+          question: {
+            type: "string",
+            description: "Une seule phrase courte, sans lister les options.",
+            maxLength: 160,
+          },
+          options: {
+            type: "array",
+            description: "2 à 8 libellés courts, sans numéros.",
+            items: { type: "string", maxLength: 60 },
+            minItems: 2,
+            maxItems: 8,
+          },
+          multiSelect: {
+            type: "boolean",
+            description: "true si la question permet de sélectionner plusieurs options à la fois.",
+          },
+        },
+      } as const,
+      handler: wrap("request_clarification", async (params) =>
+        clarificationTool(params as { question: string; options: string[]; multiSelect?: boolean }),
+      ),
+    }),
     make_chart: defineChatSessionFunction({
       description:
-        "Prépare un graphique que l'application affichera à l'utilisateur. N'exécute rien: fournis les colonnes et le type de graphique.",
+        "Prépare un graphique que l'application affichera à l'utilisateur. N'exécute rien: fournis les colonnes et le type de graphique. Sans jeu de données, fournis data avec des paires label/valeur.",
       params: {
         type: "object",
         properties: {
@@ -386,6 +456,18 @@ async function buildTools(onEvent: (event: ChatToolEvent) => void) {
             description: "Agrégation appliquée à la mesure Y.",
           },
           title: { type: "string", description: "Titre court du graphique." },
+          data: {
+            type: "array",
+            description:
+              "Données synthétiques quand aucun jeu de données ne s'applique: [{label, value}]. À omettre pour un graphique adossé à des colonnes.",
+            items: {
+              type: "object",
+              properties: {
+                label: { type: "string", description: "Étiquette de la part." },
+                value: { type: "number", description: "Valeur numérique." },
+              },
+            },
+          },
         },
       } as const,
       handler: wrap("make_chart", async (params) => makeChartTool(params as MakeChartParams)),
@@ -422,11 +504,17 @@ export async function openSession(
   if (existing) {
     if (input.history) existing.session.setChatHistory(toChatHistory(systemPrompt, input.history));
     requireSession(input.conversationId); // LRU refresh
-    return { model: modelPath, reused: true };
+    // Basename only: the absolute path leaks the OS username across IPC,
+    // into chat.db, and onto the telemetry badge. The renderer only needs
+    // the file name to reopen the same model later.
+    return { model: path.basename(modelPath), reused: true };
   }
 
   const { LlamaChatSession } = await import("node-llama-cpp");
-  const context = await model.createContext({ contextSize: CHAT_CONTEXT_SIZE });
+  const context = await model.createContext({
+    contextSize: CHAT_CONTEXT_SIZE,
+    flashAttention: true,
+  });
   const sequence = context.getSequence();
   const session = new LlamaChatSession({
     contextSequence: sequence,
@@ -434,6 +522,10 @@ export async function openSession(
     autoDisposeSequence: false,
   });
   if (input.history) session.setChatHistory(toChatHistory(systemPrompt, input.history));
+  // Proactively pre-warm prompt & system grounding so TTFT on the first turn is instant.
+  Promise.resolve(session.preloadPrompt?.("")).catch(() => {
+    /* best-effort pre-warming */
+  });
 
   sessions.set(input.conversationId, {
     session,
@@ -444,7 +536,7 @@ export async function openSession(
     lastUsed: Date.now(),
   });
   await evictOverCap();
-  return { model: modelPath, reused: false };
+  return { model: path.basename(modelPath), reused: false };
 }
 
 /**
@@ -453,9 +545,8 @@ export async function openSession(
  * generation queue so it can't overlap a swarm/structured call.
  */
 export async function promptSession(input: PromptSessionInput): Promise<PromptSessionResult> {
-  const entry = requireSession(input.conversationId);
-
   return llamaService.enqueueLlamaTask(async () => {
+    const entry = requireSession(input.conversationId);
     if (input.signal?.aborted) {
       const error = new Error("Chat prompt aborted");
       error.name = "AbortError";
@@ -463,10 +554,13 @@ export async function promptSession(input: PromptSessionInput): Promise<PromptSe
     }
 
     const toolEvents: ChatToolEvent[] = [];
-    const functions = await buildTools((event) => {
-      toolEvents.push(event);
-      input.onTool?.(event);
-    });
+    const functions = await buildTools(
+      (event) => {
+        toolEvents.push(event);
+        input.onTool?.(event);
+      },
+      (event) => input.onToolStart?.(event),
+    );
 
     const text = await entry.session.prompt(input.text, {
       functions,
@@ -485,8 +579,8 @@ export async function promptSession(input: PromptSessionInput): Promise<PromptSe
 
 /** Pre-evaluate the drafted user prompt into KV (near-instant first token). */
 export async function preloadSessionPrompt(conversationId: string, text: string): Promise<void> {
-  const entry = requireSession(conversationId);
   await llamaService.enqueueLlamaTask(async () => {
+    const entry = requireSession(conversationId);
     await entry.session.preloadPrompt(text);
   });
 }
@@ -531,7 +625,10 @@ function transcriptFor(conversationId: string): string {
 /** Tiny grammar-constrained call → short conversation title. */
 export async function generateTitle(conversationId: string): Promise<string> {
   const transcript = transcriptFor(conversationId);
+  const entry = sessions.get(conversationId);
+  const modelFile = entry ? path.basename(entry.modelPath) : undefined;
   const result = (await llamaService.generateStructured({
+    modelFile,
     prompt:
       `Conversation:\n${transcript}\n\n` +
       'Donne un titre très court (3 à 6 mots, même langue que la conversation). Réponds en JSON: {"title": "..."}',
@@ -549,7 +646,10 @@ export async function generateTitle(conversationId: string): Promise<string> {
 /** Tiny grammar-constrained call → 2-3 suggested follow-up questions. */
 export async function suggestFollowUps(conversationId: string): Promise<string[]> {
   const transcript = transcriptFor(conversationId);
+  const entry = sessions.get(conversationId);
+  const modelFile = entry ? path.basename(entry.modelPath) : undefined;
   const result = (await llamaService.generateStructured({
+    modelFile,
     prompt:
       `Conversation:\n${transcript}\n\n` +
       "Propose 2 à 3 questions de suivi courtes que l'utilisateur pourrait poser ensuite " +

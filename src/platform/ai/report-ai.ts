@@ -11,6 +11,8 @@
  * `useAI().generate` (extracting `.text` from the `AIResult`); omitting it
  * keeps this module's public functions fully rule-based.
  */
+import { extractJsonBlock, repairJson } from "./provider/structured";
+
 type LLMGenerate = (
   prompt: string,
   opts: { systemPrompt: string; maxTokens: number; temperature: number },
@@ -142,11 +144,14 @@ export async function generateReportSummary(
       temperature: 0.3,
     });
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as ReportSummary;
-    if (!parsed.narrative) throw new Error("Missing narrative field");
+    const block = extractJsonBlock(raw);
+    let parsed: ReportSummary;
+    try {
+      parsed = JSON.parse(block ?? raw) as ReportSummary;
+    } catch {
+      parsed = JSON.parse(repairJson(raw)) as ReportSummary;
+    }
+    if (!parsed || !parsed.narrative) throw new Error("Missing narrative field");
 
     return {
       narrative: parsed.narrative,
@@ -197,14 +202,17 @@ export async function askReportQuestion(
       temperature: 0.2,
     });
 
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("No JSON object in LLM response");
-
-    const parsed = JSON.parse(jsonMatch[0]) as {
+    const block = extractJsonBlock(raw);
+    let parsed: {
       sql: string;
       explanation: string;
     };
-    if (!parsed.sql) throw new Error("Missing sql field");
+    try {
+      parsed = JSON.parse(block ?? raw) as { sql: string; explanation: string };
+    } catch {
+      parsed = JSON.parse(repairJson(raw)) as { sql: string; explanation: string };
+    }
+    if (!parsed || !parsed.sql) throw new Error("Missing sql field");
 
     // Ensure LIMIT 1000 is present
     const trimmed = parsed.sql.trim().replace(/;$/, "");

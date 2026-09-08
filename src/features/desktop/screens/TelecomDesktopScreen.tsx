@@ -19,6 +19,7 @@ import { AnalyticsHistoryTab } from "@/features/telecom/components/analytics-his
 import { CanalTab } from "@/features/telecom/components/canal-tab";
 import { ConfigTab } from "@/features/telecom/components/config-tab";
 import { DayAnalyticsTab } from "@/features/telecom/components/day-analytics-tab";
+import { LanCollabPanel } from "@/features/dashboard-shell/components/lan-collab-panel";
 import { OverviewTab } from "@/features/telecom/components/overview-tab";
 import { PeriodStudioTab } from "@/features/telecom/components/period-studio-tab";
 import { RawDataTab } from "@/features/telecom/components/raw-data-tab";
@@ -27,6 +28,7 @@ import {
   TelecomReportRuntimeProvider,
   useTelecomReportRuntime,
 } from "@/features/telecom/components/telecom-report-runtime";
+import { UserManagementPanel } from "@/features/telecom/components/user-management-panel";
 
 /** Separate component so useEffect is called unconditionally (Rules of Hooks). */
 function HistoryTabContent() {
@@ -59,12 +61,17 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           canals={report.overviewCanals}
           hourly={report.overviewHourly}
           statusData={report.overviewStatusData}
+          forecast={report.overviewForecast}
           m={report.mapping}
           selectedKpis={report.selectedKpis}
           toggleKpi={report.toggleKpi}
           selectedOverviewSections={report.selectedOverviewSections}
           toggleOverviewSection={report.toggleOverviewSection}
-          fetchDailyTrend={() => report.fetchDailyTrend(report.mapping)}
+          fetchDailyTrend={
+            report.sharedOverviewMode
+              ? async () => []
+              : () => report.fetchDailyTrend(report.mapping)
+          }
         />
       );
 
@@ -76,7 +83,6 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           getTableName={report.getTableName}
           mapping={report.mapping}
           key={report.dashboardTableName}
-          canalRule={report.canalRule}
         />
       );
 
@@ -133,6 +139,11 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
       if (!report.kpi) return <TelecomLoadingPanel label="Chargement de la configuration…" />;
       return (
         <div className="space-y-4">
+          <UserManagementPanel
+            currentRole={report.telecomRole}
+            onRoleChange={(role) => report.access.setRole(role === "admin" ? "owner" : "viewer")}
+          />
+          <LanCollabPanel />
           <ConfigTab
             kpi={report.kpi}
             canals={report.canals}
@@ -142,11 +153,9 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
             rawStatuses={report.rawStatuses}
             statusMapping={report.statusMapping}
             onStatusMappingChange={report.setStatusMapping}
-            canalRule={report.canalRule}
-            onCanalRuleChange={report.setCanalRule}
             reportDate={report.dashboardReportDate}
             tableName={report.dashboardTableName}
-            fetchUnclassifiedCanalCombos={report.fetchUnclassifiedCanalCombos}
+            fetchServiceCodeRows={report.fetchServiceCodeRows}
             runCustomKPIExpr={report.runCustomKPIExpr}
           />
         </div>

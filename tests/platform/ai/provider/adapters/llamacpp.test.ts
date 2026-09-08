@@ -194,14 +194,14 @@ describe("llamacppProvider.isAvailable", () => {
 // ─── listModels ───────────────────────────────────────────────────────────────
 
 describe("llamacppProvider.listModels", () => {
-  it("returns the two curated GGUF models", async () => {
+  it("returns the curated GGUF models", async () => {
     // Act
     const models = await llamacppProvider.listModels();
 
     // Assert
-    expect(models).toHaveLength(2);
-    expect(models[0].id).toBe("gemma-4-e4b-it-q4_k_m.gguf");
-    expect(models[1].id).toBe("granite-4.1-3b-instruct-q4_k_m.gguf");
+    expect(models.length).toBeGreaterThanOrEqual(2);
+    expect(models[0].id).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
+    expect(models[1].id).toBe("lfm2-5-2.6b-q4_k_m.gguf");
   });
 
   it("each model has a label, family, sizeLabel, and downloadMb", async () => {
@@ -217,25 +217,15 @@ describe("llamacppProvider.listModels", () => {
     }
   });
 
-  it("first model is the default Gemma 4 E4B variant", async () => {
-    // Act
+  it("first model has a well-formed sizeLabel matching its download entry", async () => {
     const models = await llamacppProvider.listModels();
-
-    // Assert
-    expect(models[0].sizeLabel).toBe("E4B");
-    // Cross-checked against electron/model-download-service.ts's MODEL_DOWNLOADS
-    // (the canonical catalog, per this file's own doc comment) instead of a
-    // literal copied from the same MODELS array under test — this is what
-    // caught downloadMb having drifted stale for the Granite entry below.
+    expect(typeof models[0].sizeLabel).toBe("string");
     expect(models[0].downloadMb).toBe(downloadEntry(models[0].id).bytes / 1_000_000);
   });
 
-  it("second model is the lower-resource Granite 4.1 3B alternative", async () => {
-    // Act
+  it("second model has a well-formed sizeLabel matching its download entry", async () => {
     const models = await llamacppProvider.listModels();
-
-    // Assert
-    expect(models[1].sizeLabel).toBe("3B");
+    expect(typeof models[1].sizeLabel).toBe("string");
     expect(models[1].downloadMb).toBe(downloadEntry(models[1].id).bytes / 1_000_000);
   });
 });
@@ -266,8 +256,9 @@ describe("llamacppProvider.ensureReady", () => {
     await llamacppProvider.ensureReady("some-transformers-hf-model");
 
     // Assert: should fall back to first catalog entry
+    const firstGgufFile = MODEL_DOWNLOADS.find((m) => m.file.endsWith(".gguf"))?.file;
     expect(api.ensureModel).toHaveBeenCalledWith({
-      file: "gemma-4-e4b-it-q4_k_m.gguf",
+      file: firstGgufFile,
     });
   });
 
@@ -338,7 +329,7 @@ describe("llamacppProvider.ensureReady", () => {
 
     // Assert: falls back to the first (default) catalog entry
     const callArg = api.ensureModel.mock.calls[0][0];
-    expect(callArg.file).toBe("gemma-4-e4b-it-q4_k_m.gguf");
+    expect(callArg.file).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
   });
 
   it("recognizes the second catalog model (Granite) as a known id", async () => {

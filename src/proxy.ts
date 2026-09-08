@@ -63,11 +63,36 @@ const ALLOWED_HOSTS = new Set([
 
 const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
 
+const PRIVATE_IP_REGEX =
+  /^(?:127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(?:1[6-9]|2\d|3[01])\.\d+\.\d+|::1|\[::1\])$|^localhost$|\.local$/i;
+
 export async function proxy(request: NextRequest): Promise<NextResponse> {
-  // 1) Host-header allowlist — defeats DNS-rebinding.
+  // 1) Host-header allowlist — defeats DNS-rebinding while supporting dynamic production ports.
   const host = request.headers.get("host");
-  if (!host || !ALLOWED_HOSTS.has(host.toLowerCase())) {
+  if (!host) {
     return new NextResponse("Forbidden host", { status: 403 });
+  }
+
+  const hostLower = host.toLowerCase();
+  const rawHostname = hostLower.startsWith("[")
+    ? hostLower.slice(0, hostLower.indexOf("]") + 1)
+    : hostLower.split(":")[0];
+
+  const isLoopback =
+    rawHostname === "localhost" ||
+    rawHostname === "127.0.0.1" ||
+    rawHostname === "::1" ||
+    rawHostname === "[::1]" ||
+    rawHostname.startsWith("127.");
+
+  if (!isLoopback) {
+    const isAllowedRemote =
+      process.env.NEXT_PUBLIC_LAN_ALLOW_REMOTE === "1" ||
+      process.env.NODE_ENV !== "production";
+
+    if (!isAllowedRemote || !PRIVATE_IP_REGEX.test(rawHostname)) {
+      return new NextResponse("Forbidden host", { status: 403 });
+    }
   }
 
   // 2) CSRF — reject cross-site and same-site state-changing requests.
@@ -97,6 +122,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   // 4) Harden every passing response.
   const response = NextResponse.next();
+
+  // Skip hardening for WebSocket upgrades to avoid breaking the handshake.
+  if (request.headers.get("upgrade")?.toLowerCase() === "websocket") {
+    return response;
+  }
+
   response.headers.set("X-Content-Type-Options", "nosniff");
   response.headers.set("X-Frame-Options", "DENY");
   response.headers.set("Referrer-Policy", "no-referrer");
@@ -104,6 +135,12 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  // No `runtime` key — Next 16 proxy.ts is Node.js only and rejects the option.
-  matcher: ["/((?!_next/static|_next/image|_next/webpack-hmr|favicon.ico).*)"],
+  // Match all request paths except for static assets and HMR.
+  // We explicitly skip WebSockets to avoid interfering with the upgrade handshake.
+  matcher: [
+    {
+      source: "/((?!_next/static|_next/image|_next/webpack-hmr|favicon.ico).*)",
+      missing: [{ type: "header", key: "upgrade" }],
+    },
+  ],
 };

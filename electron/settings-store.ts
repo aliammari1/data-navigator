@@ -21,87 +21,21 @@
  * table in the auth database, so the one-time data lift copies rows 1:1.
  *
  * This module never imports `electron` (the base directory is injected by
- * `configureSettingsStore`) so it stays unit-testable in plain Node.
+ * `configureSettingsStore`, the migrations folder by
+ * `setSettingsMigrationsFolder`) so it stays unit-testable in plain Node.
  */
 
 import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, inArray } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
-import { index, integer, primaryKey, real, sqliteTable, text } from "drizzle-orm/sqlite-core";
-
-const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
-
-/** Key→value row, identical to the legacy `app_setting` table (1:1 migration). */
-const appSetting = sqliteTable(
-  "app_setting",
-  {
-    namespace: text("namespace").notNull(),
-    key: text("key").notNull(),
-    value: text("value", { mode: "json" }).$type<unknown>().notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-  },
-  (table) => [
-    primaryKey({ columns: [table.namespace, table.key], name: "app_setting_pk" }),
-    index("app_setting_namespace_idx").on(table.namespace),
-  ],
-);
-
-/**
- * Append-only history of analytics snapshots (the telecom "Persister" button +
- * Analytics History list). Unlike `app_setting`, this is genuinely multi-row
- * per logical entity — a KV table keyed `(namespace, key)` can't express
- * "many saves over time for one table_name", can't do an indexed `ORDER BY
- * saved_at DESC LIMIT N`, and can't prune by age without parsing keys back
- * into timestamps. See the composite index below.
- */
-const analyticsSnapshotHistory = sqliteTable(
-  "analytics_snapshot_history",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    tableName: text("table_name").notNull(),
-    label: text("label").notNull(),
-    fileName: text("file_name"),
-    savedAt: integer("saved_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-    sizeBytes: integer("size_bytes").notNull(),
-    /** Denormalized for the history list — avoids parsing `payload` per row just to render a card. */
-    totalTransactions: integer("total_transactions").notNull().default(0),
-    successRate: real("success_rate").notNull().default(0),
-    payload: text("payload", { mode: "json" }).$type<unknown>().notNull(),
-  },
-  (table) => [
-    index("analytics_snapshot_history_table_saved_idx").on(table.tableName, table.savedAt),
-  ],
-);
-
-/** DDL applied on open (better-sqlite3 needs the table to exist; drizzle won't create it). */
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS app_setting (
-  namespace text NOT NULL,
-  key text NOT NULL,
-  value text NOT NULL,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  PRIMARY KEY (namespace, key)
-);
-CREATE INDEX IF NOT EXISTS app_setting_namespace_idx ON app_setting (namespace);
-
-CREATE TABLE IF NOT EXISTS analytics_snapshot_history (
-  id integer PRIMARY KEY AUTOINCREMENT,
-  table_name text NOT NULL,
-  label text NOT NULL,
-  file_name text,
-  saved_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  size_bytes integer NOT NULL,
-  total_transactions integer DEFAULT 0 NOT NULL,
-  success_rate real DEFAULT 0 NOT NULL,
-  payload text NOT NULL
-);
-CREATE INDEX IF NOT EXISTS analytics_snapshot_history_table_saved_idx
-  ON analytics_snapshot_history (table_name, saved_at);
-`;
+import { sqliteTable, text } from "drizzle-orm/sqlite-core";
+import * as settingsSchema from "../src/db/schema-settings";
+import {
+  createSqliteConnection,
+  openSqliteHandle,
+  type SqliteHandle,
+} from "../src/platform/storage/db-bootstrap";
 
 /** Keep the newest N snapshots per table, dropped further by age below. */
 const KEEP_NEWEST_PER_TABLE = 20;
@@ -115,6 +49,18 @@ const DB_FILES: Record<SettingDomain, string> = {
   settings: "settings.db",
   analytics: "analytics.db",
 };
+
+/**
+ * Default migrations folder, used when the caller does not override via
+ * `setSettingsMigrationsFolder`. `<cwd>/drizzle/settings` works for `pnpm dev`
+ * and the smoke tests, where the working directory is the package root. The
+ * packaged Electron app should call
+ * `setSettingsMigrationsFolder(path.join(app.getAppPath(), "drizzle",
+ * "settings"))` from main.ts so the migrations folder resolves inside the
+ * asar — this is the only way to make the path injectable without importing
+ * `electron` from this module.
+ */
+const DEFAULT_MIGRATIONS_FOLDER = path.join(process.cwd(), "drizzle", "settings");
 
 /**
  * Namespaces that belong in the analytics database. Everything else (UI prefs,
@@ -135,18 +81,11 @@ export type AppSettingRemote = {
   updatedAt: string | null;
 };
 
-type Handle = {
-  db: ReturnType<
-    typeof drizzle<{
-      appSetting: typeof appSetting;
-      analyticsSnapshotHistory: typeof analyticsSnapshotHistory;
-    }>
-  >;
-  sqlite: Database.Database;
-};
+type Handle = SqliteHandle<typeof settingsSchema>;
 
 const handles = new Map<SettingDomain, Handle>();
 let baseDir: string | null = null;
+let migrationsFolder: string = DEFAULT_MIGRATIONS_FOLDER;
 
 /**
  * Point the store at the directory that will hold the `.db` files. Call once from
@@ -154,6 +93,17 @@ let baseDir: string | null = null;
  */
 export function configureSettingsStore(databasesDir: string): void {
   baseDir = databasesDir;
+}
+
+/**
+ * Override the Drizzle migrations folder. Optional — defaults to
+ * `<cwd>/drizzle/settings`, which is correct for `pnpm dev` and the smoke
+ * tests. The packaged Electron app should call this from main.ts with
+ * `path.join(app.getAppPath(), "drizzle", "settings")` so the migrations
+ * folder resolves inside the asar.
+ */
+export function setSettingsMigrationsFolder(folder: string): void {
+  migrationsFolder = folder;
 }
 
 function openDomain(domain: SettingDomain): Handle {
@@ -164,15 +114,11 @@ function openDomain(domain: SettingDomain): Handle {
   }
 
   mkdirSync(baseDir, { recursive: true });
-  const sqlite = new Database(path.join(baseDir, DB_FILES[domain]));
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(SCHEMA_SQL);
-
-  const handle: Handle = {
-    db: drizzle({ client: sqlite, schema: { appSetting, analyticsSnapshotHistory } }),
-    sqlite,
-  };
+  const handle = openSqliteHandle({
+    path: path.join(baseDir, DB_FILES[domain]),
+    schema: settingsSchema,
+    migrationsFolder,
+  });
   handles.set(domain, handle);
   return handle;
 }
@@ -182,8 +128,13 @@ export function getSetting(namespace: string, key: string): AppSettingRemote {
   const { db } = openDomain(domainForNamespace(namespace));
   const row = db
     .select()
-    .from(appSetting)
-    .where(and(eq(appSetting.namespace, namespace), eq(appSetting.key, key)))
+    .from(settingsSchema.appSetting)
+    .where(
+      and(
+        eq(settingsSchema.appSetting.namespace, namespace),
+        eq(settingsSchema.appSetting.key, key),
+      ),
+    )
     .get();
 
   if (!row) return { value: null, updatedAt: null };
@@ -195,10 +146,10 @@ export function setSetting(namespace: string, key: string, value: unknown): stri
   const { db } = openDomain(domainForNamespace(namespace));
   const now = new Date();
 
-  db.insert(appSetting)
+  db.insert(settingsSchema.appSetting)
     .values({ namespace, key, value, createdAt: now, updatedAt: now })
     .onConflictDoUpdate({
-      target: [appSetting.namespace, appSetting.key],
+      target: [settingsSchema.appSetting.namespace, settingsSchema.appSetting.key],
       set: { value, updatedAt: now },
     })
     .run();
@@ -209,8 +160,13 @@ export function setSetting(namespace: string, key: string, value: unknown): stri
 /** Delete one setting (no-op when absent). */
 export function deleteSetting(namespace: string, key: string): void {
   const { db } = openDomain(domainForNamespace(namespace));
-  db.delete(appSetting)
-    .where(and(eq(appSetting.namespace, namespace), eq(appSetting.key, key)))
+  db.delete(settingsSchema.appSetting)
+    .where(
+      and(
+        eq(settingsSchema.appSetting.namespace, namespace),
+        eq(settingsSchema.appSetting.key, key),
+      ),
+    )
     .run();
 }
 
@@ -223,8 +179,10 @@ export function exportSettings(namespace?: string): Record<string, Record<string
 
   const collect = (domain: SettingDomain) => {
     const { db } = openDomain(domain);
-    const query = db.select().from(appSetting);
-    const rows = namespace ? query.where(eq(appSetting.namespace, namespace)).all() : query.all();
+    const query = db.select().from(settingsSchema.appSetting);
+    const rows = namespace
+      ? query.where(eq(settingsSchema.appSetting.namespace, namespace)).all()
+      : query.all();
     for (const row of rows) {
       out[row.namespace] ??= {};
       out[row.namespace][row.key] = row.value;
@@ -258,14 +216,14 @@ export type AnalyticsSnapshotHistoryMeta = {
 export type AnalyticsSnapshotHistoryRow = AnalyticsSnapshotHistoryMeta & { payload: unknown };
 
 const HISTORY_META_COLUMNS = {
-  id: analyticsSnapshotHistory.id,
-  tableName: analyticsSnapshotHistory.tableName,
-  label: analyticsSnapshotHistory.label,
-  fileName: analyticsSnapshotHistory.fileName,
-  savedAt: analyticsSnapshotHistory.savedAt,
-  sizeBytes: analyticsSnapshotHistory.sizeBytes,
-  totalTransactions: analyticsSnapshotHistory.totalTransactions,
-  successRate: analyticsSnapshotHistory.successRate,
+  id: settingsSchema.analyticsSnapshotHistory.id,
+  tableName: settingsSchema.analyticsSnapshotHistory.tableName,
+  label: settingsSchema.analyticsSnapshotHistory.label,
+  fileName: settingsSchema.analyticsSnapshotHistory.fileName,
+  savedAt: settingsSchema.analyticsSnapshotHistory.savedAt,
+  sizeBytes: settingsSchema.analyticsSnapshotHistory.sizeBytes,
+  totalTransactions: settingsSchema.analyticsSnapshotHistory.totalTransactions,
+  successRate: settingsSchema.analyticsSnapshotHistory.successRate,
 };
 
 function toMeta(row: {
@@ -289,27 +247,43 @@ function toMeta(row: {
  * delete; safe to run inline on every save.
  */
 export function pruneAnalyticsSnapshotHistory(tableName: string): number {
-  const { sqlite } = openDomain(domainForNamespace(ANALYTICS_SNAPSHOT_NS));
+  const { db } = openDomain(domainForNamespace(ANALYTICS_SNAPSHOT_NS));
   const cutoff = Date.now() - MAX_SNAPSHOT_AGE_MS;
 
-  const result = sqlite
-    .prepare(
-      `DELETE FROM analytics_snapshot_history
-       WHERE table_name = ?
-         AND id != COALESCE(
-           (SELECT id FROM analytics_snapshot_history WHERE table_name = ? ORDER BY saved_at DESC LIMIT 1),
-           -1
-         )
-         AND (
-           id NOT IN (
-             SELECT id FROM analytics_snapshot_history WHERE table_name = ? ORDER BY saved_at DESC LIMIT ?
-           )
-           OR saved_at < ?
-         )`,
-    )
-    .run(tableName, tableName, tableName, KEEP_NEWEST_PER_TABLE, cutoff);
+  const rows = db
+    .select({
+      id: settingsSchema.analyticsSnapshotHistory.id,
+      savedAt: settingsSchema.analyticsSnapshotHistory.savedAt,
+    })
+    .from(settingsSchema.analyticsSnapshotHistory)
+    .where(eq(settingsSchema.analyticsSnapshotHistory.tableName, tableName))
+    .orderBy(desc(settingsSchema.analyticsSnapshotHistory.savedAt))
+    .all();
 
-  return result.changes;
+  if (rows.length <= 1) {
+    return 0;
+  }
+
+  const idsToDelete: number[] = [];
+  // Never delete the single newest snapshot for a table, regardless of age.
+  for (let i = 1; i < rows.length; i++) {
+    const row = rows[i];
+    const isBeyondCountCap = i >= KEEP_NEWEST_PER_TABLE;
+    const isBeyondAgeLimit = row.savedAt.getTime() < cutoff;
+    if (isBeyondCountCap || isBeyondAgeLimit) {
+      idsToDelete.push(row.id);
+    }
+  }
+
+  if (idsToDelete.length === 0) {
+    return 0;
+  }
+
+  db.delete(settingsSchema.analyticsSnapshotHistory)
+    .where(inArray(settingsSchema.analyticsSnapshotHistory.id, idsToDelete))
+    .run();
+
+  return idsToDelete.length;
 }
 
 /**
@@ -331,7 +305,7 @@ export function saveAnalyticsSnapshotHistory(input: {
   const sizeBytes = Buffer.byteLength(JSON.stringify(input.payload ?? null), "utf8");
 
   const [row] = db
-    .insert(analyticsSnapshotHistory)
+    .insert(settingsSchema.analyticsSnapshotHistory)
     .values({
       tableName: input.tableName,
       label: input.label,
@@ -364,9 +338,13 @@ export function listAnalyticsSnapshotHistory(
   const boundedLimit = Math.min(Math.max(1, limit), 200);
   const boundedOffset = Math.max(0, offset);
 
-  const query = db.select(HISTORY_META_COLUMNS).from(analyticsSnapshotHistory);
-  const rows = (tableName ? query.where(eq(analyticsSnapshotHistory.tableName, tableName)) : query)
-    .orderBy(desc(analyticsSnapshotHistory.savedAt))
+  const query = db.select(HISTORY_META_COLUMNS).from(settingsSchema.analyticsSnapshotHistory);
+  const rows = (
+    tableName
+      ? query.where(eq(settingsSchema.analyticsSnapshotHistory.tableName, tableName))
+      : query
+  )
+    .orderBy(desc(settingsSchema.analyticsSnapshotHistory.savedAt))
     .limit(boundedLimit)
     .offset(boundedOffset)
     .all();
@@ -381,8 +359,8 @@ export function getAnalyticsSnapshotHistoryById(
   const { db } = openDomain(domainForNamespace(ANALYTICS_SNAPSHOT_NS));
   const row = db
     .select()
-    .from(analyticsSnapshotHistory)
-    .where(eq(analyticsSnapshotHistory.id, id))
+    .from(settingsSchema.analyticsSnapshotHistory)
+    .where(eq(settingsSchema.analyticsSnapshotHistory.id, id))
     .get();
   if (!row) return undefined;
   return { ...toMeta(row), payload: row.payload };
@@ -391,12 +369,20 @@ export function getAnalyticsSnapshotHistoryById(
 /** Delete one snapshot by id (no-op when absent). */
 export function deleteAnalyticsSnapshotHistoryById(id: number): void {
   const { db } = openDomain(domainForNamespace(ANALYTICS_SNAPSHOT_NS));
-  db.delete(analyticsSnapshotHistory).where(eq(analyticsSnapshotHistory.id, id)).run();
+  db.delete(settingsSchema.analyticsSnapshotHistory)
+    .where(eq(settingsSchema.analyticsSnapshotHistory.id, id))
+    .run();
 }
 
 /** Marker namespace/key recording that the one-time legacy lift already ran. */
 const MIGRATION_NS = "__migration";
 const MIGRATION_KEY = "auth_app_setting_v1";
+
+const legacyAppSetting = sqliteTable("app_setting", {
+  namespace: text("namespace").notNull(),
+  key: text("key").notNull(),
+  value: text("value").notNull(),
+});
 
 /**
  * One-time lift of the legacy `app_setting` rows out of the shared auth database
@@ -415,11 +401,10 @@ export function migrateLegacyAppSettings(authDbPath: string): { migrated: number
   let migrated = 0;
   if (existsSync(authDbPath)) {
     try {
-      const source = new Database(authDbPath, { readonly: true });
+      const source = createSqliteConnection(authDbPath, { readonly: true });
       try {
-        const rows = source
-          .prepare("SELECT namespace, key, value FROM app_setting")
-          .all() as Array<{ namespace: string; key: string; value: string }>;
+        const sourceDb = drizzle(source);
+        const rows = sourceDb.select().from(legacyAppSetting).all();
         for (const row of rows) {
           if (row.namespace === MIGRATION_NS) continue;
           if (getSetting(row.namespace, row.key).value !== null) continue;
@@ -468,8 +453,8 @@ export function migrateLegacyAnalyticsSnapshotKV(): { migrated: number } {
   const { db } = openDomain(domainForNamespace(ANALYTICS_SNAPSHOT_NS));
   const rows = db
     .select()
-    .from(appSetting)
-    .where(eq(appSetting.namespace, ANALYTICS_SNAPSHOT_NS))
+    .from(settingsSchema.appSetting)
+    .where(eq(settingsSchema.appSetting.namespace, ANALYTICS_SNAPSHOT_NS))
     .all();
 
   let migrated = 0;
@@ -498,6 +483,90 @@ export function migrateLegacyAnalyticsSnapshotKV(): { migrated: number } {
 
   setSetting(MIGRATION_NS, HISTORY_MIGRATION_KEY, { done: true, migrated, at: Date.now() });
   return { migrated };
+}
+
+/**
+ * Record an audit log entry into the analytics database.
+ */
+export function recordAuditLog(entry: {
+  userId?: string | null;
+  action: string;
+  category: string;
+  status: string;
+  durationMs?: number | null;
+  metadata?: Record<string, unknown> | null;
+}): void {
+  try {
+    const { db } = openDomain("analytics");
+    db.insert(settingsSchema.auditLog)
+      .values({
+        userId: entry.userId ?? null,
+        action: entry.action,
+        category: entry.category,
+        status: entry.status,
+        durationMs: entry.durationMs ?? null,
+        metadata: entry.metadata ?? null,
+        timestamp: new Date(),
+      })
+      .run();
+  } catch (error) {
+    console.warn("[settings-store] Failed to record audit log:", error);
+  }
+}
+
+/**
+ * Retrieve recent audit log entries ordered newest first.
+ */
+export function listAuditLogs(limit = 100): settingsSchema.AuditLogEntry[] {
+  const { db } = openDomain("analytics");
+  return db
+    .select()
+    .from(settingsSchema.auditLog)
+    .orderBy(desc(settingsSchema.auditLog.timestamp))
+    .limit(limit)
+    .all();
+}
+
+/**
+ * Record query analytics metrics into the analytics database.
+ */
+export function recordQueryAnalytics(entry: {
+  datasetId: string;
+  sqlQuery: string;
+  rowCount: number;
+  executionTimeMs: number;
+  isCached?: boolean;
+  error?: string | null;
+}): void {
+  try {
+    const { db } = openDomain("analytics");
+    db.insert(settingsSchema.queryAnalytics)
+      .values({
+        datasetId: entry.datasetId,
+        sqlQuery: entry.sqlQuery,
+        rowCount: entry.rowCount,
+        executionTimeMs: entry.executionTimeMs,
+        isCached: entry.isCached ?? false,
+        error: entry.error ?? null,
+        timestamp: new Date(),
+      })
+      .run();
+  } catch (error) {
+    console.warn("[settings-store] Failed to record query analytics:", error);
+  }
+}
+
+/**
+ * Retrieve recent query analytics entries ordered newest first.
+ */
+export function listQueryAnalytics(limit = 100): settingsSchema.QueryAnalyticsEntry[] {
+  const { db } = openDomain("analytics");
+  return db
+    .select()
+    .from(settingsSchema.queryAnalytics)
+    .orderBy(desc(settingsSchema.queryAnalytics.timestamp))
+    .limit(limit)
+    .all();
 }
 
 /** Close every open handle (call on app quit so WAL checkpoints flush cleanly). */

@@ -4,14 +4,19 @@
  * ModelDownloadPanel — "Download AI models (while online)" Setup affordance.
  *
  * Surfaces the offline-model preflight (src/platform/ai/models): for each
- * required model (both the instruct GGUF and the embedding GGUF ride the same
- * Electron node-llama-cpp lane) it shows present/size and a Download button
- * wired through `window.electronModels.*` (IPC → electron/model-download-service.ts)
- * with live progress.
+ * required model (both the chat GGUF and the embedding GGUF now run through
+ * the Electron node-llama-cpp lane) it shows present/size and a Download
+ * button wired through `window.electronModels.*` (IPC →
+ * electron/model-download-service.ts) with live progress.
+ *
+ * A record that isn't `downloadable` (no in-app downloader — e.g. a possible
+ * future browser-cached asset lane) is shown read-only instead, with a link to
+ * the `pnpm run prepare:models` script for strict air-gap installs.
  */
 
 import {
   AlertTriangle,
+  Check,
   CheckCircle2,
   CloudDownload,
   Cpu,
@@ -21,6 +26,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useModelStatus } from "@/platform/ai/models";
+import { useAIRuntimeStore } from "@/platform/ai/provider";
+import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 import { isElectron } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
@@ -39,6 +46,15 @@ function humanBytes(n: number): string {
 export function ModelDownloadPanel() {
   const { records, loading, downloads, download, cancel, ready } = useModelStatus();
   const electron = isElectron();
+  const activeModel = useAIRuntimeStore((s) => s.model);
+  const setModel = useAIRuntimeStore((s) => s.setModel);
+  const hideDialog = useModelRequiredDialogStore((s) => s.hide);
+
+  const pickModel = (ggufFile: string | undefined) => {
+    if (!ggufFile) return;
+    setModel(ggufFile);
+    hideDialog();
+  };
 
   return (
     <div className="space-y-3">
@@ -74,6 +90,13 @@ export function ModelDownloadPanel() {
             const present = record.state === "present";
             const inProgress = dl?.active ?? false;
             const pct = dl ? dl.percent : 0;
+            const isChat = record.lane === "llm";
+            // The model-download IPC returns the status record keyed by the
+            // manifest key, without the .gguf suffix. The AIRuntimeStore, on the
+            // other hand, stores the full filename. Match by re-appending the
+            // suffix — every chat-lane entry in the manifest follows key+".gguf".
+            const ggufFile = isChat ? `${record.key}.gguf` : undefined;
+            const isActive = isChat && ggufFile === activeModel;
 
             return (
               <div
@@ -81,6 +104,7 @@ export function ModelDownloadPanel() {
                 className={cn(
                   "rounded-xl border p-3 transition-colors",
                   present ? "border-emerald-500/30 bg-emerald-500/5" : "border-border bg-muted/40",
+                  isActive && "ring-1 ring-primary/40",
                 )}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -98,22 +122,45 @@ export function ModelDownloadPanel() {
                           optional
                         </span>
                       )}
+                      {isActive && (
+                        <span className="shrink-0 rounded border border-primary/30 bg-primary/15 px-1.5 py-0.5 text-[9px] font-semibold text-primary">
+                          active
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-[10px] text-muted-foreground">
                       {present ? (
                         <span className="text-emerald-600 dark:text-emerald-400">
                           Installed{record.sizeBytes ? ` · ${humanBytes(record.sizeBytes)}` : ""}
                         </span>
-                      ) : (
+                      ) : record.downloadable ? (
                         <span>~{record.downloadMb} MB download</span>
+                      ) : (
+                        <span>
+                          Requires the desktop app, or run{" "}
+                          <code className="rounded bg-muted px-1 text-foreground">
+                            pnpm run prepare:models
+                          </code>
+                        </span>
                       )}
                     </p>
                   </div>
 
-                  <div className="shrink-0">
-                    {present ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                    ) : record.downloadable ? (
+                    <div className="shrink-0">
+                      {present && isChat && !isActive ? (
+                        <button
+                          type="button"
+                          onClick={() => pickModel(ggufFile)}
+                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+                          title="Use this model for Moudir chat"
+                        >
+                          <Check className="h-3 w-3" /> Use
+                        </button>
+                      ) : present && isChat && isActive ? (
+                        <CheckCircle2 className="h-4 w-4 text-primary" />
+                      ) : present ? (
+                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      ) : record.downloadable ? (
                       inProgress ? (
                         <button
                           type="button"
@@ -169,8 +216,10 @@ export function ModelDownloadPanel() {
 
       {!electron && !loading && (
         <p className="rounded-lg border border-primary/20 bg-primary/5 px-3 py-2 text-[10px] text-primary">
-          Offline AI (generation and embeddings) requires the desktop app — the web build cannot
-          download or run these models.
+          Both AI models (chat and embeddings) run through the desktop app's node-llama-cpp runtime
+          and are not available in a browser-only context; for a fully air-gapped install pre-bundle
+          weights with{" "}
+          <code className="rounded bg-muted px-1 text-foreground">pnpm run prepare:models</code>.
         </p>
       )}
     </div>

@@ -12,6 +12,7 @@ import {
   Loader2,
   Palette,
   RotateCcw,
+  Sparkles,
   User,
   Zap,
 } from "lucide-react";
@@ -83,6 +84,11 @@ const AiPanel = lazy(() =>
     default: m.AiPanel,
   })),
 );
+const MoudirPanel = lazy(() =>
+  import("../components/panels/moudir-panel").then((m) => ({
+    default: m.MoudirPanel,
+  })),
+);
 const BrandingPanel = lazy(() =>
   import("../components/panels/branding-panel").then((m) => ({
     default: m.BrandingPanel,
@@ -94,6 +100,7 @@ const TABS = [
   { id: "data", label: "Data", icon: Database, Panel: DataPanel },
   { id: "performance", label: "Performance", icon: Zap, Panel: PerformancePanel },
   { id: "ai", label: "AI", icon: Brain, Panel: AiPanel },
+  { id: "moudir", label: "Moudir", icon: Sparkles, Panel: MoudirPanel },
   { id: "account", label: "Account", icon: User, Panel: AccountPanel },
   { id: "notifications", label: "Notifications", icon: Bell, Panel: NotificationsPanel },
   { id: "storage", label: "Storage", icon: HardDrive, Panel: StoragePanel },
@@ -110,6 +117,7 @@ const MENU_PAGES: { id: TabId; label: string; icon: (typeof TABS)[number]["icon"
   { id: "data", label: "Données", icon: Database },
   { id: "performance", label: "Performances", icon: Zap },
   { id: "ai", label: "IA", icon: Brain },
+  { id: "moudir", label: "Moudir", icon: Sparkles },
   { id: "account", label: "Compte", icon: User },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "storage", label: "Stockage", icon: HardDrive },

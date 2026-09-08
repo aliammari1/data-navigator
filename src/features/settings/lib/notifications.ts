@@ -69,3 +69,5 @@ export const notifyQuery = (msg: string, o?: NotifyOptions) => notify("queries",
 /** Errors default to `force: true` — a disabled toggle should not hide failures. */
 export const notifyError = (msg: string, o?: NotifyOptions) =>
   notify("errors", msg, { kind: "error", force: true, ...o });
+export const notifyCollaboration = (msg: string, o?: NotifyOptions) =>
+  notify("collaboration", msg, o);

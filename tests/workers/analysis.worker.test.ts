@@ -5,7 +5,7 @@
  * line counts toward coverage. Comlink.expose is mocked so the module-level
  * side-effect does not throw in jsdom.
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 
 // ── Mock Comlink so expose() is a no-op in jsdom ─────────────────────────────
 vi.mock("comlink", () => ({

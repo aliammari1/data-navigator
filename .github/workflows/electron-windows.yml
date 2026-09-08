@@ -32,7 +32,7 @@ on:
       - "build/**"
       - "public/**"
       - "scripts/**"
-      - "forge.config.ts"
+      - "electron-builder.config.ts"
       - "next.config.ts"
       - "package.json"
       - "pnpm-lock.yaml"
@@ -206,38 +206,15 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Belt-and-suspenders: skip forge's check-system (it spawns a pnpm child). The
-      # in-process make below bypasses the CLI entirely, but keep this so no forge code
-      # path spawns that child. The install is hoisted, so the check is unneeded.
-      # forge documents this skip file in its log.
-      - name: Skip forge system check (avoid the pnpm child it spawns)
-        shell: pwsh
-        run: New-Item -ItemType File -Force -Path "$HOME/.skip-forge-system-check" | Out-Null
-
-      # Make the Windows installer (WiX .msi) via forge's PROGRAMMATIC
-      # api.make() (scripts/forge-make.mjs),
-      # NOT `electron-forge make`. The CLI uses commander external-executable subcommands,
-      # so `electron-forge make` spawns a separate electron-forge-make.js child that, on
-      # this runner, exits 0 mid extract-zip (event-loop drain) and the dispatcher
-      # forwards the exit -> no .msi (confirmed via --trace-exit: ChildProcess.onexit ->
-      # process.exit). api.make() runs in ONE process (no child to lose), and the script's
-      # ref'd keep-alive timer prevents the loop draining during extraction. --trace-exit
-      # stays on to catch any residual process.exit; Verify (if: always()) is the gate.
+      # Make the Windows installer (.msi + .exe) via electron-builder
       - name: Make Windows installer
         shell: bash
-        run: node scripts/forge-make.mjs 2>&1 | cat
+        run: pnpm run dist:win
         env:
           NODE_ENV: production
-          NODE_OPTIONS: "--trace-exit"
-          DEBUG: "electron-forge:*,electron-packager,@electron/get*,extract-zip,electron-wix-msi*"
           FORCE_COLOR: "0"
 
-      # Ground-truth what `make` actually produced AND dump diagnostics, since the
-      # make silently exits 0 with no out/. We print: the out/ tree, how far Electron
-      # packaging got (the electron-packager temp template dir), whether the Electron
-      # download landed in the @electron/get cache, disk free, and any stray .msi near
-      # the build. Targeted paths only (no whole-drive scan -> fast). Then hard-fail
-      # if there is no real MSI.
+      # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
         if: always()
         timeout-minutes: 5
@@ -252,42 +229,30 @@ jobs:
                 Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
             } else { Write-Host "(does not exist)" }
           }
-          Dump "out tree" "out" 4
-          # @electron/packager extracts Electron into a temp template dir before copying
-          # the app; its contents reveal whether extraction even completed.
-          foreach ($t in @("$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager", "$env:LOCALAPPDATA\Temp\electron-packager")) { Dump "electron-packager temp" $t 1 }
-          Dump "electron download cache" "$env:LOCALAPPDATA\electron\Cache" 2
+          Dump "dist tree" "dist" 4
           Write-Host "`n===== disk free ====="
           Get-PSDrive C, D | Select-Object Name, @{n='FreeGB';e={[math]::Round($_.Free/1GB,1)}}, @{n='UsedGB';e={[math]::Round($_.Used/1GB,1)}} | Format-Table -AutoSize | Out-String | Write-Host
-          # Look for any .msi ONLY where one could plausibly be (out/ + packager temp).
-          # NEVER recurse node_modules — it's huge, slow, and never holds an .msi.
-          Write-Host "`n===== .msi files (out/ + electron-packager temp only) ====="
-          @("out", "$env:RUNNER_TEMP\electron-packager", "$env:TEMP\electron-packager") |
-            ForEach-Object { if (Test-Path $_) { Get-ChildItem -Path $_ -Filter *.msi -Recurse -ErrorAction SilentlyContinue } } |
+          Write-Host "`n===== Windows packages in dist/ ====="
+          Get-ChildItem -Path dist -Include *.msi, *.exe -Recurse -ErrorAction SilentlyContinue |
             Select-Object FullName, @{n='MB';e={[math]::Round($_.Length/1MB,1)}} | Format-Table -AutoSize | Out-String -Width 4096 | Write-Host
 
-          # maker-wix emits out/make/wix/<arch>/<name>.msi. The .msi is the installer;
-          # require at least one or fail the build (a make that exits 0 with no .msi).
-          $msis = @(Get-ChildItem -Recurse -Path out/make/wix -Filter *.msi -ErrorAction SilentlyContinue)
-          if ($msis.Count -eq 0) {
-            Write-Host "::error::No .msi was produced under out/make/wix — the WiX maker did not run (is WiX v3 on PATH?)."
+          $installers = @(Get-ChildItem -Path dist -Include *.msi, *.exe -Recurse -ErrorAction SilentlyContinue)
+          if ($installers.Count -eq 0) {
+            Write-Host "::error::No .msi or .exe installer was produced under dist/."
             exit 1
           }
-          foreach ($m in $msis) {
+          foreach ($m in $installers) {
             Write-Host "INSTALLER: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
           }
 
-      # Build a verifiable supply-chain provenance attestation over the MSI(s),
-      # even for this private app (defense-in-depth). First-party action -> major tag.
+      # Build a verifiable supply-chain provenance attestation over installer(s)
       - name: Attest build provenance
         if: env.IS_RELEASE == 'true'
         uses: actions/attest-build-provenance@v3
         with:
-          subject-path: "out/make/wix/**/*.msi"
+          subject-path: "dist/*.msi\ndist/*.exe"
 
-      # Attach the WiX .msi to the GitHub Release changesets created for this version.
-      # tag_name is the explicit `v<version>` tag (NOT github.ref, which is the caller's
-      # branch during a workflow_call); softprops updates that existing draft Release.
+      # Attach the Windows installers to the GitHub Release
       - name: Attach installer to GitHub Release
         if: env.IS_RELEASE == 'true'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
@@ -296,7 +261,8 @@ jobs:
           draft: true
           fail_on_unmatched_files: true
           files: |
-            out/make/wix/**/*.msi
+            dist/*.msi
+            dist/*.exe
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

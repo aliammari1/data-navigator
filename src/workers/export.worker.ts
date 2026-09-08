@@ -9,24 +9,26 @@
  * Generators (each lazy-imported so the chunk only loads what is used):
  *  - pdf  → pdfmake (bundled Roboto vfs; charts via vector {svg} when possible)
  *  - xlsx → exceljs in-memory writeBuffer (small/medium; big files stream in main)
- *  - docx → docx ImageRun (v9: `type` required) with a pre-rasterized PNG chart
- *  - pptx → pptxgenjs write({outputType:'arraybuffer'}) with a pre-rasterized PNG chart
+ *  - docx → docx ImageRun (v9: `type` required) with rasterized PNG charts
+ *  - pptx / slides → @marp-team/marp-core 16:9 widescreen presentation with rasterized PNG charts
  *
  * Comlink proxy name (renderer): `export` (see export-client.ts).
  *
- * Offline: all generators are pure JS. ZIP outputs (xlsx/docx/pptx) start with
- * PK; pdf starts with %PDF.
+ * Offline: all generators are pure JS; chart rasterization uses native
+ * OffscreenCanvas/createImageBitmap (svg-raster) — no wasm, no network fetch.
+ * ZIP outputs (xlsx/docx) start with PK; pdf starts with %PDF; pptx/slides returns HTML.
  */
 
 import * as Comlink from "comlink";
 import type { ChartImage, ReportDocument } from "./export-types";
-import { pngToDataUri } from "./png-data-uri";
+import { pngToDataUri, svgToPng } from "./svg-raster";
 
-// ─── Chart resolution (docx/pptx only take a pre-rasterized PNG; pdf embeds
-// the vector SVG directly, see buildPdf) ──────────────────────────────────────
+// ─── Chart resolution (SVG → PNG once, reused across generators) ─────────────
 
 async function resolveChartPng(chart: ChartImage): Promise<Uint8Array | null> {
-  return chart.png ?? null;
+  if (chart.png) return chart.png;
+  if (chart.svg) return svgToPng(chart.svg, chart.width ?? 1200);
+  return null;
 }
 
 /**
@@ -259,65 +261,115 @@ async function buildDocx(doc: ReportDocument): Promise<ArrayBuffer> {
   return toArrayBuffer(new Uint8Array(buf.buffer, buf.byteOffset, buf.byteLength));
 }
 
-// ─── PPTX (pptxgenjs) ───────────────────────────────────────────────────────
+// ─── Presentation (Marp Core) ────────────────────────────────────────────────
 
 async function buildPptx(doc: ReportDocument): Promise<ArrayBuffer> {
-  const pptxMod = await import("pptxgenjs");
-  const PptxGen = (pptxMod as unknown as { default: new () => PptxInstance }).default;
-  const pptx = new PptxGen();
-  pptx.defineLayout({ name: "WIDE", width: 13.333, height: 7.5 });
-  pptx.layout = "WIDE";
+  const { Marp } = await import("@marp-team/marp-core");
+  const marp = new Marp({
+    html: true,
+  });
 
-  // Title slide.
-  const title = pptx.addSlide();
-  if (doc.logoDataUri) title.addImage({ data: doc.logoDataUri, x: 0.4, y: 0.3, w: 0.8, h: 0.8 });
-  title.addText(doc.title, { x: 0.5, y: 2.6, fontSize: 36, bold: true, color: "1E3A8A" });
-  if (doc.subtitle) title.addText(doc.subtitle, { x: 0.5, y: 3.6, fontSize: 18, color: "64748B" });
+  const slides: string[] = [];
 
-  // One slide per table section.
+  // Frontmatter & Title slide
+  slides.push(`---
+marp: true
+theme: default
+paginate: true
+size: 16:9
+style: |
+  section {
+    background-color: #F8FAFC;
+    color: #0F172A;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  section.lead {
+    background-color: #0B132B;
+    color: #FFFFFF;
+  }
+  section.lead h1 {
+    color: #38BDF8;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin-top: 16px;
+  }
+  th {
+    background-color: #1E3A8A;
+    color: #FFFFFF;
+    padding: 8px 12px;
+    text-align: left;
+  }
+  td {
+    border: 1px solid #E2E8F0;
+    padding: 6px 12px;
+  }
+---
+
+<!-- _class: lead -->
+<!-- _paginate: false -->
+
+# ${doc.title}
+
+${doc.subtitle ? `### ${doc.subtitle}` : ""}
+
+${doc.logoDataUri ? `![logo](${doc.logoDataUri})` : ""}
+`);
+
+  // One slide per table section
   for (const section of doc.sections) {
-    const slide = pptx.addSlide();
-    if (section.title)
-      slide.addText(section.title, { x: 0.5, y: 0.3, fontSize: 24, bold: true, color: "0F172A" });
-    const tableRows = [
-      section.headers.map((h) => ({
-        text: h,
-        options: { bold: true, fill: { color: "1E3A8A" }, color: "FFFFFF" },
-      })),
-      ...section.rows.map((r) => r.map((c) => ({ text: String(c) }))),
-    ];
-    slide.addTable(tableRows, {
-      x: 0.5,
-      y: 1.1,
-      w: 12.3,
-      fontSize: 12,
-      border: { type: "solid", color: "E2E8F0", pt: 1 },
-    });
+    const tableHeader = `| ${section.headers.join(" | ")} |`;
+    const tableDivider = `| ${section.headers.map(() => "---").join(" | ")} |`;
+    const tableBody = section.rows
+      .slice(0, 15)
+      .map((r) => `| ${r.map((c) => String(c).replace(/\|/g, "\\|")).join(" | ")} |`)
+      .join("\n");
+
+    slides.push(`---
+
+## ${section.title || "Section de données"}
+
+${tableHeader}
+${tableDivider}
+${tableBody}
+`);
   }
 
-  // Chart slides (rasterized PNG → data URI).
+  // Chart slides
   if (doc.includeCharts && doc.charts) {
     for (const chart of doc.charts) {
       const png = await resolveChartPng(chart);
       if (!png) continue;
-      const slide = pptx.addSlide();
-      slide.addImage({ data: pngToDataUri(png), x: 0.5, y: 0.5, w: 12.3, h: 6.5 });
+      const dataUri = pngToDataUri(png);
+      const titleBlock = chart.title ? `## ${chart.title}\n\n` : "";
+      slides.push(`---
+
+${titleBlock}![bg contain](${dataUri})
+`);
     }
   }
 
-  return (await pptx.write({ outputType: "arraybuffer" })) as ArrayBuffer;
-}
+  const markdown = slides.join("\n\n");
+  const { html, css } = marp.render(markdown);
+  const fullHtml = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${doc.title}</title>
+  <style>
+    ${css}
+    body { margin: 0; background: #000; }
+  </style>
+</head>
+<body>
+  ${html}
+</body>
+</html>`;
 
-interface PptxInstance {
-  defineLayout(opts: { name: string; width: number; height: number }): void;
-  layout: string;
-  addSlide(): PptxSlide;
-  write(opts: { outputType: string }): Promise<ArrayBuffer>;
-}
-interface PptxSlide {
-  addText(text: string, opts: Record<string, unknown>): void;
-  addImage(opts: Record<string, unknown>): void;
-  addTable(rows: unknown[], opts: Record<string, unknown>): void;
+  const bytes = new TextEncoder().encode(fullHtml);
+  return toArrayBuffer(bytes);
 }
 
 // ─── Comlink exposure ───────────────────────────────────────────────────────
@@ -327,6 +379,9 @@ const api = {
   xlsx: buildXlsx,
   docx: buildDocx,
   pptx: buildPptx,
+  slides: buildPptx,
+  /** Rasterize an ECharts SVG to PNG bytes (offline) — reusable by callers. */
+  svgToPng: (svg: string, width?: number): Promise<Uint8Array> => svgToPng(svg, width),
 };
 
 export type ExportWorkerApi = typeof api;

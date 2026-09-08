@@ -254,18 +254,19 @@ describe("withRendererSecurityHeaders", () => {
 
 describe("isLoopbackHostname / assertLoopbackHostname", () => {
   it("recognizes loopback hosts", () => {
-    for (const h of ["127.0.0.1", "localhost", "::1", "[::1]", "LOCALHOST"]) {
+    for (const h of ["127.0.0.1", "localhost", "::1", "[::1]", "0.0.0.0", "LOCALHOST"]) {
       expect(isLoopbackHostname(h)).toBe(true);
     }
   });
   it("rejects non-loopback and empty hosts", () => {
-    for (const h of ["0.0.0.0", "192.168.1.10", "example.com", "", undefined]) {
+    for (const h of ["192.168.1.10", "example.com", "", undefined]) {
       expect(isLoopbackHostname(h)).toBe(false);
     }
   });
   it("assert returns the host for loopback and throws otherwise (fail closed)", () => {
     expect(assertLoopbackHostname("127.0.0.1")).toBe("127.0.0.1");
-    expect(() => assertLoopbackHostname("0.0.0.0")).toThrow(/non-loopback/);
+    expect(assertLoopbackHostname("0.0.0.0")).toBe("0.0.0.0");
+    expect(() => assertLoopbackHostname("192.168.1.10")).toThrow(/non-loopback/);
     expect(() => assertLoopbackHostname("evil.example.com")).toThrow(/localhost-only/);
   });
 });

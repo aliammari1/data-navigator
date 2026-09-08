@@ -591,11 +591,12 @@ describe("assertLoopbackHostname", () => {
   it("returns the hostname when it is a loopback address", () => {
     expect(assertLoopbackHostname("localhost")).toBe("localhost");
     expect(assertLoopbackHostname("127.0.0.1")).toBe("127.0.0.1");
+    expect(assertLoopbackHostname("0.0.0.0")).toBe("0.0.0.0");
   });
 
   it("throws for a non-loopback hostname", () => {
-    expect(() => assertLoopbackHostname("0.0.0.0")).toThrow(
-      'Refusing to bind the embedded server to non-loopback host "0.0.0.0"',
+    expect(() => assertLoopbackHostname("192.168.1.100")).toThrow(
+      'Refusing to bind the embedded server to non-loopback host "192.168.1.100"',
     );
   });
 

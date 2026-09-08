@@ -13,7 +13,7 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useState } from "react";
 import {
   DATA_SUMMARY_GROUPS,
   RECHARGE_SUMMARY_GROUPS,
@@ -23,7 +23,6 @@ import {
   VOUCHER_FOR_PAYMENT_REDEMPTION,
   VOUCHER_PAYMENT_SUMMARY_GROUPS,
 } from "@/features/telecom/lib/canal-groups";
-import { customRulesForCanal } from "@/features/telecom/lib/custom-canal-channels";
 import {
   fetchSpecCanalStatusMatrix as _fetchSpecCanalStatusMatrix,
   fetchSpecChannelStats as _fetchSpecChannelStats,
@@ -33,20 +32,21 @@ import {
   type SpecChStatusRow,
 } from "@/features/telecom/lib/queries";
 import {
-  BILL_PAYMENT_CHANNELS_RULES,
-  CREDIT_TRANSFER_RULES,
-  EVOUCHER_ON_DEMAND_GENERATION_RULES,
-  RECHARGE_DATA_EVOUCHER_RULES,
-  RECHARGE_DATA_SABBA_RULES,
-  RECHARGE_VOICE_FIXED_TTCASH_RULES,
-  RECHARGE_VOICE_FIXED_VOUCHER_RULES,
-  RECHARGE_VOICE_MOBILE_TTCASH_RULES,
-  RECHARGE_VOICE_MOBILE_VOUCHER_RULES,
-  VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
-  VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
-  VOUCHER_FOR_PAYMENT_RULES,
+  BILL_PAYMENT_CHANNELS,
+  type ChannelDef,
+  CREDIT_TRANSFER,
+  EVOUCHER_ON_DEMAND_GENERATION,
+  RECHARGE_DATA_EVOUCHER,
+  RECHARGE_DATA_SABBA,
+  RECHARGE_VOICE_FIXED_TTCASH,
+  RECHARGE_VOICE_FIXED_VOUCHER,
+  RECHARGE_VOICE_MOBILE_TTCASH,
+  RECHARGE_VOICE_MOBILE_VOUCHER,
+  VOUCHER_CONVERGENT_CARTE_ACTIVATION,
+  VOUCHER_CONVERGENT_CARTE_GENERATION,
+  VOUCHER_FOR_PAYMENT,
 } from "@/features/telecom/lib/report-engine";
-import type { CanalRule, ColumnMapping } from "@/features/telecom/types";
+import type { ColumnMapping } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 import { CanalComparePanel } from "./canal-compare-panel";
 import { CanalSunburstExplorer } from "./canal-sunburst-explorer";
@@ -69,83 +69,17 @@ function isoDaysAgo(days: number) {
 export const CanalTab = memo(function CanalTab({
   getTableName,
   mapping,
-  canalRule,
 }: {
   getTableName: () => string;
   mapping: ColumnMapping;
-  canalRule: CanalRule[];
 }) {
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [compareOpen, setCompareOpen] = useState(false);
-  const customChannels = useMemo(
-    () => ({
-      billPayment: customRulesForCanal(canalRule, "bill_payment"),
-
-      voiceFixedTtcash: customRulesForCanal(canalRule, "voice_fixed_ttcash"),
-
-      voiceFixedVoucher: customRulesForCanal(canalRule, "voice_fixed_voucher"),
-
-      voiceMobileTtcash: customRulesForCanal(canalRule, "voice_mobile_ttcash"),
-
-      voiceMobileVoucher: customRulesForCanal(canalRule, "voice_mobile_voucher"),
-
-      dataSabba: customRulesForCanal(canalRule, "data_sabba"),
-
-      dataEvoucher: customRulesForCanal(canalRule, "data_evoucher"),
-
-      voucherForPayment: customRulesForCanal(canalRule, "voucher_for_payment"),
-
-      creditTransfer: customRulesForCanal(canalRule, "credit_transfer"),
-
-      voucherConvergent: customRulesForCanal(canalRule, "voucher_convergent"),
-    }),
-    [canalRule],
-  );
-
-  const billPaymentChannels = useMemo(
-    () => [...BILL_PAYMENT_CHANNELS_RULES, ...customChannels.billPayment],
-    [customChannels.billPayment],
-  );
-
-  const fixedTtcashChannels = useMemo(
-    () => [...RECHARGE_VOICE_FIXED_TTCASH_RULES, ...customChannels.voiceFixedTtcash],
-    [customChannels.voiceFixedTtcash],
-  );
-
-  const fixedVoucherChannels = useMemo(
-    () => [...RECHARGE_VOICE_FIXED_VOUCHER_RULES, ...customChannels.voiceFixedVoucher],
-    [customChannels.voiceFixedVoucher],
-  );
-
-  const mobileTtcashChannels = useMemo(
-    () => [...RECHARGE_VOICE_MOBILE_TTCASH_RULES, ...customChannels.voiceMobileTtcash],
-    [customChannels.voiceMobileTtcash],
-  );
-
-  const mobileVoucherChannels = useMemo(
-    () => [...RECHARGE_VOICE_MOBILE_VOUCHER_RULES, ...customChannels.voiceMobileVoucher],
-    [customChannels.voiceMobileVoucher],
-  );
-
-  const dataSabbaChannels = useMemo(
-    () => [...RECHARGE_DATA_SABBA_RULES, ...customChannels.dataSabba],
-    [customChannels.dataSabba],
-  );
-
-  const dataEvoucherChannels = useMemo(
-    () => [...RECHARGE_DATA_EVOUCHER_RULES, ...customChannels.dataEvoucher],
-    [customChannels.dataEvoucher],
-  );
-
-  const creditTransferChannels = useMemo(
-    () => [...CREDIT_TRANSFER_RULES, ...customChannels.creditTransfer],
-    [customChannels.creditTransfer],
-  );
 
   const fetchSpecChannelStats = useCallback(
     (
-      channels: CanalRule[],
+      channels: ChannelDef[],
       df: string,
       dt: string,
     ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> =>
@@ -153,17 +87,17 @@ export const CanalTab = memo(function CanalTab({
     [getTableName, mapping],
   );
   const fetchSpecStatusStats = useCallback(
-    (channels: CanalRule[], df: string, dt: string) =>
+    (channels: ChannelDef[], df: string, dt: string) =>
       _fetchSpecStatusStats(getTableName(), channels, df, dt, mapping),
     [getTableName, mapping],
   );
   const fetchSpecUnitAmountStats = useCallback(
-    (channels: CanalRule[], df: string, dt: string) =>
+    (channels: ChannelDef[], df: string, dt: string) =>
       _fetchSpecUnitAmountStats(getTableName(), channels, df, dt, mapping),
     [getTableName, mapping],
   );
   const fetchSpecCanalStatusMatrix = useCallback(
-    (channels: CanalRule[], df: string, dt: string): Promise<SpecChStatusRow[]> =>
+    (channels: ChannelDef[], df: string, dt: string): Promise<SpecChStatusRow[]> =>
       _fetchSpecCanalStatusMatrix(getTableName(), channels, df, dt, mapping),
     [getTableName, mapping],
   );
@@ -332,15 +266,13 @@ export const CanalTab = memo(function CanalTab({
         dateFrom={dateFrom}
         dateTo={dateTo}
         fetchSpecChannelStats={fetchSpecChannelStats}
-        forcePieChart={true}
       >
         <SpecChannelTable
-          channels={billPaymentChannels}
+          channels={BILL_PAYMENT_CHANNELS}
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
           fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-          chartType="pie"
         />
       </CL1>
 
@@ -355,7 +287,6 @@ export const CanalTab = memo(function CanalTab({
         dateFrom={dateFrom}
         dateTo={dateTo}
         fetchSpecChannelStats={fetchSpecChannelStats}
-        forcePieChart={true}
       >
         {/* 1. Recharge Voix */}
         <CL2
@@ -364,13 +295,12 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           {/* 1.1 Lignes Fixes */}
           <CL3 title="1.1 Lignes Fixes">
             <VoiceLineSection
-              ttcash={RECHARGE_VOICE_FIXED_TTCASH_RULES}
-              voucher={RECHARGE_VOICE_FIXED_VOUCHER_RULES}
+              ttcash={RECHARGE_VOICE_FIXED_TTCASH}
+              voucher={RECHARGE_VOICE_FIXED_VOUCHER}
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
@@ -380,8 +310,8 @@ export const CanalTab = memo(function CanalTab({
           {/* 1.2 Lignes Mobiles */}
           <CL3 title="1.2 Lignes Mobiles">
             <VoiceLineSection
-              ttcash={mobileTtcashChannels}
-              voucher={mobileVoucherChannels}
+              ttcash={RECHARGE_VOICE_MOBILE_TTCASH}
+              voucher={RECHARGE_VOICE_MOBILE_VOUCHER}
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
@@ -397,24 +327,21 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           <CL3 title="2.1 Par Internet Sabba (électronique)">
             <SpecChannelTable
-              channels={dataSabbaChannels}
+              channels={RECHARGE_DATA_SABBA}
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecChannelStats={fetchSpecChannelStats}
               fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-              chartType="pie"
             />
           </CL3>
           <CL3 title="2.2 Par Evoucher DATA">
             <SpecChannelTable
-              channels={dataEvoucherChannels}
+              channels={RECHARGE_DATA_EVOUCHER}
               dateFrom={dateFrom}
               dateTo={dateTo}
-              chartType="pie"
               fetchSpecChannelStats={fetchSpecChannelStats}
               fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
             />
@@ -433,11 +360,10 @@ export const CanalTab = memo(function CanalTab({
         dateFrom={dateFrom}
         dateTo={dateTo}
         fetchSpecChannelStats={fetchSpecChannelStats}
-        forcePieChart={true}
       >
-        <CL2 title="Statuts — tous types Voucher For Payment" forcePieChart={true}>
+        <CL2 title="Statuts — tous types Voucher For Payment">
           <SpecStatusTable
-            channels={VOUCHER_FOR_PAYMENT_RULES}
+            channels={VOUCHER_FOR_PAYMENT}
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecStatusStats={fetchSpecStatusStats}
@@ -448,14 +374,12 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           <SpecChannelTable
             channels={VOUCHER_FOR_PAYMENT_GENERATION}
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
-            chartType="pie"
             fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
           />
         </CL2>
@@ -464,7 +388,6 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           <SpecChannelTable
             channels={VOUCHER_FOR_PAYMENT_REDEMPTION}
@@ -472,27 +395,8 @@ export const CanalTab = memo(function CanalTab({
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
             fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-            chartType="pie"
           />
         </CL2>
-        {customChannels.voucherForPayment.length > 0 && (
-          <CL2
-            title="3. Canaux personnalisés"
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            fetchSpecChannelStats={fetchSpecChannelStats}
-            forcePieChart={true}
-          >
-            <SpecChannelTable
-              channels={customChannels.voucherForPayment}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              fetchSpecChannelStats={fetchSpecChannelStats}
-              chartType="pie"
-              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-            />
-          </CL2>
-        )}
       </CL1>
 
       {/* ── IV. Credit Transfer ──────────────────────────────────────── */}
@@ -506,21 +410,20 @@ export const CanalTab = memo(function CanalTab({
         dateTo={dateTo}
         fetchSpecChannelStats={fetchSpecChannelStats}
       >
-        <CL2 title="Statuts — tous services Credit Transfer" forcePieChart={true}>
+        <CL2 title="Statuts — tous services Credit Transfer">
           <SpecStatusTable
-            channels={creditTransferChannels}
+            channels={CREDIT_TRANSFER}
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecStatusStats={fetchSpecStatusStats}
           />
         </CL2>
         <SpecChannelTable
-          channels={creditTransferChannels}
+          channels={CREDIT_TRANSFER}
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
           fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-          chartType="pie"
         />
       </CL1>
 
@@ -535,27 +438,24 @@ export const CanalTab = memo(function CanalTab({
         dateFrom={dateFrom}
         dateTo={dateTo}
         fetchSpecChannelStats={fetchSpecChannelStats}
-        forcePieChart={true}
       >
         <CL2
           title="1. Evoucher on Demand — Génération"
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           <SpecStatusTable
-            channels={EVOUCHER_ON_DEMAND_GENERATION_RULES}
+            channels={EVOUCHER_ON_DEMAND_GENERATION}
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecStatusStats={fetchSpecStatusStats}
           />
           <SpecChannelTable
-            channels={EVOUCHER_ON_DEMAND_GENERATION_RULES}
+            channels={EVOUCHER_ON_DEMAND_GENERATION}
             dateFrom={dateFrom}
             dateTo={dateTo}
             fetchSpecChannelStats={fetchSpecChannelStats}
-            chartType="pie"
             fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
           />
         </CL2>
@@ -564,11 +464,10 @@ export const CanalTab = memo(function CanalTab({
           dateFrom={dateFrom}
           dateTo={dateTo}
           fetchSpecChannelStats={fetchSpecChannelStats}
-          forcePieChart={true}
         >
           <CL3 title="2.1 Génération (Brand_D = 166)">
             <SpecUnitAmountTable
-              channels={VOUCHER_CONVERGENT_CARTE_GENERATION_RULES}
+              channels={VOUCHER_CONVERGENT_CARTE_GENERATION}
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecUnitAmountStats={fetchSpecUnitAmountStats}
@@ -576,31 +475,13 @@ export const CanalTab = memo(function CanalTab({
           </CL3>
           <CL3 title="2.2 Activation / Annulation (Brand_D = 163, 167)">
             <SpecUnitAmountTable
-              channels={VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES}
+              channels={VOUCHER_CONVERGENT_CARTE_ACTIVATION}
               dateFrom={dateFrom}
               dateTo={dateTo}
               fetchSpecUnitAmountStats={fetchSpecUnitAmountStats}
             />
           </CL3>
         </CL2>
-        {customChannels.voucherConvergent.length > 0 && (
-          <CL2
-            title="3. Canaux personnalisés"
-            dateFrom={dateFrom}
-            dateTo={dateTo}
-            fetchSpecChannelStats={fetchSpecChannelStats}
-            forcePieChart={true}
-          >
-            <SpecChannelTable
-              channels={customChannels.voucherConvergent}
-              dateFrom={dateFrom}
-              dateTo={dateTo}
-              fetchSpecChannelStats={fetchSpecChannelStats}
-              chartType="pie"
-              fetchSpecCanalStatusMatrix={fetchSpecCanalStatusMatrix}
-            />
-          </CL2>
-        )}
       </CL1>
     </div>
   );

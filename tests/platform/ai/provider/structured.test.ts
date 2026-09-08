@@ -143,15 +143,18 @@ describe("repairJson", () => {
     expect(repaired).toContain('"hello"');
   });
 
-  it("replaces U+2018/U+2019 smart single quotes with standard single quotes", () => {
-    // U+2018 = left single quotation mark, U+2019 = right single quotation mark
+  it("preserves U+2018/U+2019 typographic apostrophes inside string values", () => {
+    // Structure repair must not mutate legal content. This app renders French
+    // prose, where ’ inside values is data, not a delimiter mistake.
     const leftSingle = "‘";
     const rightSingle = "’";
     const input = `{"a":"value with ${leftSingle}apostrophe${rightSingle}"}`;
     const repaired = repairJson(input);
-    expect(repaired).not.toContain(leftSingle);
-    expect(repaired).not.toContain(rightSingle);
-    expect(repaired).toContain("'apostrophe'");
+    expect(repaired).toContain(`value with ${leftSingle}apostrophe${rightSingle}`);
+  });
+
+  it("repairs ASCII single-quoted keys and values into double quotes", () => {
+    expect(JSON.parse(repairJson("{'a': 'b'}"))).toEqual({ a: "b" });
   });
 
   it("normalizes smart double quotes inside fences so the result is parseable", () => {
@@ -165,11 +168,12 @@ describe("repairJson", () => {
     expect(JSON.parse(repairJson(raw))).toEqual({ a: 1 });
   });
 
-  it("falls back to stripFence result when no JSON block found in text", () => {
-    // No braces or brackets, but wrapped in a fence
+  it("wraps fence-less prose into a JSON string candidate", () => {
+    // jsonrepair's contract: prose with no JSON structure becomes a valid JSON
+    // scalar candidate. The Zod schema in parseStructured still rejects it for
+    // object shapes, so this only widens recovery for scalar schemas.
     const raw = "```\nhello world\n```";
-    const result = repairJson(raw);
-    expect(result).toBe("hello world");
+    expect(repairJson(raw)).toBe('"hello world"');
   });
 
   it("handles empty string input without throwing", () => {

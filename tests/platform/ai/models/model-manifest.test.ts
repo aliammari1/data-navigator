@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
-import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 import {
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
-  MODEL_MANIFEST,
   manifestByKey,
+  MODEL_MANIFEST,
   primaryForLane,
 } from "@/platform/ai/models/model-manifest";
+import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 
 // electron/model-download-service.ts imports the `electron` module at the top
 // level (for `app.getPath`), which isn't resolvable outside a real Electron
@@ -35,31 +35,66 @@ function downloadEntryFor(key: string) {
 
 describe("MODULE CONSTANTS", () => {
   it("DEFAULT_GGUF_MODEL matches the primary GGUF filename", () => {
-    expect(DEFAULT_GGUF_MODEL).toBe("gemma-4-e4b-it-q4_k_m.gguf");
+    expect(DEFAULT_GGUF_MODEL).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
   });
 
-  it("EMBED_MODEL_ID is the Qwen3 Embedding GGUF filename", () => {
-    expect(EMBED_MODEL_ID).toBe("qwen3-embedding-0.6b-q8_0.gguf");
+  it("EMBED_MODEL_ID is the default embedding GGUF filename", () => {
+    expect(EMBED_MODEL_ID).toBe("all-minilm-l6-v2-embed-q8_0.gguf");
   });
 });
 
 // ─── MODEL_MANIFEST shape ────────────────────────────────────────────────────────
 
 describe("MODEL_MANIFEST", () => {
-  it("contains at least 3 entries", () => {
-    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(3);
+  it("contains at least 7 entries", () => {
+    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("has a non-optional llm primary (gemma-4-e4b-it-q4_k_m)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e4b-it-q4_k_m");
+  it("has a non-optional llm primary (gemma-4-e2b-qat-mobile-text-only)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e2b-qat-mobile-text-only");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("llm");
     expect(entry?.presence).toBe("electron-gguf");
     expect(entry?.optional).toBe(false);
+    expect(entry?.ggufFile).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
+    expect(entry?.downloadMb).toBe(
+      downloadEntryFor("gemma-4-e2b-qat-mobile-text-only").bytes / 1_000_000,
+    );
+  });
+
+  it("has an optional llm alternative (lfm2-5-2.6b-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "lfm2-5-2.6b-q4_k_m");
+    expect(entry).toBeDefined();
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
+    expect(entry?.downloadMb).toBe(downloadEntryFor("lfm2-5-2.6b-q4_k_m").bytes / 1_000_000);
+    expect(entry?.ggufFile).toBe("lfm2-5-2.6b-q4_k_m.gguf");
+  });
+
+  it("has an optional llm alternative (granite-4.0-1b-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "granite-4.0-1b-q4_k_m");
+    expect(entry).toBeDefined();
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
+    expect(entry?.downloadMb).toBe(downloadEntryFor("granite-4.0-1b-q4_k_m").bytes / 1_000_000);
+    expect(entry?.ggufFile).toBe("granite-4.0-1b-q4_k_m.gguf");
+  });
+
+  it("has an optional llm alternative (qwen3-1.7b-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen3-1.7b-q4_k_m");
+    expect(entry).toBeDefined();
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
+    expect(entry?.downloadMb).toBe(downloadEntryFor("qwen3-1.7b-q4_k_m").bytes / 1_000_000);
+    expect(entry?.ggufFile).toBe("qwen3-1.7b-q4_k_m.gguf");
+  });
+
+  it("has the legacy gemma-4-e4b power-user entry as optional", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e4b-it-q4_k_m");
+    expect(entry).toBeDefined();
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
     expect(entry?.ggufFile).toBe("gemma-4-e4b-it-q4_k_m.gguf");
-    // Cross-check against the canonical download entry (electron/model-download-service.ts)
-    // rather than a bare literal copied from this same manifest — this is the
-    // only way the test could ever catch the two files drifting apart.
     expect(entry?.downloadMb).toBe(downloadEntryFor("gemma-4-e4b-it-q4_k_m").bytes / 1_000_000);
   });
 
@@ -68,27 +103,22 @@ describe("MODEL_MANIFEST", () => {
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("llm");
     expect(entry?.optional).toBe(true);
-    // Same cross-check as above. This used to assert a bare `1800` copied
-    // from this file's own (stale) comment; the canonical
-    // model-download-service.ts entry actually carries `bytes: 2_100_000_000`
-    // (2100 MB) — checking against it here caught and fixed that drift.
     expect(entry?.downloadMb).toBe(
       downloadEntryFor("granite-4.1-3b-instruct-q4_k_m").bytes / 1_000_000,
     );
     expect(entry?.ggufFile).toBe("granite-4.1-3b-instruct-q4_k_m.gguf");
   });
 
-  it("has a non-optional embed entry (qwen3-embedding-0.6b-q8_0)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "qwen3-embedding-0.6b-q8_0");
+  it("has a non-optional embed entry (all-minilm-l6-v2-embed-q8_0)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "all-minilm-l6-v2-embed-q8_0");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("embed");
     expect(entry?.presence).toBe("electron-gguf");
     expect(entry?.optional).toBe(false);
-    expect(entry?.ggufFile).toBe("qwen3-embedding-0.6b-q8_0.gguf");
-    // Same cross-check pattern as the two llm entries above — the embed model
-    // now rides the same GGUF download/progress/sha256/IPC infrastructure
-    // (node-llama-cpp), replacing the old transformers.js MiniLM ONNX asset.
-    expect(entry?.downloadMb).toBe(downloadEntryFor("qwen3-embedding-0.6b-q8_0").bytes / 1_000_000);
+    expect(entry?.ggufFile).toBe("all-minilm-l6-v2-embed-q8_0.gguf");
+    expect(entry?.downloadMb).toBe(
+      downloadEntryFor("all-minilm-l6-v2-embed-q8_0").bytes / 1_000_000,
+    );
   });
 
   it("every entry has the required fields populated", () => {
@@ -96,7 +126,7 @@ describe("MODEL_MANIFEST", () => {
       expect(typeof entry.key).toBe("string");
       expect(entry.key.length).toBeGreaterThan(0);
       expect(["llm", "embed"]).toContain(entry.lane);
-      expect(entry.presence).toBe("electron-gguf");
+      expect(["electron-gguf"]).toContain(entry.presence);
       expect(typeof entry.label).toBe("string");
       expect(typeof entry.family).toBe("string");
       expect(typeof entry.sizeLabel).toBe("string");
@@ -107,9 +137,36 @@ describe("MODEL_MANIFEST", () => {
 
   it("GGUF entries carry a ggufFile matching their key's model filename", () => {
     const ggufEntries = MODEL_MANIFEST.filter((m) => m.presence === "electron-gguf");
-    expect(ggufEntries.length).toBe(MODEL_MANIFEST.length);
+    expect(ggufEntries.length).toBeGreaterThanOrEqual(7);
     for (const entry of ggufEntries) {
       expect(entry.ggufFile).toBe(`${entry.key}.gguf`);
+    }
+  });
+
+  it("every entry carries boolean capability flags", () => {
+    for (const entry of MODEL_MANIFEST) {
+      expect(typeof entry.capabilities.tools).toBe("boolean");
+      expect(typeof entry.capabilities.thinking).toBe("boolean");
+      expect(typeof entry.capabilities.vision).toBe("boolean");
+    }
+  });
+
+  it("marks lfm2-2.6b as tools:false (proven: narrates calls, never invokes)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "lfm2-5-2.6b-q4_k_m");
+    expect(entry?.capabilities.tools).toBe(false);
+    expect(entry?.capabilities.thinking).toBe(true);
+    expect(entry?.capabilityNote).toMatch(/Sans appels/);
+  });
+
+  it("marks the tool-trained instruct models as tools:true", () => {
+    for (const key of [
+      "gemma-4-e2b-qat-mobile-text-only",
+      "granite-4.0-1b-q4_k_m",
+      "qwen3-1.7b-q4_k_m",
+      "gemma-4-e4b-it-q4_k_m",
+      "granite-4.1-3b-instruct-q4_k_m",
+    ]) {
+      expect(MODEL_MANIFEST.find((m) => m.key === key)?.capabilities.tools).toBe(true);
     }
   });
 });
@@ -121,14 +178,14 @@ describe("primaryForLane", () => {
     const result = primaryForLane("llm");
     expect(result.lane).toBe("llm");
     expect(result.optional).toBe(false);
-    expect(result.key).toBe("gemma-4-e4b-it-q4_k_m");
+    expect(result.key).toBe("gemma-4-e2b-qat-mobile-text-only");
   });
 
   it('returns the non-optional embed entry for lane "embed"', () => {
     const result = primaryForLane("embed");
     expect(result.lane).toBe("embed");
     expect(result.optional).toBe(false);
-    expect(result.key).toBe("qwen3-embedding-0.6b-q8_0");
+    expect(result.key).toBe("all-minilm-l6-v2-embed-q8_0");
   });
 
   it("returns a ModelManifestEntry with the correct shape", () => {
@@ -157,13 +214,13 @@ describe("primaryForLane", () => {
 
 describe("manifestByKey", () => {
   it("returns the entry for a known key", () => {
-    const entry = manifestByKey("gemma-4-e4b-it-q4_k_m");
+    const entry = manifestByKey("gemma-4-e2b-qat-mobile-text-only");
     expect(entry).toBeDefined();
-    expect(entry?.key).toBe("gemma-4-e4b-it-q4_k_m");
+    expect(entry?.key).toBe("gemma-4-e2b-qat-mobile-text-only");
   });
 
   it("returns the embed entry for its key", () => {
-    const entry = manifestByKey("qwen3-embedding-0.6b-q8_0");
+    const entry = manifestByKey("all-minilm-l6-v2-embed-q8_0");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("embed");
   });

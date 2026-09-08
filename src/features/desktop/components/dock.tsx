@@ -11,6 +11,7 @@ import {
   SettingsIcon,
   Trash2Icon,
   UploadIcon,
+  UsersIcon,
 } from "@animateicons/react/lucide";
 import { Search } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
@@ -50,6 +51,7 @@ const ANIMATED_ICONS: Record<string, AnimatedIcon> = {
   settings: SettingsIcon,
   upload: UploadIcon,
   folders: FolderIcon,
+  collaboration: UsersIcon,
 };
 
 const ICON_PX = 24;

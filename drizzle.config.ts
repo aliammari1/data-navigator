@@ -6,6 +6,6 @@ export default defineConfig({
   schema: "./src/db/schema.ts",
   dialect: "sqlite",
   dbCredentials: {
-    url: "./.data/data-navigator-auth.sqlite",
+    url: "./databases/auth.db",
   },
 });

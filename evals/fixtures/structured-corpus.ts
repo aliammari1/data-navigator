@@ -7,7 +7,7 @@
  *
  * The cases deliberately span the failure modes the prompt+repair lane exists
  * to absorb (see src/platform/ai/provider/structured.ts):
- *   - clean JSON (object and array roots)
+ *   - clean JSON (object root)
  *   - ```json … ``` fenced blocks (and bare ``` fences)
  *   - leading / trailing prose around a JSON value
  *   - minor JSON errors the repairer fixes (trailing commas, smart quotes)
@@ -16,14 +16,45 @@
  * These are static strings (no model) so the deterministic eval is a true gate:
  * it measures the recovery rate of the real parser over a fixed corpus.
  *
- * Schemas are the REAL ones the app validates against, so the corpus exercises
- * the same `schema.parse(...)` path production uses.
+ * Every case validates against the LIVE analysis-plan schema
+ * (`analysisPlanSchema`, src/features/data-formulator/core/swarm/agents/
+ * analyze.ts) — the same `schema.parse(...)` path production uses.
  */
 
-import type { ZodType } from "zod";
-import { LlmInsightResponseSchema } from "@/features/ai-analysis/model/insight-schema";
-import { TransformRecipeSchema } from "@/features/data-transform/ai/recipe-schema";
-import { analysisPlanSchema } from "@/features/data-formulator/core/swarm/agents/analyze";
+import { z, type ZodType } from "zod";
+
+export const analysisPlanSchema = z.object({
+  goal: z.string(),
+  reasoning: z.string(),
+  sqlSpecs: z
+    .array(
+      z.object({
+        id: z.string(),
+        purpose: z.string(),
+        sql: z.string(),
+      }),
+    )
+    .max(4),
+  chartSpecs: z
+    .array(
+      z.object({
+        usesSqlId: z.string(),
+        type: z.enum(["line", "bar", "area", "scatter", "table"]),
+        x: z.string(),
+        y: z.string(),
+        series: z.string().optional(),
+      }),
+    )
+    .max(3),
+  anomalyChecks: z
+    .array(
+      z.object({
+        usesSqlId: z.string(),
+        kind: z.enum(["dip", "spike", "outlier", "trend"]),
+      }),
+    )
+    .max(3),
+});
 
 /** One corpus entry: a raw output, its target schema, and the expected outcome. */
 export interface StructuredCase {
@@ -43,76 +74,7 @@ export interface StructuredCase {
   readonly shouldRecover: boolean;
 }
 
-// ── Clean JSON (object root) ─────────────────────────────────────────────────
-
-const insightClean = `{
-  "insights": [
-    {
-      "category": "anomaly",
-      "title": "Revenue dip on 2024-03-12",
-      "description": "Daily revenue fell 38% versus the trailing 7-day mean.",
-      "severity": "warning",
-      "impact": "high",
-      "confidence": 0.82
-    }
-  ]
-}`;
-
-const recipeClean = `{
-  "steps": [
-    { "type": "filter", "label": "Amount over 100", "condition": "amount > 100" },
-    { "type": "sort", "label": "Newest first", "column": "date", "direction": "DESC" }
-  ]
-}`;
-
-// ── Fenced ```json blocks ────────────────────────────────────────────────────
-
-const insightFencedJson = "```json\n" + insightClean + "\n```";
-
-const recipeFencedBare =
-  "```\n" + `{ "steps": [ { "type": "limit", "label": "Top 50", "count": 50 } ] }` + "\n```";
-
-// ── Trailing / leading prose around a JSON value ─────────────────────────────
-
-const insightTrailingProse =
-  insightClean + "\n\nThat insight highlights the most material movement in the data.";
-
-const insightLeadingProse = "Here is the structured analysis you asked for:\n\n" + insightClean;
-
-const recipeProseSandwich =
-  "Sure! Here's the recipe.\n\n```json\n" +
-  `{ "steps": [ { "type": "select", "label": "Keep two cols", "columns": "date, amount" } ] }` +
-  "\n```\n\nLet me know if you want more steps.";
-
-// ── Minor JSON errors the repairer fixes ─────────────────────────────────────
-
-const recipeTrailingCommas = `{
-  "steps": [
-    { "type": "deduplicate", "label": "Drop dupes", },
-    { "type": "limit", "label": "Cap rows", "count": 1000, },
-  ],
-}`;
-
-const insightSmartQuotes =
-  "{\n" +
-  "  “insights”: [\n" +
-  "    {\n" +
-  "      “category”: “trend”,\n" +
-  "      “title”: “Upward trend in signups”,\n" +
-  "      “description”: “Signups grew steadily across the window.”,\n" +
-  "      “severity”: “info”,\n" +
-  "      “impact”: “medium”,\n" +
-  "      “confidence”: 0.6\n" +
-  "    }\n" +
-  "  ]\n" +
-  "}";
-
-const insightFenceTrailingComma =
-  "```json\n" +
-  `{ "insights": [ { "category": "quality", "title": "Nulls in region", "description": "12% of region values are null.", "severity": "warning", "impact": "low", "confidence": 0.5, }, ] }` +
-  "\n```";
-
-// ── Plan schema (nested arrays of flat objects) ──────────────────────────────
+// ── Canonical payloads ───────────────────────────────────────────────────────
 
 const planClean = `{
   "goal": "Find revenue anomalies",
@@ -128,106 +90,200 @@ const planClean = `{
   ]
 }`;
 
-const planFencedTrailingProse =
+const planMultiSpec = `{
+  "goal": "Compare revenue across regions and flag outliers",
+  "reasoning": "Aggregate monthly totals per region, chart them side by side, then scan for outlier months.",
+  "sqlSpecs": [
+    { "id": "monthly", "purpose": "Monthly totals per region", "sql": "SELECT month, region, SUM(amount) AS total FROM v GROUP BY month, region" },
+    { "id": "overall", "purpose": "Overall monthly trend", "sql": "SELECT month, SUM(amount) AS total FROM v GROUP BY month" }
+  ],
+  "chartSpecs": [
+    { "usesSqlId": "monthly", "type": "multi-line", "x": "month", "y": "total", "series": "region" },
+    { "usesSqlId": "overall", "type": "area", "x": "month", "y": "total" }
+  ],
+  "anomalyChecks": [
+    { "usesSqlId": "overall", "kind": "outlier" },
+    { "usesSqlId": "overall", "kind": "dip" }
+  ]
+}`;
+
+const planEmptyArrays = `{
+  "goal": "Describe the dataset",
+  "reasoning": "No computation requested yet.",
+  "sqlSpecs": [],
+  "chartSpecs": [],
+  "anomalyChecks": []
+}`;
+
+// ── Surface-form variants of planClean ───────────────────────────────────────
+
+const planFencedJson = "```json\n" + planClean + "\n```";
+
+const planFencedBare = "```\n" + planClean + "\n```";
+
+const planTrailingProse =
+  planClean + "\n\nThis plan keeps within the 4 sql / 3 chart / 3 anomaly limits.";
+
+const planLeadingProse = "Here is the structured analysis you asked for:\n\n" + planClean;
+
+const planProseSandwich =
+  "Sure! Here's the plan.\n\n```json\n" + planClean + "\n```\n\nLet me know if you want changes.";
+
+const planTrailingCommas = `{
+  "goal": "Find revenue anomalies",
+  "reasoning": "Aggregate by day, then scan for dips.",
+  "sqlSpecs": [
+    { "id": "daily", "purpose": "Daily revenue", "sql": "SELECT date, SUM(amount) AS rev FROM v GROUP BY date", },
+  ],
+  "chartSpecs": [
+    { "usesSqlId": "daily", "type": "line", "x": "date", "y": "rev", },
+  ],
+  "anomalyChecks": [
+    { "usesSqlId": "daily", "kind": "dip", },
+  ],
+}`;
+
+const planSmartQuotes =
+  "{\n" +
+  "  “goal”: “Find revenue anomalies”,\n" +
+  "  “reasoning”: “Aggregate by day, then scan for dips.”,\n" +
+  "  “sqlSpecs”: [\n" +
+  "    { “id”: “daily”, “purpose”: “Daily revenue”, “sql”: “SELECT date, SUM(amount) AS rev FROM v GROUP BY date” }\n" +
+  "  ],\n" +
+  "  “chartSpecs”: [],\n" +
+  "  “anomalyChecks”: []\n" +
+  "}";
+
+const planFenceTrailingComma =
   "```json\n" +
-  planClean +
-  "\n```\n\nThis plan keeps within the 4 sql / 3 chart / 3 anomaly limits.";
+  `{ "goal": "Find revenue anomalies", "reasoning": "Scan for dips.", "sqlSpecs": [ { "id": "daily", "purpose": "Daily revenue", "sql": "SELECT 1" }, ], "chartSpecs": [], "anomalyChecks": [], }` +
+  "\n```";
 
 // ── Negative cases (parser MUST reject — wrong shape / unrecoverable) ─────────
 
-// Valid JSON, but wrong shape for the insight schema (missing required fields).
-const insightWrongShape = `{ "insights": [ { "category": "anomaly", "title": "x" } ] }`;
+const planWrongShape = `{ "goal": "Find revenue anomalies" }`;
 
-// Enum value outside the allowed set — schema must reject even though JSON parses.
-const recipeBadEnum = `{ "steps": [ { "type": "teleport", "label": "nope" } ] }`;
+const planBadAnomalyKind = `{
+  "goal": "Find revenue anomalies",
+  "reasoning": "Scan for dips.",
+  "sqlSpecs": [],
+  "chartSpecs": [],
+  "anomalyChecks": [ { "usesSqlId": "daily", "kind": "teleport" } ]
+}`;
 
-// confidence out of [0,1] range — a constraint the repairer can't fix.
-const insightOutOfRange = `{ "insights": [ { "category": "trend", "title": "t", "description": "d", "severity": "info", "impact": "low", "confidence": 5 } ] }`;
+const planBadChartType = `{
+  "goal": "Find revenue anomalies",
+  "reasoning": "Scan for dips.",
+  "sqlSpecs": [],
+  "chartSpecs": [ { "usesSqlId": "daily", "type": "hologram", "x": "date", "y": "rev" } ],
+  "anomalyChecks": []
+}`;
 
-// No JSON at all — pure prose.
+const planSpecsNotArray = `{
+  "goal": "Find revenue anomalies",
+  "reasoning": "Scan for dips.",
+  "sqlSpecs": { "id": "daily", "purpose": "Daily revenue", "sql": "SELECT 1" },
+  "chartSpecs": [],
+  "anomalyChecks": []
+}`;
+
 const proseOnly = "I could not find any anomalies worth reporting in this dataset.";
 
-// Truncated / unbalanced JSON the extractor cannot close.
-const truncated = `{ "insights": [ { "category": "anomaly", "title": "Cut off`;
+const truncated = `{ "goal": "Find revenue anomalies", "reasoning": "Cut off`;
 
 export const STRUCTURED_CASES: readonly StructuredCase[] = [
   // Positives — should recover.
-  { id: "insight.clean", schema: LlmInsightResponseSchema, raw: insightClean, shouldRecover: true },
-  { id: "recipe.clean", schema: TransformRecipeSchema, raw: recipeClean, shouldRecover: true },
-  {
-    id: "insight.fencedJson",
-    schema: LlmInsightResponseSchema,
-    raw: insightFencedJson,
-    shouldRecover: true,
-  },
-  {
-    id: "recipe.fencedBare",
-    schema: TransformRecipeSchema,
-    raw: recipeFencedBare,
-    shouldRecover: true,
-  },
-  {
-    id: "insight.trailingProse",
-    schema: LlmInsightResponseSchema,
-    raw: insightTrailingProse,
-    shouldRecover: true,
-  },
-  {
-    id: "insight.leadingProse",
-    schema: LlmInsightResponseSchema,
-    raw: insightLeadingProse,
-    shouldRecover: true,
-  },
-  {
-    id: "recipe.proseSandwich",
-    schema: TransformRecipeSchema,
-    raw: recipeProseSandwich,
-    shouldRecover: true,
-  },
-  {
-    id: "recipe.trailingCommas",
-    schema: TransformRecipeSchema,
-    raw: recipeTrailingCommas,
-    shouldRecover: true,
-  },
-  {
-    id: "insight.smartQuotes",
-    schema: LlmInsightResponseSchema,
-    raw: insightSmartQuotes,
-    shouldRecover: true,
-  },
-  {
-    id: "insight.fenceTrailingComma",
-    schema: LlmInsightResponseSchema,
-    raw: insightFenceTrailingComma,
-    shouldRecover: true,
-  },
   { id: "plan.clean", schema: analysisPlanSchema, raw: planClean, shouldRecover: true },
   {
-    id: "plan.fencedTrailingProse",
+    id: "plan.multiSpec",
     schema: analysisPlanSchema,
-    raw: planFencedTrailingProse,
+    raw: planMultiSpec,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.emptyArrays",
+    schema: analysisPlanSchema,
+    raw: planEmptyArrays,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.fencedJson",
+    schema: analysisPlanSchema,
+    raw: planFencedJson,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.fencedBare",
+    schema: analysisPlanSchema,
+    raw: planFencedBare,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.trailingProse",
+    schema: analysisPlanSchema,
+    raw: planTrailingProse,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.leadingProse",
+    schema: analysisPlanSchema,
+    raw: planLeadingProse,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.proseSandwich",
+    schema: analysisPlanSchema,
+    raw: planProseSandwich,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.trailingCommas",
+    schema: analysisPlanSchema,
+    raw: planTrailingCommas,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.smartQuotes",
+    schema: analysisPlanSchema,
+    raw: planSmartQuotes,
+    shouldRecover: true,
+  },
+  {
+    id: "plan.fenceTrailingComma",
+    schema: analysisPlanSchema,
+    raw: planFenceTrailingComma,
     shouldRecover: true,
   },
 
   // Negatives — should be rejected (throw), NOT silently coerced.
   {
-    id: "insight.wrongShape",
-    schema: LlmInsightResponseSchema,
-    raw: insightWrongShape,
+    id: "plan.wrongShape",
+    schema: analysisPlanSchema,
+    raw: planWrongShape,
     shouldRecover: false,
   },
-  { id: "recipe.badEnum", schema: TransformRecipeSchema, raw: recipeBadEnum, shouldRecover: false },
   {
-    id: "insight.outOfRange",
-    schema: LlmInsightResponseSchema,
-    raw: insightOutOfRange,
+    id: "plan.badAnomalyKind",
+    schema: analysisPlanSchema,
+    raw: planBadAnomalyKind,
     shouldRecover: false,
   },
-  { id: "prose.only", schema: LlmInsightResponseSchema, raw: proseOnly, shouldRecover: false },
   {
-    id: "insight.truncated",
-    schema: LlmInsightResponseSchema,
+    id: "plan.badChartType",
+    schema: analysisPlanSchema,
+    raw: planBadChartType,
+    shouldRecover: false,
+  },
+  {
+    id: "plan.specsNotArray",
+    schema: analysisPlanSchema,
+    raw: planSpecsNotArray,
+    shouldRecover: false,
+  },
+  { id: "prose.only", schema: analysisPlanSchema, raw: proseOnly, shouldRecover: false },
+  {
+    id: "plan.truncated",
+    schema: analysisPlanSchema,
     raw: truncated,
     shouldRecover: false,
   },

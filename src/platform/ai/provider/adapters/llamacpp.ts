@@ -17,7 +17,7 @@ import { generateStructuredByPrompt, toSystemUser } from "./base";
  * renderer), so this adapter is a *thin IPC client*: it calls
  * `window.electronLlama.*`, which a sibling agent exposes from
  * `electron/preload.ts` over the `llama:*` IPC channels (mirroring the existing
- * `electronDuckDB` / `electronVoice` bridges). The decisive feature is
+ * `electronDuckDB` bridge). The decisive feature is
  * grammar-constrained decoding: a JSON schema (derived from the caller's Zod
  * schema) constrains the sampler so structured output is valid *by
  * construction* — no regex-repair brute force needed.
@@ -49,8 +49,36 @@ type ElectronLlama = Window["electronLlama"];
  */
 const MODELS: AIModelInfo[] = [
   {
+    id: "gemma-4-e2b-qat-mobile-text-only.gguf",
+    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
+    family: "Gemma 4",
+    sizeLabel: "E2B",
+    downloadMb: 840,
+  },
+  {
+    id: "lfm2-5-2.6b-q4_k_m.gguf",
+    label: "LFM2.5-2.6B Instruct (Q4_K_M, Liquid AI 2026)",
+    family: "LFM",
+    sizeLabel: "2.6B",
+    downloadMb: 1674.45504,
+  },
+  {
+    id: "granite-4.0-1b-q4_k_m.gguf",
+    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.0",
+    sizeLabel: "1B",
+    downloadMb: 1023.64544,
+  },
+  {
+    id: "qwen3-1.7b-q4_k_m.gguf",
+    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    family: "Qwen3",
+    sizeLabel: "1.7B",
+    downloadMb: 1100,
+  },
+  {
     id: "gemma-4-e4b-it-q4_k_m.gguf",
-    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
     family: "Gemma 4",
     sizeLabel: "E4B",
     downloadMb: 5340,
@@ -60,7 +88,7 @@ const MODELS: AIModelInfo[] = [
     label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
     family: "Granite 4.1",
     sizeLabel: "3B",
-    downloadMb: 2100, // matches model-download-service.ts's bytes: 2_100_000_000
+    downloadMb: 2099.501664,
   },
 ];
 
@@ -68,7 +96,7 @@ function bridge(): ElectronLlama | null {
   if (typeof window === "undefined") return null;
   // `electronLlama` is typed as always-present (the bridge declares it), but it
   // is genuinely absent on the web build — guard the runtime value.
-  return (window as Window & { electronLlama?: ElectronLlama }).electronLlama ?? null;
+  return window.electronLlama ?? null;
 }
 
 export const llamacppProvider: AIProvider = {
@@ -193,3 +221,16 @@ export const llamacppProvider: AIProvider = {
     return schema.parse(out);
   },
 };
+
+/**
+ * Pre-warm the KV cache for a dataset schema or system grounding prefix in the background.
+ */
+export async function preloadWarmPrefix(systemPrefix: string): Promise<boolean> {
+  const api = bridge();
+  if (!api || !isElectron() || typeof api.preloadWarmPrefix !== "function") return false;
+  try {
+    return await api.preloadWarmPrefix({ systemPrefix });
+  } catch {
+    return false;
+  }
+}

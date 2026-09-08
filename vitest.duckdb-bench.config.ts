@@ -30,6 +30,7 @@ const DUCKDB_BENCH_TIMEOUT_MS = 600_000;
 
 export default defineConfig({
   test: {
+    name: "benchmarks",
     environment: "node",
     globals: true,
     include: ["tests/performance/**/*.duckdb-native.bench.{ts,tsx}"],

@@ -4,19 +4,18 @@ import { ChevronDown, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { usePerformanceSettings } from "@/core/stores/settings-store";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { useClickOutside } from "@/features/dashboard-shell/shell/use-click-outside";
 
 /**
- * Access + cache-mode status pill. Access is a fixed "Admin" (every user has
- * full access — there is no more role to pick), cache mode is centralized in
- * Settings (Performance tab). This is a read-only glance + deep link, not a
- * second place to change it. Uses the shared `useClickOutside` (listener
+ * Role + cache-mode status pill. Both values are centralized in Settings
+ * (Account / Performance tabs) — this is a read-only glance + deep link, not a
+ * second place to change them. Uses the shared `useClickOutside` (listener
  * attached only while open) instead of an always-on `document` mousedown
  * listener.
  */
 export function AccessControlPill() {
-  const { cacheMode } = usePerformanceSettings();
+  const { roleLabel, cacheMode } = useDashboardAccess();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -28,10 +27,10 @@ export function AccessControlPill() {
         type="button"
         onClick={() => setOpen((value) => !value)}
         className="hidden md:flex items-center gap-1.5 rounded-xl border border-border bg-accent px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground"
-        title="Cache mode (Settings)"
+        title="Role and cache mode (Settings)"
       >
         <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
-        <span className="font-medium text-foreground">Admin</span>
+        <span className="font-medium text-foreground">{roleLabel}</span>
         <span className="text-[10px] uppercase">
           {cacheMode === "low-memory" ? "Low cache" : "Balanced"}
         </span>
@@ -50,10 +49,17 @@ export function AccessControlPill() {
             <div className="px-4 py-3">
               <div className="text-sm font-semibold text-foreground">Access & cache</div>
               <div className="mt-0.5 text-[11px] text-muted-foreground">
-                Full access on this device. Cache mode is managed in Settings.
+                Shared across dashboard pages on this device. Managed in Settings.
               </div>
             </div>
             <div className="space-y-1 border-t border-border p-2">
+              <Link
+                href="/dashboard/settings?tab=account"
+                onClick={() => setOpen(false)}
+                className="block rounded-lg px-2.5 py-2 text-xs text-foreground hover:bg-accent"
+              >
+                Role — <span className="font-medium">{roleLabel}</span>
+              </Link>
               <Link
                 href="/dashboard/settings?tab=performance"
                 onClick={() => setOpen(false)}

@@ -74,6 +74,17 @@ export const GLOBAL_TOUR: TourDefinition = {
       },
     },
     {
+      route: "/dashboard/collaborative",
+      element: '[href="/dashboard/collaborative"]',
+      popover: {
+        title: "Collaboration",
+        description:
+          "Comments, presence and change tracking via Yjs CRDTs — works offline-first and syncs over your LAN when peers reconnect.",
+        side: "right",
+        align: "start",
+      },
+    },
+    {
       route: "/dashboard/help",
       element: '[href="/dashboard/help"]',
       popover: {

@@ -1,7 +1,7 @@
 /**
  * node-llama-cpp Service — Electron MAIN process edition (PRIMARY generative lane).
  *
- * Mental model (mirrors duckdb-service.ts / voice-service.ts):
+ * Mental model (mirrors duckdb-service.ts):
  * - node-llama-cpp runs ONLY in the Electron main process. Importing it in the
  *   renderer crashes the app, so it lives here behind IPC (`llama:*`) and the
  *   renderer talks to it through the thin `window.electronLlama` adapter.
@@ -26,8 +26,9 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { app } from "electron";
+import { jsonrepair } from "jsonrepair";
 import type { Llama, LlamaContext, LlamaModel } from "node-llama-cpp";
-import { MODEL_DOWNLOADS } from "./model-download-service";
+import { type ModelCapabilities, MODEL_DOWNLOADS } from "./model-download-service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -74,6 +75,14 @@ export type LlamaGenerateStructuredInput = {
   maxTokens?: number;
   temperature?: number;
   signal?: AbortSignal;
+  /**
+   * Optional GGUF file name. Falls back to `DEFAULT_LLM_MODEL` when omitted
+   * (current behaviour); the title/follow-ups side-calls in
+   * `chat-session-service.ts` pass the conversation's session model here
+   * so they use whichever model actually generated the last turn.
+   */
+  modelFile?: string;
+  onToken?: (chunk: string) => void;
 };
 
 export type LlamaModelInfo = {
@@ -81,6 +90,8 @@ export type LlamaModelInfo = {
   label: string;
   family: string;
   sizeLabel: string;
+  capabilities: ModelCapabilities;
+  capabilityNote?: string;
   present: boolean;
   path: string;
 };
@@ -91,15 +102,24 @@ export type LlamaModelInfo = {
 // Electron main process, so importing the array directly (rather than
 // hand-duplicating it, as the renderer-side catalogs must) keeps this list
 // impossible to drift out of sync with what's actually downloadable.
+//
+// Filtered to lane==="llm": MODEL_DOWNLOADS also carries the embedding GGUF
+// (lane "embed", owned by embedding-service.ts) — without this filter it would
+// leak into llama:listModels() as a bogus selectable CHAT model.
+const LLM_MODEL_DOWNLOADS = MODEL_DOWNLOADS.filter((m) => m.lane === "llm");
 
-export const DEFAULT_LLM_MODEL = MODEL_DOWNLOADS[0].file;
+export const DEFAULT_LLM_MODEL = LLM_MODEL_DOWNLOADS[0].file;
 
-const KNOWN_MODELS: Array<Omit<LlamaModelInfo, "present" | "path">> = MODEL_DOWNLOADS.map((m) => ({
-  id: m.file,
-  label: m.label,
-  family: m.family,
-  sizeLabel: m.sizeLabel,
-}));
+const KNOWN_MODELS: Array<Omit<LlamaModelInfo, "present" | "path">> = LLM_MODEL_DOWNLOADS.map(
+  (m) => ({
+    id: m.file,
+    label: m.label,
+    family: m.family,
+    sizeLabel: m.sizeLabel,
+    capabilities: m.capabilities,
+    capabilityNote: m.capabilityNote,
+  }),
+);
 
 const DEFAULT_CONTEXT_SIZE = 4096;
 const DEFAULT_MAX_TOKENS = 512;
@@ -121,29 +141,38 @@ function repairTruncatedJson(raw: string): string {
   const fence = s.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
   if (fence?.[1]) s = fence[1].trim();
 
-  const stack: string[] = [];
-  let inString = false;
-  let escaped = false;
-  for (let i = 0; i < s.length; i++) {
-    const c = s[i];
-    if (inString) {
-      if (escaped) escaped = false;
-      else if (c === "\\") escaped = true;
-      else if (c === '"') inString = false;
-      continue;
+  try {
+    return jsonrepair(s);
+  } catch {
+    // Fallback: bracket-balancing if jsonrepair cannot resolve severely broken tokens
+    const stack: string[] = [];
+    let inString = false;
+    let escaped = false;
+    for (let i = 0; i < s.length; i++) {
+      const c = s[i];
+      if (inString) {
+        if (escaped) escaped = false;
+        else if (c === "\\") escaped = true;
+        else if (c === '"') inString = false;
+        continue;
+      }
+      if (c === '"') inString = true;
+      else if (c === "{") stack.push("}");
+      else if (c === "[") stack.push("]");
+      else if (c === "}" || c === "]") stack.pop();
     }
-    if (c === '"') inString = true;
-    else if (c === "{") stack.push("}");
-    else if (c === "[") stack.push("]");
-    else if (c === "}" || c === "]") stack.pop();
+    // Drop a dangling escape, then close an open string.
+    if (escaped) s = s.slice(0, -1);
+    if (inString) s += '"';
+    // Remove a trailing comma / partial key before closing.
+    s = s.replace(/,\s*$/, "");
+    while (stack.length) s += stack.pop();
+    try {
+      return jsonrepair(s);
+    } catch {
+      return s;
+    }
   }
-  // Drop a dangling escape, then close an open string.
-  if (escaped) s = s.slice(0, -1);
-  if (inString) s += '"';
-  // Remove a trailing comma / partial key before closing.
-  s = s.replace(/,\s*$/, "");
-  while (stack.length) s += stack.pop();
-  return s;
 }
 
 // ─── Module state ───────────────────────────────────────────────────────────
@@ -166,7 +195,14 @@ let sharedContext: LlamaContext | null = null;
 async function getSharedContext(): Promise<LlamaContext> {
   if (sharedContext) return sharedContext;
   // biome-ignore lint/style/noNonNullAssertion: callers invoke ensureModel() first, which guarantees `model`.
-  sharedContext = await model!.createContext({ contextSize: DEFAULT_CONTEXT_SIZE });
+  // Slot budget: WARM_MAX long-lived warm sequences plus one transient per-call
+  // slot. The default is a single sequence, so once warm sessions exist every
+  // per-call getSequence() throws "No sequences left" (killed chat:followups).
+  sharedContext = await model!.createContext({
+    contextSize: DEFAULT_CONTEXT_SIZE,
+    sequences: WARM_MAX + 1,
+    flashAttention: true,
+  });
   return sharedContext;
 }
 
@@ -299,41 +335,18 @@ function modelPath(file: string): string {
 }
 
 /**
- * True when the operator explicitly opted back into GPU acceleration via the
- * `DN_LLAMA_GPU` env var. Default (unset) is CPU-only.
- */
-function gpuExplicitlyEnabled(): boolean {
-  const value = process.env.DN_LLAMA_GPU?.trim().toLowerCase();
-  if (!value) return false;
-  return ["1", "true", "yes", "on", "auto", "vulkan", "cuda", "metal"].includes(value);
-}
-
-/**
  * Idempotent singleton.
  *
- * CPU-only by DEFAULT: the GPU (Vulkan) path crashed on weak/old integrated
- * GPUs — notably Intel Iris Xe with a stale driver, which loses the device
- * during context creation (`vk::Queue::submit: ErrorDeviceLost`). The product
- * targets medium-end PCs and must work offline, so a 1.5B q4 model on CPU
- * (AVX/AVX2/AVX512) is the stable, fully portable default.
- *
- * GPU acceleration is opt-in via `DN_LLAMA_GPU` (e.g. `=1`, `=vulkan`, `=cuda`).
- * When opted in, `getLlama()` auto-detects the best backend and still falls back
- * to CPU once if device creation throws on a flaky GPU.
+ * Auto-detect backend: `getLlama()` picks the best available backend
+ * (Vulkan/CUDA/Metal when present, CPU otherwise). The forced CPU-only init
+ * is removed while diagnosing a SIGILL inside the CPU model-load path.
  */
 async function getLlamaInstance(): Promise<Llama> {
   if (!llamaPromise) {
     llamaPromise = (async () => {
       const { getLlama } = await import("node-llama-cpp");
-      if (!gpuExplicitlyEnabled()) {
-        return getLlama({ gpu: false });
-      }
-      try {
-        return await getLlama();
-      } catch (error) {
-        console.warn("[llama] GPU init failed, falling back to CPU:", error);
-        return getLlama({ gpu: false });
-      }
+      const inst = await getLlama();
+      return inst;
     })();
     // If init rejects, allow a later retry instead of caching the rejection.
     llamaPromise.catch(() => {
@@ -374,9 +387,28 @@ export async function ensureModel(file: string = DEFAULT_LLM_MODEL): Promise<{ m
     loadedModelPath = null;
   }
 
-  model = await llama.loadModel({ modelPath: target });
+  model = await llama.loadModel({
+    modelPath: target,
+    defaultContextFlashAttention: true,
+    gpuLayers: "auto",
+  });
   loadedModelPath = target;
   return { model: target };
+}
+
+/**
+ * Pre-warm the KV cache for a dataset schema / system prefix ahead of user generation.
+ */
+export async function preloadWarmPrefix(systemPrefix: string): Promise<boolean> {
+  if (!WARM_PREFIX_ENABLED || !systemPrefix) return false;
+  return enqueue(async () => {
+    try {
+      const warm = await getWarmSession(systemPrefix);
+      return !!warm;
+    } catch {
+      return false;
+    }
+  });
 }
 
 /**
@@ -399,11 +431,6 @@ export async function getLoadedModel(
  */
 export function enqueueLlamaTask<T>(task: () => Promise<T>): Promise<T> {
   return enqueue(task);
-}
-
-/** Seam for embed-service.ts: reuse this module's native Llama core instance instead of double-initializing the backend. */
-export function getSharedLlama(): Promise<Llama> {
-  return getLlamaInstance();
 }
 
 /** Free-form generation with optional streaming via `input.onToken`. */
@@ -522,7 +549,7 @@ export async function generate(input: LlamaGenerateInput): Promise<LlamaGenerate
  */
 export async function generateStructured(input: LlamaGenerateStructuredInput): Promise<unknown> {
   return enqueue(async () => {
-    await ensureModel();
+    await ensureModel(input.modelFile);
     const llama = await getLlamaInstance();
 
     if (input.signal?.aborted) throw abortError();
@@ -549,6 +576,7 @@ export async function generateStructured(input: LlamaGenerateStructuredInput): P
             maxTokens: input.maxTokens ?? DEFAULT_STRUCTURED_MAX_TOKENS,
             temperature: input.temperature ?? 0,
             signal: input.signal,
+            onTextChunk: input.onToken,
           });
           try {
             return grammar.parse(raw);
@@ -581,6 +609,7 @@ export async function generateStructured(input: LlamaGenerateStructuredInput): P
         maxTokens: input.maxTokens ?? DEFAULT_STRUCTURED_MAX_TOKENS,
         temperature: input.temperature ?? 0,
         signal: input.signal,
+        onTextChunk: input.onToken,
       });
 
       // Happy path: grammar guarantees the shape when generation completed.
@@ -623,9 +652,18 @@ export async function isAvailable(file: string = DEFAULT_LLM_MODEL): Promise<boo
   }
 }
 
+/**
+ * Shared native backend. Only ever one Llama instance exists per process.
+ * The embedding lane reuses this instead of calling getLlama again.
+ * Double backend init reproducibly crashes node-llama-cpp on send after load.
+ */
+export function getSharedLlama(): Promise<Llama> {
+  return getLlamaInstance();
+}
+
 /** Dispose the loaded model + llama instance (app shutdown / model switch reset). */
 export async function dispose(): Promise<void> {
-  clearWarmSessions();
+  await disposeSharedContext();
   try {
     if (model) {
       await model.dispose();

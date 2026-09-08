@@ -231,12 +231,12 @@ function DatasetPreview({ dataset }: { dataset: Dataset }) {
                   >
                     {col.name}
                   </span>
-                  <span className="shrink-0 text-[10px]" style={{ color: "var(--glass-text-dim)" }}>
+                  <span className="shrink-0 text-xs" style={{ color: "var(--glass-text-dim)" }}>
                     {meta.label}
                   </span>
                   {pct > 0 && (
                     <span
-                      className="shrink-0 rounded-full px-1.5 py-0.5 text-[9.5px] font-medium"
+                      className="shrink-0 rounded-full px-1.5 py-0.5 font-mono text-xs font-medium tabular-nums"
                       style={{
                         color: pct > 30 ? "#d13438" : "var(--glass-text-dim)",
                         background: pct > 30 ? "rgba(209,52,56,0.12)" : "var(--glass-bg-strong)",
@@ -364,7 +364,7 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Hash; label: string; 
         {label}
       </span>
       <span
-        className="text-[12px] font-semibold tabular-nums"
+        className="text-xs font-semibold tabular-nums"
         style={{ color: "var(--glass-text)" }}
       >
         {value}
@@ -376,7 +376,7 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Hash; label: string; 
 function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="mb-1.5 mt-1 text-[10px] font-semibold uppercase tracking-wider"
+      className="mb-1.5 mt-1 text-xs font-semibold uppercase tracking-wider"
       style={{ color: "var(--glass-text-dim)" }}
     >
       {children}

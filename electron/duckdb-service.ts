@@ -32,6 +32,7 @@ import { nanoid } from "nanoid";
 import PQueue from "p-queue";
 import { z } from "zod";
 import { type DuckDBColumnTypeLike, encodeColumnsToArrowIPC } from "./duckdb-arrow";
+import { recordQueryAnalytics } from "./settings-store";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -207,11 +208,23 @@ function truncateSql(sql: string, maxLen = 240): string {
   return sql.length > maxLen ? `${sql.slice(0, maxLen)}...` : sql;
 }
 
-function pushMetric(metric: QueryMetrics): void {
+function pushMetric(metric: QueryMetrics, datasetId = "duckdb"): void {
   queryMetrics.unshift(metric);
 
   if (queryMetrics.length > MAX_METRICS) {
     queryMetrics.pop();
+  }
+
+  try {
+    recordQueryAnalytics({
+      datasetId,
+      sqlQuery: metric.sql,
+      rowCount: metric.rowCount,
+      executionTimeMs: metric.durationMs,
+      isCached: false,
+    });
+  } catch {
+    // Non-blocking query analytics
   }
 }
 

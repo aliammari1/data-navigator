@@ -1,46 +1,39 @@
 import {
-  BILL_PAYMENT_CHANNELS_RULES,
-  CREDIT_TRANSFER_RULES,
-  EVOUCHER_ON_DEMAND_GENERATION_RULES,
-  RECHARGE_DATA_EVOUCHER_RULES,
-  RECHARGE_DATA_SABBA_RULES,
-  RECHARGE_VOICE_FIXED_TTCASH_RULES,
-  RECHARGE_VOICE_FIXED_VOUCHER_RULES,
-  RECHARGE_VOICE_MOBILE_TTCASH_RULES,
-  RECHARGE_VOICE_MOBILE_VOUCHER_RULES,
-  VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
-  VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
-  VOUCHER_FOR_PAYMENT_RULES,
+  BILL_PAYMENT_CHANNELS,
+  type ChannelDef,
+  CREDIT_TRANSFER,
+  EVOUCHER_ON_DEMAND_GENERATION,
+  RECHARGE_DATA_EVOUCHER,
+  RECHARGE_DATA_SABBA,
+  RECHARGE_VOICE_FIXED_TTCASH,
+  RECHARGE_VOICE_FIXED_VOUCHER,
+  RECHARGE_VOICE_MOBILE_TTCASH,
+  RECHARGE_VOICE_MOBILE_VOUCHER,
+  VOUCHER_CONVERGENT_CARTE_ACTIVATION,
+  VOUCHER_CONVERGENT_CARTE_GENERATION,
+  VOUCHER_FOR_PAYMENT,
 } from "@/features/telecom/lib/report-engine";
-
-import type { CanalRule } from "@/features/telecom/types";
 
 export interface ChannelGroup {
   label: string;
-  channels: CanalRule[];
+  channels: ChannelDef[];
   color?: string;
 }
 
-export const VOUCHER_FOR_PAYMENT_GENERATION = VOUCHER_FOR_PAYMENT_RULES.slice(0, 1);
-export const VOUCHER_FOR_PAYMENT_REDEMPTION = VOUCHER_FOR_PAYMENT_RULES.slice(1);
+export const VOUCHER_FOR_PAYMENT_GENERATION = [VOUCHER_FOR_PAYMENT[0]];
+export const VOUCHER_FOR_PAYMENT_REDEMPTION = VOUCHER_FOR_PAYMENT.slice(1);
 
-export const ALL_VOICE_FIXED = [
-  ...RECHARGE_VOICE_FIXED_TTCASH_RULES,
-  ...RECHARGE_VOICE_FIXED_VOUCHER_RULES,
-];
+export const ALL_VOICE_FIXED = [...RECHARGE_VOICE_FIXED_TTCASH, ...RECHARGE_VOICE_FIXED_VOUCHER];
 
-export const ALL_VOICE_MOBILE = [
-  ...RECHARGE_VOICE_MOBILE_TTCASH_RULES,
-  ...RECHARGE_VOICE_MOBILE_VOUCHER_RULES,
-];
+export const ALL_VOICE_MOBILE = [...RECHARGE_VOICE_MOBILE_TTCASH, ...RECHARGE_VOICE_MOBILE_VOUCHER];
 
 export const RECHARGE_SUMMARY_GROUPS: ChannelGroup[] = [
   { label: "Fixed Lines", channels: ALL_VOICE_FIXED, color: "#89b4fa" },
   { label: "Mobile Lines", channels: ALL_VOICE_MOBILE, color: "#cba6f7" },
-  { label: "Internet Sabba", channels: RECHARGE_DATA_SABBA_RULES, color: "#a6e3a1" },
+  { label: "Internet Sabba", channels: RECHARGE_DATA_SABBA, color: "#a6e3a1" },
   {
     label: "Data by Voucher",
-    channels: RECHARGE_DATA_EVOUCHER_RULES,
+    channels: RECHARGE_DATA_EVOUCHER,
     color: "#f38ba8",
   },
 ];
@@ -51,10 +44,10 @@ export const VOIX_SUMMARY_GROUPS: ChannelGroup[] = [
 ];
 
 export const DATA_SUMMARY_GROUPS: ChannelGroup[] = [
-  { label: "Internet Sabba", channels: RECHARGE_DATA_SABBA_RULES, color: "#a6e3a1" },
+  { label: "Internet Sabba", channels: RECHARGE_DATA_SABBA, color: "#a6e3a1" },
   {
     label: "Data by Voucher",
-    channels: RECHARGE_DATA_EVOUCHER_RULES,
+    channels: RECHARGE_DATA_EVOUCHER,
     color: "#f38ba8",
   },
 ];
@@ -75,17 +68,17 @@ export const VOUCHER_PAYMENT_SUMMARY_GROUPS: ChannelGroup[] = [
 export const VOUCHER_CONVERGENT_SUMMARY_GROUPS: ChannelGroup[] = [
   {
     label: "Evoucher on Demand",
-    channels: EVOUCHER_ON_DEMAND_GENERATION_RULES,
+    channels: EVOUCHER_ON_DEMAND_GENERATION,
     color: "#a6e3a1",
   },
   {
     label: "Génération",
-    channels: VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
+    channels: VOUCHER_CONVERGENT_CARTE_GENERATION,
     color: "#89dceb",
   },
   {
     label: "Activation",
-    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
+    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION,
     color: "#f9e2af",
   },
 ];
@@ -93,37 +86,37 @@ export const VOUCHER_CONVERGENT_SUMMARY_GROUPS: ChannelGroup[] = [
 export const COMPARE_GROUPS: ChannelGroup[] = [
   {
     label: "Bill Payment",
-    channels: BILL_PAYMENT_CHANNELS_RULES,
+    channels: BILL_PAYMENT_CHANNELS,
     color: "#89b4fa",
   },
   {
     label: "Fixed by TTCASH",
-    channels: RECHARGE_VOICE_FIXED_TTCASH_RULES,
+    channels: RECHARGE_VOICE_FIXED_TTCASH,
     color: "#cba6f7",
   },
   {
     label: "Fixed by Voucher",
-    channels: RECHARGE_VOICE_FIXED_VOUCHER_RULES,
+    channels: RECHARGE_VOICE_FIXED_VOUCHER,
     color: "#a6e3a1",
   },
   {
     label: "Mobile by TTCASH",
-    channels: RECHARGE_VOICE_MOBILE_TTCASH_RULES,
+    channels: RECHARGE_VOICE_MOBILE_TTCASH,
     color: "#f38ba8",
   },
   {
     label: "Mobile by Voucher",
-    channels: RECHARGE_VOICE_MOBILE_VOUCHER_RULES,
+    channels: RECHARGE_VOICE_MOBILE_VOUCHER,
     color: "#fab387",
   },
   {
     label: "Internet Sabba",
-    channels: RECHARGE_DATA_SABBA_RULES,
+    channels: RECHARGE_DATA_SABBA,
     color: "#89dceb",
   },
   {
     label: "Data by Voucher",
-    channels: RECHARGE_DATA_EVOUCHER_RULES,
+    channels: RECHARGE_DATA_EVOUCHER,
     color: "#f9e2af",
   },
   {
@@ -136,20 +129,20 @@ export const COMPARE_GROUPS: ChannelGroup[] = [
     channels: VOUCHER_FOR_PAYMENT_REDEMPTION,
     color: "#eba0ac",
   },
-  { label: "Credit Transfer", channels: CREDIT_TRANSFER_RULES, color: "#94e2d5" },
+  { label: "Credit Transfer", channels: CREDIT_TRANSFER, color: "#94e2d5" },
   {
     label: "Evoucher on Demand — Generation",
-    channels: EVOUCHER_ON_DEMAND_GENERATION_RULES,
+    channels: EVOUCHER_ON_DEMAND_GENERATION,
     color: "#a6e3a1",
   },
   {
     label: "Voucher Convergent — Generation",
-    channels: VOUCHER_CONVERGENT_CARTE_GENERATION_RULES,
+    channels: VOUCHER_CONVERGENT_CARTE_GENERATION,
     color: "#cba6f7",
   },
   {
     label: "Voucher Convergent — Activation",
-    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION_RULES,
+    channels: VOUCHER_CONVERGENT_CARTE_ACTIVATION,
     color: "#f9e2af",
   },
 ];

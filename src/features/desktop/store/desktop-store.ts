@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -535,12 +536,18 @@ export const useWidgetDate = () => useDesktopStore((s) => s.widgetDate);
  * Use this instead of the raw `windows` array when you want always-on-top
  * windows to render above everything else without mutating their stored z.
  */
-export const useWindowsWithPinZ = () =>
-  useDesktopStore(
-    useShallow((s) =>
-      s.windows.map((w) => (s.pinnedOnTop.includes(w.id) ? { ...w, z: w.z + PIN_Z_BUMP } : w)),
-    ),
+export const useWindowsWithPinZ = () => {
+  // Subscribe to the raw slices (stable references) and allocate in a memo.
+  // `useShallow` here would compare only one level deep, and every pinned window
+  // produces a fresh `{ ...w }` on each call, so the snapshot would never be
+  // shallow-equal once anything was pinned — an infinite render loop.
+  const windows = useDesktopStore((s) => s.windows);
+  const pinnedOnTop = useDesktopStore((s) => s.pinnedOnTop);
+  return useMemo(
+    () => windows.map((w) => (pinnedOnTop.includes(w.id) ? { ...w, z: w.z + PIN_Z_BUMP } : w)),
+    [windows, pinnedOnTop],
   );
+};
 
 export const useDesktopActions = () =>
   useDesktopStore(

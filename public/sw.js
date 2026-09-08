@@ -179,7 +179,7 @@ self.addEventListener("fetch", (event) => {
   }
 
   if (request.mode === "navigate") {
-    event.respondWith(navigationFallback(request));
+    // Let the browser or Electron handle navigation natively (handles redirects, authentication cookies, and COEP)
     return;
   }
 

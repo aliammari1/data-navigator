@@ -1,6 +1,6 @@
 import { setupRenderer } from "@better-auth/electron/preload";
 import { contextBridge, type IpcRendererEvent, ipcRenderer, webUtils } from "electron";
-import type { ElectronAuthClient } from "./auth-client";
+import type { ElectronAuthBridges } from "./auth-client";
 
 setupRenderer();
 
@@ -301,6 +301,9 @@ const electronLlama = {
   ensureModel: (input?: { file?: string }): Promise<{ model: string }> =>
     ipcRenderer.invoke("llama:ensureModel", input),
 
+  preloadWarmPrefix: (input: { systemPrefix: string }): Promise<boolean> =>
+    ipcRenderer.invoke("llama:preloadWarmPrefix", input),
+
   generate: (input: {
     requestId?: string;
     system?: string;
@@ -339,16 +342,38 @@ const electronLlama = {
     ipcRenderer.on("llama:token", handler);
     return () => ipcRenderer.removeListener("llama:token", handler);
   },
+} as const;
 
-  // ── node-llama-cpp embedding lane (electron/embed-service.ts) ───────────────
+// ─── node-llama-cpp embedding bridge ──────────────────────────────────────────
+// Separate lane from electronLlama above — own model/context/queue in
+// electron/embedding-service.ts, reached via `embed:*` IPC channels. Plain
+// request/response invokes (no token streaming for embeddings).
 
-  /** Embed a batch of texts in a single IPC round-trip (same order as input). */
-  embed: (texts: string[]): Promise<Float32Array[]> => ipcRenderer.invoke("llama:embed", { texts }),
+export type EmbedOneResult = {
+  vector: number[];
+  dims: number;
+  model: string;
+  elapsedMs: number;
+};
 
-  ensureEmbedModel: (input?: { file?: string }): Promise<void> =>
-    ipcRenderer.invoke("llama:ensureEmbedModel", input),
+export type EmbedBatchResult = {
+  vectors: number[][];
+  dims: number;
+  model: string;
+  elapsedMs: number;
+};
 
-  isEmbedAvailable: (): Promise<boolean> => ipcRenderer.invoke("llama:isEmbedAvailable"),
+const electronEmbed = {
+  ensureModel: (input?: { file?: string }): Promise<{ model: string; dims: number }> =>
+    ipcRenderer.invoke("embed:ensureModel", input),
+
+  embedOne: (input: { text: string; requestId?: string }): Promise<EmbedOneResult> =>
+    ipcRenderer.invoke("embed:one", input),
+
+  embedBatch: (input: { texts: string[]; requestId?: string }): Promise<EmbedBatchResult> =>
+    ipcRenderer.invoke("embed:batch", input),
+
+  abort: (requestId: string): Promise<boolean> => ipcRenderer.invoke("embed:abort", requestId),
 } as const;
 
 // ─── Offline model download bridge ────────────────────────────────────────────
@@ -393,6 +418,68 @@ const electronModels = {
     };
     ipcRenderer.on("models:progress", handler);
     return () => ipcRenderer.removeListener("models:progress", handler);
+  },
+} as const;
+
+// ─── LAN collaboration hub bridge ─────────────────────────────────────────────
+
+export type CollabHubStatus = {
+  running: boolean;
+  port: number | null;
+  pairingCode: string | null;
+  guestCode: string | null;
+  room: string | null;
+  advertising: boolean;
+  discovering: boolean;
+  websocketUrls: string[];
+  ips: Array<{ name: string; address: string }>;
+  dbPath: string | null;
+  startedAt: string | null;
+};
+
+export type DiscoveredHub = {
+  name: string;
+  host: string;
+  port: number;
+  url: string;
+  addresses: string[];
+  room?: string;
+  pairingRequired: boolean;
+};
+
+const electronCollab = {
+  start: (input?: {
+    port?: number;
+    pairingCode?: string;
+    guestCode?: string;
+    room?: string;
+    advertise?: boolean;
+    discover?: boolean;
+  }): Promise<CollabHubStatus> => ipcRenderer.invoke("collabHub:start", input),
+
+  stop: (): Promise<{ stopped: boolean }> => ipcRenderer.invoke("collabHub:stop"),
+
+  status: (): Promise<CollabHubStatus> => ipcRenderer.invoke("collabHub:status"),
+
+  discover: (): Promise<DiscoveredHub[]> => ipcRenderer.invoke("collabHub:discover"),
+
+  getDiscovered: (): Promise<DiscoveredHub[]> => ipcRenderer.invoke("collabHub:getDiscovered"),
+
+  getHostSecret: (): Promise<string> => ipcRenderer.invoke("collabHub:getHostSecret"),
+
+  /**
+   * Subscribe to live mDNS discovery up/down events. Returns an unsubscribe
+   * function.
+   */
+  onDiscovered: (
+    callback: (event: { type: "up" | "down"; hub: DiscoveredHub }) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: { type: "up" | "down"; hub: DiscoveredHub },
+    ): void => callback(payload);
+    ipcRenderer.on("collab:discovered", handler);
+    return () => ipcRenderer.removeListener("collab:discovered", handler);
   },
 } as const;
 
@@ -480,6 +567,9 @@ const electronChatHistory = {
   pin: (id: string, pinned: boolean): Promise<void> =>
     ipcRenderer.invoke("chatHistory:pin", { id, pinned }),
 
+  setModel: (id: string, model: string | null): Promise<void> =>
+    ipcRenderer.invoke("chatHistory:setModel", { id, model }),
+
   delete: (id: string): Promise<void> => ipcRenderer.invoke("chatHistory:delete", { id }),
 
   appendMessage: (input: {
@@ -491,6 +581,23 @@ const electronChatHistory = {
 
   messages: (conversationId: string, limit?: number): Promise<ChatMessageRow[]> =>
     ipcRenderer.invoke("chatHistory:messages", { conversationId, limit }),
+
+  searchMessages: (input: {
+    query: string;
+    limit?: number;
+    conversationId?: string;
+  }): Promise<
+    Array<{
+      messageId: number;
+      conversationId: string;
+      role: string;
+      snippet: string;
+      source: "fts" | "semantic";
+    }>
+  > => ipcRenderer.invoke("chatHistory:searchMessages", input),
+
+  backfillEmbeddings: (): Promise<{ indexed: number; skipped: number; failed: number }> =>
+    ipcRenderer.invoke("chatHistory:backfillEmbeddings"),
 } as const;
 
 // ─── Moudir chat session bridge (live LlamaChatSession, main-process) ─────────
@@ -585,15 +692,132 @@ const electronClipboard = {
 contextBridge.exposeInMainWorld("electronFS", electronFS);
 contextBridge.exposeInMainWorld("electronDuckDB", electronDuckDB);
 contextBridge.exposeInMainWorld("electronLlama", electronLlama);
+contextBridge.exposeInMainWorld("electronEmbed", electronEmbed);
+const electronPyodide = {
+  status: (): Promise<{
+    ready: boolean;
+    version: string;
+    installPath: string;
+    installedBytes: number;
+    totalBytes: number;
+    missingFiles: readonly string[];
+    downloading: boolean;
+  }> => ipcRenderer.invoke("pyodide:status"),
+  download: (): Promise<{
+    ready: boolean;
+    version: string;
+    installPath: string;
+    installedBytes: number;
+    totalBytes: number;
+    missingFiles: readonly string[];
+    downloading: boolean;
+  }> => ipcRenderer.invoke("pyodide:download"),
+  cancel: (): Promise<void> => ipcRenderer.invoke("pyodide:cancel"),
+  version: (): Promise<string> => ipcRenderer.invoke("pyodide:version"),
+  onProgress: (
+    callback: (progress: { file: string; received: number; total: number }) => void,
+  ): (() => void) => {
+    const handler = (
+      _event: IpcRendererEvent,
+      payload: { file: string; received: number; total: number },
+    ) => callback(payload);
+    ipcRenderer.on("pyodide:progress", handler);
+    return () => {
+      ipcRenderer.removeListener("pyodide:progress", handler);
+    };
+  },
+} as const;
+
+const electronAuth = {
+  hasOwner: (): Promise<boolean> => ipcRenderer.invoke("auth:hasOwner"),
+  getOwnerInfo: (): Promise<{ exists: boolean; email?: string; name?: string }> =>
+    ipcRenderer.invoke("auth:getOwnerInfo"),
+  isLocked: (): Promise<boolean> => ipcRenderer.invoke("auth:isLocked"),
+  lock: (): Promise<void> => ipcRenderer.invoke("auth:lock"),
+  signUp: (input: {
+    name: string;
+    email: string;
+    password: string;
+  }): Promise<{ user: unknown; session: unknown }> => ipcRenderer.invoke("auth:signUp", input),
+  login: (input: {
+    email: string;
+    password: string;
+  }): Promise<{ user: unknown; session: unknown }> => ipcRenderer.invoke("auth:login", input),
+  getSession: (
+    token?: string | null,
+  ): Promise<{ user: unknown; session: unknown; isLocked: boolean }> =>
+    ipcRenderer.invoke("auth:getSession", token),
+  logout: (token?: string | null): Promise<void> => ipcRenderer.invoke("auth:logout", token),
+  changePassword: (input: {
+    token?: string;
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<void> => ipcRenderer.invoke("auth:changePassword", input),
+  onSessionExpired: (callback: () => void): (() => void) => {
+    const handler = () => callback();
+    ipcRenderer.on("auth:session-expired", handler);
+    return () => {
+      ipcRenderer.removeListener("auth:session-expired", handler);
+    };
+  },
+  onLockChanged: (callback: (isLocked: boolean) => void): (() => void) => {
+    const handler = (_event: IpcRendererEvent, isLocked: boolean) => callback(isLocked);
+    ipcRenderer.on("auth:lock-changed", handler);
+    return () => {
+      ipcRenderer.removeListener("auth:lock-changed", handler);
+    };
+  },
+  onSessionExpiringSoon: (
+    callback: (info: { minutesRemaining: number }) => void,
+  ): (() => void) => {
+    const handler = (_event: IpcRendererEvent, info: { minutesRemaining: number }) =>
+      callback(info);
+    ipcRenderer.on("auth:session-expiring-soon", handler);
+    return () => {
+      ipcRenderer.removeListener("auth:session-expiring-soon", handler);
+    };
+  },
+} as const;
+
+const electronAnalytics = {
+  recordAudit: (input: {
+    userId?: string | null;
+    action: string;
+    category: string;
+    status: string;
+    durationMs?: number | null;
+    metadata?: Record<string, unknown> | null;
+  }): Promise<void> => ipcRenderer.invoke("analytics:recordAudit", input),
+  getAuditLogs: (limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke("analytics:getAuditLogs", limit),
+  recordQuery: (input: {
+    datasetId: string;
+    sqlQuery: string;
+    rowCount: number;
+    executionTimeMs: number;
+    isCached?: boolean;
+    error?: string | null;
+  }): Promise<void> => ipcRenderer.invoke("analytics:recordQuery", input),
+  getQueryAnalytics: (limit?: number): Promise<unknown[]> =>
+    ipcRenderer.invoke("analytics:getQueryAnalytics", limit),
+} as const;
+
 contextBridge.exposeInMainWorld("electronModels", electronModels);
+contextBridge.exposeInMainWorld("electronCollab", electronCollab);
 contextBridge.exposeInMainWorld("electronSettings", electronSettings);
 contextBridge.exposeInMainWorld("electronAnalyticsSnapshots", electronAnalyticsSnapshots);
 contextBridge.exposeInMainWorld("electronChatHistory", electronChatHistory);
 contextBridge.exposeInMainWorld("electronChatSession", electronChatSession);
 contextBridge.exposeInMainWorld("electronClipboard", electronClipboard);
+contextBridge.exposeInMainWorld("electronPyodide", electronPyodide);
+contextBridge.exposeInMainWorld("electronAuth", electronAuth);
+contextBridge.exposeInMainWorld("electronAnalytics", electronAnalytics);
 
 declare global {
-  type AuthBridges = ElectronAuthClient["$Infer"]["Bridges"];
+  // Auth bridges come from @better-auth/electron 1.7.x's ExposedBridges
+  // (re-exported as ElectronAuthBridges from ./auth-client), not from the
+  // created authClient's $Infer.
+  type AuthBridges = ElectronAuthBridges;
 
   interface Window extends AuthBridges {}
 
@@ -601,11 +825,16 @@ declare global {
     electronFS: typeof electronFS;
     electronDuckDB: typeof electronDuckDB;
     electronLlama: typeof electronLlama;
+    electronEmbed: typeof electronEmbed;
     electronModels: typeof electronModels;
+    electronCollab: typeof electronCollab;
     electronSettings: typeof electronSettings;
     electronAnalyticsSnapshots: typeof electronAnalyticsSnapshots;
     electronChatHistory: typeof electronChatHistory;
     electronChatSession: typeof electronChatSession;
     electronClipboard: typeof electronClipboard;
+    electronPyodide: typeof electronPyodide;
+    electronAuth: typeof electronAuth;
+    electronAnalytics: typeof electronAnalytics;
   }
 }

@@ -3,7 +3,8 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
-import type { CanalRule, SpecUnitAmountResult } from "@/features/telecom/types";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import type { SpecUnitAmountResult } from "@/features/telecom/types";
 
 export function SpecUnitAmountTable({
   channels,
@@ -11,11 +12,11 @@ export function SpecUnitAmountTable({
   dateTo,
   fetchSpecUnitAmountStats,
 }: {
-  channels: CanalRule[];
+  channels: ChannelDef[];
   dateFrom: string;
   dateTo: string;
   fetchSpecUnitAmountStats: (
-    channels: CanalRule[],
+    channels: ChannelDef[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<SpecUnitAmountResult>;

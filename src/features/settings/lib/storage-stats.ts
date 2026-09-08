@@ -37,7 +37,7 @@ const NAMESPACES: {
   {
     id: "modelWeights",
     label: "AI models",
-    description: "Local LLM / embedding / speech model weights",
+    description: "Local LLM / embedding model weights",
   },
   {
     id: "parquetCache",

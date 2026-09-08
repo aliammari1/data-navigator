@@ -29,11 +29,9 @@ interface ElectronSettingsBridge {
   export(namespace?: string): Promise<Record<string, Record<string, unknown>>>;
 }
 
-type SettingsWindow = Window & { electronSettings?: ElectronSettingsBridge };
-
 function bridge(): ElectronSettingsBridge | null {
   if (typeof window === "undefined") return null;
-  return (window as SettingsWindow).electronSettings ?? null;
+  return window.electronSettings ?? null;
 }
 
 /** True when the settings IPC bridge is reachable (renderer running in Electron). */

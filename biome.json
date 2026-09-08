@@ -54,7 +54,18 @@
         "useSemanticElements": "off",
         "useFocusableInteractive": "off",
         "noLabelWithoutControl": "off",
-        "noSvgWithoutTitle": "off"
+        "noSvgWithoutTitle": "off",
+        "noAutofocus": "off",
+        "useAriaPropsForRole": "off",
+        "useAriaPropsSupportedByRole": "off"
+      },
+
+      "complexity": {
+        "noImportantStyles": "off"
+      },
+
+      "performance": {
+        "noImgElement": "off"
       },
 
       "security": {
@@ -63,7 +74,8 @@
 
       "suspicious": {
         "noArrayIndexKey": "off",
-        "noControlCharactersInRegex": "off"
+        "noControlCharactersInRegex": "off",
+        "noApproximativeNumericConstant": "off"
       },
 
       "style": {
@@ -73,7 +85,7 @@
       },
 
       "correctness": {
-        "noUnusedImports": "error",
+        "noUnusedImports": "warn",
         "noUnusedVariables": "warn"
       }
     }

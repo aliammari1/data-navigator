@@ -66,10 +66,11 @@ vi.mock("../../electron/duckdb-service", () => ({
   listDatasets: listDatasetsMock,
 }));
 
-// Real temp userData dir + a stub GGUF file so ensureModel's existsSync gate
+import { MODEL_DOWNLOADS } from "../../electron/model-download-service";
+
+// Real temp userData dir + stub GGUF files so ensureModel's existsSync gate
 // passes (the model is only stat-checked; loadModel is mocked).
 const USER_DATA_DIR = path.join(os.tmpdir(), "dn-chat-session-service-test");
-const DEFAULT_MODEL_FILE = "gemma-4-e4b-it-q4_k_m.gguf";
 holder.userDataDir = USER_DATA_DIR;
 
 type ChatFunction = {
@@ -87,6 +88,7 @@ async function promptAndCapture(
   extra: Partial<{
     onToken: (chunk: string) => void;
     onTool: (event: unknown) => void;
+    onToolStart: (event: unknown) => void;
     signal: AbortSignal;
   }> = {},
 ) {
@@ -108,7 +110,9 @@ describe("chat-session-service", () => {
   beforeEach(() => {
     const llmDir = path.join(USER_DATA_DIR, "models", "llm");
     mkdirSync(llmDir, { recursive: true });
-    writeFileSync(path.join(llmDir, DEFAULT_MODEL_FILE), "");
+    for (const m of MODEL_DOWNLOADS.filter((x) => x.lane === "llm")) {
+      writeFileSync(path.join(llmDir, m.file), "");
+    }
 
     vi.resetModules();
     getLlamaMock.mockReset();
@@ -309,6 +313,7 @@ describe("chat-session-service", () => {
       "get_schema",
       "make_chart",
       "profile_column",
+      "request_clarification",
       "run_sql",
     ]);
     expect("grammar" in captured).toBe(false);
@@ -367,6 +372,34 @@ describe("chat-session-service", () => {
     expect(event.params).toEqual(params);
     expect(event.resultSummary).toContain("Graphique préparé");
     expect(typeof event.durationMs).toBe("number");
+  });
+
+  it("emits a start event before the completion event for each tool call", async () => {
+    const onTool = vi.fn();
+    const onToolStart = vi.fn();
+    const { captured } = await promptAndCapture({ onTool, onToolStart });
+
+    const runSql = (captured.functions as Record<string, ChatFunction>).run_sql;
+    runReadOnlyQueryMock.mockResolvedValue([{ id: 1 }]);
+    await runSql.handler({ sql: "SELECT 1" });
+
+    expect(onToolStart).toHaveBeenCalledTimes(1);
+    const start = onToolStart.mock.calls[0][0] as AnyRecord;
+    expect(start.name).toBe("run_sql");
+    expect(start.started).toBe(true);
+    expect(start.resultSummary).toBe("");
+    expect(onTool).toHaveBeenCalledTimes(1);
+    expect((onTool.mock.calls[0][0] as AnyRecord).started).toBeUndefined();
+  });
+
+  it("request_clarification asks the question without answering in the model's place", async () => {
+    const { captured } = await promptAndCapture();
+
+    const ask = (captured.functions as Record<string, ChatFunction>).request_clarification;
+    const output = await ask.handler({ question: "Quelle table ?", options: ["a", "b"] });
+
+    expect(output).toContain("Termine ta réponse là");
+    expect(output).not.toContain("Quelle table ?");
   });
 
   it("threads the abort signal through to prompt() with stopOnAbortSignal", async () => {

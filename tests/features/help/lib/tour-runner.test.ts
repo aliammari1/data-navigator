@@ -25,7 +25,7 @@ vi.mock("@/features/help/lib/onboarding-db", () => ({
   saveTourProgress: (input: unknown) => saveTourProgressMock(input),
 }));
 
-import { createTourRunner, type NavigateFn } from "@/features/help/lib/tour-runner";
+import { createTourRunner, } from "@/features/help/lib/tour-runner";
 import type { TourDefinition, TourStepDef } from "@/features/help/data/tours";
 
 // ─── Fake Driver factory ─────────────────────────────────────────────────────
