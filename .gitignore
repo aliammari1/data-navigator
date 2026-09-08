@@ -193,3 +193,5 @@ blob-report/
 
 # Local build logs that might have been tracked
 build.log
+
+gitleaks.sarif
