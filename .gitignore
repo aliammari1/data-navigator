@@ -1,5 +1,9 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# Local-first app staging & agent workspace (large; not committed)
+.agy
+.app-stage
+
 # dependencies
 /node_modules
 /.pnp
