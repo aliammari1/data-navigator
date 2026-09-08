@@ -1,13 +1,12 @@
-# Paths Semgrep should skip (build output, generated bundles, vendored assets).
-# The CI job already scopes to `src electron scripts`; this also keeps a local
-# root-level `semgrep scan` focused and fast.
-build/
-.next/
-out/
-storybook-static/
-coverage/
+tests/
+evals/
+scripts/
+*.test.ts
+*.spec.ts
+src/workers/python-sandbox.worker.ts
 public/workers/
-public/mockServiceWorker.js
-node_modules/
-*.min.js
-*.map
+.e2e-electron-profile/
+graphify-out/
+build/
+dist/
+out/

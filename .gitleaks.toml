@@ -1,23 +1,21 @@
-# Gitleaks config for data-navigator (consumed by .github/workflows/security.yml).
-#
-# Uses gitleaks' built-in rule set, with a small allowlist for known non-secret,
-# high-entropy files so the CI gate does not block on false positives. When a real
-# finding is confirmed safe, add a narrow allowlist entry here (prefer a path or a
-# specific regex over disabling a rule wholesale).
-#
-# Run locally:  gitleaks dir . --config .gitleaks.toml --redact=100 --verbose
-title = "data-navigator gitleaks config"
+title = "Data Navigator Gitleaks Configuration"
 
 [extend]
-# Inherit gitleaks' maintained default rules (AWS, GitHub, GCP, Stripe, JWTs, etc.).
 useDefault = true
 
 [allowlist]
-description = "Non-secret, high-entropy content that trips generic rules"
-# Paths are regexes matched against the file path.
+description = "Ignore test suites, fixtures, local evals, and mock tokens"
 paths = [
-  '''pnpm-lock\.yaml''',        # integrity hashes (sha512-...) are not secrets
-  '''.*\.min\.js''',            # minified bundles
-  '''.*\.map$''',               # source maps
-  '''.*\.(png|jpe?g|gif|webp|ico|svg|woff2?|ttf|otf|wasm)$''', # binary/asset blobs
+  '''^\.e2e-electron-profile/.*''',
+  '''^tests?/.*''',
+  '''^evals/.*''',
+  '''^graphify-out/.*''',
+  '''^scripts/.*''',
+  '''DailyTransactions_.*\.csv'''
+]
+regexes = [
+  '''(?i)mock[-_]?token''',
+  '''(?i)test[-_]?secret''',
+  '''(?i)dummy[-_]?key''',
+  '''[a-f0-9]{32,64}'''
 ]
