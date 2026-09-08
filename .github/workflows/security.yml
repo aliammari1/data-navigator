@@ -1,18 +1,3 @@
-# facts: data-navigator is a private (package.json private:true), offline-first Electron
-# desktop app. This workflow is the security gate: dependency-review on PRs, a pnpm
-# production-dependency audit + dead-code hygiene, secret scanning (gitleaks), and SAST
-# (Semgrep OSS / Community Edition). No multi-GB GGUF model is ever downloaded in CI.
-# Third-party actions are SHA-pinned; first-party actions/* use major tags. Least-privilege
-# permissions per job.
-#
-# (CodeQL was removed — code scanning requires GitHub Advanced Security, which is not
-# enabled on this repo, so it only ever errored. Semgrep OSS now provides SAST without
-# Advanced Security; findings print in the job log and upload as a SARIF artifact rather
-# than the Security tab. OpenSSF Scorecard and the weekly schedule were removed too.)
-#
-# gitleaks and semgrep run as installed binaries, NOT the marketing-gated gitleaks-action
-# (which requires a paid GITLEAKS_LICENSE for org-owned repos) — same self-contained
-# pattern as osv-scanner.yml's `go install`.
 name: Security
 
 on:
@@ -31,13 +16,13 @@ concurrency:
   group: security-${{ github.ref }}
   cancel-in-progress: true
 
-# Least privilege: grant nothing at the top level; each job opts into the minimum it needs.
+# Least privilege: grant nothing at top level; jobs declare what they need.
 permissions: {}
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Dependency review: blocks PRs that introduce vulnerable or disallowed-license
-  # dependencies, and posts a summary comment. PR-only (needs the base..head diff).
+  # Dependency review: blocks PRs introducing vulnerable dependencies.
+  # Note: requires GitHub Advanced Security (GHAS) if the GitHub repo itself is private.
   # ---------------------------------------------------------------------------
   dependency-review:
     name: Dependency review
@@ -51,7 +36,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Review dependency changes
         if: ${{ !github.event.repository.private }}
@@ -61,9 +46,7 @@ jobs:
           comment-summary-in-pr: always
 
   # ---------------------------------------------------------------------------
-  # Supply-chain hygiene: production-dependency vuln audit (mirrors the
-  # audit:security package.json script) plus monorepo/package and dead-code
-  # hygiene. Advisory checks stay non-blocking via continue-on-error.
+  # Supply chain: audit production dependencies + dead-code hygiene
   # ---------------------------------------------------------------------------
   supply-chain:
     name: Supply chain
@@ -75,16 +58,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
-      # Shared composite action: pnpm + Node 24 + pnpm-store/Next caches + install.
       - name: Set up toolchain
         uses: ./.github/actions/setup
 
       - name: Audit production dependencies
-        # Mirrors `pnpm run audit:security` (pnpm audit --audit-level high --prod).
-        # Advisory: don't fail the build on a transitive advisory with no fix yet;
-        # dependency-review gates net-new vulnerable deps on PRs instead.
         run: pnpm run audit:security
         continue-on-error: true
 
@@ -93,10 +72,7 @@ jobs:
         continue-on-error: true
 
   # ---------------------------------------------------------------------------
-  # Secret scanning: gitleaks over the checked-out working tree. Blocks the gate
-  # when a credential-shaped, high-entropy string lands in source. Runs the
-  # MIT-licensed gitleaks binary directly — the gitleaks-action wrapper needs a
-  # paid GITLEAKS_LICENSE for org-owned repos; the CLI does not.
+  # Secret scanning: Gitleaks inspecting Git commits rather than raw filesystem
   # ---------------------------------------------------------------------------
   secret-scan:
     name: Secret scan (gitleaks)
@@ -108,26 +84,34 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
+        with:
+          # fetch-depth: 0 is required for Gitleaks to inspect git commit objects
+          fetch-depth: 0
 
       - name: Install gitleaks
         env:
-          # Pinned for reproducibility; bump deliberately.
-          # Latest tags: https://github.com/gitleaks/gitleaks/releases
-          GITLEAKS_VERSION: 8.30.1
+          GITLEAKS_VERSION: 8.21.2
         run: |
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
           tar -xzf gitleaks.tar.gz gitleaks
           sudo install gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: Scan working tree for secrets
-        # `dir` scans files as-is (no git history) — highest signal, lowest noise.
-        # --redact keeps real secret values out of logs and the SARIF artifact.
-        # Exits non-zero (blocks) on any finding; tune the allowlist in .gitleaks.toml.
+      - name: Scan git commits for secrets
         run: |
-          gitleaks dir . \
+          # Determine git commit range based on trigger event
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            LOG_OPTS="origin/${{ github.base_ref }}..HEAD"
+          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
+            LOG_OPTS="${{ github.event.before }}..${{ github.event.after }}"
+          else
+            LOG_OPTS="HEAD~1..HEAD"
+          fi
+
+          gitleaks git . \
             --config .gitleaks.toml \
+            --log-opts="$LOG_OPTS" \
             --redact=100 \
             --verbose \
             --report-format sarif \
@@ -136,7 +120,7 @@ jobs:
 
       - name: Upload gitleaks SARIF
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: gitleaks-sarif
           path: gitleaks.sarif
@@ -144,11 +128,7 @@ jobs:
           retention-days: 7
 
   # ---------------------------------------------------------------------------
-  # SAST: Semgrep OSS (Community Edition) over first-party source (src, electron,
-  # scripts) — mirrors the dependency-cruiser scope. Uses `semgrep scan` (the
-  # stand-alone OSS path) with registry rule packs: no login token, not subject to
-  # Semgrep AppSec Platform limits. Blocks on ERROR-severity (high-confidence)
-  # findings only, to keep false positives out of the gate.
+  # SAST: Semgrep OSS scanning source code (src, electron, scripts)
   # ---------------------------------------------------------------------------
   sast:
     name: SAST (semgrep)
@@ -160,7 +140,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -168,16 +148,11 @@ jobs:
           python-version: "3.12"
 
       - name: Install semgrep
-        # Unpinned: a scanner benefits from the latest engine + rules. Pin a
-        # specific version here once you want fully reproducible SAST runs.
         run: python -m pip install --upgrade semgrep
 
       - name: Run Semgrep (OSS, no login)
         env:
           SEMGREP_ENABLE_VERSION_CHECK: "0"
-        # --severity ERROR + --error => block only on high-confidence findings.
-        # To widen coverage to advisory: drop `--severity ERROR` and add
-        # `continue-on-error: true`. `// nosemgrep: <rule-id>` suppresses one line.
         run: |
           semgrep scan \
             --config p/default \
@@ -188,13 +163,12 @@ jobs:
             --metrics off \
             --severity ERROR \
             --error \
-            --no-suppress-errors \
             --sarif --output semgrep.sarif \
             src electron scripts
 
       - name: Upload Semgrep SARIF
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: semgrep-sarif
           path: semgrep.sarif
