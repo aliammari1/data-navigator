@@ -446,7 +446,8 @@ export function WindowFrame({ win }: { win: DesktopWindow }) {
           <div
             className="relative min-h-0 flex-1 overflow-auto bg-background"
             style={{
-              fontFamily: "var(--font-data-navigator-sans), ui-sans-serif, system-ui, sans-serif",
+              fontFamily:
+                "var(--font-sans), var(--font-data-navigator-sans), Outfit, Poppins, ui-sans-serif, system-ui, sans-serif",
             }}
             onDragOver={onContentDragOver}
             onDragEnter={onContentDragEnter}

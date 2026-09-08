@@ -11,10 +11,12 @@
  * It scans, in order, every readable directory below, plus any extra paths you
  * pass, and hashes the GGUF weights it finds:
  *
- *   1. The Electron userData models dir for each known app-name candidate, i.e.
- *      <APPDATA|XDG|Library>/<App>/models/llm   (dev uses "Electron", packaged
- *      uses the productName "Data Navigator"; both are checked).
- *   2. The repo-local staging dir written by prepare-models: <repo>/.model-cache/llm.
+ *   1. The Electron userData models dirs (both the chat "llm" and embedding
+ *      "embed" lanes) for each known app-name candidate, i.e.
+ *      <APPDATA|XDG|Library>/<App>/models/{llm,embed}   (dev uses "Electron",
+ *      packaged uses the productName "Data Navigator"; both are checked).
+ *   2. The repo-local staging dirs written by prepare-models:
+ *      <repo>/.model-cache/{llm,embed}.
  *
  * USAGE
  *   pnpm run models:hash                       # scan the known dirs above
@@ -43,7 +45,7 @@ const ROOT = path.resolve(__dirname, "..");
 
 // App-name candidates for the per-OS userData dir. The app does not call
 // app.setName(), so dev runs land under "Electron" while packaged builds use the
-// Forge productName ("Data Navigator"). We probe both so the script "just works"
+// packaged productName ("Data Navigator"). We probe both so the script "just works"
 // regardless of how the weights were obtained.
 const APP_NAME_CANDIDATES = ["Data Navigator", "data-navigator", "Electron"];
 
@@ -60,9 +62,12 @@ function userDataBaseDir() {
 
 function defaultModelDirs() {
   const base = userDataBaseDir();
-  const dirs = APP_NAME_CANDIDATES.map((name) => path.join(base, name, "models", "llm"));
-  // Repo-local staging dir written by prepare-models.mjs.
-  dirs.push(path.join(ROOT, ".model-cache", "llm"));
+  const dirs = APP_NAME_CANDIDATES.flatMap((name) => [
+    path.join(base, name, "models", "llm"),
+    path.join(base, name, "models", "embed"),
+  ]);
+  // Repo-local staging dirs written by prepare-models.mjs.
+  dirs.push(path.join(ROOT, ".model-cache", "llm"), path.join(ROOT, ".model-cache", "embed"));
   return dirs;
 }
 
@@ -148,7 +153,7 @@ async function main() {
     const bytes = statSync(file).size;
     process.stderr.write(`  hashing ${path.basename(file)} (${humanBytes(bytes)})…\r`);
     const sha256 = await sha256File(file);
-    process.stderr.write("".padEnd(80, " ") + "\r");
+    process.stderr.write(`${"".padEnd(80, " ")}\r`);
     results.push({ file, basename: path.basename(file), bytes, sha256 });
   }
 

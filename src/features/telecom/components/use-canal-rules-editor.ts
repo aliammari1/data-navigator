@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ALL_CANAL_CHANNELS } from "@/features/telecom/lib/canal-hierarchy";
+import { ALL_CANAL_RULES } from "@/features/telecom/lib/canal-rule-defaults";
 import {
   type CanalRuleDraft,
   comboKey,
@@ -31,34 +31,28 @@ export function useCanalRulesEditor({
   onRulesChange,
   fetchUnclassifiedCanalCombos,
 }: UseCanalRulesEditorOptions) {
-  // Merge custom rules with default system rules
-  // Custom rules (including overrides) take precedence over default rules
   const mergedCanalRules = useMemo(() => {
     const customById = new Map<string, CanalRule>();
     for (const rule of rules) {
       customById.set(rule.id, rule);
     }
     const merged: CanalRule[] = [];
-    
-    // Add all default rules first
-    for (const defaultRule of ALL_CANAL_CHANNELS) {
+
+    for (const defaultRule of ALL_CANAL_RULES) {
       const customOverride = customById.get(defaultRule.id);
       if (customOverride) {
-        // Use custom override instead of default rule
         merged.push(customOverride);
       } else {
-        // Use default rule
         merged.push(defaultRule);
       }
     }
-    
-    // Add any custom rules that don't override existing defaults
+
     for (const customRule of rules) {
-      if (!ALL_CANAL_CHANNELS.some(defaultRule => defaultRule.id === customRule.id)) {
+      if (!ALL_CANAL_RULES.some((defaultRule) => defaultRule.id === customRule.id)) {
         merged.push(customRule);
       }
     }
-    
+
     return merged;
   }, [rules]);
 
@@ -89,7 +83,6 @@ export function useCanalRulesEditor({
       setLoading(true);
 
       try {
-        // Pass merged rules (defaults + custom) to ensure all default rules are considered
         const result = await fetchUnclassifiedCanalCombos(mapping, mergedCanalRules);
 
         if (!cancelled) {
@@ -131,12 +124,11 @@ export function useCanalRulesEditor({
   const selectRule = useCallback((rule: CanalRule) => {
     setSelectedRuleId(rule.id);
     setSelectedComboKey(null);
-    
-    // If this is a default rule, create an editable custom override
-    const draftForEdit = rule.origin === "default" 
+
+    const draftForEdit = rule.origin === "default"
       ? { ...draftFromRule(rule), origin: "custom" as const }
       : draftFromRule(rule);
-    
+
     setDraft(draftForEdit);
     setErrors({});
   }, []);
@@ -170,12 +162,11 @@ export function useCanalRulesEditor({
     }
 
     const customRule = result.rule;
-    
-    // For overrides of default rules: find if there's already a custom rule with this ID
-    const existingCustomIndex = rules.findIndex(rule => rule.id === customRule.id);
-    
+
+    const existingCustomIndex = rules.findIndex((rule) => rule.id === customRule.id);
+
     const nextRules = existingCustomIndex >= 0
-      ? rules.map((rule, index) => index === existingCustomIndex ? customRule : rule)
+      ? rules.map((rule, index) => (index === existingCustomIndex ? customRule : rule))
       : [...rules, customRule];
 
     onRulesChange(nextRules);
@@ -191,8 +182,7 @@ export function useCanalRulesEditor({
   const deleteRule = useCallback(() => {
     if (!draft?.id) return;
 
-    // Only delete if it's a custom rule (either custom origin or an override of a default rule)
-    const customRuleToDelete = rules.find(rule => rule.id === draft.id);
+    const customRuleToDelete = rules.find((rule) => rule.id === draft.id);
     if (customRuleToDelete) {
       onRulesChange(rules.filter((rule) => rule.id !== draft.id));
     }

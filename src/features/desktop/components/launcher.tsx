@@ -18,11 +18,12 @@ export function Launcher() {
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (open) {
-      setQ("");
-      const t = setTimeout(() => inputRef.current?.focus(), 80);
-      return () => clearTimeout(t);
+    if (!open) {
+      return;
     }
+    setQ("");
+    const t = setTimeout(() => inputRef.current?.focus(), 80);
+    return () => clearTimeout(t);
   }, [open]);
 
   const results = useMemo(() => {

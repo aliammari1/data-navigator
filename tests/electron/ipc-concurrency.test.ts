@@ -1,13 +1,11 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, } from "vitest";
 import {
   ConcurrencyLimitError,
   TaskTimeoutError,
   createConcurrencyLimiter,
   withTimeout,
   runBounded,
-  type ConcurrencyLimiter,
   type LimiterStats,
-  type WithTimeoutOptions,
 } from "../../electron/ipc-concurrency";
 
 /** A deferred promise whose resolution we control from the test. */

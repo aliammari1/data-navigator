@@ -1,6 +1,6 @@
 "use client";
 
-import { Database, HardDrive, Settings2, Signal, Upload } from "lucide-react";
+import { Database, HardDrive, Radio, Settings2, Signal, Upload } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { usePathname, useRouter } from "next/navigation";
 import {
@@ -20,6 +20,8 @@ import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useTelecomSessionStore } from "@/core/stores/app-session-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { KPI_FIELDS } from "@/features/telecom/constants";
+import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
+import { useCurrentPage } from "@/features/collaboration/hooks/use-current-page";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
 import { migrateLegacyDexieAnalyticsSnapshots } from "@/features/telecom/lib/analytics-snapshot-legacy-migration";
@@ -33,7 +35,6 @@ import {
   saveAnalyticsSnapshotToSQLite,
 } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { reattachCanalIcons, stripCanalIconsForPersist } from "@/features/telecom/lib/canal-config";
-import { ALL_CANAL_CHANNELS } from "@/features/telecom/lib/canal-hierarchy";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
@@ -48,18 +49,17 @@ import {
   fetchRegions as _fetchRegions,
   fetchRegionsForGroup as _fetchRegionsForGroup,
   fetchServiceCodeRows as _fetchServiceCodeRows,
-  fetchUnclassifiedCanalCombos as _fetchUnclassifiedCanalCombos,
   runCustomKPIExpr as _runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
 import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/telecom-dataset";
 import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
+import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
-import { exportDatasetSnapshotFile } from "@/platform/duckdb/duckdb-fs";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
 import { TelecomTabStrip } from "./telecom-tab-strip";
-import { UnknownCanalDialog } from "./unknown-canal-dialog";
 import { UnknownStatusDialog } from "./unknown-status-dialog";
 
 const DEFAULT_OVERVIEW_EXPORT_SECTIONS: Types.OverviewExportSectionKey[] = [
@@ -81,15 +81,16 @@ interface BeforeInstallPromptEvent extends Event {
 
 export interface TelecomReportRuntimeValue {
   dashboardLoaded: boolean;
+  sharedOverviewMode: boolean;
   dashboardFileName: string;
   dashboardReportDate: string;
   dashboardTableName: string;
+  telecomRole: "admin" | "user";
+  access: ReturnType<typeof useDashboardAccess>;
   mapping: Types.ColumnMapping;
   setMapping: React.Dispatch<React.SetStateAction<Types.ColumnMapping>>;
   statusMapping: Types.StatusMapping[];
   setStatusMapping: React.Dispatch<React.SetStateAction<Types.StatusMapping[]>>;
-  canalRule: Types.CanalRule[];
-  setCanalRule: React.Dispatch<React.SetStateAction<Types.CanalRule[]>>;
   kpi: Types.KPISummary | null;
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
@@ -97,10 +98,12 @@ export interface TelecomReportRuntimeValue {
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
   rawStatuses: Types.RawStatusRow[];
+  forecast: ForecastPoint[];
   overviewKpi: Types.KPISummary | null;
   overviewCanals: Types.CanalSummary[];
   overviewHourly: Types.HourlyRow[];
   overviewStatusData: Types.StatusRow[];
+  overviewForecast: ForecastPoint[];
   analyticsHistory: AnalyticsSnapshotHistoryMeta[];
   snapshotedAt: number | null;
   selectedKpis: Set<keyof Types.KPISummary>;
@@ -156,10 +159,6 @@ export interface TelecomReportRuntimeValue {
   refreshAnalyticsHistory: () => Promise<void>;
   loadAnalyticsFromHistory: (id: number) => Promise<void>;
   exportActiveDatabase: () => Promise<void>;
-  fetchUnclassifiedCanalCombos: (
-    m: Types.ColumnMapping,
-    mappings: Types.CanalRule[],
-  ) => Promise<Types.UnclassifiedCanalCombo[]>;
 }
 
 const TelecomReportRuntimeContext = createContext<TelecomReportRuntimeValue | null>(null);
@@ -209,6 +208,9 @@ export function TelecomReportRuntimeProvider({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const access = useDashboardAccess();
+  const activeSubRoute = pathname.replace(/^\/dashboard\/telecom-report\/?/, "").split("/")[0] || "overview";
+  useCurrentPage(`telecom:${activeSubRoute}`);
 
   const firstLoad = useRef(true);
   const fileNameRef = useRef("");
@@ -232,14 +234,6 @@ export function TelecomReportRuntimeProvider({
   // Codes in the new file that aren't in the known taxonomy — shown in the
   // blocking dialog until the user explicitly assigns each one.
   const [pendingUnknown, setPendingUnknown] = useState<Types.StatusMapping[] | null>(null);
-
-  // Account combos in the new file that match none of the 10 canal rules —
-  // shown in the blocking dialog until the user assigns or acknowledges each
-  // one. Left unresolved, these transactions would count toward "Transactions
-  // Totales" but stay invisible in every canal/product/revenue breakdown.
-  const [pendingUnknownCanals, setPendingUnknownCanals] = useState<
-    Types.UnclassifiedCanalCombo[] | null
-  >(null);
 
   const refreshAnalyticsHistory = useCallback(async () => {
     setAnalyticsHistory(await listAnalyticsSnapshotMeta());
@@ -280,6 +274,8 @@ export function TelecomReportRuntimeProvider({
     };
   }, [replaceDatasetsFromCatalog]);
 
+  const telecomRole = access.role === "owner" ? "admin" : "user";
+
   const {
     showMapper,
     setShowMapper,
@@ -289,30 +285,10 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalRule,
-    setCanalRule,
   } = useTelecomUI({
     defaultMapping: DEFAULT_MAPPING,
     fileNameRef,
   });
-
-  // Canal classification needs default system rules layered under any custom
-  // overrides — canalRule only holds the custom/persisted subset. Without this
-  // merge, canal-filtered queries (Top 50, canal heatmap) see zero rules and
-  // every row falls through to "Other", so nothing ever matches a group.
-  const mergedCanalRule = useMemo(() => {
-    const customById = new Map<string, Types.CanalRule>();
-    for (const rule of canalRule) {
-      customById.set(rule.id, rule);
-    }
-    const merged: Types.CanalRule[] = [...canalRule];
-    for (const defaultRule of ALL_CANAL_CHANNELS) {
-      if (!customById.has(defaultRule.id)) {
-        merged.push(defaultRule);
-      }
-    }
-    return merged;
-  }, [canalRule]);
 
   const telecomDatasets = useMemo(
     () =>
@@ -359,25 +335,25 @@ export function TelecomReportRuntimeProvider({
 
   const fetchOperatorsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
-    [mergedCanalRule],
+      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys),
+    [],
   );
 
   const fetchRegionsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
-    [mergedCanalRule],
+      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys),
+    [],
   );
 
   const fetchDestinationsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys, undefined, mergedCanalRule),
-    [mergedCanalRule],
+      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys),
+    [],
   );
 
   const fetchCanalHourlyMatrix = useCallback(
-    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m, mergedCanalRule),
-    [mergedCanalRule],
+    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m),
+    [],
   );
 
   const fetchDailyTrend = useCallback(
@@ -428,12 +404,6 @@ export function TelecomReportRuntimeProvider({
     [],
   );
 
-  const fetchUnclassifiedCanalCombos = useCallback(
-    (m: Types.ColumnMapping, mappings: Types.CanalRule[]) =>
-      _fetchUnclassifiedCanalCombos(tableNameRef.current, m, mappings),
-    [],
-  );
-
   const runCustomKPIExpr = useCallback(
     (sqlExpr: string) => _runCustomKPIExpr(tableNameRef.current, sqlExpr),
     [],
@@ -446,18 +416,12 @@ export function TelecomReportRuntimeProvider({
     mapping,
     loaded: dashboardLoaded,
     statusMapping,
-    canalRule,
     firstLoad,
     fileNameRef,
     onStatusMappingAdditions: (additions) => {
       // Show the blocking dialog — do NOT merge into statusMapping yet.
       // The user must explicitly assign every code before we proceed.
       setPendingUnknown(additions);
-    },
-    onUnclassifiedCanalCombos: (combos) => {
-      // Show the blocking dialog — do NOT merge into canalRule yet.
-      // The user must explicitly assign a real canal to every combo first.
-      setPendingUnknownCanals(combos);
     },
   });
 
@@ -613,7 +577,18 @@ export function TelecomReportRuntimeProvider({
     setTelecomSession,
   ]);
 
-  const { rawStatuses, isFetching: analyticsIsFetching } = analytics;
+  const { forecast, rawStatuses, isFetching: analyticsIsFetching } = analytics;
+
+  const { remoteOverview } = useSharedOverview({
+    enabled: Boolean(dashboardLoaded && kpi),
+    fileName: dashboardFileName,
+    reportDate: dashboardReportDate,
+    kpi,
+    canals,
+    hourly,
+    statusData,
+    forecast,
+  });
 
   // Reset snapshot tracking whenever the active table changes (dataset switch).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dashboardTableName is only a re-run trigger, not read in the body
@@ -666,6 +641,7 @@ export function TelecomReportRuntimeProvider({
       operators,
       regions,
       rawStatuses: rawStatuses ?? [],
+      forecast,
       computedAt: Date.now(),
     };
     void saveAnalyticsSnapshotToSQLite(payload).catch((err) => {
@@ -682,20 +658,31 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
+    forecast,
   ]);
 
+  const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
   const restoredSnapshotMode = Boolean(kpi) && !dashboardLoaded;
   // In desktop-window mode use the local activeTab state; otherwise derive from URL.
   const historyRoute = activeTabProp
     ? activeTabProp === "history"
     : pathname.endsWith("/telecom-report/history");
 
-  const reportContentVisible = dashboardLoaded || restoredSnapshotMode || historyRoute;
+  // The bare hub route (`/dashboard/telecom-report/page.tsx`) has exactly one
+  // job — an unconditional `redirect()` to the Vue d'ensemble tab — and never
+  // renders any data-dependent UI itself. It must always get a chance to run
+  // regardless of whether a dataset is loaded; otherwise (see below) `children`
+  // never mounts on a dataset-less profile and the hub silently never redirects.
+  const isHubRoute = !activeTabProp && pathname === "/dashboard/telecom-report";
 
-  const overviewKpi = kpi;
-  const overviewCanals = canals;
-  const overviewHourly = hourly;
-  const overviewStatusData = statusData;
+  const reportContentVisible =
+    dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute || isHubRoute;
+
+  const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
+  const overviewCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
+  const overviewHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
+  const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
+  const overviewForecast = sharedOverviewMode ? (remoteOverview?.forecast ?? []) : forecast;
 
   async function loadAnalyticsFromHistory(id: number) {
     const cached = await getAnalyticsSnapshot(id);
@@ -721,10 +708,14 @@ export function TelecomReportRuntimeProvider({
   }
 
   async function exportActiveDatabase() {
+    if (!access.permissions.canExport) return;
+
     if (!activeTelecomDataset?.id) {
       toast.error("Aucun dataset actif à exporter");
       return;
     }
+
+    const { exportDatasetSnapshotFile } = await import("@/platform/duckdb/duckdb-fs");
 
     await exportDatasetSnapshotFile({
       datasetId: activeTelecomDataset.id,
@@ -744,15 +735,16 @@ export function TelecomReportRuntimeProvider({
 
   const runtimeValue: TelecomReportRuntimeValue = {
     dashboardLoaded,
+    sharedOverviewMode,
     dashboardFileName,
     dashboardReportDate,
     dashboardTableName,
+    telecomRole,
+    access,
     mapping,
     setMapping,
     statusMapping,
     setStatusMapping,
-    canalRule,
-    setCanalRule,
     kpi,
     canals,
     hourly,
@@ -760,10 +752,12 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
+    forecast,
     overviewKpi,
     overviewCanals,
     overviewHourly,
     overviewStatusData,
+    overviewForecast,
     analyticsHistory,
     snapshotedAt,
     selectedKpis,
@@ -787,7 +781,6 @@ export function TelecomReportRuntimeProvider({
     refreshAnalyticsHistory,
     loadAnalyticsFromHistory,
     exportActiveDatabase,
-    fetchUnclassifiedCanalCombos,
   };
 
   return (
@@ -800,7 +793,7 @@ export function TelecomReportRuntimeProvider({
         className="mask-[radial-gradient(900px_circle_at_center,white,transparent)] opacity-35"
       />
 
-      <div className="sticky top-0 z-30 flex-none border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
+      <div className="sticky top-0 z-10 flex-none border-b border-border bg-background/95 px-6 py-3 backdrop-blur-md">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-linear-to-br from-primary to-primary/80">
@@ -924,6 +917,7 @@ export function TelecomReportRuntimeProvider({
             <button
               type="button"
               onClick={goToTelecomUpload}
+              disabled={!access.permissions.canUpload}
               className="flex items-center gap-1.5 rounded-xl border-transparent bg-primary px-3 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Upload className="h-3.5 w-3.5" />
@@ -984,6 +978,7 @@ export function TelecomReportRuntimeProvider({
               <button
                 type="button"
                 onClick={goToTelecomUpload}
+                disabled={!access.permissions.canUpload}
                 className="mt-4 inline-flex items-center gap-2 rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <Upload className="h-4 w-4" />
@@ -995,6 +990,37 @@ export function TelecomReportRuntimeProvider({
 
         {reportContentVisible && (
           <TelecomReportRuntimeContext.Provider value={runtimeValue}>
+            {sharedOverviewMode && remoteOverview && (
+              <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                      <Radio className="h-4 w-4" />
+                    </div>
+
+                    <div>
+                      <div className="text-sm font-bold text-foreground">
+                        Vue d&apos;ensemble partagée
+                      </div>
+
+                      <div className="text-xs text-muted-foreground">
+                        Analytics agrégées reçues de{" "}
+                        <span className="font-semibold text-foreground">
+                          {remoteOverview.presenterName}
+                        </span>
+                        . Aucun fichier source ni ligne brute n&apos;est transféré sur cet appareil.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="text-[11px] tabular-nums text-muted-foreground">
+                    {remoteOverview.fileName} · {remoteOverview.reportDate} ·{" "}
+                    {new Date(remoteOverview.updatedAt).toLocaleTimeString()}
+                  </div>
+                </div>
+              </div>
+            )}
+
             <div className="flex min-h-0 gap-4">
               <section
                 id="telecom-report-panel"
@@ -1024,6 +1050,14 @@ export function TelecomReportRuntimeProvider({
             columns={dashboardCsvCols}
             onChange={(m) => {
               setMapping(m);
+
+              import("@/platform/collab/collab").then(({ sharedMapping: yMapping, ydoc }) => {
+                ydoc.transact(() => {
+                  for (const [k, v] of Object.entries(m)) {
+                    yMapping.set(k, v as string);
+                  }
+                });
+              });
             }}
             onClose={() => setShowMapper(false)}
             defaultMapping={DEFAULT_MAPPING}
@@ -1042,20 +1076,6 @@ export function TelecomReportRuntimeProvider({
           }}
         />
       )}
-
-      {/* ── Unknown-canal gate — resolves after the status gate above so the two
-          blocking dialogs never stack when a file introduces both at once. ── */}
-      {(!pendingUnknown || pendingUnknown.length === 0) &&
-        pendingUnknownCanals &&
-        pendingUnknownCanals.length > 0 && (
-          <UnknownCanalDialog
-            pending={pendingUnknownCanals}
-            onConfirm={(confirmed) => {
-              setCanalRule((prev) => [...prev, ...confirmed]);
-              setPendingUnknownCanals(null);
-            }}
-          />
-        )}
     </div>
   );
 }

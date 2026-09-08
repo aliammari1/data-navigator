@@ -57,12 +57,12 @@ function getUtilityModulePath(): string {
 // ─── Flag ─────────────────────────────────────────────────────────────────────
 
 /**
- * Whether the utilityProcess isolation path is enabled. OFF by default; opt in
- * with `DN_DUCKDB_UTILITY=1`. Read live each call so it can be toggled before
- * first use without caching a stale value.
+ * Whether the utilityProcess isolation path is enabled. Enabled by default;
+ * opt out with `DN_DUCKDB_UTILITY=0`. Read live each call so it can be toggled
+ * before first use without caching a stale value.
  */
 export function isEnabled(): boolean {
-  return process.env.DN_DUCKDB_UTILITY === "1";
+  return process.env.DN_DUCKDB_UTILITY !== "0";
 }
 
 // ─── Broker state ─────────────────────────────────────────────────────────────
@@ -196,27 +196,41 @@ function request(message: DistributiveOmit<UtilityRequest, "id">): Promise<Utili
 // ─── Init handshake ───────────────────────────────────────────────────────────
 
 let initialized = false;
+/** Single-flights concurrent first-use inits: two racing inits in one child
+ * trip the engine's config lock and spray "sandbox setting skipped" warnings. */
+let initPromise: Promise<void> | null = null;
 
 async function ensureInitialized(): Promise<void> {
   await ensureSpawned();
   if (initialized) return;
 
-  const cores = os.availableParallelism?.() ?? 4;
-  const threads = Math.max(1, Math.min(cores - 1, 6));
+  initPromise ??= (async () => {
+    const cores = os.availableParallelism?.() ?? 4;
+    const threads = Math.max(1, Math.min(cores - 1, 6));
 
-  const response = await request({
-    kind: "init",
-    userDataDir: app.getPath("userData"),
-    datasetsDir: getDatasetsDirPath(),
-    tmpSpillDir: getTmpSpillDir(),
-    threads,
-    memoryLimit: UTILITY_MEMORY_LIMIT,
-  });
+    const response = await request({
+      kind: "init",
+      userDataDir: app.getPath("userData"),
+      datasetsDir: getDatasetsDirPath(),
+      tmpSpillDir: getTmpSpillDir(),
+      threads,
+      memoryLimit: UTILITY_MEMORY_LIMIT,
+    });
 
-  if (isErrorResponse(response)) {
-    throw new Error(`DuckDB utility init failed: ${response.message}`);
+    if (isErrorResponse(response)) {
+      throw new Error(`DuckDB utility init failed: ${response.message}`);
+    }
+    initialized = true;
+  })();
+
+  try {
+    await initPromise;
+  } catch (error) {
+    // Let the next call retry instead of caching the rejection.
+    if (!initialized) initPromise = null;
+    throw error;
   }
-  initialized = true;
+  initPromise = null;
 }
 
 // ─── Public read API (mirrors the subset of duckdb-service routed here) ───────

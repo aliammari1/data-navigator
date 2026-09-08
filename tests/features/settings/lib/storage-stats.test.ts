@@ -30,7 +30,6 @@ import {
   readStorageStats,
   clearCacheNamespace,
   type StorageStats,
-  type CacheNamespaceStat,
 } from "@/features/settings/lib/storage-stats";
 
 import {

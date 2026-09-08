@@ -4,6 +4,7 @@ import {
   FileText,
   HelpCircle,
   Lightbulb,
+  Presentation,
   RotateCcw,
   Sparkles,
   Square,
@@ -32,6 +33,13 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         icon: RotateCcw,
         shortcut: "⌘N",
         run: () => ctx.command("reset"),
+      },
+      {
+        id: "export-deck",
+        label: "Exporter en présentation (HTML / Marp)…",
+        icon: Presentation,
+        shortcut: "⌘E",
+        run: () => ctx.command("export-deck"),
       },
       { kind: "separator", id: "file-sep-1" },
       {

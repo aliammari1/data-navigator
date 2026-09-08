@@ -417,12 +417,12 @@ export function DesktopIcons() {
             >
               <Icon className="size-7" style={{ color: `hsl(${d.color})` }} />
               {count !== undefined && count > 0 && (
-                <span className="absolute -bottom-1 -right-1 grid h-4 min-w-4 place-items-center rounded-full bg-foreground px-1 text-[9px] font-bold text-background">
+                <span className="absolute -bottom-1 -right-1 grid h-4.5 min-w-4.5 place-items-center rounded-full bg-foreground px-1 font-mono text-xs font-bold tabular-nums text-background">
                   {count}
                 </span>
               )}
             </span>
-            <span className="line-clamp-2 text-[11px] font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+            <span className="line-clamp-2 text-xs font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
               {d.label}
             </span>
           </div>

@@ -20,7 +20,6 @@ import {
   type AccentColorValue,
   type DensityModeValue,
   type ThemeValue,
-  type NumericFieldName,
   type SettingsBackup,
   type SettingsExportEnvelope,
 } from "@/features/settings/lib/settings-schema";

@@ -30,6 +30,7 @@ const EVAL_TEST_TIMEOUT_MS = 180_000;
 export default defineConfig({
   plugins: [react()],
   test: {
+    name: "evals",
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],

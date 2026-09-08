@@ -11,6 +11,7 @@ import type * as Types from "@/features/telecom/types";
 // We mock only true boundaries:
 //   • @/features/telecom/store     — the persisted zustand store (settings bridge / IPC)
 //   • @/features/telecom/lib/channel — BroadcastChannel wrapper (cross-tab)
+//   • @/platform/collab/collab     — Yjs CRDT singleton (dynamic import)
 //   • sonner                       — toast UI (dynamic import)
 //
 // `normalizeColumnMapping` is kept REAL (re-exported from the actual store) so
@@ -18,14 +19,13 @@ import type * as Types from "@/features/telecom/types";
 
 const setColumnMapping = vi.fn();
 const setStatusMapping = vi.fn();
-const setCanalRule = vi.fn();
 
 vi.mock("@/features/telecom/store", async (importActual) => {
   const actual = await importActual<typeof import("@/features/telecom/store")>();
   return {
     ...actual,
     useTelecomStore: {
-      getState: () => ({ setColumnMapping, setStatusMapping, setCanalRule }),
+      getState: () => ({ setColumnMapping, setStatusMapping }),
     },
   };
 });
@@ -40,6 +40,30 @@ const onBroadcast = vi.fn((handler: (msg: unknown) => void) => {
 
 vi.mock("@/features/telecom/lib/channel", () => ({
   onBroadcast: (handler: (msg: unknown) => void) => onBroadcast(handler),
+}));
+
+// A minimal Y.Map-like double that records observers and lets a test push values.
+const yMappingStore = new Map<string, string>();
+const observers = new Set<() => void>();
+const collabCleanup = vi.fn();
+const startCollabSync = vi.fn(() => collabCleanup);
+
+const sharedMapping = {
+  get: (key: string) => yMappingStore.get(key),
+  set: (key: string, value: string) => {
+    yMappingStore.set(key, value);
+  },
+  observe: vi.fn((fn: () => void) => observers.add(fn)),
+  unobserve: vi.fn((fn: () => void) => observers.delete(fn)),
+  /** Test helper: fire all registered mapping observers. */
+  __emit: () => {
+    for (const fn of observers) fn();
+  },
+};
+
+vi.mock("@/platform/collab/collab", () => ({
+  startCollabSync,
+  sharedMapping,
 }));
 
 const toast = vi.fn();
@@ -69,6 +93,8 @@ function renderTelecomUI(
 
 beforeEach(() => {
   localStorage.clear();
+  yMappingStore.clear();
+  observers.clear();
   broadcastHandler = null;
 });
 
@@ -111,13 +137,6 @@ describe("useTelecomUI — initial state", () => {
     // Copied (spread), not the same array reference.
     expect(result.current.statusMapping).not.toBe(DEFAULT_STATUS_MAPPINGS);
     expect(result.current.statusMapping.length).toBeGreaterThan(0);
-  });
-
-  it("seeds canalRule as an empty array (no built-in defaults, unlike statusMapping)", () => {
-    const { result } = renderTelecomUI();
-
-    expect(typeof result.current.setCanalRule).toBe("function");
-    expect(result.current.canalRule).toEqual([]);
   });
 });
 
@@ -165,40 +184,15 @@ describe("useTelecomUI — mount hydration", () => {
   });
 
   it("keeps the DEFAULT_STATUS_MAPPINGS when the persisted statusMapping is an empty array", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { statusMapping: [] }, version: 0 }));
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ state: { statusMapping: [] }, version: 0 }),
+    );
 
     const { result } = renderTelecomUI();
 
     // length-guard (`persisted.statusMapping?.length`) skips the empty array.
     expect(result.current.statusMapping).toEqual(DEFAULT_STATUS_MAPPINGS);
-  });
-
-  it("hydrates canalRule when the persisted array is non-empty", () => {
-    const persisted: Types.CanalRule[] = [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "1",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ];
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ state: { canalRule: persisted }, version: 0 }),
-    );
-
-    const { result } = renderTelecomUI();
-
-    expect(result.current.canalRule).toEqual(persisted);
-  });
-
-  it("keeps canalRule empty when the persisted array is empty", () => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { canalRule: [] }, version: 0 }));
-
-    const { result } = renderTelecomUI();
-
-    expect(result.current.canalRule).toEqual([]);
   });
 
   it("ignores corrupt JSON in localStorage and uses defaults", () => {
@@ -246,28 +240,6 @@ describe("useTelecomUI — persistence + store sync", () => {
     const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
     expect(parsed.state.statusMapping).toEqual(DEFAULT_STATUS_MAPPINGS);
     expect(setStatusMapping).toHaveBeenCalledWith(DEFAULT_STATUS_MAPPINGS);
-  });
-
-  it("pushes canalRule updates to localStorage and the store", () => {
-    const { result } = renderTelecomUI();
-    const next: Types.CanalRule[] = [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "1",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ];
-
-    act(() => {
-      result.current.setCanalRule(next);
-    });
-
-    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEY) as string);
-    expect(parsed.state.canalRule).toEqual(next);
-    expect(setCanalRule).toHaveBeenLastCalledWith(next);
-    expect(result.current.canalRule).toEqual(next);
   });
 
   it("merges new writes with previously persisted state (does not clobber)", () => {
@@ -540,5 +512,90 @@ describe("useTelecomUI — cross-tab file-loaded toast (F10)", () => {
     });
 
     expect(toast).not.toHaveBeenCalled();
+  });
+});
+
+// ─── F4 — Yjs collab mapping observer ────────────────────────────────────────
+
+describe("useTelecomUI — Yjs collab sync (F4)", () => {
+  it("starts collab sync and observes the shared mapping after mount", async () => {
+    renderTelecomUI();
+
+    // The collab effect imports the module dynamically; let it resolve.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(startCollabSync).toHaveBeenCalledTimes(1);
+    expect(sharedMapping.observe).toHaveBeenCalledTimes(1);
+  });
+
+  it("applies shared-mapping values into local mapping when an observer fires", async () => {
+    const { result } = renderTelecomUI();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      sharedMapping.set("operator", "REMOTE_OP");
+      sharedMapping.__emit();
+    });
+
+    expect(result.current.mapping.operator).toBe("REMOTE_OP");
+  });
+
+  it("only overrides keys present in the shared map (undefined keys keep local value)", async () => {
+    const { result } = renderTelecomUI();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const before = result.current.mapping.msisdn;
+
+    act(() => {
+      // Only set `region`; msisdn stays undefined in the shared map.
+      sharedMapping.set("region", "REMOTE_REGION");
+      sharedMapping.__emit();
+    });
+
+    expect(result.current.mapping.region).toBe("REMOTE_REGION");
+    expect(result.current.mapping.msisdn).toBe(before);
+  });
+
+  it("restores a critical field to default when the shared map blanks it (normalize)", async () => {
+    const { result } = renderTelecomUI();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    act(() => {
+      sharedMapping.set("transactionId", "");
+      sharedMapping.__emit();
+    });
+
+    // Empty string IS applied (v !== undefined) but normalizeColumnMapping then
+    // restores the critical default.
+    expect(result.current.mapping.transactionId).toBe(DEFAULT_MAPPING.transactionId);
+  });
+
+  it("tears down collab (cleanup + unobserve) on unmount", async () => {
+    const { unmount } = renderTelecomUI();
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    unmount();
+
+    expect(collabCleanup).toHaveBeenCalledTimes(1);
+    expect(sharedMapping.unobserve).toHaveBeenCalledTimes(1);
   });
 });

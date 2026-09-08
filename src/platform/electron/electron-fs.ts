@@ -176,11 +176,6 @@ export interface ElectronDuckDBBridge {
 
 // ─── Window Type ──────────────────────────────────────────────────────────────
 
-type ElectronWindow = Window & {
-  electronFS?: ElectronFSBridge;
-  electronDuckDB?: ElectronDuckDBBridge;
-};
-
 // ─── Internal Bridge Accessors ────────────────────────────────────────────────
 
 function fsBridge(): ElectronFSBridge {
@@ -188,7 +183,7 @@ function fsBridge(): ElectronFSBridge {
     throw new Error("window is not available.");
   }
 
-  const bridge = (window as ElectronWindow).electronFS;
+  const bridge = window.electronFS;
 
   if (!bridge) {
     throw new Error("electronFS not available — ensure the app is running inside Electron.");
@@ -202,7 +197,7 @@ export function duckdbBridge(): ElectronDuckDBBridge {
     throw new Error("window is not available.");
   }
 
-  const bridge = (window as ElectronWindow).electronDuckDB;
+  const bridge = window.electronDuckDB;
 
   if (!bridge) {
     throw new Error("electronDuckDB not available — ensure the app is running inside Electron.");
@@ -215,18 +210,16 @@ export function duckdbBridge(): ElectronDuckDBBridge {
 
 export function isElectron(): boolean {
   return (
-    typeof window !== "undefined" &&
-    Boolean((window as ElectronWindow).electronFS) &&
-    Boolean((window as ElectronWindow).electronDuckDB)
+    typeof window !== "undefined" && Boolean(window.electronFS) && Boolean(window.electronDuckDB)
   );
 }
 
 export function hasElectronFS(): boolean {
-  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronFS);
+  return typeof window !== "undefined" && Boolean(window.electronFS);
 }
 
 export function hasElectronDuckDB(): boolean {
-  return typeof window !== "undefined" && Boolean((window as ElectronWindow).electronDuckDB);
+  return typeof window !== "undefined" && Boolean(window.electronDuckDB);
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────

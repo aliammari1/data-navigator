@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import {
   BUILTIN_STATUS_CODES,
+  SEMANTIC_TO_CATEGORY,
   canalCaseExpr,
   canalWhere,
   colExpr,
   hourExpr,
   normalizeStatusCode,
   qc,
-  SEMANTIC_TO_CATEGORY,
   sqlLiteral,
   statusNorm,
 } from "@/features/telecom/lib/sql";
-import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, ColumnMapping, StatusMapping } from "@/features/telecom/types";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -392,7 +392,7 @@ describe("statusNorm — SQL CASE expression for status normalisation", () => {
     // The whitespace code should not appear as a WHEN literal
     expect(sql).toContain("'REALCODE'");
     // Whitespace-trimmed code should not produce a literal
-    expect(sql).not.toMatch(/' {3}'/);
+    expect(sql).not.toMatch(/'   '/);
   });
 
   it("produces an IN() clause for builtin codes missing from the configured mapping", () => {
@@ -559,110 +559,6 @@ describe("canalCaseExpr — canal classification CASE", () => {
     const ctIdx = sql.indexOf("'Credit Transfer'");
     const bpIdx = sql.indexOf("'Bill Payment'");
     expect(ctIdx).toBeLessThan(bpIdx);
-  });
-
-  it("with no overrides, is identical to calling with an explicit empty array", () => {
-    expect(canalCaseExpr(mapping())).toBe(canalCaseExpr(mapping(), []));
-  });
-
-  it("injects a WHEN clause for a confirmed override, matched on all 4 account fields", () => {
-    const sql = canalCaseExpr(mapping(), [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ]);
-    expect(sql).toContain("BRAND_D");
-    expect(sql).toContain("'99'");
-    expect(sql).toContain("ACCOUNT_LAYER_ID");
-    expect(sql).toContain("'1'");
-    expect(sql).toContain("ACCOUNT_GROUP_ID");
-    expect(sql).toContain("'2'");
-    expect(sql).toContain("ACCOUNT_MSISDN");
-    expect(sql).toContain("'216000'");
-    // Override THEN's label must match its assigned canal's business label.
-    const overrideIdx = sql.indexOf("'216000'");
-    const thenIdx = sql.indexOf("THEN 'Credit Transfer'", overrideIdx);
-    expect(thenIdx).toBeGreaterThan(overrideIdx);
-  });
-
-  it("places override clauses before the final ELSE, after the 10 hardcoded rules", () => {
-    const sql = canalCaseExpr(mapping(), [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ]);
-    const lastHardcoded = sql.indexOf("'Mobile by Voucher'");
-    const overrideIdx = sql.indexOf("'216000'");
-    const elseIdx = sql.indexOf("ELSE 'Other'");
-    expect(lastHardcoded).toBeLessThan(overrideIdx);
-    expect(overrideIdx).toBeLessThan(elseIdx);
-  });
-
-  it("supports multiple overrides, each producing its own WHEN clause", () => {
-    const sql = canalCaseExpr(mapping(), [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-      {
-        brandD: "77",
-        accountLayerId: "3",
-        accountGroupId: "4",
-        accountMsisdn: "216111",
-        key: "data_sabba",
-      },
-    ]);
-    expect(sql).toContain("'216000'");
-    expect(sql).toContain("'216111'");
-    expect((sql.match(/WHEN/g) ?? []).length).toBe(10 + 2);
-  });
-
-  it("a BRAND_D-only override (null layer/group/msisdn) omits those columns from the WHEN clause", () => {
-    const sql = canalCaseExpr(mapping(), [
-      {
-        brandD: "777",
-        accountLayerId: null,
-        accountGroupId: null,
-        accountMsisdn: null,
-        key: "data_sabba",
-      },
-    ]);
-    const overrideClause = sql.slice(sql.indexOf("'777'") - 40, sql.indexOf("THEN 'Internet Sabba'"));
-    expect(overrideClause).toContain("BRAND_D");
-    expect(overrideClause).not.toContain("ACCOUNT_LAYER_ID");
-    expect(overrideClause).not.toContain("ACCOUNT_GROUP_ID");
-    expect(overrideClause).not.toContain("ACCOUNT_MSISDN");
-  });
-
-  it("a BRAND_D + MSISDN override (null layer/group) omits only those two columns", () => {
-    const sql = canalCaseExpr(mapping(), [
-      {
-        brandD: "39",
-        accountLayerId: null,
-        accountGroupId: null,
-        accountMsisdn: "21619444555",
-        key: "bill_payment",
-      },
-    ]);
-    const overrideClause = sql.slice(
-      sql.indexOf("'39'") - 5,
-      sql.indexOf("'21619444555'") + "'21619444555'".length,
-    );
-    expect(overrideClause).toContain("BRAND_D");
-    expect(overrideClause).toContain("ACCOUNT_MSISDN");
-    expect(overrideClause).not.toContain("ACCOUNT_LAYER_ID");
-    expect(overrideClause).not.toContain("ACCOUNT_GROUP_ID");
   });
 });
 

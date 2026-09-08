@@ -1,14 +1,14 @@
 "use client";
 
+import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
 import { cn } from "@/shared/utils";
-import { type ChannelGroup, GroupSummaryChart } from "./group-summary-chart";
-import { CanalRule } from "../types";
+import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 
 type FetchSpecChannelStats = (
-  channels: CanalRule[],
+  channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
 ) => Promise<{
@@ -27,7 +27,6 @@ export function CL1({
   dateFrom,
   dateTo,
   fetchSpecChannelStats,
-  forcePieChart = false,
   children,
 }: {
   title: string;
@@ -39,8 +38,6 @@ export function CL1({
   dateFrom?: string;
   dateTo?: string;
   fetchSpecChannelStats?: FetchSpecChannelStats;
-  /** Force pie chart for the summary chart */
-  forcePieChart?: boolean;
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -92,7 +89,6 @@ export function CL1({
                   dateFrom={dateFrom ?? ""}
                   dateTo={dateTo ?? ""}
                   fetchSpecChannelStats={fetchSpecChannelStats}
-                  forcePieChart={forcePieChart}
                 />
               )}
               {children}

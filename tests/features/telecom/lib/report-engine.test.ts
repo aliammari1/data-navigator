@@ -16,21 +16,20 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (sql: string) => runReadOnlyQuery(sql),
 }));
 
-const registerLocalDatasetFile =
-  vi.fn<
-    (opts: {
-      filePath: string;
-      displayName: string;
-      hasHeader: boolean;
-      delimiter: string;
-      previewLimit: number;
-    }) => Promise<{
-      id: string;
-      viewName: string;
-      rowCount: number;
-      columns: Array<{ name: string }>;
-    }>
-  >();
+const registerLocalDatasetFile = vi.fn<
+  (opts: {
+    filePath: string;
+    displayName: string;
+    hasHeader: boolean;
+    delimiter: string;
+    previewLimit: number;
+  }) => Promise<{
+    id: string;
+    viewName: string;
+    rowCount: number;
+    columns: Array<{ name: string }>;
+  }>
+>();
 
 vi.mock("@/platform/duckdb/duckdb-fs", () => ({
   registerLocalDatasetFile: (opts: unknown) => registerLocalDatasetFile(opts as never),
@@ -44,7 +43,9 @@ vi.mock("@/platform/electron/electron-fs", () => ({
   writeLocalFile: (path: string, buf: ArrayBuffer) => writeLocalFile(path, buf),
 }));
 
-const createTelecomEnrichedView = vi.fn<(viewName: string, mapping: unknown) => Promise<void>>();
+const createTelecomEnrichedView = vi.fn<
+  (viewName: string, mapping: unknown) => Promise<void>
+>();
 
 vi.mock("@/features/telecom/lib/queries", () => ({
   createTelecomEnrichedView: (viewName: string, mapping: unknown) =>
@@ -54,14 +55,8 @@ vi.mock("@/features/telecom/lib/queries", () => ({
 // ─── Module under test (imported AFTER mocks are set up) ─────────────────────
 import {
   BILL_PAYMENT_CHANNELS,
-  type CanalRule,
   CREDIT_TRANSFER,
   EVOUCHER_ON_DEMAND_GENERATION,
-  getChannelStats,
-  getHourlyDistribution,
-  getStatusSummary,
-  getTopTransactionsByAmount,
-  loadReportCSV,
   RECHARGE_DATA_EVOUCHER,
   RECHARGE_DATA_SABBA,
   RECHARGE_VOICE_FIXED_TTCASH,
@@ -76,6 +71,12 @@ import {
   VOUCHER_CONVERGENT_CARTE_ACTIVATION,
   VOUCHER_CONVERGENT_CARTE_GENERATION,
   VOUCHER_FOR_PAYMENT,
+  getChannelStats,
+  getHourlyDistribution,
+  getStatusSummary,
+  getTopTransactionsByAmount,
+  loadReportCSV,
+  type ChannelDef,
 } from "@/features/telecom/lib/report-engine";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -477,7 +478,7 @@ describe("getStatusSummary", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("getChannelStats — happy paths", () => {
-  const channels: CanalRule[] = [
+  const channels: ChannelDef[] = [
     { name: "Alpha", condition: "TRY_CAST(BRAND_D AS INT) = 1" },
     { name: "Beta", condition: "TRY_CAST(BRAND_D AS INT) = 2" },
   ];
@@ -538,7 +539,7 @@ describe("getChannelStats — happy paths", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("getChannelStats — date filters", () => {
-  const oneChannel: CanalRule[] = [{ name: "X", condition: "1=1" }];
+  const oneChannel: ChannelDef[] = [{ name: "X", condition: "1=1" }];
 
   it("emits no date clause when both dateFrom and dateTo are undefined", async () => {
     runReadOnlyQuery.mockResolvedValue([{ nombre: 0, montant: 0 }]);
@@ -885,7 +886,7 @@ describe("getStatusSummary — SQL filter correctness", () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe("getChannelStats — SQL content validation", () => {
-  const ch: CanalRule[] = [{ name: "Test", condition: "BRAND_D = 99" }];
+  const ch: ChannelDef[] = [{ name: "Test", condition: "BRAND_D = 99" }];
 
   it("includes COALESCE(SUM(TRY_CAST(ORIGINAL_AMOUNT AS DOUBLE)), 0) for montant", async () => {
     runReadOnlyQuery.mockResolvedValue([{ nombre: 0, montant: 0 }]);

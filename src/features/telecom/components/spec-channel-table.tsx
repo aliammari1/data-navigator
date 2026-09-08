@@ -1,55 +1,19 @@
 "use client";
 
-import {
-  AlertTriangle,
-  BarChart2,
-  ChevronDown,
-  ChevronRight,
-  Loader2,
-  Sparkles,
-} from "lucide-react";
-import { useEffect, useState, useMemo } from "react";
+import { AlertTriangle, BarChart2, ChevronDown, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
 import { EChart } from "@/features/telecom/components/echart";
-import { CHART_PALETTE } from "@/features/telecom/lib/canal-config";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
 import type { SpecChRow, SpecChStatusRow } from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { cn } from "@/shared/utils";
-import { CanalRule } from "../types";
-
-// Helper function to get consistent color for a canal based on its name
-function getCanalColor(canalName: string, palette: string[] = CHART_PALETTE): string {
-  // Use a simple hash of the canal name to get a consistent index
-  let hash = 0;
-  for (let i = 0; i < canalName.length; i++) {
-    hash = (hash << 5) - hash + canalName.charCodeAt(i);
-    hash |= 0; // Convert to 32bit integer
-  }
-  return palette[Math.abs(hash) % palette.length];
-}
 
 const STATUS_COLS = [
-  {
-    key: "réussie" as const,
-    label: "Réussie",
-    icon: "✓",
-    color: "text-emerald-600 dark:text-emerald-400",
-  },
-  {
-    key: "annulation" as const,
-    label: "Annulation",
-    icon: "↩",
-    color: "text-sky-600 dark:text-sky-400",
-  },
-  {
-    key: "instance" as const,
-    label: "Instance",
-    icon: "⏳",
-    color: "text-orange-600 dark:text-orange-400",
-  },
-  { key: "échec" as const, label: "Échec", icon: "✗", color: "text-red-600 dark:text-red-400" },
+  { key: "réussie" as const,    label: "Réussie",    icon: "✓", color: "text-emerald-600 dark:text-emerald-400" },
+  { key: "annulation" as const, label: "Annulation", icon: "↩", color: "text-sky-600 dark:text-sky-400"        },
+  { key: "instance" as const,   label: "Instance",   icon: "⏳", color: "text-orange-600 dark:text-orange-400" },
+  { key: "échec" as const,      label: "Échec",      icon: "✗", color: "text-red-600 dark:text-red-400"        },
 ] as const;
-
-type ChartType = "bar" | "pie";
 
 export function SpecChannelTable({
   channels,
@@ -58,155 +22,26 @@ export function SpecChannelTable({
   title,
   fetchSpecChannelStats,
   fetchSpecCanalStatusMatrix,
-  chartType = "bar",
 }: {
-  channels: CanalRule[];
+  channels: ChannelDef[];
   dateFrom: string;
   dateTo: string;
   title?: string;
   fetchSpecChannelStats: (
-    channels: CanalRule[],
+    channels: ChannelDef[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<{ rows: SpecChRow[]; total: SpecChRow }>;
   fetchSpecCanalStatusMatrix?: (
-    channels: CanalRule[],
+    channels: ChannelDef[],
     dateFrom: string,
     dateTo: string,
   ) => Promise<SpecChStatusRow[]>;
-  /** Type of chart to display: 'bar' or 'pie' */
-  chartType?: ChartType;
 }) {
   const [data, setData] = useState<{ rows: SpecChRow[]; total: SpecChRow } | null>(null);
   const [loading, setLoading] = useState(true);
   const [statusData, setStatusData] = useState<SpecChStatusRow[] | null>(null);
   const [statusOpen, setStatusOpen] = useState(true);
-
-  // Memoized sorted data and max for consistent calculations
-  const sorted = useMemo(() => [...(data?.rows ?? [])].sort((a, b) => b.nombre - a.nombre), [data]);
-  const maxNombre = useMemo(() => Math.max(...(sorted.map((r) => r.nombre) ?? [0]), 1), [sorted]);
-
-  // Memoized derived values for performance - calculated before early returns
-  const activeChannels = useMemo(() => (data?.rows ?? []).filter((r) => r.nombre > 0).length, [data]);
-  const topChannel = useMemo(() => sorted[0], [sorted]);
-  const top3Share = useMemo(
-    () => (sorted.slice(0, 3).reduce((a, r) => a + r.nombre, 0) / Math.max(data?.total?.nombre ?? 1, 1)) * 100,
-    [sorted, data],
-  );
-
-  // Chart option based on selected type - must be before any conditional returns
-  const chartOption = useMemo(() => {
-    if (!data) return null;
-    if (chartType === "pie") {
-      const nonZeroData = sorted.filter(r => r.nombre > 0);
-      return {
-        backgroundColor: "transparent",
-        tooltip: {
-          trigger: "item",
-          backgroundColor: "#1e1e2e",
-          borderColor: "#ffffff12",
-          textStyle: { color: "#cdd6f4", fontSize: 11 },
-          formatter: (params: { name: string; value: number; percent: number }) => {
-            const row = data.rows.find((r) => r.canal === params.name);
-            const pct = params.percent?.toFixed(1) ?? "0.0";
-            return `<b>${params.name}</b><br/>Transactions : <b>${fmtN(params.value)}</b> (${pct}%)<br/>Montant : <b>${fmtAmount(row?.montant ?? 0)} DT</b>`;
-          },
-        },
-        legend: {
-          orient: "vertical",
-          left: "left",
-          top: "center",
-          textStyle: { color: "#cdd6f4", fontSize: 10 },
-          itemWidth: 12,
-          itemHeight: 12,
-        },
-        series: [
-          {
-            name: "Transactions",
-            type: "pie",
-            radius: ["30%", "70%"],
-            center: ["60%", "50%"],
-            avoidLabelOverlap: false,
-            label: {
-              show: false,
-            },
-            emphasis: {
-              label: {
-                show: true,
-                fontSize: 11,
-                fontWeight: "bold",
-              },
-            },
-            labelLine: {
-              show: false,
-            },
-            data: nonZeroData.map((r) => ({
-              value: r.nombre,
-              name: r.canal,
-              itemStyle: {
-                color: getCanalColor(r.canal),
-              },
-            })),
-          },
-        ],
-      };
-    }
-
-    // Bar chart (default)
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "axis",
-        backgroundColor: "#1e1e2e",
-        borderColor: "#ffffff12",
-        textStyle: { color: "#cdd6f4", fontSize: 11 },
-        axisPointer: { type: "shadow" },
-        formatter: (params: { name: string; value: number }[]) => {
-          const p = params[0];
-          const row = data.rows.find((r) => r.canal === p.name);
-          const pct =
-            data.total.nombre > 0 ? ((p.value / data.total.nombre) * 100).toFixed(1) : "0.0";
-          return `<b>${p.name}</b><br/>Transactions : <b>${fmtN(p.value)}</b> (${pct}%)<br/>Montant : <b>${fmtAmount(row?.montant ?? 0)} DT</b>`;
-        },
-      },
-      grid: { left: 150, right: 70, top: 6, bottom: 6, containLabel: false },
-      xAxis: {
-        type: "value",
-        axisLabel: { color: "#6c7086", fontSize: 9 },
-        splitLine: { lineStyle: { color: "#ffffff08" } },
-        axisLine: { show: false },
-        axisTick: { show: false },
-      },
-      yAxis: {
-        type: "category",
-        data: sorted.map((r) => r.canal),
-        axisLabel: { color: "#cdd6f4", fontSize: 10, width: 145, overflow: "truncate" },
-        axisTick: { show: false },
-        axisLine: { show: false },
-      },
-      series: [
-        {
-          name: "Transactions",
-          type: "bar",
-          data: sorted.map((r) => ({
-            value: r.nombre,
-            itemStyle: {
-              color: r.nombre === 0 ? "#ffffff10" : getCanalColor(r.canal),
-              borderRadius: [0, 4, 4, 0],
-            },
-          })),
-          barMaxWidth: 18,
-          label: {
-            show: true,
-            position: "right",
-            color: "#a6adc8",
-            fontSize: 9,
-            formatter: (p: { value: number }) => (p.value > 0 ? fmtN(p.value) : ""),
-          },
-        },
-      ],
-    };
-  }, [chartType, data, sorted]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: channels is a stable module-level constant
   useEffect(() => {
@@ -236,9 +71,7 @@ export function SpecChannelTable({
 
     if (fetchSpecCanalStatusMatrix) {
       fetchSpecCanalStatusMatrix(channels, dateFrom, dateTo)
-        .then((d) => {
-          if (!cancelled) setStatusData(d);
-        })
+        .then((d) => { if (!cancelled) setStatusData(d); })
         .catch(() => {});
     }
 
@@ -257,16 +90,87 @@ export function SpecChannelTable({
   }
   if (!data) return null;
 
+  const sorted = [...data.rows].sort((a, b) => b.nombre - a.nombre);
+  const maxNombre = Math.max(...sorted.map((r) => r.nombre), 1);
+  const activeChannels = data.rows.filter((r) => r.nombre > 0).length;
+  const topChannel = sorted[0];
+  const top3Share =
+    (sorted.slice(0, 3).reduce((a, r) => a + r.nombre, 0) / Math.max(data.total.nombre, 1)) * 100;
+
   const hasData = data.total.nombre > 0;
+
+  const chartOption = {
+    backgroundColor: "transparent",
+    tooltip: {
+      trigger: "axis",
+      backgroundColor: "#1e1e2e",
+      borderColor: "#ffffff12",
+      textStyle: { color: "#cdd6f4", fontSize: 11 },
+      axisPointer: { type: "shadow" },
+      formatter: (params: { name: string; value: number }[]) => {
+        const p = params[0];
+        const row = data.rows.find((r) => r.canal === p.name);
+        const pct =
+          data.total.nombre > 0 ? ((p.value / data.total.nombre) * 100).toFixed(1) : "0.0";
+        return `<b>${p.name}</b><br/>Transactions : <b>${fmtN(p.value)}</b> (${pct}%)<br/>Montant : <b>${fmtAmount(row?.montant ?? 0)} DT</b>`;
+      },
+    },
+    grid: { left: 150, right: 70, top: 6, bottom: 6, containLabel: false },
+    xAxis: {
+      type: "value",
+      axisLabel: { color: "#6c7086", fontSize: 9 },
+      splitLine: { lineStyle: { color: "#ffffff08" } },
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: "category",
+      data: sorted.map((r) => r.canal),
+      axisLabel: { color: "#cdd6f4", fontSize: 10, width: 145, overflow: "truncate" },
+      axisTick: { show: false },
+      axisLine: { show: false },
+    },
+    series: [
+      {
+        name: "Transactions",
+        type: "bar",
+        data: sorted.map((r) => ({
+          value: r.nombre,
+          itemStyle: {
+            color:
+              r.nombre === 0
+                ? "#ffffff10"
+                : {
+                    type: "linear",
+                    x: 0, y: 0, x2: 1, y2: 0,
+                    colorStops: [
+                      { offset: 0, color: "#89b4fa" },
+                      { offset: 1, color: "#b4befe" },
+                    ],
+                  },
+            borderRadius: [0, 4, 4, 0],
+          },
+        })),
+        barMaxWidth: 18,
+        label: {
+          show: true,
+          position: "right",
+          color: "#a6adc8",
+          fontSize: 9,
+          formatter: (p: { value: number }) => (p.value > 0 ? fmtN(p.value) : ""),
+        },
+      },
+    ],
+  };
 
   // Status totals for the footer row
   const statusTotals = statusData
     ? {
-        réussie: statusData.reduce((s, r) => s + r.réussie, 0),
+        réussie:    statusData.reduce((s, r) => s + r.réussie, 0),
         annulation: statusData.reduce((s, r) => s + r.annulation, 0),
-        instance: statusData.reduce((s, r) => s + r.instance, 0),
-        échec: statusData.reduce((s, r) => s + r.échec, 0),
-        total: statusData.reduce((s, r) => s + r.total, 0),
+        instance:   statusData.reduce((s, r) => s + r.instance, 0),
+        échec:      statusData.reduce((s, r) => s + r.échec, 0),
+        total:      statusData.reduce((s, r) => s + r.total, 0),
       }
     : null;
 
@@ -321,9 +225,7 @@ export function SpecChannelTable({
             },
           ].map((k) => (
             <div key={k.label} className={cn("rounded-xl border p-3 space-y-0.5", k.border, k.bg)}>
-              <div
-                className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}
-              >
+              <div className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}>
                 {k.value}
               </div>
               <div className="text-[10px] text-muted-foreground">{k.label}</div>
@@ -339,15 +241,13 @@ export function SpecChannelTable({
           <div className="px-3 pt-3 pb-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
             <BarChart2 className="w-3 h-3" /> Distribution des transactions par canal
           </div>
-          <EChart option={chartOption!} height={Math.max(sorted.length * 30 + 24, 80)} />
+          <EChart option={chartOption} height={Math.max(sorted.length * 30 + 24, 80)} />
         </div>
       )}
 
-      {/* Tables side by side: Amount Totals + KPIs per Status */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-        {/* Amount Totals table */}
-        <div className="overflow-x-auto rounded-lg border border-border/50">
-          <table className="w-full text-xs">
+      {/* Success-only table */}
+      <div className="overflow-x-auto rounded-lg border border-border/50">
+        <table className="w-full text-xs">
           <thead>
             <tr className="border-b border-border/50 bg-muted/40">
               <th className="text-left px-3 py-2.5 font-semibold text-muted-foreground">CANAL</th>
@@ -370,7 +270,7 @@ export function SpecChannelTable({
                 >
                   <td className="px-3 py-2 text-foreground">{row.canal}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
-                    {row.nombre > 0 ? fmtN(row.nombre) : <span className="text-muted-foreground/50">0</span>}
+                    {row.nombre > 0 ? fmtN(row.nombre) : <span className="text-muted-foreground/35">—</span>}
                   </td>
                   <td className="px-2 py-2 hidden sm:table-cell">
                     <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
@@ -381,7 +281,7 @@ export function SpecChannelTable({
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-                    {row.montant > 0 ? fmtAmount(row.montant) : <span className="text-muted-foreground/50">0 DT</span>}
+                    {row.montant > 0 ? fmtAmount(row.montant) : <span className="text-muted-foreground/35">—</span>}
                   </td>
                 </tr>
               );
@@ -402,7 +302,7 @@ export function SpecChannelTable({
         </table>
       </div>
 
-      {/* KPIs per Status table */}
+      {/* ── KPIs par statut par canal ─────────────────────────────────────── */}
       {statusData && statusData.length > 0 && statusTotals && (
         <div className="space-y-1.5">
           <button
@@ -412,11 +312,7 @@ export function SpecChannelTable({
           >
             <div className="flex-1 h-px bg-border/60" />
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 select-none hover:text-foreground transition-colors">
-              {statusOpen ? (
-                <ChevronDown className="w-3 h-3" />
-              ) : (
-                <ChevronRight className="w-3 h-3" />
-              )}
+              {statusOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
               KPIs par statut
             </span>
             <div className="flex-1 h-px bg-border/60" />
@@ -458,7 +354,11 @@ export function SpecChannelTable({
                           key={s.key}
                           className={cn("px-3 py-2 text-right tabular-nums font-medium", s.color)}
                         >
-                          {row[s.key] > 0 ? fmtN(row[s.key]) : <span className="text-muted-foreground/50">0</span>}
+                          {row[s.key] > 0 ? (
+                            fmtN(row[s.key])
+                          ) : (
+                            <span className="text-muted-foreground/35">—</span>
+                          )}
                         </td>
                       ))}
                       <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
@@ -473,7 +373,10 @@ export function SpecChannelTable({
                     {STATUS_COLS.map((s) => (
                       <td
                         key={s.key}
-                        className={cn("px-3 py-2.5 text-right tabular-nums font-bold", s.color)}
+                        className={cn(
+                          "px-3 py-2.5 text-right tabular-nums font-bold",
+                          s.color,
+                        )}
                       >
                         {fmtN(statusTotals[s.key])}
                       </td>
@@ -488,7 +391,6 @@ export function SpecChannelTable({
           )}
         </div>
       )}
-      </div>
 
       {/* Insight banners */}
       {hasData && activeChannels < data.rows.length && (

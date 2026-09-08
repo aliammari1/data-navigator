@@ -50,7 +50,7 @@ export function comboKey(combo: UnclassifiedCanalCombo): string {
   return [combo.brandD, combo.accountLayerId, combo.accountGroupId, combo.accountMsisdn].join("|");
 }
 
-export function parseBrandDValues(value: string): string[] {
+function parseBrandDValues(value: string): string[] {
   return [
     ...new Set(
       value
@@ -319,27 +319,4 @@ export function duplicateCanalRuleDraft(rule: CanalRule): CanalRuleDraft {
     origin: "custom",
     createdAt: null,
   };
-}
-
-export function comboMatchesRule(combo: UnclassifiedCanalCombo, rule: CanalRule): boolean {
-  if (!rule.enabled || !rule.match.brandDValues.includes(combo.brandD)) {
-    return false;
-  }
-
-  switch (rule.match.kind) {
-    case "brand":
-      return true;
-
-    case "brand-layer":
-      return combo.accountLayerId === rule.match.accountLayerId;
-
-    case "brand-layer-group":
-      return (
-        combo.accountLayerId === rule.match.accountLayerId &&
-        combo.accountGroupId === rule.match.accountGroupId
-      );
-
-    case "brand-msisdn":
-      return combo.accountMsisdn === rule.match.accountMsisdn;
-  }
 }

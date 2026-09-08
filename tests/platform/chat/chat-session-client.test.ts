@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  ChatModelUnavailableError,
   canUseChatSession,
   disposeChatSession,
   generateChatTitle,
@@ -82,6 +83,47 @@ describe("chat-session-client", () => {
 
     it("returns null when the bridge is absent", async () => {
       await expect(openChatSession({ conversationId: "c1" })).resolves.toBeNull();
+    });
+
+    it("wraps a 'Missing GGUF model' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.open.mockRejectedValueOnce(
+        new Error("Missing GGUF model: /tmp/missing.gguf. Download it while online."),
+      );
+
+      await expect(
+        openChatSession({ conversationId: "c1" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("wraps a 'no offline model is ready' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.open.mockRejectedValueOnce(new Error("no offline model is ready"));
+
+      await expect(
+        openChatSession({ conversationId: "c1" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("wraps an 'AI provider not available' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.open.mockRejectedValueOnce(
+        new Error('AI provider "llamacpp" is not available.'),
+      );
+
+      await expect(
+        openChatSession({ conversationId: "c1" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("passes through unrelated open rejections as their original error", async () => {
+      const bridge = installBridge();
+      const original = new Error("IPC channel closed mid-open");
+      bridge.open.mockRejectedValueOnce(original);
+
+      const caught = await openChatSession({ conversationId: "c1" }).catch((e) => e);
+      expect(caught).toBe(original);
+      expect(caught).not.toBeInstanceOf(ChatModelUnavailableError);
     });
   });
 
@@ -206,6 +248,72 @@ describe("chat-session-client", () => {
       controller.abort();
 
       expect(bridge.abort).not.toHaveBeenCalled();
+    });
+
+    it("wraps a 'Missing GGUF model' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.prompt.mockRejectedValueOnce(
+        new Error("Missing GGUF model: <userData>/models/llm/gemma.gguf. Download it while online."),
+      );
+
+      await expect(
+        sendChatPrompt({ conversationId: "c1", text: "salut" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("wraps a 'no offline model is ready' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.prompt.mockRejectedValueOnce(new Error("no offline model is ready"));
+
+      await expect(
+        sendChatPrompt({ conversationId: "c1", text: "salut" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("wraps an 'AI provider not available' bridge rejection in ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      bridge.prompt.mockRejectedValueOnce(
+        new Error('AI provider "llamacpp" is not available.'),
+      );
+
+      await expect(
+        sendChatPrompt({ conversationId: "c1", text: "salut" }),
+      ).rejects.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("preserves the original error message inside ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      const original = "Missing GGUF model: /tmp/missing.gguf. Download it while online.";
+      bridge.prompt.mockRejectedValueOnce(new Error(original));
+
+      await expect(sendChatPrompt({ conversationId: "c1", text: "salut" })).rejects.toThrow(
+        original,
+      );
+    });
+
+    it("passes through unrelated bridge rejections as their original error (not ChatModelUnavailableError)", async () => {
+      const bridge = installBridge();
+      const original = new Error("DuckDB connection lost mid-stream");
+      bridge.prompt.mockRejectedValueOnce(original);
+
+      const caught = await sendChatPrompt({ conversationId: "c1", text: "salut" }).catch(
+        (e) => e,
+      );
+      expect(caught).toBe(original);
+      expect(caught).not.toBeInstanceOf(ChatModelUnavailableError);
+    });
+
+    it("does not wrap an AbortError as ChatModelUnavailableError", async () => {
+      const bridge = installBridge();
+      const controller = new AbortController();
+      bridge.prompt.mockRejectedValueOnce(Object.assign(new Error("aborter"), { name: "AbortError" }));
+
+      const caught = await sendChatPrompt({
+        conversationId: "c1",
+        text: "salut",
+        signal: controller.signal,
+      }).catch((e) => e);
+      expect(caught).not.toBeInstanceOf(ChatModelUnavailableError);
     });
   });
 

@@ -4,6 +4,7 @@ import {
   ChevronRight,
   Command,
   LayoutGrid,
+  Lock,
   LogOut,
   Monitor,
   Moon,
@@ -15,7 +16,7 @@ import {
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,11 +28,12 @@ import {
 import { useSettingsStore } from "@/core/stores/settings-store";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import { useShellActions } from "@/features/dashboard-shell/shell/shell-store";
+import { AccessControlPill } from "@/features/dashboard-shell/topbar/access-control-pill";
 import { DatasetPicker } from "@/features/dashboard-shell/topbar/dataset-picker";
 import { ModelStatusPill } from "@/features/dashboard-shell/topbar/model-status-pill";
 import { NotificationsBell } from "@/features/dashboard-shell/topbar/notifications-bell";
 import { useAppTheme } from "@/hooks/use-app-theme";
-import { authClient } from "@/platform/auth/auth-client";
+import { lockApp, logout } from "@/platform/auth/auth-ipc-client";
 import { cn } from "@/shared/utils";
 
 function userInitialsFrom(displayName: string): string {
@@ -96,7 +98,7 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
   async function handleSignOut() {
     setSigningOut(true);
     try {
-      await authClient.signOut();
+      await logout();
       router.replace("/login");
       router.refresh();
     } finally {
@@ -105,9 +107,9 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
   }
 
   return (
-    <header className="z-[var(--z-topbar)] flex h-14 flex-none items-center gap-2 overflow-hidden border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
+    <header className="relative z-[var(--z-topbar)] flex h-14 flex-none items-center gap-2 border-b border-border bg-background/80 px-2 backdrop-blur sm:gap-3 sm:px-4">
       {showBreadcrumbs && (
-        <nav className="hidden min-w-0 flex-1 items-center gap-1 text-xs text-muted-foreground sm:flex">
+        <nav className="hidden min-w-0 flex-1 items-center gap-1 overflow-x-hidden text-xs text-muted-foreground sm:flex">
           {crumbs.map((crumb, i) => (
             <span key={crumb.href} className="flex items-center gap-1 min-w-0">
               {i > 0 && <ChevronRight className="w-3 h-3 flex-none text-muted-foreground" />}
@@ -128,6 +130,10 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
       <div className="flex-1" />
 
       <DatasetPicker />
+
+      <div className="hidden md:block">
+        <AccessControlPill />
+      </div>
 
       {/* Search trigger → universal cmdk palette (folds in old GlobalDataSearch) */}
       <button
@@ -180,7 +186,6 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
       <DropdownMenu>
         <DropdownMenuTrigger className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <Avatar className="size-8 rounded-xl">
-            <AvatarImage src="/icon-192.png" alt="Data Navigator" className="rounded-xl" />
             <AvatarFallback className="rounded-xl bg-primary text-primary-foreground text-xs font-semibold">
               {userInitials || "DN"}
             </AvatarFallback>
@@ -190,27 +195,38 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
           <DropdownMenuLabel>
             <div className="flex items-center gap-3">
               <Avatar className="size-9 rounded-xl">
-                <AvatarImage src="/icon-192.png" alt="Data Navigator" className="rounded-xl" />
                 <AvatarFallback className="rounded-xl text-xs font-semibold">
                   {userInitials || "DN"}
                 </AvatarFallback>
               </Avatar>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-foreground">{displayName}</div>
-                {user?.email ? (
-                  <div className="truncate text-xs text-muted-foreground">{user.email}</div>
-                ) : (
-                  <div className="text-xs text-amber-400">Local mode</div>
-                )}
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
+                    {user?.isGuest ? (user.role || "Guest") : "Administrator"}
+                  </span>
+                  {user?.email && (
+                    <span className="truncate text-xs text-muted-foreground">{user.email}</span>
+                  )}
+                </div>
               </div>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
           {user ? (
             <>
-              <DropdownMenuItem disabled>
-                <UserCircle className="size-4" />
-                Signed in
+              <DropdownMenuItem
+                onClick={async () => {
+                  await lockApp();
+                  router.replace("/login?reason=locked");
+                  router.refresh();
+                }}
+              >
+                <Lock className="size-4" />
+                <span>Lock Workspace</span>
+                <kbd className="ml-auto text-[10px] text-muted-foreground border border-border px-1.5 py-0.5 rounded font-mono">
+                  ⌘L
+                </kbd>
               </DropdownMenuItem>
               <DropdownMenuItem onClick={handleSignOut} disabled={signingOut}>
                 <LogOut className="size-4" />
@@ -220,7 +236,7 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
           ) : (
             <DropdownMenuItem onClick={() => router.push("/login")}>
               <LogOut className="size-4 rotate-180" />
-              Sign in to enable sync
+              Sign in
             </DropdownMenuItem>
           )}
         </DropdownMenuContent>

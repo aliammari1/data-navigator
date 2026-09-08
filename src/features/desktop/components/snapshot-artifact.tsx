@@ -123,11 +123,11 @@ export function SnapshotArtifact({ snapshot }: SnapshotArtifactProps) {
         >
           <Icon className="size-3.5" style={{ color: "hsl(var(--glass-accent))" }} />
         </span>
-        <span className="min-w-0 flex-1 truncate text-[12px] font-semibold" title={snapshot.title}>
+        <span className="min-w-0 flex-1 truncate text-xs font-semibold" title={snapshot.title}>
           {snapshot.title || meta.label}
         </span>
         <span
-          className="shrink-0 rounded px-1.5 py-0.5 text-[9px] font-medium uppercase tracking-wide"
+          className="shrink-0 rounded px-1.5 py-0.5 text-xs font-medium uppercase tracking-wider"
           style={{ background: "var(--glass-bg)", color: "var(--glass-text-dim)" }}
         >
           {meta.label}

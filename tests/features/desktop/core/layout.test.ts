@@ -61,7 +61,9 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  document.querySelectorAll(".dn-desktop-canvas").forEach((el) => el.remove());
+  document.querySelectorAll(".dn-desktop-canvas").forEach((el) => {
+    el.remove();
+  });
   setViewport(1024, 768);
 });
 

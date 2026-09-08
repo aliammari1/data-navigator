@@ -2,23 +2,26 @@
  * prepare-models.mjs — build/setup-time offline-model acquisition.
  *
  * Downloads the offline AI model weights from Hugging Face into the local
- * destination the runtime expects, then verifies size + sha256 against the
+ * destinations the runtime expects, then verifies size + sha256 against the
  * embedded {@link MODEL_MANIFEST}. Idempotent: a model whose file already exists
  * with the expected byte length (and, when `--verify-hash`, the expected sha256)
  * is skipped.
  *
- * Both lanes are GGUF weights for the Electron node-llama-cpp lane
- * (electron/llama-service.ts / electron/embed-service.ts →
- * <userData>/models/llm/<file>). Because this script runs at build/setup time —
- * not inside Electron — it cannot resolve the per-OS userData path. It
- * therefore stages every GGUF under a repo-local cache dir
- * (`<repo>/.model-cache/llm/`) that the in-app downloader
- * (electron/model-download-service.ts) and packaging step can copy from, or
- * you point `--llm-dest` at a real userData/models/llm directory.
+ * Both lanes are GGUF weights for the Electron node-llama-cpp runtime — the
+ * embeddings lane no longer runs transformers.js/ONNX in a browser worker:
  *
- *   (a) Instruct GGUF — the generative lane.
- *   (b) Qwen3 Embedding GGUF — the embedding lane (node-llama-cpp; replaced the
- *       old transformers.js all-MiniLM-L6-v2 ONNX asset).
+ *   (a) Instruct GGUF for the chat/completion lane
+ *       (electron/llama-service.ts → <userData>/models/llm/<file>).
+ *   (b) Embedding GGUF for the embeddings lane
+ *       (electron/embedding-service.ts → <userData>/models/embed/<file>).
+ *
+ * Because this script runs at build/setup time — not inside Electron — it
+ * cannot resolve the per-OS userData path. It therefore stages both lanes
+ * under repo-local cache dirs (`<repo>/.model-cache/llm/`,
+ * `<repo>/.model-cache/embed/`) that the in-app downloader
+ * (electron/model-download-service.ts) and packaging step can copy from, or
+ * you point `--llm-dest` / `--embed-dest` at the real userData/models/<lane>
+ * directory.
  *
  * NETWORK: this script is the ONLY model path that touches the network, and only
  * when run explicitly (`pnpm run prepare:models`). The app itself never downloads
@@ -30,11 +33,13 @@
  *   node scripts/prepare-models.mjs --only=embed    # one group: embed | llm
  *   node scripts/prepare-models.mjs --check         # report presence only, no download
  *   node scripts/prepare-models.mjs --llm-dest=/abs/path/to/userData/models/llm
+ *   node scripts/prepare-models.mjs --embed-dest=/abs/path/to/userData/models/embed
  *   node scripts/prepare-models.mjs --low-ram       # also fetch the Granite 3B alternative GGUF
  *
  * The manifest is intentionally embedded here (single source of truth shared in
- * spirit with src/platform/ai/models/model-manifest.ts) so the script has no
- * import dependency on the TS app code.
+ * spirit with src/platform/ai/models/model-manifest.ts and
+ * electron/model-download-service.ts) so the script has no import dependency on
+ * the TS app code.
  */
 
 import { createHash } from "node:crypto";
@@ -48,17 +53,17 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 
-// Repo-local staging dir for GGUF weights (copied into userData by the app /
-// packaging step). Keep out of git — see note in return summary. Both the
-// instruct and embedding lanes are GGUF now, so they share this one dir.
+// Repo-local staging dirs for GGUF weights (copied into userData by the app /
+// packaging step). Keep out of git — see note in return summary.
 const LLM_STAGING_DIR = path.join(ROOT, ".model-cache", "llm");
+const EMBED_STAGING_DIR = path.join(ROOT, ".model-cache", "embed");
 
 const HF = "https://huggingface.co";
 
 /**
  * @typedef {Object} ModelEntry
  * @property {string}  key        Stable id for --only filtering / logging.
- * @property {"llm"|"embed"} group
+ * @property {"llm"|"embed"} group GGUF destination lane.
  * @property {string}  url        Absolute HF resolve URL.
  * @property {string}  destPath   Absolute on-disk destination.
  * @property {number}  bytes      Expected content length (for size verify + skip).
@@ -76,14 +81,59 @@ const HF = "https://huggingface.co";
  * @type {ModelEntry[]}
  */
 export const MODEL_MANIFEST = [
-  // ── (a) Instruct GGUF — Electron node-llama-cpp lane ───────────────────────
   // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
   // canonical in-app catalog — keep both in lockstep.
-  // Default: Gemma 4 E4B Instruct q4_k_m (~5.34 GB). Repo: bartowski/google_gemma-4-E4B-it-GGUF.
+  // ── (a) Instruct GGUF — Electron node-llama-cpp lane ───────────────────────
+  // Default: Gemma 4 E2B QAT Mobile Text-only (~840 MB). Google June 2026.
+  {
+    key: "gemma-4-e2b-qat-mobile-text-only",
+    group: "llm",
+    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
+    url: `${HF}/google/gemma-4-e2b-qat-mobile-text-only-GGUF/resolve/main/gemma-4-e2b-qat-mobile-text-only-q4_0.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "gemma-4-e2b-qat-mobile-text-only.gguf"),
+    bytes: 840_000_000,
+    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
+  },
+  // Tool-call specialist: Liquid AI LFM2.5-2.6B Q4_K_M (August 2026).
+  {
+    key: "lfm2-5-2.6b-q4_k_m",
+    group: "llm",
+    label: "LFM2.5-2.6B Instruct (Q4_K_M, Liquid AI 2026)",
+    optional: true,
+    url: `${HF}/LiquidAI/LFM2.5-2.6B-GGUF/resolve/main/lfm2-5-2.6b-q4_k_m.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "lfm2-5-2.6b-q4_k_m.gguf"),
+    bytes: 1674455040,
+    sha256: "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+  },
+  // Apache 2.0 alternative: IBM Granite 4.0 1B transformer variant (not the
+  // Mamba hybrid — llama.cpp does not support that one).
+  {
+    key: "granite-4.0-1b-q4_k_m",
+    group: "llm",
+    label: "Granite 4.0 1B Instruct (GGUF q4_k_m, Apache 2.0)",
+    optional: true,
+    url: `${HF}/ibm-granite/granite-4.0-1b-GGUF/resolve/main/granite-4.0-1b-q4_k_m.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "granite-4.0-1b-q4_k_m.gguf"),
+    bytes: 1023645440,
+    sha256: "22ec0f9cc99a90185312de3c882c84e7bd6789bdd050389844380a01a831d7f1",
+  },
+  // Reasoning fallback: Qwen3-1.7B Q4_K_M (April 2026).
+  {
+    key: "qwen3-1.7b-q4_k_m",
+    group: "llm",
+    label: "Qwen3-1.7B Instruct (GGUF q4_k_m, Apache 2.0)",
+    optional: true,
+    url: `${HF}/Qwen/Qwen3-1.7B-GGUF/resolve/main/qwen3-1.7b-q4_k_m.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "qwen3-1.7b-q4_k_m.gguf"),
+    bytes: 1_100_000_000,
+    sha256: "", // TODO
+  },
+  // Power-user quality tier (legacy default): Gemma 4 E4B Instruct q4_k_m (~5.34 GB).
   {
     key: "gemma-4-e4b-it-q4_k_m",
     group: "llm",
-    label: "Gemma 4 E4B Instruct (GGUF q4_k_m)",
+    label: "Gemma 4 E4B Instruct (GGUF q4_k_m, power-user)",
+    optional: true,
     url: `${HF}/bartowski/google_gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-q4_k_m.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "gemma-4-e4b-it-q4_k_m.gguf"),
     bytes: 5_340_000_000,
@@ -99,22 +149,23 @@ export const MODEL_MANIFEST = [
     // the instruct model; see huggingface.co/ibm-granite/granite-4.1-3b-GGUF.
     url: `${HF}/ibm-granite/granite-4.1-3b-GGUF/resolve/main/granite-4.1-3b-Q4_K_M.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "granite-4.1-3b-instruct-q4_k_m.gguf"),
-    bytes: 2_100_000_000, // TODO: fill exact content-length before release
-    sha256: "", // TODO
+    bytes: 2099501664,
+    sha256: "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
   },
 
-  // ── (b) Qwen3 Embedding GGUF — Electron node-llama-cpp embedding lane ──────
-  // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS entry for
-  // "qwen3-embedding-0.6b-q8_0" — keep both in lockstep. Replaces the old
-  // transformers.js all-MiniLM-L6-v2 ONNX asset (node-llama-cpp migration).
+  // ── (b) all-MiniLM-L6-v2 embedding GGUF — Electron node-llama-cpp lane ──────
+  // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS embed entry —
+  // keep both in lockstep. sha256/bytes were computed from a real downloaded
+  // file (see model-download-service.ts's comment); re-verify via
+  // `pnpm run models:hash` before pinning a release.
   {
-    key: "qwen3-embedding-0.6b-q8_0",
+    key: "all-minilm-l6-v2-embed-q8_0",
     group: "embed",
-    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
-    url: `${HF}/Qwen/Qwen3-Embedding-0.6B-GGUF/resolve/main/Qwen3-Embedding-0.6B-Q8_0.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "qwen3-embedding-0.6b-q8_0.gguf"),
-    bytes: 400_000_000, // matches model-download-service.ts's bytes: 400_000_000
-    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
+    label: "all-MiniLM-L6-v2 Embeddings (GGUF Q8_0)",
+    url: `${HF}/second-state/All-MiniLM-L6-v2-Embedding-GGUF/resolve/main/all-MiniLM-L6-v2-Q8_0.gguf?download=true`,
+    destPath: path.join(EMBED_STAGING_DIR, "all-minilm-l6-v2-embed-q8_0.gguf"),
+    bytes: 25_008_064,
+    sha256: "263215c3cadd6e16740741a7624ab4cbb6c8e777688bd5331ecfbf5681c2f8ed",
   },
 ];
 
@@ -125,8 +176,9 @@ function parseArgs(argv) {
     verifyHash: false,
     checkOnly: false,
     lowRam: false,
-    only: null, // "llm" | "embed" | null
+    only: null, // "llm" | "minilm" | "embed" | null
     llmDest: null,
+    embedDest: null,
   };
   for (const arg of argv) {
     if (arg === "--verify-hash") opts.verifyHash = true;
@@ -134,6 +186,7 @@ function parseArgs(argv) {
     else if (arg === "--low-ram") opts.lowRam = true;
     else if (arg.startsWith("--only=")) opts.only = arg.slice("--only=".length);
     else if (arg.startsWith("--llm-dest=")) opts.llmDest = arg.slice("--llm-dest=".length);
+    else if (arg.startsWith("--embed-dest=")) opts.embedDest = arg.slice("--embed-dest=".length);
   }
   return opts;
 }
@@ -141,7 +194,7 @@ function parseArgs(argv) {
 function matchesOnly(entry, only) {
   if (!only) return true;
   if (only === "llm") return entry.group === "llm";
-  if (only === "embed") return entry.group === "embed";
+  if (only === "embed" || only === "minilm") return entry.group === "embed";
   return entry.key === only;
 }
 
@@ -251,12 +304,15 @@ async function downloadEntry(entry, { verifyHash }) {
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
 
-  // Optionally redirect GGUF group to a real userData dir.
+  // Optionally redirect a GGUF group to a real userData/models/<lane> dir.
   const entries = MODEL_MANIFEST.filter((e) => matchesOnly(e, opts.only))
     .filter((e) => (e.optional ? opts.lowRam : true))
     .map((e) => {
       if (e.group === "llm" && opts.llmDest) {
         return { ...e, destPath: path.join(opts.llmDest, path.basename(e.destPath)) };
+      }
+      if (e.group === "embed" && opts.embedDest) {
+        return { ...e, destPath: path.join(opts.embedDest, path.basename(e.destPath)) };
       }
       return e;
     });
@@ -312,10 +368,18 @@ async function main() {
 
   if (entries.some((e) => e.group === "llm" && !opts.llmDest)) {
     console.log(
-      `\nNote: GGUF weights were staged under ${path.relative(ROOT, LLM_STAGING_DIR)}.\n` +
+      `\nNote: chat GGUF weights were staged under ${path.relative(ROOT, LLM_STAGING_DIR)}.\n` +
         `      At runtime they must live in <userData>/models/llm/. The in-app Setup\n` +
         `      downloader (electron/model-download-service.ts) fetches directly to userData,\n` +
         `      or pass --llm-dest=<userData>/models/llm to write there now.`,
+    );
+  }
+  if (entries.some((e) => e.group === "embed" && !opts.embedDest)) {
+    console.log(
+      `\nNote: embedding GGUF weights were staged under ${path.relative(ROOT, EMBED_STAGING_DIR)}.\n` +
+        `      At runtime they must live in <userData>/models/embed/. The in-app Setup\n` +
+        `      downloader (electron/model-download-service.ts) fetches directly to userData,\n` +
+        `      or pass --embed-dest=<userData>/models/embed to write there now.`,
     );
   }
 }

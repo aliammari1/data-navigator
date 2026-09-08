@@ -1,5 +1,6 @@
 import type { PersistableCanalSummary } from "@/features/telecom/lib/canal-config";
 import type * as Types from "@/features/telecom/types";
+import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import {
   type AnalyticsSnapshotHistoryMeta,
   getAnalyticsSnapshotRemote,
@@ -25,6 +26,7 @@ export interface SQLiteAnalyticsSnapshot {
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
   rawStatuses: Types.RawStatusRow[];
+  forecast: ForecastPoint[];
   computedAt: number;
 }
 

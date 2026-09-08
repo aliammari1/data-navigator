@@ -5,13 +5,14 @@
  * runtime expects, WHILE ONLINE, with progress events back to the renderer. This
  * is the in-app counterpart to the build-time `scripts/prepare-models.mjs`:
  *
- *   - GGUF instruct weights  → `<userData>/models/llm/<file>.gguf`
+ *   - GGUF instruct weights → `<userData>/models/llm/<file>.gguf`
  *     (consumed by llama-service.ts; never bundled in the asar).
- *   - all-MiniLM ONNX weights → the packaged Next `public/models/transformers/…`
- *     is read-only inside the asar, so MiniLM is downloaded by the RENDERER into
- *     OPFS / the transformers.js browser cache (handled renderer-side), NOT here.
- *     This service owns the GGUF lane (the only one that needs a trusted FS path
- *     outside the sandbox) and exposes presence for both.
+ *   - GGUF embedding weights → `<userData>/models/embed/<file>.gguf`
+ *     (consumed by embedding-service.ts; same lane, separate directory so the
+ *     chat-model picker in llama-service.ts never has to filter it out by hand).
+ *
+ * Both lanes share this one downloader/integrity-gate implementation, keyed off
+ * each entry's `lane` field (see `dirFor()` below).
  *
  * ─── Downloader: node-llama-cpp, not hand-rolled fetch ────────────────────────
  * Downloads are delegated to node-llama-cpp's own `createModelDownloader` — the
@@ -37,9 +38,9 @@
  * SECURITY: only the URIs in MODEL_DOWNLOADS are downloadable. The renderer passes
  * a `key`, never a raw URI/URL, so this cannot be turned into an SSRF primitive.
  * We additionally pin `fileName` and `dirPath` so a manifest entry can only ever
- * write to `<userData>/models/llm/<file>` — never an attacker-chosen path — and,
- * when a sha256 is pinned, we re-hash the finished file and refuse to keep a
- * mismatch (see the integrity gate below).
+ * write to `<userData>/models/<lane>/<file>` — never an attacker-chosen path —
+ * and, when a sha256 is pinned, we re-hash the finished file and refuse to keep
+ * a mismatch (see the integrity gate below).
  */
 
 import { createHash } from "node:crypto";
@@ -53,8 +54,15 @@ import { app } from "electron";
 
 export interface ModelDownloadEntry {
   key: string;
-  /** GGUF filename under <userData>/models/llm. Pinned as the downloader's fileName. */
+  /** GGUF filename under <userData>/models/<lane>. Pinned as the downloader's fileName. */
   file: string;
+  /**
+   * Which inference lane this GGUF feeds: "llm" (chat/completion, consumed by
+   * llama-service.ts) or "embed" (embeddings, consumed by embedding-service.ts).
+   * Determines the destination subdirectory (see `dirFor()`) and lets
+   * llama-service.ts filter its chat-model catalog to lane==="llm" only.
+   */
+  lane: "llm" | "embed";
   /**
    * node-llama-cpp model URI. Hugging Face scheme:
    *   `hf:<user>/<model>:<quant>`               (recommended — resolves offline/faster)
@@ -74,6 +82,25 @@ export interface ModelDownloadEntry {
   /** Short size/variant label (e.g. "E4B", "3B"). */
   sizeLabel: string;
   optional: boolean;
+  /**
+   * What the model can do, verified against vendor docs/model cards (never
+   * assumed from size). `tools` means callable through THIS app's generic
+   * function path — a model with only a proprietary protocol (LFM2.5's
+   * `<|tool_call_start|>` tokens) is `tools: false` here.
+   */
+  capabilities: ModelCapabilities;
+  /** Why a capability is off (shown in the picker). Omit when obvious. */
+  capabilityNote?: string;
+}
+
+/** Verified capability flags for one catalog model. */
+export interface ModelCapabilities {
+  /** Callable through the generic function path (data tools, charts, questions). */
+  tools: boolean;
+  /** Emits <think> reasoning the UI can collapse. */
+  thinking: boolean;
+  /** Accepts image input (needs a vision checkpoint + pipeline). */
+  vision: boolean;
 }
 
 /**
@@ -88,40 +115,118 @@ export interface ModelDownloadEntry {
  */
 export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
   {
+    key: "gemma-4-e2b-qat-mobile-text-only",
+    file: "gemma-4-e2b-qat-mobile-text-only.gguf",
+    lane: "llm",
+    uri: "hf:google/gemma-4-e2b-qat-mobile-text-only-GGUF/gemma-4-e2b-qat-mobile-text-only-q4_0.gguf",
+    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 840_000_000,
+    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
+    family: "Gemma 4",
+    sizeLabel: "E2B",
+    optional: false,
+    // Native function calling per Google's Gemma 4 docs; text-only checkpoint.
+    capabilities: { tools: true, thinking: true, vision: false },
+  },
+  {
+    key: "lfm2-5-2.6b-q4_k_m",
+    file: "lfm2-5-2.6b-q4_k_m.gguf",
+    lane: "llm",
+    uri: "hf:LiquidAI/LFM2.5-2.6B-GGUF:Q4_K_M",
+    sha256: "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
+    bytes: 1674455040,
+    label: "LFM2.5-2.6B Instruct (Q4_K_M, Liquid AI 2026)",
+    family: "LFM",
+    sizeLabel: "2.6B",
+    optional: true,
+    // Proven in-session: never invokes the generic function path (narrates
+    // calls as text instead). Its native <|tool_call_start|> protocol is
+    // unsupported here, so tools are honestly off.
+    capabilities: { tools: false, thinking: true, vision: false },
+    capabilityNote: "Sans appels d'outils sur le chemin générique.",
+  },
+  {
+    key: "granite-4.0-1b-q4_k_m",
+    file: "granite-4.0-1b-q4_k_m.gguf",
+    lane: "llm",
+    uri: "hf:ibm-granite/granite-4.0-1b-GGUF:Q4_K_M",
+    sha256: "22ec0f9cc99a90185312de3c882c84e7bd6789bdd050389844380a01a831d7f1",
+    bytes: 1023645440,
+    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
+    family: "Granite 4.0",
+    sizeLabel: "1B",
+    optional: true,
+    // OpenAI-schema tool calling per IBM's Granite 4.0 docs.
+    capabilities: { tools: true, thinking: false, vision: false },
+  },
+  {
+    key: "qwen3-1.7b-q4_k_m",
+    file: "qwen3-1.7b-q4_k_m.gguf",
+    lane: "llm",
+    uri: "hf:Qwen/Qwen3-1.7B-GGUF:Q4_K_M",
+    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 1_100_000_000,
+    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    family: "Qwen3",
+    sizeLabel: "1.7B",
+    optional: true,
+    // Hermes-style tool use per Qwen's function-calling docs; hybrid thinking.
+    capabilities: { tools: true, thinking: true, vision: false },
+  },
+  {
     key: "gemma-4-e4b-it-q4_k_m",
     file: "gemma-4-e4b-it-q4_k_m.gguf",
+    lane: "llm",
     uri: "hf:bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M",
     sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
     bytes: 5_340_000_000,
-    label: "Gemma 4 E4B Instruct (GGUF q4)",
+    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
     family: "Gemma 4",
     sizeLabel: "E4B",
-    optional: false,
+    optional: true,
+    // Native function calling per Google's Gemma 4 docs; GGUF text pipeline.
+    capabilities: { tools: true, thinking: true, vision: false },
   },
   {
     key: "granite-4.1-3b-instruct-q4_k_m",
     file: "granite-4.1-3b-instruct-q4_k_m.gguf",
+    lane: "llm",
     // Repo has no "-instruct-" in its name — Granite 4.1 3B IS the instruct
     // model (finetuned from the separate "-Base" checkpoint); IBM just doesn't
     // suffix the flagship chat variant. Verified at huggingface.co/ibm-granite/granite-4.1-3b-GGUF.
     uri: "hf:ibm-granite/granite-4.1-3b-GGUF:Q4_K_M",
-    sha256: "",
-    bytes: 2_100_000_000, // TODO: paste exact sha256 from `pnpm run models:hash`
+    sha256: "662b0626cd58f443baea23559b469df6576a81d349649c59413b36a9fb32eb29",
+    bytes: 2099501664,
     label: "Granite 4.1 3B Instruct (GGUF q4, Apache 2.0)",
     family: "Granite 4.1",
     sizeLabel: "3B",
     optional: true,
+    // Enhanced tool calling per IBM's Granite 4.1 docs (BFCL 60.8 @ 3B).
+    capabilities: { tools: true, thinking: false, vision: false },
   },
   {
-    key: "qwen3-embedding-0.6b-q8_0",
-    file: "qwen3-embedding-0.6b-q8_0.gguf",
-    uri: "hf:Qwen/Qwen3-Embedding-0.6B-GGUF:Q8_0",
-    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
-    bytes: 400_000_000,
-    label: "Qwen3 Embedding 0.6B (GGUF Q8_0)",
-    family: "Qwen3 Embedding",
-    sizeLabel: "0.6B",
+    key: "all-minilm-l6-v2-embed-q8_0",
+    file: "all-minilm-l6-v2-embed-q8_0.gguf",
+    lane: "embed",
+    // Exact-file form (not the short `hf:...:Q8_0` tag) — this repo's GGUF
+    // filename ("all-MiniLM-L6-v2-Q8_0.gguf", hyphen before the quant suffix)
+    // is non-standard, so resolving it through HF's short-tag manifest API
+    // isn't relied on; this URI deterministically resolves to
+    // huggingface.co/second-state/All-MiniLM-L6-v2-Embedding-GGUF/resolve/main/all-MiniLM-L6-v2-Q8_0.gguf.
+    uri: "hf:second-state/All-MiniLM-L6-v2-Embedding-GGUF/all-MiniLM-L6-v2-Q8_0.gguf",
+    // Computed from a real downloaded file in this session (sha256sum of the
+    // 25,008,064-byte artifact) — re-verify via `pnpm run models:hash` before
+    // trusting long-term / pinning a release. leliuga/all-MiniLM-L6-v2-GGUF's
+    // all-MiniLM-L6-v2.Q8_0.gguf is a byte-identical fallback if this repo
+    // ever disappears (same size, same sha256).
+    sha256: "263215c3cadd6e16740741a7624ab4cbb6c8e777688bd5331ecfbf5681c2f8ed",
+    bytes: 25_008_064,
+    label: "all-MiniLM-L6-v2 Embeddings (GGUF Q8_0)",
+    family: "MiniLM",
+    sizeLabel: "22.7M params",
     optional: false,
+    // Encoder, not a chat model: no chat capabilities at all.
+    capabilities: { tools: false, thinking: false, vision: false },
   },
 ];
 
@@ -157,8 +262,13 @@ export type DownloadModelInput = {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function llmDir(): string {
-  return path.join(app.getPath("userData"), "models", "llm");
+/** Lane-aware destination dir: <userData>/models/llm or <userData>/models/embed. */
+function dirFor(entry: ModelDownloadEntry): string {
+  return path.join(
+    app.getPath("userData"),
+    "models",
+    entry.lane === "embed" ? "embed" : "llm",
+  );
 }
 
 function entryFor(key: string): ModelDownloadEntry {
@@ -174,7 +284,7 @@ function abortError(): Error {
 }
 
 function presenceFor(entry: ModelDownloadEntry): ModelPresence {
-  const p = path.join(llmDir(), entry.file);
+  const p = path.join(dirFor(entry), entry.file);
   const present = existsSync(p);
   return {
     key: entry.key,
@@ -200,7 +310,8 @@ async function sha256OfFile(filePath: string): Promise<string> {
  * token keeps behaviour deterministic when the env is set in-process.
  */
 function hfTokens(): { huggingFace: string } | undefined {
-  const token = process.env.HF_TOKEN?.trim() || process.env.HUGGING_FACE_TOKEN?.trim();
+  const token =
+    process.env.HF_TOKEN?.trim() || process.env.HUGGING_FACE_TOKEN?.trim();
   return token ? { huggingFace: token } : undefined;
 }
 
@@ -232,11 +343,11 @@ export function listModelPresence(): ModelPresence[] {
 
 export function isModelPresent(key: string): boolean {
   const entry = entryFor(key);
-  return existsSync(path.join(llmDir(), entry.file));
+  return existsSync(path.join(dirFor(entry), entry.file));
 }
 
 /**
- * Stream a GGUF model to `<userData>/models/llm/<file>` using node-llama-cpp's
+ * Stream a GGUF model to `<userData>/models/<lane>/<file>` using node-llama-cpp's
  * downloader, then (when a sha256 is pinned) verify integrity before returning.
  * Idempotent: returns early if already present and size-consistent, and the
  * downloader itself re-skips on an exact remote-size match. Reports progress via
@@ -249,13 +360,15 @@ export function isModelPresent(key: string): boolean {
  * and then streamed the rest of the way, so the UI picks up mid-progress
  * rather than restarting from 0%.
  */
-export async function downloadModel(input: DownloadModelInput): Promise<ModelPresence> {
+export async function downloadModel(
+  input: DownloadModelInput,
+): Promise<ModelPresence> {
   const entry = entryFor(input.key);
 
   const existing = inFlightDownloads.get(entry.key);
   if (existing) return attachToInFlightDownload(existing, input);
 
-  const dir = llmDir();
+  const dir = dirFor(entry);
   const dest = path.join(dir, entry.file);
 
   if (input.signal?.aborted) throw abortError();
@@ -433,7 +546,7 @@ export function cancelModelDownload(key: string): { canceled: boolean } {
 /** Delete a downloaded GGUF (free disk / re-download). */
 export async function deleteModel(key: string): Promise<{ deleted: boolean }> {
   const entry = entryFor(key);
-  const dest = path.join(llmDir(), entry.file);
+  const dest = path.join(dirFor(entry), entry.file);
   if (!existsSync(dest)) return { deleted: false };
   await rm(dest, { force: true });
   return { deleted: true };

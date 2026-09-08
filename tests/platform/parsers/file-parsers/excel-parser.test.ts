@@ -90,7 +90,9 @@ function setupSheet(headerValues: string[], dataRows: unknown[][]): void {
     cb(
       {
         eachCell: (cellCb: (cell: MockCell, colNumber: number) => void) => {
-          headerValues.forEach((v, i) => cellCb({ value: v }, i + 1));
+          headerValues.forEach((v, i) => {
+            cellCb({ value: v }, i + 1);
+          });
         },
       },
       1,
@@ -101,7 +103,9 @@ function setupSheet(headerValues: string[], dataRows: unknown[][]): void {
       cb(
         {
           eachCell: (cellCb: (cell: MockCell, colNumber: number) => void) => {
-            cells.forEach((v, i) => cellCb({ value: v }, i + 1));
+            cells.forEach((v, i) => {
+              cellCb({ value: v }, i + 1);
+            });
           },
         },
         idx + 2,

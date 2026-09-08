@@ -18,9 +18,11 @@ export interface TableSection {
 }
 
 export interface ChartImage {
+  /** Optional title for the chart in slide / document exports. */
+  title?: string;
   /** ECharts SVG string (from chart.worker.renderToSVGString). */
   svg?: string;
-  /** Pre-rasterized PNG bytes (required for docx/pptx embedding; pdf can use `svg` directly). */
+  /** Pre-rasterized PNG bytes (skips SVG rasterization if provided). */
   png?: Uint8Array;
   /** Target render width in px. */
   width?: number;

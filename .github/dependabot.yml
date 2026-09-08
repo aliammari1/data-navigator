@@ -14,7 +14,7 @@ updates:
         patterns:
           - "electron"
           - "@electron/*"
-          - "@electron-forge/*"
+          - "electron-builder*"
           - "electron-*"
       next-react-stack:
         patterns:
@@ -36,14 +36,8 @@ updates:
         patterns:
           - "@huggingface/*"
           - "@mlc-ai/*"
-          - "sherpa-onnx-node"
           - "@tensorflow/*"
           - "@lancedb/*"
-      forge-makers:
-        patterns:
-          - "@electron-forge/maker-*"
-          - "@electron-forge/plugin-*"
-          - "@electron-forge/publisher-*"
 
   - package-ecosystem: github-actions
     directory: "/"

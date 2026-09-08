@@ -32,7 +32,9 @@ function makeFakeWorker() {
     emit(data: unknown) {
       const event = { data } as MessageEvent;
       // Iterate over a copy because handlers remove themselves inside the callback
-      [...listeners].forEach((fn) => fn(event));
+      [...listeners].forEach((fn) => {
+        fn(event);
+      });
     },
     get listenerCount() {
       return listeners.length;

@@ -1,17 +1,21 @@
 "use client";
 
-import { Eye, Info } from "lucide-react";
+import { Database, Eye, Info } from "lucide-react";
 import { Section } from "../controls";
 
 export function AboutPanel() {
   return (
     <>
       <Section title="About DataNavigator" icon={Info}>
-        <div className="flex items-center gap-4">
-          <img src="/icon-192.png" alt="Data Navigator" className="w-14 h-14 rounded-2xl" />
-          <div>
-            <div className="text-lg font-bold text-foreground">DataNavigator</div>
-            <div className="text-sm text-muted-foreground">Offline-first data workspace</div>
+        <div className="space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-linear-to-br from-primary to-violet-600 flex items-center justify-center">
+              <Database className="w-7 h-7 text-primary-foreground" />
+            </div>
+            <div>
+              <div className="text-lg font-bold text-foreground">DataNavigator</div>
+              <div className="text-sm text-muted-foreground">offline-first data workspace</div>
+            </div>
           </div>
         </div>
       </Section>

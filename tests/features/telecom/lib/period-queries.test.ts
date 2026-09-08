@@ -328,14 +328,7 @@ describe("fetchSubStatusBreakdown", () => {
 describe("fetchTopAccounts", () => {
   it("maps rows and computes per-account successRate", async () => {
     runReadOnlyQuery.mockResolvedValue([
-      {
-        msisdn: "216900",
-        name: "Alice",
-        total: 50,
-        success: 40,
-        amount: 999.5,
-        fav_canal: "Bill Payment",
-      },
+      { msisdn: "216900", name: "Alice", total: 50, success: 40, amount: 999.5, fav_canal: "Bill Payment" },
     ]);
 
     const rows = await fetchTopAccounts(TABLE, m, FROM, TO);
@@ -392,22 +385,6 @@ describe("fetchTopAccounts", () => {
     const rows = await fetchTopAccounts(TABLE, m, FROM, TO);
 
     expect(rows).toEqual([]);
-  });
-
-  it("threads canal overrides into the emitted canalCaseExpr", async () => {
-    runReadOnlyQuery.mockResolvedValue([]);
-
-    await fetchTopAccounts(TABLE, m, FROM, TO, 25, "amount", [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ]);
-
-    expect(lastSql()).toContain("'216000'");
   });
 });
 
@@ -532,22 +509,6 @@ describe("fetchCanalHourPeriod", () => {
     const rows = await fetchCanalHourPeriod(TABLE, m, FROM, TO);
 
     expect(rows).toEqual([]);
-  });
-
-  it("threads canal overrides into the emitted canalCaseExpr", async () => {
-    runReadOnlyQuery.mockResolvedValue([]);
-
-    await fetchCanalHourPeriod(TABLE, m, FROM, TO, [
-      {
-        brandD: "99",
-        accountLayerId: "1",
-        accountGroupId: "2",
-        accountMsisdn: "216000",
-        key: "credit_transfer",
-      },
-    ]);
-
-    expect(lastSql()).toContain("'216000'");
   });
 });
 

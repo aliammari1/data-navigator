@@ -116,6 +116,10 @@ export const LlamaGenerateStructuredSchema = z.object({
 
 export const LlamaEnsureModelSchema = z.object({ file: z.string().max(512).optional() }).optional();
 
+export const LlamaPreloadWarmPrefixSchema = z.object({
+  systemPrefix: z.string().min(1).max(MAX_PROMPT_CHARS),
+});
+
 // Cap batch size defensively (mirrors MAX_SQL_CHARS/MAX_PROMPT_CHARS above): one
 // IPC call must not be able to pin memory/CPU embedding an unbounded batch.
 export const LlamaEmbedSchema = z.object({ texts: z.array(z.string()).min(1).max(256) });
@@ -127,9 +131,13 @@ export const RequestIdSchema = z.string().min(1).max(512);
 // can't be imported here — this file is deliberately electron-free, see the
 // module doc comment above). Keep these three keys in sync with that array.
 export const ModelKeySchema = z.enum([
+  "gemma-4-e2b-qat-mobile-text-only",
+  "lfm2-5-2.6b-q4_k_m",
+  "granite-4.0-1b-q4_k_m",
+  "qwen3-1.7b-q4_k_m",
   "gemma-4-e4b-it-q4_k_m",
   "granite-4.1-3b-instruct-q4_k_m",
-  "qwen3-embedding-0.6b-q8_0",
+  "all-minilm-l6-v2-embed-q8_0",
 ]);
 export const ModelDownloadSchema = z.object({ key: ModelKeySchema, requestId });
 
@@ -164,6 +172,11 @@ export const ChatRenameSchema = z.object({
 
 export const ChatPinSchema = z.object({ id: conversationId, pinned: z.boolean() });
 
+export const ChatModelSchema = z.object({
+  id: conversationId,
+  model: z.string().max(300).nullable(),
+});
+
 export const ChatConversationIdSchema = z.object({ id: conversationId });
 
 export const ChatAppendMessageSchema = z.object({
@@ -176,6 +189,12 @@ export const ChatAppendMessageSchema = z.object({
 export const ChatGetMessagesSchema = z.object({
   conversationId,
   limit: z.number().optional(),
+});
+
+export const ChatSearchMessagesSchema = z.object({
+  query: z.string().min(1).max(MAX_PROMPT_CHARS),
+  limit: z.number().optional(),
+  conversationId: z.string().optional(),
 });
 
 // ─── Moudir chat session runtime channels (live LlamaChatSession) ─────────────
@@ -238,3 +257,20 @@ export const CollabStartSchema = z
     discover: z.boolean().optional(),
   })
   .optional();
+
+// ─── Embeddings channels ──────────────────────────────────────────────────────
+export const EmbedEnsureModelSchema = z.object({ file: z.string().max(512).optional() }).optional();
+
+const MAX_EMBED_CHARS = 20_000;
+const MAX_EMBED_BATCH_ITEMS = 512;
+
+export const EmbedOneSchema = z.object({
+  text: z.string().min(1).max(MAX_EMBED_CHARS),
+  requestId,
+});
+
+export const EmbedBatchSchema = z.object({
+  texts: z.array(z.string().min(1).max(MAX_EMBED_CHARS)).min(1).max(MAX_EMBED_BATCH_ITEMS),
+  requestId,
+});
+

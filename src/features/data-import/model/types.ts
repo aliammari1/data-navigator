@@ -1,6 +1,6 @@
-import type { RejectError } from "@/platform/duckdb/duckdb";
-
 // ─── Types ───────────────────────────────────────────────────────────────────
+
+import type { RejectError } from "@/platform/duckdb/duckdb";
 
 export type UploadStatus =
   | "idle"

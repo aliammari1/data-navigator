@@ -1,7 +1,6 @@
-import { canalRuleCondition } from "@/features/telecom/lib/canal-rule-condition";
 import { safeNum } from "@/features/telecom/lib/format";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import {
-  CANAL_KEY_TO_LABEL,
   canalCaseExpr,
   canalWhere,
   colExpr,
@@ -22,7 +21,6 @@ import {
 import type {
   CanalHourCell,
   CanalKey,
-  CanalRule,
   ColumnMapping,
   CustomerProfileData,
   DailyTrendRow,
@@ -37,11 +35,23 @@ import type {
   SortDir,
   StatusMapping,
   StatusRow,
-  UnclassifiedCanalCombo,
 } from "@/features/telecom/types";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
-export { CANAL_KEY_TO_LABEL };
+// ─── Canal label map (must stay in sync with canalCaseExpr THEN clauses) ────────
+
+export const CANAL_KEY_TO_LABEL: Record<CanalKey, string> = {
+  bill_payment: "Bill Payment",
+  voice_fixed_ttcash: "Fixed by TTCASH",
+  voice_fixed_voucher: "Fixed by Voucher",
+  voice_mobile_ttcash: "Mobile by TTCASH",
+  voice_mobile_voucher: "Mobile by Voucher",
+  data_sabba: "Internet Sabba",
+  data_evoucher: "Data by Voucher",
+  voucher_for_payment: "Voucher For Payment",
+  credit_transfer: "Credit Transfer",
+  voucher_convergent: "Voucher Convergent Management",
+};
 
 // ─── Raw canal row (no React.ElementType — enrichment happens in page.tsx) ───────
 
@@ -78,24 +88,6 @@ export interface SpecChStatusRow {
 }
 
 export { SPEC_DECLINED_FILTER, SPEC_INSTANCE_FILTER, SPEC_REFUND_FILTER, SPEC_SUCCESS_FILTER };
-
-const CANAL_LABEL_TO_KEY = Object.fromEntries(
-  Object.entries(CANAL_KEY_TO_LABEL).map(([key, label]) => [label, key]),
-) as Record<string, CanalKey>;
-
-function enabledCanalRules(rules: readonly CanalRule[]): CanalRule[] {
-  return rules.filter((rule) => rule.enabled);
-}
-
-function canalRulesScope(rules: readonly CanalRule[]): string {
-  const enabledRules = enabledCanalRules(rules);
-
-  if (enabledRules.length === 0) {
-    return "";
-  }
-
-  return `(${enabledRules.map((rule) => `(${canalRuleCondition(rule)})`).join(" OR ")})`;
-}
 
 export function transactionDateExpr(dateColumn = "TRANSACTION_DATE"): string {
   const c = qc(dateColumn);
@@ -251,11 +243,10 @@ export async function fetchRawCanalSummaries(
   m: ColumnMapping,
   totalTx: number,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  canalRules: CanalRule[] = [],
 ): Promise<RawCanalRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   const keyMap: Record<string, CanalKey> = {
     "Bill Payment": "bill_payment",
     "Fixed by TTCASH": "voice_fixed_ttcash",
@@ -267,12 +258,6 @@ export async function fetchRawCanalSummaries(
     "Voucher For Payment": "voucher_for_payment",
     "Credit Transfer": "credit_transfer",
     "Voucher Convergent Management": "voucher_convergent",
-    // 'Other' (canalCaseExpr's ELSE fallback) is intentionally absent: every
-    // row that could land here has already been offered to the user via
-    // fetchUnclassifiedCanalCombos + the "new canal detected" dialog, which
-    // requires assigning a real canal — so once resolved it matches a `cm`
-    // override above instead of 'Other'. A row genuinely still 'Other' means
-    // it hasn't been through that dialog yet.
   };
   try {
     const rows = await runReadOnlyQuery(`
@@ -289,33 +274,28 @@ export async function fetchRawCanalSummaries(
       FROM ${qc(tableName)}
       GROUP BY 1 ORDER BY 2 DESC
     `);
-    const allTransactions = totalTx || rows.reduce((sum, row) => sum + safeNum(row.total), 0);
-    return rows.flatMap((row): RawCanalRow[] => {
-      const key = CANAL_LABEL_TO_KEY[String(row.canal_group)];
-
-      if (!key) {
-        return [];
-      }
-
-      const total = safeNum(row.total);
-      const success = safeNum(row.success);
-      return [
-        {
+    const total = totalTx || rows.reduce((a, r) => a + safeNum(r.total), 0);
+    return rows
+      .filter((r) => keyMap[String(r.canal_group)])
+      .map((r) => {
+        const key = keyMap[String(r.canal_group)];
+        const t = safeNum(r.total);
+        const s = safeNum(r.success);
+        return {
           key,
           label: CANAL_KEY_TO_LABEL[key],
-          total,
-          success,
-          declined: safeNum(row.declined),
-          refund: safeNum(row.refund),
-          instance: safeNum(row.instance),
-          submitted: safeNum(row.submitted),
-          amount: safeNum(row.amount),
-          successRate: total > 0 ? (success / total) * 100 : 0,
-          avgAmount: safeNum(row.avg_amount),
-          share: allTransactions > 0 ? (total / allTransactions) * 100 : 0,
-        },
-      ];
-    });
+          total: t,
+          success: s,
+          declined: safeNum(r.declined),
+          refund: safeNum(r.refund),
+          instance: safeNum(r.instance),
+          submitted: safeNum(r.submitted),
+          amount: safeNum(r.amount),
+          successRate: t > 0 ? (s / t) * 100 : 0,
+          avgAmount: safeNum(r.avg_amount),
+          share: total > 0 ? (t / total) * 100 : 0,
+        };
+      });
   } catch {
     return [];
   }
@@ -385,16 +365,12 @@ export async function fetchOperators(
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const op = qc(m.operator);
-  const ms = qc(m.msisdn);
-  const acct = qc("ACCOUNT_NAME");
   const mapRows = (
     rows: Record<string, unknown>[],
     accountType: "source" | "destination",
   ): OperatorRow[] =>
     rows.map((r) => ({
       operator: String(r.operator ?? ""),
-      msisdn: String(r.msisdn ?? ""),
-      accountName: String(r.accountName ?? ""),
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
@@ -402,18 +378,15 @@ export async function fetchOperators(
       accountType,
     }));
   try {
-      const ms = qc(m.msisdn);
     const srcRows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${op} AS VARCHAR),'Inconnu')    AS operator,
-        COALESCE(CAST(${ms} AS VARCHAR), '')            AS msisdn,
-        MAX(COALESCE(CAST(${acct} AS VARCHAR), ''))     AS accountName,
         COUNT(*)                                       AS total,
         COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)       AS amount
       FROM ${qc(tableName)}
       WHERE ${op} IS NOT NULL AND CAST(${op} AS VARCHAR) <> ''
-      GROUP BY 1, 2 ORDER BY 2 DESC LIMIT 50
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 50
     `);
     const dstCol = qc("GENERATION_ACCOUNT_NAME");
     let dstRows: Record<string, unknown>[] = [];
@@ -421,14 +394,12 @@ export async function fetchOperators(
       dstRows = await runReadOnlyQuery(`
         SELECT
           COALESCE(CAST(${dstCol} AS VARCHAR),'Inconnu') AS operator,
-          COALESCE(CAST(${ms} AS VARCHAR), '')            AS msisdn,
-          MAX(COALESCE(CAST(${dstCol} AS VARCHAR), ''))   AS accountName,
           COUNT(*)                                        AS total,
           COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
           ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)        AS amount
         FROM ${qc(tableName)}
         WHERE ${dstCol} IS NOT NULL AND CAST(${dstCol} AS VARCHAR) <> ''
-        GROUP BY 1, 2 ORDER BY 2 DESC LIMIT 50
+        GROUP BY 1 ORDER BY 2 DESC LIMIT 50
       `);
     } catch {
       /* column may not exist */
@@ -444,33 +415,26 @@ export async function fetchOperatorsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  canalRules: CanalRule[] = [],
 ): Promise<OperatorRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const op = qc(m.operator);
-  const ms = qc(m.msisdn);
-  const acct = qc("ACCOUNT_NAME");
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${op} AS VARCHAR), 'Inconnu') AS operator,
-        COALESCE(CAST(${ms} AS VARCHAR), '') AS msisdn,
-        MAX(COALESCE(CAST(${acct} AS VARCHAR), ''))  AS accountName,
         COUNT(*)                                    AS total,
         COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)  AS amount
       FROM ${qc(tableName)}
       WHERE (${canal}) IN (${labels})
         AND ${op} IS NOT NULL AND CAST(${op} AS VARCHAR) <> ''
-      GROUP BY 1, 2 ORDER BY 2 DESC LIMIT 50
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 50
     `);
     return rows.map((r) => ({
       operator: String(r.operator ?? ""),
-      msisdn: String(r.msisdn ?? ""),
-      accountName: String(r.accountName ?? ""),
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
@@ -487,12 +451,11 @@ export async function fetchRegionsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  canalRules: CanalRule[] = [],
 ): Promise<RegionRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const reg = qc(m.region);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
@@ -522,32 +485,26 @@ export async function fetchDestinationsForGroup(
   m: ColumnMapping,
   groupKeys: CanalKey[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  canalRules: CanalRule[] = [],
 ): Promise<OperatorRow[]> {
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const dst = qc("GENERATION_ACCOUNT_NAME");
-  const ms = qc(m.msisdn);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   const labels = groupKeys.map((k) => sqlLiteral(CANAL_KEY_TO_LABEL[k])).join(", ");
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
         COALESCE(CAST(${dst} AS VARCHAR), 'Inconnu') AS operator,
-        COALESCE(CAST(${ms} AS VARCHAR), '') AS msisdn,
-        MAX(COALESCE(CAST(${dst} AS VARCHAR), ''))    AS accountName,
         COUNT(*)                                     AS total,
         COUNT(*) FILTER (WHERE ${sn}='SUCCESS') AS success,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)), 3)   AS amount
       FROM ${qc(tableName)}
       WHERE (${canal}) IN (${labels})
         AND ${dst} IS NOT NULL AND CAST(${dst} AS VARCHAR) <> ''
-      GROUP BY 1, 2 ORDER BY 2 DESC LIMIT 50
+      GROUP BY 1 ORDER BY 2 DESC LIMIT 50
     `);
     return rows.map((r) => ({
       operator: String(r.operator ?? ""),
-      msisdn: String(r.msisdn ?? ""),
-      accountName: String(r.accountName ?? ""),
       total: safeNum(r.total),
       success: safeNum(r.success),
       amount: safeNum(r.amount),
@@ -593,10 +550,9 @@ export async function fetchCanalHourly(
   tableName: string,
   m: ColumnMapping,
   key: CanalKey,
-  canalRules: CanalRule[],
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
 ): Promise<HourlyRow[]> {
-  const where = canalWhere(m, canalRules);
+  const where = canalWhere(m);
   const sn = statusNorm(m, sm);
   const amt = qc(m.amount);
   const hr = hourExpr(m);
@@ -628,11 +584,10 @@ export async function fetchCanalHourly(
 export async function fetchCanalHourlyMatrix(
   tableName: string,
   m: ColumnMapping,
-  canalRules: CanalRule[] = [],
 ): Promise<CanalHourCell[]> {
   const sn = statusNorm(m);
   const hr = hourExpr(m);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -697,13 +652,12 @@ export async function fetchCustomerProfile(
   tableName: string,
   m: ColumnMapping,
   msisdn: string,
-  canalRules: CanalRule[] = [],
 ): Promise<CustomerProfileData | null> {
   const sn = statusNorm(m);
   const amt = qc(m.amount);
   const ms = qc(m.msisdn);
   const hr = hourExpr(m);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   const ec = qc(m.errorCode);
   const cname = qc(m.serviceName);
   const msLiteral = sqlLiteral(msisdn);
@@ -769,10 +723,9 @@ export async function fetchCanalRows(
   tableName: string,
   m: ColumnMapping,
   key: CanalKey,
-  canalRules: CanalRule[],
   limit = 100,
 ): Promise<RawRow[]> {
-  const where = canalWhere(m, canalRules);
+  const where = canalWhere(m);
   try {
     return await runReadOnlyQuery(`
       SELECT * FROM ${qc(tableName)}
@@ -907,6 +860,7 @@ export async function fetchDistinctStatuses(
         COUNT(*)                                        AS count,
         ROUND(SUM(TRY_CAST(${amt} AS DOUBLE)),3)        AS amount
       FROM ${qc(tableName)}
+      WHERE ${s} IS NOT NULL AND TRIM(CAST(${s} AS VARCHAR)) <> ''
       GROUP BY 1 ORDER BY 2 DESC LIMIT 500
     `);
     return rows.map((r) => ({
@@ -919,154 +873,66 @@ export async function fetchDistinctStatuses(
   }
 }
 
-/**
- * Distinct (BRAND_D, ACCOUNT_LAYER_ID, ACCOUNT_GROUP_ID, ACCOUNT_MSISDN)
- * combos among rows `canalCaseExpr` currently classifies as `'Other'`, with
- * their transaction volume — mirrors `fetchDistinctStatuses`, but for canal
- * classification instead of status codes. Passing the already-confirmed `cm`
- * means combos the user already resolved are excluded automatically: a real
- * canal override makes `canalCaseExpr` stop returning `'Other'` for that
- * combo, so it no longer matches the WHERE clause below.
- */
-export async function fetchUnclassifiedCanalCombos(
-  tableName: string,
-  m: ColumnMapping,
-  canalRules: CanalRule[],
-): Promise<UnclassifiedCanalCombo[]> {
-  const canal = canalCaseExpr(m, canalRules);
-
-  try {
-    const rows = await runReadOnlyQuery(`
-      WITH classified AS (
-        SELECT
-          CAST(BRAND_D AS VARCHAR)
-            AS brand_d,
-          CAST(ACCOUNT_LAYER_ID AS VARCHAR)
-            AS account_layer_id,
-          CAST(ACCOUNT_GROUP_ID AS VARCHAR)
-            AS account_group_id,
-          CAST(ACCOUNT_MSISDN AS VARCHAR)
-            AS account_msisdn,
-          ${canal} AS canal
-        FROM ${qc(tableName)}
-      )
-      SELECT
-        brand_d,
-        account_layer_id,
-        account_group_id,
-        account_msisdn,
-        COUNT(*) AS total
-      FROM classified
-      WHERE canal = 'Other'
-      GROUP BY 1, 2, 3, 4
-      ORDER BY 5 DESC
-      LIMIT 200
-    `);
-
-    return rows.map((row) => ({
-      brandD: String(row.brand_d ?? ""),
-      accountLayerId: String(row.account_layer_id ?? ""),
-      accountGroupId: String(row.account_group_id ?? ""),
-      accountMsisdn: String(row.account_msisdn ?? ""),
-      total: safeNum(row.total),
-    }));
-  } catch {
-    return [];
-  }
-}
-
 export async function fetchSpecChannelStats(
   tableName: string,
-  rules: readonly CanalRule[],
+  channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
   m?: ColumnMapping,
-): Promise<{
-  rows: SpecChRow[];
-  total: SpecChRow;
-}> {
-  const enabledRules = enabledCanalRules(rules);
-
-  if (enabledRules.length === 0) {
+): Promise<{ rows: SpecChRow[]; total: SpecChRow }> {
+  if (channels.length === 0) {
     return {
       rows: [],
-      total: {
-        canal: "TOTAL (tous canaux)",
-        nombre: 0,
-        montant: 0,
-      },
+      total: { canal: "TOTAL (tous canaux)", nombre: 0, montant: 0 },
     };
   }
-
-  const dateFilter = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
-
-  const amount = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
-
-  const status = colExpr(m?.status ?? "TRANSACTION_STATUS");
-
-  const successFilter = buildRawStatusFilterForColumn(status, SPEC_STATUS_CODES.success);
-
-  const columns = enabledRules
-    .map((rule, index) => {
-      const condition = canalRuleCondition(rule);
-
-      return `
-        COUNT(*) FILTER (
-          WHERE (${condition})
-        ) AS n_${index},
-        COALESCE(
-          SUM(TRY_CAST(${amount} AS DOUBLE))
-            FILTER (WHERE (${condition})),
-          0
-        ) AS m_${index}
-      `;
-    })
+  const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
+  const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
+  const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
+  const successFilter = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
+  // Single-pass conditional aggregation: one table scan with per-channel
+  // COUNT/SUM FILTER columns instead of one COUNT query per channel.
+  const cols = channels
+    .map(
+      (ch, i) =>
+        `COUNT(*) FILTER (WHERE (${ch.condition})) AS n_${i},
+         COALESCE(SUM(TRY_CAST(${amountExpr} AS DOUBLE)) FILTER (WHERE (${ch.condition})), 0) AS m_${i}`,
+    )
     .join(",\n");
-
   try {
-    const result = await runReadOnlyQuery(`
-      SELECT ${columns}
+    const res = await runReadOnlyQuery(`
+      SELECT ${cols}
       FROM ${qc(tableName)}
-      WHERE ${successFilter}${dateFilter}
+      WHERE ${successFilter}${df}
     `);
-
-    const aggregate = result[0] ?? {};
-
-    const rows = enabledRules.map(
-      (rule, index): SpecChRow => ({
-        canal: rule.name,
-        nombre: safeNum(aggregate[`n_${index}`]),
-        montant: safeNum(aggregate[`m_${index}`]),
-      }),
-    );
-
+    const row = res[0] ?? {};
+    const rows: SpecChRow[] = channels.map((ch, i) => ({
+      canal: ch.name,
+      nombre: safeNum(row[`n_${i}`]),
+      montant: safeNum(row[`m_${i}`]),
+    }));
+    const tn = rows.reduce((s, r) => s + r.nombre, 0);
+    const tm = rows.reduce((s, r) => s + r.montant, 0);
     return {
       rows,
-      total: {
-        canal: "TOTAL (tous canaux)",
-        nombre: rows.reduce((sum, row) => sum + row.nombre, 0),
-        montant: rows.reduce((sum, row) => sum + row.montant, 0),
-      },
+      total: { canal: "TOTAL (tous canaux)", nombre: tn, montant: tm },
     };
   } catch {
+    const rows: SpecChRow[] = channels.map((ch) => ({
+      canal: ch.name,
+      nombre: 0,
+      montant: 0,
+    }));
     return {
-      rows: enabledRules.map((rule) => ({
-        canal: rule.name,
-        nombre: 0,
-        montant: 0,
-      })),
-      total: {
-        canal: "TOTAL (tous canaux)",
-        nombre: 0,
-        montant: 0,
-      },
+      rows,
+      total: { canal: "TOTAL (tous canaux)", nombre: 0, montant: 0 },
     };
   }
 }
 
 export async function fetchSpecStatusStats(
   tableName: string,
-  rules: CanalRule[],
+  channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
   m?: ColumnMapping,
@@ -1078,7 +944,8 @@ export async function fetchSpecStatusStats(
   // Channel scope (within the already date-filtered set), kept WITHOUT a leading
   // AND so it can be reused both as a per-status FILTER suffix and as the
   // grand-total FILTER predicate.
-  const channelScope = canalRulesScope(rules);
+  const channelScope =
+    channels.length > 0 ? `(${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const statusCases = [
     ["Réussie", buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success)],
@@ -1125,108 +992,51 @@ export async function fetchSpecStatusStats(
   }
 }
 
-/** Per-canal × per-status breakdown in a single table scan.
- *
- * OPTIMIZED: Uses CASE expressions instead of multiple FILTER clauses for better performance.
- * For N enabled rules, the old approach generated 5*N FILTER clauses which is very slow.
- * The new approach uses a single CASE per row to determine the canal and status, then GROUP BY.
- */
+/** Per-canal × per-status breakdown in a single table scan. */
 export async function fetchSpecCanalStatusMatrix(
   tableName: string,
-  rules: CanalRule[],
+  channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
   m?: ColumnMapping,
 ): Promise<SpecChStatusRow[]> {
-  const enabledRules = rules.filter((r) => r.enabled);
-  if (enabledRules.length === 0) return [];
-
+  if (channels.length === 0) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
-  const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
-
-  // Build CASE expression to map each row to its canal
-  const canalCase = enabledRules
-    .map((rule, index) => {
-      const condition = canalRuleCondition(rule);
-      return `WHEN ${condition} THEN '${index}'`;
-    })
-    .join("\n    ");
-
-  // Build CASE expression to map status to category
   const okF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
   const anF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.refund);
   const inF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.instance);
   const dcF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.declined);
 
-  const statusCase = `
-    CASE
-      WHEN ${okF} THEN 'réussie'
-      WHEN ${anF} THEN 'annulation'
-      WHEN ${inF} THEN 'instance'
-      WHEN ${dcF} THEN 'échec'
-      ELSE 'autre'
-    END
-  `;
+  const cols = channels
+    .map(
+      (ch, i) => `
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${okF})) AS ok_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${anF})) AS an_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${inF})) AS in_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}) AND (${dcF})) AS dc_${i},
+        COUNT(*) FILTER (WHERE (${ch.condition}))              AS al_${i}`,
+    )
+    .join(",\n");
 
   try {
     const res = await runReadOnlyQuery(`
-      SELECT
-        CASE
-          ${canalCase}
-          ELSE '-1'
-        END AS canal_index,
-        ${statusCase} AS status_cat,
-        COUNT(*) AS count,
-        ROUND(SUM(TRY_CAST(${amountExpr} AS DOUBLE)), 3) AS total_amount
+      SELECT ${cols}
       FROM ${qc(tableName)}
       WHERE 1=1${df}
-      GROUP BY 1, 2
     `);
-
-    // Transform results into the expected format
-    const resultMap = new Map<string, {canal: string, réussie: number, annulation: number, instance: number, échec: number, total: number}>();
-
-    // Initialize all canals with zeros
-    for (const rule of enabledRules) {
-      resultMap.set(rule.name, { canal: rule.name, réussie: 0, annulation: 0, instance: 0, échec: 0, total: 0 });
-    }
-
-    // Fill in the counts
-    for (const row of res) {
-      const canalIndex = row.canal_index;
-      if (canalIndex === '-1') continue;
-
-      const canalName = enabledRules[parseInt(canalIndex as string)]?.name;
-      if (!canalName) continue;
-
-      const entry = resultMap.get(canalName);
-      if (!entry) continue;
-
-      const count = safeNum(row.count);
-      const amount = safeNum(row.total_amount);
-
-      switch (row.status_cat) {
-        case 'réussie':
-          entry.réussie += count;
-          break;
-        case 'annulation':
-          entry.annulation += count;
-          break;
-        case 'instance':
-          entry.instance += count;
-          break;
-        case 'échec':
-          entry.échec += count;
-          break;
-      }
-      entry.total += count;
-    }
-
-    return Array.from(resultMap.values());
+    const row = res[0] ?? {};
+    return channels.map((ch, i) => ({
+      canal: ch.name,
+      réussie: safeNum(row[`ok_${i}`]),
+      annulation: safeNum(row[`an_${i}`]),
+      instance: safeNum(row[`in_${i}`]),
+      échec: safeNum(row[`dc_${i}`]),
+      total: safeNum(row[`al_${i}`]),
+    }));
   } catch {
-    return enabledRules.map((rule) => ({
-      canal: rule.name,
+    return channels.map((ch) => ({
+      canal: ch.name,
       réussie: 0,
       annulation: 0,
       instance: 0,
@@ -1238,7 +1048,7 @@ export async function fetchSpecCanalStatusMatrix(
 
 export async function fetchSpecUnitAmountStats(
   tableName: string,
-  rules: CanalRule[],
+  channels: ChannelDef[],
   dateFrom: string,
   dateTo: string,
   m?: ColumnMapping,
@@ -1247,8 +1057,8 @@ export async function fetchSpecUnitAmountStats(
   total: { unitAmount: string; nombre: number; montant: number };
 }> {
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
-  const channelScope = canalRulesScope(rules);
-  const scope = channelScope ? `AND ${channelScope}` : "";
+  const scope =
+    channels.length > 0 ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";
   const amountExpr = colExpr(m?.amount ?? "ORIGINAL_AMOUNT");
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const successFilter = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
@@ -1288,11 +1098,10 @@ export async function fetchSpecUnitAmountStats(
 export async function fetchServiceCodeRows(
   tableName: string,
   m: ColumnMapping,
-  canalRules: CanalRule[] = [],
 ): Promise<ServiceCodeRow[]> {
   const svc = colExpr(m.serviceCode);
   const cat = colExpr(m.transactionType);
-  const canal = canalCaseExpr(m, canalRules);
+  const canal = canalCaseExpr(m);
   try {
     const rows = await runReadOnlyQuery(`
       SELECT
@@ -1355,7 +1164,6 @@ export async function createTelecomEnrichedView(
   tableName: string,
   m: ColumnMapping,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
-  canalRules: CanalRule[] = [],
 ): Promise<void> {
   const viewName = enrichedViewName(tableName);
   const sn = statusNorm(m, sm);
@@ -1364,7 +1172,7 @@ export async function createTelecomEnrichedView(
   const id = colExpr(m.msisdn);
   const ec = colExpr(m.errorCode);
 
-  const cn = canalCaseExpr(m, canalRules);
+  const cn = canalCaseExpr(m);
 
   // Materialized TABLE (not VIEW): the derived columns are computed once and
   // stored physically so every aggregate downstream scans typed columns with

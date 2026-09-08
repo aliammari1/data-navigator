@@ -12,6 +12,21 @@ import { useEffect } from "react";
  */
 export function SWRegister() {
   useEffect(() => {
+    const isElectron =
+      typeof navigator !== "undefined" &&
+      (/electron/i.test(navigator.userAgent) || Boolean((window as any).electronAPI || (window as any).electronSettings));
+
+    if (isElectron) {
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.getRegistrations().then((registrations) => {
+          for (const reg of registrations) {
+            reg.unregister();
+          }
+        });
+      }
+      return;
+    }
+
     const shouldRegister =
       "serviceWorker" in navigator &&
       (process.env.NODE_ENV === "production" || process.env.NEXT_PUBLIC_ENABLE_SW === "true");

@@ -1,8 +1,23 @@
 import type { NextConfig } from "next";
+import { networkInterfaces } from "node:os";
+
+const getLocalIPs = () => {
+  const nets = networkInterfaces();
+  const results: string[] = ["localhost", "127.0.0.1", "0.0.0.0", "::", "::1", ".local"];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] ?? []) {
+      results.push(net.address);
+    }
+  }
+  return Array.from(new Set(results));
+};
 
 const nextConfig: NextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  // Allow HMR and host-header validation to pass for all local network interfaces.
+  // Defeats "NS_ERROR_WEBSOCKET_CONNECTION_REFUSED" in Firefox when accessing via LAN IP.
+  allowedDevOrigins: getLocalIPs(),
   // Don't advertise the framework/version (anti-recon; OWASP A05 / CWE-200).
   poweredByHeader: false,
   typescript: {

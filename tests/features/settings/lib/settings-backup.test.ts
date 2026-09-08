@@ -32,8 +32,6 @@ import {
   buildSettingsBackup,
   downloadSettingsBackup,
   restoreSettingsFromFile,
-  type SettingsBackupFile,
-  type RestoreResult,
 } from "@/features/settings/lib/settings-backup";
 
 import { exportAppSettingsRemote, putAppSettingRemote } from "@/platform/settings/settings-client";

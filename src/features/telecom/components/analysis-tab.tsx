@@ -67,27 +67,12 @@ export const AnalysisTab = memo(function AnalysisTab({
   const _regions = regionsProp.length > 0 ? regionsProp : (lazyRegions ?? []);
 
   // Unified Top 50 state — accounts (source), accounts (destination), regions/agents
+  const groupNames = Object.keys(REVENUE_GROUPS) as string[];
   type Top50View = "source" | "destination" | "regions";
   const [top50View, setTop50View] = useState<Top50View>("source");
-  const [selectedGroup, setSelectedGroup] = useState<string>("Recharge");
-  const [selectedSubGroup, setSelectedSubGroup] = useState<string>("");
-
-  // Get level 1 groups for the main category selection
-  const level1Groups = useMemo(() =>
-    Object.entries(REVENUE_GROUPS)
-      .filter(([_, v]) => v.level === 1)
-      .map(([k, v]) => ({ name: k, color: v.color })),
-    [REVENUE_GROUPS]
-  );
+  const [selectedGroup, setSelectedGroup] = useState<string>(groupNames[0]);
   const [top50Rows, setTop50Rows] = useState<
-    Array<{
-      name: string;
-      msisdn: string;
-      accountName: string;
-      total: number;
-      success: number;
-      amount: number;
-    }>
+    Array<{ name: string; total: number; success: number; amount: number }>
   >([]);
   const [top50Loading, setTop50Loading] = useState(false);
   const [sortBy, setSortBy] = useState<"nombre" | "montant">("nombre");
@@ -99,47 +84,41 @@ export const AnalysisTab = memo(function AnalysisTab({
     [top50Rows, sortBy],
   );
   useEffect(() => {
-    // Get the group to use (sub-group if selected, otherwise main group)
-    const groupName = selectedSubGroup || selectedGroup;
-    const group = REVENUE_GROUPS[groupName];
-
-    if (!group || !group.keys || group.keys.length === 0) {
-      setTop50Rows([]);
-      return;
-    }
-
+    const group = REVENUE_GROUPS[selectedGroup];
+    if (!group) return;
     setTop50Loading(true);
-
-    const fetchData = async () => {
-      try {
-        let rows: Types.OperatorRow[] | Types.RegionRow[];
-        if (top50View === "source") {
-          rows = await fetchOperatorsForGroup(m, group.keys);
-        } else if (top50View === "destination") {
-          rows = await fetchDestinationsForGroup(m, group.keys);
-        } else {
-          rows = await fetchRegionsForGroup(m, group.keys);
-        }
-
-        return rows.map((r) => ({
-          name: top50View === "regions" ? (r as Types.RegionRow).region : (r as Types.OperatorRow).operator,
-          msisdn: top50View === "regions" ? "" : (r as Types.OperatorRow).msisdn,
-          accountName: top50View === "regions" ? "" : (r as Types.OperatorRow).accountName,
-          total: r.total,
-          success: r.success,
-          amount: r.amount,
-        }));
-      } catch (error) {
-        console.error("Failed to fetch top 50 data:", error);
-        return [];
-      }
-    };
-
-    fetchData().then(setTop50Rows).finally(() => setTop50Loading(false));
+    (top50View === "source"
+      ? fetchOperatorsForGroup(m, group.keys).then((rows) =>
+          rows.map((r) => ({
+            name: r.operator,
+            total: r.total,
+            success: r.success,
+            amount: r.amount,
+          })),
+        )
+      : top50View === "destination"
+        ? fetchDestinationsForGroup(m, group.keys).then((rows) =>
+            rows.map((r) => ({
+              name: r.operator,
+              total: r.total,
+              success: r.success,
+              amount: r.amount,
+            })),
+          )
+        : fetchRegionsForGroup(m, group.keys).then((rows) =>
+            rows.map((r) => ({
+              name: r.region,
+              total: r.total,
+              success: r.success,
+              amount: r.amount,
+            })),
+          )
+    )
+      .then(setTop50Rows)
+      .finally(() => setTop50Loading(false));
   }, [
     top50View,
     selectedGroup,
-    selectedSubGroup,
     m,
     fetchRegionsForGroup,
     fetchOperatorsForGroup,
@@ -232,127 +211,84 @@ export const AnalysisTab = memo(function AnalysisTab({
           icon={<Signal className="w-4 h-4" />}
           badge={top50Loading ? "chargement…" : `${top50Rows.length} entrées`}
         >
-          {/* View selector + group pills + sort toggle — each on its own row */}
-          <div className="flex flex-col gap-3 mb-4">
-            {/* Row 1 — View toggle */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 gap-0.5">
-                {(
-                  [
-                    { key: "source", label: "Comptes Source" },
-                    { key: "destination", label: "Comptes Destination" },
-                    { key: "regions", label: "Agents / Régions" },
-                  ] as {
-                    key: "source" | "destination" | "regions";
-                    label: string;
-                  }[]
-                ).map(({ key, label }) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setTop50View(key)}
-                    className={cn(
-                      "px-3 py-1 rounded-md text-xs font-semibold transition-all",
-                      top50View === key
-                        ? "bg-card text-foreground shadow-sm border border-border"
-                        : "text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Row 2 — Level 1 + Level 2 group pills */}
-            <div className="flex flex-wrap items-center gap-3">
-              {/* Level 1 Group pills (Main Categories) - only show groups with level === 1 */}
-              {Object.entries(REVENUE_GROUPS)
-                .filter(([_, v]) => v.level === 1)
-                .map(([name, { color }]) => (
-                  <button
-                    key={name}
-                    type="button"
-                    onClick={() => {
-                      setSelectedGroup(name);
-                      setSelectedSubGroup("");
-                    }}
-                    className={cn(
-                      "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
-                      selectedGroup === name && !selectedSubGroup
-                        ? "text-white border-transparent shadow-sm"
-                        : "text-muted-foreground border-border bg-card hover:bg-muted/50",
-                    )}
-                    style={selectedGroup === name && !selectedSubGroup ? { background: color } : {}}
-                  >
-                    {name}
-                  </button>
-                ))}
-
-              {/* Level 2 Sub-Group pills (show when a Level 1 group is selected) */}
-              {selectedGroup && !selectedSubGroup && (
-                <>
-                  <div className="w-px h-5 bg-border" />
-                  {Object.entries(REVENUE_GROUPS)
-                    .filter(([_, v]) => v.parent === selectedGroup)
-                    .map(([name, { color }]) => (
-                      <button
-                        key={name}
-                        type="button"
-                        onClick={() => setSelectedSubGroup(name)}
-                        className={cn(
-                          "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
-                          selectedSubGroup === name
-                            ? "text-white border-transparent shadow-sm"
-                            : "text-muted-foreground border-border bg-card hover:bg-muted/50",
-                        )}
-                        style={selectedSubGroup === name ? { background: color } : {}}
-                      >
-                        {name}
-                      </button>
-                    ))}
-                </>
-              )}
-
-              {selectedSubGroup && (
+          {/* View selector + group pills + sort toggle */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            {/* View toggle */}
+            <div className="flex items-center rounded-lg border border-border bg-muted/40 p-0.5 gap-0.5">
+              {(
+                [
+                  { key: "source", label: "Comptes Source" },
+                  { key: "destination", label: "Comptes Destination" },
+                  { key: "regions", label: "Agents / Régions" },
+                ] as {
+                  key: "source" | "destination" | "regions";
+                  label: string;
+                }[]
+              ).map(({ key, label }) => (
                 <button
+                  key={key}
                   type="button"
-                  onClick={() => setSelectedSubGroup("")}
-                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-muted-foreground border border-border bg-card hover:bg-muted/50 transition-colors"
-                >
-                  ← All {selectedGroup}
-                </button>
-              )}
-            </div>
-
-            {/* Row 3 — Sort toggle */}
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
-                <button
-                  type="button"
-                  onClick={() => setSortBy("nombre")}
+                  onClick={() => setTop50View(key)}
                   className={cn(
-                    "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
-                    sortBy === "nombre"
+                    "px-3 py-1 rounded-md text-xs font-semibold transition-all",
+                    top50View === key
                       ? "bg-card text-foreground shadow-sm border border-border"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >
-                  <BarChart2 className="w-3 h-3" /> Par Nombre
+                  {label}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setSortBy("montant")}
-                  className={cn(
-                    "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
-                    sortBy === "montant"
-                      ? "bg-card text-foreground shadow-sm border border-border"
-                      : "text-muted-foreground hover:text-foreground",
-                  )}
-                >
-                  <TrendingUp className="w-3 h-3" /> Par Montant
-                </button>
-              </div>
+              ))}
+            </div>
+
+            <div className="w-px h-5 bg-border" />
+
+            {/* Group pills */}
+            {Object.entries(REVENUE_GROUPS).map(([name, { color }]) => (
+              <button
+                key={name}
+                type="button"
+                onClick={() => setSelectedGroup(name)}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
+                  selectedGroup === name
+                    ? "text-white border-transparent shadow-sm"
+                    : "text-muted-foreground border-border bg-card hover:bg-muted/50",
+                )}
+                style={selectedGroup === name ? { background: color } : {}}
+              >
+                {name}
+              </button>
+            ))}
+
+            <div className="w-px h-5 bg-border" />
+
+            {/* Sort toggle */}
+            <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/40 p-0.5">
+              <button
+                type="button"
+                onClick={() => setSortBy("nombre")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
+                  sortBy === "nombre"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <BarChart2 className="w-3 h-3" /> Par Nombre
+              </button>
+              <button
+                type="button"
+                onClick={() => setSortBy("montant")}
+                className={cn(
+                  "flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-semibold transition-all",
+                  sortBy === "montant"
+                    ? "bg-card text-foreground shadow-sm border border-border"
+                    : "text-muted-foreground hover:text-foreground",
+                )}
+              >
+                <TrendingUp className="w-3 h-3" /> Par Montant
+              </button>
             </div>
           </div>
 
@@ -363,8 +299,7 @@ export const AnalysisTab = memo(function AnalysisTab({
                 <tr className="bg-muted/50 border-b border-border">
                   {[
                     { label: "#", key: null },
-                    { label: top50View === "regions" ? "Agent / Région" : "Account (MSISDN)", key: null },
-                    ...(top50View === "regions" ? [] : [{ label: "Account Name", key: null }]),
+                    { label: top50View === "regions" ? "Agent / Région" : "Account", key: null },
                     { label: "Total Tx", key: "nombre" },
                     { label: "Réussies", key: null },
                     { label: "Échecs", key: null },
@@ -391,13 +326,13 @@ export const AnalysisTab = memo(function AnalysisTab({
               <tbody>
                 {top50Loading ? (
                   <tr>
-                    <td colSpan={top50View === "regions" ? 7 : 8} className="py-8 text-center text-muted-foreground text-xs">
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
                       Chargement…
                     </td>
                   </tr>
                 ) : sortedTop50.length === 0 ? (
                   <tr>
-                    <td colSpan={top50View === "regions" ? 7 : 8} className="py-8 text-center text-muted-foreground text-xs">
+                    <td colSpan={7} className="py-8 text-center text-muted-foreground text-xs">
                       Aucune donnée pour cette sélection.
                     </td>
                   </tr>
@@ -406,7 +341,7 @@ export const AnalysisTab = memo(function AnalysisTab({
                     const rate = row.total > 0 ? (row.success / row.total) * 100 : 0;
                     return (
                       <tr
-                        key={`${row.name}-${row.msisdn}`}
+                        key={row.name}
                         className="border-b border-border hover:bg-muted/40 transition-colors"
                       >
                         <td className="px-3 py-2.5 text-muted-foreground tabular-nums w-8">
@@ -414,13 +349,7 @@ export const AnalysisTab = memo(function AnalysisTab({
                         </td>
                         <td className="px-3 py-2.5 text-foreground font-medium max-w-50 truncate">
                           {row.name}
-                          {row.msisdn && ` (${row.msisdn})`}
                         </td>
-                        {top50View !== "regions" && (
-                          <td className="px-3 py-2.5 text-muted-foreground max-w-50 truncate">
-                            {row.accountName || "—"}
-                          </td>
-                        )}
                         <td className="px-3 py-2.5 text-foreground font-semibold tabular-nums">
                           {fmtN(row.total)}
                         </td>

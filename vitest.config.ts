@@ -18,6 +18,12 @@ const isCI = process.env.CI === "true" || process.env.CI === "1";
 export default defineConfig({
   plugins: [react()],
   test: {
+    name: "unit",
+    projects: [
+      "./vitest.config.ts",
+      "./vitest.eval.config.ts",
+      "./vitest.duckdb-bench.config.ts",
+    ],
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],
@@ -29,7 +35,13 @@ export default defineConfig({
       "dist",
       "storybook-static",
       "tests/e2e",
+      "tests/e2e-electron",
       "tests/visual",
+      "**/*.spec.ts",
+      "**/*.spec.tsx",
+      // Playwright specs (e.g. startup.perf.spec.ts) — run via `pnpm run
+      // bench:electron`, not the Vitest `test` runner (see benchmark note above).
+      "tests/performance",
     ],
     // Keep tests deterministic and isolated.
     clearMocks: true,
@@ -92,11 +104,7 @@ export default defineConfig({
         // by Playwright e2e + manual QA, not jsdom unit tests. This is a HYBRID,
         // not a blanket "logic-only" carve-out — tractable shell *logic* stays in
         // scope and is unit-tested (e.g. `analysis.worker.ts`'s exported math,
-        // `voice-settings/-model-cache/-model-registry`, `electron/sql-guard.ts`,
-        // `upload-to-duckdb.ts`). Each exclusion is justified inline.
-        "src/features/data-formulator/core/voice/voice-tts-worker.ts", // AudioWorklet/WASM TTS
-        "src/features/data-formulator/core/voice/voice-stt-worker.ts", // AudioWorklet/WASM STT
-        "src/features/data-formulator/core/voice/voice-vad-service.ts", // MediaStream VAD wiring
+        // `electron/sql-guard.ts`, `upload-to-duckdb.ts`). Each exclusion is justified inline.
         "src/features/eye-tracking/**", // webcam/MediaPipe hardware
         "src/platform/ai/pyodide-ml.ts", // Pyodide WASM bootstrap
         "src/features/forecast-intelligence/core/forecast-pyodide.ts", // Pyodide forecast bootstrap
@@ -110,6 +118,8 @@ export default defineConfig({
         "electron/workers/**", // electron utility-process workers
         "electron/duckdb-service.ts", // native DuckDB binding
         "electron/llama-service.ts", // node-llama-cpp native binding
+        "electron/embedding-service.ts", // node-llama-cpp native binding (embeddings lane)
+        "electron/collab-hub-service.ts", // native LAN hub server
         "electron/model-download-service.ts", // streaming model downloader
         "electron/duckdb-arrow.ts", // native Arrow bridge
         "electron/auth-client.ts", // IPC client glue
@@ -119,6 +129,8 @@ export default defineConfig({
         "src/platform/duckdb/arrow-ipc.ts", // Arrow IPC binding
         "src/platform/storage/app-db.ts", // IndexedDB/OPFS app database
         "src/platform/storage/opfs-handles.ts", // OPFS file handles
+        "src/platform/collab/**", // Yjs/WebRTC collab transport
+        "src/platform/lan/lan-collab.ts", // LAN WebSocket transport
         "src/platform/auth/auth-database.ts", // better-sqlite3 native auth DB
       ],
       // Quality gate strategy (see TESTING.md): rather than a single global

@@ -1,10 +1,9 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   estimateStorage,
   getStorageInfo,
   isStoragePersisted,
   requestPersistence,
-  ensurePersistentStorage,
 } from "@/platform/storage/storage-info";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────

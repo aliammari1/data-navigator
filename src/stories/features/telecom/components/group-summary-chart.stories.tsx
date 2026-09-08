@@ -1,18 +1,12 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { GroupSummaryChart } from "@/features/telecom/components/group-summary-chart";
-import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
-import type { CanalRule } from "@/features/telecom/types";
 
-const ch = (name: string): CanalRule => ({
-  id: name.toLowerCase(),
+import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { GroupSummaryChart } from "@/features/telecom/components/group-summary-chart";
+
+const ch = (name: string): ChannelDef => ({
   name,
-  canalKey: "bill_payment",
-  match: { kind: "brand", brandDValues: ["0"] },
-  reportGroup: null,
-  origin: "default",
-  enabled: true,
-  createdAt: "",
-  updatedAt: "",
+  condition: `SERVICE_CODE = '${name}'`,
 });
 
 const groups: ChannelGroup[] = [
@@ -33,7 +27,7 @@ const totalsByGroup: Record<string, { nombre: number; montant: number }> = {
 
 const makeFetcher =
   (overrides?: Partial<Record<string, { nombre: number; montant: number }>>) =>
-  async (channels: CanalRule[]) => {
+  async (channels: ChannelDef[]) => {
     const key = channels[0]?.name ?? "";
     const t = { ...totalsByGroup, ...overrides }[key] ?? {
       nombre: 1_000,

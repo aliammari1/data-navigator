@@ -15,11 +15,10 @@
     "src/**/*.stories.{ts,tsx}",
     "src/db/schema.ts",
     "drizzle.config.ts",
-    "forge.config.ts",
+    "electron-builder.config.ts",
     "tsup.config.ts",
     "next.config.ts",
     "postcss.config.mjs",
-    "tailwind.config.ts",
     "vitest.config.ts",
     "playwright.config.ts",
     "playwright.storybook.config.ts",
@@ -48,13 +47,7 @@
     "src/**/*.d.ts",
     "next-env.d.ts"
   ],
-  "ignoreBinaries": [
-    "depcruise",
-    "lhci",
-    "test-storybook",
-    "electron-forge",
-    "powershell"
-  ],
+  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "electron-builder", "powershell"],
   "rules": {
     "files": "error",
     "exports": "error",
@@ -77,10 +70,7 @@
   },
   "storybook": {
     "config": [".storybook/main.ts"],
-    "entry": [
-      ".storybook/{main,preview,test-runner}.{ts,tsx}",
-      "src/**/*.stories.{ts,tsx}"
-    ]
+    "entry": [".storybook/{main,preview,test-runner}.{ts,tsx}", "src/**/*.stories.{ts,tsx}"]
   },
   "vitest": {
     "config": ["vitest.config.ts"],

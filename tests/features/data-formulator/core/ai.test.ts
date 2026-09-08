@@ -60,7 +60,9 @@ describe("flagOutliers", () => {
     const values = [10, 20, 30, 40, 50];
     const result = flagOutliers(values);
     expect(result).toHaveLength(5);
-    result.forEach((v) => expect(typeof v).toBe("boolean"));
+    result.forEach((v) => {
+      expect(typeof v).toBe("boolean");
+    });
   });
 
   it("does not mutate the original array", () => {
@@ -127,7 +129,9 @@ describe("linearTrendline", () => {
   it("computes correct trendline for a perfectly flat series", () => {
     // All identical values → slope = 0, every output = meanY
     const result = linearTrendline([5, 5, 5, 5]);
-    result.forEach((v) => expect(v).toBeCloseTo(5, 5));
+    result.forEach((v) => {
+      expect(v).toBeCloseTo(5, 5);
+    });
   });
 
   it("handles den === 0 case (all x deviations sum to zero — impossible with distinct xs but den=0 means all xs same, which cannot happen for n>=2 with sequential xs; cover by verifying slope=0 for constant input)", () => {
@@ -135,7 +139,9 @@ describe("linearTrendline", () => {
     // Constant Y → num=0, slope=0/den=0. This exercises the slope=0 path,
     // but den itself won't be 0 with sequential indices. Still verify output.
     const result = linearTrendline([3, 3, 3]);
-    result.forEach((v) => expect(v).toBeCloseTo(3, 5));
+    result.forEach((v) => {
+      expect(v).toBeCloseTo(3, 5);
+    });
   });
 
   it("computes a positive slope trendline correctly", () => {

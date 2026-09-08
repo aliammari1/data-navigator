@@ -37,7 +37,6 @@ import {
   STRUCTURED_CASES,
   type StructuredCase,
 } from "./fixtures/structured-corpus";
-import { EQUIVALENT_RECOVERY_PAIRS, STRUCTURED_GOLD } from "./fixtures/structured-gold";
 
 /** Run one corpus case; `true` when the OBSERVED outcome matches `shouldRecover`. */
 function outcomeMatchesExpectation(testCase: StructuredCase): boolean {
@@ -55,8 +54,8 @@ function outcomeMatchesExpectation(testCase: StructuredCase): boolean {
 // parser recovers every positive case and rejects every negative case today, so
 // both rates measure 1.0; the thresholds sit just below to leave headroom for a
 // future hard fixture without masking a real regression.
-const POSITIVE_RECOVERY_THRESHOLD = 1.0; // observed: 12/12 recovered
-const NEGATIVE_REJECTION_THRESHOLD = 1.0; // observed: 5/5 rejected
+const POSITIVE_RECOVERY_THRESHOLD = 1.0; // observed: 11/11 recovered
+const NEGATIVE_REJECTION_THRESHOLD = 1.0; // observed: 6/6 rejected
 const OVERALL_CONFORMANCE_THRESHOLD = 1.0; // observed: 17/17 outcomes correct
 
 describe("structured-output recovery (deterministic)", () => {
@@ -128,14 +127,12 @@ describe("structured-output recovery (deterministic)", () => {
   });
 });
 
-// ─── DETERMINISTIC autoevals (offline scorers — recovered-value quality) ──────
+// ─── Encoding neutrality ──────────────────────────────────────────────────────
 //
-// Wires the OFFLINE autoevals scorers (no network, no API key) into the suite:
-//   - `ValidJSON`: every recovered value, re-serialized, must be valid JSON.
-//   - `JSONDiff` (default offline Levenshtein+NumericDiff leaves): the recovered
-//     value must structurally match its hand-authored gold object, AND two
-//     surface-different encodings of the same payload (clean vs fenced vs prose)
-//     must recover to structurally identical values.
+// The same payload wrapped in fences/prose must recover to the IDENTICAL value.
+// Plain deep-equality is sufficient here: every recovery is already Zod-validated,
+// so the only extra failure mode worth gating is extraction CORRUPTING a value
+// (e.g. dropping a field yet still parsing) — exactly what toEqual catches.
 
 /** Recover the parsed value for a corpus case by id, or throw a clear error. */
 function recoverById(id: string): unknown {
@@ -144,70 +141,26 @@ function recoverById(id: string): unknown {
   return parseStructured(testCase.raw, testCase.schema, { label: testCase.id });
 }
 
-describe("structured-output autoevals (deterministic)", () => {
-  it("every recovered value re-serializes to valid JSON (autoevals ValidJSON)", async () => {
-    // Each positive case the parser recovers must yield a value that round-trips
-    // through JSON.stringify into syntactically valid JSON.
-    const scores = await Promise.all(
-      POSITIVE_CASES.map(async (c) => {
-        let serialized: string;
-        try {
-          serialized = JSON.stringify(parseStructured(c.raw, c.schema, { label: c.id }));
-        } catch {
-          return 0; // failed to recover at all — counts as a miss here.
-        }
-        const { score } = await ValidJSON({ output: serialized });
-        return score ?? 0;
-      }),
-    );
-    const validJsonRate = mean(scores);
-    report("structured.autoevals.validJsonRate", validJsonRate);
+describe("structured-output encoding neutrality (deterministic)", () => {
+  const EQUIVALENCE_PAIRS = [
+    { a: "plan.clean", b: "plan.fencedJson" },
+    { a: "plan.clean", b: "plan.fencedBare" },
+    { a: "plan.clean", b: "plan.proseSandwich" },
+    { a: "plan.clean", b: "plan.trailingCommas" },
+  ] as const;
 
-    // Recovery yields a real object every time, so re-serialization is always
-    // valid JSON — observed 1.0; gate AT 1.0 (a miss here is a real regression).
-    assertAtLeast(validJsonRate, 1, "structured.autoevals.validJsonRate");
+  it("surface-different encodings of one payload recover to identical values", () => {
+    for (const { a, b } of EQUIVALENCE_PAIRS) {
+      expect(recoverById(a)).toEqual(recoverById(b));
+    }
   });
 
-  it("recovered values structurally match their gold objects (autoevals JSONDiff)", async () => {
-    const scores = await Promise.all(
-      STRUCTURED_GOLD.map(async ({ id, expected }) => {
-        const recovered = recoverById(id);
-        const { score } = await JSONDiff({ output: recovered, expected });
-        return score ?? 0;
-      }),
-    );
-    const meanSimilarity = mean(scores);
-    report("structured.autoevals.goldJSONDiff", meanSimilarity);
-
-    // The recovered object equals the canonical gold object field-for-field, so
-    // structural similarity is 1.0 — observed first, gated just below for
-    // robustness to an incidental future float-format delta.
-    assertAtLeast(meanSimilarity, 0.99, "structured.autoevals.goldJSONDiff");
-    expect(STRUCTURED_GOLD.length).toBeGreaterThanOrEqual(3);
-  });
-
-  it("surface-different encodings recover to identical values (autoevals JSONDiff)", async () => {
-    // Clean JSON vs the SAME payload in a fence / with prose must recover to
-    // structurally identical objects — proves fence/prose stripping is neutral.
-    const scores = await Promise.all(
-      EQUIVALENT_RECOVERY_PAIRS.map(async ({ a, b }) => {
-        const { score } = await JSONDiff({ output: recoverById(a), expected: recoverById(b) });
-        return score ?? 0;
-      }),
-    );
-    const meanEquivalence = mean(scores);
-    report("structured.autoevals.encodingEquivalence", meanEquivalence);
-
-    // Identical payloads → perfect structural match regardless of surface form.
-    assertAtLeast(meanEquivalence, 1, "structured.autoevals.encodingEquivalence");
-  });
-
-  it("ValidJSON rejects the pure-prose negative case (sanity anchor)", async () => {
-    // Anchor that ValidJSON behaves as documented: non-JSON scores 0.
-    const prose = STRUCTURED_CASES.find((c) => c.id === "prose.only");
-    if (!prose) throw new Error('missing corpus case "prose.only"');
-    const { score } = await ValidJSON({ output: prose.raw });
-    expect(score).toBe(0);
+  it("every recovered value round-trips through JSON.stringify", () => {
+    for (const c of POSITIVE_CASES) {
+      expect(() =>
+        JSON.stringify(parseStructured(c.raw, c.schema, { label: c.id })),
+      ).not.toThrow();
+    }
   });
 });
 

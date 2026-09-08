@@ -14,7 +14,6 @@
 
 import {
   FileSpreadsheet,
-  FlaskConical,
   Folders,
   Gauge,
   HelpCircle,
@@ -24,6 +23,7 @@ import {
   Settings,
   Trash2,
   Upload,
+  Users,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
@@ -75,18 +75,6 @@ const d = (loader: () => Promise<{ default: Screen } | Record<string, Screen>>, 
   );
 
 export const DESKTOP_APPS: DesktopApp[] = [
-  {
-    id: "moudir",
-    title: "Formulateur — Studio IA",
-    blurb: "Visualisations par concepts, dérivées par l'IA",
-    icon: FlaskConical,
-    hue: 268,
-    defaultSize: { w: 1080, h: 820 },
-    singleInstance: true,
-    inLauncher: true,
-    pinned: true,
-    Component: d(() => import("@/features/data-formulator/screens/FormulatorScreen")),
-  },
   {
     id: "moudir-chat",
     title: "Moudir — Assistant IA",
@@ -145,6 +133,16 @@ export const DESKTOP_APPS: DesktopApp[] = [
     defaultSize: { w: 980, h: 720 },
     inLauncher: true,
     Component: d(() => import("@/features/folders/screens/FoldersScreen")),
+  },
+  {
+    id: "collaboration",
+    title: "Collaboration",
+    blurb: "Équipe & commentaires",
+    icon: Users,
+    hue: 258,
+    defaultSize: { w: 1020, h: 760 },
+    inLauncher: true,
+    Component: d(() => import("@/features/collaboration/screens/CollaborationHostedScreen")),
   },
   {
     id: "diagnostics",

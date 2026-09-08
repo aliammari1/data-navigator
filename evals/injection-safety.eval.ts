@@ -47,11 +47,8 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: vi.fn(async () => [] as Record<string, unknown>[]),
 }));
 
-import { assertReadOnlySql } from "@/features/data-formulator/core/swarm/agents/base";
-import { validateArtifact } from "@/features/data-formulator/core/swarm/agents/validate";
-import type { Artifact } from "@/features/data-formulator/core/swarm/types";
+import { assertReadOnlySql } from "@/platform/duckdb/sql-guard";
 import { parseStructured } from "@/platform/ai/provider/structured";
-import { CTX } from "./fixtures/artifacts";
 import { INJECTION_CASES, SQL_DANGEROUS_IDS } from "./fixtures/injection-cases";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -87,9 +84,6 @@ function sqlGuardIsSound(embeddedSql: string): { accepted: boolean; safe: boolea
   }
 }
 
-function insightArtifact(id: string, body: string): Artifact {
-  return { kind: "insight", id, taskId: "t", title: "Insight", body, severity: "low" };
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (a) assertReadOnlySql: sound against every data-value-embedded payload.
@@ -145,44 +139,6 @@ describe("injection-safety: assertReadOnlySql resists data-value injection (dete
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────────────
-// (b) validateArtifact: catches injected instructions echoed into an insight.
-// ─────────────────────────────────────────────────────────────────────────────
-describe("injection-safety: validateArtifact catches echoed injections in insight artifacts (deterministic)", () => {
-  it("classifies the full injection corpus exactly against the echo-check ground truth", () => {
-    const predicted = INJECTION_CASES.map(
-      (c) => validateArtifact(insightArtifact(c.id, c.value), CTX).hardFail,
-    );
-    const gold = INJECTION_CASES.map((c) => c.expectEchoCaught);
-
-    const acc = accuracy(predicted, gold);
-    report("injection-safety.echoCheck.accuracy", acc);
-
-    // Calibrated to the ground truth documented in the fixture: the check is
-    // intentionally narrow (canonical phrasing only — see per-case comments
-    // in injection-cases.ts for the documented misses).
-    assertAtLeast(acc, 1.0, "echoCheck.accuracy");
-    expect(acc).toBe(1);
-  });
-
-  it("attaches a clear, greppable reason whenever it catches an echoed injection", () => {
-    for (const c of INJECTION_CASES.filter((c) => c.expectEchoCaught)) {
-      const result = validateArtifact(insightArtifact(c.id, c.value), CTX);
-      expect(result.hardFail, c.id).toBe(true);
-      expect(result.reasons.join(" "), c.id).toMatch(/injected instruction/i);
-    }
-  });
-
-  it("does NOT hard-fail a benign insight (no false positives on real business prose)", () => {
-    const benign = insightArtifact(
-      "benign",
-      "USSD carries 52% of the day's volume, well ahead of App at 31%.",
-    );
-    const result = validateArtifact(benign, CTX);
-    expect(result.hardFail).toBe(false);
-    expect(result.reasons).toHaveLength(0);
-  });
-});
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (c) parseStructured: attacker JSON embedded in a data value.

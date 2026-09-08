@@ -31,8 +31,6 @@ export const ANALYTICS_CACHE_DB = "data-navigator-analytics-cache";
 // ─── Auth database (server-side only) ────────────────────────────────────────
 
 /**
- * SQLite filename for BetterAuth.
- * Used by src/lib/auth.ts (server-only).
- * Kept here so auth.ts no longer imports from telecom/names.ts.
+ * SQLite filename for BetterAuth and Main process auth store.
  */
-export const AUTH_DB_FILE = "data-navigator-auth.sqlite";
+export const AUTH_DB_FILE = "auth.db";

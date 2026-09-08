@@ -22,10 +22,11 @@ export function Spotlight({ inline = false, greeting }: { inline?: boolean; gree
   const visible = inline || spotlightOpen;
 
   useEffect(() => {
-    if (spotlightOpen) {
-      const t = setTimeout(() => inputRef.current?.focus(), 60);
-      return () => clearTimeout(t);
+    if (!spotlightOpen) {
+      return;
     }
+    const t = setTimeout(() => inputRef.current?.focus(), 60);
+    return () => clearTimeout(t);
   }, [spotlightOpen]);
 
   // Resolve the query into a ranked, runnable command list (apps, recent

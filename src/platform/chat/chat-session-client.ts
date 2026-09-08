@@ -9,17 +9,68 @@
  * Contract (deliberately asymmetric, unlike chat-history-client.ts):
  * - `sendChatPrompt` THROWS a clear error when the bridge is absent — the UI
  *   must know chat is desktop-only and say so, not silently do nothing.
+ * - When the IPC rejects because no offline model is loaded / downloadable
+ *   (matches: `Missing GGUF model…`, `no offline model is ready…`,
+ *   `AI provider "…" is not available…`), both `openChatSession` and
+ *   `sendChatPrompt` throw a `ChatModelUnavailableError` so the UI can
+ *   surface the existing global `ModelRequiredDialog` instead of a raw
+ *   stack-trace bubble. The `chat:open` channel can reject before
+ *   `chat:prompt` is even reached, so both need the same translation.
+ *   AbortError is preserved as-is.
  * - lifecycle helpers (dispose/preload) are null-safe no-ops, and read helpers
  *   return safe empty defaults, so cleanup paths never need guards.
  */
 
 export type ChatSessionRole = "user" | "assistant" | "tool";
 
+/**
+ * Thrown by `openChatSession` and `sendChatPrompt` when the underlying runtime
+ * rejects because no usable local model is ready (no GGUF staged, or the
+ * configured provider is offline-only and nothing is loaded). Distinct from a
+ * transport-level rejection so the UI can route to the model-download dialog
+ * rather than the generic error surface.
+ */
+export class ChatModelUnavailableError extends Error {
+  readonly code = "E_MODEL_UNAVAILABLE" as const;
+  constructor(message: string) {
+    super(message);
+    this.name = "ChatModelUnavailableError";
+  }
+}
+
+/** Patterns the IPC layer uses to say "no local model is ready". */
+const MODEL_UNAVAILABLE_PATTERNS: readonly RegExp[] = [
+  /Missing GGUF model/i,
+  /no offline model is ready/i,
+  /AI provider "[^"]+" is not available/i,
+];
+
+function isModelUnavailableMessage(message: string): boolean {
+  for (const pattern of MODEL_UNAVAILABLE_PATTERNS) {
+    if (pattern.test(message)) return true;
+  }
+  return false;
+}
+
+async function callIpc<T>(fn: () => Promise<T>): Promise<T> {
+  try {
+    return await fn();
+  } catch (error) {
+    if (error instanceof Error && isModelUnavailableMessage(error.message)) {
+      throw new ChatModelUnavailableError(error.message);
+    }
+    throw error;
+  }
+}
+
 export interface ChatToolEvent {
   name: string;
   params: unknown;
   resultSummary: string;
   durationMs: number;
+  failed?: boolean;
+  /** Mirrors electron/chat-session-service.ts: start events carry no result yet. */
+  started?: boolean;
 }
 
 export interface ChatPromptResult {
@@ -31,7 +82,7 @@ export interface OpenChatSessionInput {
   conversationId: string;
   modelFile?: string;
   systemPrompt?: string;
-  history?: Array<{ role: ChatSessionRole; content: string }>;
+  history?: Array<{ role: ChatSessionRole; content: string; parts?: unknown }>;
 }
 
 interface ElectronChatSessionBridge {
@@ -51,11 +102,10 @@ interface ElectronChatSessionBridge {
   onTool(requestId: string, callback: (event: ChatToolEvent) => void): () => void;
 }
 
-type ChatSessionWindow = Window & { electronChatSession?: ElectronChatSessionBridge };
 
 function bridge(): ElectronChatSessionBridge | null {
   if (typeof window === "undefined") return null;
-  return (window as ChatSessionWindow).electronChatSession ?? null;
+  return window.electronChatSession ?? null;
 }
 
 /** True when the live chat runtime is reachable (renderer inside Electron). */
@@ -82,7 +132,7 @@ export async function openChatSession(
 ): Promise<{ model: string; reused: boolean } | null> {
   const api = bridge();
   if (!api) return null;
-  return api.open(input);
+  return callIpc(() => api.open(input));
 }
 
 /**
@@ -117,7 +167,9 @@ export async function sendChatPrompt(input: {
   input.signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
-    return await api.prompt({ conversationId: input.conversationId, text: input.text, requestId });
+    return await callIpc(() =>
+      api.prompt({ conversationId: input.conversationId, text: input.text, requestId }),
+    );
   } finally {
     input.signal?.removeEventListener("abort", onAbort);
     for (const unsubscribe of unsubscribers) unsubscribe();

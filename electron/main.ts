@@ -1,5 +1,7 @@
-import { appendFileSync, existsSync } from "node:fs";
-import fs from "node:fs/promises";
+import crypto from "node:crypto";
+import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import fs, { readFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import {
   app,
@@ -10,20 +12,42 @@ import {
   ipcMain,
   nativeImage,
   type OpenDialogOptions,
+  powerMonitor,
+  protocol,
   type SaveDialogOptions,
-  safeStorage,
   session,
   shell,
   systemPreferences,
 } from "electron";
-import getPort, { portNumbers } from "get-port";
 import type { startServer as StartServerFn } from "next/dist/server/lib/start-server";
-import { isAuthDbEncryptionRequested } from "../src/platform/auth/auth-db-encryption";
+import { isAuthDbEncryptionRequested } from "@/platform/auth/auth-db-encryption";
+import { BETTER_AUTH_BASE_URL, ELECTRON_AUTH_PROTOCOL } from "@/platform/auth/electron-options";
+import { resolveAppPort, PROD_PORT_RANGE } from "./port-picker";
+
+let currentServerPort = 3000;
+import { authClient } from "./auth-client";
 import {
-  ELECTRON_AUTH_PROTOCOL,
-  getBetterAuthBaseUrl,
-} from "../src/platform/auth/electron-options";
-import { createElectronAuthClient, type ElectronAuthClient } from "./auth-client";
+  changePassword as authChangePassword,
+  getNextLocalMidnight,
+  getOwnerInfo as authGetOwnerInfo,
+  getSession as authGetSession,
+  hasOwner as authHasOwner,
+  isAppLocked as authIsAppLocked,
+  lockApp as authLockApp,
+  login as authLogin,
+  logout as authLogout,
+  signUp as authSignUp,
+  closeAuthStore,
+  configureAuthStore,
+  setAuthMigrationsFolder,
+} from "./auth-store";
+import { searchMessages as chatSearchMessages } from "./chat-search";
+import {
+  appendMessageEmbedding,
+  backfillMessageEmbeddings,
+  semanticSearchMessages,
+  setChatSemanticSearchHandle,
+} from "./chat-semantic-search";
 import * as chatSessionService from "./chat-session-service";
 import {
   appendMessage as chatAppendMessage,
@@ -32,12 +56,17 @@ import {
   getMessages as chatGetMessages,
   listConversations as chatListConversations,
   renameConversation as chatRenameConversation,
+  setConversationModel as chatSetConversationModel,
   setConversationPinned as chatSetConversationPinned,
   closeChatStore,
   configureChatStore,
+  getChatStoreHandle,
+  onMessageAppended as onChatMessageAppended,
+  setChatMigrationsFolder,
 } from "./chat-store";
+import * as collabHubService from "./collab-hub-service";
 import * as duckdbService from "./duckdb-service";
-import * as embedService from "./embed-service";
+import * as embeddingService from "./embedding-service";
 import { createConcurrencyLimiter, runBounded } from "./ipc-concurrency";
 import {
   ChatAppendMessageSchema,
@@ -47,19 +76,25 @@ import {
   ChatListConversationsSchema,
   ChatOpenSchema,
   ChatPinSchema,
+  ChatModelSchema,
   ChatPreloadSchema,
   ChatPromptSchema,
   ChatRenameSchema,
+  ChatSearchMessagesSchema,
   ChatSessionIdSchema,
   ClipboardImageSchema,
+  CollabStartSchema,
   CountRowsSchema,
   DatasetOnlySchema,
+  EmbedBatchSchema,
+  EmbedEnsureModelSchema,
+  EmbedOneSchema,
   ExportDatasetSchema,
   KeysetPageSchema,
-  LlamaEmbedSchema,
   LlamaEnsureModelSchema,
   LlamaGenerateSchema,
   LlamaGenerateStructuredSchema,
+  LlamaPreloadWarmPrefixSchema,
   ModelDownloadSchema,
   ModelKeySchema,
   PreviewDatasetSchema,
@@ -93,21 +128,48 @@ import {
   getAnalyticsSnapshotHistoryById,
   getSetting,
   listAnalyticsSnapshotHistory,
+  listAuditLogs,
+  listQueryAnalytics,
   migrateLegacyAnalyticsSnapshotKV,
   migrateLegacyAppSettings,
+  recordAuditLog,
+  recordQueryAnalytics,
   saveAnalyticsSnapshotHistory,
   setSetting,
+  setSettingsMigrationsFolder,
 } from "./settings-store";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
-import { tmpdir } from "node:os";
 
-// Squirrel.Windows fires the app with --squirrel-install / --squirrel-updated /
-// --squirrel-uninstall / --squirrel-obsolete on (un)install + update. electron-
-// squirrel-startup handles those events (creating/removing Start Menu + desktop
-// shortcuts via Update.exe) and returns true, in which case we must quit immediately
-// rather than boot the full app. Must run before any heavy init.
-if (require("electron-squirrel-startup")) {
-  app.quit();
+// Handle any Windows installer lifecycle flags (--squirrel-*) without external deps
+if (process.platform === "win32") {
+  const squirrelArg = process.argv[1];
+  if (
+    squirrelArg &&
+    (squirrelArg === "--squirrel-install" ||
+      squirrelArg === "--squirrel-updated" ||
+      squirrelArg === "--squirrel-uninstall" ||
+      squirrelArg === "--squirrel-obsolete")
+  ) {
+    app.quit();
+  }
+}
+
+// The sandboxed Pyodide iframe (opaque origin) fetches pyodide.mjs + runtime
+// files via `pyodide://host/…`. Module scripts require CORS, so the scheme
+// must be privileged-standard with fetch support. Must run before app ready.
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: "pyodide",
+    privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true },
+  },
+]);
+
+if (process.platform !== "darwin" && !process.env.OMP_PROC_BIND) {
+  process.env.OMP_PROC_BIND = "true";
+}
+
+if (!process.env.OMP_NUM_THREADS) {
+  process.env.OMP_NUM_THREADS = String(Math.max(1, (os.cpus()?.length ?? 2) - 1));
 }
 
 // Lightweight boot tracer. Windowed Electron does not surface main-process
@@ -116,14 +178,16 @@ if (require("electron-squirrel-startup")) {
 // resolve yet) it falls back to the OS temp dir. Best-effort — never throws.
 function bootLog(message: string): void {
   const line = `[${new Date().toISOString()}] ${message}\n`;
+  const nodeFs = require("node:fs");
   try {
-    appendFileSync(path.join(app.getPath("userData"), "boot.log"), line);
+    nodeFs.appendFileSync(path.join(app.getPath("userData"), "boot.log"), line);
     return;
   } catch {
     // userData not ready / not writable — fall through to temp.
   }
   try {
-    appendFileSync(path.join(tmpdir(), "data-navigator-boot.log"), line);
+    const os = require("node:os");
+    nodeFs.appendFileSync(path.join(os.tmpdir(), "data-navigator-boot.log"), line);
   } catch {
     // give up silently
   }
@@ -152,25 +216,108 @@ bootLog(`main.js loaded; isPackaged=${app.isPackaged}`);
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
-let electronAuthClient: ElectronAuthClient | null = null;
 
-function setupElectronAuthClient(): void {
-  if (electronAuthClient) return;
+authClient.setupMain({
+  getWindow: () => mainWindow,
+  // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
+  // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
+  // edit can't silently activate a competing onHeadersReceived CSP handler.
+  csp: false,
+});
 
-  electronAuthClient = createElectronAuthClient();
-  electronAuthClient.setupMain({
-    getWindow: () => mainWindow,
-    // Keep better-auth's own CSP rewriter OFF — this app owns the CSP in
-    // electron/security.ts (see withRendererSecurityHeaders). Explicit so a future
-    // edit can't silently activate a competing onHeadersReceived CSP handler.
-    csp: false,
-  });
+// ─── App Update ───────────────────────────────────────────────────────────────
+// Offline-first: auto-update is OFF by default so a packaged launch makes ZERO
+// outbound network requests. Otherwise update-electron-app polls
+// update.electronjs.org on launch AND hourly — in the MAIN process, so the
+// renderer CSP cannot stop it, and it leaks app version + platform. Opt back in
+// by setting DN_ENABLE_AUTO_UPDATE=1 in the environment. (Auto-update is also
+// non-functional for this private-repo MSI — see docs/RELEASING-WINDOWS.md — so
+// disabling it by default only removes a dead, guarantee-violating network call.)
+
+if (app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
+  import("update-electron-app")
+    .then(({ updateElectronApp }) => {
+      updateElectronApp({
+        repo: "aliammari1/data-navigator",
+        updateInterval: "1 hour",
+      });
+    })
+    .catch((error) => {
+      console.warn("[electron] auto-update setup failed:", error);
+    });
 }
+
+// ─── GPU / WebGPU Configuration ──────────────────────────────────────────────
+// Enable WebGPU in renderer + workers for GPU-accelerated local model
+// inference that still runs in the browser. Text embeddings/generation no
+// longer need this — both now run as GGUF models through node-llama-cpp in
+// this main process instead.
+app.commandLine.appendSwitch("enable-unsafe-webgpu");
 
 // Enforce the Chromium sandbox for EVERY current/future renderer (and devtools)
 // before app ready, so a new BrowserWindow can never silently forget
 // webPreferences.sandbox. Complements the per-window sandbox:true.
 app.enableSandbox();
+
+/**
+ * Merge FTS5 BM25 hits with semantic cosine hits. FTS5's `rank` field is
+ * actually the array index (chat-search.ts limitation), so cross-source
+ * score normalization is impossible — we dedupe by messageId and let
+ * semantic win on ties (it captures intent the keyword match misses).
+ */
+function mergeSearchHits(
+  ftsHits: Array<{
+    messageId: number;
+    conversationId: string;
+    role: string;
+    snippet: string;
+    rank: number;
+  }>,
+  semanticHits: Array<{
+    messageId: number;
+    conversationId: string;
+    role: string;
+    snippet: string;
+    score: number;
+  }>,
+  limit: number,
+): Array<{
+  messageId: number;
+  conversationId: string;
+  role: string;
+  snippet: string;
+  source: "fts" | "semantic";
+}> {
+  const byId = new Map<
+    number,
+    {
+      messageId: number;
+      conversationId: string;
+      role: string;
+      snippet: string;
+      source: "fts" | "semantic";
+    }
+  >();
+  for (const hit of ftsHits) {
+    byId.set(hit.messageId, {
+      messageId: hit.messageId,
+      conversationId: hit.conversationId,
+      role: hit.role,
+      snippet: hit.snippet,
+      source: "fts",
+    });
+  }
+  for (const hit of semanticHits) {
+    byId.set(hit.messageId, {
+      messageId: hit.messageId,
+      conversationId: hit.conversationId,
+      role: hit.role,
+      snippet: hit.snippet,
+      source: "semantic",
+    });
+  }
+  return Array.from(byId.values()).slice(0, limit);
+}
 
 // Single-instance lock: a second launch focuses the existing window instead of
 // spawning a rival process that fights over :3000 and the SQLite/DuckDB files.
@@ -205,12 +352,11 @@ const DATA_DIR = path.join(app.getPath("userData"), "data-navigator");
 
 // Directory holding the per-domain settings/analytics SQLite files owned by the
 // main process (the IPC replacement for /api/settings).
-const DATABASES_DIR = path.join(app.getPath("userData"), "databases");
-
-// Auth DB filename — duplicated from storage-constants.ts (AUTH_DB_FILE) because
-// electron modules can't resolve the "@/" alias under tsup. Used only to locate
-// the legacy app_setting rows for the one-time lift into the new databases.
-const AUTH_DB_FILENAME = "data-navigator-auth.sqlite";
+const DATABASES_DIR = app.isPackaged
+  ? path.join(app.getPath("userData"), "databases")
+  : process.env.APP_USER_DATA
+    ? path.join(process.env.APP_USER_DATA, "databases")
+    : path.join(process.cwd(), ".data");
 
 // Single source of truth for filesystem allowlisting. The pure logic lives in
 // ./security and is exhaustively unit-tested (see tests/security).
@@ -378,6 +524,246 @@ ipcMain.handle("analyticsSnapshots:delete", async (event, id: number) =>
   withTrustedSender(event, () => deleteAnalyticsSnapshotHistoryById(id)),
 );
 
+// ─── IPC: Authentication Bridge (Signal Desktop / Bitwarden Pattern) ─────────
+// Better-sqlite3 native driver runs exclusively in this main process.
+// The renderer invokes these secure IPC handlers for authentication,
+// password verification, session queries, and lock/unlock operations.
+
+function signCookieValue(value: string, secret: string): string {
+  const hmac = crypto.createHmac("sha256", secret);
+  hmac.update(value);
+  const signature = hmac.digest("base64");
+  return `${value}.${signature}`;
+}
+
+async function syncSessionCookie(token: string | null, expiresAtMs?: number): Promise<void> {
+  try {
+    const defaultSession = session.defaultSession;
+    if (!defaultSession) return;
+    const primaryUrl = BETTER_AUTH_BASE_URL || `http://localhost:${currentServerPort}`;
+    const targetUrls = new Set([
+      primaryUrl,
+      `http://localhost:${currentServerPort}`,
+      `http://127.0.0.1:${currentServerPort}`,
+      "http://localhost:3000",
+      "http://127.0.0.1:3000",
+    ]);
+
+    const expirationDate = expiresAtMs
+      ? Math.floor(expiresAtMs / 1000)
+      : Math.floor(getNextLocalMidnight().getTime() / 1000);
+
+    const authSecret =
+      process.env.BETTER_AUTH_SECRET || "data-navigator-local-dev-secret-change-me";
+    const signedValue = token ? signCookieValue(token, authSecret) : null;
+
+    for (const url of targetUrls) {
+      if (token && signedValue) {
+        await defaultSession.cookies.set({
+          url,
+          name: "better-auth.session_token",
+          value: signedValue,
+          path: "/",
+          httpOnly: true,
+          secure: false,
+          sameSite: "lax",
+          expirationDate,
+        });
+      } else {
+        await defaultSession.cookies.remove(url, "better-auth.session_token");
+      }
+    }
+  } catch (error) {
+    console.warn("[electron] syncSessionCookie error:", error);
+  }
+}
+
+let currentActiveToken: string | null = null;
+let midnightTimer: NodeJS.Timeout | null = null;
+let warningTimer: NodeJS.Timeout | null = null;
+
+function clearMidnightTimer(): void {
+  if (midnightTimer) {
+    clearTimeout(midnightTimer);
+    midnightTimer = null;
+  }
+  if (warningTimer) {
+    clearTimeout(warningTimer);
+    warningTimer = null;
+  }
+}
+
+function scheduleMidnightExpiration(expiresAtIsoString?: string): void {
+  clearMidnightTimer();
+  const expiresAtMs = expiresAtIsoString
+    ? new Date(expiresAtIsoString).getTime()
+    : getNextLocalMidnight().getTime();
+  const delayMs = Math.max(0, expiresAtMs - Date.now());
+
+  // 5-minute warning before midnight expiration
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
+  if (delayMs > FIVE_MINUTES_MS) {
+    const warningDelayMs = delayMs - FIVE_MINUTES_MS;
+    warningTimer = setTimeout(() => {
+      try {
+        if (mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send("auth:session-expiring-soon", {
+            minutesRemaining: 5,
+          });
+        }
+      } catch (err) {
+        console.error("[electron] pre-midnight warning error:", err);
+      }
+    }, warningDelayMs);
+  }
+
+  midnightTimer = setTimeout(async () => {
+    try {
+      authLockApp();
+      currentActiveToken = null;
+      await syncSessionCookie(null);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send("auth:session-expired");
+        mainWindow.webContents.send("auth:lock-changed", true);
+      }
+    } catch (err) {
+      console.error("[electron] midnight expiration handler error:", err);
+    }
+  }, delayMs);
+}
+
+function sanitizeSessionResult<T extends { session?: { id: string; userId: string; expiresAt: string; createdAt?: string; updatedAt?: string } | null }>(
+  result: T,
+): T {
+  if (!result || !result.session) return result;
+  const { token: _, ...safeSession } = result.session as { token?: string } & typeof result.session;
+  return {
+    ...result,
+    session: safeSession,
+  };
+}
+
+ipcMain.handle("auth:hasOwner", async (event) => withTrustedSender(event, () => authHasOwner()));
+
+ipcMain.handle("auth:getOwnerInfo", async (event) => withTrustedSender(event, () => authGetOwnerInfo()));
+
+ipcMain.handle("auth:isLocked", async (event) => withTrustedSender(event, () => authIsAppLocked()));
+
+ipcMain.handle("auth:lock", async (event) =>
+  withTrustedSender(event, async () => {
+    clearMidnightTimer();
+    authLockApp();
+    currentActiveToken = null;
+    await syncSessionCookie(null);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("auth:lock-changed", true);
+    }
+  }),
+);
+
+ipcMain.handle(
+  "auth:signUp",
+  async (event, input: { name: string; email: string; password: string }) =>
+    withTrustedSender(event, async () => {
+      const result = authSignUp(input);
+      if (result?.session?.token) {
+        currentActiveToken = result.session.token;
+        const expiresAtMs = new Date(result.session.expiresAt).getTime();
+        await syncSessionCookie(result.session.token, expiresAtMs);
+        scheduleMidnightExpiration(result.session.expiresAt);
+      }
+      return sanitizeSessionResult(result);
+    }),
+);
+
+ipcMain.handle("auth:login", async (event, input: { email: string; password: string }) =>
+  withTrustedSender(event, async () => {
+    const result = authLogin(input);
+    if (result?.session?.token) {
+      currentActiveToken = result.session.token;
+      const expiresAtMs = new Date(result.session.expiresAt).getTime();
+      await syncSessionCookie(result.session.token, expiresAtMs);
+      scheduleMidnightExpiration(result.session.expiresAt);
+    }
+    return sanitizeSessionResult(result);
+  }),
+);
+
+ipcMain.handle("auth:getSession", async (event, token?: string | null) =>
+  withTrustedSender(event, () => {
+    const effectiveToken = token || currentActiveToken;
+    const result = authGetSession(effectiveToken);
+    return sanitizeSessionResult(result);
+  }),
+);
+
+ipcMain.handle("auth:logout", async (event, token?: string | null) =>
+  withTrustedSender(event, async () => {
+    clearMidnightTimer();
+    const effectiveToken = token || currentActiveToken;
+    authLogout(effectiveToken);
+    currentActiveToken = null;
+    await syncSessionCookie(null);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("auth:lock-changed", true);
+    }
+  }),
+);
+
+ipcMain.handle(
+  "auth:changePassword",
+  async (event, input: { token?: string; currentPassword: string; newPassword: string }) =>
+    withTrustedSender(event, () => {
+      const effectiveToken = input.token || currentActiveToken;
+      if (!effectiveToken) throw new Error("No active session.");
+      return authChangePassword({
+        token: effectiveToken,
+        currentPassword: input.currentPassword,
+        newPassword: input.newPassword,
+      });
+    }),
+);
+
+// ─── IPC: Analytics & Audit Logging Bridge ───────────────────────────────────
+
+ipcMain.handle(
+  "analytics:recordAudit",
+  async (
+    event,
+    input: {
+      userId?: string | null;
+      action: string;
+      category: string;
+      status: string;
+      durationMs?: number | null;
+      metadata?: Record<string, unknown> | null;
+    },
+  ) => withTrustedSender(event, () => recordAuditLog(input)),
+);
+
+ipcMain.handle("analytics:getAuditLogs", async (event, limit?: number) =>
+  withTrustedSender(event, () => listAuditLogs(limit)),
+);
+
+ipcMain.handle(
+  "analytics:recordQuery",
+  async (
+    event,
+    input: {
+      datasetId: string;
+      sqlQuery: string;
+      rowCount: number;
+      executionTimeMs: number;
+      isCached?: boolean;
+      error?: string | null;
+    },
+  ) => withTrustedSender(event, () => recordQueryAnalytics(input)),
+);
+
+ipcMain.handle("analytics:getQueryAnalytics", async (event, limit?: number) =>
+  withTrustedSender(event, () => listQueryAnalytics(limit)),
+);
+
 // ─── IPC: Clipboard Bridge ────────────────────────────────────────────────────
 // Write a chart's PNG export (as a data URL) to the OS clipboard as a native
 // image. The renderer can't reach the clipboard directly; the schema caps the
@@ -426,6 +812,13 @@ ipcMain.handle("chatHistory:pin", async (event, input: unknown) =>
   }),
 );
 
+ipcMain.handle("chatHistory:setModel", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(ChatModelSchema, input, "chatHistory:setModel");
+    chatSetConversationModel(parsed.id, parsed.model);
+  }),
+);
+
 ipcMain.handle("chatHistory:delete", async (event, input: unknown) =>
   withTrustedSender(event, () => {
     const parsed = parseIpc(ChatConversationIdSchema, input, "chatHistory:delete");
@@ -445,6 +838,54 @@ ipcMain.handle("chatHistory:messages", async (event, input: unknown) =>
     return chatGetMessages(parsed.conversationId, parsed.limit);
   }),
 );
+
+ipcMain.handle("chatHistory:searchMessages", async (event, input: unknown) =>
+  withTrustedSender(event, async () => {
+    const parsed = parseIpc(ChatSearchMessagesSchema, input, "chatHistory:searchMessages");
+    const ftsHits = chatSearchMessages(parsed.query, {
+      limit: parsed.limit,
+      conversationId: parsed.conversationId,
+    });
+    const semanticHits = await semanticSearchMessages(parsed.query, {
+      limit: parsed.limit,
+      conversationId: parsed.conversationId,
+    });
+    return mergeSearchHits(ftsHits, semanticHits, parsed.limit ?? 25);
+  }),
+);
+
+ipcMain.handle("chatHistory:backfillEmbeddings", async (event) =>
+  withTrustedSender(event, async () => backfillMessageEmbeddings()),
+);
+
+// ─── IPC: Pyodide downloader ─────────────────────────────────────────────────
+
+import * as pyodideDownloader from "./pyodide-downloader";
+
+ipcMain.handle("pyodide:status", async (event) =>
+  withTrustedSender(event, async () => pyodideDownloader.getPyodideStatus()),
+);
+
+ipcMain.handle("pyodide:download", async (event) =>
+  withTrustedSender(event, async () => pyodideDownloader.downloadPyodide()),
+);
+
+ipcMain.handle("pyodide:cancel", async (event) =>
+  withTrustedSender(event, async () => {
+    pyodideDownloader.cancelPyodideDownload();
+  }),
+);
+
+ipcMain.handle("pyodide:version", async (event) =>
+  withTrustedSender(event, async () => pyodideDownloader.getPyodideVersion()),
+);
+
+// Fan progress to every renderer so the settings UI can show a real bar.
+pyodideDownloader.onPyodideDownloadProgress((progress) => {
+  for (const window of BrowserWindow.getAllWindows()) {
+    window.webContents.send("pyodide:progress", progress);
+  }
+});
 
 // ─── IPC: Filesystem Bridge ──────────────────────────────────────────────────
 // Keep this bridge narrow. Arbitrary read/write/delete is blocked unless the
@@ -721,7 +1162,11 @@ ipcMain.handle("duckdb:runReadOnlyQuery", async (event, sql: string) =>
     // utilityProcess isolation (OFF by default; DN_DUCKDB_UTILITY=1). When
     // enabled, route the read through the isolated process; on ANY broker error
     // fall back to the unchanged in-main path so behavior never regresses.
-    if (duckdbUtilityBroker.isEnabled()) {
+    // The utility engine is :memory: with no catalog views by construction,
+    // so view-backed queries (ds_*) can never succeed there — run them
+    // in-main directly instead of failing-then-retrying every time.
+    const hitsDatasetView = /\bds_[A-Za-z0-9_-]{8,32}\b/.test(safeSql);
+    if (duckdbUtilityBroker.isEnabled() && !hitsDatasetView) {
       try {
         return await duckdbUtilityBroker.runReadOnlyQuery(safeSql);
       } catch (error) {
@@ -796,6 +1241,13 @@ ipcMain.handle("llama:ensureModel", async (event, input?: { file?: string }) =>
   withTrustedSender(event, () =>
     llamaService.ensureModel(parseIpc(LlamaEnsureModelSchema, input, "llama:ensureModel")?.file),
   ),
+);
+
+ipcMain.handle("llama:preloadWarmPrefix", async (event, input?: { systemPrefix: string }) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(LlamaPreloadWarmPrefixSchema, input, "llama:preloadWarmPrefix");
+    return llamaService.preloadWarmPrefix(parsed.systemPrefix);
+  }),
 );
 
 ipcMain.handle(
@@ -901,26 +1353,59 @@ ipcMain.handle("llama:isAvailable", async (event, input?: { file?: string }) =>
 );
 
 // ─── IPC: node-llama-cpp Embedding Service ────────────────────────────────────
-// Separate lane from the generative handlers above — its own model + context
-// (embed-service.ts), sharing only the native Llama core via getSharedLlama().
+// Embeddings lane (electron/embedding-service.ts) — own model and context on
+// the shared Llama backend with the `llama:*` generative lane above. Both lanes
+// serialize through one native queue. Reached via `window.electronEmbed.*`.
+// Plain request/response invokes (embeddings aren't streamed token-by-token);
+// `embed:abort` cancels by requestId.
 
-ipcMain.handle("llama:embed", async (event, input: { texts: string[] }) =>
-  withTrustedSender(event, () => {
-    const parsed = parseIpc(LlamaEmbedSchema, input, "llama:embed");
-    return embedService.embedBatch(parsed.texts);
-  }),
-);
+const embedAbortControllers = new Map<string, AbortController>();
 
-ipcMain.handle("llama:ensureEmbedModel", async (event, input?: { file?: string }) =>
+ipcMain.handle("embed:ensureModel", async (event, input?: { file?: string }) =>
   withTrustedSender(event, () =>
-    embedService.ensureEmbedModel(
-      parseIpc(LlamaEnsureModelSchema, input, "llama:ensureEmbedModel")?.file,
+    embeddingService.ensureEmbedModel(
+      parseIpc(EmbedEnsureModelSchema, input, "embed:ensureModel")?.file,
     ),
   ),
 );
 
-ipcMain.handle("llama:isEmbedAvailable", async (event) =>
-  withTrustedSender(event, () => embedService.isEmbedAvailable()),
+ipcMain.handle("embed:one", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(EmbedOneSchema, input, "embed:one");
+    const requestId = parsed.requestId;
+    const controller = new AbortController();
+    if (requestId) embedAbortControllers.set(requestId, controller);
+
+    return embeddingService.embedOne(parsed.text, controller.signal).finally(() => {
+      if (requestId) embedAbortControllers.delete(requestId);
+    });
+  }),
+);
+
+ipcMain.handle("embed:batch", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const parsed = parseIpc(EmbedBatchSchema, input, "embed:batch");
+    const requestId = parsed.requestId;
+    const controller = new AbortController();
+    if (requestId) embedAbortControllers.set(requestId, controller);
+
+    return embeddingService.embedBatch(parsed.texts, controller.signal).finally(() => {
+      if (requestId) embedAbortControllers.delete(requestId);
+    });
+  }),
+);
+
+ipcMain.handle("embed:abort", async (event, requestId: string) =>
+  withTrustedSender(event, () => {
+    parseIpc(RequestIdSchema, requestId, "embed:abort");
+    const controller = embedAbortControllers.get(requestId);
+    if (controller) {
+      controller.abort();
+      embedAbortControllers.delete(requestId);
+      return true;
+    }
+    return false;
+  }),
 );
 
 // ─── IPC: Moudir Chat Session Runtime ─────────────────────────────────────────
@@ -931,11 +1416,12 @@ ipcMain.handle("llama:isEmbedAvailable", async (event) =>
 
 const chatAbortControllers = new Map<string, AbortController>();
 
-ipcMain.handle("chat:open", async (event, input: unknown) =>
-  withTrustedSender(event, () =>
+ipcMain.handle("chat:open", async (event, input: unknown) => {
+  const out = await withTrustedSender(event, () =>
     chatSessionService.openSession(parseIpc(ChatOpenSchema, input, "chat:open")),
-  ),
-);
+  );
+  return out;
+});
 
 ipcMain.handle("chat:prompt", async (event, input: unknown) =>
   withTrustedSender(event, () => {
@@ -964,6 +1450,16 @@ ipcMain.handle("chat:prompt", async (event, input: unknown) =>
               }
             }
           : undefined,
+        onToolStart: requestId
+          ? (toolEvent) => {
+              if (!event.sender.isDestroyed()) {
+                event.sender.send("chat:tool", { requestId, event: toolEvent });
+              }
+            }
+          : undefined,
+      })
+      .then((res) => {
+        return res;
       })
       .finally(() => {
         if (requestId) chatAbortControllers.delete(requestId);
@@ -1080,6 +1576,41 @@ ipcMain.handle("models:delete", async (event, key: string) =>
   ),
 );
 
+// ─── IPC: LAN Collaboration Hub Service ──────────────────────────────────────
+// Optional embedded Hocuspocus hub + bonjour-service mDNS. The renderer connects
+// as an ordinary y-websocket client; this just exposes start/stop/discover.
+
+ipcMain.handle("collabHub:start", async (event, input?: collabHubService.CollabHubStartInput) => {
+  const result = await withTrustedSender(event, () =>
+    collabHubService.start(parseIpc(CollabStartSchema, input, "collabHub:start")),
+  );
+  // Enable remote access in the Next.js middleware if the hub started successfully.
+  if (result.running) {
+    process.env.NEXT_PUBLIC_LAN_ALLOW_REMOTE = "1";
+  }
+  return result;
+});
+
+ipcMain.handle("collabHub:stop", async (event) =>
+  withTrustedSender(event, () => collabHubService.stop()),
+);
+
+ipcMain.handle("collabHub:status", async (event) =>
+  withTrustedSender(event, () => collabHubService.status()),
+);
+
+ipcMain.handle("collabHub:discover", async (event) =>
+  withTrustedSender(event, () => collabHubService.discover()),
+);
+
+ipcMain.handle("collabHub:getDiscovered", async (event) =>
+  withTrustedSender(event, () => collabHubService.getDiscovered()),
+);
+
+ipcMain.handle("collabHub:getHostSecret", async (event) =>
+  withTrustedSender(event, () => collabHubService.getHostSecret()),
+);
+
 // ─── Window ──────────────────────────────────────────────────────────────────
 
 async function createWindow(): Promise<void> {
@@ -1120,11 +1651,29 @@ async function createWindow(): Promise<void> {
     },
   });
 
-  mainWindow.once("ready-to-show", () => {
-    mainWindow?.show();
-  });
+  // Workaround for Electron upstream issue #48859 ("ready-to-show not triggering on Wayland"):
+  // Under native Wayland in Electron 38+, a window created with `show: false` may not commit
+  // its surface until `show()` is called, causing `ready-to-show` to deadlock and leaving
+  // the window invisible. Show on the first of `ready-to-show`, `did-finish-load`, `did-fail-load`,
+  // or a 2-second timeout.
+  let isWindowShown = false;
+  const showWindow = () => {
+    if (!isWindowShown && mainWindow && !mainWindow.isDestroyed()) {
+      isWindowShown = true;
+      mainWindow.show();
+    }
+  };
 
-  setupElectronAuthClient();
+  mainWindow.once("ready-to-show", showWindow);
+  mainWindow.webContents.once("did-finish-load", showWindow);
+  mainWindow.webContents.once(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL) => {
+      console.warn(`[electron] failed to load ${validatedURL}: ${errorCode} ${errorDescription}`);
+      showWindow();
+    },
+  );
+  setTimeout(showWindow, 2000);
 
   // ─── Navigation hardening ──────────────────────────────────────────────────
   // The renderer must never spawn new windows or navigate cross-origin. Deny all
@@ -1132,6 +1681,7 @@ async function createWindow(): Promise<void> {
   // in-window navigation/redirects to the local app origin + the OAuth protocol;
   // refuse webview attachment outright.
   const isAllowedNavigation = (target: string): boolean => {
+    if (target.startsWith("/")) return true;
     if (isAllowedAppOrigin(target)) return true;
     try {
       return new URL(target).protocol === `${ELECTRON_AUTH_PROTOCOL}:`;
@@ -1163,26 +1713,86 @@ async function createWindow(): Promise<void> {
     event.preventDefault();
   });
 
-  if (isDev) {
-    await installReactDevTools();
+  // Forward mDNS hub discovery events to the renderer (collab-client subscribes
+  // via the `collab:discovered` channel exposed in preload).
+  collabHubService.setDiscoveryListener((discoveryEvent) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send("collab:discovered", discoveryEvent);
+    }
+  });
 
-    // Boot straight into the product, not the marketing landing (blueprint §7).
-    await mainWindow.loadURL("http://localhost:3000/dashboard");
+  if (isDev) {
+    void installReactDevTools();
+
+    const devPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    await mainWindow.loadURL(`http://localhost:${devPort}/dashboard`);
     mainWindow.webContents.openDevTools();
   } else {
+    // Register fail-retry listener before loading any URL
+    let loadRetries = 0;
+    const MAX_LOAD_RETRIES = 5;
+
+    mainWindow.webContents.on(
+      "did-fail-load",
+      (_event, errorCode, errorDescription, validatedURL) => {
+        if (loadRetries >= MAX_LOAD_RETRIES) {
+          console.error(
+            `[electron] Failed to load ${validatedURL} after ${MAX_LOAD_RETRIES} retries: ${errorDescription} (code ${errorCode})`,
+          );
+          dialog.showErrorBox(
+            "Data Navigator failed to load",
+            `The application window could not load ${validatedURL}.\n\n` +
+              `${errorDescription} (code ${errorCode})\n\n` +
+              `See boot.log in the app data folder for details.`,
+          );
+          app.quit();
+          return;
+        }
+
+        loadRetries += 1;
+        const delay = Math.min(1000 * loadRetries, 5000);
+        console.warn(
+          `[electron] Load failed (${errorDescription}), retrying in ${delay}ms (attempt ${loadRetries}/${MAX_LOAD_RETRIES})...`,
+        );
+
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            void mainWindow.loadURL(validatedURL);
+          }
+        }, delay);
+      },
+    );
+
     try {
       const serverUrl = await startNextJSServer();
       console.log("[electron] Next.js server started at:", serverUrl);
 
+      // Use 127.0.0.1 explicitly to eliminate IPv6 ::1 lookup failure against 0.0.0.0 IPv4 listener
+      const parsedServerUrl = new URL(serverUrl);
+      const host =
+        parsedServerUrl.hostname === "localhost" || parsedServerUrl.hostname === "0.0.0.0"
+          ? "127.0.0.1"
+          : parsedServerUrl.hostname;
+      const origin = `${parsedServerUrl.protocol}//${host}:${parsedServerUrl.port || "3000"}`;
+
+      // Wait up to 10 seconds for the HTTP server to accept requests
+      const healthCheckUrl = `${origin}/`;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        try {
+          const res = await fetch(healthCheckUrl);
+          if (res.status) break;
+        } catch {
+          await new Promise((r) => setTimeout(r, 200));
+        }
+      }
+
       // Boot straight into the product, not the marketing landing (blueprint §7).
-      const dashboardUrl = new URL("/dashboard", serverUrl).toString();
-      await mainWindow.loadURL(dashboardUrl);
+      const dashboardUrl = new URL("/dashboard", origin).toString();
+      await mainWindow.loadURL(dashboardUrl).catch((loadErr) => {
+        console.warn("[electron] initial mainWindow.loadURL rejected:", loadErr?.message ?? loadErr);
+      });
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
-      // The window is created with show:false and only revealed on ready-to-show,
-      // which never fires when the server fails to start (loadURL is never reached).
-      // Without surfacing the error the packaged app just silently shows nothing, so
-      // make the failure visible and diagnosable instead of an invisible no-op launch.
       dialog.showErrorBox(
         "Data Navigator failed to start",
         `The local application server could not start, so the app cannot open.\n\n` +
@@ -1192,35 +1802,6 @@ async function createWindow(): Promise<void> {
       app.quit();
     }
   }
-
-  let loadRetries = 0;
-  const MAX_LOAD_RETRIES = 5;
-
-  mainWindow.webContents.on(
-    "did-fail-load",
-    (_event, errorCode, errorDescription, validatedURL) => {
-      if (loadRetries >= MAX_LOAD_RETRIES) {
-        console.error(
-          `[electron] Failed to load ${validatedURL} after ${MAX_LOAD_RETRIES} retries: ${errorDescription} (code ${errorCode})`,
-        );
-        return;
-      }
-
-      loadRetries += 1;
-
-      const delay = Math.min(1000 * loadRetries, 5000);
-
-      console.warn(
-        `[electron] Load failed (${errorDescription}), retrying in ${delay}ms (attempt ${loadRetries}/${MAX_LOAD_RETRIES})...`,
-      );
-
-      setTimeout(() => {
-        if (mainWindow && !mainWindow.isDestroyed()) {
-          void mainWindow.loadURL(validatedURL);
-        }
-      }, delay);
-    },
-  );
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -1232,37 +1813,24 @@ async function createWindow(): Promise<void> {
 async function startNextJSServer(): Promise<string> {
   try {
     bootLog("startNextJSServer: begin");
-    const authUrl = new URL(getBetterAuthBaseUrl());
-    // Enforce localhost-only: fail closed if the (env-overridable) base URL ever
-    // resolves to a non-loopback host. Makes "localhost-only" an invariant, not
-    // a convention (closes the Model-D loopback-bind gap).
-    const hostname = assertLoopbackHostname(authUrl.hostname);
-    const host =
-      hostname.startsWith("[") && hostname.endsWith("]") ? hostname.slice(1, -1) : hostname;
-    const preferredPort = authUrl.port ? Number(authUrl.port) : null;
-    if (preferredPort !== null && (!Number.isInteger(preferredPort) || preferredPort <= 0)) {
-      throw new Error(`Invalid BETTER_AUTH_URL port: ${authUrl.port}`);
-    }
+    const nextJSPort = await resolveAppPort({ isPackaged: app.isPackaged });
+    currentServerPort = nextJSPort;
+    bootLog(`selected application port: ${nextJSPort} (range ${PROD_PORT_RANGE.start}-${PROD_PORT_RANGE.end})`);
 
-    const preferredPorts =
-      preferredPort !== null && preferredPort >= 20000 && preferredPort <= 20100
-        ? [preferredPort, ...portNumbers(20000, 20100)]
-        : portNumbers(20000, 20100);
+    const serverOrigin = `http://127.0.0.1:${nextJSPort}`;
+    const localhostOrigin = `http://localhost:${nextJSPort}`;
 
-    const nextJSPort = await getPort({
-      port: preferredPorts,
-      host,
-      reserve: true,
-    });
-    authUrl.port = String(nextJSPort);
-    const baseUrl = authUrl.toString();
+    // The server must listen on all interfaces to be reachable by LAN peers when
+    // collaboration is enabled. Access control is enforced by src/proxy.ts.
+    const bindAddress = "0.0.0.0";
 
     const webDir = path.join(app.getAppPath(), "app");
 
-    process.env.BETTER_AUTH_URL = baseUrl;
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = baseUrl;
+    process.env.BETTER_AUTH_URL = serverOrigin;
+    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = serverOrigin;
     process.env.APP_USER_DATA = app.getPath("userData");
     process.env.PORT = nextJSPort.toString();
+    process.env.HOSTNAME = bindAddress;
 
     // Replace the shipped constant BETTER_AUTH_SECRET with a per-install random
     // 256-bit secret persisted (0600) in userData — forgeable-cookie hardening
@@ -1279,6 +1847,7 @@ async function startNextJSServer(): Promise<string> {
     // unchanged. If safeStorage is unavailable the DEK is not exposed and the
     // auth layer transparently stays on plaintext.
     if (isAuthDbEncryptionRequested()) {
+      const { safeStorage } = require("electron") as typeof import("electron");
       ensureAuthDbKeyEnv(app.getPath("userData"), safeStorage);
     }
 
@@ -1288,7 +1857,10 @@ async function startNextJSServer(): Promise<string> {
     // set in config, so we set it here without editing the (out-of-scope)
     // auth.ts.
     const trustedOrigins = [
-      baseUrl,
+      serverOrigin,
+      localhostOrigin,
+      `http://localhost:${nextJSPort}`,
+      `http://127.0.0.1:${nextJSPort}`,
       "http://localhost:3000",
       "http://127.0.0.1:3000",
       // Exact custom-protocol origin only — the `://*` wildcard widened trusted
@@ -1297,46 +1869,50 @@ async function startNextJSServer(): Promise<string> {
     ];
     process.env.BETTER_AUTH_TRUSTED_ORIGINS = Array.from(new Set(trustedOrigins)).join(",");
 
-    // Load Next's startServer from the SELF-CONTAINED standalone bundle that
-    // ships inside `app/` (webDir/node_modules/next). The bare "next/..."
-    // specifier resolves against the packaged ROOT node_modules, which under
-    // pnpm is a dangling symlink into the (excluded) .pnpm store → the installed
-    // app crashed with "Cannot find module next/dist/server/lib/start-server".
-    // The standalone copy has real files, so it always resolves.
-    const standaloneStartServer = path.join(
-      webDir,
-      "node_modules",
-      "next",
-      "dist",
-      "server",
-      "lib",
-      "start-server.js",
-    );
-    const startServerEntry = existsSync(standaloneStartServer)
-      ? standaloneStartServer
-      : "next/dist/server/lib/start-server";
-    bootLog(`webDir=${webDir}`);
-    bootLog(`appPath=${app.getAppPath()}`);
-    bootLog(
-      `standaloneStartServer=${standaloneStartServer} exists=${existsSync(standaloneStartServer)}`,
-    );
-    bootLog(`startServerEntry=${startServerEntry}`);
-    const { startServer } = require(startServerEntry) as { startServer: typeof StartServerFn };
-    bootLog("required startServer OK");
+    const standaloneServerScript = path.join(webDir, "server.js");
+    if (existsSync(standaloneServerScript)) {
+      bootLog(`starting standalone Next.js server via ${standaloneServerScript}`);
+      process.env.PORT = nextJSPort.toString();
+      process.env.HOSTNAME = bindAddress;
+      const originalChdir = process.chdir;
+      process.chdir = function (dir: string) {
+        try {
+          return originalChdir.call(process, dir);
+        } catch (err: any) {
+          if (err && (err.code === "ENOTDIR" || err.code === "ENOENT")) {
+            return;
+          }
+          throw err;
+        }
+      };
+      require(standaloneServerScript);
+    } else {
+      const standaloneStartServer = path.join(
+        webDir,
+        "node_modules",
+        "next",
+        "dist",
+        "server",
+        "lib",
+        "start-server.js",
+      );
+      const startServerEntry = existsSync(standaloneStartServer)
+        ? standaloneStartServer
+        : "next/dist/server/lib/start-server";
+      bootLog(`startServerEntry=${startServerEntry}`);
+      const { startServer } = require(startServerEntry) as { startServer: typeof StartServerFn };
+      await startServer({
+        dir: webDir,
+        isDev: false,
+        hostname: bindAddress,
+        port: nextJSPort,
+        allowRetry: false,
+        keepAliveTimeout: 5000,
+      });
+    }
 
-    await startServer({
-      dir: webDir,
-      isDev: false,
-      hostname: host,
-      port: nextJSPort,
-      customServer: true,
-      allowRetry: false,
-      keepAliveTimeout: 5000,
-      minimalMode: true,
-    });
-    bootLog(`startServer resolved; listening at ${baseUrl}`);
-
-    return baseUrl;
+    bootLog(`startServer invoked; target is ${serverOrigin}`);
+    return serverOrigin;
   } catch (error) {
     bootLog(
       `ERROR: ${error instanceof Error ? `${error.message}\n${error.stack}` : String(error)}`,
@@ -1351,19 +1927,41 @@ async function startNextJSServer(): Promise<string> {
 app
   .whenReady()
   .then(async () => {
+    // Ensure the host secret is consistent across all processes (main, hub, and Next server).
+    // The renderer retrieves this via the collabHub:getHostSecret IPC.
+    process.env.DATA_NAVIGATOR_HOST_SECRET = collabHubService.getHostSecret();
+
     // Production hardening preflight. The fuses themselves are flipped at package
-    // time by the Forge FusesPlugin from PRODUCTION_FUSE_CONFIG (forge.config.ts);
+    // time by electron-builder from PRODUCTION_FUSE_CONFIG (electron-builder.config.ts);
     // this is a runtime assertion that, when packaged, ELECTRON_RUN_AS_NODE is
     // disabled (RunAsNode:false) so the binary cannot be coerced into a generic
     // Node runtime. If a future build drops the plugin, this surfaces it in logs.
-    if (
-      app.isPackaged &&
-      PRODUCTION_FUSE_CONFIG.RunAsNode === false &&
-      process.env.ELECTRON_RUN_AS_NODE
-    ) {
+    if (app.isPackaged && PRODUCTION_FUSE_CONFIG.RunAsNode) {
       console.warn(
         "[electron] ELECTRON_RUN_AS_NODE is set in a packaged build — fuses may not be enforced.",
       );
+    }
+
+    // In dev mode, if .data/auth.db does not exist yet but Electron's userData/databases/auth.db exists,
+    // seamlessly copy it over so developer accounts and sessions are preserved.
+    if (!app.isPackaged) {
+      const devAuthDb = path.join(DATABASES_DIR, "auth.db");
+      const legacyUserDataAuthDb = path.join(app.getPath("userData"), "databases", "auth.db");
+      if (!existsSync(devAuthDb) && existsSync(legacyUserDataAuthDb)) {
+        try {
+          mkdirSync(DATABASES_DIR, { recursive: true });
+          copyFileSync(legacyUserDataAuthDb, devAuthDb);
+          if (existsSync(`${legacyUserDataAuthDb}-wal`)) {
+            copyFileSync(`${legacyUserDataAuthDb}-wal`, `${devAuthDb}-wal`);
+          }
+          if (existsSync(`${legacyUserDataAuthDb}-shm`)) {
+            copyFileSync(`${legacyUserDataAuthDb}-shm`, `${devAuthDb}-shm`);
+          }
+          bootLog(`auth-store: migrated existing auth.db from ${legacyUserDataAuthDb} to ${devAuthDb}`);
+        } catch (err) {
+          bootLog(`auth-store: failed to copy legacy auth.db: ${err}`);
+        }
+      }
     }
 
     // Bring up the per-domain settings/analytics databases and lift any legacy
@@ -1373,15 +1971,98 @@ app
     // served by an external `next dev` and startNextJSServer never runs.
     configureSettingsStore(DATABASES_DIR);
     configureChatStore(DATABASES_DIR);
+    configureAuthStore(DATABASES_DIR);
+    // The packaged app's cwd is the install root (read-only on macOS/Linux), so the
+    // drizzle migrations must be resolved out of the asar. The DEFAULT_MIGRATIONS_FOLDER
+    // in each store is `<cwd>/drizzle/...` which works for `pnpm dev`; the packaged
+    // app must override to `<appPath>/drizzle/...` so migrations resolve inside the
+    // asar. (See the bug audit in `docs/audit*.md` — this is the fix for the
+    // "no such table" error after install.)
+    //
+    // Guarded on app.isPackaged: in dev, app.getAppPath() is the dir containing
+    // main.js (build/), not the project root, so an unconditional override here
+    // points the migrator at a non-existent build/drizzle/... and rejects the
+    // whenReady chain before createWindow() runs — dev launches with no window.
+    // Do NOT remove this guard without also fixing DEFAULT_MIGRATIONS_FOLDER.
+    if (app.isPackaged) {
+      setAuthMigrationsFolder(path.join(app.getAppPath(), "drizzle"));
+      setSettingsMigrationsFolder(path.join(app.getAppPath(), "drizzle", "settings"));
+      setChatMigrationsFolder(path.join(app.getAppPath(), "drizzle", "chat"));
+    }
+    // In dev, DEFAULT_MIGRATIONS_FOLDER (<cwd>/drizzle/...) is correct because
+    // pnpm launches electron from the project root.
+
+    // Cross-module wiring: chat-store fires onMessageAppended →
+    // semantic-search indexer writes the embedding row in the same SQLite
+    // handle so chat row + embedding row live in one WAL.
+    setChatSemanticSearchHandle(getChatStoreHandle());
+    onChatMessageAppended((row) => {
+      // Background-fire; never block the IPC thread on embedding latency.
+      void appendMessageEmbedding({
+        messageId: row.id,
+        conversationId: row.conversationId,
+        content: row.content,
+      }).catch((error: unknown) => {
+        if (typeof console !== "undefined") {
+          console.warn("[chat-semantic-search] embed hook failed:", error);
+        }
+      });
+    });
+
     try {
-      const authDbPath = path.join(app.getPath("userData"), "data", AUTH_DB_FILENAME);
+      const legacyPath = path.join(app.getPath("userData"), "data", "data-navigator-auth.sqlite");
+      const currentPath = path.join(DATABASES_DIR, "auth.db");
+      const authDbPath = existsSync(legacyPath) ? legacyPath : currentPath;
       const { migrated } = migrateLegacyAppSettings(authDbPath);
-      bootLog(`settings-store: ready at ${DATABASES_DIR}; legacy lift migrated ${migrated} rows`);
+      bootLog(`settings-store: ready at ${DATABASES_DIR}; settings lift migrated ${migrated} rows`);
     } catch (error) {
       bootLog(
         `settings-store: init/migration error: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
+
+    // `pyodide://host/<path>` serves files from <userData>/pyodide/ so the
+    // renderer can load Pyodide fully offline.
+    protocol.handle("pyodide", async (request) => {
+      try {
+        const url = new URL(request.url);
+        const root = path.resolve(pyodideDownloader.getPyodideInstallPath());
+        const target = path.resolve(root, "." + url.pathname);
+        if (!target.startsWith(root + path.sep) && target !== root) {
+          return new Response("forbidden", { status: 403 });
+        }
+        const data = await readFile(target);
+        const lower = target.toLowerCase();
+        const mime =
+          lower.endsWith(".mjs") || lower.endsWith(".js")
+            ? "application/javascript"
+            : lower.endsWith(".wasm")
+              ? "application/wasm"
+              : lower.endsWith(".json")
+                ? "application/json"
+                : lower.endsWith(".zip") || lower.endsWith(".tar")
+                  ? "application/octet-stream"
+                  : "application/octet-stream";
+        return new Response(data, {
+          headers: {
+            "content-type": mime,
+            "cache-control": "no-store",
+            // Module + fetch loads from the opaque-origin sandbox iframe require CORS.
+            "access-control-allow-origin": "*",
+          },
+        });
+      } catch (error) {
+        if (
+          typeof error === "object" &&
+          error &&
+          "code" in error &&
+          (error as { code: string }).code === "ENOENT"
+        ) {
+          return new Response("not found", { status: 404 });
+        }
+        return new Response("error", { status: 500 });
+      }
+    });
     try {
       const { migrated } = migrateLegacyAnalyticsSnapshotKV();
       bootLog(`settings-store: analytics snapshot history lift migrated ${migrated} rows`);
@@ -1393,18 +2074,23 @@ app
 
     installMediaPermissionHandlers();
 
+    session.defaultSession.webRequest.onErrorOccurred((details) => {
+      console.warn(`[electron:webRequest:error] url=${details.url} error=${details.error} type=${details.resourceType}`);
+    });
+
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
-      // Cross-origin isolate every response (COOP/COEP/CORP → SharedArrayBuffer
-      // / WASM threads / DuckDB-WASM) AND apply the renderer CSP + static security
-      // headers. The CSP allows worker-src blob: + wasm-unsafe-eval (required by
-      // the DuckDB/LLM/worker engine) and additionally ships a stricter
-      // Report-Only policy for nonce-rollout telemetry. Pure policy in ./security.
-      callback({
-        responseHeaders: withRendererSecurityHeaders(details.responseHeaders, {
-          dev: isDev,
-          enforceCsp: true,
-        }),
-      });
+      try {
+        callback({
+          responseHeaders: withRendererSecurityHeaders(details.responseHeaders, {
+            dev: isDev,
+            enforceCsp: true,
+            port: currentServerPort,
+          }),
+        });
+      } catch (err) {
+        console.error("[electron:onHeadersReceived:error]", err);
+        callback({ responseHeaders: details.responseHeaders });
+      }
     });
 
     console.log(
@@ -1423,8 +2109,62 @@ app
         `whenReady: duckdbService.init() FAILED: ${error instanceof Error ? `${error.message}\n${error.stack}` : String(error)}`,
       );
     }
+    try {
+      await session.defaultSession.clearStorageData({
+        storages: ["serviceworkers", "cachestorage"],
+      });
+      bootLog("whenReady: cleared service workers and cache storage");
+    } catch (e) {
+      console.warn("[electron] failed to clear service worker storage:", e);
+    }
+    await syncSessionCookie(null);
     await createWindow();
     bootLog("whenReady: createWindow() returned");
+
+    // ── OS Lock & Sleep Auto-Lock (Bitwarden / 1Password desktop pattern) ──
+    try {
+      powerMonitor.on("lock-screen", async () => {
+        if (!authIsAppLocked()) {
+          clearMidnightTimer();
+          authLockApp();
+          currentActiveToken = null;
+          await syncSessionCookie(null);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("auth:lock-changed", true);
+          }
+        }
+      });
+
+      powerMonitor.on("suspend", async () => {
+        if (!authIsAppLocked()) {
+          clearMidnightTimer();
+          authLockApp();
+          currentActiveToken = null;
+          await syncSessionCookie(null);
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send("auth:lock-changed", true);
+          }
+        }
+      });
+
+      powerMonitor.on("resume", async () => {
+        if (currentActiveToken) {
+          const sessionRes = authGetSession(currentActiveToken);
+          if (!sessionRes.session || sessionRes.isLocked) {
+            clearMidnightTimer();
+            authLockApp();
+            currentActiveToken = null;
+            await syncSessionCookie(null);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send("auth:session-expired");
+              mainWindow.webContents.send("auth:lock-changed", true);
+            }
+          }
+        }
+      });
+    } catch (err) {
+      console.warn("[electron] powerMonitor subscription warning:", err);
+    }
 
     app.on("activate", async () => {
       if (BrowserWindow.getAllWindows().length === 0) {
@@ -1447,21 +2187,22 @@ app.on("before-quit", () => {
     console.error("[electron] DuckDB cleanup error:", error);
   });
 
-  chatSessionService.disposeAll().catch((error) => {
-    console.error("[electron] chat-session cleanup error:", error);
+  chatSessionService
+    .disposeAll()
+    .then(() => embeddingService.dispose())
+    .then(() => llamaService.dispose())
+    .catch((error) => {
+      console.error("[electron] llama cleanup error:", error);
+    });
+
+  collabHubService.dispose().catch((error) => {
+    console.error("[electron] collab-hub cleanup error:", error);
   });
 
-  llamaService.dispose().catch((error) => {
-    console.error("[electron] llama cleanup error:", error);
-  });
-
-  embedService.disposeEmbed().catch((error) => {
-    console.error("[electron] embed cleanup error:", error);
-  });
-
-  // Flush WAL + close the settings/analytics/chat SQLite handles cleanly.
+  // Flush WAL + close the settings/analytics/chat/auth SQLite handles cleanly.
   closeSettingsStore();
   closeChatStore();
+  closeAuthStore();
 });
 
 app.on("window-all-closed", () => {

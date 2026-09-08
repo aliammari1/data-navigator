@@ -9,8 +9,7 @@ import {
   rmSync,
 } from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+import type Database from "better-sqlite3";
 import * as schema from "@/db/schema";
 import {
   decideAuthDbPlan,
@@ -21,87 +20,20 @@ import {
   resolveDekFromEnv,
 } from "@/platform/auth/auth-db-encryption";
 import { AUTH_DB_FILE } from "@/platform/storage/storage-constants";
+import { openSqliteHandle } from "@/platform/storage/db-bootstrap";
 
 type AuthDatabaseOptions = {
   appUserData?: string;
   cwd?: string;
 };
 
-const AUTH_SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS user (
-  id text PRIMARY KEY NOT NULL,
-  name text NOT NULL,
-  email text NOT NULL,
-  email_verified integer DEFAULT false NOT NULL,
-  image text,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
-);
-CREATE UNIQUE INDEX IF NOT EXISTS user_email_unique ON user (email);
-
-CREATE TABLE IF NOT EXISTS session (
-  id text PRIMARY KEY NOT NULL,
-  expires_at integer NOT NULL,
-  token text NOT NULL,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer NOT NULL,
-  ip_address text,
-  user_agent text,
-  user_id text NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
-);
-CREATE UNIQUE INDEX IF NOT EXISTS session_token_unique ON session (token);
-CREATE INDEX IF NOT EXISTS session_userId_idx ON session (user_id);
-
-CREATE TABLE IF NOT EXISTS account (
-  id text PRIMARY KEY NOT NULL,
-  account_id text NOT NULL,
-  provider_id text NOT NULL,
-  user_id text NOT NULL,
-  access_token text,
-  refresh_token text,
-  id_token text,
-  access_token_expires_at integer,
-  refresh_token_expires_at integer,
-  scope text,
-  password text,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer NOT NULL,
-  FOREIGN KEY (user_id) REFERENCES user(id) ON UPDATE no action ON DELETE cascade
-);
-CREATE INDEX IF NOT EXISTS account_userId_idx ON account (user_id);
-
-CREATE TABLE IF NOT EXISTS verification (
-  id text PRIMARY KEY NOT NULL,
-  identifier text NOT NULL,
-  value text NOT NULL,
-  expires_at integer NOT NULL,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
-);
-CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification (identifier);
-`;
-
 export function getAuthDatabasePath(options: AuthDatabaseOptions = {}) {
-  const runtimeDataDir = options.appUserData
-    ? path.join(options.appUserData, "data")
+  const appUserData = options.appUserData ?? process.env.APP_USER_DATA;
+  const runtimeDataDir = appUserData
+    ? path.join(appUserData, "databases")
     : path.join(options.cwd ?? process.cwd(), ".data");
 
   return path.join(runtimeDataDir, AUTH_DB_FILE);
-}
-
-/**
- * The original, unchanged plaintext open path. Kept as a dedicated helper so the
- * DEFAULT-OFF behavior is provably byte-for-byte identical to the pre-encryption
- * implementation: open with the stock `better-sqlite3` driver, set the same two
- * pragmas in the same order, apply the same schema.
- */
-function openPlaintextSqlite(databasePath: string): Database.Database {
-  const sqlite = new Database(databasePath);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(AUTH_SCHEMA_SQL);
-  return sqlite;
 }
 
 /**
@@ -135,19 +67,6 @@ function readFileHeader(filePath: string, length: number): Buffer | null {
       }
     }
   }
-}
-
-/**
- * Key an encrypted handle with the raw 256-bit DEK and apply the same pragmas +
- * schema as the plaintext path. The DEK is passed as a SQLCipher raw key
- * (`x'<hex>'`) so no KDF is applied to an already-random 256-bit key.
- */
-function keyAndPrepareEncrypted(sqlite: Database.Database, keyHex: string): void {
-  // Must be the FIRST operation on the connection, before any other SQL.
-  sqlite.pragma(`key = "x'${keyHex}'"`);
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(AUTH_SCHEMA_SQL);
 }
 
 /**
@@ -205,7 +124,6 @@ function migratePlaintextToEncrypted(databasePath: string, keyHex: string): bool
       // Sentinel: schema_version is always readable on a correctly-keyed DB and
       // throws "file is not a database" when the key is wrong.
       verify.pragma("schema_version");
-      verify.prepare("SELECT count(*) AS n FROM sqlite_master").get();
     } finally {
       verify.close();
     }
@@ -256,32 +174,56 @@ export function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     encryptionRequested,
   });
 
-  let sqlite: Database.Database;
+  const migrationsFolder = path.join(options.cwd ?? process.cwd(), "drizzle");
 
   if (plan.mode === "plaintext") {
-    sqlite = openPlaintextSqlite(databasePath);
-  } else {
-    // Encrypted path (opt-in). Migrate an existing plaintext DB first; if the
-    // migration cannot complete safely, fall back to plaintext so the app still
-    // works (the plaintext DB and its backup are left intact).
-    let migrated = true;
-    if (plan.needsMigration) {
-      migrated = migratePlaintextToEncrypted(databasePath, plan.key);
-    }
-
-    if (migrated) {
-      const EncryptedDatabase = loadEncryptedDriver();
-      sqlite = new EncryptedDatabase(databasePath);
-      keyAndPrepareEncrypted(sqlite, plan.key);
-    } else {
-      sqlite = openPlaintextSqlite(databasePath);
-    }
+    const handle = openSqliteHandle({
+      path: databasePath,
+      schema,
+      migrationsFolder,
+    });
+    return {
+      db: handle.db,
+      path: databasePath,
+      sqlite: handle.sqlite,
+    };
   }
 
-  return {
-    db: drizzle({ client: sqlite, schema }),
+  // Encrypted path (opt-in). Migrate an existing plaintext DB first; if the
+  // migration cannot complete safely, fall back to plaintext so the app still
+  // works (the plaintext DB and its backup are left intact).
+  let migrated = true;
+  if (plan.needsMigration) {
+    migrated = migratePlaintextToEncrypted(databasePath, plan.key);
+  }
+
+  if (migrated) {
+    const EncryptedDatabase = loadEncryptedDriver();
+    const handle = openSqliteHandle({
+      path: databasePath,
+      schema,
+      driver: EncryptedDatabase,
+      prePragmas: (sqlite) => {
+        sqlite.pragma(`key = "x'${plan.key}'"`);
+      },
+      migrationsFolder,
+    });
+    return {
+      db: handle.db,
+      path: databasePath,
+      sqlite: handle.sqlite,
+    };
+  }
+
+  const handle = openSqliteHandle({
     path: databasePath,
-    sqlite,
+    schema,
+    migrationsFolder,
+  });
+  return {
+    db: handle.db,
+    path: databasePath,
+    sqlite: handle.sqlite,
   };
 }
 

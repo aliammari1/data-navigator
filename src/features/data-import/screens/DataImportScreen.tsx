@@ -58,6 +58,7 @@ import {
   isTelecomDataset,
   TELECOM_REQUIRED_COLUMNS,
 } from "@/features/telecom/lib/dataset-detection";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import {
   getDroppedFilePaths,
   isElectron,
@@ -156,6 +157,7 @@ function useFile(id: string): ParsedFileInfo | undefined {
 }
 
 export default function DataImportScreen() {
+  const access = useDashboardAccess();
   const { addDataset, setActiveDataset } = useDataStore();
 
   const router = useRouter();
@@ -168,22 +170,15 @@ export default function DataImportScreen() {
   const files = useImportSession((state) => state.files);
   const reset = useImportSession((state) => state.reset);
 
-  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
-  const [electronAvailable, setElectronAvailable] = useState(false);
-  const [dropNotice, setDropNotice] = useState<string | null>(null);
-  const [importing, setImporting] = useState(false);
+const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+const [electronAvailable, setElectronAvailable] = useState(false);
+const [dropNotice, setDropNotice] = useState<string | null>(null);
+const [importing, setImporting] = useState(false);
+const [rejectDialogFiles, setRejectDialogFiles] = useState<ParsedFileInfo[] | null>(null);
   // `auto` defers to the main-process encoding detector (chardet + BOM sniff);
   // an explicit choice forces DuckDB `read_csv(encoding=…)` for Latin-1/UTF-16
   // exports that would otherwise mojibake.
   const [encoding, setEncoding] = useState<ImportEncoding>("auto");
-  // Files from the just-completed batch that had rejected rows, plus where to
-  // navigate once the user has seen and dismissed the reject dialog. Kept out
-  // of the normal `router.push` path so the warning can't be navigated past
-  // before it's shown.
-  const [rejectDialog, setRejectDialog] = useState<{
-    files: ParsedFileInfo[];
-    navigateTo: string;
-  } | null>(null);
 
   const { history, loading: historyLoading, refresh: refreshHistory } = useImportHistory();
 
@@ -227,14 +222,22 @@ export default function DataImportScreen() {
   const pipelineContext = useMemo<ImportPipelineContext>(
     () => ({
       isTelecomMode,
-      canUpload: true,
+      canUpload: access.permissions.canUpload,
       encoding,
       addDataset,
       setActiveDataset,
       setAppContext,
       addActivity,
     }),
-    [isTelecomMode, encoding, addDataset, setActiveDataset, setAppContext, addActivity],
+    [
+      isTelecomMode,
+      access.permissions.canUpload,
+      encoding,
+      addDataset,
+      setActiveDataset,
+      setAppContext,
+      addActivity,
+    ],
   );
 
   const runImport = useCallback(
@@ -254,17 +257,19 @@ export default function DataImportScreen() {
 
         await refreshHistory();
 
-        const doneFiles = doneIds
-          .map((id) => useImportSession.getState().files[id])
-          .filter((file): file is ParsedFileInfo => Boolean(file));
-        const filesWithRejects = doneFiles.filter((file) => (file.rejectCount ?? 0) > 0);
+        const sessionFiles = useImportSession.getState().files;
+        const rejected = doneIds
+          .map((id) => sessionFiles[id])
+          .filter((file): file is ParsedFileInfo => Boolean(file))
+          .filter((file) => (file.rejectCount ?? 0) > 0);
 
-        // Navigate exactly once, after the whole batch settles — never per file.
-        // But hold off if any file had rows DuckDB silently dropped: show them
-        // first so the loss isn't invisible, then navigate on dismissal.
-        if (filesWithRejects.length > 0) {
-          setRejectDialog({ files: filesWithRejects, navigateTo: getUploadSuccessPath() });
-        } else if (doneIds.length > 0) {
+        const hasRejects = rejected.length > 0;
+        const shouldNavigate = doneIds.length > 0 && !hasRejects;
+
+        if (hasRejects) {
+          setRejectDialogFiles(rejected);
+        }
+        if (shouldNavigate) {
           router.push(getUploadSuccessPath());
         }
       } finally {
@@ -275,7 +280,7 @@ export default function DataImportScreen() {
   );
 
   const importFromFiles = useCallback(async () => {
-    if (!isElectron()) return;
+    if (!access.permissions.canUpload || !isElectron()) return;
 
     const selected = await openFileDialog({
       title: "Select dataset files",
@@ -306,10 +311,10 @@ export default function DataImportScreen() {
     }
 
     await runImport(supported);
-  }, [runImport]);
+  }, [access.permissions.canUpload, runImport]);
 
   const importFromFolder = useCallback(async () => {
-    if (!isElectron()) return;
+    if (!access.permissions.canUpload || !isElectron()) return;
 
     const selected = await openFileDialog({
       title: "Select dataset folder",
@@ -330,13 +335,13 @@ export default function DataImportScreen() {
     }
 
     await runImport(supported);
-  }, [runImport]);
+  }, [access.permissions.canUpload, runImport]);
 
   // Real drag-and-drop: resolve dropped files to trusted on-disk paths via
   // Electron webUtils, then run the same pipeline as the native picker (§3).
   const onDrop = useCallback(
     (accepted: File[]) => {
-      if (accepted.length === 0) return;
+      if (!access.permissions.canUpload || accepted.length === 0) return;
 
       if (!isElectron()) {
         setDropNotice(
@@ -355,12 +360,12 @@ export default function DataImportScreen() {
 
       void runImport(supported);
     },
-    [runImport],
+    [access.permissions.canUpload, runImport],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
-    disabled: importing,
+    disabled: !access.permissions.canUpload || importing,
     noClick: true,
     noKeyboard: true,
     accept: {
@@ -432,7 +437,7 @@ export default function DataImportScreen() {
                   size="sm"
                   variant="outline"
                   onClick={importFromFolder}
-                  disabled={importing}
+                  disabled={!access.permissions.canUpload || importing}
                   className="h-9 rounded-xl text-xs"
                 >
                   <FolderOpen className="mr-1.5 h-3.5 w-3.5" />
@@ -443,7 +448,7 @@ export default function DataImportScreen() {
                   type="button"
                   size="sm"
                   onClick={importFromFiles}
-                  disabled={importing}
+                  disabled={!access.permissions.canUpload || importing}
                   className="h-9 rounded-xl text-xs font-bold"
                 >
                   {importing ? (
@@ -468,6 +473,7 @@ export default function DataImportScreen() {
               getRootProps={getRootProps}
               getInputProps={getInputProps}
               isDragActive={isDragActive}
+              canUpload={access.permissions.canUpload}
               electronAvailable={electronAvailable}
               dropNotice={dropNotice}
               onBrowse={importFromFiles}
@@ -490,7 +496,7 @@ export default function DataImportScreen() {
             <ImportSettingsCard
               encoding={encoding}
               onEncodingChange={setEncoding}
-              disabled={importing}
+              disabled={importing || !access.permissions.canUpload}
             />
 
             <UploadPipelineCard selectedFile={selectedFile} />
@@ -523,11 +529,10 @@ export default function DataImportScreen() {
       </main>
 
       <RejectRowsDialog
-        files={rejectDialog?.files ?? []}
+        files={rejectDialogFiles ?? []}
         onContinue={() => {
-          const navigateTo = rejectDialog?.navigateTo;
-          setRejectDialog(null);
-          if (navigateTo) router.push(navigateTo);
+          setRejectDialogFiles(null);
+          router.push(getUploadSuccessPath());
         }}
       />
     </div>
@@ -565,6 +570,7 @@ function UploadDropzone({
   getRootProps,
   getInputProps,
   isDragActive,
+  canUpload,
   electronAvailable,
   dropNotice,
   onBrowse,
@@ -572,6 +578,7 @@ function UploadDropzone({
   getRootProps: DropzoneRootGetter;
   getInputProps: DropzoneInputGetter;
   isDragActive: boolean;
+  canUpload: boolean;
   electronAvailable: boolean;
   dropNotice: string | null;
   onBrowse: () => void;
@@ -583,7 +590,9 @@ function UploadDropzone({
         "group relative overflow-hidden rounded-3xl border p-10 transition-all",
         isDragActive
           ? "border-primary bg-primary/10"
-          : "border-border bg-card hover:border-primary/50 hover:bg-muted/20",
+          : canUpload
+            ? "border-border bg-card hover:border-primary/50 hover:bg-muted/20"
+            : "border-border bg-muted/20 opacity-70",
       )}
     >
       <input {...getInputProps()} />
@@ -603,27 +612,32 @@ function UploadDropzone({
           <Upload className="h-8 w-8" />
         </motion.div>
 
-        <h2 className="mt-6 text-lg font-bold text-foreground">Importez un dataset local</h2>
+        <h2 className="mt-6 text-lg font-bold text-foreground">
+          {canUpload ? "Importez un dataset local" : "Votre rôle ne permet pas l'import"}
+        </h2>
 
         <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-          Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur
-          votre machine et sont lus directement par DuckDB.
+          {canUpload
+            ? "Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur votre machine et sont lus directement par DuckDB."
+            : "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."}
         </p>
 
-        <div className="mt-6 flex flex-wrap justify-center gap-2">
-          <Button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              onBrowse();
-            }}
-            disabled={!electronAvailable}
-            className="rounded-xl px-5 text-xs font-bold"
-          >
-            <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
-            Sélectionner un fichier local
-          </Button>
-        </div>
+        {canUpload && (
+          <div className="mt-6 flex flex-wrap justify-center gap-2">
+            <Button
+              type="button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onBrowse();
+              }}
+              disabled={!electronAvailable}
+              className="rounded-xl px-5 text-xs font-bold"
+            >
+              <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+              Sélectionner un fichier local
+            </Button>
+          </div>
+        )}
 
         {!electronAvailable && (
           <div className="mt-4 max-w-md rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">

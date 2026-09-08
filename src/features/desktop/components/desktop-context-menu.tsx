@@ -187,7 +187,7 @@ export function DesktopContextMenu({
           </div>
 
           <div className="my-1 h-px bg-border" />
-          <div className="px-2.5 pb-1 pt-0.5 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+          <div className="px-2.5 pb-1 pt-0.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
             Fond d'écran
           </div>
           <div className="flex gap-1.5 px-2 pb-1.5">

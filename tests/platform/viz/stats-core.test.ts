@@ -48,7 +48,7 @@ describe("logGamma", () => {
   it("uses the reflection formula for x < 0.5 and stays finite", () => {
     // gamma(1/4) == 3.625609908...; logGamma is ln of that == 1.28802...
     const value = logGamma(0.25);
-    expect(value).toBeCloseTo(Math.log(3.6256099082219083), 8);
+    expect(value).toBeCloseTo(Math.log(3.625609908221908), 8);
     expect(Number.isFinite(value)).toBe(true);
   });
 

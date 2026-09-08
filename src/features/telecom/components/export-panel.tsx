@@ -598,6 +598,12 @@ export function ExportPanel({
       const pageW = doc.internal.pageSize.getWidth();
       const margin = 14;
 
+      // jspdf-autotable v5 writes doc.lastAutoTable at runtime but omits it
+      // from its typings; centralize the read instead of casting per table.
+      const autotableEndY = (fallback: number): number =>
+        (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable
+          ?.finalY ?? fallback;
+
       // ── Header ──────────────────────────────────────────────────────────────
       doc.setFillColor(79, 70, 229); // indigo-600
       doc.rect(0, 0, pageW, 22, "F");
@@ -644,7 +650,7 @@ export function ExportPanel({
             1: { cellWidth: 60, halign: "right" },
           },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       const deckBrief = await getDeckBrief();
@@ -685,7 +691,7 @@ export function ExportPanel({
           margin: { left: margin, right: margin },
           columnStyles: { 0: { cellWidth: 34 }, 1: { cellWidth: 138 } },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       if (includeAssistantDataset && insights.length) {
@@ -708,7 +714,7 @@ export function ExportPanel({
           margin: { left: margin, right: margin },
           columnStyles: { 2: { cellWidth: 86 } },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       if (hasOverviewSection("revenueGroups") && revenueGroupRows.length) {
@@ -740,7 +746,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [240, 253, 250] },
           margin: { left: margin, right: margin },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       // ── Canaux table ────────────────────────────────────────────────────────
@@ -787,7 +793,7 @@ export function ExportPanel({
             }
           },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       // ── Statuts table ───────────────────────────────────────────────────────
@@ -820,7 +826,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [245, 243, 255] },
           margin: { left: margin, right: margin },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       // ── Opérateurs table ────────────────────────────────────────────────────
@@ -854,7 +860,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [240, 249, 255] },
           margin: { left: margin, right: margin },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       // ── Régions table ────────────────────────────────────────────────────────
@@ -887,7 +893,7 @@ export function ExportPanel({
           alternateRowStyles: { fillColor: [236, 254, 255] },
           margin: { left: margin, right: margin },
         });
-        y = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 8;
+        y = autotableEndY(y) + 8;
       }
 
       // ── Horaire table ────────────────────────────────────────────────────────

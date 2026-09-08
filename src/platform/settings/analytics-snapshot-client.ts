@@ -48,13 +48,10 @@ interface ElectronAnalyticsSnapshotsBridge {
   delete(id: number): Promise<void>;
 }
 
-type AnalyticsSnapshotsWindow = Window & {
-  electronAnalyticsSnapshots?: ElectronAnalyticsSnapshotsBridge;
-};
 
 function bridge(): ElectronAnalyticsSnapshotsBridge | null {
   if (typeof window === "undefined") return null;
-  return (window as AnalyticsSnapshotsWindow).electronAnalyticsSnapshots ?? null;
+  return window.electronAnalyticsSnapshots ?? null;
 }
 
 /** True when the analytics-snapshots IPC bridge is reachable (renderer running in Electron). */

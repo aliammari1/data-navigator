@@ -1,23 +1,18 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import { VoiceLineSection } from "@/features/telecom/components/voice-line-section";
+
 import type { SpecChRow } from "@/features/telecom/lib/queries";
-import type { CanalRule } from "@/features/telecom/types";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { VoiceLineSection } from "@/features/telecom/components/voice-line-section";
 
-const mockRule = (name: string): CanalRule => ({
-  id: name.toLowerCase(),
-  name,
-  canalKey: "bill_payment",
-  match: { kind: "brand", brandDValues: ["0"] },
-  reportGroup: null,
-  origin: "default",
-  enabled: true,
-  createdAt: "",
-  updatedAt: "",
-});
+const ttcash: ChannelDef[] = [
+  { name: "TTCASH FIXE", condition: "SERVICE_CODE = 'VF_TTCASH'" },
+  { name: "TTCASH MOBILE", condition: "SERVICE_CODE = 'VM_TTCASH'" },
+];
 
-const ttcash: CanalRule[] = [mockRule("TTCASH FIXE"), mockRule("TTCASH MOBILE")];
-
-const voucher: CanalRule[] = [mockRule("VOUCHER FIXE"), mockRule("VOUCHER MOBILE")];
+const voucher: ChannelDef[] = [
+  { name: "VOUCHER FIXE", condition: "SERVICE_CODE = 'VF_VOUCHER'" },
+  { name: "VOUCHER MOBILE", condition: "SERVICE_CODE = 'VM_VOUCHER'" },
+];
 
 const statsByChannel: Record<string, { nombre: number; montant: number }> = {
   "TTCASH FIXE": { nombre: 5_400, montant: 81_000 },
@@ -27,7 +22,7 @@ const statsByChannel: Record<string, { nombre: number; montant: number }> = {
 };
 
 // Deterministic stand-in for the DuckDB-backed fetcher.
-const fetchSpecChannelStats = async (channels: CanalRule[]) => {
+const fetchSpecChannelStats = async (channels: ChannelDef[]) => {
   const rows: SpecChRow[] = channels.map((c) => {
     const s = statsByChannel[c.name] ?? { nombre: 1_000, montant: 15_000 };
     return { canal: c.name, nombre: s.nombre, montant: s.montant };
@@ -78,7 +73,7 @@ export const Default: Story = {};
 
 export const Empty: Story = {
   args: {
-    fetchSpecChannelStats: async (channels: CanalRule[]) => ({
+    fetchSpecChannelStats: async (channels: ChannelDef[]) => ({
       rows: channels.map((c) => ({ canal: c.name, nombre: 0, montant: 0 })),
       total: { canal: "TOTAL", nombre: 0, montant: 0 },
     }),

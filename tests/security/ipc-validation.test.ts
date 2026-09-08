@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CollabStartSchema,
   DatasetOnlySchema,
+  EmbedBatchSchema,
+  EmbedEnsureModelSchema,
+  EmbedOneSchema,
   LlamaGenerateSchema,
   ModelDownloadSchema,
   parseIpc,
@@ -87,6 +90,12 @@ describe("ModelDownloadSchema", () => {
     expect(ModelDownloadSchema.safeParse({ key: "qwen-1.5b" }).success).toBe(false);
     expect(ModelDownloadSchema.safeParse({ key: "not-a-real-model" }).success).toBe(false);
   });
+
+  it("accepts the embedding-lane model key", () => {
+    expect(ModelDownloadSchema.safeParse({ key: "all-minilm-l6-v2-embed-q8_0" }).success).toBe(
+      true,
+    );
+  });
 });
 
 describe("LlamaGenerateSchema", () => {
@@ -94,6 +103,42 @@ describe("LlamaGenerateSchema", () => {
     expect(LlamaGenerateSchema.safeParse({ prompt: "hi" }).success).toBe(true);
     expect(LlamaGenerateSchema.safeParse({}).success).toBe(false);
     expect(LlamaGenerateSchema.safeParse({ prompt: "x".repeat(1_000_001) }).success).toBe(false);
+  });
+});
+
+describe("EmbedEnsureModelSchema", () => {
+  it("accepts undefined and an optional file", () => {
+    expect(EmbedEnsureModelSchema.safeParse(undefined).success).toBe(true);
+    expect(EmbedEnsureModelSchema.safeParse({ file: "custom.gguf" }).success).toBe(true);
+  });
+  it("rejects an oversized file string", () => {
+    expect(EmbedEnsureModelSchema.safeParse({ file: "x".repeat(513) }).success).toBe(false);
+  });
+});
+
+describe("EmbedOneSchema", () => {
+  it("requires a non-empty text and caps its length", () => {
+    expect(EmbedOneSchema.safeParse({ text: "hello" }).success).toBe(true);
+    expect(EmbedOneSchema.safeParse({ text: "" }).success).toBe(false);
+    expect(EmbedOneSchema.safeParse({}).success).toBe(false);
+    expect(EmbedOneSchema.safeParse({ text: "x".repeat(20_001) }).success).toBe(false);
+  });
+  it("accepts an optional requestId", () => {
+    expect(EmbedOneSchema.safeParse({ text: "hi", requestId: "req-1" }).success).toBe(true);
+  });
+});
+
+describe("EmbedBatchSchema", () => {
+  it("requires a non-empty array of non-empty strings", () => {
+    expect(EmbedBatchSchema.safeParse({ texts: ["a", "b"] }).success).toBe(true);
+    expect(EmbedBatchSchema.safeParse({ texts: [] }).success).toBe(false);
+    expect(EmbedBatchSchema.safeParse({ texts: [""] }).success).toBe(false);
+    expect(EmbedBatchSchema.safeParse({}).success).toBe(false);
+  });
+  it("rejects a batch larger than the item cap", () => {
+    expect(
+      EmbedBatchSchema.safeParse({ texts: Array.from({ length: 513 }, () => "x") }).success,
+    ).toBe(false);
   });
 });
 

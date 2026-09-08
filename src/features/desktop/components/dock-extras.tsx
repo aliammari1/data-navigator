@@ -215,13 +215,13 @@ export function DockJumpList({
         // Keep the global pointerdown dismiss from firing on our own clicks.
         onPointerDown={(e) => e.stopPropagation()}
       >
-        <div className="px-2.5 pt-1 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <div className="px-2.5 pt-1 pb-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {app.title}
         </div>
 
         {recent.length > 0 ? (
           <>
-            <div className="px-2.5 pb-1 text-[10px] font-medium text-muted-foreground">Récents</div>
+            <div className="px-2.5 pb-1 text-xs font-medium text-muted-foreground">Récents</div>
             {recent.map((ds) => (
               <button
                 key={ds.id}
@@ -337,7 +337,7 @@ export function DockProgressRing({
 
       {/* Determinate percentage badge in the corner. */}
       {!indeterminate && (
-        <span className="absolute -right-1 -top-1 grid h-4 min-w-[18px] place-items-center rounded-full bg-primary px-1 text-[9px] font-bold leading-none text-primary-foreground shadow">
+        <span className="absolute -right-1 -top-1 grid h-4.5 min-w-[20px] place-items-center rounded-full bg-primary px-1 font-mono text-xs font-bold leading-none tabular-nums text-primary-foreground shadow">
           {pct}
         </span>
       )}

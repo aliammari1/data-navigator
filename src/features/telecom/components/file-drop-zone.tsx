@@ -7,11 +7,11 @@ import type { TelecomIngestionMode } from "../types";
 export function FileDropZone({
   onLoad,
   defaultMode = "replace",
-  canAppend = false,
+  canUpload = false,
 }: {
   onLoad: (file: File, mode?: TelecomIngestionMode) => Promise<void>;
   defaultMode?: TelecomIngestionMode;
-  canAppend?: boolean;
+  canUpload?: boolean;
 }) {
   const [pending, setPending] = useState<File[]>([]);
   const [running, setRunning] = useState(false);
@@ -47,7 +47,7 @@ export function FileDropZone({
               <button
                 key={value}
                 type="button"
-                disabled={value === "append" && !canAppend}
+                disabled={value === "append" && !canUpload}
                 onClick={() => setMode(value)}
                 className={`rounded-lg px-3 py-2 text-xs font-semibold transition-colors ${
                   mode === value

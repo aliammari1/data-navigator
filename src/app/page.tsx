@@ -26,10 +26,10 @@ import {
   FileText,
   Lock,
   Menu,
-  Mic,
   Radar,
   Shield,
   Sparkles,
+  Users,
   X,
 } from "lucide-react";
 import {
@@ -376,8 +376,8 @@ function GaugeViz({ value = 97.4 }: { value?: number }) {
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="font-mono text-xl font-semibold text-white">{value}%</span>
-        <span className="font-mono text-[9px] uppercase tracking-widest text-slate-500">
+        <span className="font-mono text-xl font-semibold tabular-nums text-white">{value}%</span>
+        <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
           réussite
         </span>
       </div>
@@ -439,11 +439,9 @@ function TopNav() {
         ].join(" ")}
       >
         <Link href="#top" className="flex items-center gap-2.5">
-          <img
-            src="/icon-192.png"
-            alt="Data Navigator"
-            className="size-9 rounded-xl border border-blue-400/30"
-          />
+          <span className="grid size-9 place-items-center rounded-xl border border-blue-400/30 bg-blue-400/5">
+            <Radar className="size-[18px] text-blue-300" />
+          </span>
           <span className="font-display text-[15px] font-semibold tracking-tight text-white">
             Data Navigator
           </span>
@@ -563,10 +561,10 @@ function HeroPanel() {
           <span className="size-2.5 rounded-full bg-white/15" />
           <span className="size-2.5 rounded-full bg-white/15" />
         </div>
-        <span className="font-mono text-[10px] text-slate-500">
+        <span className="font-mono text-xs tabular-nums text-slate-400">
           DailyTransactions_2026-06-11.csv · 2 147 380 rows
         </span>
-        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2 py-0.5 font-mono text-[10px] text-emerald-200">
+        <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-400/30 bg-emerald-400/10 px-2.5 py-0.5 font-mono text-xs text-emerald-200">
           <span className="lp-pulse size-1.5 rounded-full bg-emerald-400" /> local
         </span>
       </div>
@@ -574,10 +572,10 @@ function HeroPanel() {
       <div className="grid grid-cols-3 gap-2.5">
         <div className="col-span-2 rounded-xl border border-white/8 bg-[#05070d] p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+            <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
               Transactions / heure
             </span>
-            <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-2 py-0.5 font-mono text-[9px] text-rose-200">
+            <span className="rounded-full border border-rose-400/30 bg-rose-400/10 px-2.5 py-0.5 font-mono text-xs tabular-nums text-rose-200">
               anomalie 16:00
             </span>
           </div>
@@ -587,7 +585,7 @@ function HeroPanel() {
         </div>
 
         <div className="rounded-xl border border-white/8 bg-[#05070d] p-3">
-          <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+          <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
             Taux de réussite
           </span>
           <div className="h-28">
@@ -597,10 +595,10 @@ function HeroPanel() {
 
         <div className="col-span-2 rounded-xl border border-white/8 bg-[#05070d] p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+            <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
               Volume par canal
             </span>
-            <span className="font-mono text-[9px] text-slate-600">USSD · APP · WEB · SMS</span>
+            <span className="font-mono text-xs tracking-wide text-slate-400">USSD · APP · WEB · SMS</span>
           </div>
           <div className="h-16">
             <BarsViz />
@@ -610,11 +608,11 @@ function HeroPanel() {
         <div className="rounded-xl border border-blue-400/15 bg-blue-400/[0.04] p-3">
           <div className="flex items-center gap-1.5">
             <Sparkles className="size-3 text-blue-300" />
-            <span className="font-mono text-[10px] uppercase tracking-wider text-blue-200/80">
+            <span className="font-mono text-xs uppercase tracking-wider text-blue-200/90">
               Briefing IA
             </span>
           </div>
-          <p className="mt-2 text-[11px] leading-relaxed text-slate-300">
+          <p className="mt-2 text-xs leading-relaxed text-slate-300">
             Volume <span className="text-emerald-300">+4,2%</span> vs hier. Creux à 16:00 sur USSD —
             corrélé à l'incident régional EST.
           </p>
@@ -725,10 +723,10 @@ function Hero() {
             className="lp-float absolute -left-4 -top-8 z-10 hidden lg:block"
           >
             <div className="rounded-xl border border-white/10 bg-[#070a12]/90 px-3.5 py-2.5 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur">
-              <div className="font-mono text-[10px] uppercase tracking-wider text-slate-500">
+              <div className="font-mono text-xs uppercase tracking-wider text-slate-400">
                 rows / sec
               </div>
-              <div className="font-mono text-lg font-semibold text-blue-300">
+              <div className="font-mono text-lg font-semibold tabular-nums text-blue-300">
                 <CountUp end={12.4} decimals={1} suffix="M" />
               </div>
             </div>
@@ -741,8 +739,8 @@ function Hero() {
             <div className="flex items-center gap-2.5 rounded-xl border border-white/10 bg-[#070a12]/90 px-3.5 py-2.5 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)] backdrop-blur">
               <FileText className="size-4 text-blue-300" />
               <div>
-                <div className="text-[11px] font-medium text-white">Rapport_2026-06-11.pdf</div>
-                <div className="font-mono text-[9px] text-slate-500">exporté · 0 octet envoyé</div>
+                <div className="text-xs font-medium text-white">Rapport_2026-06-11.pdf</div>
+                <div className="font-mono text-xs tabular-nums text-slate-400">exporté · 0 octet envoyé</div>
               </div>
             </div>
           </motion.div>
@@ -845,7 +843,7 @@ function StepVisual({ step }: { step: number }) {
                 transition={{ duration: 1.6, ease: "easeInOut" }}
               />
             </div>
-            <div className="mt-2 flex justify-between font-mono text-[10px] text-slate-500">
+            <div className="mt-2 flex justify-between font-mono text-xs tabular-nums text-slate-400">
               <span>schéma typé détecté</span>
               <span>duckdb://transactions</span>
             </div>
@@ -870,10 +868,10 @@ function StepVisual({ step }: { step: number }) {
               className="flex items-center gap-3 rounded-lg border border-white/8 bg-white/[0.02] px-4 py-2.5"
             >
               <span className="w-36 truncate font-mono text-xs text-slate-200">{r.col}</span>
-              <span className="rounded bg-white/5 px-1.5 py-0.5 font-mono text-[9px] text-slate-500">
+              <span className="rounded bg-white/5 px-2 py-0.5 font-mono text-xs tabular-nums text-slate-400">
                 {r.type}
               </span>
-              <span className="ml-auto font-mono text-[10px] text-slate-500">nulls {r.null_}</span>
+              <span className="ml-auto font-mono text-xs tabular-nums text-slate-400">nulls {r.null_}</span>
               <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/8">
                 <motion.div
                   className={`h-full rounded-full ${r.q > 90 ? "bg-blue-400" : r.q > 80 ? "bg-amber-400" : "bg-rose-400"}`}
@@ -892,8 +890,8 @@ function StepVisual({ step }: { step: number }) {
         <div className="flex h-full items-center justify-center p-8">
           <div className="w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#04060b]">
             <div className="flex items-center gap-2 border-b border-white/8 px-4 py-2.5">
-              <span className="font-mono text-[10px] text-slate-500">requête.sql</span>
-              <span className="ml-auto rounded bg-blue-400/10 px-2 py-0.5 font-mono text-[9px] text-blue-300">
+              <span className="font-mono text-xs text-slate-400">requête.sql</span>
+              <span className="ml-auto rounded bg-blue-400/10 px-2.5 py-0.5 font-mono text-xs tabular-nums text-blue-300">
                 ⌘↵ exécuter
               </span>
             </div>
@@ -923,9 +921,9 @@ function StepVisual({ step }: { step: number }) {
                 <span className="text-slate-300">;</span>
               </p>
             </div>
-            <div className="border-t border-white/8 bg-white/[0.015] px-4 py-2.5 font-mono text-[10px] text-slate-500">
+            <div className="border-t border-white/8 bg-white/[0.015] px-4 py-2.5 font-mono text-xs tabular-nums text-slate-400">
               4 lignes · 0.18 s —{" "}
-              <span className="text-slate-400">« volume par canal hier » fonctionne aussi</span>
+              <span className="text-slate-300">« volume par canal hier » fonctionne aussi</span>
             </div>
           </div>
         </div>
@@ -956,7 +954,7 @@ function StepVisual({ step }: { step: number }) {
                 <span className="text-rose-300">−54%</span> entre 15h50 et 16h20, uniquement en
                 région <span className="font-mono">EST</span> — cohérent avec l'incident passerelle
                 signalé. Les autres canaux absorbent 31% du volume perdu.
-                <div className="mt-2 font-mono text-[10px] text-slate-500">
+                <div className="mt-2 font-mono text-xs tabular-nums text-slate-400">
                   modèle local · 0 requête réseau
                 </div>
               </div>
@@ -1062,11 +1060,11 @@ function GoldenPath() {
                         />
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="font-mono text-[10px] text-slate-500">{s.k}</span>
+                            <span className="font-mono text-xs tabular-nums text-slate-400">{s.k}</span>
                             <h3 className="font-display text-base font-semibold text-white">
                               {s.title}
                             </h3>
-                            <span className="rounded-full border border-white/10 px-2 py-0.5 font-mono text-[9px] uppercase tracking-wider text-slate-500">
+                            <span className="rounded-full border border-white/10 px-2.5 py-0.5 font-mono text-xs uppercase tracking-wider text-slate-400">
                               {s.tag}
                             </span>
                           </div>
@@ -1162,7 +1160,7 @@ function Capabilities() {
               <div className="mt-5 h-28 flex-1">
                 <AreaViz anomaly={false} />
               </div>
-              <div className="mt-3 flex justify-between font-mono text-[10px] text-slate-500">
+              <div className="mt-3 flex justify-between font-mono text-xs tabular-nums text-slate-400">
                 <span>SELECT … GROUP BY canal</span>
                 <span className="text-blue-300">0.18 s · 2.1M rows</span>
               </div>
@@ -1205,7 +1203,7 @@ function Capabilities() {
                   ))}
                 </div>
               </div>
-              <div className="mt-4 border-t border-white/8 pt-3 font-mono text-[10px] text-slate-500">
+              <div className="mt-4 border-t border-white/8 pt-3 font-mono text-xs tabular-nums text-slate-400">
                 WebLLM + llama.cpp · aucun jeton ne quitte la machine
               </div>
             </div>
@@ -1226,33 +1224,30 @@ function Capabilities() {
           </Spotlight>
         </Reveal>
 
-        {/* voice */}
+        {/* collaboration */}
         <Reveal delay={0.06} className="md:col-span-6">
           <Spotlight className="h-full p-6">
             <div className="flex items-start justify-between gap-4">
               <BentoTitle
-                icon={Mic}
-                title="Voice in, voice out"
-                sub="Ask questions aloud and have the answer read back — on-device speech models, even the microphone stays local."
+                icon={Users}
+                title="LAN collaboration"
+                sub="Shared cursors, comments and live presence over the local network — CRDT-synced, no server in the cloud."
               />
-              <div className="flex h-8 items-end gap-[3px]" aria-hidden>
-                {[5, 12, 8, 16, 10, 14, 6].map((h, i) => (
-                  <motion.span
-                    key={`${h}-${i}`}
-                    className="w-[3px] rounded-full bg-blue-400/70"
-                    animate={{ height: [h, h + 8, h] }}
-                    transition={{
-                      duration: 1.2,
-                      repeat: Number.POSITIVE_INFINITY,
-                      delay: i * 0.12,
-                      ease: "easeInOut",
-                    }}
-                  />
+              <div className="flex -space-x-2">
+                {["AS", "KB", "MT"].map((u, i) => (
+                  <span
+                    key={u}
+                    className="grid size-8 place-items-center rounded-lg border border-white/15 bg-[#0b101c] font-mono text-xs font-semibold tabular-nums text-slate-300"
+                    style={{ zIndex: 3 - i }}
+                  >
+                    {u}
+                  </span>
                 ))}
               </div>
             </div>
           </Spotlight>
         </Reveal>
+
       </div>
     </section>
   );
@@ -1291,7 +1286,7 @@ function ArchLayer({
           <div className="font-display text-sm font-semibold text-white">{layer.name}</div>
           <div className="truncate text-xs text-slate-400">{layer.detail}</div>
         </div>
-        <span className="ml-auto font-mono text-[10px] text-slate-600">L{index}</span>
+        <span className="ml-auto font-mono text-xs tabular-nums text-slate-500">L{index}</span>
       </div>
     </motion.div>
   );
@@ -1476,11 +1471,9 @@ function Footer() {
     <footer className="border-t border-white/8 px-5 py-10 sm:px-6">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 md:flex-row">
         <div className="flex items-center gap-2.5">
-          <img
-            src="/icon-192.png"
-            alt="Data Navigator"
-            className="size-8 rounded-lg border border-blue-400/30"
-          />
+          <span className="grid size-8 place-items-center rounded-lg border border-blue-400/30 bg-blue-400/5">
+            <Radar className="size-4 text-blue-300" />
+          </span>
           <span className="font-display text-sm font-semibold text-white">Data Navigator</span>
         </div>
         <nav className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm text-slate-400">

@@ -75,10 +75,10 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
       }}
     >
       <span
-        className="grid size-4 place-items-center rounded-[5px] font-serif text-[11px] font-bold text-white"
+        className="grid size-4 place-items-center rounded-[5px] font-serif text-xs font-bold text-white"
         style={{ background: "linear-gradient(135deg,#f0c98a,#e0894f)" }}
       >
-        م
+        M
       </span>
       <AppMenubar groups={groups} />
 
@@ -89,7 +89,7 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
           context={`Rapport télécom : ${telecom.fileName}.`}
           className="hidden lg:inline-flex"
         >
-          <span className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[12px]">
+          <span className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-xs">
             <span
               className="size-1.5 rounded-full"
               style={{ background: "hsl(var(--glass-accent))" }}
@@ -118,8 +118,8 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
           <Bell className="size-3.5" />
           {unreadCount > 0 && (
             <span
-              className="absolute -right-0.5 -top-0.5 grid min-w-3.5 place-items-center rounded-full px-0.5 text-[9px] font-semibold leading-none text-white tabular-nums"
-              style={{ background: "hsl(var(--glass-accent))", height: "14px" }}
+              className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full px-1 font-mono text-xs font-bold leading-none tabular-nums text-white"
+              style={{ background: "hsl(var(--glass-accent))", height: "16px" }}
             >
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>

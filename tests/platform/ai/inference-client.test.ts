@@ -1,103 +1,88 @@
 /**
  * Tests for src/platform/ai/inference-client.ts
  *
- * inference-client.ts is a thin main-thread wrapper around the
- * `window.electronLlama` IPC bridge (electron/preload.ts →
- * electron/embed-service.ts). No Worker, no Comlink, no ONNX — every branch
- * here is about the bridge lookup and the two embed entry points.
+ * The module is a thin renderer-side client over `window.electronEmbed` (the
+ * Electron main-process node-llama-cpp embedding lane). We fake that bridge on
+ * `window` so no real IPC / node-llama-cpp code runs — every branch, early
+ * return, and error path in the module is exercised.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
 import { embedText, embedTexts, preloadEmbedder } from "@/platform/ai/inference-client";
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
+type AnyRecord = Record<string, unknown>;
 
-/** Build a mock electronLlama API exposing only what inference-client.ts uses. */
-function makeApi() {
-  return {
-    embed: vi.fn<(texts: string[]) => Promise<Float32Array[]>>(),
-    ensureEmbedModel: vi.fn<(input?: { file?: string }) => Promise<void>>(),
+const win = window as unknown as AnyRecord;
+
+function installEmbedBridge(overrides: AnyRecord = {}): AnyRecord {
+  const bridge: AnyRecord = {
+    ensureModel: vi.fn(async () => ({ model: "all-minilm-l6-v2-embed-q8_0.gguf", dims: 384 })),
+    embedOne: vi.fn(async () => ({
+      vector: [0.1, 0.2, 0.3],
+      dims: 3,
+      model: "all-minilm-l6-v2-embed-q8_0.gguf",
+      elapsedMs: 1,
+    })),
+    embedBatch: vi.fn(async () => ({
+      vectors: [[0.1, 0.2, 0.3]],
+      dims: 3,
+      model: "all-minilm-l6-v2-embed-q8_0.gguf",
+      elapsedMs: 1,
+    })),
+    abort: vi.fn(async () => true),
+    ...overrides,
   };
+  win.electronEmbed = bridge;
+  return bridge;
 }
 
-/** Install a mock electronLlama on the window and return it. */
-function installLlama() {
-  const api = makeApi();
-  Object.defineProperty(window, "electronLlama", {
-    value: api,
-    writable: true,
-    configurable: true,
-  });
-  return api;
-}
-
-/** Remove electronLlama from the window so bridge() falls through to null. */
-function uninstallLlama() {
-  Object.defineProperty(window, "electronLlama", {
-    value: undefined,
-    writable: true,
-    configurable: true,
-  });
-}
+beforeEach(() => {
+  win.electronEmbed = undefined;
+});
 
 afterEach(() => {
-  uninstallLlama();
-  vi.unstubAllGlobals();
+  win.electronEmbed = undefined;
 });
 
 // ─── embedTexts ──────────────────────────────────────────────────────────────
 
 describe("embedTexts", () => {
-  it("returns an empty array immediately when texts is empty, without touching the bridge", async () => {
-    // Arrange: no electronLlama installed at all — the empty-array early
-    // return must short-circuit before the bridge is ever consulted.
-    uninstallLlama();
+  it("returns an empty array immediately when texts is empty (bridge never contacted)", async () => {
+    const bridge = installEmbedBridge();
 
-    // Act
     const result = await embedTexts([]);
 
-    // Assert
     expect(result).toEqual([]);
+    expect(bridge.embedBatch).not.toHaveBeenCalled();
   });
 
-  it("calls electronLlama.embed with the provided texts and returns its result", async () => {
-    // Arrange
-    const api = installLlama();
-    const expected = [new Float32Array([1, 2, 3])];
-    api.embed.mockResolvedValue(expected);
+  it("calls electronEmbed.embedBatch with the texts and a generated requestId", async () => {
+    const bridge = installEmbedBridge({
+      embedBatch: vi.fn(async () => ({
+        vectors: [
+          [1, 2, 3],
+          [4, 5, 6],
+        ],
+        dims: 3,
+        model: "m",
+        elapsedMs: 2,
+      })),
+    });
 
-    // Act
     const result = await embedTexts(["hello", "world"]);
 
-    // Assert
-    expect(api.embed).toHaveBeenCalledWith(["hello", "world"]);
-    expect(result).toBe(expected);
+    expect(bridge.embedBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ texts: ["hello", "world"], requestId: expect.any(String) }),
+    );
+    expect(result).toHaveLength(2);
+    expect(result[0]).toBeInstanceOf(Float32Array);
+    expect(Array.from(result[0])).toEqual([1, 2, 3]);
+    expect(Array.from(result[1])).toEqual([4, 5, 6]);
   });
 
-  it("throws when window is undefined (non-browser context)", async () => {
-    // Arrange
-    const originalWindow = globalThis.window;
-    // @ts-expect-error — intentionally removing window for test.
-    delete globalThis.window;
-
-    try {
-      // Act / Assert
-      await expect(embedTexts(["hello"])).rejects.toThrow(
-        "node-llama-cpp embeddings require the Electron desktop app.",
-      );
-    } finally {
-      globalThis.window = originalWindow;
-    }
-  });
-
-  it("throws when electronLlama is not present on window", async () => {
-    // Arrange
-    uninstallLlama();
-
-    // Act / Assert
+  it("throws a descriptive error when window.electronEmbed is unavailable", async () => {
     await expect(embedTexts(["hello"])).rejects.toThrow(
-      "node-llama-cpp embeddings require the Electron desktop app.",
+      "Embeddings require the desktop app (window.electronEmbed is unavailable in this context).",
     );
   });
 });
@@ -105,31 +90,33 @@ describe("embedTexts", () => {
 // ─── embedText ───────────────────────────────────────────────────────────────
 
 describe("embedText", () => {
-  beforeEach(() => {
-    installLlama();
-  });
+  it("calls electronEmbed.embedOne with the text and a generated requestId", async () => {
+    const bridge = installEmbedBridge();
 
-  it("embeds a single text and returns the first vector", async () => {
-    // Arrange
-    const api = vi.mocked(window.electronLlama);
-    const expected = new Float32Array([0.1, 0.2]);
-    api.embed.mockResolvedValue([expected]);
-
-    // Act
     const result = await embedText("hello");
 
-    // Assert: embedText delegates to embedTexts with a single-item array.
-    expect(api.embed).toHaveBeenCalledWith(["hello"]);
-    expect(result).toBe(expected);
+    expect(bridge.embedOne).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "hello", requestId: expect.any(String) }),
+    );
+    expect(result).toBeInstanceOf(Float32Array);
+    expect(Array.from(result)).toEqual(Array.from(new Float32Array([0.1, 0.2, 0.3])));
   });
 
-  it("throws when the bridge is unavailable", async () => {
-    // Arrange
-    uninstallLlama();
+  it("generates a distinct requestId per call", async () => {
+    const bridge = installEmbedBridge();
 
-    // Act / Assert
+    await embedText("a");
+    await embedText("b");
+
+    const ids = bridge.embedOne.mock.calls.map(
+      (call: [{ requestId: string }]) => call[0].requestId,
+    );
+    expect(new Set(ids).size).toBe(2);
+  });
+
+  it("throws a descriptive error when window.electronEmbed is unavailable", async () => {
     await expect(embedText("hello")).rejects.toThrow(
-      "node-llama-cpp embeddings require the Electron desktop app.",
+      "Embeddings require the desktop app (window.electronEmbed is unavailable in this context).",
     );
   });
 });
@@ -137,25 +124,25 @@ describe("embedText", () => {
 // ─── preloadEmbedder ─────────────────────────────────────────────────────────
 
 describe("preloadEmbedder", () => {
-  it("calls electronLlama.ensureEmbedModel to warm the embedding model", async () => {
-    // Arrange
-    const api = installLlama();
-    api.ensureEmbedModel.mockResolvedValue(undefined);
+  it("calls electronEmbed.ensureModel with no file when model is omitted", async () => {
+    const bridge = installEmbedBridge();
 
-    // Act
     await preloadEmbedder();
 
-    // Assert
-    expect(api.ensureEmbedModel).toHaveBeenCalledOnce();
+    expect(bridge.ensureModel).toHaveBeenCalledWith(undefined);
   });
 
-  it("throws when the bridge is unavailable", async () => {
-    // Arrange
-    uninstallLlama();
+  it("passes model through as { file: model } when provided", async () => {
+    const bridge = installEmbedBridge();
 
-    // Act / Assert
+    await preloadEmbedder("custom-embed.gguf");
+
+    expect(bridge.ensureModel).toHaveBeenCalledWith({ file: "custom-embed.gguf" });
+  });
+
+  it("throws a descriptive error when window.electronEmbed is unavailable", async () => {
     await expect(preloadEmbedder()).rejects.toThrow(
-      "node-llama-cpp embeddings require the Electron desktop app.",
+      "Embeddings require the desktop app (window.electronEmbed is unavailable in this context).",
     );
   });
 });

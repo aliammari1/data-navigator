@@ -12,12 +12,15 @@ export default function OverviewPage() {
       canals={report.overviewCanals}
       hourly={report.overviewHourly}
       statusData={report.overviewStatusData}
+      forecast={report.overviewForecast}
       m={report.mapping}
       selectedKpis={report.selectedKpis}
       toggleKpi={report.toggleKpi}
       selectedOverviewSections={report.selectedOverviewSections}
       toggleOverviewSection={report.toggleOverviewSection}
-      fetchDailyTrend={() => report.fetchDailyTrend(report.mapping)}
+      fetchDailyTrend={
+        report.sharedOverviewMode ? async () => [] : () => report.fetchDailyTrend(report.mapping)
+      }
     />
   );
 }

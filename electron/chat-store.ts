@@ -8,8 +8,9 @@
  * setChatHistory-style rehydration happens in llama-service, not here).
  *
  * Mirrors settings-store.ts discipline exactly:
- *   - never imports `electron` (dir injected via configureChatStore) so the
- *     module stays unit-testable in plain Node;
+ *   - never imports `electron` (dirs injected via configureChatStore /
+ *     setChatMigrationsFolder) so the module stays unit-testable in plain
+ *     Node;
  *   - single lazily-opened WAL connection reused for the app's lifetime;
  *   - one domain = one file (chat.db) under <userData>/databases.
  *
@@ -20,71 +21,24 @@
 
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import Database from "better-sqlite3";
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/better-sqlite3";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
-
-const nowMs = sql`(cast(unixepoch('subsecond') * 1000 as integer))`;
-
-const conversation = sqliteTable(
-  "moudir_conversation",
-  {
-    id: text("id").primaryKey(),
-    title: text("title").notNull(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-    updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-    pinned: integer("pinned", { mode: "boolean" }).notNull().default(false),
-    /** Dataset the conversation was anchored to (context restore hint). */
-    datasetId: text("dataset_id"),
-    /** GGUF model file the conversation ran on (display + continuity hint). */
-    model: text("model"),
-  },
-  (table) => [index("moudir_conversation_updated_idx").on(table.pinned, table.updatedAt)],
-);
-
-const message = sqliteTable(
-  "moudir_message",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    conversationId: text("conversation_id").notNull(),
-    role: text("role").notNull(),
-    content: text("content").notNull(),
-    /** Opaque JSON: tool calls, artifacts, chart specs — renderer-owned shape. */
-    parts: text("parts", { mode: "json" }).$type<unknown>(),
-    createdAt: integer("created_at", { mode: "timestamp_ms" }).notNull().default(nowMs),
-  },
-  (table) => [index("moudir_message_conversation_idx").on(table.conversationId, table.id)],
-);
-
-const SCHEMA_SQL = `
-CREATE TABLE IF NOT EXISTS moudir_conversation (
-  id text PRIMARY KEY,
-  title text NOT NULL,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  updated_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL,
-  pinned integer DEFAULT 0 NOT NULL,
-  dataset_id text,
-  model text
-);
-CREATE INDEX IF NOT EXISTS moudir_conversation_updated_idx
-  ON moudir_conversation (pinned, updated_at);
-
-CREATE TABLE IF NOT EXISTS moudir_message (
-  id integer PRIMARY KEY AUTOINCREMENT,
-  conversation_id text NOT NULL,
-  role text NOT NULL,
-  content text NOT NULL,
-  parts text,
-  created_at integer DEFAULT (cast(unixepoch('subsecond') * 1000 as integer)) NOT NULL
-);
-CREATE INDEX IF NOT EXISTS moudir_message_conversation_idx
-  ON moudir_message (conversation_id, id);
-`;
+import { openSqliteHandle, type SqliteHandle } from "../src/platform/storage/db-bootstrap";
+import * as chatSchema from "../src/db/schema-chat";
+import { ensureChatSearchFts } from "./chat-search";
 
 /** Unpinned conversations beyond this cap are pruned oldest-first on create. */
 const MAX_UNPINNED_CONVERSATIONS = 200;
 const DB_FILE = "chat.db";
+/**
+ * Default migrations folder, used when the caller does not override via
+ * `setChatMigrationsFolder`. `<cwd>/drizzle/chat` works for `pnpm dev` and the
+ * smoke tests, where the working directory is the package root. The packaged
+ * Electron app should call `setChatMigrationsFolder(path.join(app.getAppPath(),
+ * "drizzle", "chat"))` from main.ts so the migrations folder resolves inside
+ * the asar — this is the only way to make the path injectable without
+ * importing `electron` from this module.
+ */
+const DEFAULT_MIGRATIONS_FOLDER = path.join(process.cwd(), "drizzle", "chat");
 
 export type ChatRole = "user" | "assistant" | "tool";
 
@@ -108,12 +62,10 @@ export interface ChatMessageRow {
   createdAt: number;
 }
 
-type Handle = {
-  db: ReturnType<typeof drizzle<{ conversation: typeof conversation; message: typeof message }>>;
-  sqlite: Database.Database;
-};
+type Handle = SqliteHandle<typeof chatSchema>;
 
 let baseDir: string | null = null;
+let migrationsFolder: string = DEFAULT_MIGRATIONS_FOLDER;
 let handle: Handle | null = null;
 
 /** Point the store at the databases directory. Call once from main.ts before any IPC. */
@@ -121,19 +73,56 @@ export function configureChatStore(databasesDir: string): void {
   baseDir = databasesDir;
 }
 
+/**
+ * Override the Drizzle migrations folder. Optional — defaults to
+ * `<cwd>/drizzle/chat`, which is correct for `pnpm dev` and the smoke tests.
+ * The packaged Electron app should call this from main.ts with
+ * `path.join(app.getAppPath(), "drizzle", "chat")` so the migrations folder
+ * resolves inside the asar.
+ */
+export function setChatMigrationsFolder(folder: string): void {
+  migrationsFolder = folder;
+}
+
 function open(): Handle {
   if (handle) return handle;
   if (!baseDir) throw new Error("chat-store: configureChatStore() was not called");
   mkdirSync(baseDir, { recursive: true });
-  const sqlite = new Database(path.join(baseDir, DB_FILE));
-  sqlite.pragma("journal_mode = WAL");
-  sqlite.pragma("foreign_keys = ON");
-  sqlite.exec(SCHEMA_SQL);
-  handle = { db: drizzle({ client: sqlite, schema: { conversation, message } }), sqlite };
+  handle = openSqliteHandle({
+    path: path.join(baseDir, DB_FILE),
+    schema: chatSchema,
+    migrationsFolder,
+  });
+  ensureChatSearchFts(handle);
   return handle;
 }
 
-function toMeta(row: typeof conversation.$inferSelect, messageCount: number): ConversationMeta {
+type MessageAppendedHook = (row: ChatMessageRow) => void;
+const messageAppendedHooks: MessageAppendedHook[] = [];
+
+/** Hook pattern keeps chat-store decoupled from the embedding lane — main.ts
+ * registers the semantic-search indexer here and the store just fires it. */
+export function onMessageAppended(hook: MessageAppendedHook): () => void {
+  messageAppendedHooks.push(hook);
+  return () => {
+    const idx = messageAppendedHooks.indexOf(hook);
+    if (idx >= 0) messageAppendedHooks.splice(idx, 1);
+  };
+}
+
+function fireMessageAppended(row: ChatMessageRow): void {
+  for (const hook of messageAppendedHooks) {
+    try {
+      hook(row);
+    } catch (error) {
+      if (typeof console !== "undefined") {
+        console.warn("[chat-store] onMessageAppended hook threw:", error);
+      }
+    }
+  }
+}
+
+function toMeta(row: typeof chatSchema.conversation.$inferSelect, messageCount: number): ConversationMeta {
   return {
     id: row.id,
     title: row.title,
@@ -157,7 +146,7 @@ export function createConversation(input: {
   const { db } = open();
   const now = new Date();
   const [row] = db
-    .insert(conversation)
+    .insert(chatSchema.conversation)
     .values({
       id: input.id,
       title: input.title,
@@ -181,45 +170,45 @@ export function listConversations(limit = 100, search?: string): ConversationMet
 
   const counts = db
     .select({
-      conversationId: message.conversationId,
+      conversationId: chatSchema.message.conversationId,
       n: sql<number>`count(*)`.as("n"),
     })
-    .from(message)
-    .groupBy(message.conversationId)
+    .from(chatSchema.message)
+    .groupBy(chatSchema.message.conversationId)
     .all();
   const countById = new Map(counts.map((c) => [c.conversationId, Number(c.n)]));
 
-  let rows: (typeof conversation.$inferSelect)[];
+  let rows: (typeof chatSchema.conversation.$inferSelect)[];
   if (term) {
     const pattern = `%${term.replaceAll(/[%_]/g, (m) => `\\${m}`)}%`;
     const matchingIds = db
-      .selectDistinct({ conversationId: message.conversationId })
-      .from(message)
-      .where(like(message.content, pattern))
+      .selectDistinct({ conversationId: chatSchema.message.conversationId })
+      .from(chatSchema.message)
+      .where(like(chatSchema.message.content, pattern))
       .all()
       .map((r) => r.conversationId);
     rows = db
       .select()
-      .from(conversation)
+      .from(chatSchema.conversation)
       .where(
         or(
-          like(conversation.title, pattern),
+          like(chatSchema.conversation.title, pattern),
           matchingIds.length
-            ? sql`${conversation.id} IN (${sql.join(
+            ? sql`${chatSchema.conversation.id} IN (${sql.join(
                 matchingIds.map((id) => sql`${id}`),
                 sql`, `,
               )})`
             : sql`0`,
         ),
       )
-      .orderBy(desc(conversation.pinned), desc(conversation.updatedAt))
+      .orderBy(desc(chatSchema.conversation.pinned), desc(chatSchema.conversation.updatedAt))
       .limit(cappedLimit)
       .all();
   } else {
     rows = db
       .select()
-      .from(conversation)
-      .orderBy(desc(conversation.pinned), desc(conversation.updatedAt))
+      .from(chatSchema.conversation)
+      .orderBy(desc(chatSchema.conversation.pinned), desc(chatSchema.conversation.updatedAt))
       .limit(cappedLimit)
       .all();
   }
@@ -228,21 +217,32 @@ export function listConversations(limit = 100, search?: string): ConversationMet
 
 export function renameConversation(id: string, title: string): void {
   const { db } = open();
-  db.update(conversation)
+  db.update(chatSchema.conversation)
     .set({ title, updatedAt: new Date() })
-    .where(eq(conversation.id, id))
+    .where(eq(chatSchema.conversation.id, id))
+    .run();
+}
+
+export function setConversationModel(id: string, model: string | null): void {
+  const { db } = open();
+  db.update(chatSchema.conversation)
+    .set({ model, updatedAt: new Date() })
+    .where(eq(chatSchema.conversation.id, id))
     .run();
 }
 
 export function setConversationPinned(id: string, pinned: boolean): void {
   const { db } = open();
-  db.update(conversation).set({ pinned }).where(eq(conversation.id, id)).run();
+  db.update(chatSchema.conversation)
+    .set({ pinned })
+    .where(eq(chatSchema.conversation.id, id))
+    .run();
 }
 
 export function deleteConversation(id: string): void {
   const { db } = open();
-  db.delete(message).where(eq(message.conversationId, id)).run();
-  db.delete(conversation).where(eq(conversation.id, id)).run();
+  db.delete(chatSchema.message).where(eq(chatSchema.message.conversationId, id)).run();
+  db.delete(chatSchema.conversation).where(eq(chatSchema.conversation.id, id)).run();
 }
 
 /** Keep the newest MAX_UNPINNED_CONVERSATIONS unpinned conversations. */
@@ -277,7 +277,7 @@ export function appendMessage(input: {
   const { db } = open();
   const now = new Date();
   const [row] = db
-    .insert(message)
+    .insert(chatSchema.message)
     .values({
       conversationId: input.conversationId,
       role: input.role,
@@ -287,11 +287,11 @@ export function appendMessage(input: {
     })
     .returning()
     .all();
-  db.update(conversation)
+  db.update(chatSchema.conversation)
     .set({ updatedAt: now })
-    .where(eq(conversation.id, input.conversationId))
+    .where(eq(chatSchema.conversation.id, input.conversationId))
     .run();
-  return {
+  const result: ChatMessageRow = {
     id: row.id,
     conversationId: row.conversationId,
     role: row.role as ChatRole,
@@ -299,6 +299,8 @@ export function appendMessage(input: {
     parts: row.parts,
     createdAt: row.createdAt.getTime(),
   };
+  fireMessageAppended(result);
+  return result;
 }
 
 export function getMessages(conversationId: string, limit = 500): ChatMessageRow[] {
@@ -306,9 +308,9 @@ export function getMessages(conversationId: string, limit = 500): ChatMessageRow
   const cappedLimit = Math.max(1, Math.min(2000, Math.floor(limit)));
   return db
     .select()
-    .from(message)
-    .where(and(eq(message.conversationId, conversationId)))
-    .orderBy(message.id)
+    .from(chatSchema.message)
+    .where(and(eq(chatSchema.message.conversationId, conversationId)))
+    .orderBy(chatSchema.message.id)
     .limit(cappedLimit)
     .all()
     .map((row) => ({
@@ -324,4 +326,10 @@ export function getMessages(conversationId: string, limit = 500): ChatMessageRow
 export function closeChatStore(): void {
   handle?.sqlite.close();
   handle = null;
+}
+
+/** Sibling modules (e.g. the semantic-search indexer) run on the same
+ * SQLite connection so the chat row + embedding row stay in one WAL. */
+export function getChatStoreHandle(): Handle {
+  return open();
 }

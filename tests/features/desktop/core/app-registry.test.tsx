@@ -100,6 +100,9 @@ vi.mock("@/features/data-formulator/screens/MoudirAssistantScreen", () => ({
 vi.mock("@/features/data-import/screens/DataImportScreen", () => ({ default: () => null }));
 vi.mock("@/features/csv-parser/screens/CsvParserScreen", () => ({ default: () => null }));
 vi.mock("@/features/folders/screens/FoldersScreen", () => ({ default: () => null }));
+vi.mock("@/features/collaboration/screens/CollaborationHostedScreen", () => ({
+  default: () => null,
+}));
 vi.mock("@/features/dashboard-shell/screens/shell-overview-screen", () => ({
   ShellOverviewScreen: () => null,
 }));
@@ -123,12 +126,12 @@ import {
 
 /** Known IDs that must exist in the registry. */
 const KNOWN_IDS = [
-  "moudir",
   "moudir-chat",
   "telecom",
   "upload",
   "csv-parser",
   "folders",
+  "collaboration",
   "diagnostics",
   "help",
   "recycle-bin",
@@ -262,8 +265,8 @@ describe("individual app property contracts", () => {
     expect(app.pinned).toBe(true);
   });
 
-  it("moudir is singleInstance and pinned", () => {
-    const app = DESKTOP_APPS.find((a) => a.id === "moudir")!;
+  it("moudir-chat is singleInstance and pinned", () => {
+    const app = DESKTOP_APPS.find((a) => a.id === "moudir-chat")!;
     expect(app.singleInstance).toBe(true);
     expect(app.pinned).toBe(true);
   });
@@ -289,8 +292,8 @@ describe("individual app property contracts", () => {
     expect(app.hue).toBe(18);
   });
 
-  it("moudir hue is 268", () => {
-    const app = DESKTOP_APPS.find((a) => a.id === "moudir")!;
+  it("moudir-chat hue is 268", () => {
+    const app = DESKTOP_APPS.find((a) => a.id === "moudir-chat")!;
     expect(app.hue).toBe(268);
   });
 });
@@ -404,9 +407,9 @@ describe("PINNED_APPS", () => {
     expect(ids).toContain("settings");
   });
 
-  it("includes moudir (pinned: true)", () => {
+  it("includes moudir-chat (pinned: true)", () => {
     const ids = PINNED_APPS.map((a) => a.id);
-    expect(ids).toContain("moudir");
+    expect(ids).toContain("moudir-chat");
   });
 
   it("includes telecom (pinned: true)", () => {
@@ -419,9 +422,9 @@ describe("PINNED_APPS", () => {
     expect(ids).not.toContain("recycle-bin");
   });
 
-  it("has exactly 4 pinned apps", () => {
-    // moudir, moudir-chat, telecom, settings
-    expect(PINNED_APPS).toHaveLength(4);
+  it("has exactly 3 pinned apps", () => {
+    // moudir-chat, telecom, settings
+    expect(PINNED_APPS).toHaveLength(3);
   });
 
   it("every pinned app is also in LAUNCHER_APPS or at least in DESKTOP_APPS", () => {

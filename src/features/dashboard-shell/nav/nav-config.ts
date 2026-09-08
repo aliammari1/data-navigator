@@ -6,7 +6,7 @@
  * desktop / mobile / command-palette surfaces never drift from a single source.
  *
  * IA v3: French-first, 4 groups
- *   Rapport · Intelligence · Données + footer (Aide/Paramètres).
+ *   Rapport · Intelligence · Données · Sorties + footer (Aide/Paramètres).
  * "Rapport Télécom" is a hub whose 8 tabs (previously an in-page tab rail)
  * are now sidebar children — "Vue d'ensemble" doubles as the app's landing
  * page (bare /dashboard redirects there; there is no separate Accueil
@@ -29,7 +29,9 @@ import {
   Settings2,
   Table2,
   Upload,
+  Users,
 } from "lucide-react";
+import type { GuestPermission } from "@/platform/lan/lan-common";
 
 /** Tokenized badge tones — no raw colors. Only real/meaningful states. */
 export type NavBadgeTone = "live" | "ai" | "info";
@@ -40,6 +42,14 @@ export const NAV_BADGE_TONE_CLASSES: Record<NavBadgeTone, string> = {
   ai: "bg-[color-mix(in_oklab,var(--ai)_18%,transparent)] text-ai",
   info: "bg-muted text-muted-foreground",
 };
+
+/**
+ * Access tier for nav filtering. Mirrors `DashboardRole` (settings store)
+ * without importing it, so this module stays server-safe data.
+ */
+export type NavAccessRole = "viewer" | "editor" | "owner";
+
+const NAV_ROLE_RANK: Record<NavAccessRole, number> = { viewer: 0, editor: 1, owner: 2 };
 
 export interface NavItem {
   title: string;
@@ -54,6 +64,23 @@ export interface NavItem {
   keywords?: string[];
   /** Group children — when present this item is a collapsible hub header. */
   children?: NavItem[];
+  /**
+   * Minimum role that sees this item (default "editor"). Guests joining a
+   * shared session as read-only viewers keep only the `minRole: "viewer"`
+   * entries — shared report views, live monitoring, collaboration, help and
+   * settings. This is UX shaping; real write protection is enforced by the
+   * collab hub (server-side read-only) and per-screen permission checks.
+   */
+  minRole?: NavAccessRole;
+  /**
+   * Guest capability required to access this item. Items without this field
+   * are always visible. When the current guest lacks the capability, the
+   * sidebar shows the entry locked with a tooltip instead of hiding it
+   * (Mews "Availability States" — users should know why something is blocked).
+   */
+  requiredPermission?: GuestPermission;
+  /** Computed during filtering: true when a required permission is missing. */
+  locked?: boolean;
 }
 
 export interface NavSection {
@@ -62,9 +89,13 @@ export interface NavSection {
 }
 
 export interface DashboardUser {
+  id?: string;
   name?: string | null;
   email?: string | null;
   image?: string | null;
+  role?: string;
+  isGuest?: boolean;
+  permissions?: readonly string[];
 }
 
 export const NAV_SECTIONS: NavSection[] = [
@@ -77,6 +108,7 @@ export const NAV_SECTIONS: NavSection[] = [
         icon: Receipt,
         description: "Rapport DailyTransactions — KPIs, canaux, analyse",
         keywords: ["telecom", "rapport", "report", "kpi", "canal", "daily", "accueil", "home"],
+        minRole: "viewer",
         children: [
           {
             title: "Vue d'ensemble",
@@ -84,48 +116,56 @@ export const NAV_SECTIONS: NavSection[] = [
             icon: LayoutDashboard,
             description: "KPIs, statut global et synthèse",
             keywords: ["accueil", "home", "overview", "mission control", "kpi"],
+            minRole: "viewer",
           },
           {
-            title: "Categories",
+            title: "Canaux",
             href: "/dashboard/telecom-report/canals",
             icon: Layers,
             description: "Analyse par canal transactionnel",
+            minRole: "viewer",
           },
           {
             title: "Analyse",
             href: "/dashboard/telecom-report/analysis",
             icon: BarChart3,
             description: "Erreurs, opérateurs, régions et tendances",
+            minRole: "viewer",
           },
           {
             title: "Données brutes",
             href: "/dashboard/telecom-report/grid",
             icon: Table2,
             description: "Exploration filtrée des transactions",
+            minRole: "viewer",
           },
           {
             title: "Période",
             href: "/dashboard/telecom-report/period",
             icon: CalendarDays,
             description: "Studio de période et comparaisons",
+            minRole: "viewer",
           },
           {
             title: "Journalier",
             href: "/dashboard/telecom-report/day",
             icon: Activity,
             description: "Analytics par jour",
+            minRole: "viewer",
           },
           {
             title: "Historique",
             href: "/dashboard/telecom-report/history",
             icon: History,
             description: "Analyses et fichiers en cache",
+            minRole: "viewer",
           },
           {
             title: "Configuration",
             href: "/dashboard/telecom-report/config",
             icon: Settings2,
             description: "Mapping, statuts et paramètres",
+            minRole: "viewer",
           },
         ],
       },
@@ -135,22 +175,13 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Intelligence",
     items: [
       {
-        title: "Formulateur",
-        href: "/dashboard/data-formulator",
-        icon: FlaskConical,
-        description: "Visualisations par concepts, dérivées par l'IA",
-        badge: "IA",
-        badgeTone: "ai",
-        keywords: ["formulateur", "formulator", "studio", "ia", "ai", "visualisation", "concept"],
-      },
-      {
         title: "Moudir",
         href: "/dashboard/moudir",
         icon: MessageCircle,
         description: "Assistant IA — posez vos questions en langage naturel",
         badge: "IA",
         badgeTone: "ai",
-        keywords: ["moudir", "assistant", "ia", "ai", "chat", "question", "voix", "swarm"],
+        keywords: ["moudir", "assistant", "ia", "ai", "chat", "question", "voix"],
       },
     ],
   },
@@ -182,6 +213,21 @@ export const NAV_SECTIONS: NavSection[] = [
       },
     ],
   },
+  {
+    label: "Sorties",
+    items: [
+      {
+        title: "Collaboration",
+        // collab-hub (annotations / approval / audit) is now folded into the
+        // collaboration workspace, served at /dashboard/collaborative.
+        href: "/dashboard/collaborative",
+        icon: Users,
+        description: "Espace d'équipe, commentaires et approbations",
+        keywords: ["collaboration", "équipe", "team", "commentaire", "partage"],
+        minRole: "viewer",
+      },
+    ],
+  },
 ];
 
 export const FOOTER_ITEMS: NavItem[] = [
@@ -191,6 +237,7 @@ export const FOOTER_ITEMS: NavItem[] = [
     icon: HelpCircle,
     description: "Documentation et visite guidée",
     keywords: ["aide", "help", "docs", "support", "visite"],
+    minRole: "viewer",
   },
   {
     title: "Paramètres",
@@ -198,6 +245,7 @@ export const FOOTER_ITEMS: NavItem[] = [
     icon: Settings,
     description: "Préférences et diagnostics",
     keywords: ["paramètres", "settings", "préférences", "thème", "langue"],
+    minRole: "viewer",
   },
 ];
 
@@ -208,6 +256,57 @@ export const ALL_ITEMS: NavItem[] = [
   ),
   ...FOOTER_ITEMS,
 ];
+
+// ─── Role-based visibility ────────────────────────────────────────────────────
+
+/** True when `role` may see an item with the given `minRole` (default editor). */
+export function navItemVisibleForRole(item: NavItem, role: NavAccessRole): boolean {
+  return NAV_ROLE_RANK[role] >= NAV_ROLE_RANK[item.minRole ?? "editor"];
+}
+
+/** Filter a flat item list (children pruned recursively, childless hubs dropped). */
+export function filterNavItemsForRole(items: NavItem[], role: NavAccessRole): NavItem[] {
+  return items
+    .filter((item) => navItemVisibleForRole(item, role))
+    .map((item) =>
+      item.children ? { ...item, children: filterNavItemsForRole(item.children, role) } : item,
+    )
+    .filter((item) => !item.children || item.children.length > 0);
+}
+
+/** Filter grouped sections, dropping sections left empty for the role. */
+export function filterNavSectionsForRole(
+  sections: NavSection[],
+  role: NavAccessRole,
+): NavSection[] {
+  return sections
+    .map((section) => ({ ...section, items: filterNavItemsForRole(section.items, role) }))
+    .filter((section) => section.items.length > 0);
+}
+
+/**
+ * Mark items whose `requiredPermission` the guest lacks as locked, rather than
+ * removing them. Locked items render with a lock icon and tooltip so guests
+ * understand *why* access is blocked (Mews "Availability States" pattern).
+ * Items without a `requiredPermission` are untouched.
+ *
+ * When `permissions` is undefined (non-guest user), no items are locked.
+ */
+export function lockNavItemsByPermission(
+  items: NavItem[],
+  permissions: readonly string[] | undefined,
+): NavItem[] {
+  return items.map((item) => {
+    const locked =
+      item.requiredPermission !== undefined &&
+      permissions !== undefined &&
+      !permissions.includes(item.requiredPermission);
+    const children = item.children
+      ? lockNavItemsByPermission(item.children, permissions)
+      : item.children;
+    return { ...item, locked, children };
+  });
+}
 
 /**
  * Active-state predicate. Computed once in the parent and passed down so nav

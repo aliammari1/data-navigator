@@ -20,6 +20,10 @@ const DASHBOARD_ROUTES = [
     path: "/dashboard/data-formulator",
     anchor: /moudir|ai|canvas|import data/i,
   },
+  {
+    path: "/dashboard/collaborative",
+    anchor: /collaborative|team|comment|workspace/i,
+  },
   { path: "/dashboard/settings", anchor: /settings|theme|appearance/i },
   { path: "/dashboard/help", anchor: /help|documentation|features/i },
 ] as const;
@@ -190,6 +194,33 @@ test.describe("Complete user journey coverage", () => {
 
     await page.getByRole("button", { name: /stats/i }).click();
     await expect(page.locator("body")).toContainText(/total files|total folders/i);
+  });
+
+  test("collaboration page journey adds a comment, searches it, resolves it, and sends chat", async ({
+    page,
+  }) => {
+    await gotoPage(page, "/dashboard/collaborative");
+
+    await expectUsablePage(page, /collaboration|workspace|comments/i);
+    await page.getByRole("button", { name: /^Comments\b/i }).click();
+    await page.getByPlaceholder(/column optional/i).fill("AMOUNT");
+    await page.getByPlaceholder(/add a comment/i).fill("Journey test comment");
+    await page.getByRole("button", { name: /add comment/i }).click();
+    await expect(page.getByText("Journey test comment")).toBeVisible();
+
+    await page.getByPlaceholder(/search comments/i).fill("Journey test");
+    await expect(page.getByText("Journey test comment")).toBeVisible();
+    await page
+      .getByRole("button", { name: /resolve/i })
+      .first()
+      .click();
+    await page.getByRole("button", { name: /resolved/i }).click();
+    await expect(page.getByText("Journey test comment")).toBeVisible();
+
+    await page.getByRole("button", { name: /^Live\b/i }).click();
+    await page.getByPlaceholder(/send a message/i).fill("Journey chat ping");
+    await page.keyboard.press("Enter");
+    await expect(page.getByText("Journey chat ping")).toBeVisible();
   });
 
   test("help, settings, and documentation journeys cover discoverability and preferences", async ({

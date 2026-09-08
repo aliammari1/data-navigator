@@ -1,32 +1,31 @@
 /**
  * @vitest-environment jsdom
  */
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 
-// The helpers in electron-options.ts are evaluated at call time.
-// To test the different branches of getBetterAuthBaseUrl() we must:
+// The constants in electron-options.ts are evaluated at module load time.
+// To test the different branches of BETTER_AUTH_BASE_URL we must:
 //   1. Stub the env var(s)
-//   2. Dynamically import the fresh module
-//   3. Assert
-//   4. Restore env vars after each test.
-
-const ORIGINAL_ENV = {
-  NEXT_PUBLIC_BETTER_AUTH_URL: process.env.NEXT_PUBLIC_BETTER_AUTH_URL,
-  BETTER_AUTH_URL: process.env.BETTER_AUTH_URL,
-};
+//   2. Reset the module registry so the module re-evaluates
+//   3. Dynamically import the fresh module
+//   4. Assert
+//   5. Restore env stubs (vitest's unstubEnvs:true handles this between tests)
 
 describe("electron-options constants", () => {
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
   afterEach(() => {
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = ORIGINAL_ENV.NEXT_PUBLIC_BETTER_AUTH_URL;
-    process.env.BETTER_AUTH_URL = ORIGINAL_ENV.BETTER_AUTH_URL;
+    vi.unstubAllEnvs();
   });
 
   // ── Static constant exports ──────────────────────────────────────────────
 
   it("exports ELECTRON_AUTH_PROTOCOL as the app custom scheme", async () => {
-    // Arrange: clear both env vars so getBetterAuthBaseUrl falls through
-    delete process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-    delete process.env.BETTER_AUTH_URL;
+    // Arrange: clear both env vars so BETTER_AUTH_BASE_URL falls through
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", "");
+    vi.stubEnv("BETTER_AUTH_URL", "");
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
@@ -51,83 +50,89 @@ describe("electron-options constants", () => {
     expect(mod.ELECTRON_AUTH_CLIENT_ID).toBe("electron");
   });
 
-  // ── getBetterAuthBaseUrl branch: NEXT_PUBLIC_BETTER_AUTH_URL present ────
+  // ── BETTER_AUTH_BASE_URL branch: NEXT_PUBLIC_BETTER_AUTH_URL present ────
 
   it("uses NEXT_PUBLIC_BETTER_AUTH_URL when it is set", async () => {
     // Arrange
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = "https://public.example.com";
-    process.env.BETTER_AUTH_URL = "https://private.example.com";
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", "https://public.example.com");
+    vi.stubEnv("BETTER_AUTH_URL", "https://private.example.com");
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert: NEXT_PUBLIC takes precedence via ??
-    expect(mod.getBetterAuthBaseUrl()).toBe("https://public.example.com");
+    expect(mod.BETTER_AUTH_BASE_URL).toBe("https://public.example.com");
   });
 
-  // ── getBetterAuthBaseUrl branch: BETTER_AUTH_URL present (fallback) ─────
+  // ── BETTER_AUTH_BASE_URL branch: BETTER_AUTH_URL present (fallback) ─────
 
   it("falls back to BETTER_AUTH_URL when NEXT_PUBLIC_BETTER_AUTH_URL is not set", async () => {
     // Arrange: delete NEXT_PUBLIC so process.env[key] is undefined
-    delete process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-    process.env.BETTER_AUTH_URL = "https://private.example.com";
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", undefined as unknown as string);
+    vi.stubEnv("BETTER_AUTH_URL", "https://private.example.com");
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert
-    expect(mod.getBetterAuthBaseUrl()).toBe("https://private.example.com");
+    expect(mod.BETTER_AUTH_BASE_URL).toBe("https://private.example.com");
   });
 
-  // ── getBetterAuthBaseUrl branch: neither env var set – default ───────────
+  // ── BETTER_AUTH_BASE_URL branch: neither env var set – default ───────────
 
   it("defaults to http://localhost:3000 when neither env var is set", async () => {
     // Arrange
-    delete process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-    delete process.env.BETTER_AUTH_URL;
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", undefined as unknown as string);
+    vi.stubEnv("BETTER_AUTH_URL", undefined as unknown as string);
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert
-    expect(mod.getBetterAuthBaseUrl()).toBe("http://localhost:3000");
+    expect(mod.BETTER_AUTH_BASE_URL).toBe("http://localhost:3000");
   });
 
-  // ── getElectronAuthSignInUrl derives from getBetterAuthBaseUrl() ─────────
+  // ── ELECTRON_AUTH_SIGN_IN_URL derives from BETTER_AUTH_BASE_URL ──────────
 
   it("builds ELECTRON_AUTH_SIGN_IN_URL from NEXT_PUBLIC_BETTER_AUTH_URL", async () => {
     // Arrange
-    process.env.NEXT_PUBLIC_BETTER_AUTH_URL = "https://auth.example.com";
-    delete process.env.BETTER_AUTH_URL;
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", "https://auth.example.com");
+    vi.stubEnv("BETTER_AUTH_URL", undefined as unknown as string);
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert
-    expect(mod.getElectronAuthSignInUrl()).toBe("https://auth.example.com/login");
+    expect(mod.ELECTRON_AUTH_SIGN_IN_URL).toBe("https://auth.example.com/login");
   });
 
   it("builds ELECTRON_AUTH_SIGN_IN_URL from BETTER_AUTH_URL when NEXT_PUBLIC is absent", async () => {
     // Arrange
-    delete process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-    process.env.BETTER_AUTH_URL = "https://private.auth.com";
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", undefined as unknown as string);
+    vi.stubEnv("BETTER_AUTH_URL", "https://private.auth.com");
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert
-    expect(mod.getElectronAuthSignInUrl()).toBe("https://private.auth.com/login");
+    expect(mod.ELECTRON_AUTH_SIGN_IN_URL).toBe("https://private.auth.com/login");
   });
 
   it("builds ELECTRON_AUTH_SIGN_IN_URL from default base URL when no env vars are set", async () => {
     // Arrange
-    delete process.env.NEXT_PUBLIC_BETTER_AUTH_URL;
-    delete process.env.BETTER_AUTH_URL;
+    vi.stubEnv("NEXT_PUBLIC_BETTER_AUTH_URL", undefined as unknown as string);
+    vi.stubEnv("BETTER_AUTH_URL", undefined as unknown as string);
+    vi.resetModules();
 
     // Act
     const mod = await import("@/platform/auth/electron-options");
 
     // Assert
-    expect(mod.getElectronAuthSignInUrl()).toBe("http://localhost:3000/login");
+    expect(mod.ELECTRON_AUTH_SIGN_IN_URL).toBe("http://localhost:3000/login");
   });
 });

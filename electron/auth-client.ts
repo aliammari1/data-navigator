@@ -1,36 +1,39 @@
 import { electronClient } from "@better-auth/electron/client";
+import type {
+  ElectronClientOptions,
+  ExposedBridges,
+} from "@better-auth/electron/client";
 import { storage } from "@better-auth/electron/storage";
-import { createAuthClient } from "better-auth/client";
-import {
+import { createAuthClient, type BetterAuthClientPlugin } from "better-auth/client";import {
+  BETTER_AUTH_BASE_URL,
   ELECTRON_AUTH_CALLBACK_PATH,
   ELECTRON_AUTH_CLIENT_ID,
   ELECTRON_AUTH_PROTOCOL,
-  getBetterAuthBaseUrl,
-  getElectronAuthSignInUrl,
+  ELECTRON_AUTH_SIGN_IN_URL,
 } from "../src/platform/auth/electron-options";
 
-export function createElectronAuthClient() {
-  const baseUrl = getBetterAuthBaseUrl();
+// better-auth's inlined BetterFetchOption types are not
+// exactOptionalPropertyTypes-clean (mode?: RequestMode | undefined vs
+// mode?: RequestMode). Upstream: better-auth#9212 / #1578. The plugin object
+// is opaque to us, so adapt once at this boundary instead of suppressing a
+// config-dependent @ts-expect-error at the use site.
+// The renderer Window bridges exposed by @better-auth/electron's
+// exposeBridges (getUser/requestAuth/signOut/authenticate). Derived from the
+// installed version's own ExposedBridges type — preload's `declare global`
+// Window augmentation builds on this (see electron/preload.ts).
+export type ElectronAuthBridges = ExposedBridges<ElectronClientOptions>;
 
-  return createAuthClient({
-    baseURL: baseUrl,
-    plugins: [
-      electronClient({
-        callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
-        clientID: ELECTRON_AUTH_CLIENT_ID,
-        protocol: {
-          scheme: ELECTRON_AUTH_PROTOCOL,
-        },
-        signInURL: getElectronAuthSignInUrl(baseUrl),
-        storage: storage(),
-        // Offline/defense-in-depth: never register the bypassCSP "user-image://"
-        // proxy that net.fetches a remote avatar URL from the main process. Auth is
-        // local email/password (no remote avatars), so this only closes a latent,
-        // un-CSP'd egress surface.
-        userImageProxy: { enabled: false },
-      }),
-    ],
-  });
-}
+export const electronPlugin = electronClient({  callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
+  clientID: ELECTRON_AUTH_CLIENT_ID,
+  protocol: { scheme: ELECTRON_AUTH_PROTOCOL },
+  signInURL: ELECTRON_AUTH_SIGN_IN_URL,
+  storage: storage(),
+  userImageProxy: { enabled: false },
+  // Intersect (don't erase): keeps the electron plugin's inferred $Infer
+  // augmentation for preload's AuthBridges while satisfying the constraint.
+}) as ReturnType<typeof electronClient> & BetterAuthClientPlugin;
 
-export type ElectronAuthClient = ReturnType<typeof createElectronAuthClient>;
+export const authClient = createAuthClient({
+  baseURL: BETTER_AUTH_BASE_URL,
+  plugins: [electronPlugin],
+});

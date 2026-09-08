@@ -45,6 +45,13 @@ describe("moudir-chat buildMenu — file group actions", () => {
     expect(ctx.openApp).toHaveBeenCalledWith("upload");
   });
 
+  it("export-deck runs ctx.command('export-deck')", () => {
+    const ctx = makeMenuContext();
+    const groups = buildMenu(ctx);
+    runAction(findGroup(groups, "file")!.items, "export-deck");
+    expect(ctx.command).toHaveBeenCalledWith("export-deck");
+  });
+
   it("close is a danger action that runs ctx.closeWindow()", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
