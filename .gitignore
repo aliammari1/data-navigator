@@ -185,3 +185,11 @@ test-results/
 
 /.app-stage/
 
+# Graphify knowledge graph outputs
+graphify-out/
+
+# Playwright blob / sharded test reports
+blob-report/
+
+# Local build logs that might have been tracked
+build.log
