@@ -1,0 +1,26 @@
+
+    Directory: D:\data-navigator-collab-snapshot\src\features\collaboration\hooks
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---           8/10/2026  1:55 AM           1033 use-current-page.ts
+-a---           8/10/2026  1:56 AM           4840 use-cursor-notes.ts
+-a---           8/10/2026  1:55 AM            776 use-follow-request.ts
+-a---           8/10/2026  1:52 AM           1761 use-remote-cursors.ts
+-a---            7/9/2026  4:13 AM           1401 useAnnotations.ts
+
+    Directory: D:\data-navigator-collab-snapshot\src\features\collaboration\components
+
+Mode                 LastWriteTime         Length Name
+----                 -------------         ------ ----
+-a---            7/9/2026 12:57 PM          21418 ApprovalWorkflow.tsx
+-a---            7/9/2026 12:48 PM          14041 AuditTrail.tsx
+-a---           8/10/2026  1:57 AM           5046 CursorNoteMarker.tsx
+-a---           8/10/2026  1:55 AM           2724 FollowMeDialog.tsx
+-a---           8/10/2026  1:21 AM           3837 InviteDialog.tsx
+-a---           8/10/2026  1:52 AM           3448 PeerPresenceOnSection.tsx
+-a---           8/10/2026  1:53 AM          12527 PresenceBar.tsx
+-a---           8/10/2026  1:54 AM           2829 RemoteCursor.tsx
+-a---           8/10/2026  2:05 AM          21922 StickyNoteAnnotation.tsx
+-a---            7/9/2026  4:13 AM           2357 VirtualList.tsx
+

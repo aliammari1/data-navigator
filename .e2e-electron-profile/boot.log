@@ -1,0 +1,10 @@
+[2026-09-05T16:02:25.967Z] main.js loaded; isPackaged=false
+[2026-09-05T16:02:26.202Z] settings-store: ready at /home/thethirdone/Work/Web/data-navigator-collab-snapshot/.e2e-electron-profile/databases; settings lift migrated 0 rows
+[2026-09-05T16:02:26.274Z] settings-store: analytics snapshot history lift migrated 0 rows
+[2026-09-05T16:02:26.284Z] whenReady: before duckdbService.init()
+[2026-09-05T16:02:26.423Z] whenReady: duckdbService.init() OK
+[2026-09-05T16:10:06.795Z] whenReady: TOP-LEVEL REJECTION: ERR_CONNECTION_REFUSED (-102) loading 'http://localhost:3000/dashboard'
+Error: ERR_CONNECTION_REFUSED (-102) loading 'http://localhost:3000/dashboard'
+    at rejectAndCleanup (node:electron/js2c/browser_init:2:90161)
+    at WebContents.finishListener (node:electron/js2c/browser_init:2:90323)
+    at WebContents.emit (node:events:521:24)
