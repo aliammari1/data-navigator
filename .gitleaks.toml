@@ -4,18 +4,16 @@ title = "Data Navigator Gitleaks Configuration"
 useDefault = true
 
 [allowlist]
-description = "Ignore test suites, fixtures, local evals, and mock tokens"
+description = "Ignore model quantization slugs, documentation, and test fixtures"
 paths = [
-  '''^\.e2e-electron-profile/.*''',
-  '''^tests?/.*''',
-  '''^evals/.*''',
-  '''^graphify-out/.*''',
-  '''^scripts/.*''',
+  '''(^|/)docs/''',
+  '''(^|/)\.e2e-electron-profile/''',
+  '''(^|/)tests?/''',
+  '''(^|/)evals/''',
+  '''(^|/)graphify-out/''',
+  '''(^|/)scripts/''',
   '''DailyTransactions_.*\.csv'''
 ]
 regexes = [
-  '''(?i)mock[-_]?token''',
-  '''(?i)test[-_]?secret''',
-  '''(?i)dummy[-_]?key''',
-  '''[a-f0-9]{32,64}'''
+  '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)'''
 ]
