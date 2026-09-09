@@ -10,14 +10,13 @@
 import { describe, expect, it } from "vitest";
 import * as Y from "yjs";
 import { getAppAwareness, ydoc } from "@/platform/collab/collab";
-import { acquireRoom, getRoomDoc, releaseRoom } from "@/platform/collab/room";
+import { getRoomDoc, releaseRoom } from "@/platform/collab/room";
 
 describe("getRoomDoc (singleton-backed)", () => {
   it("returns a stable handle per roomId", () => {
     const a = getRoomDoc("telecom-default");
     const b = getRoomDoc("telecom-default");
     expect(a).toBe(b);
-    expect(acquireRoom("telecom-default")).toBe(a);
   });
 
   it("backs every room with the app ydoc and its root types", () => {

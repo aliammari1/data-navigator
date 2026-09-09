@@ -49,7 +49,7 @@ import {
 const DOCK_INSET = 96;
 
 /** CustomEvent name a hosted screen can listen for to react to dropped items. */
-export const WINDOW_DROP_EVENT = "desktop:window-drop";
+const WINDOW_DROP_EVENT = "desktop:window-drop";
 
 export function WindowFrame({ win }: { win: DesktopWindow }) {
   const {

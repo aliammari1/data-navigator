@@ -2,7 +2,7 @@
 
 import { authClient } from "@/platform/auth/auth-client";
 
-export type AuthUser = {
+type AuthUser = {
   id: string;
   name: string;
   email: string;
@@ -12,7 +12,7 @@ export type AuthUser = {
   updatedAt?: string;
 };
 
-export type AuthSession = {
+type AuthSession = {
   id: string;
   userId: string;
   expiresAt: string;
@@ -25,7 +25,7 @@ export type AuthResult = {
   session: AuthSession;
 };
 
-export type SessionResult = {
+type SessionResult = {
   user: AuthUser | null;
   session: AuthSession | null;
   isLocked: boolean;
@@ -36,16 +36,9 @@ function isElectron(): boolean {
 }
 
 /**
- * @deprecated Bearer tokens are no longer stored in renderer localStorage for security hardening.
- */
-export function getStoredSessionToken(): string | null {
-  return null;
-}
-
-/**
  * Calculate the next midnight (00:00:00.000) in the user's local timezone.
  */
-export function getNextLocalMidnight(fromDate: Date = new Date()): Date {
+function getNextLocalMidnight(fromDate: Date = new Date()): Date {
   const next = new Date(fromDate);
   next.setHours(24, 0, 0, 0);
   return next;
@@ -124,16 +117,6 @@ export function onSessionExpiringSoon(
     return (window.electronAuth as any).onSessionExpiringSoon(callback);
   }
   return () => {};
-}
-
-/**
- * Check whether the app is currently locked.
- */
-export async function isAppLocked(): Promise<boolean> {
-  if (isElectron()) {
-    return window.electronAuth.isLocked();
-  }
-  return false;
 }
 
 /**
@@ -222,30 +205,6 @@ export async function signUp(input: {
       expiresAt: getNextLocalMidnight().toISOString(),
     },
   };
-}
-
-/**
- * Get current session.
- */
-export async function getSession(): Promise<SessionResult> {
-  if (isElectron()) {
-    return (await window.electronAuth.getSession()) as SessionResult;
-  }
-
-  // Web fallback
-  try {
-    const res = await fetch("/api/auth/get-session", { cache: "no-store" });
-    if (res.ok) {
-      const data = await res.json();
-      if (data?.session && data?.user) {
-        return { session: data.session, user: data.user, isLocked: false };
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  return { session: null, user: null, isLocked: false };
 }
 
 /**

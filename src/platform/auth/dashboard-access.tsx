@@ -76,7 +76,7 @@ export function DashboardUserProvider({
   return <DashboardUserContext.Provider value={value}>{children}</DashboardUserContext.Provider>;
 }
 
-export function useDashboardUser(): DashboardUserContextValue {
+function useDashboardUser(): DashboardUserContextValue {
   return useContext(DashboardUserContext);
 }
 

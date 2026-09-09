@@ -9,26 +9,8 @@
  * See docs/AI-PROVIDER.md for the architecture and migration guide.
  */
 
-export { llamacppProvider } from "./adapters/llamacpp";
-export {
-  detectAvailability,
-  getProvider,
-  listProviders,
-  PROVIDERS,
-  type ProviderAvailability,
-  pickDefaultProvider,
-} from "./registry";
+export { pickDefaultProvider } from "./registry";
 export { useAIRuntimeStore } from "./store";
-export {
-  buildJsonInstruction,
-  type DeepPartial,
-  extractJsonBlock,
-  parsePartialJson,
-  parseStructured,
-  repairJson,
-  schemaToGrammarJson,
-} from "./structured";
+
 export * from "./types";
 export { useAI } from "./use-ai";
-export { useStreamingJson } from "./use-streaming-json";
-export { zodToInlineJsonSchema } from "./zod-json-schema";

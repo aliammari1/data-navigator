@@ -21,7 +21,7 @@ import {
 // Window augmentation builds on this (see electron/preload.ts).
 export type ElectronAuthBridges = ExposedBridges<ElectronClientOptions>;
 
-export const electronPlugin = electronClient({
+const electronPlugin = electronClient({
   callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
   clientID: ELECTRON_AUTH_CLIENT_ID,
   protocol: { scheme: ELECTRON_AUTH_PROTOCOL },

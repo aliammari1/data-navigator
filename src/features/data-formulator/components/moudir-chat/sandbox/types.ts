@@ -28,6 +28,3 @@ export interface RunResult {
 }
 
 export type { PyodideRunResult } from "@/platform/pyodide/pyodide-client";
-
-export const PYODIDE_VERSION = "0.26.2";
-export const PYODIDE_RUNTIME_URL = "/pyodide/";

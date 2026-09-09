@@ -37,7 +37,7 @@ export interface ColumnInfo {
 
 export type AggregateFn = "none" | "count" | "sum" | "avg" | "min" | "max" | "median" | "distinct";
 
-export type TimeUnit = "hour" | "day" | "week" | "month" | "quarter" | "year";
+type TimeUnit = "hour" | "day" | "week" | "month" | "quarter" | "year";
 
 export interface Encoding {
   id: string;
@@ -50,7 +50,7 @@ export interface Encoding {
   timeUnit?: TimeUnit;
 }
 
-export type FilterOp =
+type FilterOp =
   | "="
   | "!="
   | ">"

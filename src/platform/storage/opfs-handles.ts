@@ -55,7 +55,7 @@ export function isOpfsAvailable(): boolean {
  * True when synchronous access handles are usable — i.e. we are in a Worker AND
  * the API exists. The renderer main thread returns `false`.
  */
-export function isSyncAccessAvailable(): boolean {
+function isSyncAccessAvailable(): boolean {
   const wgs = WorkerGlobalScope;
   const inWorker =
     typeof wgs !== "undefined" &&
@@ -82,7 +82,7 @@ async function getRoot(): Promise<FileSystemDirectoryHandle> {
  * Resolve a directory handle for a "/"-separated path, creating segments when
  * `create` is true. `""` / `"/"` resolves to the OPFS root.
  */
-export async function getDir(path = "", create = false): Promise<FileSystemDirectoryHandle> {
+async function getDir(path = "", create = false): Promise<FileSystemDirectoryHandle> {
   let dir = await getRoot();
   const segments = path.split("/").filter(Boolean);
   for (const segment of segments) {
@@ -107,7 +107,7 @@ async function getFileHandle(filePath: string, create = false): Promise<FileSyst
 
 // ─── Async (main-thread-safe) operations ──────────────────────────────────────
 
-export async function exists(filePath: string): Promise<boolean> {
+async function exists(filePath: string): Promise<boolean> {
   try {
     await getFileHandle(filePath, false);
     return true;
@@ -116,7 +116,7 @@ export async function exists(filePath: string): Promise<boolean> {
   }
 }
 
-export async function deleteFile(filePath: string): Promise<void> {
+async function deleteFile(filePath: string): Promise<void> {
   const { dirPath, name } = splitPath(filePath);
   try {
     const dir = await getDir(dirPath, false);
@@ -137,14 +137,14 @@ export async function deleteDir(path: string): Promise<void> {
   }
 }
 
-export interface OpfsEntry {
+interface OpfsEntry {
   name: string;
   kind: "file" | "directory";
   size?: number;
 }
 
 /** List immediate children of a directory (one level). */
-export async function list(path = ""): Promise<OpfsEntry[]> {
+async function list(path = ""): Promise<OpfsEntry[]> {
   const dir = await getDir(path, false);
   const out: OpfsEntry[] = [];
   for await (const [name, handle] of dir.entries()) {
@@ -156,16 +156,6 @@ export async function list(path = ""): Promise<OpfsEntry[]> {
     }
   }
   return out;
-}
-
-export async function size(filePath: string): Promise<number> {
-  try {
-    const handle = await getFileHandle(filePath, false);
-    const file = await handle.getFile();
-    return file.size;
-  } catch {
-    return 0;
-  }
 }
 
 /**
@@ -200,7 +190,7 @@ export async function dirSize(path = ""): Promise<number> {
  * Async read of a whole file as an ArrayBuffer (main-thread-safe, uses
  * `getFile()` not a sync handle). Returns null when absent.
  */
-export async function readBlob(filePath: string): Promise<ArrayBuffer | null> {
+async function readBlob(filePath: string): Promise<ArrayBuffer | null> {
   try {
     const handle = await getFileHandle(filePath, false);
     const file = await handle.getFile();
@@ -215,7 +205,7 @@ export async function readBlob(filePath: string): Promise<ArrayBuffer | null> {
  * blobs (no extra stream copy); this is the convenient main-thread/fallback
  * path used when a sync handle is unavailable.
  */
-export async function writeBlob(
+async function writeBlob(
   filePath: string,
   data: ArrayBuffer | ArrayBufferView | Blob,
 ): Promise<void> {
@@ -236,7 +226,7 @@ export async function writeBlob(
  * blob IO inside a worker. Open it, read/write at offsets, then `close()`.
  * Only ONE sync access handle may be open per file at a time.
  */
-export class OPFSSyncFile {
+class OPFSSyncFile {
   private constructor(
     readonly path: string,
     private handle: FileSystemSyncAccessHandle,
@@ -300,7 +290,7 @@ export class OPFSSyncFile {
  *   await cache.writeAll("dataset-7.parquet", bytes);
  *   const bytes = await cache.readAll("dataset-7.parquet");
  */
-export class OPFSBlobStore {
+class OPFSBlobStore {
   constructor(private readonly namespace: string) {}
 
   private key(name: string): string {
@@ -395,4 +385,3 @@ export const OPFS_NS = {
   pmtiles: "pmtiles",
   pyodide: "pyodide",
 } as const;
-export type OpfsNamespace = (typeof OPFS_NS)[keyof typeof OPFS_NS];

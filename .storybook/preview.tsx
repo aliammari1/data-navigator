@@ -1,6 +1,6 @@
 // .storybook/preview.tsx
 import type { Preview } from "@storybook/nextjs-vite";
-import { initialize, mswLoader } from "msw-storybook-addon";
+import { mswLoader } from "msw-storybook-addon/csf3";
 import { Fira_Code, Geist } from "next/font/google";
 import { type ReactNode, useEffect } from "react";
 
@@ -9,10 +9,6 @@ import { ThemeProvider, useTheme } from "../src/components/theme-provider";
 import { TooltipProvider } from "../src/components/ui/tooltip";
 import "../src/app/globals.css";
 import "./storybook-electron-mocks";
-
-initialize({
-  onUnhandledRequest: "bypass",
-});
 
 const geist = Geist({
   subsets: ["latin"],
@@ -38,7 +34,7 @@ function ThemeSynchronizer({ children, theme }: { children: ReactNode; theme: St
 }
 
 const preview: Preview = {
-  loaders: [mswLoader],
+  loaders: [mswLoader()],
 
   globalTypes: {
     theme: {

@@ -1,5 +1,5 @@
 import net from "node:net";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   findAvailablePortInRange,
   isPortAvailable,
@@ -58,6 +58,10 @@ describe("port-picker", () => {
   });
 
   it("resolveAppPort selects an available port from range in production", async () => {
+    // Hermetic: an ambient PORT takes precedence by design (explicit request
+    // wins) and would mask the range branch under test. (vitest config sets
+    // unstubEnvs, so the stub is restored automatically.)
+    vi.stubEnv("PORT", "");
     const port = await resolveAppPort({
       isPackaged: true,
       envPortRange: "30180-30190",

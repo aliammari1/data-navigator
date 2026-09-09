@@ -10,7 +10,7 @@ import { createJSONStorage, persist, subscribeWithSelector } from "zustand/middl
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 import type { CanalRule, ColumnMapping, CustomKPI, StatusMapping } from "./types";
 
-export type { CanalRule, ColumnMapping, CustomKPI, StatusMapping };
+export type { ColumnMapping };
 
 export const DEFAULT_MAPPING: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

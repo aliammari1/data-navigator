@@ -36,7 +36,7 @@ export interface CachedAnalytics {
   rawStatuses: unknown[];
 }
 
-export interface CachedTelecomSourceFile {
+interface CachedTelecomSourceFile {
   key: string;
   savedAt: number;
   fileName: string;

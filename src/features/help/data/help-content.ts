@@ -10,7 +10,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Code2, FileText, Folder, Receipt, Upload, Users } from "lucide-react";
 
-export interface ShortcutDef {
+interface ShortcutDef {
   keys: string[];
   desc: string;
 }

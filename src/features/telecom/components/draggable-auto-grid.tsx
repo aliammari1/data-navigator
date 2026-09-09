@@ -15,7 +15,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical } from "lucide-react";
 import { cn } from "@/shared/utils";
 
-export type DashboardCardSize = "sm" | "md" | "lg" | "wide" | "full";
+type DashboardCardSize = "sm" | "md" | "lg" | "wide" | "full";
 
 export interface DashboardCardItem {
   id: string;

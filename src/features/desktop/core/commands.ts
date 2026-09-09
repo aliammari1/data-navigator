@@ -336,4 +336,3 @@ export function resolveCommands(query: string): CommandResult[] {
 }
 
 /** Re-export the full registry list for integrations that want raw app data. */
-export { DESKTOP_APPS, LAUNCHER_APPS };

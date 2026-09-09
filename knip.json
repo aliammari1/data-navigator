@@ -29,6 +29,7 @@
     "electron/**/*.ts",
     "scripts/**/*.{ts,mjs}",
     ".storybook/**/*.{ts,tsx}",
+    "tests/**/*.{test,spec,bench}.{ts,tsx}",
     "!src/**/*.stories.{ts,tsx}",
     "!src/**/*.test.{ts,tsx}",
     "!src/**/*.spec.{ts,tsx}",
@@ -74,6 +75,6 @@
   },
   "vitest": {
     "config": ["vitest.config.ts"],
-    "entry": ["src/**/*.{test,spec,bench}.{ts,tsx}"]
+    "entry": ["src/**/*.{test,spec,bench}.{ts,tsx}", "tests/**/*.{test,spec,bench}.{ts,tsx}"]
   }
 }

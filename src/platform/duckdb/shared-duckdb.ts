@@ -17,15 +17,15 @@ import { duckdbBridge } from "@/platform/electron/electron-fs";
 
 // ─── Public API types ─────────────────────────────────────────────────────────
 
-export type DatasetSourceFormat = "csv" | "parquet";
+type DatasetSourceFormat = "csv" | "parquet";
 
-export interface RegisteredDatasetColumn {
+interface RegisteredDatasetColumn {
   name: string;
   type: string;
   nullable: boolean;
 }
 
-export interface RegisteredDataset {
+interface RegisteredDataset {
   id: string;
   displayName: string;
   viewName: string;
@@ -38,26 +38,26 @@ export interface RegisteredDataset {
   updatedAt: string;
 }
 
-export interface RejectError {
+interface RejectError {
   line: number | null;
   columnName: string | null;
   errorType: string | null;
   errorMessage: string | null;
 }
 
-export interface RejectSummary {
+interface RejectSummary {
   rejectedRowCount: number;
   sample: RejectError[];
 }
 
-export interface RegisteredDatasetWithPreview extends RegisteredDataset {
+interface RegisteredDatasetWithPreview extends RegisteredDataset {
   previewRows: Record<string, unknown>[];
   rejects?: RejectSummary;
 }
 
-export type CsvEncoding = "utf-8" | "utf-16" | "latin-1";
+type CsvEncoding = "utf-8" | "utf-16" | "latin-1";
 
-export interface RegisterCSVPathDatasetInput {
+interface RegisterCSVPathDatasetInput {
   filePath: string;
   displayName?: string;
   hasHeader?: boolean;
@@ -70,7 +70,7 @@ export interface RegisterCSVPathDatasetInput {
 
 // ─── Pushdown / pagination / cancellation types ───────────────────────────────
 
-export interface SummarizeRow {
+interface SummarizeRow {
   column_name: string;
   column_type: string;
   min: unknown;
@@ -85,19 +85,19 @@ export interface SummarizeRow {
   null_percentage: number | null;
 }
 
-export interface ColumnDetail {
+interface ColumnDetail {
   column: string;
   distinctApprox: number;
   topValues: Array<{ value: unknown; count: number | null }>;
   histogram: Array<{ bin: string; count: number }>;
 }
 
-export interface ProfileDatasetInput {
+interface ProfileDatasetInput {
   datasetId: string;
   cancelToken?: string;
 }
 
-export interface ProfileColumnDetailInput {
+interface ProfileColumnDetailInput {
   datasetId: string;
   column: string;
   topK?: number;
@@ -105,24 +105,24 @@ export interface ProfileColumnDetailInput {
   cancelToken?: string;
 }
 
-export interface CountRowsInput {
+interface CountRowsInput {
   datasetId: string;
   where?: string;
   force?: boolean;
   cancelToken?: string;
 }
 
-export interface KeysetSortKey {
+interface KeysetSortKey {
   column: string;
   direction?: "ASC" | "DESC";
 }
 
-export interface KeysetCursor {
+interface KeysetCursor {
   sortValues: unknown[];
   rowid: number;
 }
 
-export interface KeysetPageInput {
+interface KeysetPageInput {
   datasetId: string;
   sortKeys: KeysetSortKey[];
   limit: number;
@@ -132,41 +132,41 @@ export interface KeysetPageInput {
   cancelToken?: string;
 }
 
-export interface KeysetPageResult {
+interface KeysetPageResult {
   arrow: Uint8Array;
   nextCursor: KeysetCursor | null;
   rowCount: number;
 }
 
-export interface RegisterParquetPathDatasetInput {
+interface RegisterParquetPathDatasetInput {
   filePath: string;
   displayName?: string;
   previewLimit?: number;
 }
 
-export interface PreviewDatasetInput {
+interface PreviewDatasetInput {
   datasetId: string;
   limit?: number;
   offset?: number;
 }
 
-export interface DatasetOnlyInput {
+interface DatasetOnlyInput {
   datasetId: string;
 }
 
-export interface ExportDatasetInput {
+interface ExportDatasetInput {
   datasetId: string;
   targetPath: string;
 }
 
-export interface QueryMetric {
+interface QueryMetric {
   sql: string;
   durationMs: number;
   timestamp: number;
   rowCount: number;
 }
 
-export interface DuckDBStatus {
+interface DuckDBStatus {
   active: boolean;
   dbPath: string | null;
   datasetsDir: string | null;

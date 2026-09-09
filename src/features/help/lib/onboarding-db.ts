@@ -41,7 +41,7 @@ export interface TourState {
 }
 
 /** "Feature X was seen once" flag for contextual coach-marks. */
-export interface SeenFeature {
+interface SeenFeature {
   featureId: string;
   seenAt: number;
 }
@@ -70,7 +70,7 @@ class OnboardingDatabase extends Dexie {
   }
 }
 
-export const onboardingDb = new OnboardingDatabase();
+const onboardingDb = new OnboardingDatabase();
 
 /* ------------------------------------------------------------------ */
 /* Feedback                                                            */

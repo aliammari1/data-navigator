@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  BUILTIN_STATUS_CODES,
   canalCaseExpr,
   canalWhere,
   colExpr,
@@ -8,6 +7,7 @@ import {
   normalizeStatusCode,
   qc,
   SEMANTIC_TO_CATEGORY,
+  SPEC_STATUS_CODES,
   sqlLiteral,
   statusNorm,
 } from "@/features/telecom/lib/sql";
@@ -44,10 +44,10 @@ const mapping = (overrides: Partial<ColumnMapping> = {}): ColumnMapping =>
 // ─── Re-exported constants ────────────────────────────────────────────────────
 
 describe("exported constants", () => {
-  it("BUILTIN_STATUS_CODES is re-exported and contains success codes", () => {
-    expect(BUILTIN_STATUS_CODES).toBeDefined();
-    expect(Array.isArray(BUILTIN_STATUS_CODES.success)).toBe(true);
-    expect(BUILTIN_STATUS_CODES.success).toContain("PST");
+  it("SPEC_STATUS_CODES is re-exported and contains success codes", () => {
+    expect(SPEC_STATUS_CODES).toBeDefined();
+    expect(Array.isArray(SPEC_STATUS_CODES.success)).toBe(true);
+    expect(SPEC_STATUS_CODES.success).toContain("PST");
   });
 
   it("SEMANTIC_TO_CATEGORY is re-exported and maps known semantics", () => {
@@ -176,7 +176,7 @@ describe("normalizeStatusCode — raw code → business category", () => {
   });
 
   it("maps an instance/hold code to INSTANCE via builtin fallback", () => {
-    // HLD is in BUILTIN_STATUS_CODES.instance but also in DEFAULT_STATUS_MAPPINGS
+    // HLD is in SPEC_STATUS_CODES.instance but also in DEFAULT_STATUS_MAPPINGS
     expect(normalizeStatusCode("HLD")).toBe("INSTANCE");
   });
 
@@ -210,8 +210,8 @@ describe("normalizeStatusCode — raw code → business category", () => {
     expect(normalizeStatusCode("PST", custom)).toBe("OTHER");
   });
 
-  it("handles a code only in BUILTIN_STATUS_CODES (not in DEFAULT_STATUS_MAPPINGS)", () => {
-    // Some codes in BUILTIN_STATUS_CODES are not in DEFAULT_STATUS_MAPPINGS
+  it("handles a code only in SPEC_STATUS_CODES (not in DEFAULT_STATUS_MAPPINGS)", () => {
+    // Some codes in SPEC_STATUS_CODES are not in DEFAULT_STATUS_MAPPINGS
     // e.g. "RTO", "STO", "STP", etc. are instance codes in builtin but not all are mapped
     // We pass an empty mapping array so nothing is configured; the builtin path runs
     const noMapping: StatusMapping[] = [];
@@ -326,7 +326,7 @@ describe("statusNorm — SQL CASE expression for status normalisation", () => {
   it("handles configured codes that are a superset of all builtins (all missingCodes empty)", () => {
     // Build a mapping that already includes ALL builtin codes so missingCodes.length === 0 for all
     const allBuiltins: StatusMapping[] = [];
-    for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES) as Array<
+    for (const [semantic, codes] of Object.entries(SPEC_STATUS_CODES) as Array<
       [string, string[]]
     >) {
       for (const code of codes) {
@@ -406,7 +406,7 @@ describe("statusNorm — SQL CASE expression for status normalisation", () => {
   });
 
   it("does not duplicate codes that are in both configured mapping and builtins", () => {
-    // PST is in both DEFAULT_STATUS_MAPPINGS and BUILTIN_STATUS_CODES.success
+    // PST is in both DEFAULT_STATUS_MAPPINGS and SPEC_STATUS_CODES.success
     // When PST is in configured, it shouldn't appear in the IN() clause
     const sql = statusNorm(mapping(), DEFAULT_STATUS_MAPPINGS);
     // The PST code appears as a standalone WHEN but NOT inside the IN() fallback for success
@@ -563,12 +563,12 @@ describe("canalCaseExpr — canal classification CASE", () => {
 });
 
 // ─── statusNorm line 104: return "'OTHER'" when whenClauses is empty ──────────
-// This requires BUILTIN_STATUS_CODES to have no entries AND sm to have no valid codes.
+// This requires SPEC_STATUS_CODES to have no entries AND sm to have no valid codes.
 // We achieve this by resetting the module registry, mocking with importOriginal,
 // and dynamically importing sql.
 
 describe("statusNorm — constant OTHER literal (line 104)", () => {
-  it("returns \"'OTHER'\" when no when-clauses are generated (BUILTIN_STATUS_CODES empty, sm empty)", async () => {
+  it("returns \"'OTHER'\" when no when-clauses are generated (SPEC_STATUS_CODES empty, sm empty)", async () => {
     vi.resetModules();
 
     vi.doMock("@/features/telecom/lib/status-definitions", async () => {
@@ -577,8 +577,10 @@ describe("statusNorm — constant OTHER literal (line 104)", () => {
       >("@/features/telecom/lib/status-definitions");
       return {
         ...actual,
-        // Override BUILTIN_STATUS_CODES to be empty so the builtin loop adds nothing
-        BUILTIN_STATUS_CODES: {},
+        // Override SPEC_STATUS_CODES with empty groups so the taxonomy loop
+        // adds nothing. Empty arrays (not {}) keep the module-level derived
+        // filters constructible — they map over each group.
+        SPEC_STATUS_CODES: { success: [], declined: [], refund: [], instance: [], submitted: [] },
       };
     });
 
@@ -608,7 +610,7 @@ describe("statusNorm — constant OTHER literal (line 104)", () => {
       retryCount: "",
     };
 
-    // sm = [] (empty), BUILTIN_STATUS_CODES = {} (empty) → no WHEN clauses → line 104
+    // sm = [] (empty), SPEC_STATUS_CODES = {} (empty) → no WHEN clauses → line 104
     const result = statusNormDyn(m, []);
     expect(result).toBe("'OTHER'");
 

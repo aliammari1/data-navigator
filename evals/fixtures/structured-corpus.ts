@@ -39,7 +39,29 @@ export const analysisPlanSchema = z.object({
     .array(
       z.object({
         usesSqlId: z.string(),
-        type: z.enum(["line", "bar", "area", "scatter", "table"]),
+        // Mirrors the canonical ChartType union in
+        // src/features/data-formulator/core/types.ts — models legitimately emit
+        // kinds like "multi-line", so the eval schema must accept them.
+        type: z.enum([
+          "bar",
+          "horizontal-bar",
+          "stacked-bar",
+          "stacked-horizontal-bar",
+          "line",
+          "area",
+          "multi-line",
+          "pie",
+          "donut",
+          "scatter",
+          "bubble",
+          "heatmap",
+          "treemap",
+          "radar",
+          "gauge",
+          "funnel",
+          "kpi-grid",
+          "data-table",
+        ]),
         x: z.string(),
         y: z.string(),
         series: z.string().optional(),

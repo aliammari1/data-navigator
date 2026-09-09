@@ -20,7 +20,7 @@
 export type ModelLane = "llm" | "embed";
 
 /** How a model's presence is probed at runtime. */
-export type ModelPresenceKind =
+type ModelPresenceKind =
   /** GGUF in userData; probed via `window.electronLlama.listModels()`. */
   "electron-gguf";
 

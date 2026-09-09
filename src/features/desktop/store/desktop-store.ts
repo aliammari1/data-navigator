@@ -85,7 +85,7 @@ export interface DesktopWidget {
 }
 
 /** A saved workspace: a snapshot of the open windows + look at a point in time. */
-export interface DesktopWorkspace {
+interface DesktopWorkspace {
   id: string;
   name: string;
   windows: DesktopWindow[];
@@ -95,7 +95,7 @@ export interface DesktopWorkspace {
 }
 
 /** A soft-deleted item living in the Recycle Bin until restored or purged. */
-export interface RecycleItem {
+interface RecycleItem {
   id: string;
   kind: "folder" | "dataset" | "shortcut";
   name: string;
@@ -530,24 +530,6 @@ export const useWorkspaces = () => useDesktopStore((s) => s.workspaces);
 export const usePinnedOnTop = () => useDesktopStore((s) => s.pinnedOnTop);
 export const useDockProgress = () => useDesktopStore((s) => s.dockProgress);
 export const useWidgetDate = () => useDesktopStore((s) => s.widgetDate);
-
-/**
- * Windows with an effective z that bumps pinned-on-top windows above the rest.
- * Use this instead of the raw `windows` array when you want always-on-top
- * windows to render above everything else without mutating their stored z.
- */
-export const useWindowsWithPinZ = () => {
-  // Subscribe to the raw slices (stable references) and allocate in a memo.
-  // `useShallow` here would compare only one level deep, and every pinned window
-  // produces a fresh `{ ...w }` on each call, so the snapshot would never be
-  // shallow-equal once anything was pinned — an infinite render loop.
-  const windows = useDesktopStore((s) => s.windows);
-  const pinnedOnTop = useDesktopStore((s) => s.pinnedOnTop);
-  return useMemo(
-    () => windows.map((w) => (pinnedOnTop.includes(w.id) ? { ...w, z: w.z + PIN_Z_BUMP } : w)),
-    [windows, pinnedOnTop],
-  );
-};
 
 export const useDesktopActions = () =>
   useDesktopStore(

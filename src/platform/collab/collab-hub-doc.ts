@@ -29,7 +29,7 @@ import { ydoc } from "./collab";
 export const yApprovals = ydoc.getMap<Y.Map<unknown>>("collabhub:approvals");
 
 /** Annotations: sectionId -> ordered Y.Array of note Y.Maps (replies nested). */
-export const yAnnotations = ydoc.getMap<Y.Array<Y.Map<unknown>>>("collabhub:annotations");
+const yAnnotations = ydoc.getMap<Y.Array<Y.Map<unknown>>>("collabhub:annotations");
 
 /** Append-only audit JSON strings (mirrors the sharedAudit pattern). */
 export const yAudit = ydoc.getArray<string>("collabhub:audit");
@@ -39,7 +39,7 @@ export const yAudit = ydoc.getArray<string>("collabhub:audit");
 export type NoteColor = "yellow" | "blue" | "green" | "pink" | "purple";
 export type NotePriority = "normal" | "important" | "urgent";
 
-export interface AnnotationReply {
+interface AnnotationReply {
   id: string;
   author: string;
   text: string;
@@ -313,13 +313,6 @@ export function readApproval(
 ): ApprovalRecord | null {
   const m = map.get(reportId);
   return m ? approvalFromYMap(m) : null;
-}
-
-/** Read every approval record. */
-export function readApprovals(map: Y.Map<Y.Map<unknown>> = yApprovals): ApprovalRecord[] {
-  const out: ApprovalRecord[] = [];
-  for (const [, m] of map.entries()) out.push(approvalFromYMap(m));
-  return out;
 }
 
 /**

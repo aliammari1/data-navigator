@@ -21,9 +21,9 @@ import type { ZodType } from "zod";
 
 export type ProviderId = "llamacpp";
 
-export type AIRole = "system" | "user" | "assistant" | "tool";
+type AIRole = "system" | "user" | "assistant" | "tool";
 
-export interface AIMessage {
+interface AIMessage {
   role: AIRole;
   content: string;
 }
@@ -51,7 +51,7 @@ export interface AICapabilities {
   requiresWebGPU: boolean;
 }
 
-export type AIStatus = "idle" | "loading" | "ready" | "inferring" | "error";
+type AIStatus = "idle" | "loading" | "ready" | "inferring" | "error";
 
 export interface AIProgress {
   status: AIStatus;
@@ -120,7 +120,7 @@ export interface AIProvider {
   unload?(): Promise<void>;
 }
 
-export class AIProviderError extends Error {
+class AIProviderError extends Error {
   constructor(
     message: string,
     readonly provider: ProviderId,

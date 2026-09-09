@@ -81,7 +81,7 @@ import { getAppSettingRemote } from "@/platform/settings/settings-client";
 
 /* ── Message model ────────────────────────────────────────────────────────── */
 
-export type ChatRole = "user" | "assistant";
+type ChatRole = "user" | "assistant";
 
 /** A tool invocation shown as a collapsible chip in the assistant message. */
 export interface ToolPart {
@@ -162,7 +162,7 @@ export interface ClarificationPart {
   multiSelect?: boolean;
 }
 
-export type MessagePart = ToolPart | ChartPart | CitationPart | ClarificationPart;
+type MessagePart = ToolPart | ChartPart | CitationPart | ClarificationPart;
 
 /** Local-inference telemetry for one turn. Approximate by design. */
 export interface TurnMetrics {
@@ -242,36 +242,6 @@ export type MoudirArtifact =
       answer?: string;
       multiSelect?: boolean;
     };
-
-/** Promotes a tool/clarification part to a MoudirArtifact. */
-export function artifactFromPart(part: MessagePart): MoudirArtifact | null {
-  if (part.kind === "chart") {
-    return {
-      kind: "chart",
-      title: part.title,
-      chartType: part.chartType,
-      x: part.x,
-      y: part.y,
-      aggregate: part.aggregate,
-      datasetId: part.datasetId,
-      rows: part.rows,
-    };
-  }
-  if (part.kind === "clarification") {
-    return {
-      kind: "clarification",
-      title: "Clarification requise",
-      question: part.question,
-      options: part.options,
-      answer: part.answer,
-      multiSelect: part.multiSelect,
-    };
-  }
-  if (part.kind === "citation" && part.sourceKind === "query" && part.query) {
-    return { kind: "sql", title: part.label, query: part.query, dataset: part.detail ?? null };
-  }
-  return null;
-}
 
 export interface ActiveFilter {
   field: string;

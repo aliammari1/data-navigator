@@ -30,11 +30,7 @@ import {
   registerParquetPathDataset,
 } from "./duckdb";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
-
-export type DatasetFileExtension = "csv" | "tsv" | "txt" | "parquet" | "pq";
-
-export interface LocalFileDialogOptions {
+interface LocalFileDialogOptions {
   title?: string;
   filters?: Array<{
     name: string;
@@ -115,20 +111,6 @@ function ensureElectron(featureName: string): void {
   }
 }
 
-// ─── Runtime helpers ──────────────────────────────────────────────────────────
-
-export async function getLocalDataDir(): Promise<string> {
-  ensureElectron("getLocalDataDir");
-  return getDataDir();
-}
-
-export async function localDatasetCacheExists(
-  dataset: Pick<RegisteredDataset, "cachePath">,
-): Promise<boolean> {
-  if (!isElectron()) return false;
-  return localFileExists(dataset.cachePath);
-}
-
 export async function listLocalDatasets(): Promise<RegisteredDataset[]> {
   ensureElectron("listLocalDatasets");
   return listRegisteredDatasets();
@@ -136,7 +118,7 @@ export async function listLocalDatasets(): Promise<RegisteredDataset[]> {
 
 // ─── Dialog helpers ───────────────────────────────────────────────────────────
 
-export async function openLocalFileDialog(options?: LocalFileDialogOptions): Promise<string[]> {
+async function openLocalFileDialog(options?: LocalFileDialogOptions): Promise<string[]> {
   ensureElectron("openLocalFileDialog");
 
   type OpenFileDialogProperties = NonNullable<Parameters<typeof openFileDialog>[0]["properties"]>;
@@ -168,7 +150,7 @@ export async function openLocalFileDialog(options?: LocalFileDialogOptions): Pro
   });
 }
 
-export async function openSingleLocalFileDialog(
+async function openSingleLocalFileDialog(
   options?: Omit<LocalFileDialogOptions, "multiSelections">,
 ): Promise<string | null> {
   const paths = await openLocalFileDialog({
@@ -213,7 +195,7 @@ export async function registerLocalDatasetFile(
   );
 }
 
-export async function registerLocalDatasetFiles(
+async function registerLocalDatasetFiles(
   filePaths: string[],
   options?: Omit<RegisterLocalDatasetOptions, "filePath" | "displayName">,
 ): Promise<RegisteredDatasetWithPreview[]> {
@@ -233,50 +215,6 @@ export async function registerLocalDatasetFiles(
   }
 
   return datasets;
-}
-
-export async function openAndRegisterLocalDatasetFiles(
-  options?: LocalFileDialogOptions & Omit<RegisterLocalDatasetOptions, "filePath" | "displayName">,
-): Promise<RegisteredDatasetWithPreview[]> {
-  const filePaths = await openLocalFileDialog({
-    title: options?.title ?? "Import dataset files",
-    filters: options?.filters,
-    multiSelections: options?.multiSelections,
-  });
-
-  if (filePaths.length === 0) {
-    return [];
-  }
-
-  return registerLocalDatasetFiles(filePaths, {
-    hasHeader: options?.hasHeader,
-    delimiter: options?.delimiter,
-    sampleSize: options?.sampleSize,
-    previewLimit: options?.previewLimit,
-  });
-}
-
-export async function openAndRegisterSingleLocalDatasetFile(
-  options?: Omit<LocalFileDialogOptions, "multiSelections"> &
-    Omit<RegisterLocalDatasetOptions, "filePath" | "displayName">,
-): Promise<RegisteredDatasetWithPreview | null> {
-  const filePath = await openSingleLocalFileDialog({
-    title: options?.title ?? "Import dataset file",
-    filters: options?.filters,
-  });
-
-  if (!filePath) {
-    return null;
-  }
-
-  return registerLocalDatasetFile({
-    filePath,
-    displayName: defaultDatasetDisplayName(filePath),
-    hasHeader: options?.hasHeader,
-    delimiter: options?.delimiter,
-    sampleSize: options?.sampleSize,
-    previewLimit: options?.previewLimit,
-  });
 }
 
 // ─── Dataset export / delete ──────────────────────────────────────────────────

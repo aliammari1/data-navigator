@@ -128,7 +128,7 @@ export function getEncryptedTempPath(databasePath: string): string {
 export const SQLITE_PLAINTEXT_MAGIC = "SQLite format 3";
 
 /** Total length of the SQLite magic header (printable prefix + NUL byte). */
-export const SQLITE_MAGIC_LENGTH = SQLITE_PLAINTEXT_MAGIC.length + 1;
+const SQLITE_MAGIC_LENGTH = SQLITE_PLAINTEXT_MAGIC.length + 1;
 
 /**
  * Best-effort detection of whether a SQLite file is plaintext. An unencrypted

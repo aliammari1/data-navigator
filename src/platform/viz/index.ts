@@ -14,52 +14,23 @@
 
 // Worker API types (for callers that want typed results without importing the
 // worker module directly).
-export type { AnalysisWorkerApi } from "@/workers/analysis.worker";
-export type { ChartWorkerApi } from "@/workers/chart.worker";
-export type { ExportWorkerApi } from "@/workers/export.worker";
-export type { LayoutWorkerApi } from "@/workers/layout.worker";
-export type { ParseWorkerApi } from "@/workers/parse.worker";
+
 // Worker clients (Comlink proxies).
-export {
-  disposeAnalysisWorker,
-  getAnalysisProxy,
-} from "./analysis-client";
+
 export {
   getChartProxy,
-  nextChartId,
   supportsOffscreenChart,
 } from "./chart-client";
-export {
-  buildBarOption,
-  buildHeatmapOption,
-  buildLineOption,
-  buildPieOption,
-  buildScatterOption,
-  DENSE_SERIES_FLAGS,
-  type SeriesSpec,
-} from "./chart-options";
-export type { ECharts, EChartsOption } from "./echarts-core";
+
+export type { EChartsOption } from "./echarts-core";
 // ECharts (tree-shaken) + option builders.
 export { echarts } from "./echarts-core";
-export { disposeExportWorker, getExportProxy, warmExportWorker } from "./export-client";
-export { disposeLayoutWorker, getLayoutProxy } from "./layout-client";
-export { OffscreenChart, type OffscreenChartProps } from "./OffscreenChart";
-export { disposeParseWorker, getParseProxy } from "./parse-client";
+export { getExportProxy, warmExportWorker } from "./export-client";
+
+export { OffscreenChart } from "./OffscreenChart";
+
 // Save util.
-export { type SaveResult, saveBytes } from "./save-bytes";
+export { saveBytes } from "./save-bytes";
 // Deterministic primitives.
-export {
-  DEFAULT_SEED,
-  mulberry32,
-  randInt,
-  reservoirSampleIndices,
-} from "./seeded-rng";
+
 // uPlot config + mount hook.
-export {
-  buildSparklineOptions,
-  buildTimeSeriesOptions,
-  msToSeconds,
-  toAlignedData,
-  type UPlotSeriesSpec,
-} from "./uplot-config";
-export { useUPlot } from "./use-uplot";

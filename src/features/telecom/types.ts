@@ -264,4 +264,4 @@ export interface UnclassifiedCanalCombo {
   total: number;
 }
 
-export type StatusMappingOrigin = "default" | "custom";
+type StatusMappingOrigin = "default" | "custom";

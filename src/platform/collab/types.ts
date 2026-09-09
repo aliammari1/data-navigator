@@ -12,10 +12,10 @@ import type * as Y from "yjs";
 
 // ─── Identity / roles ─────────────────────────────────────────────────────────
 
-export type CollabRole = "host" | "editor" | "reviewer" | "viewer";
+type CollabRole = "host" | "editor" | "reviewer" | "viewer";
 
 /** Durable identity for a peer (id/name/role/color). Lives in the doc + awareness. */
-export interface CollabIdentity {
+interface CollabIdentity {
   id: string;
   name: string;
   role: CollabRole;

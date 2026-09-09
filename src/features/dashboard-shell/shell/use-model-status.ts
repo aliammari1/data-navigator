@@ -8,7 +8,7 @@ import {
 } from "@/platform/ai/models/use-model-status";
 import { useAIRuntimeStore } from "@/platform/ai/provider";
 
-export type ModelStatusKind = "not-ready" | "downloading" | "ready" | "error";
+type ModelStatusKind = "not-ready" | "downloading" | "ready" | "error";
 
 export interface ModelStatus {
   kind: ModelStatusKind;

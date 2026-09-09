@@ -253,13 +253,6 @@ export async function runReadOnlyQuery(sql: string): Promise<Record<string, unkn
   return response.rows;
 }
 
-/** Liveness probe (diagnostics / tests). */
-export async function ping(): Promise<boolean> {
-  await ensureSpawned();
-  const response = await request({ kind: "ping" });
-  return !isErrorResponse(response) && response.kind === "ping" && response.pong === true;
-}
-
 /** Terminate the utility process (lifecycle cleanup). Safe to call when off. */
 export function dispose(): void {
   const active = child;

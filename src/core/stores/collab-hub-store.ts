@@ -13,10 +13,10 @@ import { createDrizzleStorage, createSelectors, durablePersist } from "@/platfor
 // that have no business syncing: the display name, last-used note styling, the
 // list of locally-shared report links, and the bound LAN session code.
 
-export type NoteColor = "yellow" | "blue" | "green" | "pink" | "purple";
-export type NotePriority = "normal" | "important" | "urgent";
+type NoteColor = "yellow" | "blue" | "green" | "pink" | "purple";
+type NotePriority = "normal" | "important" | "urgent";
 
-export interface SharedReport {
+interface SharedReport {
   id: string;
   name: string;
   approvedBy: string;

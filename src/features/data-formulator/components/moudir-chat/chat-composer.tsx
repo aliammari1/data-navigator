@@ -103,7 +103,7 @@ import {
 
 const MAX_MENTION_ITEMS = 50;
 const FOCUS_EVENT = "moudir-chat:focus-composer";
-export const PREFILL_EVENT = "moudir-chat:prefill-composer";
+const PREFILL_EVENT = "moudir-chat:prefill-composer";
 
 const ATTACHMENT_ACCEPT = "image/*,text/*,application/json,.csv,.xlsx,.xls,.parquet,.txt,.pdf";
 // Kept small on purpose: attachments are base64-encoded in memory before submit.

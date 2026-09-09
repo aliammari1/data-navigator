@@ -57,8 +57,3 @@ export function extractCodeBlocks(markdown: string): Segment[] {
   flushText();
   return segments;
 }
-
-/** True if the markdown contains at least one executable block. */
-export function hasExecutableBlock(markdown: string): boolean {
-  return /^[ \t]{0,3}(```+|~~~+)\s*(js-run|python-run)\s*$/m.test(markdown);
-}

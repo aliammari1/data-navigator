@@ -24,7 +24,7 @@ export function humanizeModel(model: string): string {
 }
 
 /** Platform-correct modifier glyph — this is a cross-platform Electron app. */
-export const IS_MAC =
+const IS_MAC =
   typeof navigator !== "undefined" &&
   /Mac|iPhone|iPad|iPod/.test(navigator.platform || navigator.userAgent);
 

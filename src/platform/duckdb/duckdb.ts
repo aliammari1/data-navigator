@@ -14,7 +14,7 @@ import { sharedDuckDB } from "./shared-duckdb";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type DatasetSourceFormat = "csv" | "parquet";
+type DatasetSourceFormat = "csv" | "parquet";
 
 export interface RegisteredDatasetColumn {
   name: string;
@@ -80,7 +80,7 @@ export interface SummarizeRow {
   null_percentage: number | null;
 }
 
-export interface ColumnDetail {
+interface ColumnDetail {
   column: string;
   distinctApprox: number;
   topValues: Array<{ value: unknown; count: number | null }>;
@@ -92,7 +92,7 @@ export interface ProfileDatasetInput {
   cancelToken?: string;
 }
 
-export interface ProfileColumnDetailInput {
+interface ProfileColumnDetailInput {
   datasetId: string;
   column: string;
   topK?: number;
@@ -100,24 +100,24 @@ export interface ProfileColumnDetailInput {
   cancelToken?: string;
 }
 
-export interface CountRowsInput {
+interface CountRowsInput {
   datasetId: string;
   where?: string;
   force?: boolean;
   cancelToken?: string;
 }
 
-export interface KeysetSortKey {
+interface KeysetSortKey {
   column: string;
   direction?: "ASC" | "DESC";
 }
 
-export interface KeysetCursor {
+interface KeysetCursor {
   sortValues: unknown[];
   rowid: number;
 }
 
-export interface KeysetPageInput {
+interface KeysetPageInput {
   datasetId: string;
   sortKeys: KeysetSortKey[];
   limit: number;
@@ -127,7 +127,7 @@ export interface KeysetPageInput {
   cancelToken?: string;
 }
 
-export interface KeysetPageResult {
+interface KeysetPageResult {
   arrow: Uint8Array;
   nextCursor: KeysetCursor | null;
   rowCount: number;
@@ -139,7 +139,7 @@ export interface RegisterParquetPathDatasetInput {
   previewLimit?: number;
 }
 
-export interface PreviewDatasetInput {
+interface PreviewDatasetInput {
   datasetId: string;
   limit?: number;
   offset?: number;
@@ -154,38 +154,20 @@ export interface ExportDatasetInput {
   targetPath: string;
 }
 
-export interface QueryMetric {
+interface QueryMetric {
   sql: string;
   durationMs: number;
   timestamp: number;
   rowCount: number;
 }
 
-export interface DuckDBStatus {
+interface DuckDBStatus {
   active: boolean;
   dbPath: string | null;
   datasetsDir: string | null;
   readConnections: number;
   pendingReads: number;
   pendingWrites: number;
-}
-
-// ─── Runtime ──────────────────────────────────────────────────────────────────
-
-export async function initDuckDB(): Promise<void> {
-  await sharedDuckDB.init();
-}
-
-export async function getDuckDBStatus(): Promise<DuckDBStatus> {
-  return sharedDuckDB.getStatus();
-}
-
-export async function getQueryMetrics(): Promise<QueryMetric[]> {
-  return sharedDuckDB.getQueryMetrics();
-}
-
-export async function clearQueryMetrics(): Promise<void> {
-  return sharedDuckDB.clearQueryMetrics();
 }
 
 // ─── Dataset Registration ─────────────────────────────────────────────────────
@@ -208,18 +190,6 @@ export async function listRegisteredDatasets(): Promise<RegisteredDataset[]> {
   return sharedDuckDB.listDatasets();
 }
 
-export async function previewRegisteredDataset(
-  input: PreviewDatasetInput,
-): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.previewDataset(input);
-}
-
-export async function summarizeRegisteredDataset(
-  input: DatasetOnlyInput,
-): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.summarizeDataset(input);
-}
-
 // ─── Dataset Export / Delete ──────────────────────────────────────────────────
 
 export async function exportRegisteredDataset(input: ExportDatasetInput): Promise<void> {
@@ -236,18 +206,6 @@ export async function runReadOnlyQuery(sql: string): Promise<Record<string, unkn
 
 // ─── Arrow IPC transport (large windows / exports / worker hand-off) ──────────
 
-/**
- * Run a read-only query and return Arrow IPC stream bytes (transferable).
- * Decode with {@link decodeArrowIPC} from `./arrow-ipc` — ideally inside a
- * worker. Pass `cancelToken` to tie the scan to a cancellable group.
- */
-export async function runReadOnlyQueryArrow(
-  sql: string,
-  cancelToken?: string,
-): Promise<Uint8Array> {
-  return sharedDuckDB.runReadOnlyQueryArrow(sql, cancelToken);
-}
-
 // ─── Single-scan profiling pushdown ───────────────────────────────────────────
 
 /** Whole-dataset profile in one SUMMARIZE scan (approximate, cheap). */
@@ -255,74 +213,12 @@ export async function profileDataset(input: ProfileDatasetInput): Promise<Summar
   return sharedDuckDB.profileDataset(input);
 }
 
-/** Per-selected-column detail (distinct/top-K/histogram). Call lazily. */
-export async function profileColumnDetail(input: ProfileColumnDetailInput): Promise<ColumnDetail> {
-  return sharedDuckDB.profileColumnDetail(input);
-}
-
 // ─── Cached COUNT(*) ──────────────────────────────────────────────────────────
-
-/** Filter-aware COUNT(*), cached per (view, where). */
-export async function countRows(input: CountRowsInput): Promise<number> {
-  return sharedDuckDB.countRows(input);
-}
 
 // ─── Keyset / seek pagination ─────────────────────────────────────────────────
 
-/**
- * Fetch one keyset/seek page as Arrow IPC plus the cursor for the next page.
- * O(window) regardless of depth. Feed `result.nextCursor` back in as `cursor`.
- */
-export async function fetchKeysetPage(input: KeysetPageInput): Promise<KeysetPageResult> {
-  return sharedDuckDB.fetchKeysetPage(input);
-}
-
 // ─── Cancellation ─────────────────────────────────────────────────────────────
-
-/** Cancel queued + in-flight scans grouped under `token`. */
-export async function cancelQueries(token: string): Promise<void> {
-  return sharedDuckDB.cancelQueries(token);
-}
-
-/** Reset a cancel token id so it can be reused for a fresh batch. */
-export async function resetCancelToken(token: string): Promise<void> {
-  return sharedDuckDB.resetCancelToken(token);
-}
 
 // ─── Re-exports: Arrow decode + SQL builders ──────────────────────────────────
 
-export {
-  type ArrowColumn,
-  type ArrowIpcBytes,
-  type ArrowTable,
-  arrowColumnNames,
-  arrowRowAt,
-  arrowRowCount,
-  arrowToColumns,
-  arrowToRows,
-  arrowTransferList,
-  asUint8Array,
-  type DecodeArrowOptions,
-  decodeArrowIPC,
-  getArrowColumn,
-} from "./arrow-ipc";
-export {
-  buildApproxCountDistinctSQL,
-  buildApproxQuantileSQL,
-  buildApproxTopKSQL,
-  buildCorrelationCrosstabSQL,
-  buildCountSQL,
-  buildHistogramAggregateSQL,
-  buildHistogramTableSQL,
-  buildKeysetPageSQL,
-  buildOffsetPageSQL,
-  buildQuantileContSQL,
-  buildReservoirSampleSQL,
-  buildShapeSQL,
-  buildSummarizeSQL,
-  type CorrelationCrosstab,
-  countCacheKey,
-  type KeysetPageQuery,
-  quoteIdent,
-  quoteLiteral,
-} from "./pushdown";
+export { quoteIdent } from "./pushdown";

@@ -10,7 +10,7 @@
 export type NotificationPermissionState = "default" | "granted" | "denied" | "unsupported";
 
 /** Whether the browser exposes the Notification API at all. */
-export function notificationsSupported(): boolean {
+function notificationsSupported(): boolean {
   return typeof window !== "undefined" && "Notification" in window;
 }
 

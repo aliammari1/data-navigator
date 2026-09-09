@@ -107,8 +107,5 @@ export function getRoomDoc(roomId: string): CollabRoomDoc {
   return handle;
 }
 
-/** Alias kept for parity with the feature-layer naming (`acquireRoom`). */
-export const acquireRoom = getRoomDoc;
-
 /** No-op: singleton-backed rooms have no per-room resources to tear down. */
 export function releaseRoom(_roomId: string): void {}

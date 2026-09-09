@@ -32,7 +32,7 @@ export function pairingCodesMatch(expected: string, actual: string | null | unde
 
 // ─── Dual-code role derivation ───────────────────────────────────────────────
 
-export type CollabSessionRole = "host" | "editor" | "reviewer" | "viewer";
+type CollabSessionRole = "host" | "editor" | "reviewer" | "viewer";
 
 export interface DerivedAccess {
   role: CollabSessionRole;

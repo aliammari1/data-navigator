@@ -38,7 +38,7 @@ interface WidgetDefinition {
   label: string;
 }
 
-export const WIDGET_DEFINITIONS: Record<DesktopWidget["type"], WidgetDefinition> = {
+const WIDGET_DEFINITIONS: Record<DesktopWidget["type"], WidgetDefinition> = {
   kpi: { size: { w: 180, h: 116 }, needsData: true, label: "Indicateur" },
   sparkline: { size: { w: 220, h: 116 }, needsData: true, label: "Courbe horaire" },
   channels: { size: { w: 220, h: 168 }, needsData: true, label: "Canaux" },

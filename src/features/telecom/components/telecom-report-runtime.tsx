@@ -79,7 +79,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
 }
 
-export interface TelecomReportRuntimeValue {
+interface TelecomReportRuntimeValue {
   dashboardLoaded: boolean;
   sharedOverviewMode: boolean;
   dashboardFileName: string;

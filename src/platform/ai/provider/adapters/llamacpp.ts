@@ -221,16 +221,3 @@ export const llamacppProvider: AIProvider = {
     return schema.parse(out);
   },
 };
-
-/**
- * Pre-warm the KV cache for a dataset schema or system grounding prefix in the background.
- */
-export async function preloadWarmPrefix(systemPrefix: string): Promise<boolean> {
-  const api = bridge();
-  if (!api || !isElectron() || typeof api.preloadWarmPrefix !== "function") return false;
-  try {
-    return await api.preloadWarmPrefix({ systemPrefix });
-  } catch {
-    return false;
-  }
-}

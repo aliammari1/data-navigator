@@ -75,7 +75,7 @@ export type SqliteHandle<S extends Schema> = {
   path: string;
 };
 
-export class NodeSqliteAdapter {
+class NodeSqliteAdapter {
   readonly #raw: import("node:sqlite").DatabaseSync;
 
   constructor(databasePath: string) {

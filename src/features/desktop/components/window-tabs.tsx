@@ -22,7 +22,7 @@ import type { DesktopWindow } from "@/features/desktop/core/types";
  */
 
 /** Minimal shape a tab needs. A {@link DesktopWindow} satisfies this directly. */
-export interface WindowTab {
+interface WindowTab {
   /** Window instance id. */
   id: string;
   /** Title shown on the tab. */
@@ -205,53 +205,11 @@ export function WindowTabBar({
   );
 }
 
-/**
- * Detect whether a drop/drag event is a torn-off tab from this tab strip
- * (rather than a regular desktop dataset/folder drag). Useful for canvas/window
- * drop zones that want to handle a tab being dropped onto them.
- */
-export function isTabDrag(e: DragEvent | React.DragEvent): boolean {
-  const dt = (e as { dataTransfer?: DataTransfer }).dataTransfer;
-  if (!dt) return false;
-  const types = dt.types;
-  if (!types) return false;
-  for (let i = 0; i < types.length; i++) {
-    if (types[i] === TAB_DND_MIME) return true;
-  }
-  return false;
-}
-
 /** Payload carried by a torn-off tab drag. */
-export interface TabDragPayload {
+interface TabDragPayload {
   groupId: string;
   id: string;
 }
 
-/**
- * Read the torn-off tab payload from a drop event, or `null` when the event is
- * not a tab drag (e.g. a normal {@link DesktopDragPayload} dataset drag).
- */
-export function readTabDrag(e: DragEvent | React.DragEvent): TabDragPayload | null {
-  const dt = (e as { dataTransfer?: DataTransfer }).dataTransfer;
-  if (!dt) return null;
-  let raw = "";
-  try {
-    raw = dt.getData(TAB_DND_MIME);
-  } catch {
-    return null;
-  }
-  if (!raw) return null;
-  try {
-    const parsed = JSON.parse(raw) as TabDragPayload;
-    if (!parsed || typeof parsed !== "object") return null;
-    if (typeof parsed.id !== "string" || typeof parsed.groupId !== "string") return null;
-    return parsed;
-  } catch {
-    return null;
-  }
-}
-
-export type { DesktopDragPayload };
 // Re-export the desktop drag helpers callers commonly need alongside tabs so a
 // drop zone can disambiguate tab drags from dataset/folder drags in one import.
-export { DESKTOP_DND_MIME, readDrag };

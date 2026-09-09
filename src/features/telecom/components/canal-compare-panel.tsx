@@ -10,8 +10,6 @@ import type { SpecChRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { cn } from "@/shared/utils";
 
-export { COMPARE_GROUPS } from "@/features/telecom/lib/canal-groups";
-
 export function CanalComparePanel({
   dateFrom,
   dateTo,

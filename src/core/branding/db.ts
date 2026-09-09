@@ -16,7 +16,7 @@
 import Dexie, { type Table } from "dexie";
 import type { BrandingProfile } from "./types";
 
-export const ACTIVE_BRANDING_ID = "active";
+const ACTIVE_BRANDING_ID = "active";
 
 class BrandingDatabase extends Dexie {
   profiles!: Table<BrandingProfile, string>;

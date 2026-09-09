@@ -127,12 +127,3 @@ export async function denyPendingGuest(id: string): Promise<PendingGuest | null>
   writeStore(store);
   return guest;
 }
-
-export async function consumePendingGuest(id: string): Promise<void> {
-  const store = pruneExpired(readStore());
-  const idx = store.guests.findIndex((g) => g.id === id);
-  if (idx >= 0) {
-    store.guests.splice(idx, 1);
-    writeStore(store);
-  }
-}

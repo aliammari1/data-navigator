@@ -79,7 +79,7 @@ export interface KpiMenuTarget {
 // ─── Injected action bag ──────────────────────────────────────────────────────
 
 /** Shape of a desktop selection published on the context bus. */
-export interface MenuSelection {
+interface MenuSelection {
   kind: "dataset" | "folder" | "chart" | "kpi" | "column" | "window" | null;
   id?: string;
   label?: string;
@@ -87,7 +87,7 @@ export interface MenuSelection {
 }
 
 /** A cross-filter request (matches the context-bus `CrossFilter` object form). */
-export interface MenuCrossFilter {
+interface MenuCrossFilter {
   dimension: string;
   value: string;
 }

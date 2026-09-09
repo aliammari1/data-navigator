@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { EChart } from "@/features/telecom/components/echart";
 import { buildCustomerHourlyOption } from "@/features/telecom/lib/chart-options";
 import { fmtAmount, fmtN, fmtPct, safeNum } from "@/features/telecom/lib/format";
-import { BUILTIN_STATUS_CODES } from "@/features/telecom/lib/status-definitions";
+import { SPEC_STATUS_CODES } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 
@@ -273,7 +273,7 @@ export function CustomerProfilePanel({
                       <tbody>
                         {pageTx.map((row, rowIdx) => {
                           const st = String(row[m.status] ?? "");
-                          const isSuccess = BUILTIN_STATUS_CODES.success.includes(
+                          const isSuccess = SPEC_STATUS_CODES.success.includes(
                             st.toUpperCase().trim(),
                           );
                           const isDeclined =

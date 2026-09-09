@@ -525,17 +525,6 @@ async function attachToInFlightDownload(
   }
 }
 
-/**
- * Cancel an in-flight download by model key. Complements the AbortSignal path
- * for the `models:abort` IPC handler; safe to call when nothing is running.
- */
-export function cancelModelDownload(key: string): { canceled: boolean } {
-  const existing = inFlightDownloads.get(key);
-  if (!existing) return { canceled: false };
-  existing.cancel();
-  return { canceled: true };
-}
-
 /** Delete a downloaded GGUF (free disk / re-download). */
 export async function deleteModel(key: string): Promise<{ deleted: boolean }> {
   const entry = entryFor(key);
