@@ -47,6 +47,7 @@ function markBufferCorrupted(buf: ArrayBuffer): void {
 
 // Re-wire decompress to honor the corruption set (kept simple & explicit).
 import { compress, decompress } from "@/platform/storage/compression";
+
 vi.mocked(decompress).mockImplementation(async (buf: ArrayBuffer) => {
   const id = new DataView(buf).getFloat64(0);
   if (corruptedBuffers.has(id)) throw new Error("decompress: corrupted");
@@ -291,7 +292,10 @@ const SOURCE_META_STORE = "telecom_source_file_meta";
 const LATEST_META_KEY = "telecom-latest-source-file-meta-v1";
 const MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 
-function makeFile(name: string, opts: { size?: number; lastModified?: number; type?: string } = {}) {
+function makeFile(
+  name: string,
+  opts: { size?: number; lastModified?: number; type?: string } = {},
+) {
   // jsdom File: content length determines size; use a sized payload then override.
   const file = new File(["x".repeat(opts.size ?? 3)], name, {
     type: opts.type ?? "text/csv",
@@ -1367,10 +1371,9 @@ describe("pruneTelecomSourceFiles transaction callbacks (fn 52 onerror, fn 53 on
                 onerror: null as (() => void) | null,
                 onabort: null as (() => void) | null,
                 objectStore(storeName: string) {
-                  return new FakeObjectStore(
-                    idbState.stores[storeName] ?? new Map(),
-                    { mode: null },
-                  );
+                  return new FakeObjectStore(idbState.stores[storeName] ?? new Map(), {
+                    mode: null,
+                  });
                 },
               };
               queueMicrotask(() => tx.oncomplete?.());

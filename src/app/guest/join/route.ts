@@ -137,10 +137,9 @@ export async function POST(request: Request) {
     hostUrl: new URL(request.url).origin,
   });
 
-  return NextResponse.redirect(
-    new URL(`/guest/waiting?id=${pending.id}`, new URL(request.url)),
-    { status: 303 },
-  );
+  return NextResponse.redirect(new URL(`/guest/waiting?id=${pending.id}`, new URL(request.url)), {
+    status: 303,
+  });
 }
 
 export async function clearGuestSession() {

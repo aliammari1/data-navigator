@@ -1,6 +1,6 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import type { RowPredicate, RowRecord } from "@/features/csv-parser/lib/filter";
 import { compileFilter } from "@/features/csv-parser/lib/filter";
-import type { RowRecord, RowPredicate } from "@/features/csv-parser/lib/filter";
 
 // filter.ts is a pure, dependency-light module.
 // No IO, no React, no timers — straight behavioral assertions.

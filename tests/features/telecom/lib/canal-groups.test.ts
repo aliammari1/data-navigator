@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 // ─── Boundary mocks ───────────────────────────────────────────────────────────
 // canal-groups.ts re-exports slices of constants from report-engine.ts.
@@ -27,6 +27,7 @@ vi.mock("@/features/telecom/lib/queries", () => ({
 import {
   ALL_VOICE_FIXED,
   ALL_VOICE_MOBILE,
+  type ChannelGroup,
   COMPARE_GROUPS,
   DATA_SUMMARY_GROUPS,
   RECHARGE_SUMMARY_GROUPS,
@@ -35,7 +36,6 @@ import {
   VOUCHER_FOR_PAYMENT_GENERATION,
   VOUCHER_FOR_PAYMENT_REDEMPTION,
   VOUCHER_PAYMENT_SUMMARY_GROUPS,
-  type ChannelGroup,
 } from "@/features/telecom/lib/canal-groups";
 
 // ─── Helper ───────────────────────────────────────────────────────────────────

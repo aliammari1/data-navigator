@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { cn } from "@/shared/utils";
-import { GroupSummaryChart, type ChannelGroup } from "./group-summary-chart";
+import { useState } from "react";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import { cn } from "@/shared/utils";
+import { type ChannelGroup, GroupSummaryChart } from "./group-summary-chart";
 
 type FetchSpecChannelStats = (
   channels: ChannelDef[],

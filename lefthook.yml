@@ -1,38 +1,57 @@
-# # lefthook.yml
+# lefthook.yml - Production Security & Quality Gates
+# Docs: https://github.com/evilmartians/lefthook
 
-# pre-commit:
-#   parallel: true
-#   jobs:
-#     - name: biome
-#       glob: "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx,yml,yaml}"
-#       run: npx biome check --write --no-errors-on-unmatched {staged_files}
-#       stage_fixed: true
+# -----------------------------------------------------------------------------
+# PRE-COMMIT: Fast, staged-only checks (< 5s target).
+# Stops syntax issues, formatting drift, type errors, and secrets immediately.
+# -----------------------------------------------------------------------------
+pre-commit:
+  parallel: true
+  commands:
+    # 1. Biome: Format, lint, and organize imports on staged files with auto-staging
+    biome:
+      glob: "*.{js,jsx,ts,tsx,json,jsonc,css,md,mdx,yml,yaml}"
+      run: pnpm exec biome check --write --no-errors-on-unmatched {staged_files}
+      stage_fixed: true
 
-#     - name: oxlint
-#       glob: "*.{js,jsx,ts,tsx}"
-#       run: npx oxlint {staged_files}
+    # 2. Oxlint: Fast linting pass on staged JS/TS files
+    oxlint:
+      glob: "*.{js,jsx,ts,tsx}"
+      run: pnpm exec oxlint {staged_files}
 
-#     - name: package-hygiene
-#       glob:
-#         - "package.json"
-#         - "package-lock.json"
-#       run: npx sherif
+    # 3. Secret Scanning: Prevents accidental credentials in staged diffs
+    gitleaks:
+      tags: security
+      run: gitleaks git --staged --config .gitleaks.toml --verbose
 
-#     - name: typecheck-related
-#       glob: "*.{ts,tsx}"
-#       run: npm run typecheck
+    # 4. Typecheck: Runs project typechecking whenever TS files are touched
+    typecheck:
+      glob: "*.{ts,tsx}"
+      run: pnpm run typecheck
 
-# pre-push:
-#   parallel: false
-#   jobs:
-#     - name: providers-boundaries
-#       run: npm run check:providers
+# -----------------------------------------------------------------------------
+# PRE-PUSH: Comprehensive verification before code leaves your machine.
+# Runs repository-wide architecture, test, and build assertions.
+# -----------------------------------------------------------------------------
+pre-push:
+  parallel: false
+  commands:
+    # 1. Architecture: Dependency-cruiser structural boundaries
+    architecture:
+      run: pnpm run check:architecture
 
-#     - name: architecture
-#       run: npm run check:architecture
+    # 2. Provider Boundaries: Strict module isolation verification
+    providers-boundaries:
+      run: pnpm run check:providers
 
-#     - name: tests
-#       run: npm run test
+    # 3. Dead Code & Unused Export Detection
+    deadcode:
+      run: pnpm dlx knip
 
-#     - name: storybook-build
-#       run: npm run build:storybook
+    # 4. Automated Test Suite
+    tests:
+      run: pnpm run test
+
+    # 5. Storybook Smoke Build: Ensures component renderers compile cleanly
+    storybook-build:
+      run: pnpm run build:storybook

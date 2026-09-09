@@ -20,10 +20,7 @@ vi.mock("comlink", () => ({
 vi.mock("@/workers/layout.worker", () => ({}));
 
 import * as Comlink from "comlink";
-import {
-  disposeLayoutWorker,
-  getLayoutProxy,
-} from "@/platform/viz/layout-client";
+import { disposeLayoutWorker, getLayoutProxy } from "@/platform/viz/layout-client";
 
 // ---------------------------------------------------------------------------
 // Helpers

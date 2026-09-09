@@ -27,18 +27,12 @@ vi.mock("@/platform/storage", () => ({
 // ---- import the module under test and mock handles ----
 
 import {
-  readStorageStats,
   clearCacheNamespace,
+  readStorageStats,
   type StorageStats,
 } from "@/features/settings/lib/storage-stats";
 
-import {
-  getStorageInfo,
-  isOpfsAvailable,
-  dirSize,
-  deleteDir,
-  OPFS_NS,
-} from "@/platform/storage";
+import { deleteDir, dirSize, getStorageInfo, isOpfsAvailable, OPFS_NS } from "@/platform/storage";
 
 const mockGetStorageInfo = getStorageInfo as ReturnType<typeof vi.fn>;
 const mockIsOpfsAvailable = isOpfsAvailable as ReturnType<typeof vi.fn>;

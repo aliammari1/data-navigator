@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone } from "lucide-react";
-
-import type { CanalSummary, HourlyRow, KPISummary, StatusRow } from "@/features/telecom/types";
 import { DeepAnalysisPanel } from "@/features/telecom/components/deep-analysis-panel";
+import type { CanalSummary, HourlyRow, KPISummary, StatusRow } from "@/features/telecom/types";
 
 const kpi: KPISummary = {
   totalTransactions: 24812,

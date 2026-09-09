@@ -31,10 +31,7 @@ export async function GET(request: Request) {
     );
   }
   if (guest.status === "denied") {
-    return NextResponse.json(
-      { status: "denied" },
-      { headers: { "cache-control": "no-store" } },
-    );
+    return NextResponse.json({ status: "denied" }, { headers: { "cache-control": "no-store" } });
   }
   return NextResponse.json(
     {

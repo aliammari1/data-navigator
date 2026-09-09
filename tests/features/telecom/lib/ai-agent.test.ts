@@ -44,9 +44,7 @@ const subStatusRow = (overrides: Partial<SubStatusRow> = {}): SubStatusRow => ({
   share: overrides.share ?? 5,
 });
 
-const topAccountRow = (
-  overrides: Partial<TopAccountRow> = {},
-): TopAccountRow => ({
+const topAccountRow = (overrides: Partial<TopAccountRow> = {}): TopAccountRow => ({
   msisdn: overrides.msisdn ?? "21620000000",
   name: overrides.name ?? "Account",
   total: overrides.total ?? 10,
@@ -95,9 +93,7 @@ describe("computeRuleInsights — guard branches", () => {
 
   it("returns no insights for a clean mid-range pipeline", () => {
     // successRate 90 (not <80, not >=95), no instance/refund/sub/anomaly/top
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ successRate: 90, instance: 0, refund: 0 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ successRate: 90, instance: 0, refund: 0 }) }));
 
     expect(out).toEqual([]);
   });
@@ -141,9 +137,7 @@ describe("computeRuleInsights — success rate", () => {
   });
 
   it("treats exactly 95 as high success (inclusive boundary)", () => {
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ successRate: 95, success: 95 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ successRate: 95, success: 95 }) }));
 
     expect(byId(out, "high-success")).toBeDefined();
   });
@@ -160,9 +154,7 @@ describe("computeRuleInsights — success rate", () => {
 
 describe("computeRuleInsights — instance (stuck) share", () => {
   it("flags a warning when instance share exceeds 5%", () => {
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ total: 100, instance: 10 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ total: 100, instance: 10 }) }));
     const insight = byId(out, "stuck-instance");
 
     expect(insight).toBeDefined();
@@ -171,9 +163,7 @@ describe("computeRuleInsights — instance (stuck) share", () => {
   });
 
   it("does not flag when instance share is exactly 5% (strict >)", () => {
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ total: 100, instance: 5 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ total: 100, instance: 5 }) }));
 
     expect(byId(out, "stuck-instance")).toBeUndefined();
   });
@@ -183,9 +173,7 @@ describe("computeRuleInsights — instance (stuck) share", () => {
 
 describe("computeRuleInsights — refund share", () => {
   it("flags a warning when refund share exceeds 2%", () => {
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ total: 100, refund: 3 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ total: 100, refund: 3 }) }));
     const insight = byId(out, "high-refund");
 
     expect(insight).toBeDefined();
@@ -195,9 +183,7 @@ describe("computeRuleInsights — refund share", () => {
   });
 
   it("does not flag when refund share is exactly 2% (strict >)", () => {
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ total: 100, refund: 2 }) }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ total: 100, refund: 2 }) }));
 
     expect(byId(out, "high-refund")).toBeUndefined();
   });
@@ -233,9 +219,7 @@ describe("computeRuleInsights — top decline code", () => {
   it("does not flag when there are no DECLINED rows", () => {
     const out = computeRuleInsights(
       ctx({
-        subStatus: [
-          subStatusRow({ parent: "SUCCESS", code: "OK", count: 50 }),
-        ],
+        subStatus: [subStatusRow({ parent: "SUCCESS", code: "OK", count: 50 })],
       }),
     );
 
@@ -245,9 +229,7 @@ describe("computeRuleInsights — top decline code", () => {
   it("does not flag when the dominant DECLINED count is 0", () => {
     const out = computeRuleInsights(
       ctx({
-        subStatus: [
-          subStatusRow({ parent: "DECLINED", code: "DCL", count: 0 }),
-        ],
+        subStatus: [subStatusRow({ parent: "DECLINED", code: "DCL", count: 0 })],
       }),
     );
 
@@ -267,10 +249,7 @@ describe("computeRuleInsights — anomalies", () => {
   it("flags a warning when between 1 and 5 anomalies exist", () => {
     const out = computeRuleInsights(
       ctx({
-        anomalies: [
-          anomaly({ canal: "WEB", hour: 9, reason: "Spike volume" }),
-          anomaly(),
-        ],
+        anomalies: [anomaly({ canal: "WEB", hour: 9, reason: "Spike volume" }), anomaly()],
       }),
     );
     const insight = byId(out, "anomaly-top");
@@ -285,9 +264,7 @@ describe("computeRuleInsights — anomalies", () => {
   });
 
   it("escalates to critical when more than 5 anomalies exist", () => {
-    const out = computeRuleInsights(
-      ctx({ anomalies: Array.from({ length: 6 }, () => anomaly()) }),
-    );
+    const out = computeRuleInsights(ctx({ anomalies: Array.from({ length: 6 }, () => anomaly()) }));
     const insight = byId(out, "anomaly-top");
 
     expect(insight).toBeDefined();
@@ -296,9 +273,7 @@ describe("computeRuleInsights — anomalies", () => {
   });
 
   it("stays a warning at exactly 5 anomalies (strict >)", () => {
-    const out = computeRuleInsights(
-      ctx({ anomalies: Array.from({ length: 5 }, () => anomaly()) }),
-    );
+    const out = computeRuleInsights(ctx({ anomalies: Array.from({ length: 5 }, () => anomaly()) }));
 
     expect(byId(out, "anomaly-top")?.severity).toBe("warning");
   });
@@ -310,9 +285,7 @@ describe("computeRuleInsights — anomalies", () => {
   });
 
   it("pads single-digit hours to two characters", () => {
-    const out = computeRuleInsights(
-      ctx({ anomalies: [anomaly({ hour: 3, canal: "APP" })] }),
-    );
+    const out = computeRuleInsights(ctx({ anomalies: [anomaly({ hour: 3, canal: "APP" })] }));
 
     expect(byId(out, "anomaly-top")?.body).toContain("03h");
   });
@@ -381,9 +354,7 @@ describe("computeRuleInsights — concentration", () => {
     const out = computeRuleInsights(
       ctx({
         kpi: kpi({ amount: 0 }),
-        topAccounts: Array.from({ length: 5 }, () =>
-          topAccountRow({ amount: 100 }),
-        ),
+        topAccounts: Array.from({ length: 5 }, () => topAccountRow({ amount: 100 })),
       }),
     );
 
@@ -397,14 +368,10 @@ describe("computeRuleInsights — outlier amount", () => {
   it("flags an outlier whose amount is more than 3 SD above the mean", () => {
     // 19 accounts at 50 + one at 300 → z ≈ 4.25 for the outlier
     const top: TopAccountRow[] = [
-      ...Array.from({ length: 19 }, (_, i) =>
-        topAccountRow({ msisdn: `m${i}`, amount: 50 }),
-      ),
+      ...Array.from({ length: 19 }, (_, i) => topAccountRow({ msisdn: `m${i}`, amount: 50 })),
       topAccountRow({ msisdn: "OUTLIER", amount: 300 }),
     ];
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }));
     const insight = byId(out, "outlier-amount");
 
     expect(insight).toBeDefined();
@@ -421,9 +388,7 @@ describe("computeRuleInsights — outlier amount", () => {
       topAccountRow({ amount: 90 }),
       topAccountRow({ amount: 105 }),
     ];
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }));
 
     expect(byId(out, "outlier-amount")).toBeUndefined();
   });
@@ -434,9 +399,7 @@ describe("computeRuleInsights — outlier amount", () => {
       topAccountRow({ amount: 50 }),
       topAccountRow({ amount: 5000 }),
     ];
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }));
 
     expect(byId(out, "outlier-amount")).toBeUndefined();
   });
@@ -449,17 +412,13 @@ describe("computeRuleInsights — outlier amount", () => {
       topAccountRow({ amount: 50 }),
       topAccountRow({ amount: 5000 }),
     ];
-    const out = computeRuleInsights(
-      ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }),
-    );
+    const out = computeRuleInsights(ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }));
 
     expect(byId(out, "outlier-amount")).toBeUndefined();
   });
 
   it("does not flag an outlier when all amounts are equal (sd == 0)", () => {
-    const top: TopAccountRow[] = Array.from({ length: 5 }, () =>
-      topAccountRow({ amount: 100 }),
-    );
+    const top: TopAccountRow[] = Array.from({ length: 5 }, () => topAccountRow({ amount: 100 }));
     const out = computeRuleInsights(
       // kpi.amount large so concentration rule does not also fire here
       ctx({ kpi: kpi({ amount: 100000 }), topAccounts: top }),
@@ -484,9 +443,7 @@ describe("computeRuleInsights — composition", () => {
           refund: 5,
           amount: 1000,
         }),
-        subStatus: [
-          subStatusRow({ parent: "DECLINED", code: "DCL", count: 30 }),
-        ],
+        subStatus: [subStatusRow({ parent: "DECLINED", code: "DCL", count: 30 })],
         anomalies: [anomaly(), anomaly()],
       }),
     );
@@ -505,14 +462,8 @@ describe("computeRuleInsights — composition", () => {
     const lowOut = computeRuleInsights(ctx({ kpi: kpi({ successRate: 50 }) }));
     const highOut = computeRuleInsights(ctx({ kpi: kpi({ successRate: 99 }) }));
 
-    expect(
-      lowOut.filter((i) => i.id === "low-success" || i.id === "high-success")
-        .length,
-    ).toBe(1);
-    expect(
-      highOut.filter((i) => i.id === "low-success" || i.id === "high-success")
-        .length,
-    ).toBe(1);
+    expect(lowOut.filter((i) => i.id === "low-success" || i.id === "high-success").length).toBe(1);
+    expect(highOut.filter((i) => i.id === "low-success" || i.id === "high-success").length).toBe(1);
   });
 });
 
@@ -539,9 +490,7 @@ describe("askAgent", () => {
   });
 
   it("passes the system prompt, summarized context, and decode params to the generator", async () => {
-    const gen = vi
-      .fn()
-      .mockResolvedValue({ reply: "ok", action: "none" });
+    const gen = vi.fn().mockResolvedValue({ reply: "ok", action: "none" });
 
     await askAgent(
       "Combien de transactions ?",
@@ -577,9 +526,7 @@ describe("askAgent", () => {
     ["show_brands", { kind: "show_brands" }],
     ["explain_kpi", { kind: "explain_kpi" }],
   ])("maps the %s action to its intent", async (action, expected) => {
-    const gen: AgentGenerateStructured = vi
-      .fn()
-      .mockResolvedValue({ reply: "ok", action });
+    const gen: AgentGenerateStructured = vi.fn().mockResolvedValue({ reply: "ok", action });
 
     const answer = await askAgent("Q", ctx(), gen);
 
@@ -587,9 +534,7 @@ describe("askAgent", () => {
   });
 
   it('maps the "none" action to a null intent', async () => {
-    const gen: AgentGenerateStructured = vi
-      .fn()
-      .mockResolvedValue({ reply: "ok", action: "none" });
+    const gen: AgentGenerateStructured = vi.fn().mockResolvedValue({ reply: "ok", action: "none" });
 
     const answer = await askAgent("Q", ctx(), gen);
 
@@ -598,9 +543,7 @@ describe("askAgent", () => {
 
   it("falls back to a heuristic message and null intent when the generator throws", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const gen: AgentGenerateStructured = vi
-      .fn()
-      .mockRejectedValue(new Error("provider down"));
+    const gen: AgentGenerateStructured = vi.fn().mockRejectedValue(new Error("provider down"));
 
     const answer = await askAgent("Q", ctx(), gen);
 
@@ -613,20 +556,14 @@ describe("askAgent", () => {
   it("summarizes an empty context as 'Aucune donnée chargée.' in the prompt", async () => {
     const gen = vi.fn().mockResolvedValue({ reply: "ok", action: "none" });
 
-    await askAgent(
-      "Q",
-      ctx({ kpi: null }),
-      gen as unknown as AgentGenerateStructured,
-    );
+    await askAgent("Q", ctx({ kpi: null }), gen as unknown as AgentGenerateStructured);
 
     // Exact prompt match instead of a toContain() keyword check: with kpi
     // null the summary is entirely the static "Aucune donnée chargée." line
     // (no runtime interpolation at all), so the full prompt is fully known
     // and a substring check would only prove the literal wasn't deleted, not
     // that the template around it is still correct.
-    expect(gen.mock.calls[0][0].prompt).toBe(
-      "Données :\nAucune donnée chargée.\n\nQuestion : Q",
-    );
+    expect(gen.mock.calls[0][0].prompt).toBe("Données :\nAucune donnée chargée.\n\nQuestion : Q");
   });
 
   it("includes top sub-status and top account lines in the summary when present", async () => {
@@ -684,9 +621,7 @@ describe("generateNarrative", () => {
   });
 
   it("returns an empty string digest when there are no rule insights", async () => {
-    const text = await generateNarrative(
-      ctx({ kpi: kpi({ successRate: 90 }) }),
-    );
+    const text = await generateNarrative(ctx({ kpi: kpi({ successRate: 90 }) }));
 
     expect(text).toBe("");
   });
@@ -698,9 +633,7 @@ describe("generateNarrative", () => {
   });
 
   it("returns the trimmed generated narrative when a generator succeeds", async () => {
-    const gen: AgentGenerate = vi
-      .fn()
-      .mockResolvedValue({ text: "  Résumé exécutif.  " });
+    const gen: AgentGenerate = vi.fn().mockResolvedValue({ text: "  Résumé exécutif.  " });
 
     const text = await generateNarrative(ctx(), gen);
 
@@ -711,10 +644,7 @@ describe("generateNarrative", () => {
     const gen = vi.fn().mockResolvedValue({ text: "x" });
     const k = kpi({ total: 7, successRate: 99, success: 7 });
 
-    await generateNarrative(
-      ctx({ kpi: k }),
-      gen as unknown as AgentGenerate,
-    );
+    await generateNarrative(ctx({ kpi: k }), gen as unknown as AgentGenerate);
     const req = gen.mock.calls[0][0];
 
     // Exact system-prompt identity, not a substring keyword check — a
@@ -745,9 +675,7 @@ describe("generateNarrative", () => {
 
   it("falls back to the rule digest when the generator throws", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const gen: AgentGenerate = vi
-      .fn()
-      .mockRejectedValue(new Error("provider down"));
+    const gen: AgentGenerate = vi.fn().mockRejectedValue(new Error("provider down"));
 
     const text = await generateNarrative(
       ctx({ kpi: kpi({ successRate: 60, total: 100, declined: 40 }) }),

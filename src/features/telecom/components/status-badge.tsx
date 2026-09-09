@@ -1,9 +1,9 @@
 "use client";
 
 import { AlertCircle, CheckCircle2, Clock, Info, RefreshCw, XCircle } from "lucide-react";
+import { normalizeStatusCode } from "@/features/telecom/lib/sql";
 import type * as Types from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
-import { normalizeStatusCode } from "@/features/telecom/lib/sql";
 
 export function StatusBadge({
   status,

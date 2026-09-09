@@ -1,9 +1,10 @@
 "use client";
 
-import { AnimatePresence, motion } from "motion/react";
 import { ArrowRight, Loader2, Radio, RefreshCw, Wifi } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
-
+import { useTheme } from "@/components/theme-provider";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import {
   connectLAN,
   disconnectLAN,
@@ -16,8 +17,6 @@ import {
   subscribeLAN,
 } from "@/platform/lan/lan-collab";
 import { generatePairingCode } from "@/platform/lan/pairing";
-import { useTheme } from "@/components/theme-provider";
-import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 
 /* ── Clock ────────────────────────────────────────────────────────────── */
 
@@ -26,9 +25,17 @@ function useClock() {
   useEffect(() => {
     const tick = () => {
       const d = new Date();
-      const raw = d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+      const raw = d.toLocaleDateString(undefined, {
+        weekday: "long",
+        day: "numeric",
+        month: "long",
+      });
       setClock({
-        time: d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false }),
+        time: d.toLocaleTimeString(undefined, {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+        }),
         date: raw.charAt(0).toUpperCase() + raw.slice(1),
       });
     };
@@ -200,7 +207,11 @@ export function LanAccessGate({
       style={{ background: bg }}
     >
       {/* Noise */}
-      <div aria-hidden className="pointer-events-none fixed inset-0 opacity-[0.022]" style={noiseStyle} />
+      <div
+        aria-hidden
+        className="pointer-events-none fixed inset-0 opacity-[0.022]"
+        style={noiseStyle}
+      />
 
       {/* Clock */}
       <motion.div
@@ -216,7 +227,9 @@ export function LanAccessGate({
           {clock.time || "──:──"}
         </p>
         {clock.date && (
-          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">{clock.date}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+            {clock.date}
+          </p>
         )}
       </motion.div>
 
@@ -246,7 +259,11 @@ export function LanAccessGate({
             </div>
             <button
               type="button"
-              onClick={() => { disconnectLAN(); setConnecting(false); setError(""); }}
+              onClick={() => {
+                disconnectLAN();
+                setConnecting(false);
+                setError("");
+              }}
               className="text-xs text-muted-foreground/60 transition-colors hover:text-muted-foreground"
             >
               Cancel
@@ -333,7 +350,9 @@ export function LanAccessGate({
               />
 
               {error && (
-                <p className="text-center text-xs text-destructive" role="alert">{error}</p>
+                <p className="text-center text-xs text-destructive" role="alert">
+                  {error}
+                </p>
               )}
 
               <button
@@ -348,7 +367,10 @@ export function LanAccessGate({
 
             <button
               type="button"
-              onClick={() => { setMode("admin"); setError(""); }}
+              onClick={() => {
+                setMode("admin");
+                setError("");
+              }}
               className="mt-4 text-[11px] text-muted-foreground/50 transition-colors hover:text-muted-foreground"
             >
               Are you the admin? Start a session →
@@ -413,7 +435,9 @@ export function LanAccessGate({
               </div>
 
               {error && (
-                <p className="text-center text-xs text-destructive" role="alert">{error}</p>
+                <p className="text-center text-xs text-destructive" role="alert">
+                  {error}
+                </p>
               )}
 
               <button
@@ -428,7 +452,10 @@ export function LanAccessGate({
 
             <button
               type="button"
-              onClick={() => { setMode("user"); setError(""); }}
+              onClick={() => {
+                setMode("user");
+                setError("");
+              }}
               className="mt-4 text-[11px] text-muted-foreground/50 transition-colors hover:text-muted-foreground"
             >
               ← I have an access code

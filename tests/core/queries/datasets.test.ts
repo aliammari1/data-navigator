@@ -7,12 +7,17 @@
  * Every branch in every hook is exercised.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type {
+  Dataset,
+  DataTransform,
+  QueryHistoryItem,
+  SavedChart,
+} from "@/core/stores/data-store";
 import { useDataStore } from "@/core/stores/data-store";
-import type { Dataset, QueryHistoryItem, SavedChart, DataTransform } from "@/core/stores/data-store";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -111,25 +116,25 @@ function resetStore() {
 
 // Import hooks after helpers so mocks (if any) are registered first.
 import {
-  useDatasets,
-  useDataset,
-  useDatasetByTable,
   useActiveDataset,
   useAddDataset,
-  useUpdateDataset,
-  useRemoveDataset,
-  useSetActiveDataset,
-  useQueryHistory,
   useAddQueryHistory,
-  useClearQueryHistory,
-  useSavedCharts,
-  useSaveChart,
-  useRemoveChart,
-  useTransforms,
   useAddTransform,
+  useClearQueryHistory,
+  useDataset,
+  useDatasetByTable,
+  useDatasets,
   useLoadedTableNames,
   useMarkTableLoaded,
   usePrefetchDataset,
+  useQueryHistory,
+  useRemoveChart,
+  useRemoveDataset,
+  useSaveChart,
+  useSavedCharts,
+  useSetActiveDataset,
+  useTransforms,
+  useUpdateDataset,
 } from "@/core/queries/datasets";
 
 // ─── useDatasets ──────────────────────────────────────────────────────────────
@@ -151,7 +156,9 @@ describe("useDatasets", () => {
     // Arrange
     const ds1 = makeDataset({ id: "ds-1", source: "upload", format: "csv" });
     const ds2 = makeDataset({ id: "ds-2", source: "paste", format: "parquet" });
-    act(() => { useDataStore.setState({ datasets: [ds1, ds2] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds1, ds2] });
+    });
 
     // Act
     const { result } = renderHook(() => useDatasets(), { wrapper: makeWrapper(qc) });
@@ -165,13 +172,14 @@ describe("useDatasets", () => {
     // Arrange
     const ds1 = makeDataset({ id: "ds-1", source: "upload", format: "csv" });
     const ds2 = makeDataset({ id: "ds-2", source: "paste", format: "csv" });
-    act(() => { useDataStore.setState({ datasets: [ds1, ds2] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds1, ds2] });
+    });
 
     // Act
-    const { result } = renderHook(
-      () => useDatasets({ source: "upload" }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasets({ source: "upload" }), {
+      wrapper: makeWrapper(qc),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -183,13 +191,14 @@ describe("useDatasets", () => {
     // Arrange
     const ds1 = makeDataset({ id: "ds-1", source: "upload", format: "csv" });
     const ds2 = makeDataset({ id: "ds-2", source: "upload", format: "parquet" });
-    act(() => { useDataStore.setState({ datasets: [ds1, ds2] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds1, ds2] });
+    });
 
     // Act
-    const { result } = renderHook(
-      () => useDatasets({ format: "parquet" }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasets({ format: "parquet" }), {
+      wrapper: makeWrapper(qc),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -202,13 +211,14 @@ describe("useDatasets", () => {
     const ds1 = makeDataset({ id: "ds-1", source: "upload", format: "csv" });
     const ds2 = makeDataset({ id: "ds-2", source: "paste", format: "csv" });
     const ds3 = makeDataset({ id: "ds-3", source: "upload", format: "parquet" });
-    act(() => { useDataStore.setState({ datasets: [ds1, ds2, ds3] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds1, ds2, ds3] });
+    });
 
     // Act
-    const { result } = renderHook(
-      () => useDatasets({ source: "upload", format: "csv" }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasets({ source: "upload", format: "csv" }), {
+      wrapper: makeWrapper(qc),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -219,13 +229,14 @@ describe("useDatasets", () => {
   it("returns empty array when no datasets match", async () => {
     // Arrange
     const ds1 = makeDataset({ id: "ds-1", source: "upload", format: "csv" });
-    act(() => { useDataStore.setState({ datasets: [ds1] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds1] });
+    });
 
     // Act
-    const { result } = renderHook(
-      () => useDatasets({ source: "paste" }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasets({ source: "paste" }), {
+      wrapper: makeWrapper(qc),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -259,7 +270,9 @@ describe("useDataset", () => {
   it("returns the dataset when id matches", async () => {
     // Arrange
     const ds = makeDataset({ id: "ds-abc" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
     const { result } = renderHook(() => useDataset("ds-abc"), { wrapper: makeWrapper(qc) });
 
@@ -270,7 +283,9 @@ describe("useDataset", () => {
   it("returns null when id is not found", async () => {
     // Arrange — store has dataset but not the requested id
     const ds = makeDataset({ id: "ds-other" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
     const { result } = renderHook(() => useDataset("ds-missing"), { wrapper: makeWrapper(qc) });
 
@@ -307,34 +322,33 @@ describe("useDatasetByTable", () => {
   it("returns the dataset when tableName matches", async () => {
     // Arrange
     const ds = makeDataset({ id: "ds-1", tableName: "my_table" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
-    const { result } = renderHook(
-      () => useDatasetByTable("my_table"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasetByTable("my_table"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.tableName).toBe("my_table");
   });
 
   it("returns null when no dataset matches tableName", async () => {
-    act(() => { useDataStore.setState({ datasets: [] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [] });
+    });
 
-    const { result } = renderHook(
-      () => useDatasetByTable("nonexistent"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasetByTable("nonexistent"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBeNull();
   });
 
   it("is disabled when tableName is null (uses null-table key)", async () => {
-    const { result } = renderHook(
-      () => useDatasetByTable(null),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDatasetByTable(null), { wrapper: makeWrapper(qc) });
 
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.fetchStatus).toBe("idle");
@@ -430,7 +444,9 @@ describe("useAddDataset", () => {
     const { result } = renderHook(() => useAddDataset(), { wrapper: makeWrapper(qc) });
 
     const ds = makeDataset({ id: "ds-inval" });
-    await act(async () => { await result.current.mutateAsync(ds); });
+    await act(async () => {
+      await result.current.mutateAsync(ds);
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
   });
@@ -440,7 +456,9 @@ describe("useAddDataset", () => {
     const { result } = renderHook(() => useAddDataset(), { wrapper: makeWrapper(qc) });
 
     const ds = makeDataset({ id: "ds-qd", tableName: "tbl_qd" });
-    await act(async () => { await result.current.mutateAsync(ds); });
+    await act(async () => {
+      await result.current.mutateAsync(ds);
+    });
 
     await waitFor(() => expect(setDataSpy).toHaveBeenCalledTimes(2));
   });
@@ -464,7 +482,9 @@ describe("useUpdateDataset", () => {
   it("updates the dataset in the store and returns { id, patch }", async () => {
     // Arrange
     const ds = makeDataset({ id: "ds-upd", name: "Old Name" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
     const { result } = renderHook(() => useUpdateDataset(), { wrapper: makeWrapper(qc) });
 
@@ -507,7 +527,9 @@ describe("useRemoveDataset", () => {
   it("removes the dataset from the store and returns the id", async () => {
     // Arrange
     const ds = makeDataset({ id: "ds-del" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
     const { result } = renderHook(() => useRemoveDataset(), { wrapper: makeWrapper(qc) });
 
@@ -526,7 +548,9 @@ describe("useRemoveDataset", () => {
 
     const { result } = renderHook(() => useRemoveDataset(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync("ds-gone"); });
+    await act(async () => {
+      await result.current.mutateAsync("ds-gone");
+    });
 
     await waitFor(() => {
       expect(removeQueriesSpy).toHaveBeenCalled();
@@ -563,11 +587,15 @@ describe("useSetActiveDataset", () => {
   });
 
   it("accepts null to clear active dataset", async () => {
-    act(() => { useDataStore.setState({ activeDatasetId: "ds-prev" }); });
+    act(() => {
+      useDataStore.setState({ activeDatasetId: "ds-prev" });
+    });
 
     const { result } = renderHook(() => useSetActiveDataset(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync(null); });
+    await act(async () => {
+      await result.current.mutateAsync(null);
+    });
 
     expect(useDataStore.getState().activeDatasetId).toBeNull();
   });
@@ -576,7 +604,9 @@ describe("useSetActiveDataset", () => {
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useSetActiveDataset(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync("ds-x"); });
+    await act(async () => {
+      await result.current.mutateAsync("ds-x");
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
   });
@@ -601,7 +631,9 @@ describe("useQueryHistory", () => {
     // Arrange
     const item1 = makeQueryHistoryItem({ id: "qh-1", datasetId: "ds-1" });
     const item2 = makeQueryHistoryItem({ id: "qh-2", datasetId: "ds-2" });
-    act(() => { useDataStore.setState({ queryHistory: [item1, item2] }); });
+    act(() => {
+      useDataStore.setState({ queryHistory: [item1, item2] });
+    });
 
     const { result } = renderHook(() => useQueryHistory(), { wrapper: makeWrapper(qc) });
 
@@ -613,12 +645,11 @@ describe("useQueryHistory", () => {
     // Arrange — two items; only the one for ds-1 should appear
     const item1 = makeQueryHistoryItem({ id: "qh-1", datasetId: "ds-1" });
     const item2 = makeQueryHistoryItem({ id: "qh-2", datasetId: "ds-2" });
-    act(() => { useDataStore.setState({ queryHistory: [item1, item2] }); });
+    act(() => {
+      useDataStore.setState({ queryHistory: [item1, item2] });
+    });
 
-    const { result } = renderHook(
-      () => useQueryHistory("ds-1"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useQueryHistory("ds-1"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(1);
@@ -626,12 +657,13 @@ describe("useQueryHistory", () => {
   });
 
   it("returns empty array when no history entries match the datasetId", async () => {
-    act(() => { useDataStore.setState({ queryHistory: [] }); });
+    act(() => {
+      useDataStore.setState({ queryHistory: [] });
+    });
 
-    const { result } = renderHook(
-      () => useQueryHistory("ds-missing"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useQueryHistory("ds-missing"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([]);
@@ -671,7 +703,9 @@ describe("useAddQueryHistory", () => {
     const { result } = renderHook(() => useAddQueryHistory(), { wrapper: makeWrapper(qc) });
 
     const item = makeQueryHistoryItem({ id: "qh-inval", datasetId: "ds-1" });
-    await act(async () => { await result.current.mutateAsync(item); });
+    await act(async () => {
+      await result.current.mutateAsync(item);
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
   });
@@ -695,7 +729,9 @@ describe("useClearQueryHistory", () => {
   it("clears all query history and returns void", async () => {
     // Arrange
     const item = makeQueryHistoryItem({ id: "qh-clear" });
-    act(() => { useDataStore.setState({ queryHistory: [item] }); });
+    act(() => {
+      useDataStore.setState({ queryHistory: [item] });
+    });
 
     const { result } = renderHook(() => useClearQueryHistory(), { wrapper: makeWrapper(qc) });
 
@@ -712,7 +748,9 @@ describe("useClearQueryHistory", () => {
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useClearQueryHistory(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync(); });
+    await act(async () => {
+      await result.current.mutateAsync();
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
   });
@@ -737,7 +775,9 @@ describe("useSavedCharts", () => {
     // Arrange
     const c1 = makeSavedChart({ id: "c-1", datasetId: "ds-1" });
     const c2 = makeSavedChart({ id: "c-2", datasetId: "ds-2" });
-    act(() => { useDataStore.setState({ savedCharts: [c1, c2] }); });
+    act(() => {
+      useDataStore.setState({ savedCharts: [c1, c2] });
+    });
 
     const { result } = renderHook(() => useSavedCharts(), { wrapper: makeWrapper(qc) });
 
@@ -749,12 +789,11 @@ describe("useSavedCharts", () => {
     // Arrange
     const c1 = makeSavedChart({ id: "c-1", datasetId: "ds-1" });
     const c2 = makeSavedChart({ id: "c-2", datasetId: "ds-2" });
-    act(() => { useDataStore.setState({ savedCharts: [c1, c2] }); });
+    act(() => {
+      useDataStore.setState({ savedCharts: [c1, c2] });
+    });
 
-    const { result } = renderHook(
-      () => useSavedCharts("ds-1"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useSavedCharts("ds-1"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(1);
@@ -762,12 +801,11 @@ describe("useSavedCharts", () => {
   });
 
   it("returns empty array when no charts match", async () => {
-    act(() => { useDataStore.setState({ savedCharts: [] }); });
+    act(() => {
+      useDataStore.setState({ savedCharts: [] });
+    });
 
-    const { result } = renderHook(
-      () => useSavedCharts("ds-none"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useSavedCharts("ds-none"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([]);
@@ -807,7 +845,9 @@ describe("useSaveChart", () => {
     const { result } = renderHook(() => useSaveChart(), { wrapper: makeWrapper(qc) });
 
     const chart = makeSavedChart({ id: "c-inval", datasetId: "ds-1" });
-    await act(async () => { await result.current.mutateAsync(chart); });
+    await act(async () => {
+      await result.current.mutateAsync(chart);
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
   });
@@ -831,7 +871,9 @@ describe("useRemoveChart", () => {
   it("removes a chart and returns the id", async () => {
     // Arrange
     const chart = makeSavedChart({ id: "c-del" });
-    act(() => { useDataStore.setState({ savedCharts: [chart] }); });
+    act(() => {
+      useDataStore.setState({ savedCharts: [chart] });
+    });
 
     const { result } = renderHook(() => useRemoveChart(), { wrapper: makeWrapper(qc) });
 
@@ -848,7 +890,9 @@ describe("useRemoveChart", () => {
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useRemoveChart(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync("c-gone"); });
+    await act(async () => {
+      await result.current.mutateAsync("c-gone");
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
   });
@@ -873,7 +917,9 @@ describe("useTransforms", () => {
     // Arrange
     const t1 = makeDataTransform({ id: "t-1", inputDatasetId: "ds-1" });
     const t2 = makeDataTransform({ id: "t-2", inputDatasetId: "ds-2" });
-    act(() => { useDataStore.setState({ transforms: [t1, t2] }); });
+    act(() => {
+      useDataStore.setState({ transforms: [t1, t2] });
+    });
 
     const { result } = renderHook(() => useTransforms(), { wrapper: makeWrapper(qc) });
 
@@ -885,12 +931,11 @@ describe("useTransforms", () => {
     // Arrange
     const t1 = makeDataTransform({ id: "t-1", inputDatasetId: "ds-1" });
     const t2 = makeDataTransform({ id: "t-2", inputDatasetId: "ds-2" });
-    act(() => { useDataStore.setState({ transforms: [t1, t2] }); });
+    act(() => {
+      useDataStore.setState({ transforms: [t1, t2] });
+    });
 
-    const { result } = renderHook(
-      () => useTransforms("ds-1"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTransforms("ds-1"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toHaveLength(1);
@@ -898,12 +943,11 @@ describe("useTransforms", () => {
   });
 
   it("returns empty array when no transforms match", async () => {
-    act(() => { useDataStore.setState({ transforms: [] }); });
+    act(() => {
+      useDataStore.setState({ transforms: [] });
+    });
 
-    const { result } = renderHook(
-      () => useTransforms("ds-none"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTransforms("ds-none"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual([]);
@@ -943,7 +987,9 @@ describe("useAddTransform", () => {
     const { result } = renderHook(() => useAddTransform(), { wrapper: makeWrapper(qc) });
 
     const transform = makeDataTransform({ id: "t-inval", inputDatasetId: "ds-1" });
-    await act(async () => { await result.current.mutateAsync(transform); });
+    await act(async () => {
+      await result.current.mutateAsync(transform);
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalledTimes(2));
   });
@@ -966,7 +1012,9 @@ describe("useLoadedTableNames", () => {
 
   it("returns the loaded table names from the store", async () => {
     // Arrange
-    act(() => { useDataStore.setState({ loadedTableNames: ["table_a", "table_b"] }); });
+    act(() => {
+      useDataStore.setState({ loadedTableNames: ["table_a", "table_b"] });
+    });
 
     const { result } = renderHook(() => useLoadedTableNames(), { wrapper: makeWrapper(qc) });
 
@@ -1013,7 +1061,9 @@ describe("useMarkTableLoaded", () => {
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
     const { result } = renderHook(() => useMarkTableLoaded(), { wrapper: makeWrapper(qc) });
 
-    await act(async () => { await result.current.mutateAsync("table_x"); });
+    await act(async () => {
+      await result.current.mutateAsync("table_x");
+    });
 
     await waitFor(() => expect(invalidateSpy).toHaveBeenCalled());
   });
@@ -1037,13 +1087,17 @@ describe("usePrefetchDataset", () => {
   it("sets query data in the cache when the dataset is found", async () => {
     // Arrange
     const ds = makeDataset({ id: "ds-prefetch" });
-    act(() => { useDataStore.setState({ datasets: [ds] }); });
+    act(() => {
+      useDataStore.setState({ datasets: [ds] });
+    });
 
     const setDataSpy = vi.spyOn(qc, "setQueryData");
     const { result } = renderHook(() => usePrefetchDataset(), { wrapper: makeWrapper(qc) });
 
     // Act — prefetch is a callback returned from the hook
-    act(() => { result.current("ds-prefetch"); });
+    act(() => {
+      result.current("ds-prefetch");
+    });
 
     // Assert — setQueryData called with the dataset detail key
     expect(setDataSpy).toHaveBeenCalled();
@@ -1058,7 +1112,9 @@ describe("usePrefetchDataset", () => {
     const { result } = renderHook(() => usePrefetchDataset(), { wrapper: makeWrapper(qc) });
 
     // Act — should silently no-op when dataset is undefined
-    act(() => { result.current("ds-not-found"); });
+    act(() => {
+      result.current("ds-not-found");
+    });
 
     // Assert — setQueryData NOT called (dataset was undefined)
     expect(setDataSpy).not.toHaveBeenCalled();

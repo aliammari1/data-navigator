@@ -621,7 +621,7 @@ describe("buildOption — nullish / missing field fallbacks", () => {
     // hasColor will be false for rows without color_val, so we mix in a colored row to
     // ensure the pivot branch is taken, then add a row missing all fields.
     const data = [
-      { color_val: "G1" },          // no x_val, no y_val → x_val ?? "" and y_val ?? 0
+      { color_val: "G1" }, // no x_val, no y_val → x_val ?? "" and y_val ?? 0
       row("Jan", 10, "G1"),
     ];
     const o = opt(buildOption(spec({ type: "stacked-bar" }), data));
@@ -636,8 +636,8 @@ describe("buildOption — nullish / missing field fallbacks", () => {
     // A row with a non-null color_val ensures hasColor=true (pivot branch is taken).
     // A second row with no color_val hits the `color_val ?? ""` fallback on line 278.
     const data = [
-      row("Jan", 5, "G1"),     // color_val="G1" → hasColor becomes true
-      { x_val: "Feb", y_val: 8 },  // no color_val → color_val ?? "" on line 278
+      row("Jan", 5, "G1"), // color_val="G1" → hasColor becomes true
+      { x_val: "Feb", y_val: 8 }, // no color_val → color_val ?? "" on line 278
     ];
     const o = opt(buildOption(spec({ type: "stacked-bar" }), data));
     // "G1" series and the "" (no-color) series are both created
@@ -648,7 +648,7 @@ describe("buildOption — nullish / missing field fallbacks", () => {
   it("coerces null x_val and color_val to empty string keys in multi-line pivot", () => {
     // Row without x_val → x_val ?? "" branch; color_val is provided so hasColor stays true
     const data = [
-      { y_val: 5, color_val: "Series1" },  // no x_val
+      { y_val: 5, color_val: "Series1" }, // no x_val
       row("Feb", 8, "Series1"),
     ];
     const o = opt(buildOption(spec({ type: "multi-line" }), data));

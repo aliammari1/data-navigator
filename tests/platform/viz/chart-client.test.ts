@@ -7,8 +7,8 @@
  * so no real threads are created.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as Comlink from "comlink";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock Comlink before the module under test is imported
@@ -48,10 +48,9 @@ function disableOffscreenCanvas() {
 }
 
 /** Creates a minimal fake Worker class. */
-function makeWorkerClass(opts: {
-  throws?: boolean;
-  onConstruct?: (url: URL, workerOpts?: WorkerOptions) => void;
-} = {}) {
+function makeWorkerClass(
+  opts: { throws?: boolean; onConstruct?: (url: URL, workerOpts?: WorkerOptions) => void } = {},
+) {
   if (opts.throws) {
     // Return a constructor function rather than a class to avoid S2094
     // (class with only a constructor).

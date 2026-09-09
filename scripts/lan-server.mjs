@@ -186,7 +186,11 @@ function verifyInviteToken(token, secret) {
     const signingInput = `${headerB64}.${payloadB64}`;
     const hmac = crypto.createHmac("sha256", secret);
     hmac.update(signingInput);
-    const expectedSig = hmac.digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const expectedSig = hmac
+      .digest("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
 
     const sigBuf = Buffer.from(sigB64);
     const expBuf = Buffer.from(expectedSig);
@@ -451,7 +455,9 @@ const hocuspocus = new Hocuspocus({
     } catch (err) {
       if (err.code === "ERR_DLOPEN_FAILED" || err.message.includes("NODE_MODULE_VERSION")) {
         console.error("\n[FATAL ERROR] Native module mismatch detected (better-sqlite3).");
-        console.error("This usually happens when Node.js is updated without rebuilding dependencies.");
+        console.error(
+          "This usually happens when Node.js is updated without rebuilding dependencies.",
+        );
         console.error("FIX: Run 'pnpm run rebuild:node' to fix your environment.\n");
       }
       throw err;
@@ -514,17 +520,26 @@ const server = http.createServer(async (req, res) => {
   if (url.pathname === "/guest/join" && req.method === "GET") {
     const token = url.searchParams.get("token");
     if (!token) {
-      res.writeHead(400, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+      res.writeHead(400, {
+        "content-type": "text/html; charset=utf-8",
+        "access-control-allow-origin": "*",
+      });
       res.end(inviteErrorHtml("Missing invite token."));
       return;
     }
     const result = verifyInviteToken(token, getHostSecret());
     if (!result.ok) {
-      res.writeHead(401, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+      res.writeHead(401, {
+        "content-type": "text/html; charset=utf-8",
+        "access-control-allow-origin": "*",
+      });
       res.end(inviteErrorHtml(`Invite token is invalid or expired (${result.reason}).`));
       return;
     }
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "access-control-allow-origin": "*",
+    });
     res.end(invitePageHtml({ room: SESSION_NAME, token }));
     return;
   }
@@ -541,13 +556,19 @@ const server = http.createServer(async (req, res) => {
 
     const result = verifyInviteToken(token, getHostSecret());
     if (!result.ok) {
-      res.writeHead(401, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+      res.writeHead(401, {
+        "content-type": "text/html; charset=utf-8",
+        "access-control-allow-origin": "*",
+      });
       res.end(inviteErrorHtml(`Invite token is invalid or expired (${result.reason}).`));
       return;
     }
     const payload = result.payload;
     if (!safeCodeEqual(PAIRING_CODE, pairingCode)) {
-      res.writeHead(401, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+      res.writeHead(401, {
+        "content-type": "text/html; charset=utf-8",
+        "access-control-allow-origin": "*",
+      });
       res.end(inviteErrorHtml("Pairing code does not match the host."));
       return;
     }
@@ -560,7 +581,10 @@ const server = http.createServer(async (req, res) => {
       hostUrl: `http://${req.headers.host}`,
     });
 
-    res.writeHead(200, { "content-type": "text/html; charset=utf-8", "access-control-allow-origin": "*" });
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "access-control-allow-origin": "*",
+    });
     res.end(inviteSuccessHtml(guest.id));
     return;
   }
@@ -734,7 +758,10 @@ wss.on("connection", (ws, req) => {
   // Bridge the Node upgrade request to the web-standard Request Hocuspocus v4
   // expects (URL for requestParameters, headers for onAuthenticate payloads).
   const webRequest = new Request(new URL(req.url ?? "/", `http://${req.headers.host ?? HOST}`), {
-    headers: Object.entries(req.headers).map(([k, v]) => [k, Array.isArray(v) ? v.join(",") : (v ?? "")]),
+    headers: Object.entries(req.headers).map(([k, v]) => [
+      k,
+      Array.isArray(v) ? v.join(",") : (v ?? ""),
+    ]),
   });
   const clientConnection = hocuspocus.handleConnection(ws, webRequest);
   ws.binaryType = "arraybuffer";
@@ -767,17 +794,21 @@ function listenWithPortScan(port, remaining) {
     }
     throw err;
   });
-  server.listen(port, HOST, () => {
-    activePort = port;
-    printReady();
-  }).on("error", (err) => {
-    if (err.code === "ERR_DLOPEN_FAILED" || err.message.includes("NODE_MODULE_VERSION")) {
-      console.error("\n[FATAL ERROR] Native module mismatch detected (better-sqlite3).");
-      console.error("This usually happens when Node.js is updated without rebuilding dependencies.");
-      console.error("FIX: Run 'pnpm run rebuild:node' to fix your environment.\n");
-      process.exit(1);
-    }
-  });
+  server
+    .listen(port, HOST, () => {
+      activePort = port;
+      printReady();
+    })
+    .on("error", (err) => {
+      if (err.code === "ERR_DLOPEN_FAILED" || err.message.includes("NODE_MODULE_VERSION")) {
+        console.error("\n[FATAL ERROR] Native module mismatch detected (better-sqlite3).");
+        console.error(
+          "This usually happens when Node.js is updated without rebuilding dependencies.",
+        );
+        console.error("FIX: Run 'pnpm run rebuild:node' to fix your environment.\n");
+        process.exit(1);
+      }
+    });
 }
 
 function printReady() {

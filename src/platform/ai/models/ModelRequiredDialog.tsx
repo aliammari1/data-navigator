@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { ModelDownloadPanel } from "@/components/shared/model-download-panel";
 import {
   Dialog,
   DialogContent,
@@ -8,7 +9,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ModelDownloadPanel } from "@/components/shared/model-download-panel";
 import { useModelRequiredDialogStore } from "./model-required-dialog-store";
 import { useModelStatus } from "./use-model-status";
 

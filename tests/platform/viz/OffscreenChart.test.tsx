@@ -93,20 +93,14 @@ beforeEach(() => {
 
 describe("basic rendering", () => {
   it("renders a canvas element when proxy is available and option is cloneable", () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
     expect(container.querySelector("canvas")).not.toBeNull();
   });
 
   it("renders the fallback when proxy is null and fallback is provided", () => {
     _proxyValue = null;
     const { container } = render(
-      <OffscreenChart
-        option={simpleOption()}
-        height={300}
-        fallback={<span>no-worker</span>}
-      />,
+      <OffscreenChart option={simpleOption()} height={300} fallback={<span>no-worker</span>} />,
     );
     expect(container.textContent).toContain("no-worker");
     expect(container.querySelector("canvas")).toBeNull();
@@ -114,9 +108,7 @@ describe("basic rendering", () => {
 
   it("renders canvas even when proxy is null and no fallback is provided", () => {
     _proxyValue = null;
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
     // No fallback → useFallback = false → canvas branch taken.
     expect(container.querySelector("canvas")).not.toBeNull();
   });
@@ -136,11 +128,7 @@ describe("basic rendering", () => {
   it("renders string fallback when proxy is unavailable", () => {
     _proxyValue = null;
     const { container } = render(
-      <OffscreenChart
-        option={simpleOption()}
-        height={300}
-        fallback="text fallback"
-      />,
+      <OffscreenChart option={simpleOption()} height={300} fallback="text fallback" />,
     );
     expect(container.textContent).toBe("text fallback");
   });
@@ -157,23 +145,17 @@ describe("canvas style and class props", () => {
   });
 
   it("sets height as an inline style on the canvas", () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={480} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={480} />);
     expect(container.querySelector("canvas")?.style.height).toBe("480px");
   });
 
   it("sets width:100% as an inline style on the canvas", () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
     expect(container.querySelector("canvas")?.style.width).toBe("100%");
   });
 
   it("renders canvas without className when className prop is omitted", () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
     const canvas = container.querySelector("canvas");
     expect(canvas).not.toBeNull();
     expect(canvas?.className).toBe("");
@@ -239,9 +221,7 @@ describe("hasFunctionValue (function-in-option detection)", () => {
 
   it("option with function but no fallback renders canvas (useFallback = false)", () => {
     const option = optionWithFunction();
-    const { container } = render(
-      <OffscreenChart option={option} height={200} />,
-    );
+    const { container } = render(<OffscreenChart option={option} height={200} />);
     // fallback=undefined → !!fallback=false → useFallback=false → canvas.
     expect(container.querySelector("canvas")).not.toBeNull();
   });
@@ -333,9 +313,7 @@ describe("mount effect — proxy.init", () => {
 
 describe("setOption effect on option change", () => {
   it("calls proxy.setOption when option prop changes after successful transfer", async () => {
-    const { rerender } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { rerender } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalledTimes(1));
 
@@ -357,9 +335,7 @@ describe("setOption effect on option change", () => {
       throw new Error("unsupported");
     });
 
-    const { rerender } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { rerender } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     rerender(<OffscreenChart option={{ series: [{ type: "bar" }] }} height={300} />);
 
@@ -375,9 +351,7 @@ describe("setOption effect on option change", () => {
 
 describe("pointer event forwarding", () => {
   it("forwards pointermove to proxy.showTip", async () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalled());
 
@@ -396,9 +370,7 @@ describe("pointer event forwarding", () => {
   });
 
   it("forwards pointerleave to proxy.hideTip", async () => {
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalled());
 
@@ -448,11 +420,7 @@ describe("ResizeObserver integration", () => {
     });
 
     await waitFor(() =>
-      expect(fakeProxy.resize).toHaveBeenCalledWith(
-        expect.any(Number),
-        800,
-        600,
-      ),
+      expect(fakeProxy.resize).toHaveBeenCalledWith(expect.any(Number), 800, 600),
     );
   });
 
@@ -469,9 +437,7 @@ describe("ResizeObserver integration", () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (window as any).ResizeObserver = TrackingResizeObserver;
 
-    const { container } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { container } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalled());
     const canvas = container.querySelector("canvas");
@@ -485,9 +451,7 @@ describe("unmount disposal (deferred)", () => {
   it("schedules proxy.dispose via setTimeout and runs it after the timer fires", async () => {
     // Render + let effects settle with real timers, then verify dispose is called
     // after unmount (the component defers via setTimeout(0)).
-    const { unmount } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { unmount } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalled());
 
@@ -502,9 +466,7 @@ describe("unmount disposal (deferred)", () => {
   });
 
   it("passes the correct chart id to proxy.dispose", async () => {
-    const { unmount } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { unmount } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     await waitFor(() => expect(fakeProxy.init).toHaveBeenCalled());
     const [initId] = fakeProxy.init.mock.calls[0];
@@ -620,9 +582,7 @@ describe("setOption guard when apiRef or transferredRef is falsy", () => {
   it("does not call setOption when proxy is null (apiRef never set)", async () => {
     _proxyValue = null;
 
-    const { rerender } = render(
-      <OffscreenChart option={simpleOption()} height={300} />,
-    );
+    const { rerender } = render(<OffscreenChart option={simpleOption()} height={300} />);
 
     // Trigger the option-change effect with a new option.
     rerender(<OffscreenChart option={{ series: [{ type: "pie" }] }} height={300} />);

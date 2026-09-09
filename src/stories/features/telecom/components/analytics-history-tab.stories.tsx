@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { AnalyticsHistoryTab } from "@/features/telecom/components/analytics-history-tab";
+import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 
 const entries: AnalyticsSnapshotHistoryMeta[] = [
   {

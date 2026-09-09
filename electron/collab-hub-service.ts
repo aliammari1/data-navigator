@@ -28,8 +28,8 @@
  * "Welcome to Hocuspocus!" response. See `handleSidecarRequest` below.
  */
 
-import { randomUUID, timingSafeEqual, createHmac, randomBytes } from "node:crypto";
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
+import { createHmac, randomBytes, randomUUID, timingSafeEqual } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
 import os from "node:os";
 import path from "node:path";
@@ -479,7 +479,11 @@ async function verifyInviteToken(
     const signingInput = `${headerB64}.${payloadB64}`;
     const hmac = createHmac("sha256", secret);
     hmac.update(signingInput);
-    const expectedSig = hmac.digest("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+    const expectedSig = hmac
+      .digest("base64")
+      .replace(/\+/g, "-")
+      .replace(/\//g, "_")
+      .replace(/=+$/, "");
 
     const sigBuf = Buffer.from(sigB64);
     const expBuf = Buffer.from(expectedSig);
@@ -487,7 +491,10 @@ async function verifyInviteToken(
       return { ok: false, reason: "signature mismatch" };
     }
 
-    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8")) as Record<string, unknown>;
+    const payload = JSON.parse(Buffer.from(payloadB64, "base64url").toString("utf8")) as Record<
+      string,
+      unknown
+    >;
     if (payload.iss !== "data-navigator" || payload.aud !== "guest-invite") {
       return { ok: false, reason: "invalid issuer or audience" };
     }
@@ -1043,7 +1050,11 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
         return { role: access.role, peerId, peerName };
       },
 
-      async onDisconnect(payload: { documentName: string; socketId: string; context?: HubContext }) {
+      async onDisconnect(payload: {
+        documentName: string;
+        socketId: string;
+        context?: HubContext;
+      }) {
         untrackPeer(sidecar, payload.documentName, payload.socketId);
         addAudit(sidecar, "peer.left", {
           room: payload.documentName,
@@ -1100,7 +1111,9 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
   } catch (err: any) {
     if (err.code === "ERR_DLOPEN_FAILED" || err.message.includes("NODE_MODULE_VERSION")) {
       console.error("\n[FATAL ERROR] Native module mismatch detected in Electron main process.");
-      console.error("The hub could not start because better-sqlite3 needs to be rebuilt for Electron.");
+      console.error(
+        "The hub could not start because better-sqlite3 needs to be rebuilt for Electron.",
+      );
       console.error("FIX: Run 'pnpm run rebuild:electron' then restart the app.\n");
     }
     throw err;

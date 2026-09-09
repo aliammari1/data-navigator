@@ -328,7 +328,14 @@ describe("fetchSubStatusBreakdown", () => {
 describe("fetchTopAccounts", () => {
   it("maps rows and computes per-account successRate", async () => {
     runReadOnlyQuery.mockResolvedValue([
-      { msisdn: "216900", name: "Alice", total: 50, success: 40, amount: 999.5, fav_canal: "Bill Payment" },
+      {
+        msisdn: "216900",
+        name: "Alice",
+        total: 50,
+        success: 40,
+        amount: 999.5,
+        fav_canal: "Bill Payment",
+      },
     ]);
 
     const rows = await fetchTopAccounts(TABLE, m, FROM, TO);

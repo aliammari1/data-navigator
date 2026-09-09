@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
+import { RawDataTab } from "@/features/telecom/components/raw-data-tab";
 import type {
   ColumnMapping,
   CustomerProfileData,
@@ -8,7 +8,6 @@ import type {
   RegionRow,
   StatusMapping,
 } from "@/features/telecom/types";
-import { RawDataTab } from "@/features/telecom/components/raw-data-tab";
 
 const mapping: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

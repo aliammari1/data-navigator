@@ -9,8 +9,8 @@
  *  - @/platform/collab  (readPeers / subscribePeers)
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted mock factories ────────────────────────────────────────────────
 
@@ -222,11 +222,7 @@ describe("samePeers — field-level inequality detection", () => {
    * Helper: render hook with initial peers, then fire a subscriber event with
    * changed peers, and assert whether a re-render occurred.
    */
-  function testFieldChange(
-    initial: CollabPeer,
-    changed: CollabPeer,
-    expectRerender: boolean,
-  ) {
+  function testFieldChange(initial: CollabPeer, changed: CollabPeer, expectRerender: boolean) {
     readPeersMock.mockReturnValue([initial]);
     let renders = 0;
     const { result } = renderHook(() => {
@@ -235,10 +231,13 @@ describe("samePeers — field-level inequality detection", () => {
     });
     const rendersAfterMount = renders;
 
-    const cb: () => void = subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
+    const cb: () => void =
+      subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
 
     readPeersMock.mockReturnValue([changed]);
-    act(() => { cb(); });
+    act(() => {
+      cb();
+    });
 
     if (expectRerender) {
       expect(renders).toBeGreaterThan(rendersAfterMount);
@@ -294,11 +293,14 @@ describe("samePeers — field-level inequality detection", () => {
     });
     const rendersAfterMount = renders;
 
-    const cb: () => void = subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
+    const cb: () => void =
+      subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
 
     // Return the exact same array reference — samePeers(a === b) returns true early
     readPeersMock.mockReturnValue([peer]);
-    act(() => { cb(); });
+    act(() => {
+      cb();
+    });
 
     expect(renders).toBe(rendersAfterMount);
   });
@@ -317,11 +319,14 @@ describe("samePeers — field-level inequality detection", () => {
     });
     const rendersAfterMount = renders;
 
-    const cb: () => void = subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
+    const cb: () => void =
+      subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
 
     // Return the same array reference that was already cached
     readPeersMock.mockReturnValue(peersRef);
-    act(() => { cb(); });
+    act(() => {
+      cb();
+    });
 
     // samePeers(cache, next) where cache === next → true → no re-render
     expect(renders).toBe(rendersAfterMount);
@@ -337,10 +342,13 @@ describe("samePeers — field-level inequality detection", () => {
     });
     const rendersAfterMount = renders;
 
-    const cb: () => void = subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
+    const cb: () => void =
+      subscribePeersMock.mock.calls[subscribePeersMock.mock.calls.length - 1][1];
 
     readPeersMock.mockReturnValue([]);
-    act(() => { cb(); });
+    act(() => {
+      cb();
+    });
 
     // Both empty, samePeers returns true — no re-render
     expect(renders).toBe(rendersAfterMount);

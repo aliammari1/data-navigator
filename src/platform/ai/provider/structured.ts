@@ -1,5 +1,5 @@
 import { jsonrepair } from "jsonrepair";
-import { parse as parsePartial, Allow } from "partial-json";
+import { Allow, parse as parsePartial } from "partial-json";
 
 import type { ZodType } from "zod";
 import { zodToInlineJsonSchema } from "./zod-json-schema";

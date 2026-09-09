@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
+import { GroupSummaryChart } from "@/features/telecom/components/group-summary-chart";
 import type { ChannelGroup } from "@/features/telecom/lib/canal-groups";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import { GroupSummaryChart } from "@/features/telecom/components/group-summary-chart";
 
 const ch = (name: string): ChannelDef => ({
   name,

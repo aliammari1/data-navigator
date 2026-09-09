@@ -1,8 +1,5 @@
-import { describe, it, expect } from "vitest";
-import {
-  flagOutliers,
-  linearTrendline,
-} from "@/features/data-formulator/core/ai";
+import { describe, expect, it } from "vitest";
+import { flagOutliers, linearTrendline } from "@/features/data-formulator/core/ai";
 
 // ─── flagOutliers ─────────────────────────────────────────────────────────────
 

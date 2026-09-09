@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it } from "vitest";
-import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
 import {
   type ColMeta,
   computeQualityScore,
@@ -11,6 +10,7 @@ import {
   toTableName,
   useDataStore,
 } from "@/core/stores/data-store";
+import type { RegisteredDataset } from "@/platform/duckdb/duckdb";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -774,12 +774,22 @@ describe("mergeDataset – updatedAt fallback", () => {
 describe("persist.migrate – migrateDataset", () => {
   // Helper to invoke the migrate callback.
   function runMigrate(persisted: unknown): ReturnType<typeof useDataStore.getState> {
-    const migrate = (useDataStore as unknown as { persist: { getOptions: () => { migrate: (p: unknown, v: number) => unknown } } }).persist.getOptions().migrate;
+    const migrate = (
+      useDataStore as unknown as {
+        persist: { getOptions: () => { migrate: (p: unknown, v: number) => unknown } };
+      }
+    ).persist.getOptions().migrate;
     return migrate(persisted, 0) as ReturnType<typeof useDataStore.getState>;
   }
 
   it("returns empty arrays when persisted is null", () => {
-    const result = runMigrate(null) as { datasets: unknown[]; queryHistory: unknown[]; savedCharts: unknown[]; transforms: unknown[]; activeDatasetId: unknown };
+    const result = runMigrate(null) as {
+      datasets: unknown[];
+      queryHistory: unknown[];
+      savedCharts: unknown[];
+      transforms: unknown[];
+      activeDatasetId: unknown;
+    };
     expect(result.datasets).toEqual([]);
     expect(result.queryHistory).toEqual([]);
     expect(result.savedCharts).toEqual([]);
@@ -788,13 +798,19 @@ describe("persist.migrate – migrateDataset", () => {
   });
 
   it("returns empty arrays when persisted is undefined", () => {
-    const result = runMigrate(undefined) as { datasets: unknown[]; queryHistory: unknown[]; activeDatasetId: unknown };
+    const result = runMigrate(undefined) as {
+      datasets: unknown[];
+      queryHistory: unknown[];
+      activeDatasetId: unknown;
+    };
     expect(result.datasets).toEqual([]);
     expect(result.activeDatasetId).toBeNull();
   });
 
   it("returns empty arrays when datasets field is missing", () => {
-    const result = runMigrate({ queryHistory: [], savedCharts: [], transforms: [] }) as { datasets: unknown[] };
+    const result = runMigrate({ queryHistory: [], savedCharts: [], transforms: [] }) as {
+      datasets: unknown[];
+    };
     expect(result.datasets).toEqual([]);
   });
 
@@ -812,7 +828,16 @@ describe("persist.migrate – migrateDataset", () => {
       colCount: 2,
       sizeBytes: 512,
       columns: [
-        { name: "a", type: "number", nullCount: 1, distinctCount: 10, min: 0, max: 100, mean: 50, stddev: 5 },
+        {
+          name: "a",
+          type: "number",
+          nullCount: 1,
+          distinctCount: 10,
+          min: 0,
+          max: 100,
+          mean: 50,
+          stddev: 5,
+        },
         { name: "b", type: "string", nullCount: 0, distinctCount: 20 },
       ],
       tags: ["tag1"],
@@ -824,7 +849,17 @@ describe("persist.migrate – migrateDataset", () => {
       qualityScore: 75,
     };
 
-    const result = runMigrate({ datasets: [raw], activeDatasetId: "ds_mig" }) as { datasets: Array<{ id: string; name: string; tableName: string; viewName: string; qualityScore: number; columns: Array<{ sample: unknown[] }> }>; activeDatasetId: string };
+    const result = runMigrate({ datasets: [raw], activeDatasetId: "ds_mig" }) as {
+      datasets: Array<{
+        id: string;
+        name: string;
+        tableName: string;
+        viewName: string;
+        qualityScore: number;
+        columns: Array<{ sample: unknown[] }>;
+      }>;
+      activeDatasetId: string;
+    };
 
     expect(result.datasets).toHaveLength(1);
     const ds = result.datasets[0];
@@ -843,7 +878,9 @@ describe("persist.migrate – migrateDataset", () => {
   it("backfills viewName from tableName when viewName is absent", () => {
     // d.viewName is absent so viewName = d.viewName ?? tableName = tableName.
     const raw = { id: "ds_tv", tableName: "tbl_only" };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ tableName: string; viewName: string }> };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ tableName: string; viewName: string }>;
+    };
     expect(result.datasets[0].tableName).toBe("tbl_only");
     expect(result.datasets[0].viewName).toBe("tbl_only");
   });
@@ -851,27 +888,38 @@ describe("persist.migrate – migrateDataset", () => {
   it("backfills tableName from viewName when tableName is absent", () => {
     // d.tableName is absent, d.viewName present: tableName = d.tableName ?? d.viewName.
     const raw = { id: "ds_vt", viewName: "view_only" };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ tableName: string; viewName: string }> };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ tableName: string; viewName: string }>;
+    };
     expect(result.datasets[0].tableName).toBe("view_only");
     expect(result.datasets[0].viewName).toBe("view_only");
   });
 
   it("defaults tableName and viewName to empty string when both are absent", () => {
     const raw = { id: "ds_noname" };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ tableName: string; viewName: string }> };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ tableName: string; viewName: string }>;
+    };
     expect(result.datasets[0].tableName).toBe("");
     expect(result.datasets[0].viewName).toBe("");
   });
 
   it("defaults id, name to empty string when absent", () => {
-    const result = runMigrate({ datasets: [{}] }) as { datasets: Array<{ id: string; name: string }> };
+    const result = runMigrate({ datasets: [{}] }) as {
+      datasets: Array<{ id: string; name: string }>;
+    };
     expect(result.datasets[0].id).toBe("");
     expect(result.datasets[0].name).toBe("");
   });
 
   it("defaults rowCount to 0 and computes qualityScore when not a number", () => {
-    const raw = { id: "ds_q", columns: [{ name: "x", type: "string", nullCount: 0, distinctCount: 0 }] };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ rowCount: number; qualityScore: number }> };
+    const raw = {
+      id: "ds_q",
+      columns: [{ name: "x", type: "string", nullCount: 0, distinctCount: 0 }],
+    };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ rowCount: number; qualityScore: number }>;
+    };
     const ds = result.datasets[0];
     expect(ds.rowCount).toBe(0);
     // rowCount=0 => computeQualityScore returns 0
@@ -890,32 +938,44 @@ describe("persist.migrate – migrateDataset", () => {
   });
 
   it("defaults source to 'catalog' when absent", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_src" }] }) as { datasets: Array<{ source: string }> };
+    const result = runMigrate({ datasets: [{ id: "ds_src" }] }) as {
+      datasets: Array<{ source: string }>;
+    };
     expect(result.datasets[0].source).toBe("catalog");
   });
 
   it("defaults format to 'csv' when absent", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_fmt" }] }) as { datasets: Array<{ format: string }> };
+    const result = runMigrate({ datasets: [{ id: "ds_fmt" }] }) as {
+      datasets: Array<{ format: string }>;
+    };
     expect(result.datasets[0].format).toBe("csv");
   });
 
   it("defaults sizeBytes to 0 when absent", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_sb" }] }) as { datasets: Array<{ sizeBytes: number }> };
+    const result = runMigrate({ datasets: [{ id: "ds_sb" }] }) as {
+      datasets: Array<{ sizeBytes: number }>;
+    };
     expect(result.datasets[0].sizeBytes).toBe(0);
   });
 
   it("defaults tags to [] when not an array", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_tags", tags: "bad" }] }) as { datasets: Array<{ tags: string[] }> };
+    const result = runMigrate({ datasets: [{ id: "ds_tags", tags: "bad" }] }) as {
+      datasets: Array<{ tags: string[] }>;
+    };
     expect(result.datasets[0].tags).toEqual([]);
   });
 
   it("preserves tags when they are an array", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_tags2", tags: ["a", "b"] }] }) as { datasets: Array<{ tags: string[] }> };
+    const result = runMigrate({ datasets: [{ id: "ds_tags2", tags: ["a", "b"] }] }) as {
+      datasets: Array<{ tags: string[] }>;
+    };
     expect(result.datasets[0].tags).toEqual(["a", "b"]);
   });
 
   it("defaults columns to [] when columns field is not an array", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_cols", columns: "bad" }] }) as { datasets: Array<{ columns: unknown[] }> };
+    const result = runMigrate({ datasets: [{ id: "ds_cols", columns: "bad" }] }) as {
+      datasets: Array<{ columns: unknown[] }>;
+    };
     expect(result.datasets[0].columns).toEqual([]);
   });
 
@@ -932,18 +992,24 @@ describe("persist.migrate – migrateDataset", () => {
   });
 
   it("uses colCount from persisted when present", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_cc2", colCount: 7 }] }) as { datasets: Array<{ colCount: number }> };
+    const result = runMigrate({ datasets: [{ id: "ds_cc2", colCount: 7 }] }) as {
+      datasets: Array<{ colCount: number }>;
+    };
     expect(result.datasets[0].colCount).toBe(7);
   });
 
   it("defaults description to empty string when absent", () => {
-    const result = runMigrate({ datasets: [{ id: "ds_desc" }] }) as { datasets: Array<{ description: string }> };
+    const result = runMigrate({ datasets: [{ id: "ds_desc" }] }) as {
+      datasets: Array<{ description: string }>;
+    };
     expect(result.datasets[0].description).toBe("");
   });
 
   it("fills createdAt/updatedAt defaults when absent", () => {
     const before = Date.now();
-    const result = runMigrate({ datasets: [{ id: "ds_dates" }] }) as { datasets: Array<{ createdAt: string; updatedAt: string }> };
+    const result = runMigrate({ datasets: [{ id: "ds_dates" }] }) as {
+      datasets: Array<{ createdAt: string; updatedAt: string }>;
+    };
     const after = Date.now();
     const ds = result.datasets[0];
     expect(Date.parse(ds.createdAt)).toBeGreaterThanOrEqual(before);
@@ -953,7 +1019,9 @@ describe("persist.migrate – migrateDataset", () => {
 
   it("preserves parentId and transformSql when present", () => {
     const raw = { id: "ds_lin", parentId: "p1", transformSql: "SELECT * FROM t" };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ parentId?: string; transformSql?: string }> };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ parentId?: string; transformSql?: string }>;
+    };
     expect(result.datasets[0].parentId).toBe("p1");
     expect(result.datasets[0].transformSql).toBe("SELECT * FROM t");
   });
@@ -961,7 +1029,9 @@ describe("persist.migrate – migrateDataset", () => {
   it("handles a column record with null col gracefully (nullish coalesce path)", () => {
     // col = null triggers `const c = (col ?? {}) as Partial<ColMeta>`
     const raw = { id: "ds_nullcol", columns: [null] };
-    const result = runMigrate({ datasets: [raw] }) as { datasets: Array<{ columns: Array<{ name: string; type: string }> }> };
+    const result = runMigrate({ datasets: [raw] }) as {
+      datasets: Array<{ columns: Array<{ name: string; type: string }> }>;
+    };
     const col = result.datasets[0].columns[0];
     expect(col.name).toBe("");
     expect(col.type).toBe("unknown");
@@ -977,22 +1047,60 @@ describe("persist.migrate – migrateDataset", () => {
   });
 
   it("sets activeDatasetId to null when datasets are empty", () => {
-    const result = runMigrate({ datasets: [], activeDatasetId: "ds_x" }) as { activeDatasetId: string | null };
+    const result = runMigrate({ datasets: [], activeDatasetId: "ds_x" }) as {
+      activeDatasetId: string | null;
+    };
     expect(result.activeDatasetId).toBeNull();
   });
 
   it("preserves queryHistory and savedCharts and transforms from persisted state", () => {
-    const qh = [{ id: "q1", sql: "SELECT 1", datasetId: "ds_a", rowsReturned: 1, durationMs: 5, ranAt: "2024-01-01T00:00:00.000Z" }];
-    const sc = [{ id: "c1", datasetId: "ds_a", title: "Chart", type: "bar", config: {}, createdAt: "2024-01-01T00:00:00.000Z" }];
-    const tr = [{ id: "t1", inputDatasetId: "ds_in", outputDatasetId: "ds_out", type: "filter", sql: "WHERE x > 1", description: "", appliedAt: "2024-01-01T00:00:00.000Z" }];
-    const result = runMigrate({ queryHistory: qh, savedCharts: sc, transforms: tr }) as { queryHistory: unknown[]; savedCharts: unknown[]; transforms: unknown[] };
+    const qh = [
+      {
+        id: "q1",
+        sql: "SELECT 1",
+        datasetId: "ds_a",
+        rowsReturned: 1,
+        durationMs: 5,
+        ranAt: "2024-01-01T00:00:00.000Z",
+      },
+    ];
+    const sc = [
+      {
+        id: "c1",
+        datasetId: "ds_a",
+        title: "Chart",
+        type: "bar",
+        config: {},
+        createdAt: "2024-01-01T00:00:00.000Z",
+      },
+    ];
+    const tr = [
+      {
+        id: "t1",
+        inputDatasetId: "ds_in",
+        outputDatasetId: "ds_out",
+        type: "filter",
+        sql: "WHERE x > 1",
+        description: "",
+        appliedAt: "2024-01-01T00:00:00.000Z",
+      },
+    ];
+    const result = runMigrate({ queryHistory: qh, savedCharts: sc, transforms: tr }) as {
+      queryHistory: unknown[];
+      savedCharts: unknown[];
+      transforms: unknown[];
+    };
     expect(result.queryHistory).toEqual(qh);
     expect(result.savedCharts).toEqual(sc);
     expect(result.transforms).toEqual(tr);
   });
 
   it("defaults queryHistory/savedCharts/transforms to [] when not arrays", () => {
-    const result = runMigrate({ queryHistory: "bad", savedCharts: null, transforms: 123 }) as { queryHistory: unknown[]; savedCharts: unknown[]; transforms: unknown[] };
+    const result = runMigrate({ queryHistory: "bad", savedCharts: null, transforms: 123 }) as {
+      queryHistory: unknown[];
+      savedCharts: unknown[];
+      transforms: unknown[];
+    };
     expect(result.queryHistory).toEqual([]);
     expect(result.savedCharts).toEqual([]);
     expect(result.transforms).toEqual([]);
@@ -1003,7 +1111,11 @@ describe("persist.migrate – migrateDataset", () => {
 
 describe("persist.partialize", () => {
   function runPartialize(state: ReturnType<typeof useDataStore.getState>): unknown {
-    const partialize = (useDataStore as unknown as { persist: { getOptions: () => { partialize: (s: unknown) => unknown } } }).persist.getOptions().partialize;
+    const partialize = (
+      useDataStore as unknown as {
+        persist: { getOptions: () => { partialize: (s: unknown) => unknown } };
+      }
+    ).persist.getOptions().partialize;
     return partialize(state);
   }
 
@@ -1021,7 +1133,10 @@ describe("persist.partialize", () => {
       transforms: [],
     };
 
-    const result = runPartialize(state) as { datasets: Array<{ columns: Array<{ sample: unknown[] }> }>; queryHistory: unknown[] };
+    const result = runPartialize(state) as {
+      datasets: Array<{ columns: Array<{ sample: unknown[] }> }>;
+      queryHistory: unknown[];
+    };
     expect(result.datasets[0].columns[0].sample).toEqual([]);
   });
 
@@ -1055,7 +1170,11 @@ describe("persist.partialize", () => {
       transforms: [makeTransform()],
     };
 
-    const result = runPartialize(state) as { activeDatasetId: string; savedCharts: unknown[]; transforms: unknown[] };
+    const result = runPartialize(state) as {
+      activeDatasetId: string;
+      savedCharts: unknown[];
+      transforms: unknown[];
+    };
     expect(result.activeDatasetId).toBe("ds_active");
     expect(result.savedCharts).toHaveLength(1);
     expect(result.transforms).toHaveLength(1);
@@ -1088,11 +1207,11 @@ describe("replaceDatasetsFromCatalog – activeDatasetId null starting state", (
 
 import { renderHook } from "@testing-library/react";
 import {
-  useDatasets,
   useActiveDatasetId,
+  useDataActions,
+  useDatasets,
   useQueryHistory,
   useSavedCharts,
-  useDataActions,
 } from "@/core/stores/data-store";
 
 describe("selector hooks", () => {
@@ -1114,7 +1233,18 @@ describe("selector hooks", () => {
   });
 
   it("useQueryHistory returns the query history slice", () => {
-    useDataStore.setState({ queryHistory: [{ id: "q1", sql: "SELECT 1", datasetId: "ds", rowsReturned: 0, durationMs: 0, ranAt: "2024-01-01T00:00:00.000Z" }] });
+    useDataStore.setState({
+      queryHistory: [
+        {
+          id: "q1",
+          sql: "SELECT 1",
+          datasetId: "ds",
+          rowsReturned: 0,
+          durationMs: 0,
+          ranAt: "2024-01-01T00:00:00.000Z",
+        },
+      ],
+    });
     const { result } = renderHook(() => useQueryHistory());
     expect(result.current).toHaveLength(1);
   });

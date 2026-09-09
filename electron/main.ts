@@ -22,13 +22,13 @@ import {
 import type { startServer as StartServerFn } from "next/dist/server/lib/start-server";
 import { isAuthDbEncryptionRequested } from "@/platform/auth/auth-db-encryption";
 import { BETTER_AUTH_BASE_URL, ELECTRON_AUTH_PROTOCOL } from "@/platform/auth/electron-options";
-import { resolveAppPort, PROD_PORT_RANGE } from "./port-picker";
+import { PROD_PORT_RANGE, resolveAppPort } from "./port-picker";
 
 let currentServerPort = 3000;
+
 import { authClient } from "./auth-client";
 import {
   changePassword as authChangePassword,
-  getNextLocalMidnight,
   getOwnerInfo as authGetOwnerInfo,
   getSession as authGetSession,
   hasOwner as authHasOwner,
@@ -39,6 +39,7 @@ import {
   signUp as authSignUp,
   closeAuthStore,
   configureAuthStore,
+  getNextLocalMidnight,
   setAuthMigrationsFolder,
 } from "./auth-store";
 import { searchMessages as chatSearchMessages } from "./chat-search";
@@ -74,9 +75,9 @@ import {
   ChatCreateConversationSchema,
   ChatGetMessagesSchema,
   ChatListConversationsSchema,
+  ChatModelSchema,
   ChatOpenSchema,
   ChatPinSchema,
-  ChatModelSchema,
   ChatPreloadSchema,
   ChatPromptSchema,
   ChatRenameSchema,
@@ -632,9 +633,17 @@ function scheduleMidnightExpiration(expiresAtIsoString?: string): void {
   }, delayMs);
 }
 
-function sanitizeSessionResult<T extends { session?: { id: string; userId: string; expiresAt: string; createdAt?: string; updatedAt?: string } | null }>(
-  result: T,
-): T {
+function sanitizeSessionResult<
+  T extends {
+    session?: {
+      id: string;
+      userId: string;
+      expiresAt: string;
+      createdAt?: string;
+      updatedAt?: string;
+    } | null;
+  },
+>(result: T): T {
   if (!result || !result.session) return result;
   const { token: _, ...safeSession } = result.session as { token?: string } & typeof result.session;
   return {
@@ -645,7 +654,9 @@ function sanitizeSessionResult<T extends { session?: { id: string; userId: strin
 
 ipcMain.handle("auth:hasOwner", async (event) => withTrustedSender(event, () => authHasOwner()));
 
-ipcMain.handle("auth:getOwnerInfo", async (event) => withTrustedSender(event, () => authGetOwnerInfo()));
+ipcMain.handle("auth:getOwnerInfo", async (event) =>
+  withTrustedSender(event, () => authGetOwnerInfo()),
+);
 
 ipcMain.handle("auth:isLocked", async (event) => withTrustedSender(event, () => authIsAppLocked()));
 
@@ -1789,7 +1800,10 @@ async function createWindow(): Promise<void> {
       // Boot straight into the product, not the marketing landing (blueprint §7).
       const dashboardUrl = new URL("/dashboard", origin).toString();
       await mainWindow.loadURL(dashboardUrl).catch((loadErr) => {
-        console.warn("[electron] initial mainWindow.loadURL rejected:", loadErr?.message ?? loadErr);
+        console.warn(
+          "[electron] initial mainWindow.loadURL rejected:",
+          loadErr?.message ?? loadErr,
+        );
       });
     } catch (error) {
       console.error("[electron] Error starting Next.js server:", error);
@@ -1815,7 +1829,9 @@ async function startNextJSServer(): Promise<string> {
     bootLog("startNextJSServer: begin");
     const nextJSPort = await resolveAppPort({ isPackaged: app.isPackaged });
     currentServerPort = nextJSPort;
-    bootLog(`selected application port: ${nextJSPort} (range ${PROD_PORT_RANGE.start}-${PROD_PORT_RANGE.end})`);
+    bootLog(
+      `selected application port: ${nextJSPort} (range ${PROD_PORT_RANGE.start}-${PROD_PORT_RANGE.end})`,
+    );
 
     const serverOrigin = `http://127.0.0.1:${nextJSPort}`;
     const localhostOrigin = `http://localhost:${nextJSPort}`;
@@ -1875,7 +1891,7 @@ async function startNextJSServer(): Promise<string> {
       process.env.PORT = nextJSPort.toString();
       process.env.HOSTNAME = bindAddress;
       const originalChdir = process.chdir;
-      process.chdir = function (dir: string) {
+      process.chdir = (dir: string) => {
         try {
           return originalChdir.call(process, dir);
         } catch (err: any) {
@@ -1957,7 +1973,9 @@ app
           if (existsSync(`${legacyUserDataAuthDb}-shm`)) {
             copyFileSync(`${legacyUserDataAuthDb}-shm`, `${devAuthDb}-shm`);
           }
-          bootLog(`auth-store: migrated existing auth.db from ${legacyUserDataAuthDb} to ${devAuthDb}`);
+          bootLog(
+            `auth-store: migrated existing auth.db from ${legacyUserDataAuthDb} to ${devAuthDb}`,
+          );
         } catch (err) {
           bootLog(`auth-store: failed to copy legacy auth.db: ${err}`);
         }
@@ -2075,7 +2093,9 @@ app
     installMediaPermissionHandlers();
 
     session.defaultSession.webRequest.onErrorOccurred((details) => {
-      console.warn(`[electron:webRequest:error] url=${details.url} error=${details.error} type=${details.resourceType}`);
+      console.warn(
+        `[electron:webRequest:error] url=${details.url} error=${details.error} type=${details.resourceType}`,
+      );
     });
 
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => {

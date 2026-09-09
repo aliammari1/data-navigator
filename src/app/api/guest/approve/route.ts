@@ -1,12 +1,12 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { approvePendingGuest, getPendingGuest } from "@/server/pending-guests";
 import {
   GUEST_PERMISSIONS,
+  type GuestPermission,
   isGuestPermission,
   signSessionToken,
-  type GuestPermission,
 } from "@/platform/lan/lan-common";
+import { approvePendingGuest, getPendingGuest } from "@/server/pending-guests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

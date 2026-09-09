@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { useMoudirChatStore, type ActiveFilter, type ChatMessage } from "@/features/data-formulator/store/moudir-chat-store";
 import { generateExecutivePresentation } from "@/features/data-formulator/core/presentation/deck-generator";
+import {
+  type ActiveFilter,
+  type ChatMessage,
+  useMoudirChatStore,
+} from "@/features/data-formulator/store/moudir-chat-store";
 
 // Marp Core is used natively for presentation generation
 

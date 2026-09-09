@@ -1,13 +1,11 @@
 {
-  "extends": [
-    "@tsconfig/next/tsconfig.json"
-  ],
+  "extends": ["@tsconfig/next/tsconfig.json"],
   "compilerOptions": {
     "strict": true,
     "noUncheckedIndexedAccess": false,
     "exactOptionalPropertyTypes": false,
-    "target": "ES2020",       // keep — bases don't set one
-    "jsx": "react-jsx",       // keep, or switch to "preserve" to match Next's own default — functionally equivalent here since noEmit is on
+    "target": "ES2020", // keep — bases don't set one
+    "jsx": "react-jsx", // keep, or switch to "preserve" to match Next's own default — functionally equivalent here since noEmit is on
     "plugins": [{ "name": "next" }],
     "paths": {
       "@/*": ["./src/*"]

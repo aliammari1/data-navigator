@@ -38,14 +38,7 @@ const PYODIDE_VERSION = "0.26.4";
 // Top-level packages the app's Python actually imports. Transitive deps are
 // resolved from pyodide-lock.json, so only the leaves are listed here.
 // (numpy/pandas/micropip are also loaded unconditionally by the worker.)
-const TARGET_PACKAGES = [
-  "numpy",
-  "pandas",
-  "scipy",
-  "scikit-learn",
-  "statsmodels",
-  "micropip",
-];
+const TARGET_PACKAGES = ["numpy", "pandas", "scipy", "scikit-learn", "statsmodels", "micropip"];
 
 // Runtime files that are NOT in pyodide-lock.json's package map but are required
 // for `importScripts(pyodide.js)` + `loadPyodide({indexURL})` to boot offline.

@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { AnomalyDetectorPanel } from "@/features/telecom/components/anomaly-detector-panel";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 /**
  * The default column mapping used across the telecom feature — column names map

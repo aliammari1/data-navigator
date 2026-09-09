@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock @/platform/viz before importing the target so coverage is exercised
@@ -38,9 +38,9 @@ vi.mock("lucide-react", () => ({
 // Now import the real target module
 // ---------------------------------------------------------------------------
 import {
-  exportCatalogXlsx,
-  exportCatalogPdf,
   type CatalogExportInput,
+  exportCatalogPdf,
+  exportCatalogXlsx,
 } from "@/features/folders/lib/catalogExport";
 import type { FSNode } from "@/features/folders/types";
 
@@ -143,7 +143,10 @@ describe("exportCatalogXlsx", () => {
     const input = makeInput({
       totalSize: 1024,
       totalRows: 50,
-      folderNameById: new Map([["x", "Foo"], ["y", "Bar"]]),
+      folderNameById: new Map([
+        ["x", "Foo"],
+        ["y", "Bar"],
+      ]),
     });
 
     // Act
@@ -189,14 +192,14 @@ describe("exportCatalogXlsx", () => {
     const row = doc.sections[1].rows[0];
 
     // Assert
-    expect(row[0]).toBe("Sales.csv");       // name
-    expect(row[1]).toBe("csv");             // type
-    expect(row[2]).toBe("(root)");          // folder (null parentId → root)
-    expect(row[3]).toBe(42);               // rowCount
-    expect(row[4]).toBe(7);               // colCount
-    expect(row[5]).toBe("1.0 KB");         // size formatted
-    expect(row[6]).toBe("88%");            // quality rounded to percent
-    expect(row[7]).toBe("finance, q1");    // tags joined
+    expect(row[0]).toBe("Sales.csv"); // name
+    expect(row[1]).toBe("csv"); // type
+    expect(row[2]).toBe("(root)"); // folder (null parentId → root)
+    expect(row[3]).toBe(42); // rowCount
+    expect(row[4]).toBe(7); // colCount
+    expect(row[5]).toBe("1.0 KB"); // size formatted
+    expect(row[6]).toBe("88%"); // quality rounded to percent
+    expect(row[7]).toBe("finance, q1"); // tags joined
   });
 
   it("uses folder name from folderNameById when parentId is a real folder", async () => {

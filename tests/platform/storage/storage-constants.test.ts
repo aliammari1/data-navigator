@@ -1,8 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  DUCKDB_PARQUET_SUFFIX,
   ANALYTICS_CACHE_DB,
   AUTH_DB_FILE,
+  DUCKDB_PARQUET_SUFFIX,
 } from "@/platform/storage/storage-constants";
 
 describe("storage-constants", () => {

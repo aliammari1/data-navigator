@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { FilterState } from "@/features/telecom/types";
 import { FilterBar } from "@/features/telecom/components/filter-bar";
+import type { FilterState } from "@/features/telecom/types";
 
 const emptyFilters: FilterState = {
   status: "",

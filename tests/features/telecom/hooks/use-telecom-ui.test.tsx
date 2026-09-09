@@ -184,10 +184,7 @@ describe("useTelecomUI — mount hydration", () => {
   });
 
   it("keeps the DEFAULT_STATUS_MAPPINGS when the persisted statusMapping is an empty array", () => {
-    localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ state: { statusMapping: [] }, version: 0 }),
-    );
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({ state: { statusMapping: [] }, version: 0 }));
 
     const { result } = renderTelecomUI();
 

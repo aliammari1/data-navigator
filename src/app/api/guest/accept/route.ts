@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
-import { getPendingGuest } from "@/server/pending-guests";
 import { verifySessionToken } from "@/platform/lan/lan-common";
+import { getPendingGuest } from "@/server/pending-guests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -10,9 +10,7 @@ const GUEST_COOKIE = "dn_guest_session";
 const ACCEPT_ONE_TIME_HEADER = "dn-accept-once";
 
 export async function POST(request: Request) {
-  const body = (await request.json().catch(() => null)) as
-    | { pendingId?: unknown }
-    | null;
+  const body = (await request.json().catch(() => null)) as { pendingId?: unknown } | null;
   if (!body || typeof body.pendingId !== "string") {
     return NextResponse.json({ error: "invalid body" }, { status: 400 });
   }

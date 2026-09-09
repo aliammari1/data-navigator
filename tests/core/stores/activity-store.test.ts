@@ -273,9 +273,16 @@ describe("useActivityStore", () => {
     // Access the migrate function through the zustand persist API.
     // The store exposes `store.persist.getOptions()` at runtime.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const getMigrate = () => (useActivityStore as any).persist.getOptions().migrate as (persisted: unknown, version: number) => { events: unknown[] };
+    const getMigrate = () =>
+      (useActivityStore as any).persist.getOptions().migrate as (
+        persisted: unknown,
+        version: number,
+      ) => { events: unknown[] };
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const getPartialize = () => (useActivityStore as any).persist.getOptions().partialize as (s: { events: unknown[] }) => { events: unknown[] };
+    const getPartialize = () =>
+      (useActivityStore as any).persist.getOptions().partialize as (s: { events: unknown[] }) => {
+        events: unknown[];
+      };
 
     it("migrate: returns empty events array when persisted is null", () => {
       const migrate = getMigrate();
@@ -305,7 +312,12 @@ describe("useActivityStore", () => {
       const migrate = getMigrate();
       const input = {
         events: [
-          { id: "1", type: "dataset_uploaded", message: "ok", createdAt: "2026-01-01T00:00:00.000Z" },
+          {
+            id: "1",
+            type: "dataset_uploaded",
+            message: "ok",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
           { id: "2", type: "unknown_type", message: "bad", createdAt: "2026-01-01T00:00:00.000Z" },
           { id: "3", type: "query_run", message: "ok2", createdAt: "2026-01-01T00:00:00.000Z" },
         ],
@@ -324,7 +336,12 @@ describe("useActivityStore", () => {
         events: [
           null,
           undefined,
-          { id: "1", type: "dataset_uploaded", message: "ok", createdAt: "2026-01-01T00:00:00.000Z" },
+          {
+            id: "1",
+            type: "dataset_uploaded",
+            message: "ok",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
         ],
       };
       const result = migrate(input, 0);
@@ -356,7 +373,14 @@ describe("useActivityStore", () => {
     it("partialize: returns only the events slice of state", () => {
       const partialize = getPartialize();
       const fakeState = {
-        events: [{ id: "1", type: "query_run" as ActivityType, message: "x", createdAt: "2026-01-01T00:00:00.000Z" }],
+        events: [
+          {
+            id: "1",
+            type: "query_run" as ActivityType,
+            message: "x",
+            createdAt: "2026-01-01T00:00:00.000Z",
+          },
+        ],
         addEvent: () => {},
         clearEvents: () => {},
       };

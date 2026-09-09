@@ -539,11 +539,24 @@ export function OsLogin() {
               </div>
 
               {/* Single user notice & shortcut tip */}
-              <div className="mt-5 space-y-1.5 text-center text-[12px]" style={{ color: T.textMuted }}>
+              <div
+                className="mt-5 space-y-1.5 text-center text-[12px]"
+                style={{ color: T.textMuted }}
+              >
                 <div>Single-user desktop workspace · Guests connect via LAN</div>
                 <div className="flex items-center justify-center gap-1.5 text-[11px] opacity-75">
                   <Lock className="size-3" />
-                  <span>Tip: Press <kbd className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px] border border-border/40">⌘L</kbd> / <kbd className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px] border border-border/40">Ctrl+L</kbd> anytime to lock</span>
+                  <span>
+                    Tip: Press{" "}
+                    <kbd className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px] border border-border/40">
+                      ⌘L
+                    </kbd>{" "}
+                    /{" "}
+                    <kbd className="rounded bg-muted/60 px-1 py-0.5 font-mono text-[10px] border border-border/40">
+                      Ctrl+L
+                    </kbd>{" "}
+                    anytime to lock
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -704,7 +717,9 @@ export function OsLogin() {
                                       filled
                                         ? undefined
                                         : {
-                                            background: isDark ? "rgba(255,255,255,0.07)" : "#e0e5ef",
+                                            background: isDark
+                                              ? "rgba(255,255,255,0.07)"
+                                              : "#e0e5ef",
                                           }
                                     }
                                   />
@@ -785,7 +800,11 @@ export function OsLogin() {
                         className="absolute right-3.5 top-1/2 -translate-y-1/2"
                         style={{ color: T.textMuted, opacity: 0.9 }}
                       >
-                        {sShowConfirmPw ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        {sShowConfirmPw ? (
+                          <EyeOff className="size-4" />
+                        ) : (
+                          <Eye className="size-4" />
+                        )}
                       </button>
                     </div>
 
@@ -823,13 +842,17 @@ export function OsLogin() {
                     className="rounded-xl p-3 text-xs leading-relaxed flex gap-2.5 items-start text-left"
                     style={{
                       background: isDark ? "rgba(245, 158, 11, 0.08)" : "rgba(245, 158, 11, 0.08)",
-                      border: isDark ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(245, 158, 11, 0.25)",
+                      border: isDark
+                        ? "1px solid rgba(245, 158, 11, 0.2)"
+                        : "1px solid rgba(245, 158, 11, 0.25)",
                       color: isDark ? "#fbbf24" : "#b45309",
                     }}
                   >
                     <ShieldAlert className="size-4 shrink-0 mt-0.5 text-amber-500" />
                     <span>
-                      <strong>Offline Security:</strong> Credentials and data are stored 100% locally. Lost passwords cannot be recovered via email. Please record your password safely.
+                      <strong>Offline Security:</strong> Credentials and data are stored 100%
+                      locally. Lost passwords cannot be recovered via email. Please record your
+                      password safely.
                     </span>
                   </div>
 

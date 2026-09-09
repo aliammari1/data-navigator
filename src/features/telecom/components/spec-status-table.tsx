@@ -8,19 +8,19 @@ import type { SpecStatusResult } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 
 const STATUS_COLOR: Record<string, string> = {
-  "Réussie":                "text-emerald-600 dark:text-emerald-400",
-  "Annulation":             "text-sky-600 dark:text-sky-400",
-  "Instance (Hold + Doubt)":"text-orange-600 dark:text-orange-400",
-  "Échec":                  "text-red-600 dark:text-red-400",
-  "Confirmé":               "text-blue-600 dark:text-blue-400",
+  Réussie: "text-emerald-600 dark:text-emerald-400",
+  Annulation: "text-sky-600 dark:text-sky-400",
+  "Instance (Hold + Doubt)": "text-orange-600 dark:text-orange-400",
+  Échec: "text-red-600 dark:text-red-400",
+  Confirmé: "text-blue-600 dark:text-blue-400",
 };
 
 const STATUS_DOT: Record<string, string> = {
-  "Réussie":                "bg-emerald-500",
-  "Annulation":             "bg-sky-500",
-  "Instance (Hold + Doubt)":"bg-orange-500",
-  "Échec":                  "bg-red-500",
-  "Confirmé":               "bg-blue-500",
+  Réussie: "bg-emerald-500",
+  Annulation: "bg-sky-500",
+  "Instance (Hold + Doubt)": "bg-orange-500",
+  Échec: "bg-red-500",
+  Confirmé: "bg-blue-500",
 };
 
 export function SpecStatusTable({
@@ -84,9 +84,12 @@ export function SpecStatusTable({
         <tbody>
           {rows.map((row) => {
             const textColor = STATUS_COLOR[row.status] ?? "text-foreground";
-            const dotColor  = STATUS_DOT[row.status]  ?? "bg-muted-foreground";
+            const dotColor = STATUS_DOT[row.status] ?? "bg-muted-foreground";
             return (
-              <tr key={row.status} className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors">
+              <tr
+                key={row.status}
+                className="border-b border-border last:border-0 hover:bg-muted/20 transition-colors"
+              >
                 <td className={cn("px-3 py-2.5 font-medium flex items-center gap-2", textColor)}>
                   <span className={cn("inline-block w-2 h-2 rounded-full flex-none", dotColor)} />
                   {row.status}

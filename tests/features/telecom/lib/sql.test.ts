@@ -1,17 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
-import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import {
   BUILTIN_STATUS_CODES,
-  SEMANTIC_TO_CATEGORY,
   canalCaseExpr,
   canalWhere,
   colExpr,
   hourExpr,
   normalizeStatusCode,
   qc,
+  SEMANTIC_TO_CATEGORY,
   sqlLiteral,
   statusNorm,
 } from "@/features/telecom/lib/sql";
+import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, ColumnMapping, StatusMapping } from "@/features/telecom/types";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -392,7 +392,7 @@ describe("statusNorm — SQL CASE expression for status normalisation", () => {
     // The whitespace code should not appear as a WHEN literal
     expect(sql).toContain("'REALCODE'");
     // Whitespace-trimmed code should not produce a literal
-    expect(sql).not.toMatch(/'   '/);
+    expect(sql).not.toMatch(/' {3}'/);
   });
 
   it("produces an IN() clause for builtin codes missing from the configured mapping", () => {

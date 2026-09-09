@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
-
-import type { AIInsight } from "@/features/telecom/types";
 import { AIInsightsPanel } from "@/features/telecom/components/ai-insights-panel";
+import type { AIInsight } from "@/features/telecom/types";
 
 const insights: AIInsight[] = [
   {

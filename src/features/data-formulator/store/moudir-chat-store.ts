@@ -52,7 +52,9 @@
  */
 
 import { create } from "zustand";
-
+import type { AttachmentData } from "@/components/ai-elements/attachments";
+import { basenameModel } from "@/components/moudir-chat/utils";
+import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 import {
   appendMessageRemote,
   type ChatMessageRow,
@@ -65,8 +67,6 @@ import {
   renameConversationRemote,
   setConversationModelRemote,
 } from "@/platform/chat/chat-history-client";
-import { basenameModel } from "@/components/moudir-chat/utils";
-import type { AttachmentData } from "@/components/ai-elements/attachments";
 import {
   ChatModelUnavailableError,
   type ChatSessionRole,
@@ -78,7 +78,6 @@ import {
   suggestChatFollowUps,
 } from "@/platform/chat/chat-session-client";
 import { getAppSettingRemote } from "@/platform/settings/settings-client";
-import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 
 /* ── Message model ────────────────────────────────────────────────────────── */
 
@@ -221,28 +220,28 @@ export function estimateUsedTokens(messages: ChatMessage[], systemPromptLength =
  * dragging the message model along.
  */
 export type MoudirArtifact =
-    | {
-  kind: "chart";
-  title: string;
-  chartType: string;
-  x: string;
-  y: string;
-  aggregate: string;
-  datasetId: string | null;
-  confidence?: number;
-  rows?: Record<string, unknown>[];
-}
-    | { kind: "sql"; title: string; query: string; dataset: string | null }
-    | { kind: "table"; title: string; columns: string[]; rows: unknown[][]; truncatedAt?: number }
-    | { kind: "metric"; title: string; value: string; delta?: string; basis: string }
-    | {
-  kind: "clarification";
-  title: string;
-  question: string;
-  options: string[];
-  answer?: string;
-  multiSelect?: boolean;
-};
+  | {
+      kind: "chart";
+      title: string;
+      chartType: string;
+      x: string;
+      y: string;
+      aggregate: string;
+      datasetId: string | null;
+      confidence?: number;
+      rows?: Record<string, unknown>[];
+    }
+  | { kind: "sql"; title: string; query: string; dataset: string | null }
+  | { kind: "table"; title: string; columns: string[]; rows: unknown[][]; truncatedAt?: number }
+  | { kind: "metric"; title: string; value: string; delta?: string; basis: string }
+  | {
+      kind: "clarification";
+      title: string;
+      question: string;
+      options: string[];
+      answer?: string;
+      multiSelect?: boolean;
+    };
 
 /** Promotes a tool/clarification part to a MoudirArtifact. */
 export function artifactFromPart(part: MessagePart): MoudirArtifact | null {
@@ -365,19 +364,19 @@ const SEARCH_DEBOUNCE_MS = 180;
  * delivered the user-customized prompt.
  */
 const DEFAULT_SYSTEM_PROMPT =
-    "Tu es Moudir, un analyste de données francophone. Tu aides l'utilisateur à explorer, profiler et visualiser ses données tabulaires. Sois concis, factuel, et propose des visualisations pertinentes quand c'est utile.\n\n" +
-    "Pour toute visualisation de données (même synthétiques), tu DOIS appeler la fonction make_chart(chart_type, x, y, aggregate, title, data). N'écris JAMAIS 'le graphique est prêt à être affiché' ni un tableau seul en prétendant que c'est un graphique sans appeler make_chart.\n\n" +
-    "Quand un calcul ou une manipulation de données est utile, émets un bloc de code exécutable :\n" +
-    "  ```js-run\n<code>\n```  pour JavaScript (toujours disponible, sandboxed iframe)\n" +
-    "  ```python-run\n<code>\n```  pour Python (Pyodide, opt-in côté utilisateur)\n" +
-    "Le bloc sera rendu comme une carte avec un bouton Run. N'invente jamais de code sans ce préfixe.\n\n" +
-    "Si une demande est ambiguë (colonne, période, ou jeu de données manquant), n'invente pas : appelle l'outil request_clarification avec une question courte et 2 à 4 options.\n\n" +
-    "Chaque fois qu'une réponse s'appuie sur des données, ajoute une section 'Sources' en fin de message listant chaque source (table, dataset, colonne, ou requête SQL) consultée. Le format est :\n" +
-    "  [table] nom_de_la_table\n" +
-    "  [dataset] nom_du_dataset\n" +
-    "  [column] nom_colonne (table)\n" +
-    "  [query] SELECT ...\n" +
-    "Une ligne par source, pas de markdown décoratif. Ces sources sont la provenance — l'utilisateur s'en sert pour vérifier tes affirmations.";
+  "Tu es Moudir, un analyste de données francophone. Tu aides l'utilisateur à explorer, profiler et visualiser ses données tabulaires. Sois concis, factuel, et propose des visualisations pertinentes quand c'est utile.\n\n" +
+  "Pour toute visualisation de données (même synthétiques), tu DOIS appeler la fonction make_chart(chart_type, x, y, aggregate, title, data). N'écris JAMAIS 'le graphique est prêt à être affiché' ni un tableau seul en prétendant que c'est un graphique sans appeler make_chart.\n\n" +
+  "Quand un calcul ou une manipulation de données est utile, émets un bloc de code exécutable :\n" +
+  "  ```js-run\n<code>\n```  pour JavaScript (toujours disponible, sandboxed iframe)\n" +
+  "  ```python-run\n<code>\n```  pour Python (Pyodide, opt-in côté utilisateur)\n" +
+  "Le bloc sera rendu comme une carte avec un bouton Run. N'invente jamais de code sans ce préfixe.\n\n" +
+  "Si une demande est ambiguë (colonne, période, ou jeu de données manquant), n'invente pas : appelle l'outil request_clarification avec une question courte et 2 à 4 options.\n\n" +
+  "Chaque fois qu'une réponse s'appuie sur des données, ajoute une section 'Sources' en fin de message listant chaque source (table, dataset, colonne, ou requête SQL) consultée. Le format est :\n" +
+  "  [table] nom_de_la_table\n" +
+  "  [dataset] nom_du_dataset\n" +
+  "  [column] nom_colonne (table)\n" +
+  "  [query] SELECT ...\n" +
+  "Une ligne par source, pas de markdown décoratif. Ces sources sont la provenance — l'utilisateur s'en sert pour vérifier tes affirmations.";
 
 let cachedSystemPrompt: string | null = null;
 
@@ -388,9 +387,9 @@ let cachedSystemPrompt: string | null = null;
 export async function loadMoudirSystemPrompt(): Promise<string> {
   const setting = await getAppSettingRemote<string>(SYSTEM_PROMPT_NS, SYSTEM_PROMPT_KEY);
   cachedSystemPrompt =
-      typeof setting.value === "string" && setting.value.trim().length > 0
-          ? setting.value
-          : DEFAULT_SYSTEM_PROMPT;
+    typeof setting.value === "string" && setting.value.trim().length > 0
+      ? setting.value
+      : DEFAULT_SYSTEM_PROMPT;
   return cachedSystemPrompt;
 }
 
@@ -515,8 +514,7 @@ function estimateMetrics(chars: number, firstTokenMs: number, durationMs: number
   };
 }
 
-const now = () =>
-    typeof performance !== "undefined" ? performance.now() : Date.now();
+const now = () => (typeof performance !== "undefined" ? performance.now() : Date.now());
 
 /** The abort-safe controller for the in-flight turn. Module scope (not serializable). */
 let activeChatController: AbortController | null = null;
@@ -528,13 +526,13 @@ let searchTimer: ReturnType<typeof setTimeout> | null = null;
 export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
   /** Drive one assistant turn: stream tokens/tools, persist both messages. */
   async function runTurn(
-      conversationId: string,
-      userText: string,
-      ctx?: {
-        datasetId?: string | null;
-        model?: string | null;
-        attachments?: AttachmentData[];
-      },
+    conversationId: string,
+    userText: string,
+    ctx?: {
+      datasetId?: string | null;
+      model?: string | null;
+      attachments?: AttachmentData[];
+    },
   ): Promise<void> {
     const datasetId = ctx?.datasetId ?? null;
     const attachments =
@@ -572,9 +570,9 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     activeChatController = controller;
 
     const patchAssistant = (patch: Partial<ChatMessage>) =>
-        set((s) => ({
-          messages: s.messages.map((m) => (m.id === assistantMsg.id ? { ...m, ...patch } : m)),
-        }));
+      set((s) => ({
+        messages: s.messages.map((m) => (m.id === assistantMsg.id ? { ...m, ...patch } : m)),
+      }));
 
     let streamed = "";
     const collectedParts: MessagePart[] = [];
@@ -600,8 +598,8 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
         modelFile,
         systemPrompt: getMoudirSystemPrompt(),
         history: get()
-            .messages.filter((m) => m.id !== assistantMsg.id && m.id !== userMsg.id)
-            .map((m) => ({ role: m.role, content: m.content })),
+          .messages.filter((m) => m.id !== assistantMsg.id && m.id !== userMsg.id)
+          .map((m) => ({ role: m.role, content: m.content })),
       });
       const activeModel = openResult?.model;
 
@@ -652,18 +650,17 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
             patchAssistant({ parts: [...collectedParts] });
             return;
           }
-          const part: MessagePart =
-              chartPartFrom(event, datasetId) ??
-              clarificationPartFrom(event) ?? {
-                kind: "tool",
-                name: event.name,
-                params: event.params,
-                resultSummary: event.resultSummary,
-                durationMs: event.durationMs,
-                failed: event.failed ?? event.resultSummary.startsWith("Erreur"),
-              };
+          const part: MessagePart = chartPartFrom(event, datasetId) ??
+            clarificationPartFrom(event) ?? {
+              kind: "tool",
+              name: event.name,
+              params: event.params,
+              resultSummary: event.resultSummary,
+              durationMs: event.durationMs,
+              failed: event.failed ?? event.resultSummary.startsWith("Erreur"),
+            };
           const pendingIdx = collectedParts.findIndex(
-              (p) => p.kind === "tool" && p.name === event.name && p.resultSummary === "",
+            (p) => p.kind === "tool" && p.name === event.name && p.resultSummary === "",
           );
           if (pendingIdx >= 0) collectedParts[pendingIdx] = part;
           else collectedParts.push(part);
@@ -674,9 +671,9 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       const { content: finalContent, citations } = parseCitations(result.text || streamed);
       const finalParts = [...collectedParts, ...citations];
       const metrics = estimateMetrics(
-          finalContent.length,
-          (firstTokenAt ?? startedAt) - startedAt,
-          now() - startedAt,
+        finalContent.length,
+        (firstTokenAt ?? startedAt) - startedAt,
+        now() - startedAt,
       );
 
       patchAssistant({
@@ -729,15 +726,15 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     } catch (error) {
       if (error instanceof ChatModelUnavailableError) {
         useModelRequiredDialogStore
-            .getState()
-            .show(
-                "Moudir needs a downloaded AI model. Pick one in the dialog below and click Download.",
-            );
+          .getState()
+          .show(
+            "Moudir needs a downloaded AI model. Pick one in the dialog below and click Download.",
+          );
         patchAssistant({
           status: "error",
           content: streamed,
           error:
-              "Modèle requis — télécharge un modèle depuis la boîte de dialogue pour envoyer un message.",
+            "Modèle requis — télécharge un modèle depuis la boîte de dialogue pour envoyer un message.",
         });
         settledAsError = true;
         return;
@@ -772,14 +769,14 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
    * the KV cache can't keep answering from the tail we just removed.
    */
   async function forkAndRun(
-      conversationId: string,
-      messages: ChatMessage[],
-      prompt: string,
-      ctx?: {
-        datasetId?: string | null;
-        model?: string | null;
-        attachments?: AttachmentData[];
-      },
+    conversationId: string,
+    messages: ChatMessage[],
+    prompt: string,
+    ctx?: {
+      datasetId?: string | null;
+      model?: string | null;
+      attachments?: AttachmentData[];
+    },
   ): Promise<void> {
     set({ messages, followUps: [], canvasArtifact: null });
     await disposeChatSession(conversationId).catch(() => {
@@ -860,8 +857,9 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       set({ messages, loadingConversation: false });
 
       const chatHistory = rows
-        .filter((r): r is typeof r & { role: ChatSessionRole } =>
-          r.role === "user" || r.role === "assistant" || r.role === "tool",
+        .filter(
+          (r): r is typeof r & { role: ChatSessionRole } =>
+            r.role === "user" || r.role === "assistant" || r.role === "tool",
         )
         .map((r) => ({
           role: r.role,
@@ -886,18 +884,18 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
           if (resolved && resolved !== pinnedModel) void get().setModel(id, resolved);
         })
         .catch((error: unknown) => {
-        if (error instanceof ChatModelUnavailableError) {
-          useModelRequiredDialogStore
+          if (error instanceof ChatModelUnavailableError) {
+            useModelRequiredDialogStore
               .getState()
               .show(
-                  "Moudir needs a downloaded AI model. Pick one in the dialog below and click Download.",
+                "Moudir needs a downloaded AI model. Pick one in the dialog below and click Download.",
               );
-          return;
-        }
-        if (typeof console !== "undefined") {
-          console.error("[moudir] openChatSession rehydration failed:", error);
-        }
-      });
+            return;
+          }
+          if (typeof console !== "undefined") {
+            console.error("[moudir] openChatSession rehydration failed:", error);
+          }
+        });
     },
 
     async send(text, ctx) {
@@ -947,7 +945,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       // being replaced, then carry it onto the retry.
       const replaced = messages.slice(lastUserIdx + 1).find((m) => m.role === "assistant");
       const previousContent =
-          replaced && replaced.content.trim().length > 0 ? replaced.content : undefined;
+        replaced && replaced.content.trim().length > 0 ? replaced.content : undefined;
 
       set({ messages: messages.slice(0, lastUserIdx) });
       await disposeChatSession(activeId).catch(() => {});
@@ -962,7 +960,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
           if (!lastAssistant) return s;
           return {
             messages: s.messages.map((m) =>
-                m.id === lastAssistant.id ? { ...m, previousContent } : m,
+              m.id === lastAssistant.id ? { ...m, previousContent } : m,
             ),
           };
         });
@@ -992,14 +990,14 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
 
       set((s) => ({
         messages: s.messages.map((m) =>
-            m.id !== messageId
-                ? m
-                : {
-                  ...m,
-                  parts: m.parts.map((p) =>
-                      p.kind === "clarification" && p.question === question ? { ...p, answer } : p,
-                  ),
-                },
+          m.id !== messageId
+            ? m
+            : {
+                ...m,
+                parts: m.parts.map((p) =>
+                  p.kind === "clarification" && p.question === question ? { ...p, answer } : p,
+                ),
+              },
         ),
       }));
 
@@ -1076,9 +1074,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
 
         const queries = olderMessages
           .flatMap((m) =>
-            m.parts.filter(
-              (p): p is ToolPart => p.kind === "tool" && p.name === "run_sql",
-            ),
+            m.parts.filter((p): p is ToolPart => p.kind === "tool" && p.name === "run_sql"),
           )
           .map((t) => {
             const q =
@@ -1096,8 +1092,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
         );
         if (queries.length > 0) {
           summaryPoints.push(
-            "**Requêtes exécutées dans l'historique :**\n" +
-              queries.slice(-5).join("\n"),
+            "**Requêtes exécutées dans l'historique :**\n" + queries.slice(-5).join("\n"),
           );
         }
         summaryPoints.push(
@@ -1133,7 +1128,9 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
           history: chatHistory,
         });
 
-        get().notify("Mémoire du modèle compactée : historique condensé pour préserver le contexte.");
+        get().notify(
+          "Mémoire du modèle compactée : historique condensé pour préserver le contexte.",
+        );
       } catch {
         get().notify("Échec du compactage de la mémoire.");
       } finally {

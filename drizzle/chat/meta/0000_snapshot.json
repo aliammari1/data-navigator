@@ -63,10 +63,7 @@
       "indexes": {
         "moudir_conversation_updated_idx": {
           "name": "moudir_conversation_updated_idx",
-          "columns": [
-            "pinned",
-            "updated_at"
-          ],
+          "columns": ["pinned", "updated_at"],
           "isUnique": false
         }
       },
@@ -125,10 +122,7 @@
       "indexes": {
         "moudir_message_conversation_idx": {
           "name": "moudir_message_conversation_idx",
-          "columns": [
-            "conversation_id",
-            "id"
-          ],
+          "columns": ["conversation_id", "id"],
           "isUnique": false
         }
       },

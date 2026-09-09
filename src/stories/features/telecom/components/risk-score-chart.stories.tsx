@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { CreditCard, Phone, Wifi } from "lucide-react";
-
-import type { CanalSummary } from "@/features/telecom/types";
 import { RiskScoreChart } from "@/features/telecom/components/risk-score-chart";
+import type { CanalSummary } from "@/features/telecom/types";
 
 const canals: CanalSummary[] = [
   {

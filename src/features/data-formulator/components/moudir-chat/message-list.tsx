@@ -28,11 +28,10 @@ import {
   ConversationContent,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
+import { basenameModel, humanizeModel } from "@/components/moudir-chat/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/utils";
-
-import { basenameModel, humanizeModel } from "@/components/moudir-chat/utils";
 import { useMoudirChatStore } from "../../store/moudir-chat-store";
 import { MoudirMark } from "../moudir/moudir-kit";
 import { MoudirMessageBubble } from "./message-bubble";
@@ -114,7 +113,8 @@ function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
           Que souhaitez-vous explorer ?
         </h2>
         <p className="max-w-md text-sm text-muted-foreground leading-relaxed">
-          Posez une question sur vos données, demandez une analyse SQL DuckDB ou générez une visualisation interactive.
+          Posez une question sur vos données, demandez une analyse SQL DuckDB ou générez une
+          visualisation interactive.
         </p>
       </div>
 
@@ -163,12 +163,8 @@ function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
 
 function MessageThread() {
   const messages = useMoudirChatStore((s) => s.messages);
-  const pendingScrollToMessageId = useMoudirChatStore(
-    (s) => s.pendingScrollToMessageId
-  );
-  const consumePendingScroll = useMoudirChatStore(
-    (s) => s.consumePendingScroll
-  );
+  const pendingScrollToMessageId = useMoudirChatStore((s) => s.pendingScrollToMessageId);
+  const consumePendingScroll = useMoudirChatStore((s) => s.consumePendingScroll);
 
   const [highlightedId, setHighlightedId] = useState<string | null>(null);
   const highlightTimer = useRef<number | null>(null);
@@ -180,7 +176,7 @@ function MessageThread() {
         if (el) itemRefs.current.set(id, el);
         else itemRefs.current.delete(id);
       },
-    []
+    [],
   );
 
   // Single owner of "jump to this message": the store flag set by the screen.
@@ -190,9 +186,7 @@ function MessageThread() {
     const targetId = String(pendingScrollToMessageId);
     // Wait one frame so a freshly opened conversation has its items mounted.
     const frame = requestAnimationFrame(() => {
-      itemRefs.current
-        .get(targetId)
-        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      itemRefs.current.get(targetId)?.scrollIntoView({ behavior: "smooth", block: "center" });
     });
 
     setHighlightedId(targetId);
@@ -209,7 +203,7 @@ function MessageThread() {
     () => () => {
       if (highlightTimer.current) window.clearTimeout(highlightTimer.current);
     },
-    []
+    [],
   );
 
   const lastAssistantId = useMemo(() => {
@@ -241,7 +235,7 @@ function MessageThread() {
           <div
             className={cn(
               "rounded-lg transition-colors",
-              highlightedId === id && "bg-ai/10 ring-1 ring-ai/30"
+              highlightedId === id && "bg-ai/10 ring-1 ring-ai/30",
             )}
             key={message.id}
             ref={registerItem(id)}

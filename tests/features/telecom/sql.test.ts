@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import {
   canalCaseExpr,
   canalWhere,
@@ -10,6 +9,7 @@ import {
   sqlLiteral,
   statusNorm,
 } from "@/features/telecom/lib/sql";
+import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, ColumnMapping, StatusMapping } from "@/features/telecom/types";
 
 // A minimal column mapping; only the fields each helper reads matter.

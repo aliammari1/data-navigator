@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { RawStatusRow, StatusMapping } from "@/features/telecom/types";
 import { StatusConfigPanel } from "@/features/telecom/components/status-config-panel";
+import type { RawStatusRow, StatusMapping } from "@/features/telecom/types";
 
 const rawStatuses: RawStatusRow[] = [
   { rawCode: "00", count: 23_874, amount: 438_210.5 },

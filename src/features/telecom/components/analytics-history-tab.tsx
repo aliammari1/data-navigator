@@ -2,8 +2,8 @@
 
 import { Database, FolderClock } from "lucide-react";
 import { memo } from "react";
-import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
+import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 
 export const AnalyticsHistoryTab = memo(function AnalyticsHistoryTab({
   entries,

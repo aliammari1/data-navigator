@@ -28,10 +28,7 @@
   "editor.insertSpaces": true,
   "editor.wordWrap": "on",
   "editor.wordWrapColumn": 110,
-  "editor.rulers": [
-    100,
-    120
-  ],
+  "editor.rulers": [100, 120],
   "editor.renderWhitespace": "selection",
   "editor.renderControlCharacters": false,
   "editor.guides.indentation": true,
@@ -144,30 +141,12 @@
     "typescript": "javascript",
     "typescriptreact": "javascript"
   },
-  "tailwindCSS.classAttributes": [
-    "class",
-    "className",
-    "ngClass",
-    ".*ClassName",
-    ".*Classes"
-  ],
+  "tailwindCSS.classAttributes": ["class", "className", "ngClass", ".*ClassName", ".*Classes"],
   "tailwindCSS.experimental.classRegex": [
-    [
-      "cn\\(([^)]*)\\)",
-      "[\"'`]([^\"'`]*).*?[\"'`]"
-    ],
-    [
-      "clsx\\(([^)]*)\\)",
-      "[\"'`]([^\"'`]*).*?[\"'`]"
-    ],
-    [
-      "cva\\(([^)]*)\\)",
-      "[\"'`]([^\"'`]*).*?[\"'`]"
-    ],
-    [
-      "tv\\(([^)]*)\\)",
-      "[\"'`]([^\"'`]*).*?[\"'`]"
-    ]
+    ["cn\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["clsx\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["cva\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["tv\\(([^)]*)\\)", "[\"'`]([^\"'`]*).*?[\"'`]"]
   ],
   // ─────────────────────────────────────────────
   // Terminal polish

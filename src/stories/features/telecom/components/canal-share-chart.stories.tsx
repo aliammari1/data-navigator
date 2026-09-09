@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { FileText, Smartphone, Tag, Wifi, Zap } from "lucide-react";
-
-import type { CanalSummary } from "@/features/telecom/types";
 import { CanalShareChart } from "@/features/telecom/components/canal-share-chart";
+import type { CanalSummary } from "@/features/telecom/types";
 
 const baseCanal: Omit<CanalSummary, "key" | "label" | "icon" | "total" | "share" | "amount"> = {
   color: "text-blue-600",

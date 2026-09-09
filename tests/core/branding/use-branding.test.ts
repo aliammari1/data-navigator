@@ -21,8 +21,8 @@
  *   - update / clearLogo happy paths
  */
 
-import { renderHook, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mocks ────────────────────────────────────────────────────────────────────
 // NOTE: vi.mock factories are hoisted by Vitest — do NOT reference top-level
@@ -90,7 +90,9 @@ describe("useBranding — initial state", () => {
     // Arrange — keep getActiveBranding pending so loaded never flips
     let resolveHydration!: (v: unknown) => void;
     mockGetActiveBranding.mockReturnValue(
-      new Promise((res) => { resolveHydration = res; }),
+      new Promise((res) => {
+        resolveHydration = res;
+      }),
     );
 
     // Act
@@ -157,7 +159,9 @@ describe("useBranding — hydration from Dexie", () => {
     // Arrange — make getActiveBranding hang indefinitely
     let resolveHydration!: (v: unknown) => void;
     mockGetActiveBranding.mockReturnValue(
-      new Promise((res) => { resolveHydration = res; }),
+      new Promise((res) => {
+        resolveHydration = res;
+      }),
     );
 
     // Act — mount then immediately unmount
@@ -201,7 +205,10 @@ describe("useBranding — update", () => {
 
     // Act — try to override the id via a patch
     act(() => {
-      result.current.update({ id: "custom-id", companyName: "Override Corp" } as Record<string, unknown>);
+      result.current.update({ id: "custom-id", companyName: "Override Corp" } as Record<
+        string,
+        unknown
+      >);
     });
 
     // Assert — id is always the singleton value from DEFAULT_BRANDING
@@ -250,9 +257,15 @@ describe("useBranding — update", () => {
     const callsBefore = mockPutActiveBranding.mock.calls.length;
 
     // Act — fire three updates in sequence
-    act(() => { result.current.update({ companyName: "First" }); });
-    act(() => { result.current.update({ companyName: "Second" }); });
-    act(() => { result.current.update({ companyName: "Third" }); });
+    act(() => {
+      result.current.update({ companyName: "First" });
+    });
+    act(() => {
+      result.current.update({ companyName: "Second" });
+    });
+    act(() => {
+      result.current.update({ companyName: "Third" });
+    });
 
     // Assert — three additional flush calls (one per update: DEFAULT, First, Second)
     // plus the "Third" timer is pending but was cleared by the last flush
@@ -293,7 +306,7 @@ describe("useBranding — flush on unmount", () => {
     // Assert — putActiveBranding was called (either by flush or the branding-change effect)
     // with the updated branding
     const callsWithRed = mockPutActiveBranding.mock.calls.filter(
-      (c) => (c[0] as Record<string, unknown>).primaryColor === "#ff0000"
+      (c) => (c[0] as Record<string, unknown>).primaryColor === "#ff0000",
     );
     expect(callsWithRed.length).toBeGreaterThanOrEqual(1);
   });
@@ -469,7 +482,7 @@ describe("useBranding — debounce timer callback", () => {
 
     // Assert — the setTimeout callback called putActiveBranding with the new branding
     const timerCalls = mockPutActiveBranding.mock.calls.filter(
-      (c) => (c[0] as Record<string, unknown>).companyName === "TimerFired Co"
+      (c) => (c[0] as Record<string, unknown>).companyName === "TimerFired Co",
     );
     expect(timerCalls.length).toBeGreaterThanOrEqual(1);
   });

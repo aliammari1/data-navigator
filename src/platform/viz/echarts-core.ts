@@ -11,15 +11,14 @@
  * or web-font symbol — bundle GeoJSON locally and `echarts.registerMap(...)`.
  */
 
-import * as echarts from "echarts/core";
 import {
   BarChart,
   CustomChart,
   HeatmapChart,
   LineChart,
   PieChart,
-  ScatterChart,
   SankeyChart,
+  ScatterChart,
   SunburstChart,
 } from "echarts/charts";
 import {
@@ -32,6 +31,7 @@ import {
   TooltipComponent,
   VisualMapComponent,
 } from "echarts/components";
+import * as echarts from "echarts/core";
 import { CanvasRenderer, SVGRenderer } from "echarts/renderers";
 
 echarts.use([
@@ -55,7 +55,7 @@ echarts.use([
   SVGRenderer,
 ]);
 
-export { echarts };
-export type { ECharts } from "echarts/core";
 // Type-only import of the full package is erased at build time — safe.
 export type { EChartsOption } from "echarts";
+export type { ECharts } from "echarts/core";
+export { echarts };

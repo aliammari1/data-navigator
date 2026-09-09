@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import {
-  type ChartTheme,
   buildCanalHeatmapOption,
   buildCanalShareOption,
   buildHourlyChartOption,
   buildRiskScoreOption,
   buildStatusDonutOption,
   buildSuccessRateTrendOption,
+  type ChartTheme,
   chartTheme,
   retintOption,
 } from "@/features/telecom/lib/chart-options";

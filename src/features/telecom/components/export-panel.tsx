@@ -601,8 +601,8 @@ export function ExportPanel({
       // jspdf-autotable v5 writes doc.lastAutoTable at runtime but omits it
       // from its typings; centralize the read instead of casting per table.
       const autotableEndY = (fallback: number): number =>
-        (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable
-          ?.finalY ?? fallback;
+        (doc as unknown as { lastAutoTable?: { finalY?: number } }).lastAutoTable?.finalY ??
+        fallback;
 
       // ── Header ──────────────────────────────────────────────────────────────
       doc.setFillColor(79, 70, 229); // indigo-600

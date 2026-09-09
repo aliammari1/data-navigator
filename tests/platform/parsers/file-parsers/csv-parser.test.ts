@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseCSV } from "@/platform/parsers/file-parsers/csv-parser";
 
 // ---------------------------------------------------------------------------
@@ -17,6 +17,7 @@ vi.mock("papaparse", () => {
 });
 
 import Papa from "papaparse";
+
 const mockParse = vi.mocked(Papa.parse);
 
 // ---------------------------------------------------------------------------
@@ -94,9 +95,9 @@ describe("parseCSV", () => {
   it("filters out rows where every value is an empty string but keeps partial rows", () => {
     mockParse.mockReturnValue({
       data: [
-        { col: "value" },   // kept: has a non-empty value
-        { col: "" },        // filtered: all values are ""
-        { col: "other" },   // kept
+        { col: "value" }, // kept: has a non-empty value
+        { col: "" }, // filtered: all values are ""
+        { col: "other" }, // kept
       ],
     } as ReturnType<typeof Papa.parse>);
 
@@ -128,9 +129,7 @@ describe("parseCSV", () => {
 
     const result = parseCSV("");
 
-    expect(result.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
+    expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
   it("always returns an empty string for fileId", () => {

@@ -44,10 +44,10 @@ import { expect } from "vitest";
 import { report } from "../_harness";
 import {
   type GenerationMetrics,
+  type LocalEngine,
   liveDescribe,
   liveIt,
   loadLocalEngine,
-  type LocalEngine,
 } from "../_model";
 
 /**

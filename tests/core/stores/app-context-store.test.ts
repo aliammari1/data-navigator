@@ -222,8 +222,9 @@ describe("useAppContextStore — persist.migrate", () => {
   // Extract the migrate function directly from the persist options.
   type MigrateFn = (persisted: unknown, version: number) => unknown;
   const getMigrate = () =>
-    (useAppContextStore as unknown as { persist: { getOptions: () => { migrate: MigrateFn } } })
-      .persist.getOptions().migrate;
+    (
+      useAppContextStore as unknown as { persist: { getOptions: () => { migrate: MigrateFn } } }
+    ).persist.getOptions().migrate;
 
   it("falls back to 'telecom' when persisted is null", () => {
     const result = getMigrate()(null, 0) as Record<string, unknown>;
@@ -260,34 +261,22 @@ describe("useAppContextStore — persist.migrate", () => {
   });
 
   it("falls back to 'telecom' for an unknown/invalid domain", () => {
-    const result = getMigrate()(
-      { activeDomain: "unknown-domain" },
-      0,
-    ) as Record<string, unknown>;
+    const result = getMigrate()({ activeDomain: "unknown-domain" }, 0) as Record<string, unknown>;
     expect(result.activeDomain).toBe("telecom");
   });
 
   it("falls back to 'telecom' when activeDomain is an empty string (falsy)", () => {
-    const result = getMigrate()(
-      { activeDomain: "" },
-      0,
-    ) as Record<string, unknown>;
+    const result = getMigrate()({ activeDomain: "" }, 0) as Record<string, unknown>;
     expect(result.activeDomain).toBe("telecom");
   });
 
   it("defaults activeDatasetId to null when missing from persisted state (nullish branch)", () => {
-    const result = getMigrate()(
-      { activeDomain: "general" },
-      0,
-    ) as Record<string, unknown>;
+    const result = getMigrate()({ activeDomain: "general" }, 0) as Record<string, unknown>;
     expect(result.activeDatasetId).toBeNull();
   });
 
   it("defaults activeTableName to null when missing from persisted state (nullish branch)", () => {
-    const result = getMigrate()(
-      { activeDomain: "general" },
-      0,
-    ) as Record<string, unknown>;
+    const result = getMigrate()({ activeDomain: "general" }, 0) as Record<string, unknown>;
     expect(result.activeTableName).toBeNull();
   });
 

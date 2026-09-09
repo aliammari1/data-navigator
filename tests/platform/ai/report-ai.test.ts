@@ -7,11 +7,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // mock only for tests that exercise the LLM branch.
 const generateText = vi.fn<(prompt: string, opts?: unknown) => Promise<string>>(async () => "");
 
-import {
-  askReportQuestion,
-  generateReportSummary,
-} from "@/platform/ai/report-ai";
 import type { ChannelStat, StatusSummary } from "@/platform/ai/report-ai";
+import { askReportQuestion, generateReportSummary } from "@/platform/ai/report-ai";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -180,9 +177,7 @@ describe("generateReportSummary — rule-based fallback (LLM not ready)", () => 
 
   it("does not flag channel concentration when top channel is at or below 60%", async () => {
     // Arrange: top channel has exactly 600/1000 = 60% — threshold is >60 so 60% should NOT flag
-    const channels: ChannelStat[] = [
-      { canal: "MobileApp", nombre: 600, montant: 500000 },
-    ];
+    const channels: ChannelStat[] = [{ canal: "MobileApp", nombre: 600, montant: 500000 }];
     const status = makeStatus({ total: 1000 });
 
     // Act
@@ -283,7 +278,12 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert
     expect(result.narrative).toBe("Embedded narrative.");
@@ -302,7 +302,12 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert
     expect(result.topChannels).toHaveLength(3);
@@ -320,7 +325,12 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert
     expect(result.flags).toHaveLength(3);
@@ -376,7 +386,12 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert: falls back to rule-based recommendation
     expect(typeof result.recommendation).toBe("string");
@@ -388,7 +403,12 @@ describe("generateReportSummary — LLM path", () => {
     generateText.mockResolvedValue("the model produced only prose, no JSON here");
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert: rule-based narrative contains total count
     expect(result.narrative).toContain("1,000");
@@ -406,7 +426,12 @@ describe("generateReportSummary — LLM path", () => {
     );
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert: rule-based fallback
     expect(result.narrative).toContain("1,000");
@@ -417,7 +442,12 @@ describe("generateReportSummary — LLM path", () => {
     generateText.mockResolvedValue("{broken json{{");
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert: rule-based fallback
     expect(result.narrative).toContain("1,000");
@@ -428,7 +458,12 @@ describe("generateReportSummary — LLM path", () => {
     generateText.mockRejectedValue(new Error("inference failed"));
 
     // Act
-    const result = await generateReportSummary(makeStatus(), makeChannels(), undefined, generateText);
+    const result = await generateReportSummary(
+      makeStatus(),
+      makeChannels(),
+      undefined,
+      generateText,
+    );
 
     // Assert: rule-based fallback is returned without throwing
     expect(result.narrative).toContain("1,000");
@@ -625,7 +660,7 @@ describe("askReportQuestion — LLM path", () => {
     // Arrange
     generateText.mockResolvedValue(
       JSON.stringify({
-        sql: 'SELECT 1 LIMIT 1000;',
+        sql: "SELECT 1 LIMIT 1000;",
         explanation: "Semicolon test.",
       }),
     );
@@ -650,9 +685,7 @@ describe("askReportQuestion — LLM path", () => {
 
   it("falls back to the default SELECT when JSON is missing the sql field", async () => {
     // Arrange
-    generateText.mockResolvedValue(
-      JSON.stringify({ explanation: "no sql field" }),
-    );
+    generateText.mockResolvedValue(JSON.stringify({ explanation: "no sql field" }));
 
     // Act
     const result = await askReportQuestion("q", "sales", ["id"], generateText);
@@ -717,9 +750,7 @@ describe("askReportQuestion — LLM path", () => {
 
   it("uses empty string for explanation when LLM omits the field", async () => {
     // Arrange
-    generateText.mockResolvedValue(
-      JSON.stringify({ sql: "SELECT 1 LIMIT 1000" }),
-    );
+    generateText.mockResolvedValue(JSON.stringify({ sql: "SELECT 1 LIMIT 1000" }));
 
     // Act
     const result = await askReportQuestion("q", "t", ["c"], generateText);

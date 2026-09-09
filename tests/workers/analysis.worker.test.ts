@@ -5,7 +5,7 @@
  * line counts toward coverage. Comlink.expose is mocked so the module-level
  * side-effect does not throw in jsdom.
  */
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // ── Mock Comlink so expose() is a no-op in jsdom ─────────────────────────────
 vi.mock("comlink", () => ({
@@ -63,18 +63,18 @@ vi.mock("ml-matrix", async (importOriginal) => {
 
 // ── Import real implementation AFTER mocks are set up ────────────────────────
 import {
-  kMeans,
-  dbscan,
+  anova1,
   attribution,
   correlationMatrix,
-  welchTTest,
-  anova1,
+  dbscan,
   detectAnomalies,
-  gesdAnomalies,
   ewma,
-  stlDecompose,
-  pelt,
+  gesdAnomalies,
   holtWinters,
+  kMeans,
+  pelt,
+  stlDecompose,
+  welchTTest,
 } from "@/workers/analysis.worker";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -197,7 +197,11 @@ describe("dbscan", () => {
 
   it("assigns all points to cluster 0 with a generous eps", async () => {
     // Arrange — the mock groups all into cluster 0 for eps >= 0.01
-    const data = [[0, 0], [1, 0], [0, 1]];
+    const data = [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ];
     // Act
     const result = await dbscan(data, 2, 1);
     // Assert
@@ -208,7 +212,11 @@ describe("dbscan", () => {
 
   it("marks all points as noise when eps is near zero", async () => {
     // Arrange — eps < 0.01 → mock returns empty clusters, all points as noise
-    const data = [[0, 0], [1, 0], [0, 1]];
+    const data = [
+      [0, 0],
+      [1, 0],
+      [0, 1],
+    ];
     // Act
     const result = await dbscan(data, 0.001, 5);
     // Assert
@@ -333,7 +341,10 @@ describe("correlationMatrix", () => {
 
   it("uses provided column names", async () => {
     // Arrange
-    const data = [[1, 2], [3, 4]];
+    const data = [
+      [1, 2],
+      [3, 4],
+    ];
     // Act
     const result = await correlationMatrix(data, ["alpha", "beta"]);
     // Assert
@@ -342,7 +353,10 @@ describe("correlationMatrix", () => {
 
   it("fills missing column names with col_N", async () => {
     // Arrange — only one name provided for two columns
-    const data = [[1, 2], [3, 4]];
+    const data = [
+      [1, 2],
+      [3, 4],
+    ];
     // Act
     const result = await correlationMatrix(data, ["x"]);
     // Assert
@@ -351,7 +365,11 @@ describe("correlationMatrix", () => {
 
   it("returns 1 on the diagonal for normal data", async () => {
     // Arrange
-    const data = [[1, 2], [3, 4], [5, 6]];
+    const data = [
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ];
     // Act
     const result = await correlationMatrix(data);
     // Assert
@@ -362,7 +380,12 @@ describe("correlationMatrix", () => {
 
   it("detects perfect positive correlation", async () => {
     // Arrange — col0 and col1 are identical
-    const data = [[1, 1], [2, 2], [3, 3], [4, 4]];
+    const data = [
+      [1, 1],
+      [2, 2],
+      [3, 3],
+      [4, 4],
+    ];
     // Act
     const result = await correlationMatrix(data);
     // Assert
@@ -372,7 +395,12 @@ describe("correlationMatrix", () => {
 
   it("detects perfect negative correlation", async () => {
     // Arrange — col1 decreases as col0 increases
-    const data = [[1, 4], [2, 3], [3, 2], [4, 1]];
+    const data = [
+      [1, 4],
+      [2, 3],
+      [3, 2],
+      [4, 1],
+    ];
     // Act
     const result = await correlationMatrix(data);
     // Assert
@@ -381,7 +409,12 @@ describe("correlationMatrix", () => {
 
   it("returns 0 for a constant column (zero std)", async () => {
     // Arrange — col1 is constant, denom would be 0 → correlation 0
-    const data = [[1, 5], [2, 5], [3, 5], [4, 5]];
+    const data = [
+      [1, 5],
+      [2, 5],
+      [3, 5],
+      [4, 5],
+    ];
     // Act
     const result = await correlationMatrix(data);
     // Assert
@@ -1009,7 +1042,11 @@ describe("dbscan — branch gaps", () => {
   it("handles DBSCAN engine where noise property is missing (falls back to [])", async () => {
     // Arrange — set the flag so the mock's run() deletes this.noise before returning
     _dbscanNoiseUndefined = true;
-    const data = [[0, 0], [1, 1], [2, 2]];
+    const data = [
+      [0, 0],
+      [1, 1],
+      [2, 2],
+    ];
     // Act — dbscan() does `engine.noise ?? []`, which evaluates the [] fallback
     const result = await dbscan(data, 5.0, 1);
     // Assert

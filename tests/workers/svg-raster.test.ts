@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // jsdom (this repo's vitest environment) implements neither OffscreenCanvas
 // nor createImageBitmap, so both are stubbed as globals per test — mirroring
@@ -44,7 +44,7 @@ class FakeOffscreenCanvas {
 }
 
 // ─── Import target AFTER globals are wired in beforeEach ────────────────────
-import { svgToPng, pngToDataUri, getNaturalSize } from "@/workers/svg-raster";
+import { getNaturalSize, pngToDataUri, svgToPng } from "@/workers/svg-raster";
 
 describe("svg-raster", () => {
   beforeEach(() => {

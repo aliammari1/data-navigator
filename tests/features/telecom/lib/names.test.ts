@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  TELECOM_TABLE_BASE,
   TELECOM_ANALYTICS_DB,
-  TELECOM_ANALYTICS_STORE,
-  TELECOM_SOURCE_STORE,
-  TELECOM_SOURCE_META_STORE,
   TELECOM_ANALYTICS_DB_VERSION,
+  TELECOM_ANALYTICS_STORE,
   TELECOM_META_VFS,
+  TELECOM_SOURCE_META_STORE,
+  TELECOM_SOURCE_STORE,
+  TELECOM_TABLE_BASE,
   telecomTableName,
 } from "@/features/telecom/lib/names";
 

@@ -1,7 +1,14 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { closeApp, launchApp, SHARED_PROFILE_DIR, signUp, TEST_EMAIL, TEST_PASSWORD } from "./_harness";
+import {
+  closeApp,
+  launchApp,
+  SHARED_PROFILE_DIR,
+  signUp,
+  TEST_EMAIL,
+  TEST_PASSWORD,
+} from "./_harness";
 
 /**
  * Runs ONCE before the whole suite (wired via playwright.electron-e2e.config.ts's
@@ -31,7 +38,10 @@ export default async function globalSetup(): Promise<void> {
     }
   }
 
-  const { app, window } = await launchApp({ testName: "_global-setup", userDataDir: SHARED_PROFILE_DIR });
+  const { app, window } = await launchApp({
+    testName: "_global-setup",
+    userDataDir: SHARED_PROFILE_DIR,
+  });
   try {
     await signUp(window, TEST_EMAIL, TEST_PASSWORD);
   } finally {

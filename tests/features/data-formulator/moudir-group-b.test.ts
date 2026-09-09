@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  useMoudirChatStore,
   type ChatMessage,
   type ClarificationPart,
+  useMoudirChatStore,
 } from "@/features/data-formulator/store/moudir-chat-store";
 
 describe("Group B: Clarification & Question UI Store Logic", () => {
@@ -34,18 +34,12 @@ describe("Group B: Clarification & Question UI Store Logic", () => {
 
     const runTurnSpy = vi.fn();
     // Test answerClarification behavior
-    await useMoudirChatStore
-      .getState()
-      .answerClarification(messageId, question, "date_commande");
+    await useMoudirChatStore.getState().answerClarification(messageId, question, "date_commande");
 
-    const updatedMsg = useMoudirChatStore
-      .getState()
-      .messages.find((m) => m.id === messageId);
+    const updatedMsg = useMoudirChatStore.getState().messages.find((m) => m.id === messageId);
     expect(updatedMsg).toBeDefined();
 
-    const part = updatedMsg?.parts.find(
-      (p): p is ClarificationPart => p.kind === "clarification",
-    );
+    const part = updatedMsg?.parts.find((p): p is ClarificationPart => p.kind === "clarification");
     expect(part?.answer).toBe("date_commande");
   });
 
@@ -75,16 +69,10 @@ describe("Group B: Clarification & Question UI Store Logic", () => {
       messages: [initialMessage],
     });
 
-    await useMoudirChatStore
-      .getState()
-      .answerClarification(messageId, question, customWriteIn);
+    await useMoudirChatStore.getState().answerClarification(messageId, question, customWriteIn);
 
-    const updatedMsg = useMoudirChatStore
-      .getState()
-      .messages.find((m) => m.id === messageId);
-    const part = updatedMsg?.parts.find(
-      (p): p is ClarificationPart => p.kind === "clarification",
-    );
+    const updatedMsg = useMoudirChatStore.getState().messages.find((m) => m.id === messageId);
+    const part = updatedMsg?.parts.find((p): p is ClarificationPart => p.kind === "clarification");
     expect(part?.answer).toBe(customWriteIn);
   });
 
@@ -115,16 +103,10 @@ describe("Group B: Clarification & Question UI Store Logic", () => {
       messages: [initialMessage],
     });
 
-    await useMoudirChatStore
-      .getState()
-      .answerClarification(messageId, question, multiAnswer);
+    await useMoudirChatStore.getState().answerClarification(messageId, question, multiAnswer);
 
-    const updatedMsg = useMoudirChatStore
-      .getState()
-      .messages.find((m) => m.id === messageId);
-    const part = updatedMsg?.parts.find(
-      (p): p is ClarificationPart => p.kind === "clarification",
-    );
+    const updatedMsg = useMoudirChatStore.getState().messages.find((m) => m.id === messageId);
+    const part = updatedMsg?.parts.find((p): p is ClarificationPart => p.kind === "clarification");
     expect(part?.multiSelect).toBe(true);
     expect(part?.answer).toBe("Ventes, Marge, Quantité");
   });

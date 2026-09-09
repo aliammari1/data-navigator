@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
-import { authDb } from "@/platform/auth/auth-database";
 import * as schema from "@/db/schema";
+import { authDb } from "@/platform/auth/auth-database";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";

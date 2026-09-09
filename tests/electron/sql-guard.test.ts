@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { assertSafeFilterFragment } from "../../electron/sql-guard";
 
 describe("assertSafeFilterFragment", () => {
@@ -29,26 +29,22 @@ describe("assertSafeFilterFragment", () => {
   });
 
   it("returns a fragment with IS NULL / IS NOT NULL without throwing", () => {
-    expect(assertSafeFilterFragment("deleted_at IS NULL")).toBe(
-      "deleted_at IS NULL"
-    );
-    expect(assertSafeFilterFragment("deleted_at IS NOT NULL")).toBe(
-      "deleted_at IS NOT NULL"
-    );
+    expect(assertSafeFilterFragment("deleted_at IS NULL")).toBe("deleted_at IS NULL");
+    expect(assertSafeFilterFragment("deleted_at IS NOT NULL")).toBe("deleted_at IS NOT NULL");
   });
 
   // ── Statement separator (;) ──────────────────────────────────────────────
 
   it("throws on a bare semicolon injection", () => {
     expect(() => assertSafeFilterFragment("1=1; DROP TABLE users")).toThrow(
-      "Unsafe filter: statement separator (;) is not allowed."
+      "Unsafe filter: statement separator (;) is not allowed.",
     );
   });
 
   it("throws on a semicolon used to chain ATTACH", () => {
-    expect(() =>
-      assertSafeFilterFragment("1=1; ATTACH '/tmp/evil.db' AS evil")
-    ).toThrow("statement separator");
+    expect(() => assertSafeFilterFragment("1=1; ATTACH '/tmp/evil.db' AS evil")).toThrow(
+      "statement separator",
+    );
   });
 
   it("does NOT throw when a semicolon appears only inside a string literal", () => {
@@ -58,29 +54,27 @@ describe("assertSafeFilterFragment", () => {
   });
 
   it("throws when a semicolon appears after a string literal (outside it)", () => {
-    expect(() =>
-      assertSafeFilterFragment("label = 'safe'; DROP TABLE users")
-    ).toThrow("statement separator");
+    expect(() => assertSafeFilterFragment("label = 'safe'; DROP TABLE users")).toThrow(
+      "statement separator",
+    );
   });
 
   // ── SQL comments ──────────────────────────────────────────────────────────
 
   it("throws on double-dash comment", () => {
-    expect(() =>
-      assertSafeFilterFragment("1=1 -- bypass everything")
-    ).toThrow("Unsafe filter: SQL comments are not allowed.");
+    expect(() => assertSafeFilterFragment("1=1 -- bypass everything")).toThrow(
+      "Unsafe filter: SQL comments are not allowed.",
+    );
   });
 
   it("throws on block comment open (/*)", () => {
     expect(() => assertSafeFilterFragment("1=1 /* comment")).toThrow(
-      "SQL comments are not allowed"
+      "SQL comments are not allowed",
     );
   });
 
   it("throws on block comment close (*/) used to end an injected open", () => {
-    expect(() => assertSafeFilterFragment("*/ OR 1=1")).toThrow(
-      "SQL comments are not allowed"
-    );
+    expect(() => assertSafeFilterFragment("*/ OR 1=1")).toThrow("SQL comments are not allowed");
   });
 
   it("does NOT throw when -- appears only inside a string literal", () => {
@@ -116,15 +110,15 @@ describe("assertSafeFilterFragment", () => {
 
   for (const kw of KEYWORDS) {
     it(`throws on keyword ${kw} (uppercase)`, () => {
-      expect(() =>
-        assertSafeFilterFragment(`1=1 AND ${kw} TABLE foo`)
-      ).toThrow("Unsafe filter: statement keywords are not allowed.");
+      expect(() => assertSafeFilterFragment(`1=1 AND ${kw} TABLE foo`)).toThrow(
+        "Unsafe filter: statement keywords are not allowed.",
+      );
     });
 
     it(`throws on keyword ${kw} (lowercase)`, () => {
-      expect(() =>
-        assertSafeFilterFragment(`1=1 AND ${kw.toLowerCase()} TABLE foo`)
-      ).toThrow("statement keywords are not allowed");
+      expect(() => assertSafeFilterFragment(`1=1 AND ${kw.toLowerCase()} TABLE foo`)).toThrow(
+        "statement keywords are not allowed",
+      );
     });
   }
 
@@ -146,7 +140,7 @@ describe("assertSafeFilterFragment", () => {
 
   it("throws on keyword with mixed case (case-insensitive check)", () => {
     expect(() => assertSafeFilterFragment("dRoP TABLE foo")).toThrow(
-      "statement keywords are not allowed"
+      "statement keywords are not allowed",
     );
   });
 
@@ -172,9 +166,9 @@ describe("assertSafeFilterFragment", () => {
 
   for (const [name, expr] of FILE_IO_CASES) {
     it(`throws on file/IO function: ${name}`, () => {
-      expect(() =>
-        assertSafeFilterFragment(`x IN (SELECT * FROM ${expr})`)
-      ).toThrow("Unsafe filter: file/IO functions are not allowed.");
+      expect(() => assertSafeFilterFragment(`x IN (SELECT * FROM ${expr})`)).toThrow(
+        "Unsafe filter: file/IO functions are not allowed.",
+      );
     });
   }
 
@@ -192,9 +186,9 @@ describe("assertSafeFilterFragment", () => {
   });
 
   it("throws when injection follows a string with escaped quote", () => {
-    expect(() =>
-      assertSafeFilterFragment("label = 'it''s ok'; DROP TABLE foo")
-    ).toThrow("statement separator");
+    expect(() => assertSafeFilterFragment("label = 'it''s ok'; DROP TABLE foo")).toThrow(
+      "statement separator",
+    );
   });
 
   it("strips multiple adjacent string literals before inspection", () => {
@@ -206,22 +200,22 @@ describe("assertSafeFilterFragment", () => {
   // ── Edge cases ────────────────────────────────────────────────────────────
 
   it("throws on read_csv with uppercase R (case-insensitive match)", () => {
-    expect(() =>
-      assertSafeFilterFragment("x IN (SELECT * FROM READ_CSV('/etc/passwd'))")
-    ).toThrow("file/IO functions are not allowed");
+    expect(() => assertSafeFilterFragment("x IN (SELECT * FROM READ_CSV('/etc/passwd'))")).toThrow(
+      "file/IO functions are not allowed",
+    );
   });
 
   it("throws on parquet_ with a custom suffix (wildcard \\w+)", () => {
     expect(() =>
-      assertSafeFilterFragment("x IN (SELECT * FROM parquet_scan('/data.parquet'))")
+      assertSafeFilterFragment("x IN (SELECT * FROM parquet_scan('/data.parquet'))"),
     ).toThrow("file/IO functions are not allowed");
   });
 
   it("throws on a file/IO function with whitespace before the opening paren", () => {
     // The guard's regex allows whitespace between the function name and `(`
     // (`\s*\(`) specifically so a space can't be used to dodge detection.
-    expect(() =>
-      assertSafeFilterFragment("x IN (SELECT * FROM read_csv ('/etc/passwd'))")
-    ).toThrow("file/IO functions are not allowed");
+    expect(() => assertSafeFilterFragment("x IN (SELECT * FROM read_csv ('/etc/passwd'))")).toThrow(
+      "file/IO functions are not allowed",
+    );
   });
 });

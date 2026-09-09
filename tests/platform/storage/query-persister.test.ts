@@ -53,8 +53,8 @@ vi.mock("@tanstack/react-query", () => ({
 import {
   clearQueryCacheSnapshot,
   persistQueryClient,
-  queryCacheSnapshotSize,
   type QueryPersistOptions,
+  queryCacheSnapshotSize,
   restoreQueryClient,
 } from "@/platform/storage/query-persister";
 
@@ -631,8 +631,8 @@ describe("queryCacheSnapshotSize", () => {
 
   it("sums the byteLength of all snapshot buffers", async () => {
     // Arrange
-    const buf1 = toArrayBuffer("hello");     // 5 bytes
-    const buf2 = toArrayBuffer("world!!!");  // 8 bytes
+    const buf1 = toArrayBuffer("hello"); // 5 bytes
+    const buf2 = toArrayBuffer("world!!!"); // 8 bytes
     mockSnapshots.toArray.mockResolvedValue([{ bytes: buf1 }, { bytes: buf2 }]);
 
     // Act

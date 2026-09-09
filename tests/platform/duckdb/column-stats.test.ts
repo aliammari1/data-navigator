@@ -15,6 +15,7 @@ vi.mock("@/platform/duckdb/duckdb", async (importOriginal) => {
   return { ...actual, runReadOnlyQuery: h.runReadOnlyQuery };
 });
 
+import type { ColumnInfo } from "@/features/data-formulator/core/types";
 // ─── Module under test ────────────────────────────────────────────────────────
 // Import AFTER vi.mock() so Vitest applies the mock to fetchColumnStats' import.
 import {
@@ -24,7 +25,6 @@ import {
   type StatColumn,
   TOP_K,
 } from "@/platform/duckdb/column-stats";
-import type { ColumnInfo } from "@/features/data-formulator/core/types";
 
 const BASE = 'SELECT * FROM "ds_view"';
 
@@ -184,8 +184,26 @@ describe("fetchColumnStats — numeric", () => {
 
   it("coerces string-encoded aggregate and bin fields", async () => {
     h.runReadOnlyQuery.mockResolvedValue([
-      { bin: "0", cnt: "4", mn: "0", mx: "100", av: "50.5", distinct_count: "10", total: "20", nulls: "1" },
-      { bin: "1", cnt: "6", mn: "0", mx: "100", av: "50.5", distinct_count: "10", total: "20", nulls: "1" },
+      {
+        bin: "0",
+        cnt: "4",
+        mn: "0",
+        mx: "100",
+        av: "50.5",
+        distinct_count: "10",
+        total: "20",
+        nulls: "1",
+      },
+      {
+        bin: "1",
+        cnt: "6",
+        mn: "0",
+        mx: "100",
+        av: "50.5",
+        distinct_count: "10",
+        total: "20",
+        nulls: "1",
+      },
     ]);
 
     const stats = await fetchColumnStats(BASE, columnInfo("stringy", "number"));
@@ -219,7 +237,16 @@ describe("fetchColumnStats — numeric", () => {
 
   it("falls back to a null min when the min field cannot be parsed as a number", async () => {
     h.runReadOnlyQuery.mockResolvedValue([
-      { bin: 0, cnt: 0, mn: "not-a-number", mx: 100, av: 50, distinct_count: 1, total: 1, nulls: 0 },
+      {
+        bin: 0,
+        cnt: 0,
+        mn: "not-a-number",
+        mx: 100,
+        av: 50,
+        distinct_count: 1,
+        total: 1,
+        nulls: 0,
+      },
     ]);
 
     const stats = await fetchColumnStats(BASE, columnInfo("bad-min", "number"));
@@ -301,9 +328,27 @@ describe("fetchColumnStats — categorical", () => {
 
   it("shapes distinct/total/nulls from the first row and collects top values in row order", async () => {
     h.runReadOnlyQuery.mockResolvedValue([
-      { distinct_count: BigInt(3), total: BigInt(10), nulls: BigInt(1), value: "A", cnt: BigInt(5) },
-      { distinct_count: BigInt(3), total: BigInt(10), nulls: BigInt(1), value: "B", cnt: BigInt(3) },
-      { distinct_count: BigInt(3), total: BigInt(10), nulls: BigInt(1), value: "C", cnt: BigInt(1) },
+      {
+        distinct_count: BigInt(3),
+        total: BigInt(10),
+        nulls: BigInt(1),
+        value: "A",
+        cnt: BigInt(5),
+      },
+      {
+        distinct_count: BigInt(3),
+        total: BigInt(10),
+        nulls: BigInt(1),
+        value: "B",
+        cnt: BigInt(3),
+      },
+      {
+        distinct_count: BigInt(3),
+        total: BigInt(10),
+        nulls: BigInt(1),
+        value: "C",
+        cnt: BigInt(1),
+      },
     ]);
 
     const stats = await fetchColumnStats(BASE, columnInfo("status", "string"));

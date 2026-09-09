@@ -1,5 +1,5 @@
-import type { NextConfig } from "next";
 import { networkInterfaces } from "node:os";
+import type { NextConfig } from "next";
 
 const getLocalIPs = () => {
   const nets = networkInterfaces();

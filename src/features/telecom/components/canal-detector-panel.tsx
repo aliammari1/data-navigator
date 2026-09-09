@@ -1,12 +1,12 @@
 "use client";
 import { AlertCircle, ListFilter, Loader2, RefreshCw } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { cn } from "@/shared/utils";
-import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
+import { fmtCompact, fmtN, fmtPct } from "@/features/telecom/lib/format";
 import type * as Types from "@/features/telecom/types";
-import { Section } from "./section";
+import { cn } from "@/shared/utils";
 import { ProgressBar } from "./progress-bar";
+import { Section } from "./section";
 
 export function CanalDetectorPanel({
   m,

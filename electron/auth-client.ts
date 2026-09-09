@@ -1,10 +1,8 @@
+import type { ElectronClientOptions, ExposedBridges } from "@better-auth/electron/client";
 import { electronClient } from "@better-auth/electron/client";
-import type {
-  ElectronClientOptions,
-  ExposedBridges,
-} from "@better-auth/electron/client";
 import { storage } from "@better-auth/electron/storage";
-import { createAuthClient, type BetterAuthClientPlugin } from "better-auth/client";import {
+import { type BetterAuthClientPlugin, createAuthClient } from "better-auth/client";
+import {
   BETTER_AUTH_BASE_URL,
   ELECTRON_AUTH_CALLBACK_PATH,
   ELECTRON_AUTH_CLIENT_ID,
@@ -23,7 +21,8 @@ import { createAuthClient, type BetterAuthClientPlugin } from "better-auth/clien
 // Window augmentation builds on this (see electron/preload.ts).
 export type ElectronAuthBridges = ExposedBridges<ElectronClientOptions>;
 
-export const electronPlugin = electronClient({  callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
+export const electronPlugin = electronClient({
+  callbackPath: ELECTRON_AUTH_CALLBACK_PATH,
   clientID: ELECTRON_AUTH_CLIENT_ID,
   protocol: { scheme: ELECTRON_AUTH_PROTOCOL },
   signInURL: ELECTRON_AUTH_SIGN_IN_URL,

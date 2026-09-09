@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 // revenue-groups.ts is a pure constant export with no IO dependencies.
 // No mocks are needed — the module resolves without touching any hardware,

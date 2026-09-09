@@ -62,12 +62,28 @@ const METRICS: Record<KpiMetric, MetricDef> = {
     text: true,
   },
   successCount: { label: "Réussies", icon: CheckCircle2, value: (k) => fmtCompact(k.successCount) },
-  declinedCount: { label: "Échec (refusé)", icon: XCircle, value: (k) => fmtCompact(k.declinedCount) },
+  declinedCount: {
+    label: "Échec (refusé)",
+    icon: XCircle,
+    value: (k) => fmtCompact(k.declinedCount),
+  },
   instanceCount: { label: "Instance", icon: Clock, value: (k) => fmtCompact(k.instanceCount) },
   refundCount: { label: "Annulation", icon: RefreshCw, value: (k) => fmtCompact(k.refundCount) },
-  submittedCount: { label: "Confirmé", icon: CheckCircle2, value: (k) => fmtCompact(k.submittedCount) },
-  uniqueCustomers: { label: "Abonnés uniques", icon: Activity, value: (k) => fmtCompact(k.uniqueCustomers) },
-  avgProcessingMs: { label: "Traitement moy.", icon: Zap, value: (k) => fmtDuration(k.avgProcessingMs) },
+  submittedCount: {
+    label: "Confirmé",
+    icon: CheckCircle2,
+    value: (k) => fmtCompact(k.submittedCount),
+  },
+  uniqueCustomers: {
+    label: "Abonnés uniques",
+    icon: Activity,
+    value: (k) => fmtCompact(k.uniqueCustomers),
+  },
+  avgProcessingMs: {
+    label: "Traitement moy.",
+    icon: Zap,
+    value: (k) => fmtDuration(k.avgProcessingMs),
+  },
   totalAmount: { label: "Montant", icon: Receipt, value: (k) => fmtAmount(k.totalAmount) },
 };
 

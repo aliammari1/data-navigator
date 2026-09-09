@@ -15,7 +15,7 @@
  *   localStorage), keyed per tour.
  */
 
-import { driver, type Driver } from "driver.js";
+import { type Driver, driver } from "driver.js";
 import "driver.js/dist/driver.css";
 
 import { isAnchorlessStep, type TourDefinition, type TourStepDef } from "../data/tours";

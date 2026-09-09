@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { ColumnMapper } from "@/features/telecom/components/column-mapper";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 const columns = [
   "TRANSACTION_ID",

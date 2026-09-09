@@ -69,9 +69,7 @@ function isCursorNote(value: unknown): value is CursorNote {
  * Re-renders only when the notes for this section change.
  */
 export function useCursorNotes(sectionId: string | null): CursorNote[] {
-  const [notes, setNotes] = useState<CursorNote[]>(() =>
-    sectionId ? readNotes(sectionId) : [],
-  );
+  const [notes, setNotes] = useState<CursorNote[]>(() => (sectionId ? readNotes(sectionId) : []));
 
   useEffect(() => {
     if (!sectionId) {

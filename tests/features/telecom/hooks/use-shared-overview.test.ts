@@ -28,7 +28,7 @@ vi.mock("@/platform/lan/lan-collab", () => ({
 }));
 
 // A minimal Y.Map-like double that supports get/set + observer lifecycle.
-let snapshotValue: string | undefined = undefined;
+let snapshotValue: string | undefined;
 const overviewObservers = new Set<() => void>();
 const collabCleanup = vi.fn();
 const startCollabSync = vi.fn(() => collabCleanup);
@@ -116,10 +116,12 @@ const SAMPLE_CANALS: Types.CanalSummary[] = [
 ];
 
 /** Minimal valid snapshot from a REMOTE peer (different id). */
-function makeRemoteSnapshot(overrides: Partial<{
-  presenterId: string;
-  kpi: Types.KPISummary | null;
-}> = {}): string {
+function makeRemoteSnapshot(
+  overrides: Partial<{
+    presenterId: string;
+    kpi: Types.KPISummary | null;
+  }> = {},
+): string {
   return JSON.stringify({
     version: 1,
     presenterId: overrides.presenterId ?? "remote-peer-999",

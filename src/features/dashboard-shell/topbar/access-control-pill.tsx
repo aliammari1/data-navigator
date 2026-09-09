@@ -4,8 +4,8 @@ import { ChevronDown, ShieldCheck } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { useClickOutside } from "@/features/dashboard-shell/shell/use-click-outside";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 
 /**
  * Role + cache-mode status pill. Both values are centralized in Settings

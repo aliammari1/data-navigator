@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // The constants in electron-options.ts are evaluated at module load time.
 // To test the different branches of BETTER_AUTH_BASE_URL we must:

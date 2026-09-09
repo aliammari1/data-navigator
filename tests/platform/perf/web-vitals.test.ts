@@ -9,7 +9,7 @@
  *    addPerfMetric rejection, prunePerfMetrics rejection, window.location.pathname truthy/falsy.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mocks (declared before any dynamic import of the target module)

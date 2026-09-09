@@ -59,18 +59,9 @@ import {
   MessageActions,
   MessageContent,
 } from "@/components/ai-elements/message";
-import {
-  Reasoning,
-  ReasoningContent,
-  ReasoningTrigger,
-} from "@/components/ai-elements/reasoning";
+import { Reasoning, ReasoningContent, ReasoningTrigger } from "@/components/ai-elements/reasoning";
 import { Shimmer } from "@/components/ai-elements/shimmer";
-import {
-  Source,
-  Sources,
-  SourcesContent,
-  SourcesTrigger,
-} from "@/components/ai-elements/sources";
+import { Source, Sources, SourcesContent, SourcesTrigger } from "@/components/ai-elements/sources";
 import { Suggestion, Suggestions } from "@/components/ai-elements/suggestion";
 import {
   Tool,
@@ -79,20 +70,15 @@ import {
   ToolInput,
   ToolOutput,
 } from "@/components/ai-elements/tool";
+import { humanizeModel } from "@/components/moudir-chat/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDataStore } from "@/core/stores/data-store";
 import { useEnableMoudirSandbox } from "@/core/stores/settings-store";
-import { humanizeModel } from "@/components/moudir-chat/utils";
 import { cn } from "@/shared/utils";
 import {
   type ChatMessage,
@@ -323,7 +309,10 @@ function cleanQuestionText(question: string): string {
   const optionsAt = question.search(/\s*Options?\s*:/i);
   const head = optionsAt >= 0 ? question.slice(0, optionsAt) : question;
   const stripped = head.replace(/\s*\(\d+\)[^()]*?(?=\s*\(\d+\)|\s*$)/g, "").trim();
-  const collapsed = stripped.replace(/\s{2,}/g, " ").replace(/\s+([,.?!;:])/g, "$1").trim();
+  const collapsed = stripped
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.?!;:])/g, "$1")
+    .trim();
   return collapsed.length > 0 ? collapsed : question;
 }
 
@@ -420,7 +409,17 @@ function ChatClarification({
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [part.answer, busy, part.options, part.question, messageId, isMulti, selectedOptions, customOpen, answerClarification]);
+  }, [
+    part.answer,
+    busy,
+    part.options,
+    part.question,
+    messageId,
+    isMulti,
+    selectedOptions,
+    customOpen,
+    answerClarification,
+  ]);
 
   const handleToggleOption = (option: string) => {
     if (isMulti) {
@@ -464,7 +463,9 @@ function ChatClarification({
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2">
             <Sparkles className="size-4 text-primary shrink-0" />
-            <p className="text-sm font-semibold text-foreground">{cleanQuestionText(part.question)}</p>
+            <p className="text-sm font-semibold text-foreground">
+              {cleanQuestionText(part.question)}
+            </p>
           </div>
           {!part.answer && (
             <div className="flex items-center gap-1.5 shrink-0">
@@ -474,7 +475,9 @@ function ChatClarification({
                 size="xs"
                 className={cn(
                   "h-5 text-[10px] px-1.5 rounded-md font-mono transition-colors",
-                  isMulti ? "bg-primary/20 text-primary font-semibold" : "text-muted-foreground hover:text-foreground",
+                  isMulti
+                    ? "bg-primary/20 text-primary font-semibold"
+                    : "text-muted-foreground hover:text-foreground",
                 )}
                 onClick={() => setIsMulti(!isMulti)}
                 title="Basculer entre sélection simple et multiple"
@@ -494,10 +497,18 @@ function ChatClarification({
                     }
                   }}
                   className="h-5 text-[10px] px-1.5 gap-1 bg-background/80 hover:bg-muted"
-                  title={selectedOptions.size === part.options.length ? "Tout désélectionner" : "Tout sélectionner"}
+                  title={
+                    selectedOptions.size === part.options.length
+                      ? "Tout désélectionner"
+                      : "Tout sélectionner"
+                  }
                 >
                   <CheckSquare className="size-2.5 text-primary" />
-                  <span>{selectedOptions.size === part.options.length ? "Tout désélectionner" : "Tout sélectionner"}</span>
+                  <span>
+                    {selectedOptions.size === part.options.length
+                      ? "Tout désélectionner"
+                      : "Tout sélectionner"}
+                  </span>
                 </Button>
               )}
             </div>
@@ -517,7 +528,9 @@ function ChatClarification({
               <span>
                 {isMulti
                   ? "Cochez une ou plusieurs options ci-dessous, puis confirmez :"
-                  : "Choisissez une option ou utilisez les touches 1 à " + part.options.length + " :"}
+                  : "Choisissez une option ou utilisez les touches 1 à " +
+                    part.options.length +
+                    " :"}
               </span>
             </p>
 
@@ -561,10 +574,18 @@ function ChatClarification({
                   return (
                     <Tooltip key={option}>
                       <TooltipTrigger asChild>{chipContent}</TooltipTrigger>
-                      <TooltipContent side="top" className="max-w-xs p-2 text-xs space-y-1 bg-popover text-popover-foreground border border-border shadow-md">
+                      <TooltipContent
+                        side="top"
+                        className="max-w-xs p-2 text-xs space-y-1 bg-popover text-popover-foreground border border-border shadow-md"
+                      >
                         <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-1">
-                          <span className="font-semibold font-mono text-primary">{colMeta.name}</span>
-                          <Badge variant="outline" className="text-[10px] uppercase font-mono px-1 py-0">
+                          <span className="font-semibold font-mono text-primary">
+                            {colMeta.name}
+                          </span>
+                          <Badge
+                            variant="outline"
+                            className="text-[10px] uppercase font-mono px-1 py-0"
+                          >
                             {colMeta.type}
                           </Badge>
                         </div>
@@ -602,7 +623,10 @@ function ChatClarification({
 
             {/* Custom Write-In Option Input */}
             {customOpen && (
-              <form onSubmit={handleCustomSubmit} className="flex items-center gap-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-150">
+              <form
+                onSubmit={handleCustomSubmit}
+                className="flex items-center gap-2 pt-1 animate-in fade-in slide-in-from-top-1 duration-150"
+              >
                 <Input
                   ref={inputRef}
                   type="text"
@@ -640,7 +664,8 @@ function ChatClarification({
             {isMulti && selectedOptions.size > 0 && (
               <div className="flex items-center justify-between pt-1 border-t border-border/40 animate-in fade-in duration-150">
                 <span className="text-xs text-muted-foreground">
-                  {selectedOptions.size} option{selectedOptions.size > 1 ? "s" : ""} sélectionnée{selectedOptions.size > 1 ? "s" : ""}
+                  {selectedOptions.size} option{selectedOptions.size > 1 ? "s" : ""} sélectionnée
+                  {selectedOptions.size > 1 ? "s" : ""}
                 </span>
                 <Button
                   type="button"
@@ -769,9 +794,7 @@ function UserBubble({ message }: Readonly<{ message: ChatMessage }>) {
                           className="max-h-60 max-w-full rounded border object-contain"
                         />
                       )}
-                      <span className="font-semibold truncate text-foreground">
-                        {label}
-                      </span>
+                      <span className="font-semibold truncate text-foreground">{label}</span>
                       {mediaType && (
                         <span className="text-[11px] text-muted-foreground">{mediaType}</span>
                       )}
@@ -783,9 +806,7 @@ function UserBubble({ message }: Readonly<{ message: ChatMessage }>) {
           </Attachments>
         </div>
       )}
-      <MessageContent className="break-words whitespace-pre-wrap">
-        {message.content}
-      </MessageContent>
+      <MessageContent className="break-words whitespace-pre-wrap">{message.content}</MessageContent>
       <div className="mt-1 flex justify-end">
         <time
           dateTime={new Date(message.createdAt).toISOString()}
@@ -822,7 +843,11 @@ function AssistantBubble({
   const streaming = message.status === "streaming";
 
   // Parse chain-of-thought thinking tags (<think>...</think>)
-  const { thinking, isThinking, cleanContent: contentWithoutThinking } = parseThinking(message.content);
+  const {
+    thinking,
+    isThinking,
+    cleanContent: contentWithoutThinking,
+  } = parseThinking(message.content);
   const { citations, cleanContent } = parseCitations(contentWithoutThinking);
   const hasContent = cleanContent.trim().length > 0;
   const hasThinking = thinking.trim().length > 0;
@@ -830,7 +855,9 @@ function AssistantBubble({
   // The tail part drives the status line: while a tool is in flight we name it
   const lastPart = message.parts.at(-1);
   const activeTool = streaming && lastPart?.kind === "tool" ? lastPart : undefined;
-  const thinkingLabel = activeTool ? `Exécution : ${toolLabel(activeTool.name)}` : "Réflexion en cours…";
+  const thinkingLabel = activeTool
+    ? `Exécution : ${toolLabel(activeTool.name)}`
+    : "Réflexion en cours…";
 
   return (
     <Message className="max-w-full flex-row gap-3" from="assistant">
@@ -867,9 +894,7 @@ function AssistantBubble({
           /* Initial loading state before first token or tool */
           <Reasoning className="mb-3" defaultOpen isStreaming>
             <ReasoningTrigger
-              getThinkingMessage={() => (
-                <Shimmer duration={1}>{thinkingLabel}</Shimmer>
-              )}
+              getThinkingMessage={() => <Shimmer duration={1}>{thinkingLabel}</Shimmer>}
             />
           </Reasoning>
         ) : null}
@@ -972,13 +997,17 @@ function AssistantBubble({
 
             {message.metrics ? (
               <div className="flex items-center gap-1.5 font-mono text-[10px] text-muted-foreground/80">
-                <span title="Durée totale d'inférence">{formatDuration(message.metrics.durationMs)}</span>
+                <span title="Durée totale d'inférence">
+                  {formatDuration(message.metrics.durationMs)}
+                </span>
                 <span>·</span>
                 <span title="Débit estimé">~{message.metrics.tokensPerSecond} tok/s</span>
                 {message.metrics.firstTokenMs > 0 ? (
                   <>
                     <span>·</span>
-                    <span title="Délai jusqu'au 1er token">TTFT {formatDuration(message.metrics.firstTokenMs)}</span>
+                    <span title="Délai jusqu'au 1er token">
+                      TTFT {formatDuration(message.metrics.firstTokenMs)}
+                    </span>
                   </>
                 ) : null}
               </div>

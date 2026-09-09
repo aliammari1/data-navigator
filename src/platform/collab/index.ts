@@ -14,6 +14,16 @@
 
 "use client";
 
+// ── Presence / awareness ──
+export {
+  clearLocalAwareness,
+  createAwareness,
+  destroyAwareness,
+  publishCursor,
+  readPeers,
+  setAwarenessUser,
+  subscribePeers,
+} from "./awareness";
 // ── Singleton app doc + cross-tab sync + persistence ──
 export {
   ensureAppDocPersistence,
@@ -29,32 +39,18 @@ export {
   useYMap,
   ydoc,
 } from "./collab";
-
-// ── Room handles (backed by the singleton app doc; LAN transport lives in
-// `@/platform/lan/lan-collab`) ──
-export { acquireRoom, getRoomDoc, releaseRoom } from "./room";
-
-// ── Presence / awareness ──
-export {
-  clearLocalAwareness,
-  createAwareness,
-  destroyAwareness,
-  publishCursor,
-  readPeers,
-  setAwarenessUser,
-  subscribePeers,
-} from "./awareness";
-
-// ── Durable persistence ──
-export {
-  attachPersistence,
-  clearStoredData,
-  detachPersistence,
-  hasIndexedDB,
-  storageEstimate,
-  whenStored,
-} from "./persistence";
-
+// ── Types ──
+export type {
+  AnnotationNote,
+  AnnotationReply,
+  ApprovalHistoryEntry,
+  ApprovalRecord,
+  ApprovalStatus,
+  AuditEventType,
+  CollabAuditEvent,
+  NoteColor,
+  NotePriority,
+} from "./collab-hub-doc";
 // ── collab-hub shared types + accessors ──
 export {
   addAnnotation,
@@ -74,19 +70,18 @@ export {
   yApprovals,
   yAudit,
 } from "./collab-hub-doc";
-
-// ── Types ──
-export type {
-  AnnotationNote,
-  AnnotationReply,
-  ApprovalHistoryEntry,
-  ApprovalRecord,
-  ApprovalStatus,
-  AuditEventType,
-  CollabAuditEvent,
-  NoteColor,
-  NotePriority,
-} from "./collab-hub-doc";
+// ── Durable persistence ──
+export {
+  attachPersistence,
+  clearStoredData,
+  detachPersistence,
+  hasIndexedDB,
+  storageEstimate,
+  whenStored,
+} from "./persistence";
+// ── Room handles (backed by the singleton app doc; LAN transport lives in
+// `@/platform/lan/lan-collab`) ──
+export { acquireRoom, getRoomDoc, releaseRoom } from "./room";
 export type {
   AwarenessCursor,
   AwarenessUser,

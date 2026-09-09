@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
+import { ConfigTab } from "@/features/telecom/components/config-tab";
 import type {
   CanalSummary,
   ColumnMapping,
@@ -10,7 +10,6 @@ import type {
   StatusMapping,
   StatusRow,
 } from "@/features/telecom/types";
-import { ConfigTab } from "@/features/telecom/components/config-tab";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

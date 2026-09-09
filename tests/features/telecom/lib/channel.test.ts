@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 /**
  * Tests for src/features/telecom/lib/channel.ts
@@ -174,9 +174,8 @@ describe("channel — BroadcastChannel available", () => {
     expect(bc.addEventListener).toHaveBeenCalledWith("message", expect.any(Function));
 
     // Simulate an incoming broadcast message by invoking the registered listener
-    const registeredListener = (bc.addEventListener as ReturnType<typeof vi.fn>).mock.calls[0][1] as (
-      e: MessageEvent,
-    ) => void;
+    const registeredListener = (bc.addEventListener as ReturnType<typeof vi.fn>).mock
+      .calls[0][1] as (e: MessageEvent) => void;
 
     const incomingMsg = {
       type: "FILE_LOADED" as const,
@@ -202,9 +201,8 @@ describe("channel — BroadcastChannel available", () => {
     onBroadcast((msg) => received.push(msg));
 
     const bc = instances[0]!;
-    const registeredListener = (bc.addEventListener as ReturnType<typeof vi.fn>).mock.calls[0][1] as (
-      e: MessageEvent,
-    ) => void;
+    const registeredListener = (bc.addEventListener as ReturnType<typeof vi.fn>).mock
+      .calls[0][1] as (e: MessageEvent) => void;
 
     const msgs = [
       { type: "FILE_LOADED" as const, fileName: "a.csv", reportDate: "2024-01-01" },

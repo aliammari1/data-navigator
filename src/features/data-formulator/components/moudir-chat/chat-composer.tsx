@@ -27,8 +27,8 @@
  *  - There is no built-in @mention/slash-command system in AI Elements
  *    (see open issue vercel/ai-elements#179) — MentionPopover below is
  *    intentionally custom, not a stopgap.
-   *  - No voice dictation: the SpeechInput path was removed with the rest
-   *    of the voice features (mic/STT/TTS). The composer is text-only.
+ *  - No voice dictation: the SpeechInput path was removed with the rest
+ *    of the voice features (mic/STT/TTS). The composer is text-only.
  */
 
 import type { ChatStatus } from "ai";
@@ -88,10 +88,11 @@ import { useAIRuntimeStore } from "@/platform/ai/provider";
 import { cn } from "@/shared/utils";
 import {
   CHAT_CONTEXT_MAX_TOKENS,
-  type ChatStatus as MoudirChatStatus,
   estimateUsedTokens,
+  type ChatStatus as MoudirChatStatus,
   useMoudirChatStore,
 } from "../../store/moudir-chat-store";
+import { ChatClarificationDock } from "./chat-clarification-dock";
 import {
   applyMention,
   detectMention,
@@ -99,7 +100,6 @@ import {
   MentionPopover,
   type MentionQuery,
 } from "./mention-popover";
-import { ChatClarificationDock } from "./chat-clarification-dock";
 
 const MAX_MENTION_ITEMS = 50;
 const FOCUS_EVENT = "moudir-chat:focus-composer";
@@ -135,10 +135,7 @@ const ChatComposerAttachments = () => {
         <AttachmentHoverCard key={attachment.id}>
           <AttachmentHoverCardTrigger asChild>
             <div className="inline-flex">
-              <Attachment
-                data={attachment}
-                onRemove={() => attachments.remove(attachment.id)}
-              >
+              <Attachment data={attachment} onRemove={() => attachments.remove(attachment.id)}>
                 <AttachmentPreview />
                 <AttachmentInfo showMediaType />
                 <AttachmentRemove label="Supprimer" />
@@ -642,7 +639,8 @@ export function ChatComposer() {
 
       {activeRecord && activeRecord.state === "present" && !activeRecord.capabilities.tools ? (
         <p className="px-1 text-[11px] text-muted-foreground" role="note">
-          {activeRecord.capabilityNote ?? "Ce modèle ne gère pas les outils : conversation seule, sans données ni graphiques."}{" "}
+          {activeRecord.capabilityNote ??
+            "Ce modèle ne gère pas les outils : conversation seule, sans données ni graphiques."}{" "}
           Choisissez un modèle compatible pour l'analyse.
         </p>
       ) : null}

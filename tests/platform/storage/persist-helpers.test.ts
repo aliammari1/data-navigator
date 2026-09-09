@@ -1,9 +1,9 @@
-import { describe, it, expect, vi, } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   deepMergeDefaults,
+  durablePersist,
   makeDeepMergeMigrate,
   pickKeys,
-  durablePersist,
 } from "@/platform/storage/persist-helpers";
 
 // ─── isPlainObject (tested indirectly through deepMergeDefaults) ───────────────
@@ -180,10 +180,11 @@ describe("makeDeepMergeMigrate", () => {
 
   it("applies transforms for versions greater than the persisted version, in sorted order", () => {
     const getDefaults = () => ({ a: 0, b: 0, c: 0 });
-    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-      2: (s) => ({ ...s, b: 10 }),
-      3: (s) => ({ ...s, c: 20 }),
-    };
+    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> =
+      {
+        2: (s) => ({ ...s, b: 10 }),
+        3: (s) => ({ ...s, c: 20 }),
+      };
     const migrate = makeDeepMergeMigrate(getDefaults, transforms);
     // persisted version is 1, so transforms 2 and 3 both apply (v > version)
     const result = migrate({ a: 5 }, 1);
@@ -192,9 +193,10 @@ describe("makeDeepMergeMigrate", () => {
 
   it("does not apply transforms for versions less than or equal to the persisted version", () => {
     const getDefaults = () => ({ a: 0, b: 0 });
-    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-      1: (s) => ({ ...s, b: 999 }),
-    };
+    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> =
+      {
+        1: (s) => ({ ...s, b: 999 }),
+      };
     const migrate = makeDeepMergeMigrate(getDefaults, transforms);
     // persisted version is 2, transform at version 1 does NOT apply (1 is not > 2)
     const result = migrate({ a: 5 }, 2);
@@ -203,10 +205,11 @@ describe("makeDeepMergeMigrate", () => {
 
   it("applies only the transforms whose version number is greater than persisted version", () => {
     const getDefaults = () => ({ a: 0, b: 0, c: 0 });
-    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-      1: (s) => ({ ...s, b: 100 }), // v=1, not > version=1 => skip
-      2: (s) => ({ ...s, c: 200 }), // v=2 > version=1 => apply
-    };
+    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> =
+      {
+        1: (s) => ({ ...s, b: 100 }), // v=1, not > version=1 => skip
+        2: (s) => ({ ...s, c: 200 }), // v=2 > version=1 => apply
+      };
     const migrate = makeDeepMergeMigrate(getDefaults, transforms);
     const result = migrate({ a: 5 }, 1);
     expect(result).toEqual({ a: 5, b: 0, c: 200 });
@@ -229,11 +232,21 @@ describe("makeDeepMergeMigrate", () => {
   it("applies transforms in ascending numeric order even if keys are unordered", () => {
     const order: number[] = [];
     const getDefaults = () => ({ a: 0 });
-    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-      5: (s) => { order.push(5); return s; },
-      2: (s) => { order.push(2); return s; },
-      10: (s) => { order.push(10); return s; },
-    };
+    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> =
+      {
+        5: (s) => {
+          order.push(5);
+          return s;
+        },
+        2: (s) => {
+          order.push(2);
+          return s;
+        },
+        10: (s) => {
+          order.push(10);
+          return s;
+        },
+      };
     const migrate = makeDeepMergeMigrate(getDefaults, transforms);
     migrate({}, 0);
     expect(order).toEqual([2, 5, 10]);
@@ -242,9 +255,13 @@ describe("makeDeepMergeMigrate", () => {
   it("passes an empty state object when persisted is not a plain object (transforms branch)", () => {
     let receivedState: Record<string, unknown> | null = null;
     const getDefaults = () => ({ a: 0 });
-    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> = {
-      1: (s) => { receivedState = s; return s; },
-    };
+    const transforms: Record<number, (state: Record<string, unknown>) => Record<string, unknown>> =
+      {
+        1: (s) => {
+          receivedState = s;
+          return s;
+        },
+      };
     const migrate = makeDeepMergeMigrate(getDefaults, transforms);
     // persisted is null => state = {}
     migrate(null, 0);

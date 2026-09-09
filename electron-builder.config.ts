@@ -1,6 +1,6 @@
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import type { Configuration } from "electron-builder";
 import { PRODUCTION_FUSE_CONFIG } from "./electron/security";
@@ -156,7 +156,8 @@ function pruneDeadWeight(targetDir: string, platform: NodeJS.Platform): void {
           } else {
             const archFolder = path.join(onnxBin, osDir);
             for (const arch of fs.readdirSync(archFolder)) {
-              if (arch !== "x64") fs.rmSync(path.join(archFolder, arch), { recursive: true, force: true });
+              if (arch !== "x64")
+                fs.rmSync(path.join(archFolder, arch), { recursive: true, force: true });
             }
           }
         }
@@ -253,7 +254,10 @@ function stageApplication(): void {
   const standaloneServer = path.join(appDest, "server.js");
   if (fs.existsSync(standaloneServer)) {
     let content = fs.readFileSync(standaloneServer, "utf8");
-    content = content.replace("process.chdir(__dirname)", "try { process.chdir(__dirname); } catch {}");
+    content = content.replace(
+      "process.chdir(__dirname)",
+      "try { process.chdir(__dirname); } catch {}",
+    );
     fs.writeFileSync(standaloneServer, content, "utf8");
   }
 
@@ -387,7 +391,9 @@ export default async function (): Promise<Configuration> {
       const unpackedDir = path.join(context.appOutDir, "resources", "app.asar.unpacked");
       if (!fs.existsSync(unpackedDir)) return;
 
-      console.log(`[afterPack] Pruning foreign binaries from app.asar.unpacked for ${context.electronPlatformName}...`);
+      console.log(
+        `[afterPack] Pruning foreign binaries from app.asar.unpacked for ${context.electronPlatformName}...`,
+      );
       const targetPlatform = context.electronPlatformName;
       const walk = (current: string) => {
         if (!fs.existsSync(current)) return;
@@ -395,8 +401,15 @@ export default async function (): Promise<Configuration> {
           const itemPath = path.join(current, item.name);
           if (item.isDirectory()) {
             if (
-              (targetPlatform === "linux" && (item.name === "linux-arm64" || item.name === "linux-armv7l" || item.name.includes("win32") || item.name.includes("darwin"))) ||
-              (targetPlatform === "win32" && (item.name.includes("linux") || item.name.includes("darwin") || item.name.includes("arm")))
+              (targetPlatform === "linux" &&
+                (item.name === "linux-arm64" ||
+                  item.name === "linux-armv7l" ||
+                  item.name.includes("win32") ||
+                  item.name.includes("darwin"))) ||
+              (targetPlatform === "win32" &&
+                (item.name.includes("linux") ||
+                  item.name.includes("darwin") ||
+                  item.name.includes("arm")))
             ) {
               fs.rmSync(itemPath, { recursive: true, force: true });
               continue;
@@ -405,8 +418,22 @@ export default async function (): Promise<Configuration> {
           } else if (item.isFile()) {
             const lower = item.name.toLowerCase();
             const isForeignBinary =
-              (targetPlatform === "linux" && (lower.endsWith(".exe") || lower.endsWith(".dll") || lower.endsWith(".dylib") || (lower.endsWith(".node") && (lower.includes("win32") || lower.includes("darwin") || lower.includes("arm64") || lower.includes("musl"))))) ||
-              (targetPlatform === "win32" && (lower.endsWith(".so") || lower.endsWith(".dylib") || (lower.endsWith(".node") && (lower.includes("linux") || lower.includes("darwin") || lower.includes("arm64")))));
+              (targetPlatform === "linux" &&
+                (lower.endsWith(".exe") ||
+                  lower.endsWith(".dll") ||
+                  lower.endsWith(".dylib") ||
+                  (lower.endsWith(".node") &&
+                    (lower.includes("win32") ||
+                      lower.includes("darwin") ||
+                      lower.includes("arm64") ||
+                      lower.includes("musl"))))) ||
+              (targetPlatform === "win32" &&
+                (lower.endsWith(".so") ||
+                  lower.endsWith(".dylib") ||
+                  (lower.endsWith(".node") &&
+                    (lower.includes("linux") ||
+                      lower.includes("darwin") ||
+                      lower.includes("arm64")))));
             if (isForeignBinary) {
               fs.rmSync(itemPath, { force: true });
             }

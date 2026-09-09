@@ -7,6 +7,7 @@ import { usePinnedItems } from "@/core/stores/settings-store";
 import { NavButton } from "@/features/dashboard-shell/nav/nav-button";
 import {
   ALL_ITEMS,
+  type DashboardUser,
   FOOTER_ITEMS,
   filterNavItemsForRole,
   filterNavSectionsForRole,
@@ -15,7 +16,6 @@ import {
   lockNavItemsByPermission,
   NAV_SECTIONS,
   navItemVisibleForRole,
-  type DashboardUser,
 } from "@/features/dashboard-shell/nav/nav-config";
 import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
@@ -64,10 +64,7 @@ export function AppSidebar({
     [lockedAllItems, pinnedItems, role],
   );
 
-  const roleFilteredSections = useMemo(
-    () => filterNavSectionsForRole(NAV_SECTIONS, role),
-    [role],
-  );
+  const roleFilteredSections = useMemo(() => filterNavSectionsForRole(NAV_SECTIONS, role), [role]);
   const sections = useMemo(
     () =>
       roleFilteredSections.map((section) => ({
@@ -77,8 +74,7 @@ export function AppSidebar({
     [roleFilteredSections, guestPermissions],
   );
   const footerItems = useMemo(
-    () =>
-      lockNavItemsByPermission(filterNavItemsForRole(FOOTER_ITEMS, role), guestPermissions),
+    () => lockNavItemsByPermission(filterNavItemsForRole(FOOTER_ITEMS, role), guestPermissions),
     [role, guestPermissions],
   );
 

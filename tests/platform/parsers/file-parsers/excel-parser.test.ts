@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { parseExcel } from "@/platform/parsers/file-parsers/excel-parser";
 
 // ---------------------------------------------------------------------------
@@ -179,7 +179,13 @@ describe("parseExcel", () => {
   });
 
   it("returns correct columns and rows for multiple data rows", async () => {
-    setupSheet(["Col1", "Col2"], [["A", "B"], ["C", "D"]]);
+    setupSheet(
+      ["Col1", "Col2"],
+      [
+        ["A", "B"],
+        ["C", "D"],
+      ],
+    );
 
     const result = await parseExcel(makeBuffer());
 
@@ -212,9 +218,7 @@ describe("parseExcel", () => {
     setupEmptySheet();
     const result = await parseExcel(makeBuffer());
     // crypto.randomUUID() returns a standard UUID string
-    expect(result.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i,
-    );
+    expect(result.id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
   });
 
   it("always returns fileId as an empty string", async () => {

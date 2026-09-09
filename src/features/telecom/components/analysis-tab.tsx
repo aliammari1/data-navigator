@@ -310,15 +310,11 @@ export const AnalysisTab = memo(function AnalysisTab({
                       key={label}
                       className={cn(
                         "px-3 py-2.5 text-left text-[10px] uppercase tracking-wide font-semibold whitespace-nowrap",
-                        key && sortBy === key
-                          ? "text-primary"
-                          : "text-muted-foreground",
+                        key && sortBy === key ? "text-primary" : "text-muted-foreground",
                       )}
                     >
                       {label}
-                      {key && sortBy === key && (
-                        <span className="ml-1 text-primary">▼</span>
-                      )}
+                      {key && sortBy === key && <span className="ml-1 text-primary">▼</span>}
                     </th>
                   ))}
                 </tr>

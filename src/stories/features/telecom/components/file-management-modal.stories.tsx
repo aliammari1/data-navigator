@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { FileManagementModal } from "@/features/telecom/components/file-management-modal";
+import type { AnalyticsSnapshotHistoryMeta } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import type { LoadedFile } from "@/features/telecom/types";
 
 const loadedFiles: LoadedFile[] = [

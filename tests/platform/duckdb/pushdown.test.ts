@@ -14,9 +14,9 @@ import {
   buildShapeSQL,
   buildSummarizeSQL,
   countCacheKey,
+  type KeysetPageInput,
   quoteIdent,
   quoteLiteral,
-  type KeysetPageInput,
 } from "@/platform/duckdb/pushdown";
 
 /**
@@ -92,7 +92,7 @@ describe("quoteLiteral", () => {
 describe("buildSummarizeSQL", () => {
   it("wraps a string source as a quoted identifier and selects the profile columns", () => {
     const sql = normalize(buildSummarizeSQL("ds_abc"));
-    expect(sql).toContain("FROM (SUMMARIZE SELECT * FROM \"ds_abc\")");
+    expect(sql).toContain('FROM (SUMMARIZE SELECT * FROM "ds_abc")');
     expect(sql.startsWith("SELECT")).toBe(true);
   });
 
@@ -182,9 +182,7 @@ describe("buildApproxCountDistinctSQL", () => {
 describe("buildHistogramTableSQL", () => {
   it("emits the table-macro form with default bins and auto technique", () => {
     const sql = normalize(buildHistogramTableSQL("v", "amount"));
-    expect(sql).toBe(
-      "FROM histogram(\"v\", \"amount\", bin_count := 20, technique := 'auto')",
-    );
+    expect(sql).toBe('FROM histogram("v", "amount", bin_count := 20, technique := \'auto\')');
   });
 
   it("quotes the technique as a string literal", () => {
@@ -378,9 +376,7 @@ describe("buildReservoirSampleSQL", () => {
 
   it("injects a WHERE clause before the SAMPLE clause", () => {
     const sql = normalize(buildReservoirSampleSQL("v", 50, { where: "amount > 0" }));
-    expect(sql).toBe(
-      'SELECT * FROM "v" WHERE amount > 0 USING SAMPLE reservoir(50 ROWS)',
-    );
+    expect(sql).toBe('SELECT * FROM "v" WHERE amount > 0 USING SAMPLE reservoir(50 ROWS)');
   });
 
   it("ignores a whitespace-only where", () => {
@@ -634,9 +630,7 @@ describe("buildOffsetPageSQL", () => {
   });
 
   it("adds WHERE and ORDER BY clauses when supplied", () => {
-    const sql = normalize(
-      buildOffsetPageSQL("v", 10, 0, { where: "a > 0", orderBy: "a ASC" }),
-    );
+    const sql = normalize(buildOffsetPageSQL("v", 10, 0, { where: "a > 0", orderBy: "a ASC" }));
     expect(sql).toBe('SELECT * FROM "v" WHERE a > 0 ORDER BY a ASC LIMIT 10 OFFSET 0');
   });
 

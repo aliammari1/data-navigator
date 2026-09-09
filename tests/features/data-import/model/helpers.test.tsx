@@ -3,14 +3,15 @@
  *
  * Goal: 100% line + branch + function coverage for helpers.tsx.
  */
-import { describe, it, expect } from "vitest";
+
 import { render } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
 import {
-  formatBytes,
-  detectFileType,
-  getFileIcon,
-  computeQualityScores,
   columnInfoToColMeta,
+  computeQualityScores,
+  detectFileType,
+  formatBytes,
+  getFileIcon,
   StatusStep,
 } from "@/features/data-import/model/helpers";
 import type { ColumnInfo } from "@/features/data-import/model/types";
@@ -384,23 +385,17 @@ describe("StatusStep component", () => {
 
   it("does NOT show duration when status is active even if duration is provided", () => {
     // Branch: duration !== undefined && status === "done" → false when status !== "done"
-    const { queryByText } = render(
-      <StatusStep label="Working" status="active" duration={100} />,
-    );
+    const { queryByText } = render(<StatusStep label="Working" status="active" duration={100} />);
     expect(queryByText("100ms")).toBeNull();
   });
 
   it("does NOT show duration when status is pending even if duration is provided", () => {
-    const { queryByText } = render(
-      <StatusStep label="Waiting" status="pending" duration={50} />,
-    );
+    const { queryByText } = render(<StatusStep label="Waiting" status="pending" duration={50} />);
     expect(queryByText("50ms")).toBeNull();
   });
 
   it("does NOT show duration when status is error even if duration is provided", () => {
-    const { queryByText } = render(
-      <StatusStep label="Failed" status="error" duration={200} />,
-    );
+    const { queryByText } = render(<StatusStep label="Failed" status="error" duration={200} />);
     expect(queryByText("200ms")).toBeNull();
   });
 

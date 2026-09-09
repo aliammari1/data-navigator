@@ -17,7 +17,7 @@
  */
 
 import { Marp } from "@marp-team/marp-core";
-import type { ChatMessage, ChartPart } from "../../store/moudir-chat-store";
+import type { ChartPart, ChatMessage } from "../../store/moudir-chat-store";
 
 export interface DeckExportOptions {
   title: string;
@@ -328,15 +328,20 @@ ${takeawaysHtml}
       rightColContent = `<img src="${chartImg}" style="max-width: 100%; max-height: 440px; object-fit: contain; border-radius: 6px;" alt="${chart.title}" />`;
     } else if (chart.rows && chart.rows.length > 0) {
       const headers = [chart.x, chart.y];
-      const rows = chart.rows.slice(0, 7).map((r) => [
-        String(r[chart.x] ?? ""),
-        typeof r[chart.y] === "number"
-          ? (r[chart.y] as number).toLocaleString("fr-FR")
-          : String(r[chart.y] ?? ""),
-      ]);
+      const rows = chart.rows
+        .slice(0, 7)
+        .map((r) => [
+          String(r[chart.x] ?? ""),
+          typeof r[chart.y] === "number"
+            ? (r[chart.y] as number).toLocaleString("fr-FR")
+            : String(r[chart.y] ?? ""),
+        ]);
 
       const tableRows = rows
-        .map((row) => `<tr>${row.map((val) => `<td style="padding: 6px 12px; border-bottom: 1px solid #E2E8F0;">${val}</td>`).join("")}</tr>`)
+        .map(
+          (row) =>
+            `<tr>${row.map((val) => `<td style="padding: 6px 12px; border-bottom: 1px solid #E2E8F0;">${val}</td>`).join("")}</tr>`,
+        )
         .join("");
 
       rightColContent = `
@@ -477,7 +482,11 @@ export async function generateExecutivePresentation(
 </html>`;
 
   // Trigger client-side download if in a browser environment and download option is not false
-  if (options.download !== false && typeof window !== "undefined" && typeof document !== "undefined") {
+  if (
+    options.download !== false &&
+    typeof window !== "undefined" &&
+    typeof document !== "undefined"
+  ) {
     try {
       const blob = new Blob([standaloneHtml], { type: "text/html;charset=utf-8" });
       const url = URL.createObjectURL(blob);

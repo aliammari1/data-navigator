@@ -14,9 +14,9 @@
  * Note: The test file is .ts (not .tsx); JSX is written as React.createElement.
  */
 
+import { act, render } from "@testing-library/react";
 import React from "react";
-import { render, act } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted mock fns — shared between vi.mock factory and test assertions ────
 
@@ -56,7 +56,10 @@ function makeOpts(height = 300): uPlot.Options {
 }
 
 function makeData(): uPlot.AlignedData {
-  return [[1, 2, 3], [10, 20, 30]];
+  return [
+    [1, 2, 3],
+    [10, 20, 30],
+  ];
 }
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
@@ -69,8 +72,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  (window as unknown as Record<string, unknown>).ResizeObserver =
-    originalResizeObserver;
+  (window as unknown as Record<string, unknown>).ResizeObserver = originalResizeObserver;
 });
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
@@ -116,8 +118,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        TrackingResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = TrackingResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -173,14 +174,15 @@ describe("useUPlot", () => {
         return React.createElement("div");
       }
 
-      const { rerender } = render(
-        React.createElement(DetachedWrapper, { data: makeData() }),
-      );
+      const { rerender } = render(React.createElement(DetachedWrapper, { data: makeData() }));
 
       act(() => {
         rerender(
           React.createElement(DetachedWrapper, {
-            data: [[4, 5], [40, 50]] as uPlot.AlignedData,
+            data: [
+              [4, 5],
+              [40, 50],
+            ] as uPlot.AlignedData,
           }),
         );
       });
@@ -204,8 +206,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        TestResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = TestResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -242,8 +243,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        FallbackResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = FallbackResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -281,8 +281,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        UndefinedEntryResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = UndefinedEntryResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -313,8 +312,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        LateResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = LateResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -371,12 +369,13 @@ describe("useUPlot", () => {
         return React.createElement("div", { ref });
       }
 
-      const { rerender } = render(
-        React.createElement(Wrapper, { data: makeData() }),
-      );
+      const { rerender } = render(React.createElement(Wrapper, { data: makeData() }));
       mockSetData.mockClear();
 
-      const newData: uPlot.AlignedData = [[4, 5, 6], [40, 50, 60]];
+      const newData: uPlot.AlignedData = [
+        [4, 5, 6],
+        [40, 50, 60],
+      ];
       act(() => {
         rerender(React.createElement(Wrapper, { data: newData }));
       });
@@ -393,15 +392,16 @@ describe("useUPlot", () => {
         return React.createElement("div");
       }
 
-      const { rerender } = render(
-        React.createElement(DetachedWrapper, { data: makeData() }),
-      );
+      const { rerender } = render(React.createElement(DetachedWrapper, { data: makeData() }));
       mockSetData.mockClear();
 
       act(() => {
         rerender(
           React.createElement(DetachedWrapper, {
-            data: [[9, 10], [90, 100]] as uPlot.AlignedData,
+            data: [
+              [9, 10],
+              [90, 100],
+            ] as uPlot.AlignedData,
           }),
         );
       });
@@ -423,8 +423,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        CleanupResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = CleanupResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 
@@ -471,8 +470,7 @@ describe("useUPlot", () => {
         unobserve = vi.fn();
       }
 
-      (window as unknown as Record<string, unknown>).ResizeObserver =
-        NullCheckResizeObserver;
+      (window as unknown as Record<string, unknown>).ResizeObserver = NullCheckResizeObserver;
 
       const { useUPlot } = await import("@/platform/viz/use-uplot");
 

@@ -11,7 +11,16 @@
  * enable it.
  */
 
-import { Code2, Download, Eye, EyeOff, Loader2, Play, RefreshCw, TriangleAlert } from "lucide-react";
+import {
+  Code2,
+  Download,
+  Eye,
+  EyeOff,
+  Loader2,
+  Play,
+  RefreshCw,
+  TriangleAlert,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   CodeBlock as AICodeBlock,
@@ -28,11 +37,11 @@ import {
   onPyodideDownloadProgress,
   usePyodideSandbox,
 } from "@/platform/pyodide/pyodide-client";
+import { cn } from "@/shared/utils";
+import { type ChartPart, chartDataToRows } from "../../../store/moudir-chat-store";
 import { ChatChartArtifact } from "../chat-chart-artifact";
 import { useJsSandbox } from "./js-sandbox";
-import { chartDataToRows, type ChartPart } from "../../../store/moudir-chat-store";
 import type { CodeBlock, PyodideRunResult, RunResult } from "./types";
-import { cn } from "@/shared/utils";
 
 /**
  * A make_chart({...}) call pasted as Python. The model sometimes emits the
@@ -108,7 +117,11 @@ export function CodeBlockCard({ block, enabled }: CodeBlockCardProps) {
                 "border-ai/40 text-ai hover:bg-ai/10",
                 "disabled:cursor-not-allowed disabled:opacity-50",
               )}
-              title={enabled ? "Exécuter dans le sandbox" : "Sandbox désactivé dans les paramètres Moudir"}
+              title={
+                enabled
+                  ? "Exécuter dans le sandbox"
+                  : "Sandbox désactivé dans les paramètres Moudir"
+              }
             >
               {isRunning ? (
                 <Loader2 className="size-3 animate-spin" />
@@ -175,9 +188,15 @@ function RunResultView({ result }: { result: RunResult }) {
 }
 
 function PythonCodeCard({ block, enabled }: { block: CodeBlock; enabled: boolean }) {
-  const [status, setStatus] = useState<"loading" | "ready" | "missing" | "downloading" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "missing" | "downloading" | "error">(
+    "loading",
+  );
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ file: string; received: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    file: string;
+    received: number;
+    total: number;
+  } | null>(null);
   const [result, setResult] = useState<PyodideRunResult | null>(null);
   const [showChart, setShowChart] = useState(false);
   const { run, isRunning } = usePyodideSandbox();
@@ -233,9 +252,10 @@ function PythonCodeCard({ block, enabled }: { block: CodeBlock; enabled: boolean
     setProgress(null);
   };
 
-  const downloadPct = progress && progress.total > 0
-    ? Math.min(100, Math.round((progress.received / progress.total) * 100))
-    : null;
+  const downloadPct =
+    progress && progress.total > 0
+      ? Math.min(100, Math.round((progress.received / progress.total) * 100))
+      : null;
 
   return (
     <div className="my-3 overflow-hidden rounded-xl border border-amber-500/30 bg-amber-500/5">
@@ -337,9 +357,7 @@ function PythonCodeCard({ block, enabled }: { block: CodeBlock; enabled: boolean
       </div>
       {chartSpec && showChart ? (
         <div className="border-t border-amber-500/30 px-3 py-2">
-          <ChatChartArtifact
-            part={{ kind: "chart", datasetId: null, ...chartSpec }}
-          />
+          <ChatChartArtifact part={{ kind: "chart", datasetId: null, ...chartSpec }} />
         </div>
       ) : null}
       {result ? <RunResultView result={result} /> : null}
@@ -356,10 +374,7 @@ function ProgressBar({ value }: { value: number }) {
       aria-valuemin={0}
       aria-valuemax={100}
     >
-      <div
-        className="h-full bg-amber-500 transition-all"
-        style={{ width: `${value}%` }}
-      />
+      <div className="h-full bg-amber-500 transition-all" style={{ width: `${value}%` }} />
     </div>
   );
 }

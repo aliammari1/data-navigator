@@ -56,6 +56,7 @@ import { buildSQL } from "../../core/sql";
 import type { AggregateFn, ChartSpec, ChartType, FilterDef } from "../../core/types";
 
 type Row = Record<string, unknown>;
+
 import { useWidgetRegistry } from "../../core/widget-registry";
 import { type ChartPart, useMoudirChatStore } from "../../store/moudir-chat-store";
 
@@ -303,7 +304,10 @@ export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
 
       if (!matchX || !matchY) {
         const missing = !matchX ? x : y;
-        const available = dataset.columns.map((c) => c.name).slice(0, 8).join(", ");
+        const available = dataset.columns
+          .map((c) => c.name)
+          .slice(0, 8)
+          .join(", ");
         commit({
           status: "error",
           message: `La colonne « ${missing} » n'existe pas dans la table "${dataset.name || tableName}". Colonnes disponibles : ${available}${dataset.columns.length > 8 ? "…" : ""}`,
@@ -454,7 +458,8 @@ export function ChatChartArtifact({ part }: Readonly<{ part: ChartPart }>) {
             <span className="flex items-center gap-1.5 text-foreground/80 text-[11px]">
               <Sparkles className="size-3 text-ai shrink-0" />
               <span>
-                <strong>Chat-with-Chart :</strong> Cliquez sur une barre ou valeur pour forer ou filtrer
+                <strong>Chat-with-Chart :</strong> Cliquez sur une barre ou valeur pour forer ou
+                filtrer
               </span>
             </span>
             <div className="flex items-center gap-1">

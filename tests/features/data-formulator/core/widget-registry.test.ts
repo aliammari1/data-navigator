@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
-import type { FormulatorWidget, WidgetSize } from "@/features/data-formulator/core/widget-registry";
 import type { ChartSpec } from "@/features/data-formulator/core/types";
+import type { FormulatorWidget, WidgetSize } from "@/features/data-formulator/core/widget-registry";
+import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 

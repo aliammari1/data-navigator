@@ -10,10 +10,11 @@
  * (never destroyed, never duplicated on a retry that won't happen because the
  * marker is set).
  */
-import { appDb } from "@/platform/storage/app-db";
+
 import { restoreLegacyDexieSnapshot } from "@/features/telecom/lib/analytics-sqlite-snapshot";
-import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
 import type * as Types from "@/features/telecom/types";
+import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
+import { appDb } from "@/platform/storage/app-db";
 
 const MARKER_NAMESPACE = "settings";
 const MARKER_KEY = "telecom_dexie_analytics_snapshot_migration_v1";

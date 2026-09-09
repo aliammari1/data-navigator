@@ -2,8 +2,8 @@
 
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { memo, useId, useState } from "react";
-import type { FeatureDef } from "../data/help-content";
 import { cn } from "@/shared/utils";
+import type { FeatureDef } from "../data/help-content";
 
 /**
  * Collapsible feature card.

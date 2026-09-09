@@ -7,8 +7,8 @@ import { useRef, useState } from "react";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
-import { FORMAT_COLORS, fmtCompact } from "@/features/dashboard-shell/topbar/format-helpers";
 import { useClickOutside } from "@/features/dashboard-shell/shell/use-click-outside";
+import { FORMAT_COLORS, fmtCompact } from "@/features/dashboard-shell/topbar/format-helpers";
 import { cn } from "@/shared/utils";
 
 /**

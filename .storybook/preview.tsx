@@ -2,7 +2,7 @@
 import type { Preview } from "@storybook/nextjs-vite";
 import { initialize, mswLoader } from "msw-storybook-addon";
 import { Fira_Code, Geist } from "next/font/google";
-import { useEffect, type ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 
 import { QueryProvider } from "../src/components/query-provider";
 import { ThemeProvider, useTheme } from "../src/components/theme-provider";

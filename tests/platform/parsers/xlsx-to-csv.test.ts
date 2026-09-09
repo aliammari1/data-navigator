@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { xlsxToPipeCSV, isExcelFile } from "@/platform/parsers/xlsx-to-csv";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { isExcelFile, xlsxToPipeCSV } from "@/platform/parsers/xlsx-to-csv";
 
 // ---------------------------------------------------------------------------
 // ExcelJS mock
@@ -32,7 +32,10 @@ vi.mock("exceljs", () => {
 // ---------------------------------------------------------------------------
 
 /** Build a fake File whose .arrayBuffer() returns an empty buffer. */
-function makeFile(name = "test.xlsx", type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"): File {
+function makeFile(
+  name = "test.xlsx",
+  type = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+): File {
   const blob = new Blob(["fake"], { type });
   return new File([blob], name, { type });
 }
@@ -49,7 +52,9 @@ function makeSheet(rowData: CellLike[][]): object {
   return {
     eachRow: (
       _opts: { includeEmpty: boolean },
-      cb: (row: { eachCell: (opts: { includeEmpty: boolean }, cellCb: (cell: CellLike) => void) => void }) => void,
+      cb: (row: {
+        eachCell: (opts: { includeEmpty: boolean }, cellCb: (cell: CellLike) => void) => void;
+      }) => void,
     ) => {
       for (const cells of rowData) {
         cb({
@@ -90,11 +95,7 @@ describe("xlsxToPipeCSV", () => {
   });
 
   it("converts a single row with string cells to pipe-delimited CSV", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: "Alice" }, { value: "Bob" }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: "Alice" }, { value: "Bob" }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("Alice|Bob");
@@ -113,33 +114,21 @@ describe("xlsxToPipeCSV", () => {
   });
 
   it("treats null cell value as empty string", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: null }, { value: "X" }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: null }, { value: "X" }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("|X");
   });
 
   it("treats undefined cell value as empty string", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: undefined }, { value: "Y" }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: undefined }, { value: "Y" }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("|Y");
   });
 
   it("uses the computed result for formula cells", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: { formula: "=A1+B1", result: 42 } }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: { formula: "=A1+B1", result: 42 } }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("42");
@@ -159,11 +148,7 @@ describe("xlsxToPipeCSV", () => {
 
   it("formats Date cell values as ISO-ish string without T", async () => {
     const date = new Date("2024-03-15T14:30:00.000Z");
-    mockWorksheets = [
-      makeSheet([
-        [{ value: date }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: date }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     // Slices off milliseconds and replaces T with a space
@@ -171,22 +156,14 @@ describe("xlsxToPipeCSV", () => {
   });
 
   it("replaces embedded pipe characters with spaces in string values", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: "foo|bar|baz" }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: "foo|bar|baz" }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("foo bar baz");
   });
 
   it("replaces embedded pipes in formula result values", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: { formula: "=X", result: "a|b" } }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: { formula: "=X", result: "a|b" } }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("a b");
@@ -197,11 +174,7 @@ describe("xlsxToPipeCSV", () => {
     // replace path by constructing a value where the stringified form has a pipe.
     // Instead, confirm that the Date path's output has no pipe.
     const date = new Date("2024-01-01T00:00:00.000Z");
-    mockWorksheets = [
-      makeSheet([
-        [{ value: date }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: date }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     // The only pipe in the output separates columns; the date value itself is pipe-free.
@@ -209,22 +182,14 @@ describe("xlsxToPipeCSV", () => {
   });
 
   it("converts numeric cell values to strings", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: 123 }, { value: 45.6 }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: 123 }, { value: 45.6 }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("123|45.6");
   });
 
   it("converts boolean cell values to strings", async () => {
-    mockWorksheets = [
-      makeSheet([
-        [{ value: true }, { value: false }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: true }, { value: false }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("true|false");
@@ -240,24 +205,15 @@ describe("xlsxToPipeCSV", () => {
     //   3. typeof "object" && value instanceof Date → date
     //   4. else → String(value)
     // So a plain {} falls to String({}) = "[object Object]".
-    mockWorksheets = [
-      makeSheet([
-        [{ value: {} }],
-      ]),
-    ];
+    mockWorksheets = [makeSheet([[{ value: {} }]])];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("[object Object]");
   });
 
   it("uses only the first worksheet, ignoring additional sheets", async () => {
-    const sheet2 = makeSheet([
-      [{ value: "SHEET2" }],
-    ]);
-    mockWorksheets = [
-      makeSheet([[{ value: "SHEET1" }]]),
-      sheet2,
-    ];
+    const sheet2 = makeSheet([[{ value: "SHEET2" }]]);
+    mockWorksheets = [makeSheet([[{ value: "SHEET1" }]]), sheet2];
     const file = makeFile();
     const result = await xlsxToPipeCSV(file);
     expect(result).toBe("SHEET1");

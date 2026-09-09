@@ -7,7 +7,7 @@
  * fallback path, and all four ExportKind values.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock electron-fs before importing the target module ─────────────────────
 

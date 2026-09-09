@@ -2,9 +2,9 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ConcurrencyLimitError,
   type ConcurrencyLimiter,
-  TaskTimeoutError,
   createConcurrencyLimiter,
   runBounded,
+  TaskTimeoutError,
   withTimeout,
 } from "../../electron/ipc-concurrency";
 

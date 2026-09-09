@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { RegisteredDatasetWithPreview } from "@/platform/duckdb/duckdb";
 
 // ── Mock the duckdb module so no real DuckDB connection is needed ──────────────
@@ -7,17 +7,13 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   registerParquetPathDataset: vi.fn(),
 }));
 
+import { registerCSVPathDataset, registerParquetPathDataset } from "@/platform/duckdb/duckdb";
 import {
-  sanitizeUploadTableName,
-  loadUploadPathToDuckDB,
-  loadUploadFileToDuckDB,
   type LoadUploadPathOptions,
+  loadUploadFileToDuckDB,
+  loadUploadPathToDuckDB,
+  sanitizeUploadTableName,
 } from "@/platform/duckdb/upload-to-duckdb";
-
-import {
-  registerCSVPathDataset,
-  registerParquetPathDataset,
-} from "@/platform/duckdb/duckdb";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -251,9 +247,9 @@ describe("loadUploadPathToDuckDB – CSV path", () => {
 
   it("surfaces a rejection from registerCSVPathDataset as a thrown error", async () => {
     vi.mocked(registerCSVPathDataset).mockRejectedValueOnce(new Error("DuckDB error"));
-    await expect(
-      loadUploadPathToDuckDB("/data/x.csv", { fileExtension: "csv" }),
-    ).rejects.toThrow("DuckDB error");
+    await expect(loadUploadPathToDuckDB("/data/x.csv", { fileExtension: "csv" })).rejects.toThrow(
+      "DuckDB error",
+    );
   });
 });
 
@@ -263,7 +259,9 @@ describe("loadUploadPathToDuckDB – CSV path", () => {
 
 describe("loadUploadPathToDuckDB – Parquet path", () => {
   beforeEach(() => {
-    vi.mocked(registerParquetPathDataset).mockResolvedValue(makeDataset({ format: "parquet" } as never));
+    vi.mocked(registerParquetPathDataset).mockResolvedValue(
+      makeDataset({ format: "parquet" } as never),
+    );
   });
 
   it("calls registerParquetPathDataset for a .parquet file", async () => {
@@ -362,45 +360,43 @@ describe("loadUploadPathToDuckDB – extension normalisation", () => {
 describe("loadUploadFileToDuckDB", () => {
   it("always throws an error explaining that file-based upload is disabled", async () => {
     const file = new File(["a,b\n1,2"], "test.csv", { type: "text/csv" });
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "csv" }),
-    ).rejects.toThrow(/File-based upload.*disabled/i);
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "csv" })).rejects.toThrow(
+      /File-based upload.*disabled/i,
+    );
   });
 
   it("includes the file extension in the error message", async () => {
     const file = new File([], "data.parquet");
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "parquet" }),
-    ).rejects.toThrow(/\.parquet/);
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "parquet" })).rejects.toThrow(
+      /\.parquet/,
+    );
   });
 
   it("includes guidance to use openLocalFileDialog in the error", async () => {
     const file = new File([], "x.csv");
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "csv" }),
-    ).rejects.toThrow(/openLocalFileDialog/);
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "csv" })).rejects.toThrow(
+      /openLocalFileDialog/,
+    );
   });
 
   it("includes guidance to use loadUploadPathToDuckDB in the error", async () => {
     const file = new File([], "x.csv");
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "csv" }),
-    ).rejects.toThrow(/loadUploadPathToDuckDB/);
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "csv" })).rejects.toThrow(
+      /loadUploadPathToDuckDB/,
+    );
   });
 
   it("throws even if the file name is empty (falls back to 'dataset')", async () => {
     // File with no name — browser File API may return empty string
     const file = { name: "", size: 0 } as File;
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "csv" }),
-    ).rejects.toThrow();
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "csv" })).rejects.toThrow();
   });
 
   it("throws for a parquet file too (not just csv)", async () => {
     const file = new File([], "snap.parquet");
-    await expect(
-      loadUploadFileToDuckDB(file, { fileExtension: "parquet" }),
-    ).rejects.toThrow(/disabled/i);
+    await expect(loadUploadFileToDuckDB(file, { fileExtension: "parquet" })).rejects.toThrow(
+      /disabled/i,
+    );
   });
 });
 
@@ -511,9 +507,9 @@ describe("getExtension (via normalizeExtension fallback path)", () => {
   it("returns 'unknown' in the error message when file path is completely empty string", async () => {
     // Empty string: "".split(".") → [""], pop → "" (falsy) → getExtension returns ""
     // normalizeExtension: String("" || "") → "" → ext || "unknown" in the error
-    await expect(
-      loadUploadPathToDuckDB("", { fileExtension: undefined as never }),
-    ).rejects.toThrow(/unknown/i);
+    await expect(loadUploadPathToDuckDB("", { fileExtension: undefined as never })).rejects.toThrow(
+      /unknown/i,
+    );
   });
 
   it("falls back to 'dataset' display name when the path starts with a dot (no real basename stem)", async () => {

@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { ColumnMapping, LoadedFile } from "@/features/telecom/types";
 import { DayAnalyticsTab } from "@/features/telecom/components/day-analytics-tab";
+import type { ColumnMapping, LoadedFile } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

@@ -50,9 +50,9 @@ vi.mock("next/navigation", () => ({
 
 // ─── Imports (after mocks) ────────────────────────────────────────────────────
 
-import { useOnboarding, ALL_TOURS } from "@/features/help/lib/use-onboarding";
-import type { TourState } from "@/features/help/lib/onboarding-db";
 import type { TourDefinition } from "@/features/help/data/tours";
+import type { TourState } from "@/features/help/lib/onboarding-db";
+import { ALL_TOURS, useOnboarding } from "@/features/help/lib/use-onboarding";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -199,9 +199,7 @@ describe("useOnboarding — isCompleted", () => {
   });
 
   it("returns false for a known but incomplete tour", async () => {
-    getAllTourStatesMock.mockResolvedValue(
-      new Map([["my-tour", makeTourState("my-tour", false)]]),
-    );
+    getAllTourStatesMock.mockResolvedValue(new Map([["my-tour", makeTourState("my-tour", false)]]));
 
     const { result } = renderHook(() => useOnboarding());
 
@@ -309,9 +307,7 @@ describe("useOnboarding — reset", () => {
 
   it("updates states after reset by re-reading Dexie", async () => {
     getAllTourStatesMock
-      .mockResolvedValueOnce(
-        new Map([["my-tour", makeTourState("my-tour", true)]]),
-      )
+      .mockResolvedValueOnce(new Map([["my-tour", makeTourState("my-tour", true)]]))
       .mockResolvedValueOnce(new Map()); // after reset the row is gone
 
     const { result } = renderHook(() => useOnboarding());
@@ -352,7 +348,10 @@ describe("useOnboarding — resetAll", () => {
   it("clears states after resetAll", async () => {
     getAllTourStatesMock
       .mockResolvedValueOnce(
-        new Map([["t1", makeTourState("t1", true)], ["t2", makeTourState("t2", false)]]),
+        new Map([
+          ["t1", makeTourState("t1", true)],
+          ["t2", makeTourState("t2", false)],
+        ]),
       )
       .mockResolvedValueOnce(new Map());
 
@@ -464,14 +463,20 @@ describe("useOnboarding — startTour", () => {
     const realAddEventListener = window.addEventListener.bind(window);
     const addEventListenerSpy = vi
       .spyOn(window, "addEventListener")
-      .mockImplementation((type: string, listener: EventListenerOrEventListenerObject, opts?: unknown) => {
-        if (type === "focus") {
-          capturedListeners.push(listener);
-        } else {
-          // Pass through non-focus listeners so timers still work.
-          (realAddEventListener as typeof window.addEventListener)(type as any, listener as any, opts as any);
-        }
-      });
+      .mockImplementation(
+        (type: string, listener: EventListenerOrEventListenerObject, opts?: unknown) => {
+          if (type === "focus") {
+            capturedListeners.push(listener);
+          } else {
+            // Pass through non-focus listeners so timers still work.
+            (realAddEventListener as typeof window.addEventListener)(
+              type as any,
+              listener as any,
+              opts as any,
+            );
+          }
+        },
+      );
     const removeEventListenerSpy = vi
       .spyOn(window, "removeEventListener")
       .mockImplementation(() => {});
@@ -479,7 +484,7 @@ describe("useOnboarding — startTour", () => {
     // First isActive call (inside setTimeout): runner is active → register listener.
     // Second isActive call (inside focus listener): runner is now inactive → refresh+remove.
     fakeRunner.isActive
-      .mockReturnValueOnce(true)   // setTimeout check
+      .mockReturnValueOnce(true) // setTimeout check
       .mockReturnValueOnce(false); // onLeave check
 
     const { result } = renderHook(() => useOnboarding());
@@ -529,13 +534,19 @@ describe("useOnboarding — startTour", () => {
     const realAddEventListener = window.addEventListener.bind(window);
     const addEventListenerSpy = vi
       .spyOn(window, "addEventListener")
-      .mockImplementation((type: string, listener: EventListenerOrEventListenerObject, opts?: unknown) => {
-        if (type === "focus") {
-          capturedListeners.push(listener);
-        } else {
-          (realAddEventListener as typeof window.addEventListener)(type as any, listener as any, opts as any);
-        }
-      });
+      .mockImplementation(
+        (type: string, listener: EventListenerOrEventListenerObject, opts?: unknown) => {
+          if (type === "focus") {
+            capturedListeners.push(listener);
+          } else {
+            (realAddEventListener as typeof window.addEventListener)(
+              type as any,
+              listener as any,
+              opts as any,
+            );
+          }
+        },
+      );
     const removeEventListenerSpy = vi
       .spyOn(window, "removeEventListener")
       .mockImplementation(() => {});

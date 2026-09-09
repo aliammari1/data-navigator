@@ -19,8 +19,8 @@ import {
   looksLikePlaintextSqlite,
   resolveDekFromEnv,
 } from "@/platform/auth/auth-db-encryption";
-import { AUTH_DB_FILE } from "@/platform/storage/storage-constants";
 import { openSqliteHandle } from "@/platform/storage/db-bootstrap";
+import { AUTH_DB_FILE } from "@/platform/storage/storage-constants";
 
 type AuthDatabaseOptions = {
   appUserData?: string;

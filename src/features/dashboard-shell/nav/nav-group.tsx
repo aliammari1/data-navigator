@@ -48,7 +48,9 @@ export function NavGroup({
             <Icon
               className={cn(
                 "size-4 flex-none transition-transform duration-150 group-hover:scale-105",
-                groupActive ? "text-primary" : "text-muted-foreground/70 group-hover:text-foreground",
+                groupActive
+                  ? "text-primary"
+                  : "text-muted-foreground/70 group-hover:text-foreground",
               )}
             />
           </Link>

@@ -1,8 +1,8 @@
 "use client";
 
 import { Database, FileText, GitBranch, Layers } from "lucide-react";
-import { fmtN } from "@/features/telecom/lib/format";
 import type { DailyLineageEntry } from "@/features/telecom/lib/daily-stats-cache";
+import { fmtN } from "@/features/telecom/lib/format";
 
 export function DataLineagePanel({
   day,

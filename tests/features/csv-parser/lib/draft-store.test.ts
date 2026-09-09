@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ColConfig } from "@/features/csv-parser/lib/types";
 
 // ─── Mock @/platform/storage before importing the target module ───────────────

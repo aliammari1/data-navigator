@@ -767,9 +767,7 @@ const electronAuth = {
       ipcRenderer.removeListener("auth:lock-changed", handler);
     };
   },
-  onSessionExpiringSoon: (
-    callback: (info: { minutesRemaining: number }) => void,
-  ): (() => void) => {
+  onSessionExpiringSoon: (callback: (info: { minutesRemaining: number }) => void): (() => void) => {
     const handler = (_event: IpcRendererEvent, info: { minutesRemaining: number }) =>
       callback(info);
     ipcRenderer.on("auth:session-expiring-soon", handler);

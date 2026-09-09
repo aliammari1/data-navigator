@@ -9,10 +9,10 @@
  * branch coverage of queryFn bodies.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { renderHook, waitFor, act } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock IO boundary (must be declared before the module import) ─────────────
 
@@ -97,10 +97,9 @@ describe("useDuckDBQuery", () => {
     runReadOnlyQuery.mockResolvedValue(rows);
 
     // Act
-    const { result } = renderHook(
-      () => useDuckDBQuery("SELECT * FROM users"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("SELECT * FROM users"), {
+      wrapper: makeWrapper(qc),
+    });
 
     // Assert
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
@@ -113,10 +112,7 @@ describe("useDuckDBQuery", () => {
     runReadOnlyQuery.mockResolvedValue([]);
 
     // Act
-    const { result } = renderHook(
-      () => useDuckDBQuery(""),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery(""), { wrapper: makeWrapper(qc) });
 
     // The query is disabled for an empty sql string (enabled = false)
     await new Promise((r) => setTimeout(r, 50));
@@ -129,10 +125,7 @@ describe("useDuckDBQuery", () => {
     // Arrange – whitespace-only sql also disabled
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useDuckDBQuery("   "),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("   "), { wrapper: makeWrapper(qc) });
 
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.isPending).toBe(true);
@@ -143,10 +136,9 @@ describe("useDuckDBQuery", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([{ x: 1 }]);
 
-    const { result } = renderHook(
-      () => useDuckDBQuery("SELECT 1", [], { enabled: false }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("SELECT 1", [], { enabled: false }), {
+      wrapper: makeWrapper(qc),
+    });
 
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.isPending).toBe(true);
@@ -157,10 +149,9 @@ describe("useDuckDBQuery", () => {
     // Arrange
     runReadOnlyQuery.mockRejectedValue(new Error("DuckDB error"));
 
-    const { result } = renderHook(
-      () => useDuckDBQuery("SELECT boom"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("SELECT boom"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as Error).message).toBe("DuckDB error");
@@ -171,10 +162,9 @@ describe("useDuckDBQuery", () => {
     const rows = [{ n: 99 }];
     runReadOnlyQuery.mockResolvedValue(rows);
 
-    const { result } = renderHook(
-      () => useDuckDBQuery("SELECT 1", [42, "hello"]),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("SELECT 1", [42, "hello"]), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     // The SQL is passed as-is (params are NOT bound into the SQL string)
@@ -185,10 +175,9 @@ describe("useDuckDBQuery", () => {
     // Arrange – just verifying it doesn't throw when staleTime is set
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useDuckDBQuery("SELECT 1", [], { staleTime: 99_000 }),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useDuckDBQuery("SELECT 1", [], { staleTime: 99_000 }), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
   });
@@ -212,10 +201,7 @@ describe("useTableSchema", () => {
 
   it("returns null without calling listRegisteredDatasets when tableName is null", async () => {
     // Arrange – query is disabled for null tableName
-    const { result } = renderHook(
-      () => useTableSchema(null),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema(null), { wrapper: makeWrapper(qc) });
 
     await new Promise((r) => setTimeout(r, 50));
     // enabled=false, query stays pending
@@ -228,10 +214,7 @@ describe("useTableSchema", () => {
     const dataset = makeDataset({ id: "ds-abc", viewName: "v", displayName: "D" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => useTableSchema("ds-abc"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("ds-abc"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toEqual({
@@ -245,10 +228,7 @@ describe("useTableSchema", () => {
     const dataset = makeDataset({ id: "not-this", viewName: "my_view", displayName: "D" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => useTableSchema("my_view"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("my_view"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.columns).toEqual(dataset.columns);
@@ -259,10 +239,9 @@ describe("useTableSchema", () => {
     const dataset = makeDataset({ id: "x", viewName: "y", displayName: "Human Label" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => useTableSchema("Human Label"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("Human Label"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data?.rowCount).toBe(42);
@@ -272,10 +251,9 @@ describe("useTableSchema", () => {
     // Arrange
     listRegisteredDatasets.mockResolvedValue([makeDataset()]);
 
-    const { result } = renderHook(
-      () => useTableSchema("nonexistent"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("nonexistent"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as Error).message).toContain("Dataset/view not found");
@@ -286,10 +264,7 @@ describe("useTableSchema", () => {
     // Arrange
     listRegisteredDatasets.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useTableSchema("any"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("any"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
   });
@@ -298,10 +273,7 @@ describe("useTableSchema", () => {
     // Arrange
     listRegisteredDatasets.mockRejectedValue(new Error("catalog offline"));
 
-    const { result } = renderHook(
-      () => useTableSchema("ds-1"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableSchema("ds-1"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as Error).message).toBe("catalog offline");
@@ -324,10 +296,7 @@ describe("useTablePreview", () => {
   });
 
   it("is disabled when tableName is null", async () => {
-    const { result } = renderHook(
-      () => useTablePreview(null),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTablePreview(null), { wrapper: makeWrapper(qc) });
 
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.isPending).toBe(true);
@@ -339,60 +308,42 @@ describe("useTablePreview", () => {
     const rows = [{ a: 1 }];
     runReadOnlyQuery.mockResolvedValue(rows);
 
-    const { result } = renderHook(
-      () => useTablePreview("my_table"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTablePreview("my_table"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "my_table" LIMIT 100',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "my_table" LIMIT 100');
   });
 
   it("issues SELECT * with a custom limit", async () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useTablePreview("t", 25),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTablePreview("t", 25), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "t" LIMIT 25',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "t" LIMIT 25');
   });
 
   it("floors a fractional limit to an integer", async () => {
     // Arrange – limit is passed as-is through Math.floor
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useTablePreview("t", 10.9),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTablePreview("t", 10.9), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "t" LIMIT 10',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "t" LIMIT 10');
   });
 
   it("escapes double-quotes in the table name", async () => {
     // Arrange – table name contains a double-quote character
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useTablePreview('weird"name'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTablePreview('weird"name'), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "weird""name" LIMIT 100',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "weird""name" LIMIT 100');
   });
 });
 
@@ -412,10 +363,7 @@ describe("useTableRowCount", () => {
   });
 
   it("is disabled when tableName is null", async () => {
-    const { result } = renderHook(
-      () => useTableRowCount(null),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount(null), { wrapper: makeWrapper(qc) });
 
     await new Promise((r) => setTimeout(r, 50));
     expect(result.current.isPending).toBe(true);
@@ -426,26 +374,18 @@ describe("useTableRowCount", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([{ count: 123 }]);
 
-    const { result } = renderHook(
-      () => useTableRowCount("sales"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount("sales"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(123);
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT COUNT(*) AS count FROM "sales"',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT COUNT(*) AS count FROM "sales"');
   });
 
   it("coerces the count value from a string to a number", async () => {
     // DuckDB can return count as a string in some driver versions
     runReadOnlyQuery.mockResolvedValue([{ count: "999" }]);
 
-    const { result } = renderHook(
-      () => useTableRowCount("t"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount("t"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(999);
@@ -455,10 +395,9 @@ describe("useTableRowCount", () => {
     // Arrange – empty result set
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => useTableRowCount("empty_table"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount("empty_table"), {
+      wrapper: makeWrapper(qc),
+    });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(0);
@@ -468,10 +407,7 @@ describe("useTableRowCount", () => {
     // Arrange – count field missing
     runReadOnlyQuery.mockResolvedValue([{}]);
 
-    const { result } = renderHook(
-      () => useTableRowCount("t"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount("t"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toBe(0);
@@ -481,25 +417,17 @@ describe("useTableRowCount", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([{ count: 5 }]);
 
-    const { result } = renderHook(
-      () => useTableRowCount('tab"le'),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount('tab"le'), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT COUNT(*) AS count FROM "tab""le"',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT COUNT(*) AS count FROM "tab""le"');
   });
 
   it("propagates runReadOnlyQuery errors", async () => {
     // Arrange
     runReadOnlyQuery.mockRejectedValue(new Error("table not found"));
 
-    const { result } = renderHook(
-      () => useTableRowCount("gone"),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useTableRowCount("gone"), { wrapper: makeWrapper(qc) });
 
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect((result.current.error as Error).message).toBe("table not found");
@@ -525,10 +453,7 @@ describe("useInvalidateDuckDBQueries", () => {
     // Arrange – spy on the QueryClient
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
 
-    const { result } = renderHook(
-      () => useInvalidateDuckDBQueries(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useInvalidateDuckDBQueries(), { wrapper: makeWrapper(qc) });
 
     // Act
     act(() => {
@@ -543,10 +468,7 @@ describe("useInvalidateDuckDBQueries", () => {
     // Arrange
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
 
-    const { result } = renderHook(
-      () => useInvalidateDuckDBQueries(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useInvalidateDuckDBQueries(), { wrapper: makeWrapper(qc) });
 
     // Act
     act(() => {
@@ -573,10 +495,7 @@ describe("useInvalidateDuckDBQueries", () => {
     // Arrange
     const invalidateSpy = vi.spyOn(qc, "invalidateQueries");
 
-    const { result } = renderHook(
-      () => useInvalidateDuckDBQueries(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => useInvalidateDuckDBQueries(), { wrapper: makeWrapper(qc) });
 
     // Act
     act(() => {
@@ -584,12 +503,8 @@ describe("useInvalidateDuckDBQueries", () => {
     });
 
     // Assert
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ["duckdb"] }),
-    );
-    expect(invalidateSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ["datasets"] }),
-    );
+    expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["duckdb"] }));
+    expect(invalidateSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ["datasets"] }));
     expect(invalidateSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: ["dataset", "my-dataset-id"] }),
     );
@@ -667,18 +582,22 @@ describe("useTableSchema – queryFn null-tableName guard (line 65)", () => {
         if (!tableName) return null;
 
         const datasets = await listRegisteredDatasets();
-        const dataset = datasets.find(
-          (d: Record<string, unknown>) =>
-            d["id"] === tableName ||
-            d["viewName"] === tableName ||
-            d["displayName"] === tableName,
-        ) ?? null;
+        const dataset =
+          datasets.find(
+            (d: Record<string, unknown>) =>
+              d["id"] === tableName ||
+              d["viewName"] === tableName ||
+              d["displayName"] === tableName,
+          ) ?? null;
 
         if (!dataset) {
           throw new Error(`Dataset/view not found: ${tableName}`);
         }
 
-        return { columns: (dataset as Record<string, unknown>)["columns"], rowCount: (dataset as Record<string, unknown>)["rowCount"] };
+        return {
+          columns: (dataset as Record<string, unknown>)["columns"],
+          rowCount: (dataset as Record<string, unknown>)["rowCount"],
+        };
       },
     });
 
@@ -708,9 +627,7 @@ describe("useTableRowCount – queryFn null-tableName guard (line 108)", () => {
         const tableName: string | null = null;
         if (!tableName) return 0;
 
-        const rows = await runReadOnlyQuery(
-          `SELECT COUNT(*) AS count FROM "${tableName}"`,
-        );
+        const rows = await runReadOnlyQuery(`SELECT COUNT(*) AS count FROM "${tableName}"`);
 
         return Number(rows[0]?.count ?? 0);
       },
@@ -739,10 +656,7 @@ describe("usePrefetchDuckDBQuery", () => {
 
   it("prefetch returns early without calling runReadOnlyQuery for an empty sql string", async () => {
     // Arrange
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -755,10 +669,7 @@ describe("usePrefetchDuckDBQuery", () => {
 
   it("prefetch returns early for a whitespace-only sql string", async () => {
     // Arrange
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -773,10 +684,7 @@ describe("usePrefetchDuckDBQuery", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([{ n: 1 }]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -791,10 +699,7 @@ describe("usePrefetchDuckDBQuery", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -810,10 +715,7 @@ describe("usePrefetchDuckDBQuery", () => {
     const dataset = makeDataset({ id: "target", viewName: "v", displayName: "D" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -829,10 +731,7 @@ describe("usePrefetchDuckDBQuery", () => {
     // Arrange
     listRegisteredDatasets.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act & Assert – prefetchQuery swallows errors, but we can verify no cache entry
     await act(async () => {
@@ -848,10 +747,7 @@ describe("usePrefetchDuckDBQuery", () => {
     const dataset = makeDataset({ id: "other", viewName: "view_x", displayName: "DX" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -867,10 +763,7 @@ describe("usePrefetchDuckDBQuery", () => {
     const dataset = makeDataset({ id: "a", viewName: "b", displayName: "Friendly Name" });
     listRegisteredDatasets.mockResolvedValue([dataset]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -885,10 +778,7 @@ describe("usePrefetchDuckDBQuery", () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -896,19 +786,14 @@ describe("usePrefetchDuckDBQuery", () => {
     });
 
     // Assert
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "orders" LIMIT 100',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "orders" LIMIT 100');
   });
 
   it("prefetchPreview uses a custom limit", async () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -916,19 +801,14 @@ describe("usePrefetchDuckDBQuery", () => {
     });
 
     // Assert
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "orders" LIMIT 50',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "orders" LIMIT 50');
   });
 
   it("prefetchPreview escapes double-quotes in the table name", async () => {
     // Arrange
     runReadOnlyQuery.mockResolvedValue([]);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {
@@ -936,9 +816,7 @@ describe("usePrefetchDuckDBQuery", () => {
     });
 
     // Assert
-    expect(runReadOnlyQuery).toHaveBeenCalledWith(
-      'SELECT * FROM "ta""ble" LIMIT 100',
-    );
+    expect(runReadOnlyQuery).toHaveBeenCalledWith('SELECT * FROM "ta""ble" LIMIT 100');
   });
 
   it("prefetchPreview stores the result in the QueryClient cache", async () => {
@@ -946,10 +824,7 @@ describe("usePrefetchDuckDBQuery", () => {
     const rows = [{ id: 1 }];
     runReadOnlyQuery.mockResolvedValue(rows);
 
-    const { result } = renderHook(
-      () => usePrefetchDuckDBQuery(),
-      { wrapper: makeWrapper(qc) },
-    );
+    const { result } = renderHook(() => usePrefetchDuckDBQuery(), { wrapper: makeWrapper(qc) });
 
     // Act
     await act(async () => {

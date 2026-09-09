@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { CommandPalette } from "@/features/dashboard-shell/command/command-palette";
 import { AppSidebar } from "@/features/dashboard-shell/nav/app-sidebar";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
@@ -10,8 +11,12 @@ import { ShortcutsButton } from "@/features/dashboard-shell/shell/shortcuts-over
 import { useShellShortcuts } from "@/features/dashboard-shell/shell/use-shell-shortcuts";
 import { Topbar } from "@/features/dashboard-shell/topbar/topbar";
 import { Desktop } from "@/features/desktop/components/desktop";
-import { toast } from "sonner";
-import { lockApp, onLockChanged, onSessionExpired, onSessionExpiringSoon } from "@/platform/auth/auth-ipc-client";
+import {
+  lockApp,
+  onLockChanged,
+  onSessionExpired,
+  onSessionExpiringSoon,
+} from "@/platform/auth/auth-ipc-client";
 
 /**
  * Dashboard composition root.

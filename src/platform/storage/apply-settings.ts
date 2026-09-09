@@ -24,13 +24,13 @@
  */
 
 import {
-  type AccentColorValue,
   AccentColorSchema,
+  type AccentColorValue,
   clampNumericSetting,
-  type DensityModeValue,
   DensityModeSchema,
-  type ThemeValue,
+  type DensityModeValue,
   ThemeSchema,
+  type ThemeValue,
 } from "@/features/settings/lib/settings-schema";
 
 // ─── Input shape (structurally matches the settings store; not imported to

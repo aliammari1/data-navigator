@@ -153,7 +153,10 @@ describe("CANAL_HIERARCHY — vfp (Voucher For Payment) section", () => {
   });
 
   it("aggregates its top-level channels as generation + redemption, in order", () => {
-    expect(vfp?.channels).toEqual([...VOUCHER_FOR_PAYMENT_GENERATION, ...VOUCHER_FOR_PAYMENT_REDEMPTION]);
+    expect(vfp?.channels).toEqual([
+      ...VOUCHER_FOR_PAYMENT_GENERATION,
+      ...VOUCHER_FOR_PAYMENT_REDEMPTION,
+    ]);
   });
 });
 

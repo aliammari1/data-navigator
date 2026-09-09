@@ -19,10 +19,10 @@
  * being injected into styles. Roles shown elsewhere are server-stamped.
  */
 
+import { MousePointer2 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
-import { MousePointer2 } from "lucide-react";
 import { readPeers, subscribePeers } from "@/platform/collab/awareness";
 import type { CollabPeer } from "@/platform/collab/types";
 import {

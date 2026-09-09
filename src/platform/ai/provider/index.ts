@@ -21,12 +21,12 @@ export {
 export { useAIRuntimeStore } from "./store";
 export {
   buildJsonInstruction,
+  type DeepPartial,
   extractJsonBlock,
   parsePartialJson,
   parseStructured,
   repairJson,
   schemaToGrammarJson,
-  type DeepPartial,
 } from "./structured";
 export * from "./types";
 export { useAI } from "./use-ai";

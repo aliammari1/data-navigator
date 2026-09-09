@@ -13,8 +13,8 @@
  * needs 3+ chars to match) so the path is never silently empty.
  */
 
-import type { SqliteHandle } from "../src/platform/storage/db-bootstrap";
 import * as chatSchema from "../src/db/schema-chat";
+import type { SqliteHandle } from "../src/platform/storage/db-bootstrap";
 
 let handle: SqliteHandle<typeof chatSchema> | null = null;
 
@@ -101,9 +101,7 @@ function hasCjk(s: string): boolean {
 }
 
 function sanitize(query: string): string {
-  return query
-    .replace(/[^\p{L}\p{N}\s-]/gu, " ")
-    .trim();
+  return query.replace(/[^\p{L}\p{N}\s-]/gu, " ").trim();
 }
 
 const SHORT_CJK_THRESHOLD = 2;
@@ -171,7 +169,12 @@ export function searchMessages(
   const limit = Math.max(1, Math.min(100, options.limit ?? 25));
   const scoped = options.conversationId;
 
-  if (hasCjk(q) && sanitize(q).split(/\s+/).every((t) => t.length > SHORT_CJK_THRESHOLD)) {
+  if (
+    hasCjk(q) &&
+    sanitize(q)
+      .split(/\s+/)
+      .every((t) => t.length > SHORT_CJK_THRESHOLD)
+  ) {
     const fts = ftsQuery(q);
     if (fts) {
       try {

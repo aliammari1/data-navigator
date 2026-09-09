@@ -26,8 +26,8 @@ import {
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useModelStatus } from "@/platform/ai/models";
-import { useAIRuntimeStore } from "@/platform/ai/provider";
 import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
+import { useAIRuntimeStore } from "@/platform/ai/provider";
 import { isElectron } from "@/platform/electron/electron-fs";
 import { cn } from "@/shared/utils";
 
@@ -146,21 +146,21 @@ export function ModelDownloadPanel() {
                     </p>
                   </div>
 
-                    <div className="shrink-0">
-                      {present && isChat && !isActive ? (
-                        <button
-                          type="button"
-                          onClick={() => pickModel(ggufFile)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
-                          title="Use this model for Moudir chat"
-                        >
-                          <Check className="h-3 w-3" /> Use
-                        </button>
-                      ) : present && isChat && isActive ? (
-                        <CheckCircle2 className="h-4 w-4 text-primary" />
-                      ) : present ? (
-                        <CheckCircle2 className="h-4 w-4 text-emerald-500" />
-                      ) : record.downloadable ? (
+                  <div className="shrink-0">
+                    {present && isChat && !isActive ? (
+                      <button
+                        type="button"
+                        onClick={() => pickModel(ggufFile)}
+                        className="inline-flex items-center gap-1 rounded-lg bg-primary px-2.5 py-1 text-[10px] font-semibold text-primary-foreground hover:bg-primary/90"
+                        title="Use this model for Moudir chat"
+                      >
+                        <Check className="h-3 w-3" /> Use
+                      </button>
+                    ) : present && isChat && isActive ? (
+                      <CheckCircle2 className="h-4 w-4 text-primary" />
+                    ) : present ? (
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                    ) : record.downloadable ? (
                       inProgress ? (
                         <button
                           type="button"

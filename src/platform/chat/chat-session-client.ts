@@ -102,7 +102,6 @@ interface ElectronChatSessionBridge {
   onTool(requestId: string, callback: (event: ChatToolEvent) => void): () => void;
 }
 
-
 function bridge(): ElectronChatSessionBridge | null {
   if (typeof window === "undefined") return null;
   return window.electronChatSession ?? null;

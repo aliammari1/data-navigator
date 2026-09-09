@@ -40,7 +40,9 @@ export interface PyodideBridge {
   download: () => Promise<PyodideStatus>;
   cancel: () => Promise<void>;
   version: () => Promise<string>;
-  onProgress: (callback: (progress: { file: string; received: number; total: number }) => void) => () => void;
+  onProgress: (
+    callback: (progress: { file: string; received: number; total: number }) => void,
+  ) => () => void;
 }
 
 const IFRAME_TIMEOUT_MS = 60_000;
@@ -252,8 +254,7 @@ export function usePyodideSandbox() {
       iframe.setAttribute("aria-hidden", "true");
       iframe.title = "moudir pyodide sandbox";
       iframe.srcdoc = IFRAME_SRCDOC;
-      iframe.style.cssText =
-        "position:absolute;width:0;height:0;border:0;visibility:hidden;";
+      iframe.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden;";
       document.body.appendChild(iframe);
       iframeRef.current = iframe;
       setIsRunning(true);

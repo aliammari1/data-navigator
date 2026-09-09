@@ -1,14 +1,14 @@
-import { describe, expect, it, vi, } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
-  TelecomDeckBriefSchema,
-  DECK_BRIEF_SYSTEM_PROMPT,
   DECK_BRIEF_PROMPT_PREFIX,
+  DECK_BRIEF_SYSTEM_PROMPT,
+  type GenerateStructured,
   generateTelecomDeckBrief,
   type TelecomDeckBrief,
   type TelecomDeckBriefInput,
-  type GenerateStructured,
+  TelecomDeckBriefSchema,
 } from "@/features/telecom/lib/deck-ai";
-import type { KPISummary, CanalSummary, HourlyRow, StatusRow } from "@/features/telecom/types";
+import type { CanalSummary, HourlyRow, KPISummary, StatusRow } from "@/features/telecom/types";
 
 // ─── Builders ────────────────────────────────────────────────────────────────
 
@@ -66,22 +66,49 @@ function makeInput(overrides: Partial<TelecomDeckBriefInput> = {}): TelecomDeckB
     fileName: "report.csv",
     kpi: makeKpi(),
     canals: [
-      makeCanal({ key: "bill_payment", label: "Bill Payment", total: 500, successRate: 92, share: 50, amount: 2500, success: 460, declined: 40, refund: 5, instance: 2, submitted: 0 }),
-      makeCanal({ key: "credit_transfer", label: "Credit Transfer", total: 300, successRate: 85, share: 30, amount: 1500, success: 255, declined: 45, refund: 3, instance: 1, submitted: 0 }),
-      makeCanal({ key: "data_sabba", label: "Data Sabba", total: 200, successRate: 75, share: 20, amount: 1000, success: 150, declined: 50, refund: 2, instance: 0, submitted: 0 }),
+      makeCanal({
+        key: "bill_payment",
+        label: "Bill Payment",
+        total: 500,
+        successRate: 92,
+        share: 50,
+        amount: 2500,
+        success: 460,
+        declined: 40,
+        refund: 5,
+        instance: 2,
+        submitted: 0,
+      }),
+      makeCanal({
+        key: "credit_transfer",
+        label: "Credit Transfer",
+        total: 300,
+        successRate: 85,
+        share: 30,
+        amount: 1500,
+        success: 255,
+        declined: 45,
+        refund: 3,
+        instance: 1,
+        submitted: 0,
+      }),
+      makeCanal({
+        key: "data_sabba",
+        label: "Data Sabba",
+        total: 200,
+        successRate: 75,
+        share: 20,
+        amount: 1000,
+        success: 150,
+        declined: 50,
+        refund: 2,
+        instance: 0,
+        submitted: 0,
+      }),
     ],
-    hourly: [
-      makeHourly(8, 100, 95),
-      makeHourly(10, 400, 380),
-      makeHourly(14, 200, 190),
-    ],
-    statusData: [
-      makeStatus("SUCCESS", 900, 5000),
-      makeStatus("Échec", 100, 0),
-    ],
-    revenueGroups: [
-      { group: "Recharge", total: 600, success: 540, amount: 3000, successRate: 90 },
-    ],
+    hourly: [makeHourly(8, 100, 95), makeHourly(10, 400, 380), makeHourly(14, 200, 190)],
+    statusData: [makeStatus("SUCCESS", 900, 5000), makeStatus("Échec", 100, 0)],
+    revenueGroups: [{ group: "Recharge", total: 600, success: 540, amount: 3000, successRate: 90 }],
     selectedKpis: [
       { label: "Total", value: 1000 },
       { label: "Success Rate", value: "90%" },
@@ -310,8 +337,32 @@ describe("buildFallbackBrief — 'Canal dominant'", () => {
   it("uses top canal label in summary when canals are present", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Bill Payment", total: 500, successRate: 92, share: 50, amount: 2500, success: 460, declined: 40, refund: 5, instance: 2, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Credit Transfer", total: 300, successRate: 85, share: 30, amount: 1500, success: 255, declined: 45, refund: 3, instance: 1, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Bill Payment",
+          total: 500,
+          successRate: 92,
+          share: 50,
+          amount: 2500,
+          success: 460,
+          declined: 40,
+          refund: 5,
+          instance: 2,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Credit Transfer",
+          total: 300,
+          successRate: 85,
+          share: 30,
+          amount: 1500,
+          success: 255,
+          declined: 45,
+          refund: 3,
+          instance: 1,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -335,7 +386,19 @@ describe("buildFallbackBrief — 'Canal dominant'", () => {
   it("assigns risk='high' for Canal dominant when topCanal.successRate < 80", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Bill Payment", total: 500, successRate: 70, share: 50, amount: 2500, success: 350, declined: 150, refund: 5, instance: 2, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Bill Payment",
+          total: 500,
+          successRate: 70,
+          share: 50,
+          amount: 2500,
+          success: 350,
+          declined: 150,
+          refund: 5,
+          instance: 2,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -347,7 +410,19 @@ describe("buildFallbackBrief — 'Canal dominant'", () => {
   it("assigns risk='low' for Canal dominant when topCanal.successRate >= 80", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Bill Payment", total: 500, successRate: 85, share: 50, amount: 2500, success: 425, declined: 75, refund: 5, instance: 2, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Bill Payment",
+          total: 500,
+          successRate: 85,
+          share: 50,
+          amount: 2500,
+          success: 425,
+          declined: 75,
+          refund: 5,
+          instance: 2,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -371,8 +446,32 @@ describe("buildFallbackBrief — 'Point de fragilité'", () => {
   it("uses weakest canal label in summary when active canals exist", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Strong Canal", total: 500, successRate: 92, share: 50, amount: 2500, success: 460, declined: 40, refund: 5, instance: 2, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Weak Canal", total: 100, successRate: 60, share: 10, amount: 500, success: 60, declined: 40, refund: 3, instance: 5, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Strong Canal",
+          total: 500,
+          successRate: 92,
+          share: 50,
+          amount: 2500,
+          success: 460,
+          declined: 40,
+          refund: 5,
+          instance: 2,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Weak Canal",
+          total: 100,
+          successRate: 60,
+          share: 10,
+          amount: 500,
+          success: 60,
+          declined: 40,
+          refund: 3,
+          instance: 5,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -388,14 +487,28 @@ describe("buildFallbackBrief — 'Point de fragilité'", () => {
   it("uses fallback when all canals have total=0", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Zero Canal", total: 0, successRate: 0, share: 0, amount: 0, success: 0, declined: 0, refund: 0, instance: 0, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Zero Canal",
+          total: 0,
+          successRate: 0,
+          share: 0,
+          amount: 0,
+          success: 0,
+          declined: 0,
+          refund: 0,
+          instance: 0,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
     const finding = brief.keyFindings[2];
 
     expect(finding.summary).toContain("Aucun point de fragilité canal détecté.");
-    expect(finding.bullets).toContain("Surveiller les canaux avec faible volume avant d'interpréter les taux.");
+    expect(finding.bullets).toContain(
+      "Surveiller les canaux avec faible volume avant d'interpréter les taux.",
+    );
   });
 
   it("uses fallback when canals is empty (weakestCanal is undefined)", async () => {
@@ -409,8 +522,32 @@ describe("buildFallbackBrief — 'Point de fragilité'", () => {
   it("assigns risk='high' for Point de fragilité when weakestCanal.successRate < 80", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Canal A", total: 200, successRate: 70, share: 20, amount: 1000, success: 140, declined: 60, refund: 2, instance: 3, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Canal B", total: 100, successRate: 50, share: 10, amount: 500, success: 50, declined: 50, refund: 1, instance: 1, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Canal A",
+          total: 200,
+          successRate: 70,
+          share: 20,
+          amount: 1000,
+          success: 140,
+          declined: 60,
+          refund: 2,
+          instance: 3,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Canal B",
+          total: 100,
+          successRate: 50,
+          share: 10,
+          amount: 500,
+          success: 50,
+          declined: 50,
+          refund: 1,
+          instance: 1,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -422,8 +559,32 @@ describe("buildFallbackBrief — 'Point de fragilité'", () => {
   it("assigns risk='medium' for Point de fragilité when weakestCanal.successRate >= 80", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Canal A", total: 200, successRate: 90, share: 20, amount: 1000, success: 180, declined: 20, refund: 2, instance: 1, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Canal B", total: 100, successRate: 82, share: 10, amount: 500, success: 82, declined: 18, refund: 1, instance: 0, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Canal A",
+          total: 200,
+          successRate: 90,
+          share: 20,
+          amount: 1000,
+          success: 180,
+          declined: 20,
+          refund: 2,
+          instance: 1,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Canal B",
+          total: 100,
+          successRate: 82,
+          share: 10,
+          amount: 500,
+          success: 82,
+          declined: 18,
+          refund: 1,
+          instance: 0,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -446,11 +607,7 @@ describe("buildFallbackBrief — 'Point de fragilité'", () => {
 describe("buildFallbackBrief — 'Charge horaire'", () => {
   it("includes peak hour in summary when hourly data is present", async () => {
     const input = makeInput({
-      hourly: [
-        makeHourly(8, 100, 95),
-        makeHourly(10, 400, 380),
-        makeHourly(14, 200, 190),
-      ],
+      hourly: [makeHourly(8, 100, 95), makeHourly(10, 400, 380), makeHourly(14, 200, 190)],
     });
     const { brief } = await generateTelecomDeckBrief(input);
     const finding = brief.keyFindings[3];
@@ -490,8 +647,32 @@ describe("buildFallbackBrief — recommendedActions", () => {
   it("includes weakest canal name in action 1 when weakestCanal exists", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Bill Payment", total: 500, successRate: 92, share: 50, amount: 2500, success: 460, declined: 40, refund: 5, instance: 2, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Weak Canal", total: 100, successRate: 60, share: 10, amount: 500, success: 60, declined: 40, refund: 3, instance: 5, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Bill Payment",
+          total: 500,
+          successRate: 92,
+          share: 50,
+          amount: 2500,
+          success: 460,
+          declined: 40,
+          refund: 5,
+          instance: 2,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Weak Canal",
+          total: 100,
+          successRate: 60,
+          share: 10,
+          amount: 500,
+          success: 60,
+          declined: 40,
+          refund: 3,
+          instance: 5,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -508,10 +689,7 @@ describe("buildFallbackBrief — recommendedActions", () => {
 
   it("includes failure count in action 2 when failed status is found", async () => {
     const input = makeInput({
-      statusData: [
-        makeStatus("SUCCESS", 900, 5000),
-        makeStatus("Échec partiel", 50, 0),
-      ],
+      statusData: [makeStatus("SUCCESS", 900, 5000), makeStatus("Échec partiel", 50, 0)],
     });
     const { brief } = await generateTelecomDeckBrief(input);
 
@@ -529,10 +707,7 @@ describe("buildFallbackBrief — recommendedActions", () => {
 
   it("matches 'échec' case-insensitively (lowercase)", async () => {
     const input = makeInput({
-      statusData: [
-        makeStatus("SUCCESS", 900, 5000),
-        makeStatus("échec", 75, 0),
-      ],
+      statusData: [makeStatus("SUCCESS", 900, 5000), makeStatus("échec", 75, 0)],
     });
     const { brief } = await generateTelecomDeckBrief(input);
 
@@ -541,10 +716,7 @@ describe("buildFallbackBrief — recommendedActions", () => {
 
   it("matches 'ÉCHEC' (uppercase) using toLowerCase()", async () => {
     const input = makeInput({
-      statusData: [
-        makeStatus("SUCCESS", 900, 5000),
-        makeStatus("ÉCHEC SYSTÈME", 120, 0),
-      ],
+      statusData: [makeStatus("SUCCESS", 900, 5000), makeStatus("ÉCHEC SYSTÈME", 120, 0)],
     });
     const { brief } = await generateTelecomDeckBrief(input);
 
@@ -644,10 +816,7 @@ describe("generateTelecomDeckBrief — with generator (AI path)", () => {
 
     await generateTelecomDeckBrief(makeInput(), gen);
 
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("[telecom deck]"),
-      err,
-    );
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining("[telecom deck]"), err);
     warnSpy.mockRestore();
   });
 
@@ -748,7 +917,19 @@ describe("generateTelecomDeckBrief — edge cases", () => {
   it("handles a canal with exactly successRate=80 — Canal dominant risk='low'", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Borderline", total: 100, successRate: 80, share: 100, amount: 500, success: 80, declined: 20, refund: 0, instance: 0, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Borderline",
+          total: 100,
+          successRate: 80,
+          share: 100,
+          amount: 500,
+          success: 80,
+          declined: 20,
+          refund: 0,
+          instance: 0,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -759,7 +940,19 @@ describe("generateTelecomDeckBrief — edge cases", () => {
   it("handles a canal with successRate=79.9 — Canal dominant risk='high'", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Borderline", total: 100, successRate: 79.9, share: 100, amount: 500, success: 79, declined: 21, refund: 0, instance: 0, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Borderline",
+          total: 100,
+          successRate: 79.9,
+          share: 100,
+          amount: 500,
+          success: 79,
+          declined: 21,
+          refund: 0,
+          instance: 0,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -770,8 +963,32 @@ describe("generateTelecomDeckBrief — edge cases", () => {
   it("handles all canals with zero total — weakestCanal is undefined", async () => {
     const input = makeInput({
       canals: [
-        makeCanal({ key: "bill_payment", label: "Zero", total: 0, successRate: 0, share: 0, amount: 0, success: 0, declined: 0, refund: 0, instance: 0, submitted: 0 }),
-        makeCanal({ key: "credit_transfer", label: "Also Zero", total: 0, successRate: 0, share: 0, amount: 0, success: 0, declined: 0, refund: 0, instance: 0, submitted: 0 }),
+        makeCanal({
+          key: "bill_payment",
+          label: "Zero",
+          total: 0,
+          successRate: 0,
+          share: 0,
+          amount: 0,
+          success: 0,
+          declined: 0,
+          refund: 0,
+          instance: 0,
+          submitted: 0,
+        }),
+        makeCanal({
+          key: "credit_transfer",
+          label: "Also Zero",
+          total: 0,
+          successRate: 0,
+          share: 0,
+          amount: 0,
+          success: 0,
+          declined: 0,
+          refund: 0,
+          instance: 0,
+          submitted: 0,
+        }),
       ],
     });
     const { brief } = await generateTelecomDeckBrief(input);
@@ -782,9 +999,7 @@ describe("generateTelecomDeckBrief — edge cases", () => {
 
   it("handles status matching 'échec' in middle of string", async () => {
     const input = makeInput({
-      statusData: [
-        makeStatus("Transaction en échec complet", 33, 0),
-      ],
+      statusData: [makeStatus("Transaction en échec complet", 33, 0)],
     });
     const { brief } = await generateTelecomDeckBrief(input);
 

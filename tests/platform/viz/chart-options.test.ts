@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  DENSE_SERIES_FLAGS,
   buildBarOption,
   buildHeatmapOption,
   buildLineOption,
   buildPieOption,
   buildScatterOption,
+  DENSE_SERIES_FLAGS,
 } from "@/platform/viz/chart-options";
 
 // ---------------------------------------------------------------------------
@@ -80,7 +80,15 @@ describe("DENSE_SERIES_FLAGS", () => {
 
   it("exercises every key DENSE_SERIES_FLAGS declares (completeness check)", () => {
     expect(Object.keys(DENSE_SERIES_FLAGS).sort()).toEqual(
-      ["animation", "large", "largeThreshold", "progressive", "progressiveThreshold", "sampling", "showSymbol"].sort(),
+      [
+        "animation",
+        "large",
+        "largeThreshold",
+        "progressive",
+        "progressiveThreshold",
+        "sampling",
+        "showSymbol",
+      ].sort(),
     );
   });
 });
@@ -477,7 +485,11 @@ describe("buildHeatmapOption", () => {
 
   it("passes cells data through to the heatmap series", () => {
     const option = buildHeatmapOption(xLabels, yLabels, cells);
-    const seriesArr = option.series as Array<{ type: string; data: typeof cells; label: { show: boolean } }>;
+    const seriesArr = option.series as Array<{
+      type: string;
+      data: typeof cells;
+      label: { show: boolean };
+    }>;
     expect(seriesArr[0].type).toBe("heatmap");
     expect(seriesArr[0].data).toBe(cells);
     expect(seriesArr[0].label.show).toBe(false);
@@ -490,8 +502,21 @@ describe("buildHeatmapOption", () => {
 
 describe("buildScatterOption", () => {
   const clusters = [
-    { name: "Cluster A", points: [[1, 2], [3, 4]] as [number, number][], color: "#ff0000" },
-    { name: "Cluster B", points: [[5, 6], [7, 8]] as [number, number][] },
+    {
+      name: "Cluster A",
+      points: [
+        [1, 2],
+        [3, 4],
+      ] as [number, number][],
+      color: "#ff0000",
+    },
+    {
+      name: "Cluster B",
+      points: [
+        [5, 6],
+        [7, 8],
+      ] as [number, number][],
+    },
   ];
 
   it("returns a valid EChartsOption structure with defaults", () => {

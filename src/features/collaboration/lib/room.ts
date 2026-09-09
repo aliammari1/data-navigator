@@ -20,8 +20,8 @@
 
 import * as Y from "yjs";
 import {
-  acquireRoom as platformAcquireRoom,
   type CollabRoomDoc,
+  acquireRoom as platformAcquireRoom,
   releaseRoom as platformReleaseRoom,
 } from "@/platform/collab";
 

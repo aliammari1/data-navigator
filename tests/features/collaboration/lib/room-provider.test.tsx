@@ -14,9 +14,9 @@
  * The old per-room connectRoomLAN/disconnectRoomLAN surface no longer exists.
  */
 
+import { act, render, renderHook, screen, waitFor } from "@testing-library/react";
 import React from "react";
-import { render, screen, act, waitFor, renderHook } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted helpers (must run before module imports) ──────────────────────
 
@@ -63,11 +63,7 @@ vi.mock("@/platform/lan/lan-collab", () => ({
 
 // ─── Target under test ─────────────────────────────────────────────────────
 
-import {
-  RoomProvider,
-  useRoom,
-  useLocalPeer,
-} from "@/features/collaboration/lib/room-provider";
+import { RoomProvider, useLocalPeer, useRoom } from "@/features/collaboration/lib/room-provider";
 
 // ─── Test helpers ──────────────────────────────────────────────────────────
 
@@ -85,14 +81,18 @@ const DEFAULT_SETTINGS = {
 };
 
 /** Build a minimal RoomDoc with a resolved `whenStored`. */
-function makeRoomDoc(overrides: { whenStored?: Promise<void>; awareness?: unknown; nullAwareness?: boolean } = {}) {
+function makeRoomDoc(
+  overrides: { whenStored?: Promise<void>; awareness?: unknown; nullAwareness?: boolean } = {},
+) {
   return {
     id: "room-1",
     doc: {},
     comments: [],
     changes: [],
     chat: [],
-    awareness: overrides.nullAwareness ? null : (overrides.awareness ?? { setLocalStateField: vi.fn() }),
+    awareness: overrides.nullAwareness
+      ? null
+      : (overrides.awareness ?? { setLocalStateField: vi.fn() }),
     whenStored: overrides.whenStored ?? Promise.resolve(),
   };
 }

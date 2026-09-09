@@ -14,8 +14,8 @@
  *    (checked at the import level — no additional runtime test needed).
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted mock factories ───────────────────────────────────────────────────
 
@@ -79,7 +79,14 @@ describe("useAnnotations", () => {
 
   it("passes different sectionIds through to useAnnotationsCRDT", () => {
     // Arrange
-    const sectionIds = ["overview", "transactions", "channels", "anomalies", "operators", "regions"];
+    const sectionIds = [
+      "overview",
+      "transactions",
+      "channels",
+      "anomalies",
+      "operators",
+      "regions",
+    ];
 
     for (const sectionId of sectionIds) {
       vi.clearAllMocks();

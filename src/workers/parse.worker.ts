@@ -22,8 +22,8 @@
  * Offline: pure JS, no wasm/network. All packages ship their code in the tarball.
  */
 
-import * as Comlink from "comlink";
 import { tableFromIPC } from "@uwdata/flechette";
+import * as Comlink from "comlink";
 import Papa from "papaparse";
 import { inferSchema, initParser } from "udsv";
 import { castValue, detectType, mapUdsvType } from "./parse-cast";

@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   CANAL_CONFIG,
   CHART_PALETTE,
-  STATUS_COLORS,
   enrichCanalSummaries,
   reattachCanalIcons,
+  STATUS_COLORS,
   stripCanalIconsForPersist,
 } from "@/features/telecom/lib/canal-config";
 import type { RawCanalRow } from "@/features/telecom/lib/queries";

@@ -264,7 +264,10 @@ describe("chat-session-service", () => {
       { type: "user", text: "Bonjour" },
       {
         type: "model",
-        response: ["Voici.", { type: "functionCall", name: "tool", params: {}, result: "3 lignes" }],
+        response: [
+          "Voici.",
+          { type: "functionCall", name: "tool", params: {}, result: "3 lignes" },
+        ],
       },
     ]);
   });

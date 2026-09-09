@@ -16,8 +16,8 @@
  *   9. quoteIdent escapes embedded double-quotes in viewName.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoist mock factory ───────────────────────────────────────────────────────
 
@@ -335,9 +335,7 @@ describe("usePreviewRows – stale request guard", () => {
     const secondRows = [{ id: 2, val: "second" }];
 
     // First call returns a held promise; second call resolves immediately
-    mockRunReadOnlyQuery
-      .mockReturnValueOnce(firstPromise)
-      .mockResolvedValueOnce(secondRows);
+    mockRunReadOnlyQuery.mockReturnValueOnce(firstPromise).mockResolvedValueOnce(secondRows);
 
     const { result, rerender } = renderHook(
       ({ viewName }: { viewName: string }) => usePreviewRows(viewName),
@@ -374,9 +372,7 @@ describe("usePreviewRows – stale request guard", () => {
 
     const secondRows = [{ id: 2, val: "second" }];
 
-    mockRunReadOnlyQuery
-      .mockReturnValueOnce(firstPromise)
-      .mockResolvedValueOnce(secondRows);
+    mockRunReadOnlyQuery.mockReturnValueOnce(firstPromise).mockResolvedValueOnce(secondRows);
 
     const { result, rerender } = renderHook(
       ({ viewName }: { viewName: string }) => usePreviewRows(viewName),

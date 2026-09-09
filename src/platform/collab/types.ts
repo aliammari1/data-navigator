@@ -7,8 +7,8 @@
  * its own view models — it does not own these primitives.
  */
 
-import type * as Y from "yjs";
 import type { Awareness } from "y-protocols/awareness";
+import type * as Y from "yjs";
 
 // ─── Identity / roles ─────────────────────────────────────────────────────────
 

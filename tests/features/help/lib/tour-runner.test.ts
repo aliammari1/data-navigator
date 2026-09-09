@@ -25,8 +25,8 @@ vi.mock("@/features/help/lib/onboarding-db", () => ({
   saveTourProgress: (input: unknown) => saveTourProgressMock(input),
 }));
 
-import { createTourRunner, } from "@/features/help/lib/tour-runner";
 import type { TourDefinition, TourStepDef } from "@/features/help/data/tours";
+import { createTourRunner } from "@/features/help/lib/tour-runner";
 
 // ─── Fake Driver factory ─────────────────────────────────────────────────────
 
@@ -131,7 +131,9 @@ beforeEach(() => {
   // Fake timers keep the `waitForSelector` polling (setInterval +
   // performance.now) deterministic and instant — no 4s real waits. We fake
   // performance too so the timeout math advances with the virtual clock.
-  vi.useFakeTimers({ toFake: ["setInterval", "clearInterval", "setTimeout", "Date", "performance"] });
+  vi.useFakeTimers({
+    toFake: ["setInterval", "clearInterval", "setTimeout", "Date", "performance"],
+  });
 });
 
 afterEach(() => {
@@ -216,9 +218,7 @@ describe("createTourRunner.start — driver config", () => {
     mountAnchor("/a");
     mountAnchor("/b");
     const runner = createTourRunner(navigate);
-    await runner.start(
-      tour([step({ element: '[href="/a"]' }), step({ element: '[href="/b"]' })]),
-    );
+    await runner.start(tour([step({ element: '[href="/a"]' }), step({ element: '[href="/b"]' })]));
 
     expect(capturedConfig().showProgress).toBe(true);
   });
@@ -257,9 +257,7 @@ describe("createTourRunner.start — first-step routing", () => {
   it("navigates to the first step's route when not already there", async () => {
     window.history.replaceState({}, "", "/dashboard");
     const runner = createTourRunner(navigate);
-    await runner.start(
-      tour([step({ element: "body", route: "/dashboard/upload" })]),
-    );
+    await runner.start(tour([step({ element: "body", route: "/dashboard/upload" })]));
 
     expect(navigate).toHaveBeenCalledWith("/dashboard/upload");
   });
@@ -267,9 +265,7 @@ describe("createTourRunner.start — first-step routing", () => {
   it("does NOT navigate when already on the first step's route", async () => {
     window.history.replaceState({}, "", "/dashboard/upload");
     const runner = createTourRunner(navigate);
-    await runner.start(
-      tour([step({ element: "body", route: "/dashboard/upload" })]),
-    );
+    await runner.start(tour([step({ element: "body", route: "/dashboard/upload" })]));
 
     expect(navigate).not.toHaveBeenCalled();
   });
@@ -459,10 +455,7 @@ describe("onNextClick", () => {
     mountAnchor("/t");
     const runner = createTourRunner(navigate);
     await runner.start(
-      tour([
-        step({ element: "body" }),
-        step({ element: '[href="/t"]', route: "/same" }),
-      ]),
+      tour([step({ element: "body" }), step({ element: '[href="/t"]', route: "/same" })]),
     );
 
     await capturedConfig().onNextClick(undefined, undefined, ctx(0));
@@ -550,9 +543,7 @@ describe("onNextClick", () => {
     const fake = makeFakeDriver({ hasNextStep: false });
     driverMock.mockImplementation(() => fake);
     const runner = createTourRunner(navigate);
-    await runner.start(
-      tour([step({ element: '[href="/a"]' }), step({ element: '[href="/b"]' })]),
-    );
+    await runner.start(tour([step({ element: '[href="/a"]' }), step({ element: '[href="/b"]' })]));
 
     // From the last real step: next step is undefined → no wait, falls through.
     await capturedConfig().onNextClick(undefined, undefined, ctx(1));
@@ -934,9 +925,7 @@ describe("start — active guard before drive (line 170)", () => {
 
     runnerRef = createTourRunner(navigateSpy);
 
-    const startPromise = runnerRef.start(
-      tour([step({ element: selector, route: "/other" })]),
-    );
+    const startPromise = runnerRef.start(tour([step({ element: selector, route: "/other" })]));
 
     // The navigate spy fired synchronously during start, calling stop() which
     // nulls active. Now settle any pending waitForSelector polling.

@@ -363,10 +363,7 @@ function Stat({ icon: Icon, label, value }: { icon: typeof Hash; label: string; 
       <span className="text-[11px]" style={{ color: "var(--glass-text-dim)" }}>
         {label}
       </span>
-      <span
-        className="text-xs font-semibold tabular-nums"
-        style={{ color: "var(--glass-text)" }}
-      >
+      <span className="text-xs font-semibold tabular-nums" style={{ color: "var(--glass-text)" }}>
         {value}
       </span>
     </div>

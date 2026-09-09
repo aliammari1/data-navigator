@@ -47,8 +47,8 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: vi.fn(async () => [] as Record<string, unknown>[]),
 }));
 
-import { assertReadOnlySql } from "@/platform/duckdb/sql-guard";
 import { parseStructured } from "@/platform/ai/provider/structured";
+import { assertReadOnlySql } from "@/platform/duckdb/sql-guard";
 import { INJECTION_CASES, SQL_DANGEROUS_IDS } from "./fixtures/injection-cases";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -83,7 +83,6 @@ function sqlGuardIsSound(embeddedSql: string): { accepted: boolean; safe: boolea
     return { accepted: false, safe: true };
   }
 }
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (a) assertReadOnlySql: sound against every data-value-embedded payload.
@@ -138,7 +137,6 @@ describe("injection-safety: assertReadOnlySql resists data-value injection (dete
     expect(() => assertReadOnlySql(embedAsWhereLiteral(c.value))).not.toThrow();
   });
 });
-
 
 // ─────────────────────────────────────────────────────────────────────────────
 // (c) parseStructured: attacker JSON embedded in a data value.

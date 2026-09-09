@@ -24,12 +24,12 @@
 
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
-  addAnnotation,
-  appendAuditEvent,
   type AnnotationNote,
   type ApprovalRecord,
   type ApprovalStatus,
   type AuditEventType,
+  addAnnotation,
+  appendAuditEvent,
   type CollabAuditEvent,
   deleteAnnotation,
   ensureAppDocPersistence,

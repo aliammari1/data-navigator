@@ -264,11 +264,7 @@ export type DownloadModelInput = {
 
 /** Lane-aware destination dir: <userData>/models/llm or <userData>/models/embed. */
 function dirFor(entry: ModelDownloadEntry): string {
-  return path.join(
-    app.getPath("userData"),
-    "models",
-    entry.lane === "embed" ? "embed" : "llm",
-  );
+  return path.join(app.getPath("userData"), "models", entry.lane === "embed" ? "embed" : "llm");
 }
 
 function entryFor(key: string): ModelDownloadEntry {
@@ -310,8 +306,7 @@ async function sha256OfFile(filePath: string): Promise<string> {
  * token keeps behaviour deterministic when the env is set in-process.
  */
 function hfTokens(): { huggingFace: string } | undefined {
-  const token =
-    process.env.HF_TOKEN?.trim() || process.env.HUGGING_FACE_TOKEN?.trim();
+  const token = process.env.HF_TOKEN?.trim() || process.env.HUGGING_FACE_TOKEN?.trim();
   return token ? { huggingFace: token } : undefined;
 }
 
@@ -360,9 +355,7 @@ export function isModelPresent(key: string): boolean {
  * and then streamed the rest of the way, so the UI picks up mid-progress
  * rather than restarting from 0%.
  */
-export async function downloadModel(
-  input: DownloadModelInput,
-): Promise<ModelPresence> {
+export async function downloadModel(input: DownloadModelInput): Promise<ModelPresence> {
   const entry = entryFor(input.key);
 
   const existing = inFlightDownloads.get(entry.key);

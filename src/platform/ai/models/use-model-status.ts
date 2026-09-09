@@ -18,10 +18,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isElectron } from "@/platform/electron/electron-fs";
 import {
+  MODEL_MANIFEST,
   type ModelCapabilities,
   type ModelLane,
   type ModelManifestEntry,
-  MODEL_MANIFEST,
   primaryForLane,
 } from "./model-manifest";
 

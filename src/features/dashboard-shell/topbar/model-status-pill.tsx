@@ -18,8 +18,8 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import Link from "next/link";
 import { useRef, useState } from "react";
-import { useModelStatus } from "@/features/dashboard-shell/shell/use-model-status";
 import { useClickOutside } from "@/features/dashboard-shell/shell/use-click-outside";
+import { useModelStatus } from "@/features/dashboard-shell/shell/use-model-status";
 import { cn } from "@/shared/utils";
 
 function formatBytes(bytes?: number): string {
@@ -95,10 +95,10 @@ export function ModelStatusPill() {
             <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
           </span>
         )}
-        <Icon className={cn("h-3.5 w-3.5 flex-none", status.kind === "downloading" && "animate-spin")} />
-        <span className="font-medium tracking-tight truncate max-w-[130px]">
-          {status.label}
-        </span>
+        <Icon
+          className={cn("h-3.5 w-3.5 flex-none", status.kind === "downloading" && "animate-spin")}
+        />
+        <span className="font-medium tracking-tight truncate max-w-[130px]">{status.label}</span>
         <ChevronDown
           className={cn(
             "h-3 w-3 opacity-60 transition-transform duration-200 flex-none",
@@ -229,7 +229,8 @@ export function ModelStatusPill() {
                     </div>
                     <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                       L'application fonctionne actuellement avec le moteur heuristique par règles.
-                      Téléchargez un modèle ci-dessous pour activer le traitement en langage naturel.
+                      Téléchargez un modèle ci-dessous pour activer le traitement en langage
+                      naturel.
                     </p>
                   </div>
                 )}
@@ -338,4 +339,3 @@ export function ModelStatusPill() {
     </div>
   );
 }
-

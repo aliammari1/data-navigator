@@ -68,23 +68,14 @@ describe("detectType", () => {
 
   it("uses a strict > 0.85 threshold: exactly 0.85 numeric stays 'string'", () => {
     // 17 numbers out of 20 = 0.85 exactly → NOT > 0.85 → falls through to string.
-    const values = [
-      ...Array.from({ length: 17 }, (_, i) => String(i + 100)),
-      "x",
-      "y",
-      "z",
-    ];
+    const values = [...Array.from({ length: 17 }, (_, i) => String(i + 100)), "x", "y", "z"];
     expect(values).toHaveLength(20);
     expect(detectType(values)).toBe("string");
   });
 
   it("crosses the threshold just above 0.85 → 'number'", () => {
     // 18 numbers out of 20 = 0.90 > 0.85 → number.
-    const values = [
-      ...Array.from({ length: 18 }, (_, i) => String(i + 100)),
-      "x",
-      "y",
-    ];
+    const values = [...Array.from({ length: 18 }, (_, i) => String(i + 100)), "x", "y"];
     expect(detectType(values)).toBe("number");
   });
 

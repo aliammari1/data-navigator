@@ -1,7 +1,10 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
 
-import { type DashboardCardItem, DraggableAutoGrid } from "@/features/telecom/components/draggable-auto-grid";
+import {
+  type DashboardCardItem,
+  DraggableAutoGrid,
+} from "@/features/telecom/components/draggable-auto-grid";
 
 function Card({ title, body }: { title: string; body: string }) {
   return (

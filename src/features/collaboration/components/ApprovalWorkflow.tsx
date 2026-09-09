@@ -1,27 +1,32 @@
 "use client";
 
+import {
+  AlertCircle,
+  CheckCircle2,
+  ChevronRight,
+  Clock,
+  Download,
+  RefreshCw,
+  Send,
+  Share2,
+  User,
+  XCircle,
+} from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
 import * as React from "react";
 import { useState } from "react";
-import { motion, AnimatePresence } from "motion/react";
-import {
-  CheckCircle2,
-  Clock,
-  XCircle,
-  AlertCircle,
-  ChevronRight,
-  Share2,
-  Download,
-  Send,
-  RefreshCw,
-  User,
-} from "lucide-react";
-import { cn } from "@/shared/utils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { canMutateLAN, getLANJoinUrl, getLANStatus, readLANSettings } from "@/platform/lan/lan-collab";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import type { ApprovalHistoryEntry, ApprovalStatus } from "@/platform/collab";
-import { useCollabHubStore } from "@/core/stores/collab-hub-store";
+import {
+  canMutateLAN,
+  getLANJoinUrl,
+  getLANStatus,
+  readLANSettings,
+} from "@/platform/lan/lan-collab";
+import { cn } from "@/shared/utils";
 import { currentUserName, recordAudit, useApprovalCRDT } from "../collab/collab-hub-crdt";
 
 // ─── Constants ────────────────────────────────────────────────────────────────

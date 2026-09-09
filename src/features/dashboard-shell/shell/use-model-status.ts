@@ -67,10 +67,7 @@ export function useModelStatus(): ModelStatus {
   const setModel = useAIRuntimeStore((s) => s.setModel);
 
   // Present records
-  const presentModels = useMemo(
-    () => records.filter((r) => r.state === "present"),
-    [records],
-  );
+  const presentModels = useMemo(() => records.filter((r) => r.state === "present"), [records]);
 
   const chatModels = useMemo(
     () => records.filter((r) => r.lane === "llm" && r.state === "present"),

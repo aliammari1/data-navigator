@@ -40,9 +40,7 @@ function writeStore(store: Store): void {
 
 function pruneExpired(store: Store): Store {
   const now = Date.now();
-  const fresh = store.guests.filter(
-    (g) => g.expiresAt > now || g.status === "pending",
-  );
+  const fresh = store.guests.filter((g) => g.expiresAt > now || g.status === "pending");
   if (fresh.length !== store.guests.length) {
     writeStore({ guests: fresh });
   }
@@ -99,8 +97,8 @@ export async function getPendingGuest(id: string): Promise<PendingGuest | null> 
 }
 
 export async function listPendingGuests(): Promise<PendingGuest[]> {
-  return pruneExpired(readStore()).guests
-    .filter((g) => g.status === "pending")
+  return pruneExpired(readStore())
+    .guests.filter((g) => g.status === "pending")
     .sort((a, b) => a.requestedAt - b.requestedAt);
 }
 

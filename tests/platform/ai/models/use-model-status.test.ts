@@ -23,12 +23,12 @@
 
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { primaryForLane } from "@/platform/ai/models/model-manifest";
 import {
   ensureModelsReady,
   isPrimaryLlmReady,
   useModelStatus,
 } from "@/platform/ai/models/use-model-status";
-import { primaryForLane } from "@/platform/ai/models/model-manifest";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

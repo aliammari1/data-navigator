@@ -15,8 +15,8 @@
  *                                 subscribeLAN, subscribeLANAudit)
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoisted mock factories ────────────────────────────────────────────────────
 
@@ -106,7 +106,8 @@ function renderUseLANAndFireSubscriber(
   const { result, unmount } = renderHook(() => useLAN());
 
   // The subscriber callback passed to subscribeLAN by lanSubscribe
-  const subscriberCb: () => void = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0];
+  const subscriberCb: () => void =
+    subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0];
 
   // Update mocks to return new values when subscriber fires
   getLANStatusMock.mockReturnValue(nextStatus);
@@ -174,7 +175,8 @@ describe("useLAN — re-renders when status changes (status !== lanCache.status)
     const { result } = renderHook(() => useLAN());
     const statusBefore = result.current.status;
 
-    const subscriberCb: () => void = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0];
+    const subscriberCb: () => void =
+      subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0];
 
     // Act: change status
     const prevStatus = statusBefore;
@@ -199,11 +201,15 @@ describe("useLAN — re-renders when status changes (status !== lanCache.status)
     subscribeLANMock.mockReturnValue(unsubMock);
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     getLANStatusMock.mockReturnValue("connecting");
     getLANPeersMock.mockReturnValue([]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current.status).toBe("connecting");
   });
@@ -215,14 +221,20 @@ describe("useLAN — re-renders when status changes (status !== lanCache.status)
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     getLANStatusMock.mockReturnValue("connecting");
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Second transition to connected
     getLANStatusMock.mockReturnValue("connected");
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current.status).toBe("connected");
   });
@@ -233,10 +245,14 @@ describe("useLAN — re-renders when status changes (status !== lanCache.status)
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     getLANStatusMock.mockReturnValue("error");
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current.status).toBe("error");
   });
@@ -251,18 +267,24 @@ describe("useLAN — re-renders when peers change (peers !== lanCache.peers)", (
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // First: change status to "connected" so lanCache is warmed up with a new snapshot
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue(initialPeers);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Now change peers
     const newPeers = [makePeer()];
     getLANStatusMock.mockReturnValue("connected"); // same status
     getLANPeersMock.mockReturnValue(newPeers); // different reference
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current.peers).toEqual([makePeer()]);
@@ -275,13 +297,17 @@ describe("useLAN — re-renders when peers change (peers !== lanCache.peers)", (
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Act: add a peer
     const peer = makePeer({ id: "peer-x", name: "Xavier" });
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue([peer]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current.peers).toHaveLength(1);
@@ -295,19 +321,25 @@ describe("useLAN — re-renders when peers change (peers !== lanCache.peers)", (
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Add peer first
     const peer = makePeer({ id: "leaving", name: "Leaving" });
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue([peer]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
     expect(result.current.peers).toHaveLength(1);
 
     // Now remove peer
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue([]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current.peers).toHaveLength(0);
@@ -322,16 +354,20 @@ describe("useLAN — NO re-render when nothing changed (both branches false)", (
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Drive cache to a known state
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue([]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Now capture the stable status/peers references currently in lanCache
     const knownStatus = result.current.status; // "connected"
-    const knownPeers = result.current.peers;   // []
+    const knownPeers = result.current.peers; // []
 
     let renders = 0;
     const { result: result2 } = renderHook(() => {
@@ -339,12 +375,16 @@ describe("useLAN — NO re-render when nothing changed (both branches false)", (
       return useLAN();
     });
     const rendersAfterMount = renders;
-    const subscr2 = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr2 = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Act: return SAME status string and SAME peers reference → the if-branch is false
     getLANStatusMock.mockReturnValue(knownStatus);
     getLANPeersMock.mockReturnValue(knownPeers); // exact same reference as in lanCache
-    act(() => { subscr2(); });
+    act(() => {
+      subscr2();
+    });
 
     // Assert: no extra render because neither status nor peers changed
     expect(renders).toBe(rendersAfterMount);
@@ -358,20 +398,26 @@ describe("useLAN — NO re-render when nothing changed (both branches false)", (
     subscribeLANMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLAN());
-    const subscr = subscribeLANMock.mock.calls[subscribeLANMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANMock.mock.calls[
+      subscribeLANMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Warm cache
     const stablePeers: LANPeer[] = [makePeer({ id: "stable" })];
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue(stablePeers);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     const snapshotBefore = result.current;
 
     // Act: no change
     getLANStatusMock.mockReturnValue("connected");
     getLANPeersMock.mockReturnValue(stablePeers);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert: snapshot object reference did NOT change
     expect(result.current).toBe(snapshotBefore);
@@ -414,12 +460,16 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
     subscribeLANAuditMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Act
     const entry = makeAuditEntry({ id: "e-new", event: "peer.connected" });
     readLANAuditMock.mockReturnValue([entry]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current).toEqual([entry]);
@@ -431,7 +481,9 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
     subscribeLANAuditMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Act
     const entries = [
@@ -440,7 +492,9 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
       makeAuditEntry({ id: "a3", event: "peer.disconnected" }),
     ];
     readLANAuditMock.mockReturnValue(entries);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current).toHaveLength(3);
@@ -455,7 +509,9 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
     subscribeLANAuditMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // First: add entries
     const twoEntries = [
@@ -463,12 +519,16 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
       makeAuditEntry({ id: "b2", event: "file.drop" }),
     ];
     readLANAuditMock.mockReturnValue(twoEntries);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
     expect(result.current).toHaveLength(2);
 
     // Act: shrink
     readLANAuditMock.mockReturnValue([twoEntries[0]]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert
     expect(result.current).toHaveLength(1);
@@ -487,11 +547,15 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
       return useLANAudit();
     });
     const rendersAfterMount = renders;
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // Act: fire subscriber (readLANAudit returns same-valued but new array)
     readLANAuditMock.mockReturnValue([]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     // Assert: re-rendered because auditSubscribe calls onChange unconditionally
     expect(renders).toBeGreaterThan(rendersAfterMount);
@@ -503,23 +567,31 @@ describe("useLANAudit — subscriber fires and updates auditCache (always calls 
     subscribeLANAuditMock.mockReturnValue(vi.fn());
 
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     // First fire: 1 entry
     const e1 = makeAuditEntry({ id: "seq-1", event: "peer.connected" });
     readLANAuditMock.mockReturnValue([e1]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
     expect(result.current).toHaveLength(1);
 
     // Second fire: 2 entries
     const e2 = makeAuditEntry({ id: "seq-2", event: "file.drop" });
     readLANAuditMock.mockReturnValue([e1, e2]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
     expect(result.current).toHaveLength(2);
 
     // Third fire: back to empty
     readLANAuditMock.mockReturnValue([]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
     expect(result.current).toHaveLength(0);
   });
 });
@@ -532,7 +604,9 @@ describe("useLANAudit — audit entry shapes", () => {
 
   it("correctly surfaces LANAuditEntry with all fields", () => {
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     const entry = makeAuditEntry({
       id: "full-entry",
@@ -545,7 +619,9 @@ describe("useLANAudit — audit entry shapes", () => {
       detail: "file.txt (1234 bytes)",
     });
     readLANAuditMock.mockReturnValue([entry]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current[0]).toMatchObject({
       id: "full-entry",
@@ -561,22 +637,30 @@ describe("useLANAudit — audit entry shapes", () => {
 
   it("handles audit entry with numeric 'at' timestamp", () => {
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     const entry = makeAuditEntry({ id: "ts-num", at: 1620000000000 });
     readLANAuditMock.mockReturnValue([entry]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current[0].at).toBe(1620000000000);
   });
 
   it("handles audit entry with string 'at' timestamp", () => {
     const { result } = renderHook(() => useLANAudit());
-    const subscr = subscribeLANAuditMock.mock.calls[subscribeLANAuditMock.mock.calls.length - 1][0] as () => void;
+    const subscr = subscribeLANAuditMock.mock.calls[
+      subscribeLANAuditMock.mock.calls.length - 1
+    ][0] as () => void;
 
     const entry = makeAuditEntry({ id: "ts-str", at: "2024-01-01T00:00:00Z" });
     readLANAuditMock.mockReturnValue([entry]);
-    act(() => { subscr(); });
+    act(() => {
+      subscr();
+    });
 
     expect(result.current[0].at).toBe("2024-01-01T00:00:00Z");
   });

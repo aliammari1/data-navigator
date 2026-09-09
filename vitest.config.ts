@@ -19,11 +19,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     name: "unit",
-    projects: [
-      "./vitest.config.ts",
-      "./vitest.eval.config.ts",
-      "./vitest.duckdb-bench.config.ts",
-    ],
+    projects: ["./vitest.config.ts", "./vitest.eval.config.ts", "./vitest.duckdb-bench.config.ts"],
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],

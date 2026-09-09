@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, within } from "storybook/test";
-
-import type { ColumnMapping, FilterState, RawRow, StatusMapping } from "@/features/telecom/types";
 import { DataGrid } from "@/features/telecom/components/data-grid";
+import type { ColumnMapping, FilterState, RawRow, StatusMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

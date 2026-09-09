@@ -302,8 +302,8 @@ export {
   arrowToRows,
   arrowTransferList,
   asUint8Array,
-  decodeArrowIPC,
   type DecodeArrowOptions,
+  decodeArrowIPC,
   getArrowColumn,
 } from "./arrow-ipc";
 export {

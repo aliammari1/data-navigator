@@ -38,9 +38,8 @@
 
 import { DuckDBInstance } from "@duckdb/node-api";
 import { afterAll, beforeAll, bench, describe } from "vitest";
-
-import { canalCaseExpr, hourExpr, qc, statusNorm } from "@/features/telecom/lib/sql";
 import { buildSpecDateFilter, transactionDayExpr } from "@/features/telecom/lib/queries";
+import { canalCaseExpr, hourExpr, qc, statusNorm } from "@/features/telecom/lib/sql";
 import {
   SPEC_DECLINED_FILTER,
   SPEC_INSTANCE_FILTER,

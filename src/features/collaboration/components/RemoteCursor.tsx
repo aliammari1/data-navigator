@@ -2,8 +2,8 @@
 
 import { motion } from "motion/react";
 import * as React from "react";
-import { cn } from "@/shared/utils";
 import type { LANCursor, LANPeer } from "@/platform/lan/lan-collab";
+import { cn } from "@/shared/utils";
 
 /** Untrusted awareness color — only plain hex may reach the style attribute. */
 const SAFE_COLOR = /^#[0-9a-f]{3,8}$/i;

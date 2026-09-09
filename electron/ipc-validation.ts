@@ -273,4 +273,3 @@ export const EmbedBatchSchema = z.object({
   texts: z.array(z.string().min(1).max(MAX_EMBED_CHARS)).min(1).max(MAX_EMBED_BATCH_ITEMS),
   requestId,
 });
-

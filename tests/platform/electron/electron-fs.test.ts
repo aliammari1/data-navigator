@@ -6,14 +6,14 @@
  * function and branch.
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
-  ElectronFSBridge,
+  DuckDBStatus,
   ElectronDuckDBBridge,
+  ElectronFSBridge,
+  QueryMetric,
   RegisteredDataset,
   RegisteredDatasetWithPreview,
-  DuckDBStatus,
-  QueryMetric,
 } from "@/platform/electron/electron-fs";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
@@ -70,9 +70,11 @@ function makeDuckDBBridge(overrides: Partial<ElectronDuckDBBridge> = {}): Electr
       pendingReads: 0,
       pendingWrites: 0,
     } satisfies DuckDBStatus),
-    getQueryMetrics: vi.fn().mockResolvedValue([
-      { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
-    ]),
+    getQueryMetrics: vi
+      .fn()
+      .mockResolvedValue([
+        { sql: "SELECT 1", durationMs: 5, timestamp: 1000, rowCount: 1 } satisfies QueryMetric,
+      ]),
     clearQueryMetrics: vi.fn().mockResolvedValue(undefined),
     runReadOnlyQuery: vi.fn().mockResolvedValue([{ result: 1 }]),
     ...overrides,
@@ -304,9 +306,7 @@ describe("openFileDialog()", () => {
 describe("saveFileDialog()", () => {
   it("returns filePath when dialog is not canceled and filePath is present", async () => {
     const fs = makeFsBridge({
-      saveDialog: vi
-        .fn()
-        .mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
+      saveDialog: vi.fn().mockResolvedValue({ canceled: false, filePath: "/out/export.csv" }),
     });
     vi.stubGlobal("window", { electronFS: fs });
     const { saveFileDialog } = await import("@/platform/electron/electron-fs");
