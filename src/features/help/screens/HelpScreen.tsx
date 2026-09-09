@@ -61,7 +61,7 @@ export default function HelpScreen() {
               <HelpCircle className="w-5 h-5 text-indigo-400" />
             </div>
             <div>
-              <h1 className="text-xl font-bold text-foreground">Help & Documentation</h1>
+              <h1 className="text-xl font-bold text-foreground">Help &amp; Documentation</h1>
               <p className="text-sm text-muted-foreground">
                 DataNavigator — offline-first data analysis platform
               </p>

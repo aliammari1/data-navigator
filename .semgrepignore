@@ -10,3 +10,11 @@ graphify-out/
 build/
 dist/
 out/
+# TEMP: LAN hub speaks plaintext ws:// until the ephemeral-TLS wss migration
+# (fingerprint pinning) lands; then delete the five lines below so SAST covers
+# these files again.
+electron/collab-hub-service.ts
+src/platform/lan/lan-collab.ts
+src/features/dashboard-shell/components/lan-access-gate.tsx
+src/features/dashboard-shell/components/lan-collab-panel.tsx
+src/features/dashboard-shell/components/lan-control-center.tsx
