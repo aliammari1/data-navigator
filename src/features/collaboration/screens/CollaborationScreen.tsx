@@ -515,10 +515,11 @@ export default function CollaborationScreen() {
   >("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteJoinUrl, setInviteJoinUrl] = useState("");
-  const invitePairingCode = useMemo(
-    () => readLANSettings().pairingCode,
-    [inviteOpen],
-  );
+  const invitePairingCode = useMemo(() => {
+    // `inviteOpen` intentionally refreshes the code whenever the dialog opens.
+    void inviteOpen;
+    return readLANSettings().pairingCode;
+  }, [inviteOpen]);
   useEffect(() => {
     if (!inviteOpen) return;
     let cancelled = false;

@@ -177,7 +177,6 @@ export const JSXPreview = memo(
         jsx,
         onError,
         processedJsx,
-        setError,
       ]
     );
 
@@ -211,9 +210,13 @@ export const JSXPreviewContent = memo(
     const [hadError, setHadError] = useState(false);
 
     // Reset error tracking when jsx changes
+    const prevProcessedJsxRef = useRef(processedJsx);
     useEffect(() => {
-      errorReportedRef.current = null;
-      setHadError(false);
+      if (prevProcessedJsxRef.current !== processedJsx) {
+        prevProcessedJsxRef.current = processedJsx;
+        errorReportedRef.current = null;
+        setHadError(false);
+      }
     }, [processedJsx]);
 
     const handleError = useCallback(

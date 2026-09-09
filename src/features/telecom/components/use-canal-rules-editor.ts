@@ -77,6 +77,8 @@ export function useCanalRulesEditor({
   );
 
   useEffect(() => {
+    // `refreshVersion` intentionally re-runs this load when `refresh()` bumps it.
+    void refreshVersion;
     let cancelled = false;
 
     async function load() {

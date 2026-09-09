@@ -49,6 +49,7 @@ function InputGroupAddon({
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
+    // biome-ignore lint/a11y/useKeyWithClickEvents: addon is a non-interactive group; the click handler only forwards focus to the inner input, which keyboard users reach directly via Tab.
     <div
       role="group"
       data-slot="input-group-addon"

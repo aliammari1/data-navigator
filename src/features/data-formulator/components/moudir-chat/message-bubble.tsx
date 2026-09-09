@@ -735,21 +735,30 @@ function UserBubble({ message }: Readonly<{ message: ChatMessage }>) {
               return (
                 <AttachmentHoverCard key={att.id}>
                   <AttachmentHoverCardTrigger asChild>
-                    <div
-                      className="cursor-pointer"
-                      onClick={() => {
-                        if (url && typeof window !== "undefined") {
-                          window.open(url, "_blank");
-                        }
-                      }}
-                    >
-                      <Attachment data={att}>
-                        <AttachmentPreview />
-                        {message.attachments && message.attachments.length <= 2 && (
-                          <AttachmentInfo showMediaType />
-                        )}
-                      </Attachment>
-                    </div>
+                    {url ? (
+                      <a
+                        href={url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="block cursor-pointer"
+                      >
+                        <Attachment data={att}>
+                          <AttachmentPreview />
+                          {message.attachments && message.attachments.length <= 2 && (
+                            <AttachmentInfo showMediaType />
+                          )}
+                        </Attachment>
+                      </a>
+                    ) : (
+                      <div className="block cursor-pointer">
+                        <Attachment data={att}>
+                          <AttachmentPreview />
+                          {message.attachments && message.attachments.length <= 2 && (
+                            <AttachmentInfo showMediaType />
+                          )}
+                        </Attachment>
+                      </div>
+                    )}
                   </AttachmentHoverCardTrigger>
                   <AttachmentHoverCardContent>
                     <div className="flex max-w-xs flex-col gap-1.5 p-1 text-xs">
