@@ -331,7 +331,7 @@ export function CanalRulesPanel(props: CanalRulesPanelProps) {
                     <option value="">Choisir un type</option>
                     <option value="voucher_for_payment_generation">Génération</option>
                     <option value="voucher_for_payment_redemption">
-                      Rédemption & Remboursement
+                      Rédemption &amp; Remboursement
                     </option>
                   </select>
                   <FieldError message={errors.reportGroup} />
