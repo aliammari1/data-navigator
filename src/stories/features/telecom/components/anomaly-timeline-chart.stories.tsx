@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { HourlyRow } from "@/features/telecom/types";
 import { AnomalyTimelineChart } from "@/features/telecom/components/anomaly-timeline-chart";
+import type { HourlyRow } from "@/features/telecom/types";
 
 const hourly: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => {
   const base = 400 + Math.round(900 * Math.sin((hour / 24) * Math.PI));

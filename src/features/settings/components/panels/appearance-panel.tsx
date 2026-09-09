@@ -2,8 +2,8 @@
 
 import { Check, Eye, Monitor, Moon, Palette, Sun } from "lucide-react";
 import { useShallow } from "zustand/shallow";
-import { useSettingsStore } from "@/core/stores/settings-store";
 import type { AccentColor, DensityMode } from "@/core/stores/settings-store";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import { cn } from "@/shared/utils";
 import { Section, SettingRow, SettingSelect, Toggle } from "../controls";
 

@@ -19,8 +19,8 @@
  */
 
 import * as Comlink from "comlink";
-import { echarts } from "@/platform/viz/echarts-core";
 import type { EChartsOption } from "@/platform/viz/echarts-core";
+import { echarts } from "@/platform/viz/echarts-core";
 
 type ChartInstance = ReturnType<typeof echarts.init>;
 

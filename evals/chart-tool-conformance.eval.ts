@@ -27,11 +27,11 @@ import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { accuracy, assertAtLeast, report } from "./_harness";
 import {
+  ANALYTICS_TABLE_SCHEMAS,
   CHART_TOOL_CASES,
   type ChartToolCase,
   CLARIFICATION_TOOL_CASES,
   type ClarificationToolCase,
-  ANALYTICS_TABLE_SCHEMAS,
 } from "./fixtures/analytics-corpus";
 
 // ─── Zod Schemas for Tool Calls ──────────────────────────────────────────────

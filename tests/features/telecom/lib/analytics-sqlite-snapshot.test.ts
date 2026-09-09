@@ -24,9 +24,9 @@ import {
   listAnalyticsSnapshotMeta,
   loadAnalyticsSnapshotFromSQLite,
   restoreLegacyDexieSnapshot,
+  type SQLiteAnalyticsSnapshot,
   saveAnalyticsSnapshot,
   saveAnalyticsSnapshotToSQLite,
-  type SQLiteAnalyticsSnapshot,
 } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 
 function basePersistedSnapshot() {

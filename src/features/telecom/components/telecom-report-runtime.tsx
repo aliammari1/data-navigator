@@ -19,9 +19,9 @@ import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useTelecomSessionStore } from "@/core/stores/app-session-store";
 import { useDataStore } from "@/core/stores/data-store";
+import { useCurrentPage } from "@/features/collaboration/hooks/use-current-page";
 import { KPI_FIELDS } from "@/features/telecom/constants";
 import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
-import { useCurrentPage } from "@/features/collaboration/hooks/use-current-page";
 import { useTelecomAnalytics } from "@/features/telecom/hooks/use-telecom-analytics";
 import { useTelecomUI } from "@/features/telecom/hooks/use-telecom-ui";
 import { migrateLegacyDexieAnalyticsSnapshots } from "@/features/telecom/lib/analytics-snapshot-legacy-migration";
@@ -209,7 +209,8 @@ export function TelecomReportRuntimeProvider({
   const router = useRouter();
   const pathname = usePathname();
   const access = useDashboardAccess();
-  const activeSubRoute = pathname.replace(/^\/dashboard\/telecom-report\/?/, "").split("/")[0] || "overview";
+  const activeSubRoute =
+    pathname.replace(/^\/dashboard\/telecom-report\/?/, "").split("/")[0] || "overview";
   useCurrentPage(`telecom:${activeSubRoute}`);
 
   const firstLoad = useRef(true);

@@ -1,9 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { Phone, Smartphone } from "lucide-react";
 import { expect, within } from "storybook/test";
-
-import type { CanalSummary, KPISummary } from "@/features/telecom/types";
 import { AlertBanner } from "@/features/telecom/components/alert-banner";
+import type { CanalSummary, KPISummary } from "@/features/telecom/types";
 
 const healthyKpi: KPISummary = {
   totalTransactions: 24812,

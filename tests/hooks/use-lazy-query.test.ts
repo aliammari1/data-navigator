@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useLazyQuery } from "@/hooks/use-lazy-query";
 
 // ─── helpers ────────────────────────────────────────────────────────────────
@@ -32,10 +32,7 @@ function makeMockIO() {
   }
 
   function fireIntersection(isIntersecting: boolean) {
-    capturedCb?.(
-      [{ isIntersecting } as IntersectionObserverEntry],
-      {} as IntersectionObserver,
-    );
+    capturedCb?.([{ isIntersecting } as IntersectionObserverEntry], {} as IntersectionObserver);
   }
 
   return { FakeIO, observe, disconnect, fireIntersection };
@@ -166,9 +163,7 @@ describe("useLazyQuery", () => {
 
   it("does not create an observer when ref.current is null (no element attached)", () => {
     const { FakeIO } = makeMockIO();
-    const ctorSpy = vi.fn(
-      (...args: ConstructorParameters<typeof FakeIO>) => new FakeIO(...args),
-    );
+    const ctorSpy = vi.fn((...args: ConstructorParameters<typeof FakeIO>) => new FakeIO(...args));
     setIO(ctorSpy);
 
     const query = vi.fn().mockResolvedValue("x");
@@ -332,7 +327,6 @@ describe("useLazyQuery", () => {
 
     el.remove();
   });
-
 
   // ── dep-change resets ran flag ────────────────────────────────────────────
 

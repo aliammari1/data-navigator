@@ -335,6 +335,10 @@ describe("closeChatStore", () => {
     // The underlying connection re-opens lazily on next use against the same dir.
     const meta = createConversation({ id: "b", title: "B" });
     expect(meta.id).toBe("b");
-    expect(listConversations().map((r) => r.id).sort()).toEqual(["a", "b"]);
+    expect(
+      listConversations()
+        .map((r) => r.id)
+        .sort(),
+    ).toEqual(["a", "b"]);
   });
 });

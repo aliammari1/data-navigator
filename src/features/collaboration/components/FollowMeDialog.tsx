@@ -1,8 +1,8 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { MapPin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,11 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  type LANFollowRequest,
-  acceptFollowMe,
-  declineFollowMe,
-} from "@/platform/lan/lan-collab";
+import { acceptFollowMe, declineFollowMe, type LANFollowRequest } from "@/platform/lan/lan-collab";
 
 interface FollowMeDialogProps {
   request: LANFollowRequest;
@@ -60,13 +56,13 @@ export function FollowMeDialog({ request, onAccept, onDecline }: FollowMeDialogP
             Demande de suivi
           </DialogTitle>
           <DialogDescription>
-            <span className="font-medium text-foreground">{request.fromPeerName}</span>{" "}
-            wants to navigate you to <code className="rounded bg-muted px-1 py-0.5 text-xs">
-              {request.toPage}
-            </code>
+            <span className="font-medium text-foreground">{request.fromPeerName}</span> wants to
+            navigate you to{" "}
+            <code className="rounded bg-muted px-1 py-0.5 text-xs">{request.toPage}</code>
             {request.toTab ? (
               <>
-                {" "}· onglet <span className="font-medium">{request.toTab}</span>
+                {" "}
+                · onglet <span className="font-medium">{request.toTab}</span>
               </>
             ) : null}
             .
@@ -74,8 +70,9 @@ export function FollowMeDialog({ request, onAccept, onDecline }: FollowMeDialogP
         </DialogHeader>
 
         <p className="text-xs text-muted-foreground">
-          Cette demande expire dans <span className="font-semibold text-foreground">{secondsLeft}</span>{" "}
-          seconde{secondsLeft === 1 ? "" : "s"}.
+          Cette demande expire dans{" "}
+          <span className="font-semibold text-foreground">{secondsLeft}</span> seconde
+          {secondsLeft === 1 ? "" : "s"}.
         </p>
 
         <DialogFooter>

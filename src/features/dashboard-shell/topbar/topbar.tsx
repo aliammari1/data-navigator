@@ -203,7 +203,7 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
                 <div className="truncate text-sm font-semibold text-foreground">{displayName}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary border border-primary/20">
-                    {user?.isGuest ? (user.role || "Guest") : "Administrator"}
+                    {user?.isGuest ? user.role || "Guest" : "Administrator"}
                   </span>
                   {user?.email && (
                     <span className="truncate text-xs text-muted-foreground">{user.email}</span>

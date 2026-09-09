@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
-import { readLANSettings } from "@/platform/lan/lan-collab";
 import type * as Types from "@/features/telecom/types";
 import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
+import { readLANSettings } from "@/platform/lan/lan-collab";
 
 export interface SharedOverviewSnapshot {
   version: 1;

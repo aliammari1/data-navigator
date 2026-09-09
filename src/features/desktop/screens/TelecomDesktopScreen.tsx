@@ -11,6 +11,7 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { LanCollabPanel } from "@/features/dashboard-shell/components/lan-collab-panel";
 import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
 import type { AppPage } from "@/features/desktop/core/menu/types";
 import { useWindowId } from "@/features/desktop/core/menu/window-context";
@@ -19,7 +20,6 @@ import { AnalyticsHistoryTab } from "@/features/telecom/components/analytics-his
 import { CanalTab } from "@/features/telecom/components/canal-tab";
 import { ConfigTab } from "@/features/telecom/components/config-tab";
 import { DayAnalyticsTab } from "@/features/telecom/components/day-analytics-tab";
-import { LanCollabPanel } from "@/features/dashboard-shell/components/lan-collab-panel";
 import { OverviewTab } from "@/features/telecom/components/overview-tab";
 import { PeriodStudioTab } from "@/features/telecom/components/period-studio-tab";
 import { RawDataTab } from "@/features/telecom/components/raw-data-tab";

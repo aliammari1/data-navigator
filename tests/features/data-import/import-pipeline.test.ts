@@ -7,10 +7,7 @@ import {
   processFilePath,
 } from "@/features/data-import/lib/import-pipeline";
 import { useImportSession } from "@/features/data-import/model/import-session-store";
-import type {
-  LoadedUploadTable,
-  LoadUploadPathOptions,
-} from "@/platform/duckdb/upload-to-duckdb";
+import type { LoadedUploadTable, LoadUploadPathOptions } from "@/platform/duckdb/upload-to-duckdb";
 
 /**
  * Behavioral test suite for the import-pipeline orchestrator.
@@ -362,9 +359,7 @@ describe("processFilePath — full-table metadata", () => {
 
 describe("processFilePath — validation issues", () => {
   it("flags an empty file as an error-severity issue", async () => {
-    loadUploadPathToDuckDB.mockResolvedValue(
-      makeLoaded({ rowCount: 0, previewRows: [] }),
-    );
+    loadUploadPathToDuckDB.mockResolvedValue(makeLoaded({ rowCount: 0, previewRows: [] }));
     const { ctx } = makeContext();
 
     const id = (await processFilePath("/data/empty.csv", ctx)) as string;
@@ -450,9 +445,7 @@ describe("processFilePath — DuckDB reject summary", () => {
 
     const id = (await processFilePath("/data/dirty.csv", ctx)) as string;
 
-    const issue = useImportSession
-      .getState()
-      .files[id].issues.find((i) => i.affectedRows === 1234);
+    const issue = useImportSession.getState().files[id].issues.find((i) => i.affectedRows === 1234);
     expect(issue?.severity).toBe("warning");
     // toLocaleString of 1234 contains a grouping separator; assert the digits.
     expect(issue?.message).toMatch(/1[  ,. ]?234 ligne/);
@@ -679,11 +672,9 @@ describe("importBatch", () => {
     loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
     const { ctx } = makeContext();
 
-    const result = await importBatch(
-      ["/data/a.csv", "/data/b.csv", "/data/c.csv"],
-      ctx,
-      { concurrency: 2 },
-    );
+    const result = await importBatch(["/data/a.csv", "/data/b.csv", "/data/c.csv"], ctx, {
+      concurrency: 2,
+    });
 
     expect(result.failed).toBe(0);
     expect(result.doneIds).toHaveLength(3);

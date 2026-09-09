@@ -30,8 +30,8 @@ import { Matrix, SVD } from "ml-matrix";
 import { DEFAULT_SEED, mulberry32 } from "@/platform/viz/seeded-rng";
 import {
   mean,
-  medianAbsoluteDeviation,
   median,
+  medianAbsoluteDeviation,
   sampleVariance,
   studentTPValue,
   studentTQuantile,
@@ -422,6 +422,7 @@ function fDistributionPValue(f: number, d1: number, d2: number): number {
 // Local copy of the regularized incomplete beta (kept inline to avoid coupling
 // the F-test to the t-test internals). Delegates to stats-core's via dynamic.
 import { incompleteBeta } from "@/platform/viz/stats-core";
+
 function incompleteBetaTail(x: number, a: number, b: number): number {
   return Math.min(1, Math.max(0, incompleteBeta(x, a, b)));
 }

@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   type CatalogFilter,
   filterFileNodes,
   LOW_QUALITY_THRESHOLD,
-  RECENT_DAYS,
   matchesFilter,
+  RECENT_DAYS,
 } from "@/features/folders/lib/catalog-filters";
 import type { FSNode } from "@/features/folders/types";
 
@@ -86,7 +86,11 @@ describe("matchesFilter", () => {
 
   it('rejects nodes at or above the quality threshold for "low-quality" filter', () => {
     expect(
-      matchesFilter(makeNode({ id: "b", type: "csv", quality: LOW_QUALITY_THRESHOLD }), "low-quality", ctx),
+      matchesFilter(
+        makeNode({ id: "b", type: "csv", quality: LOW_QUALITY_THRESHOLD }),
+        "low-quality",
+        ctx,
+      ),
     ).toBe(false);
     expect(
       matchesFilter(makeNode({ id: "c", type: "csv", quality: 0.99 }), "low-quality", ctx),

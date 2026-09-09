@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 /**
  * Behavioral tests for the window-snapping geometry module.
@@ -9,13 +9,13 @@ import { describe, it, expect } from "vitest";
  */
 
 import {
-  SNAP_EDGE_THRESHOLD,
-  SNAP_CORNER_THRESHOLD,
   computeSnapZones,
-  snapForPointer,
   rectForZone,
+  SNAP_CORNER_THRESHOLD,
+  SNAP_EDGE_THRESHOLD,
   type SnapViewport,
   type SnapZoneName,
+  snapForPointer,
 } from "@/features/desktop/core/snap";
 
 // ─── Constant values ─────────────────────────────────────────────────────────
@@ -477,8 +477,15 @@ describe("rectForZone", () => {
   it("result matches computeSnapZones for the same zone", () => {
     const zones = computeSnapZones(vp);
     const allZones: SnapZoneName[] = [
-      "maximize", "left", "right", "top", "bottom",
-      "topLeft", "topRight", "bottomLeft", "bottomRight",
+      "maximize",
+      "left",
+      "right",
+      "top",
+      "bottom",
+      "topLeft",
+      "topRight",
+      "bottomLeft",
+      "bottomRight",
     ];
     for (const zone of allZones) {
       expect(rectForZone(zone, vp)).toEqual(zones[zone]);

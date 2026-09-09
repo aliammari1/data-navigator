@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useState } from "react";
 import { cn } from "@/shared/utils";
 
 /** Level-3 collapsible — type / method */

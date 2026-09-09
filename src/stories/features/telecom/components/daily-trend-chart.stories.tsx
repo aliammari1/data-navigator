@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { ColumnMapping, DailyTrendRow } from "@/features/telecom/types";
 import { DailyTrendChart } from "@/features/telecom/components/daily-trend-chart";
+import type { ColumnMapping, DailyTrendRow } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

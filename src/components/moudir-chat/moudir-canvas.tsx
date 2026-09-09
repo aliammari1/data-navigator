@@ -30,7 +30,10 @@ import { useDataStore } from "@/core/stores/data-store";
 import { ChatChartArtifact } from "@/features/data-formulator/components/moudir-chat/chat-chart-artifact";
 import { ChatFilterBreadcrumbs } from "@/features/data-formulator/components/moudir-chat/chat-filter-breadcrumbs";
 import { generateExecutivePresentation } from "@/features/data-formulator/core/presentation/deck-generator";
-import { type MoudirArtifact, useMoudirChatStore } from "@/features/data-formulator/store/moudir-chat-store";
+import {
+  type MoudirArtifact,
+  useMoudirChatStore,
+} from "@/features/data-formulator/store/moudir-chat-store";
 
 export function MoudirCanvas({
   artifact,
@@ -201,7 +204,11 @@ export function MoudirCanvas({
                 className="h-7 text-xs gap-1 text-muted-foreground hover:text-foreground"
                 onClick={() => copyText(artifact.query)}
               >
-                {copied ? <Check className="size-3.5 text-primary" /> : <Copy className="size-3.5" />}
+                {copied ? (
+                  <Check className="size-3.5 text-primary" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
                 <span>{copied ? "Copié" : "Copier"}</span>
               </Button>
             </div>
@@ -276,4 +283,4 @@ export function MoudirCanvas({
       </ArtifactContent>
     </Artifact>
   );
-}
+}

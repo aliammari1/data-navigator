@@ -1,9 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  mirrorStoreToDexie,
-  runOnceBackfill,
-} from "@/platform/storage/store-mirror";
 import type { SubscribableStore } from "@/platform/storage/store-mirror";
+import { mirrorStoreToDexie, runOnceBackfill } from "@/platform/storage/store-mirror";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -31,7 +28,9 @@ function makeStore<T>(initial: T): SubscribableStore<T> & { setState: (s: T) => 
 }
 
 /** Build a mock Dexie-like DB with a `_backfill` table. */
-function makeMockDb(tableData: Map<string, { key: string; version: number; ranAt: number }> = new Map()) {
+function makeMockDb(
+  tableData: Map<string, { key: string; version: number; ranAt: number }> = new Map(),
+) {
   const tableMock = {
     get: vi.fn(async (key: string) => tableData.get(key) ?? undefined),
     put: vi.fn(async (row: { key: string; version: number; ranAt: number }) => {
@@ -133,7 +132,10 @@ describe("mirrorStoreToDexie", () => {
 
   it("uses a custom equals comparator when provided", () => {
     // Arrange: shallow compare on name property
-    interface Named { name: string; ts: number }
+    interface Named {
+      name: string;
+      ts: number;
+    }
     const store = makeStore<Named>({ name: "alice", ts: 1 });
     const onChange = vi.fn();
     // Custom equals: only compare by name
@@ -156,7 +158,11 @@ describe("mirrorStoreToDexie", () => {
     // Arrange
     const store = makeStore({ n: 0 });
     const results: number[] = [];
-    const stop = mirrorStoreToDexie(store, (s) => s.n, (v) => results.push(v));
+    const stop = mirrorStoreToDexie(
+      store,
+      (s) => s.n,
+      (v) => results.push(v),
+    );
 
     // Act
     store.setState({ n: 1 });

@@ -87,7 +87,8 @@ test.describe("AI & Moudir feature journey", () => {
         await expect(composer).toBeVisible();
 
         // Type analytical query
-        const testPrompt = "Analyse les transactions par canal de paiement et identifie les anomalies récentes.";
+        const testPrompt =
+          "Analyse les transactions par canal de paiement et identifie les anomalies récentes.";
         await composer.fill(testPrompt);
         await expect(composer).toHaveValue(testPrompt);
 

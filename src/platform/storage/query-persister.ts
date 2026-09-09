@@ -19,9 +19,9 @@
  */
 
 import {
-  dehydrate,
-  defaultShouldDehydrateQuery,
   type DehydratedState,
+  defaultShouldDehydrateQuery,
+  dehydrate,
   hydrate,
   type QueryClient,
 } from "@tanstack/react-query";

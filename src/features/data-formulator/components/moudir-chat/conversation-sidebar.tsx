@@ -29,21 +29,12 @@
  * is streaming.
  */
 
-import Fuse from "fuse.js";
-import { AnimatePresence, motion } from "motion/react";
-import {
-  MoreHorizontal,
-  Pencil,
-  Pin,
-  PinOff,
-  Plus,
-  Search,
-  Trash2,
-  X,
-} from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
-
+import Fuse from "fuse.js";
+import { MoreHorizontal, Pencil, Pin, PinOff, Plus, Search, Trash2, X } from "lucide-react";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { MOD_GLYPH } from "@/components/moudir-chat/utils";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -62,7 +53,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemTitle } from "@/components/ui/item";
 import { Kbd } from "@/components/ui/kbd";
@@ -73,7 +70,6 @@ import { relativeTime } from "@/shared/relative-time";
 import { cn } from "@/shared/utils";
 import { useMoudirChatStore } from "../../store/moudir-chat-store";
 import { EASE, Kicker, MoudirMark, useMotionOn } from "../moudir/moudir-kit";
-import {MOD_GLYPH} from "@/components/moudir-chat/utils";
 
 /** Ask the composer to take focus after a conversation is created. */
 const FOCUS_COMPOSER_EVENT = "moudir-chat:focus-composer";
@@ -162,36 +158,36 @@ function SearchField() {
   const setSearchTerm = useMoudirChatStore((s) => s.setSearchTerm);
 
   return (
-      <div className="relative">
-        <Search
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
-        />
-        <Input
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Rechercher…"
-            aria-label="Rechercher une conversation"
-            className="h-8 pr-8 pl-8 text-sm"
-            onKeyDown={(e) => {
-              if (e.key === "Escape" && searchTerm) {
-                e.preventDefault();
-                e.stopPropagation();
-                setSearchTerm("");
-              }
-            }}
-        />
-        {searchTerm ? (
-            <button
-                type="button"
-                onClick={() => setSearchTerm("")}
-                aria-label="Effacer la recherche"
-                className="absolute top-1/2 right-1.5 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            >
-              <X aria-hidden className="size-3.5" />
-            </button>
-        ) : null}
-      </div>
+    <div className="relative">
+      <Search
+        aria-hidden
+        className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground"
+      />
+      <Input
+        value={searchTerm}
+        onChange={(e) => setSearchTerm(e.target.value)}
+        placeholder="Rechercher…"
+        aria-label="Rechercher une conversation"
+        className="h-8 pr-8 pl-8 text-sm"
+        onKeyDown={(e) => {
+          if (e.key === "Escape" && searchTerm) {
+            e.preventDefault();
+            e.stopPropagation();
+            setSearchTerm("");
+          }
+        }}
+      />
+      {searchTerm ? (
+        <button
+          type="button"
+          onClick={() => setSearchTerm("")}
+          aria-label="Effacer la recherche"
+          className="absolute top-1/2 right-1.5 inline-flex size-5 -translate-y-1/2 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+        >
+          <X aria-hidden className="size-3.5" />
+        </button>
+      ) : null}
+    </div>
   );
 }
 
@@ -234,134 +230,129 @@ function ConversationRow({ conversation, isActive, isStreaming }: ConversationRo
   }, [conversation.id, conversation.title, draft, rename]);
 
   return (
-      <>
-        {/* `relative` anchors the full-bleed ::after button below. The row is NOT
+    <>
+      {/* `relative` anchors the full-bleed ::after button below. The row is NOT
           role="button" any more: a dropdown trigger and a text input nested
           inside an interactive element is invalid, and it forced a
           stopPropagation call on every child. */}
-        <Item
-            size="sm"
-            aria-current={isActive ? "page" : undefined}
-            className={cn(
-                "group/row relative gap-1.5 rounded-lg border border-transparent px-2.5 py-2 transition-colors",
-                "has-[button:hover]:bg-muted/50 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring",
-                isActive && "border-border bg-accent ring-1 ring-primary/40",
-            )}
-        >
-          <ItemContent className="min-w-0 gap-0.5">
-            {isRenaming ? (
-                <Input
-                    autoFocus
-                    value={draft}
-                    maxLength={120}
-                    aria-label={`Renommer ${conversation.title}`}
-                    className="relative z-10 h-7 w-full text-sm"
-                    onChange={(e) => setDraft(e.target.value)}
-                    onBlur={commitRename}
-                    onKeyDown={(e) => {
-                      e.stopPropagation();
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        commitRename();
-                      } else if (e.key === "Escape") {
-                        e.preventDefault();
-                        cancelledRef.current = true;
-                        setIsRenaming(false);
-                      }
-                    }}
-                />
-            ) : (
-                <ItemTitle className="min-w-0 gap-1.5">
-                  {conversation.pinned ? (
-                      <Pin aria-hidden className="size-3 shrink-0 text-muted-foreground" />
-                  ) : null}
-                  {/* The ::after overlay makes the whole row clickable while keeping
+      <Item
+        size="sm"
+        aria-current={isActive ? "page" : undefined}
+        className={cn(
+          "group/row relative gap-1.5 rounded-lg border border-transparent px-2.5 py-2 transition-colors",
+          "has-[button:hover]:bg-muted/50 has-[button:focus-visible]:ring-2 has-[button:focus-visible]:ring-ring",
+          isActive && "border-border bg-accent ring-1 ring-primary/40",
+        )}
+      >
+        <ItemContent className="min-w-0 gap-0.5">
+          {isRenaming ? (
+            <Input
+              autoFocus
+              value={draft}
+              maxLength={120}
+              aria-label={`Renommer ${conversation.title}`}
+              className="relative z-10 h-7 w-full text-sm"
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitRename}
+              onKeyDown={(e) => {
+                e.stopPropagation();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  commitRename();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  cancelledRef.current = true;
+                  setIsRenaming(false);
+                }
+              }}
+            />
+          ) : (
+            <ItemTitle className="min-w-0 gap-1.5">
+              {conversation.pinned ? (
+                <Pin aria-hidden className="size-3 shrink-0 text-muted-foreground" />
+              ) : null}
+              {/* The ::after overlay makes the whole row clickable while keeping
                   a single real <button> as the accessible target. Clicking mid
                   stream is allowed on purpose — the store refuses and surfaces
                   lastNotice, which the screen renders. */}
-                  <button
-                      type="button"
-                      onClick={() => void openConversation(conversation.id)}
-                      className="min-w-0 truncate text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg after:content-['']"
-                      title={conversation.title}
-                  >
-                    {conversation.title}
-                  </button>
-                  {isStreaming ? <Spinner className="size-3 shrink-0 text-ai" /> : null}
-                </ItemTitle>
-            )}
-
-            <ItemDescription className="truncate text-[11px]">
-              {messageCountLabel(conversation.messageCount)}
-              <span aria-hidden> · </span>
-              {relativeTime(conversation.updatedAt)}
-            </ItemDescription>
-          </ItemContent>
-
-          {!isRenaming ? (
-              <ItemActions className="relative z-10">
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        aria-label={`Actions pour ${conversation.title}`}
-                        className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
-                    >
-                      <MoreHorizontal />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-40">
-                    <DropdownMenuItem
-                        onSelect={() => void pin(conversation.id, !conversation.pinned)}
-                    >
-                      {conversation.pinned ? <PinOff /> : <Pin />}
-                      {conversation.pinned ? "Désépingler" : "Épingler"}
-                    </DropdownMenuItem>
-                    <DropdownMenuItem onSelect={beginRename}>
-                      <Pencil />
-                      Renommer
-                    </DropdownMenuItem>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                        variant="destructive"
-                        onSelect={(e) => {
-                          // Let the menu close before the AlertDialog opens, or focus
-                          // returns to a trigger that's mid-unmount.
-                          e.preventDefault();
-                          setIsConfirmOpen(true);
-                        }}
-                    >
-                      <Trash2 />
-                      Supprimer
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </ItemActions>
-          ) : null}
-        </Item>
-
-        <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
-          <AlertDialogContent size="sm">
-            <AlertDialogHeader>
-              <AlertDialogTitle>Supprimer « {conversation.title} » ?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Cette conversation et tous ses messages seront supprimés définitivement.
-                {isStreaming ? " La réponse en cours sera interrompue." : null}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction
-                  variant="destructive"
-                  onClick={() => void remove(conversation.id)}
+              <button
+                type="button"
+                onClick={() => void openConversation(conversation.id)}
+                className="min-w-0 truncate text-left text-sm font-medium outline-none after:absolute after:inset-0 after:rounded-lg after:content-['']"
+                title={conversation.title}
               >
-                Supprimer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </>
+                {conversation.title}
+              </button>
+              {isStreaming ? <Spinner className="size-3 shrink-0 text-ai" /> : null}
+            </ItemTitle>
+          )}
+
+          <ItemDescription className="truncate text-[11px]">
+            {messageCountLabel(conversation.messageCount)}
+            <span aria-hidden> · </span>
+            {relativeTime(conversation.updatedAt)}
+          </ItemDescription>
+        </ItemContent>
+
+        {!isRenaming ? (
+          <ItemActions className="relative z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon-xs"
+                  aria-label={`Actions pour ${conversation.title}`}
+                  className="shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover/row:opacity-100 focus-visible:opacity-100 aria-expanded:opacity-100"
+                >
+                  <MoreHorizontal />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-40">
+                <DropdownMenuItem onSelect={() => void pin(conversation.id, !conversation.pinned)}>
+                  {conversation.pinned ? <PinOff /> : <Pin />}
+                  {conversation.pinned ? "Désépingler" : "Épingler"}
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={beginRename}>
+                  <Pencil />
+                  Renommer
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  variant="destructive"
+                  onSelect={(e) => {
+                    // Let the menu close before the AlertDialog opens, or focus
+                    // returns to a trigger that's mid-unmount.
+                    e.preventDefault();
+                    setIsConfirmOpen(true);
+                  }}
+                >
+                  <Trash2 />
+                  Supprimer
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </ItemActions>
+        ) : null}
+      </Item>
+
+      <AlertDialog open={isConfirmOpen} onOpenChange={setIsConfirmOpen}>
+        <AlertDialogContent size="sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer « {conversation.title} » ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette conversation et tous ses messages seront supprimés définitivement.
+              {isStreaming ? " La réponse en cours sera interrompue." : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={() => void remove(conversation.id)}>
+              Supprimer
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
 
@@ -395,14 +386,14 @@ export function ConversationSidebar() {
    * keystroke, and typo-tolerantly, which FTS5 prefix matching won't do.
    */
   const fuse = useMemo(
-      () =>
-          new Fuse(conversations, {
-            keys: ["title"],
-            threshold: 0.4,
-            ignoreLocation: true,
-            minMatchCharLength: 2,
-          }),
-      [conversations],
+    () =>
+      new Fuse(conversations, {
+        keys: ["title"],
+        threshold: 0.4,
+        ignoreLocation: true,
+        minMatchCharLength: 2,
+      }),
+    [conversations],
   );
 
   const visible = useMemo(() => {
@@ -424,14 +415,14 @@ export function ConversationSidebar() {
   const streamingId = status === "streaming" ? activeId : null;
 
   const row = useCallback(
-      (conversation: ConversationMeta) => (
-          <ConversationRow
-              conversation={conversation}
-              isActive={conversation.id === activeId}
-              isStreaming={conversation.id === streamingId}
-          />
-      ),
-      [activeId, streamingId],
+    (conversation: ConversationMeta) => (
+      <ConversationRow
+        conversation={conversation}
+        isActive={conversation.id === activeId}
+        isStreaming={conversation.id === streamingId}
+      />
+    ),
+    [activeId, streamingId],
   );
 
   /* Virtualization: only the recent list, only past the threshold. A
@@ -448,113 +439,111 @@ export function ConversationSidebar() {
   });
 
   const animatedRow = (conversation: ConversationMeta) => (
-      <motion.li
-          key={conversation.id}
-          layout={motionOn}
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: "auto" }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: motionOn ? 0.18 : 0, ease: EASE }}
-          className="overflow-hidden pb-1"
-      >
-        {row(conversation)}
-      </motion.li>
+    <motion.li
+      key={conversation.id}
+      layout={motionOn}
+      initial={{ opacity: 0, height: 0 }}
+      animate={{ opacity: 1, height: "auto" }}
+      exit={{ opacity: 0, height: 0 }}
+      transition={{ duration: motionOn ? 0.18 : 0, ease: EASE }}
+      className="overflow-hidden pb-1"
+    >
+      {row(conversation)}
+    </motion.li>
   );
 
   return (
-      <nav
-          aria-label="Conversations"
-          className="flex h-full w-full min-w-0 shrink-0 flex-col bg-card/40"
-      >
-        <div className="space-y-2.5 border-b border-border p-3">
-          <div className="flex items-center gap-2">
-            <MoudirMark size={22} />
-            <Kicker tone="coral">Conversations</Kicker>
-          </div>
-          <Button
-              type="button"
-              size="sm"
-              onClick={() => void handleNew()}
-              className="w-full justify-start gap-1.5"
-          >
-            <Plus />
-            Nouveau
-            <Kbd className="ml-auto bg-primary-foreground/15 text-primary-foreground/80">
-              {MOD_GLYPH}N
-            </Kbd>
-          </Button>
-          <SearchField />
+    <nav
+      aria-label="Conversations"
+      className="flex h-full w-full min-w-0 shrink-0 flex-col bg-card/40"
+    >
+      <div className="space-y-2.5 border-b border-border p-3">
+        <div className="flex items-center gap-2">
+          <MoudirMark size={22} />
+          <Kicker tone="coral">Conversations</Kicker>
         </div>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => void handleNew()}
+          className="w-full justify-start gap-1.5"
+        >
+          <Plus />
+          Nouveau
+          <Kbd className="ml-auto bg-primary-foreground/15 text-primary-foreground/80">
+            {MOD_GLYPH}N
+          </Kbd>
+        </Button>
+        <SearchField />
+      </div>
 
-        {/* Pins don't scroll away. They're a short, deliberately-curated set, and
+      {/* Pins don't scroll away. They're a short, deliberately-curated set, and
           keeping them pinned to the top of the rail is the whole point. */}
-        {pinned.length > 0 ? (
-            <div className="max-h-[38%] shrink-0 overflow-y-auto border-b border-border p-2">
-              <Kicker className="px-1.5">Épinglées</Kicker>
-              <ul className="mt-1.5">
-                <AnimatePresence initial={false}>{pinned.map(animatedRow)}</AnimatePresence>
-              </ul>
-            </div>
-        ) : null}
-
-        <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-2">
-          {isEmpty ? (
-              <Empty className="h-full">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <MoudirMark size={28} className="opacity-70" />
-                  </EmptyMedia>
-                  <EmptyTitle className="text-sm">
-                    {isSearching ? "Aucun résultat" : "Aucune conversation"}
-                  </EmptyTitle>
-                  <EmptyDescription>
-                    {isSearching
-                        ? `Rien ne correspond à « ${trimmed} ».`
-                        : "Pose une première question pour démarrer l'historique."}
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-          ) : rest.length === 0 ? null : virtualized ? (
-              <ul
-                  className="relative w-full"
-                  style={{ height: virtualizer.getTotalSize() }}
-                  aria-label={`${rest.length} conversations récentes`}
-              >
-                {virtualizer.getVirtualItems().map((item) => {
-                  const entry = flat[item.index];
-                  if (!entry) return null;
-                  return (
-                      <li
-                          key={item.key}
-                          ref={virtualizer.measureElement}
-                          data-index={item.index}
-                          className="absolute top-0 left-0 w-full pb-1"
-                          style={{ transform: `translateY(${item.start}px)` }}
-                      >
-                        {entry.kind === "header" ? (
-                            <Kicker className="px-1.5">{entry.label}</Kicker>
-                        ) : (
-                            row(entry.conversation)
-                        )}
-                      </li>
-                  );
-                })}
-              </ul>
-          ) : (
-              <>
-                {groups.map((group) => (
-                    <div key={group.label}>
-                      <Kicker className="px-1.5">{group.label}</Kicker>
-                      <ul className="mt-1.5">
-                        <AnimatePresence initial={false}>
-                          {group.items.map(animatedRow)}
-                        </AnimatePresence>
-                      </ul>
-                    </div>
-                ))}
-              </>
-          )}
+      {pinned.length > 0 ? (
+        <div className="max-h-[38%] shrink-0 overflow-y-auto border-b border-border p-2">
+          <Kicker className="px-1.5">Épinglées</Kicker>
+          <ul className="mt-1.5">
+            <AnimatePresence initial={false}>{pinned.map(animatedRow)}</AnimatePresence>
+          </ul>
         </div>
-      </nav>
+      ) : null}
+
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-2">
+        {isEmpty ? (
+          <Empty className="h-full">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <MoudirMark size={28} className="opacity-70" />
+              </EmptyMedia>
+              <EmptyTitle className="text-sm">
+                {isSearching ? "Aucun résultat" : "Aucune conversation"}
+              </EmptyTitle>
+              <EmptyDescription>
+                {isSearching
+                  ? `Rien ne correspond à « ${trimmed} ».`
+                  : "Pose une première question pour démarrer l'historique."}
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        ) : rest.length === 0 ? null : virtualized ? (
+          <ul
+            className="relative w-full"
+            style={{ height: virtualizer.getTotalSize() }}
+            aria-label={`${rest.length} conversations récentes`}
+          >
+            {virtualizer.getVirtualItems().map((item) => {
+              const entry = flat[item.index];
+              if (!entry) return null;
+              return (
+                <li
+                  key={item.key}
+                  ref={virtualizer.measureElement}
+                  data-index={item.index}
+                  className="absolute top-0 left-0 w-full pb-1"
+                  style={{ transform: `translateY(${item.start}px)` }}
+                >
+                  {entry.kind === "header" ? (
+                    <Kicker className="px-1.5">{entry.label}</Kicker>
+                  ) : (
+                    row(entry.conversation)
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <>
+            {groups.map((group) => (
+              <div key={group.label}>
+                <Kicker className="px-1.5">{group.label}</Kicker>
+                <ul className="mt-1.5">
+                  <AnimatePresence initial={false}>{group.items.map(animatedRow)}</AnimatePresence>
+                </ul>
+              </div>
+            ))}
+          </>
+        )}
+      </div>
+    </nav>
   );
 }

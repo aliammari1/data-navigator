@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { CanalHourCell, ColumnMapping } from "@/features/telecom/types";
 import { CanalHeatmap } from "@/features/telecom/components/canal-heatmap";
+import type { CanalHourCell, ColumnMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

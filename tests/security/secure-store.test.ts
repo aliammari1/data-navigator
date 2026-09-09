@@ -4,12 +4,12 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   AUTH_DB_KEY_ENV,
-  type SafeStorageLike,
   ENCRYPT_AUTH_DB_ENV,
   ensureAuthDbKeyEnv,
   getWrappedKeyPath,
   isEncryptionEnabledByFlag,
   loadOrCreateWrappedDek,
+  type SafeStorageLike,
 } from "../../electron/secure-store";
 
 /**

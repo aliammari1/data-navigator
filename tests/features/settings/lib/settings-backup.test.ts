@@ -28,14 +28,13 @@ vi.mock("@/core/stores/settings-store", () => {
 
 // ---- now import the module under test and its mock handles ----
 
+import { useSettingsStore } from "@/core/stores/settings-store";
 import {
   buildSettingsBackup,
   downloadSettingsBackup,
   restoreSettingsFromFile,
 } from "@/features/settings/lib/settings-backup";
-
 import { exportAppSettingsRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
-import { useSettingsStore } from "@/core/stores/settings-store";
 
 const mockExport = exportAppSettingsRemote as ReturnType<typeof vi.fn>;
 const mockPut = putAppSettingRemote as ReturnType<typeof vi.fn>;
@@ -69,7 +68,7 @@ beforeEach(() => {
 
 describe("buildSettingsBackup", () => {
   it("returns a backup file with the correct kind and version", async () => {
-    mockExport.mockResolvedValue({ settings: { "k1": "v1" } });
+    mockExport.mockResolvedValue({ settings: { k1: "v1" } });
 
     const backup = await buildSettingsBackup();
 
@@ -78,7 +77,7 @@ describe("buildSettingsBackup", () => {
   });
 
   it("exportedAt is a valid ISO timestamp close to now", async () => {
-    mockExport.mockResolvedValue({ settings: { "k1": "v1" } });
+    mockExport.mockResolvedValue({ settings: { k1: "v1" } });
 
     const before = Date.now();
     const backup = await buildSettingsBackup();
@@ -216,7 +215,10 @@ describe("downloadSettingsBackup", () => {
     let capturedAnchor: HTMLAnchorElement | null = null;
     (document.createElement as ReturnType<typeof vi.spyOn>).mockImplementation((tag: string) => {
       if (tag === "a") {
-        const a = document.createElementNS("http://www.w3.org/1999/xhtml", "a") as HTMLAnchorElement;
+        const a = document.createElementNS(
+          "http://www.w3.org/1999/xhtml",
+          "a",
+        ) as HTMLAnchorElement;
         a.click = clickSpy;
         a.remove = removeChildSpy;
         capturedAnchor = a;
@@ -380,8 +382,8 @@ describe("restoreSettingsFromFile – happy path", () => {
   it("calls putAppSettingRemote once per key with namespace 'settings'", async () => {
     const payload = {
       settings: {
-        "alpha": 1,
-        "beta": 2,
+        alpha: 1,
+        beta: 2,
       },
     };
     const file = makeFile(JSON.stringify(payload));

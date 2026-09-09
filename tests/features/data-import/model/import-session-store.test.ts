@@ -1,7 +1,7 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import {
-  useImportSession,
   getOrderedFiles,
+  useImportSession,
 } from "@/features/data-import/model/import-session-store";
 import type { ParsedFileInfo } from "@/features/data-import/model/types";
 

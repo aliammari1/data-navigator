@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { SubStatusPanel } from "@/features/telecom/components/sub-status-panel";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

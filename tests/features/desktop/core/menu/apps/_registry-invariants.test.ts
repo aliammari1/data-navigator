@@ -20,7 +20,9 @@ import { makeMenuContext } from "./menu-context";
  */
 
 function collectItems(items: MenuItem[]): MenuItem[] {
-  return items.flatMap((item) => (item.kind === "submenu" ? [item, ...collectItems(item.items)] : [item]));
+  return items.flatMap((item) =>
+    item.kind === "submenu" ? [item, ...collectItems(item.items)] : [item],
+  );
 }
 
 function assertNoDuplicateIds(ids: string[], where: string): void {
@@ -30,9 +32,10 @@ function assertNoDuplicateIds(ids: string[], where: string): void {
     if (seen.has(id)) duplicates.add(id);
     seen.add(id);
   }
-  expect(Array.from(duplicates), `duplicate ids in ${where}: ${Array.from(duplicates).join(", ")}`).toEqual(
-    [],
-  );
+  expect(
+    Array.from(duplicates),
+    `duplicate ids in ${where}: ${Array.from(duplicates).join(", ")}`,
+  ).toEqual([]);
 }
 
 describe.each(Object.entries(APP_MENUS))("registered app menu: %s", (appId, buildMenu) => {
@@ -63,7 +66,9 @@ describe.each(Object.entries(APP_MENUS))("registered app menu: %s", (appId, buil
     for (const group of groups) {
       for (const item of collectItems(group.items)) {
         if (item.kind === "separator") continue;
-        expect(item.label?.length, `${appId} item "${item.id}" has an empty label`).toBeGreaterThan(0);
+        expect(item.label?.length, `${appId} item "${item.id}" has an empty label`).toBeGreaterThan(
+          0,
+        );
       }
     }
   });
@@ -75,20 +80,31 @@ describe.each(Object.entries(APP_MENUS))("registered app menu: %s", (appId, buil
     for (const group of groups) {
       for (const item of collectItems(group.items)) {
         if (item.kind === "action" || item.kind === undefined) {
-          expect(typeof item.run, `${appId} item "${item.id}" has no callable run()`).toBe("function");
+          expect(typeof item.run, `${appId} item "${item.id}" has no callable run()`).toBe(
+            "function",
+          );
           expect(() => item.run(), `${appId} item "${item.id}".run() threw`).not.toThrow();
         } else if (item.kind === "checkbox") {
           expect(
             typeof item.onToggle,
             `${appId} item "${item.id}" has no callable onToggle()`,
           ).toBe("function");
-          expect(() => item.onToggle(true), `${appId} item "${item.id}".onToggle() threw`).not.toThrow();
+          expect(
+            () => item.onToggle(true),
+            `${appId} item "${item.id}".onToggle() threw`,
+          ).not.toThrow();
         } else if (item.kind === "radio") {
-          expect(typeof item.onSelect, `${appId} radio "${item.id}" has no callable onSelect()`).toBe(
-            "function",
+          expect(
+            typeof item.onSelect,
+            `${appId} radio "${item.id}" has no callable onSelect()`,
+          ).toBe("function");
+          expect(item.options.length, `${appId} radio "${item.id}" has no options`).toBeGreaterThan(
+            0,
           );
-          expect(item.options.length, `${appId} radio "${item.id}" has no options`).toBeGreaterThan(0);
-          expect(() => item.onSelect(item.options[0].value), `${appId} radio "${item.id}".onSelect() threw`).not.toThrow();
+          expect(
+            () => item.onSelect(item.options[0].value),
+            `${appId} radio "${item.id}".onSelect() threw`,
+          ).not.toThrow();
         }
       }
     }
@@ -118,10 +134,9 @@ describe("MenuGroup shape — every registered app", () => {
     for (const [appId, buildMenu] of Object.entries(APP_MENUS)) {
       const groups: MenuGroup[] = buildMenu(makeMenuContext({ appId }));
       for (const group of groups) {
-        expect(
-          group.items.length,
-          `${appId}'s "${group.id}" group has zero items`,
-        ).toBeGreaterThan(0);
+        expect(group.items.length, `${appId}'s "${group.id}" group has zero items`).toBeGreaterThan(
+          0,
+        );
       }
     }
   });

@@ -7,8 +7,8 @@ import { useShallow } from "zustand/shallow";
 import { Button } from "@/components/ui/button";
 import { useSettingsStore } from "@/core/stores/settings-store";
 import {
-  notificationPermission,
   type NotificationPermissionState,
+  notificationPermission,
   requestNotificationPermission,
 } from "@/platform/notifications/permission";
 import { notify } from "../../lib/notifications";
@@ -31,7 +31,9 @@ function DesktopNotificationsSection() {
           type="button"
           size="sm"
           variant="outline"
-          disabled={permission === "granted" || permission === "denied" || permission === "unsupported"}
+          disabled={
+            permission === "granted" || permission === "denied" || permission === "unsupported"
+          }
           onClick={async () => setPermission(await requestNotificationPermission())}
         >
           {permission === "granted" ? "Enabled" : "Enable"}

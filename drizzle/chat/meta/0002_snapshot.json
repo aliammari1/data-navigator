@@ -63,10 +63,7 @@
       "indexes": {
         "moudir_conversation_updated_idx": {
           "name": "moudir_conversation_updated_idx",
-          "columns": [
-            "pinned",
-            "updated_at"
-          ],
+          "columns": ["pinned", "updated_at"],
           "isUnique": false
         }
       },
@@ -125,17 +122,12 @@
       "indexes": {
         "moudir_message_conversation_idx": {
           "name": "moudir_message_conversation_idx",
-          "columns": [
-            "conversation_id",
-            "id"
-          ],
+          "columns": ["conversation_id", "id"],
           "isUnique": false
         },
         "moudir_message_conversation_fk_idx": {
           "name": "moudir_message_conversation_fk_idx",
-          "columns": [
-            "conversation_id"
-          ],
+          "columns": ["conversation_id"],
           "isUnique": false
         }
       },
@@ -144,12 +136,8 @@
           "name": "moudir_message_conversation_id_moudir_conversation_id_fk",
           "tableFrom": "moudir_message",
           "tableTo": "moudir_conversation",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -208,9 +196,7 @@
       "indexes": {
         "moudir_message_embedding_conv_idx": {
           "name": "moudir_message_embedding_conv_idx",
-          "columns": [
-            "conversation_id"
-          ],
+          "columns": ["conversation_id"],
           "isUnique": false
         }
       },
@@ -219,12 +205,8 @@
           "name": "moudir_message_embedding_conversation_id_moudir_conversation_id_fk",
           "tableFrom": "moudir_message_embedding",
           "tableTo": "moudir_conversation",
-          "columnsFrom": [
-            "conversation_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["conversation_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }

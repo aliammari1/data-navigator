@@ -65,14 +65,14 @@ export function buildSQL(
   const sizeEnc = spec.encodings.find((e) => e.channel === "size");
 
   // Histogram-style binning
-if (xEnc?.bin && xEnc.aggregate === "count") {
-  const field = quote(xEnc.field, derivedMap);
-  const minExpr = `(SELECT MIN(TRY_CAST(${field} AS DOUBLE)) FROM "${tableName}")`;
-  const maxExpr = `(SELECT MAX(TRY_CAST(${field} AS DOUBLE)) FROM "${tableName}")`;
-  const bin = `LEAST(GREATEST(CAST(FLOOR((TRY_CAST(${field} AS DOUBLE) - ${minExpr}) * 30.0 / NULLIF(${maxExpr} - ${minExpr}, 0)) AS INTEGER) + 1, 1), 30)`;
-  const where = buildWhereClause(spec.filters, derivedMap);
-  return `SELECT ${bin} as x_val, COUNT(*) as y_val FROM "${tableName}" ${where ? `WHERE ${where} AND` : "WHERE"} ${field} IS NOT NULL GROUP BY x_val ORDER BY x_val LIMIT ${spec.limit}`;
-}
+  if (xEnc?.bin && xEnc.aggregate === "count") {
+    const field = quote(xEnc.field, derivedMap);
+    const minExpr = `(SELECT MIN(TRY_CAST(${field} AS DOUBLE)) FROM "${tableName}")`;
+    const maxExpr = `(SELECT MAX(TRY_CAST(${field} AS DOUBLE)) FROM "${tableName}")`;
+    const bin = `LEAST(GREATEST(CAST(FLOOR((TRY_CAST(${field} AS DOUBLE) - ${minExpr}) * 30.0 / NULLIF(${maxExpr} - ${minExpr}, 0)) AS INTEGER) + 1, 1), 30)`;
+    const where = buildWhereClause(spec.filters, derivedMap);
+    return `SELECT ${bin} as x_val, COUNT(*) as y_val FROM "${tableName}" ${where ? `WHERE ${where} AND` : "WHERE"} ${field} IS NOT NULL GROUP BY x_val ORDER BY x_val LIMIT ${spec.limit}`;
+  }
 
   const hasAgg = spec.encodings.some((e) => e.aggregate && e.aggregate !== "none");
 

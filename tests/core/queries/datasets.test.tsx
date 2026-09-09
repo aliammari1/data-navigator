@@ -159,10 +159,7 @@ describe("useDatasets", () => {
     const { wrapper } = makeWrapper();
     act(() => {
       useDataStore.setState({
-        datasets: [
-          dataset({ id: "a", format: "csv" }),
-          dataset({ id: "b", format: "parquet" }),
-        ],
+        datasets: [dataset({ id: "a", format: "csv" }), dataset({ id: "b", format: "parquet" })],
       });
     });
 
@@ -427,10 +424,7 @@ describe("useSavedCharts", () => {
     const { wrapper } = makeWrapper();
     act(() => {
       useDataStore.setState({
-        savedCharts: [
-          chart({ id: "c1", datasetId: "ds1" }),
-          chart({ id: "c2", datasetId: "ds2" }),
-        ],
+        savedCharts: [chart({ id: "c1", datasetId: "ds1" }), chart({ id: "c2", datasetId: "ds2" })],
       });
     });
 

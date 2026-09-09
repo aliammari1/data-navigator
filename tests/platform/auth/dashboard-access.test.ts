@@ -31,6 +31,7 @@ vi.mock("@/platform/lan/lan-collab", () => ({
   },
 }));
 
+import { useSettingsStore } from "@/core/stores/settings-store";
 import {
   capRoleBySession,
   type DashboardRole,
@@ -38,7 +39,6 @@ import {
   permissionsForRole,
   useDashboardAccess,
 } from "@/platform/auth/dashboard-access";
-import { useSettingsStore } from "@/core/stores/settings-store";
 
 // ---------------------------------------------------------------------------
 describe("getRoleLabel", () => {

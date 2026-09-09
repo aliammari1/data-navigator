@@ -19,12 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDataStore } from "@/core/stores/data-store";
 import { cn } from "@/shared/utils";
 import {
@@ -37,7 +32,10 @@ function cleanQuestionText(question: string): string {
   const optionsAt = question.search(/\s*Options?\s*:/i);
   const head = optionsAt >= 0 ? question.slice(0, optionsAt) : question;
   const stripped = head.replace(/\s*\(\d+\)[^()]*?(?=\s*\(\d+\)|\s*$)/g, "").trim();
-  const collapsed = stripped.replace(/\s{2,}/g, " ").replace(/\s+([,.?!;:])/g, "$1").trim();
+  const collapsed = stripped
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.?!;:])/g, "$1")
+    .trim();
   return collapsed.length > 0 ? collapsed : question;
 }
 
@@ -104,8 +102,8 @@ export function ChatClarificationDock() {
 
   const currentKey = current ? `${current.messageId}-${current.partIndex}` : "";
   const isMulti = current
-    ? multiMap[currentKey] ??
-      Boolean(current.part.multiSelect || detectMultiSelect(current.part.question))
+    ? (multiMap[currentKey] ??
+      Boolean(current.part.multiSelect || detectMultiSelect(current.part.question)))
     : false;
 
   const currentSelected = useMemo(() => {
@@ -200,9 +198,7 @@ export function ChatClarificationDock() {
       }
       if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
         e.preventDefault();
-        setFocusedOptionIdx((prev) =>
-          prev <= 0 ? current.part.options.length - 1 : prev - 1,
-        );
+        setFocusedOptionIdx((prev) => (prev <= 0 ? current.part.options.length - 1 : prev - 1));
         return;
       }
 
@@ -290,9 +286,7 @@ export function ChatClarificationDock() {
             <div className="flex size-6 items-center justify-center rounded-md bg-primary/10 text-primary border border-primary/20">
               <HelpCircle className="size-3.5" />
             </div>
-            <span className="text-xs font-semibold text-foreground">
-              Question de Moudir
-            </span>
+            <span className="text-xs font-semibold text-foreground">Question de Moudir</span>
             {pendingQuestions.length > 1 && (
               <Badge variant="outline" className="text-[10px] font-mono px-1.5 py-0 h-5">
                 {currentIdx + 1} / {pendingQuestions.length}
@@ -457,9 +451,7 @@ export function ChatClarificationDock() {
                     className="max-w-xs p-2 text-xs space-y-1 bg-popover text-popover-foreground border border-border shadow-md"
                   >
                     <div className="flex items-center justify-between gap-2 border-b border-border/50 pb-1">
-                      <span className="font-semibold font-mono text-primary">
-                        {colMeta.name}
-                      </span>
+                      <span className="font-semibold font-mono text-primary">{colMeta.name}</span>
                       <Badge
                         variant="outline"
                         className="text-[10px] uppercase font-mono px-1 py-0"

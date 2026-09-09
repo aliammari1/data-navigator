@@ -22,8 +22,8 @@
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { and, desc, eq, like, or, sql } from "drizzle-orm";
-import { openSqliteHandle, type SqliteHandle } from "../src/platform/storage/db-bootstrap";
 import * as chatSchema from "../src/db/schema-chat";
+import { openSqliteHandle, type SqliteHandle } from "../src/platform/storage/db-bootstrap";
 import { ensureChatSearchFts } from "./chat-search";
 
 /** Unpinned conversations beyond this cap are pruned oldest-first on create. */
@@ -122,7 +122,10 @@ function fireMessageAppended(row: ChatMessageRow): void {
   }
 }
 
-function toMeta(row: typeof chatSchema.conversation.$inferSelect, messageCount: number): ConversationMeta {
+function toMeta(
+  row: typeof chatSchema.conversation.$inferSelect,
+  messageCount: number,
+): ConversationMeta {
   return {
     id: row.id,
     title: row.title,

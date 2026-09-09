@@ -1,9 +1,9 @@
 "use client";
-import { cn } from "@/shared/utils";
-import { useRef, useState } from "react";
-import { motion } from "motion/react";
 import { PlusCircle, Trash2, Upload } from "lucide-react";
+import { motion } from "motion/react";
+import { useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
+import { cn } from "@/shared/utils";
 
 const mainVariant = {
   initial: {

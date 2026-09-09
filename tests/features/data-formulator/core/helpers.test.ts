@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, } from "vitest";
-import { inferType, genId, fmtVal } from "@/features/data-formulator/core/helpers";
+import { describe, expect, it, vi } from "vitest";
+import { fmtVal, genId, inferType } from "@/features/data-formulator/core/helpers";
 
 // ─── inferType ────────────────────────────────────────────────────────────────
 

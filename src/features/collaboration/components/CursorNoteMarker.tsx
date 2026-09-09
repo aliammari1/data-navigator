@@ -13,9 +13,9 @@
  * and `PresenceBar.tsx`. Anything else falls back to a neutral background.
  */
 
-import { useEffect, useState } from "react";
-import type { RefObject } from "react";
 import { motion } from "motion/react";
+import type { RefObject } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/shared/utils";
 import type { CursorNote } from "../hooks/use-cursor-notes";
 
@@ -38,10 +38,7 @@ function safeColor(color: string): string | undefined {
 
 type Position = { left: number; top: number; height: number; width: number } | null;
 
-function computePosition(
-  note: CursorNote,
-  rect: DOMRect | null,
-): Position {
+function computePosition(note: CursorNote, rect: DOMRect | null): Position {
   if (!rect) return null;
   // Row anchor: place the note at the row's vertical center, indented ~12px
   // from the container's left edge. Row is treated as a 1-based index out of
@@ -74,10 +71,7 @@ function computePosition(
 
 export function CursorNoteMarker({ note, containerRef }: CursorNoteMarkerProps) {
   const [pos, setPos] = useState<Position>(() =>
-    computePosition(
-      note,
-      containerRef?.current?.getBoundingClientRect() ?? null,
-    ),
+    computePosition(note, containerRef?.current?.getBoundingClientRect() ?? null),
   );
 
   useEffect(() => {
@@ -148,13 +142,9 @@ export function CursorNoteMarker({ note, containerRef }: CursorNoteMarkerProps) 
           >
             {firstLetter(note.authorName)}
           </span>
-          <span className="truncate text-xs font-semibold text-foreground">
-            {note.authorName}
-          </span>
+          <span className="truncate text-xs font-semibold text-foreground">{note.authorName}</span>
         </div>
-        <p className="mt-1 line-clamp-2 text-xs leading-snug text-foreground/90">
-          {note.text}
-        </p>
+        <p className="mt-1 line-clamp-2 text-xs leading-snug text-foreground/90">{note.text}</p>
       </div>
     </motion.div>
   );

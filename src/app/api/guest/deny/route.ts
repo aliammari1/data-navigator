@@ -18,8 +18,5 @@ export async function POST(request: Request) {
   if (!updated) {
     return NextResponse.json({ error: "not found or resolved" }, { status: 410 });
   }
-  return NextResponse.json(
-    { ok: true },
-    { headers: { "cache-control": "no-store" } },
-  );
+  return NextResponse.json({ ok: true }, { headers: { "cache-control": "no-store" } });
 }

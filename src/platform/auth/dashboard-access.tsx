@@ -73,9 +73,7 @@ export function DashboardUserProvider({
   children,
 }: DashboardUserContextValue & { children: React.ReactNode }) {
   const value = useMemo(() => ({ isGuest, permissions }), [isGuest, permissions]);
-  return (
-    <DashboardUserContext.Provider value={value}>{children}</DashboardUserContext.Provider>
-  );
+  return <DashboardUserContext.Provider value={value}>{children}</DashboardUserContext.Provider>;
 }
 
 export function useDashboardUser(): DashboardUserContextValue {

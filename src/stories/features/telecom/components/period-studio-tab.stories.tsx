@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { PeriodStudioTab } from "@/features/telecom/components/period-studio-tab";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

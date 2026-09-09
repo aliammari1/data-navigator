@@ -124,10 +124,19 @@ const SAMPLE_HOURLY: Types.HourlyRow[] = [
 const SAMPLE_STATUS: Types.StatusRow[] = [{ status: "SUCCESS", count: 800, amount: 1234 }];
 
 const SAMPLE_OPERATORS: Types.OperatorRow[] = [
-  { operator: "OOREDOO", total: 100, success: 80, amount: 500, successRate: 80, accountType: "source" },
+  {
+    operator: "OOREDOO",
+    total: 100,
+    success: 80,
+    amount: 500,
+    successRate: 80,
+    accountType: "source",
+  },
 ];
 
-const SAMPLE_REGIONS: Types.RegionRow[] = [{ region: "TUNIS", total: 70, success: 60, amount: 300 }];
+const SAMPLE_REGIONS: Types.RegionRow[] = [
+  { region: "TUNIS", total: 70, success: 60, amount: 300 },
+];
 
 const SAMPLE_RAW_CANALS = [
   {
@@ -504,9 +513,7 @@ describe("useTelecomAnalytics — firstLoad gate", () => {
   it("calls onStatusMappingAdditions with new codes not already in statusMapping", async () => {
     setupHappyPathMocks();
     // Return a code not in the current SM
-    fetchDistinctStatusesMock.mockResolvedValue([
-      { rawCode: "NEW_CODE", count: 5, amount: 0 },
-    ]);
+    fetchDistinctStatusesMock.mockResolvedValue([{ rawCode: "NEW_CODE", count: 5, amount: 0 }]);
 
     const onStatusMappingAdditions = vi.fn();
     const firstLoad = makeRef(true);

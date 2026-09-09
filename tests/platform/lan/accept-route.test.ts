@@ -3,9 +3,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Capture the real implementation BEFORE vi.mock replaces the module — the
 // top-level import below would otherwise resolve to the spy, causing the
 // spy's mockImplementation to recurse into itself.
-const realLanCommon = await vi.importActual<
-  typeof import("@/platform/lan/lan-common")
->("@/platform/lan/lan-common");
+const realLanCommon = await vi.importActual<typeof import("@/platform/lan/lan-common")>(
+  "@/platform/lan/lan-common",
+);
 const realSignSessionToken = realLanCommon.signSessionToken;
 const realVerifySessionToken = realLanCommon.verifySessionToken;
 
@@ -22,10 +22,7 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/server", () => ({
   NextResponse: {
-    json: (
-      body: unknown,
-      init?: { status?: number; headers?: Record<string, string> },
-    ) => ({
+    json: (body: unknown, init?: { status?: number; headers?: Record<string, string> }) => ({
       status: init?.status ?? 200,
       json: async () => body,
       headers: new Headers(init?.headers ?? {}),

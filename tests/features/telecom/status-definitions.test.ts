@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   BUILTIN_STATUS_CODES,
+  buildRawStatusFilter,
+  buildRawStatusFilterForColumn,
   DEFAULT_STATUS_MAPPINGS,
   REPORT_INSTANCE_STATUS_CODES,
   SEMANTIC_STATUS_OPTIONS,
@@ -10,8 +12,6 @@ import {
   SPEC_SUCCESS_FILTER,
   STATUS_AUTO_SEMANTIC_BY_CODE,
   STATUS_PRESENTATION,
-  buildRawStatusFilter,
-  buildRawStatusFilterForColumn,
   sqlStatusInList,
 } from "@/features/telecom/lib/status-definitions";
 

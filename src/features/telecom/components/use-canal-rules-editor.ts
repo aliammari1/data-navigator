@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { ALL_CANAL_RULES } from "@/features/telecom/lib/canal-rule-defaults";
+import type { CanalRule, ColumnMapping, UnclassifiedCanalCombo } from "@/features/telecom/types";
 import {
   type CanalRuleDraft,
   comboKey,
@@ -11,7 +12,6 @@ import {
   emptyCanalRuleDraft,
   validateAndBuildCanalRule,
 } from "./canal-rule-domain";
-import type { CanalRule, ColumnMapping, UnclassifiedCanalCombo } from "@/features/telecom/types";
 
 export interface UseCanalRulesEditorOptions {
   mapping: ColumnMapping;
@@ -61,7 +61,9 @@ export function useCanalRulesEditor({
   const [loading, setLoading] = useState(false);
   const [refreshVersion, setRefreshVersion] = useState(0);
 
-  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(mergedCanalRules[0]?.id ?? null);
+  const [selectedRuleId, setSelectedRuleId] = useState<string | null>(
+    mergedCanalRules[0]?.id ?? null,
+  );
 
   const [selectedComboKey, setSelectedComboKey] = useState<string | null>(null);
 
@@ -72,7 +74,8 @@ export function useCanalRulesEditor({
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const selectedRule = useMemo(
-    () => (selectedRuleId ? (mergedCanalRules.find((rule) => rule.id === selectedRuleId) ?? null) : null),
+    () =>
+      selectedRuleId ? (mergedCanalRules.find((rule) => rule.id === selectedRuleId) ?? null) : null,
     [mergedCanalRules, selectedRuleId],
   );
 
@@ -127,9 +130,10 @@ export function useCanalRulesEditor({
     setSelectedRuleId(rule.id);
     setSelectedComboKey(null);
 
-    const draftForEdit = rule.origin === "default"
-      ? { ...draftFromRule(rule), origin: "custom" as const }
-      : draftFromRule(rule);
+    const draftForEdit =
+      rule.origin === "default"
+        ? { ...draftFromRule(rule), origin: "custom" as const }
+        : draftFromRule(rule);
 
     setDraft(draftForEdit);
     setErrors({});
@@ -167,9 +171,10 @@ export function useCanalRulesEditor({
 
     const existingCustomIndex = rules.findIndex((rule) => rule.id === customRule.id);
 
-    const nextRules = existingCustomIndex >= 0
-      ? rules.map((rule, index) => (index === existingCustomIndex ? customRule : rule))
-      : [...rules, customRule];
+    const nextRules =
+      existingCustomIndex >= 0
+        ? rules.map((rule, index) => (index === existingCustomIndex ? customRule : rule))
+        : [...rules, customRule];
 
     onRulesChange(nextRules);
 

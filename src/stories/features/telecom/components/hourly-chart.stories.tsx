@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { HourlyRow } from "@/features/telecom/types";
 import { HourlyChart } from "@/features/telecom/components/hourly-chart";
+import type { HourlyRow } from "@/features/telecom/types";
 
 const data: HourlyRow[] = Array.from({ length: 24 }, (_, hour) => {
   const base = Math.round(400 + 900 * Math.sin((hour / 24) * Math.PI));

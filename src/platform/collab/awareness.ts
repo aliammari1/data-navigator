@@ -36,9 +36,7 @@ export function setAwarenessUser(awareness: Awareness, user: AwarenessUser): voi
 // rAF-throttled cursor writers keyed by awareness instance so a flood of
 // selection/cursor events coalesces to at most one write per frame.
 const pendingCursor = new WeakMap<Awareness, AwarenessCursor>();
-type ScheduleHandle =
-  | ReturnType<typeof requestAnimationFrame>
-  | ReturnType<typeof setTimeout>;
+type ScheduleHandle = ReturnType<typeof requestAnimationFrame> | ReturnType<typeof setTimeout>;
 const cursorRaf = new WeakMap<Awareness, ScheduleHandle>();
 
 function scheduleFrame(cb: () => void): ScheduleHandle {

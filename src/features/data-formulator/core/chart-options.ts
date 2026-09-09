@@ -1,7 +1,7 @@
 import { flagOutliers, linearTrendline } from "@/features/data-formulator/core/ai";
-import type { ChartSpec } from "./types";
 import { PALETTE } from "./constants";
 import { fmtVal } from "./helpers";
+import type { ChartSpec } from "./types";
 
 /**
  * Maximum of a numeric array via `reduce`. Avoids `Math.max(...arr)`, whose

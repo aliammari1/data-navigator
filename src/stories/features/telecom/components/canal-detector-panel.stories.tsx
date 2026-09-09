@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-
-import type { ColumnMapping, ServiceCodeRow } from "@/features/telecom/types";
 import { CanalDetectorPanel } from "@/features/telecom/components/canal-detector-panel";
+import type { ColumnMapping, ServiceCodeRow } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

@@ -13,10 +13,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buildChartPngDataUrl,
   copyChartPng,
+  type EChartsInstance,
   encodeRowsToCsv,
   exportChartPng,
   exportRowsCsv,
-  type EChartsInstance,
 } from "@/platform/viz/chart-export";
 
 describe("encodeRowsToCsv", () => {
@@ -274,7 +274,9 @@ describe("copyChartPng", () => {
   it("falls back to navigator.clipboard.write with a decoded Blob when no bridge exists", async () => {
     // Arrange
     delete (window as unknown as Record<string, unknown>).electronClipboard;
-    const chart = makeChartInstance(`data:image/png;base64,${Buffer.from("hi").toString("base64")}`);
+    const chart = makeChartInstance(
+      `data:image/png;base64,${Buffer.from("hi").toString("base64")}`,
+    );
     const write = vi.fn().mockResolvedValue(undefined);
     vi.stubGlobal("navigator", { clipboard: { write } });
     vi.stubGlobal(

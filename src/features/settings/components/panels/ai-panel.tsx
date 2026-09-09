@@ -3,11 +3,11 @@
 import { Brain, Check, Cpu, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { ModelDownloadPanel } from "@/components/shared/model-download-panel";
-import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import type { AIModelInfo } from "@/platform/ai/provider";
+import { pickDefaultProvider, useAIRuntimeStore } from "@/platform/ai/provider";
 import { cn } from "@/shared/utils";
 import { Section, Toggle } from "../controls";
-import { useSettingsStore } from "@/core/stores/settings-store";
 
 /**
  * Active AI model + downloads. Centralizes the model picker that used to only

@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
+import { SpecChannelTable } from "@/features/telecom/components/spec-channel-table";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import { SpecChannelTable } from "@/features/telecom/components/spec-channel-table";
 
 const channels: ChannelDef[] = [
   { name: "IZIPAY", condition: "BRAND_D = 39" },

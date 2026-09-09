@@ -1,10 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { motion } from "motion/react";
 import { Brain, CheckCircle2, Download } from "lucide-react";
-import type * as Types from "@/features/telecom/types";
+import { motion } from "motion/react";
+import { useMemo, useState } from "react";
 import { generateNarrative } from "@/features/telecom/lib/insights";
+import type * as Types from "@/features/telecom/types";
 
 export function NarrativeReport({
   kpi,

@@ -24,11 +24,11 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { assertReadOnlySql } from "@/platform/duckdb/sql-guard";
 import { accuracy, assertAtLeast, mean, report } from "./_harness";
 import {
-  BI_BENCHMARK_PROMPTS,
-  type BICase,
   ANALYTICS_ALL_COLUMNS,
   ANALYTICS_DDL,
   ANALYTICS_SEED_SQL,
+  BI_BENCHMARK_PROMPTS,
+  type BICase,
   HALLUCINATED_SQL_CORPUS,
   MALFORMED_SQL_CORPUS,
 } from "./fixtures/analytics-corpus";

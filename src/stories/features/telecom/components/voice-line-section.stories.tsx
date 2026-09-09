@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
+import { VoiceLineSection } from "@/features/telecom/components/voice-line-section";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import { VoiceLineSection } from "@/features/telecom/components/voice-line-section";
 
 const ttcash: ChannelDef[] = [
   { name: "TTCASH FIXE", condition: "SERVICE_CODE = 'VF_TTCASH'" },

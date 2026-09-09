@@ -27,6 +27,9 @@ import {
   getLANPeers,
   getLANStatus,
   hasCollabHubBridge,
+  type LANPeer,
+  type LANRole,
+  type LANScanResult,
   makeJoinHttpUrl,
   readLANSettings,
   saveLANSettings,
@@ -35,9 +38,6 @@ import {
   stopInAppHub,
   subscribeHubDiscovery,
   subscribeLAN,
-  type LANPeer,
-  type LANRole,
-  type LANScanResult,
 } from "@/platform/lan/lan-collab";
 import { generatePairingCode } from "@/platform/lan/pairing";
 
@@ -279,7 +279,11 @@ export function LanControlCenter() {
                     disabled={busy}
                     className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-cyan-600 text-xs font-semibold text-white hover:bg-cyan-700 disabled:opacity-50"
                   >
-                    {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Radio className="h-3.5 w-3.5" />}
+                    {busy ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <Radio className="h-3.5 w-3.5" />
+                    )}
                     Start built-in hub (no terminal needed)
                   </button>
                 )}
@@ -402,7 +406,9 @@ export function LanControlCenter() {
                       <div className="text-xs font-medium">{settings.room}</div>
                     </div>
                     <div className="space-y-1">
-                      <div className="text-[10px] text-muted-foreground">Access code (can edit)</div>
+                      <div className="text-[10px] text-muted-foreground">
+                        Access code (can edit)
+                      </div>
                       <div className="font-mono text-sm font-bold tracking-widest">
                         {settings.pairingCode}
                       </div>
@@ -498,7 +504,11 @@ export function LanControlCenter() {
                   title="Stop the built-in hub so it no longer advertises on the network"
                   className="inline-flex h-9 flex-1 items-center justify-center gap-1.5 rounded-lg border border-red-300 text-sm font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50"
                 >
-                  {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+                  {busy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="h-4 w-4" />
+                  )}
                   Stop hosting
                 </button>
               )}

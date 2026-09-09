@@ -11,8 +11,8 @@ import { LiveCursors } from "@/features/dashboard-shell/components/live-cursors"
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import { DashboardBoot } from "@/features/dashboard-shell/shell/dashboard-boot";
 import { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
-import { DashboardUserProvider } from "@/platform/auth/dashboard-access";
 import { SettingsEffects } from "@/features/settings/components/settings-effects";
+import { DashboardUserProvider } from "@/platform/auth/dashboard-access";
 
 export function DashboardClientShell({
   children,
@@ -44,9 +44,7 @@ export function DashboardClientShell({
             the Settings screen (blueprint §4). */}
         <SettingsEffects />
         <DashboardBoot />
-        <LanAccessGate isAdmin={Boolean(user) && deviceRole !== "viewer"}>
-          {children}
-        </LanAccessGate>
+        <LanAccessGate isAdmin={Boolean(user) && deviceRole !== "viewer"}>{children}</LanAccessGate>
 
         <LanStatusDock />
         {/* Multiplayer cursors + presence page sync (renders only while connected). */}

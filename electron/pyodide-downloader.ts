@@ -15,11 +15,11 @@
  * Total: ~10 MB.
  */
 
-import { Transform } from "node:stream";
 import { createWriteStream, existsSync, mkdirSync, statSync } from "node:fs";
+import { join } from "node:path";
+import { Transform } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import { app } from "electron";
-import { join } from "node:path";
 
 const PYODIDE_VERSION = "0.26.2";
 const CDN_BASE = `https://cdn.jsdelivr.net/pyodide/v${PYODIDE_VERSION}/full/`;

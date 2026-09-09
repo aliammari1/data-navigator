@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
-
-import { forecastNextHours } from "@/platform/browser/forecast";
 import type { HourlyRow } from "@/platform/browser/forecast";
+import { forecastNextHours } from "@/platform/browser/forecast";
 
 // ---------------------------------------------------------------------------
 // Helpers

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   computeAIInsights,
   computeCanalRiskScore,
@@ -176,9 +176,7 @@ describe("generateNarrative — additional branches", () => {
 
   it("skips best/worst sentence when best and worst have the same key (line 100)", () => {
     // Only one canal, so best.key === worst.key — no contrast sentence.
-    const canals = [
-      makeCanal({ key: "bill_payment", label: "Solo", total: 200, successRate: 80 }),
-    ];
+    const canals = [makeCanal({ key: "bill_payment", label: "Solo", total: 200, successRate: 80 })];
     const text = generateNarrative(
       makeKpi({ totalTransactions: 200, successRate: 80 }),
       canals,
@@ -258,9 +256,7 @@ describe("computeAIInsights — unclassified success warning (line 169)", () => 
   it("emits unclassified_success warning when classifiedSuccess > 0 but many are unclassified", () => {
     // classifiedSuccess > 0 so the first if-branch is skipped.
     // But unclassifiedSuccess = 1000 - 5 = 995 >> threshold → warning.
-    const canals = [
-      makeCanal({ key: "bill_payment", total: 10, success: 5, successRate: 50 }),
-    ];
+    const canals = [makeCanal({ key: "bill_payment", total: 10, success: 5, successRate: 50 })];
     const insights = computeAIInsights(
       makeKpi({
         totalTransactions: 1000,
@@ -616,9 +612,7 @@ describe("computeAIInsights — hourly anomaly insight (lines 312–313)", () =>
   it("emits hourly_anomaly with warning severity for z-score >= 3 (spike)", () => {
     // Build an hourly set with a massive spike.
     // Many quiet hours near 10, one giant spike to produce z >= 3.
-    const rows: HourlyRow[] = Array.from({ length: 23 }, (_, h) =>
-      makeHourly(h, 10),
-    );
+    const rows: HourlyRow[] = Array.from({ length: 23 }, (_, h) => makeHourly(h, 10));
     // Hour 23 is an enormous spike.
     rows.push(makeHourly(23, 10000));
 
@@ -1012,7 +1006,14 @@ describe("generateNarrative — peak hour and topRev sentences", () => {
 
   it("includes the topRev sentence when canal data is provided", () => {
     const canals = [
-      makeCanal({ key: "bill_payment", label: "TopChannel", total: 500, amount: 5000, share: 50, successRate: 95 }),
+      makeCanal({
+        key: "bill_payment",
+        label: "TopChannel",
+        total: 500,
+        amount: 5000,
+        share: 50,
+        successRate: 95,
+      }),
     ];
     const text = generateNarrative(
       makeKpi({ totalTransactions: 1000, successRate: 95 }),
@@ -1049,12 +1050,7 @@ describe("generateNarrative — peak hour and topRev sentences", () => {
 
 describe("computeAIInsights — t === 0 early return (line 144)", () => {
   it("returns empty list immediately when totalTransactions is zero", () => {
-    const insights = computeAIInsights(
-      makeKpi({ totalTransactions: 0 }),
-      [],
-      [],
-      [],
-    );
+    const insights = computeAIInsights(makeKpi({ totalTransactions: 0 }), [], [], []);
     expect(insights).toEqual([]);
   });
 });

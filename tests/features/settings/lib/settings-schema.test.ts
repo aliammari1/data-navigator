@@ -5,23 +5,23 @@
  * Every branch, enum value, and helper function is exercised here.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import {
   AccentColorSchema,
-  DensityModeSchema,
-  ThemeSchema,
-  NumericFields,
-  clampNumericSetting,
-  parseNumericSetting,
-  parseNullDisplay,
-  SettingsBackupSchema,
-  SettingsExportEnvelopeSchema,
   type AccentColorValue,
+  clampNumericSetting,
+  DensityModeSchema,
   type DensityModeValue,
-  type ThemeValue,
+  NumericFields,
+  parseNullDisplay,
+  parseNumericSetting,
   type SettingsBackup,
+  SettingsBackupSchema,
   type SettingsExportEnvelope,
+  SettingsExportEnvelopeSchema,
+  ThemeSchema,
+  type ThemeValue,
 } from "@/features/settings/lib/settings-schema";
 
 // =============================================================================

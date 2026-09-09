@@ -4,17 +4,17 @@ import { Database, FlaskConical, ListFilter, Settings2, Sparkles, Tag } from "lu
 import { AnimatePresence, motion } from "motion/react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { computeAIInsights } from "@/features/telecom/lib/insights";
+import { useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 import type { ServiceCodeRow } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
-import { CanalRulesPanel } from "./canal-rules-panel";
 import { CanalDetectorPanel } from "./canal-detector-panel";
+import { CanalRulesPanel } from "./canal-rules-panel";
 import { CustomKPIBuilder } from "./custom-kpi-builder";
 import { DeepAnalysisPanel } from "./deep-analysis-panel";
 import { Section } from "./section";
 import { StatusConfigPanel } from "./status-config-panel";
 import { StorageInfoPanel } from "./storage-info-panel";
-import { useTelecomStore } from "@/features/telecom/store";
 
 type ConfigSection = "insights" | "status" | "rules" | "canals" | "kpis" | "storage";
 
@@ -51,7 +51,10 @@ export const ConfigTab = memo(function ConfigTab({
   const setCanalRules = useTelecomStore((s) => s.setCanalRules);
 
   const fetchUnclassifiedCanalCombos = useCallback(
-    async (_mapping: Types.ColumnMapping, _rules: Types.CanalRule[]): Promise<Types.UnclassifiedCanalCombo[]> => {
+    async (
+      _mapping: Types.ColumnMapping,
+      _rules: Types.CanalRule[],
+    ): Promise<Types.UnclassifiedCanalCombo[]> => {
       return [];
     },
     [],

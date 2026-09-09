@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { StatusRow } from "@/features/telecom/types";
 import { StatusDonut } from "@/features/telecom/components/status-donut";
+import type { StatusRow } from "@/features/telecom/types";
 
 const data: StatusRow[] = [
   { status: "SUCCESS", count: 23_874, amount: 438_210.5 },

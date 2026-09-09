@@ -370,7 +370,15 @@ export function withRendererSecurityHeaders(
 // server must listen on all interfaces to be reachable by peers. Access control
 // is then enforced at the application level in src/proxy.ts.
 
-const LOOPBACK_HOSTNAMES = new Set(["127.0.0.1", "localhost", "::1", "[::1]", "0.0.0.0", "::", "[::]"]);
+const LOOPBACK_HOSTNAMES = new Set([
+  "127.0.0.1",
+  "localhost",
+  "::1",
+  "[::1]",
+  "0.0.0.0",
+  "::",
+  "[::]",
+]);
 
 export function isLoopbackHostname(hostname: string | undefined): boolean {
   if (!hostname) return false;

@@ -11,7 +11,7 @@
  * defaults) is exercised, and assert the exact return values.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import { queryKeys } from "@/core/queries/keys";
 
 // ── datasets ──────────────────────────────────────────────────────────────────
@@ -62,19 +62,11 @@ describe("queryKeys.datasets", () => {
   });
 
   it("detail(id) appends the id", () => {
-    expect(queryKeys.datasets.detail("abc-123")).toEqual([
-      "datasets",
-      "detail",
-      "abc-123",
-    ]);
+    expect(queryKeys.datasets.detail("abc-123")).toEqual(["datasets", "detail", "abc-123"]);
   });
 
   it("byTable(tableName) appends byTable and the table name", () => {
-    expect(queryKeys.datasets.byTable("sales")).toEqual([
-      "datasets",
-      "byTable",
-      "sales",
-    ]);
+    expect(queryKeys.datasets.byTable("sales")).toEqual(["datasets", "byTable", "sales"]);
   });
 });
 
@@ -106,10 +98,7 @@ describe("queryKeys.queryHistory", () => {
   });
 
   it("detail(id) appends the id directly under the root", () => {
-    expect(queryKeys.queryHistory.detail("hist-42")).toEqual([
-      "queryHistory",
-      "hist-42",
-    ]);
+    expect(queryKeys.queryHistory.detail("hist-42")).toEqual(["queryHistory", "hist-42"]);
   });
 });
 
@@ -125,11 +114,7 @@ describe("queryKeys.savedCharts", () => {
   });
 
   it("list() without datasetId appends { datasetId: undefined }", () => {
-    expect(queryKeys.savedCharts.list()).toEqual([
-      "savedCharts",
-      "list",
-      { datasetId: undefined },
-    ]);
+    expect(queryKeys.savedCharts.list()).toEqual(["savedCharts", "list", { datasetId: undefined }]);
   });
 
   it("list(datasetId) appends the datasetId filter", () => {
@@ -141,10 +126,7 @@ describe("queryKeys.savedCharts", () => {
   });
 
   it("detail(id) appends the id directly under the root", () => {
-    expect(queryKeys.savedCharts.detail("chart-7")).toEqual([
-      "savedCharts",
-      "chart-7",
-    ]);
+    expect(queryKeys.savedCharts.detail("chart-7")).toEqual(["savedCharts", "chart-7"]);
   });
 });
 
@@ -160,11 +142,7 @@ describe("queryKeys.transforms", () => {
   });
 
   it("list() without datasetId appends { datasetId: undefined }", () => {
-    expect(queryKeys.transforms.list()).toEqual([
-      "transforms",
-      "list",
-      { datasetId: undefined },
-    ]);
+    expect(queryKeys.transforms.list()).toEqual(["transforms", "list", { datasetId: undefined }]);
   });
 
   it("list(datasetId) appends the datasetId filter", () => {
@@ -176,10 +154,7 @@ describe("queryKeys.transforms", () => {
   });
 
   it("detail(id) appends the id directly under the root", () => {
-    expect(queryKeys.transforms.detail("tx-99")).toEqual([
-      "transforms",
-      "tx-99",
-    ]);
+    expect(queryKeys.transforms.detail("tx-99")).toEqual(["transforms", "tx-99"]);
   });
 });
 
@@ -203,11 +178,7 @@ describe("queryKeys.files", () => {
   });
 
   it("list(folderId) appends the folderId filter", () => {
-    expect(queryKeys.files.list("folder-x")).toEqual([
-      "files",
-      "list",
-      { folderId: "folder-x" },
-    ]);
+    expect(queryKeys.files.list("folder-x")).toEqual(["files", "list", { folderId: "folder-x" }]);
   });
 
   it("detail(id) appends the id directly under the root", () => {
@@ -239,11 +210,7 @@ describe("queryKeys.folders", () => {
   });
 
   it("list(null) appends { parentId: null }", () => {
-    expect(queryKeys.folders.list(null)).toEqual([
-      "folders",
-      "list",
-      { parentId: null },
-    ]);
+    expect(queryKeys.folders.list(null)).toEqual(["folders", "list", { parentId: null }]);
   });
 
   it("list(parentId) appends the parentId filter", () => {
@@ -255,10 +222,7 @@ describe("queryKeys.folders", () => {
   });
 
   it("detail(id) appends the id directly under the root", () => {
-    expect(queryKeys.folders.detail("folder-88")).toEqual([
-      "folders",
-      "folder-88",
-    ]);
+    expect(queryKeys.folders.detail("folder-88")).toEqual(["folders", "folder-88"]);
   });
 
   it("starred() appends the 'starred' segment", () => {
@@ -278,12 +242,7 @@ describe("queryKeys.duckdb", () => {
   });
 
   it("query(sql) without params defaults to empty array", () => {
-    expect(queryKeys.duckdb.query("SELECT 1")).toEqual([
-      "duckdb",
-      "query",
-      "SELECT 1",
-      [],
-    ]);
+    expect(queryKeys.duckdb.query("SELECT 1")).toEqual(["duckdb", "query", "SELECT 1", []]);
   });
 
   it("query(sql, params) uses the provided params array", () => {
@@ -305,20 +264,11 @@ describe("queryKeys.duckdb", () => {
   });
 
   it("schema(tableName) returns the schema key", () => {
-    expect(queryKeys.duckdb.schema("orders")).toEqual([
-      "duckdb",
-      "schema",
-      "orders",
-    ]);
+    expect(queryKeys.duckdb.schema("orders")).toEqual(["duckdb", "schema", "orders"]);
   });
 
   it("preview(tableName) without limit defaults to 100", () => {
-    expect(queryKeys.duckdb.preview("products")).toEqual([
-      "duckdb",
-      "preview",
-      "products",
-      100,
-    ]);
+    expect(queryKeys.duckdb.preview("products")).toEqual(["duckdb", "preview", "products", 100]);
   });
 
   it("preview(tableName, undefined) defaults to 100", () => {
@@ -331,12 +281,7 @@ describe("queryKeys.duckdb", () => {
   });
 
   it("preview(tableName, limit) uses the provided limit", () => {
-    expect(queryKeys.duckdb.preview("products", 50)).toEqual([
-      "duckdb",
-      "preview",
-      "products",
-      50,
-    ]);
+    expect(queryKeys.duckdb.preview("products", 50)).toEqual(["duckdb", "preview", "products", 50]);
   });
 });
 
@@ -357,27 +302,15 @@ describe("queryKeys.telecom", () => {
   });
 
   it("kpi(tableName) builds the kpi key", () => {
-    expect(queryKeys.telecom.kpi("transactions")).toEqual([
-      "telecom",
-      "kpi",
-      "transactions",
-    ]);
+    expect(queryKeys.telecom.kpi("transactions")).toEqual(["telecom", "kpi", "transactions"]);
   });
 
   it("hourly(tableName) builds the hourly key", () => {
-    expect(queryKeys.telecom.hourly("transactions")).toEqual([
-      "telecom",
-      "hourly",
-      "transactions",
-    ]);
+    expect(queryKeys.telecom.hourly("transactions")).toEqual(["telecom", "hourly", "transactions"]);
   });
 
   it("canals(tableName) builds the canals key", () => {
-    expect(queryKeys.telecom.canals("transactions")).toEqual([
-      "telecom",
-      "canals",
-      "transactions",
-    ]);
+    expect(queryKeys.telecom.canals("transactions")).toEqual(["telecom", "canals", "transactions"]);
   });
 
   it("operators(tableName) builds the operators key", () => {

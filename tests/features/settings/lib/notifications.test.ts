@@ -9,7 +9,7 @@
  * is kept real.
  */
 
-import { beforeEach, describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------- mocks (must be declared before any import of the target) ----------
 
@@ -39,18 +39,17 @@ vi.mock("@/core/stores/settings-store", () => {
 
 // ---- import the module under test and mock handles ----
 
-import {
-  isNotificationEnabled,
-  notify,
-  notifyUpload,
-  notifyQuery,
-  notifyError,
-  notifyCollaboration,
-  type NotificationCategory,
-} from "@/features/settings/lib/notifications";
-
 import { toast } from "sonner";
 import { useSettingsStore } from "@/core/stores/settings-store";
+import {
+  isNotificationEnabled,
+  type NotificationCategory,
+  notify,
+  notifyCollaboration,
+  notifyError,
+  notifyQuery,
+  notifyUpload,
+} from "@/features/settings/lib/notifications";
 
 const mockGetState = useSettingsStore.getState as ReturnType<typeof vi.fn>;
 const mockToast = toast as {
@@ -381,6 +380,8 @@ describe("notifyCollaboration", () => {
 
     notifyCollaboration("someone joined", { kind: "success", description: "collab detail" });
 
-    expect(mockToast.success).toHaveBeenCalledWith("someone joined", { description: "collab detail" });
+    expect(mockToast.success).toHaveBeenCalledWith("someone joined", {
+      description: "collab detail",
+    });
   });
 });

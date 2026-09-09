@@ -1,18 +1,14 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { motion, AnimatePresence } from "motion/react";
 import { ArrowRightToLine, Users, Wifi, WifiOff } from "lucide-react";
-import { cn } from "@/shared/utils";
+import { AnimatePresence, motion } from "motion/react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import {
   getLANPeers,
   getLANStatus,
@@ -23,7 +19,7 @@ import {
   requestFollowMe,
   subscribeLAN,
 } from "@/platform/lan/lan-collab";
-import { useCollabHubStore } from "@/core/stores/collab-hub-store";
+import { cn } from "@/shared/utils";
 
 // ─── Color hash (fallback only — peers carry their own color) ─────────────────
 
@@ -298,49 +294,49 @@ export function PresenceBar({ currentPage = "Collab Hub" }: PresenceBarProps) {
           )}
         </div>
 
-      {/* Center: avatars */}
-      <AvatarGroup>
-        <AnimatePresence>
-          {allUsers.slice(0, 7).map((user) => (
-            <motion.div
-              key={user.id}
-              initial={{ opacity: 0, scale: 0 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0 }}
-              transition={{ type: "spring", stiffness: 400, damping: 25 }}
-            >
-              <PresenceAvatar user={user} isMe={user.id === me.id} />
-            </motion.div>
-          ))}
-        </AnimatePresence>
-        {allUsers.length > 7 && (
-          <div className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground ring-2 ring-background">
-            +{allUsers.length - 7}
-          </div>
-        )}
-      </AvatarGroup>
+        {/* Center: avatars */}
+        <AvatarGroup>
+          <AnimatePresence>
+            {allUsers.slice(0, 7).map((user) => (
+              <motion.div
+                key={user.id}
+                initial={{ opacity: 0, scale: 0 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0 }}
+                transition={{ type: "spring", stiffness: 400, damping: 25 }}
+              >
+                <PresenceAvatar user={user} isMe={user.id === me.id} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+          {allUsers.length > 7 && (
+            <div className="relative flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs text-muted-foreground ring-2 ring-background">
+              +{allUsers.length - 7}
+            </div>
+          )}
+        </AvatarGroup>
 
-      {/* Counter */}
-      <div className="flex items-center gap-1.5 text-sm">
-        <Users className="size-4 text-muted-foreground" />
-        <span className="font-medium">{allUsers.length}</span>
-        <span className="text-muted-foreground">
-          {allUsers.length === 1 ? "person" : "people"} {connected ? "in session" : "viewing"}
-        </span>
-        {activeCount > 0 && (
-          <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
-            {activeCount} active
-          </Badge>
-        )}
-      </div>
+        {/* Counter */}
+        <div className="flex items-center gap-1.5 text-sm">
+          <Users className="size-4 text-muted-foreground" />
+          <span className="font-medium">{allUsers.length}</span>
+          <span className="text-muted-foreground">
+            {allUsers.length === 1 ? "person" : "people"} {connected ? "in session" : "viewing"}
+          </span>
+          {activeCount > 0 && (
+            <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-200 dark:border-emerald-800">
+              {activeCount} active
+            </Badge>
+          )}
+        </div>
 
-      {/* Display name — editable in Settings > Account */}
-      <div className="ml-auto flex items-center gap-2">
-        <span className="text-xs text-muted-foreground">
-          You are <span className="font-medium text-foreground">{username}</span>
-        </span>
+        {/* Display name — editable in Settings > Account */}
+        <div className="ml-auto flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">
+            You are <span className="font-medium text-foreground">{username}</span>
+          </span>
+        </div>
       </div>
-    </div>
     </div>
   );
 }

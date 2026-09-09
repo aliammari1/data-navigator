@@ -8,11 +8,10 @@
  *   - non-empty query that matches nothing → returns empty arrays
  */
 
-import { renderHook, } from "@testing-library/react";
-import { describe, it, expect, } from "vitest";
-
+import { renderHook } from "@testing-library/react";
+import { describe, expect, it } from "vitest";
+import { FAQS, FEATURES } from "@/features/help/data/help-content";
 import { useHelpSearch } from "@/features/help/lib/use-help-search";
-import { FEATURES, FAQS } from "@/features/help/data/help-content";
 
 // ---------------------------------------------------------------------------
 // Helpers

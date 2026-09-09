@@ -132,12 +132,17 @@ describe("detectType", () => {
 
   it("detects column with ≥80% date ratio as 'date'", () => {
     // 4 dates + 1 text → 4/5 = 0.8 ≥ 0.8 → date
-    expect(detectType(["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "alpha"])).toBe("date");
+    expect(detectType(["2024-01-01", "2024-01-02", "2024-01-03", "2024-01-04", "alpha"])).toBe(
+      "date",
+    );
   });
 
   it("falls to 'string' when date ratio is below 0.8 (79%)", () => {
     // 79 dates + 21 text → 0.79 < 0.8 → string
-    const values = Array.from({ length: 79 }, (_, i) => `2024-01-${String(i % 28 + 1).padStart(2, "0")}`);
+    const values = Array.from(
+      { length: 79 },
+      (_, i) => `2024-01-${String((i % 28) + 1).padStart(2, "0")}`,
+    );
     for (let i = 0; i < 21; i++) values.push("text");
     expect(detectType(values)).toBe("string");
   });

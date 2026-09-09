@@ -170,11 +170,11 @@ export default function DataImportScreen() {
   const files = useImportSession((state) => state.files);
   const reset = useImportSession((state) => state.reset);
 
-const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
-const [electronAvailable, setElectronAvailable] = useState(false);
-const [dropNotice, setDropNotice] = useState<string | null>(null);
-const [importing, setImporting] = useState(false);
-const [rejectDialogFiles, setRejectDialogFiles] = useState<ParsedFileInfo[] | null>(null);
+  const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
+  const [electronAvailable, setElectronAvailable] = useState(false);
+  const [dropNotice, setDropNotice] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [rejectDialogFiles, setRejectDialogFiles] = useState<ParsedFileInfo[] | null>(null);
   // `auto` defers to the main-process encoding detector (chardet + BOM sniff);
   // an explicit choice forces DuckDB `read_csv(encoding=…)` for Latin-1/UTF-16
   // exports that would otherwise mojibake.

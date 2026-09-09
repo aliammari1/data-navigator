@@ -1,12 +1,12 @@
 import { describe, expect, it, vi } from "vitest";
+import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 import {
   DEFAULT_GGUF_MODEL,
   EMBED_MODEL_ID,
-  manifestByKey,
   MODEL_MANIFEST,
+  manifestByKey,
   primaryForLane,
 } from "@/platform/ai/models/model-manifest";
-import type { ModelManifestEntry } from "@/platform/ai/models/model-manifest";
 
 // electron/model-download-service.ts imports the `electron` module at the top
 // level (for `app.getPath`), which isn't resolvable outside a real Electron

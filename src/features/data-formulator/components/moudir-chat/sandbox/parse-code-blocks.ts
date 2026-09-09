@@ -13,9 +13,7 @@
 
 import type { CodeBlock, CodeBlockKind } from "./types";
 
-export type Segment =
-  | { kind: "text"; text: string }
-  | { kind: "code"; block: CodeBlock };
+export type Segment = { kind: "text"; text: string } | { kind: "code"; block: CodeBlock };
 
 const RUN_LANGS: ReadonlySet<CodeBlockKind> = new Set(["js-run", "python-run"]);
 

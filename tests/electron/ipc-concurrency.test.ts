@@ -1,11 +1,11 @@
-import { describe, it, expect, vi, } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ConcurrencyLimitError,
-  TaskTimeoutError,
   createConcurrencyLimiter,
-  withTimeout,
-  runBounded,
   type LimiterStats,
+  runBounded,
+  TaskTimeoutError,
+  withTimeout,
 } from "../../electron/ipc-concurrency";
 
 /** A deferred promise whose resolution we control from the test. */
@@ -511,7 +511,11 @@ describe("runBounded", () => {
   it("rejects with TaskTimeoutError when bounded task exceeds timeout", async () => {
     vi.useFakeTimers();
     try {
-      const limiter = createConcurrencyLimiter({ label: "t-bounded", maxConcurrent: 1, maxQueue: 0 });
+      const limiter = createConcurrencyLimiter({
+        label: "t-bounded",
+        maxConcurrent: 1,
+        maxQueue: 0,
+      });
       const inner = deferred<never>();
       const promise = runBounded(limiter, () => inner.promise, {
         label: "t-bounded",

@@ -1,7 +1,7 @@
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import React from "react";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useFoldersStore } from "@/core/stores/folders-store";
 
 // ─── Mock persistence boundary (no real fetch/SQLite) ─────────────────────────
@@ -63,8 +63,20 @@ describe("useFolders", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "a", name: "Root", parentId: null, starred: false, createdAt: new Date().toISOString() },
-          { id: "b", name: "Child", parentId: "a", starred: false, createdAt: new Date().toISOString() },
+          {
+            id: "a",
+            name: "Root",
+            parentId: null,
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "b",
+            name: "Child",
+            parentId: "a",
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -86,8 +98,20 @@ describe("useFolders", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "a", name: "Root", parentId: null, starred: false, createdAt: new Date().toISOString() },
-          { id: "b", name: "Child", parentId: "a", starred: false, createdAt: new Date().toISOString() },
+          {
+            id: "a",
+            name: "Root",
+            parentId: null,
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "b",
+            name: "Child",
+            parentId: "a",
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -109,10 +133,34 @@ describe("useFolders", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "a", name: "Root", parentId: null, starred: false, createdAt: new Date().toISOString() },
-          { id: "b", name: "Child of a", parentId: "a", starred: false, createdAt: new Date().toISOString() },
-          { id: "c", name: "Sibling of b", parentId: "a", starred: false, createdAt: new Date().toISOString() },
-          { id: "d", name: "Other root", parentId: null, starred: false, createdAt: new Date().toISOString() },
+          {
+            id: "a",
+            name: "Root",
+            parentId: null,
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "b",
+            name: "Child of a",
+            parentId: "a",
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "c",
+            name: "Sibling of b",
+            parentId: "a",
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "d",
+            name: "Other root",
+            parentId: null,
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -159,8 +207,20 @@ describe("useAllFolders", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "x", name: "X", parentId: null, starred: false, createdAt: new Date().toISOString() },
-          { id: "y", name: "Y", parentId: "x", starred: false, createdAt: new Date().toISOString() },
+          {
+            id: "x",
+            name: "X",
+            parentId: null,
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
+          {
+            id: "y",
+            name: "Y",
+            parentId: "x",
+            starred: false,
+            createdAt: new Date().toISOString(),
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -218,8 +278,20 @@ describe("useFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "f1", name: "Alpha", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
-          { id: "f2", name: "Beta", parentId: null, starred: false, createdAt: "2024-01-02T00:00:00.000Z" },
+          {
+            id: "f1",
+            name: "Alpha",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "f2",
+            name: "Beta",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-02T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -241,7 +313,13 @@ describe("useFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "f1", name: "Alpha", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "f1",
+            name: "Alpha",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -478,7 +556,11 @@ describe("useAddFolder", () => {
       });
     });
 
-    expect(returnValue).toMatchObject({ id: "ret-folder", name: "Return Test", parentId: "parent-1" });
+    expect(returnValue).toMatchObject({
+      id: "ret-folder",
+      name: "Return Test",
+      parentId: "parent-1",
+    });
   });
 
   it("invalidates list query for the folder's parentId", async () => {
@@ -524,8 +606,20 @@ describe("useRemoveFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "del-me", name: "Delete Me", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
-          { id: "keep-me", name: "Keep Me", parentId: null, starred: false, createdAt: "2024-01-02T00:00:00.000Z" },
+          {
+            id: "del-me",
+            name: "Delete Me",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "keep-me",
+            name: "Keep Me",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-02T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -549,7 +643,13 @@ describe("useRemoveFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "target", name: "Target", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "target",
+            name: "Target",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -604,7 +704,13 @@ describe("useRenameFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "f1", name: "Old Name", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "f1",
+            name: "Old Name",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -672,7 +778,13 @@ describe("useStarFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "f1", name: "Folder", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "f1",
+            name: "Folder",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -740,8 +852,20 @@ describe("useMoveFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "parent", name: "Parent", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
-          { id: "child", name: "Child", parentId: null, starred: false, createdAt: "2024-01-02T00:00:00.000Z" },
+          {
+            id: "parent",
+            name: "Parent",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
+          {
+            id: "child",
+            name: "Child",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-02T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],
@@ -765,7 +889,13 @@ describe("useMoveFolder", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "child", name: "Child", parentId: "parent", starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "child",
+            name: "Child",
+            parentId: "parent",
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: {},
         starredDatasets: [],

@@ -1,6 +1,5 @@
 "use client";
 
-import { cn } from "@/shared/utils";
 import { AlertCircle } from "lucide-react";
 import type { ComponentProps, ReactNode } from "react";
 import {
@@ -15,6 +14,7 @@ import {
 } from "react";
 import type { TProps as JsxParserProps } from "react-jsx-parser";
 import JsxParser from "react-jsx-parser";
+import { cn } from "@/shared/utils";
 
 interface JSXPreviewContextValue {
   jsx: string;
@@ -154,7 +154,7 @@ export const JSXPreview = memo(
 
     const processedJsx = useMemo(
       () => (isStreaming ? completeJsxTag(jsx) : jsx),
-      [jsx, isStreaming]
+      [jsx, isStreaming],
     );
 
     const contextValue = useMemo(
@@ -169,15 +169,7 @@ export const JSXPreview = memo(
         setError,
         setLastGoodJsx,
       }),
-      [
-        bindings,
-        components,
-        error,
-        isStreaming,
-        jsx,
-        onError,
-        processedJsx,
-      ]
+      [bindings, components, error, isStreaming, jsx, onError, processedJsx],
     );
 
     return (
@@ -187,83 +179,73 @@ export const JSXPreview = memo(
         </div>
       </JSXPreviewContext.Provider>
     );
-  }
+  },
 );
 
 JSXPreview.displayName = "JSXPreview";
 
 export type JSXPreviewContentProps = Omit<ComponentProps<"div">, "children">;
 
-export const JSXPreviewContent = memo(
-  ({ className, ...props }: JSXPreviewContentProps) => {
-    const {
-      processedJsx,
-      isStreaming,
-      components,
-      bindings,
-      setError,
-      setLastGoodJsx,
-      onErrorProp,
-    } = useJSXPreview();
-    const errorReportedRef = useRef<string | null>(null);
-    const lastGoodJsxRef = useRef("");
-    const [hadError, setHadError] = useState(false);
+export const JSXPreviewContent = memo(({ className, ...props }: JSXPreviewContentProps) => {
+  const { processedJsx, isStreaming, components, bindings, setError, setLastGoodJsx, onErrorProp } =
+    useJSXPreview();
+  const errorReportedRef = useRef<string | null>(null);
+  const lastGoodJsxRef = useRef("");
+  const [hadError, setHadError] = useState(false);
 
-    // Reset error tracking when jsx changes
-    const prevProcessedJsxRef = useRef(processedJsx);
-    useEffect(() => {
-      if (prevProcessedJsxRef.current !== processedJsx) {
-        prevProcessedJsxRef.current = processedJsx;
-        errorReportedRef.current = null;
-        setHadError(false);
+  // Reset error tracking when jsx changes
+  const prevProcessedJsxRef = useRef(processedJsx);
+  useEffect(() => {
+    if (prevProcessedJsxRef.current !== processedJsx) {
+      prevProcessedJsxRef.current = processedJsx;
+      errorReportedRef.current = null;
+      setHadError(false);
+    }
+  }, [processedJsx]);
+
+  const handleError = useCallback(
+    (err: Error) => {
+      // Prevent duplicate error reports for the same jsx
+      if (errorReportedRef.current === processedJsx) {
+        return;
       }
-    }, [processedJsx]);
+      errorReportedRef.current = processedJsx;
 
-    const handleError = useCallback(
-      (err: Error) => {
-        // Prevent duplicate error reports for the same jsx
-        if (errorReportedRef.current === processedJsx) {
-          return;
-        }
-        errorReportedRef.current = processedJsx;
-
-        // During streaming, suppress errors and fall back to last good JSX
-        if (isStreaming) {
-          setHadError(true);
-          return;
-        }
-
-        setError(err);
-        onErrorProp?.(err);
-      },
-      [processedJsx, isStreaming, onErrorProp, setError]
-    );
-
-    // Track the last JSX that rendered without error
-    useEffect(() => {
-      if (!errorReportedRef.current) {
-        lastGoodJsxRef.current = processedJsx;
-        setLastGoodJsx(processedJsx);
+      // During streaming, suppress errors and fall back to last good JSX
+      if (isStreaming) {
+        setHadError(true);
+        return;
       }
-    }, [processedJsx, setLastGoodJsx]);
 
-    // During streaming, if the current JSX errored, re-render with last good version
-    const displayJsx =
-      isStreaming && hadError ? lastGoodJsxRef.current : processedJsx;
+      setError(err);
+      onErrorProp?.(err);
+    },
+    [processedJsx, isStreaming, onErrorProp, setError],
+  );
 
-    return (
-      <div className={cn("jsx-preview-content", className)} {...props}>
-        <JsxParser
-          bindings={bindings}
-          components={components}
-          jsx={displayJsx}
-          onError={handleError}
-          renderInWrapper={false}
-        />
-      </div>
-    );
-  }
-);
+  // Track the last JSX that rendered without error
+  useEffect(() => {
+    if (!errorReportedRef.current) {
+      lastGoodJsxRef.current = processedJsx;
+      setLastGoodJsx(processedJsx);
+    }
+  }, [processedJsx, setLastGoodJsx]);
+
+  // During streaming, if the current JSX errored, re-render with last good version
+  const displayJsx = isStreaming && hadError ? lastGoodJsxRef.current : processedJsx;
+
+  return (
+    <div className={cn("jsx-preview-content", className)} {...props}>
+      <JsxParser
+        bindings={bindings}
+        components={components}
+        jsx={displayJsx}
+        onError={handleError}
+        renderInWrapper={false}
+      />
+    </div>
+  );
+});
 
 JSXPreviewContent.displayName = "JSXPreviewContent";
 
@@ -273,7 +255,7 @@ export type JSXPreviewErrorProps = ComponentProps<"div"> & {
 
 const renderChildren = (
   children: ReactNode | ((error: Error) => ReactNode),
-  error: Error
+  error: Error,
 ): ReactNode => {
   if (typeof children === "function") {
     return children(error);
@@ -281,33 +263,31 @@ const renderChildren = (
   return children;
 };
 
-export const JSXPreviewError = memo(
-  ({ className, children, ...props }: JSXPreviewErrorProps) => {
-    const { error } = useJSXPreview();
+export const JSXPreviewError = memo(({ className, children, ...props }: JSXPreviewErrorProps) => {
+  const { error } = useJSXPreview();
 
-    if (!error) {
-      return null;
-    }
-
-    return (
-      <div
-        className={cn(
-          "flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm",
-          className
-        )}
-        {...props}
-      >
-        {children ? (
-          renderChildren(children, error)
-        ) : (
-          <>
-            <AlertCircle className="size-4 shrink-0" />
-            <span>{error.message}</span>
-          </>
-        )}
-      </div>
-    );
+  if (!error) {
+    return null;
   }
-);
+
+  return (
+    <div
+      className={cn(
+        "flex items-center gap-2 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-destructive text-sm",
+        className,
+      )}
+      {...props}
+    >
+      {children ? (
+        renderChildren(children, error)
+      ) : (
+        <>
+          <AlertCircle className="size-4 shrink-0" />
+          <span>{error.message}</span>
+        </>
+      )}
+    </div>
+  );
+});
 
 JSXPreviewError.displayName = "JSXPreviewError";

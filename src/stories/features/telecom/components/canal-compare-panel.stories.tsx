@@ -1,9 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-
+import { CanalComparePanel } from "@/features/telecom/components/canal-compare-panel";
 import type { SpecChRow } from "@/features/telecom/lib/queries";
 import type { ChannelDef } from "@/features/telecom/lib/report-engine";
-import { CanalComparePanel } from "@/features/telecom/components/canal-compare-panel";
 
 // Resolve deterministic per-channel stats so the bar chart + scorecard fill in.
 const fetchSpecChannelStats = async (

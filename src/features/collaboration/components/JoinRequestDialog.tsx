@@ -57,12 +57,7 @@ const PERMISSION_LABELS: Record<GuestPermission, { label: string; description: s
 const DEFAULT_PERMISSIONS_BY_ROLE: Record<Role, GuestPermission[]> = {
   reviewer: ["viewReports", "editComments"],
   viewer: ["viewReports"],
-  editor: [
-    "viewReports",
-    "uploadData",
-    "exportData",
-    "editComments",
-  ],
+  editor: ["viewReports", "uploadData", "exportData", "editComments"],
 };
 
 function elapsedLabel(ms: number): string {
@@ -232,15 +227,10 @@ export function JoinRequestDialog() {
               const busy = pendingId === g.id;
               const granted = grants[g.id] ?? DEFAULT_PERMISSIONS_BY_ROLE[g.role];
               return (
-                <div
-                  key={g.id}
-                  className="rounded-lg border border-border bg-card p-3 space-y-3"
-                >
+                <div key={g.id} className="rounded-lg border border-border bg-card p-3 space-y-3">
                   <div className="flex items-center justify-between">
                     <div>
-                      <div className="text-sm font-medium text-foreground">
-                        {g.name}
-                      </div>
+                      <div className="text-sm font-medium text-foreground">{g.name}</div>
                       <div className="text-xs text-muted-foreground">
                         waiting {elapsedLabel(g.requestedAt)} · wants {g.role}
                       </div>
@@ -335,9 +325,7 @@ export function JoinRequestDialog() {
           )}
         </div>
 
-        {error ? (
-          <div className="text-xs text-rose-600 dark:text-rose-400">{error}</div>
-        ) : null}
+        {error ? <div className="text-xs text-rose-600 dark:text-rose-400">{error}</div> : null}
       </DialogContent>
     </Dialog>
   );

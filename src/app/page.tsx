@@ -377,9 +377,7 @@ function GaugeViz({ value = 97.4 }: { value?: number }) {
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
         <span className="font-mono text-xl font-semibold tabular-nums text-white">{value}%</span>
-        <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
-          réussite
-        </span>
+        <span className="font-mono text-xs uppercase tracking-wider text-slate-400">réussite</span>
       </div>
     </div>
   );
@@ -598,7 +596,9 @@ function HeroPanel() {
             <span className="font-mono text-xs uppercase tracking-wider text-slate-400">
               Volume par canal
             </span>
-            <span className="font-mono text-xs tracking-wide text-slate-400">USSD · APP · WEB · SMS</span>
+            <span className="font-mono text-xs tracking-wide text-slate-400">
+              USSD · APP · WEB · SMS
+            </span>
           </div>
           <div className="h-16">
             <BarsViz />
@@ -740,7 +740,9 @@ function Hero() {
               <FileText className="size-4 text-blue-300" />
               <div>
                 <div className="text-xs font-medium text-white">Rapport_2026-06-11.pdf</div>
-                <div className="font-mono text-xs tabular-nums text-slate-400">exporté · 0 octet envoyé</div>
+                <div className="font-mono text-xs tabular-nums text-slate-400">
+                  exporté · 0 octet envoyé
+                </div>
               </div>
             </div>
           </motion.div>
@@ -871,7 +873,9 @@ function StepVisual({ step }: { step: number }) {
               <span className="rounded bg-white/5 px-2 py-0.5 font-mono text-xs tabular-nums text-slate-400">
                 {r.type}
               </span>
-              <span className="ml-auto font-mono text-xs tabular-nums text-slate-400">nulls {r.null_}</span>
+              <span className="ml-auto font-mono text-xs tabular-nums text-slate-400">
+                nulls {r.null_}
+              </span>
               <div className="h-1.5 w-20 overflow-hidden rounded-full bg-white/8">
                 <motion.div
                   className={`h-full rounded-full ${r.q > 90 ? "bg-blue-400" : r.q > 80 ? "bg-amber-400" : "bg-rose-400"}`}
@@ -1060,7 +1064,9 @@ function GoldenPath() {
                         />
                         <div>
                           <div className="flex items-center gap-2.5">
-                            <span className="font-mono text-xs tabular-nums text-slate-400">{s.k}</span>
+                            <span className="font-mono text-xs tabular-nums text-slate-400">
+                              {s.k}
+                            </span>
                             <h3 className="font-display text-base font-semibold text-white">
                               {s.title}
                             </h3>
@@ -1247,7 +1253,6 @@ function Capabilities() {
             </div>
           </Spotlight>
         </Reveal>
-
       </div>
     </section>
   );

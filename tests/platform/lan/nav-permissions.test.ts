@@ -1,9 +1,9 @@
-import { describe, expect, it } from "vitest";
 import type { ComponentType } from "react";
+import { describe, expect, it } from "vitest";
 import {
   type GuestPermission,
-  type NavItem,
   lockNavItemsByPermission,
+  type NavItem,
 } from "@/features/dashboard-shell/nav/nav-config";
 
 const icon = (() => undefined) as unknown as ComponentType;

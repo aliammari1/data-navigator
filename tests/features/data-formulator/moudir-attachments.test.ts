@@ -1,9 +1,9 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import {
-  useMoudirChatStore,
-  type ChatMessage,
-} from "@/features/data-formulator/store/moudir-chat-store";
 import type { AttachmentData } from "@/components/ai-elements/attachments";
+import {
+  type ChatMessage,
+  useMoudirChatStore,
+} from "@/features/data-formulator/store/moudir-chat-store";
 
 // Mock platform IPC clients
 const mockSendChatPrompt = vi.fn();

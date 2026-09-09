@@ -1,7 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
 import { ChevronsDown, ChevronsUp } from "lucide-react";
+import { useMemo, useState } from "react";
 
 type WordDiffProps = {
   before: string;
@@ -14,7 +14,7 @@ function escapeHtml(s: string): string {
     .replaceAll("&", "&amp;")
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
-    .replaceAll("\"", "&quot;")
+    .replaceAll('"', "&quot;")
     .replaceAll("'", "&#39;");
 }
 
@@ -28,7 +28,10 @@ function renderToken(op: number, token: string): string {
 
 /** Plain character diff, used when texts are too large for token mapping. */
 function charDiffHtml(
-  dmp: { diff_main(a: string, b: string): [number, string][]; diff_cleanupSemantic(d: [number, string][]): void },
+  dmp: {
+    diff_main(a: string, b: string): [number, string][];
+    diff_cleanupSemantic(d: [number, string][]): void;
+  },
   before: string,
   after: string,
 ): string {
@@ -43,8 +46,7 @@ function wordDiffHtml(before: string, after: string): string {
   const dmp = new diff_match_patch();
   dmp.Diff_Timeout = 0.5;
   const tokenPattern = /(\s+|[A-Za-zÀ-ÖØ-öø-ÿ\u0100-\u017F'`-]+|\d+|[^\s\w])/g;
-  const tokenize = (text: string) =>
-    text.match(tokenPattern) ?? text.split(/(\s+)/);
+  const tokenize = (text: string) => text.match(tokenPattern) ?? text.split(/(\s+)/);
   const tokenMap = new Map<string, number>();
   const tokens: string[] = [];
   for (const t of [before, after]) {

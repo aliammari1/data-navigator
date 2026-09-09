@@ -10,7 +10,7 @@
 
 import Fuse from "fuse.js";
 import { useDeferredValue, useMemo } from "react";
-import { FAQS, FEATURES, type FaqDef, type FeatureDef } from "../data/help-content";
+import { FAQS, type FaqDef, FEATURES, type FeatureDef } from "../data/help-content";
 
 const featureFuse = new Fuse(FEATURES as readonly FeatureDef[], {
   keys: [

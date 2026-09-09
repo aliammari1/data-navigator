@@ -1,7 +1,7 @@
 /**
  * @vitest-environment jsdom
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
 // Mock all external dependencies before importing the target module.
@@ -39,7 +39,7 @@ vi.mock("@/platform/auth/auth-database", () => ({
 // ---------------------------------------------------------------------------
 // Import the real module under test (after mocks are in place)
 // ---------------------------------------------------------------------------
-import { authConfig, auth } from "@/platform/auth/auth";
+import { auth, authConfig } from "@/platform/auth/auth";
 
 // ---------------------------------------------------------------------------
 describe("auth.ts — authConfig shape", () => {

@@ -1,5 +1,10 @@
 import { vi } from "vitest";
-import type { MenuActionItem, MenuContext, MenuGroup, MenuItem } from "@/features/desktop/core/menu/types";
+import type {
+  MenuActionItem,
+  MenuContext,
+  MenuGroup,
+  MenuItem,
+} from "@/features/desktop/core/menu/types";
 
 /**
  * Builds a fully-mocked {@link MenuContext} for testing the app-specific

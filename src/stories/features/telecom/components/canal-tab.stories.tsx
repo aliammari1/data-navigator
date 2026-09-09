@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { CanalTab } from "@/features/telecom/components/canal-tab";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

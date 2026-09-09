@@ -13,9 +13,9 @@ import {
   buildRiskScoreOption,
   buildStatusDonutOption,
   buildSuccessRateTrendOption,
+  type ChartTheme,
   chartTheme,
   retintOption,
-  type ChartTheme,
 } from "@/features/telecom/lib/chart-options";
 import type {
   CanalHourCell,
@@ -150,10 +150,7 @@ describe("retintOption", () => {
 
   it("recurses through arrays and nested objects", () => {
     const option = {
-      series: [
-        { itemStyle: { color: themeA.primary } },
-        { lineStyle: { color: themeA.danger } },
-      ],
+      series: [{ itemStyle: { color: themeA.primary } }, { lineStyle: { color: themeA.danger } }],
     };
     const result = retintOption(option, themeA, themeB) as {
       series: Array<{ itemStyle?: { color: string }; lineStyle?: { color: string } }>;
@@ -213,7 +210,9 @@ describe("buildStatusDonutOption", () => {
   });
 
   it("includes a tooltip formatter that renders count and percentage", () => {
-    const opt = buildStatusDonutOption([{ status: "SUCCESS", count: 80, amount: 0 }]) as EChartsOption;
+    const opt = buildStatusDonutOption([
+      { status: "SUCCESS", count: 80, amount: 0 },
+    ]) as EChartsOption;
     const fmt = opt.tooltip?.formatter as (p: {
       name: string;
       value: number;
@@ -268,7 +267,9 @@ describe("buildCanalShareOption", () => {
   });
 
   it("maps canal data correctly to each series", () => {
-    const canals = [canal({ key: "bill_payment", success: 50, declined: 20, instance: 5, refund: 3 })];
+    const canals = [
+      canal({ key: "bill_payment", success: 50, declined: 20, instance: 5, refund: 3 }),
+    ];
     const opt = buildCanalShareOption(canals) as EChartsOption;
     const successSeries = opt.series.find((s) => s.name === "Réussie");
     const echec = opt.series.find((s) => s.name === "Échec");
@@ -286,7 +287,11 @@ describe("buildRevenuePieOption", () => {
       { name: "Data", value: 3000, color: "#00ff00" },
     ];
     const opt = buildRevenuePieOption(groups) as EChartsOption;
-    const data = opt.series[0].data as Array<{ name: string; value: number; itemStyle: { color: string } }>;
+    const data = opt.series[0].data as Array<{
+      name: string;
+      value: number;
+      itemStyle: { color: string };
+    }>;
     expect(data).toHaveLength(2);
     expect(data[0]).toMatchObject({ name: "Voice", value: 5000 });
     expect(data[0].itemStyle.color).toBe("#ff0000");
@@ -323,9 +328,9 @@ describe("buildRevenuePieOption", () => {
 describe("buildSuccessRateTrendOption", () => {
   it("colors bars green/amber/red by success-rate band (>=95, >=80, <80)", () => {
     const canals = [
-      canal({ key: "bill_payment", successRate: 99 }),   // >= 95 → success
+      canal({ key: "bill_payment", successRate: 99 }), // >= 95 → success
       canal({ key: "credit_transfer", successRate: 85 }), // >= 80 → warning
-      canal({ key: "data_sabba", successRate: 50 }),      // < 80  → danger
+      canal({ key: "data_sabba", successRate: 50 }), // < 80  → danger
     ];
     const opt = buildSuccessRateTrendOption(canals) as EChartsOption;
     const data = opt.series[0].data as Array<{ value: number; itemStyle: { color: string } }>;
@@ -340,11 +345,10 @@ describe("buildSuccessRateTrendOption", () => {
   it("includes a tooltip formatter that renders the rate correctly", () => {
     const canals = [canal({ key: "bill_payment", successRate: 87.5 })];
     const opt = buildSuccessRateTrendOption(canals) as EChartsOption;
-    const fmt = (opt.series[0] as unknown as { tooltip?: { formatter?: unknown } })?.tooltip?.formatter;
+    const fmt = (opt.series[0] as unknown as { tooltip?: { formatter?: unknown } })?.tooltip
+      ?.formatter;
     // The tooltip is on the chart level, not series level; check chart-level tooltip formatter
-    const chartFmt = opt.tooltip?.formatter as (
-      ps: { name: string; value: number }[]
-    ) => string;
+    const chartFmt = opt.tooltip?.formatter as (ps: { name: string; value: number }[]) => string;
     const result = chartFmt([{ name: "Bill Payment", value: 87.5 }]);
     expect(result).toContain("87.5%");
     expect(result).toContain("Bill Payment");
@@ -658,7 +662,9 @@ describe("buildCanalCompareBarOption", () => {
   it("each bar uses the result color with top-rounded border radius", () => {
     const results = [{ label: "WEB", nombre: 10, montant: 0, color: "#abc" }];
     const opt = buildCanalCompareBarOption(results) as EChartsOption;
-    const data = opt.series[0].data as Array<{ itemStyle: { color: string; borderRadius: number[] } }>;
+    const data = opt.series[0].data as Array<{
+      itemStyle: { color: string; borderRadius: number[] };
+    }>;
     expect(data[0].itemStyle.color).toBe("#abc");
     expect(data[0].itemStyle.borderRadius).toEqual([4, 4, 0, 0]);
   });
@@ -687,7 +693,9 @@ describe("buildCanalHeatmapOption", () => {
     const cells: CanalHourCell[] = [{ canal: "Bill", hour: 5, total: 42, success: 21 }];
     const volume = buildCanalHeatmapOption(cells, "volume") as EChartsOption;
     const rate = buildCanalHeatmapOption(cells, "rate") as EChartsOption;
-    const volCell = (volume.series[0].data as Array<[number, number, number]>).find(([h]) => h === 5);
+    const volCell = (volume.series[0].data as Array<[number, number, number]>).find(
+      ([h]) => h === 5,
+    );
     expect(volCell?.[2]).toBe(42);
     expect(rate.visualMap?.max).toBe(100);
   });
@@ -736,7 +744,9 @@ describe("buildCanalHeatmapOption", () => {
   it("label formatter for rate mode returns 'N%' when value >= 0", () => {
     const cells: CanalHourCell[] = [{ canal: "Bill", hour: 0, total: 100, success: 80 }];
     const opt = buildCanalHeatmapOption(cells, "rate") as EChartsOption;
-    const label = opt.series[0].label as { formatter: (p: { data: [number, number, number] }) => string };
+    const label = opt.series[0].label as {
+      formatter: (p: { data: [number, number, number] }) => string;
+    };
     const result = label.formatter({ data: [0, 0, 80] });
     expect(result).toBe("80%");
   });
@@ -744,7 +754,9 @@ describe("buildCanalHeatmapOption", () => {
   it("label formatter for volume mode returns compact number when value > 0", () => {
     const cells: CanalHourCell[] = [{ canal: "Bill", hour: 0, total: 1_200_000, success: 800_000 }];
     const opt = buildCanalHeatmapOption(cells, "volume") as EChartsOption;
-    const label = opt.series[0].label as { formatter: (p: { data: [number, number, number] }) => string };
+    const label = opt.series[0].label as {
+      formatter: (p: { data: [number, number, number] }) => string;
+    };
     const result = label.formatter({ data: [0, 0, 1_200_000] });
     expect(result).toMatch(/M/);
   });
@@ -752,7 +764,9 @@ describe("buildCanalHeatmapOption", () => {
   it("label formatter for volume mode returns empty string when value is 0", () => {
     const cells: CanalHourCell[] = [{ canal: "Bill", hour: 0, total: 0, success: 0 }];
     const opt = buildCanalHeatmapOption(cells, "volume") as EChartsOption;
-    const label = opt.series[0].label as { formatter: (p: { data: [number, number, number] }) => string };
+    const label = opt.series[0].label as {
+      formatter: (p: { data: [number, number, number] }) => string;
+    };
     const result = label.formatter({ data: [0, 0, 0] });
     expect(result).toBe("");
   });
@@ -786,7 +800,7 @@ describe("buildHourlyChartOption", () => {
   it("computes the 'Autre' bucket as total minus success minus declined, floored at zero", () => {
     const data: HourlyRow[] = [
       { hour: 0, total: 100, success: 70, declined: 20, amount: 0 }, // 10 other
-      { hour: 1, total: 50, success: 40, declined: 30, amount: 0 },  // would be -20 → 0
+      { hour: 1, total: 50, success: 40, declined: 30, amount: 0 }, // would be -20 → 0
     ];
     const opt = buildHourlyChartOption(data, []) as EChartsOption;
     const autre = opt.series.find((s) => s.name === "Autre")?.data as number[];
@@ -811,7 +825,9 @@ describe("buildHourlyChartOption", () => {
 
   it("tooltip formatter with no row and no forecast returns bare hour string", () => {
     const opt = buildHourlyChartOption([], []) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (ps: { name: string; value: number; seriesName: string }[]) => string;
+    const fmt = opt.tooltip?.formatter as (
+      ps: { name: string; value: number; seriesName: string }[],
+    ) => string;
     const result = fmt([{ name: "5", value: 0, seriesName: "Réussie" }]);
     expect(result).toBe("5:00");
   });
@@ -821,7 +837,9 @@ describe("buildHourlyChartOption", () => {
       [],
       [{ hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true }],
     ) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (ps: { name: string; value: number; seriesName: string }[]) => string;
+    const fmt = opt.tooltip?.formatter as (
+      ps: { name: string; value: number; seriesName: string }[],
+    ) => string;
     const result = fmt([{ name: "25", value: 200, seriesName: "Prévision IA" }]);
     expect(result).toContain("Prévision IA");
     expect(result).toContain("200");
@@ -830,7 +848,9 @@ describe("buildHourlyChartOption", () => {
   it("tooltip formatter with a real row renders success/failure/rate/amount", () => {
     const data: HourlyRow[] = [{ hour: 8, total: 100, success: 80, declined: 20, amount: 5000 }];
     const opt = buildHourlyChartOption(data, []) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (ps: { name: string; value: number; seriesName: string }[]) => string;
+    const fmt = opt.tooltip?.formatter as (
+      ps: { name: string; value: number; seriesName: string }[],
+    ) => string;
     const result = fmt([{ name: "8", value: 100, seriesName: "Réussie" }]);
     expect(result).toContain("08:00");
     expect(result).toContain("80");
@@ -839,11 +859,12 @@ describe("buildHourlyChartOption", () => {
 
   it("tooltip formatter shows forecast line when both row and forecast exist for the hour", () => {
     const data: HourlyRow[] = [{ hour: 8, total: 100, success: 80, declined: 20, amount: 5000 }];
-    const opt = buildHourlyChartOption(
-      data,
-      [{ hour: 8, predictedTotal: 95, predictedSuccessRate: 0.85, isForecast: true }],
-    ) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (ps: { name: string; value: number; seriesName: string }[]) => string;
+    const opt = buildHourlyChartOption(data, [
+      { hour: 8, predictedTotal: 95, predictedSuccessRate: 0.85, isForecast: true },
+    ]) as EChartsOption;
+    const fmt = opt.tooltip?.formatter as (
+      ps: { name: string; value: number; seriesName: string }[],
+    ) => string;
     const result = fmt([{ name: "8", value: 100, seriesName: "Réussie" }]);
     expect(result).toContain("Prévision");
     expect(result).toContain("95");
@@ -852,7 +873,9 @@ describe("buildHourlyChartOption", () => {
   it("tooltip formatter shows rate as dash when total is zero", () => {
     const data: HourlyRow[] = [{ hour: 0, total: 0, success: 0, declined: 0, amount: 0 }];
     const opt = buildHourlyChartOption(data, []) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (ps: { name: string; value: number; seriesName: string }[]) => string;
+    const fmt = opt.tooltip?.formatter as (
+      ps: { name: string; value: number; seriesName: string }[],
+    ) => string;
     const result = fmt([{ name: "0", value: 0, seriesName: "Réussie" }]);
     expect(result).toContain("—");
   });
@@ -893,7 +916,13 @@ describe("buildDailyTrendOption", () => {
   it("includes moving average series when maValues is non-empty", () => {
     const data = makeData(3);
     const labels = data.map((r) => r.day);
-    const opt = buildDailyTrendOption(data, labels, [], [null, 1000, 1010], [1000, 1010]) as EChartsOption;
+    const opt = buildDailyTrendOption(
+      data,
+      labels,
+      [],
+      [null, 1000, 1010],
+      [1000, 1010],
+    ) as EChartsOption;
     const names = opt.series.map((s) => s.name);
     expect(names).toContain("Moy. mobile 3j");
   });
@@ -908,7 +937,13 @@ describe("buildDailyTrendOption", () => {
 
   it("has two y-axes (transactions and rate)", () => {
     const data = makeData(1);
-    const opt = buildDailyTrendOption(data, data.map((r) => r.day), [], [], []) as EChartsOption;
+    const opt = buildDailyTrendOption(
+      data,
+      data.map((r) => r.day),
+      [],
+      [],
+      [],
+    ) as EChartsOption;
     const yAxes = opt.yAxis as unknown[];
     expect(Array.isArray(yAxes)).toBe(true);
     expect((yAxes as unknown[]).length).toBe(2);
@@ -917,9 +952,16 @@ describe("buildDailyTrendOption", () => {
   it("MA series valueFormatter renders formatted number for non-null values", () => {
     const data = makeData(3);
     const labels = data.map((r) => r.day);
-    const opt = buildDailyTrendOption(data, labels, [], [null, 1000, 1010], [1000, 1010]) as EChartsOption;
+    const opt = buildDailyTrendOption(
+      data,
+      labels,
+      [],
+      [null, 1000, 1010],
+      [1000, 1010],
+    ) as EChartsOption;
     const maSeries = opt.series.find((s) => s.name === "Moy. mobile 3j");
-    const vf = (maSeries?.tooltip as { valueFormatter?: (v: number | null) => string })?.valueFormatter;
+    const vf = (maSeries?.tooltip as { valueFormatter?: (v: number | null) => string })
+      ?.valueFormatter;
     expect(vf).toBeDefined();
     const result = vf!(1000);
     expect(result.length).toBeGreaterThan(0);
@@ -931,13 +973,20 @@ describe("buildDailyTrendOption", () => {
     const labels = data.map((r) => r.day);
     const opt = buildDailyTrendOption(data, labels, [], [null, 1000], [1000]) as EChartsOption;
     const maSeries = opt.series.find((s) => s.name === "Moy. mobile 3j");
-    const vf = (maSeries?.tooltip as { valueFormatter?: (v: number | null) => string })?.valueFormatter;
+    const vf = (maSeries?.tooltip as { valueFormatter?: (v: number | null) => string })
+      ?.valueFormatter;
     expect(vf!(null)).toBe("—");
   });
 
   it("total series uses the neutral bar color with light border radius", () => {
     const data = makeData(1);
-    const opt = buildDailyTrendOption(data, data.map((r) => r.day), [], [], []) as EChartsOption;
+    const opt = buildDailyTrendOption(
+      data,
+      data.map((r) => r.day),
+      [],
+      [],
+      [],
+    ) as EChartsOption;
     const totalSeries = opt.series.find((s) => s.name === "Total");
     const d = (totalSeries?.data as Array<{ itemStyle: { borderRadius: number[] } }>)?.[0];
     expect(d.itemStyle.borderRadius).toEqual([2, 2, 0, 0]);
@@ -1081,7 +1130,10 @@ describe("buildRiskScoreOption – warning color band", () => {
       canal({ key: "bill_payment", successRate: 10, total: 100, refund: 0, instance: 0, share: 0 }),
     ];
     const highOpt = buildRiskScoreOption(highRiskCanals) as EChartsOption;
-    const highData = highOpt.series[0].data as Array<{ value: number; itemStyle: { color: string } }>;
+    const highData = highOpt.series[0].data as Array<{
+      value: number;
+      itemStyle: { color: string };
+    }>;
     expect(data[0].itemStyle.color).not.toBe(highData[0].itemStyle.color);
   });
 });

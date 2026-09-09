@@ -28,7 +28,7 @@ import path from "node:path";
 import { app } from "electron";
 import { jsonrepair } from "jsonrepair";
 import type { Llama, LlamaContext, LlamaModel } from "node-llama-cpp";
-import { type ModelCapabilities, MODEL_DOWNLOADS } from "./model-download-service";
+import { MODEL_DOWNLOADS, type ModelCapabilities } from "./model-download-service";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 

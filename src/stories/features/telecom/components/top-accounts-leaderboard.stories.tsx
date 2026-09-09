@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-
-import type { ColumnMapping } from "@/features/telecom/types";
 import { TopAccountsLeaderboard } from "@/features/telecom/components/top-accounts-leaderboard";
+import type { ColumnMapping } from "@/features/telecom/types";
 
 const mapping: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

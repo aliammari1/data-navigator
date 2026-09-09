@@ -28,9 +28,9 @@
 import { JSONDiff, ValidJSON } from "autoevals";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
+import { extractJsonBlock, parseStructured, repairJson } from "@/platform/ai/provider/structured";
 import { accuracy, assertAtLeast, mean, report } from "./_harness";
 import { liveIt, loadLocalEngine } from "./_model";
-import { extractJsonBlock, parseStructured, repairJson } from "@/platform/ai/provider/structured";
 import {
   NEGATIVE_CASES,
   POSITIVE_CASES,
@@ -157,9 +157,7 @@ describe("structured-output encoding neutrality (deterministic)", () => {
 
   it("every recovered value round-trips through JSON.stringify", () => {
     for (const c of POSITIVE_CASES) {
-      expect(() =>
-        JSON.stringify(parseStructured(c.raw, c.schema, { label: c.id })),
-      ).not.toThrow();
+      expect(() => JSON.stringify(parseStructured(c.raw, c.schema, { label: c.id }))).not.toThrow();
     }
   });
 });

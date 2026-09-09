@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import { create } from "zustand";
 import {
   createSelectors,
-  useShallowSelector,
   SELECTOR_GUIDANCE,
+  useShallowSelector,
 } from "@/platform/storage/create-selectors";
 
 // ---------------------------------------------------------------------------
@@ -253,9 +253,7 @@ describe("useShallowSelector", () => {
       active: true,
     }));
 
-    const { result } = renderHook(() =>
-      store(useShallowSelector((s) => ({ bears: s.bears }))),
-    );
+    const { result } = renderHook(() => store(useShallowSelector((s) => ({ bears: s.bears }))));
     expect(result.current).toEqual({ bears: 1 });
 
     // Act — update selected field
@@ -274,9 +272,7 @@ describe("useShallowSelector", () => {
     }
     const store = create<ListState>()(() => ({ items: ["a", "b"] }));
 
-    const { result } = renderHook(() =>
-      store(useShallowSelector((s) => s.items)),
-    );
+    const { result } = renderHook(() => store(useShallowSelector((s) => s.items)));
     expect(result.current).toEqual(["a", "b"]);
   });
 });

@@ -20,6 +20,7 @@
 import { Bot, Code2, Download, Loader2, RotateCcw, Sparkles, Trash2 } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import {
   cancelPyodideDownload,
   downloadPyodide,
@@ -27,11 +28,7 @@ import {
   onPyodideDownloadProgress,
   type PyodideStatus,
 } from "@/platform/pyodide/pyodide-client";
-import {
-  getAppSettingRemote,
-  putAppSettingRemote,
-} from "@/platform/settings/settings-client";
-import { useSettingsStore } from "@/core/stores/settings-store";
+import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
 import { cn } from "@/shared/utils";
 import { Section, Toggle } from "../controls";
 
@@ -82,7 +79,8 @@ export function MoudirPanel(props: MoudirPanelProps = {}) {
         getAppSettingRemote<boolean>(NS, ENABLE_MEMORY_KEY),
       ]);
       if (!alive) return;
-      const nextPrompt = typeof promptSetting.value === "string" ? promptSetting.value : DEFAULT_PROMPT;
+      const nextPrompt =
+        typeof promptSetting.value === "string" ? promptSetting.value : DEFAULT_PROMPT;
       const nextMemory = typeof memorySetting.value === "boolean" ? memorySetting.value : false;
       setPrompt(nextPrompt);
       setDraft(nextPrompt);
@@ -176,7 +174,8 @@ export function MoudirPanel(props: MoudirPanelProps = {}) {
           />
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
             <span>
-              {count.toLocaleString("fr-FR")} / {MAX_PROMPT_CHARS.toLocaleString("fr-FR")} caractères
+              {count.toLocaleString("fr-FR")} / {MAX_PROMPT_CHARS.toLocaleString("fr-FR")}{" "}
+              caractères
             </span>
             {draft !== prompt ? (
               <span className="text-amber-500">Sauvegarde…</span>
@@ -208,9 +207,9 @@ export function MoudirPanel(props: MoudirPanelProps = {}) {
           description="Moudir peut émettre des blocs ```js-run / ```python-run exécutables dans la conversation. Le JavaScript tourne dans un iframe sandboxed (sandbox=allow-scripts, opaque origin) — 100% offline, zéro dépendance réseau."
         />
         <p className="text-[11px] text-muted-foreground">
-          Python (```python-run) s'appuie sur Pyodide — opt-in, téléchargeable à la demande
-          depuis cet écran (~10 Mo, premier téléchargement). Sans Pyodide, les blocs Python
-          sont affichés en lecture seule.
+          Python (```python-run) s'appuie sur Pyodide — opt-in, téléchargeable à la demande depuis
+          cet écran (~10 Mo, premier téléchargement). Sans Pyodide, les blocs Python sont affichés
+          en lecture seule.
         </p>
         <PyodideDownloadCard />
       </Section>
@@ -220,9 +219,15 @@ export function MoudirPanel(props: MoudirPanelProps = {}) {
 
 function PyodideDownloadCard() {
   const [status, setStatus] = useState<PyodideStatus | null>(null);
-  const [phase, setPhase] = useState<"loading" | "idle" | "downloading" | "ready" | "error">("loading");
+  const [phase, setPhase] = useState<"loading" | "idle" | "downloading" | "ready" | "error">(
+    "loading",
+  );
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ file: string; received: number; total: number } | null>(null);
+  const [progress, setProgress] = useState<{
+    file: string;
+    received: number;
+    total: number;
+  } | null>(null);
   const [uninstalling, setUninstalling] = useState(false);
 
   useEffect(() => {
@@ -272,9 +277,7 @@ function PyodideDownloadCard() {
     if (!status) return;
     setUninstalling(true);
     try {
-      setError(
-        "Pour supprimer Pyodide, fermez l'app et effacez le dossier <userData>/pyodide.",
-      );
+      setError("Pour supprimer Pyodide, fermez l'app et effacez le dossier <userData>/pyodide.");
     } finally {
       setUninstalling(false);
     }
@@ -314,8 +317,8 @@ function PyodideDownloadCard() {
         ) : phase === "ready" ? (
           <>
             <span className="text-[11px] text-amber-700 dark:text-amber-300">
-              Le runtime Python (CPython 3.12 + stdlib) est installé localement. Les
-              blocs ```python-run exécutent dans un iframe sandboxed.
+              Le runtime Python (CPython 3.12 + stdlib) est installé localement. Les blocs
+              ```python-run exécutent dans un iframe sandboxed.
             </span>
             <button
               type="button"
@@ -374,9 +377,7 @@ function PyodideDownloadCard() {
       {progress && phase === "downloading" ? (
         <p className="mt-1 text-[10px] text-amber-700 dark:text-amber-300">
           {progress.file} — {(progress.received / 1048576).toFixed(1)} Mo
-          {progress.total > 0
-            ? ` / ${(progress.total / 1048576).toFixed(1)} Mo`
-            : ""}
+          {progress.total > 0 ? ` / ${(progress.total / 1048576).toFixed(1)} Mo` : ""}
         </p>
       ) : null}
     </div>

@@ -28,8 +28,8 @@ import React, { useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/utils";
-import { ChatChartArtifact } from "./chat-chart-artifact";
 import type { ChartPart } from "../../store/moudir-chat-store";
+import { ChatChartArtifact } from "./chat-chart-artifact";
 
 interface TableNode {
   type?: string;
@@ -121,10 +121,12 @@ export function parseHastTable(node?: TableNode) {
   // Numeric column has score >= 0.7
   const metricColIdx = colNumericScores.findIndex((score) => score >= 0.7);
   // Dimension column is the first non-numeric column (or index 0 if different from metric)
-  const dimensionColIdx = headers.findIndex((_, idx) => idx !== metricColIdx && colNumericScores[idx] < 0.7);
+  const dimensionColIdx = headers.findIndex(
+    (_, idx) => idx !== metricColIdx && colNumericScores[idx] < 0.7,
+  );
 
-  const effectiveDimIdx = dimensionColIdx >= 0 ? dimensionColIdx : (metricColIdx === 0 ? 1 : 0);
-  const effectiveMetricIdx = metricColIdx >= 0 ? metricColIdx : (effectiveDimIdx === 0 ? 1 : 0);
+  const effectiveDimIdx = dimensionColIdx >= 0 ? dimensionColIdx : metricColIdx === 0 ? 1 : 0;
+  const effectiveMetricIdx = metricColIdx >= 0 ? metricColIdx : effectiveDimIdx === 0 ? 1 : 0;
 
   const dimensionCol = headers[effectiveDimIdx] || "Catégorie";
   const metricCol = headers[effectiveMetricIdx] || "Valeur";
@@ -154,7 +156,12 @@ export function parseHastTable(node?: TableNode) {
   };
 }
 
-export function InteractiveTableChart({ node, children, className, ...props }: InteractiveTableProps) {
+export function InteractiveTableChart({
+  node,
+  children,
+  className,
+  ...props
+}: InteractiveTableProps) {
   const tableData = useMemo(() => parseHastTable(node), [node]);
   const [viewMode, setViewMode] = useState<"table" | "chart">("table");
   const [chartType, setChartType] = useState<"bar" | "line" | "pie" | "area">("bar");
@@ -262,7 +269,9 @@ export function InteractiveTableChart({ node, children, className, ...props }: I
               size="xs"
               className={cn(
                 "h-5 gap-1 px-2 text-[10px] transition-colors",
-                viewMode === "table" ? "bg-primary/15 text-primary font-medium" : "text-muted-foreground hover:text-foreground",
+                viewMode === "table"
+                  ? "bg-primary/15 text-primary font-medium"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => setViewMode("table")}
             >
@@ -275,7 +284,9 @@ export function InteractiveTableChart({ node, children, className, ...props }: I
               size="xs"
               className={cn(
                 "h-5 gap-1 px-2 text-[10px] transition-colors",
-                viewMode === "chart" ? "bg-ai/20 text-ai font-medium" : "text-muted-foreground hover:text-foreground",
+                viewMode === "chart"
+                  ? "bg-ai/20 text-ai font-medium"
+                  : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => setViewMode("chart")}
             >

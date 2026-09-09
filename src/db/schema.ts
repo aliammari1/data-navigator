@@ -94,6 +94,6 @@ export type NewAccount = InferInsertModel<typeof account>;
 export type Verification = InferSelectModel<typeof verification>;
 export type NewVerification = InferInsertModel<typeof verification>;
 
-export * from "./schema-settings";
-export * from "./schema-chat";
 export * from "./schema-analytics";
+export * from "./schema-chat";
+export * from "./schema-settings";

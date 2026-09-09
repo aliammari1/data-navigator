@@ -17,12 +17,36 @@
 
 // Central Dexie DB + accessors
 export * from "./app-db";
+// Settings application
+export {
+  type AppearanceInput,
+  type AppliedSettings,
+  applyAppearance,
+  applySettings,
+  getRuntimePerformanceConfig,
+  type PerformanceInput,
+  type RuntimePerformanceConfig,
+  resolvePerformanceConfig,
+  subscribePerformanceConfig,
+} from "./apply-settings";
 
+// Zustand selector discipline
+export {
+  createSelectors,
+  SELECTOR_GUIDANCE,
+  useShallowSelector,
+} from "./create-selectors";
+// Existing settings storage adapter (re-exported for discoverability)
+export {
+  createDrizzleStorage,
+  type DrizzleStorageOptions,
+  type StateStorage,
+} from "./drizzle-storage";
 // OPFS big-blob store
 export {
-  dirSize,
   deleteDir,
   deleteFile,
+  dirSize,
   exists,
   getDir,
   isOpfsAvailable,
@@ -37,23 +61,14 @@ export {
   size,
   writeBlob,
 } from "./opfs-handles";
-
-// Zustand selector discipline
-export {
-  createSelectors,
-  SELECTOR_GUIDANCE,
-  useShallowSelector,
-} from "./create-selectors";
-
 // Zustand persist discipline
 export {
+  type DurablePersistOptions,
   deepMergeDefaults,
   durablePersist,
-  type DurablePersistOptions,
   makeDeepMergeMigrate,
   pickKeys,
 } from "./persist-helpers";
-
 // TanStack Query persister
 export {
   clearQueryCacheSnapshot,
@@ -62,7 +77,6 @@ export {
   queryCacheSnapshotSize,
   restoreQueryClient,
 } from "./query-persister";
-
 // Storage quota / persistence
 export {
   ensurePersistentStorage,
@@ -72,30 +86,9 @@ export {
   requestPersistence,
   type StorageInfo,
 } from "./storage-info";
-
-// Settings application
-export {
-  applyAppearance,
-  applySettings,
-  type AppliedSettings,
-  type AppearanceInput,
-  getRuntimePerformanceConfig,
-  type PerformanceInput,
-  resolvePerformanceConfig,
-  type RuntimePerformanceConfig,
-  subscribePerformanceConfig,
-} from "./apply-settings";
-
 // Store mirror (feature adoption helper)
 export {
   mirrorStoreToDexie,
   runOnceBackfill,
   type SubscribableStore,
 } from "./store-mirror";
-
-// Existing settings storage adapter (re-exported for discoverability)
-export {
-  createDrizzleStorage,
-  type DrizzleStorageOptions,
-  type StateStorage,
-} from "./drizzle-storage";

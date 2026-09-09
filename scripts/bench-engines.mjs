@@ -33,7 +33,7 @@
  *   DN_BENCH_REPEAT measured repeats per query (default 5, median reported)
  */
 
-import { mkdtempSync, rmSync, writeFileSync, statSync } from "node:fs";
+import { mkdtempSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { performance } from "node:perf_hooks";

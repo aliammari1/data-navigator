@@ -1,10 +1,10 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
-  buildFolderIndex,
-  flattenVisible,
-  computeFolderSizes,
-  wouldCreateCycle,
   breadcrumbPath,
+  buildFolderIndex,
+  computeFolderSizes,
+  flattenVisible,
+  wouldCreateCycle,
 } from "@/features/folders/lib/folderTree";
 import type { FSNode } from "@/features/folders/types";
 

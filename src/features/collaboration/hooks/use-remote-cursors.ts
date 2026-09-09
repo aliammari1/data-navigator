@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  getLANPeers,
-  type LANCursor,
-  type LANPeer,
-  subscribeLAN,
-} from "@/platform/lan/lan-collab";
+import { getLANPeers, type LANCursor, type LANPeer, subscribeLAN } from "@/platform/lan/lan-collab";
 
 const CURSOR_FRESH_MS = 10_000;
 

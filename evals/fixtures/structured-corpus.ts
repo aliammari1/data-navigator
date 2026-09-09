@@ -21,7 +21,7 @@
  * analyze.ts) — the same `schema.parse(...)` path production uses.
  */
 
-import { z, type ZodType } from "zod";
+import { type ZodType, z } from "zod";
 
 export const analysisPlanSchema = z.object({
   goal: z.string(),

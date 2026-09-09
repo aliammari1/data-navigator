@@ -85,12 +85,8 @@ function StatusRow({
       {/* Code + volume */}
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          {isUnassigned && (
-            <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />
-          )}
-          <code className="text-[13px] font-semibold tracking-wide text-foreground">
-            {code}
-          </code>
+          {isUnassigned && <AlertTriangle className="size-3.5 shrink-0 text-amber-500" />}
+          <code className="text-[13px] font-semibold tracking-wide text-foreground">{code}</code>
           {presentation && (
             <span
               className={cn(
@@ -141,11 +137,7 @@ export interface UnknownStatusDialogProps {
   onConfirm: (confirmed: Types.StatusMapping[]) => void;
 }
 
-export function UnknownStatusDialog({
-  pending,
-  rawStatuses,
-  onConfirm,
-}: UnknownStatusDialogProps) {
+export function UnknownStatusDialog({ pending, rawStatuses, onConfirm }: UnknownStatusDialogProps) {
   // Initialize: codes auto-guessed as "other" start blank (must be explicitly chosen)
   const [assignments, setAssignments] = useState<Record<string, Types.StatusSemantic | "">>(() =>
     Object.fromEntries(
@@ -160,9 +152,7 @@ export function UnknownStatusDialog({
   // Re-init if the pending set changes (new file uploaded while dialog is open)
   useEffect(() => {
     setAssignments(
-      Object.fromEntries(
-        pending.map((p) => [p.rawCode, p.semantic !== "other" ? p.semantic : ""]),
-      ),
+      Object.fromEntries(pending.map((p) => [p.rawCode, p.semantic !== "other" ? p.semantic : ""])),
     );
   }, [pending]);
 
@@ -212,8 +202,8 @@ export function UnknownStatusDialog({
                 Nouveaux statuts détectés
               </h2>
               <p className="mt-0.5 text-[13px] text-muted-foreground">
-                Ce fichier contient{" "}
-                <strong className="text-foreground">{pending.length}</strong> code
+                Ce fichier contient <strong className="text-foreground">{pending.length}</strong>{" "}
+                code
                 {pending.length > 1 ? "s" : ""} de statut inconnu
                 {pending.length > 1 ? "s" : ""}. Vous devez les classifier avant de continuer.
               </p>
@@ -246,9 +236,7 @@ export function UnknownStatusDialog({
                   count={rs?.count ?? 0}
                   total={total}
                   semantic={assignments[p.rawCode] ?? ""}
-                  onChange={(v) =>
-                    setAssignments((prev) => ({ ...prev, [p.rawCode]: v }))
-                  }
+                  onChange={(v) => setAssignments((prev) => ({ ...prev, [p.rawCode]: v }))}
                 />
               );
             })}

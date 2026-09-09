@@ -11,8 +11,8 @@
  *   5. Fuse index rebuilt when nodes change (useMemo dep)
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "vitest";
 import { useFolderSearch } from "@/features/folders/hooks/useFolderSearch";
 import type { FSNode } from "@/features/folders/types";
 
@@ -220,10 +220,9 @@ describe("useFolderSearch – reactivity (nodes change rebuilds index)", () => {
     const node = makeNode({ id: "x", name: "Export File", tags: [] });
     const nodes = [node];
 
-    const { result, rerender } = renderHook(
-      ({ q }: { q: string }) => useFolderSearch(nodes, q),
-      { initialProps: { q: "Export" } },
-    );
+    const { result, rerender } = renderHook(({ q }: { q: string }) => useFolderSearch(nodes, q), {
+      initialProps: { q: "Export" },
+    });
 
     // Initially returns a Set
     expect(result.current).toBeInstanceOf(Set);
@@ -242,10 +241,9 @@ describe("useFolderSearch – reactivity (nodes change rebuilds index)", () => {
     const node = makeNode({ id: "y", name: "Import Logs", tags: [] });
     const nodes = [node];
 
-    const { result, rerender } = renderHook(
-      ({ q }: { q: string }) => useFolderSearch(nodes, q),
-      { initialProps: { q: "" } },
-    );
+    const { result, rerender } = renderHook(({ q }: { q: string }) => useFolderSearch(nodes, q), {
+      initialProps: { q: "" },
+    });
 
     // Initially null
     expect(result.current).toBeNull();

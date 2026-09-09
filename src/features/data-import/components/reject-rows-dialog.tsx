@@ -38,9 +38,8 @@ export function RejectRowsDialog({
           </DialogTitle>
           <DialogDescription>
             DuckDB a rejeté ces lignes pendant la lecture (colonne manquante, valeur non
-            convertible, délimiteur en trop…). Elles ne sont pas comptées dans le total du
-            fichier. Corrigez-les dans le fichier source puis réimportez si elles doivent être
-            incluses.
+            convertible, délimiteur en trop…). Elles ne sont pas comptées dans le total du fichier.
+            Corrigez-les dans le fichier source puis réimportez si elles doivent être incluses.
           </DialogDescription>
         </DialogHeader>
 
@@ -72,7 +71,10 @@ export function RejectRowsDialog({
                       <div className="w-32 flex-none truncate px-3 py-1.5 font-mono">
                         {reject.columnName ?? "—"}
                       </div>
-                      <div className="flex-1 truncate px-3 py-1.5" title={reject.errorMessage ?? ""}>
+                      <div
+                        className="flex-1 truncate px-3 py-1.5"
+                        title={reject.errorMessage ?? ""}
+                      >
                         {reject.errorMessage ?? reject.errorType ?? "valeur invalide"}
                       </div>
                     </div>

@@ -35,27 +35,27 @@ import {
   ydoc,
 } from "@/platform/collab/collab";
 import {
-  type LANRole,
-  type InvitePayload,
-  type SessionPayload,
-  INVITE_TTL_MS,
-  signInviteToken,
-  verifyInviteToken,
-  signSessionToken,
-  verifySessionToken,
   getHostSecret,
+  INVITE_TTL_MS,
+  type InvitePayload,
+  type LANRole,
+  type SessionPayload,
+  signInviteToken,
+  signSessionToken,
+  verifyInviteToken,
+  verifySessionToken,
 } from "./lan-common";
 
 export {
-  type LANRole,
-  type InvitePayload,
-  type SessionPayload,
-  INVITE_TTL_MS,
-  signInviteToken,
-  verifyInviteToken,
-  signSessionToken,
-  verifySessionToken,
   getHostSecret,
+  INVITE_TTL_MS,
+  type InvitePayload,
+  type LANRole,
+  type SessionPayload,
+  signInviteToken,
+  signSessionToken,
+  verifyInviteToken,
+  verifySessionToken,
 };
 
 export type LANStatus = "off" | "connecting" | "connected" | "error";
@@ -250,7 +250,6 @@ function wsFromHttp(url: string): string {
 
 // ─── Signed JWTs moved to lan-common.ts ────────────────────────────────
 
-
 export async function makeJoinHttpUrl(settings: LANSettings): Promise<string> {
   const base = new URL(httpFromWs(settings.url));
   // The join handler is at /guest/join, not root.
@@ -260,7 +259,10 @@ export async function makeJoinHttpUrl(settings: LANSettings): Promise<string> {
     {
       sub: settings.peer.id,
       room: settings.room,
-      defaultRole: settings.peer.role === "host" ? "editor" : (settings.peer.role as "viewer" | "editor" | "reviewer"),
+      defaultRole:
+        settings.peer.role === "host"
+          ? "editor"
+          : (settings.peer.role as "viewer" | "editor" | "reviewer"),
       pairingCode: settings.pairingCode,
     },
     secret,
@@ -501,8 +503,7 @@ export async function connectLAN(settings: LANSettings): Promise<void> {
         role: settings.peer.role,
       }),
       onStatus: ({ status: next }) => {
-        status =
-          next === "connected" ? "connected" : next === "connecting" ? "connecting" : "off";
+        status = next === "connected" ? "connected" : next === "connecting" ? "connecting" : "off";
         if (status === "connected") appendAudit("peer.connected");
         emit();
       },
@@ -601,9 +602,7 @@ interface CursorDraft {
 }
 
 let pendingCursor: CursorDraft | null = null;
-type ScheduleHandle =
-  | ReturnType<typeof requestAnimationFrame>
-  | ReturnType<typeof setTimeout>;
+type ScheduleHandle = ReturnType<typeof requestAnimationFrame> | ReturnType<typeof setTimeout>;
 let cursorRaf: ScheduleHandle | null = null;
 let lastCursorFlushAt = 0;
 
@@ -623,10 +622,7 @@ function flushCursor() {
   }
   if (next) {
     // Too soon — re-schedule for the remainder of the interval.
-    cursorRaf = setTimeout(
-      flushCursor,
-      CURSOR_MIN_INTERVAL_MS - (now - lastCursorFlushAt),
-    );
+    cursorRaf = setTimeout(flushCursor, CURSOR_MIN_INTERVAL_MS - (now - lastCursorFlushAt));
   }
 }
 
@@ -715,11 +711,7 @@ export function clearSectionCursor() {
 }
 
 /** Publish a "follow me" request to a specific peer (shows a dialog on their side). */
-export function requestFollowMe(
-  targetPeerId: string,
-  toPage: string,
-  toTab?: string,
-) {
+export function requestFollowMe(targetPeerId: string, toPage: string, toTab?: string) {
   if (typeof window === "undefined") return;
   const settings = activeSettings ?? readLANSettings();
   const request: LANFollowRequest = {
@@ -730,14 +722,8 @@ export function requestFollowMe(
     ts: Date.now(),
     expiresAt: Date.now() + 30_000,
   };
-  sharedLanRoom.set(
-    `followRequest:${targetPeerId}`,
-    JSON.stringify(request),
-  );
-  appendAudit(
-    "follow.request",
-    `→ ${targetPeerId} → ${toPage}${toTab ? `#${toTab}` : ""}`,
-  );
+  sharedLanRoom.set(`followRequest:${targetPeerId}`, JSON.stringify(request));
+  appendAudit("follow.request", `→ ${targetPeerId} → ${toPage}${toTab ? `#${toTab}` : ""}`);
 }
 
 /** Accept a pending follow request and signal resolution. */

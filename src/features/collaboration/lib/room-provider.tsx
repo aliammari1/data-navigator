@@ -18,7 +18,7 @@
 import { createContext, type ReactNode, useContext, useEffect, useMemo, useState } from "react";
 import { setAwarenessUser } from "@/platform/collab";
 import { getLANPeers, readLANSettings, subscribeLAN } from "@/platform/lan/lan-collab";
-import { acquireRoom, releaseRoom, type RoomDoc } from "./room";
+import { acquireRoom, type RoomDoc, releaseRoom } from "./room";
 import type { LocalPeer } from "./room-actions";
 
 interface RoomContextValue {

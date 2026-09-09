@@ -41,16 +41,13 @@ import {
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type * as Y from "yjs";
-import { useRouter } from "next/navigation";
-import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
-import { acceptFollowMe, declineFollowMe, readLANSettings } from "@/platform/lan/lan-collab";
-import { InviteDialog } from "../components/InviteDialog";
-import { FollowMeDialog } from "../components/FollowMeDialog";
-import { useCurrentPage } from "../hooks/use-current-page";
-import { useFollowRequest } from "../hooks/use-follow-request";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDataStore } from "@/core/stores/data-store";
+import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
 import {
   getCachedAnalyticsEntries,
   getCachedTelecomSourceFiles,
@@ -58,18 +55,26 @@ import {
 import { listDailyStats } from "@/features/telecom/lib/daily-stats-cache";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
+import { acceptFollowMe, declineFollowMe, readLANSettings } from "@/platform/lan/lan-collab";
 import { type EChartsOption, OffscreenChart } from "@/platform/viz";
+import { useApprovalCRDT, useAuditCRDT, useCollabHubReady } from "../collab/collab-hub-crdt";
+import { ApprovalWorkflow } from "../components/ApprovalWorkflow";
+import { AuditTrail } from "../components/AuditTrail";
+import { FollowMeDialog } from "../components/FollowMeDialog";
+import { InviteDialog } from "../components/InviteDialog";
+import { PresenceBar } from "../components/PresenceBar";
+import { StickyNoteAnnotation } from "../components/StickyNoteAnnotation";
 import { VirtualList } from "../components/VirtualList";
-import { usePresence } from "../lib/use-presence";
-import { useLAN, useLANAudit } from "../lib/use-lan";
-import { useRoom, useLocalPeer } from "../lib/room-provider";
+import { useCurrentPage } from "../hooks/use-current-page";
+import { useFollowRequest } from "../hooks/use-follow-request";
+import { useAnnotations } from "../hooks/useAnnotations";
 import {
-  type RoomChange,
-  type RoomChatMessage,
-  type RoomComment,
   changeFromYMap,
   chatFromYMap,
   commentFromYMap,
+  type RoomChange,
+  type RoomChatMessage,
+  type RoomComment,
 } from "../lib/room";
 import {
   addComment,
@@ -82,15 +87,10 @@ import {
   togglePin,
   toggleReaction,
 } from "../lib/room-actions";
+import { useLocalPeer, useRoom } from "../lib/room-provider";
+import { useLAN, useLANAudit } from "../lib/use-lan";
+import { usePresence } from "../lib/use-presence";
 import { shallowArrayEqual, useYArray } from "../lib/use-y";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { PresenceBar } from "../components/PresenceBar";
-import { ApprovalWorkflow } from "../components/ApprovalWorkflow";
-import { AuditTrail } from "../components/AuditTrail";
-import { StickyNoteAnnotation } from "../components/StickyNoteAnnotation";
-import { useAnnotations } from "../hooks/useAnnotations";
-import { useApprovalCRDT, useAuditCRDT, useCollabHubReady } from "../collab/collab-hub-crdt";
 
 type CommentType = RoomComment["type"];
 
@@ -523,14 +523,12 @@ export default function CollaborationScreen() {
   useEffect(() => {
     if (!inviteOpen) return;
     let cancelled = false;
-    void import("@/platform/lan/lan-collab").then(
-      ({ makeJoinHttpUrl, readLANSettings: read }) => {
-        if (cancelled) return;
-        void makeJoinHttpUrl(read()).then((url) => {
-          if (!cancelled) setInviteJoinUrl(url);
-        });
-      },
-    );
+    void import("@/platform/lan/lan-collab").then(({ makeJoinHttpUrl, readLANSettings: read }) => {
+      if (cancelled) return;
+      void makeJoinHttpUrl(read()).then((url) => {
+        if (!cancelled) setInviteJoinUrl(url);
+      });
+    });
     return () => {
       cancelled = true;
     };
@@ -1288,7 +1286,9 @@ export default function CollaborationScreen() {
                   <Avatar name={me.name} color={me.color} />
                   <input
                     type="text"
-                    placeholder={canEdit ? "Send a message to the team..." : "View-only — chat is disabled"}
+                    placeholder={
+                      canEdit ? "Send a message to the team..." : "View-only — chat is disabled"
+                    }
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
                     onKeyDown={(e) => {
@@ -1419,7 +1419,6 @@ export default function CollaborationScreen() {
           }}
         />
       ) : null}
-
     </div>
   );
 }

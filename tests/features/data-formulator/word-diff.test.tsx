@@ -18,9 +18,7 @@ describe("WordDiff", () => {
   });
 
   it("escapes HTML in compared text", () => {
-    render(
-      <WordDiff before="a <b> test" after="a <c> test" ariaLabel="Changements" />,
-    );
+    render(<WordDiff before="a <b> test" after="a <c> test" ariaLabel="Changements" />);
     fireEvent.click(screen.getByRole("button", { name: "Changements" }));
     const region = screen.getByLabelText("Changements", { selector: "div" });
     expect(region.innerHTML).not.toContain("<b>");

@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-import type { DashboardUser } from "@/features/dashboard-shell/components/sidebar-nav";
 import { DashboardClientShell } from "@/features/dashboard-shell/components/dashboard-client-shell";
+import type { DashboardUser } from "@/features/dashboard-shell/components/sidebar-nav";
 
 const demoUser: DashboardUser = {
   name: "Ali Ammari",

@@ -3,11 +3,7 @@
 import { Users } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarGroup } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/shared/utils";
 import { useRemoteCursors } from "../hooks/use-remote-cursors";
 
@@ -66,10 +62,7 @@ export function PeerPresenceOnSection({ sectionId, className }: PeerPresenceOnSe
       <TooltipTrigger asChild>
         <Badge
           variant="secondary"
-          className={cn(
-            "gap-1.5 px-2 py-0.5 text-[10px] font-medium cursor-default",
-            className,
-          )}
+          className={cn("gap-1.5 px-2 py-0.5 text-[10px] font-medium cursor-default", className)}
         >
           <Users className="size-3 text-muted-foreground" />
           <span className="tabular-nums">{remote.length}</span>
@@ -82,10 +75,7 @@ export function PeerPresenceOnSection({ sectionId, className }: PeerPresenceOnSe
               return (
                 <Avatar key={peer.id} size="sm" className="size-4">
                   <AvatarFallback
-                    className={cn(
-                      "text-[8px] text-white font-semibold",
-                      hashColor(peer.name),
-                    )}
+                    className={cn("text-[8px] text-white font-semibold", hashColor(peer.name))}
                     style={color ? { backgroundColor: color } : undefined}
                   >
                     {initials(peer.name)}

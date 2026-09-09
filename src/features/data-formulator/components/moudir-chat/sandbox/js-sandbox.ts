@@ -168,18 +168,16 @@ export function useJsSandbox(options: UseJsSandboxOptions = { enabled: true }) {
   useEffect(() => {
     function onMessage(event: MessageEvent) {
       if (event.source !== iframeRef.current?.contentWindow) return;
-      const data = event.data as
-        | {
-            kind?: string;
-            id?: number;
-            stdout?: unknown;
-            stderr?: unknown;
-            value?: unknown;
-            durationMs?: unknown;
-            timedOut?: unknown;
-            error?: unknown;
-          }
-        | null;
+      const data = event.data as {
+        kind?: string;
+        id?: number;
+        stdout?: unknown;
+        stderr?: unknown;
+        value?: unknown;
+        durationMs?: unknown;
+        timedOut?: unknown;
+        error?: unknown;
+      } | null;
       if (!data) return;
       if (data.kind === "moudir:sandbox:ready") return;
       if (data.kind !== RESPONSE_KIND) return;
@@ -222,8 +220,7 @@ export function useJsSandbox(options: UseJsSandboxOptions = { enabled: true }) {
       iframe.setAttribute("aria-hidden", "true");
       iframe.title = "moudir sandbox";
       iframe.srcdoc = SRCDOC;
-      iframe.style.cssText =
-        "position:absolute;width:0;height:0;border:0;visibility:hidden;";
+      iframe.style.cssText = "position:absolute;width:0;height:0;border:0;visibility:hidden;";
       document.body.appendChild(iframe);
       iframeRef.current = iframe;
       setIsRunning(true);

@@ -1,6 +1,5 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
 import {
   Database,
   Download,
@@ -11,11 +10,12 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { ensurePersistentStorage, type OPFS_NS } from "@/platform/storage";
-import { downloadSettingsBackup, restoreSettingsFromFile } from "../../lib/settings-backup";
 import { formatBytes } from "../../lib/format";
+import { downloadSettingsBackup, restoreSettingsFromFile } from "../../lib/settings-backup";
 import { clearCacheNamespace, readStorageStats, type StorageStats } from "../../lib/storage-stats";
 import { QuotaBar, Section, SettingRow } from "../controls";
 

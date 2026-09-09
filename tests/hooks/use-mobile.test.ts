@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -12,11 +12,9 @@ function setMatchMedia(innerWidth: number, matches: boolean) {
   // Capture the onChange listener so tests can fire it imperatively
   let capturedOnChange: (() => void) | null = null;
   const removeEventListenerSpy = vi.fn();
-  const addEventListenerSpy = vi.fn().mockImplementation(
-    (_event: string, cb: () => void) => {
-      capturedOnChange = cb;
-    },
-  );
+  const addEventListenerSpy = vi.fn().mockImplementation((_event: string, cb: () => void) => {
+    capturedOnChange = cb;
+  });
 
   Object.defineProperty(window, "matchMedia", {
     writable: true,
@@ -147,10 +145,7 @@ describe("useIsMobile", () => {
 
     unmount();
 
-    expect(removeEventListenerSpy).toHaveBeenCalledWith(
-      "change",
-      expect.any(Function),
-    );
+    expect(removeEventListenerSpy).toHaveBeenCalledWith("change", expect.any(Function));
   });
 
   // ── matchMedia is called with the correct query string ───────────────────

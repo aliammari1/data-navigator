@@ -1,6 +1,13 @@
 "use client";
 
-import { AlertTriangle, BarChart2, ChevronDown, ChevronRight, Loader2, Sparkles } from "lucide-react";
+import {
+  AlertTriangle,
+  BarChart2,
+  ChevronDown,
+  ChevronRight,
+  Loader2,
+  Sparkles,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { EChart } from "@/features/telecom/components/echart";
 import { fmtAmount, fmtN } from "@/features/telecom/lib/format";
@@ -9,10 +16,25 @@ import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import { cn } from "@/shared/utils";
 
 const STATUS_COLS = [
-  { key: "réussie" as const,    label: "Réussie",    icon: "✓", color: "text-emerald-600 dark:text-emerald-400" },
-  { key: "annulation" as const, label: "Annulation", icon: "↩", color: "text-sky-600 dark:text-sky-400"        },
-  { key: "instance" as const,   label: "Instance",   icon: "⏳", color: "text-orange-600 dark:text-orange-400" },
-  { key: "échec" as const,      label: "Échec",      icon: "✗", color: "text-red-600 dark:text-red-400"        },
+  {
+    key: "réussie" as const,
+    label: "Réussie",
+    icon: "✓",
+    color: "text-emerald-600 dark:text-emerald-400",
+  },
+  {
+    key: "annulation" as const,
+    label: "Annulation",
+    icon: "↩",
+    color: "text-sky-600 dark:text-sky-400",
+  },
+  {
+    key: "instance" as const,
+    label: "Instance",
+    icon: "⏳",
+    color: "text-orange-600 dark:text-orange-400",
+  },
+  { key: "échec" as const, label: "Échec", icon: "✗", color: "text-red-600 dark:text-red-400" },
 ] as const;
 
 export function SpecChannelTable({
@@ -71,7 +93,9 @@ export function SpecChannelTable({
 
     if (fetchSpecCanalStatusMatrix) {
       fetchSpecCanalStatusMatrix(channels, dateFrom, dateTo)
-        .then((d) => { if (!cancelled) setStatusData(d); })
+        .then((d) => {
+          if (!cancelled) setStatusData(d);
+        })
         .catch(() => {});
     }
 
@@ -142,7 +166,10 @@ export function SpecChannelTable({
                 ? "#ffffff10"
                 : {
                     type: "linear",
-                    x: 0, y: 0, x2: 1, y2: 0,
+                    x: 0,
+                    y: 0,
+                    x2: 1,
+                    y2: 0,
                     colorStops: [
                       { offset: 0, color: "#89b4fa" },
                       { offset: 1, color: "#b4befe" },
@@ -166,11 +193,11 @@ export function SpecChannelTable({
   // Status totals for the footer row
   const statusTotals = statusData
     ? {
-        réussie:    statusData.reduce((s, r) => s + r.réussie, 0),
+        réussie: statusData.reduce((s, r) => s + r.réussie, 0),
         annulation: statusData.reduce((s, r) => s + r.annulation, 0),
-        instance:   statusData.reduce((s, r) => s + r.instance, 0),
-        échec:      statusData.reduce((s, r) => s + r.échec, 0),
-        total:      statusData.reduce((s, r) => s + r.total, 0),
+        instance: statusData.reduce((s, r) => s + r.instance, 0),
+        échec: statusData.reduce((s, r) => s + r.échec, 0),
+        total: statusData.reduce((s, r) => s + r.total, 0),
       }
     : null;
 
@@ -225,7 +252,9 @@ export function SpecChannelTable({
             },
           ].map((k) => (
             <div key={k.label} className={cn("rounded-xl border p-3 space-y-0.5", k.border, k.bg)}>
-              <div className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}>
+              <div
+                className={cn("text-base font-bold leading-tight tabular-nums truncate", k.color)}
+              >
                 {k.value}
               </div>
               <div className="text-[10px] text-muted-foreground">{k.label}</div>
@@ -270,7 +299,11 @@ export function SpecChannelTable({
                 >
                   <td className="px-3 py-2 text-foreground">{row.canal}</td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-foreground">
-                    {row.nombre > 0 ? fmtN(row.nombre) : <span className="text-muted-foreground/35">—</span>}
+                    {row.nombre > 0 ? (
+                      fmtN(row.nombre)
+                    ) : (
+                      <span className="text-muted-foreground/35">—</span>
+                    )}
                   </td>
                   <td className="px-2 py-2 hidden sm:table-cell">
                     <div className="h-1.5 rounded-full bg-muted/60 overflow-hidden">
@@ -281,7 +314,11 @@ export function SpecChannelTable({
                     </div>
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums font-medium text-emerald-600 dark:text-emerald-400">
-                    {row.montant > 0 ? fmtAmount(row.montant) : <span className="text-muted-foreground/35">—</span>}
+                    {row.montant > 0 ? (
+                      fmtAmount(row.montant)
+                    ) : (
+                      <span className="text-muted-foreground/35">—</span>
+                    )}
                   </td>
                 </tr>
               );
@@ -312,7 +349,11 @@ export function SpecChannelTable({
           >
             <div className="flex-1 h-px bg-border/60" />
             <span className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-2 select-none hover:text-foreground transition-colors">
-              {statusOpen ? <ChevronDown className="w-3 h-3" /> : <ChevronRight className="w-3 h-3" />}
+              {statusOpen ? (
+                <ChevronDown className="w-3 h-3" />
+              ) : (
+                <ChevronRight className="w-3 h-3" />
+              )}
               KPIs par statut
             </span>
             <div className="flex-1 h-px bg-border/60" />
@@ -373,10 +414,7 @@ export function SpecChannelTable({
                     {STATUS_COLS.map((s) => (
                       <td
                         key={s.key}
-                        className={cn(
-                          "px-3 py-2.5 text-right tabular-nums font-bold",
-                          s.color,
-                        )}
+                        className={cn("px-3 py-2.5 text-right tabular-nums font-bold", s.color)}
                       >
                         {fmtN(statusTotals[s.key])}
                       </td>

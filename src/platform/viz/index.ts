@@ -12,6 +12,13 @@
  * builders, seeded RNG) and the shared save-bytes util.
  */
 
+// Worker API types (for callers that want typed results without importing the
+// worker module directly).
+export type { AnalysisWorkerApi } from "@/workers/analysis.worker";
+export type { ChartWorkerApi } from "@/workers/chart.worker";
+export type { ExportWorkerApi } from "@/workers/export.worker";
+export type { LayoutWorkerApi } from "@/workers/layout.worker";
+export type { ParseWorkerApi } from "@/workers/parse.worker";
 // Worker clients (Comlink proxies).
 export {
   disposeAnalysisWorker,
@@ -22,16 +29,6 @@ export {
   nextChartId,
   supportsOffscreenChart,
 } from "./chart-client";
-export { disposeExportWorker, getExportProxy, warmExportWorker } from "./export-client";
-export { disposeLayoutWorker, getLayoutProxy } from "./layout-client";
-export { disposeParseWorker, getParseProxy } from "./parse-client";
-
-// Save util.
-export { type SaveResult, saveBytes } from "./save-bytes";
-
-// ECharts (tree-shaken) + option builders.
-export { echarts } from "./echarts-core";
-export type { ECharts, EChartsOption } from "./echarts-core";
 export {
   buildBarOption,
   buildHeatmapOption,
@@ -41,8 +38,22 @@ export {
   DENSE_SERIES_FLAGS,
   type SeriesSpec,
 } from "./chart-options";
+export type { ECharts, EChartsOption } from "./echarts-core";
+// ECharts (tree-shaken) + option builders.
+export { echarts } from "./echarts-core";
+export { disposeExportWorker, getExportProxy, warmExportWorker } from "./export-client";
+export { disposeLayoutWorker, getLayoutProxy } from "./layout-client";
 export { OffscreenChart, type OffscreenChartProps } from "./OffscreenChart";
-
+export { disposeParseWorker, getParseProxy } from "./parse-client";
+// Save util.
+export { type SaveResult, saveBytes } from "./save-bytes";
+// Deterministic primitives.
+export {
+  DEFAULT_SEED,
+  mulberry32,
+  randInt,
+  reservoirSampleIndices,
+} from "./seeded-rng";
 // uPlot config + mount hook.
 export {
   buildSparklineOptions,
@@ -52,19 +63,3 @@ export {
   type UPlotSeriesSpec,
 } from "./uplot-config";
 export { useUPlot } from "./use-uplot";
-
-// Deterministic primitives.
-export {
-  DEFAULT_SEED,
-  mulberry32,
-  randInt,
-  reservoirSampleIndices,
-} from "./seeded-rng";
-
-// Worker API types (for callers that want typed results without importing the
-// worker module directly).
-export type { AnalysisWorkerApi } from "@/workers/analysis.worker";
-export type { ChartWorkerApi } from "@/workers/chart.worker";
-export type { ExportWorkerApi } from "@/workers/export.worker";
-export type { LayoutWorkerApi } from "@/workers/layout.worker";
-export type { ParseWorkerApi } from "@/workers/parse.worker";

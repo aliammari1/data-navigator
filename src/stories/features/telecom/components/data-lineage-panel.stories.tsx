@@ -1,8 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, within } from "storybook/test";
-
-import type { DailyLineageEntry } from "@/features/telecom/lib/daily-stats-cache";
 import { DataLineagePanel } from "@/features/telecom/components/data-lineage-panel";
+import type { DailyLineageEntry } from "@/features/telecom/lib/daily-stats-cache";
 
 const lineage: DailyLineageEntry[] = [
   {

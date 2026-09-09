@@ -1,5 +1,12 @@
-import { beforeEach, describe, expect, it, } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
 import * as Y from "yjs";
+import type {
+  RoomChange,
+  RoomChatMessage,
+  RoomComment,
+  RoomDoc,
+  RoomReply,
+} from "@/features/collaboration/lib/room";
 import {
   addComment,
   addReply,
@@ -12,13 +19,6 @@ import {
   togglePin,
   toggleReaction,
 } from "@/features/collaboration/lib/room-actions";
-import type {
-  RoomChange,
-  RoomChatMessage,
-  RoomComment,
-  RoomDoc,
-  RoomReply,
-} from "@/features/collaboration/lib/room";
 
 /**
  * room-actions operates on the platform `CollabRoomDoc`, but the only surface
@@ -422,11 +422,27 @@ function reply(over: Partial<RoomReply>): RoomReply {
 }
 
 function chatMsg(over: Partial<RoomChatMessage>): RoomChatMessage {
-  return { id: "m", authorId: "a", authorName: "A", authorColor: "#222222", text: "", ts: 0, ...over };
+  return {
+    id: "m",
+    authorId: "a",
+    authorName: "A",
+    authorColor: "#222222",
+    text: "",
+    ts: 0,
+    ...over,
+  };
 }
 
 function change(over: Partial<RoomChange>): RoomChange {
-  return { id: "ch", authorId: "a", authorName: "A", timestamp: 0, type: "edit", description: "", ...over };
+  return {
+    id: "ch",
+    authorId: "a",
+    authorName: "A",
+    timestamp: 0,
+    type: "edit",
+    description: "",
+    ...over,
+  };
 }
 
 describe("contributionCounts", () => {
@@ -519,18 +535,19 @@ describe("hourlyActivity", () => {
   });
 
   it("buckets a comment into its local hour", () => {
-    const out = hourlyActivity(
-      [comment({ timestamp: tsAtLocalHour(9) })],
-      [],
-      [],
-    );
+    const out = hourlyActivity([comment({ timestamp: tsAtLocalHour(9) })], [], []);
     expect(out[9]).toBe(1);
     expect(out.reduce((a, b) => a + b, 0)).toBe(1);
   });
 
   it("buckets replies, changes and chat alongside comments", () => {
     const out = hourlyActivity(
-      [comment({ timestamp: tsAtLocalHour(10), replies: [reply({ timestamp: tsAtLocalHour(10) })] })],
+      [
+        comment({
+          timestamp: tsAtLocalHour(10),
+          replies: [reply({ timestamp: tsAtLocalHour(10) })],
+        }),
+      ],
       [change({ timestamp: tsAtLocalHour(10) })],
       [chatMsg({ ts: tsAtLocalHour(10) })],
     );
@@ -547,11 +564,7 @@ describe("hourlyActivity", () => {
   });
 
   it("ignores zero and negative timestamps", () => {
-    const out = hourlyActivity(
-      [comment({ timestamp: 0 }), comment({ timestamp: -1000 })],
-      [],
-      [],
-    );
+    const out = hourlyActivity([comment({ timestamp: 0 }), comment({ timestamp: -1000 })], [], []);
     expect(out.reduce((a, b) => a + b, 0)).toBe(0);
   });
 

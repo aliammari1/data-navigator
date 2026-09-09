@@ -53,7 +53,10 @@ function readNumericAttr(tag: string, attr: string): number | null {
 function readViewBoxSize(tag: string): NaturalSize | null {
   const match = /viewBox\s*=\s*["']\s*([^"']+)\s*["']/i.exec(tag);
   if (!match) return null;
-  const parts = match[1].trim().split(/[\s,]+/).map(Number);
+  const parts = match[1]
+    .trim()
+    .split(/[\s,]+/)
+    .map(Number);
   if (parts.length !== 4 || parts.some((n) => !Number.isFinite(n))) return null;
   const [, , width, height] = parts;
   return width > 0 && height > 0 ? { width, height } : null;

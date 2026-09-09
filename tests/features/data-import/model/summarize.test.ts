@@ -1,10 +1,10 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { summarizeDataset } from "@/platform/electron/electron-fs";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fetchFullTableColumnInfo,
   mapDuckTypeToColumnInfoType,
   summarizeRowsToColumnInfo,
 } from "@/features/data-import/model/summarize";
+import { summarizeDataset } from "@/platform/electron/electron-fs";
 
 /**
  * Unit tests for src/features/data-import/model/summarize.ts.
@@ -42,12 +42,14 @@ describe("mapDuckTypeToColumnInfoType", () => {
     expect(mapDuckTypeToColumnInfoType(duckType)).toBe("number");
   });
 
-  it.each(["DATE", "TIMESTAMP", "TIMESTAMP WITH TIME ZONE", "TIME"])(
-    "maps %s to date",
-    (duckType) => {
-      expect(mapDuckTypeToColumnInfoType(duckType)).toBe("date");
-    },
-  );
+  it.each([
+    "DATE",
+    "TIMESTAMP",
+    "TIMESTAMP WITH TIME ZONE",
+    "TIME",
+  ])("maps %s to date", (duckType) => {
+    expect(mapDuckTypeToColumnInfoType(duckType)).toBe("date");
+  });
 
   it.each(["BOOLEAN", "BOOL"])("maps %s to boolean", (duckType) => {
     expect(mapDuckTypeToColumnInfoType(duckType)).toBe("boolean");

@@ -1,7 +1,7 @@
 "use client";
 
-import { ConfigTab } from "@/features/telecom/components/config-tab";
 import { LanCollabPanel } from "@/features/dashboard-shell/components/lan-collab-panel";
+import { ConfigTab } from "@/features/telecom/components/config-tab";
 import {
   TelecomLoadingPanel,
   useTelecomReportRuntime,

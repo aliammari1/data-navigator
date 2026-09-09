@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
-import type { StatusMapping } from "@/features/telecom/types";
 import { StatusBadge } from "@/features/telecom/components/status-badge";
+import type { StatusMapping } from "@/features/telecom/types";
 
 const mapping: StatusMapping[] = [
   {

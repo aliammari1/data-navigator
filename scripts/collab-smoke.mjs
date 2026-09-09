@@ -19,20 +19,16 @@ const PAIRING = "111111";
 const GUEST = "222222";
 const ROOM = "smoke-room";
 
-const server = spawn(
-  process.execPath,
-  ["scripts/lan-server.mjs"],
-  {
-    env: {
-      ...process.env,
-      HOST: "127.0.0.1",
-      PORT: String(PORT),
-      PAIRING_CODE: PAIRING,
-      GUEST_CODE: GUEST,
-    },
-    stdio: ["ignore", "pipe", "pipe"],
+const server = spawn(process.execPath, ["scripts/lan-server.mjs"], {
+  env: {
+    ...process.env,
+    HOST: "127.0.0.1",
+    PORT: String(PORT),
+    PAIRING_CODE: PAIRING,
+    GUEST_CODE: GUEST,
   },
-);
+  stdio: ["ignore", "pipe", "pipe"],
+});
 
 let serverOut = "";
 server.stdout.on("data", (d) => {
@@ -83,7 +79,12 @@ try {
   });
 
   // Publish a spoofed awareness identity from the guest: claims role "host".
-  guest.setAwarenessField("user", { id: "guest-1", name: "guest-1", role: "host", color: "#ff0000" });
+  guest.setAwarenessField("user", {
+    id: "guest-1",
+    name: "guest-1",
+    role: "host",
+    color: "#ff0000",
+  });
 
   for (let i = 0; i < 50 && !(editor.isSynced && guest.isSynced); i++) await delay(100);
   check("editor synced", editor.isSynced);

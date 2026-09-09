@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { CreditCard, Phone, Wifi } from "lucide-react";
 import { fn } from "storybook/test";
-
+import { OverviewTab } from "@/features/telecom/components/overview-tab";
 import type {
   CanalSummary,
   ColumnMapping,
@@ -11,7 +11,6 @@ import type {
   OverviewExportSectionKey,
   StatusRow,
 } from "@/features/telecom/types";
-import { OverviewTab } from "@/features/telecom/components/overview-tab";
 
 const mapping: ColumnMapping = {
   transactionId: "TRANSACTION_ID",

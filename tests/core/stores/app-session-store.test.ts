@@ -10,12 +10,12 @@ vi.mock("@/platform/settings/settings-client", () => ({
   exportAppSettingsRemote: vi.fn(async () => ({})),
 }));
 
-import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
 import {
   useTelecomSession,
   useTelecomSessionActions,
   useTelecomSessionStore,
 } from "@/core/stores/app-session-store";
+import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
 
 /** Reset to the documented defaults between tests for full isolation. */
 function resetStore() {
@@ -264,7 +264,10 @@ describe("useTelecomSessionStore", () => {
     });
 
     it("falls back to TELECOM_TABLE_BASE when persisted tableName is an empty string", () => {
-      const result = getMigrate()({ tableName: "", fileName: "f.csv", reportDate: "2026-01-01" }, 0);
+      const result = getMigrate()(
+        { tableName: "", fileName: "f.csv", reportDate: "2026-01-01" },
+        0,
+      );
       expect((result as { tableName: string }).tableName).toBe(TELECOM_TABLE_BASE);
     });
 
@@ -285,18 +288,12 @@ describe("useTelecomSessionStore", () => {
     });
 
     it("falls back to empty string when persisted fileName is not a string", () => {
-      const result = getMigrate()(
-        { tableName: "t", fileName: 99, reportDate: "2026-01-01" },
-        0,
-      );
+      const result = getMigrate()({ tableName: "t", fileName: 99, reportDate: "2026-01-01" }, 0);
       expect((result as { fileName: string }).fileName).toBe("");
     });
 
     it("falls back to empty string when persisted reportDate is not a string", () => {
-      const result = getMigrate()(
-        { tableName: "t", fileName: "f.csv", reportDate: null },
-        0,
-      );
+      const result = getMigrate()({ tableName: "t", fileName: "f.csv", reportDate: null }, 0);
       expect((result as { reportDate: string }).reportDate).toBe("");
     });
 

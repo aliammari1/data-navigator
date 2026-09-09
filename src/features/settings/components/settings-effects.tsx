@@ -26,8 +26,8 @@
 import { useEffect, useRef } from "react";
 import { useShallow } from "zustand/shallow";
 import { useTheme } from "@/components/theme-provider";
-import { useSettingsStore } from "@/core/stores/settings-store";
 import type { AccentColor, DensityMode } from "@/core/stores/settings-store";
+import { useSettingsStore } from "@/core/stores/settings-store";
 import { applySettings } from "@/platform/storage";
 
 /**

@@ -1,7 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { CatalogFolder } from "@/core/stores/folders-store";
-import { useFoldersStore, useFoldersSlice, useFoldersActions } from "@/core/stores/folders-store";
+import { useFoldersActions, useFoldersSlice, useFoldersStore } from "@/core/stores/folders-store";
 
 // Mock the persistence boundary so no real fetch / SQLite round-trip fires.
 // The store is otherwise a pure synchronous reducer over its slices.
@@ -385,7 +385,11 @@ describe("useFoldersStore — persist.migrate", () => {
   const migrate = (useFoldersStore as any).persist.getOptions().migrate as (
     persisted: unknown,
     version: number,
-  ) => { folders: CatalogFolder[]; datasetFolderMap: Record<string, string | null>; starredDatasets: string[] };
+  ) => {
+    folders: CatalogFolder[];
+    datasetFolderMap: Record<string, string | null>;
+    starredDatasets: string[];
+  };
 
   it("returns empty slices when persisted is null/undefined", () => {
     const resultNull = migrate(null, 0);
@@ -515,7 +519,13 @@ describe("useFoldersStore — persist.migrate", () => {
   it("handles a fully-populated valid persisted state in one shot", () => {
     const persisted = {
       folders: [
-        { id: "f1", name: "Root", parentId: null, starred: false, createdAt: "2024-06-01T00:00:00.000Z" },
+        {
+          id: "f1",
+          name: "Root",
+          parentId: null,
+          starred: false,
+          createdAt: "2024-06-01T00:00:00.000Z",
+        },
       ],
       datasetFolderMap: { ds1: "f1", ds2: null },
       starredDatasets: ["ds1"],
@@ -544,7 +554,13 @@ describe("useFoldersSlice", () => {
     act(() => {
       useFoldersStore.setState({
         folders: [
-          { id: "f1", name: "A", parentId: null, starred: false, createdAt: "2024-01-01T00:00:00.000Z" },
+          {
+            id: "f1",
+            name: "A",
+            parentId: null,
+            starred: false,
+            createdAt: "2024-01-01T00:00:00.000Z",
+          },
         ],
         datasetFolderMap: { ds1: "f1" },
         starredDatasets: ["ds1"],

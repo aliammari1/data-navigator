@@ -1,7 +1,7 @@
-import { describe, it, expect, vi, } from "vitest";
+import { act, renderHook } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
-import { renderHook, act } from "@testing-library/react";
-import { useYArray, shallowArrayEqual } from "@/features/collaboration/lib/use-y";
+import { shallowArrayEqual, useYArray } from "@/features/collaboration/lib/use-y";
 
 // ─── shallowArrayEqual ────────────────────────────────────────────────────────
 
@@ -76,9 +76,7 @@ describe("useYArray — basic projection", () => {
     // Arrange
     const { yarr } = makeYArr<number>();
     // Act
-    const { result } = renderHook(() =>
-      useYArray(yarr, (items) => items.length),
-    );
+    const { result } = renderHook(() => useYArray(yarr, (items) => items.length));
     // Assert
     expect(result.current).toBe(0);
   });
@@ -88,9 +86,7 @@ describe("useYArray — basic projection", () => {
     const { doc, yarr } = makeYArr<string>();
     doc.transact(() => yarr.push(["a", "b", "c"]));
     // Act
-    const { result } = renderHook(() =>
-      useYArray(yarr, (items) => items.join(",")),
-    );
+    const { result } = renderHook(() => useYArray(yarr, (items) => items.join(",")));
     // Assert
     expect(result.current).toBe("a,b,c");
   });
@@ -164,9 +160,7 @@ describe("useYArray — custom isEqual", () => {
     const { doc, yarr } = makeYArr<number>();
     const neverEqual = vi.fn(() => false);
 
-    const { result } = renderHook(() =>
-      useYArray(yarr, (items) => items.length, neverEqual),
-    );
+    const { result } = renderHook(() => useYArray(yarr, (items) => items.length, neverEqual));
     expect(result.current).toBe(0);
 
     // Act
@@ -217,9 +211,7 @@ describe("useYArray — deep observation", () => {
     const observeDeepSpy = vi.spyOn(yarr, "observeDeep");
 
     // Act
-    const { unmount } = renderHook(() =>
-      useYArray(yarr, (items) => items.length),
-    );
+    const { unmount } = renderHook(() => useYArray(yarr, (items) => items.length));
 
     // Assert: shallow observe used
     expect(observeSpy).toHaveBeenCalledTimes(1);
@@ -235,9 +227,7 @@ describe("useYArray — deep observation", () => {
     const observeDeepSpy = vi.spyOn(yarr, "observeDeep");
 
     // Act
-    const { unmount } = renderHook(() =>
-      useYArray(yarr, (items) => items.length, Object.is, true),
-    );
+    const { unmount } = renderHook(() => useYArray(yarr, (items) => items.length, Object.is, true));
 
     // Assert
     expect(observeDeepSpy).toHaveBeenCalledTimes(1);
@@ -254,9 +244,7 @@ describe("useYArray — unsubscribe on unmount", () => {
     const unobserveSpy = vi.spyOn(yarr, "unobserve");
 
     // Act
-    const { unmount } = renderHook(() =>
-      useYArray(yarr, (items) => items.length),
-    );
+    const { unmount } = renderHook(() => useYArray(yarr, (items) => items.length));
     unmount();
 
     // Assert: cleanup fn from subscribe was called
@@ -269,9 +257,7 @@ describe("useYArray — unsubscribe on unmount", () => {
     const unobserveDeepSpy = vi.spyOn(yarr, "unobserveDeep");
 
     // Act
-    const { unmount } = renderHook(() =>
-      useYArray(yarr, (items) => items.length, Object.is, true),
-    );
+    const { unmount } = renderHook(() => useYArray(yarr, (items) => items.length, Object.is, true));
     unmount();
 
     // Assert
@@ -283,9 +269,7 @@ describe("useYArray — multiple mutations", () => {
   it("tracks multiple sequential pushes correctly", () => {
     // Arrange
     const { doc, yarr } = makeYArr<string>();
-    const { result } = renderHook(() =>
-      useYArray(yarr, (items) => items.slice()),
-    );
+    const { result } = renderHook(() => useYArray(yarr, (items) => items.slice()));
 
     // Act: push items one at a time
     act(() => {
@@ -304,9 +288,7 @@ describe("useYArray — multiple mutations", () => {
     const { doc, yarr } = makeYArr<string>();
     doc.transact(() => yarr.push(["a", "b", "c"]));
 
-    const { result } = renderHook(() =>
-      useYArray(yarr, (items) => items.slice()),
-    );
+    const { result } = renderHook(() => useYArray(yarr, (items) => items.slice()));
     expect(result.current).toEqual(["a", "b", "c"]);
 
     // Act

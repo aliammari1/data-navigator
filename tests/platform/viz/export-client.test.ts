@@ -16,7 +16,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 type FakeProxy = { __isProxy: boolean; id?: number };
 
 vi.mock("comlink", () => ({
-  wrap: vi.fn((w: unknown) => ({ __worker: w, __isProxy: true } as FakeProxy)),
+  wrap: vi.fn((w: unknown) => ({ __worker: w, __isProxy: true }) as FakeProxy),
 }));
 
 // Type-only import from the worker — no runtime effect

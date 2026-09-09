@@ -1,4 +1,3 @@
-
 /**
  * Shared LAN collaboration utilities (Crypto, Tokens, Host Secret).
  * This file is usable on both Server and Client (no "use client" directive).
@@ -26,10 +25,7 @@ export const GUEST_PERMISSIONS = [
 export type GuestPermission = (typeof GUEST_PERMISSIONS)[number];
 
 export function isGuestPermission(value: unknown): value is GuestPermission {
-  return (
-    typeof value === "string" &&
-    (GUEST_PERMISSIONS as readonly string[]).includes(value)
-  );
+  return typeof value === "string" && (GUEST_PERMISSIONS as readonly string[]).includes(value);
 }
 
 export interface InvitePayload {
@@ -170,14 +166,28 @@ export async function signInviteToken(
   payload: Omit<InvitePayload, "iss" | "aud" | "jti" | "iat" | "exp">,
   secret: string,
 ): Promise<string> {
-  return signWithType("dn-invite", "data-navigator", "guest-invite", payload, Date.now() + INVITE_TTL_MS, secret);
+  return signWithType(
+    "dn-invite",
+    "data-navigator",
+    "guest-invite",
+    payload,
+    Date.now() + INVITE_TTL_MS,
+    secret,
+  );
 }
 
 export async function verifyInviteToken(
   token: string,
   secret: string,
 ): Promise<InvitePayload | null> {
-  const payload = await verifyWithType(token, "dn-invite", "guest-invite", "data-navigator", secret, true);
+  const payload = await verifyWithType(
+    token,
+    "dn-invite",
+    "guest-invite",
+    "data-navigator",
+    secret,
+    true,
+  );
   return payload as InvitePayload | null;
 }
 
@@ -192,7 +202,14 @@ export async function verifySessionToken(
   token: string,
   secret: string,
 ): Promise<SessionPayload | null> {
-  const payload = await verifyWithType(token, "dn-session", "guest-session", "data-navigator", secret, false);
+  const payload = await verifyWithType(
+    token,
+    "dn-session",
+    "guest-session",
+    "data-navigator",
+    secret,
+    false,
+  );
   return payload as SessionPayload | null;
 }
 

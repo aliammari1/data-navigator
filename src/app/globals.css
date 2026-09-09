@@ -148,8 +148,8 @@
   --font-sans: var(--font-data-navigator-sans), "Outfit", "Poppins", system-ui, sans-serif;
   --font-mono: var(--font-moudir-mono), ui-monospace, "Fira Code", monospace;
   --font-display:
-    var(--font-data-navigator-display), var(--font-data-navigator-sans), "Outfit", "Poppins", system-ui,
-    sans-serif;
+    var(--font-data-navigator-display), var(--font-data-navigator-sans), "Outfit", "Poppins",
+    system-ui, sans-serif;
   --font-heading: var(--font-display);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
@@ -304,7 +304,7 @@
 .text-micro,
 .caption-label {
   font-size: 0.75rem; /* 12px */
-  line-height: 1rem;   /* 16px */
+  line-height: 1rem; /* 16px */
   letter-spacing: 0.025em;
 }
 

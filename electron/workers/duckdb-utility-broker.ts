@@ -21,7 +21,7 @@
 
 import os from "node:os";
 import path from "node:path";
-import { app, utilityProcess, type UtilityProcess } from "electron";
+import { app, type UtilityProcess, utilityProcess } from "electron";
 import type { UtilityRequest, UtilityResponse } from "./duckdb-utility-protocol";
 import { isErrorResponse } from "./duckdb-utility-protocol";
 

@@ -1,10 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { summarizeDataset } from "@/platform/electron/electron-fs";
 import {
   fetchFullTableColumnInfo,
   mapDuckTypeToColumnInfoType,
   summarizeRowsToColumnInfo,
 } from "@/features/data-import/model/summarize";
+import { summarizeDataset } from "@/platform/electron/electron-fs";
 
 /**
  * Locks in the shared DuckDB-type mapper and the SUMMARIZE-row -> ColumnInfo

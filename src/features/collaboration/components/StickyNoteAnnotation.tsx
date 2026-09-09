@@ -1,35 +1,35 @@
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { createPortal } from "react-dom";
-import { motion, AnimatePresence } from "motion/react";
 import {
-  StickyNote,
-  X,
+  CheckCircle2,
   ChevronDown,
   ChevronUp,
-  MessageSquare,
-  CheckCircle2,
-  Trash2,
-  Send,
   CircleDot,
+  MessageSquare,
+  Send,
   Share2,
+  StickyNote,
+  Trash2,
+  X,
 } from "lucide-react";
-import { cn } from "@/shared/utils";
+import { AnimatePresence, motion } from "motion/react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Badge } from "@/components/ui/badge";
-import {
-  useAnnotations,
-  type NoteColor,
-  type NotePriority,
-  type Annotation,
-} from "../hooks/useAnnotations";
-import { useCursorNotes, addCursorNote } from "../hooks/use-cursor-notes";
-import { CursorNoteMarker } from "./CursorNoteMarker";
-import { currentUserName } from "../collab/collab-hub-crdt";
 import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { readLANSettings } from "@/platform/lan/lan-collab";
+import { cn } from "@/shared/utils";
+import { currentUserName } from "../collab/collab-hub-crdt";
+import { addCursorNote, useCursorNotes } from "../hooks/use-cursor-notes";
+import {
+  type Annotation,
+  type NoteColor,
+  type NotePriority,
+  useAnnotations,
+} from "../hooks/useAnnotations";
+import { CursorNoteMarker } from "./CursorNoteMarker";
 
 // ─── Color config ─────────────────────────────────────────────────────────────
 
@@ -584,10 +584,7 @@ export function StickyNoteAnnotation({ sectionId, sectionLabel }: StickyNoteAnno
         )}
       </AnimatePresence>
 
-      <CursorNotesOverlay
-        notes={cursorNotes}
-        container={sectionContainer}
-      />
+      <CursorNotesOverlay notes={cursorNotes} container={sectionContainer} />
     </div>
   );
 }

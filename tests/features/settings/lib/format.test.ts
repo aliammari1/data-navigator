@@ -4,7 +4,7 @@
  * No external dependencies to mock — pure utility functions only.
  */
 
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
 
 import { formatBytes } from "@/features/settings/lib/format";
 

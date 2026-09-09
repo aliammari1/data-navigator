@@ -77,10 +77,7 @@
       "indexes": {
         "analytics_snapshot_history_table_saved_idx": {
           "name": "analytics_snapshot_history_table_saved_idx",
-          "columns": [
-            "table_name",
-            "saved_at"
-          ],
+          "columns": ["table_name", "saved_at"],
           "isUnique": false
         }
       },
@@ -133,19 +130,14 @@
       "indexes": {
         "app_setting_namespace_idx": {
           "name": "app_setting_namespace_idx",
-          "columns": [
-            "namespace"
-          ],
+          "columns": ["namespace"],
           "isUnique": false
         }
       },
       "foreignKeys": {},
       "compositePrimaryKeys": {
         "app_setting_pk": {
-          "columns": [
-            "namespace",
-            "key"
-          ],
+          "columns": ["namespace", "key"],
           "name": "app_setting_pk"
         }
       },
@@ -216,23 +208,17 @@
       "indexes": {
         "audit_log_category_idx": {
           "name": "audit_log_category_idx",
-          "columns": [
-            "category"
-          ],
+          "columns": ["category"],
           "isUnique": false
         },
         "audit_log_timestamp_idx": {
           "name": "audit_log_timestamp_idx",
-          "columns": [
-            "timestamp"
-          ],
+          "columns": ["timestamp"],
           "isUnique": false
         },
         "audit_log_action_idx": {
           "name": "audit_log_action_idx",
-          "columns": [
-            "action"
-          ],
+          "columns": ["action"],
           "isUnique": false
         }
       },
@@ -306,17 +292,12 @@
       "indexes": {
         "query_analytics_dataset_idx": {
           "name": "query_analytics_dataset_idx",
-          "columns": [
-            "dataset_id",
-            "timestamp"
-          ],
+          "columns": ["dataset_id", "timestamp"],
           "isUnique": false
         },
         "query_analytics_timestamp_idx": {
           "name": "query_analytics_timestamp_idx",
-          "columns": [
-            "timestamp"
-          ],
+          "columns": ["timestamp"],
           "isUnique": false
         }
       },

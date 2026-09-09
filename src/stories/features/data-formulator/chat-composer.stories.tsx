@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-import { useDataStore, type Dataset } from "@/core/stores/data-store";
+import { type Dataset, useDataStore } from "@/core/stores/data-store";
 import { ChatComposer } from "@/features/data-formulator/components/moudir-chat/chat-composer";
 import { useMoudirChatStore } from "@/features/data-formulator/store/moudir-chat-store";
 import { useAIRuntimeStore } from "@/platform/ai/provider";

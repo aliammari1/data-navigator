@@ -1,8 +1,8 @@
 "use client";
 import { AlertCircle, AlertTriangle, Brain, CheckCircle2, Info } from "lucide-react";
 import { motion } from "motion/react";
-import { cn } from "@/shared/utils";
 import type * as Types from "@/features/telecom/types";
+import { cn } from "@/shared/utils";
 
 export function AIInsightsPanel({
   insights,

@@ -1,32 +1,32 @@
 "use client";
 
-import * as React from "react";
-import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import {
-  FileText,
-  Download,
-  StickyNote,
-  CheckCircle2,
-  Filter,
-  Search,
-  Trash2,
   AlertTriangle,
+  CheckCircle2,
   Clock,
   Database,
+  Download,
+  FileText,
+  Filter,
+  Search,
+  StickyNote,
+  Trash2,
 } from "lucide-react";
-import { cn } from "@/shared/utils";
-import { useDashboardAccess } from "@/platform/auth/dashboard-access";
-import { Button } from "@/components/ui/button";
+import * as React from "react";
+import { useDeferredValue, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import type { AuditEventType, CollabAuditEvent as AuditEvent } from "@/platform/collab";
+import { useDashboardAccess } from "@/platform/auth/dashboard-access";
+import type { CollabAuditEvent as AuditEvent, AuditEventType } from "@/platform/collab";
+import { cn } from "@/shared/utils";
 import { clearAudit, useAuditCRDT } from "../collab/collab-hub-crdt";
 
 // ─── Event type config ────────────────────────────────────────────────────────
@@ -386,12 +386,7 @@ export function AuditTrail() {
             <Button variant="outline" size="sm" onClick={() => setConfirmClear(false)}>
               Cancel
             </Button>
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={handleClear}
-              disabled={!canClearAudit}
-            >
+            <Button variant="destructive" size="sm" onClick={handleClear} disabled={!canClearAudit}>
               <Trash2 className="mr-1.5 size-3.5" />
               Clear All
             </Button>

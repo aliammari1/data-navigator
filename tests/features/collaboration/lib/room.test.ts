@@ -5,7 +5,7 @@
  * We mock @/platform/collab so we can drive the real adapter logic.
  * Yjs is a pure JS CRDT library (no native bindings) so we use it for real.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as Y from "yjs";
 
 // ─── Hoisted mock factories ─────────────────────────────────────────────────
@@ -25,10 +25,10 @@ vi.mock("@/platform/collab", () => ({
 
 import {
   acquireRoom,
-  releaseRoom,
-  commentFromYMap,
   changeFromYMap,
   chatFromYMap,
+  commentFromYMap,
+  releaseRoom,
 } from "@/features/collaboration/lib/room";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -252,7 +252,9 @@ describe("commentFromYMap", () => {
     // repliesToArray checks `r instanceof Y.Map` — a plain object falls to the else branch.
     const repliesArr = new Y.Array<unknown>();
     doc.transact(() => {
-      repliesArr.push([{ id: "r2", authorId: "ub", authorName: "Author B", content: "Hi", timestamp: 2000 }]);
+      repliesArr.push([
+        { id: "r2", authorId: "ub", authorName: "Author B", content: "Hi", timestamp: 2000 },
+      ]);
       m.set("id", "c15");
       m.set("authorId", "u15");
       m.set("replies", repliesArr);
@@ -503,7 +505,9 @@ describe("repliesToArray: non-Y.Array input (via commentFromYMap)", () => {
       m.set("id", "c22");
       m.set("authorId", "u22");
       // Store a plain array — repliesToArray gets raw = value (not Y.Array)
-      m.set("replies", [{ id: "r-x", authorId: "ux", authorName: "X", content: "hi", timestamp: 42 }]);
+      m.set("replies", [
+        { id: "r-x", authorId: "ux", authorName: "X", content: "hi", timestamp: 42 },
+      ]);
     });
     const result = commentFromYMap(m);
     expect(result.replies).toHaveLength(1);

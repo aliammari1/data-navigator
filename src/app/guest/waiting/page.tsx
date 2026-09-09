@@ -1,12 +1,8 @@
 "use client";
 
-import {Suspense, useCallback, useEffect, useRef, useState} from "react";
 import { useSearchParams } from "next/navigation";
-import {
-  connectLAN,
-  readLANSettings,
-  saveLANSettings,
-} from "@/platform/lan/lan-collab";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { connectLAN, readLANSettings, saveLANSettings } from "@/platform/lan/lan-collab";
 
 type Status = "loading" | "pending" | "approved" | "denied" | "expired" | "missing";
 type StatusPayload = {
@@ -26,54 +22,55 @@ function GuestWaitingContent() {
   const [error, setError] = useState<string | null>(null);
   const stoppedRef = useRef(false);
   const activatedRef = useRef(false);
-  const activate = useCallback(
-    async (pendingId: string) => {
-      if (activatedRef.current) return;
-      activatedRef.current = true;
-      try {
-        const r = await fetch("/api/guest/accept", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ pendingId }),
-        });
-        if (r.ok) {
-          // Persist LAN settings and establish the WebSocket connection so the
-          // guest lands on the dashboard already synchronized with the host.
-          const acceptData = await r.json().catch(() => ({})) as {
-            room?: string;
-            url?: string;
-            name?: string;
-            role?: string;
-          };
-          const current = readLANSettings();
-          const updated = {
-            ...current,
-            room: acceptData.room ?? current.room,
-            url: acceptData.url ?? current.url,
-            peer: {
-              ...current.peer,
-              name: acceptData.name ?? current.peer.name,
-              role: (acceptData.role ?? current.peer.role) as "viewer" | "editor" | "reviewer" | "host",
-            },
-          };
-          saveLANSettings(updated);
-          try {
-            await connectLAN(updated);
-          } catch {
-            // Connection failure is non-fatal. The dashboard will retry.
-          }
-          window.location.replace("/dashboard/collaborative");
-        } else {
-          activatedRef.current = false;
-          setError(`Accept failed: ${r.status}`);
+  const activate = useCallback(async (pendingId: string) => {
+    if (activatedRef.current) return;
+    activatedRef.current = true;
+    try {
+      const r = await fetch("/api/guest/accept", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pendingId }),
+      });
+      if (r.ok) {
+        // Persist LAN settings and establish the WebSocket connection so the
+        // guest lands on the dashboard already synchronized with the host.
+        const acceptData = (await r.json().catch(() => ({}))) as {
+          room?: string;
+          url?: string;
+          name?: string;
+          role?: string;
+        };
+        const current = readLANSettings();
+        const updated = {
+          ...current,
+          room: acceptData.room ?? current.room,
+          url: acceptData.url ?? current.url,
+          peer: {
+            ...current.peer,
+            name: acceptData.name ?? current.peer.name,
+            role: (acceptData.role ?? current.peer.role) as
+              | "viewer"
+              | "editor"
+              | "reviewer"
+              | "host",
+          },
+        };
+        saveLANSettings(updated);
+        try {
+          await connectLAN(updated);
+        } catch {
+          // Connection failure is non-fatal. The dashboard will retry.
         }
-      } catch (err) {
+        window.location.replace("/dashboard/collaborative");
+      } else {
         activatedRef.current = false;
-        setError(err instanceof Error ? err.message : "Network error");
+        setError(`Accept failed: ${r.status}`);
       }
-    },
-    [],
-  );
+    } catch (err) {
+      activatedRef.current = false;
+      setError(err instanceof Error ? err.message : "Network error");
+    }
+  }, []);
 
   useEffect(() => {
     if (!id) {
@@ -136,8 +133,7 @@ function GuestWaitingContent() {
         alignItems: "center",
         justifyContent: "center",
         padding: "1.5rem",
-        fontFamily:
-          '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
+        fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif',
       }}
     >
       <div style={{ maxWidth: "28rem", textAlign: "center" }}>
@@ -151,9 +147,9 @@ function GuestWaitingContent() {
         </h1>
         {status === "pending" ? (
           <p style={{ color: "#6b7280", lineHeight: 1.5 }}>
-            {name ? <strong>{name}</strong> : "The guest"} asked to join the
-            host's session. The host will see a notification and can approve
-            or decline. This page will redirect automatically once approved.
+            {name ? <strong>{name}</strong> : "The guest"} asked to join the host's session. The
+            host will see a notification and can approve or decline. This page will redirect
+            automatically once approved.
           </p>
         ) : null}
         {status === "approved" ? (
@@ -171,9 +167,7 @@ function GuestWaitingContent() {
             Ask the host to send a new invite link.
           </p>
         ) : null}
-        {error ? (
-          <p style={{ color: "#b91c1c", fontSize: ".75rem" }}>{error}</p>
-        ) : null}
+        {error ? <p style={{ color: "#b91c1c", fontSize: ".75rem" }}>{error}</p> : null}
       </div>
     </div>
   );
@@ -181,8 +175,8 @@ function GuestWaitingContent() {
 
 export default function GuestWaitingPage() {
   return (
-      <Suspense fallback={null}>
-        <GuestWaitingContent />
-      </Suspense>
+    <Suspense fallback={null}>
+      <GuestWaitingContent />
+    </Suspense>
   );
 }

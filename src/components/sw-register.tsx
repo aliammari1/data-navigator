@@ -14,7 +14,8 @@ export function SWRegister() {
   useEffect(() => {
     const isElectron =
       typeof navigator !== "undefined" &&
-      (/electron/i.test(navigator.userAgent) || Boolean((window as any).electronAPI || (window as any).electronSettings));
+      (/electron/i.test(navigator.userAgent) ||
+        Boolean((window as any).electronAPI || (window as any).electronSettings));
 
     if (isElectron) {
       if ("serviceWorker" in navigator) {

@@ -28,7 +28,12 @@ interface MessageContentProps {
   streaming?: boolean;
 }
 
-export function MessageContent({ content, enabled, proseClassName, streaming }: MessageContentProps) {
+export function MessageContent({
+  content,
+  enabled,
+  proseClassName,
+  streaming,
+}: MessageContentProps) {
   const segments = extractCodeBlocks(content);
   return (
     <>

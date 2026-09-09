@@ -1,12 +1,12 @@
-import { describe, it, expect } from "vitest";
-import {
-  formatBytes,
-  formatAge,
-  fileTypeStyle,
-  qualityColor,
-  FOLDER_COLORS,
-} from "@/features/folders/lib/format";
 import { Database, File, FileSpreadsheet, Folder, Hash } from "lucide-react";
+import { describe, expect, it } from "vitest";
+import {
+  FOLDER_COLORS,
+  fileTypeStyle,
+  formatAge,
+  formatBytes,
+  qualityColor,
+} from "@/features/folders/lib/format";
 
 // ---------------------------------------------------------------------------
 // formatBytes

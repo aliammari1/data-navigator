@@ -9,8 +9,8 @@
  *   coalescing, datasetFolderMap lookup fallback, starred set membership.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoist mutable store state refs ──────────────────────────────────────────
 
@@ -52,9 +52,8 @@ const mockStarredDatasetsRef = vi.hoisted(() => ({
 // ─── Module mocks ─────────────────────────────────────────────────────────────
 
 vi.mock("@/core/stores/data-store", () => ({
-  useDataStore: vi.fn(
-    (selector: (s: { datasets: typeof mockDatasetsRef.value }) => unknown) =>
-      selector({ datasets: mockDatasetsRef.value }),
+  useDataStore: vi.fn((selector: (s: { datasets: typeof mockDatasetsRef.value }) => unknown) =>
+    selector({ datasets: mockDatasetsRef.value }),
   ),
 }));
 
@@ -82,7 +81,7 @@ import { useFolderNodes } from "@/features/folders/hooks/useFolderNodes";
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function makeDataset(
-  over: Partial<typeof mockDatasetsRef.value[0]> & { id: string } = { id: "ds-1" },
+  over: Partial<(typeof mockDatasetsRef.value)[0]> & { id: string } = { id: "ds-1" },
 ) {
   return {
     id: "ds-1",
@@ -101,7 +100,7 @@ function makeDataset(
 }
 
 function makeFolder(
-  over: Partial<typeof mockCatalogFoldersRef.value[0]> & { id: string } = { id: "folder-1" },
+  over: Partial<(typeof mockCatalogFoldersRef.value)[0]> & { id: string } = { id: "folder-1" },
 ) {
   return {
     id: "folder-1",
@@ -391,10 +390,7 @@ describe("useFolderNodes – combined stores", () => {
       makeFolder({ id: "folder-1", parentId: null }),
       makeFolder({ id: "folder-2", parentId: "folder-1" }),
     ];
-    mockDatasetsRef.value = [
-      makeDataset({ id: "ds-1" }),
-      makeDataset({ id: "ds-2" }),
-    ];
+    mockDatasetsRef.value = [makeDataset({ id: "ds-1" }), makeDataset({ id: "ds-2" })];
     mockDatasetFolderMapRef.value = { "ds-1": "folder-1", "ds-2": null };
     mockStarredDatasetsRef.value = ["ds-2"];
 

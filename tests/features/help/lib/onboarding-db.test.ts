@@ -135,17 +135,17 @@ vi.mock("dexie", () => {
 // ─── Import the real module after mocking Dexie ───────────────────────────────
 
 import {
-  HELP_APP_VERSION,
   addFeedback,
-  listFeedback,
   countFeedback,
-  getTourState,
   getAllTourStates,
-  saveTourProgress,
-  resetTour,
-  resetAllTours,
-  markSeen,
+  getTourState,
+  HELP_APP_VERSION,
   hasSeen,
+  listFeedback,
+  markSeen,
+  resetAllTours,
+  resetTour,
+  saveTourProgress,
 } from "@/features/help/lib/onboarding-db";
 
 // ─── Setup: reset tables before each test ────────────────────────────────────

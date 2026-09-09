@@ -53,10 +53,7 @@ export const NavButton = memo(function NavButton({
         <>
           <span className="flex-1 truncate text-left">{item.title}</span>
           {locked ? (
-            <Lock
-              className="size-3 flex-none text-muted-foreground/50"
-              aria-hidden="true"
-            />
+            <Lock className="size-3 flex-none text-muted-foreground/50" aria-hidden="true" />
           ) : item.badge ? (
             <span
               className={cn(
@@ -97,11 +94,7 @@ export const NavButton = memo(function NavButton({
       {inner}
     </span>
   ) : (
-    <Link
-      href={item.href}
-      aria-current={active ? "page" : undefined}
-      className={className}
-    >
+    <Link href={item.href} aria-current={active ? "page" : undefined} className={className}>
       {inner}
     </Link>
   );

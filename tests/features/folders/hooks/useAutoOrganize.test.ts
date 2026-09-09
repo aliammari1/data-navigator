@@ -10,8 +10,8 @@
  *   applyPlan with deduplication, AI response sanitisation.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderHook, act, waitFor } from "@testing-library/react";
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Hoist mock state containers ─────────────────────────────────────────────
 
@@ -200,7 +200,16 @@ describe("useAutoOrganize – organize() with no ungrouped datasets", () => {
 describe("useAutoOrganize – organize() happy path", () => {
   it("calls generateStructured with a prompt containing the dataset summary", async () => {
     // Arrange
-    mockDatasetsRef.value = [makeDataset({ id: "ds-1", name: "Revenue", format: "csv", rowCount: 500, colCount: 8, tags: ["finance"] })];
+    mockDatasetsRef.value = [
+      makeDataset({
+        id: "ds-1",
+        name: "Revenue",
+        format: "csv",
+        rowCount: 500,
+        colCount: 8,
+        tags: ["finance"],
+      }),
+    ];
     mockDatasetFolderMapRef.value = {};
 
     const aiPlan = {
@@ -224,7 +233,10 @@ describe("useAutoOrganize – organize() happy path", () => {
 
   it("returns a cleaned plan with the AI-proposed groups", async () => {
     // Arrange
-    mockDatasetsRef.value = [makeDataset({ id: "ds-1" }), makeDataset({ id: "ds-2", name: "HR Data" })];
+    mockDatasetsRef.value = [
+      makeDataset({ id: "ds-1" }),
+      makeDataset({ id: "ds-2", name: "HR Data" }),
+    ];
     mockDatasetFolderMapRef.value = {};
 
     const aiPlan = {
@@ -277,7 +289,9 @@ describe("useAutoOrganize – organize() happy path", () => {
     mockDatasetsRef.value = [makeDataset({ id: "ds-1", tags: ["alpha", "beta"] })];
     mockDatasetFolderMapRef.value = {};
 
-    mockGenerateStructured.mockResolvedValueOnce({ groups: [{ folderName: "Tagged", datasetIds: ["ds-1"] }] });
+    mockGenerateStructured.mockResolvedValueOnce({
+      groups: [{ folderName: "Tagged", datasetIds: ["ds-1"] }],
+    });
 
     // Act
     const { result } = renderHook(() => useAutoOrganize());
@@ -295,7 +309,9 @@ describe("useAutoOrganize – organize() happy path", () => {
     mockDatasetsRef.value = [makeDataset({ id: "ds-1", tags: [] })];
     mockDatasetFolderMapRef.value = {};
 
-    mockGenerateStructured.mockResolvedValueOnce({ groups: [{ folderName: "Empty Tags", datasetIds: ["ds-1"] }] });
+    mockGenerateStructured.mockResolvedValueOnce({
+      groups: [{ folderName: "Empty Tags", datasetIds: ["ds-1"] }],
+    });
 
     // Act
     const { result } = renderHook(() => useAutoOrganize());
@@ -515,9 +531,11 @@ describe("useAutoOrganize – running state transitions", () => {
   it("sets running=true while the AI call is in flight", async () => {
     // Arrange: hold the promise so we can observe the intermediate state
     let resolve!: (v: { groups: { folderName: string; datasetIds: string[] }[] }) => void;
-    const pending = new Promise<{ groups: { folderName: string; datasetIds: string[] }[] }>((res) => {
-      resolve = res;
-    });
+    const pending = new Promise<{ groups: { folderName: string; datasetIds: string[] }[] }>(
+      (res) => {
+        resolve = res;
+      },
+    );
 
     mockDatasetsRef.value = [makeDataset()];
     mockDatasetFolderMapRef.value = {};

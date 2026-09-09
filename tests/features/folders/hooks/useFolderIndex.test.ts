@@ -8,10 +8,10 @@
  *   memoization stability, and re-computation on nodes change.
  */
 
-import { describe, it, expect, beforeEach, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import type { FSNode } from "@/features/folders/types";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useFolderIndex } from "@/features/folders/hooks/useFolderIndex";
+import type { FSNode } from "@/features/folders/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

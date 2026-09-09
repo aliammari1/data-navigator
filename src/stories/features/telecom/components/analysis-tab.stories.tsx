@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
-
+import { AnalysisTab } from "@/features/telecom/components/analysis-tab";
 import type {
   CanalHourCell,
   ColumnMapping,
@@ -8,7 +8,6 @@ import type {
   OperatorRow,
   RegionRow,
 } from "@/features/telecom/types";
-import { AnalysisTab } from "@/features/telecom/components/analysis-tab";
 
 const mapping: ColumnMapping = {
   transactionId: "transaction_id",

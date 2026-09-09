@@ -1,9 +1,8 @@
 import type { Meta, StoryObj } from "@storybook/nextjs-vite";
 import type { ComponentProps } from "react";
 import { expect, fn, userEvent, within } from "storybook/test";
-
-import type { ColumnMapping, CustomerProfileData } from "@/features/telecom/types";
 import { CustomerProfilePanel } from "@/features/telecom/components/customer-profile-panel";
+import type { ColumnMapping, CustomerProfileData } from "@/features/telecom/types";
 
 type FetchCustomerProfile = ComponentProps<typeof CustomerProfilePanel>["fetchCustomerProfile"];
 

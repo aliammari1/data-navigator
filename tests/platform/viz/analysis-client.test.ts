@@ -16,17 +16,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 type FakeProxy = { __isProxy: boolean; id?: number };
 
 vi.mock("comlink", () => ({
-  wrap: vi.fn((w: unknown) => ({ __worker: w, __isProxy: true } as FakeProxy)),
+  wrap: vi.fn((w: unknown) => ({ __worker: w, __isProxy: true }) as FakeProxy),
 }));
 
 // Type-only import from the worker — no runtime effect
 vi.mock("@/workers/analysis.worker", () => ({}));
 
 import * as Comlink from "comlink";
-import {
-  disposeAnalysisWorker,
-  getAnalysisProxy,
-} from "@/platform/viz/analysis-client";
+import { disposeAnalysisWorker, getAnalysisProxy } from "@/platform/viz/analysis-client";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -36,10 +33,9 @@ import {
  * Creates a minimal fake Worker class with a terminate spy whose constructor
  * captures the URL and options passed to it.
  */
-function makeWorkerClass(opts: {
-  throws?: boolean;
-  onConstruct?: (url: URL, workerOpts?: WorkerOptions) => void;
-} = {}) {
+function makeWorkerClass(
+  opts: { throws?: boolean; onConstruct?: (url: URL, workerOpts?: WorkerOptions) => void } = {},
+) {
   if (opts.throws) {
     function ThrowingWorker() {
       throw new Error("Worker init failed");

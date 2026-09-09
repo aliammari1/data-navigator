@@ -1,12 +1,12 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  applyAppearance,
-  resolvePerformanceConfig,
-  getRuntimePerformanceConfig,
-  subscribePerformanceConfig,
-  applySettings,
   type AppearanceInput,
+  applyAppearance,
+  applySettings,
+  getRuntimePerformanceConfig,
   type PerformanceInput,
+  resolvePerformanceConfig,
+  subscribePerformanceConfig,
 } from "@/platform/storage/apply-settings";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
@@ -24,7 +24,13 @@ function dataAttr(name: string): string | null {
 /** Clear all data-* attributes and inline styles set by the module. */
 function cleanRoot(): void {
   const el = document.documentElement;
-  for (const attr of ["data-accent", "data-density", "data-theme", "data-animations", "data-compact-numbers"]) {
+  for (const attr of [
+    "data-accent",
+    "data-density",
+    "data-theme",
+    "data-animations",
+    "data-compact-numbers",
+  ]) {
     el.removeAttribute(attr);
   }
   el.style.removeProperty("--user-accent");
@@ -42,7 +48,12 @@ describe("applyAppearance", () => {
 
   it("returns resolved values with valid accent color 'blue'", () => {
     // Arrange
-    const input: AppearanceInput = { accentColor: "blue", density: "comfortable", theme: "light", animationsEnabled: true };
+    const input: AppearanceInput = {
+      accentColor: "blue",
+      density: "comfortable",
+      theme: "light",
+      animationsEnabled: true,
+    };
 
     // Act
     const result = applyAppearance(input);
@@ -531,7 +542,11 @@ describe("applySettings", () => {
   it("returns an AppliedSettings object containing both appearance and performance", () => {
     // Arrange
     const input = {
-      appearance: { accentColor: "emerald" as const, density: "spacious" as const, theme: "dark" as const },
+      appearance: {
+        accentColor: "emerald" as const,
+        density: "spacious" as const,
+        theme: "dark" as const,
+      },
       performance: { duckdbWorkers: 4, maxMemoryMB: 1024 },
     };
 
@@ -585,9 +600,7 @@ describe("applySettings", () => {
     applySettings({ appearance: {}, performance: { virtualizeThreshold: 250 } });
 
     // Assert
-    expect(listener).toHaveBeenCalledWith(
-      expect.objectContaining({ virtualizeThreshold: 250 }),
-    );
+    expect(listener).toHaveBeenCalledWith(expect.objectContaining({ virtualizeThreshold: 250 }));
 
     // Cleanup
     unsub();

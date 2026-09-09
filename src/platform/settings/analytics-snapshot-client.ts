@@ -48,7 +48,6 @@ interface ElectronAnalyticsSnapshotsBridge {
   delete(id: number): Promise<void>;
 }
 
-
 function bridge(): ElectronAnalyticsSnapshotsBridge | null {
   if (typeof window === "undefined") return null;
   return window.electronAnalyticsSnapshots ?? null;

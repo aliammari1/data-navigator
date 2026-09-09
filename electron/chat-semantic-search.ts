@@ -39,16 +39,12 @@ let handle: SqliteHandle<typeof chatSchema> | null = null;
 
 function open(): SqliteHandle<typeof chatSchema> {
   if (handle === null) {
-    throw new Error(
-      "chat-semantic-search: open() called before setChatSemanticSearchHandle()",
-    );
+    throw new Error("chat-semantic-search: open() called before setChatSemanticSearchHandle()");
   }
   return handle;
 }
 
-export function setChatSemanticSearchHandle(
-  target: SqliteHandle<typeof chatSchema>,
-): void {
+export function setChatSemanticSearchHandle(target: SqliteHandle<typeof chatSchema>): void {
   handle = target;
 }
 
@@ -93,11 +89,7 @@ function decodeVector(buf: Buffer): Float32Array {
   // Float32Array views require a 4-byte-aligned offset; better-sqlite3 Buffers
   // usually are, but pooled allocations aren't guaranteed to be.
   if (buf.byteOffset % FLOAT32_BYTES === 0) {
-    return new Float32Array(
-      buf.buffer,
-      buf.byteOffset,
-      buf.byteLength / FLOAT32_BYTES,
-    );
+    return new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / FLOAT32_BYTES);
   }
   const aligned = new Uint8Array(buf.byteLength);
   aligned.set(buf);
@@ -168,18 +160,12 @@ export async function appendMessageEmbedding(input: {
     };
   } catch (error) {
     // Model not downloaded yet — that's fine, the row just won't be indexed.
-    if (
-      error instanceof Error &&
-      /Missing GGUF embedding model/.test(error.message)
-    ) {
+    if (error instanceof Error && /Missing GGUF embedding model/.test(error.message)) {
       return null;
     }
     // Any other failure should not break chat persistence; log and move on.
     if (typeof console !== "undefined") {
-      console.warn(
-        "[chat-semantic-search] appendMessageEmbedding failed:",
-        error,
-      );
+      console.warn("[chat-semantic-search] appendMessageEmbedding failed:", error);
     }
     return null;
   }
@@ -192,10 +178,7 @@ export async function appendMessageEmbedding(input: {
  * the current model's `dim` (the cheap fast-path).
  */
 export async function backfillMessageEmbeddings(
-  options: {
-    batchSize?: number | undefined;
-    signal?: AbortSignal | undefined;
-  } = {},
+  options: { batchSize?: number | undefined; signal?: AbortSignal | undefined } = {},
 ): Promise<{ indexed: number; skipped: number; failed: number }> {
   const { db } = open();
   const batchSize = Math.max(1, Math.min(64, options.batchSize ?? 8));
@@ -228,8 +211,7 @@ export async function backfillMessageEmbeddings(
   let indexed = 0;
   let skipped = 0;
   let failed = 0;
-  const todo: Array<{ id: number; conversationId: string; content: string }> =
-    [];
+  const todo: Array<{ id: number; conversationId: string; content: string }> = [];
   for (const row of rows) {
     if (row.existingModel === model && row.existingDim === dims) {
       skipped++;

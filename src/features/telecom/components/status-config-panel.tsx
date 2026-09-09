@@ -125,10 +125,7 @@ export function StatusConfigPanel({
 
   return (
     <div className="relative space-y-5">
-      <PeerPresenceOnSection
-        sectionId={SECTION_ID}
-        className="absolute -top-2 right-0 z-10"
-      />
+      <PeerPresenceOnSection sectionId={SECTION_ID} className="absolute -top-2 right-0 z-10" />
       <div className="grid grid-cols-3 gap-3">
         {[
           {
@@ -266,9 +263,7 @@ export function StatusConfigPanel({
           ) : (
             <div
               key={rs.rawCode}
-              onPointerEnter={() =>
-                publishSectionCursor({ sectionId: SECTION_ID, row: rowIndex })
-              }
+              onPointerEnter={() => publishSectionCursor({ sectionId: SECTION_ID, row: rowIndex })}
               onPointerLeave={() => clearSectionCursor()}
               className={cn(
                 "flex items-center gap-4 p-3 rounded-xl border transition-colors group",
@@ -345,17 +340,9 @@ export function StatusConfigPanel({
           </div>
         )}
         {remote.length > 0 && (
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 overflow-visible"
-          >
+          <div aria-hidden className="pointer-events-none absolute inset-0 overflow-visible">
             {remote.map(({ peer, cursor }) => (
-              <RemoteCursor
-                key={peer.id}
-                peer={peer}
-                cursor={cursor}
-                containerRef={tableRef}
-              />
+              <RemoteCursor key={peer.id} peer={peer} cursor={cursor} containerRef={tableRef} />
             ))}
           </div>
         )}

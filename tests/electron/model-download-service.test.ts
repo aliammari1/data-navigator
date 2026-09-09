@@ -132,7 +132,11 @@ describe("model-download-service in-flight dedup", () => {
     await vi.waitFor(() => expect(downloader.download).toHaveBeenCalledTimes(1));
 
     const controller = new AbortController();
-    const second = downloadModel({ key: MODEL_KEY, onProgress: vi.fn(), signal: controller.signal });
+    const second = downloadModel({
+      key: MODEL_KEY,
+      onProgress: vi.fn(),
+      signal: controller.signal,
+    });
 
     // Attach the rejection expectations BEFORE triggering the abort so neither
     // promise is ever observed as an unhandled rejection.

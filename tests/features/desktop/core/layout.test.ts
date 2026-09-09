@@ -11,16 +11,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
  */
 
 import {
-  MENU_BAR_H,
-  DOCK_INSET,
-  WINDOW_MARGIN,
-  MIN_WIN_W,
-  MIN_WIN_H,
-  getDesktopCanvas,
-  maximizedRect,
-  clampRectToCanvas,
-  defaultRectForCanvas,
   type CanvasBox,
+  clampRectToCanvas,
+  DOCK_INSET,
+  defaultRectForCanvas,
+  getDesktopCanvas,
+  MENU_BAR_H,
+  MIN_WIN_H,
+  MIN_WIN_W,
+  maximizedRect,
+  WINDOW_MARGIN,
 } from "@/features/desktop/core/layout";
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
@@ -97,14 +97,22 @@ describe("getDesktopCanvas — SSR fallback", () => {
   it("returns the fallback box when window is undefined", () => {
     vi.stubGlobal("window", undefined);
     const canvas = getDesktopCanvas();
-    expect(canvas).toEqual({ w: 1280, h: 800 - MENU_BAR_H, usableH: 800 - MENU_BAR_H - DOCK_INSET });
+    expect(canvas).toEqual({
+      w: 1280,
+      h: 800 - MENU_BAR_H,
+      usableH: 800 - MENU_BAR_H - DOCK_INSET,
+    });
     vi.unstubAllGlobals();
   });
 
   it("returns the fallback box when document is undefined", () => {
     vi.stubGlobal("document", undefined);
     const canvas = getDesktopCanvas();
-    expect(canvas).toEqual({ w: 1280, h: 800 - MENU_BAR_H, usableH: 800 - MENU_BAR_H - DOCK_INSET });
+    expect(canvas).toEqual({
+      w: 1280,
+      h: 800 - MENU_BAR_H,
+      usableH: 800 - MENU_BAR_H - DOCK_INSET,
+    });
     vi.unstubAllGlobals();
   });
 });

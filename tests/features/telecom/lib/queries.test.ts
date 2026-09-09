@@ -19,10 +19,10 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (sql: string) => runReadOnlyQuery(sql),
 }));
 
-import type { ChannelDef } from "@/features/telecom/lib/report-engine";
+import * as QueriesModule from "@/features/telecom/lib/queries";
 import {
-  CANAL_KEY_TO_LABEL,
   buildSpecDateFilter,
+  CANAL_KEY_TO_LABEL,
   createTelecomDailyAgg,
   createTelecomEnrichedView,
   dailyAggTableName,
@@ -53,7 +53,7 @@ import {
   fetchStatusBreakdown,
   runCustomKPIExpr,
 } from "@/features/telecom/lib/queries";
-import * as QueriesModule from "@/features/telecom/lib/queries";
+import type { ChannelDef } from "@/features/telecom/lib/report-engine";
 import type { CanalKey, ColumnMapping, FilterState } from "@/features/telecom/types";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
@@ -288,9 +288,7 @@ describe("fetchRawCanalSummaries", () => {
   });
 
   it("guards successRate (0) when a canal has zero total", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { canal_group: "Bill Payment", total: 0, success: 0 },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ canal_group: "Bill Payment", total: 0, success: 0 }]);
 
     const rows = await fetchRawCanalSummaries(TABLE, m, 0);
 
@@ -461,9 +459,7 @@ describe("fetchOperatorsForGroup", () => {
 
 describe("fetchDestinationsForGroup", () => {
   it("maps rows with destination accountType", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { operator: "DEST", total: 10, success: 10, amount: 5 },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ operator: "DEST", total: 10, success: 10, amount: 5 }]);
 
     const rows = await fetchDestinationsForGroup(TABLE, m, ["bill_payment"]);
 
@@ -479,9 +475,7 @@ describe("fetchDestinationsForGroup", () => {
 
 describe("fetchRegionsForGroup", () => {
   it("maps region rows with numeric coercion", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { region: "TUNIS", total: 70, success: 60, amount: 300 },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ region: "TUNIS", total: 70, success: 60, amount: 300 }]);
 
     const rows = await fetchRegionsForGroup(TABLE, m, ["bill_payment"]);
 
@@ -508,9 +502,7 @@ describe("fetchRegionsForGroup", () => {
 
 describe("fetchRegions", () => {
   it("maps region rows and excludes empty/NULL region strings in SQL", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { region: "SFAX", total: 12, success: 9, amount: 33 },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ region: "SFAX", total: 12, success: 9, amount: 33 }]);
 
     const rows = await fetchRegions(TABLE, m);
 
@@ -966,9 +958,7 @@ describe("fetchSpecChannelStats", () => {
 
 describe("fetchSpecStatusStats", () => {
   it("maps the four spec status rows and the in-scope grand total", async () => {
-    runReadOnlyQuery.mockResolvedValue([
-      { n_0: 100, n_1: 5, n_2: 8, n_3: 12, total_all: 130 },
-    ]);
+    runReadOnlyQuery.mockResolvedValue([{ n_0: 100, n_1: 5, n_2: 8, n_3: 12, total_all: 130 }]);
 
     const res = await fetchSpecStatusStats(TABLE, channels, "2024-01-01", "2024-01-31", m);
 
@@ -1206,23 +1196,22 @@ describe("French-decimal money bug (characterization)", () => {
     ["fetchStatusBreakdown", () => fetchStatusBreakdown(TABLE, m)],
     ["fetchRegions", () => fetchRegions(TABLE, m)],
     ["fetchDistinctStatuses", () => fetchDistinctStatuses(TABLE, m)],
-  ] as const)(
-    "%s sums money via the unguarded DOUBLE cast (no comma normalisation)",
-    async (_name, run) => {
-      runReadOnlyQuery.mockResolvedValue([]);
+  ] as const)("%s sums money via the unguarded DOUBLE cast (no comma normalisation)", async (_name, run) => {
+    runReadOnlyQuery.mockResolvedValue([]);
 
-      await run();
+    await run();
 
-      const sql = lastSql();
-      expect(sql).toContain("TRY_CAST");
-      expect(sql).toContain("AS DOUBLE");
-      expect(sql).not.toContain("REPLACE");
-    },
-  );
+    const sql = lastSql();
+    expect(sql).toContain("TRY_CAST");
+    expect(sql).toContain("AS DOUBLE");
+    expect(sql).not.toContain("REPLACE");
+  });
 
   it("passes whatever the DOUBLE cast yields straight through safeNum (NULL → 0)", async () => {
     // Simulate DuckDB returning NULL for a comma-decimal amount that failed the cast.
-    runReadOnlyQuery.mockResolvedValue([{ hour: 9, total: 3, success: 3, declined: 0, amount: null }]);
+    runReadOnlyQuery.mockResolvedValue([
+      { hour: 9, total: 3, success: 3, declined: 0, amount: null },
+    ]);
 
     const rows = await fetchHourly(TABLE, m);
 
