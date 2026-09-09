@@ -152,11 +152,9 @@ export async function fetchKPI(
   m: ColumnMapping,
   sm: StatusMapping[] = DEFAULT_STATUS_MAPPINGS,
 ): Promise<KPISummary | null> {
-  // Use enriched view if available, otherwise fall back to base table
-  const viewName = enrichedViewName(tableName);
-  const source = qc(viewName); // enriched view has pre-computed columns
-  const hasEnriched = await ensureTelecomEnrichedView(tableName, m, sm);
-
+  // The enriched-view materialization is disabled (ensureTelecomEnrichedView
+  // always resolves false — the renderer DuckDB channel is read-only), so the
+  // raw-table fallback below is the only live path.
   const mapKpiRow = (r: Record<string, unknown>): KPISummary => ({
     totalTransactions: safeNum(r.total),
     successCount: safeNum(r.success_count),
@@ -172,32 +170,6 @@ export async function fetchKPI(
     peakHour: safeNum(r.peak_hour),
     topErrorCode: String(r.top_error ?? "N/A"),
   });
-
-  if (hasEnriched) {
-    try {
-      const rows = await runReadOnlyQuery(`
-        SELECT
-          COUNT(*)                                                                        AS total,
-          COUNT(*) FILTER (WHERE _status_norm='SUCCESS') AS success_count,
-          COUNT(*) FILTER (WHERE _status_norm='DECLINED') AS declined_count,
-          COUNT(*) FILTER (WHERE _status_norm='REFUND') AS refund_count,
-          COUNT(*) FILTER (WHERE _status_norm='INSTANCE') AS instance_count,
-          COUNT(*) FILTER (WHERE _status_norm='SUBMITTED') AS submitted_count,
-          ROUND(COUNT(*) FILTER (WHERE _status_norm='SUCCESS')*100.0/NULLIF(COUNT(*),0),2) AS success_rate,
-          ROUND(SUM(_amount) FILTER (WHERE _status_norm='SUCCESS'),3)                     AS total_amount,
-          ROUND(AVG(_amount) FILTER (WHERE _status_norm='SUCCESS'),3)                     AS avg_amount,
-          ROUND(AVG(_proc_ms),0)                                                          AS avg_proc_ms,
-          APPROX_COUNT_DISTINCT(_customer_id)                                             AS unique_customers,
-          MODE(_txn_hour)                                                                 AS peak_hour,
-          MODE(_error_code)                                                               AS top_error
-        FROM ${source}
-      `);
-      if (!rows[0]) return null;
-      return mapKpiRow(rows[0]);
-    } catch {
-      // Fall back to the raw table below.
-    }
-  }
 
   const sn = statusNorm(m, sm);
   const amt = colExpr(m.amount);

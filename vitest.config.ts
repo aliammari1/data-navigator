@@ -130,6 +130,9 @@ export default defineConfig({
         "src/platform/collab/**", // Yjs/WebRTC collab transport
         "src/platform/lan/lan-collab.ts", // LAN WebSocket transport
         "src/platform/auth/auth-database.ts", // better-sqlite3 native auth DB
+        "src/platform/pyodide/pyodide-client.ts", // sandboxed-iframe Pyodide orchestrator (opaque-origin realm)
+        "electron/chat-semantic-search.ts", // node-llama-cpp embedding lane + SQLite
+        "electron/pyodide-downloader.ts", // streaming model downloader (same category as model-download-service)
       ],
       // Quality gate strategy (see TESTING.md): rather than a single global
       // threshold — which would be permanently red against a large, gradually
@@ -137,16 +140,17 @@ export default defineConfig({
       // of gated globs outward as coverage grows. This makes the gate
       // meaningful and green from day one.
       thresholds: {
-        // ── Global ratchet floor (2026-07-05) ──────────────────────────────
-        // Locks in the near-ceiling logic coverage reached across the
-        // Hybrid-scoped surface (achieved: lines 99.64 / stmts 98.99 /
-        // funcs 99.49 / branch 96.5, after authoring tests for the previously
-        // 0%-covered desktop menu subsystem + a handful of partial-coverage
-        // cleanups). Floors sit a little below the measured numbers so CI
-        // tolerates minor run-to-run noise but fails on any real regression.
-        // The remaining gap to 100% is confirmed-unreachable-in-jsdom code
-        // (SSR `typeof window/document === "undefined"` guards, one
-        // intentionally-empty-in-production array) — not neglect.
+        // ── Global ratchet floor (2026-09-09) ──────────────────────────────
+        // Locks in the logic coverage measured across the Hybrid-scoped
+        // surface (achieved: lines 99.48 / stmts 98.82 / funcs ~99.4 /
+        // branch 95.06, after testing the collab-snapshot additions: LAN
+        // token crypto, collab stores + hooks, FTS chat search, deck export,
+        // branding/auth IPC clients, and extensions to the electron stores).
+        // Floors sit a little below the measured numbers so CI tolerates
+        // minor run-to-run noise but fails on any real regression.
+        // The remaining gap is confirmed-unreachable-in-jsdom code
+        // (SSR `typeof window/document === "undefined"` guards, native-
+        // binding error fallbacks) — not neglect.
         lines: 99,
         statements: 98,
         functions: 98,

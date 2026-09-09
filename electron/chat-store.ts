@@ -21,7 +21,7 @@
 
 import { mkdirSync } from "node:fs";
 import path from "node:path";
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, Column, desc, eq, or, sql } from "drizzle-orm";
 import * as chatSchema from "../src/db/schema-chat";
 import { openSqliteHandle, type SqliteHandle } from "../src/platform/storage/db-bootstrap";
 import { ensureChatSearchFts } from "./chat-search";
@@ -183,11 +183,15 @@ export function listConversations(limit = 100, search?: string): ConversationMet
 
   let rows: (typeof chatSchema.conversation.$inferSelect)[];
   if (term) {
+    // The pattern escapes %/_ with a backslash, so LIKE needs an explicit
+    // ESCAPE clause — without it SQLite treats backslash as a literal char
+    // and user terms containing % or _ silently match nothing.
+    const likeEscaped = (col: Column, pattern: string) => sql`${col} LIKE ${pattern} ESCAPE '\\'`;
     const pattern = `%${term.replaceAll(/[%_]/g, (m) => `\\${m}`)}%`;
     const matchingIds = db
       .selectDistinct({ conversationId: chatSchema.message.conversationId })
       .from(chatSchema.message)
-      .where(like(chatSchema.message.content, pattern))
+      .where(likeEscaped(chatSchema.message.content, pattern))
       .all()
       .map((r) => r.conversationId);
     rows = db
@@ -195,7 +199,7 @@ export function listConversations(limit = 100, search?: string): ConversationMet
       .from(chatSchema.conversation)
       .where(
         or(
-          like(chatSchema.conversation.title, pattern),
+          likeEscaped(chatSchema.conversation.title, pattern),
           matchingIds.length
             ? sql`${chatSchema.conversation.id} IN (${sql.join(
                 matchingIds.map((id) => sql`${id}`),

@@ -21,7 +21,6 @@
  */
 
 import { buildMenu as collaboration } from "@/features/desktop/core/menu/apps/collaboration";
-import { buildMenu as csvParser } from "@/features/desktop/core/menu/apps/csv-parser";
 import { buildMenu as diagnostics } from "@/features/desktop/core/menu/apps/diagnostics";
 import { buildMenu as folders } from "@/features/desktop/core/menu/apps/folders";
 import { buildMenu as help } from "@/features/desktop/core/menu/apps/help";
@@ -52,7 +51,6 @@ export const APP_MENUS: Record<string, AppMenuBuilder> = {
   "moudir-chat": moudirChat,
   telecom,
   upload,
-  "csv-parser": csvParser,
   folders,
   collaboration,
   diagnostics,

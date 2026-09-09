@@ -5,10 +5,7 @@ import { closeApp, launchApp, screenshot } from "./_harness";
 /**
  * Route list: the authoritative content of
  * `src/features/dashboard-shell/nav/nav-config.ts`'s `NAV_SECTIONS` +
- * `FOOTER_ITEMS`, plus `/dashboard/csv-parser` — a real route reachable
- * directly (registered as the `csv-parser` app in
- * `src/features/desktop/core/app-registry.tsx`) but not present in the
- * sidebar nav.
+ * `FOOTER_ITEMS`.
  */
 const ROUTES: { path: string; label: string }[] = [
   { path: "/dashboard/telecom-report/overview", label: "Vue d'ensemble" },
@@ -25,7 +22,6 @@ const ROUTES: { path: string; label: string }[] = [
   { path: "/dashboard/collaborative", label: "Collaboration" },
   { path: "/dashboard/help", label: "Aide" },
   { path: "/dashboard/settings", label: "Paramètres" },
-  { path: "/dashboard/csv-parser", label: "csv-parser" },
 ];
 
 /**

@@ -137,12 +137,12 @@ function likeFallback(
     ? `SELECT id, conversation_id as conversationId, role,
               substr(content, max(1, instr(lower(content), lower(?)) - 20), 140) as snippet
        FROM moudir_message
-       WHERE conversation_id = ? AND lower(content) LIKE lower(?)
+       WHERE conversation_id = ? AND lower(content) LIKE lower(?) ESCAPE '\\'
        ORDER BY id DESC LIMIT ?`
     : `SELECT id, conversation_id as conversationId, role,
               substr(content, max(1, instr(lower(content), lower(?)) - 20), 140) as snippet
        FROM moudir_message
-       WHERE lower(content) LIKE lower(?)
+       WHERE lower(content) LIKE lower(?) ESCAPE '\\'
        ORDER BY id DESC LIMIT ?`;
 
   const params = scoped ? [cleaned, scoped, pattern, limit] : [cleaned, pattern, limit];

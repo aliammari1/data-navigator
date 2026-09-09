@@ -8,6 +8,8 @@ import {
   listConversationsRemote,
   pinConversationRemote,
   renameConversationRemote,
+  searchMessagesRemote,
+  setConversationModelRemote,
 } from "@/platform/chat/chat-history-client";
 
 /**
@@ -24,9 +26,11 @@ type Bridge = {
   list: ReturnType<typeof vi.fn>;
   rename: ReturnType<typeof vi.fn>;
   pin: ReturnType<typeof vi.fn>;
+  setModel: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
   appendMessage: ReturnType<typeof vi.fn>;
   messages: ReturnType<typeof vi.fn>;
+  searchMessages: ReturnType<typeof vi.fn>;
 };
 
 function installBridge(): Bridge {
@@ -35,9 +39,11 @@ function installBridge(): Bridge {
     list: vi.fn(),
     rename: vi.fn(),
     pin: vi.fn(),
+    setModel: vi.fn(),
     delete: vi.fn(),
     appendMessage: vi.fn(),
     messages: vi.fn(),
+    searchMessages: vi.fn(),
   };
   (window as unknown as { electronChatHistory?: Bridge }).electronChatHistory = bridge;
   return bridge;
@@ -170,5 +176,29 @@ describe("chat-history-client", () => {
 
   it("getMessagesRemote returns [] when the bridge is unavailable", async () => {
     await expect(getMessagesRemote("c1")).resolves.toEqual([]);
+  });
+
+  it("setConversationModelRemote forwards the id and model", async () => {
+    const bridge = installBridge();
+    await setConversationModelRemote("c1", "granite-3b");
+    expect(bridge.setModel).toHaveBeenCalledWith("c1", "granite-3b");
+  });
+
+  it("setConversationModelRemote is a no-op when the bridge is unavailable", async () => {
+    await expect(setConversationModelRemote("c1", "granite-3b")).resolves.toBeUndefined();
+  });
+
+  it("searchMessagesRemote forwards the query and returns hits", async () => {
+    const bridge = installBridge();
+    bridge.searchMessages.mockResolvedValueOnce([{ messageId: 1 }]);
+
+    const result = await searchMessagesRemote({ query: "ventes", limit: 5 });
+
+    expect(result).toEqual([{ messageId: 1 }]);
+    expect(bridge.searchMessages).toHaveBeenCalledWith({ query: "ventes", limit: 5 });
+  });
+
+  it("searchMessagesRemote returns [] when the bridge is unavailable", async () => {
+    await expect(searchMessagesRemote({ query: "ventes" })).resolves.toEqual([]);
   });
 });

@@ -13,7 +13,6 @@ const DASHBOARD_ROUTES = [
     anchor: /dashboard|import|upload|dataset|télécom|telecom/i,
   },
   { path: "/dashboard/upload", anchor: /importer|glissez|upload|fichier/i },
-  { path: "/dashboard/csv-parser", anchor: /advanced csv parser|parse/i },
   { path: "/dashboard/folders", anchor: /folders|my datasets|new folder/i },
   { path: "/dashboard/auto-analyst", anchor: /auto|analyst|analysis/i },
   {
@@ -133,28 +132,6 @@ test.describe("Complete user journey coverage", () => {
 
     await page.getByRole("link", { name: /settings/i }).click();
     await expect(page).toHaveURL(/\/dashboard\/settings/);
-  });
-
-  test("CSV parser journey parses pasted data, filters rows, and exposes export/load actions", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/csv-parser");
-
-    await page.getByPlaceholder(/paste delimited text/i).fill(SAMPLE_CSV);
-    await page.getByRole("button", { name: /^Parse$/ }).click();
-
-    await expect(page.locator("td", { hasText: "Alice" })).toBeVisible();
-    await expect(page.locator("td", { hasText: "Bob" })).toBeVisible();
-    await expect(page.getByText("3 rows", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: /load/i })).toBeEnabled();
-    await expect(page.getByRole("button", { name: /export csv/i })).toBeEnabled();
-
-    await page.getByRole("button", { name: /filter/i }).click();
-    await page.getByPlaceholder(/status = success/i).fill("STATUS = SUCCESS");
-
-    await expect(page.locator("td", { hasText: "Alice" })).toBeVisible();
-    await expect(page.locator("td", { hasText: "Carla" })).toBeVisible();
-    await expect(page.locator("td", { hasText: "Bob" })).toHaveCount(0);
   });
 
   test("upload journey accepts a dataset and surfaces local DuckDB processing status", async ({

@@ -13,7 +13,6 @@
  */
 
 import {
-  FileSpreadsheet,
   Folders,
   Gauge,
   HelpCircle,
@@ -113,16 +112,6 @@ export const DESKTOP_APPS: DesktopApp[] = [
     defaultSize: { w: 820, h: 700 },
     inLauncher: true,
     Component: d(() => import("@/features/data-import/screens/DataImportScreen")),
-  },
-  {
-    id: "csv-parser",
-    title: "Analyseur CSV",
-    blurb: "Parsing & profilage",
-    icon: FileSpreadsheet,
-    hue: 50,
-    defaultSize: { w: 1120, h: 780 },
-    inLauncher: true,
-    Component: d(() => import("@/features/csv-parser/screens/CsvParserScreen")),
   },
   {
     id: "folders",

@@ -98,7 +98,6 @@ vi.mock("@/features/data-formulator/screens/MoudirAssistantScreen", () => ({
   default: () => null,
 }));
 vi.mock("@/features/data-import/screens/DataImportScreen", () => ({ default: () => null }));
-vi.mock("@/features/csv-parser/screens/CsvParserScreen", () => ({ default: () => null }));
 vi.mock("@/features/folders/screens/FoldersScreen", () => ({ default: () => null }));
 vi.mock("@/features/collaboration/screens/CollaborationHostedScreen", () => ({
   default: () => null,
@@ -129,7 +128,6 @@ const KNOWN_IDS = [
   "moudir-chat",
   "telecom",
   "upload",
-  "csv-parser",
   "folders",
   "collaboration",
   "diagnostics",
@@ -148,9 +146,9 @@ describe("DESKTOP_APPS", () => {
     expect(DESKTOP_APPS.length).toBeGreaterThan(0);
   });
 
-  it("contains exactly 10 app entries", () => {
-    // Cross-checked against the 10 entries defined in the source file.
-    expect(DESKTOP_APPS).toHaveLength(10);
+  it("contains exactly 9 app entries", () => {
+    // Cross-checked against the 9 entries defined in the source file.
+    expect(DESKTOP_APPS).toHaveLength(9);
   });
 
   it("every entry has a non-empty string id", () => {
@@ -381,9 +379,9 @@ describe("LAUNCHER_APPS", () => {
     expect(LAUNCHER_APPS.length).toBeLessThan(DESKTOP_APPS.length);
   });
 
-  it("has exactly 9 entries (all apps minus recycle-bin)", () => {
-    // 10 total apps, 1 with inLauncher:false → 9 launcher apps
-    expect(LAUNCHER_APPS).toHaveLength(9);
+  it("has exactly 8 entries (all apps minus recycle-bin)", () => {
+    // 9 total apps, 1 with inLauncher:false → 8 launcher apps
+    expect(LAUNCHER_APPS).toHaveLength(8);
   });
 });
 
@@ -474,9 +472,9 @@ describe("dynamic loader invocation via captured calls", () => {
   //   • the `name ? () => loader().then(m => m[name]) : loader` branch (line 91)
   // Both paths are needed to reach 100 % branch coverage on the ternary.
 
-  it("dynamic was called once per Component-bearing app (all 10 apps)", () => {
+  it("dynamic was called once per Component-bearing app (all 9 apps)", () => {
     // Every app in the registry now carries a Component (telecom included).
-    expect(dynamicCalls.length).toBe(10);
+    expect(dynamicCalls.length).toBe(9);
   });
 
   it("every captured dynamic call received ssr:false and a loading option", () => {

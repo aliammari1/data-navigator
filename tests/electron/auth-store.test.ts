@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   changePassword,
   closeAuthStore,
@@ -14,6 +14,8 @@ import {
   isAppLocked,
   lockApp,
   login,
+  logout,
+  setAuthMigrationsFolder,
   signUp,
   verifyPassword,
 } from "../../electron/auth-store";
@@ -228,5 +230,91 @@ describe("Audit Logging & Query Analytics Integration", () => {
     expect(analytics[0].datasetId).toBe("ds_telecom_01");
     expect(analytics[0].rowCount).toBe(1000);
     expect(analytics[0].executionTimeMs).toBe(14.5);
+  });
+});
+
+describe("Auth Failure Paths", () => {
+  it("rejects login for an unknown email and audits the failure", () => {
+    expect(() => login({ email: "ghost@local.host", password: "Password123!" })).toThrow(
+      "Invalid email or password",
+    );
+  });
+
+  it("expires sessions past their expiry and locks the app", () => {
+    const { session } = signUp({
+      name: "Expiry User",
+      email: "expiry@local.host",
+      password: "Password123!",
+    });
+
+    // Travel past next-local-midnight so the stored session is expired.
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(Date.now() + 3 * 24 * 60 * 60 * 1000);
+      const expired = getSession(session.token);
+      expect(expired.user).toBeNull();
+      expect(expired.session).toBeNull();
+      expect(expired.isLocked).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("returns empty session for an unknown token", () => {
+    const res = getSession("no-such-token");
+    expect(res.user).toBeNull();
+    expect(res.session).toBeNull();
+  });
+
+  it("logout(token) deletes the session and locks the app", () => {
+    const { session } = signUp({
+      name: "Logout User",
+      email: "logout@local.host",
+      password: "Password123!",
+    });
+    expect(getSession(session.token).user).not.toBeNull();
+
+    logout(session.token);
+
+    expect(getSession(session.token).user).toBeNull();
+    expect(isAppLocked()).toBe(true);
+  });
+
+  it("rejects password change without a valid session", () => {
+    expect(() =>
+      changePassword({ token: "no-such-token", currentPassword: "x", newPassword: "y" }),
+    ).toThrow("Authentication required");
+  });
+
+  it("rejects password change with the wrong current password", () => {
+    const { session } = signUp({
+      name: "Pw User",
+      email: "pw@local.host",
+      password: "OldPassword123!",
+    });
+
+    expect(() =>
+      changePassword({
+        token: session.token,
+        currentPassword: "WrongPassword123!",
+        newPassword: "NewPassword456!",
+      }),
+    ).toThrow("Current password is not correct");
+  });
+
+  it("rejects corrupted password hashes as verification failures", () => {
+    expect(verifyPassword("anything", "not-a-valid-scrypt-hash")).toBe(false);
+  });
+
+  it("accepts a migrations folder override and throws when unconfigured", async () => {
+    setAuthMigrationsFolder("/tmp/dn-auth-migrations-test");
+
+    vi.resetModules();
+    try {
+      const fresh = await import("../../electron/auth-store");
+      expect(() => fresh.hasOwner()).toThrow(/configureAuthStore/);
+    } finally {
+      vi.resetModules();
+    }
   });
 });

@@ -2,6 +2,7 @@
  * @vitest-environment jsdom
  */
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,7 @@ import { useSettingsStore } from "@/core/stores/settings-store";
 import {
   capRoleBySession,
   type DashboardRole,
+  DashboardUserProvider,
   getRoleLabel,
   permissionsForRole,
   useDashboardAccess,
@@ -209,5 +211,62 @@ describe("useDashboardAccess hook", () => {
     await waitFor(() => expect(result.current.sessionRole).toBe("host"));
     expect(result.current.role).toBe("owner");
     expect(result.current.isGuestSession).toBe(false);
+  });
+
+  it("derives guest permissions from the host grant set, not the role", async () => {
+    const probe = vi.fn();
+    function Probe() {
+      probe(useDashboardAccess().permissions);
+      return null;
+    }
+    renderHook(() => useDashboardAccess(), {
+      wrapper: ({ children }) => (
+        <DashboardUserProvider isGuest permissions={["uploadData", "useAI"]}>
+          {children}
+          <Probe />
+        </DashboardUserProvider>
+      ),
+    });
+    await waitFor(() => expect(probe).toHaveBeenCalled());
+    const perms = probe.mock.calls.at(-1)?.[0];
+    expect(perms).toMatchObject({
+      canUpload: true,
+      canExport: false,
+      canManageUsers: false,
+      canUseAI: true,
+      canShareView: true,
+      canAccessSettings: false,
+    });
+  });
+
+  it("falls back to role permissions when the guest grant set is undefined", async () => {
+    const probe = vi.fn();
+    function Probe() {
+      probe(useDashboardAccess().permissions);
+      return null;
+    }
+    renderHook(() => useDashboardAccess(), {
+      wrapper: ({ children }) => (
+        <DashboardUserProvider isGuest permissions={undefined}>
+          {children}
+          <Probe />
+        </DashboardUserProvider>
+      ),
+    });
+    await waitFor(() => expect(probe).toHaveBeenCalled());
+    expect(probe.mock.calls.at(-1)?.[0]).toMatchObject({ canUpload: true });
+  });
+
+  it("server-snapshots a null session role during SSR", () => {
+    function SsrProbe() {
+      const access = useDashboardAccess();
+      return <span>{access.role}</span>;
+    }
+    const html = renderToString(
+      <DashboardUserProvider isGuest={false} permissions={undefined}>
+        <SsrProbe />
+      </DashboardUserProvider>,
+    );
+    expect(html).toContain("owner");
   });
 });

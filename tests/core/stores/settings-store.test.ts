@@ -7,6 +7,7 @@ import {
   useAppearanceSettings,
   useDataSettings,
   useEnableAiCritic,
+  useEnableMoudirSandbox,
   useNotificationSettings,
   usePerformanceSettings,
   usePinnedItems,
@@ -297,6 +298,25 @@ describe("Settings Store", () => {
     it("useEnableAiCritic returns AI critic flag", () => {
       const { result } = renderHook(() => useEnableAiCritic());
       expect(result.current).toBe(false);
+    });
+
+    it("toggles the Moudir memory/sandbox flags", () => {
+      const { result } = renderHook(() => useSettingsStore());
+      expect(result.current.enableMoudirMemory).toBe(false);
+      expect(result.current.enableMoudirSandbox).toBe(true);
+
+      act(() => {
+        result.current.setEnableMoudirMemory(true);
+        result.current.setEnableMoudirSandbox(false);
+      });
+
+      expect(result.current.enableMoudirMemory).toBe(true);
+      expect(result.current.enableMoudirSandbox).toBe(false);
+    });
+
+    it("useEnableMoudirSandbox returns the sandbox flag", () => {
+      const { result } = renderHook(() => useEnableMoudirSandbox());
+      expect(typeof result.current).toBe("boolean");
     });
 
     it("useNotificationSettings returns notification settings", () => {

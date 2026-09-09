@@ -304,16 +304,7 @@ function auditSqlGuardrails() {
   header("Tier 2: SQL Injection Guardrails & AST Safety Verification");
 
   const sqlGuardPath = join(ROOT, "electron", "sql-guard.ts");
-  const swarmBasePath = join(
-    ROOT,
-    "src",
-    "features",
-    "data-formulator",
-    "core",
-    "swarm",
-    "agents",
-    "base.ts",
-  );
+  const swarmBasePath = join(ROOT, "src", "platform", "duckdb", "sql-guard.ts");
   const telecomSqlPath = join(ROOT, "src", "features", "telecom", "lib", "sql.ts");
 
   recordCheck(
@@ -323,8 +314,8 @@ function auditSqlGuardrails() {
   );
   recordCheck(
     existsSync(swarmBasePath),
-    "AST Parser File: swarm/agents/base.ts (assertReadOnlySql) exists",
-    "swarm/agents/base.ts not found",
+    "AST Parser File: src/platform/duckdb/sql-guard.ts (assertReadOnlySql) exists",
+    "src/platform/duckdb/sql-guard.ts not found",
   );
   recordCheck(
     existsSync(telecomSqlPath),
@@ -332,8 +323,10 @@ function auditSqlGuardrails() {
     "src/features/telecom/lib/sql.ts not found",
   );
 
-  // Read actual file contents to verify synchronization
-  const sqlGuardSource = readFileSync(sqlGuardPath, "utf8");
+  // Read actual file contents to verify synchronization.
+  // Each read is guarded: a missing file is already recorded as a failed
+  // check above, and must not throw and abort the whole audit.
+  const sqlGuardSource = existsSync(sqlGuardPath) ? readFileSync(sqlGuardPath, "utf8") : "";
   recordCheck(
     /export\s+function\s+assertSafeFilterFragment/.test(sqlGuardSource),
     "Guardrail Export: electron/sql-guard.ts exports assertSafeFilterFragment",
@@ -343,7 +336,7 @@ function auditSqlGuardrails() {
     "Guardrail Implementation: assertSafeFilterFragment is quote-aware",
   );
 
-  const swarmBaseSource = readFileSync(swarmBasePath, "utf8");
+  const swarmBaseSource = existsSync(swarmBasePath) ? readFileSync(swarmBasePath, "utf8") : "";
   recordCheck(
     /export\s+function\s+assertReadOnlySql/.test(swarmBaseSource),
     "AST Parser Export: base.ts exports assertReadOnlySql",
@@ -697,15 +690,22 @@ function auditAirGapAssurance() {
     "Air-Gap IPC Boundary: isAllowedAppOrigin restricts privileged IPC strictly to loopback/file origins",
   );
 
-  // 3. Connect-src in CSP does not contain open wildcards or unvetted domains
-  const connectSrcMatch = securityTs.match(/const\s+CSP_CONNECT_SRC\s*=\s*\[([\s\S]*?)\]\.join/);
+  // 3. Connect-src in CSP does not contain open wildcards or unvetted domains.
+  // The policy lives in buildConnectSrc() (electron/security.ts). Bare `ws:` /
+  // `wss:` scheme sources are intentionally allowed: LAN peers are discovered
+  // dynamically (any host:port), so no static host list can cover them — while
+  // external http(s) stays forbidden, keeping cloud egress blocked.
+  const connectSrcMatch = securityTs.match(
+    /function\s+buildConnectSrc[\s\S]*?const\s+sources\s*=\s*\[([\s\S]*?)\];/,
+  );
   let connectSrcSafe = false;
   if (connectSrcMatch) {
     const connectSrcEntries = connectSrcMatch[1];
-    // Check that there is no wildcard * or external https:// domain (only local ws, localhost, self, blob, pyodide)
+    // Check that there is no wildcard * or external http(s):// domain (only
+    // local http/ws, localhost, self, blob, pyodide, and bare ws:/wss: for LAN).
     const hasWildcard = /"\*"/i.test(connectSrcEntries);
-    const hasExternalHttps = /https:\/\/(?!localhost|127\.0\.0\.1)/i.test(connectSrcEntries);
-    connectSrcSafe = !hasWildcard && !hasExternalHttps;
+    const hasExternalHttp = /https?:\/\/(?!localhost|127\.0\.0\.1)/i.test(connectSrcEntries);
+    connectSrcSafe = !hasWildcard && !hasExternalHttp;
   }
 
   recordCheck(

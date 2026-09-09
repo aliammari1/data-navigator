@@ -8,9 +8,12 @@ import {
   configureChatStore,
   createConversation,
   deleteConversation,
+  getChatStoreHandle,
   getMessages,
   listConversations,
+  onMessageAppended,
   renameConversation,
+  setConversationModel,
   setConversationPinned,
 } from "../../electron/chat-store";
 
@@ -340,5 +343,79 @@ describe("closeChatStore", () => {
         .map((r) => r.id)
         .sort(),
     ).toEqual(["a", "b"]);
+  });
+});
+
+describe("setConversationModel", () => {
+  it("persists the model on the conversation", () => {
+    createConversation({ id: "m1", title: "M" });
+    setConversationModel("m1", "granite-3b");
+    expect(listConversations().find((c) => c.id === "m1")?.model).toBe("granite-3b");
+
+    setConversationModel("m1", null);
+    expect(listConversations().find((c) => c.id === "m1")?.model).toBeNull();
+  });
+});
+
+describe("getChatStoreHandle", () => {
+  it("exposes the shared underlying connection", () => {
+    const handle = getChatStoreHandle();
+    expect(handle.db).toBeDefined();
+    expect(handle.sqlite).toBeDefined();
+  });
+});
+
+describe("listConversations search escaping", () => {
+  it("treats % and _ in the term as literals, not LIKE wildcards", () => {
+    createConversation({ id: "e1", title: "cost 100%_final" });
+    createConversation({ id: "e2", title: "cost 1000X-final" });
+
+    // Unescaped, "%100%_final%" would match e2 ("_" matches "-"); escaped it is literal.
+    const rows = listConversations(100, "100%_final");
+    expect(rows.map((r) => r.id)).toEqual(["e1"]);
+  });
+});
+
+describe("onMessageAppended", () => {
+  it("fires registered hooks on append and stops after unsubscribe", () => {
+    createConversation({ id: "h1", title: "H" });
+    const seen: string[] = [];
+    const off = onMessageAppended((row) => {
+      seen.push(row.content);
+    });
+
+    appendMessage({ conversationId: "h1", role: "user", content: "hello" });
+    expect(seen).toEqual(["hello"]);
+
+    off();
+    appendMessage({ conversationId: "h1", role: "user", content: "again" });
+    expect(seen).toEqual(["hello"]);
+  });
+
+  it("isolates a throwing hook so the append still succeeds", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      createConversation({ id: "h2", title: "H2" });
+      onMessageAppended(() => {
+        throw new Error("indexer down");
+      });
+
+      appendMessage({ conversationId: "h2", role: "user", content: "hi" });
+
+      expect(getMessages("h2")).toHaveLength(1);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("[chat-store]"), expect.any(Error));
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("throws when the store was never configured", async () => {
+    vi.resetModules();
+    try {
+      const fresh = await import("../../electron/chat-store");
+      expect(() => fresh.listConversations()).toThrow(/configureChatStore/);
+    } finally {
+      vi.resetModules();
+    }
   });
 });

@@ -19,6 +19,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
   runReadOnlyQuery: (sql: string) => runReadOnlyQuery(sql),
 }));
 
+import { ALL_CANAL_RULES } from "@/features/telecom/lib/canal-rule-defaults";
 import * as QueriesModule from "@/features/telecom/lib/queries";
 import {
   buildSpecDateFilter,
@@ -47,6 +48,7 @@ import {
   fetchRegions,
   fetchRegionsForGroup,
   fetchServiceCodeRows,
+  fetchSpecCanalStatusMatrix,
   fetchSpecChannelStats,
   fetchSpecStatusStats,
   fetchSpecUnitAmountStats,
@@ -1259,15 +1261,48 @@ describe("buildSpecDateFilter (direct)", () => {
 });
 
 // ──────────────────────────────────────────────────────────────────────────────
-// fetchKPI enriched view branch — note on unreachability
+// fetchSpecCanalStatusMatrix — per-channel ok/annulation/instance/échec/total
 // ──────────────────────────────────────────────────────────────────────────────
-// Lines 168-187 (the `if (hasEnriched)` block in fetchKPI) are genuinely
-// unreachable in tests: `ensureTelecomEnrichedView` is hard-wired to return
-// `false` (the renderer DuckDB channel rejects every CREATE/DROP), and ESM live
-// bindings prevent `vi.spyOn` from intercepting the module-internal call.
-// These lines are retained as a defensive forward-compatibility hook for the
-// future sanctioned write IPC path; they are not dead in production intent, but
-// they are dead in the current runtime. No test is added for them.
+
+describe("fetchSpecCanalStatusMatrix", () => {
+  it("short-circuits to [] without querying when no channels are supplied", async () => {
+    await expect(fetchSpecCanalStatusMatrix(TABLE, [], "", "")).resolves.toEqual([]);
+    expect(runReadOnlyQuery).not.toHaveBeenCalled();
+  });
+
+  it("maps per-channel ok/an/in/dc/al columns into status rows", async () => {
+    runReadOnlyQuery.mockResolvedValue([{ ok_0: 7, an_0: 1, in_0: 2, dc_0: 3, al_0: 13 }]);
+
+    const rows = await fetchSpecCanalStatusMatrix(
+      TABLE,
+      [channels[0]],
+      "2024-01-01",
+      "2024-01-31",
+      m,
+    );
+
+    expect(rows).toEqual([
+      { canal: "Alpha", réussie: 7, annulation: 1, instance: 2, échec: 3, total: 13 },
+    ]);
+  });
+
+  it("returns zeroed rows when the query throws", async () => {
+    runReadOnlyQuery.mockRejectedValue(new Error("x"));
+
+    const rows = await fetchSpecCanalStatusMatrix(TABLE, channels, "", "");
+
+    expect(rows).toEqual([
+      { canal: "Alpha", réussie: 0, annulation: 0, instance: 0, échec: 0, total: 0 },
+      { canal: "Beta", réussie: 0, annulation: 0, instance: 0, échec: 0, total: 0 },
+    ]);
+  });
+});
+
+describe("canal rule defaults", () => {
+  it("exposes the default rule list", () => {
+    expect(Array.isArray(ALL_CANAL_RULES)).toBe(true);
+  });
+});
 
 // QueriesModule is imported above for documentation / future use; referenced
 // here to suppress an unused-import lint warning.
