@@ -18,77 +18,30 @@
 // Central Dexie DB + accessors
 export * from "./app-db";
 // Settings application
-export {
-  type AppearanceInput,
-  type AppliedSettings,
-  applyAppearance,
-  applySettings,
-  getRuntimePerformanceConfig,
-  type PerformanceInput,
-  type RuntimePerformanceConfig,
-  resolvePerformanceConfig,
-  subscribePerformanceConfig,
-} from "./apply-settings";
+export { applySettings } from "./apply-settings";
 
 // Zustand selector discipline
-export {
-  createSelectors,
-  SELECTOR_GUIDANCE,
-  useShallowSelector,
-} from "./create-selectors";
+export { createSelectors } from "./create-selectors";
 // Existing settings storage adapter (re-exported for discoverability)
-export {
-  createDrizzleStorage,
-  type DrizzleStorageOptions,
-  type StateStorage,
-} from "./drizzle-storage";
+export { createDrizzleStorage } from "./drizzle-storage";
 // OPFS big-blob store
 export {
   deleteDir,
-  deleteFile,
   dirSize,
-  exists,
-  getDir,
   isOpfsAvailable,
-  isSyncAccessAvailable,
-  list,
   OPFS_NS,
-  OPFSBlobStore,
-  OPFSSyncFile,
-  type OpfsEntry,
-  type OpfsNamespace,
-  readBlob,
-  size,
-  writeBlob,
 } from "./opfs-handles";
 // Zustand persist discipline
-export {
-  type DurablePersistOptions,
-  deepMergeDefaults,
-  durablePersist,
-  makeDeepMergeMigrate,
-  pickKeys,
-} from "./persist-helpers";
+export { durablePersist } from "./persist-helpers";
 // TanStack Query persister
 export {
-  clearQueryCacheSnapshot,
   persistQueryClient,
-  type QueryPersistOptions,
-  queryCacheSnapshotSize,
   restoreQueryClient,
 } from "./query-persister";
 // Storage quota / persistence
 export {
   ensurePersistentStorage,
-  estimateStorage,
   getStorageInfo,
-  isStoragePersisted,
-  requestPersistence,
   type StorageInfo,
 } from "./storage-info";
 // Store mirror (feature adoption helper)
-export {
-  mirrorStoreToDexie,
-  runOnceBackfill,
-  type SubscribableStore,
-} from "./store-mirror";

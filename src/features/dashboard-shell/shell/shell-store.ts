@@ -53,11 +53,6 @@ export const useShellStore = create<ShellState>()(
   ),
 );
 
-// ─── Narrow selector hooks (avoid whole-store subscriptions) ──────────────────
-
-export const useSidebarCollapsed = () => useShellStore((s) => s.sidebarCollapsed);
-export const useDesktopMode = () => useShellStore((s) => s.desktopMode);
-
 export const useShellActions = () =>
   useShellStore(
     useShallow((s) => ({

@@ -28,13 +28,13 @@ export type UtilityResponse =
   | PingResponse
   | ErrorResponse;
 
-export interface RequestBase {
+interface RequestBase {
   /** Monotonic correlation id assigned by the broker. */
   readonly id: number;
   readonly kind: string;
 }
 
-export interface ResponseBase {
+interface ResponseBase {
   /** Echoes the originating request's `id`. */
   readonly id: number;
   readonly ok: boolean;
@@ -54,7 +54,7 @@ export interface InitRequest extends RequestBase {
   readonly memoryLimit: string;
 }
 
-export interface InitResponse extends ResponseBase {
+interface InitResponse extends ResponseBase {
   readonly kind: "init";
   readonly ok: true;
   /** Whether the engine read-connection sandbox SET statements all applied. */
@@ -71,18 +71,18 @@ export interface RunReadOnlyQueryRequest extends RequestBase {
   readonly sql: string;
 }
 
-export interface RunReadOnlyQueryResponse extends ResponseBase {
+interface RunReadOnlyQueryResponse extends ResponseBase {
   readonly kind: "runReadOnlyQuery";
   readonly ok: true;
   readonly rows: Record<string, unknown>[];
 }
 
 /** Liveness probe used by the broker to confirm the child is responsive. */
-export interface PingRequest extends RequestBase {
+interface PingRequest extends RequestBase {
   readonly kind: "ping";
 }
 
-export interface PingResponse extends ResponseBase {
+interface PingResponse extends ResponseBase {
   readonly kind: "ping";
   readonly ok: true;
   readonly pong: true;

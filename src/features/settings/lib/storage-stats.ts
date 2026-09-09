@@ -19,7 +19,7 @@ import {
   type StorageInfo,
 } from "@/platform/storage";
 
-export interface CacheNamespaceStat {
+interface CacheNamespaceStat {
   /** OPFS_NS key (parquetCache | modelWeights | pmtiles | pyodide). */
   id: keyof typeof OPFS_NS;
   /** OPFS directory name. */

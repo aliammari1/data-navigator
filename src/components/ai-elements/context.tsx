@@ -248,50 +248,6 @@ export const ContextOutputUsage = ({ className, children, ...props }: ContextOut
   );
 };
 
-export type ContextReasoningUsageProps = ComponentProps<"div">;
+type ContextReasoningUsageProps = ComponentProps<"div">;
 
-export const ContextReasoningUsage = ({
-  className,
-  children,
-  ...props
-}: ContextReasoningUsageProps) => {
-  const { usage } = useContextValue();
-  const reasoningTokens = usage?.reasoningTokens ?? 0;
-
-  if (children) {
-    return children;
-  }
-
-  if (!reasoningTokens) {
-    return null;
-  }
-
-  return (
-    <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Reasoning</span>
-      <TokensWithCost tokens={reasoningTokens} />
-    </div>
-  );
-};
-
-export type ContextCacheUsageProps = ComponentProps<"div">;
-
-export const ContextCacheUsage = ({ className, children, ...props }: ContextCacheUsageProps) => {
-  const { usage } = useContextValue();
-  const cacheTokens = usage?.cachedInputTokens ?? 0;
-
-  if (children) {
-    return children;
-  }
-
-  if (!cacheTokens) {
-    return null;
-  }
-
-  return (
-    <div className={cn("flex items-center justify-between text-xs", className)} {...props}>
-      <span className="text-muted-foreground">Cache</span>
-      <TokensWithCost tokens={cacheTokens} />
-    </div>
-  );
-};
+type ContextCacheUsageProps = ComponentProps<"div">;

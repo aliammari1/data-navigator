@@ -27,7 +27,7 @@ import {
 
 // ─── Presence probing ──────────────────────────────────────────────────────────
 
-export type ModelPresenceState = "present" | "missing" | "unknown";
+type ModelPresenceState = "present" | "missing" | "unknown";
 
 export interface ModelStatusRecord {
   key: string;

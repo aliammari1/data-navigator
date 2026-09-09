@@ -28,7 +28,7 @@ import { useRef } from "react";
 import { cn } from "@/shared/utils";
 
 /** Column type union shared by the csv-parser preview (see its `ColType`). */
-export type PreviewColType = "string" | "number" | "date" | "boolean";
+type PreviewColType = "string" | "number" | "date" | "boolean";
 
 export interface PreviewColumn {
   header: string;

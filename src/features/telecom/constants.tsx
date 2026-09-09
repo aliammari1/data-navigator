@@ -1,8 +1,6 @@
 import { fmtAmount, fmtN, fmtPct } from "./lib/format";
 import type { KPISummary } from "./types";
 
-export { DEFAULT_STATUS_MAPPINGS } from "./lib/status-definitions";
-
 export const KPI_FIELDS: Array<{
   key: keyof KPISummary;
   label: string;

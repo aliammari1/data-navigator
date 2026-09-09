@@ -502,5 +502,3 @@ export function QuickLook() {
     </AnimatePresence>
   );
 }
-
-export default QuickLook;

@@ -241,14 +241,14 @@ function toDiscoveredHub(svc: BonjourService): DiscoveredHub | null {
 // COEP:require-corp isolated, so a missing CORP header makes the browser block
 // the cross-origin discovery fetch (see discoverLAN()'s comment).
 
-export interface SidecarAuditEntry {
+interface SidecarAuditEntry {
   id: string;
   at: string;
   event: string;
   [detail: string]: unknown;
 }
 
-export interface SidecarFileEntry {
+interface SidecarFileEntry {
   id: string;
   originalName: string;
   storedName: string;
@@ -438,7 +438,7 @@ export function getHostSecret(): string {
   return ephemeralHostSecret;
 }
 
-export interface PendingGuestRecord {
+interface PendingGuestRecord {
   id: string;
   name: string;
   role: string;

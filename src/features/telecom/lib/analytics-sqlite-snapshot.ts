@@ -9,7 +9,7 @@ import {
 } from "@/platform/settings/analytics-snapshot-client";
 import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
 
-export type { AnalyticsSnapshotHistoryMeta, PersistableCanalSummary };
+export type { AnalyticsSnapshotHistoryMeta };
 
 const NS = "analytics_snapshot";
 

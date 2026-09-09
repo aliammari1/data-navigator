@@ -72,6 +72,9 @@ module.exports = {
           // bundles (see react-scan-dev.ts). It correctly stays a devDependency and
           // never ships, so this single file is exempt from the prod-import rule.
           "^src/platform/perf/react-scan-dev[.]ts$",
+          // Same pattern for the React Query devtools island: NODE_ENV-gated
+          // dynamic import, dead-code-eliminated from production bundles.
+          "^src/components/query-devtools[.]tsx$",
         ],
       },
       to: {
@@ -88,6 +91,10 @@ module.exports = {
       from: {},
       to: {
         path: "node_modules/(?:[.]pnpm/)?(?:@ai-sdk[@+/]|@anthropic-ai[@+/]sdk|@anthropic[@+/]|@vercel[+/]ai|@sentry[@+/]|ai[@/]|ai-sdk[@/]|sentry[@/])",
+        // `import type` references (e.g. UIMessage/ToolUIPart in ai-elements)
+        // are erased at compile time and ship zero SDK code — same carve-out
+        // as not-to-dev-dep-from-src. Only runtime imports can phone home.
+        dependencyTypesNot: ["type-only"],
       },
     },
     {
@@ -121,6 +128,12 @@ module.exports = {
           // or only ever executed in the Node/server context, never bundled to the
           // browser. Keep this list tight so genuine renderer leaks are still caught.
           "^src/platform/auth/auth-database[.]ts$",
+          // db-bootstrap's native access (better-sqlite3 require, node:sqlite
+          // builtin) is function-scoped and guarded; its only importers are the
+          // main-only auth-database adapter, electron/*, and tests — it is never
+          // re-exported through src/platform/storage/index, so no renderer bundle
+          // includes it.
+          "^src/platform/storage/db-bootstrap[.]ts$",
         ],
       },
       to: {
@@ -138,6 +151,10 @@ module.exports = {
           "[.]config[.](?:ts|tsx|js|jsx|mjs|cjs)$",
           "[.](?:stories|test|spec)[.](?:ts|tsx|js|jsx|mjs|cjs)$",
           "^src/platform/auth/auth-database[.]ts$",
+          // Same main-only standing: db-bootstrap's node:sqlite access is
+          // function-scoped behind process.getBuiltinModule?.() and never
+          // executes in the browser. See renderer-no-main-only-natives.
+          "^src/platform/storage/db-bootstrap[.]ts$",
         ],
       },
       to: {

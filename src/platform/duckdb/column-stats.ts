@@ -29,13 +29,13 @@ import { quoteIdent, runReadOnlyQuery } from "./duckdb";
 
 // ─── Public types ─────────────────────────────────────────────────────────────
 
-export interface NumericBin {
+interface NumericBin {
   lo: number;
   hi: number;
   count: number;
 }
 
-export interface NumericColumnStats {
+interface NumericColumnStats {
   kind: "numeric";
   min: number | null;
   max: number | null;
@@ -46,7 +46,7 @@ export interface NumericColumnStats {
   bins: NumericBin[];
 }
 
-export interface CategoricalColumnStats {
+interface CategoricalColumnStats {
   kind: "categorical";
   distinct: number;
   nulls: number;

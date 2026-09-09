@@ -42,7 +42,7 @@ export const CRS_RULE_EXCLUSIONS = ["SecRuleRemoveById 911100", "SecRuleRemoveBy
 );
 
 /** Distinguishes a real CRS rule hit from a fail-closed adapter/WASM failure. */
-export type WafBlockSource = "crs" | "waf-error";
+type WafBlockSource = "crs" | "waf-error";
 
 /** One trusted internal route whose request BODY is exempt from CRS body rules. */
 export type TrustedSkipBodyRoute = {

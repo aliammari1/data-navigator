@@ -3,7 +3,7 @@
 import { type ZodType, z } from "zod";
 import type * as Types from "@/features/telecom/types";
 
-export interface TelecomDeckInsight {
+interface TelecomDeckInsight {
   title: string;
   summary: string;
   bullets: string[];

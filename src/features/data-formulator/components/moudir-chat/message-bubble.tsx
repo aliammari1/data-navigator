@@ -113,7 +113,7 @@ const timeFmt = new Intl.DateTimeFormat("fr-FR", { hour: "2-digit", minute: "2-d
 const dayFmt = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short" });
 
 /** Compact clock label: "14:32" today, "Hier 14:32", else "12 juin, 14:32". */
-export function formatMessageTime(ts: number): string {
+function formatMessageTime(ts: number): string {
   const d = new Date(ts);
   const now = new Date();
   const startOf = (x: Date) => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();

@@ -10,11 +10,5 @@
  * working unchanged.
  */
 
-export {
-  ALL_ITEMS,
-  type DashboardUser,
-  FOOTER_ITEMS,
-  NAV_SECTIONS,
-  type NavItem,
-} from "@/features/dashboard-shell/nav/nav-config";
+export type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 export { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";

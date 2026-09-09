@@ -34,7 +34,6 @@ import { useAppContextStore } from "@/core/stores/app-context-store";
 import { useDataStore } from "@/core/stores/data-store";
 import { RejectRowsDialog } from "@/features/data-import/components/reject-rows-dialog";
 import {
-  fileNameFromPath,
   type ImportPipelineContext,
   importBatch,
   isSupportedImportPath,
@@ -1194,6 +1193,3 @@ function ValidationIssuesCard({ issues }: { issues: ValidationIssue[] }) {
     </div>
   );
 }
-
-// Re-export so the helper remains importable where the screen used to own it.
-export { fileNameFromPath };

@@ -47,29 +47,6 @@ export function attachPersistence(docName: string, doc: Y.Doc): IndexeddbPersist
   return persistence;
 }
 
-/**
- * Resolve once the local content for `docName`/`doc` has loaded. Convenience
- * wrapper that also attaches persistence if it is not yet attached. Resolves
- * immediately (no persistence) under SSR / no-IndexedDB.
- */
-export async function whenStored(docName: string, doc: Y.Doc): Promise<void> {
-  const persistence = attachPersistence(docName, doc);
-  if (!persistence) return;
-  await persistence.whenSynced;
-}
-
-/** Stop syncing + close the IndexedDB connection but KEEP the stored data. */
-export async function detachPersistence(docName: string): Promise<void> {
-  const persistence = registry.get(docName);
-  if (!persistence) return;
-  registry.delete(docName);
-  try {
-    await persistence.destroy();
-  } catch {
-    // ignore — teardown is best-effort
-  }
-}
-
 /** Destroy the IndexedDB store for a doc (use for "leave / reset room"). */
 export async function clearStoredData(docName: string): Promise<void> {
   const persistence = registry.get(docName);
@@ -89,20 +66,5 @@ export async function clearStoredData(docName: string): Promise<void> {
     } catch {
       // ignore
     }
-  }
-}
-
-/**
- * Best-effort storage quota/usage for surfacing in the UI (long-lived rooms).
- * Returns null when the StorageManager API is unavailable.
- */
-export async function storageEstimate(): Promise<StorageEstimate | null> {
-  if (typeof navigator === "undefined" || !navigator.storage?.estimate) {
-    return null;
-  }
-  try {
-    return await navigator.storage.estimate();
-  } catch {
-    return null;
   }
 }

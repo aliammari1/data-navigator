@@ -41,7 +41,7 @@ import Dexie, { type Table } from "dexie";
 
 // ─── Schema types ────────────────────────────────────────────────────────────
 
-export interface AnalyticsSnapshot {
+interface AnalyticsSnapshot {
   key: string;
   savedAt: number;
   label: string;
@@ -58,7 +58,7 @@ export interface AnalyticsSnapshot {
   successRate: number;
 }
 
-export interface TableParquet {
+interface TableParquet {
   key: string; // tableName
   savedAt: number;
   tableName: string;
@@ -67,7 +67,7 @@ export interface TableParquet {
   fileSizeBytes: number;
 }
 
-export interface SessionState {
+interface SessionState {
   key: string; // singleton "current"
   updatedAt: number;
   activeTableName: string;
@@ -83,7 +83,7 @@ export interface SessionState {
  * Keyed by a stable `id = "<datasetId>:<column>"` and indexed by
  * `[datasetId+updatedAt]` so a dataset's freshest profile set is one range read.
  */
-export interface ColumnProfile {
+interface ColumnProfile {
   id: string; // `${datasetId}:${column}`
   datasetId: string;
   column: string;
@@ -93,7 +93,7 @@ export interface ColumnProfile {
 }
 
 /** Saved transform / recipe definition (data-transform feature). */
-export interface TransformRecipe {
+interface TransformRecipe {
   id: string;
   name: string;
   datasetId?: string;
@@ -118,7 +118,7 @@ export interface ImportHistoryRecord {
 }
 
 /** One query / activity event (replaces capped-localStorage activity logs). */
-export interface ActivityRecord {
+interface ActivityRecord {
   id: string;
   ts: number;
   day: string; // "YYYY-MM-DD"
@@ -132,7 +132,7 @@ export interface ActivityRecord {
 }
 
 /** A saved filter or query (saved-queries / saved-filters surfaces). */
-export interface SavedQuery {
+interface SavedQuery {
   id: string;
   name: string;
   kind: "filter" | "query";
@@ -147,7 +147,7 @@ export interface SavedQuery {
  * used to drive progress (replaces the synchronous parse-per-call localStorage
  * blob in achievements).
  */
-export interface AchievementRecord {
+interface AchievementRecord {
   id: string; // achievement id, or `evt:<uuid>` for stream rows
   kind: "unlock" | "event";
   ts: number;
@@ -158,7 +158,7 @@ export interface AchievementRecord {
 }
 
 /** A report definition (report layout; branding stays in report-studio DB). */
-export interface ReportDefinitionRecord {
+interface ReportDefinitionRecord {
   id: string;
   name: string;
   format: string;
@@ -172,7 +172,7 @@ export interface ReportDefinitionRecord {
  * with what was actually applied (theme single-source drift, perf knobs not
  * wired, etc.). Surfaced in Settings for self-healing.
  */
-export interface SettingsDriftRecord {
+interface SettingsDriftRecord {
   id: string; // setting key
   ts: number;
   setting: string;
@@ -182,7 +182,7 @@ export interface SettingsDriftRecord {
 }
 
 /** Local cache of a collab annotation (a flat mirror of the Yjs CRDT entry). */
-export interface CollabAnnotationRecord {
+interface CollabAnnotationRecord {
   id: string;
   roomId: string;
   updatedAt: number;
@@ -301,7 +301,7 @@ export const appDb = new AppDatabase();
  * accessors reuse the SAME sanitiser instead of re-implementing it (avoids the
  * `DataCloneError` class of bugs).
  */
-export function toCloneSafeValue(value: unknown, seen = new WeakSet<object>()): unknown {
+function toCloneSafeValue(value: unknown, seen = new WeakSet<object>()): unknown {
   if (value === null) return null;
 
   const valueType = typeof value;
@@ -351,59 +351,9 @@ export function toCloneSafeValue(value: unknown, seen = new WeakSet<object>()): 
   return cloneSafeObject;
 }
 
-export function toCloneSafeArray(value: unknown): unknown[] {
-  const cloneSafeValue = toCloneSafeValue(value);
-  return Array.isArray(cloneSafeValue) ? cloneSafeValue : [];
-}
-
-// ─── Parquet persistence (replaces OPFS) ─────────────────────────────────────
-
-export async function saveTableParquet(
-  tableName: string,
-  bytes: ArrayBuffer,
-  rowCount = 0,
-): Promise<void> {
-  await appDb.tableParquet.put({
-    key: tableName,
-    savedAt: Date.now(),
-    tableName,
-    bytes,
-    rowCount,
-    fileSizeBytes: bytes.byteLength,
-  });
-}
-
-export async function loadTableParquet(tableName: string): Promise<ArrayBuffer | null> {
-  const entry = await appDb.tableParquet.get(tableName);
-  return entry?.bytes ?? null;
-}
-
-export async function hasTableParquet(tableName: string): Promise<boolean> {
-  const count = await appDb.tableParquet.where("key").equals(tableName).count();
-  return count > 0;
-}
-
-export async function deleteTableParquet(tableName: string): Promise<void> {
-  await appDb.tableParquet.delete(tableName);
-}
-
 // ─── Session state ────────────────────────────────────────────────────────────
 
 const SESSION_KEY = "current";
-
-export async function saveSessionState(
-  state: Omit<SessionState, "key" | "updatedAt">,
-): Promise<void> {
-  await appDb.sessionState.put({
-    ...state,
-    key: SESSION_KEY,
-    updatedAt: Date.now(),
-  });
-}
-
-export async function loadSessionState(): Promise<SessionState | null> {
-  return (await appDb.sessionState.get(SESSION_KEY)) ?? null;
-}
 
 // ─── Shared id / time helpers ─────────────────────────────────────────────────
 
@@ -412,7 +362,7 @@ export async function loadSessionState(): Promise<SessionState | null> {
  * packaged Electron renderer); a non-secure dev origin can lack it, so fall back
  * to a monotonic ULID-ish id that is still sortable and collision-resistant.
  */
-export function newId(): string {
+function newId(): string {
   const c = globalThis.crypto;
   if (c && typeof c.randomUUID === "function") return c.randomUUID();
   const time = Date.now().toString(36).padStart(9, "0");
@@ -428,7 +378,7 @@ export function newId(): string {
 }
 
 /** Local calendar day string ("YYYY-MM-DD") for `day` range/group indexes. */
-export function dayKey(ts: number = Date.now()): string {
+function dayKey(ts: number = Date.now()): string {
   const d = new Date(ts);
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -438,7 +388,7 @@ export function dayKey(ts: number = Date.now()): string {
 
 // ─── Column profiles (keyed by datasetId+updatedAt) ──────────────────────────
 
-export function columnProfileId(datasetId: string, column: string): string {
+function columnProfileId(datasetId: string, column: string): string {
   return `${datasetId}:${column}`;
 }
 
@@ -456,26 +406,6 @@ export async function putColumnProfile(
     profile: toCloneSafeValue(profile) ?? null,
   });
   return id;
-}
-
-/** Newest profiles for a dataset (one compound-index range read). */
-export async function listColumnProfiles(datasetId: string): Promise<ColumnProfile[]> {
-  return appDb.columnProfiles
-    .where("[datasetId+updatedAt]")
-    .between([datasetId, Dexie.minKey], [datasetId, Dexie.maxKey])
-    .reverse()
-    .toArray();
-}
-
-export async function getColumnProfile(
-  datasetId: string,
-  column: string,
-): Promise<ColumnProfile | undefined> {
-  return appDb.columnProfiles.get(columnProfileId(datasetId, column));
-}
-
-export async function deleteColumnProfilesForDataset(datasetId: string): Promise<void> {
-  await appDb.columnProfiles.where("datasetId").equals(datasetId).delete();
 }
 
 // ─── Import history (append + paged read + retention) ────────────────────────
@@ -496,54 +426,11 @@ export async function addImportRecord(
   return id;
 }
 
-export async function listImportHistory(limit = 500): Promise<ImportHistoryRecord[]> {
-  return appDb.importHistory.orderBy("ts").reverse().limit(limit).toArray();
-}
-
-// ─── Activity history (the query/activity event log) ─────────────────────────
-
-export async function addActivityRecord(
-  rec: Omit<ActivityRecord, "id" | "ts" | "day"> & Partial<Pick<ActivityRecord, "id" | "ts">>,
-): Promise<string> {
-  const ts = rec.ts ?? Date.now();
-  const id = rec.id ?? newId();
-  await appDb.activityHistory.put({
-    ...rec,
-    id,
-    ts,
-    day: dayKey(ts),
-    detail: rec.detail === undefined ? undefined : toCloneSafeValue(rec.detail),
-  });
-  return id;
-}
-
-/** Newest events first, optionally filtered by source via the compound index. */
-export async function listActivity(
-  opts: { source?: ActivityRecord["source"]; limit?: number } = {},
-): Promise<ActivityRecord[]> {
-  const limit = opts.limit ?? 2000;
-  if (opts.source) {
-    return appDb.activityHistory
-      .where("[source+ts]")
-      .between([opts.source, Dexie.minKey], [opts.source, Dexie.maxKey])
-      .reverse()
-      .limit(limit)
-      .toArray();
-  }
-  return appDb.activityHistory.orderBy("ts").reverse().limit(limit).toArray();
-}
-
-export async function countActivity(source?: ActivityRecord["source"]): Promise<number> {
-  return source
-    ? appDb.activityHistory.where("source").equals(source).count()
-    : appDb.activityHistory.count();
-}
-
 /**
  * Cap a log table to `keep` newest rows (run on boot / idle). Generic over the
  * v2 append-only logs that carry a `ts` index. Returns rows deleted.
  */
-export async function pruneByTimestamp<T extends { ts: number }>(
+async function pruneByTimestamp<T extends { ts: number }>(
   table: Table<T, string>,
   keep: number,
 ): Promise<number> {
@@ -555,107 +442,10 @@ export async function pruneByTimestamp<T extends { ts: number }>(
   return oldKeys.length;
 }
 
-/** Convenience: trim the two unbounded append logs to their default caps. */
-export async function compactLogs(opts?: {
-  activityKeep?: number;
-  importKeep?: number;
-}): Promise<{ activity: number; imports: number }> {
-  const activity = await pruneByTimestamp(appDb.activityHistory, opts?.activityKeep ?? 5000);
-  const imports = await pruneByTimestamp(appDb.importHistory, opts?.importKeep ?? 1000);
-  return { activity, imports };
-}
-
-// ─── Saved queries / filters ─────────────────────────────────────────────────
-
-export async function putSavedQuery(q: Omit<SavedQuery, "updatedAt">): Promise<string> {
-  await appDb.savedQueries.put({
-    ...q,
-    definition: toCloneSafeValue(q.definition) ?? null,
-    updatedAt: Date.now(),
-  });
-  return q.id;
-}
-
-export async function listSavedQueries(kind?: SavedQuery["kind"]): Promise<SavedQuery[]> {
-  if (kind) {
-    return appDb.savedQueries.where("kind").equals(kind).reverse().sortBy("updatedAt");
-  }
-  return appDb.savedQueries.orderBy("updatedAt").reverse().toArray();
-}
-
-export async function deleteSavedQuery(id: string): Promise<void> {
-  await appDb.savedQueries.delete(id);
-}
-
-// ─── Achievements (unlock rows + capped event stream) ────────────────────────
-
-export async function listUnlockedAchievements(): Promise<AchievementRecord[]> {
-  return appDb.achievements
-    .where("[kind+ts]")
-    .between(["unlock", Dexie.minKey], ["unlock", Dexie.maxKey])
-    .reverse()
-    .toArray();
-}
-
-export async function isAchievementUnlocked(id: string): Promise<boolean> {
-  const row = await appDb.achievements.get(id);
-  return row?.kind === "unlock";
-}
-
-// ─── Settings drift ──────────────────────────────────────────────────────────
-
-export async function recordSettingsDrift(
-  setting: string,
-  expected: unknown,
-  actual: unknown,
-): Promise<void> {
-  await appDb.settingsDrift.put({
-    id: setting,
-    ts: Date.now(),
-    setting,
-    expected: toCloneSafeValue(expected) ?? null,
-    actual: toCloneSafeValue(actual) ?? null,
-    resolved: false,
-  });
-}
-
-export async function resolveSettingsDrift(setting: string): Promise<void> {
-  await appDb.settingsDrift.update(setting, { resolved: true, ts: Date.now() });
-}
-
-export async function listUnresolvedDrift(): Promise<SettingsDriftRecord[]> {
+async function listUnresolvedDrift(): Promise<SettingsDriftRecord[]> {
   // `resolved` is a boolean (unindexed) — filter in memory; the drift table is
   // tiny (one row per setting key), so a full scan is fine.
   return appDb.settingsDrift.filter((r) => !r.resolved).toArray();
-}
-
-// ─── Collab annotation cache ─────────────────────────────────────────────────
-
-export async function putCollabAnnotation(
-  ann: Omit<CollabAnnotationRecord, "updatedAt"> & { updatedAt?: number },
-): Promise<string> {
-  await appDb.collabAnnotations.put({
-    ...ann,
-    body: toCloneSafeValue(ann.body) ?? null,
-    updatedAt: ann.updatedAt ?? Date.now(),
-  });
-  return ann.id;
-}
-
-export async function listCollabAnnotations(
-  roomId: string,
-  limit = 1000,
-): Promise<CollabAnnotationRecord[]> {
-  return appDb.collabAnnotations
-    .where("[roomId+updatedAt]")
-    .between([roomId, Dexie.minKey], [roomId, Dexie.maxKey])
-    .reverse()
-    .limit(limit)
-    .toArray();
-}
-
-export async function deleteCollabAnnotationsForRoom(roomId: string): Promise<void> {
-  await appDb.collabAnnotations.where("roomId").equals(roomId).delete();
 }
 
 // ─── Web-Vitals offline RUM (architecture.md §13) ────────────────────────────
@@ -679,30 +469,6 @@ export async function addPerfMetric(
     detail: rec.detail === undefined ? undefined : toCloneSafeValue(rec.detail),
   });
   return id;
-}
-
-/** Newest perf samples, optionally filtered by metric or route via index. */
-export async function listPerfMetrics(
-  opts: { metric?: string; route?: string; limit?: number } = {},
-): Promise<PerfMetricRecord[]> {
-  const limit = opts.limit ?? 2000;
-  if (opts.metric) {
-    return appDb.perfMetrics
-      .where("[metric+ts]")
-      .between([opts.metric, Dexie.minKey], [opts.metric, Dexie.maxKey])
-      .reverse()
-      .limit(limit)
-      .toArray();
-  }
-  if (opts.route) {
-    return appDb.perfMetrics
-      .where("[route+ts]")
-      .between([opts.route, Dexie.minKey], [opts.route, Dexie.maxKey])
-      .reverse()
-      .limit(limit)
-      .toArray();
-  }
-  return appDb.perfMetrics.orderBy("ts").reverse().limit(limit).toArray();
 }
 
 /** Trim the RUM log to its newest `keep` rows (run on idle/boot). */

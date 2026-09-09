@@ -25,7 +25,7 @@ export interface CanalRuleDraft {
   createdAt: string | null;
 }
 
-export type CanalRuleValidationField =
+type CanalRuleValidationField =
   | "name"
   | "canalKey"
   | "brandDValues"
@@ -34,7 +34,7 @@ export type CanalRuleValidationField =
   | "accountMsisdn"
   | "reportGroup";
 
-export type CanalRuleValidationErrors = Partial<Record<CanalRuleValidationField, string>>;
+type CanalRuleValidationErrors = Partial<Record<CanalRuleValidationField, string>>;
 
 export type CanalRuleValidationResult =
   | {
@@ -71,7 +71,7 @@ function toNonEmptyArray<T>(values: T[]): NonEmptyArray<T> | null {
   return [first, ...rest];
 }
 
-export function matchKindFromCombo(combo: UnclassifiedCanalCombo): CanalMatchKind {
+function matchKindFromCombo(combo: UnclassifiedCanalCombo): CanalMatchKind {
   if (combo.accountLayerId && combo.accountGroupId) {
     return "brand-layer-group";
   }

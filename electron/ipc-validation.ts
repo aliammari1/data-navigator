@@ -121,8 +121,6 @@ export const LlamaPreloadWarmPrefixSchema = z.object({
 });
 
 // Cap batch size defensively (mirrors MAX_SQL_CHARS/MAX_PROMPT_CHARS above): one
-// IPC call must not be able to pin memory/CPU embedding an unbounded batch.
-export const LlamaEmbedSchema = z.object({ texts: z.array(z.string()).min(1).max(256) });
 
 // ─── Offline model download channels ──────────────────────────────────────────
 export const RequestIdSchema = z.string().min(1).max(512);

@@ -27,7 +27,7 @@ type AuthDatabaseOptions = {
   cwd?: string;
 };
 
-export function getAuthDatabasePath(options: AuthDatabaseOptions = {}) {
+function getAuthDatabasePath(options: AuthDatabaseOptions = {}) {
   const appUserData = options.appUserData ?? process.env.APP_USER_DATA;
   const runtimeDataDir = appUserData
     ? path.join(appUserData, "databases")
@@ -147,7 +147,7 @@ function migratePlaintextToEncrypted(databasePath: string, keyHex: string): bool
   }
 }
 
-export function createAuthDatabase(options: AuthDatabaseOptions = {}) {
+function createAuthDatabase(options: AuthDatabaseOptions = {}) {
   const databasePath = getAuthDatabasePath(options);
   mkdirSync(path.dirname(databasePath), { recursive: true });
 
@@ -275,11 +275,3 @@ function createLazyHandle<T extends object>(pick: (db: AuthDatabase) => T): T {
 
 /** Drizzle ORM handle for the auth + app-settings database (lazily opened). */
 export const authDb = createLazyHandle((database) => database.db);
-
-/** Raw better-sqlite3 handle (lazily opened). */
-export const authSqlite = createLazyHandle((database) => database.sqlite);
-
-/** Resolved on-disk path of the auth database (pure path join — no native load). */
-export const authDatabasePath = getAuthDatabasePath({
-  appUserData: process.env.APP_USER_DATA,
-});

@@ -215,7 +215,7 @@ export const FileUpload = ({
   );
 };
 
-export function GridPattern() {
+function GridPattern() {
   const columns = 41;
   const rows = 11;
   const cells = Array.from({ length: rows * columns }, (_, i) => ({

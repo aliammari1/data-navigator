@@ -59,7 +59,7 @@ const RECENT_LIMIT = 8;
 const TITLE_MATCH_LIMIT = 5;
 
 /** Any app can request the palette; the chat screen owns the actual shortcut. */
-export const CHAT_SEARCH_PALETTE_EVENT = "moudir-chat:search-palette";
+const CHAT_SEARCH_PALETTE_EVENT = "moudir-chat:search-palette";
 export const JUMP_TO_MESSAGE_EVENT = "moudir-chat:jump-to-message";
 
 /**

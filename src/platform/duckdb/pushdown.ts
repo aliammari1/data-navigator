@@ -41,23 +41,6 @@ function sourceSql(source: SqlSource | string): string {
   return quoteIdent(view);
 }
 
-// ─── Whole-dataset profile: ONE scan via SUMMARIZE (§1.3) ─────────────────────
-
-export interface SummarizeColumn {
-  column_name: string;
-  column_type: string;
-  min: unknown;
-  max: unknown;
-  approx_unique: number | null;
-  avg: number | null;
-  std: number | null;
-  q25: number | null;
-  q50: number | null;
-  q75: number | null;
-  count: number;
-  null_percentage: number | null;
-}
-
 /**
  * Whole-dataset profile in a single scan. `SUMMARIZE` is itself a table source
  * (DuckDB ≥0.10), so we project the columns we want. `approx_unique` and the
@@ -278,15 +261,15 @@ export function countCacheKey(view: string, where?: string): string {
 
 // ─── Keyset / seek pagination — replace LIMIT n OFFSET (§1.4) ──────────────────
 
-export type SortDirection = "ASC" | "DESC";
+type SortDirection = "ASC" | "DESC";
 
-export interface KeysetSortKey {
+interface KeysetSortKey {
   /** Column to sort by (quoted internally). */
   column: string;
   direction?: SortDirection;
 }
 
-export interface KeysetCursor {
+interface KeysetCursor {
   /**
    * Last-seen values for each sort key, in the SAME order as `sortKeys`.
    * The trailing tiebreaker `rowid` value (number) is supplied separately.

@@ -32,7 +32,7 @@ export type AttachmentMediaCategory =
   | "source"
   | "unknown";
 
-export type AttachmentVariant = "grid" | "inline" | "list";
+type AttachmentVariant = "grid" | "inline" | "list";
 
 const mediaCategoryIcons: Record<AttachmentMediaCategory, typeof ImageIcon> = {
   audio: Music2Icon,
@@ -47,7 +47,7 @@ const mediaCategoryIcons: Record<AttachmentMediaCategory, typeof ImageIcon> = {
 // Utility Functions
 // ============================================================================
 
-export const getMediaCategory = (data: AttachmentData): AttachmentMediaCategory => {
+const getMediaCategory = (data: AttachmentData): AttachmentMediaCategory => {
   if (data.type === "source-document") {
     return "source";
   }
@@ -121,10 +121,9 @@ const AttachmentContext = createContext<AttachmentContextValue | null>(null);
 // Hooks
 // ============================================================================
 
-export const useAttachmentsContext = () =>
-  useContext(AttachmentsContext) ?? { variant: "grid" as const };
+const useAttachmentsContext = () => useContext(AttachmentsContext) ?? { variant: "grid" as const };
 
-export const useAttachmentContext = () => {
+const useAttachmentContext = () => {
   const ctx = useContext(AttachmentContext);
   if (!ctx) {
     throw new Error("Attachment components must be used within <Attachment>");
@@ -381,9 +380,9 @@ export const AttachmentHoverCardContent = ({
 // AttachmentEmpty - Empty state
 // ============================================================================
 
-export type AttachmentEmptyProps = HTMLAttributes<HTMLDivElement>;
+type AttachmentEmptyProps = HTMLAttributes<HTMLDivElement>;
 
-export const AttachmentEmpty = ({ className, children, ...props }: AttachmentEmptyProps) => (
+const AttachmentEmpty = ({ className, children, ...props }: AttachmentEmptyProps) => (
   <div
     className={cn("flex items-center justify-center p-4 text-muted-foreground text-sm", className)}
     {...props}

@@ -36,7 +36,4 @@ export interface FlatRow {
   hasChildren: boolean;
   isExpanded: boolean;
 }
-
-export type ViewMode = "tree-grid" | "grid" | "list";
 export type SortKey = "name" | "size" | "updated" | "quality";
-export type ActiveTab = "files" | "starred" | "recent" | "stats";

@@ -47,7 +47,7 @@ import { cn } from "@/shared/utils";
 // looks right in light and dark mode. Brand + status hues stay FIXED 6-digit hex
 // (downstream code concatenates hex-alpha, e.g. `${MOUDIR.coral}1f`).
 
-export const MOUDIR = {
+const MOUDIR = {
   // Theme-aware surfaces / text (CSS values — usable in style={{ ... }}).
   /** App surface; transparent so the shared background shows through. */
   canvas: "transparent",
@@ -75,57 +75,11 @@ export const MOUDIR = {
 
 export const EASE = [0.16, 1, 0.3, 1] as const;
 
-export const rise: Variants = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0, transition: { duration: 0.5, ease: EASE } },
-};
-
-export const stagger: Variants = {
-  hidden: {},
-  show: { transition: { staggerChildren: 0.07, delayChildren: 0.04 } },
-};
-
 export function useMotionOn(): boolean {
   return !useReducedMotion();
 }
 
 // ─── Backdrop ──────────────────────────────────────────────────────────────────
-
-/**
- * Sits on the APP surface — never a dark slab. A faint var(--background) base
- * plus a soft coral radial glow and a hairline dot-grid that read on both light
- * and dark themes. The grid uses currentColor-ish foreground at very low alpha so
- * it follows the theme instead of a hardcoded cream tint.
- */
-export function MoudirBackdrop({ lit = false }: { lit?: boolean }) {
-  return (
-    <div className="pointer-events-none absolute inset-0 overflow-hidden text-foreground">
-      {/* Theme surface base (transparent-ish so the app shows through). */}
-      <div className="absolute inset-0" style={{ background: "hsl(var(--background) / 0.4)" }} />
-      {/* Soft coral overhead glow — Moudir's signal, equally subtle in both modes. */}
-      <div
-        className={cn(
-          "absolute inset-0 transition-opacity duration-1000",
-          lit ? "opacity-100" : "opacity-70",
-        )}
-        style={{
-          background:
-            "radial-gradient(110% 70% at 50% -15%, rgba(23, 162, 201,0.12), transparent 55%)",
-        }}
-      />
-      {/* Hairline dot-grid keyed to the theme foreground (very low alpha). */}
-      <div
-        className="absolute inset-0 opacity-[0.06]"
-        style={{
-          backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-          backgroundSize: "22px 22px",
-          maskImage: "radial-gradient(120% 90% at 50% 0%, black, transparent 75%)",
-          WebkitMaskImage: "radial-gradient(120% 90% at 50% 0%, black, transparent 75%)",
-        }}
-      />
-    </div>
-  );
-}
 
 // ─── Identity ──────────────────────────────────────────────────────────────────
 
@@ -190,59 +144,6 @@ export function Kicker({
       className={cn(
         "font-mono text-[11px] uppercase tracking-[0.2em]",
         tone === "coral" ? "text-[#17a2c9]" : "text-muted-foreground",
-        className,
-      )}
-    >
-      {children}
-    </span>
-  );
-}
-
-export function Rule({ className }: { className?: string }) {
-  return <div className={cn("h-px w-full bg-border", className)} />;
-}
-
-/** A small warm "now working" indicator — three breathing dots, not a skeleton. */
-export function ThinkingDots({ className }: { className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1", className)}>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          className="h-1.5 w-1.5 animate-bounce rounded-full"
-          style={{
-            background: MOUDIR.coral,
-            animationDelay: `${i * 140}ms`,
-            animationDuration: "900ms",
-          }}
-        />
-      ))}
-    </span>
-  );
-}
-
-/** A warm pill (status / chips). Theme-aware neutral; fixed brand/status hues. */
-export function Pill({
-  children,
-  tone = "neutral",
-  className,
-}: {
-  children: ReactNode;
-  tone?: "neutral" | "coral" | "green" | "rose" | "gold";
-  className?: string;
-}) {
-  const tones: Record<string, string> = {
-    neutral: "border-border text-muted-foreground",
-    coral: "border-[#17a2c9]/35 text-[#17a2c9]",
-    green: "border-[#6bbf83]/45 text-[#5aa873] dark:text-[#6bbf83]",
-    rose: "border-[#e06a55]/45 text-[#cf5743] dark:text-[#e06a55]",
-    gold: "border-[#e8b64a]/45 text-[#b98a1f] dark:text-[#e8b64a]",
-  };
-  return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium",
-        tones[tone],
         className,
       )}
     >

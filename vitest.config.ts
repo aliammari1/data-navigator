@@ -19,7 +19,9 @@ export default defineConfig({
   plugins: [react()],
   test: {
     name: "unit",
-    projects: ["./vitest.config.ts", "./vitest.eval.config.ts", "./vitest.duckdb-bench.config.ts"],
+    // No `projects` workspace: evals and native-DuckDB benches are separate
+    // entry points (`test:eval`, `bench:duckdb`). Workspace inclusion would run
+    // bench-mode-only files under `vitest run`, where `bench()` throws.
     environment: "jsdom",
     globals: true,
     setupFiles: ["./tests/setup.ts"],

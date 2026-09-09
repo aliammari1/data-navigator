@@ -75,9 +75,9 @@ export interface ElectronFSBridge {
 
 // ─── DuckDB Dataset Bridge Types ──────────────────────────────────────────────
 
-export type DatasetSourceFormat = "csv" | "parquet";
+type DatasetSourceFormat = "csv" | "parquet";
 
-export interface RegisteredDatasetColumn {
+interface RegisteredDatasetColumn {
   name: string;
   type: string;
   nullable: boolean;

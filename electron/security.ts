@@ -487,5 +487,3 @@ export const PRODUCTION_FUSE_CONFIG = {
    */
   GrantFileProtocolExtraPrivileges: false,
 } as const;
-
-export type ProductionFuseConfig = typeof PRODUCTION_FUSE_CONFIG;

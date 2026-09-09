@@ -41,7 +41,7 @@ export interface ChatSearchHit {
   source: "fts" | "semantic";
 }
 
-export interface ChatEmbeddingBackfillResult {
+interface ChatEmbeddingBackfillResult {
   indexed: number;
   skipped: number;
   failed: number;
@@ -148,10 +148,4 @@ export async function searchMessagesRemote(input: {
   const api = bridge();
   if (!api) return [];
   return api.searchMessages(input);
-}
-
-export async function backfillEmbeddingsRemote(): Promise<ChatEmbeddingBackfillResult | null> {
-  const api = bridge();
-  if (!api) return null;
-  return api.backfillEmbeddings();
 }

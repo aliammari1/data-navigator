@@ -20,11 +20,6 @@ import { Awareness } from "y-protocols/awareness";
 import type * as Y from "yjs";
 import type { AwarenessCursor, AwarenessUser, CollabPeer } from "./types";
 
-/** Create an Awareness instance bound to a doc. */
-export function createAwareness(doc: Y.Doc): Awareness {
-  return new Awareness(doc);
-}
-
 /** Write the durable identity user field (low frequency: join/rename/role). */
 export function setAwarenessUser(awareness: Awareness, user: AwarenessUser): void {
   awareness.setLocalStateField("user", {
@@ -44,27 +39,6 @@ function scheduleFrame(cb: () => void): ScheduleHandle {
     return requestAnimationFrame(cb);
   }
   return setTimeout(cb, 16);
-}
-
-/**
- * Throttled cursor/selection write (~1 per animation frame). Keeps high-rate
- * remote cursor traffic from re-rendering every subscriber on a medium CPU.
- */
-export function publishCursor(awareness: Awareness, cursor: AwarenessCursor): void {
-  pendingCursor.set(awareness, cursor);
-  if (cursorRaf.has(awareness)) return;
-  const handle = scheduleFrame(() => {
-    cursorRaf.delete(awareness);
-    const next = pendingCursor.get(awareness);
-    pendingCursor.delete(awareness);
-    if (next) awareness.setLocalStateField("cursor", next);
-  });
-  cursorRaf.set(awareness, handle);
-}
-
-/** Clear local awareness state (e.g. on leave) so peers prune us immediately. */
-export function clearLocalAwareness(awareness: Awareness): void {
-  awareness.setLocalState(null);
 }
 
 /**
@@ -95,14 +69,4 @@ export function readPeers(awareness: Awareness): CollabPeer[] {
 export function subscribePeers(awareness: Awareness, handler: () => void): () => void {
   awareness.on("change", handler);
   return () => awareness.off("change", handler);
-}
-
-/** Tear down an awareness instance (removes local state + listeners). */
-export function destroyAwareness(awareness: Awareness): void {
-  try {
-    awareness.setLocalState(null);
-  } catch {
-    // ignore
-  }
-  awareness.destroy();
 }

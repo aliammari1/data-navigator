@@ -9,9 +9,9 @@ import type { SupportedExtensions } from "@/shared/types";
 
 export type ColType = "number" | "string" | "date" | "boolean" | "unknown";
 
-export type DatasetFormat = SupportedExtensions | "csv" | "tsv" | "txt" | "parquet" | "pq";
+type DatasetFormat = SupportedExtensions | "csv" | "tsv" | "txt" | "parquet" | "pq";
 
-export type DatasetSource = "upload" | "paste" | "transform" | "catalog";
+type DatasetSource = "upload" | "paste" | "transform" | "catalog";
 
 export interface ColMeta {
   name: string;

@@ -47,7 +47,7 @@ export interface PyodideStatus {
   downloading: boolean;
 }
 
-export interface DownloadProgress {
+interface DownloadProgress {
   file: string;
   received: number;
   total: number;
@@ -71,10 +71,6 @@ export function getPyodideInstallPath(): string {
 
 export function getPyodideVersion(): string {
   return PYODIDE_VERSION;
-}
-
-export function getPyodideCdnBase(): string {
-  return CDN_BASE;
 }
 
 export async function getPyodideStatus(): Promise<PyodideStatus> {

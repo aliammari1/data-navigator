@@ -127,20 +127,3 @@ export function addCursorNote(note: Omit<CursorNote, "id" | "createdAt">): Curso
   sharedLanRoom.set(keyFor(note.sectionId), JSON.stringify(deduped));
   return full;
 }
-
-/**
- * Convenience hook that also returns a memoized `addCursorNote` bound to the
- * current section. Identity fields default to the local peer settings.
- */
-export function useCursorNoteActions(sectionId: string | null): {
-  addCursorNote: (note: Omit<CursorNote, "id" | "createdAt" | "sectionId">) => CursorNote | null;
-} {
-  const add = useCallback(
-    (note: Omit<CursorNote, "id" | "createdAt" | "sectionId">): CursorNote | null => {
-      if (!sectionId) return null;
-      return addCursorNote({ ...note, sectionId });
-    },
-    [sectionId],
-  );
-  return { addCursorNote: add };
-}

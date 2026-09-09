@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import {
-  BUILTIN_STATUS_CODES,
   buildRawStatusFilter,
   buildRawStatusFilterForColumn,
   DEFAULT_STATUS_MAPPINGS,
@@ -51,10 +50,10 @@ describe("SPEC filters", () => {
     expect(SPEC_SUCCESS_FILTER).toContain("TRANSACTION_STATUS");
   });
 
-  it("exclude soft-declined extras (CAN/FLD/ERR) — they are non-spec fallback codes, not builtin ones", () => {
-    // BUILTIN_STATUS_CODES is spec-exact; SPEC_STATUS_CODES is a plain alias of it.
-    expect(SPEC_STATUS_CODES).toBe(BUILTIN_STATUS_CODES);
-    expect(BUILTIN_STATUS_CODES.declined).not.toContain("CAN");
+  it("exclude soft-declined extras (CAN/FLD/ERR) — they are non-spec fallback codes, not spec ones", () => {
+    // SPEC_STATUS_CODES is spec-exact: soft-declined extras are recognised only
+    // via the non-spec auto-detection fallback (STATUS_AUTO_SEMANTIC_BY_CODE).
+    expect(SPEC_STATUS_CODES.declined).not.toContain("CAN");
     expect(SPEC_STATUS_CODES.declined).not.toContain("CAN");
     expect(SPEC_DECLINED_FILTER).not.toContain("'CAN'");
     // CAN is still recognised as a declined-shaped code, but only via the
@@ -70,9 +69,9 @@ describe("status code set integrity", () => {
     }
   });
 
-  it("keeps builtin code groups disjoint (no code in two semantics)", () => {
+  it("keeps spec code groups disjoint (no code in two semantics)", () => {
     const seen = new Map<string, string>();
-    for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES)) {
+    for (const [semantic, codes] of Object.entries(SPEC_STATUS_CODES)) {
       for (const code of codes) {
         expect(
           seen.has(code),

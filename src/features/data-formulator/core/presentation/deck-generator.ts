@@ -49,10 +49,7 @@ function cleanTitle(title: string): string {
 /**
  * Builds the Marp Markdown string according to the 2026 executive deck standard.
  */
-export function buildExecutiveMarpMarkdown(
-  messages: ChatMessage[],
-  options: DeckExportOptions,
-): string {
+function buildExecutiveMarpMarkdown(messages: ChatMessage[], options: DeckExportOptions): string {
   const dateStr = new Intl.DateTimeFormat("fr-FR", {
     day: "numeric",
     month: "long",

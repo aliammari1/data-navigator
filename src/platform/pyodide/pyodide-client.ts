@@ -35,7 +35,7 @@ export interface PyodideRunResult {
   error: string | null;
 }
 
-export interface PyodideBridge {
+interface PyodideBridge {
   status: () => Promise<PyodideStatus>;
   download: () => Promise<PyodideStatus>;
   cancel: () => Promise<void>;
@@ -164,10 +164,6 @@ export async function downloadPyodide(): Promise<PyodideStatus | null> {
 
 export async function cancelPyodideDownload(): Promise<void> {
   return bridge()?.cancel();
-}
-
-export async function getPyodideVersion(): Promise<string | null> {
-  return bridge()?.version() ?? null;
 }
 
 export function onPyodideDownloadProgress(

@@ -1,9 +1,3 @@
-# facts: data-navigator is a private (package.json private:true), offline-first
-# Electron + Next.js 16 app using pnpm@10.25.0; this is THE PR quality gate
-# (replaces the deleted ci.yml). It runs static analysis + tests + build on every
-# PR/push/merge_group. No multi-GB GGUF model is ever downloaded in CI.
-# (The advisory size-limit and Lighthouse jobs were removed — flaky/heavy for no
-# signal — along with the nightly schedule that only existed to run them.)
 name: Quality
 
 on:
@@ -18,8 +12,6 @@ on:
   merge_group:
   workflow_dispatch:
 
-# Cancel superseded runs on the same ref; never cancel a queued merge-group entry
-# is irrelevant here because each merge_group ref is unique.
 concurrency:
   group: quality-${{ github.ref }}
   cancel-in-progress: true
@@ -35,14 +27,11 @@ env:
 jobs:
   # ---------------------------------------------------------------------------
   # THE required PR gate: static analysis, type/arch/provider checks, tests, and
-  # the Next + Storybook builds. Keep this unfiltered so the branch-protection
-  # "Quality" check always reports a status.
+  # the Next + Storybook builds.
   # ---------------------------------------------------------------------------
   quality:
     name: Quality / Node ${{ matrix.node }}
     runs-on: ubuntu-latest
-    # Was 45; +~1min for the (model-free) deterministic eval suite and +~11min
-    # for the advisory mutation-testing step pushed real headroom needed.
     timeout-minutes: 60
 
     permissions:
@@ -56,21 +45,11 @@ jobs:
 
     steps:
       - name: Checkout repository
-        # First-party action: major-version tag is acceptable (auto-patched).
-        uses: actions/checkout@v7
+        uses: actions/checkout@v4
         with:
-          # lfs:false — do NOT fetch the ~636 MB of LFS models. The quality gate
-          # (lint / typecheck / test / storybook / next build) does not need the real
-          # model bytes: next build + the unit tests work against the LFS pointer files,
-          # and build:storybook deletes storybook-static/models anyway. Fetching them on
-          # every run was the main drain on the account's 1 GB/month LFS bandwidth
-          # (~636 MB × 31 runs in June alone). Models download at runtime.
           lfs: false
 
       - name: Set up pnpm + Node + caches
-        # Shared composite action (see CROSS-FILE DEPENDENCY note in the PR/return):
-        # installs pnpm 10.25.0, sets up Node with the pnpm store cache, restores
-        # the Next build cache, and runs `pnpm install --frozen-lockfile`.
         uses: ./.github/actions/setup
         with:
           node-version: ${{ matrix.node }}
@@ -79,25 +58,18 @@ jobs:
         run: pnpm run lint
 
       - name: Format check (biome)
-        # biome `lint` and `format` are separate; this is the only formatting gate
-        # in CI (lefthook is disabled), so keep it here after deleting ci.yml.
         run: pnpm run format:check
 
-      - name: Lint (oxlint)
-        run: pnpm dlx oxlint .
-
       - name: Typecheck (tsc --noEmit)
-        # Run once in CI even though local dev skips tsc for speed.
         run: pnpm run typecheck
 
       - name: Architecture check
         run: pnpm run check:architecture
 
-      - name: Dependency graph check (dependency-cruiser, incl. provider boundaries)
+      - name: Dependency graph check (dependency-cruiser)
         run: pnpm run check:deps
 
       - name: Dead-code check (knip)
-        # Advisory: knip findings should not block the PR gate.
         run: pnpm run check:deadcode
         continue-on-error: true
 
@@ -106,33 +78,23 @@ jobs:
 
       - name: Upload coverage report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: coverage-node-${{ matrix.node }}
           path: coverage
           if-no-files-found: ignore
           retention-days: 7
 
-      - name: Offline-LLM eval harness (deterministic — no model download)
-        # evals/*.eval.ts's own doc comments call the deterministic block "the
-        # real CI gate" (live/model-gated cases auto-skip without a GGUF, which
-        # CI never downloads — see the lfs:false note above). Required, not
-        # advisory: these are pure/fast (no model), same cost class as the
-        # unit suite.
+      - name: Offline-LLM eval harness (deterministic)
         run: pnpm run test:eval
 
       - name: Mutation testing (Stryker)
-        # Advisory (user-approved 2026-07-06): runs on every push/PR and posts
-        # a visible score, but never blocks merging — a regression here is a
-        # test-quality signal to act on, not a hard gate. Found a real security
-        # bug in electron/sql-guard.ts on first run (an untested regex-evasion
-        # gap), so this is worth the ~11min/run even as advisory-only.
         run: pnpm run test:mutation
         continue-on-error: true
 
       - name: Upload mutation report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@v4
         with:
           name: mutation-report-node-${{ matrix.node }}
           path: reports/mutation

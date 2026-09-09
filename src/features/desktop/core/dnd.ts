@@ -99,7 +99,7 @@ function hasDesktopType(e: DragEvent | React.DragEvent): boolean {
 }
 
 /** Handlers returned by {@link useDropTarget}, spread onto the drop zone element. */
-export interface DropProps {
+interface DropProps {
   onDragOver: (e: React.DragEvent) => void;
   onDragEnter: (e: React.DragEvent) => void;
   onDragLeave: (e: React.DragEvent) => void;

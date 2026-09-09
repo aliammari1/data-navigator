@@ -98,16 +98,6 @@ export interface ParsedFileInfo {
   metadataSource: "preview" | "full";
 }
 
-export interface UploadSettings {
-  hasHeader: boolean;
-  encoding: ImportEncoding;
-  skipEmptyLines: boolean;
-  trimWhitespace: boolean;
-  maxRows: number | null;
-  autoDetectTypes: boolean;
-  loadToDuckDB: boolean;
-}
-
 /** Human-readable label for an encoding option, for the settings select. */
 export const ENCODING_LABELS: Record<ImportEncoding, string> = {
   auto: "Détection auto",

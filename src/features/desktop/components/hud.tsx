@@ -25,7 +25,7 @@ import { cn } from "@/shared/utils";
 // ---------------------------------------------------------------------------
 
 /** A single inline action rendered as a button inside a toast. */
-export interface ToastAction {
+interface ToastAction {
   /** Button label (French-first). */
   label: string;
   /** Invoked on click; the toast is dismissed afterwards unless `keepOpen`. */
@@ -34,9 +34,9 @@ export interface ToastAction {
   keepOpen?: boolean;
 }
 
-export type ToastVariant = "info" | "success" | "warning" | "danger";
+type ToastVariant = "info" | "success" | "warning" | "danger";
 
-export interface Toast {
+interface Toast {
   id: string;
   message: string;
   /** Optional secondary line under the message. */
@@ -62,7 +62,7 @@ export interface Toast {
 }
 
 /** Input accepted by `showToast` (id/duration/variant default if omitted). */
-export interface ShowToastInput {
+interface ShowToastInput {
   message: string;
   description?: string;
   variant?: ToastVariant;
@@ -77,7 +77,7 @@ export interface ShowToastInput {
 }
 
 /** The center fade HUD (palette / theme / volume style quick state). */
-export interface CenterHud {
+interface CenterHud {
   id: string;
   /** Big primary label, e.g. "Ambre" or "Mode clair". */
   label: string;
@@ -115,7 +115,7 @@ const uid = () =>
 const MAX_TOASTS = 4;
 let centerTimer: ReturnType<typeof setTimeout> | null = null;
 
-export const useToasts = create<ToastStore>((set, get) => ({
+const useToasts = create<ToastStore>((set, get) => ({
   toasts: [],
   center: null,
 
@@ -194,17 +194,17 @@ export const useToasts = create<ToastStore>((set, get) => ({
 // ---------------------------------------------------------------------------
 
 /** Fire a toast from outside React. Returns the toast id. */
-export function showToast(input: ShowToastInput): string {
+function showToast(input: ShowToastInput): string {
   return useToasts.getState().showToast(input);
 }
 
 /** Patch an existing toast (e.g. advance a progress bar). */
-export function updateToast(id: string, patch: Partial<ShowToastInput>): void {
+function updateToast(id: string, patch: Partial<ShowToastInput>): void {
   useToasts.getState().updateToast(id, patch);
 }
 
 /** Dismiss a toast by id. */
-export function dismissToast(id: string): void {
+function dismissToast(id: string): void {
   useToasts.getState().dismissToast(id);
 }
 
@@ -212,7 +212,7 @@ export function dismissToast(id: string): void {
  * Convenience: a toast that offers an Undo. Renders as "<message> — Annuler".
  * Example: withUndo("Dossier supprimé", () => restoreFolder(id)).
  */
-export function withUndo(
+function withUndo(
   message: string,
   onUndo: () => void,
   options?: Omit<ShowToastInput, "message" | "undo">,
@@ -222,63 +222,6 @@ export function withUndo(
     message,
     undo: onUndo,
   });
-}
-
-/** Flash the big center HUD (palette / theme / volume). Returns its id. */
-export function showCenterHud(
-  input: Omit<CenterHud, "id"> & { id?: string; durationMs?: number },
-): string {
-  return useToasts.getState().showCenter(input);
-}
-
-/**
- * Start a progress toast. Returns `{ id, set, done, fail }` controllers so a
- * long task can drive it without re-importing the store.
- *  - set(value)  → advance 0..1 (or -1 indeterminate)
- *  - done(msg?)  → flip to a success toast that auto-dismisses
- *  - fail(msg?)  → flip to a danger toast that auto-dismisses
- */
-export function showProgress(
-  message: string,
-  options?: { description?: string; onCancel?: () => void; initial?: number },
-): {
-  id: string;
-  set: (value: number, message?: string) => void;
-  done: (message?: string) => void;
-  fail: (message?: string) => void;
-  dismiss: () => void;
-} {
-  const id = useToasts.getState().showToast({
-    message,
-    description: options?.description,
-    progress: options?.initial ?? -1,
-    onCancel: options?.onCancel,
-  });
-  return {
-    id,
-    set: (value, msg) =>
-      useToasts.getState().updateToast(id, {
-        progress: value,
-        ...(msg ? { message: msg } : {}),
-      }),
-    done: (msg) =>
-      useToasts.getState().updateToast(id, {
-        message: msg ?? "Terminé",
-        progress: undefined,
-        onCancel: undefined,
-        variant: "success",
-        duration: 2600,
-      }),
-    fail: (msg) =>
-      useToasts.getState().updateToast(id, {
-        message: msg ?? "Échec",
-        progress: undefined,
-        onCancel: undefined,
-        variant: "danger",
-        duration: 4000,
-      }),
-    dismiss: () => useToasts.getState().dismissToast(id),
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -517,5 +460,3 @@ export function HudLayer({ className }: { className?: string }) {
     </>
   );
 }
-
-export default HudLayer;

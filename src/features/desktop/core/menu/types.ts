@@ -53,7 +53,7 @@ export interface MenuRadioGroupItem {
 }
 
 /** A nested submenu. */
-export interface MenuSubmenuItem {
+interface MenuSubmenuItem {
   kind: "submenu";
   id: string;
   label: string;
@@ -61,12 +61,12 @@ export interface MenuSubmenuItem {
   items: MenuItem[];
 }
 
-export interface MenuSeparatorItem {
+interface MenuSeparatorItem {
   kind: "separator";
   id: string;
 }
 
-export interface MenuLabelItem {
+interface MenuLabelItem {
   kind: "label";
   id: string;
   label: string;

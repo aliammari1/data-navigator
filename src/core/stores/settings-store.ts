@@ -301,7 +301,6 @@ export const useAppearanceSettings = () =>
 export const useDataSettings = () => useSettingsStore((s) => s.data);
 export const usePerformanceSettings = () => useSettingsStore((s) => s.performance);
 export const useEnableAiCritic = () => useSettingsStore((s) => s.enableAiCritic);
-export const useEnableMoudirMemory = () => useSettingsStore((s) => s.enableMoudirMemory);
 export const useEnableMoudirSandbox = () => useSettingsStore((s) => s.enableMoudirSandbox);
 export const useNotificationSettings = () => useSettingsStore((s) => s.notifications);
 export const usePinnedItems = () => useSettingsStore((s) => s.pinnedItems);

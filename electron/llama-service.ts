@@ -108,7 +108,7 @@ export type LlamaModelInfo = {
 // leak into llama:listModels() as a bogus selectable CHAT model.
 const LLM_MODEL_DOWNLOADS = MODEL_DOWNLOADS.filter((m) => m.lane === "llm");
 
-export const DEFAULT_LLM_MODEL = LLM_MODEL_DOWNLOADS[0].file;
+const DEFAULT_LLM_MODEL = LLM_MODEL_DOWNLOADS[0].file;
 
 const KNOWN_MODELS: Array<Omit<LlamaModelInfo, "present" | "path">> = LLM_MODEL_DOWNLOADS.map(
   (m) => ({

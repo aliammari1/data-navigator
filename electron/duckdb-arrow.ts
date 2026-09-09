@@ -35,7 +35,7 @@ export interface DuckDBColumnTypeLike {
  *
  * `null`/`undefined`, strings, numbers and booleans pass through untouched.
  */
-export function normalizeColumnsForArrow(
+function normalizeColumnsForArrow(
   cols: Record<string, unknown[]>,
   _types?: DuckDBColumnTypeLike[],
 ): Record<string, unknown[]> {
@@ -105,4 +105,3 @@ export function encodeColumnsToArrowIPC(
 }
 
 /** Re-export so the service can reference DuckDB type ids when needed. */
-export { DuckDBTypeId };

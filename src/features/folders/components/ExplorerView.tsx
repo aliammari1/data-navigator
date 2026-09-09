@@ -23,7 +23,7 @@ import type { FSNode } from "../types";
 
 const ROOT_ID = "root";
 
-export interface ExplorerItemHandlers {
+interface ExplorerItemHandlers {
   onOpen: (node: FSNode) => void;
   onSelect: (id: string) => void;
   onStar: (id: string) => void;

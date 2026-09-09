@@ -80,7 +80,7 @@ export const SEMANTIC_STATUS_OPTIONS: Array<{
  *
  * Do NOT add extra codes here. Add fallback auto-detection in STATUS_AUTO_SEMANTIC_BY_CODE.
  */
-export const BUILTIN_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> = {
+export const SPEC_STATUS_CODES: Record<ClassifiedStatusSemantic, string[]> = {
   success: ["PST", "PST1", "PST2", "PST7", "PST8", "PST9"],
   declined: [
     "DCL",
@@ -152,24 +152,18 @@ export const REPORT_INSTANCE_STATUS_CODES = [
   ...REPORT_DOUBT_STATUS_CODES,
 ];
 
-/**
- * Alias of BUILTIN_STATUS_CODES. Both refer to the same spec-accurate taxonomy.
- * Used by all KPI queries — BUILTIN_STATUS_CODES and SPEC_STATUS_CODES are identical.
- */
-export const SPEC_STATUS_CODES = BUILTIN_STATUS_CODES;
-
 // All spec codes map directly to their semantic — no extra codes here.
 // Non-spec fallbacks (REJ, CAN, RVS, PND, EXP, …) live in STATUS_AUTO_SEMANTIC_BY_CODE.
 const DEFAULT_STATUS_MAPPING_DEFS: Array<{
   rawCode: string;
   semantic: StatusSemantic;
 }> = [
-  ...BUILTIN_STATUS_CODES.success.map((rawCode) => ({ rawCode, semantic: "success" as const })),
-  ...BUILTIN_STATUS_CODES.declined.map((rawCode) => ({ rawCode, semantic: "declined" as const })),
-  ...BUILTIN_STATUS_CODES.refund.map((rawCode) => ({ rawCode, semantic: "refund" as const })),
+  ...SPEC_STATUS_CODES.success.map((rawCode) => ({ rawCode, semantic: "success" as const })),
+  ...SPEC_STATUS_CODES.declined.map((rawCode) => ({ rawCode, semantic: "declined" as const })),
+  ...SPEC_STATUS_CODES.refund.map((rawCode) => ({ rawCode, semantic: "refund" as const })),
   // All 20 INSTANCE codes: 14 HOLD + 6 DOUBT
   ...REPORT_INSTANCE_STATUS_CODES.map((rawCode) => ({ rawCode, semantic: "instance" as const })),
-  ...BUILTIN_STATUS_CODES.submitted.map((rawCode) => ({ rawCode, semantic: "submitted" as const })),
+  ...SPEC_STATUS_CODES.submitted.map((rawCode) => ({ rawCode, semantic: "submitted" as const })),
 ];
 
 export const DEFAULT_STATUS_MAPPINGS: StatusMapping[] = DEFAULT_STATUS_MAPPING_DEFS.map(

@@ -7,7 +7,7 @@ import type { DesktopWidget } from "@/features/desktop/store/desktop-store";
 import { useDesktopStore } from "@/features/desktop/store/desktop-store";
 import { createDrizzleStorage } from "@/platform/storage";
 
-export type HistoryEntryType =
+type HistoryEntryType =
   | "pin-formulator-widget"
   | "unpin-formulator-widget"
   | "pin-kpi-widget"

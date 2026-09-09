@@ -147,14 +147,14 @@ export interface RegisteredDataset {
   updatedAt: string;
 }
 
-export interface RejectError {
+interface RejectError {
   line: number | null;
   columnName: string | null;
   errorType: string | null;
   errorMessage: string | null;
 }
 
-export interface RejectSummary {
+interface RejectSummary {
   /** Total faulty rows captured by `store_rejects = true`. 0 when not enabled. */
   rejectedRowCount: number;
   /** First N reject_errors rows for surfacing in a data-quality panel. */
@@ -1240,7 +1240,7 @@ const cancelledTokens = new Set<string>();
 /** token -> set of connections currently executing a query under that token. */
 const activeTokenConns = new Map<string, Set<DuckDBConnection>>();
 
-export class QueryCancelledError extends Error {
+class QueryCancelledError extends Error {
   readonly token: string;
   constructor(token: string) {
     super(`DuckDB query cancelled (token: ${token}).`);

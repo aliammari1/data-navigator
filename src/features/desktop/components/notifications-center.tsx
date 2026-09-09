@@ -25,9 +25,9 @@ import { useShallow } from "zustand/react/shallow";
  * No fake seeds — the panel starts empty and shows a calm empty state.
  */
 
-export type NotificationKind = "threshold" | "anomaly" | "briefing" | "info";
+type NotificationKind = "threshold" | "anomaly" | "briefing" | "info";
 
-export interface DesktopNotification {
+interface DesktopNotification {
   id: string;
   /** Category drives the icon + accent tint. */
   kind: NotificationKind;
@@ -43,7 +43,7 @@ export interface DesktopNotification {
 }
 
 /** Input accepted by `push` / `pushNotification` (id, createdAt and read are auto-filled). */
-export type NotificationInput = Omit<DesktopNotification, "id" | "createdAt" | "read"> &
+type NotificationInput = Omit<DesktopNotification, "id" | "createdAt" | "read"> &
   Partial<Pick<DesktopNotification, "id" | "createdAt" | "read">>;
 
 interface NotificationsState {
@@ -59,7 +59,7 @@ let notifSeq = 0;
 const nextNotifId = () => `ntf-${Date.now().toString(36)}-${(notifSeq++).toString(36)}`;
 
 /** Ephemeral, in-memory only — alerts are session-scoped and never persisted. */
-export const useNotifications = create<NotificationsState>((set) => ({
+const useNotifications = create<NotificationsState>((set) => ({
   items: [],
   push: (n) => {
     const id = n.id ?? nextNotifId();
@@ -86,7 +86,7 @@ export const useNotifications = create<NotificationsState>((set) => ({
  *   pushNotification({ kind: "threshold", title: "Canal USSD < 90 %", appId: "telecom" });
  * Returns the new notification id.
  */
-export function pushNotification(n: NotificationInput): string {
+function pushNotification(n: NotificationInput): string {
   return useNotifications.getState().push(n);
 }
 

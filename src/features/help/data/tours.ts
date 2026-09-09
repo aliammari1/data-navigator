@@ -48,7 +48,7 @@ export function isAnchorlessStep(step: TourStepDef): boolean {
  * Targets the durable sidebar nav links (`[href="/dashboard/…"]`) which exist
  * whenever the dashboard shell is rendered.
  */
-export const GLOBAL_TOUR: TourDefinition = {
+const GLOBAL_TOUR: TourDefinition = {
   id: "global-onboarding",
   title: "Welcome tour",
   description: "A 2-minute offline walkthrough of the core features.",

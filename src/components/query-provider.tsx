@@ -1,9 +1,9 @@
 "use client";
 
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { ReactQueryDevtools } from "@tanstack/react-query-devtools";
 import { useEffect, useRef, useState } from "react";
 import { persistQueryClient, restoreQueryClient } from "@/platform/storage";
+import { QueryDevtools } from "./query-devtools";
 
 /**
  * Create a QueryClient with performance-optimized defaults.
@@ -107,7 +107,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       {children}
-      <ReactQueryDevtools initialIsOpen={false} buttonPosition="bottom-left" position="left" />
+      <QueryDevtools />
     </QueryClientProvider>
   );
 }

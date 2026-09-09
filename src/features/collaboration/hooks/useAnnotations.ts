@@ -21,7 +21,6 @@ import { type AnnotationsApi, useAnnotationsCRDT } from "../collab/collab-hub-cr
 // Re-export the canonical CRDT view-model types under the names the UI imports.
 export type {
   AnnotationNote as Annotation,
-  AnnotationReply as NoteReply,
   NoteColor,
   NotePriority,
 } from "@/platform/collab";

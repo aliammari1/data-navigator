@@ -7,7 +7,7 @@ const INVISIBLE_CHARS = /[\u200B-\u200D\u2060\uFEFF]/g;
  * Strip the wrapping an LLM frequently adds around SQL — markdown code
  * fences, leading `--`/block comments, and trailing semicolons.
  */
-export function sanitizeSql(sql: string): string {
+function sanitizeSql(sql: string): string {
   let s = sql.replace(INVISIBLE_CHARS, "").trim();
   const fence = s.match(/^```(?:sql)?\s*([\s\S]*?)\s*```$/i);
   if (fence?.[1]) s = fence[1].trim();

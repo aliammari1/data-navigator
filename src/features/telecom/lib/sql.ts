@@ -1,8 +1,8 @@
 import {
-  BUILTIN_STATUS_CODES,
   type ClassifiedStatusSemantic,
   DEFAULT_STATUS_MAPPINGS,
   SEMANTIC_TO_CATEGORY,
+  SPEC_STATUS_CODES,
 } from "@/features/telecom/lib/status-definitions";
 import type { CanalKey, ColumnMapping, StatusMapping } from "../types";
 import {
@@ -19,7 +19,7 @@ import {
   VOUCHER_FOR_PAYMENT,
 } from "./report-engine";
 
-export { BUILTIN_STATUS_CODES, SEMANTIC_TO_CATEGORY };
+export { SEMANTIC_TO_CATEGORY, SPEC_STATUS_CODES };
 
 // ─── Identifier / literal quoting ─────────────────────────────────────────────
 
@@ -58,7 +58,7 @@ export function normalizeStatusCode(
       ? "OTHER"
       : (SEMANTIC_TO_CATEGORY[configured.semantic] ?? "OTHER");
   }
-  for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES) as Array<
+  for (const [semantic, codes] of Object.entries(SPEC_STATUS_CODES) as Array<
     [ClassifiedStatusSemantic, string[]]
   >) {
     if (codes.includes(code)) return SEMANTIC_TO_CATEGORY[semantic];
@@ -81,7 +81,7 @@ export function statusNorm(
       return `WHEN ${v} = ${sqlLiteral(code)} THEN ${sqlLiteral(cat)}`;
     });
 
-  for (const [semantic, codes] of Object.entries(BUILTIN_STATUS_CODES) as Array<
+  for (const [semantic, codes] of Object.entries(SPEC_STATUS_CODES) as Array<
     [ClassifiedStatusSemantic, string[]]
   >) {
     const missingCodes = codes.filter((code) => !configuredCodes.has(code));

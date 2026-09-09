@@ -1,5 +1,4 @@
 import { jsonrepair } from "jsonrepair";
-import { Allow, parse as parsePartial } from "partial-json";
 
 import type { ZodType } from "zod";
 import { zodToInlineJsonSchema } from "./zod-json-schema";
@@ -147,27 +146,4 @@ export function buildJsonInstruction(schemaHint?: string): string {
     "no markdown, no code fences, no commentary." +
     (schemaHint ? `\nIt must conform to this shape:\n${schemaHint}` : "")
   );
-}
-
-export type DeepPartial<T> = T extends Function
-  ? T
-  : T extends Array<infer U>
-    ? Array<DeepPartial<U>>
-    : T extends object
-      ? { [P in keyof T]?: DeepPartial<T[P]> }
-      : T;
-
-/**
- * Parse a stream of tokens into an incomplete but syntactically valid JavaScript
- * structure in real time, allowing UI components to progressively render
- * structured charts, plans, and tables while the local model is generating tokens.
- */
-export function parsePartialJson<T = unknown>(input: string): DeepPartial<T> | null {
-  const trimmed = stripFence(input).trim();
-  if (!trimmed) return null;
-  try {
-    return parsePartial(trimmed, Allow.ALL) as DeepPartial<T>;
-  } catch {
-    return null;
-  }
 }
