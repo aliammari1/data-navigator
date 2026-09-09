@@ -12,7 +12,6 @@ export default function OverviewPage() {
       canals={report.overviewCanals}
       hourly={report.overviewHourly}
       statusData={report.overviewStatusData}
-      forecast={report.overviewForecast}
       m={report.mapping}
       selectedKpis={report.selectedKpis}
       toggleKpi={report.toggleKpi}

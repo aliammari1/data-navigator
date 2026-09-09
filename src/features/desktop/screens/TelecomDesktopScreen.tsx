@@ -61,7 +61,6 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
           canals={report.overviewCanals}
           hourly={report.overviewHourly}
           statusData={report.overviewStatusData}
-          forecast={report.overviewForecast}
           m={report.mapping}
           selectedKpis={report.selectedKpis}
           toggleKpi={report.toggleKpi}

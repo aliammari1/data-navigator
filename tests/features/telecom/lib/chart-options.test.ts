@@ -790,7 +790,7 @@ describe("buildCanalHeatmapOption", () => {
 describe("buildHourlyChartOption", () => {
   it("produces a 24-slot stacked dataset with zero-filled gaps", () => {
     const data: HourlyRow[] = [{ hour: 8, total: 100, success: 90, declined: 10, amount: 500 }];
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const successSeries = opt.series.find((s) => s.name === "Réussie")?.data as number[];
     expect(successSeries).toHaveLength(24);
     expect(successSeries[8]).toBe(90);
@@ -802,29 +802,20 @@ describe("buildHourlyChartOption", () => {
       { hour: 0, total: 100, success: 70, declined: 20, amount: 0 }, // 10 other
       { hour: 1, total: 50, success: 40, declined: 30, amount: 0 }, // would be -20 → 0
     ];
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const autre = opt.series.find((s) => s.name === "Autre")?.data as number[];
     expect(autre[0]).toBe(10);
     expect(autre[1]).toBe(0);
   });
 
-  it("omits the forecast series when no forecast is given", () => {
-    const opt = buildHourlyChartOption([], []) as EChartsOption;
+  it("never renders a forecast series or legend entry", () => {
+    const opt = buildHourlyChartOption([]) as EChartsOption;
     expect(opt.legend?.data).not.toContain("Prévision IA");
     expect(opt.series.some((s) => s.name === "Prévision IA")).toBe(false);
   });
 
-  it("adds forecast series and extends the axis for forecast-only hours", () => {
-    const opt = buildHourlyChartOption(
-      [],
-      [{ hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true }],
-    ) as EChartsOption;
-    expect(opt.legend?.data).toContain("Prévision IA");
-    expect((opt.xAxis as { data: string[] }).data).toHaveLength(25);
-  });
-
-  it("tooltip formatter with no row and no forecast returns bare hour string", () => {
-    const opt = buildHourlyChartOption([], []) as EChartsOption;
+  it("tooltip formatter with no row returns bare hour string", () => {
+    const opt = buildHourlyChartOption([]) as EChartsOption;
     const fmt = opt.tooltip?.formatter as (
       ps: { name: string; value: number; seriesName: string }[],
     ) => string;
@@ -832,22 +823,9 @@ describe("buildHourlyChartOption", () => {
     expect(result).toBe("5:00");
   });
 
-  it("tooltip formatter with a forecast-only row renders predicted values", () => {
-    const opt = buildHourlyChartOption(
-      [],
-      [{ hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true }],
-    ) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (
-      ps: { name: string; value: number; seriesName: string }[],
-    ) => string;
-    const result = fmt([{ name: "25", value: 200, seriesName: "Prévision IA" }]);
-    expect(result).toContain("Prévision IA");
-    expect(result).toContain("200");
-  });
-
   it("tooltip formatter with a real row renders success/failure/rate/amount", () => {
     const data: HourlyRow[] = [{ hour: 8, total: 100, success: 80, declined: 20, amount: 5000 }];
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const fmt = opt.tooltip?.formatter as (
       ps: { name: string; value: number; seriesName: string }[],
     ) => string;
@@ -857,22 +835,9 @@ describe("buildHourlyChartOption", () => {
     expect(result).toContain("Taux");
   });
 
-  it("tooltip formatter shows forecast line when both row and forecast exist for the hour", () => {
-    const data: HourlyRow[] = [{ hour: 8, total: 100, success: 80, declined: 20, amount: 5000 }];
-    const opt = buildHourlyChartOption(data, [
-      { hour: 8, predictedTotal: 95, predictedSuccessRate: 0.85, isForecast: true },
-    ]) as EChartsOption;
-    const fmt = opt.tooltip?.formatter as (
-      ps: { name: string; value: number; seriesName: string }[],
-    ) => string;
-    const result = fmt([{ name: "8", value: 100, seriesName: "Réussie" }]);
-    expect(result).toContain("Prévision");
-    expect(result).toContain("95");
-  });
-
   it("tooltip formatter shows rate as dash when total is zero", () => {
     const data: HourlyRow[] = [{ hour: 0, total: 0, success: 0, declined: 0, amount: 0 }];
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const fmt = opt.tooltip?.formatter as (
       ps: { name: string; value: number; seriesName: string }[],
     ) => string;

@@ -55,7 +55,6 @@ import { getDatasetReportDate, isTelecomDataset } from "@/features/telecom/lib/t
 import { DEFAULT_MAPPING, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { listRegisteredDatasets } from "@/platform/duckdb/duckdb";
 import { ColumnMapper } from "./column-mapper";
 import { ExportPanel } from "./export-panel";
@@ -98,12 +97,10 @@ interface TelecomReportRuntimeValue {
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
   rawStatuses: Types.RawStatusRow[];
-  forecast: ForecastPoint[];
   overviewKpi: Types.KPISummary | null;
   overviewCanals: Types.CanalSummary[];
   overviewHourly: Types.HourlyRow[];
   overviewStatusData: Types.StatusRow[];
-  overviewForecast: ForecastPoint[];
   analyticsHistory: AnalyticsSnapshotHistoryMeta[];
   snapshotedAt: number | null;
   selectedKpis: Set<keyof Types.KPISummary>;
@@ -578,7 +575,7 @@ export function TelecomReportRuntimeProvider({
     setTelecomSession,
   ]);
 
-  const { forecast, rawStatuses, isFetching: analyticsIsFetching } = analytics;
+  const { rawStatuses, isFetching: analyticsIsFetching } = analytics;
 
   const { remoteOverview } = useSharedOverview({
     enabled: Boolean(dashboardLoaded && kpi),
@@ -588,7 +585,6 @@ export function TelecomReportRuntimeProvider({
     canals,
     hourly,
     statusData,
-    forecast,
   });
 
   // Reset snapshot tracking whenever the active table changes (dataset switch).
@@ -642,7 +638,6 @@ export function TelecomReportRuntimeProvider({
       operators,
       regions,
       rawStatuses: rawStatuses ?? [],
-      forecast,
       computedAt: Date.now(),
     };
     void saveAnalyticsSnapshotToSQLite(payload).catch((err) => {
@@ -659,7 +654,6 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
-    forecast,
   ]);
 
   const sharedOverviewMode = !dashboardLoaded && Boolean(remoteOverview);
@@ -683,7 +677,6 @@ export function TelecomReportRuntimeProvider({
   const overviewCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
   const overviewHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
   const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
-  const overviewForecast = sharedOverviewMode ? (remoteOverview?.forecast ?? []) : forecast;
 
   async function loadAnalyticsFromHistory(id: number) {
     const cached = await getAnalyticsSnapshot(id);
@@ -753,12 +746,10 @@ export function TelecomReportRuntimeProvider({
     operators,
     regions,
     rawStatuses,
-    forecast,
     overviewKpi,
     overviewCanals,
     overviewHourly,
     overviewStatusData,
-    overviewForecast,
     analyticsHistory,
     snapshotedAt,
     selectedKpis,

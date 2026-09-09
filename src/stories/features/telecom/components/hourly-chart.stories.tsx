@@ -24,11 +24,9 @@ const meta = {
   },
   args: {
     data,
-    forecast: [],
   },
   argTypes: {
     data: { control: false },
-    forecast: { control: false },
   },
   decorators: [
     (Story) => (
@@ -44,16 +42,6 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-
-export const WithForecast: Story = {
-  args: {
-    forecast: [
-      { hour: 24, predictedTotal: 920, predictedSuccessRate: 0.95, isForecast: true },
-      { hour: 25, predictedTotal: 880, predictedSuccessRate: 0.94, isForecast: true },
-      { hour: 26, predictedTotal: 640, predictedSuccessRate: 0.93, isForecast: true },
-    ],
-  },
-};
 
 export const Empty: Story = {
   args: { data: [] },

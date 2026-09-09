@@ -57,7 +57,6 @@ function baseSQLiteSnapshot(): SQLiteAnalyticsSnapshot {
     operators: [{ operator: "Orange", count: 1 }],
     regions: [{ region: "Tunis", count: 1 }],
     rawStatuses: [{ code: "00", label: "OK" }],
-    forecast: [],
     computedAt: 12345,
     // biome-ignore lint: test fixture — the real column types are broader unions.
   } as unknown as SQLiteAnalyticsSnapshot;

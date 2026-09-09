@@ -106,7 +106,6 @@ export default defineConfig({
         "src/features/eye-tracking/**", // webcam/MediaPipe hardware
         "src/platform/ai/pyodide-ml.ts", // Pyodide WASM bootstrap
         "src/features/forecast-intelligence/core/forecast-pyodide.ts", // Pyodide forecast bootstrap
-        "src/platform/browser/forecast-onnx.ts", // ONNX Runtime Web init
         "src/workers/export.worker.ts", // Comlink Worker-realm entry shell
         "src/workers/parse.worker.ts", // Comlink Worker-realm entry shell
         "src/workers/python-sandbox.worker.ts", // onmessage Worker-realm entry shell

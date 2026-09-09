@@ -20,7 +20,6 @@ import {
   STATUS_AUTO_SEMANTIC_BY_CODE,
 } from "@/features/telecom/lib/status-definitions";
 import type * as Types from "@/features/telecom/types";
-import { type ForecastPoint, forecastNextHours } from "@/platform/browser/forecast-onnx";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 
 export interface UseTelecomAnalyticsParams {
@@ -56,7 +55,6 @@ export interface UseTelecomAnalyticsReturn {
   setOperators: (v: Types.OperatorRow[]) => void;
   regions: Types.RegionRow[];
   setRegions: (v: Types.RegionRow[]) => void;
-  forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
   setRawStatuses: (v: Types.RawStatusRow[]) => void;
   isFetching: boolean;
@@ -71,7 +69,6 @@ interface TelecomAnalyticsPayload {
   statusData: Types.StatusRow[];
   operators: Types.OperatorRow[];
   regions: Types.RegionRow[];
-  forecast: ForecastPoint[];
   rawStatuses: Types.RawStatusRow[];
 }
 
@@ -82,7 +79,6 @@ const EMPTY_ANALYTICS: TelecomAnalyticsPayload = {
   statusData: [],
   operators: [],
   regions: [],
-  forecast: [],
   rawStatuses: [],
 };
 
@@ -151,7 +147,6 @@ export function useTelecomAnalytics({
         ]);
         const canalsResult = enrichCanalSummaries(rawCanalsResult);
 
-        const forecastResult = await forecastNextHours(hourlyResult, 4);
         let rawStatuses: Types.RawStatusRow[] =
           queryClient.getQueryData<TelecomAnalyticsPayload>(analyticsQueryKey)?.rawStatuses ?? [];
 
@@ -184,7 +179,6 @@ export function useTelecomAnalytics({
           canals: canalsResult,
           operators: operatorsResult,
           regions: regionsResult,
-          forecast: forecastResult,
           rawStatuses,
         };
 
@@ -274,7 +268,6 @@ export function useTelecomAnalytics({
     setOperators: (operators) => patchAnalytics({ operators }),
     regions: data.regions,
     setRegions: (regions) => patchAnalytics({ regions }),
-    forecast: data.forecast,
     rawStatuses: data.rawStatuses,
     setRawStatuses: (rawStatuses) => patchAnalytics({ rawStatuses }),
     isFetching: query.isFetching,

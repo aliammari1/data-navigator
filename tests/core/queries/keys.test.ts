@@ -336,15 +336,6 @@ describe("queryKeys.telecom", () => {
       "transactions",
     ]);
   });
-
-  it("forecast(tableName, hours) builds the forecast key", () => {
-    expect(queryKeys.telecom.forecast("transactions", 24)).toEqual([
-      "telecom",
-      "forecast",
-      "transactions",
-      24,
-    ]);
-  });
 });
 
 // ── settings ──────────────────────────────────────────────────────────────────

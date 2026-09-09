@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 //   • canal-config        — enrichCanalSummaries (UI icon injection)
 //   • channel             — BroadcastChannel wrapper
 //   • format              — display-format helpers
-//   • forecast-onnx       — ONNX / Holt-Winters engine
 //
 // The hook's own logic (analyticsQueryKey building, patchAnalytics, refresh,
 // runAnalytics, Notification branch, firstLoad gate, status-mapping additions)
@@ -60,12 +59,6 @@ const fmtPctMock = vi.fn((p: number) => `${p}%`);
 vi.mock("@/features/telecom/lib/format", () => ({
   fmtN: (n: number) => fmtNMock(n),
   fmtPct: (p: number) => fmtPctMock(p),
-}));
-
-const forecastNextHoursMock = vi.fn().mockResolvedValue([]);
-
-vi.mock("@/platform/browser/forecast-onnx", () => ({
-  forecastNextHours: (...args: unknown[]) => forecastNextHoursMock(...args),
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────────
@@ -234,9 +227,6 @@ function setupHappyPathMocks() {
   fetchRawCanalSummariesMock.mockResolvedValue(SAMPLE_RAW_CANALS);
   fetchDistinctStatusesMock.mockResolvedValue(SAMPLE_RAW_STATUSES);
   enrichCanalSummariesMock.mockImplementation((raw: unknown[]) => raw);
-  forecastNextHoursMock.mockResolvedValue([
-    { hour: 10, predictedTotal: 110, predictedSuccessRate: 91, isForecast: true as const },
-  ]);
 }
 
 beforeEach(() => {
@@ -251,7 +241,6 @@ beforeEach(() => {
   fetchRawCanalSummariesMock.mockResolvedValue([]);
   fetchDistinctStatusesMock.mockResolvedValue([]);
   enrichCanalSummariesMock.mockImplementation((raw: unknown[]) => raw);
-  forecastNextHoursMock.mockResolvedValue([]);
 });
 
 // ─── Return shape ─────────────────────────────────────────────────────────────
@@ -267,7 +256,6 @@ describe("useTelecomAnalytics — return shape", () => {
     expect(Array.isArray(r.statusData)).toBe(true);
     expect(Array.isArray(r.operators)).toBe(true);
     expect(Array.isArray(r.regions)).toBe(true);
-    expect(Array.isArray(r.forecast)).toBe(true);
     expect(Array.isArray(r.rawStatuses)).toBe(true);
     expect(typeof r.setKpi).toBe("function");
     expect(typeof r.setCanals).toBe("function");
@@ -289,7 +277,6 @@ describe("useTelecomAnalytics — return shape", () => {
     expect(result.current.statusData).toEqual([]);
     expect(result.current.operators).toEqual([]);
     expect(result.current.regions).toEqual([]);
-    expect(result.current.forecast).toEqual([]);
     expect(result.current.rawStatuses).toEqual([]);
   });
 });
@@ -413,17 +400,6 @@ describe("useTelecomAnalytics — happy path analytics", () => {
 
     await waitFor(() => {
       expect(result.current.regions).toEqual(SAMPLE_REGIONS);
-    });
-  });
-
-  it("populates forecast from forecastNextHours", async () => {
-    setupHappyPathMocks();
-
-    const { result } = renderAnalyticsHook();
-
-    await waitFor(() => {
-      expect(result.current.forecast).toHaveLength(1);
-      expect(result.current.forecast[0].isForecast).toBe(true);
     });
   });
 

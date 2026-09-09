@@ -64,7 +64,6 @@ vi.mock("@/platform/collab/collab", () => ({
 // Import AFTER mocks are registered.
 import { useSharedOverview } from "@/features/telecom/hooks/use-shared-overview";
 import type * as Types from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 
 // ─── Fixtures ─────────────────────────────────────────────────────────────────
 
@@ -89,10 +88,6 @@ const SAMPLE_HOURLY: Types.HourlyRow[] = [
 ];
 
 const SAMPLE_STATUS: Types.StatusRow[] = [{ status: "SUCCESS", count: 400, amount: 1234 }];
-
-const SAMPLE_FORECAST: ForecastPoint[] = [
-  { hour: 11, predictedTotal: 110, predictedSuccessRate: 91, isForecast: true },
-];
 
 const SAMPLE_CANALS: Types.CanalSummary[] = [
   {
@@ -151,7 +146,6 @@ function makeRemoteSnapshot(
     ],
     hourly: SAMPLE_HOURLY,
     statusData: SAMPLE_STATUS,
-    forecast: SAMPLE_FORECAST,
   });
 }
 
@@ -166,7 +160,6 @@ function defaultParams(overrides: Partial<HookParams> = {}): HookParams {
     canals: SAMPLE_CANALS,
     hourly: SAMPLE_HOURLY,
     statusData: SAMPLE_STATUS,
-    forecast: SAMPLE_FORECAST,
     ...overrides,
   };
 }
@@ -317,7 +310,6 @@ describe("useSharedOverview — remote snapshot ingestion", () => {
         canals: [],
         hourly: [],
         statusData: [],
-        forecast: [],
       });
       sharedOverview.get.mockReturnValue(snapshotValue);
       sharedOverview.__emit();
@@ -342,7 +334,6 @@ describe("useSharedOverview — remote snapshot ingestion", () => {
         canals: [],
         hourly: [],
         statusData: [],
-        forecast: [],
       });
       sharedOverview.get.mockReturnValue(snapshotValue);
       sharedOverview.__emit();
@@ -475,7 +466,6 @@ describe("useSharedOverview — rehydrateCanals (icon injection)", () => {
         ],
         hourly: [],
         statusData: [],
-        forecast: [],
       });
       sharedOverview.get.mockReturnValue(snapshotValue);
       sharedOverview.__emit();
@@ -589,13 +579,12 @@ describe("useSharedOverview — local snapshot publishing", () => {
     expect(parsed.updatedAt).toBeGreaterThanOrEqual(before);
   });
 
-  it("includes forecast, hourly, and statusData in the published snapshot", async () => {
+  it("includes hourly and statusData in the published snapshot", async () => {
     renderSharedOverview({
       enabled: true,
       kpi: SAMPLE_KPI,
       hourly: SAMPLE_HOURLY,
       statusData: SAMPLE_STATUS,
-      forecast: SAMPLE_FORECAST,
     });
 
     await act(async () => {
@@ -607,7 +596,6 @@ describe("useSharedOverview — local snapshot publishing", () => {
     const parsed = JSON.parse(raw as string);
     expect(parsed.hourly).toEqual(SAMPLE_HOURLY);
     expect(parsed.statusData).toEqual(SAMPLE_STATUS);
-    expect(parsed.forecast).toEqual(SAMPLE_FORECAST);
   });
 });
 

@@ -254,7 +254,7 @@ describe("buildHourlyChartOption", () => {
   it("produces a 24-slot stacked dataset with zero-filled gaps", () => {
     const data: HourlyRow[] = [{ hour: 8, total: 100, success: 90, declined: 10, amount: 500 }];
 
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const successSeries = opt.series.find((s) => s.name === "Réussie")?.data as number[];
 
     expect(successSeries).toHaveLength(24);
@@ -268,29 +268,18 @@ describe("buildHourlyChartOption", () => {
       { hour: 1, total: 50, success: 40, declined: 30, amount: 0 }, // would be -20 → 0
     ];
 
-    const opt = buildHourlyChartOption(data, []) as EChartsOption;
+    const opt = buildHourlyChartOption(data) as EChartsOption;
     const autre = opt.series.find((s) => s.name === "Autre")?.data as number[];
 
     expect(autre[0]).toBe(10);
     expect(autre[1]).toBe(0);
   });
 
-  it("omits the forecast series and legend entry when no forecast is given", () => {
-    const opt = buildHourlyChartOption([], []) as EChartsOption;
+  it("never renders a forecast series or legend entry", () => {
+    const opt = buildHourlyChartOption([]) as EChartsOption;
 
     expect(opt.legend?.data).not.toContain("Prévision IA");
     expect(opt.series.some((s) => s.name === "Prévision IA")).toBe(false);
-  });
-
-  it("adds forecast series and extends the axis for forecast-only hours", () => {
-    const opt = buildHourlyChartOption(
-      [],
-      [{ hour: 25, predictedTotal: 200, predictedSuccessRate: 0.9, isForecast: true }],
-    ) as EChartsOption;
-
-    expect(opt.legend?.data).toContain("Prévision IA");
-    // 24 base hours + 1 forecast-only hour.
-    expect((opt.xAxis as { data: string[] }).data).toHaveLength(25);
   });
 });
 

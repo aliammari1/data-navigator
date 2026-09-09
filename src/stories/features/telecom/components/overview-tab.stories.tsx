@@ -153,7 +153,6 @@ const meta = {
     canals,
     hourly,
     statusData,
-    forecast: [],
     m: mapping,
     selectedKpis: new Set(["totalTransactions", "successCount", "declinedCount"]) as Set<
       keyof KPISummary
@@ -168,7 +167,6 @@ const meta = {
     canals: { control: false },
     hourly: { control: false },
     statusData: { control: false },
-    forecast: { control: false },
     m: { control: false },
     selectedKpis: { control: false },
     selectedOverviewSections: { control: false },

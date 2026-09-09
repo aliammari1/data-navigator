@@ -3,7 +3,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { CANAL_CONFIG } from "@/features/telecom/lib/canal-config";
 import type * as Types from "@/features/telecom/types";
-import type { ForecastPoint } from "@/platform/browser/forecast-onnx";
 import { readLANSettings } from "@/platform/lan/lan-collab";
 
 export interface SharedOverviewSnapshot {
@@ -17,7 +16,6 @@ export interface SharedOverviewSnapshot {
   canals: Array<Omit<Types.CanalSummary, "icon">>;
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
-  forecast: ForecastPoint[];
 }
 
 function rehydrateCanals(canals: Array<Omit<Types.CanalSummary, "icon">>): Types.CanalSummary[] {
@@ -47,7 +45,6 @@ export function useSharedOverview({
   canals,
   hourly,
   statusData,
-  forecast,
 }: {
   enabled: boolean;
   fileName: string;
@@ -56,7 +53,6 @@ export function useSharedOverview({
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
-  forecast: ForecastPoint[];
 }) {
   const [remote, setRemote] = useState<SharedOverviewSnapshot | null>(null);
   const presenter = useMemo(() => readLANSettings().peer, []);
@@ -91,7 +87,6 @@ export function useSharedOverview({
           canals: canals.map(({ icon: _icon, ...canal }) => canal),
           hourly,
           statusData,
-          forecast,
         };
 
         ydoc.transact(() => {
@@ -110,7 +105,6 @@ export function useSharedOverview({
   }, [
     enabled,
     fileName,
-    forecast,
     hourly,
     kpi,
     canals,
