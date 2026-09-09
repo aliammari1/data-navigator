@@ -195,5 +195,6 @@ blob-report/
 build.log
 
 gitleaks.sarif
+semgrep.sarif
 
 build/
