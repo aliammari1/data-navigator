@@ -195,7 +195,11 @@ export const TerminalContent = ({
   const { output, isStreaming, autoScroll } = useContext(TerminalContext);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const prevOutputRef = useRef(output);
   useEffect(() => {
+    if (prevOutputRef.current !== output) {
+      prevOutputRef.current = output;
+    }
     if (autoScroll && containerRef.current) {
       containerRef.current.scrollTop = containerRef.current.scrollHeight;
     }

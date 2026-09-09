@@ -14,7 +14,7 @@ import {
   Type,
   X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -118,6 +118,40 @@ export function ChatClarificationDock() {
     }
   }, [customOpen]);
 
+  const toggleOption = useCallback(
+    (option: string) => {
+      setSelectedMap((prev) => {
+        const existing = prev[currentKey] ? new Set(prev[currentKey]) : new Set<string>();
+        if (existing.has(option)) {
+          existing.delete(option);
+        } else {
+          existing.add(option);
+        }
+        return { ...prev, [currentKey]: existing };
+      });
+    },
+    [currentKey],
+  );
+
+  const submitAnswer = useCallback(
+    async (answer: string) => {
+      await answerClarification(current.messageId, current.part.question, answer);
+      setCustomOpen(false);
+      setCustomAnswer("");
+      // If there are more questions, move to next
+      if (currentIdx < pendingQuestions.length - 1) {
+        setQuestionIdx(currentIdx);
+      }
+    },
+    [answerClarification, current, currentIdx, pendingQuestions.length],
+  );
+
+  const confirmMulti = useCallback(() => {
+    if (currentSelected.size === 0) return;
+    const answer = Array.from(currentSelected).join(", ");
+    void submitAnswer(answer);
+  }, [currentSelected, submitAnswer]);
+
   // Keyboard navigation & number shortcuts
   useEffect(() => {
     if (!current || busy) return;
@@ -215,23 +249,14 @@ export function ChatClarificationDock() {
     customOpen,
     focusedOptionIdx,
     pendingQuestions.length,
+    toggleOption,
+    submitAnswer,
+    confirmMulti,
   ]);
 
   if (!current) {
     return null;
   }
-
-  const toggleOption = (option: string) => {
-    setSelectedMap((prev) => {
-      const existing = prev[currentKey] ? new Set(prev[currentKey]) : new Set<string>();
-      if (existing.has(option)) {
-        existing.delete(option);
-      } else {
-        existing.add(option);
-      }
-      return { ...prev, [currentKey]: existing };
-    });
-  };
 
   const handleSelectAll = () => {
     const allOptions = current.part.options;
@@ -240,22 +265,6 @@ export function ChatClarificationDock() {
       ...prev,
       [currentKey]: isAllSelected ? new Set() : new Set(allOptions),
     }));
-  };
-
-  const submitAnswer = async (answer: string) => {
-    await answerClarification(current.messageId, current.part.question, answer);
-    setCustomOpen(false);
-    setCustomAnswer("");
-    // If there are more questions, move to next
-    if (currentIdx < pendingQuestions.length - 1) {
-      setQuestionIdx(currentIdx);
-    }
-  };
-
-  const confirmMulti = () => {
-    if (currentSelected.size === 0) return;
-    const answer = Array.from(currentSelected).join(", ");
-    void submitAnswer(answer);
   };
 
   const getColMeta = (opt: string) => {

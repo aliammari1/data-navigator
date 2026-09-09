@@ -24,10 +24,11 @@ interface Store {
 }
 
 // In-memory zero-disk store scoped to the process lifecycle
-const memoryStore: Store = ((globalThis as unknown as { __dn_pending_guests?: Store })
-  .__dn_pending_guests ??= {
-  guests: [],
-});
+const globalStore = globalThis as unknown as { __dn_pending_guests?: Store };
+if (!globalStore.__dn_pending_guests) {
+  globalStore.__dn_pending_guests = { guests: [] };
+}
+const memoryStore: Store = globalStore.__dn_pending_guests;
 
 function readStore(): Store {
   return memoryStore;
