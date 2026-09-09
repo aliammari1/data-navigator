@@ -98,7 +98,7 @@ next-env.d.ts
 .agents
 .claude
 .kiro
-
+.omo
 .serena
 
 .codegraph/
