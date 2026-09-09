@@ -65,31 +65,11 @@ export interface RegisterCSVPathDatasetInput {
   storeRejects?: boolean;
 }
 
-export interface SummarizeRow {
-  column_name: string;
-  column_type: string;
-  min: unknown;
-  max: unknown;
-  approx_unique: number | null;
-  avg: number | null;
-  std: number | null;
-  q25: number | null;
-  q50: number | null;
-  q75: number | null;
-  count: number;
-  null_percentage: number | null;
-}
-
 interface ColumnDetail {
   column: string;
   distinctApprox: number;
   topValues: Array<{ value: unknown; count: number | null }>;
   histogram: Array<{ bin: string; count: number }>;
-}
-
-export interface ProfileDatasetInput {
-  datasetId: string;
-  cancelToken?: string;
 }
 
 interface ProfileColumnDetailInput {
@@ -205,13 +185,6 @@ export async function runReadOnlyQuery(sql: string): Promise<Record<string, unkn
 }
 
 // ─── Arrow IPC transport (large windows / exports / worker hand-off) ──────────
-
-// ─── Single-scan profiling pushdown ───────────────────────────────────────────
-
-/** Whole-dataset profile in one SUMMARIZE scan (approximate, cheap). */
-export async function profileDataset(input: ProfileDatasetInput): Promise<SummarizeRow[]> {
-  return sharedDuckDB.profileDataset(input);
-}
 
 // ─── Cached COUNT(*) ──────────────────────────────────────────────────────────
 

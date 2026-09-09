@@ -103,7 +103,7 @@ interface TransformRecipe {
 }
 
 /** One import-history record (data-import). */
-export interface ImportHistoryRecord {
+interface ImportHistoryRecord {
   id: string;
   ts: number;
   day: string; // "YYYY-MM-DD" — group/range index
@@ -386,45 +386,7 @@ function dayKey(ts: number = Date.now()): string {
   return `${y}-${m}-${day}`;
 }
 
-// ─── Column profiles (keyed by datasetId+updatedAt) ──────────────────────────
-
-function columnProfileId(datasetId: string, column: string): string {
-  return `${datasetId}:${column}`;
-}
-
-export async function putColumnProfile(
-  datasetId: string,
-  column: string,
-  profile: unknown,
-): Promise<string> {
-  const id = columnProfileId(datasetId, column);
-  await appDb.columnProfiles.put({
-    id,
-    datasetId,
-    column,
-    updatedAt: Date.now(),
-    profile: toCloneSafeValue(profile) ?? null,
-  });
-  return id;
-}
-
 // ─── Import history (append + paged read + retention) ────────────────────────
-
-export async function addImportRecord(
-  rec: Omit<ImportHistoryRecord, "id" | "ts" | "day"> &
-    Partial<Pick<ImportHistoryRecord, "id" | "ts">>,
-): Promise<string> {
-  const ts = rec.ts ?? Date.now();
-  const id = rec.id ?? newId();
-  await appDb.importHistory.put({
-    ...rec,
-    id,
-    ts,
-    day: dayKey(ts),
-    detail: rec.detail === undefined ? undefined : toCloneSafeValue(rec.detail),
-  });
-  return id;
-}
 
 /**
  * Cap a log table to `keep` newest rows (run on boot / idle). Generic over the

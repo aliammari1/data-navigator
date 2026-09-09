@@ -48,7 +48,14 @@
     "src/**/*.d.ts",
     "next-env.d.ts"
   ],
-  "ignoreBinaries": ["depcruise", "lhci", "test-storybook", "electron-builder", "powershell"],
+  "ignoreBinaries": [
+    "depcruise",
+    "lhci",
+    "test-storybook",
+    "electron-builder",
+    "powershell",
+    "gpg"
+  ],
   "rules": {
     "files": "error",
     "exports": "error",
