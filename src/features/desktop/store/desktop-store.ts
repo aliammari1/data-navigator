@@ -13,7 +13,7 @@ import {
   maximizedRect,
 } from "@/features/desktop/core/layout";
 import type { DesktopWindow, OpenAppOptions, WindowRect } from "@/features/desktop/core/types";
-import { createDrizzleStorage } from "@/platform/storage";
+import { createDrizzleStorage, STORAGE_KEYS } from "@/platform/storage";
 
 /**
  * Durable desktop workspace state.
@@ -497,7 +497,7 @@ export const useDesktopStore = create<DesktopState>()(
         }),
     }),
     {
-      name: "data-navigator-desktop",
+      name: STORAGE_KEYS.desktop,
       version: 2,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "desktop" })),
       partialize: (s) => ({

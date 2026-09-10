@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { assertSafeFilterFragment } from "../../electron/sql-guard";
+import { assertSafeFilterFragment } from "../../electron/filter-guard";
 
 describe("assertSafeFilterFragment", () => {
   // ── Happy-path: safe fragments return unchanged ──────────────────────────

@@ -247,7 +247,7 @@ jobs:
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Build Storybook Static Bundle
-        run: pnpm run build:storybook
+        run: pnpm run storybook:build
 
       - name: Strip heavy runtime assets from Storybook
         run: |
@@ -255,7 +255,7 @@ jobs:
           rm -rf storybook-static/vad
 
       - name: Storybook Interaction Tests (test-storybook)
-        run: pnpm run test:storybook:ci
+        run: pnpm run storybook:test:ci
         continue-on-error: true
 
       - name: Playwright E2E Integration Suite

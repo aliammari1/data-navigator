@@ -5,7 +5,7 @@ import { createJSONStorage, persist } from "zustand/middleware";
 import { useWidgetRegistry } from "@/features/data-formulator/core/widget-registry";
 import type { DesktopWidget } from "@/features/desktop/store/desktop-store";
 import { useDesktopStore } from "@/features/desktop/store/desktop-store";
-import { createDrizzleStorage } from "@/platform/storage";
+import { createDrizzleStorage, STORAGE_KEYS } from "@/platform/storage";
 
 type HistoryEntryType =
   | "pin-formulator-widget"
@@ -314,7 +314,7 @@ export const useDashboardHistoryStore = create<DashboardHistoryState>()(
       clearHistory: () => set({ entries: [], undoneIds: [] }),
     }),
     {
-      name: "data-navigator-dashboard-history",
+      name: STORAGE_KEYS.dashboardHistory,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "dashboard-history" })),
       partialize: (s) => ({ entries: s.entries, undoneIds: s.undoneIds }),

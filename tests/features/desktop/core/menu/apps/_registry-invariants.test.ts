@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { APP_MENUS } from "@/features/desktop/core/menu/registry";
+import { APP_MENUS } from "@/features/desktop/core/menu/menu-composer";
 import type { MenuGroup, MenuItem } from "@/features/desktop/core/menu/types";
 
 import { makeMenuContext } from "./menu-context";

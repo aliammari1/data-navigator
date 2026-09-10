@@ -517,7 +517,7 @@ export function recordAuditLog(entry: {
 /**
  * Retrieve recent audit log entries ordered newest first.
  */
-export function listAuditLogs(limit = 100): settingsSchema.AuditLogEntry[] {
+export function listAuditLog(limit = 100): settingsSchema.AuditLogEntry[] {
   const { db } = openDomain("analytics");
   return db
     .select()

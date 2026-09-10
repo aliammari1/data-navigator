@@ -100,36 +100,6 @@ export interface RegisteredDatasetWithPreview extends RegisteredDataset {
   previewRows: Record<string, unknown>[];
 }
 
-export interface RegisterCSVPathDatasetInput {
-  filePath: string;
-  displayName?: string;
-  hasHeader?: boolean;
-  delimiter?: string;
-  sampleSize?: number;
-  previewLimit?: number;
-}
-
-export interface RegisterParquetPathDatasetInput {
-  filePath: string;
-  displayName?: string;
-  previewLimit?: number;
-}
-
-export interface PreviewDatasetInput {
-  datasetId: string;
-  limit?: number;
-  offset?: number;
-}
-
-export interface DatasetOnlyInput {
-  datasetId: string;
-}
-
-export interface ExportDatasetInput {
-  datasetId: string;
-  targetPath: string;
-}
-
 export interface QueryMetric {
   sql: string;
   durationMs: number;
@@ -144,34 +114,6 @@ export interface DuckDBStatus {
   readConnections: number;
   pendingReads: number;
   pendingWrites: number;
-}
-
-export interface ElectronDuckDBBridge {
-  init(): Promise<{ success: boolean }>;
-
-  registerCSVPathDataset(input: RegisterCSVPathDatasetInput): Promise<RegisteredDatasetWithPreview>;
-
-  registerParquetPathDataset(
-    input: RegisterParquetPathDatasetInput,
-  ): Promise<RegisteredDatasetWithPreview>;
-
-  listDatasets(): Promise<RegisteredDataset[]>;
-
-  previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]>;
-
-  summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]>;
-
-  exportDataset(input: ExportDatasetInput): Promise<void>;
-
-  deleteDataset(input: DatasetOnlyInput): Promise<void>;
-
-  getStatus(): Promise<DuckDBStatus>;
-
-  getQueryMetrics(): Promise<QueryMetric[]>;
-
-  clearQueryMetrics(): Promise<void>;
-
-  runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]>;
 }
 
 // ─── Window Type ──────────────────────────────────────────────────────────────
@@ -192,20 +134,6 @@ function fsBridge(): ElectronFSBridge {
   return bridge;
 }
 
-export function duckdbBridge(): ElectronDuckDBBridge {
-  if (typeof window === "undefined") {
-    throw new Error("window is not available.");
-  }
-
-  const bridge = window.electronDuckDB;
-
-  if (!bridge) {
-    throw new Error("electronDuckDB not available — ensure the app is running inside Electron.");
-  }
-
-  return bridge;
-}
-
 // ─── Runtime Detection ────────────────────────────────────────────────────────
 
 export function isElectron(): boolean {
@@ -216,10 +144,6 @@ export function isElectron(): boolean {
 
 export function hasElectronFS(): boolean {
   return typeof window !== "undefined" && Boolean(window.electronFS);
-}
-
-export function hasElectronDuckDB(): boolean {
-  return typeof window !== "undefined" && Boolean(window.electronDuckDB);
 }
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────
@@ -292,54 +216,4 @@ export async function saveFileDialog(options: ElectronSaveDialogOptions): Promis
 export async function localDataPath(filename: string): Promise<string> {
   const dir = await getDataDir();
   return `${dir}/${filename}`;
-}
-
-// ─── DuckDB Dataset API Convenience Wrappers ──────────────────────────────────
-
-export async function initDuckDB(): Promise<void> {
-  await duckdbBridge().init();
-}
-
-export function registerCSVPathDataset(
-  input: RegisterCSVPathDatasetInput,
-): Promise<RegisteredDatasetWithPreview> {
-  return duckdbBridge().registerCSVPathDataset(input);
-}
-
-export function registerParquetPathDataset(
-  input: RegisterParquetPathDatasetInput,
-): Promise<RegisteredDatasetWithPreview> {
-  return duckdbBridge().registerParquetPathDataset(input);
-}
-
-export function listDatasets(): Promise<RegisteredDataset[]> {
-  return duckdbBridge().listDatasets();
-}
-
-export function previewDataset(input: PreviewDatasetInput): Promise<Record<string, unknown>[]> {
-  return duckdbBridge().previewDataset(input);
-}
-
-export function summarizeDataset(input: DatasetOnlyInput): Promise<Record<string, unknown>[]> {
-  return duckdbBridge().summarizeDataset(input);
-}
-
-export function exportDataset(input: ExportDatasetInput): Promise<void> {
-  return duckdbBridge().exportDataset(input);
-}
-
-export function deleteDataset(input: DatasetOnlyInput): Promise<void> {
-  return duckdbBridge().deleteDataset(input);
-}
-
-export function getDuckDBStatus(): Promise<DuckDBStatus> {
-  return duckdbBridge().getStatus();
-}
-
-export function getDuckDBQueryMetrics(): Promise<QueryMetric[]> {
-  return duckdbBridge().getQueryMetrics();
-}
-
-export function clearDuckDBQueryMetrics(): Promise<void> {
-  return duckdbBridge().clearQueryMetrics();
 }

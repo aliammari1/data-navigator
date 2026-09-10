@@ -63,9 +63,9 @@ import {
   deleteConversationRemote,
   getMessagesRemote,
   listConversationsRemote,
-  pinConversationRemote,
   renameConversationRemote,
   setConversationModelRemote,
+  setConversationPinnedRemote,
 } from "@/platform/chat/chat-history-client";
 import {
   ChatModelUnavailableError,
@@ -976,7 +976,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     },
 
     async pin(id, pinned) {
-      await pinConversationRemote(id, pinned);
+      await setConversationPinnedRemote(id, pinned);
       await get().refreshConversations();
     },
 

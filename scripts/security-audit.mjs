@@ -6,7 +6,7 @@
  * 1. Electron Security Configuration (electron/main.ts, electron/security.ts)
  *    - contextIsolation, nodeIntegration, webSecurity, sandbox, CSP headers, etc.
  * 2. SQL Injection Guardrails & AST-Level Safety
- *    - electron/sql-guard.ts (assertSafeFilterFragment)
+ *    - electron/filter-guard.ts (assertSafeFilterFragment)
  *    - AST read-only enforcement (assertReadOnlySql, sanitizeSql)
  *    - SQL quoting utilities (qc, sqlLiteral)
  * 3. Secrets, Tokens & Private Keys Scanning
@@ -303,17 +303,17 @@ function sqlLiteralImpl(value) {
 function auditSqlGuardrails() {
   header("Tier 2: SQL Injection Guardrails & AST Safety Verification");
 
-  const sqlGuardPath = join(ROOT, "electron", "sql-guard.ts");
-  const swarmBasePath = join(ROOT, "src", "platform", "duckdb", "sql-guard.ts");
+  const filterGuardPath = join(ROOT, "electron", "filter-guard.ts");
+  const readOnlySqlGuardPath = join(ROOT, "src", "platform", "duckdb", "sql-guard.ts");
   const telecomSqlPath = join(ROOT, "src", "features", "telecom", "lib", "sql.ts");
 
   recordCheck(
-    existsSync(sqlGuardPath),
-    "Guardrail File: electron/sql-guard.ts exists",
-    "electron/sql-guard.ts not found",
+    existsSync(filterGuardPath),
+    "Guardrail File: electron/filter-guard.ts exists",
+    "electron/filter-guard.ts not found",
   );
   recordCheck(
-    existsSync(swarmBasePath),
+    existsSync(readOnlySqlGuardPath),
     "AST Parser File: src/platform/duckdb/sql-guard.ts (assertReadOnlySql) exists",
     "src/platform/duckdb/sql-guard.ts not found",
   );
@@ -326,24 +326,28 @@ function auditSqlGuardrails() {
   // Read actual file contents to verify synchronization.
   // Each read is guarded: a missing file is already recorded as a failed
   // check above, and must not throw and abort the whole audit.
-  const sqlGuardSource = existsSync(sqlGuardPath) ? readFileSync(sqlGuardPath, "utf8") : "";
+  const filterGuardSource = existsSync(filterGuardPath)
+    ? readFileSync(filterGuardPath, "utf8")
+    : "";
   recordCheck(
-    /export\s+function\s+assertSafeFilterFragment/.test(sqlGuardSource),
-    "Guardrail Export: electron/sql-guard.ts exports assertSafeFilterFragment",
+    /export\s+function\s+assertSafeFilterFragment/.test(filterGuardSource),
+    "Guardrail Export: electron/filter-guard.ts exports assertSafeFilterFragment",
   );
   recordCheck(
-    /stripStringLiterals/.test(sqlGuardSource),
+    /stripStringLiterals/.test(filterGuardSource),
     "Guardrail Implementation: assertSafeFilterFragment is quote-aware",
   );
 
-  const swarmBaseSource = existsSync(swarmBasePath) ? readFileSync(swarmBasePath, "utf8") : "";
+  const readOnlySqlGuardSource = existsSync(readOnlySqlGuardPath)
+    ? readFileSync(readOnlySqlGuardPath, "utf8")
+    : "";
   recordCheck(
-    /export\s+function\s+assertReadOnlySql/.test(swarmBaseSource),
-    "AST Parser Export: base.ts exports assertReadOnlySql",
+    /export\s+function\s+assertReadOnlySql/.test(readOnlySqlGuardSource),
+    "AST Parser Export: sql-guard.ts exports assertReadOnlySql",
   );
   recordCheck(
-    /export\s+function\s+sanitizeSql/.test(swarmBaseSource),
-    "AST Parser Export: base.ts exports sanitizeSql",
+    /export\s+function\s+sanitizeSql/.test(readOnlySqlGuardSource),
+    "AST Parser Export: sql-guard.ts exports sanitizeSql",
   );
 
   // ── Functional Verification Suite ──

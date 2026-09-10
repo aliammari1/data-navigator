@@ -6,7 +6,7 @@
  * Settings, theme, dashboard access and persisted analytics snapshots live in
  * per-domain SQLite databases owned by the Electron MAIN process. This module
  * talks to them over the `window.electronSettings` IPC bridge (exposed by
- * electron/preload.ts, backed by electron/settings-store.ts). The previous
+ * electron/preload.ts, backed by electron/settings-storage.ts). The previous
  * `/api/settings` HTTP route — and its readiness-retry / WAF dance — is gone.
  *
  * Design notes:

@@ -30,4 +30,4 @@ pre-push:
     tests:
       run: pnpm run test
     storybook-build:
-      run: pnpm run build:storybook
+      run: pnpm run storybook:build

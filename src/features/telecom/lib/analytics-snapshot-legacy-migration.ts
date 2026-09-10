@@ -3,7 +3,7 @@
  * (the pre-SQLite-migration "Persister" store, src/platform/storage/app-db.ts)
  * into the durable SQLite `analytics_snapshot_history` table. Idempotent
  * (guarded by a marker under the "settings" namespace) and best-effort: like
- * `migrateLegacyAppSettings` in electron/settings-store.ts, a mid-run failure
+ * `migrateLegacyAppSettings` in electron/settings-storage.ts, a mid-run failure
  * marks the migration done anyway rather than retrying forever — the source
  * Dexie table is only cleared once every row has been restored successfully,
  * so a partial failure just means some history is still sitting in Dexie

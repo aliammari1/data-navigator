@@ -43,6 +43,11 @@ export function permissionsForRole(role: DashboardRole): DashboardPermissionSet 
  * someone else's session with a read-only grant, even an "owner" device acts
  * as a viewer — the hub is already dropping its writes server-side, so the UI
  * should say so instead of pretending. Disconnected → device role as-is.
+ *
+ * Role vocabulary contract: DashboardRole (device: owner/editor/viewer) ×
+ * LANRole (session: host/editor/reviewer/viewer). There is no reviewer
+ * device role — reviewer/viewer sessions both cap to viewer. Guest
+ * capabilities come from the GuestPermission grant set, never the role alone.
  */
 export function capRoleBySession(
   device: DashboardRole,

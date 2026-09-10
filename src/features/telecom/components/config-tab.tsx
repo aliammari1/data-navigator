@@ -1,51 +1,36 @@
 "use client";
 
-import { Database, FlaskConical, ListFilter, Settings2, Sparkles, Tag } from "lucide-react";
+import { Database, ListFilter, Settings2, Tag } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { memo, useCallback, useMemo, useState } from "react";
-import { computeAIInsights } from "@/features/telecom/lib/insights";
+import { memo, useCallback, useState } from "react";
 import { useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";
 import type { ServiceCodeRow } from "@/features/telecom/types";
 import { cn } from "@/shared/utils";
 import { CanalDetectorPanel } from "./canal-detector-panel";
 import { CanalRulesPanel } from "./canal-rules-panel";
-import { CustomKPIBuilder } from "./custom-kpi-builder";
-import { DeepAnalysisPanel } from "./deep-analysis-panel";
 import { Section } from "./section";
 import { StatusConfigPanel } from "./status-config-panel";
 import { StorageInfoPanel } from "./storage-info-panel";
 
-type ConfigSection = "insights" | "status" | "rules" | "canals" | "kpis" | "storage";
+type ConfigSection = "status" | "rules" | "canals" | "storage";
 
 export const ConfigTab = memo(function ConfigTab({
-  kpi,
-  canals,
-  hourly,
-  statusData,
   m,
   rawStatuses,
   statusMapping,
   onStatusMappingChange,
-  reportDate,
   tableName,
   fetchServiceCodeRows,
-  runCustomKPIExpr,
 }: {
-  kpi: Types.KPISummary;
-  canals: Types.CanalSummary[];
-  hourly: Types.HourlyRow[];
-  statusData: Types.StatusRow[];
   m: Types.ColumnMapping;
   rawStatuses: Types.RawStatusRow[];
   statusMapping: Types.StatusMapping[];
   onStatusMappingChange: (m: Types.StatusMapping[]) => void;
-  reportDate: string;
   tableName: string;
   fetchServiceCodeRows: (m: Types.ColumnMapping) => Promise<ServiceCodeRow[]>;
-  runCustomKPIExpr: (sqlExpr: string) => Promise<number | null>;
 }) {
-  const [section, setSection] = useState<ConfigSection>("insights");
+  const [section, setSection] = useState<ConfigSection>("status");
 
   const canalRules = useTelecomStore((s) => s.canalRules);
   const setCanalRules = useTelecomStore((s) => s.setCanalRules);
@@ -60,13 +45,6 @@ export const ConfigTab = memo(function ConfigTab({
     [],
   );
 
-  const criticalCount = useMemo(
-    () =>
-      computeAIInsights(kpi, canals, hourly, statusData).filter((i) => i.severity === "critical")
-        .length,
-    [kpi, canals, hourly, statusData],
-  );
-
   const sections: Array<{
     key: ConfigSection;
     label: string;
@@ -74,13 +52,6 @@ export const ConfigTab = memo(function ConfigTab({
     badge?: string;
     activeClass: string;
   }> = [
-    {
-      key: "insights",
-      label: "Assistant métier",
-      icon: Sparkles,
-      badge: criticalCount > 0 ? String(criticalCount) : undefined,
-      activeClass: "bg-violet-600 dark:bg-violet-500 text-white shadow-sm shadow-violet-500/30",
-    },
     {
       key: "status",
       label: "Config. Statuts",
@@ -103,12 +74,6 @@ export const ConfigTab = memo(function ConfigTab({
       label: "Détection Canal",
       icon: ListFilter,
       activeClass: "bg-emerald-600 dark:bg-emerald-500 text-white shadow-sm shadow-emerald-500/30",
-    },
-    {
-      key: "kpis",
-      label: "KPIs Personnalisés",
-      icon: FlaskConical,
-      activeClass: "bg-indigo-600 dark:bg-indigo-500 text-white shadow-sm shadow-indigo-500/30",
     },
     {
       key: "storage",
@@ -152,15 +117,6 @@ export const ConfigTab = memo(function ConfigTab({
           exit={{ opacity: 0, y: -4 }}
           transition={{ duration: 0.15 }}
         >
-          {section === "insights" && (
-            <DeepAnalysisPanel
-              kpi={kpi}
-              canals={canals}
-              hourly={hourly}
-              statusData={statusData}
-              reportDate={reportDate}
-            />
-          )}
           {section === "status" && (
             <Section title="Configuration des Codes Statut" icon={<Tag className="w-4 h-4" />}>
               <StatusConfigPanel
@@ -190,14 +146,6 @@ export const ConfigTab = memo(function ConfigTab({
               icon={<ListFilter className="w-4 h-4" />}
             >
               <CanalDetectorPanel m={m} fetchServiceCodeRows={fetchServiceCodeRows} />
-            </Section>
-          )}
-          {section === "kpis" && (
-            <Section
-              title="Constructeur de KPI Personnalisés"
-              icon={<FlaskConical className="w-4 h-4" />}
-            >
-              <CustomKPIBuilder runCustomKPIExpr={runCustomKPIExpr} />
             </Section>
           )}
           {section === "storage" && <StorageInfoPanel tableName={tableName} />}

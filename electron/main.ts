@@ -129,7 +129,7 @@ import {
   getAnalyticsSnapshotHistoryById,
   getSetting,
   listAnalyticsSnapshotHistory,
-  listAuditLogs,
+  listAuditLog,
   listQueryAnalytics,
   migrateLegacyAnalyticsSnapshotKV,
   migrateLegacyAppSettings,
@@ -138,7 +138,7 @@ import {
   saveAnalyticsSnapshotHistory,
   setSetting,
   setSettingsMigrationsFolder,
-} from "./settings-store";
+} from "./settings-storage";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
 
 // Handle any Windows installer lifecycle flags (--squirrel-*) without external deps
@@ -753,7 +753,7 @@ ipcMain.handle(
 );
 
 ipcMain.handle("analytics:getAuditLogs", async (event, limit?: number) =>
-  withTrustedSender(event, () => listAuditLogs(limit)),
+  withTrustedSender(event, () => listAuditLog(limit)),
 );
 
 ipcMain.handle(

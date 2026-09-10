@@ -42,7 +42,7 @@ export async function loadAnalyticsSnapshotFromSQLite(
 }
 
 // ─── Analytics snapshot history — the "Persister" button + History list ──────
-// Backed by the analytics_snapshot_history SQLite table (electron/settings-store.ts),
+// Backed by the analytics_snapshot_history SQLite table (electron/settings-storage.ts),
 // not the KV cache above: this is genuine append-only multi-snapshot history.
 
 interface AnalyticsSnapshotPayload {

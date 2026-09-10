@@ -13,6 +13,8 @@
  *     on navigation, so "where is everyone" stays fresh app-wide;
  *  3. renders remote peers' cursors that are on the SAME page, with the peer's
  *     name and color, fading out after a few idle seconds.
+ *  4. publishes the local text selection (trimmed) and renders each peer's
+ *     current selection under their cursor flag.
  *
  * Security posture: awareness is client-asserted broadcast. Names are rendered
  * as text (never HTML) and colors are validated against a hex pattern before
@@ -31,6 +33,7 @@ import {
   getLANStatus,
   publishPointer,
   publishPresence,
+  publishSelection,
   subscribeLAN,
 } from "@/platform/lan/lan-collab";
 
@@ -113,9 +116,25 @@ function usePresencePageSync(connected: boolean) {
   const pathname = usePathname();
   useEffect(() => {
     if (!connected || !pathname) return;
-    // Durable identity write (low frequency — once per navigation).
     publishPresence({ page: pathname });
   }, [connected, pathname]);
+}
+
+const SELECTION_MAX_CHARS = 140;
+
+function useSelectionPublisher(connected: boolean) {
+  useEffect(() => {
+    if (!connected) return;
+    const onChange = () => {
+      const text = document.getSelection()?.toString().trim() ?? "";
+      publishSelection(text.slice(0, SELECTION_MAX_CHARS));
+    };
+    document.addEventListener("selectionchange", onChange);
+    return () => {
+      document.removeEventListener("selectionchange", onChange);
+      publishSelection("");
+    };
+  }, [connected]);
 }
 
 // ─── Remote cursor rendering ──────────────────────────────────────────────────
@@ -125,6 +144,7 @@ function RemoteCursor({ peer, containerWidth }: { peer: CollabPeer; containerWid
   if (!cursor || typeof cursor.x !== "number" || typeof cursor.y !== "number") return null;
   if (Date.now() - cursor.at > CURSOR_IDLE_MS) return null;
   const color = SAFE_COLOR.test(peer.color) ? peer.color : "#3b82f6";
+  const selection = cursor.selection?.trim() ? cursor.selection.trim() : null;
 
   return (
     <div
@@ -138,6 +158,11 @@ function RemoteCursor({ peer, containerWidth }: { peer: CollabPeer; containerWid
       >
         {peer.name}
       </span>
+      {selection && (
+        <span className="ml-3 mt-0.5 block w-max max-w-40 truncate rounded-md bg-black/70 px-1.5 py-0.5 text-[10px] leading-tight text-white/90">
+          {selection}
+        </span>
+      )}
     </div>
   );
 }
@@ -178,6 +203,7 @@ export function LiveCursors() {
 
   usePointerPublisher(connected);
   usePresencePageSync(connected);
+  useSelectionPublisher(connected);
 
   if (!connected || peers.length === 0) return null;
   return <CursorsOverlay peers={peers} />;

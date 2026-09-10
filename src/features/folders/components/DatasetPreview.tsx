@@ -3,7 +3,7 @@
 import { Sparkles, Table2, X } from "lucide-react";
 import { useEffect } from "react";
 import type { ColMeta, Dataset } from "@/core/stores/data-store";
-import { usePreviewRows } from "@/features/folders/hooks/usePreviewRows";
+import { usePreviewRows } from "@/features/folders/hooks/use-preview-rows";
 import { formatBytes } from "../lib/format";
 
 const PREVIEW_ROW_LIMIT = 20;

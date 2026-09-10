@@ -139,36 +139,7 @@ describe("hasElectronFS()", () => {
   });
 });
 
-describe("hasElectronDuckDB()", () => {
-  it("returns false when electronDuckDB is absent", async () => {
-    const { hasElectronDuckDB } = await import("@/platform/electron/electron-fs");
-    expect(hasElectronDuckDB()).toBe(false);
-  });
-
-  it("returns true when electronDuckDB is present", async () => {
-    vi.stubGlobal("window", { electronDuckDB: makeDuckDBBridge() });
-    const { hasElectronDuckDB } = await import("@/platform/electron/electron-fs");
-    expect(hasElectronDuckDB()).toBe(true);
-  });
-});
-
 // ─── Internal Bridge Accessor error paths ────────────────────────────────────
-
-describe("duckdbBridge() exported accessor", () => {
-  it("throws when electronDuckDB is absent", async () => {
-    const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-    expect(() => duckdbBridge()).toThrow(
-      "electronDuckDB not available — ensure the app is running inside Electron.",
-    );
-  });
-
-  it("returns the bridge when electronDuckDB is present", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-    expect(duckdbBridge()).toBe(db);
-  });
-});
 
 // ─── Filesystem API ───────────────────────────────────────────────────────────
 
@@ -435,159 +406,14 @@ describe("getDroppedFilePaths()", () => {
   });
 });
 
-// ─── DuckDB Dataset API ───────────────────────────────────────────────────────
-
-describe("DuckDB Dataset API — happy paths", () => {
-  it("initDuckDB() calls bridge.init() and resolves", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { initDuckDB } = await import("@/platform/electron/electron-fs");
-    await expect(initDuckDB()).resolves.toBeUndefined();
-    expect(db.init).toHaveBeenCalledTimes(1);
-  });
-
-  it("registerCSVPathDataset() delegates to bridge with all input fields", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { registerCSVPathDataset } = await import("@/platform/electron/electron-fs");
-    const input = {
-      filePath: "/data/file.csv",
-      displayName: "My CSV",
-      hasHeader: true,
-      delimiter: ",",
-      sampleSize: 1000,
-      previewLimit: 20,
-    };
-    const result = await registerCSVPathDataset(input);
-    expect(result).toEqual(mockDatasetWithPreview);
-    expect(db.registerCSVPathDataset).toHaveBeenCalledWith(input);
-  });
-
-  it("registerParquetPathDataset() delegates to bridge with input fields", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { registerParquetPathDataset } = await import("@/platform/electron/electron-fs");
-    const input = { filePath: "/data/file.parquet", displayName: "Parquet DS", previewLimit: 10 };
-    const result = await registerParquetPathDataset(input);
-    expect(result).toEqual(mockDatasetWithPreview);
-    expect(db.registerParquetPathDataset).toHaveBeenCalledWith(input);
-  });
-
-  it("listDatasets() returns array of datasets from bridge", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { listDatasets } = await import("@/platform/electron/electron-fs");
-    await expect(listDatasets()).resolves.toEqual([mockDataset]);
-    expect(db.listDatasets).toHaveBeenCalledTimes(1);
-  });
-
-  it("previewDataset() delegates with datasetId, limit and offset", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { previewDataset } = await import("@/platform/electron/electron-fs");
-    const input = { datasetId: "ds-1", limit: 50, offset: 10 };
-    const result = await previewDataset(input);
-    expect(result).toEqual([{ col1: "v" }]);
-    expect(db.previewDataset).toHaveBeenCalledWith(input);
-  });
-
-  it("summarizeDataset() delegates with datasetId", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { summarizeDataset } = await import("@/platform/electron/electron-fs");
-    const result = await summarizeDataset({ datasetId: "ds-1" });
-    expect(result).toEqual([{ stat: "count", value: 100 }]);
-    expect(db.summarizeDataset).toHaveBeenCalledWith({ datasetId: "ds-1" });
-  });
-
-  it("exportDataset() delegates with datasetId and targetPath", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { exportDataset } = await import("@/platform/electron/electron-fs");
-    await expect(
-      exportDataset({ datasetId: "ds-1", targetPath: "/out/export.parquet" }),
-    ).resolves.toBeUndefined();
-    expect(db.exportDataset).toHaveBeenCalledWith({
-      datasetId: "ds-1",
-      targetPath: "/out/export.parquet",
-    });
-  });
-
-  it("deleteDataset() delegates with datasetId", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { deleteDataset } = await import("@/platform/electron/electron-fs");
-    await expect(deleteDataset({ datasetId: "ds-1" })).resolves.toBeUndefined();
-    expect(db.deleteDataset).toHaveBeenCalledWith({ datasetId: "ds-1" });
-  });
-
-  it("getDuckDBStatus() returns the bridge status object", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { getDuckDBStatus } = await import("@/platform/electron/electron-fs");
-    const status = await getDuckDBStatus();
-    expect(status.active).toBe(true);
-    expect(status.dbPath).toBe("/db/main.duckdb");
-    expect(status.readConnections).toBe(2);
-  });
-
-  it("getDuckDBQueryMetrics() returns query metrics array", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { getDuckDBQueryMetrics } = await import("@/platform/electron/electron-fs");
-    const metrics = await getDuckDBQueryMetrics();
-    expect(metrics).toHaveLength(1);
-    expect(metrics[0].sql).toBe("SELECT 1");
-    expect(metrics[0].durationMs).toBe(5);
-  });
-
-  it("clearDuckDBQueryMetrics() delegates to bridge.clearQueryMetrics()", async () => {
-    const db = makeDuckDBBridge();
-    vi.stubGlobal("window", { electronDuckDB: db });
-    const { clearDuckDBQueryMetrics } = await import("@/platform/electron/electron-fs");
-    await expect(clearDuckDBQueryMetrics()).resolves.toBeUndefined();
-    expect(db.clearQueryMetrics).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("DuckDB Dataset API — error paths (missing bridge)", () => {
-  it("initDuckDB() rejects when electronDuckDB is absent", async () => {
-    const { initDuckDB } = await import("@/platform/electron/electron-fs");
-    await expect(initDuckDB()).rejects.toThrow("electronDuckDB not available");
-  });
-
-  it("listDatasets() throws when electronDuckDB is absent", async () => {
-    const { listDatasets } = await import("@/platform/electron/electron-fs");
-    expect(() => listDatasets()).toThrow("electronDuckDB not available");
-  });
-
-  it("getDuckDBStatus() throws when electronDuckDB is absent", async () => {
-    const { getDuckDBStatus } = await import("@/platform/electron/electron-fs");
-    expect(() => getDuckDBStatus()).toThrow("electronDuckDB not available");
-  });
-
-  it("getDuckDBQueryMetrics() throws when electronDuckDB is absent", async () => {
-    const { getDuckDBQueryMetrics } = await import("@/platform/electron/electron-fs");
-    expect(() => getDuckDBQueryMetrics()).toThrow("electronDuckDB not available");
-  });
-});
-
 // ─── window === undefined branches ───────────────────────────────────────────
-// Cover the typeof window === "undefined" early-exit paths inside fsBridge()
-// and duckdbBridge(). We delete the global so the guard fires.
+// Cover the typeof window === "undefined" early-exit path inside fsBridge().
+// We delete the global so the guard fires.
 
 describe("fsBridge() — window undefined branch", () => {
   it("throws 'window is not available' when window is undefined (via getDataDir)", async () => {
     vi.stubGlobal("window", undefined);
     const { getDataDir } = await import("@/platform/electron/electron-fs");
     expect(() => getDataDir()).toThrow("window is not available.");
-  });
-});
-
-describe("duckdbBridge() — window undefined branch", () => {
-  it("throws 'window is not available' when window is undefined", async () => {
-    vi.stubGlobal("window", undefined);
-    const { duckdbBridge } = await import("@/platform/electron/electron-fs");
-    expect(() => duckdbBridge()).toThrow("window is not available.");
   });
 });

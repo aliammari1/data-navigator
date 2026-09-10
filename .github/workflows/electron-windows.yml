@@ -190,11 +190,11 @@ jobs:
             Add-Content -Path $env:GITHUB_PATH -Value $wixBin
           }
 
-      # Typecheck only — NOT the full `pnpm run verify`. The MSI artifact only
+      # Typecheck only — NOT the full `pnpm run verify:release`. The MSI artifact only
       # needs to compile + package; the heavy quality suite (lint, tests, coverage,
       # Storybook build, size budgets) already runs on the same commit in
       # quality.yml / storybook.yml and must not gate or slow the release artifact.
-      # `electron:make` runs `desktop:build` (next build) itself, so build coverage
+      # `package:win` runs `desktop:build` (next build) itself, so build coverage
       # is preserved. A failing Storybook/coverage/size gate no longer blocks the MSI.
       - name: Typecheck
         run: pnpm run typecheck
@@ -209,7 +209,7 @@ jobs:
       # Make the Windows installer (.msi + .exe) via electron-builder
       - name: Make Windows installer
         shell: bash
-        run: pnpm run dist:win
+        run: pnpm run package:win
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"

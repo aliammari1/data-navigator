@@ -2,6 +2,7 @@ import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
 import { TELECOM_TABLE_BASE } from "@/features/telecom/lib/names";
+import { STORAGE_KEYS } from "@/platform/storage";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 interface TelecomSessionState {
@@ -31,7 +32,7 @@ export const useTelecomSessionStore = create<TelecomSessionState>()(
         })),
     }),
     {
-      name: "telecom-session-context-v1",
+      name: STORAGE_KEYS.telecomSessionContext,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       // Coerce a missing/empty tableName back to TELECOM_TABLE_BASE and ensure

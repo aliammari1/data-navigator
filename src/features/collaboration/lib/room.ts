@@ -20,8 +20,8 @@
 
 import * as Y from "yjs";
 import {
+  acquireRoomDoc,
   type CollabRoomDoc,
-  getRoomDoc as platformAcquireRoom,
   releaseRoom as platformReleaseRoom,
 } from "@/platform/collab";
 
@@ -90,7 +90,7 @@ export type RoomDoc = CollabRoomDoc;
  * last consumer (this route) unmounts.
  */
 export function acquireRoom(roomId: string): RoomDoc {
-  return platformAcquireRoom(roomId);
+  return acquireRoomDoc(roomId);
 }
 
 export function releaseRoom(roomId: string): void {

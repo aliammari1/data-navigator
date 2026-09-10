@@ -10,14 +10,14 @@ import * as Y from "yjs";
 
 // ─── Hoisted mock factories ─────────────────────────────────────────────────
 
-const { platformGetRoomDocMock, platformReleaseRoomMock } = vi.hoisted(() => {
-  const platformGetRoomDocMock = vi.fn();
+const { platformAcquireRoomDocMock, platformReleaseRoomMock } = vi.hoisted(() => {
+  const platformAcquireRoomDocMock = vi.fn();
   const platformReleaseRoomMock = vi.fn();
-  return { platformGetRoomDocMock, platformReleaseRoomMock };
+  return { platformAcquireRoomDocMock, platformReleaseRoomMock };
 });
 
 vi.mock("@/platform/collab", () => ({
-  getRoomDoc: (id: string) => platformGetRoomDocMock(id),
+  acquireRoomDoc: (id: string) => platformAcquireRoomDocMock(id),
   releaseRoom: (id: string) => platformReleaseRoomMock(id),
 }));
 
@@ -49,14 +49,14 @@ function ymap(fields: Record<string, unknown>): Y.Map<unknown> {
 
 describe("acquireRoom", () => {
   beforeEach(() => {
-    platformGetRoomDocMock.mockReset();
+    platformAcquireRoomDocMock.mockReset();
   });
 
-  it("delegates to platform getRoomDoc and returns its result", () => {
+  it("delegates to platform acquireRoomDoc and returns its result", () => {
     const fakeDoc = { id: "room-x" };
-    platformGetRoomDocMock.mockReturnValue(fakeDoc);
+    platformAcquireRoomDocMock.mockReturnValue(fakeDoc);
     const result = acquireRoom("room-x");
-    expect(platformGetRoomDocMock).toHaveBeenCalledWith("room-x");
+    expect(platformAcquireRoomDocMock).toHaveBeenCalledWith("room-x");
     expect(result).toBe(fakeDoc);
   });
 });

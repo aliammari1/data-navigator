@@ -28,7 +28,6 @@ import {
 import { useSettingsStore } from "@/core/stores/settings-store";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import { useShellActions } from "@/features/dashboard-shell/shell/shell-store";
-import { AccessControlPill } from "@/features/dashboard-shell/topbar/access-control-pill";
 import { DatasetPicker } from "@/features/dashboard-shell/topbar/dataset-picker";
 import { ModelStatusPill } from "@/features/dashboard-shell/topbar/model-status-pill";
 import { NotificationsBell } from "@/features/dashboard-shell/topbar/notifications-bell";
@@ -130,10 +129,6 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
       <div className="flex-1" />
 
       <DatasetPicker />
-
-      <div className="hidden md:block">
-        <AccessControlPill />
-      </div>
 
       {/* Search trigger → universal cmdk palette (folds in old GlobalDataSearch) */}
       <button

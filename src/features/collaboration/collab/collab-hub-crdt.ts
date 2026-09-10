@@ -50,6 +50,7 @@ import {
   ydoc,
 } from "@/platform/collab";
 import { readLANSettings } from "@/platform/lan/lan-collab";
+import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 
 // ─── Identity ─────────────────────────────────────────────────────────────────
 
@@ -62,7 +63,8 @@ import { readLANSettings } from "@/platform/lan/lan-collab";
 export function currentUserName(fallback?: string): string {
   if (typeof window === "undefined") return fallback ?? "You";
   const override =
-    (typeof localStorage !== "undefined" && localStorage.getItem("collab:username")) || "";
+    (typeof localStorage !== "undefined" && localStorage.getItem(STORAGE_KEYS.collabUsername)) ||
+    "";
   if (override) return override;
   try {
     return readLANSettings().peer.name || fallback || "You";
@@ -163,7 +165,7 @@ function migrateLegacyOnce(): void {
     // 2. Audit: drain the persisted zustand store's audit (if it exists) into the
     //    CRDT log oldest-first so chronology is preserved, then clear it.
     try {
-      const storeRaw = localStorage.getItem("collab-hub-store");
+      const storeRaw = localStorage.getItem(STORAGE_KEYS.collabHubStore);
       if (storeRaw && readAuditEvents().length === 0) {
         const parsed = JSON.parse(storeRaw) as {
           state?: { auditEvents?: CollabAuditEvent[] };
@@ -185,7 +187,7 @@ function migrateLegacyOnce(): void {
     }
 
     // Legacy standalone audit key (pre-fix double-write) — remove if present.
-    localStorage.removeItem("audit:events");
+    localStorage.removeItem(STORAGE_KEYS.legacyAuditEvents);
   } catch {
     // best-effort; a partial migration is still flagged so we don't loop
   } finally {

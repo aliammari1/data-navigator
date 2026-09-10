@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { askMoudirAbout, openDesktopApp } from "@/features/folders/lib/openApp";
+import { askMoudirAbout, openDesktopApp } from "@/features/folders/lib/open-app";
 
 // The jsdom environment provides window, so we can spy on dispatchEvent directly.
 

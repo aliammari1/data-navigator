@@ -25,7 +25,7 @@ vi.mock("@/platform/chat/chat-history-client", () => ({
   getMessagesRemote: (...args: any[]) => mockGetMessagesRemote(...args),
   createConversationRemote: vi.fn().mockResolvedValue({ id: "conv-1" }),
   listConversationsRemote: vi.fn().mockResolvedValue([]),
-  pinConversationRemote: vi.fn().mockResolvedValue(undefined),
+  setConversationPinnedRemote: vi.fn().mockResolvedValue(undefined),
   renameConversationRemote: vi.fn().mockResolvedValue(undefined),
   setConversationModelRemote: vi.fn().mockResolvedValue(undefined),
   deleteConversationRemote: vi.fn().mockResolvedValue(undefined),

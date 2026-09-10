@@ -19,7 +19,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
  *   - `@/features/desktop/components/snapshots-layer` → `captureSnapshot`
  *
  * `@/features/desktop/core/menu/app-commands` (the command bus + page
- * registry) and `@/features/desktop/core/menu/registry` (menu composition) are
+ * registry) and `@/features/desktop/core/menu/menu-composer` (menu composition) are
  * left real: they have no external boundaries of their own and exercising them
  * for real is exactly what makes this an integration-shaped unit test of the
  * hook's wiring.
@@ -94,7 +94,7 @@ vi.mock("@/features/desktop/components/snapshots-layer", () => ({
 }));
 
 import { usePageStore } from "@/features/desktop/core/menu/app-commands";
-import { getAppMenuGroups } from "@/features/desktop/core/menu/registry";
+import { getAppMenuGroups } from "@/features/desktop/core/menu/menu-composer";
 import type { MenuGroup } from "@/features/desktop/core/menu/types";
 import { useMenuContext } from "@/features/desktop/core/menu/use-menu-context";
 

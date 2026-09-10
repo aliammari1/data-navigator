@@ -108,7 +108,7 @@ export async function renameConversationRemote(id: string, title: string): Promi
   await bridge()?.rename(id, title);
 }
 
-export async function pinConversationRemote(id: string, pinned: boolean): Promise<void> {
+export async function setConversationPinnedRemote(id: string, pinned: boolean): Promise<void> {
   await bridge()?.pin(id, pinned);
 }
 

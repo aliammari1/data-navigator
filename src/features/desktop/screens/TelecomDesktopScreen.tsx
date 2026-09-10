@@ -11,7 +11,6 @@ import {
   Table as TableIcon,
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { LanCollabPanel } from "@/features/dashboard-shell/components/lan-collab-panel";
 import { useAppCommands, useRegisterPages } from "@/features/desktop/core/menu/app-commands";
 import type { AppPage } from "@/features/desktop/core/menu/types";
 import { useWindowId } from "@/features/desktop/core/menu/window-context";
@@ -28,7 +27,6 @@ import {
   TelecomReportRuntimeProvider,
   useTelecomReportRuntime,
 } from "@/features/telecom/components/telecom-report-runtime";
-import { UserManagementPanel } from "@/features/telecom/components/user-management-panel";
 
 /** Separate component so useEffect is called unconditionally (Rules of Hooks). */
 function HistoryTabContent() {
@@ -138,24 +136,13 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
       if (!report.kpi) return <TelecomLoadingPanel label="Chargement de la configuration…" />;
       return (
         <div className="space-y-4">
-          <UserManagementPanel
-            currentRole={report.telecomRole}
-            onRoleChange={(role) => report.access.setRole(role === "admin" ? "owner" : "viewer")}
-          />
-          <LanCollabPanel />
           <ConfigTab
-            kpi={report.kpi}
-            canals={report.canals}
-            hourly={report.hourly}
-            statusData={report.statusData}
             m={report.mapping}
             rawStatuses={report.rawStatuses}
             statusMapping={report.statusMapping}
             onStatusMappingChange={report.setStatusMapping}
-            reportDate={report.dashboardReportDate}
             tableName={report.dashboardTableName}
             fetchServiceCodeRows={report.fetchServiceCodeRows}
-            runCustomKPIExpr={report.runCustomKPIExpr}
           />
         </div>
       );

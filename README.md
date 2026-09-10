@@ -128,26 +128,26 @@ This concurrently orchestrates:
 | `pnpm run build` | Compiles workers and generates Next.js production build |
 | `pnpm run desktop:build` | Builds production Next.js standalone bundle + workers + Electron main process |
 | `pnpm run worker:build` | Builds standalone WebWorker bundles with esbuild |
-| `pnpm run storybook` | Starts Storybook component explorer on `http://localhost:6006` |
-| `pnpm run lan-server` | Launches standalone Hocuspocus/LAN collaboration relay server |
+| `pnpm run storybook:dev` | Starts Storybook component explorer on `http://localhost:6006` |
+| `pnpm run dev:lan` | Launches standalone Hocuspocus/LAN collaboration relay server |
 
 ### Packaging & Distribution (Electron Builder)
 
 | Command | Description |
 | --- | --- |
-| `pnpm run dist:linux:dir` | Packages unpacked 64-bit Linux distribution into `dist/linux-unpacked` |
-| `pnpm run dist:linux` | Builds Linux production packages (AppImage, deb) |
-| `pnpm run dist:win:dir` | Packages unpacked 64-bit Windows distribution |
-| `pnpm run dist:win` | Builds Windows production installers (MSI, NSIS) |
-| `pnpm run dist` | Full desktop build and packages target distribution via electron-builder |
+| `pnpm run package:linux:dir` | Packages unpacked 64-bit Linux distribution into `dist/linux-unpacked` |
+| `pnpm run package:linux` | Builds Linux production packages (AppImage, deb) |
+| `pnpm run package:win:dir` | Packages unpacked 64-bit Windows distribution |
+| `pnpm run package:win` | Builds Windows production installers (MSI, NSIS) |
+| `pnpm run package` | Full desktop build and packages target distribution via electron-builder |
 
 ### Database & Models
 
 | Command | Description |
 | --- | --- |
-| `pnpm run drizzle:generate` | Generates Drizzle migrations for main database schemas |
-| `pnpm run drizzle:generate:chat` | Generates migrations for Moudir SQLite chat store |
-| `pnpm run prepare:models` | Prepares and validates local GGUF model assets |
+| `pnpm run db:generate` | Generates Drizzle migrations for main database schemas |
+| `pnpm run db:generate:chat` | Generates migrations for Moudir SQLite chat store |
+| `pnpm run models:prepare` | Prepares and validates local GGUF model assets |
 | `pnpm run models:hash` | Verifies SHA-256 hashes of packaged GGUF weights |
 
 ---
@@ -219,13 +219,13 @@ Data Navigator uses [Changesets](https://github.com/changesets/changesets) to ma
 pnpm changeset
 
 # Inspect changeset status
-pnpm run changeset:status
+pnpm run release:status
 
 # Bump application version and update lockfile
-pnpm run version:app
+pnpm run release:version
 
 # Publish release assets
-pnpm run release
+pnpm run release:publish
 ```
 
 ---

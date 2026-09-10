@@ -65,19 +65,19 @@ import { FileGrid } from "../components/FileGrid";
 import { FilterChips } from "../components/FilterChips";
 import { FolderTree } from "../components/FolderTree";
 import { RecentRail } from "../components/RecentRail";
-import { useAutoOrganize } from "../hooks/useAutoOrganize";
-import { useFolderIndex } from "../hooks/useFolderIndex";
-import { useFolderNodes } from "../hooks/useFolderNodes";
-import { useFolderSearch } from "../hooks/useFolderSearch";
+import { useAutoOrganize } from "../hooks/use-auto-organize";
+import { useFolderIndex } from "../hooks/use-folder-index";
+import { useFolderNodes } from "../hooks/use-folder-nodes";
+import { useFolderSearch } from "../hooks/use-folder-search";
 import { type CatalogFilter, filterFileNodes, matchesFilter } from "../lib/catalog-filters";
 import {
   breadcrumbPath,
   computeFolderSizes,
   flattenVisible,
   wouldCreateCycle,
-} from "../lib/folderTree";
+} from "../lib/folder-tree";
 import { FOLDER_COLORS, fileTypeStyle, formatBytes, qualityColor } from "../lib/format";
-import { askMoudirAbout, openDesktopApp } from "../lib/openApp";
+import { askMoudirAbout, openDesktopApp } from "../lib/open-app";
 import type { FSNode, SortKey } from "../types";
 
 const ROOT_ID = "root";

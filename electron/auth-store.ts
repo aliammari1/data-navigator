@@ -24,7 +24,7 @@ import { eq } from "drizzle-orm";
 import type { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import * as schema from "../src/db/schema";
 import { openSqliteHandle } from "../src/platform/storage/db-bootstrap";
-import { recordAuditLog } from "./settings-store";
+import { recordAuditLog } from "./settings-storage";
 
 export type AuthUser = {
   id: string;
@@ -55,16 +55,9 @@ export type SessionValidationResult = {
 
 const AUTH_DB_NAME = "auth.db";
 
-/**
- * Calculate the next midnight (00:00:00.000) in the user's local timezone.
- * In Data Navigator's security model, every session lives strictly until
- * 00h00 of the user's local day, after which the admin is locked out and must relogin.
- */
-export function getNextLocalMidnight(fromDate: Date = new Date()): Date {
-  const next = new Date(fromDate);
-  next.setHours(24, 0, 0, 0);
-  return next;
-}
+import { getNextLocalMidnight } from "@/platform/auth/session-expiry";
+
+export { getNextLocalMidnight };
 
 const DEFAULT_AUTH_MIGRATIONS_FOLDER = path.join(process.cwd(), "drizzle");
 let authMigrationsFolder: string = DEFAULT_AUTH_MIGRATIONS_FOLDER;

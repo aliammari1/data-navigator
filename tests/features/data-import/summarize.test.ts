@@ -4,7 +4,7 @@ import {
   mapDuckTypeToColumnInfoType,
   summarizeRowsToColumnInfo,
 } from "@/features/data-import/model/summarize";
-import { summarizeDataset } from "@/platform/electron/electron-fs";
+import { duckdbClient } from "@/platform/duckdb/duckdb-client";
 
 /**
  * Locks in the shared DuckDB-type mapper and the SUMMARIZE-row -> ColumnInfo
@@ -12,11 +12,13 @@ import { summarizeDataset } from "@/platform/electron/electron-fs";
  * query runs.
  */
 
-vi.mock("@/platform/electron/electron-fs", () => ({
-  summarizeDataset: vi.fn(),
+vi.mock("@/platform/duckdb/duckdb-client", () => ({
+  duckdbClient: {
+    summarizeDataset: vi.fn(),
+  },
 }));
 
-const summarizeDatasetMock = vi.mocked(summarizeDataset);
+const summarizeDatasetMock = vi.mocked(duckdbClient.summarizeDataset);
 
 describe("mapDuckTypeToColumnInfoType", () => {
   it.each([

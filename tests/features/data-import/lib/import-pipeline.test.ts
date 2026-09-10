@@ -29,8 +29,10 @@ vi.mock("@/platform/duckdb/upload-to-duckdb", () => ({
 
 const summarizeDataset = vi.fn<(args: { datasetId: string }) => Promise<unknown>>();
 
-vi.mock("@/platform/electron/electron-fs", () => ({
-  summarizeDataset: (args: { datasetId: string }) => summarizeDataset(args),
+vi.mock("@/platform/duckdb/duckdb-client", () => ({
+  duckdbClient: {
+    summarizeDataset: (args: { datasetId: string }) => summarizeDataset(args),
+  },
 }));
 
 // ─── Fixtures / builders ─────────────────────────────────────────────────────

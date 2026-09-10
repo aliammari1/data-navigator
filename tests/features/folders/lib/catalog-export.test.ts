@@ -41,7 +41,7 @@ import {
   type CatalogExportInput,
   exportCatalogPdf,
   exportCatalogXlsx,
-} from "@/features/folders/lib/catalogExport";
+} from "@/features/folders/lib/catalog-export";
 import type { FSNode } from "@/features/folders/types";
 
 // ---------------------------------------------------------------------------

@@ -2,7 +2,7 @@
  * Drizzle schema for the per-domain settings + analytics databases
  * (settings.db, analytics.db under <userData>/databases).
  *
- * Extracted from `electron/settings-store.ts` so that `drizzle-kit generate`
+ * Extracted from `electron/settings-storage.ts` so that `drizzle-kit generate`
  * can introspect the schema and produce versioned migrations. The runtime
  * `openSqliteHandle` runs those migrations at boot via the standard
  * `migrate()` from `drizzle-orm/better-sqlite3/migrator`.

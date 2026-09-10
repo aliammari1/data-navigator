@@ -12,6 +12,7 @@ import {
   useState,
 } from "react";
 import { getAppSettingRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
+import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 
 type Theme = "light" | "dark" | "system";
 type ResolvedTheme = "light" | "dark";
@@ -92,7 +93,7 @@ export function ThemeProvider({
 
     let storedTheme: Theme | null = null;
     try {
-      storedTheme = localStorage.getItem("theme") as Theme | null;
+      storedTheme = localStorage.getItem(STORAGE_KEYS.theme) as Theme | null;
     } catch {
       storedTheme = null;
     }
@@ -109,7 +110,7 @@ export function ThemeProvider({
       .then(({ value }) => {
         if (cancelled || !isValid(value)) return;
         try {
-          localStorage.setItem("theme", value);
+          localStorage.setItem(STORAGE_KEYS.theme, value);
         } catch {
           // storage unavailable — React state still updates below
         }
@@ -145,7 +146,7 @@ export function ThemeProvider({
     setThemeState((current) => {
       const next = typeof value === "function" ? value(current) : value;
       try {
-        localStorage.setItem("theme", next);
+        localStorage.setItem(STORAGE_KEYS.theme, next);
       } catch {
         // Storage can be unavailable in privacy-restricted browser contexts.
       }

@@ -29,7 +29,7 @@ vi.mock("@/platform/duckdb/duckdb", () => ({
 
 // ─── Import the real hook AFTER mocks are registered ─────────────────────────
 
-import { usePreviewRows } from "@/features/folders/hooks/usePreviewRows";
+import { usePreviewRows } from "@/features/folders/hooks/use-preview-rows";
 
 // ─── Setup ────────────────────────────────────────────────────────────────────
 

@@ -10,7 +10,7 @@
  * relative → ws://localhost:3000/dashboard/<garbage>) and leaked providers on
  * unmount races.
  *
- * `getRoomDoc(roomId)` now assembles the room handle from the app `ydoc`'s
+ * `acquireRoomDoc(roomId)` now assembles the room handle from the app `ydoc`'s
  * root types (same root NAMES as before, so previously-synced server data and
  * migrated local data are picked up as-is) and the shared app Awareness.
  * Transport is owned SOLELY by `connectLAN` in `@/platform/lan/lan-collab` —
@@ -81,7 +81,7 @@ const handles = new Map<string, CollabRoomDoc>();
  * shared awareness live for the app's lifetime; transport teardown belongs to
  * `disconnectLAN` in `@/platform/lan/lan-collab`.
  */
-export function getRoomDoc(roomId: string): CollabRoomDoc {
+export function acquireRoomDoc(roomId: string): CollabRoomDoc {
   const cached = handles.get(roomId);
   if (cached) return cached;
 

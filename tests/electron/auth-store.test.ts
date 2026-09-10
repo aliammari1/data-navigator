@@ -22,10 +22,10 @@ import {
 import {
   closeSettingsStore,
   configureSettingsStore,
-  listAuditLogs,
+  listAuditLog,
   listQueryAnalytics,
   recordQueryAnalytics,
-} from "../../electron/settings-store";
+} from "../../electron/settings-storage";
 
 let dir: string;
 
@@ -208,7 +208,7 @@ describe("Audit Logging & Query Analytics Integration", () => {
       password: "Password123!",
     });
 
-    const logs = listAuditLogs();
+    const logs = listAuditLog();
     expect(logs.length).toBeGreaterThanOrEqual(1);
     const signupLog = logs.find((l) => l.action === "auth.signup");
     expect(signupLog).toBeDefined();

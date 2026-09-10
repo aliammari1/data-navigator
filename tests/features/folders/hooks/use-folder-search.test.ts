@@ -13,7 +13,7 @@
 
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { useFolderSearch } from "@/features/folders/hooks/useFolderSearch";
+import { useFolderSearch } from "@/features/folders/hooks/use-folder-search";
 import type { FSNode } from "@/features/folders/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

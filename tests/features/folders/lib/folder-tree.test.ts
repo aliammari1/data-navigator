@@ -5,7 +5,7 @@ import {
   computeFolderSizes,
   flattenVisible,
   wouldCreateCycle,
-} from "@/features/folders/lib/folderTree";
+} from "@/features/folders/lib/folder-tree";
 import type { FSNode } from "@/features/folders/types";
 
 // ---------------------------------------------------------------------------

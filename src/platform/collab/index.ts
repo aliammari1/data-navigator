@@ -5,7 +5,7 @@
  * here. Internals (Yjs wiring, y-indexeddb persistence, y-protocols awareness,
  * y-websocket transport) are owned by this platform subsystem.
  *
- *   getRoomDoc / releaseRoom ............ room handles on the app doc
+ *   acquireRoomDoc / releaseRoom ........ room handles on the app doc
  *   ensureAppDocPersistence ................. durable singleton-doc persistence
  *   annotation / approval / audit accessors . collab-hub shared types
  *   awareness helpers ....................... presence (auto-pruned)
@@ -59,7 +59,7 @@ export {
 
 // ── Room handles (backed by the singleton app doc; LAN transport lives in
 // `@/platform/lan/lan-collab`) ──
-export { getRoomDoc, releaseRoom } from "./room";
+export { acquireRoomDoc, releaseRoom } from "./room-doc";
 export type {
   CollabPeer,
   CollabRoomDoc,

@@ -17,8 +17,8 @@ const WORKER_URL = "/workers/python-sandbox.worker.js";
 
 function getWorker(): Worker {
   if (!_worker) {
-    // Precompiled worker served as a static asset (see package.json build:worker).
-    // Mirrors the DuckDB shared-worker pattern in src/lib/shared-duckdb.ts.
+    // Precompiled worker served as a static asset (see package.json worker:build).
+    // Mirrors the DuckDB shared-worker pattern in src/platform/duckdb/duckdb-client.ts.
     _worker = new Worker(WORKER_URL);
   }
   return _worker;

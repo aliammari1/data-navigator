@@ -41,7 +41,7 @@ vi.mock("@/features/desktop/store/desktop-store", () => ({
   GLASS_PALETTES: [{ id: "sand", label: "Cyan", swatch: "g1" }],
 }));
 
-import { getAppMenuGroups } from "@/features/desktop/core/menu/registry";
+import { getAppMenuGroups } from "@/features/desktop/core/menu/menu-composer";
 import type { MenuContext, MenuGroup, MenuItem } from "@/features/desktop/core/menu/types";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

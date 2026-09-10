@@ -191,18 +191,6 @@ export interface ServiceCodeRow {
   matchedCanal: string;
 }
 
-export interface CustomKPI {
-  id: string;
-  label: string;
-  description: string;
-  sqlExpr: string;
-  format: "number" | "amount" | "pct" | "duration";
-  colorClass: string;
-  result: number | null;
-  loading: boolean;
-  error: string;
-}
-
 export interface AIInsight {
   id: string;
   severity: "critical" | "warning" | "info" | "positive";

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import { STORAGE_KEYS } from "@/platform/storage";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AppDomain = "telecom" | "general";
@@ -31,7 +32,7 @@ export const useAppContextStore = create<AppContextState>()(
       setContext: (next) => set((state) => ({ ...state, ...next })),
     }),
     {
-      name: "app-context-v1",
+      name: STORAGE_KEYS.appContext,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       // Ensure a valid AppDomain (fallback 'telecom'); ids are left as-is —

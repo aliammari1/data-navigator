@@ -10,7 +10,7 @@ import {
   usePageStore,
   useWindowPages,
 } from "@/features/desktop/core/menu/app-commands";
-import { getAppMenuGroups } from "@/features/desktop/core/menu/registry";
+import { getAppMenuGroups } from "@/features/desktop/core/menu/menu-composer";
 import type { MenuContext, MenuGroup } from "@/features/desktop/core/menu/types";
 import {
   useDesktopActions,

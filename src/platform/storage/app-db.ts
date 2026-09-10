@@ -10,7 +10,7 @@
  * Architecture mapping (architecture.md §2/§4) → table:
  *   analyticsSnapshots — LEGACY, read/clear-only [v1]. The telecom "Persister"
  *     button + Analytics History list moved to the durable SQLite
- *     `analytics_snapshot_history` table (electron/settings-store.ts) — see
+ *     `analytics_snapshot_history` table (electron/settings-storage.ts) — see
  *     src/features/telecom/lib/analytics-sqlite-snapshot.ts. This table stays
  *     declared, with no write helpers, only so
  *     analytics-snapshot-legacy-migration.ts can lift any pre-existing rows

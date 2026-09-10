@@ -15,7 +15,7 @@ import type { LoadedUploadTable, LoadUploadPathOptions } from "@/platform/duckdb
  * The module imports two real IO boundaries at the top level which are the only
  * things mocked here:
  *   - `@/platform/duckdb/upload-to-duckdb` (loadUploadPathToDuckDB / sanitize)
- *   - `@/platform/electron/electron-fs` (summarizeDataset, reached through the
+ *   - `@/platform/duckdb/duckdb-client` (summarizeDataset, reached through the
  *     summarize.ts -> fetchFullTableColumnInfo helper)
  *
  * Everything else (the zustand import-session store, the telecom profile and
@@ -46,8 +46,10 @@ vi.mock("@/platform/duckdb/upload-to-duckdb", () => ({
 
 const summarizeDataset = vi.fn<(args: { datasetId: string }) => Promise<unknown>>();
 
-vi.mock("@/platform/electron/electron-fs", () => ({
-  summarizeDataset: (args: { datasetId: string }) => summarizeDataset(args),
+vi.mock("@/platform/duckdb/duckdb-client", () => ({
+  duckdbClient: {
+    summarizeDataset: (args: { datasetId: string }) => summarizeDataset(args),
+  },
 }));
 
 // ─── Fixtures / builders ────────────────────────────────────────────────────

@@ -10,7 +10,7 @@ import type * as Types from "@/features/telecom/types";
 //
 // We mock only true boundaries:
 //   • @/features/telecom/store     — the persisted zustand store (settings bridge / IPC)
-//   • @/features/telecom/lib/channel — BroadcastChannel wrapper (cross-tab)
+//   • @/features/telecom/lib/broadcast-sync — BroadcastChannel wrapper (cross-tab)
 //   • @/platform/collab/collab     — Yjs CRDT singleton (dynamic import)
 //   • sonner                       — toast UI (dynamic import)
 //
@@ -38,7 +38,7 @@ const onBroadcast = vi.fn((handler: (msg: unknown) => void) => {
   return broadcastUnsub;
 });
 
-vi.mock("@/features/telecom/lib/channel", () => ({
+vi.mock("@/features/telecom/lib/broadcast-sync", () => ({
   onBroadcast: (handler: (msg: unknown) => void) => onBroadcast(handler),
 }));
 

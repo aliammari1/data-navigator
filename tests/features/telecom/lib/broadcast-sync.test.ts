@@ -65,7 +65,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const msg = { type: "FILE_LOADED" as const, fileName: "test.csv", reportDate: "2024-01-01" };
     broadcast(msg);
@@ -78,7 +78,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     broadcast({ type: "FILE_LOADED", fileName: "a.csv", reportDate: "2024-01-01" });
     broadcast({ type: "FILE_LOADED", fileName: "b.csv", reportDate: "2024-01-02" });
@@ -92,7 +92,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const msg = {
       type: "FILTER_CHANGE" as const,
@@ -116,7 +116,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const mapping = {
       transactionId: "id",
@@ -149,7 +149,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const msg = {
       type: "ANALYTICS_READY" as const,
@@ -165,7 +165,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { onBroadcast } = await import("@/features/telecom/lib/channel");
+    const { onBroadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const handler = vi.fn();
     const cleanup = onBroadcast(handler);
@@ -195,7 +195,7 @@ describe("channel — BroadcastChannel available", () => {
     const instances: FakeBCInstance[] = [];
     vi.stubGlobal("BroadcastChannel", makeFakeBCClass(instances));
 
-    const { onBroadcast } = await import("@/features/telecom/lib/channel");
+    const { onBroadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const received: unknown[] = [];
     onBroadcast((msg) => received.push(msg));
@@ -252,7 +252,7 @@ describe("channel — BroadcastChannel undefined", () => {
   it("broadcast is a no-op when BroadcastChannel is not available", async () => {
     vi.stubGlobal("BroadcastChannel", undefined);
 
-    const { broadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     // Must not throw
     expect(() =>
@@ -263,7 +263,7 @@ describe("channel — BroadcastChannel undefined", () => {
   it("onBroadcast returns an empty cleanup function when BroadcastChannel is not available", async () => {
     vi.stubGlobal("BroadcastChannel", undefined);
 
-    const { onBroadcast } = await import("@/features/telecom/lib/channel");
+    const { onBroadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     const handler = vi.fn();
     const cleanup = onBroadcast(handler);
@@ -279,7 +279,7 @@ describe("channel — BroadcastChannel undefined", () => {
   it("getBC returns null (both exported functions degrade gracefully)", async () => {
     vi.stubGlobal("BroadcastChannel", undefined);
 
-    const { broadcast, onBroadcast } = await import("@/features/telecom/lib/channel");
+    const { broadcast, onBroadcast } = await import("@/features/telecom/lib/broadcast-sync");
 
     expect(() =>
       broadcast({

@@ -1,6 +1,7 @@
 "use client";
 
 import { authClient } from "@/platform/auth/auth-client";
+import { getNextLocalMidnight } from "@/platform/auth/session-expiry";
 
 type AuthUser = {
   id: string;
@@ -33,15 +34,6 @@ type SessionResult = {
 
 function isElectron(): boolean {
   return typeof window !== "undefined" && typeof window.electronAuth !== "undefined";
-}
-
-/**
- * Calculate the next midnight (00:00:00.000) in the user's local timezone.
- */
-function getNextLocalMidnight(fromDate: Date = new Date()): Date {
-  const next = new Date(fromDate);
-  next.setHours(24, 0, 0, 0);
-  return next;
 }
 
 export type OwnerInfo = {

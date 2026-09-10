@@ -21,7 +21,7 @@
  * column metadata reflect the WHOLE dataset, not a sample.
  */
 
-import { summarizeDataset } from "@/platform/electron/electron-fs";
+import { duckdbClient } from "@/platform/duckdb/duckdb-client";
 import { nullRateFromSummary, numberOrUndefined } from "@/shared/duckdb-summary";
 import type { ColumnInfo } from "./types";
 
@@ -142,7 +142,7 @@ export async function fetchFullTableColumnInfo(
   previewSamples: Map<string, unknown[]>,
 ): Promise<ColumnInfo[] | null> {
   try {
-    const rows = await summarizeDataset({ datasetId });
+    const rows = await duckdbClient.summarizeDataset({ datasetId });
     if (!Array.isArray(rows) || rows.length === 0) return null;
     return summarizeRowsToColumnInfo(rows, rowCount, previewSamples);
   } catch {

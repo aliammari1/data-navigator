@@ -136,7 +136,7 @@ async function main() {
       .join("\n");
     console.error(
       "compute-model-hashes: no .gguf/.onnx files found.\n" +
-        "Download a model first (in-app Setup, or `pnpm run prepare:models`), or pass\n" +
+        "Download a model first (in-app Setup, or `pnpm run models:prepare`), or pass\n" +
         "--dir=<path> / --file=<path>.\n\nScanned:\n" +
         scanned,
     );

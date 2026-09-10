@@ -4,7 +4,7 @@ import {
   mapDuckTypeToColumnInfoType,
   summarizeRowsToColumnInfo,
 } from "@/features/data-import/model/summarize";
-import { summarizeDataset } from "@/platform/electron/electron-fs";
+import { duckdbClient } from "@/platform/duckdb/duckdb-client";
 
 /**
  * Unit tests for src/features/data-import/model/summarize.ts.
@@ -13,11 +13,13 @@ import { summarizeDataset } from "@/platform/electron/electron-fs";
  * that the top-level summarize.test.ts leaves uncovered.
  */
 
-vi.mock("@/platform/electron/electron-fs", () => ({
-  summarizeDataset: vi.fn(),
+vi.mock("@/platform/duckdb/duckdb-client", () => ({
+  duckdbClient: {
+    summarizeDataset: vi.fn(),
+  },
 }));
 
-const summarizeDatasetMock = vi.mocked(summarizeDataset);
+const summarizeDatasetMock = vi.mocked(duckdbClient.summarizeDataset);
 
 beforeEach(() => {
   vi.clearAllMocks();

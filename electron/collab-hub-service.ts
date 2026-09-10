@@ -1114,7 +1114,7 @@ export async function start(input: CollabHubStartInput = {}): Promise<CollabHubS
       console.error(
         "The hub could not start because better-sqlite3 needs to be rebuilt for Electron.",
       );
-      console.error("FIX: Run 'pnpm run rebuild:electron' then restart the app.\n");
+      console.error("FIX: Run 'pnpm run deps:rebuild:electron' then restart the app.\n");
     }
     throw err;
   }

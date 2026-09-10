@@ -73,7 +73,7 @@ vi.mock("@/core/stores/folders-store", () => ({
 
 // ─── Import the real hook AFTER mocks are registered ─────────────────────────
 
-import { useAutoOrganize } from "@/features/folders/hooks/useAutoOrganize";
+import { useAutoOrganize } from "@/features/folders/hooks/use-auto-organize";
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 

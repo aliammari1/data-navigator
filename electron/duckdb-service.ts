@@ -32,7 +32,7 @@ import { nanoid } from "nanoid";
 import PQueue from "p-queue";
 import { z } from "zod";
 import { type DuckDBColumnTypeLike, encodeColumnsToArrowIPC } from "./duckdb-arrow";
-import { recordQueryAnalytics } from "./settings-store";
+import { recordQueryAnalytics } from "./settings-storage";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import { STORAGE_KEYS } from "@/platform/storage";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type AccentColor = "blue" | "indigo" | "violet" | "cyan" | "emerald" | "amber" | "rose";
@@ -134,7 +135,7 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
 function readLegacyDashboardAccess(): { role?: string; cacheMode?: string } | null {
   if (typeof localStorage === "undefined") return null;
   try {
-    const parsed = JSON.parse(localStorage.getItem("data-navigator-dashboard-access-v1") ?? "null");
+    const parsed = JSON.parse(localStorage.getItem(STORAGE_KEYS.legacyDashboardAccess) ?? "null");
     return parsed && typeof parsed === "object" ? parsed : null;
   } catch {
     return null;
@@ -212,7 +213,7 @@ export const useSettingsStore = create<SettingsStore>()(
         }),
     }),
     {
-      name: "data-navigator-settings",
+      name: STORAGE_KEYS.settings,
       version: 5,
       // Durable in drizzle (app_setting) with a synchronous localStorage
       // working copy — see createDrizzleStorage.

@@ -3,7 +3,12 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { readLANSettings, saveLANSettings } from "@/platform/lan/lan-collab";
-import { createDrizzleStorage, createSelectors, durablePersist } from "@/platform/storage";
+import {
+  createDrizzleStorage,
+  createSelectors,
+  durablePersist,
+  STORAGE_KEYS,
+} from "@/platform/storage";
 
 // ─── Types (UI-only local prefs) ──────────────────────────────────────────────
 //
@@ -49,7 +54,7 @@ type CollabHubState = {
 
 function readInitialUsername(): string {
   if (typeof window === "undefined") return "You";
-  const override = localStorage.getItem("collab:username");
+  const override = localStorage.getItem(STORAGE_KEYS.collabUsername);
   if (override) return override;
   try {
     return readLANSettings().peer.name || "You";
@@ -81,7 +86,7 @@ const useCollabHubStoreBase = create<CollabHubState>()(
         if (typeof window !== "undefined") {
           // Keep the shared identity key in sync so audit/annotations/presence
           // all read the same display name.
-          localStorage.setItem("collab:username", name);
+          localStorage.setItem(STORAGE_KEYS.collabUsername, name);
           try {
             const settings = readLANSettings();
             if (settings.peer.name !== name) {
@@ -122,7 +127,7 @@ const useCollabHubStoreBase = create<CollabHubState>()(
     }),
     {
       ...durablePersist<CollabHubState>({
-        name: "collab-hub-store",
+        name: STORAGE_KEYS.collabHubStore,
         version: 2,
         getDefaults: () => ({ ...getDefaults() }) as CollabHubState,
         persistKeys: [

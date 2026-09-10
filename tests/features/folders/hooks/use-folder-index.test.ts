@@ -10,7 +10,7 @@
 
 import { renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useFolderIndex } from "@/features/folders/hooks/useFolderIndex";
+import { useFolderIndex } from "@/features/folders/hooks/use-folder-index";
 import type { FSNode } from "@/features/folders/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────

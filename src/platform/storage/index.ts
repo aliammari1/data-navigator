@@ -11,7 +11,6 @@
  *  - query-persister → TanStack Query IndexedDB persister (instant cold paint)
  *  - storage-info    → navigator.storage persist()/estimate() surface
  *  - apply-settings  → settings → CSS vars/data-attrs + clamped runtime config
- *  - store-mirror    → zustand→Dexie write-through helper (feature adoption)
  *  - drizzle-storage → existing key→single-blob settings adapter (kept)
  */
 
@@ -44,4 +43,6 @@ export {
   getStorageInfo,
   type StorageInfo,
 } from "./storage-info";
+// Canonical persistence key registry (frozen values + scheme for new keys)
+export { STORAGE_KEYS } from "./storage-keys";
 // Store mirror (feature adoption helper)

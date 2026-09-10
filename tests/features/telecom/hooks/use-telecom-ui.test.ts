@@ -34,7 +34,7 @@ vi.mock("@/features/telecom/store", async (importActual) => {
 const broadcastUnsub = vi.fn();
 const onBroadcast = vi.fn((_handler: (msg: unknown) => void) => broadcastUnsub);
 
-vi.mock("@/features/telecom/lib/channel", () => ({
+vi.mock("@/features/telecom/lib/broadcast-sync", () => ({
   onBroadcast: (handler: (msg: unknown) => void) => onBroadcast(handler),
 }));
 

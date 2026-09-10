@@ -13,8 +13,6 @@
  * - DuckDB main process owns registration, Parquet cache, views, metrics, and cleanup.
  */
 
-import { duckdbBridge } from "@/platform/electron/electron-fs";
-
 // ─── Public API types ─────────────────────────────────────────────────────────
 
 type DatasetSourceFormat = "csv" | "parquet";
@@ -178,14 +176,15 @@ interface DuckDBStatus {
 // ─── Bridge type ──────────────────────────────────────────────────────────────
 
 /**
- * This type must match the preload-exposed `electronDuckDB` API.
+ * The preload-exposed `electronDuckDB` API. Must match the main-process
+ * handlers dispatched in `electron/duckdb-service.ts` — the IPC helper returns
+ * exactly whatever the bridge method returns.
  *
  * Important:
  * - `clearQueryMetrics` returns Promise<void>.
  * - It does NOT return `{ success: boolean }`.
- * - The IPC helper returns exactly whatever the bridge method returns.
  */
-interface DuckDBBridgeApi {
+export interface ElectronDuckDBBridge {
   init(): Promise<{ success: boolean }>;
 
   registerCSVPathDataset(input: RegisterCSVPathDatasetInput): Promise<RegisteredDatasetWithPreview>;
@@ -260,20 +259,30 @@ function markFailed(): void {
   initPromise = null;
 }
 
-function hasDuckDBBridge(): boolean {
-  return (
-    typeof window !== "undefined" &&
-    "electronDuckDB" in window &&
-    typeof duckdbBridge === "function"
-  );
+export function hasElectronDuckDB(): boolean {
+  return typeof window !== "undefined" && Boolean(window.electronDuckDB);
 }
 
-function getBridge(): DuckDBBridgeApi {
-  if (!hasDuckDBBridge()) {
+export function duckdbBridge(): ElectronDuckDBBridge {
+  if (typeof window === "undefined") {
+    throw new Error("window is not available.");
+  }
+
+  const bridge = window.electronDuckDB;
+
+  if (!bridge) {
+    throw new Error("electronDuckDB not available — ensure the app is running inside Electron.");
+  }
+
+  return bridge;
+}
+
+function getBridge(): ElectronDuckDBBridge {
+  if (!hasElectronDuckDB()) {
     throw new Error("DuckDB bridge is unavailable. Are you running in Electron?");
   }
 
-  return duckdbBridge() as unknown as DuckDBBridgeApi;
+  return duckdbBridge();
 }
 
 /**
@@ -285,7 +294,7 @@ function getBridge(): DuckDBBridgeApi {
  * - bridge.clearQueryMetrics() -> Promise<void>
  */
 async function ipc<T>(
-  operation: (bridge: DuckDBBridgeApi) => Promise<T>,
+  operation: (bridge: ElectronDuckDBBridge) => Promise<T>,
   timeoutMs = 30_000,
   timeoutMessage = "DuckDB operation timed out",
 ): Promise<T> {
@@ -301,12 +310,12 @@ async function ipc<T>(
 async function ensureReady(): Promise<void> {
   if (ready) return;
 
-  await sharedDuckDB.init();
+  await duckdbClient.init();
 }
 
-// ─── SharedDuckDB interface ───────────────────────────────────────────────────
+// ─── DuckDBClient interface ─────────────────────────────────────────────────────
 
-export interface SharedDuckDB {
+export interface DuckDBClient {
   readonly available: boolean;
   readonly ready: boolean;
   readonly failed: boolean;
@@ -353,11 +362,11 @@ export interface SharedDuckDB {
   resetCancelToken(token: string): Promise<void>;
 }
 
-// ─── SharedDuckDB implementation ──────────────────────────────────────────────
+// ─── DuckDBClient implementation ────────────────────────────────────────────────
 
-export const sharedDuckDB: SharedDuckDB = {
+export const duckdbClient: DuckDBClient = {
   get available() {
-    return hasDuckDBBridge() && !failed;
+    return hasElectronDuckDB() && !failed;
   },
 
   get ready() {
@@ -529,8 +538,8 @@ const isDev = process.env.NODE_ENV === "development";
 
 if (isDev && typeof window !== "undefined") {
   (window as unknown as Record<string, unknown>).__duckdbMetrics = {
-    get: () => sharedDuckDB.getQueryMetrics(),
-    clear: () => sharedDuckDB.clearQueryMetrics(),
-    status: () => sharedDuckDB.getStatus(),
+    get: () => duckdbClient.getQueryMetrics(),
+    clear: () => duckdbClient.clearQueryMetrics(),
+    status: () => duckdbClient.getStatus(),
   };
 }

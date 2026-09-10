@@ -10,7 +10,7 @@
  * - Renderer code should use dataset IDs, not raw table names or SQL.
  */
 
-import { sharedDuckDB } from "./shared-duckdb";
+import { duckdbClient } from "./duckdb-client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -65,64 +65,10 @@ export interface RegisterCSVPathDatasetInput {
   storeRejects?: boolean;
 }
 
-interface ColumnDetail {
-  column: string;
-  distinctApprox: number;
-  topValues: Array<{ value: unknown; count: number | null }>;
-  histogram: Array<{ bin: string; count: number }>;
-}
-
-interface ProfileColumnDetailInput {
-  datasetId: string;
-  column: string;
-  topK?: number;
-  binCount?: number;
-  cancelToken?: string;
-}
-
-interface CountRowsInput {
-  datasetId: string;
-  where?: string;
-  force?: boolean;
-  cancelToken?: string;
-}
-
-interface KeysetSortKey {
-  column: string;
-  direction?: "ASC" | "DESC";
-}
-
-interface KeysetCursor {
-  sortValues: unknown[];
-  rowid: number;
-}
-
-interface KeysetPageInput {
-  datasetId: string;
-  sortKeys: KeysetSortKey[];
-  limit: number;
-  where?: string;
-  cursor?: KeysetCursor;
-  columns?: string[];
-  cancelToken?: string;
-}
-
-interface KeysetPageResult {
-  arrow: Uint8Array;
-  nextCursor: KeysetCursor | null;
-  rowCount: number;
-}
-
 export interface RegisterParquetPathDatasetInput {
   filePath: string;
   displayName?: string;
   previewLimit?: number;
-}
-
-interface PreviewDatasetInput {
-  datasetId: string;
-  limit?: number;
-  offset?: number;
 }
 
 export interface DatasetOnlyInput {
@@ -134,54 +80,38 @@ export interface ExportDatasetInput {
   targetPath: string;
 }
 
-interface QueryMetric {
-  sql: string;
-  durationMs: number;
-  timestamp: number;
-  rowCount: number;
-}
-
-interface DuckDBStatus {
-  active: boolean;
-  dbPath: string | null;
-  datasetsDir: string | null;
-  readConnections: number;
-  pendingReads: number;
-  pendingWrites: number;
-}
-
 // ─── Dataset Registration ─────────────────────────────────────────────────────
 
 export async function registerCSVPathDataset(
   input: RegisterCSVPathDatasetInput,
 ): Promise<RegisteredDatasetWithPreview> {
-  return sharedDuckDB.registerCSVPathDataset(input);
+  return duckdbClient.registerCSVPathDataset(input);
 }
 
 export async function registerParquetPathDataset(
   input: RegisterParquetPathDatasetInput,
 ): Promise<RegisteredDatasetWithPreview> {
-  return sharedDuckDB.registerParquetPathDataset(input);
+  return duckdbClient.registerParquetPathDataset(input);
 }
 
 // ─── Dataset Reads ────────────────────────────────────────────────────────────
 
 export async function listRegisteredDatasets(): Promise<RegisteredDataset[]> {
-  return sharedDuckDB.listDatasets();
+  return duckdbClient.listDatasets();
 }
 
 // ─── Dataset Export / Delete ──────────────────────────────────────────────────
 
 export async function exportRegisteredDataset(input: ExportDatasetInput): Promise<void> {
-  await sharedDuckDB.exportDataset(input);
+  await duckdbClient.exportDataset(input);
 }
 
 export async function deleteRegisteredDataset(input: DatasetOnlyInput): Promise<void> {
-  await sharedDuckDB.deleteDataset(input);
+  await duckdbClient.deleteDataset(input);
 }
 
 export async function runReadOnlyQuery(sql: string): Promise<Record<string, unknown>[]> {
-  return sharedDuckDB.runReadOnlyQuery(sql);
+  return duckdbClient.runReadOnlyQuery(sql);
 }
 
 // ─── Arrow IPC transport (large windows / exports / worker hand-off) ──────────

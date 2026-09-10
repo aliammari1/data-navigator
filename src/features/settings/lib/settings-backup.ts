@@ -19,10 +19,11 @@
 
 import { useSettingsStore } from "@/core/stores/settings-store";
 import { exportAppSettingsRemote, putAppSettingRemote } from "@/platform/settings/settings-client";
+import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 import { SettingsBackupSchema, SettingsExportEnvelopeSchema } from "./settings-schema";
 
 const SETTINGS_NAMESPACE = "settings";
-const PERSIST_KEY = "data-navigator-settings";
+const PERSIST_KEY = STORAGE_KEYS.settings;
 
 export interface SettingsBackupFile {
   /** Discriminator so a stray JSON file can be rejected early. */

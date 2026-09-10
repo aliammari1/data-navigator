@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import { STORAGE_KEYS } from "@/platform/storage";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 export type ActivityType =
@@ -56,7 +57,7 @@ export const useActivityStore = create<ActivityStore>()(
       clearEvents: () => set({ events: [] }),
     }),
     {
-      name: "workspace-activity-v1",
+      name: STORAGE_KEYS.workspaceActivity,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       // Drop events whose type is no longer in the known union and re-cap.

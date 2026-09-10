@@ -10,7 +10,8 @@
  */
 
 import { useCallback, useEffect, useState } from "react";
-import { isElectron, listDatasets, type RegisteredDataset } from "@/platform/electron/electron-fs";
+import { duckdbClient } from "@/platform/duckdb/duckdb-client";
+import { isElectron, type RegisteredDataset } from "@/platform/electron/electron-fs";
 
 export interface ImportHistoryEntry {
   id: string;
@@ -59,7 +60,7 @@ export function useImportHistory(): ImportHistoryState {
     setError(null);
 
     try {
-      const datasets = await listDatasets();
+      const datasets = await duckdbClient.listDatasets();
       const entries = datasets
         .map(toHistoryEntry)
         .sort((a, b) => b.createdAt.localeCompare(a.createdAt));

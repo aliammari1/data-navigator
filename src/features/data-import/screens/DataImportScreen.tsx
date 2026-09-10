@@ -64,6 +64,14 @@ import {
   listLocalFilesRecursive,
   openFileDialog,
 } from "@/platform/electron/electron-fs";
+import {
+  announceFileDrop,
+  isConnected,
+  readLANSettings,
+  readSharedFileDrop,
+  subscribeLAN,
+  subscribeLANRoom,
+} from "@/platform/lan/lan-collab";
 import { cn } from "@/shared/utils";
 
 type DropzoneRootGetter = ReturnType<typeof useDropzone>["getRootProps"];
@@ -84,6 +92,13 @@ function getFormatLabel(file: ParsedFileInfo) {
   if (file.fileType !== "unknown") return file.fileType.toUpperCase();
   const ext = file.name.split(".").pop();
   return ext ? ext.toUpperCase() : "FICHIER";
+}
+
+function mimeForFileName(name: string) {
+  const ext = name.split(".").pop()?.toLowerCase();
+  if (ext === "parquet" || ext === "pq") return "application/vnd.apache.parquet";
+  if (ext === "csv" || ext === "tsv" || ext === "txt") return "text/csv";
+  return "application/octet-stream";
 }
 
 function getStatusLabel(status: ParsedFileInfo["status"]) {
@@ -172,6 +187,9 @@ export default function DataImportScreen() {
   const [selectedFileId, setSelectedFileId] = useState<string | null>(null);
   const [electronAvailable, setElectronAvailable] = useState(false);
   const [dropNotice, setDropNotice] = useState<string | null>(null);
+  const [lanConnected, setLanConnected] = useState(false);
+  const [sharedDrop, setSharedDrop] = useState<ReturnType<typeof readSharedFileDrop>>(null);
+  const lanSeenRef = useRef<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [rejectDialogFiles, setRejectDialogFiles] = useState<ParsedFileInfo[] | null>(null);
   // `auto` defers to the main-process encoding detector (chardet + BOM sniff);
@@ -187,6 +205,26 @@ export default function DataImportScreen() {
     reset();
     setElectronAvailable(isElectron());
   }, [reset]);
+
+  // LAN session awareness: announce our imports while connected and surface
+  // files peers announce. Already-seen shares are skipped so the banner only
+  // fires on new arrivals, never for our own announcements.
+  useEffect(() => {
+    lanSeenRef.current = readSharedFileDrop()?.id ?? null;
+    setLanConnected(isConnected());
+    const unsubStatus = subscribeLAN(() => setLanConnected(isConnected()));
+    const unsubRoom = subscribeLANRoom(() => {
+      const next = readSharedFileDrop();
+      if (!next || next.id === lanSeenRef.current) return;
+      lanSeenRef.current = next.id;
+      if (next.by?.id === readLANSettings().peer.id) return;
+      setSharedDrop(next);
+    });
+    return () => {
+      unsubStatus();
+      unsubRoom();
+    };
+  }, []);
 
   const orderedFiles = useMemo(
     () => order.map((id) => files[id]).filter(Boolean) as ParsedFileInfo[],
@@ -257,6 +295,18 @@ export default function DataImportScreen() {
         await refreshHistory();
 
         const sessionFiles = useImportSession.getState().files;
+        if (doneIds.length > 0 && isConnected()) {
+          for (const id of doneIds) {
+            const done = sessionFiles[id];
+            if (done) {
+              announceFileDrop({
+                name: done.name,
+                size: done.size,
+                type: mimeForFileName(done.name),
+              });
+            }
+          }
+        }
         const rejected = doneIds
           .map((id) => sessionFiles[id])
           .filter((file): file is ParsedFileInfo => Boolean(file))
@@ -475,7 +525,10 @@ export default function DataImportScreen() {
               canUpload={access.permissions.canUpload}
               electronAvailable={electronAvailable}
               dropNotice={dropNotice}
+              lanConnected={lanConnected}
+              sharedDrop={sharedDrop}
               onBrowse={importFromFiles}
+              onDismissSharedDrop={() => setSharedDrop(null)}
             />
 
             <UploadedFilesPanel
@@ -572,7 +625,10 @@ function UploadDropzone({
   canUpload,
   electronAvailable,
   dropNotice,
+  lanConnected,
+  sharedDrop,
   onBrowse,
+  onDismissSharedDrop,
 }: {
   getRootProps: DropzoneRootGetter;
   getInputProps: DropzoneInputGetter;
@@ -580,7 +636,10 @@ function UploadDropzone({
   canUpload: boolean;
   electronAvailable: boolean;
   dropNotice: string | null;
+  lanConnected: boolean;
+  sharedDrop: ReturnType<typeof readSharedFileDrop>;
   onBrowse: () => void;
+  onDismissSharedDrop: () => void;
 }) {
   return (
     <div
@@ -649,6 +708,27 @@ function UploadDropzone({
           <div className="mt-4 max-w-md rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-xs text-primary">
             {dropNotice}
           </div>
+        )}
+
+        {sharedDrop && (
+          <div className="mt-4 max-w-md rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-xs text-cyan-700 dark:text-cyan-300">
+            <span className="font-semibold">{sharedDrop.by?.name ?? "Un collaborateur"}</span> a
+            partagé {sharedDrop.name} ({formatBytes(sharedDrop.size)}). Récupérez le fichier hors
+            bande.
+            <button
+              type="button"
+              onClick={onDismissSharedDrop}
+              className="ml-2 underline hover:no-underline"
+            >
+              Ignorer
+            </button>
+          </div>
+        )}
+
+        {lanConnected && (
+          <p className="mt-3 text-[11px] text-cyan-600 dark:text-cyan-400">
+            Session LAN active — chaque import sera annoncé aux collaborateurs.
+          </p>
         )}
 
         <div className="mt-5 flex flex-wrap justify-center gap-2">

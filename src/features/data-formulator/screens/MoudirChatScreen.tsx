@@ -18,8 +18,8 @@
 //   the listeners register once: $mod+K search, $mod+\ sidebar, $mod+N new,
 //   Escape cancel/close. Command bus: useAppCommands("moudir-chat",
 //   {reset,cancel,ask}); window events "moudir:ask" and JUMP_TO_MESSAGE_EVENT are
-//   owned here so other apps can delegate. This screen REPLACES the swarm-based
-//   MoudirAssistantScreen (kept in the tree, untouched). Design: shadcn semantic
+//   owned here so other apps can delegate. This screen replaced the former
+//   swarm-based assistant screen (since removed). Design: shadcn semantic
 //   tokens only, French-first, the warm M mark. Offline.
 "use client";
 

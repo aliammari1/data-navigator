@@ -3,8 +3,8 @@
  *
  * Historically this file also held a ~700-line rule-based NL→chart/derive engine
  * (regex patterns, fuzzy column matching, best-effort fallbacks). That is gone:
- * all natural-language → chart / SQL work now runs through the AI-only swarm
- * agents (`core/swarm/agents/*`). What remains here are two pure, deterministic
+ * all natural-language → chart / SQL work now runs through the offline AI
+ * inference lane. What remains here are two pure, deterministic
  * statistics used by the chart renderer for trendlines and outlier marking.
  */
 

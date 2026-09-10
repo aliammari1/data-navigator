@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
+import { STORAGE_KEYS } from "@/platform/storage";
 import { createDrizzleStorage } from "@/platform/storage/drizzle-storage";
 
 // A folder record stored in the catalog (not a dataset, just a container)
@@ -107,7 +108,7 @@ export const useFoldersStore = create<FoldersStore>()(
         }),
     }),
     {
-      name: "data-navigator-folders",
+      name: STORAGE_KEYS.folders,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "store" })),
       // Backfill CatalogFolder defaults (starred:false, parentId:null) and

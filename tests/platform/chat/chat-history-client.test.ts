@@ -6,10 +6,10 @@ import {
   deleteConversationRemote,
   getMessagesRemote,
   listConversationsRemote,
-  pinConversationRemote,
   renameConversationRemote,
   searchMessagesRemote,
   setConversationModelRemote,
+  setConversationPinnedRemote,
 } from "@/platform/chat/chat-history-client";
 
 /**
@@ -112,14 +112,14 @@ describe("chat-history-client", () => {
     await expect(renameConversationRemote("c1", "x")).resolves.toBeUndefined();
   });
 
-  it("pinConversationRemote forwards the id and pinned flag", async () => {
+  it("setConversationPinnedRemote forwards the id and pinned flag", async () => {
     const bridge = installBridge();
-    await pinConversationRemote("c1", true);
+    await setConversationPinnedRemote("c1", true);
     expect(bridge.pin).toHaveBeenCalledWith("c1", true);
   });
 
-  it("pinConversationRemote is a no-op when the bridge is unavailable", async () => {
-    await expect(pinConversationRemote("c1", true)).resolves.toBeUndefined();
+  it("setConversationPinnedRemote is a no-op when the bridge is unavailable", async () => {
+    await expect(setConversationPinnedRemote("c1", true)).resolves.toBeUndefined();
   });
 
   it("deleteConversationRemote forwards the id", async () => {

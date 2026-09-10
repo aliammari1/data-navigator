@@ -58,14 +58,12 @@ export default {
   // restrict to their exported logic so the score reflects the public contract.
   mutate: [
     "src/shared/duckdb-summary.ts",
-    "src/features/ai-analysis/model/stats.ts",
     "src/features/data-import/model/summarize.ts",
-    "src/platform/ai/nlq.ts",
     "src/features/telecom/lib/sql.ts",
     "src/platform/ai/provider/structured.ts",
-    "electron/sql-guard.ts",
+    "electron/filter-guard.ts",
     "electron/collab-pairing.ts",
-    "src/features/desktop/core/menu/registry.ts",
+    "src/features/desktop/core/menu/menu-composer.ts",
   ],
   // Be conservative on a medium-end PC: leave cores free for the OS / dev work.
   concurrency: 4,

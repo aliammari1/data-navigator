@@ -34,6 +34,7 @@ import {
   sharedPresence,
   ydoc,
 } from "@/platform/collab/collab";
+import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 import {
   getHostSecret,
   INVITE_TTL_MS,
@@ -88,10 +89,7 @@ export interface LANPeer {
   page?: string;
   tab?: string;
   sectionId?: string;
-  selection?: string;
   cursor?: LANCursor;
-  followRequest?: LANFollowRequest;
-  followers?: Array<{ clientId: string; name: string; color: string }>;
   lastSeenAt?: number;
 }
 
@@ -160,10 +158,10 @@ export interface LANScanResult {
   error?: string;
 }
 
-const PEER_KEY = "telecom-lan-peer-v2";
-const URL_KEY = "telecom-lan-ws-url-v2";
-const ROOM_KEY = "telecom-lan-room-v2";
-const CODE_KEY = "telecom-lan-pairing-code-v1";
+const PEER_KEY = STORAGE_KEYS.lanPeer;
+const URL_KEY = STORAGE_KEYS.lanWsUrl;
+const ROOM_KEY = STORAGE_KEYS.lanRoom;
+const CODE_KEY = STORAGE_KEYS.lanPairingCode;
 const PALETTE = [
   "#ef4444",
   "#f59e0b",
@@ -556,8 +554,32 @@ function refreshPeers() {
   }
   const list: LANPeer[] = [];
   for (const [, state] of awareness.getStates()) {
-    const user = (state as { user?: LANPeer }).user;
-    if (user) list.push({ ...user, active: true });
+    const s = state as {
+      user?: LANPeer;
+      cursor?: Partial<CursorDraft> & { at?: unknown; ts?: unknown };
+    };
+    if (!s?.user) continue;
+    // Peer-asserted cursor values are untrusted: pick known numeric fields
+    // only so a malformed remote state cannot poison local rendering.
+    const c = s.cursor;
+    const num = (v: unknown) => (typeof v === "number" ? v : undefined);
+    const at = num(c?.at) ?? num(c?.ts);
+    list.push({
+      ...s.user,
+      cursor:
+        c && at !== undefined
+          ? {
+              sectionId: typeof c.sectionId === "string" ? c.sectionId : "",
+              row: num(c.row),
+              x: num(c.x),
+              y: num(c.y),
+              selectionStart: num(c.selectionStart),
+              selectionEnd: num(c.selectionEnd),
+              ts: at,
+            }
+          : undefined,
+      active: true,
+    });
   }
   peers = list;
   emit();
@@ -592,6 +614,7 @@ const CURSOR_MIN_INTERVAL_MS = 80;
 
 interface CursorDraft {
   page: string;
+  sectionId?: string;
   x?: number;
   y?: number;
   selection?: string;
@@ -648,15 +671,13 @@ function queueCursor(patch: Partial<CursorDraft>) {
  */
 export function publishPresence(patch: Partial<LANPeer>) {
   const settings = activeSettings ?? readLANSettings();
-  // Strip ephemeral cursor/selection from the durable record we persist.
-  const { selection: _selection, ...durablePatch } = patch;
   const durable: LANPeer = {
     id: settings.peer.id,
     name: settings.peer.name,
     role: settings.peer.role,
     color: settings.peer.color,
     active: true,
-    ...durablePatch,
+    ...patch,
     lastSeenAt: Date.now(),
   };
   // Durable identity → persisted doc (small, stable; safe for IndexedDB log).
@@ -755,7 +776,19 @@ export function readFollowRequest(): LANFollowRequest | null {
   }
 }
 
-export function publishFileDrop(file: File, mode: "metadata" | "request" = "metadata") {
+export interface FileShareMeta {
+  name: string;
+  size: number;
+  type?: string;
+}
+
+/**
+ * Announce a file share to peers over the shared CRDT doc (metadata only,
+ * no bytes — peers fetch out-of-band, same contract as the Electron branch
+ * of `uploadLANFile`). Use this when the caller holds path-based imports
+ * rather than a `File` object (e.g. the Electron upload pipeline).
+ */
+export function announceFileDrop(meta: FileShareMeta, mode: "metadata" | "request" = "metadata") {
   const settings = activeSettings ?? readLANSettings();
   sharedLanRoom.set(
     "fileDrop",
@@ -763,13 +796,17 @@ export function publishFileDrop(file: File, mode: "metadata" | "request" = "meta
       id: uid(),
       by: settings.peer,
       mode,
-      name: file.name,
-      size: file.size,
-      type: file.type || "application/octet-stream",
+      name: meta.name,
+      size: meta.size,
+      type: meta.type || "application/octet-stream",
       at: Date.now(),
     }),
   );
-  appendAudit("file.drop", `${file.name} (${file.size} bytes)`);
+  appendAudit("file.drop", `${meta.name} (${meta.size} bytes)`);
+}
+
+export function publishFileDrop(file: File, mode: "metadata" | "request" = "metadata") {
+  announceFileDrop({ name: file.name, size: file.size, type: file.type }, mode);
 }
 
 export function readSharedFileDrop(): {
@@ -1084,7 +1121,7 @@ export function buildLANCommand(settings: LANSettings): string {
     } catch {}
   }
   // The server also prints a GUEST_CODE (view-only) — share that one with guests.
-  return `PAIRING_CODE=${settings.pairingCode || "123456"} PORT=${port} npm run lan-server`;
+  return `PAIRING_CODE=${settings.pairingCode || "123456"} PORT=${port} pnpm run dev:lan`;
 }
 
 export function getLANJoinUrl(settings: LANSettings): string {

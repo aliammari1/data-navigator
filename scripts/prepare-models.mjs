@@ -24,7 +24,7 @@
  * directory.
  *
  * NETWORK: this script is the ONLY model path that touches the network, and only
- * when run explicitly (`pnpm run prepare:models`). The app itself never downloads
+ * when run explicitly (`pnpm run models:prepare`). The app itself never downloads
  * at runtime except through the user-triggered Setup affordance.
  *
  * USAGE

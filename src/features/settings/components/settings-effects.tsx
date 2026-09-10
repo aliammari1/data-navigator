@@ -29,6 +29,7 @@ import { useTheme } from "@/components/theme-provider";
 import type { AccentColor, DensityMode } from "@/core/stores/settings-store";
 import { useSettingsStore } from "@/core/stores/settings-store";
 import { applySettings } from "@/platform/storage";
+import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 
 /**
  * Accent → oklch overrides. Light/dark variants keep contrast reasonable against
@@ -110,7 +111,11 @@ export function SettingsEffects() {
   useEffect(() => {
     if (!themeInitDone.current) {
       themeInitDone.current = true;
-      const providerStored = localStorage.getItem("theme") as "light" | "dark" | "system" | null;
+      const providerStored = localStorage.getItem(STORAGE_KEYS.theme) as
+        | "light"
+        | "dark"
+        | "system"
+        | null;
       if (
         (providerStored === "light" || providerStored === "dark" || providerStored === "system") &&
         providerStored !== theme

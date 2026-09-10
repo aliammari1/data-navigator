@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { onBroadcast } from "@/features/telecom/lib/channel";
+import { onBroadcast } from "@/features/telecom/lib/broadcast-sync";
 import { DEFAULT_STATUS_MAPPINGS } from "@/features/telecom/lib/status-definitions";
 import { normalizeColumnMapping, useTelecomStore } from "@/features/telecom/store";
 import type * as Types from "@/features/telecom/types";

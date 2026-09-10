@@ -2,7 +2,8 @@
  * Tests for useImportHistory hook.
  *
  * Strategy:
- * - Mock @/platform/electron/electron-fs so no real Electron bridge is touched.
+ * - Mock @/platform/electron/electron-fs (isElectron) and
+ *   @/platform/duckdb/duckdb-client (listDatasets) so no real bridge is touched.
  * - Exercise both sides of isElectron() (true/false), success/error paths of
  *   listDatasets(), and toHistoryEntry field mapping.
  */
@@ -17,7 +18,12 @@ const mockListDatasets = vi.fn();
 
 vi.mock("@/platform/electron/electron-fs", () => ({
   isElectron: () => mockIsElectron(),
-  listDatasets: () => mockListDatasets(),
+}));
+
+vi.mock("@/platform/duckdb/duckdb-client", () => ({
+  duckdbClient: {
+    listDatasets: () => mockListDatasets(),
+  },
 }));
 
 // ─── Import after mocks ───────────────────────────────────────────────────────

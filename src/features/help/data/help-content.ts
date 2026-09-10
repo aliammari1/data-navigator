@@ -124,7 +124,7 @@ export const FAQS: readonly FaqDef[] = [
   {
     id: "faq-shared-worker",
     q: "Why do I get a 'SharedWorker unavailable' message?",
-    a: "The SharedWorker enables one DuckDB instance shared across all open tabs. It requires the worker to be built (run `npm run build:worker`). Without it, each tab gets its own DuckDB instance — everything still works, just tables won't be shared across tabs.",
+    a: "The SharedWorker enables one DuckDB instance shared across all open tabs. It requires the worker to be built (run `pnpm run worker:build`). Without it, each tab gets its own DuckDB instance — everything still works, just tables won't be shared across tabs.",
   },
 ] as const;
 

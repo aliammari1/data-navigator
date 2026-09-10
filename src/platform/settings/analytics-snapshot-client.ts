@@ -4,7 +4,7 @@
  * Renderer-safe client for the analytics snapshot history bridge — the SQLite
  * (main-process, `analytics.db`) backend for the telecom "Persister" button
  * and Analytics History list. Talks to `window.electronAnalyticsSnapshots`
- * (exposed by electron/preload.ts, backed by electron/settings-store.ts).
+ * (exposed by electron/preload.ts, backed by electron/settings-storage.ts).
  *
  * Same null-safe shape as settings-client.ts: every function no-ops / returns
  * a safe empty default when the bridge is unavailable (SSR, `next build`,

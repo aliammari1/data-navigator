@@ -94,7 +94,7 @@ vi.mock("lucide-react", async (importOriginal) => {
 // actually resolved (they return undefined — the loader fn never runs in tests
 // because next/dynamic itself is mocked above).
 vi.mock("@/features/data-formulator/screens/FormulatorScreen", () => ({ default: () => null }));
-vi.mock("@/features/data-formulator/screens/MoudirAssistantScreen", () => ({
+vi.mock("@/features/data-formulator/screens/MoudirChatScreen", () => ({
   default: () => null,
 }));
 vi.mock("@/features/data-import/screens/DataImportScreen", () => ({ default: () => null }));

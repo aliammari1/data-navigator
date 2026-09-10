@@ -17,7 +17,7 @@ import {
   pruneAnalyticsSnapshotHistory,
   saveAnalyticsSnapshotHistory,
   setSetting,
-} from "../../electron/settings-store";
+} from "../../electron/settings-storage";
 import { createSqliteConnection } from "../../src/platform/storage/db-bootstrap";
 
 let dir: string;
@@ -439,7 +439,7 @@ describe("openDomain — not configured guard", () => {
     // Isolated from the shared `dir`/configureSettingsStore() in beforeEach: a
     // fresh module instance never had configureSettingsStore() called on it.
     vi.resetModules();
-    const fresh = await import("../../electron/settings-store");
+    const fresh = await import("../../electron/settings-storage");
 
     expect(() => fresh.getSetting("ui_prefs", "x")).toThrow(
       "settings-store: configureSettingsStore() was not called",

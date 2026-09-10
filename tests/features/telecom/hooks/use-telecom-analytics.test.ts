@@ -49,7 +49,7 @@ vi.mock("@/features/telecom/lib/canal-config", () => ({
 
 const broadcastMock = vi.fn();
 
-vi.mock("@/features/telecom/lib/channel", () => ({
+vi.mock("@/features/telecom/lib/broadcast-sync", () => ({
   broadcast: (...args: unknown[]) => broadcastMock(...args),
 }));
 

@@ -2,8 +2,8 @@
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { broadcast } from "@/features/telecom/lib/broadcast-sync";
 import { enrichCanalSummaries } from "@/features/telecom/lib/canal-config";
-import { broadcast } from "@/features/telecom/lib/channel";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
 import {
   fetchDistinctStatuses as _fetchDistinctStatuses,

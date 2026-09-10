@@ -3,7 +3,7 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
-import { createDrizzleStorage } from "@/platform/storage";
+import { createDrizzleStorage, STORAGE_KEYS } from "@/platform/storage";
 
 /**
  * Durable shell layout state.
@@ -42,7 +42,7 @@ export const useShellStore = create<ShellState>()(
       toggleDesktopMode: () => set((s) => ({ desktopMode: !s.desktopMode })),
     }),
     {
-      name: "data-navigator-shell",
+      name: STORAGE_KEYS.shell,
       version: 1,
       storage: createJSONStorage(() => createDrizzleStorage({ namespace: "shell" })),
       partialize: (s) => ({

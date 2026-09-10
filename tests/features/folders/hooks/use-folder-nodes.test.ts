@@ -76,7 +76,7 @@ vi.mock("@/core/stores/folders-store", () => ({
 
 // ─── Import AFTER mocks ───────────────────────────────────────────────────────
 
-import { useFolderNodes } from "@/features/folders/hooks/useFolderNodes";
+import { useFolderNodes } from "@/features/folders/hooks/use-folder-nodes";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 

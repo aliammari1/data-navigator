@@ -458,7 +458,7 @@ const hocuspocus = new Hocuspocus({
         console.error(
           "This usually happens when Node.js is updated without rebuilding dependencies.",
         );
-        console.error("FIX: Run 'pnpm run rebuild:node' to fix your environment.\n");
+        console.error("FIX: Run 'pnpm run deps:rebuild:node' to fix your environment.\n");
       }
       throw err;
     }
@@ -805,7 +805,7 @@ function listenWithPortScan(port, remaining) {
         console.error(
           "This usually happens when Node.js is updated without rebuilding dependencies.",
         );
-        console.error("FIX: Run 'pnpm run rebuild:node' to fix your environment.\n");
+        console.error("FIX: Run 'pnpm run deps:rebuild:node' to fix your environment.\n");
         process.exit(1);
       }
     });
