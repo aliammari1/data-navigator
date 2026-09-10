@@ -153,4 +153,45 @@ describe("auth-ipc-client web fallbacks", () => {
     authClientMocks.signOut.mockRejectedValueOnce(new Error("offline"));
     await logout();
   });
+
+  it("treats a non-ok owner response as no owner", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: false }));
+    await expect(hasOwner()).resolves.toBe(false);
+    await expect(getOwnerInfo()).resolves.toEqual({ exists: false });
+  });
+
+  it("locks without a bridge as a no-op", async () => {
+    await expect(lockApp()).resolves.toBeUndefined();
+  });
+
+  it("maps sparse web session payloads onto defaults", async () => {
+    authClientMocks.signInEmail.mockResolvedValueOnce({ error: null, data: null });
+    const res = await login({ email: "e@x.y", password: "p" });
+    expect(res.user.id).toBe("user");
+    expect(res.user.email).toBe("e@x.y");
+    expect(res.session.id).toBe("web-session");
+
+    authClientMocks.signUpEmail.mockResolvedValueOnce({ error: null, data: null });
+    const up = await signUp({ name: "N", email: "e@x.y", password: "p" });
+    expect(up.user.emailVerified).toBe(true);
+    expect(up.session.id).toBe("web-session");
+  });
+
+  it("surfaces a default message when the error has none", async () => {
+    authClientMocks.signInEmail.mockResolvedValueOnce({ error: {}, data: null });
+    await expect(login({ email: "e@x.y", password: "p" })).rejects.toThrow(
+      "Invalid email or password.",
+    );
+    authClientMocks.signUpEmail.mockResolvedValueOnce({ error: {}, data: null });
+    await expect(signUp({ name: "N", email: "e@x.y", password: "p" })).rejects.toThrow(
+      "Failed to create account.",
+    );
+  });
+
+  it("tolerates an empty change-password response", async () => {
+    authClientMocks.changePassword.mockResolvedValueOnce(undefined);
+    await expect(
+      changePassword({ currentPassword: "a", newPassword: "b" }),
+    ).resolves.toBeUndefined();
+  });
 });

@@ -1304,6 +1304,54 @@ describe("canal rule defaults", () => {
   });
 });
 
+describe("zero-total and empty-result branches", () => {
+  it("guards successRate for zero-total group rows", async () => {
+    runReadOnlyQuery.mockResolvedValue([{ operator: "X", total: 0, success: 0, amount: 0 }]);
+
+    const rows = await fetchOperatorsForGroup(TABLE, m, ["bill_payment"]);
+
+    expect(rows[0].successRate).toBe(0);
+  });
+
+  it("guards successRate for zero-total destination rows", async () => {
+    runReadOnlyQuery.mockResolvedValue([{ operator: "Y", total: 0, success: 0, amount: 0 }]);
+
+    const rows = await fetchDestinationsForGroup(TABLE, m, ["bill_payment"]);
+
+    expect(rows[0].successRate).toBe(0);
+  });
+
+  it("returns [] for a single-row daily trend", async () => {
+    runReadOnlyQuery.mockResolvedValue([
+      { day: "2024-01-01 00:00:00", total: 5, success: 5, declined: 0, amount: 1 },
+    ]);
+
+    await expect(fetchDailyTrend(TABLE, m)).resolves.toEqual([]);
+  });
+
+  it("emits ORDER BY ASC when an ascending sort column is given", async () => {
+    runReadOnlyQuery.mockResolvedValueOnce([{ cnt: 1 }]).mockResolvedValueOnce([{ id: 1 }]);
+
+    await fetchFiltered(TABLE, m, emptyFilter, undefined, 50, 0, "TRANSACTION_ID", "asc");
+
+    expect(lastSql()).toContain("ASC");
+  });
+
+  it("maps empty spec results onto zeroed rows", async () => {
+    runReadOnlyQuery.mockResolvedValue([]);
+
+    const status = await fetchSpecStatusStats(TABLE, channels, "", "");
+    expect(status.rows).toHaveLength(4);
+    expect(status.rows[0].nombre).toBe(0);
+
+    const units = await fetchSpecUnitAmountStats(TABLE, channels, "", "");
+    expect(units.rows).toEqual([]);
+
+    const matrix = await fetchSpecCanalStatusMatrix(TABLE, channels, "", "");
+    expect(matrix[0]).toMatchObject({ réussie: 0, total: 0 });
+  });
+});
+
 // QueriesModule is imported above for documentation / future use; referenced
 // here to suppress an unused-import lint warning.
 void (QueriesModule satisfies object);

@@ -197,6 +197,13 @@ describe("cursor notes", () => {
     expect(note.authorColor).toBe("#00ff00");
   });
 
+  it("falls back to the note identity when the LAN peer has none yet", () => {
+    lanCollabMocks.readLANSettings.mockReturnValue({ peer: { id: "", name: "" } });
+    const note = addCursorNote({ ...base, authorPeerId: "anon", authorName: "Anon" });
+    expect(note.authorPeerId).toBe("anon");
+    expect(note.authorName).toBe("Anon");
+  });
+
   it("returns [] for null section and tolerates corrupt payloads", () => {
     collabMocks.store.set("cursorNotes:s9", "not-json{{{");
     const { result } = renderHook(() => useCursorNotes("s9"));
@@ -210,6 +217,9 @@ describe("cursor notes", () => {
     expect(renderHook(() => useCursorNotes("s8")).result.current).toEqual([]);
 
     collabMocks.store.set("cursorNotes:s8", JSON.stringify([{ id: 42, text: 7 }]));
+    expect(renderHook(() => useCursorNotes("s8")).result.current).toEqual([]);
+
+    collabMocks.store.set("cursorNotes:s8", JSON.stringify([null]));
     expect(renderHook(() => useCursorNotes("s8")).result.current).toEqual([]);
   });
 

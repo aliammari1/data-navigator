@@ -141,8 +141,8 @@ export default defineConfig({
       thresholds: {
         // ── Global ratchet floor (2026-09-09) ──────────────────────────────
         // Locks in the logic coverage measured across the Hybrid-scoped
-        // surface (achieved: lines 99.48 / stmts 98.82 / funcs ~99.4 /
-        // branch 95.06, after testing the collab-snapshot additions: LAN
+        // surface (achieved: lines 99.54 / stmts 98.92 / funcs 99.35 /
+        // branch 96.03, after testing the collab-snapshot additions: LAN
         // token crypto, collab stores + hooks, FTS chat search, deck export,
         // branding/auth IPC clients, and extensions to the electron stores).
         // Floors sit a little below the measured numbers so CI tolerates

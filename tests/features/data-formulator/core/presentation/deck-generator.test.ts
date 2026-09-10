@@ -115,6 +115,44 @@ describe("generateExecutivePresentation", () => {
     expect(deck.markdown).not.toContain("Données clés extraites");
   });
 
+  it("handles minimal options, untitled charts, and string cells", async () => {
+    const deck = await generateExecutivePresentation(
+      [
+        {
+          ...assistantMessage(
+            "- ok\n- Short\n- La performance trimestrielle dépasse nettement les prévisions initiales",
+            [
+              {
+                kind: "chart",
+                chartType: "pie",
+                x: "segment",
+                y: "part",
+                aggregate: "",
+                title: "",
+                datasetId: null,
+                rows: [{ segment: "A", part: "beaucoup" }],
+              },
+            ],
+          ),
+        },
+        {
+          ...assistantMessage("outil", [
+            {
+              kind: "tool",
+              name: "run_sql",
+              sql: "SELECT 1",
+            } as unknown as ChatMessage["parts"][number],
+          ]),
+        },
+      ],
+      {} as DeckExportOptions,
+    );
+    expect(deck.markdown).toContain("Distribution :");
+    expect(deck.markdown).toContain("beaucoup");
+    expect(deck.markdown).toContain("REQUÊTES DUCKDB");
+    expect(deck.fileName).toMatch(/^Rapport_Executif_.*\.html$/);
+  });
+
   it("attempts a browser download by default without throwing", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const createElement = vi.spyOn(document, "createElement");

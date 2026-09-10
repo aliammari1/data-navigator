@@ -66,6 +66,31 @@ describe("collab hub prefs", () => {
     expect(code).toBe("telecom-default");
     expect(result.current.sessionCode).toBe("telecom-default");
   });
+
+  it("skips the LAN write when the username is unchanged", () => {
+    const { result } = renderHook(() => useCollabHubStore());
+    act(() => {
+      result.current.setUsername("Same");
+      result.current.setUsername("Same");
+    });
+    expect(result.current.username).toBe("Same");
+  });
+
+  it("joins room and pairing code into the session code", async () => {
+    const { readLANSettings, saveLANSettings } = await import("@/platform/lan/lan-collab");
+    const current = readLANSettings();
+    saveLANSettings({ ...current, room: "room-9", pairingCode: "4242" });
+    try {
+      const { result } = renderHook(() => useCollabHubStore());
+      let code: string | null = null;
+      act(() => {
+        code = result.current.refreshSessionCode();
+      });
+      expect(code).toBe("room-9 · 4242");
+    } finally {
+      saveLANSettings({ ...current, room: "telecom-default", pairingCode: "" });
+    }
+  });
 });
 
 describe("collab hub initial username", () => {

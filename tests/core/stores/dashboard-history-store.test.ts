@@ -219,3 +219,65 @@ describe("dashboard history with a seeded desktop", () => {
     expect(result.current.undoneIds).toHaveLength(0);
   });
 });
+
+describe("dashboard history undo/redo edge entries", () => {
+  function seed(entries: unknown[], undoneIds: string[] = []) {
+    act(() => {
+      useDashboardHistoryStore.setState({ entries: entries as never, undoneIds });
+    });
+  }
+
+  it("undoes a pin-formulator entry without an id by only marking it", () => {
+    seed([{ id: "x", type: "pin-formulator-widget", timestamp: 1, description: "d" }]);
+    const { result } = renderHook(() => useDashboardHistoryStore());
+    act(() => {
+      result.current.undoEntry("x");
+    });
+    expect(result.current.undoneIds).toEqual(["x"]);
+  });
+
+  it("undoes an unpin entry without a snapshot", () => {
+    seed([
+      {
+        id: "u",
+        type: "unpin-formulator-widget",
+        timestamp: 1,
+        description: "d",
+        formulatorWidgetId: "w",
+      },
+    ]);
+    const { result } = renderHook(() => useDashboardHistoryStore());
+    act(() => {
+      result.current.undoEntry("u");
+    });
+    expect(result.current.undoneIds).toEqual(["u"]);
+  });
+
+  it("redoes pin-kpi and unpin entries from bare snapshots", () => {
+    seed(
+      [
+        {
+          id: "p",
+          type: "pin-kpi-widget",
+          timestamp: 1,
+          description: "d",
+          widgetSnapshot: { widgetType: "kpi", config: {}, x: 1, y: 2 },
+        },
+        {
+          id: "q",
+          type: "remove-kpi-widget",
+          timestamp: 2,
+          description: "d",
+          widgetSnapshot: { widgetType: "kpi", config: {}, x: 3, y: 4 },
+        },
+      ],
+      ["p", "q"],
+    );
+    const { result } = renderHook(() => useDashboardHistoryStore());
+    act(() => {
+      result.current.redoEntry("p");
+      result.current.redoEntry("q");
+    });
+    expect(result.current.undoneIds).toEqual([]);
+  });
+});
