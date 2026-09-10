@@ -3,10 +3,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Force the node:sqlite fallback adapter deterministically in every
-// environment: the source lazy-requires better-sqlite3, so a mocked loader
-// failure exercises the ERR_DLOPEN_FAILED branch whether or not the native
-// binding matches the running Node (locally it does not).
+// The suite-wide DN_SQLITE_DRIVER=node-sqlite flag (vitest.config.ts) routes
+// the default path to the adapter; the mocked loader below only serves the
+// test that explicitly unsets the flag to exercise the ERR_DLOPEN_FAILED
+// fallback.
 vi.mock("better-sqlite3", () => {
   throw Object.assign(new Error("mocked dlopen failure"), { code: "ERR_DLOPEN_FAILED" });
 });
@@ -66,6 +66,17 @@ describe("createSqliteConnection", () => {
     expect(() => createSqliteConnection(":memory:", undefined, ExplodingDriver as never)).toThrow(
       "disk full",
     );
+  });
+
+  it("falls back to the adapter when the native loader fails without the flag", () => {
+    vi.stubEnv("DN_SQLITE_DRIVER", "");
+    try {
+      const conn = createSqliteConnection(path.join(dir, "dlopen.db"));
+      expect(typeof (conn as unknown as { exec: unknown }).exec).toBe("function");
+      (conn as unknown as { close: () => void }).close();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 });
 

@@ -144,6 +144,15 @@ export function createSqliteConnection(
   if (customDriver) {
     return new customDriver(databasePath, options);
   }
+  // The unit suite forces the built-in adapter (vitest.config.ts sets
+  // DN_SQLITE_DRIVER=node-sqlite): better-sqlite3 Databases garbage-collected
+  // at worker teardown race the Node environment shutdown and crash CI
+  // workers with `RemoveEnvironmentCleanupHook(env=null)`. Driver fidelity is
+  // covered by the auth-db smoke test + Electron e2e instead. Production and
+  // all other runtimes leave the flag unset and take the require path below.
+  if (process.env.DN_SQLITE_DRIVER === "node-sqlite") {
+    return new NodeSqliteAdapter(databasePath) as unknown as Database.Database;
+  }
   try {
     const Driver = require("better-sqlite3");
     return new Driver(databasePath, options);

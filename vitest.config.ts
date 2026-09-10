@@ -24,6 +24,12 @@ export default defineConfig({
     // bench-mode-only files under `vitest run`, where `bench()` throws.
     environment: "jsdom",
     globals: true,
+    // Unit tests run SQLite through the built-in node:sqlite adapter (see
+    // createSqliteConnection): the native addon is an ABI/teardown liability
+    // under test workers, not the subject under test.
+    env: {
+      DN_SQLITE_DRIVER: "node-sqlite",
+    },
     setupFiles: ["./tests/setup.ts"],
     include: ["tests/**/*.{test,spec}.{ts,tsx}"],
     exclude: [
