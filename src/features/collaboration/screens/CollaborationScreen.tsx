@@ -52,7 +52,6 @@ import {
   getCachedAnalyticsEntries,
   getCachedTelecomSourceFiles,
 } from "@/features/telecom/lib/analytics-cache";
-import { listDailyStats } from "@/features/telecom/lib/daily-stats-cache";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import { runReadOnlyQuery } from "@/platform/duckdb/duckdb";
 import { acceptFollowMe, declineFollowMe, readLANSettings } from "@/platform/lan/lan-collab";
@@ -562,7 +561,6 @@ export default function CollaborationScreen() {
   const [workspaceStats, setWorkspaceStats] = useState({
     telecomAnalytics: 0,
     telecomSources: 0,
-    dailySnapshots: 0,
   });
   const initRef = useRef(false);
 
@@ -595,16 +593,14 @@ export default function CollaborationScreen() {
     let timer: number | undefined;
 
     async function loadWorkspaceStats() {
-      const [analytics, sources, snapshots] = await Promise.all([
+      const [analytics, sources] = await Promise.all([
         getCachedAnalyticsEntries(),
         getCachedTelecomSourceFiles(),
-        listDailyStats(),
       ]);
       if (!cancelled) {
         setWorkspaceStats({
           telecomAnalytics: analytics.length,
           telecomSources: sources.length,
-          dailySnapshots: snapshots.length,
         });
       }
     }
@@ -936,7 +932,7 @@ export default function CollaborationScreen() {
                     value: workspaceStats.telecomAnalytics,
                     icon: HardDrive,
                     color: "bg-purple-600",
-                    sub: `${workspaceStats.telecomSources} files · ${workspaceStats.dailySnapshots} days`,
+                    sub: `${workspaceStats.telecomSources} files`,
                   },
                 ].map((s) => (
                   <div key={s.label} className="bg-card border border-border rounded-xl p-4">

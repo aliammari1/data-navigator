@@ -7,17 +7,15 @@
  *
  * IA v3: French-first, 4 groups
  *   Rapport · Intelligence · Données · Sorties + footer (Aide/Paramètres).
- * "Rapport Télécom" is a hub whose 8 tabs (previously an in-page tab rail)
+ * "Rapport Télécom" is a hub whose 7 tabs (previously an in-page tab rail)
  * are now sidebar children — "Vue d'ensemble" doubles as the app's landing
  * page (bare /dashboard redirects there; there is no separate Accueil
  * screen).
  */
 
 import {
-  Activity,
   BarChart3,
   CalendarDays,
-  FlaskConical,
   Folders,
   HelpCircle,
   History,
@@ -144,13 +142,6 @@ export const NAV_SECTIONS: NavSection[] = [
             href: "/dashboard/telecom-report/period",
             icon: CalendarDays,
             description: "Studio de période et comparaisons",
-            minRole: "viewer",
-          },
-          {
-            title: "Journalier",
-            href: "/dashboard/telecom-report/day",
-            icon: Activity,
-            description: "Analytics par jour",
             minRole: "viewer",
           },
           {

@@ -13,7 +13,6 @@ const TELECOM_TABS: ReadonlyArray<{ seg: string; label: string }> = [
   { seg: "analysis", label: "Analyse" },
   { seg: "grid", label: "Données" },
   { seg: "period", label: "Période" },
-  { seg: "day", label: "Jour" },
   { seg: "history", label: "Historique" },
   { seg: "config", label: "Config" },
 ];

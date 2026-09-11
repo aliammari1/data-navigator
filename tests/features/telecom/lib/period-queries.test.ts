@@ -32,7 +32,6 @@ import {
   fetchDayBuckets,
   fetchPeriodKPI,
   fetchRowCount,
-  fetchRowCountForDay,
   fetchSubStatusBreakdown,
   fetchTopAccounts,
   SUB_STATUS_DEFS,
@@ -743,30 +742,5 @@ describe("fetchRowCount", () => {
     runReadOnlyQuery.mockRejectedValue(new Error("x"));
 
     expect(await fetchRowCount(TABLE)).toBe(0);
-  });
-});
-
-describe("fetchRowCountForDay", () => {
-  it("returns the row count for the requested day", async () => {
-    runReadOnlyQuery.mockResolvedValue([{ n: 17 }]);
-
-    const n = await fetchRowCountForDay(TABLE, m, "2024-01-05");
-
-    expect(n).toBe(17);
-    // the day literal must be embedded via STRPTIME(...)
-    expect(lastSql()).toContain("STRPTIME");
-    expect(lastSql()).toContain("2024-01-05");
-  });
-
-  it("returns 0 when no rows match", async () => {
-    runReadOnlyQuery.mockResolvedValue([]);
-
-    expect(await fetchRowCountForDay(TABLE, m, "2024-01-05")).toBe(0);
-  });
-
-  it("returns 0 when the query throws", async () => {
-    runReadOnlyQuery.mockRejectedValue(new Error("x"));
-
-    expect(await fetchRowCountForDay(TABLE, m, "2024-01-05")).toBe(0);
   });
 });

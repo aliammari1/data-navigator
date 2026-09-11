@@ -2,7 +2,6 @@
 
 import {
   BarChart3,
-  CalendarDays,
   CalendarRange,
   History,
   LayoutDashboard,
@@ -18,7 +17,6 @@ import { AnalysisTab } from "@/features/telecom/components/analysis-tab";
 import { AnalyticsHistoryTab } from "@/features/telecom/components/analytics-history-tab";
 import { CanalTab } from "@/features/telecom/components/canal-tab";
 import { ConfigTab } from "@/features/telecom/components/config-tab";
-import { DayAnalyticsTab } from "@/features/telecom/components/day-analytics-tab";
 import { OverviewTab } from "@/features/telecom/components/overview-tab";
 import { PeriodStudioTab } from "@/features/telecom/components/period-studio-tab";
 import { RawDataTab } from "@/features/telecom/components/raw-data-tab";
@@ -119,16 +117,6 @@ function TelecomTabContent({ activeTab }: { activeTab: string }) {
     case "period":
       return <PeriodStudioTab table={report.dashboardTableName} mapping={report.mapping} />;
 
-    case "day":
-      return (
-        <DayAnalyticsTab
-          table={report.dashboardTableName}
-          mapping={report.mapping}
-          fileName={report.dashboardFileName}
-          loadedFiles={[]}
-        />
-      );
-
     case "history":
       return <HistoryTabContent />;
 
@@ -159,7 +147,6 @@ const TELECOM_PAGES: AppPage[] = [
   { id: "analysis", label: "Analyse", icon: BarChart3 },
   { id: "grid", label: "Données brutes", icon: TableIcon },
   { id: "period", label: "Studio période", icon: CalendarRange },
-  { id: "day", label: "Analyse du jour", icon: CalendarDays },
   { id: "history", label: "Historique", icon: History },
   { id: "config", label: "Configuration", icon: Settings },
 ];

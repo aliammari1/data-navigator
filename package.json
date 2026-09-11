@@ -22,6 +22,7 @@
     "worker:build": "node esbuild.workers.mjs",
     "electron:dev": "concurrently -k -n electron-build,electron-start -c auto \"pnpm run electron:build:watch\" \"pnpm run electron:start:dev\"",
     "electron:start:dev": "wait-on http://127.0.0.1:3000 build/main.js && electron --ozone-platform-hint=auto --remote-debugging-port=9222 build/main.js",
+    "electron:start:cov": "wait-on http://127.0.0.1:3000 build/main.js && NODE_V8_COVERAGE=.v8-coverage electron --ozone-platform-hint=auto --remote-debugging-port=9222 build/main.js",
     "electron:build": "tsup",
     "electron:build:watch": "tsup --watch",
     "build": "pnpm run worker:build && pnpm run next:build",

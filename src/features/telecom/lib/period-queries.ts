@@ -14,7 +14,7 @@ import {
   transactionDayExpr,
   transactionHourExpr,
 } from "@/features/telecom/lib/queries";
-import { canalCaseExpr, qc, sqlLiteral } from "@/features/telecom/lib/sql";
+import { canalCaseExpr, qc } from "@/features/telecom/lib/sql";
 import {
   RAW_TRANSACTION_STATUS_EXPR,
   REPORT_DOUBT_STATUS_CODES,
@@ -506,26 +506,6 @@ function stddev(xs: number[], mean: number): number {
 export async function fetchRowCount(table: string): Promise<number> {
   try {
     const rows = await runReadOnlyQuery(`SELECT COUNT(*) AS n FROM ${qc(table)}`);
-    return safeNum(rows[0]?.n);
-  } catch {
-    return 0;
-  }
-}
-
-export async function fetchRowCountForDay(
-  table: string,
-  m: ColumnMapping,
-  day: string,
-): Promise<number> {
-  const dayExpr = transactionDayExpr(m.transactionDate);
-
-  try {
-    const rows = await runReadOnlyQuery(`
-      SELECT COUNT(*) AS n
-      FROM ${qc(table)}
-      WHERE ${dayExpr} = STRPTIME(${sqlLiteral(day)},'%Y-%m-%d')
-    `);
-
     return safeNum(rows[0]?.n);
   } catch {
     return 0;

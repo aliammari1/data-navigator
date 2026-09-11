@@ -198,3 +198,6 @@ gitleaks.sarif
 semgrep.sarif
 
 build/
+
+# V8 coverage output (see electron:start:cov)
+.v8-coverage/

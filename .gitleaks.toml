@@ -9,6 +9,13 @@ paths = [
   '''(^|/)tests?/''',
   '''(^|/)evals/''',
   '''(^|/)scripts/''',
+  '''(^|/)\.next/''',
+  '''(^|/)build/''',
+  '''(^|/)dist/''',
+  '''(^|/)coverage/''',
+  '''(^|/)storybook-static/''',
+  '''(^|/)playwright-report/''',
+  '''(^|/)test-results/''',
 ]
 regexes = [
   '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)'''
