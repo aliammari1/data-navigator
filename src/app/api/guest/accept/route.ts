@@ -35,7 +35,9 @@ function buildHocuspocusUrl(hostUrl: string): string {
     return `${protocol}//${hostname}:${hocuspocusPort}`;
   } catch {
     const lanIp = getPrimaryLanIp();
-    return `ws://${lanIp}:${hocuspocusPort}`;
+    const fallbackProtocol =
+      hostUrl.startsWith("https") || hostUrl.startsWith("wss") ? "wss:" : "ws:";
+    return `${fallbackProtocol}//${lanIp}:${hocuspocusPort}`;
   }
 }
 

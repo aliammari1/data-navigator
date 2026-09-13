@@ -18,3 +18,4 @@ src/platform/lan/lan-collab.ts
 src/features/dashboard-shell/components/lan-access-gate.tsx
 src/features/dashboard-shell/components/lan-collab-panel.tsx
 src/features/dashboard-shell/components/lan-control-center.tsx
+src/app/api/guest/accept/route.ts
