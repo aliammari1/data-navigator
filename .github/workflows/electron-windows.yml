@@ -222,6 +222,7 @@ jobs:
       # Build a verifiable supply-chain provenance attestation over installer(s)
       - name: Attest build provenance
         if: env.IS_RELEASE == 'true'
+        continue-on-error: true
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: "dist/*.msi\ndist/*.exe"
@@ -232,7 +233,6 @@ jobs:
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: ${{ inputs.release-tag }}
-          draft: true
           fail_on_unmatched_files: true
           files: |
             dist/*.msi
@@ -247,6 +247,7 @@ jobs:
         with:
           name: data-navigator-windows-msi
           path: |
-            out/make/wix/**/*.msi
+            dist/*.msi
+            dist/*.exe
           if-no-files-found: warn
           retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

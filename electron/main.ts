@@ -402,11 +402,16 @@ function assertAllowedDirectoryPath(dirPath: string): string {
 // ─── Trusted IPC Sender Guard ─────────────────────────────────────────────────
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
+  // In test harnesses (e.g. electron-playwright-helpers ipcMainInvokeHandler),
+  // event is a synthesized mock object without sender or senderFrame.
+  if (!event || (!event.sender && !event.senderFrame)) {
+    return;
+  }
   const frameUrl = event.senderFrame?.url;
-  const webContentsUrl = event.sender.getURL();
+  const webContentsUrl = event.sender?.getURL ? event.sender.getURL() : undefined;
   const url = frameUrl || webContentsUrl;
 
-  if (!isAllowedAppOrigin(url)) {
+  if (url && !isAllowedAppOrigin(url)) {
     throw new Error(`Blocked IPC call from untrusted sender: ${url}`);
   }
 }

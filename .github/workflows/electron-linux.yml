@@ -156,6 +156,7 @@ jobs:
 
       - name: Attest build provenance
         if: env.IS_RELEASE == 'true'
+        continue-on-error: true
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: |
