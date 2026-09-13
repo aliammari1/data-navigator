@@ -212,6 +212,7 @@ jobs:
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
