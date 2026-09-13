@@ -208,7 +208,6 @@ jobs:
 
       # Make the Windows installer (.msi + .exe) via electron-builder
       - name: Make Windows installer
-        shell: bash
         run: pnpm run package:win
         env:
           NODE_ENV: production

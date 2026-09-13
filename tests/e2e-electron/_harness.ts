@@ -2,30 +2,35 @@ import { existsSync, mkdirSync } from "node:fs";
 import path from "node:path";
 import { _electron as electron, expect, type Page } from "@playwright/test";
 
+import * as eph from "electron-playwright-helpers";
+
 /**
- * Minimal structural type for Playwright's Electron launch entry point.
- * `_electron` is a genuine `@playwright/test` runtime export, but its
- * narrower PUBLIC `.d.ts` doesn't type it (see
- * tests/performance/electron/startup.perf.spec.ts's doc comment for the full
- * explanation — same repo, same reasoning, not repeated here). `firstWindow()`
- * returns a REAL, fully-typed `Page` from `@playwright/test`, so every caller
- * of `launchApp` below gets full Page typing (getByRole, click, fill,
- * screenshot, video, everything) with no further type gaps.
+ * Structural type for Playwright's Electron launch entry point, augmented
+ * with electron-playwright-helpers compatibility for IPC invocation, dialog
+ * stubbing, window tracking, and main process evaluation.
  */
-interface ElectronApp {
+export type ElectronApp = Parameters<typeof eph.ipcMainInvokeHandler>[0] & {
   firstWindow(options?: { timeout?: number }): Promise<Page>;
+  windows(): Promise<Page[]>;
   close(): Promise<void>;
-}
+  evaluate<R, Arg = unknown>(
+    pageFunction: (electron: unknown, arg: Arg) => R | Promise<R>,
+    arg?: Arg,
+  ): Promise<R>;
+};
 
 interface ElectronNamespace {
   launch(options: {
     args: string[];
+    env?: Record<string, string | undefined>;
     timeout?: number;
     recordVideo?: { dir: string; size?: { width: number; height: number } };
   }): Promise<ElectronApp>;
 }
 
 const electronNs = electron as unknown as ElectronNamespace;
+
+export { eph };
 
 const REPO_ROOT = process.cwd();
 const MAIN_JS_PATH = path.resolve(REPO_ROOT, "build", "main.js");
