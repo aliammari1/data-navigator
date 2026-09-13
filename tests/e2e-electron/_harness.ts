@@ -37,7 +37,7 @@ const MAIN_JS_PATH = path.resolve(REPO_ROOT, "build", "main.js");
 
 export const SHARED_PROFILE_DIR = path.resolve(REPO_ROOT, ".e2e-electron-profile");
 export const TEST_EMAIL = "e2e-journeys@datanavigator.test";
-export const TEST_PASSWORD = "E2eJourneys!2026";
+export const TEST_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "$Password123";
 
 const VIDEO_ROOT = path.resolve(REPO_ROOT, "test-results", "e2e-electron", "videos");
 const SCREENSHOT_ROOT = path.resolve(REPO_ROOT, "test-results", "e2e-electron", "screenshots");

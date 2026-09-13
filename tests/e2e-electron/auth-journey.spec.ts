@@ -25,8 +25,8 @@ const FRESH_PROFILE_DIR = path.resolve(
   `run-${RUN_ID}`,
 );
 const EMAIL = `auth-journey-${RUN_ID}@datanavigator.test`;
-const PASSWORD = "AuthJourney!2026";
-const NAME = "E2E Journey";
+const PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "$Password123";
+const NAME = "E2E Administrator";
 
 const REDIRECT_TIMEOUT_MS = 30_000;
 
