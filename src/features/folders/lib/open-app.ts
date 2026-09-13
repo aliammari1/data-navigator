@@ -14,6 +14,8 @@
  * hosted inside the desktop.
  */
 
+import { askMoudir } from "@/features/desktop/core/moudir-bridge";
+
 export type FolderTargetApp = "upload" | "telecom" | "moudir" | "moudir-chat";
 
 const ROUTE_BY_APP: Record<FolderTargetApp, string> = {
@@ -39,16 +41,11 @@ export function openDesktopApp(appId: FolderTargetApp): boolean {
 
 /**
  * Open the Moudir assistant and hand off a question about a dataset via the
- * `moudir:ask` CustomEvent contract (same handoff Spotlight / Commander use).
+ * bulletproof unified Moudir bridge.
  */
-export function askMoudirAbout(datasetName: string): void {
-  if (typeof window === "undefined") return;
-  openDesktopApp("moudir-chat");
-  window.dispatchEvent(
-    new CustomEvent("moudir:ask", {
-      detail: {
-        prompt: `Analyse le jeu de données « ${datasetName} » : résume sa structure, sa qualité et les points notables.`,
-      },
-    }),
+export function askMoudirAbout(datasetName: string, datasetId?: string): void {
+  askMoudir(
+    `Analyse le jeu de données « ${datasetName} » : résume sa structure, sa qualité et les points notables.`,
+    { datasetId },
   );
 }

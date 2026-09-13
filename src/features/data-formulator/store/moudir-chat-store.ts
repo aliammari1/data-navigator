@@ -284,9 +284,13 @@ interface MoudirChatState {
   canvasArtifact: MoudirArtifact | null;
   /** Set by the search palette so message-list can scroll to the hit. */
   pendingScrollToMessageId: string | null;
+  /** Pending question passed from another window or button, awaiting pickup by MoudirChatScreen. */
+  pendingPrompt: string | null;
   /** Transient user-facing notice (blocked action, tool failure). */
   lastNotice: string | null;
 
+  setPendingPrompt(prompt: string | null): void;
+  consumePendingPrompt(): string | null;
   refreshConversations(search?: string): Promise<void>;
   setSearchTerm(term: string): void;
   newConversation(datasetId?: string | null, model?: string | null): Promise<string | null>;
@@ -507,6 +511,18 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     const datasetId = ctx?.datasetId ?? null;
     const attachments =
       ctx?.attachments && ctx.attachments.length > 0 ? ctx.attachments : undefined;
+
+    // Automatic context compaction: when conversation exceeds 75% of token budget,
+    // condense older turns into an executive summary so long chats never overflow or fail.
+    const currentMessages = get().messages;
+    if (
+      currentMessages.length >= 4 &&
+      estimateUsedTokens(currentMessages) / CHAT_CONTEXT_MAX_TOKENS > 0.75
+    ) {
+      await get()
+        .compactConversation()
+        .catch(() => {});
+    }
 
     const userMsg: ChatMessage = {
       id: newId("u"),
@@ -765,8 +781,19 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     loadingConversation: false,
     canvasArtifact: null,
     pendingScrollToMessageId: null,
+    pendingPrompt: null,
     lastNotice: null,
     activeFilters: [],
+
+    setPendingPrompt(prompt) {
+      set({ pendingPrompt: prompt });
+    },
+
+    consumePendingPrompt() {
+      const p = get().pendingPrompt;
+      if (p) set({ pendingPrompt: null });
+      return p;
+    },
 
     async refreshConversations(search) {
       const conversations = await listConversationsRemote({
@@ -786,6 +813,28 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     },
 
     async newConversation(datasetId, model) {
+      const state = get();
+
+      // 1. If the currently active conversation exists and has no messages, reuse it.
+      if (state.activeId && state.messages.length === 0) {
+        return state.activeId;
+      }
+
+      // 2. If there is already an existing empty conversation in the list, switch to it.
+      const existingEmpty = state.conversations.find((c) => {
+        if (c.id === state.activeId) {
+          return state.messages.length === 0;
+        }
+        return c.messageCount === 0;
+      });
+
+      if (existingEmpty) {
+        if (state.activeId !== existingEmpty.id) {
+          await get().openConversation(existingEmpty.id);
+        }
+        return existingEmpty.id;
+      }
+
       const id = newId("conv");
       const meta = await createConversationRemote({ id, title: UNTITLED, datasetId, model });
       if (!meta) return null;
@@ -1062,7 +1111,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
         );
         if (queries.length > 0) {
           summaryPoints.push(
-            "**Requêtes exécutées dans l'historique :**\n" + queries.slice(-5).join("\n"),
+            `**Requêtes exécutées dans l'historique :**\n${queries.slice(-5).join("\n")}`,
           );
         }
         summaryPoints.push(
@@ -1126,3 +1175,14 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     },
   };
 });
+
+// Global window listener: ensures any "moudir:ask" custom event anywhere in the app
+// is captured into the store even if MoudirChatScreen is not yet mounted.
+if (typeof window !== "undefined") {
+  window.addEventListener("moudir:ask", (e: Event) => {
+    const prompt = (e as CustomEvent<{ prompt?: string }>).detail?.prompt;
+    if (prompt) {
+      useMoudirChatStore.getState().setPendingPrompt(prompt);
+    }
+  });
+}

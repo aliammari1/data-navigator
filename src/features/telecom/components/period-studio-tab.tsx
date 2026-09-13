@@ -25,7 +25,6 @@ import {
   type PeriodKPI,
 } from "@/features/telecom/lib/period-queries";
 import type { ColumnMapping } from "@/features/telecom/types";
-import { AiAgentPanel } from "./ai-agent-panel";
 import { AnomalyDetectorPanel } from "./anomaly-detector-panel";
 import { PeriodComparePanel } from "./period-compare-panel";
 import { defaultPeriod, PeriodFilterBar, type PeriodValue } from "./period-filter-bar";
@@ -74,9 +73,9 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
   const [brands, setBrands] = useState<BrandRow[]>([]);
   const [days, setDays] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
-  const [tab, setTab] = useState<
-    "overview" | "compare" | "leaderboard" | "anomaly" | "brands" | "ai"
-  >("overview");
+  const [tab, setTab] = useState<"overview" | "compare" | "leaderboard" | "anomaly" | "brands">(
+    "overview",
+  );
 
   useEffect(() => {
     if (!table || !mapping?.transactionDate) return;
@@ -144,7 +143,6 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
     { key: "leaderboard", label: "Top abonnés", icon: Users },
     { key: "anomaly", label: "Anomalies", icon: Activity },
     { key: "brands", label: "Brands", icon: Tag },
-    { key: "ai", label: "Agent IA", icon: Brain },
   ];
 
   return (
@@ -345,35 +343,6 @@ export const PeriodStudioTab = memo(function PeriodStudioTab({
           mapping={mapping}
           dateFrom={appliedPeriod.from}
           dateTo={appliedPeriod.to}
-        />
-      )}
-
-      {appliedPeriod && tab === "ai" && (
-        <AiAgentPanel
-          table={table}
-          mapping={mapping}
-          dateFrom={appliedPeriod.from}
-          dateTo={appliedPeriod.to}
-          onIntent={(intent) => {
-            switch (intent.kind) {
-              case "show_anomalies":
-                setTab("anomaly");
-                break;
-              case "show_top_accounts":
-                setTab("leaderboard");
-                break;
-              case "show_sub_status":
-              case "explain_kpi":
-                setTab("overview");
-                break;
-              case "compare_periods":
-                setTab("compare");
-                break;
-              case "show_brands":
-                setTab("brands");
-                break;
-            }
-          }}
         />
       )}
 

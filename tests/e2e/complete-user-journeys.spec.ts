@@ -24,7 +24,6 @@ const DASHBOARD_ROUTES = [
     anchor: /collaborative|team|comment|workspace/i,
   },
   { path: "/dashboard/settings", anchor: /settings|theme|appearance/i },
-  { path: "/dashboard/help", anchor: /help|documentation|features/i },
 ] as const;
 
 const TELECOM_ROUTES = [

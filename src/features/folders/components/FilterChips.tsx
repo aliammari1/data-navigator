@@ -26,7 +26,11 @@ export interface FilterChipsProps {
 export function FilterChips({ active, counts, onChange }: FilterChipsProps) {
   return (
     <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Filtres rapides">
-      {CHIPS.map((chip) => {
+      {CHIPS.filter((chip) => {
+        if (chip.id === "all") return true;
+        const count = counts[chip.id] ?? 0;
+        return count > 0 || active === chip.id;
+      }).map((chip) => {
         const isActive = active === chip.id;
         const count = chip.id === "all" ? undefined : counts[chip.id];
         return (
@@ -37,7 +41,7 @@ export function FilterChips({ active, counts, onChange }: FilterChipsProps) {
             onClick={() => onChange(chip.id)}
             className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors ${
               isActive
-                ? "border-primary bg-primary/15 text-primary"
+                ? "border-primary bg-primary/15 text-primary font-medium"
                 : "border-border bg-card text-muted-foreground hover:text-foreground"
             }`}
           >
@@ -45,7 +49,9 @@ export function FilterChips({ active, counts, onChange }: FilterChipsProps) {
             {count !== undefined && (
               <span
                 className={`rounded-full px-1.5 text-[10px] ${
-                  isActive ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"
+                  isActive
+                    ? "bg-primary/20 text-primary font-bold"
+                    : "bg-muted text-muted-foreground"
                 }`}
               >
                 {count}

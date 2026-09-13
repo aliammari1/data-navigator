@@ -49,11 +49,18 @@ type ElectronLlama = Window["electronLlama"];
  */
 const MODELS: AIModelInfo[] = [
   {
-    id: "gemma-4-e2b-qat-mobile-text-only.gguf",
-    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
-    family: "Gemma 4",
-    sizeLabel: "E2B",
-    downloadMb: 840,
+    id: "minicpm-v-4.6-q4_k_m.gguf",
+    label: "MiniCPM-V 4.6 (1B, Multimodal)",
+    family: "MiniCPM-V",
+    sizeLabel: "1B",
+    downloadMb: 529.101504,
+  },
+  {
+    id: "smolvlm2-2.2b-instruct-q4_k_m.gguf",
+    label: "SmolVLM2 2.2B Instruct (Multimodal)",
+    family: "SmolVLM2",
+    sizeLabel: "2.2B",
+    downloadMb: 1112.602656,
   },
   {
     id: "lfm2-5-2.6b-q4_k_m.gguf",
@@ -75,13 +82,6 @@ const MODELS: AIModelInfo[] = [
     family: "Qwen3",
     sizeLabel: "1.7B",
     downloadMb: 1100,
-  },
-  {
-    id: "gemma-4-e4b-it-q4_k_m.gguf",
-    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
-    family: "Gemma 4",
-    sizeLabel: "E4B",
-    downloadMb: 5340,
   },
   {
     id: "granite-4.1-3b-instruct-q4_k_m.gguf",

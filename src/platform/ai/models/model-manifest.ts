@@ -75,7 +75,7 @@ export interface ModelManifestEntry {
  * code. Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
  * canonical catalog — keep the two in lockstep when it changes.
  */
-export const DEFAULT_GGUF_MODEL = "gemma-4-e2b-qat-mobile-text-only.gguf";
+export const DEFAULT_GGUF_MODEL = "minicpm-v-4.6-q4_k_m.gguf";
 
 /**
  * The default GGUF embedding model used by the Electron embeddings lane
@@ -88,16 +88,28 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
   // ── Instruct GGUF (Electron node-llama-cpp) — mirrors
   // electron/model-download-service.ts's MODEL_DOWNLOADS ────────────────────
   {
-    key: "gemma-4-e2b-qat-mobile-text-only",
+    key: "minicpm-v-4.6-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",
-    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
-    family: "Gemma 4",
-    sizeLabel: "E2B",
-    downloadMb: 840, // matches model-download-service.ts's bytes: 840_000_000
+    label: "MiniCPM-V 4.6 (1B, Multimodal)",
+    family: "MiniCPM-V",
+    sizeLabel: "1B",
+    downloadMb: 529.101504, // matches model-download-service.ts's bytes: 529_101_504
     optional: false,
-    ggufFile: "gemma-4-e2b-qat-mobile-text-only.gguf",
-    capabilities: { tools: true, thinking: true, vision: false },
+    ggufFile: "minicpm-v-4.6-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: true, vision: true },
+  },
+  {
+    key: "smolvlm2-2.2b-instruct-q4_k_m",
+    lane: "llm",
+    presence: "electron-gguf",
+    label: "SmolVLM2 2.2B Instruct (Multimodal)",
+    family: "SmolVLM2",
+    sizeLabel: "2.2B",
+    downloadMb: 1112.602656, // matches model-download-service.ts's bytes: 1_112_602_656
+    optional: true,
+    ggufFile: "smolvlm2-2.2b-instruct-q4_k_m.gguf",
+    capabilities: { tools: true, thinking: true, vision: true },
   },
   {
     key: "lfm2-5-2.6b-q4_k_m",
@@ -134,18 +146,6 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
     downloadMb: 1100, // matches model-download-service.ts's bytes: 1_100_000_000
     optional: true,
     ggufFile: "qwen3-1.7b-q4_k_m.gguf",
-    capabilities: { tools: true, thinking: true, vision: false },
-  },
-  {
-    key: "gemma-4-e4b-it-q4_k_m",
-    lane: "llm",
-    presence: "electron-gguf",
-    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
-    family: "Gemma 4",
-    sizeLabel: "E4B",
-    downloadMb: 5340, // matches model-download-service.ts's bytes: 5_340_000_000
-    optional: true,
-    ggufFile: "gemma-4-e4b-it-q4_k_m.gguf",
     capabilities: { tools: true, thinking: true, vision: false },
   },
   {

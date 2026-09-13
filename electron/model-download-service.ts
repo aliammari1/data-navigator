@@ -115,18 +115,30 @@ export interface ModelCapabilities {
  */
 export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
   {
-    key: "gemma-4-e2b-qat-mobile-text-only",
-    file: "gemma-4-e2b-qat-mobile-text-only.gguf",
+    key: "minicpm-v-4.6-q4_k_m",
+    file: "minicpm-v-4.6-q4_k_m.gguf",
     lane: "llm",
-    uri: "hf:google/gemma-4-e2b-qat-mobile-text-only-GGUF/gemma-4-e2b-qat-mobile-text-only-q4_0.gguf",
+    uri: "hf:openbmb/MiniCPM-V-4.6-gguf/MiniCPM-V-4_6-Q4_K_M.gguf",
     sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
-    bytes: 840_000_000,
-    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
-    family: "Gemma 4",
-    sizeLabel: "E2B",
+    bytes: 529_101_504,
+    label: "MiniCPM-V 4.6 (1B, Multimodal)",
+    family: "MiniCPM-V",
+    sizeLabel: "1B",
     optional: false,
-    // Native function calling per Google's Gemma 4 docs; text-only checkpoint.
-    capabilities: { tools: true, thinking: true, vision: false },
+    capabilities: { tools: true, thinking: true, vision: true },
+  },
+  {
+    key: "smolvlm2-2.2b-instruct-q4_k_m",
+    file: "smolvlm2-2.2b-instruct-q4_k_m.gguf",
+    lane: "llm",
+    uri: "hf:ggml-org/SmolVLM2-2.2B-Instruct-GGUF/SmolVLM2-2.2B-Instruct-Q4_K_M.gguf",
+    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
+    bytes: 1_112_602_656,
+    label: "SmolVLM2 2.2B Instruct (Multimodal)",
+    family: "SmolVLM2",
+    sizeLabel: "2.2B",
+    optional: true,
+    capabilities: { tools: true, thinking: true, vision: true },
   },
   {
     key: "lfm2-5-2.6b-q4_k_m",
@@ -171,20 +183,6 @@ export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
     sizeLabel: "1.7B",
     optional: true,
     // Hermes-style tool use per Qwen's function-calling docs; hybrid thinking.
-    capabilities: { tools: true, thinking: true, vision: false },
-  },
-  {
-    key: "gemma-4-e4b-it-q4_k_m",
-    file: "gemma-4-e4b-it-q4_k_m.gguf",
-    lane: "llm",
-    uri: "hf:bartowski/google_gemma-4-E4B-it-GGUF:Q4_K_M",
-    sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
-    bytes: 5_340_000_000,
-    label: "Gemma 4 E4B Instruct (GGUF q4, power-user)",
-    family: "Gemma 4",
-    sizeLabel: "E4B",
-    optional: true,
-    // Native function calling per Google's Gemma 4 docs; GGUF text pipeline.
     capabilities: { tools: true, thinking: true, vision: false },
   },
   {

@@ -35,8 +35,13 @@ const isPrerelease =
   process.env.CHANNEL === "beta";
 
 // ─── Windows Certificate Detection ──────────────────────────────────────────
-const certPath = process.env.WINDOWS_CERTIFICATE_FILE;
-const certPassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
+const defaultLocalCert = path.join(root, "certs", "windows-code-signing.pfx");
+const certPath =
+  process.env.WINDOWS_CERTIFICATE_FILE ||
+  (fs.existsSync(defaultLocalCert) ? defaultLocalCert : undefined);
+const certPassword =
+  process.env.WINDOWS_CERTIFICATE_PASSWORD ||
+  (fs.existsSync(defaultLocalCert) ? "DataNavigatorLocal2026!" : undefined);
 const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPassword);
 
 const COPY_OPTS = { recursive: true, force: true, dereference: true } as const;
@@ -320,6 +325,9 @@ export default async function (): Promise<Configuration> {
     removePackageKeywords: true,
     npmRebuild: false,
     nodeGypRebuild: false,
+    toolsets: {
+      winCodeSign: "1.1.0",
+    },
     protocols: [
       {
         name: "Data Navigator Protocol",
@@ -341,12 +349,14 @@ export default async function (): Promise<Configuration> {
       icon: iconIco,
       ...(hasWindowsCert
         ? {
-            certificateFile: certPath,
-            certificatePassword: certPassword,
-            rfc3161TimeStampServer: "http://timestamp.digicert.com",
+            signtoolOptions: {
+              certificateFile: certPath,
+              certificatePassword: certPassword,
+              rfc3161TimeStampServer: "http://timestamp.digicert.com",
+            },
           }
         : {
-            forceCodeSigning: false,
+            signExecutable: false,
           }),
     },
     msi: {
@@ -371,6 +381,7 @@ export default async function (): Promise<Configuration> {
       ],
       executableName: appExe,
       category: "Utility",
+      maintainer: "Ali Ammari <ammari.ali.0001@gmail.com>",
       synopsis: "AI-powered local data analysis and visualization platform",
       description: "AI-powered local data analysis and visualization platform",
       icon: fs.existsSync(iconPng) ? iconPng : iconIco,

@@ -37,14 +37,20 @@ export function DashboardClientShell({
   }, [activeDatasetId, datasets, setAppContext]);
 
   return (
-    <DashboardUserProvider isGuest={user?.isGuest === true} permissions={user?.permissions}>
+    <DashboardUserProvider
+      isGuest={user?.isGuest === true}
+      role={user?.role}
+      permissions={user?.permissions}
+    >
       <DashboardLayout user={user}>
         {/* Global appearance/density/animations applier — mounted once so the
             accent picker and "Réduire les animations" work app-wide, not just on
             the Settings screen (blueprint §4). */}
         <SettingsEffects />
         <DashboardBoot />
-        <LanAccessGate isAdmin={Boolean(user) && deviceRole !== "viewer"}>{children}</LanAccessGate>
+        <LanAccessGate isAdmin={Boolean(user) && !user?.isGuest && deviceRole !== "viewer"}>
+          {children}
+        </LanAccessGate>
 
         <LanStatusDock />
         {/* Multiplayer cursors + presence page sync (renders only while connected). */}

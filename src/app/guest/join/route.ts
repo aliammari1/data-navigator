@@ -128,16 +128,36 @@ export async function POST(request: Request) {
   markConsumed(payload.jti);
 
   const { createPendingGuest } = await import("@/server/pending-guests");
+  const { getPrimaryLanIp } = await import("@/server/lan-ip");
+
+  const reqUrl = new URL(request.url);
+  const hostHeader = request.headers.get("x-forwarded-host") || request.headers.get("host");
+  if (hostHeader) {
+    reqUrl.host = hostHeader;
+  }
+  if (
+    reqUrl.hostname === "0.0.0.0" ||
+    reqUrl.hostname === "::" ||
+    reqUrl.hostname === "[::]" ||
+    reqUrl.hostname === "localhost" ||
+    reqUrl.hostname === "127.0.0.1"
+  ) {
+    const lanIp = getPrimaryLanIp();
+    if (lanIp && lanIp !== "127.0.0.1") {
+      reqUrl.hostname = lanIp;
+    }
+  }
+
   const pending = await createPendingGuest({
     name: trimmedName,
     role: payload.defaultRole,
     pairingCode: payload.pairingCode,
     room: payload.room,
     hostSecret: getHostSecret(),
-    hostUrl: new URL(request.url).origin,
+    hostUrl: reqUrl.origin,
   });
 
-  return NextResponse.redirect(new URL(`/guest/waiting?id=${pending.id}`, new URL(request.url)), {
+  return NextResponse.redirect(new URL(`/guest/waiting?id=${pending.id}`, reqUrl), {
     status: 303,
   });
 }

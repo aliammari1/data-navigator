@@ -200,8 +200,8 @@ describe("llamacppProvider.listModels", () => {
 
     // Assert
     expect(models.length).toBeGreaterThanOrEqual(2);
-    expect(models[0].id).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
-    expect(models[1].id).toBe("lfm2-5-2.6b-q4_k_m.gguf");
+    expect(models[0].id).toBe("minicpm-v-4.6-q4_k_m.gguf");
+    expect(models[1].id).toBe("smolvlm2-2.2b-instruct-q4_k_m.gguf");
   });
 
   it("each model has a label, family, sizeLabel, and downloadMb", async () => {
@@ -236,21 +236,21 @@ describe("llamacppProvider.ensureReady", () => {
   it("calls api.ensureModel with the model file when a known GGUF id is passed", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
 
     // Act
-    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf");
+    await llamacppProvider.ensureReady("smolvlm2-2.2b-instruct-q4_k_m.gguf");
 
     // Assert
     expect(api.ensureModel).toHaveBeenCalledWith({
-      file: "gemma-4-e4b-it-q4_k_m.gguf",
+      file: "smolvlm2-2.2b-instruct-q4_k_m.gguf",
     });
   });
 
   it("falls back to the first GGUF model when an unknown model id is passed", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
 
     // Act: pass a HuggingFace id not in the catalog
     await llamacppProvider.ensureReady("some-transformers-hf-model");
@@ -265,11 +265,11 @@ describe("llamacppProvider.ensureReady", () => {
   it("calls onProgress with loading (10%) then ready (100%) in order", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
     const onProgress = vi.fn();
 
     // Act
-    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress);
+    await llamacppProvider.ensureReady("smolvlm2-2.2b-instruct-q4_k_m.gguf", onProgress);
 
     // Assert
     expect(onProgress).toHaveBeenCalledTimes(2);
@@ -284,25 +284,25 @@ describe("llamacppProvider.ensureReady", () => {
   it("loading progress message mentions the file name", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
     const onProgress = vi.fn();
 
     // Act
-    await llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress);
+    await llamacppProvider.ensureReady("smolvlm2-2.2b-instruct-q4_k_m.gguf", onProgress);
 
     // Assert
     const [loadingCall] = onProgress.mock.calls;
-    expect(loadingCall[0].message).toContain("gemma-4-e4b-it-q4_k_m.gguf");
+    expect(loadingCall[0].message).toContain("smolvlm2-2.2b-instruct-q4_k_m.gguf");
   });
 
   it("does not throw when onProgress is omitted", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
 
     // Act / Assert: should resolve without error
     await expect(
-      llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf"),
+      llamacppProvider.ensureReady("smolvlm2-2.2b-instruct-q4_k_m.gguf"),
     ).resolves.toBeUndefined();
   });
 
@@ -313,7 +313,7 @@ describe("llamacppProvider.ensureReady", () => {
 
     // Act / Assert
     await expect(
-      llamacppProvider.ensureReady("gemma-4-e4b-it-q4_k_m.gguf", onProgress),
+      llamacppProvider.ensureReady("smolvlm2-2.2b-instruct-q4_k_m.gguf", onProgress),
     ).resolves.toBeUndefined();
     // onProgress is never called because bridge() returns null
     expect(onProgress).not.toHaveBeenCalled();
@@ -322,14 +322,14 @@ describe("llamacppProvider.ensureReady", () => {
   it("falls back to the default model when model id does not match any catalog entry", async () => {
     // Arrange
     const api = installLlama();
-    api.ensureModel.mockResolvedValue({ model: "gemma-4-e4b-it-q4_k_m.gguf" });
+    api.ensureModel.mockResolvedValue({ model: "smolvlm2-2.2b-instruct-q4_k_m.gguf" });
 
     // Act
     await llamacppProvider.ensureReady("unknown-model-xyz");
 
     // Assert: falls back to the first (default) catalog entry
     const callArg = api.ensureModel.mock.calls[0][0];
-    expect(callArg.file).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
+    expect(callArg.file).toBe("minicpm-v-4.6-q4_k_m.gguf");
   });
 
   it("recognizes the second catalog model (Granite) as a known id", async () => {

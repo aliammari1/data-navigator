@@ -146,17 +146,26 @@ export function Topbar({ onCmdPalette, user }: { onCmdPalette: () => void; user?
       {/* Local model status affordance */}
       <ModelStatusPill />
 
-      {/* Enter the windowed desktop workspace */}
-      <button
-        type="button"
-        onClick={enterDesktop}
-        aria-label="Mode bureau"
-        title="Mode bureau"
-        className="hidden h-8 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
-      >
-        <LayoutGrid className="w-4 h-4" />
-        Bureau
-      </button>
+      {user?.isGuest && (
+        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="size-1.5 rounded-full bg-emerald-500 animate-pulse" />
+          <span className="hidden sm:inline">Session LAN:</span> {user.name} ({user.role})
+        </span>
+      )}
+
+      {/* Enter the windowed desktop workspace (host only) */}
+      {!user?.isGuest && (
+        <button
+          type="button"
+          onClick={enterDesktop}
+          aria-label="Mode bureau"
+          title="Mode bureau"
+          className="hidden h-8 items-center gap-1.5 rounded-xl bg-accent px-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent/80 hover:text-foreground sm:flex"
+        >
+          <LayoutGrid className="w-4 h-4" />
+          Bureau
+        </button>
+      )}
 
       {/* Theme toggle */}
       <button

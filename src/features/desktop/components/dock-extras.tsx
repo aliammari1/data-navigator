@@ -4,6 +4,7 @@ import { ExternalLink, type LucideIcon, MessageCircle, Table2 } from "lucide-rea
 import { AnimatePresence, motion } from "motion/react";
 import { type RefObject, useCallback, useEffect, useRef, useState } from "react";
 import { useDataStore } from "@/core/stores/data-store";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import { useDesktopActions } from "@/features/desktop/store/desktop-store";
 
 /**
@@ -163,15 +164,7 @@ export function DockJumpList({
   };
 
   const askMoudir = () => {
-    openApp("moudir-chat");
-    // Defer so the Moudir window is mounted before it receives the prompt.
-    requestAnimationFrame(() => {
-      window.dispatchEvent(
-        new CustomEvent("moudir:ask", {
-          detail: { prompt: `Analyse ${app.title.toLowerCase()} pour moi.` },
-        }),
-      );
-    });
+    askMoudirBridge(`Analyse ${app.title.toLowerCase()} pour moi.`, { openApp });
     onClose();
   };
 

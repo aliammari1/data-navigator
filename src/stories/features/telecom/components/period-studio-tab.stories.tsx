@@ -27,7 +27,7 @@ const mapping: ColumnMapping = {
 
 /**
  * `PeriodStudioTab` orchestrates the period analytics workspace (overview,
- * comparison, leaderboard, anomaly, brands and AI sub-tabs), all sourced from
+ * comparison, leaderboard, anomaly and brands sub-tabs), all sourced from
  * the DuckDB-backed period queries. Without a loaded table it renders its
  * loading/empty states; props provide the active table, mapping and an optional
  * starting period.

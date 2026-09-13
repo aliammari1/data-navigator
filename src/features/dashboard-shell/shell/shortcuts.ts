@@ -1,14 +1,13 @@
 /**
  * Single source of truth for the app's keyboard shortcuts.
  *
- * Every surface that *displays* shortcuts (the floating ShortcutsButton overlay
- * and the Settings → Shortcuts panel) reads from this list, so they can never
- * drift apart or advertise a binding that doesn't exist.
+ * Every surface that *displays* shortcuts (such as the Settings → Shortcuts
+ * panel) reads from this list, so they can never drift apart or advertise
+ * a binding that doesn't exist.
  *
- * Behavioural truth lives in `use-shell-shortcuts.ts` (the `tinykeys` map) and,
- * for `?`, in `shortcuts-overlay.tsx`. Keep this list aligned with those — only
- * add an entry once its handler is actually wired, otherwise the UI lies about
- * features the way the old hard-coded panel did.
+ * Behavioural truth lives in `use-shell-shortcuts.ts` (the `tinykeys` map).
+ * Keep this list aligned with those — only add an entry once its handler is
+ * actually wired, otherwise the UI lies about features.
  */
 
 export interface ShortcutEntry {
@@ -32,7 +31,7 @@ export const APP_SHORTCUTS: ShortcutEntry[] = [
 ];
 
 /** True on Apple platforms, where the modifier key is `⌘` rather than `Ctrl`. */
-export function isMacPlatform(): boolean {
+function isMacPlatform(): boolean {
   if (typeof navigator === "undefined") return false;
   const probe = `${navigator.platform ?? ""} ${navigator.userAgent ?? ""}`;
   return /Mac|iPhone|iPad|iPod/i.test(probe);

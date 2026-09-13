@@ -6,7 +6,14 @@
 
 import type { FSNode } from "../types";
 
-export type CatalogFilter = "all" | "csv" | "parquet" | "unclassified" | "low-quality" | "recent";
+export type CatalogFilter =
+  | "all"
+  | "csv"
+  | "parquet"
+  | "unclassified"
+  | "low-quality"
+  | "recent"
+  | "starred";
 
 /** Quality below this fraction (0–1) counts as "low quality". */
 export const LOW_QUALITY_THRESHOLD = 0.7;
@@ -39,6 +46,8 @@ export function matchesFilter(node: FSNode, filter: CatalogFilter, ctx: CatalogF
       return node.quality !== undefined && node.quality < LOW_QUALITY_THRESHOLD;
     case "recent":
       return ctx.now - node.createdAt.getTime() <= RECENT_DAYS * 24 * 60 * 60 * 1000;
+    case "starred":
+      return !!node.starred;
     default:
       return true;
   }

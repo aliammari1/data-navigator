@@ -176,4 +176,71 @@ describe("Group B: Clarification & Question UI Store Logic", () => {
       value: 1500,
     });
   }, 15000);
+
+  it("reuses active conversation if it is already empty when calling newConversation", async () => {
+    useMoudirChatStore.setState({
+      activeId: "conv-empty-1",
+      messages: [],
+      conversations: [
+        {
+          id: "conv-empty-1",
+          title: "Sans titre",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          pinned: false,
+          datasetId: null,
+          model: null,
+          messageCount: 0,
+        },
+      ],
+    });
+
+    const resultId = await useMoudirChatStore.getState().newConversation();
+    expect(resultId).toBe("conv-empty-1");
+    expect(useMoudirChatStore.getState().conversations).toHaveLength(1);
+    expect(useMoudirChatStore.getState().activeId).toBe("conv-empty-1");
+  });
+
+  it("switches to an existing empty conversation rather than creating a duplicate", async () => {
+    useMoudirChatStore.setState({
+      activeId: "conv-with-msgs",
+      messages: [
+        {
+          id: "msg-1",
+          role: "user",
+          content: "Hello",
+          parts: [],
+          status: "done",
+          createdAt: Date.now(),
+        },
+      ],
+      conversations: [
+        {
+          id: "conv-with-msgs",
+          title: "Discussion 1",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          pinned: false,
+          datasetId: null,
+          model: null,
+          messageCount: 1,
+        },
+        {
+          id: "conv-empty-2",
+          title: "Sans titre",
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+          pinned: false,
+          datasetId: null,
+          model: null,
+          messageCount: 0,
+        },
+      ],
+    });
+
+    const resultId = await useMoudirChatStore.getState().newConversation();
+    expect(resultId).toBe("conv-empty-2");
+    expect(useMoudirChatStore.getState().conversations).toHaveLength(2);
+    expect(useMoudirChatStore.getState().activeId).toBe("conv-empty-2");
+  });
 });

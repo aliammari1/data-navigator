@@ -7,7 +7,6 @@ import { CommandPalette } from "@/features/dashboard-shell/command/command-palet
 import { AppSidebar } from "@/features/dashboard-shell/nav/app-sidebar";
 import type { DashboardUser } from "@/features/dashboard-shell/nav/nav-config";
 import { useShellActions, useShellStore } from "@/features/dashboard-shell/shell/shell-store";
-import { ShortcutsButton } from "@/features/dashboard-shell/shell/shortcuts-overlay";
 import { useShellShortcuts } from "@/features/dashboard-shell/shell/use-shell-shortcuts";
 import { Topbar } from "@/features/dashboard-shell/topbar/topbar";
 import { Desktop } from "@/features/desktop/components/desktop";
@@ -102,7 +101,14 @@ export function DashboardLayout({
 
   // 1. Framed: bare content only.
   if (framed) {
-    return <div className="min-h-screen w-full bg-background text-foreground">{children}</div>;
+    return (
+      <main
+        id="main-content"
+        className="relative min-h-screen w-full overflow-auto bg-background text-foreground"
+      >
+        {children}
+      </main>
+    );
   }
 
   const desktopActive = desktopMode && pathname === "/dashboard";
@@ -116,7 +122,6 @@ export function DashboardLayout({
         <div className="hidden" aria-hidden>
           {children}
         </div>
-        <ShortcutsButton />
       </>
     );
   }
@@ -133,12 +138,11 @@ export function DashboardLayout({
       <AppSidebar collapsed={collapsed} onToggle={toggleSidebar} user={user} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         <Topbar onCmdPalette={() => setCmdOpen(true)} user={user} />
-        <main id="main-content" className="min-w-0 flex-1 overflow-auto">
+        <main id="main-content" className="relative min-w-0 flex-1 overflow-auto">
           {children}
         </main>
       </div>
       <CommandPalette open={cmdOpen} onClose={closePalette} />
-      <ShortcutsButton />
     </div>
   );
 }

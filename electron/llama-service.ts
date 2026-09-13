@@ -334,6 +334,24 @@ function modelPath(file: string): string {
   return path.join(modelDir(), file);
 }
 
+function resolveModelFile(file?: string): string {
+  if (file) {
+    const target = modelPath(file);
+    if (existsSync(target)) return file;
+  }
+  // Check default model
+  if (existsSync(modelPath(DEFAULT_LLM_MODEL))) {
+    return DEFAULT_LLM_MODEL;
+  }
+  // Fall back to any installed model
+  for (const m of LLM_MODEL_DOWNLOADS) {
+    if (existsSync(modelPath(m.file))) {
+      return m.file;
+    }
+  }
+  return file || DEFAULT_LLM_MODEL;
+}
+
 /**
  * Idempotent singleton.
  *
@@ -368,9 +386,10 @@ function abortError(): Error {
  * Load (or switch to) a GGUF model from `<userData>/models/llm`. Idempotent for
  * an already-loaded model; disposes the previous model when switching.
  */
-export async function ensureModel(file: string = DEFAULT_LLM_MODEL): Promise<{ model: string }> {
+export async function ensureModel(file?: string): Promise<{ model: string }> {
+  const resolved = resolveModelFile(file);
   const llama = await getLlamaInstance();
-  const target = modelPath(file);
+  const target = modelPath(resolved);
 
   if (!existsSync(target)) {
     throw new Error(`Missing GGUF model: ${target}. Download it while online into ${modelDir()}.`);
@@ -417,11 +436,12 @@ export async function preloadWarmPrefix(systemPrefix: string): Promise<boolean> 
  * without duplicating model-resolution/loading logic here.
  */
 export async function getLoadedModel(
-  file: string = DEFAULT_LLM_MODEL,
+  file?: string,
 ): Promise<{ model: LlamaModel; modelPath: string }> {
-  await ensureModel(file);
+  const resolved = resolveModelFile(file);
+  await ensureModel(resolved);
   // biome-ignore lint/style/noNonNullAssertion: ensureModel() above guarantees `model`.
-  return { model: model!, modelPath: loadedModelPath ?? modelPath(file) };
+  return { model: model!, modelPath: loadedModelPath ?? modelPath(resolved) };
 }
 
 /**
@@ -642,10 +662,11 @@ export function listModels(): LlamaModelInfo[] {
  * True when node-llama-cpp can be initialized AND the default model is present.
  * Never throws — callers gate the provider registry on this.
  */
-export async function isAvailable(file: string = DEFAULT_LLM_MODEL): Promise<boolean> {
+export async function isAvailable(file?: string): Promise<boolean> {
   try {
-    if (!existsSync(modelPath(file))) return false;
-    await ensureModel(file);
+    const resolved = resolveModelFile(file);
+    if (!existsSync(modelPath(resolved))) return false;
+    await ensureModel(resolved);
     return true;
   } catch {
     return false;

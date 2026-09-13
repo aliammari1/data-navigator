@@ -3,6 +3,7 @@
 import { Loader2, MessageCircleQuestion, Sparkles, X } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import { useDesktopActions } from "@/features/desktop/store/desktop-store";
 import { useAI } from "@/platform/ai/provider/use-ai";
 
@@ -182,9 +183,7 @@ export function SelectToAsk() {
 
   const askMoudir = useCallback(() => {
     if (!bubble) return;
-    const prompt = bubble.text;
-    openApp("moudir-chat");
-    window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
+    askMoudirBridge(bubble.text, { openApp });
     dismiss();
   }, [bubble, openApp, dismiss]);
 

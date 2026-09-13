@@ -84,14 +84,25 @@ export const MODEL_MANIFEST = [
   // Mirrors electron/model-download-service.ts's MODEL_DOWNLOADS — the
   // canonical in-app catalog — keep both in lockstep.
   // ── (a) Instruct GGUF — Electron node-llama-cpp lane ───────────────────────
-  // Default: Gemma 4 E2B QAT Mobile Text-only (~840 MB). Google June 2026.
+  // Default: MiniCPM-V 4.6 (1B Multimodal, ~529 MB). OpenBMB 2026.
   {
-    key: "gemma-4-e2b-qat-mobile-text-only",
+    key: "minicpm-v-4.6-q4_k_m",
     group: "llm",
-    label: "Gemma 4 E2B Instruct (QAT Mobile Text-only)",
-    url: `${HF}/google/gemma-4-e2b-qat-mobile-text-only-GGUF/resolve/main/gemma-4-e2b-qat-mobile-text-only-q4_0.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "gemma-4-e2b-qat-mobile-text-only.gguf"),
-    bytes: 840_000_000,
+    label: "MiniCPM-V 4.6 (1B, Multimodal)",
+    url: `${HF}/openbmb/MiniCPM-V-4.6-gguf/resolve/main/MiniCPM-V-4_6-Q4_K_M.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "minicpm-v-4.6-q4_k_m.gguf"),
+    bytes: 529_101_504,
+    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
+  },
+  // Multimodal reasoning specialist: SmolVLM2 2.2B Instruct (~1.11 GB).
+  {
+    key: "smolvlm2-2.2b-instruct-q4_k_m",
+    group: "llm",
+    label: "SmolVLM2 2.2B Instruct (Multimodal)",
+    optional: true,
+    url: `${HF}/ggml-org/SmolVLM2-2.2B-Instruct-GGUF/resolve/main/SmolVLM2-2.2B-Instruct-Q4_K_M.gguf?download=true`,
+    destPath: path.join(LLM_STAGING_DIR, "smolvlm2-2.2b-instruct-q4_k_m.gguf"),
+    bytes: 1_112_602_656,
     sha256: "", // TODO: fill sha256 of the released artifact before a verified build
   },
   // Tool-call specialist: Liquid AI LFM2.5-2.6B Q4_K_M (August 2026).
@@ -127,17 +138,6 @@ export const MODEL_MANIFEST = [
     destPath: path.join(LLM_STAGING_DIR, "qwen3-1.7b-q4_k_m.gguf"),
     bytes: 1_100_000_000,
     sha256: "", // TODO
-  },
-  // Power-user quality tier (legacy default): Gemma 4 E4B Instruct q4_k_m (~5.34 GB).
-  {
-    key: "gemma-4-e4b-it-q4_k_m",
-    group: "llm",
-    label: "Gemma 4 E4B Instruct (GGUF q4_k_m, power-user)",
-    optional: true,
-    url: `${HF}/bartowski/google_gemma-4-E4B-it-GGUF/resolve/main/gemma-4-e4b-it-q4_k_m.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "gemma-4-e4b-it-q4_k_m.gguf"),
-    bytes: 5_340_000_000,
-    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
   },
   // Lower-resource alternative: Granite 4.1 3B Instruct q4_k_m (Apache 2.0). Optional (--low-ram).
   {

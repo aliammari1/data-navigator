@@ -37,7 +37,14 @@ describe("matchesFilter", () => {
   // folder short-circuit for non-"all" filters
   it('returns false for a folder node on any non-"all" filter', () => {
     const folder = makeNode({ id: "dir", type: "folder" });
-    const filters: CatalogFilter[] = ["csv", "parquet", "unclassified", "low-quality", "recent"];
+    const filters: CatalogFilter[] = [
+      "csv",
+      "parquet",
+      "unclassified",
+      "low-quality",
+      "recent",
+      "starred",
+    ];
     for (const f of filters) {
       expect(matchesFilter(folder, f, ctx)).toBe(false);
     }
@@ -169,7 +176,15 @@ describe("filterFileNodes", () => {
   });
 
   it("accepts every documented CatalogFilter value without throwing", () => {
-    const all: CatalogFilter[] = ["all", "csv", "parquet", "unclassified", "low-quality", "recent"];
+    const all: CatalogFilter[] = [
+      "all",
+      "csv",
+      "parquet",
+      "unclassified",
+      "low-quality",
+      "recent",
+      "starred",
+    ];
     for (const f of all) {
       expect(Array.isArray(filterFileNodes(nodes, f, ctx))).toBe(true);
     }

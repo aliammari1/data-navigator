@@ -80,6 +80,7 @@ export async function fetchPeriodKPI(
   dateFrom: string,
   dateTo: string,
 ): Promise<PeriodKPI | null> {
+  if (!table) return null;
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
   const enriched = `${table}_enriched`;
   const hasEnriched = await ensureTelecomEnrichedView(table, m);
@@ -169,6 +170,7 @@ export async function fetchSubStatusBreakdown(
   dateFrom: string,
   dateTo: string,
 ): Promise<SubStatusRow[]> {
+  if (!table) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
 
   const codeToParent = new Map<string, string>();
@@ -229,6 +231,7 @@ export async function fetchTopAccounts(
   limit = 25,
   by: "amount" | "count" = "amount",
 ): Promise<TopAccountRow[]> {
+  if (!table) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
   const ms = qc(m.msisdn);
   const nm = qc(m.serviceName);
@@ -285,6 +288,7 @@ export async function fetchDayBuckets(
   dateFrom: string,
   dateTo: string,
 ): Promise<DayBucketRow[]> {
+  if (!table) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
   const dayExpr = transactionDayExpr(m.transactionDate);
 
@@ -315,6 +319,7 @@ export async function fetchDayBuckets(
 }
 
 export async function fetchAvailableDays(table: string, m?: ColumnMapping): Promise<string[]> {
+  if (!table) return [];
   const dayExpr = transactionDayExpr(m?.transactionDate ?? "TRANSACTION_DATE");
 
   try {
@@ -345,6 +350,7 @@ export async function fetchCanalHourPeriod(
   dateFrom: string,
   dateTo: string,
 ): Promise<CanalHourMatrix[]> {
+  if (!table) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
   const canal = canalCaseExpr(m);
   const hr = transactionHourExpr(m.transactionDate);
@@ -391,6 +397,7 @@ export async function fetchBrandBreakdown(
   dateTo: string,
   limit = 30,
 ): Promise<BrandRow[]> {
+  if (!table) return [];
   const df = buildSpecDateFilter(dateFrom, dateTo, m.transactionDate);
 
   try {
@@ -446,6 +453,7 @@ export async function fetchAnomalies(
   dateFrom: string,
   dateTo: string,
 ): Promise<RowAnomaly[]> {
+  if (!table) return [];
   try {
     const cells = await fetchCanalHourPeriod(table, m, dateFrom, dateTo);
     const byCanal = new Map<string, CanalHourMatrix[]>();
@@ -504,6 +512,7 @@ function stddev(xs: number[], mean: number): number {
 }
 
 export async function fetchRowCount(table: string): Promise<number> {
+  if (!table) return 0;
   try {
     const rows = await runReadOnlyQuery(`SELECT COUNT(*) AS n FROM ${qc(table)}`);
     return safeNum(rows[0]?.n);

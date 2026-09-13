@@ -16,6 +16,9 @@ export interface SharedOverviewSnapshot {
   canals: Array<Omit<Types.CanalSummary, "icon">>;
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
+  operators?: Types.OperatorRow[];
+  regions?: Types.RegionRow[];
+  rawStatuses?: Types.RawStatusRow[];
 }
 
 function rehydrateCanals(canals: Array<Omit<Types.CanalSummary, "icon">>): Types.CanalSummary[] {
@@ -45,6 +48,9 @@ export function useSharedOverview({
   canals,
   hourly,
   statusData,
+  operators,
+  regions,
+  rawStatuses,
 }: {
   enabled: boolean;
   fileName: string;
@@ -53,6 +59,9 @@ export function useSharedOverview({
   canals: Types.CanalSummary[];
   hourly: Types.HourlyRow[];
   statusData: Types.StatusRow[];
+  operators?: Types.OperatorRow[];
+  regions?: Types.RegionRow[];
+  rawStatuses?: Types.RawStatusRow[];
 }) {
   const [remote, setRemote] = useState<SharedOverviewSnapshot | null>(null);
   const presenter = useMemo(() => readLANSettings().peer, []);
@@ -87,10 +96,14 @@ export function useSharedOverview({
           canals: canals.map(({ icon: _icon, ...canal }) => canal),
           hourly,
           statusData,
+          ...(operators ? { operators } : {}),
+          ...(regions ? { regions } : {}),
+          ...(rawStatuses ? { rawStatuses } : {}),
         };
 
         ydoc.transact(() => {
           sharedOverview.set("snapshot", JSON.stringify(snapshot));
+          sharedOverview.set("updatedAt", String(Date.now()));
         });
       })
       .catch(() => {
@@ -112,6 +125,9 @@ export function useSharedOverview({
     presenter.name,
     reportDate,
     statusData,
+    operators,
+    regions,
+    rawStatuses,
   ]);
 
   return {
@@ -119,6 +135,9 @@ export function useSharedOverview({
       ? {
           ...remote,
           canals: rehydrateCanals(remote.canals),
+          operators: remote.operators ?? [],
+          regions: remote.regions ?? [],
+          rawStatuses: remote.rawStatuses ?? [],
         }
       : null,
   };

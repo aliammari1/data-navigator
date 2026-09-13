@@ -36,6 +36,11 @@ const nextConfig: NextConfig = {
         destination: "/dashboard/telecom-report/grid",
         permanent: false,
       },
+      {
+        source: "/dashboard/help",
+        destination: "/dashboard/telecom-report/overview",
+        permanent: false,
+      },
     ];
   },
   async headers() {

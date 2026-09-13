@@ -852,9 +852,9 @@ export async function fetchSpecChannelStats(
   dateTo: string,
   m?: ColumnMapping,
 ): Promise<{ rows: SpecChRow[]; total: SpecChRow }> {
-  if (channels.length === 0) {
+  if (!tableName || channels.length === 0) {
     return {
-      rows: [],
+      rows: channels.map((ch) => ({ canal: ch.name, nombre: 0, montant: 0 })),
       total: { canal: "TOTAL (tous canaux)", nombre: 0, montant: 0 },
     };
   }
@@ -912,6 +912,17 @@ export async function fetchSpecStatusStats(
   rows: Array<{ status: string; nombre: number }>;
   total: { status: string; nombre: number };
 }> {
+  if (!tableName) {
+    return {
+      rows: [
+        { status: "Réussie", nombre: 0 },
+        { status: "Annulation", nombre: 0 },
+        { status: "Instance (Hold + Doubt)", nombre: 0 },
+        { status: "Échec", nombre: 0 },
+      ],
+      total: { status: "TOTAL (tous Status)", nombre: 0 },
+    };
+  }
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   // Channel scope (within the already date-filtered set), kept WITHOUT a leading
   // AND so it can be reused both as a per-status FILTER suffix and as the
@@ -950,12 +961,12 @@ export async function fetchSpecStatusStats(
       WHERE 1=1${df}
     `);
     const row = res[0] ?? {};
-    const results = statusCases.map(([status], i) => ({
-      status,
+    const rows = statusCases.map(([label], i) => ({
+      status: label,
       nombre: safeNum(row[`n_${i}`]),
     }));
     return {
-      rows: results,
+      rows,
       total: { status: "TOTAL (tous Status)", nombre: safeNum(row.total_all) },
     };
   } catch (err) {
@@ -972,7 +983,16 @@ export async function fetchSpecCanalStatusMatrix(
   dateTo: string,
   m?: ColumnMapping,
 ): Promise<SpecChStatusRow[]> {
-  if (channels.length === 0) return [];
+  if (!tableName || channels.length === 0) {
+    return channels.map((ch) => ({
+      canal: ch.name,
+      réussie: 0,
+      annulation: 0,
+      instance: 0,
+      échec: 0,
+      total: 0,
+    }));
+  }
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const statusExpr = colExpr(m?.status ?? "TRANSACTION_STATUS");
   const okF = buildRawStatusFilterForColumn(statusExpr, SPEC_STATUS_CODES.success);
@@ -1028,6 +1048,12 @@ export async function fetchSpecUnitAmountStats(
   rows: Array<{ unitAmount: string; nombre: number; montant: number }>;
   total: { unitAmount: string; nombre: number; montant: number };
 }> {
+  if (!tableName) {
+    return {
+      rows: [],
+      total: { unitAmount: "TOTAL", nombre: 0, montant: 0 },
+    };
+  }
   const df = buildSpecDateFilter(dateFrom, dateTo, m?.transactionDate);
   const scope =
     channels.length > 0 ? `AND (${channels.map((ch) => `(${ch.condition})`).join(" OR ")})` : "";

@@ -1,8 +1,14 @@
 "use client";
 
-import { FolderClosed, type LucideIcon, MonitorSmartphone, Trash2 } from "lucide-react";
+import {
+  FileSpreadsheet,
+  FolderClosed,
+  type LucideIcon,
+  MonitorSmartphone,
+  Trash2,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useDataStore } from "@/core/stores/data-store";
+import { type Dataset, useDataStore } from "@/core/stores/data-store";
 import {
   type CatalogFolder,
   useFoldersActions,
@@ -14,8 +20,9 @@ import {
   type MenuItem,
 } from "@/features/desktop/components/icon-context-menu";
 import { useContextBusActions } from "@/features/desktop/core/context-bus";
-import { buildFolderMenu } from "@/features/desktop/core/data-context-menus";
+import { buildDatasetMenu, buildFolderMenu } from "@/features/desktop/core/data-context-menus";
 import { type DesktopDragPayload, readDrag, serializeDrag } from "@/features/desktop/core/dnd";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import {
   useDesktopActions,
   useIconPositions,
@@ -23,10 +30,11 @@ import {
 } from "@/features/desktop/store/desktop-store";
 
 /**
- * Windows-style desktop icons: Recycle Bin, "Ce PC", and a live icon per
- * catalog folder. Icons are pointer-draggable (positions persist), double-click
- * to open, right-click for a context menu. Dropping a folder onto the Recycle
- * Bin deletes it; dropping it onto another folder re-parents it.
+ * Windows-style desktop icons: Recycle Bin, "Ce PC", live icons per
+ * top-level catalog folder and root dataset. Icons are pointer-draggable
+ * (positions persist), double-click to open, right-click for a context menu.
+ * Dropping a folder or dataset onto the Recycle Bin soft-deletes it; dropping
+ * a dataset onto a folder places it inside that folder.
  */
 
 interface IconDescriptor {
@@ -34,20 +42,23 @@ interface IconDescriptor {
   label: string;
   icon: LucideIcon;
   color: string;
-  kind: "recycle" | "this-pc" | "folder";
+  kind: "recycle" | "this-pc" | "folder" | "dataset";
   folder?: CatalogFolder;
+  dataset?: Dataset;
 }
 
-const GRID_X = 96;
+const _GRID_X = 96;
 const GRID_Y = 104;
 const ORIGIN = { x: 16, y: 16 };
 
 export function DesktopIcons() {
   const folders = useFoldersStore((s) => s.folders);
+  const datasets = useDataStore((s) => s.datasets);
+  const removeDataset = useDataStore((s) => s.removeDataset);
   const positions = useIconPositions();
   const recycleBin = useRecycleBin();
   const { setIconPosition, openApp, recycle } = useDesktopActions();
-  const { removeFolder, renameFolder, moveFolder } = useFoldersActions();
+  const { removeFolder, renameFolder, moveFolder, moveDataset } = useFoldersActions();
   const setActiveDataset = useDataStore((s) => s.setActiveDataset);
   const datasetFolderMap = useFoldersStore((s) => s.datasetFolderMap);
   const { setSelection, clearSelection } = useContextBusActions();
@@ -82,6 +93,9 @@ export function DesktopIcons() {
 
   useEffect(() => () => clearSpring(), [clearSpring]);
 
+  const desktopFolders = folders.filter((f) => f.parentId === null);
+  const desktopDatasets = datasets.filter((ds) => !datasetFolderMap[ds.id]);
+
   const icons: IconDescriptor[] = [
     {
       id: "recycle-bin",
@@ -97,13 +111,21 @@ export function DesktopIcons() {
       color: "210 60% 50%",
       kind: "this-pc",
     },
-    ...folders.map((f) => ({
+    ...desktopFolders.map((f) => ({
       id: `folder:${f.id}`,
       label: f.name || "Dossier",
       icon: FolderClosed,
       color: f.color ? hexToHsl(f.color) : "38 70% 52%",
       kind: "folder" as const,
       folder: f,
+    })),
+    ...desktopDatasets.map((ds) => ({
+      id: `dataset:${ds.id}`,
+      label: ds.name || "Jeu de données",
+      icon: FileSpreadsheet,
+      color: "142 65% 42%",
+      kind: "dataset" as const,
+      dataset: ds,
     })),
   ];
 
@@ -121,19 +143,24 @@ export function DesktopIcons() {
       else if (d.kind === "this-pc") openApp("folders");
       else if (d.kind === "folder" && d.folder)
         openApp("folders", { props: { initialFolderId: d.folder.id }, forceNew: false });
+      else if (d.kind === "dataset" && d.dataset) {
+        setActiveDataset(d.dataset.id);
+        openApp("telecom", { props: { datasetId: d.dataset.id }, forceNew: false });
+      }
     },
-    [openApp],
+    [openApp, setActiveDataset],
   );
 
   // Select an icon: track local highlight + publish to the context bus so the
-  // Inspector / Quick Look (Space) follow the selection. Only folder icons map
-  // to a meaningful bus selection; "Ce PC"/Corbeille clear it.
+  // Inspector / Quick Look (Space) follow the selection.
   const selectIcon = useCallback(
     (d: IconDescriptor) => {
       setSelected(d.id);
       setMulti(new Set());
       if (d.kind === "folder" && d.folder) {
         setSelection({ kind: "folder", id: d.folder.id, label: d.folder.name || "Dossier" });
+      } else if (d.kind === "dataset" && d.dataset) {
+        setSelection({ kind: "dataset", id: d.dataset.id, label: d.dataset.name });
       } else {
         clearSelection();
       }
@@ -173,20 +200,43 @@ export function DesktopIcons() {
     const el = document.elementFromPoint(e.clientX, e.clientY);
     const dropTarget = el?.closest<HTMLElement>("[data-drop]");
     const drop = dropTarget?.dataset.drop;
-    if (drop === "recycle" && info.id.startsWith("folder:")) {
-      const fid = info.id.slice("folder:".length);
-      const folder = folders.find((f) => f.id === fid);
-      if (folder) {
-        recycle({ id: `rb-${fid}`, kind: "folder", name: folder.name, payload: { folder } });
-        removeFolder(fid);
+    if (drop === "recycle") {
+      if (info.id.startsWith("folder:")) {
+        const fid = info.id.slice("folder:".length);
+        const folder = folders.find((f) => f.id === fid);
+        if (folder) {
+          recycle({ id: `rb-${fid}`, kind: "folder", name: folder.name, payload: { folder } });
+          removeFolder(fid);
+        }
+        return;
       }
-      return;
+      if (info.id.startsWith("dataset:")) {
+        const dsId = info.id.slice("dataset:".length);
+        const ds = datasets.find((d) => d.id === dsId);
+        if (ds) {
+          recycle({
+            id: `rb-ds-${dsId}`,
+            kind: "dataset",
+            name: ds.name,
+            payload: { dataset: ds },
+          });
+          removeDataset(dsId);
+        }
+        return;
+      }
     }
-    if (drop?.startsWith("folder:") && info.id.startsWith("folder:")) {
+    if (drop?.startsWith("folder:")) {
       const targetId = drop.slice("folder:".length);
-      const srcId = info.id.slice("folder:".length);
-      if (targetId !== srcId) moveFolder(srcId, targetId);
-      return;
+      if (info.id.startsWith("folder:")) {
+        const srcId = info.id.slice("folder:".length);
+        if (targetId !== srcId) moveFolder(srcId, targetId);
+        return;
+      }
+      if (info.id.startsWith("dataset:")) {
+        const dsId = info.id.slice("dataset:".length);
+        moveDataset(dsId, targetId);
+        return;
+      }
     }
     setIconPosition(info.id, finalPos);
   };
@@ -198,8 +248,6 @@ export function DesktopIcons() {
     let items: MenuItem[];
     if (d.kind === "folder" && d.folder) {
       const folder = d.folder;
-      // Shared, French data-aware folder entries (open / new window / inspector /
-      // résumer Moudir) from the desktop-suite builder, then folder-local extras.
       items = [
         ...buildFolderMenu(
           { id: folder.id, name: folder.name || "Dossier" },
@@ -207,8 +255,7 @@ export function DesktopIcons() {
             openApp,
             setSelection,
             askMoudir: (prompt) => {
-              openApp("moudir-chat");
-              window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
+              askMoudirBridge(prompt, { openApp });
             },
           },
         ),
@@ -242,6 +289,35 @@ export function DesktopIcons() {
               payload: { folder },
             });
             removeFolder(folder.id);
+          },
+        },
+      ];
+    } else if (d.kind === "dataset" && d.dataset) {
+      const ds = d.dataset;
+      items = [
+        ...buildDatasetMenu(
+          { id: ds.id, name: ds.name },
+          {
+            openApp,
+            setActiveDataset,
+            setSelection,
+            askMoudir: (prompt) => {
+              askMoudirBridge(prompt, { datasetId: ds.id, openApp });
+            },
+          },
+        ),
+        { separator: true },
+        {
+          label: "Supprimer",
+          danger: true,
+          onClick: () => {
+            recycle({
+              id: `rb-ds-${ds.id}`,
+              kind: "dataset",
+              name: ds.name,
+              payload: { dataset: ds },
+            });
+            removeDataset(ds.id);
           },
         },
       ];
@@ -337,7 +413,12 @@ export function DesktopIcons() {
       moveFolder(payload.id, folderId);
       return;
     }
-    // A dataset (or anything else) dropped on a folder opens it focused there.
+    // A dataset dropped on a folder moves it inside that folder.
+    if (payload.kind === "dataset" && payload.id) {
+      moveDataset(payload.id, folderId);
+      return;
+    }
+    // Any other drop on a folder opens it focused there.
     openApp("folders", { props: { initialFolderId: folderId }, forceNew: false });
   };
 
@@ -348,6 +429,13 @@ export function DesktopIcons() {
         kind: "folder",
         id: d.folder.id,
         label: d.folder.name || "Dossier",
+      };
+      serializeDrag(e, payload);
+    } else if (d.kind === "dataset" && d.dataset) {
+      const payload: DesktopDragPayload = {
+        kind: "dataset",
+        id: d.dataset.id,
+        label: d.dataset.name || "Jeu de données",
       };
       serializeDrag(e, payload);
     } else {
@@ -374,7 +462,7 @@ export function DesktopIcons() {
                   ? `folder:${d.folder.id}`
                   : undefined
             }
-            draggable={d.kind === "folder"}
+            draggable={d.kind === "folder" || d.kind === "dataset"}
             className={`absolute flex w-20 cursor-default select-none flex-col items-center gap-1 rounded-md p-2 text-center ${
               selected === d.id || multi.has(d.id)
                 ? "bg-white/25 ring-1 ring-white/40"
@@ -421,6 +509,11 @@ export function DesktopIcons() {
                   {count}
                 </span>
               )}
+              {d.kind === "dataset" && d.dataset?.format && (
+                <span className="absolute -bottom-1 -right-1 grid h-4 min-w-4 place-items-center rounded bg-emerald-600 px-1 font-mono text-[9px] font-bold uppercase text-white shadow-xs">
+                  {d.dataset.format}
+                </span>
+              )}
             </span>
             <span className="line-clamp-2 text-xs font-medium text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
               {d.label}
@@ -433,7 +526,6 @@ export function DesktopIcons() {
           drag rubber-bands a multi-select marquee. Sits behind the icons (-z-10)
           so icons keep their own pointer handlers; icons stopPropagation on
           pointerdown so an empty-area press reaches this layer. */}
-      {/* biome-ignore lint/a11y/noStaticElementInteractions: marquee + click-away canvas behind icons; keyboard users use the Start menu / folders app. */}
       <div
         className="absolute inset-0 -z-10"
         // Canonical "empty desktop" surface: this full-bleed layer — not the bare

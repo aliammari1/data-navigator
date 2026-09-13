@@ -1,5 +1,17 @@
 # data-navigator
 
+## 0.1.3
+
+### Patch Changes
+
+- Release Data Navigator:
+  - Add Linux release packaging workflow and automated GPG package signing (.AppImage, .deb, and .asc).
+  - Support local Windows and Linux code signing with native osslsigncode and local certificates.
+  - Fix changesets private package publication bridge to ensure GitHub Releases and tags are properly created.
+  - Enhance collaboration hub, live cursors, LAN peer management, and guest secret routes.
+  - Update folders organization with date organizer and refined desktop shell inspection.
+  - Enforce strict air-gap compliance, offline-first execution, and zero unauthorized telemetry.
+
 ## 0.1.2
 
 ### Patch Changes

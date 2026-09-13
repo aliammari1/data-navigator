@@ -86,7 +86,6 @@ export function JoinRequestDialog() {
   })();
 
   const refresh = useCallback(async () => {
-    if (getLANStatus() !== "connected") return;
     try {
       const r = await fetch("/api/guest/pending", { cache: "no-store" });
       if (!r.ok) {
@@ -110,8 +109,7 @@ export function JoinRequestDialog() {
   }, []);
 
   useEffect(() => {
-    // Zero polling unless LAN session is actively connected and caller is host/admin
-    if (lanStatus !== "connected" || !isHostOrAdmin) {
+    if (!isHostOrAdmin || lanStatus !== "connected") {
       setGuests([]);
       setOpen(false);
       return;

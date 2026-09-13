@@ -3,6 +3,18 @@ import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import fs, { readFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+
+import dotenv from "dotenv";
+
+const cwdEnv = path.resolve(process.cwd(), ".env");
+const buildEnv = path.resolve(__dirname, "..", ".env");
+const targetEnv = existsSync(cwdEnv) ? cwdEnv : existsSync(buildEnv) ? buildEnv : undefined;
+if (targetEnv) {
+  dotenv.config({ path: targetEnv });
+} else {
+  dotenv.config();
+}
+
 import {
   app,
   BrowserWindow,

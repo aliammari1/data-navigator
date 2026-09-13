@@ -25,7 +25,7 @@ vi.mock("node-llama-cpp", () => ({ createModelDownloader: createModelDownloaderM
 vi.mock("electron", () => ({ app: { getPath: () => holder.userDataDir } }));
 
 const USER_DATA_DIR = path.join(os.tmpdir(), "dn-model-download-service-test");
-const MODEL_KEY = "gemma-4-e2b-qat-mobile-text-only";
+const MODEL_KEY = "minicpm-v-4.6-q4_k_m";
 
 holder.userDataDir = USER_DATA_DIR;
 

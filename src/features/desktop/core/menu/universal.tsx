@@ -14,7 +14,6 @@ import {
   Brush,
   Camera,
   Copy,
-  HelpCircle,
   Image as ImageIcon,
   Layers,
   Maximize2,
@@ -66,12 +65,6 @@ export function appLeadingGroup(ctx: MenuContext): MenuGroup {
         icon: Settings,
         shortcut: "⌘,",
         run: () => ctx.openApp("settings"),
-      },
-      {
-        id: "about-help",
-        label: `Aide de ${ctx.title}`,
-        icon: HelpCircle,
-        run: () => ctx.openApp("help"),
       },
       sep("app-sep-1"),
       {
@@ -288,7 +281,6 @@ export function helpGroup(ctx: MenuContext): MenuGroup {
     id: "help",
     label: "Aide",
     items: [
-      { id: "open-help", label: "Centre d'aide", icon: HelpCircle, run: () => ctx.openApp("help") },
       {
         id: "ask-moudir",
         label: "Demander à Moudir sur cette vue",

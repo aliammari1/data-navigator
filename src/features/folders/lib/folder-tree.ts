@@ -40,12 +40,15 @@ export function flattenVisible(
   index: FolderIndex,
   rootIds: string[],
   expanded: Set<string>,
+  foldersOnly = false,
 ): FlatRow[] {
   const out: FlatRow[] = [];
   const walk = (id: string, depth: number) => {
     const node = index.byId.get(id);
     if (!node) return;
-    const children = index.childrenOf.get(id) ?? [];
+    if (foldersOnly && node.type !== "folder") return;
+    const allChildren = index.childrenOf.get(id) ?? [];
+    const children = foldersOnly ? allChildren.filter((c) => c.type === "folder") : allChildren;
     const isExpanded = expanded.has(id);
     out.push({
       node,

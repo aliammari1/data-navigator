@@ -21,6 +21,7 @@ import { Spotlight } from "@/features/desktop/components/spotlight";
 import { WidgetsLayer } from "@/features/desktop/components/widgets/widgets-layer";
 import { WindowFrame } from "@/features/desktop/components/window-frame";
 import { DESKTOP_DND_MIME, type DesktopDragPayload, readDrag } from "@/features/desktop/core/dnd";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import { useViewportReflow } from "@/features/desktop/core/use-viewport-reflow";
 import {
   useDesktopActions,
@@ -43,9 +44,11 @@ const SnapshotsLayerMemo = memo(SnapshotsLayer);
 const DesktopIconsMemo = memo(DesktopIcons);
 
 /** Forward a question to the Moudir AI swarm (open + dispatch the listened event). */
-function askMoudir(openApp: (id: string) => unknown, prompt: string) {
-  openApp("moudir-chat");
-  window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
+function askMoudir(
+  openApp: (id: string, options?: { props?: Record<string, unknown> }) => unknown,
+  prompt: string,
+) {
+  askMoudirBridge(prompt, { openApp });
 }
 
 /** A transient "smart drop" target: an item dropped on the empty canvas. */

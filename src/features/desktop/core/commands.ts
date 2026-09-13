@@ -24,6 +24,7 @@
 import type { LucideIcon } from "lucide-react";
 import { Calculator, Image as ImageIcon, Palette, Sparkles } from "lucide-react";
 import { DESKTOP_APPS, LAUNCHER_APPS } from "@/features/desktop/core/app-registry";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import {
   GLASS_PALETTES,
   type GlassPaletteId,
@@ -70,9 +71,7 @@ function openAppEvent(appId: string, props?: Record<string, unknown>): void {
 }
 
 function askMoudir(prompt: string): void {
-  if (typeof window === "undefined") return;
-  openAppEvent("moudir-chat");
-  window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
+  askMoudirBridge(prompt);
 }
 
 // ─── Fuzzy matching ─────────────────────────────────────────────────────────

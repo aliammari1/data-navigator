@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { verifySessionToken } from "@/platform/lan/lan-common";
+import { getPrimaryLanIp } from "@/server/lan-ip";
 import { getPendingGuest } from "@/server/pending-guests";
 
 export const runtime = "nodejs";
@@ -8,6 +9,35 @@ export const dynamic = "force-dynamic";
 
 const GUEST_COOKIE = "dn_guest_session";
 const ACCEPT_ONE_TIME_HEADER = "dn-accept-once";
+
+function buildHocuspocusUrl(hostUrl: string): string {
+  const hocuspocusPort = process.env.HOCUSPOCUS_PORT ?? "1234";
+  try {
+    const parsed = new URL(hostUrl);
+    const protocol = parsed.protocol === "https:" || parsed.protocol === "wss:" ? "wss:" : "ws:";
+    let hostname = parsed.hostname;
+    const isLoopbackOrZero =
+      hostname === "0.0.0.0" ||
+      hostname === "localhost" ||
+      hostname === "::" ||
+      hostname === "[::]" ||
+      hostname === "::1" ||
+      hostname === "[::1]" ||
+      hostname === "127.0.0.1" ||
+      hostname.startsWith("127.");
+
+    if (isLoopbackOrZero) {
+      const lanIp = getPrimaryLanIp();
+      if (lanIp) {
+        hostname = lanIp;
+      }
+    }
+    return `${protocol}//${hostname}:${hocuspocusPort}`;
+  } catch {
+    const lanIp = getPrimaryLanIp();
+    return `ws://${lanIp}:${hocuspocusPort}`;
+  }
+}
 
 export async function POST(request: Request) {
   const body = (await request.json().catch(() => null)) as { pendingId?: unknown } | null;
@@ -37,8 +67,17 @@ export async function POST(request: Request) {
     path: "/",
   });
 
+  const wsUrl = buildHocuspocusUrl(pending.hostUrl);
+
   return NextResponse.json(
-    { ok: true, name: session.name, role: session.role, room: session.room },
+    {
+      ok: true,
+      name: session.name,
+      role: session.role,
+      room: session.room,
+      url: wsUrl,
+      pairingCode: pending.pairingCode,
+    },
     { headers: { "cache-control": "no-store" } },
   );
 }

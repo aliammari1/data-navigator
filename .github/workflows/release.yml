@@ -112,3 +112,19 @@ jobs:
       # Check out + attach the installer to the exact tag changesets created.
       release-tag: ${{ needs.changesets.outputs.releaseTag }}
     secrets: inherit
+
+  linux-package:
+    name: Build + publish Linux Packages
+    needs: changesets
+    if: needs.changesets.outputs.published == 'true'
+    uses: ./.github/workflows/electron-linux.yml
+    permissions:
+      contents: write # attach the packages to the GitHub Release
+      id-token: write # OIDC token for build-provenance attestation
+      attestations: write # write the provenance attestation
+    with:
+      release: true
+      # Check out + attach the packages to the exact tag changesets created.
+      release-tag: ${{ needs.changesets.outputs.releaseTag }}
+    secrets: inherit
+

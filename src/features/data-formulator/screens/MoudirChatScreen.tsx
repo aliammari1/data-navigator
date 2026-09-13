@@ -208,7 +208,7 @@ function DatasetChip({ datasetId }: { datasetId: string | null }) {
 
 /* ── Screen ───────────────────────────────────────────────────────────────── */
 
-export default function MoudirChatScreen() {
+export default function MoudirChatScreen({ initialPrompt }: { initialPrompt?: string } = {}) {
   const windowId = useWindowId();
   const activeDatasetId = useActiveDatasetId();
 
@@ -263,7 +263,7 @@ export default function MoudirChatScreen() {
   const isCompact = useMediaQuery("(max-width: 1023px)");
 
   const streaming = status === "streaming";
-  const busy = streaming || status === "loading-model";
+  const _busy = streaming || status === "loading-model";
   const modelKnown = activeModel !== null;
   const modelLabel = humanizeModel(activeModel ?? DEFAULT_GGUF_MODEL);
   const navOpen = isNarrow ? navDrawerOpen : sidebarOpen;
@@ -343,6 +343,16 @@ export default function MoudirChatScreen() {
     window.addEventListener("moudir:ask", handler as EventListener);
     return () => window.removeEventListener("moudir:ask", handler as EventListener);
   }, [askFlow]);
+
+  // Consume any initial or pending prompt staged before the screen was mounted
+  const pendingPrompt = useMoudirChatStore((s) => s.pendingPrompt);
+  useEffect(() => {
+    const promptToRun = initialPrompt || pendingPrompt;
+    if (promptToRun) {
+      useMoudirChatStore.getState().setPendingPrompt(null);
+      void askFlow(promptToRun);
+    }
+  }, [initialPrompt, pendingPrompt, askFlow]);
 
   // Search palette → open the conversation AND hand the target message to the
   // list, which consumes pendingScrollToMessageId and scrolls to it. If the

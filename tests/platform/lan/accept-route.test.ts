@@ -38,6 +38,11 @@ vi.mock("@/platform/lan/lan-common", () => ({
   verifySessionToken: (...args: unknown[]) => verifySessionTokenSpy(...args),
 }));
 
+const getPrimaryLanIpSpy = vi.fn(() => "192.168.1.105");
+vi.mock("@/server/lan-ip", () => ({
+  getPrimaryLanIp: () => getPrimaryLanIpSpy(),
+}));
+
 import { POST } from "@/app/api/guest/accept/route";
 
 const SECRET_AT_APPROVE = "host-secret-when-approve-signed-the-token-aaaaaaaaaaaa";
@@ -98,6 +103,64 @@ describe("/api/guest/accept — host secret mismatch regression", () => {
     expect(setCookie).toHaveBeenCalledWith(
       expect.objectContaining({ name: "dn_guest_session", value: realSigned }),
     );
+    const body = (await response.json()) as Record<string, unknown>;
+    expect(body.ok).toBe(true);
+    expect(body.name).toBe("Guest");
+    expect(body.role).toBe("editor");
+    expect(body.room).toBe("default");
+    expect(body.pairingCode).toBe("123456");
+    expect(body.url).toBe("ws://192.168.1.105:1234");
+  });
+
+  it("constructs wsUrl preserving remote host IP and respecting custom HOCUSPOCUS_PORT", async () => {
+    const origPort = process.env.HOCUSPOCUS_PORT;
+    process.env.HOCUSPOCUS_PORT = "5678";
+    try {
+      const realSigned = await realSignSessionToken(
+        {
+          sub: "guest-test",
+          room: "custom-room",
+          role: "viewer",
+          name: "RemoteGuest",
+          pairingCode: "654321",
+        },
+        SECRET_AT_APPROVE,
+      );
+
+      getPendingGuest.mockResolvedValue({
+        id: PENDING_ID,
+        name: "RemoteGuest",
+        role: "viewer",
+        pairingCode: "654321",
+        room: "custom-room",
+        hostSecret: SECRET_AT_APPROVE,
+        hostUrl: "http://172.19.123.105:3000",
+        requestedAt: Date.now(),
+        expiresAt: Date.now() + 30_000,
+        status: "approved",
+        approvedRole: "viewer",
+        sessionToken: realSigned,
+      });
+
+      const request = new Request("http://172.19.123.105:3000/api/guest/accept", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ pendingId: PENDING_ID }),
+      });
+
+      const response = await POST(request);
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as Record<string, unknown>;
+      expect(body.url).toBe("ws://172.19.123.105:5678");
+      expect(body.pairingCode).toBe("654321");
+      expect(body.room).toBe("custom-room");
+    } finally {
+      if (origPort === undefined) {
+        delete process.env.HOCUSPOCUS_PORT;
+      } else {
+        process.env.HOCUSPOCUS_PORT = origPort;
+      }
+    }
   });
 
   it("returns 401 when the stored session token cannot be verified against pending.hostSecret", async () => {

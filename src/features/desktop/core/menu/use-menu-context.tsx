@@ -12,6 +12,7 @@ import {
 } from "@/features/desktop/core/menu/app-commands";
 import { getAppMenuGroups } from "@/features/desktop/core/menu/menu-composer";
 import type { MenuContext, MenuGroup } from "@/features/desktop/core/menu/types";
+import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import {
   useDesktopActions,
   useDesktopWindows,
@@ -98,12 +99,7 @@ export function useMenuContext(): { ctx: MenuContext; groups: MenuGroup[] } {
       closeAll: () => actions.closeAll(),
       exitDesktop: () => setDesktopMode(false),
       askMoudir: (prompt) => {
-        // The Moudir assistant (app "moudir-chat") owns the `moudir:ask`
-        // channel; the formulator (app "moudir") listens on its command bus.
-        actions.openApp("moudir-chat");
-        if (typeof window !== "undefined") {
-          window.dispatchEvent(new CustomEvent("moudir:ask", { detail: { prompt } }));
-        }
+        askMoudirBridge(prompt, { openApp: actions.openApp });
       },
 
       theme,

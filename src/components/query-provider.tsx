@@ -3,7 +3,6 @@
 import { focusManager, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { persistQueryClient, restoreQueryClient } from "@/platform/storage";
-import { QueryDevtools } from "./query-devtools";
 
 /**
  * Create a QueryClient with performance-optimized defaults.
@@ -104,10 +103,5 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
     };
   }, [queryClient]);
 
-  return (
-    <QueryClientProvider client={queryClient}>
-      {children}
-      <QueryDevtools />
-    </QueryClientProvider>
-  );
+  return <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>;
 }

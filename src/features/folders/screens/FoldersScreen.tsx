@@ -30,6 +30,7 @@ import {
   BarChart3,
   Check,
   ChevronRight,
+  Clock,
   Database,
   Eye,
   FilePlus2,
@@ -37,9 +38,7 @@ import {
   FolderPlus,
   Grid3x3,
   HardDrive,
-  Layers,
   List,
-  type LucideIcon,
   Palette,
   Pencil,
   Search,
@@ -49,22 +48,19 @@ import {
   Upload,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
+import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTheme } from "@/components/theme-provider";
 import { useDataStore } from "@/core/stores/data-store";
 import { useFoldersStore } from "@/core/stores/folders-store";
 import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
-import type { EChartsOption } from "@/platform/viz";
 import { BulkActionBar } from "../components/BulkActionBar";
-import { CatalogChart } from "../components/CatalogChart";
 import { ContextMenu, type MenuItem } from "../components/ContextMenu";
 import { DatasetPreview } from "../components/DatasetPreview";
+import { DateOrganizeModal } from "../components/DateOrganizeModal";
 import { ExplorerView } from "../components/ExplorerView";
-import { FileGrid } from "../components/FileGrid";
 import { FilterChips } from "../components/FilterChips";
 import { FolderTree } from "../components/FolderTree";
-import { RecentRail } from "../components/RecentRail";
 import { useAutoOrganize } from "../hooks/use-auto-organize";
 import { useFolderIndex } from "../hooks/use-folder-index";
 import { useFolderNodes } from "../hooks/use-folder-nodes";
@@ -94,8 +90,7 @@ interface MenuState {
 }
 
 export default function FoldersScreen({ initialFolderId = null }: FoldersScreenProps = {}) {
-  const { resolvedTheme } = useTheme();
-  const isDark = resolvedTheme === "dark";
+  const router = useRouter();
 
   // ── Stores (narrow selectors) ──────────────────────────────────────────────
   const datasets = useDataStore((s) => s.datasets);
@@ -118,8 +113,9 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [expanded, setExpanded] = useState<Set<string>>(new Set([ROOT_ID]));
-  const [selected, setSelected] = useState<string>(ROOT_ID);
-  const [layout, setLayout] = useState<"grid" | "list">("grid");
+  const [currentFolderId, setCurrentFolderId] = useState<string>(initialFolderId ?? ROOT_ID);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [layout, setLayout] = useState<"grid" | "list">("list");
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState<SortKey>("name");
   const [sortAsc, setSortAsc] = useState(true);
@@ -128,6 +124,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
   const [menu, setMenu] = useState<MenuState | null>(null);
 
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showDateOrganize, setShowDateOrganize] = useState(false);
   const [newFolderName, setNewFolderName] = useState("");
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
@@ -150,8 +147,14 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
       return;
     }
     const node = index.byId.get(initialFolderId);
-    if (node?.type === "folder") {
-      setSelected(initialFolderId);
+    if (node) {
+      if (node.type === "folder") {
+        setCurrentFolderId(initialFolderId);
+        setSelectedId(initialFolderId);
+      } else {
+        setCurrentFolderId(node.parentId ?? ROOT_ID);
+        setSelectedId(node.id);
+      }
       // Expand the ancestor chain so the tree reveals it.
       setExpanded((prev) => {
         const next = new Set(prev);
@@ -210,16 +213,45 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
 
   const folderSizes = useMemo(() => computeFolderSizes(index, ROOT_ID), [index]);
 
-  const treeRows = useMemo(() => flattenVisible(index, [ROOT_ID], expanded), [index, expanded]);
+  const treeRows = useMemo(
+    () => flattenVisible(index, [ROOT_ID], expanded, true),
+    [index, expanded],
+  );
 
-  const breadcrumb = useMemo(() => breadcrumbPath(index, selected), [index, selected]);
+  const currentFolder = useMemo(() => {
+    const node = index.byId.get(currentFolderId);
+    if (node?.type === "folder") return node;
+    return index.byId.get(ROOT_ID);
+  }, [index, currentFolderId]);
 
-  const currentFolder = index.byId.get(selected);
+  const breadcrumb = useMemo(() => {
+    if (activeFilter === "starred") {
+      return [
+        { id: ROOT_ID, name: "Tous les fichiers" },
+        { id: "filter-starred", name: "Favoris" },
+      ];
+    }
+    if (activeFilter === "recent") {
+      return [
+        { id: ROOT_ID, name: "Tous les fichiers" },
+        { id: "filter-recent", name: "Récents" },
+      ];
+    }
+    return breadcrumbPath(index, currentFolder?.id ?? ROOT_ID);
+  }, [index, currentFolder, activeFilter]);
 
   const currentChildren = useMemo(() => {
-    const parentId = selected || ROOT_ID;
+    const parentId = currentFolder?.id ?? ROOT_ID;
     return index.childrenOf.get(parentId) ?? [];
-  }, [index, selected]);
+  }, [index, currentFolder]);
+
+  const inspectedNode = useMemo(() => {
+    if (selectedId) {
+      const node = index.byId.get(selectedId);
+      if (node) return node;
+    }
+    return currentFolder;
+  }, [index, selectedId, currentFolder]);
 
   const filterCtx = useMemo(
     () => ({
@@ -230,12 +262,14 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
   );
 
   const filteredChildren = useMemo(() => {
-    // A non-"all" chip surfaces matching datasets across the WHOLE catalogue
-    // (flat); "all" keeps the normal folder-scoped view.
-    let list =
-      activeFilter === "all"
-        ? currentChildren
-        : filterFileNodes(fileNodes, activeFilter, filterCtx);
+    let list: FSNode[];
+    if (activeFilter === "all") {
+      list = currentChildren;
+    } else if (activeFilter === "starred") {
+      list = fileNodes.filter((n) => n.starred);
+    } else {
+      list = filterFileNodes(fileNodes, activeFilter, filterCtx);
+    }
     if (searchMatchIds) list = list.filter((n) => searchMatchIds.has(n.id));
     const sorted = [...list];
     sorted.sort((a, b) => {
@@ -263,31 +297,21 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     return sorted;
   }, [currentChildren, fileNodes, activeFilter, filterCtx, searchMatchIds, sortBy, sortAsc]);
 
-  const ungroupedCount = useMemo(
-    () => fileNodes.filter((n) => !datasetFolderMap[n.id]).length,
-    [fileNodes, datasetFolderMap],
-  );
-
   // Catalogue additions — derived data.
   const filterCounts = useMemo(() => {
     const counts: Partial<Record<CatalogFilter, number>> = {};
-    for (const f of ["csv", "parquet", "unclassified", "low-quality", "recent"] as const) {
+    for (const f of [
+      "csv",
+      "parquet",
+      "unclassified",
+      "low-quality",
+      "recent",
+      "starred",
+    ] as const) {
       counts[f] = fileNodes.filter((n) => matchesFilter(n, f, filterCtx)).length;
     }
     return counts;
   }, [fileNodes, filterCtx]);
-
-  const recentNodes = useMemo(
-    () =>
-      [...fileNodes]
-        .sort(
-          (a, b) =>
-            Math.max(b.createdAt.getTime(), b.updatedAt.getTime()) -
-            Math.max(a.createdAt.getTime(), a.updatedAt.getTime()),
-        )
-        .slice(0, 6),
-    [fileNodes],
-  );
 
   const previewDataset = useMemo(
     () => (previewId ? (datasets.find((d) => d.id === previewId) ?? null) : null),
@@ -309,19 +333,35 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     });
   }, []);
 
-  const handleSelect = useCallback((id: string) => {
-    setSelected(id);
+  const handleSelectTreeFolder = useCallback((id: string) => {
+    setCurrentFolderId(id);
+    setSelectedId(id);
+  }, []);
+
+  const handleSelectNode = useCallback((id: string) => {
+    setSelectedId(id);
   }, []);
 
   const navigateInto = useCallback((node: FSNode) => {
     if (node.type === "folder") {
-      setSelected(node.id);
+      setCurrentFolderId(node.id);
+      setSelectedId(node.id);
       setExpanded((prev) => new Set(prev).add(node.id));
     } else {
-      // Open the dataset preview (the standalone Explorer app was removed).
       setPreviewId(node.id);
     }
   }, []);
+
+  const handleOpenReport = useCallback(
+    (datasetId: string) => {
+      setActiveDataset(datasetId);
+      const claimed = openDesktopApp("telecom");
+      if (!claimed) {
+        router.push("/dashboard/telecom-report/overview");
+      }
+    },
+    [setActiveDataset, router],
+  );
 
   // ── Handlers: store mutations ──────────────────────────────────────────────
   const handleStar = useCallback(
@@ -337,7 +377,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
   const handleCreateFolder = useCallback(() => {
     const name = newFolderName.trim();
     if (!name) return;
-    const parentId = currentFolder?.type === "folder" && selected !== ROOT_ID ? selected : null;
+    const parentId = currentFolder?.id && currentFolder.id !== ROOT_ID ? currentFolder.id : null;
     storeAddFolder({
       id: `folder-${Date.now()}-${Math.round(performance.now())}`,
       name,
@@ -345,10 +385,12 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
       starred: false,
       color: "#1E40AF",
     });
-    setExpanded((prev) => new Set(prev).add(selected));
+    if (currentFolder?.id) {
+      setExpanded((prev) => new Set(prev).add(currentFolder.id));
+    }
     setNewFolderName("");
     setShowNewFolder(false);
-  }, [newFolderName, currentFolder, selected, storeAddFolder]);
+  }, [newFolderName, currentFolder, storeAddFolder]);
 
   const beginRename = useCallback((node: FSNode) => {
     setRenamingId(node.id);
@@ -376,16 +418,19 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     (node: FSNode) => {
       if (node.id === ROOT_ID) return;
       if (node.type === "folder") {
-        // Datasets inside reflow to root via the store; we keep them in the
-        // catalog (do NOT delete the datasets themselves).
         storeRemoveFolder(node.id);
       } else {
         removeDataset(node.id);
         removeDatasetFromMap(node.id);
       }
-      if (selected === node.id) setSelected(node.parentId ?? ROOT_ID);
+      if (currentFolderId === node.id) {
+        setCurrentFolderId(node.parentId ?? ROOT_ID);
+      }
+      if (selectedId === node.id) {
+        setSelectedId(null);
+      }
     },
-    [storeRemoveFolder, removeDataset, removeDatasetFromMap, selected],
+    [storeRemoveFolder, removeDataset, removeDatasetFromMap, currentFolderId, selectedId],
   );
 
   // ── Bulk selection + preview + quick actions ───────────────────────────────
@@ -514,6 +559,12 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           onSelect: () => navigateInto(node),
         },
         {
+          id: "ask-moudir",
+          label: "Résumer avec Moudir IA",
+          icon: Sparkles,
+          onSelect: () => askMoudirAbout(`le contenu du dossier « ${node.name} »`),
+        },
+        {
           id: "rename",
           label: "Renommer",
           icon: Pencil,
@@ -561,13 +612,16 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
         onSelect: () => setPreviewId(node.id),
       },
       {
+        id: "ask-moudir",
+        label: "Analyser avec Moudir IA",
+        icon: Sparkles,
+        onSelect: () => askMoudirAbout(node.name, node.id),
+      },
+      {
         id: "report",
-        label: "Ouvrir le rapport (analytique figée)",
+        label: "Analyser dans le Rapport",
         icon: BarChart3,
-        onSelect: () => {
-          setActiveDataset(node.id);
-          openDesktopApp("telecom");
-        },
+        onSelect: () => handleOpenReport(node.id),
       },
       {
         id: "star",
@@ -590,20 +644,16 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
         onSelect: () => setConfirmDelete(node),
       },
     ];
-  }, [menu, navigateInto, beginRename, colorSubmenu, handleStar, moveSubmenu, setActiveDataset]);
+  }, [menu, navigateInto, beginRename, colorSubmenu, handleStar, moveSubmenu, handleOpenReport]);
 
   const openContextMenu = useCallback((node: FSNode, x: number, y: number) => {
     setMenu({ node, x, y });
   }, []);
 
   // ── AI auto-organize ───────────────────────────────────────────────────────
-  const handleAutoOrganize = useCallback(async () => {
-    const plan = await organizer.organize();
-    if (plan && plan.groups.length > 0) {
-      const applied = organizer.applyPlan(plan);
-      if (applied > 0) setExpanded((prev) => new Set(prev).add(ROOT_ID));
-    }
-  }, [organizer]);
+  const handleAutoOrganize = useCallback(() => {
+    setShowDateOrganize(true);
+  }, []);
 
   // ── Desktop menu bus: route Catalogue menu items to existing handlers ───────
   useAppCommands("folders", {
@@ -613,7 +663,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     },
     import: () => openDesktopApp("upload"),
     "auto-organize": () => {
-      if (!organizer.running && ungroupedCount > 0) void handleAutoOrganize();
+      setShowDateOrganize(true);
     },
     layout: (payload) => {
       const mode = (payload as { mode?: "grid" | "list" } | undefined)?.mode;
@@ -635,166 +685,168 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
     },
   });
 
-  // ── Storage-by-folder chart (theme aware) ──────────────────────────────────
-  const axisLabelColor = isDark ? "#94a3b8" : "#64748b";
-  const storageChart = useMemo<EChartsOption>(() => {
-    const rootFolders = (index.childrenOf.get(ROOT_ID) ?? []).filter((n) => n.type === "folder");
-    const palette = ["#1E40AF", "#22c55e", "#f59e0b", "#ef4444", "#3b82f6", "#10b981", "#a855f7"];
-    const ungroupedSize = (index.childrenOf.get(ROOT_ID) ?? [])
-      .filter((n) => n.type !== "folder")
-      .reduce((s, n) => s + n.size, 0);
-    const data = [
-      ...rootFolders.map((f, i) => ({
-        name: f.name,
-        value: folderSizes.get(f.id) ?? 0,
-        itemStyle: { color: f.color ?? palette[i % palette.length] },
-      })),
-      ...(ungroupedSize > 0
-        ? [
-            {
-              name: "Non classés",
-              value: ungroupedSize,
-              itemStyle: { color: "#64748b" },
-            },
-          ]
-        : []),
-    ].filter((d) => d.value > 0);
-
-    return {
-      backgroundColor: "transparent",
-      tooltip: {
-        trigger: "item" as const,
-        valueFormatter: (v: number | string) => formatBytes(Number(v)),
-      },
-      series: [
-        {
-          type: "pie" as const,
-          radius: ["45%", "72%"],
-          center: ["50%", "50%"],
-          data:
-            data.length > 0
-              ? data
-              : [
-                  {
-                    name: "Aucune donnée",
-                    value: 1,
-                    itemStyle: { color: "#475569" },
-                  },
-                ],
-          label: { color: axisLabelColor, fontSize: 11 },
-          emphasis: { itemStyle: { shadowBlur: 10 } },
-        },
-      ],
-    } as unknown as EChartsOption;
-  }, [index, folderSizes, axisLabelColor]);
-
   // ── Render ─────────────────────────────────────────────────────────────────
-  const overview: { label: string; value: string; icon: LucideIcon; tint: string }[] = [
-    {
-      label: "Jeux de données",
-      value: fileNodes.length.toLocaleString("fr-FR"),
-      icon: Database,
-      tint: "text-blue-500",
-    },
-    {
-      label: "Lignes totales",
-      value: totalRows.toLocaleString("fr-FR"),
-      icon: Layers,
-      tint: "text-green-500",
-    },
-    {
-      label: "Dossiers",
-      value: folderNodes.length.toLocaleString("fr-FR"),
-      icon: Folder,
-      tint: "text-amber-500",
-    },
-    {
-      label: "En favoris",
-      value: starredNodes.length.toLocaleString("fr-FR"),
-      icon: Star,
-      tint: "text-yellow-500",
-    },
-  ];
-
   return (
     <div className="flex h-full flex-col bg-background text-foreground">
       {/* Header */}
-      <header className="shrink-0 border-b border-border px-4 py-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="shrink-0 border-b border-border bg-card/30 px-4 py-2.5">
+        <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="rounded-xl bg-gradient-to-br from-primary to-primary/70 p-2">
-              <HardDrive className="h-6 w-6 text-primary-foreground" />
+            <div className="rounded-xl bg-gradient-to-br from-primary to-primary/70 p-2 shadow-sm">
+              <HardDrive className="h-5 w-5 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">Catalogue de données</h1>
-              <p className="text-sm text-muted-foreground">
-                {fileNodes.length} jeux · {folderNodes.length} dossiers · {formatBytes(totalSize)}
+              <h1 className="text-base font-bold leading-none sm:text-lg">Catalogue de données</h1>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {fileNodes.length} jeux de données · {totalRows.toLocaleString("fr-FR")} lignes ·{" "}
+                {folderNodes.length} dossier{folderNodes.length > 1 ? "s" : ""} ·{" "}
+                {formatBytes(totalSize)}
               </p>
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
+
+          {/* Integrated Search */}
+          <div className="relative mx-2 hidden max-w-md flex-1 md:block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <input
+              type="text"
+              placeholder="Rechercher un jeu ou un dossier…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background py-1.5 pl-9 pr-8 text-sm placeholder-muted-foreground focus:border-primary focus:outline-none"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground hover:text-foreground"
+              >
+                ×
+              </button>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={() => openDesktopApp("upload")}
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80"
+              className="flex items-center gap-2 rounded-lg bg-primary px-3.5 py-1.5 text-sm font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90"
             >
               <Upload className="h-4 w-4" /> Importer
             </button>
             <button
               type="button"
               onClick={handleAutoOrganize}
-              disabled={organizer.running || ungroupedCount === 0}
-              title={
-                ungroupedCount === 0
-                  ? "Tout est déjà organisé"
-                  : `Classer ${ungroupedCount} jeu(x) non classé(s) avec l'IA`
-              }
-              className="flex items-center gap-2 rounded-lg bg-accent px-3 py-2 text-sm transition-colors hover:bg-accent/80 disabled:opacity-50"
+              title="Organiser intelligemment par date et période (IA)"
+              className="flex items-center gap-1.5 rounded-lg border border-border bg-card px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent"
             >
-              <Sparkles
-                className={`h-4 w-4 ${organizer.running ? "animate-pulse text-primary" : ""}`}
-              />
-              {organizer.running ? "Classement…" : "Auto-classer"}
+              <Sparkles className="h-4 w-4 text-primary" />
+              <span className="hidden sm:inline">Organiser par date (IA)</span>
             </button>
+          </div>
+        </div>
+
+        {organizer.error && <div className="mt-2 text-xs text-amber-500">{organizer.error}</div>}
+      </header>
+
+      {/* Body: navigation | content | inspector */}
+      <div className="flex min-h-0 flex-1 overflow-hidden">
+        {/* Left: navigation & folders */}
+        <aside className="flex w-60 shrink-0 flex-col border-r border-border bg-card/20 xl:w-64">
+          {/* Quick Access */}
+          <div className="p-2">
+            <div className="px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Navigation
+            </div>
+            <nav className="space-y-0.5">
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter("all");
+                  setCurrentFolderId(ROOT_ID);
+                  setSelectedId(null);
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  activeFilter === "all" && currentFolderId === ROOT_ID
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <HardDrive className="h-4 w-4 shrink-0" />
+                  <span className="truncate">Tous les fichiers</span>
+                </span>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                  {fileNodes.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter("starred");
+                  setSelectedId(null);
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  activeFilter === "starred"
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Star className="h-4 w-4 shrink-0 text-yellow-500 fill-yellow-500/20" />
+                  <span className="truncate">Favoris</span>
+                </span>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                  {starredNodes.length}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setActiveFilter("recent");
+                  setSelectedId(null);
+                }}
+                className={`flex w-full items-center justify-between rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                  activeFilter === "recent"
+                    ? "bg-primary/10 text-primary font-semibold"
+                    : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                }`}
+              >
+                <span className="flex items-center gap-2 truncate">
+                  <Clock className="h-4 w-4 shrink-0 text-blue-500" />
+                  <span className="truncate">Récents</span>
+                </span>
+                <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">
+                  {filterCounts.recent ?? 0}
+                </span>
+              </button>
+            </nav>
+          </div>
+
+          <div className="mx-3 my-1 border-t border-border" />
+
+          {/* Dossiers section header */}
+          <div className="flex items-center justify-between px-3 py-1">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+              Dossiers
+            </span>
             <button
               type="button"
               onClick={() => {
                 setNewFolderName("");
                 setShowNewFolder(true);
               }}
-              className="flex items-center gap-2 rounded-lg bg-primary px-3 py-2 text-sm text-primary-foreground transition-colors hover:bg-primary/90"
+              title="Nouveau dossier"
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 text-xs text-muted-foreground hover:bg-accent hover:text-foreground"
             >
-              <FolderPlus className="h-4 w-4" /> Nouveau dossier
+              <FolderPlus className="h-3.5 w-3.5" />
+              <span className="text-[11px]">Nouveau</span>
             </button>
           </div>
-        </div>
 
-        {organizer.error && <div className="mt-2 text-xs text-amber-500">{organizer.error}</div>}
-
-        {/* Overview strip */}
-        <div className="mt-3 grid grid-cols-2 gap-2 lg:grid-cols-4">
-          {overview.map((s) => (
-            <div
-              key={s.label}
-              className="flex items-center gap-3 rounded-xl border border-border bg-card px-3 py-2"
-            >
-              <s.icon className={`h-5 w-5 shrink-0 ${s.tint}`} />
-              <div className="min-w-0">
-                <div className="truncate text-lg font-bold leading-tight">{s.value}</div>
-                <div className="truncate text-xs text-muted-foreground">{s.label}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </header>
-
-      {/* Body: tree | content | details */}
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        {/* Left: folder tree */}
-        <aside className="flex w-60 shrink-0 flex-col border-r border-border xl:w-64">
-          <div className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-            Dossiers
-          </div>
+          {/* Folder tree */}
           {/* biome-ignore lint/a11y/noStaticElementInteractions: drag-release surface clears DnD state; keyboard moves use the context menu. */}
           <div
             className="min-h-0 flex-1 px-2 pb-2"
@@ -805,11 +857,14 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           >
             <FolderTree
               rows={treeRows}
-              selected={selected}
+              selected={activeFilter === "all" ? currentFolderId : ""}
               dragOver={dragOver}
               dragging={dragging}
               onToggle={toggleExpand}
-              onSelect={handleSelect}
+              onSelect={(id) => {
+                setActiveFilter("all");
+                handleSelectTreeFolder(id);
+              }}
               onStar={handleStar}
               onDragStart={setDragging}
               onDragOver={scheduleDragOver}
@@ -822,94 +877,115 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
         <section className="flex min-w-0 flex-1 flex-col overflow-hidden">
           {/* Toolbar */}
           <div className="shrink-0 space-y-2 border-b border-border p-3">
-            <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-              {breadcrumb.map((item, idx) => (
-                <span key={item.id} className="flex items-center gap-1">
-                  {idx > 0 && <ChevronRight className="h-3 w-3" />}
-                  <button
-                    type="button"
-                    onClick={() => handleSelect(item.id)}
-                    className={`rounded px-1 py-0.5 transition-colors hover:bg-accent hover:text-foreground ${
-                      idx === breadcrumb.length - 1 ? "font-semibold text-foreground" : ""
-                    }`}
-                  >
-                    {item.id === ROOT_ID ? "Tous les fichiers" : item.name}
-                  </button>
-                </span>
-              ))}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              <div className="relative min-w-40 flex-1">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
-                <input
-                  type="text"
-                  placeholder="Rechercher dossiers et jeux…"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-3 text-sm placeholder-muted-foreground focus:border-primary focus:outline-none"
-                />
-              </div>
-              <div className="flex items-center gap-1">
-                {(["name", "size", "updated", "quality"] as const).map((s) => {
-                  const labels: Record<SortKey, string> = {
-                    name: "Nom",
-                    size: "Taille",
-                    updated: "Modifié",
-                    quality: "Qualité",
-                  };
-                  return (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Breadcrumbs */}
+              <div className="flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
+                {breadcrumb.map((item, idx) => (
+                  <span key={item.id} className="flex items-center gap-1">
+                    {idx > 0 && <ChevronRight className="h-3 w-3" />}
                     <button
-                      key={s}
                       type="button"
                       onClick={() => {
-                        if (sortBy === s) setSortAsc(!sortAsc);
-                        else {
-                          setSortBy(s);
-                          setSortAsc(true);
+                        if (item.id === ROOT_ID) {
+                          setActiveFilter("all");
+                          setCurrentFolderId(ROOT_ID);
+                          setSelectedId(null);
+                        } else if (!item.id.startsWith("filter-")) {
+                          setActiveFilter("all");
+                          setCurrentFolderId(item.id);
+                          setSelectedId(item.id);
                         }
                       }}
-                      className={`rounded px-1.5 py-1 text-xs transition-colors ${
-                        sortBy === s
-                          ? "bg-primary/20 text-primary"
+                      className={`rounded px-1 py-0.5 transition-colors hover:bg-accent hover:text-foreground ${
+                        idx === breadcrumb.length - 1 ? "font-semibold text-foreground" : ""
+                      }`}
+                    >
+                      {item.name}
+                    </button>
+                  </span>
+                ))}
+              </div>
+
+              {/* Sort + View Mode */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {(["name", "size", "updated", "quality"] as const).map((s) => {
+                    const labels: Record<SortKey, string> = {
+                      name: "Nom",
+                      size: "Taille",
+                      updated: "Modifié",
+                      quality: "Qualité",
+                    };
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => {
+                          if (sortBy === s) setSortAsc(!sortAsc);
+                          else {
+                            setSortBy(s);
+                            setSortAsc(true);
+                          }
+                        }}
+                        className={`rounded px-1.5 py-1 text-xs transition-colors ${
+                          sortBy === s
+                            ? "bg-primary/20 text-primary font-medium"
+                            : "text-muted-foreground hover:text-foreground"
+                        }`}
+                      >
+                        {labels[s]}
+                        {sortBy === s ? (sortAsc ? " ↑" : " ↓") : ""}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-0.5">
+                  {(
+                    [
+                      ["list", List],
+                      ["grid", Grid3x3],
+                    ] as const
+                  ).map(([mode, Icon]) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      aria-label={mode}
+                      onClick={() => setLayout(mode)}
+                      className={`rounded p-1 transition-colors ${
+                        layout === mode
+                          ? "bg-primary text-primary-foreground"
                           : "text-muted-foreground hover:text-foreground"
                       }`}
                     >
-                      {labels[s]}
-                      {sortBy === s ? (sortAsc ? " ↑" : " ↓") : ""}
+                      <Icon className="h-3.5 w-3.5" />
                     </button>
-                  );
-                })}
-              </div>
-              <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-0.5">
-                {(
-                  [
-                    ["grid", Grid3x3],
-                    ["list", List],
-                  ] as const
-                ).map(([mode, Icon]) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    aria-label={mode}
-                    onClick={() => setLayout(mode)}
-                    className={`rounded-md p-1.5 transition-colors ${
-                      layout === mode
-                        ? "bg-primary text-primary-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Icon className="h-4 w-4" />
-                  </button>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-            <FilterChips active={activeFilter} counts={filterCounts} onChange={changeFilter} />
-            <div className="text-xs text-muted-foreground">
-              {activeFilter === "all"
-                ? `${filteredChildren.length} élément${filteredChildren.length === 1 ? "" : "s"}`
-                : `${filteredChildren.length} résultat${
-                    filteredChildren.length === 1 ? "" : "s"
-                  } · tout le catalogue`}
+
+            {/* Mobile search bar if screen < md */}
+            <div className="relative md:hidden">
+              <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="text"
+                placeholder="Rechercher un jeu ou un dossier…"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full rounded-lg border border-border bg-card py-1.5 pl-8 pr-3 text-xs placeholder-muted-foreground focus:border-primary focus:outline-none"
+              />
+            </div>
+
+            {/* Filter chips & item count */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-0.5">
+              <FilterChips active={activeFilter} counts={filterCounts} onChange={changeFilter} />
+              <span className="text-xs text-muted-foreground">
+                {activeFilter === "all"
+                  ? `${filteredChildren.length} élément${filteredChildren.length === 1 ? "" : "s"}`
+                  : `${filteredChildren.length} résultat${
+                      filteredChildren.length === 1 ? "" : "s"
+                    }`}
+              </span>
             </div>
           </div>
 
@@ -926,7 +1002,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
               e.preventDefault();
             }}
             onDrop={(e) => {
-              if (e.target === e.currentTarget) handleDrop(selected);
+              if (e.target === e.currentTarget) handleDrop(currentFolder?.id ?? ROOT_ID);
             }}
           >
             {filteredChildren.length === 0 ? (
@@ -939,7 +1015,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
             ) : (
               <ExplorerView
                 nodes={filteredChildren}
-                selected={selected}
+                selected={selectedId ?? currentFolderId}
                 dragOver={dragOver}
                 dragging={dragging}
                 layout={layout}
@@ -947,7 +1023,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
                 selectedIds={selectedIds}
                 onToggleSelect={toggleSelect}
                 onOpen={navigateInto}
-                onSelect={handleSelect}
+                onSelect={handleSelectNode}
                 onStar={handleStar}
                 onContextMenu={openContextMenu}
                 onDragStart={setDragging}
@@ -958,49 +1034,27 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           </div>
         </section>
 
-        {/* Right: details / overview */}
-        <aside className="hidden w-72 shrink-0 flex-col gap-3 overflow-y-auto border-l border-border p-3 xl:flex">
+        {/* Right: Inspecteur */}
+        <aside className="hidden w-72 shrink-0 flex-col overflow-y-auto border-l border-border bg-card/20 p-3.5 xl:flex">
           <DetailsPanel
-            node={currentFolder}
+            node={inspectedNode}
             childCount={
-              currentFolder?.type === "folder"
-                ? (childCounts.get(currentFolder.id) ?? 0)
+              inspectedNode?.type === "folder"
+                ? (childCounts.get(inspectedNode.id) ?? 0)
                 : undefined
             }
             folderSize={
-              currentFolder?.type === "folder"
-                ? (folderSizes.get(currentFolder.id) ?? 0)
+              inspectedNode?.type === "folder"
+                ? (folderSizes.get(inspectedNode.id) ?? 0)
                 : undefined
             }
             onOpen={navigateInto}
             onStar={handleStar}
             onRename={beginRename}
             onPreview={setPreviewId}
+            onOpenReport={handleOpenReport}
+            onAskMoudir={(name) => askMoudirAbout(name, inspectedNode?.id)}
           />
-          <RecentRail
-            nodes={recentNodes}
-            onPreview={(n) => setPreviewId(n.id)}
-            onOpen={(n) => setPreviewId(n.id)}
-          />
-          <div className="rounded-xl border border-border bg-card p-3">
-            <h3 className="mb-2 text-sm font-semibold">Stockage par dossier</h3>
-            <CatalogChart option={storageChart} height={180} />
-          </div>
-          {starredNodes.length > 0 && (
-            <div className="rounded-xl border border-border bg-card p-3">
-              <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
-                <Star className="h-3.5 w-3.5 text-yellow-400" /> Favoris
-              </h3>
-              <div className="h-48">
-                <FileGrid
-                  nodes={starredNodes.filter((n) => n.type !== "folder")}
-                  selected={selected}
-                  onSelect={handleSelect}
-                  onStar={handleStar}
-                />
-              </div>
-            </div>
-          )}
         </aside>
       </div>
 
@@ -1019,7 +1073,6 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
                 if (e.key === "Enter") commitRename();
                 if (e.key === "Escape") setRenamingId(null);
               }}
-              // biome-ignore lint/a11y/noAutofocus: modal focus on open is expected UX
               autoFocus
               className="mb-4 w-full rounded-lg border border-border bg-muted px-3 py-2 placeholder-muted-foreground focus:border-primary focus:outline-none"
             />
@@ -1060,14 +1113,13 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
                 if (e.key === "Enter") handleCreateFolder();
                 if (e.key === "Escape") setShowNewFolder(false);
               }}
-              // biome-ignore lint/a11y/noAutofocus: modal focus on open is expected UX
               autoFocus
               className="mb-2 w-full rounded-lg border border-border bg-muted px-3 py-2 placeholder-muted-foreground focus:border-primary focus:outline-none"
             />
             <p className="mb-4 text-xs text-muted-foreground">
               Dans :{" "}
               <span className="text-foreground">
-                {selected === ROOT_ID
+                {currentFolderId === ROOT_ID
                   ? "Tous les fichiers"
                   : (currentFolder?.name ?? "Tous les fichiers")}
               </span>
@@ -1092,6 +1144,15 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           </Overlay>
         )}
       </AnimatePresence>
+
+      {/* Date & temporal AI organize modal */}
+      <DateOrganizeModal
+        open={showDateOrganize}
+        onClose={() => setShowDateOrganize(false)}
+        onApplied={(count) => {
+          if (count > 0) setExpanded((prev) => new Set(prev).add(ROOT_ID));
+        }}
+      />
 
       {/* Delete confirm overlay */}
       <AnimatePresence>
@@ -1149,7 +1210,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
           dataset={previewDataset}
           onClose={closePreview}
           onAskMoudir={() => {
-            askMoudirAbout(previewDataset.name);
+            askMoudirAbout(previewDataset.name, previewDataset.id);
             closePreview();
           }}
         />
@@ -1278,6 +1339,8 @@ function DetailsPanel({
   onStar,
   onRename,
   onPreview,
+  onOpenReport,
+  onAskMoudir,
 }: {
   node: FSNode | undefined;
   childCount?: number;
@@ -1286,22 +1349,39 @@ function DetailsPanel({
   onStar: (id: string) => void;
   onRename: (node: FSNode) => void;
   onPreview?: (id: string) => void;
+  onOpenReport?: (id: string) => void;
+  onAskMoudir?: (name: string) => void;
 }) {
   if (!node) {
     return (
-      <div className="rounded-xl border border-border bg-card p-3 text-sm text-muted-foreground">
-        Sélectionnez un élément pour voir ses détails.
+      <div className="flex flex-col gap-3">
+        <div className="border-b border-border pb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Inspecteur
+        </div>
+        <div className="rounded-xl border border-dashed border-border p-6 text-center text-xs text-muted-foreground">
+          Sélectionnez un dossier ou un jeu de données pour inspecter ses détails.
+        </div>
       </div>
     );
   }
   const isFolder = node.type === "folder";
   const style = fileTypeStyle(node.type);
   const Icon = isFolder ? Folder : style.icon;
+
   return (
-    <div className="rounded-xl border border-border bg-card p-3">
-      <div className="mb-3 flex items-start gap-3">
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center justify-between border-b border-border pb-2">
+        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Inspecteur
+        </span>
+        <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono uppercase text-muted-foreground">
+          {isFolder ? "Dossier" : `${node.type.toUpperCase()}`}
+        </span>
+      </div>
+
+      <div className="flex items-start gap-3">
         <div
-          className={`rounded-lg p-2 ${isFolder ? "" : style.bg}`}
+          className={`rounded-lg p-2.5 shrink-0 ${isFolder ? "" : style.bg}`}
           style={isFolder ? { backgroundColor: `${node.color ?? "#1E40AF"}1f` } : undefined}
         >
           <Icon
@@ -1310,73 +1390,117 @@ function DetailsPanel({
           />
         </div>
         <div className="min-w-0 flex-1">
-          <div className="break-words text-sm font-semibold">{node.name}</div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">
-            {isFolder ? "Dossier" : node.type}
+          <div className="break-words text-sm font-semibold leading-snug">{node.name}</div>
+          <div className="text-xs text-muted-foreground mt-0.5">
+            {isFolder
+              ? "Dossier de données"
+              : `${node.type.toUpperCase()} · ${node.colCount ?? 0} colonnes`}
           </div>
         </div>
       </div>
-      <dl className="space-y-1.5 text-xs">
-        {isFolder ? (
-          <>
-            <Row label="Éléments" value={`${childCount ?? 0}`} />
-            <Row label="Taille" value={formatBytes(folderSize ?? 0)} />
-          </>
-        ) : (
-          <>
-            {node.rowCount !== undefined && (
-              <Row label="Lignes" value={node.rowCount.toLocaleString("fr-FR")} />
-            )}
-            {node.colCount !== undefined && <Row label="Colonnes" value={`${node.colCount}`} />}
-            <Row label="Taille" value={formatBytes(node.size)} />
-            {node.quality !== undefined && (
-              <div className="flex items-center justify-between gap-2">
-                <dt className="text-muted-foreground">Qualité</dt>
-                <dd className="font-mono" style={{ color: qualityColor(node.quality) }}>
-                  {(node.quality * 100).toFixed(0)}%
-                </dd>
-              </div>
-            )}
-          </>
-        )}
-        <Row label="Modifié" value={node.updatedAt.toLocaleDateString("fr-FR")} />
-      </dl>
+
+      <div className="rounded-lg border border-border bg-card/60 p-2.5">
+        <dl className="space-y-2 text-xs">
+          {isFolder ? (
+            <>
+              <Row label="Éléments" value={`${childCount ?? 0}`} />
+              <Row label="Taille totale" value={formatBytes(folderSize ?? 0)} />
+            </>
+          ) : (
+            <>
+              {node.rowCount !== undefined && (
+                <Row label="Lignes" value={node.rowCount.toLocaleString("fr-FR")} />
+              )}
+              {node.colCount !== undefined && <Row label="Colonnes" value={`${node.colCount}`} />}
+              <Row label="Taille" value={formatBytes(node.size)} />
+              {node.quality !== undefined && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between">
+                    <dt className="text-muted-foreground">Qualité des données</dt>
+                    <dd
+                      className="font-mono font-semibold"
+                      style={{ color: qualityColor(node.quality) }}
+                    >
+                      {(node.quality * 100).toFixed(0)}%
+                    </dd>
+                  </div>
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-accent">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${node.quality * 100}%`,
+                        backgroundColor: qualityColor(node.quality),
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+          <Row label="Modifié le" value={node.updatedAt.toLocaleDateString("fr-FR")} />
+        </dl>
+      </div>
+
       {node.id !== ROOT_ID && (
-        <div className="mt-3 flex gap-2">
-          {!isFolder && onPreview && (
+        <div className="flex flex-col gap-2 pt-1">
+          {!isFolder && onOpenReport && (
             <button
               type="button"
-              onClick={() => onPreview(node.id)}
-              className="flex-1 rounded-lg bg-accent px-2 py-1.5 text-xs text-foreground hover:bg-accent/80"
+              onClick={() => onOpenReport(node.id)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow transition-colors hover:bg-primary/90"
             >
-              Aperçu
+              <BarChart3 className="h-4 w-4" /> Analyser dans le Rapport
             </button>
           )}
-          <button
-            type="button"
-            onClick={() => onOpen(node)}
-            className="flex-1 rounded-lg bg-primary px-2 py-1.5 text-xs text-primary-foreground hover:bg-primary/90"
-          >
-            Ouvrir
-          </button>
-          <button
-            type="button"
-            onClick={() => onStar(node.id)}
-            aria-label="Étoile"
-            className="rounded-lg bg-accent px-2 py-1.5 text-muted-foreground hover:text-yellow-400"
-          >
-            <Star className={`h-4 w-4 ${node.starred ? "fill-yellow-400 text-yellow-400" : ""}`} />
-          </button>
-          {isFolder && (
+          <div className="flex gap-2">
+            {!isFolder && onPreview && (
+              <button
+                type="button"
+                onClick={() => onPreview(node.id)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <Eye className="h-3.5 w-3.5" /> Aperçu
+              </button>
+            )}
+            {!isFolder && onAskMoudir && (
+              <button
+                type="button"
+                onClick={() => onAskMoudir(node.name)}
+                className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-border bg-card px-2 py-1.5 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                <Sparkles className="h-3.5 w-3.5 text-primary" /> Moudir IA
+              </button>
+            )}
+            {isFolder && (
+              <button
+                type="button"
+                onClick={() => onOpen(node)}
+                className="flex-1 rounded-lg bg-primary px-2 py-1.5 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                Ouvrir
+              </button>
+            )}
             <button
               type="button"
-              onClick={() => onRename(node)}
-              aria-label="Renommer"
-              className="rounded-lg bg-accent px-2 py-1.5 text-muted-foreground hover:text-foreground"
+              onClick={() => onStar(node.id)}
+              title={node.starred ? "Retirer des favoris" : "Ajouter aux favoris"}
+              className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-yellow-400"
             >
-              <Pencil className="h-4 w-4" />
+              <Star
+                className={`h-4 w-4 ${node.starred ? "fill-yellow-400 text-yellow-400" : ""}`}
+              />
             </button>
-          )}
+            {isFolder && (
+              <button
+                type="button"
+                onClick={() => onRename(node)}
+                title="Renommer"
+                className="rounded-lg border border-border bg-card px-2.5 py-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              >
+                <Pencil className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         </div>
       )}
     </div>

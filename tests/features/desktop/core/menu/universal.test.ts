@@ -109,32 +109,16 @@ describe("appLeadingGroup", () => {
     expect(group.label).toBe("Studio IA — Moudir");
   });
 
-  it("lists preferences, about-help, hide, quit-classic, and close ids in order", () => {
+  it("lists preferences, hide, quit-classic, and close ids in order", () => {
     const group = appLeadingGroup(makeCtx());
     const ids = group.items.map((i) => i.id);
-    expect(ids).toEqual([
-      "preferences",
-      "about-help",
-      "app-sep-1",
-      "hide",
-      "app-sep-2",
-      "quit-classic",
-      "close",
-    ]);
+    expect(ids).toEqual(["preferences", "app-sep-1", "hide", "app-sep-2", "quit-classic", "close"]);
   });
 
   it("preferences opens the settings app", () => {
     const ctx = makeCtx();
     action(findId(appLeadingGroup(ctx).items, "preferences")).run();
     expect(ctx.openApp).toHaveBeenCalledWith("settings");
-  });
-
-  it("about-help opens the help app and includes the app title in its label", () => {
-    const ctx = makeCtx({ title: "Géographie" });
-    const group = appLeadingGroup(ctx);
-    expect(action(findId(group.items, "about-help")).label).toBe("Aide de Géographie");
-    action(findId(group.items, "about-help")).run();
-    expect(ctx.openApp).toHaveBeenCalledWith("help");
   });
 
   it("hide calls minimizeWindow and is enabled when a window is focused", () => {
@@ -449,12 +433,6 @@ describe("helpGroup", () => {
     const group = helpGroup(makeCtx());
     expect(group.id).toBe("help");
     expect(group.label).toBe("Aide");
-  });
-
-  it("open-help opens the help app", () => {
-    const ctx = makeCtx();
-    action(findId(helpGroup(ctx).items, "open-help")).run();
-    expect(ctx.openApp).toHaveBeenCalledWith("help");
   });
 
   it("ask-moudir calls ctx.askMoudir with a prompt naming the current app title", () => {

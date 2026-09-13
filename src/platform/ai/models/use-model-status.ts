@@ -280,7 +280,11 @@ export function useModelStatus(lanes: ModelLane[] = ["llm", "embed"]): UseModelS
     [setDownload],
   );
 
-  const ready = records.filter((r) => !r.optional).every((r) => r.state === "present");
+  const hasLlm =
+    !lanes.includes("llm") || records.some((r) => r.lane === "llm" && r.state === "present");
+  const hasEmbed =
+    !lanes.includes("embed") || records.some((r) => r.lane === "embed" && r.state === "present");
+  const ready = records.length > 0 && hasLlm && hasEmbed;
 
   return { records, loading, ready, downloads, refresh, download, cancel };
 }

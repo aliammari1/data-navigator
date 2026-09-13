@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, Database } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useMemo } from "react";
 import { usePinnedItems } from "@/core/stores/settings-store";
@@ -92,8 +92,9 @@ export function AppSidebar({
           collapsed && "justify-center px-2",
         )}
       >
-        <div className="flex size-8 flex-none shrink-0 items-center justify-center rounded-xl border border-primary/25 bg-gradient-to-br from-primary/20 via-primary/10 to-primary/5 shadow-xs">
-          <Database className="size-4 text-primary" />
+        <div className="flex size-8 flex-none shrink-0 items-center justify-center overflow-hidden rounded-xl">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/icon.png" alt="Data Navigator" className="size-8 object-cover" />
         </div>
         {!collapsed && (
           <div className="min-w-0 flex-1">

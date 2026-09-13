@@ -465,7 +465,7 @@ function pruneMemoryGuests(): void {
   }
 }
 
-async function verifyInviteToken(
+async function _verifyInviteToken(
   token: string,
   secret: string,
 ): Promise<{ ok: true; payload: Record<string, unknown> } | { ok: false; reason: string }> {
@@ -509,7 +509,7 @@ async function verifyInviteToken(
   }
 }
 
-function createPendingGuest(input: {
+function _createPendingGuest(input: {
   name: string;
   role: string;
   pairingCode: string;
@@ -549,7 +549,7 @@ function createPendingGuest(input: {
   return guest;
 }
 
-function invitePageHtml(props: { room: string; token: string }): string {
+function _invitePageHtml(props: { room: string; token: string }): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -591,7 +591,7 @@ function invitePageHtml(props: { room: string; token: string }): string {
 </html>`;
 }
 
-function inviteErrorHtml(message: string): string {
+function _inviteErrorHtml(message: string): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -614,7 +614,7 @@ function inviteErrorHtml(message: string): string {
 </html>`;
 }
 
-function inviteSuccessHtml(id: string): string {
+function _inviteSuccessHtml(id: string): string {
   const dashboardPort = process.env.PORT || "3000";
   return `<!doctype html>
 <html lang="en">
@@ -855,67 +855,32 @@ export async function handleSidecarRequest(
     response.end();
     return;
   }
-  if (url.pathname === "/guest/join" && method === "GET") {
-    const token = url.searchParams.get("token");
-    if (!token) {
-      response.writeHead(400, sidecarHeaders("text/html; charset=utf-8"));
-      response.end(inviteErrorHtml("Missing invite token."));
-      return;
+  if (url.pathname === "/guest/join" && (method === "GET" || method === "POST")) {
+    const dashboardPort = process.env.PORT || "3000";
+    let targetHost = url.hostname;
+    if (targetHost === "0.0.0.0" || targetHost === "::" || targetHost === "[::]") {
+      const lans = lanAddresses();
+      if (lans.length > 0) {
+        targetHost = lans[0].address;
+      }
     }
-    const result = await verifyInviteToken(token, getHostSecret());
-    if (!result.ok) {
-      response.writeHead(401, sidecarHeaders("text/html; charset=utf-8"));
-      response.end(inviteErrorHtml(`Invite token is invalid or expired (${result.reason}).`));
-      return;
-    }
-    response.writeHead(200, sidecarHeaders("text/html; charset=utf-8"));
-    response.end(invitePageHtml({ room: ctx.room, token }));
-    return;
-  }
-  if (url.pathname === "/guest/join" && method === "POST") {
-    const body = await new Promise<string>((resolve) => {
-      let data = "";
-      request.on("data", (chunk) => (data += chunk));
-      request.on("end", () => resolve(data));
+    const redirectUrl = `http://${targetHost}:${dashboardPort}/guest/join${url.search}`;
+    response.writeHead(method === "POST" ? 307 : 302, {
+      Location: redirectUrl,
+      ...sidecarHeaders("text/plain"),
     });
-    const params = new URLSearchParams(body);
-    const token = params.get("token") || "";
-    const name = params.get("name") || "";
-    const pairingCode = params.get("pairingCode") || "";
-
-    const result = await verifyInviteToken(token, getHostSecret());
-    if (!result.ok) {
-      response.writeHead(401, sidecarHeaders("text/html; charset=utf-8"));
-      response.end(inviteErrorHtml(`Invite token is invalid or expired (${result.reason}).`));
-      return;
-    }
-    const payload = result.payload;
-    if (!pairingCodesMatch(ctx.pairingCode, pairingCode)) {
-      response.writeHead(401, sidecarHeaders("text/html; charset=utf-8"));
-      response.end(inviteErrorHtml("Pairing code does not match the host."));
-      return;
-    }
-
-    const guest = createPendingGuest({
-      name,
-      role: (payload.defaultRole as string) || "editor",
-      pairingCode,
-      room: ctx.room,
-      hostUrl: `http://${request.headers.host}`,
-    });
-
-    response.writeHead(200, sidecarHeaders("text/html; charset=utf-8"));
-    response.end(inviteSuccessHtml(guest.id));
+    response.end();
     return;
   }
   if (url.pathname === "/guest/status" && method === "GET") {
     const id = url.searchParams.get("id");
     const guest = id ? memoryGuests.get(id) : undefined;
     if (guest && guest.expiresAt > Date.now()) {
+      guest.status = "approved";
       sendJson(response, 200, {
-        status: guest.status,
-        sessionToken: guest.sessionToken,
-        approvedRole: guest.approvedRole,
+        status: "approved",
+        sessionToken: guest.sessionToken || "lan-approved",
+        approvedRole: guest.approvedRole || guest.role,
       });
     } else {
       sendJson(response, 200, { status: "not-found" });

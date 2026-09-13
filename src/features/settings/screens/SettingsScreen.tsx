@@ -249,8 +249,8 @@ export default function SettingsScreen() {
           })}
         </div>
 
-        <div className="flex-1 overflow-y-auto">
-          <div className=" max-w-5xl">
+        <div className="flex-1 overflow-y-auto px-4 py-6 md:px-8">
+          <div className="max-w-5xl">
             <AnimatePresence mode="wait" initial={false}>
               <motion.div
                 key={activeTab}

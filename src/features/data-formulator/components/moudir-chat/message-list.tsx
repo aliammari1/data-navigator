@@ -12,15 +12,7 @@
 // Empty/loading states live OUTSIDE Conversation so an empty thread does not
 // mount a viewport that immediately auto-scrolls.
 
-import {
-  ArrowDown,
-  BarChart3,
-  Brain,
-  Database,
-  FileSpreadsheet,
-  ShieldCheck,
-  Sparkles,
-} from "lucide-react";
+import { ArrowDown, BarChart3, Brain, Database, FileSpreadsheet, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -33,7 +25,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/shared/utils";
 import { useMoudirChatStore } from "../../store/moudir-chat-store";
-import { MoudirMark } from "../moudir/moudir-kit";
 import { MoudirMessageBubble } from "./message-bubble";
 
 /** How long a jumped-to message stays highlighted. */
@@ -96,30 +87,19 @@ const CAPABILITY_CARDS = [
 
 function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
   return (
-    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-6 px-6 py-8 text-center animate-in fade-in duration-300">
-      <div className="relative">
-        <div className="absolute -inset-2 rounded-full bg-primary/10 blur-xl animate-pulse" />
-        <div className="relative rounded-2xl border border-border/60 bg-card/80 p-3 shadow-sm backdrop-blur">
-          <MoudirMark size={48} />
-        </div>
-      </div>
-
+    <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-7 px-6 py-8 text-center animate-in fade-in duration-300">
       <div className="space-y-2">
-        <div className="inline-flex items-center gap-1.5 rounded-full border border-border/60 bg-muted/40 px-3 py-1 text-xs text-muted-foreground">
-          <ShieldCheck className="size-3.5 text-emerald-500" />
-          <span>IA locale et privée. Données traitées sur cet appareil.</span>
-        </div>
-        <h2 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
+        <h2 className="text-2xl font-semibold tracking-tight text-foreground sm:text-3xl font-display">
           Que souhaitez-vous explorer ?
         </h2>
         <p className="max-w-md text-sm text-muted-foreground leading-relaxed">
-          Posez une question sur vos données, demandez une analyse SQL DuckDB ou générez une
-          visualisation interactive.
+          Posez une question sur vos données, explorez des tendances ou effectuez des analyses SQL
+          DuckDB en langage naturel.
         </p>
       </div>
 
-      {/* 2x2 Capability Cards */}
-      <div className="grid w-full grid-cols-1 gap-2.5 text-left sm:grid-cols-2">
+      {/* Claude-style prompt suggestion cards */}
+      <div className="grid w-full grid-cols-1 gap-2.5 sm:grid-cols-2">
         {CAPABILITY_CARDS.map((card) => {
           const Icon = card.icon;
           return (
@@ -127,25 +107,27 @@ function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
               key={card.title}
               type="button"
               onClick={() => onAsk(card.prompt)}
-              className="group flex flex-col gap-1.5 rounded-xl border border-border/60 bg-card/60 p-3.5 text-left transition-all hover:border-primary/50 hover:bg-card hover:shadow-sm"
+              className="group flex flex-col justify-between gap-2.5 rounded-2xl border border-border/70 bg-card/60 p-4 text-left transition-all hover:border-primary/40 hover:bg-card hover:shadow-md"
             >
-              <div className="flex items-center gap-2">
-                <div className="rounded-lg bg-primary/10 p-1.5 text-primary group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
+              <div className="flex items-start justify-between w-full">
+                <span className="font-semibold text-sm text-foreground group-hover:text-primary transition-colors">
+                  {card.title}
+                </span>
+                <div className="rounded-lg bg-primary/10 p-1.5 text-primary/80 group-hover:bg-primary group-hover:text-primary-foreground transition-colors shrink-0">
                   <Icon className="size-4" />
                 </div>
-                <span className="font-semibold text-xs text-foreground">{card.title}</span>
               </div>
-              <p className="text-[11px] text-muted-foreground leading-snug">{card.desc}</p>
+              <p className="text-xs text-muted-foreground leading-relaxed">{card.desc}</p>
             </button>
           );
         })}
       </div>
 
-      {/* Quick Prompt Pills */}
-      <div className="flex flex-wrap justify-center gap-2">
+      {/* Quick suggested prompt pills */}
+      <div className="flex flex-wrap justify-center gap-2 pt-1">
         {EXAMPLE_QUESTIONS.map((question) => (
           <Button
-            className="h-7 rounded-full text-xs font-normal border-border/60 hover:border-primary/50"
+            className="h-7 rounded-full text-xs font-normal border-border/70 bg-background/50 hover:bg-muted/80 hover:border-border transition-colors text-muted-foreground hover:text-foreground"
             key={question}
             onClick={() => onAsk(question)}
             size="sm"

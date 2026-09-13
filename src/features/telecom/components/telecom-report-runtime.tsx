@@ -14,6 +14,7 @@ import {
 } from "react";
 import { toast } from "sonner";
 import { AnimatedGridPattern } from "@/components/ui/animated-grid-pattern";
+import { Badge } from "@/components/ui/badge";
 import { useActiveDataset, useDatasets, useSetActiveDataset } from "@/core/queries/datasets";
 import { useActivityStore } from "@/core/stores/activity-store";
 import { useAppContextStore } from "@/core/stores/app-context-store";
@@ -313,55 +314,75 @@ export function TelecomReportRuntimeProvider({
   const dashboardFileName = activeTelecomDataset?.name || dashboardTableName || "";
   const dashboardReportDate = getDatasetReportDate(activeTelecomDataset);
 
+  const remoteOverviewRef = useRef<ReturnType<typeof useSharedOverview>["remoteOverview"]>(null);
+
   useEffect(() => {
     tableNameRef.current = dashboardTableName;
   }, [dashboardTableName]);
 
   const getTableName = useCallback(() => tableNameRef.current, []);
 
-  const fetchOperators = useCallback(
-    (m: Types.ColumnMapping, sm = []) =>
-      _fetchOperators(tableNameRef.current, m, sm as Types.StatusMapping[]),
-    [],
-  );
+  const fetchOperators = useCallback((m: Types.ColumnMapping, sm = []) => {
+    const remote = remoteOverviewRef.current;
+    if (remote) return Promise.resolve(remote.operators);
+    return tableNameRef.current
+      ? _fetchOperators(tableNameRef.current, m, sm as Types.StatusMapping[])
+      : Promise.resolve([]);
+  }, []);
 
-  const fetchRegions = useCallback(
-    (m: Types.ColumnMapping, sm = []) =>
-      _fetchRegions(tableNameRef.current, m, sm as Types.StatusMapping[]),
-    [],
-  );
+  const fetchRegions = useCallback((m: Types.ColumnMapping, sm = []) => {
+    const remote = remoteOverviewRef.current;
+    if (remote) return Promise.resolve(remote.regions);
+    return tableNameRef.current
+      ? _fetchRegions(tableNameRef.current, m, sm as Types.StatusMapping[])
+      : Promise.resolve([]);
+  }, []);
 
   const fetchOperatorsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys),
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchOperatorsForGroup(tableNameRef.current, m, groupKeys)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchRegionsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchRegionsForGroup(tableNameRef.current, m, groupKeys),
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchRegionsForGroup(tableNameRef.current, m, groupKeys)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchDestinationsForGroup = useCallback(
     (m: Types.ColumnMapping, groupKeys: Types.CanalKey[]) =>
-      _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys),
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchDestinationsForGroup(tableNameRef.current, m, groupKeys)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchCanalHourlyMatrix = useCallback(
-    (m: Types.ColumnMapping) => _fetchCanalHourlyMatrix(tableNameRef.current, m),
+    (m: Types.ColumnMapping) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchCanalHourlyMatrix(tableNameRef.current, m)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchDailyTrend = useCallback(
-    (m: Types.ColumnMapping) => _fetchDailyTrend(tableNameRef.current, m),
+    (m: Types.ColumnMapping) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchDailyTrend(tableNameRef.current, m)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchCustomerProfile = useCallback(
     (m: Types.ColumnMapping, msisdn: string) =>
-      _fetchCustomerProfile(tableNameRef.current, m, msisdn),
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchCustomerProfile(tableNameRef.current, m, msisdn)
+        : Promise.resolve(null),
     [],
   );
 
@@ -374,13 +395,18 @@ export function TelecomReportRuntimeProvider({
       offset: number,
       sortCol: string,
       sortDir: Types.SortDir,
-    ) => _fetchFiltered(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir),
+    ) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchFiltered(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir)
+        : Promise.resolve({ rows: [], total: 0 }),
     [],
   );
 
   const fetchFilteredCount = useCallback(
     (m: Types.ColumnMapping, f: Types.FilterState, sm: Types.StatusMapping[]) =>
-      _fetchFilteredCount(tableNameRef.current, m, f, sm),
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchFilteredCount(tableNameRef.current, m, f, sm)
+        : Promise.resolve(0),
     [],
   );
 
@@ -393,17 +419,26 @@ export function TelecomReportRuntimeProvider({
       offset: number,
       sortCol: string,
       sortDir: Types.SortDir,
-    ) => _fetchFilteredPage(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir),
+    ) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchFilteredPage(tableNameRef.current, m, f, sm, limit, offset, sortCol, sortDir)
+        : Promise.resolve([]),
     [],
   );
 
   const fetchServiceCodeRows = useCallback(
-    (m: Types.ColumnMapping) => _fetchServiceCodeRows(tableNameRef.current, m),
+    (m: Types.ColumnMapping) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _fetchServiceCodeRows(tableNameRef.current, m)
+        : Promise.resolve([]),
     [],
   );
 
   const runCustomKPIExpr = useCallback(
-    (sqlExpr: string) => _runCustomKPIExpr(tableNameRef.current, sqlExpr),
+    (sqlExpr: string) =>
+      tableNameRef.current && !remoteOverviewRef.current
+        ? _runCustomKPIExpr(tableNameRef.current, sqlExpr)
+        : Promise.resolve(0),
     [],
   );
 
@@ -585,7 +620,11 @@ export function TelecomReportRuntimeProvider({
     canals,
     hourly,
     statusData,
+    operators,
+    regions,
+    rawStatuses,
   });
+  remoteOverviewRef.current = remoteOverview;
 
   // Reset snapshot tracking whenever the active table changes (dataset switch).
   // biome-ignore lint/correctness/useExhaustiveDependencies: dashboardTableName is only a re-run trigger, not read in the body
@@ -673,10 +712,26 @@ export function TelecomReportRuntimeProvider({
   const reportContentVisible =
     dashboardLoaded || sharedOverviewMode || restoredSnapshotMode || historyRoute || isHubRoute;
 
-  const overviewKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
-  const overviewCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
-  const overviewHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
-  const overviewStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
+  const effectiveFileName = sharedOverviewMode
+    ? remoteOverview?.fileName || dashboardFileName
+    : dashboardFileName;
+  const effectiveReportDate = sharedOverviewMode
+    ? remoteOverview?.reportDate || dashboardReportDate
+    : dashboardReportDate;
+  const effectiveKpi = sharedOverviewMode ? (remoteOverview?.kpi ?? null) : kpi;
+  const effectiveCanals = sharedOverviewMode ? (remoteOverview?.canals ?? []) : canals;
+  const effectiveHourly = sharedOverviewMode ? (remoteOverview?.hourly ?? []) : hourly;
+  const effectiveStatusData = sharedOverviewMode ? (remoteOverview?.statusData ?? []) : statusData;
+  const effectiveOperators = sharedOverviewMode ? (remoteOverview?.operators ?? []) : operators;
+  const effectiveRegions = sharedOverviewMode ? (remoteOverview?.regions ?? []) : regions;
+  const effectiveRawStatuses = sharedOverviewMode
+    ? (remoteOverview?.rawStatuses ?? [])
+    : rawStatuses;
+
+  const overviewKpi = effectiveKpi;
+  const overviewCanals = effectiveCanals;
+  const overviewHourly = effectiveHourly;
+  const overviewStatusData = effectiveStatusData;
 
   async function loadAnalyticsFromHistory(id: number) {
     const cached = await getAnalyticsSnapshot(id);
@@ -728,10 +783,10 @@ export function TelecomReportRuntimeProvider({
   }
 
   const runtimeValue: TelecomReportRuntimeValue = {
-    dashboardLoaded,
+    dashboardLoaded: dashboardLoaded || sharedOverviewMode,
     sharedOverviewMode,
-    dashboardFileName,
-    dashboardReportDate,
+    dashboardFileName: effectiveFileName,
+    dashboardReportDate: effectiveReportDate,
     dashboardTableName,
     telecomRole,
     access,
@@ -739,13 +794,13 @@ export function TelecomReportRuntimeProvider({
     setMapping,
     statusMapping,
     setStatusMapping,
-    kpi,
-    canals,
-    hourly,
-    statusData,
-    operators,
-    regions,
-    rawStatuses,
+    kpi: effectiveKpi,
+    canals: effectiveCanals,
+    hourly: effectiveHourly,
+    statusData: effectiveStatusData,
+    operators: effectiveOperators,
+    regions: effectiveRegions,
+    rawStatuses: effectiveRawStatuses,
     overviewKpi,
     overviewCanals,
     overviewHourly,
@@ -826,39 +881,39 @@ export function TelecomReportRuntimeProvider({
               </div>
 
               <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground">
-                {dashboardFileName && (
+                {effectiveFileName && (
                   <span className="max-w-48 truncate font-mono text-muted-foreground">
-                    {dashboardFileName}
+                    {effectiveFileName}
                   </span>
                 )}
 
-                {dashboardReportDate && (
+                {effectiveReportDate && (
                   <>
                     <span>·</span>
-                    <span>{dashboardReportDate}</span>
+                    <span>{effectiveReportDate}</span>
                   </>
                 )}
 
-                {kpi && (
+                {effectiveKpi && (
                   <>
                     <span>·</span>
                     <span className="font-semibold text-primary">
-                      {fmtN(kpi.totalTransactions)} tx
+                      {fmtN(effectiveKpi.totalTransactions)} tx
                     </span>
                   </>
                 )}
 
-                {kpi && (
+                {effectiveKpi && (
                   <>
                     <span>·</span>
                     <span
                       className={
-                        kpi.successRate >= 90
+                        effectiveKpi.successRate >= 90
                           ? "text-emerald-600 dark:text-emerald-400"
                           : "text-amber-600 dark:text-amber-400"
                       }
                     >
-                      {fmtPct(kpi.successRate)} réussite
+                      {fmtPct(effectiveKpi.successRate)} réussite
                     </span>
                   </>
                 )}
@@ -985,29 +1040,35 @@ export function TelecomReportRuntimeProvider({
             {sharedOverviewMode && remoteOverview && (
               <div className="rounded-2xl border border-primary/25 bg-primary/8 p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                      <Radio className="h-4 w-4" />
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary text-primary-foreground">
+                      <Radio className="h-4 w-4 animate-pulse" />
                     </div>
 
-                    <div>
-                      <div className="text-sm font-bold text-foreground">
-                        Vue d&apos;ensemble partagée
+                    <div className="space-y-0.5">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          variant="default"
+                          className="gap-1 bg-primary text-primary-foreground text-[10px] font-semibold uppercase tracking-wider"
+                        >
+                          <Radio className="h-3 w-3 animate-pulse" />
+                          Live
+                        </Badge>
+                        <span className="text-sm font-bold text-foreground">
+                          Live overview presented by {remoteOverview.presenterName} —{" "}
+                          {remoteOverview.fileName} · {remoteOverview.reportDate}
+                        </span>
                       </div>
 
                       <div className="text-xs text-muted-foreground">
-                        Analytics agrégées reçues de{" "}
-                        <span className="font-semibold text-foreground">
-                          {remoteOverview.presenterName}
-                        </span>
-                        . Aucun fichier source ni ligne brute n&apos;est transféré sur cet appareil.
+                        Analytics agrégées reçues en direct. Aucun fichier source ni ligne brute
+                        n&apos;est transféré sur cet appareil.
                       </div>
                     </div>
                   </div>
 
                   <div className="text-[11px] tabular-nums text-muted-foreground">
-                    {remoteOverview.fileName} · {remoteOverview.reportDate} ·{" "}
-                    {new Date(remoteOverview.updatedAt).toLocaleTimeString()}
+                    Mis à jour à {new Date(remoteOverview.updatedAt).toLocaleTimeString()}
                   </div>
                 </div>
               </div>

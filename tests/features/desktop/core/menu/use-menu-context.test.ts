@@ -353,7 +353,10 @@ describe("useMenuContext — desktop-wide methods", () => {
     const spy = vi.spyOn(window, "dispatchEvent");
     const { result } = renderHook(() => useMenuContext());
     result.current.ctx.askMoudir("Résume le rapport");
-    expect(h.actions.openApp).toHaveBeenCalledWith("moudir-chat");
+    expect(h.actions.openApp).toHaveBeenCalledWith(
+      "moudir-chat",
+      expect.objectContaining({ props: { initialPrompt: "Résume le rapport" } }),
+    );
     const ev = spy.mock.calls.map((c) => c[0] as CustomEvent).find((e) => e.type === "moudir:ask");
     expect(ev?.detail).toEqual({ prompt: "Résume le rapport" });
     spy.mockRestore();

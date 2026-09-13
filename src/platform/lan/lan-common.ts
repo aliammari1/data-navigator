@@ -230,7 +230,6 @@ function generateRandomSecret(): string {
 let cachedFallbackHostSecret: string | null = null;
 
 function getOrCreateHostSecretSync(): string {
-  if (cachedFallbackHostSecret !== null) return cachedFallbackHostSecret;
   if (typeof process !== "undefined" && process.env?.[HOST_SECRET_ENV]) {
     const fromEnv = process.env[HOST_SECRET_ENV];
     if (fromEnv && fromEnv.length >= 32) {
@@ -238,6 +237,7 @@ function getOrCreateHostSecretSync(): string {
       return cachedFallbackHostSecret;
     }
   }
+  if (cachedFallbackHostSecret !== null) return cachedFallbackHostSecret;
   try {
     cachedFallbackHostSecret = generateRandomSecret();
     return cachedFallbackHostSecret;
@@ -248,18 +248,54 @@ function getOrCreateHostSecretSync(): string {
 }
 
 let cachedElectronSecret: string | null = null;
+let electronSecretPromise: Promise<string> | null = null;
 
 /**
  * In Electron, we fetch the canonical host secret from the main process
  * once at startup to ensure the renderer and hub are perfectly in sync.
  */
 if (typeof window !== "undefined" && (window as any).electronCollab) {
-  (window as any).electronCollab.getHostSecret().then((s: string) => {
+  electronSecretPromise = (window as any).electronCollab.getHostSecret().then((s: string) => {
     cachedElectronSecret = s;
+    return s;
   });
 }
 
 export function getHostSecret(): string {
   if (cachedElectronSecret) return cachedElectronSecret;
+  return getOrCreateHostSecretSync();
+}
+
+export async function getHostSecretAsync(): Promise<string> {
+  if (cachedElectronSecret) return cachedElectronSecret;
+  if (electronSecretPromise) return electronSecretPromise;
+
+  if (typeof window !== "undefined" && (window as any).electronCollab?.getHostSecret) {
+    const p = (window as any).electronCollab
+      .getHostSecret()
+      .then((s: string) => {
+        if (s) cachedElectronSecret = s;
+        return s;
+      })
+      .catch(() => getOrCreateHostSecretSync());
+    electronSecretPromise = p;
+    return p;
+  }
+
+  if (typeof window !== "undefined" && typeof window.location !== "undefined") {
+    const p = fetch("/api/guest/secret", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (data?.secret) {
+          cachedElectronSecret = data.secret;
+          return data.secret;
+        }
+        return getOrCreateHostSecretSync();
+      })
+      .catch(() => getOrCreateHostSecretSync());
+    electronSecretPromise = p;
+    return p;
+  }
+
   return getOrCreateHostSecretSync();
 }

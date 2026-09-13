@@ -129,11 +129,11 @@ export const RequestIdSchema = z.string().min(1).max(512);
 // can't be imported here — this file is deliberately electron-free, see the
 // module doc comment above). Keep these three keys in sync with that array.
 export const ModelKeySchema = z.enum([
-  "gemma-4-e2b-qat-mobile-text-only",
+  "minicpm-v-4.6-q4_k_m",
+  "smolvlm2-2.2b-instruct-q4_k_m",
   "lfm2-5-2.6b-q4_k_m",
   "granite-4.0-1b-q4_k_m",
   "qwen3-1.7b-q4_k_m",
-  "gemma-4-e4b-it-q4_k_m",
   "granite-4.1-3b-instruct-q4_k_m",
   "all-minilm-l6-v2-embed-q8_0",
 ]);

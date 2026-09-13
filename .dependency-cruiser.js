@@ -155,6 +155,8 @@ module.exports = {
           // function-scoped behind process.getBuiltinModule?.() and never
           // executes in the browser. See renderer-no-main-only-natives.
           "^src/platform/storage/db-bootstrap[.]ts$",
+          // Next.js server-side utilities (Node.js runtime only, never bundled to browser)
+          "^src/server/",
         ],
       },
       to: {

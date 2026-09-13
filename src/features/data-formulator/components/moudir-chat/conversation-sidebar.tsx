@@ -31,7 +31,17 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import Fuse from "fuse.js";
-import { MoreHorizontal, Pencil, Pin, PinOff, Plus, Search, Trash2, X } from "lucide-react";
+import {
+  MessagesSquare,
+  MoreHorizontal,
+  Pencil,
+  Pin,
+  PinOff,
+  Plus,
+  Search,
+  Trash2,
+  X,
+} from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { MOD_GLYPH } from "@/components/moudir-chat/utils";
@@ -459,8 +469,10 @@ export function ConversationSidebar() {
     >
       <div className="space-y-2.5 border-b border-border p-3">
         <div className="flex items-center gap-2">
-          <MoudirMark size={22} />
-          <Kicker tone="coral">Conversations</Kicker>
+          <MessagesSquare className="size-4 text-muted-foreground/80" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Conversations
+          </span>
         </div>
         <Button
           type="button"

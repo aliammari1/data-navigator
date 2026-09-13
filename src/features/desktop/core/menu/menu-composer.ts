@@ -23,7 +23,6 @@
 import { buildMenu as collaboration } from "@/features/desktop/core/menu/apps/collaboration";
 import { buildMenu as diagnostics } from "@/features/desktop/core/menu/apps/diagnostics";
 import { buildMenu as folders } from "@/features/desktop/core/menu/apps/folders";
-import { buildMenu as help } from "@/features/desktop/core/menu/apps/help";
 import { buildMenu as moudir } from "@/features/desktop/core/menu/apps/moudir";
 import { buildMenu as moudirChat } from "@/features/desktop/core/menu/apps/moudir-chat";
 import { buildMenu as recycleBin } from "@/features/desktop/core/menu/apps/recycle-bin";
@@ -54,7 +53,6 @@ export const APP_MENUS: Record<string, AppMenuBuilder> = {
   folders,
   collaboration,
   diagnostics,
-  help,
   "recycle-bin": recycleBin,
   settings,
 };

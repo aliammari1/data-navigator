@@ -37,6 +37,7 @@ function GuestWaitingContent() {
         const acceptData = (await r.json().catch(() => ({}))) as {
           room?: string;
           url?: string;
+          pairingCode?: string;
           name?: string;
           role?: string;
         };
@@ -45,6 +46,7 @@ function GuestWaitingContent() {
           ...current,
           room: acceptData.room ?? current.room,
           url: acceptData.url ?? current.url,
+          pairingCode: acceptData.pairingCode ?? current.pairingCode,
           peer: {
             ...current.peer,
             name: acceptData.name ?? current.peer.name,

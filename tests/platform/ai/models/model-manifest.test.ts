@@ -35,7 +35,7 @@ function downloadEntryFor(key: string) {
 
 describe("MODULE CONSTANTS", () => {
   it("DEFAULT_GGUF_MODEL matches the primary GGUF filename", () => {
-    expect(DEFAULT_GGUF_MODEL).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
+    expect(DEFAULT_GGUF_MODEL).toBe("minicpm-v-4.6-q4_k_m.gguf");
   });
 
   it("EMBED_MODEL_ID is the default embedding GGUF filename", () => {
@@ -50,16 +50,25 @@ describe("MODEL_MANIFEST", () => {
     expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(7);
   });
 
-  it("has a non-optional llm primary (gemma-4-e2b-qat-mobile-text-only)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e2b-qat-mobile-text-only");
+  it("has a non-optional llm primary (minicpm-v-4.6-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "minicpm-v-4.6-q4_k_m");
     expect(entry).toBeDefined();
     expect(entry?.lane).toBe("llm");
     expect(entry?.presence).toBe("electron-gguf");
     expect(entry?.optional).toBe(false);
-    expect(entry?.ggufFile).toBe("gemma-4-e2b-qat-mobile-text-only.gguf");
+    expect(entry?.ggufFile).toBe("minicpm-v-4.6-q4_k_m.gguf");
+    expect(entry?.downloadMb).toBe(downloadEntryFor("minicpm-v-4.6-q4_k_m").bytes / 1_000_000);
+  });
+
+  it("has an optional llm alternative (smolvlm2-2.2b-instruct-q4_k_m)", () => {
+    const entry = MODEL_MANIFEST.find((m) => m.key === "smolvlm2-2.2b-instruct-q4_k_m");
+    expect(entry).toBeDefined();
+    expect(entry?.lane).toBe("llm");
+    expect(entry?.optional).toBe(true);
     expect(entry?.downloadMb).toBe(
-      downloadEntryFor("gemma-4-e2b-qat-mobile-text-only").bytes / 1_000_000,
+      downloadEntryFor("smolvlm2-2.2b-instruct-q4_k_m").bytes / 1_000_000,
     );
+    expect(entry?.ggufFile).toBe("smolvlm2-2.2b-instruct-q4_k_m.gguf");
   });
 
   it("has an optional llm alternative (lfm2-5-2.6b-q4_k_m)", () => {
@@ -87,15 +96,6 @@ describe("MODEL_MANIFEST", () => {
     expect(entry?.optional).toBe(true);
     expect(entry?.downloadMb).toBe(downloadEntryFor("qwen3-1.7b-q4_k_m").bytes / 1_000_000);
     expect(entry?.ggufFile).toBe("qwen3-1.7b-q4_k_m.gguf");
-  });
-
-  it("has the legacy gemma-4-e4b power-user entry as optional", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "gemma-4-e4b-it-q4_k_m");
-    expect(entry).toBeDefined();
-    expect(entry?.lane).toBe("llm");
-    expect(entry?.optional).toBe(true);
-    expect(entry?.ggufFile).toBe("gemma-4-e4b-it-q4_k_m.gguf");
-    expect(entry?.downloadMb).toBe(downloadEntryFor("gemma-4-e4b-it-q4_k_m").bytes / 1_000_000);
   });
 
   it("has an optional llm alternative (granite-4.1-3b-instruct-q4_k_m)", () => {
@@ -160,10 +160,10 @@ describe("MODEL_MANIFEST", () => {
 
   it("marks the tool-trained instruct models as tools:true", () => {
     for (const key of [
-      "gemma-4-e2b-qat-mobile-text-only",
+      "minicpm-v-4.6-q4_k_m",
+      "smolvlm2-2.2b-instruct-q4_k_m",
       "granite-4.0-1b-q4_k_m",
       "qwen3-1.7b-q4_k_m",
-      "gemma-4-e4b-it-q4_k_m",
       "granite-4.1-3b-instruct-q4_k_m",
     ]) {
       expect(MODEL_MANIFEST.find((m) => m.key === key)?.capabilities.tools).toBe(true);
@@ -178,7 +178,7 @@ describe("primaryForLane", () => {
     const result = primaryForLane("llm");
     expect(result.lane).toBe("llm");
     expect(result.optional).toBe(false);
-    expect(result.key).toBe("gemma-4-e2b-qat-mobile-text-only");
+    expect(result.key).toBe("minicpm-v-4.6-q4_k_m");
   });
 
   it('returns the non-optional embed entry for lane "embed"', () => {
@@ -214,9 +214,9 @@ describe("primaryForLane", () => {
 
 describe("manifestByKey", () => {
   it("returns the entry for a known key", () => {
-    const entry = manifestByKey("gemma-4-e2b-qat-mobile-text-only");
+    const entry = manifestByKey("minicpm-v-4.6-q4_k_m");
     expect(entry).toBeDefined();
-    expect(entry?.key).toBe("gemma-4-e2b-qat-mobile-text-only");
+    expect(entry?.key).toBe("minicpm-v-4.6-q4_k_m");
   });
 
   it("returns the embed entry for its key", () => {

@@ -187,7 +187,7 @@ describe("getAppMenuGroups — 'view' and 'help' prepend rule", () => {
     const items = itemIds(group(groups, "help").items);
     expect(items[0]).toBe("app-help-item");
     expect(items[1]).toBe("help-merge-sep");
-    expect(items).toContain("open-help");
+    expect(items).toContain("ask-moudir");
   });
 
   it("without an app 'view'/'help' group, the universal groups are used unmerged (no stray separator)", () => {

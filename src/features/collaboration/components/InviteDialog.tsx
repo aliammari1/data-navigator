@@ -102,7 +102,7 @@ export function InviteDialog({ open, onOpenChange, joinUrl, pairingCode }: Invit
 
         <div className="flex flex-col items-center gap-4">
           {qrDataUrl ? (
-            <div className="rounded-xl border border-border bg-background p-3">
+            <div className="border border-border bg-background p-3">
               <Image
                 src={qrDataUrl}
                 alt="QR code d'invitation à la session LAN"

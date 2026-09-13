@@ -6,6 +6,7 @@ import {
   AlertTriangle,
   ArrowRight,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Database,
   FileCheck,
@@ -438,19 +439,19 @@ export default function DataImportScreen() {
 
   return (
     <div className=" flex flex-col">
-      <div className=" px-4 py-3 md:px-6">
+      <div className="px-4 py-4 md:px-6">
         <div className="flex items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div className="flex h-10 w-10 flex-none items-center justify-center rounded-2xl border border-primary/25 bg-primary/15 text-primary shadow-[var(--shadow-1)]">
-              <Upload className="h-5 w-5" />
+            <div className="flex h-14 w-14 flex-none items-center justify-center rounded-3xl border border-primary/30 bg-primary/20 text-primary shadow-[0_0_28px_var(--glow-primary),var(--shadow-2)]">
+              <Upload className="h-7 w-7" />
             </div>
 
             <div className="min-w-0">
-              <h1 className="truncate text-sm font-bold text-foreground">
+              <h1 className="truncate text-lg font-bold text-foreground">
                 {isTelecomMode ? "Charger un rapport télécom" : "Importer des données"}
               </h1>
-              <p className="truncate text-xs text-muted-foreground">
-                Fichiers locaux · DuckDB natif · Cache Parquet managé
+              <p className="truncate text-sm text-muted-foreground">
+                Vos données restent sur votre machine — aucun transfert en ligne.
               </p>
             </div>
           </div>
@@ -514,7 +515,7 @@ export default function DataImportScreen() {
       </div>
 
       <main className="flex-1 overflow-y-auto">
-        <div className=" grid max-w-6xl gap-6 lg:grid-cols-[minmax(0,1fr)_360px]">
+        <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-6">
             {isTelecomMode && <TelecomUploadNotice />}
 
@@ -545,13 +546,7 @@ export default function DataImportScreen() {
           </section>
 
           <aside className="space-y-4">
-            <ImportSettingsCard
-              encoding={encoding}
-              onEncodingChange={setEncoding}
-              disabled={importing || !access.permissions.canUpload}
-            />
-
-            <UploadPipelineCard selectedFile={selectedFile} />
+            <UploadPipelineCard selectedFile={selectedFile} onBrowse={importFromFiles} />
 
             <UploadSummaryCard files={orderedFiles} totalStorageUsed={totalStorageUsed} />
 
@@ -563,8 +558,7 @@ export default function DataImportScreen() {
               <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
                 <div className="text-sm font-bold text-primary">Rapport prêt</div>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  Le fichier est enregistré dans le catalogue local DuckDB et disponible via une vue
-                  optimisée sur cache Parquet.
+                  Fichier enregistré dans le catalogue local DuckDB.
                 </p>
                 <Button
                   type="button"
@@ -576,6 +570,12 @@ export default function DataImportScreen() {
                 </Button>
               </div>
             )}
+
+            <ImportSettingsCard
+              encoding={encoding}
+              onEncodingChange={setEncoding}
+              disabled={importing || !access.permissions.canUpload}
+            />
           </aside>
         </div>
       </main>
@@ -645,43 +645,80 @@ function UploadDropzone({
     <div
       {...getRootProps()}
       className={cn(
-        "group relative overflow-hidden rounded-3xl border p-10 transition-all",
+        "group relative overflow-hidden rounded-3xl border transition-all duration-300",
         isDragActive
-          ? "border-primary bg-primary/10"
+          ? "border-primary shadow-[0_0_48px_var(--glow-primary)]"
           : canUpload
-            ? "border-border bg-card hover:border-primary/50 hover:bg-muted/20"
-            : "border-border bg-muted/20 opacity-70",
+            ? "border-primary/20 hover:border-primary/40 hover:shadow-[0_0_36px_var(--glow-primary)]"
+            : "border-border opacity-60",
+        "bg-card",
       )}
     >
       <input {...getInputProps()} />
 
-      <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_top,color-mix(in_oklab,var(--primary)_12%,transparent),transparent_35%)]" />
+      {/* Noise texture */}
+      <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.035]" />
 
-      <div className="relative flex min-h-80 flex-col items-center justify-center text-center">
+      {/* Aurora top glow */}
+      <div
+        className={cn(
+          "pointer-events-none absolute inset-0 transition-opacity duration-500",
+          isDragActive ? "opacity-100" : "opacity-60 group-hover:opacity-90",
+        )}
+        style={{
+          background:
+            "radial-gradient(ellipse 90% 55% at 50% -15%, color-mix(in oklab, var(--primary) 20%, transparent), transparent 65%)",
+        }}
+      />
+
+      {/* Warm accent — bottom-right */}
+      <div
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse 55% 40% at 100% 110%, color-mix(in oklab, var(--chart-3) 9%, transparent), transparent 60%)",
+        }}
+      />
+
+      <div className="relative flex min-h-[22rem] flex-col items-center justify-center gap-5 p-10 text-center">
+        {/* Big icon with glow */}
         <motion.div
-          animate={isDragActive ? { scale: 1.06, y: -4 } : { scale: 1, y: 0 }}
+          animate={isDragActive ? { scale: 1.1, y: -8 } : { scale: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 380, damping: 22 }}
           className={cn(
-            "flex h-20 w-20 items-center justify-center rounded-3xl border shadow-[var(--shadow-1)] transition-colors",
+            "flex h-24 w-24 items-center justify-center rounded-[1.75rem] border-2 transition-all duration-300",
             isDragActive
-              ? "border-primary/40 bg-primary/20 text-primary"
-              : "border-border bg-background text-muted-foreground group-hover:text-primary",
+              ? "border-primary bg-primary/25 text-primary shadow-[0_0_56px_var(--glow-primary),inset_0_0_24px_color-mix(in_oklab,var(--primary)_18%,transparent)]"
+              : "border-primary/25 bg-primary/10 text-primary group-hover:border-primary/45 group-hover:shadow-[0_0_36px_var(--glow-primary)]",
           )}
         >
-          <Upload className="h-8 w-8" />
+          <Upload className="h-10 w-10" />
         </motion.div>
 
-        <h2 className="mt-6 text-lg font-bold text-foreground">
-          {canUpload ? "Importez un dataset local" : "Votre rôle ne permet pas l'import"}
-        </h2>
+        {/* Copy — platform-honest */}
+        <div className="space-y-2">
+          <h2 className="text-xl font-bold text-foreground">
+            {!canUpload
+              ? "Import non autorisé"
+              : isDragActive
+                ? "Déposez ici"
+                : electronAvailable
+                  ? "Glissez un fichier ou cliquez pour choisir"
+                  : "Choisissez un fichier à importer"}
+          </h2>
 
-        <p className="mt-2 max-w-lg text-sm text-muted-foreground">
-          {canUpload
-            ? "Glissez-déposez vos fichiers ici, ou utilisez le sélecteur natif. Les fichiers restent sur votre machine et sont lus directement par DuckDB."
-            : "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."}
-        </p>
+          <p className="max-w-sm text-sm text-muted-foreground">
+            {!canUpload
+              ? "Passez en rôle Editor ou Owner depuis l'en-tête du dashboard."
+              : electronAvailable
+                ? "CSV, TSV, TXT et Parquet — lecture directe, aucun transfert en ligne."
+                : "Glisser-déposer disponible sur l'appli bureau. Le sélecteur fonctionne ici."}
+          </p>
+        </div>
 
+        {/* Primary CTA + format badges grouped together */}
         {canUpload && (
-          <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <div className="flex flex-col items-center gap-3">
             <Button
               type="button"
               onClick={(event) => {
@@ -689,36 +726,41 @@ function UploadDropzone({
                 onBrowse();
               }}
               disabled={!electronAvailable}
-              className="rounded-xl px-5 text-xs font-bold"
+              className="h-11 rounded-2xl px-8 text-sm font-bold shadow-[0_0_18px_var(--glow-primary)] transition-shadow hover:shadow-[0_0_28px_var(--glow-primary)]"
             >
-              <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
-              Sélectionner un fichier local
+              <MousePointerClick className="mr-2 h-4 w-4" />
+              {electronAvailable ? "Choisir un fichier" : "Application bureau requise"}
             </Button>
+
+            <div className="flex flex-wrap justify-center gap-1.5">
+              {["CSV", "TSV", "TXT", "PARQUET"].map((fmt) => (
+                <Badge
+                  key={fmt}
+                  variant="outline"
+                  className="border-primary/20 bg-primary/5 text-[10px] font-medium text-primary/60"
+                >
+                  .{fmt}
+                </Badge>
+              ))}
+            </div>
           </div>
         )}
 
-        {!electronAvailable && (
-          <div className="mt-4 max-w-md rounded-xl border border-warning/25 bg-warning/10 px-4 py-3 text-xs text-warning">
-            L'import optimisé nécessite Electron, car DuckDB doit lire le fichier directement depuis
-            le disque.
-          </div>
-        )}
-
+        {/* Notices — neutral style, no alarm */}
         {dropNotice && (
-          <div className="mt-4 max-w-md rounded-xl border border-primary/25 bg-primary/10 px-4 py-3 text-xs text-primary">
+          <div className="max-w-md rounded-xl border border-border bg-muted/50 px-4 py-3 text-xs text-muted-foreground">
             {dropNotice}
           </div>
         )}
 
         {sharedDrop && (
-          <div className="mt-4 max-w-md rounded-xl border border-cyan-500/25 bg-cyan-500/10 px-4 py-3 text-xs text-cyan-700 dark:text-cyan-300">
+          <div className="max-w-md rounded-xl border border-primary/20 bg-primary/8 px-4 py-3 text-xs text-primary">
             <span className="font-semibold">{sharedDrop.by?.name ?? "Un collaborateur"}</span> a
-            partagé {sharedDrop.name} ({formatBytes(sharedDrop.size)}). Récupérez le fichier hors
-            bande.
+            partagé {sharedDrop.name} ({formatBytes(sharedDrop.size)}).{" "}
             <button
               type="button"
               onClick={onDismissSharedDrop}
-              className="ml-2 underline hover:no-underline"
+              className="ml-1 underline hover:no-underline"
             >
               Ignorer
             </button>
@@ -726,22 +768,10 @@ function UploadDropzone({
         )}
 
         {lanConnected && (
-          <p className="mt-3 text-[11px] text-cyan-600 dark:text-cyan-400">
-            Session LAN active — chaque import sera annoncé aux collaborateurs.
+          <p className="text-[11px] text-primary/50">
+            Session LAN active — vos imports seront annoncés aux collaborateurs.
           </p>
         )}
-
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {["CSV", "TSV", "TXT", "PARQUET"].map((format) => (
-            <Badge
-              key={format}
-              variant="outline"
-              className="border-border bg-background text-[10px] text-muted-foreground"
-            >
-              .{format}
-            </Badge>
-          ))}
-        </div>
       </div>
     </div>
   );
@@ -778,23 +808,7 @@ function UploadedFilesPanel({
     enabled: shouldVirtualize,
   });
 
-  if (count === 0) {
-    return (
-      <div className="rounded-2xl border border-border bg-card p-5">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted text-muted-foreground">
-            <HardDrive className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="text-sm font-bold text-foreground">Aucun fichier importé</div>
-            <div className="text-xs text-muted-foreground">
-              Les imports apparaîtront ici pendant la session.
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  if (count === 0) return null;
 
   return (
     <div className="rounded-2xl border border-border bg-card">
@@ -1015,69 +1029,102 @@ function ImportSettingsCard({
   disabled: boolean;
 }) {
   const selectId = "data-import-encoding";
+  const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-2xl border border-border bg-card p-5">
-      <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+    <div className="overflow-hidden rounded-2xl border border-border bg-card">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-3 px-5 py-4 text-left"
+      >
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-muted text-muted-foreground">
           <Languages className="h-4 w-4" />
         </div>
-        <div>
-          <div className="text-sm font-bold text-foreground">Encodage CSV</div>
-          <div className="text-xs text-muted-foreground">Pour les exports Latin-1 / UTF-16</div>
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-foreground">Encodage avancé</div>
+          <div className="text-xs text-muted-foreground">Latin-1 / UTF-16 uniquement</div>
         </div>
-      </div>
-
-      <div className="mt-4">
-        <label htmlFor={selectId} className="text-[11px] font-medium text-muted-foreground">
-          Encodage du fichier
-        </label>
-        <select
-          id={selectId}
-          value={encoding}
-          disabled={disabled}
-          onChange={(event) => onEncodingChange(event.target.value as ImportEncoding)}
+        <ChevronDown
           className={cn(
-            "mt-1.5 h-9 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground",
-            "focus:outline-none focus:ring-2 focus:ring-ring",
-            disabled && "cursor-not-allowed opacity-60",
+            "h-4 w-4 flex-none text-muted-foreground transition-transform duration-200",
+            open && "rotate-180",
           )}
-        >
-          {ENCODING_OPTIONS.map((option) => (
-            <option key={option} value={option}>
-              {ENCODING_LABELS[option]}
-            </option>
-          ))}
-        </select>
+        />
+      </button>
 
-        <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-          {encoding === "auto"
-            ? "DuckDB détecte l'encodage à la lecture (BOM + analyse du début de fichier)."
-            : `Force read_csv(encoding) pour éviter le mojibake des valeurs accentuées.`}
-        </p>
-      </div>
+      {open && (
+        <div className="border-t border-border px-5 pb-5 pt-4">
+          <label htmlFor={selectId} className="text-[11px] font-medium text-muted-foreground">
+            Encodage du fichier
+          </label>
+          <select
+            id={selectId}
+            value={encoding}
+            disabled={disabled}
+            onChange={(event) => onEncodingChange(event.target.value as ImportEncoding)}
+            className={cn(
+              "mt-1.5 h-9 w-full rounded-xl border border-border bg-background px-3 text-xs text-foreground",
+              "focus:outline-none focus:ring-2 focus:ring-ring",
+              disabled && "cursor-not-allowed opacity-60",
+            )}
+          >
+            {ENCODING_OPTIONS.map((option) => (
+              <option key={option} value={option}>
+                {ENCODING_LABELS[option]}
+              </option>
+            ))}
+          </select>
+
+          <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+            {encoding === "auto"
+              ? "DuckDB détecte l'encodage automatiquement (BOM + analyse du fichier)."
+              : `Force read_csv(encoding) pour éviter le mojibake des valeurs accentuées.`}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
 
-function UploadPipelineCard({ selectedFile }: { selectedFile: ParsedFileInfo | null }) {
+function UploadPipelineCard({
+  selectedFile,
+  onBrowse,
+}: {
+  selectedFile: ParsedFileInfo | null;
+  onBrowse: () => void;
+}) {
   return (
     <div className="rounded-2xl border border-border bg-card p-5">
       <div className="flex items-center gap-3">
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
+        <div className="flex h-9 w-9 flex-none items-center justify-center rounded-xl bg-primary/10 text-primary">
           <Activity className="h-4 w-4" />
         </div>
-        <div>
-          <div className="text-sm font-bold text-foreground">Pipeline d'import</div>
-          <div className="text-xs text-muted-foreground">
-            Sélection, cache Parquet et vue DuckDB
-          </div>
-        </div>
+        <div className="text-sm font-bold text-foreground">Pipeline d'import</div>
       </div>
 
       {!selectedFile ? (
-        <div className="mt-6 rounded-xl border border-dashed border-border p-4 text-center text-xs text-muted-foreground">
-          Sélectionnez un fichier local pour suivre le pipeline.
+        <div className="mt-5 space-y-3">
+          {(["Lecture", "Détection du format", "Profilage DuckDB", "Dataset prêt"] as const).map(
+            (label) => (
+              <div key={label} className="flex items-center gap-2 opacity-35">
+                <div className="flex h-5 w-5 flex-none items-center justify-center rounded-full border border-border bg-muted">
+                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
+                </div>
+                <span className="text-xs text-muted-foreground">{label}</span>
+              </div>
+            ),
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={onBrowse}
+            className="mt-2 h-8 w-full rounded-xl text-xs"
+          >
+            <MousePointerClick className="mr-1.5 h-3.5 w-3.5" />
+            Choisir un fichier
+          </Button>
         </div>
       ) : (
         <div className="mt-5 space-y-3">
@@ -1172,6 +1219,8 @@ function UploadSummaryCard({
   totalStorageUsed: number;
 }) {
   const readyFiles = files.filter((file) => file.status === "done");
+
+  if (readyFiles.length === 0) return null;
 
   const totalRows = readyFiles.reduce((total, file) => total + file.rowCount, 0);
 

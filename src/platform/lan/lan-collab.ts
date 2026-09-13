@@ -37,6 +37,7 @@ import {
 import { STORAGE_KEYS } from "@/platform/storage/storage-keys";
 import {
   getHostSecret,
+  getHostSecretAsync,
   INVITE_TTL_MS,
   type InvitePayload,
   type LANRole,
@@ -49,6 +50,7 @@ import {
 
 export {
   getHostSecret,
+  getHostSecretAsync,
   INVITE_TTL_MS,
   type InvitePayload,
   type LANRole,
@@ -177,7 +179,7 @@ const PALETTE = [
 // The Electron-main agent exposes `window.electronCollab` (see electron/preload).
 // Preferred over cross-origin HTTP fetch from the COEP:require-corp renderer.
 
-interface ElectronCollabStatus {
+export interface ElectronCollabStatus {
   running: boolean;
   port: number | null;
   pairingCode: string | null;
@@ -249,10 +251,35 @@ function wsFromHttp(url: string): string {
 // ─── Signed JWTs moved to lan-common.ts ────────────────────────────────
 
 export async function makeJoinHttpUrl(settings: LANSettings): Promise<string> {
-  const base = new URL(httpFromWs(settings.url));
-  // The join handler is at /guest/join, not root.
+  const base = new URL(httpFromWs(settings.url || "ws://127.0.0.1:1234"));
+  if (base.hostname === "0.0.0.0" || base.hostname === "::" || base.hostname === "[::]") {
+    if (typeof window !== "undefined" && (window as any).electronCollab?.status) {
+      try {
+        const st = await (window as any).electronCollab.status();
+        if (st?.ips?.[0]?.address) {
+          base.hostname = st.ips[0].address;
+        }
+      } catch {}
+    }
+    if (base.hostname === "0.0.0.0" || base.hostname === "::" || base.hostname === "[::]") {
+      if (
+        typeof window !== "undefined" &&
+        window.location?.hostname &&
+        window.location.hostname !== "0.0.0.0"
+      ) {
+        base.hostname = window.location.hostname;
+      }
+    }
+  }
+  // The guest join web interface and host approval dialog are served by the Next.js
+  // web dashboard (e.g. port 3000), whereas settings.url points to the WebSocket Hocuspocus port (e.g. 1234).
+  const webPort =
+    (typeof window !== "undefined" && window.location.port) ||
+    process.env.NEXT_PUBLIC_PORT ||
+    "3000";
+  base.port = webPort;
   base.pathname = "/guest/join";
-  const secret = getHostSecret();
+  const secret = await getHostSecretAsync();
   const token = await signInviteToken(
     {
       sub: settings.peer.id,
@@ -911,6 +938,7 @@ export async function startInAppHub(input?: {
   guestCode: string;
   room: string;
   websocketUrls: string[];
+  ips?: Array<{ name: string; address: string }>;
 } | null> {
   const bridge = electronCollab();
   if (!bridge) return null;
@@ -930,6 +958,7 @@ export async function startInAppHub(input?: {
     guestCode: st.guestCode ?? "",
     room: st.room ?? input?.room ?? "telecom-default",
     websocketUrls: st.websocketUrls,
+    ips: st.ips,
   };
 }
 

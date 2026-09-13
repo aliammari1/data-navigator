@@ -7,22 +7,19 @@
  *
  * IA v3: French-first, 4 groups
  *   Rapport · Intelligence · Données · Sorties + footer (Aide/Paramètres).
- * "Rapport Télécom" is a hub whose 7 tabs (previously an in-page tab rail)
- * are now sidebar children — "Vue d'ensemble" doubles as the app's landing
- * page (bare /dashboard redirects there; there is no separate Accueil
- * screen).
+ * The telecom report sections are top-level items under "Rapport" — "Vue d'ensemble"
+ * doubles as the app's landing page (bare /dashboard redirects there; there is no
+ * separate Accueil screen).
  */
 
 import {
   BarChart3,
   CalendarDays,
   Folders,
-  HelpCircle,
   History,
   Layers,
   LayoutDashboard,
   MessageCircle,
-  Receipt,
   Settings,
   Settings2,
   Table2,
@@ -101,64 +98,70 @@ export const NAV_SECTIONS: NavSection[] = [
     label: "Rapport",
     items: [
       {
-        title: "Rapport Télécom",
-        href: "/dashboard/telecom-report",
-        icon: Receipt,
-        description: "Rapport DailyTransactions — KPIs, canaux, analyse",
-        keywords: ["telecom", "rapport", "report", "kpi", "canal", "daily", "accueil", "home"],
-        minRole: "viewer",
-        children: [
-          {
-            title: "Vue d'ensemble",
-            href: "/dashboard/telecom-report/overview",
-            icon: LayoutDashboard,
-            description: "KPIs, statut global et synthèse",
-            keywords: ["accueil", "home", "overview", "mission control", "kpi"],
-            minRole: "viewer",
-          },
-          {
-            title: "Canaux",
-            href: "/dashboard/telecom-report/canals",
-            icon: Layers,
-            description: "Analyse par canal transactionnel",
-            minRole: "viewer",
-          },
-          {
-            title: "Analyse",
-            href: "/dashboard/telecom-report/analysis",
-            icon: BarChart3,
-            description: "Erreurs, opérateurs, régions et tendances",
-            minRole: "viewer",
-          },
-          {
-            title: "Données brutes",
-            href: "/dashboard/telecom-report/grid",
-            icon: Table2,
-            description: "Exploration filtrée des transactions",
-            minRole: "viewer",
-          },
-          {
-            title: "Période",
-            href: "/dashboard/telecom-report/period",
-            icon: CalendarDays,
-            description: "Studio de période et comparaisons",
-            minRole: "viewer",
-          },
-          {
-            title: "Historique",
-            href: "/dashboard/telecom-report/history",
-            icon: History,
-            description: "Analyses et fichiers en cache",
-            minRole: "viewer",
-          },
-          {
-            title: "Configuration",
-            href: "/dashboard/telecom-report/config",
-            icon: Settings2,
-            description: "Mapping, statuts et paramètres",
-            minRole: "viewer",
-          },
+        title: "Vue d'ensemble",
+        href: "/dashboard/telecom-report/overview",
+        icon: LayoutDashboard,
+        description: "KPIs, statut global et synthèse",
+        keywords: [
+          "telecom",
+          "rapport",
+          "report",
+          "accueil",
+          "home",
+          "overview",
+          "mission control",
+          "kpi",
+          "daily",
         ],
+        minRole: "viewer",
+      },
+      {
+        title: "Canaux",
+        href: "/dashboard/telecom-report/canals",
+        icon: Layers,
+        description: "Analyse par canal transactionnel",
+        keywords: ["canaux", "canal", "transactions"],
+        minRole: "viewer",
+      },
+      {
+        title: "Analyse",
+        href: "/dashboard/telecom-report/analysis",
+        icon: BarChart3,
+        description: "Erreurs, opérateurs, régions et tendances",
+        keywords: ["analyse", "erreurs", "opérateurs", "régions", "tendances"],
+        minRole: "viewer",
+      },
+      {
+        title: "Données brutes",
+        href: "/dashboard/telecom-report/grid",
+        icon: Table2,
+        description: "Exploration filtrée des transactions",
+        keywords: ["données brutes", "table", "grid", "transactions"],
+        minRole: "viewer",
+      },
+      {
+        title: "Période",
+        href: "/dashboard/telecom-report/period",
+        icon: CalendarDays,
+        description: "Studio de période et comparaisons",
+        keywords: ["période", "date", "comparaison"],
+        minRole: "viewer",
+      },
+      {
+        title: "Historique",
+        href: "/dashboard/telecom-report/history",
+        icon: History,
+        description: "Analyses et fichiers en cache",
+        keywords: ["historique", "cache", "fichiers"],
+        minRole: "viewer",
+      },
+      {
+        title: "Configuration",
+        href: "/dashboard/telecom-report/config",
+        icon: Settings2,
+        description: "Mapping, statuts et paramètres",
+        keywords: ["configuration", "mapping", "statuts", "paramètres"],
+        minRole: "viewer",
       },
     ],
   },
@@ -222,14 +225,6 @@ export const NAV_SECTIONS: NavSection[] = [
 ];
 
 export const FOOTER_ITEMS: NavItem[] = [
-  {
-    title: "Aide",
-    href: "/dashboard/help",
-    icon: HelpCircle,
-    description: "Documentation et visite guidée",
-    keywords: ["aide", "help", "docs", "support", "visite"],
-    minRole: "viewer",
-  },
   {
     title: "Paramètres",
     href: "/dashboard/settings",
@@ -304,6 +299,12 @@ export function lockNavItemsByPermission(
  * buttons no longer each subscribe to the router via `usePathname()`.
  */
 export function isNavItemActive(pathname: string, href: string): boolean {
+  if (
+    (pathname === "/dashboard/telecom-report" || pathname === "/dashboard/telecom-report/") &&
+    href === "/dashboard/telecom-report/overview"
+  ) {
+    return true;
+  }
   return pathname === href || (href !== "/dashboard" && pathname.startsWith(href));
 }
 

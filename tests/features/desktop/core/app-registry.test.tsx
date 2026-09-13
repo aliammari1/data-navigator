@@ -105,7 +105,6 @@ vi.mock("@/features/collaboration/screens/CollaborationHostedScreen", () => ({
 vi.mock("@/features/dashboard-shell/screens/shell-overview-screen", () => ({
   ShellOverviewScreen: () => null,
 }));
-vi.mock("@/features/help/screens/HelpScreen", () => ({ default: () => null }));
 vi.mock("@/features/desktop/apps/RecycleBinScreen", () => ({ default: () => null }));
 vi.mock("@/features/desktop/screens/TelecomDesktopScreen", () => ({
   TelecomDesktopScreen: () => null,
@@ -131,7 +130,6 @@ const KNOWN_IDS = [
   "folders",
   "collaboration",
   "diagnostics",
-  "help",
   "recycle-bin",
   "settings",
 ] as const;
@@ -146,9 +144,9 @@ describe("DESKTOP_APPS", () => {
     expect(DESKTOP_APPS.length).toBeGreaterThan(0);
   });
 
-  it("contains exactly 9 app entries", () => {
-    // Cross-checked against the 9 entries defined in the source file.
-    expect(DESKTOP_APPS).toHaveLength(9);
+  it("contains exactly 8 app entries", () => {
+    // Cross-checked against the 8 entries defined in the source file.
+    expect(DESKTOP_APPS).toHaveLength(8);
   });
 
   it("every entry has a non-empty string id", () => {
@@ -301,13 +299,18 @@ describe("individual app property contracts", () => {
 describe("getApp", () => {
   it("returns the correct app for a known id", () => {
     // Arrange
-    const expected = DESKTOP_APPS.find((a) => a.id === "moudir");
+    const expected = DESKTOP_APPS.find((a) => a.id === "moudir-chat");
 
     // Act
-    const result = getApp("moudir");
+    const result = getApp("moudir-chat");
 
     // Assert
     expect(result).toBe(expected);
+  });
+
+  it("resolves legacy moudir alias to moudir-chat", () => {
+    const expected = DESKTOP_APPS.find((a) => a.id === "moudir-chat");
+    expect(getApp("moudir")).toBe(expected);
   });
 
   it("returns undefined for an unknown id", () => {
@@ -379,9 +382,9 @@ describe("LAUNCHER_APPS", () => {
     expect(LAUNCHER_APPS.length).toBeLessThan(DESKTOP_APPS.length);
   });
 
-  it("has exactly 8 entries (all apps minus recycle-bin)", () => {
-    // 9 total apps, 1 with inLauncher:false → 8 launcher apps
-    expect(LAUNCHER_APPS).toHaveLength(8);
+  it("has exactly 7 entries (all apps minus recycle-bin)", () => {
+    // 8 total apps, 1 with inLauncher:false → 7 launcher apps
+    expect(LAUNCHER_APPS).toHaveLength(7);
   });
 });
 
@@ -472,9 +475,9 @@ describe("dynamic loader invocation via captured calls", () => {
   //   • the `name ? () => loader().then(m => m[name]) : loader` branch (line 91)
   // Both paths are needed to reach 100 % branch coverage on the ternary.
 
-  it("dynamic was called once per Component-bearing app (all 9 apps)", () => {
+  it("dynamic was called once per Component-bearing app (all 8 apps)", () => {
     // Every app in the registry now carries a Component (telecom included).
-    expect(dynamicCalls.length).toBe(9);
+    expect(dynamicCalls.length).toBe(8);
   });
 
   it("every captured dynamic call received ssr:false and a loading option", () => {

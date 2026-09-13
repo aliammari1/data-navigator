@@ -81,7 +81,9 @@ describe("ModelDownloadSchema", () => {
   it("requires a non-empty key", () => {
     // ModelKeySchema is an allowlist mirroring MODEL_DOWNLOADS' keys in
     // electron/model-download-service.ts, not a free-form string.
-    expect(ModelDownloadSchema.safeParse({ key: "gemma-4-e4b-it-q4_k_m" }).success).toBe(true);
+    expect(ModelDownloadSchema.safeParse({ key: "smolvlm2-2.2b-instruct-q4_k_m" }).success).toBe(
+      true,
+    );
     expect(ModelDownloadSchema.safeParse({ key: "" }).success).toBe(false);
     expect(ModelDownloadSchema.safeParse({}).success).toBe(false);
   });

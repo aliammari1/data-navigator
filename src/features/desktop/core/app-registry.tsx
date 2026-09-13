@@ -15,7 +15,6 @@
 import {
   Folders,
   Gauge,
-  HelpCircle,
   type LucideIcon,
   MessageCircle,
   Receipt,
@@ -148,16 +147,6 @@ export const DESKTOP_APPS: DesktopApp[] = [
     ),
   },
   {
-    id: "help",
-    title: "Aide",
-    blurb: "Docs & visite",
-    icon: HelpCircle,
-    hue: 60,
-    defaultSize: { w: 820, h: 700 },
-    inLauncher: true,
-    Component: d(() => import("@/features/help/screens/HelpScreen")),
-  },
-  {
     id: "recycle-bin",
     title: "Corbeille",
     blurb: "Éléments supprimés",
@@ -185,6 +174,7 @@ export const DESKTOP_APPS: DesktopApp[] = [
 const APP_MAP = new Map(DESKTOP_APPS.map((a) => [a.id, a]));
 
 export function getApp(appId: string): DesktopApp | undefined {
+  if (appId === "moudir") return APP_MAP.get("moudir-chat");
   return APP_MAP.get(appId);
 }
 

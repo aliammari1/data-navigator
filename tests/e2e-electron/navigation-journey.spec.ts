@@ -20,7 +20,6 @@ const ROUTES: { path: string; label: string }[] = [
   { path: "/dashboard/upload", label: "Importer" },
   { path: "/dashboard/folders", label: "Catalogue" },
   { path: "/dashboard/collaborative", label: "Collaboration" },
-  { path: "/dashboard/help", label: "Aide" },
   { path: "/dashboard/settings", label: "Paramètres" },
 ];
 

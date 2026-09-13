@@ -66,12 +66,12 @@ describe("createConversation", () => {
       id: "c1",
       title: "Titre",
       datasetId: "ds-42",
-      model: "gemma-4-e4b-it-q4_k_m.gguf",
+      model: "smolvlm2-2.2b-instruct-q4_k_m.gguf",
     });
 
     // Assert
     expect(meta.datasetId).toBe("ds-42");
-    expect(meta.model).toBe("gemma-4-e4b-it-q4_k_m.gguf");
+    expect(meta.model).toBe("smolvlm2-2.2b-instruct-q4_k_m.gguf");
   });
 });
 

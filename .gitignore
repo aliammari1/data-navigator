@@ -57,6 +57,10 @@
 .DS_Store
 
 *.pem
+*.pfx
+*.p12
+*.key
+certs/
 
 .data/
 

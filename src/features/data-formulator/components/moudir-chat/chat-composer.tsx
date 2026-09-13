@@ -32,7 +32,7 @@
  */
 
 import type { ChatStatus } from "ai";
-import { Check, ChevronDown, Cpu, Download } from "lucide-react";
+import { Check, ChevronDown, Cpu, Download, Paperclip } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Attachment,
@@ -111,6 +111,59 @@ const ATTACHMENT_ACCEPT = "image/*,text/*,application/json,.csv,.xlsx,.xls,.parq
 const ATTACHMENT_MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 const ATTACHMENT_MAX_FILES = 5;
 
+/** Maximum longest edge for attached images sent to vision models. */
+const MAX_IMAGE_DIM = 1024;
+/** Quality factor for compressed WebP/JPEG attachments. */
+const IMAGE_QUALITY = 0.82;
+
+/**
+ * Compresses an image data URL (or blob) to a downscaled WebP/JPEG data URL.
+ * Preserves text clarity on tables/charts while cutting payload bytes by 70-85%.
+ */
+async function compressImageDataUrl(dataUrl: string): Promise<string> {
+  if (!dataUrl.startsWith("data:image/") || dataUrl.startsWith("data:image/svg+xml")) {
+    return dataUrl;
+  }
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      let { width, height } = img;
+      if (width > MAX_IMAGE_DIM || height > MAX_IMAGE_DIM) {
+        if (width > height) {
+          height = Math.round((height * MAX_IMAGE_DIM) / width);
+          width = MAX_IMAGE_DIM;
+        } else {
+          width = Math.round((width * MAX_IMAGE_DIM) / height);
+          height = MAX_IMAGE_DIM;
+        }
+      }
+
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // Prefer WebP for optimal compression, fallback to JPEG
+      const format = canvas.toDataURL("image/webp").startsWith("data:image/webp")
+        ? "image/webp"
+        : "image/jpeg";
+      resolve(canvas.toDataURL(format, IMAGE_QUALITY));
+    };
+
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
 /** Store status -> the AI SDK ChatStatus that PromptInputSubmit renders from. */
 function toChatStatus(status: MoudirChatStatus): ChatStatus {
   switch (status) {
@@ -162,6 +215,21 @@ const ChatComposerAttachments = () => {
         </AttachmentHoverCard>
       ))}
     </Attachments>
+  );
+};
+
+// Attachment trigger button rendered inside PromptInputTools.
+const AttachmentUploadButton = () => {
+  const attachments = usePromptInputAttachments();
+  return (
+    <PromptInputButton
+      aria-label="Joindre un fichier"
+      className="text-muted-foreground hover:text-foreground"
+      onClick={() => attachments.openFileDialog()}
+      tooltip="Joindre un fichier (images, texte, JSON, CSV)"
+    >
+      <Paperclip className="size-4" />
+    </PromptInputButton>
   );
 };
 
@@ -312,19 +380,30 @@ export function ChatComposer() {
   // which mirrors our controlled `value`. Falling back to `value` keeps sends
   // working even if the form resets before FormData is read.
   const handleSubmit = useCallback(
-    (message: PromptInputMessage) => {
+    async (message: PromptInputMessage) => {
       const rawText = (message.text || value).trim();
       const rawFiles = message.files || [];
-      const attachments: AttachmentData[] = rawFiles.map((file, i) => ({
-        ...file,
-        id: `att-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
-      }));
 
       if (busy) return;
-      if (!rawText && attachments.length === 0) return;
+      if (!rawText && rawFiles.length === 0) return;
 
       setValue("");
       setMention(null);
+
+      // Downscale and compress image attachments to reduce VRAM & context usage
+      const attachments: AttachmentData[] = await Promise.all(
+        rawFiles.map(async (file, i) => {
+          let url = file.url;
+          if (url && (file.mediaType?.startsWith("image/") || url.startsWith("data:image/"))) {
+            url = await compressImageDataUrl(url);
+          }
+          return {
+            ...file,
+            url,
+            id: `att-${Date.now()}-${i}-${Math.random().toString(36).slice(2, 7)}`,
+          };
+        }),
+      );
 
       const promptToSend = rawText || (attachments.length > 0 ? "Voici les pièces jointes." : "");
       void send(promptToSend, {
@@ -409,28 +488,6 @@ export function ChatComposer() {
     ],
   );
 
-  // Open a mention from the "@" affordance button.
-  const openMention = useCallback(() => {
-    if (mentionOpen) {
-      closeMention();
-      return;
-    }
-    const el = textareaRef.current;
-    const caret = el?.selectionStart ?? value.length;
-    const head = value.slice(0, caret);
-    const tail = value.slice(caret);
-    const insert = head && !/\s$/.test(head) ? " @" : "@";
-    const nextValue = head + insert + tail;
-    const nextCaret = head.length + insert.length;
-    setValue(nextValue);
-    setMention({ query: "", start: nextCaret - 1 });
-    setActiveMentionId(null);
-    requestAnimationFrame(() => {
-      el?.focus();
-      el?.setSelectionRange(nextCaret, nextCaret);
-    });
-  }, [mentionOpen, closeMention, value]);
-
   // ─── Focus bridge ───────────────────────────────────────────────
 
   useEffect(() => {
@@ -503,14 +560,7 @@ export function ChatComposer() {
 
             <PromptInputFooter>
               <PromptInputTools>
-                <PromptInputButton
-                  aria-label="Citer un jeu de données ou une colonne"
-                  className="font-mono text-sm text-muted-foreground"
-                  onClick={openMention}
-                  tooltip="Citer un jeu de données ou une colonne"
-                >
-                  @
-                </PromptInputButton>
+                <AttachmentUploadButton />
 
                 <PromptInputActionMenu>
                   <PromptInputActionMenuTrigger

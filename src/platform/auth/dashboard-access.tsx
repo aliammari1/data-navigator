@@ -64,20 +64,23 @@ function getServerSessionRole(): null {
 
 interface DashboardUserContextValue {
   isGuest: boolean;
+  role?: string;
   permissions: readonly string[] | undefined;
 }
 
 const DashboardUserContext = createContext<DashboardUserContextValue>({
   isGuest: false,
+  role: undefined,
   permissions: undefined,
 });
 
 export function DashboardUserProvider({
   isGuest,
+  role,
   permissions,
   children,
 }: DashboardUserContextValue & { children: React.ReactNode }) {
-  const value = useMemo(() => ({ isGuest, permissions }), [isGuest, permissions]);
+  const value = useMemo(() => ({ isGuest, role, permissions }), [isGuest, role, permissions]);
   return <DashboardUserContext.Provider value={value}>{children}</DashboardUserContext.Provider>;
 }
 
@@ -121,10 +124,16 @@ export function useDashboardAccess() {
   const setRole = useSettingsStore((s) => s.setRole);
   const setPerformance = useSettingsStore((s) => s.setPerformance);
 
-  const { isGuest, permissions: guestGrants } = useDashboardUser();
+  const { isGuest, role: guestRole, permissions: guestGrants } = useDashboardUser();
 
   const sessionRole = useSyncExternalStore(subscribeLAN, getLANSessionRole, getServerSessionRole);
-  const role = capRoleBySession(deviceRole, sessionRole);
+  const effectiveDeviceRole: DashboardRole =
+    isGuest && guestRole !== undefined
+      ? guestRole === "editor"
+        ? "editor"
+        : "viewer"
+      : deviceRole;
+  const role = capRoleBySession(effectiveDeviceRole, sessionRole);
 
   const basePermissions = useMemo(() => permissionsForRole(role), [role]);
   const permissions = useMemo(
