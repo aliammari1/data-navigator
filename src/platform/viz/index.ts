@@ -17,10 +17,7 @@
 
 // Worker clients (Comlink proxies).
 
-export {
-  getChartProxy,
-  supportsOffscreenChart,
-} from "./chart-client";
+export { getChartProxy } from "./chart-client";
 
 export type { EChartsOption } from "./echarts-core";
 // ECharts (tree-shaken) + option builders.

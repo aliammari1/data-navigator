@@ -16,7 +16,7 @@ export type TemporalGranularity =
   | "year-month-day"
   | "frequency-year";
 
-export type TemporalFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "hourly";
+type TemporalFrequency = "daily" | "weekly" | "monthly" | "quarterly" | "annual" | "hourly";
 
 export interface TemporalExtraction {
   datasetId: string;
@@ -32,7 +32,7 @@ export interface TemporalExtraction {
   proposedPath: string[];
 }
 
-export const MONTH_NAMES_FR: Record<number, string> = {
+const MONTH_NAMES_FR: Record<number, string> = {
   1: "01 - Janvier",
   2: "02 - Février",
   3: "03 - Mars",
@@ -47,14 +47,14 @@ export const MONTH_NAMES_FR: Record<number, string> = {
   12: "12 - Décembre",
 };
 
-export const QUARTER_NAMES: Record<number, string> = {
+const QUARTER_NAMES: Record<number, string> = {
   1: "T1 (Jan - Mar)",
   2: "T2 (Avr - Jun)",
   3: "T3 (Juil - Sep)",
   4: "T4 (Oct - Déc)",
 };
 
-export const FREQUENCY_LABELS: Record<TemporalFrequency, string> = {
+const FREQUENCY_LABELS: Record<TemporalFrequency, string> = {
   daily: "Transactions quotidiennes",
   weekly: "Données hebdomadaires",
   monthly: "Rapports mensuels",
