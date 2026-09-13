@@ -44,7 +44,7 @@ const certPassword =
   (fs.existsSync(defaultLocalCert) ? "DataNavigatorLocal2026!" : undefined);
 const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPassword);
 
-const COPY_OPTS = { recursive: true, force: true, dereference: true } as const;
+const COPY_OPTS = { recursive: true, force: true } as const;
 
 /** External packages needed by the Electron main process */
 const MAIN_RUNTIME_PACKAGES = [
@@ -83,8 +83,10 @@ function copyPackageIfExists(packageName: string, destDir: string): void {
   const from = path.join(root, "node_modules", packageName);
   const to = path.join(destDir, "node_modules", packageName);
   if (!fs.existsSync(from)) return;
+  const realFrom = fs.existsSync(from) ? fs.realpathSync(from) : from;
+  fs.mkdirSync(path.dirname(to), { recursive: true });
   fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(from, to, COPY_OPTS);
+  fs.cpSync(realFrom, to, COPY_OPTS);
 }
 
 /**
@@ -349,6 +351,9 @@ export default async function (): Promise<Configuration> {
       icon: iconIco,
       ...(hasWindowsCert
         ? {
+            certificateFile: certPath,
+            certificatePassword: certPassword,
+            rfc3161TimeStampServer: "http://timestamp.digicert.com",
             signtoolOptions: {
               certificateFile: certPath,
               certificatePassword: certPassword,

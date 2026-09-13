@@ -135,7 +135,7 @@ jobs:
           NODE_ENV: production
 
       - name: Make Linux packages (.AppImage + .deb)
-        run: pnpm run package:linux
+        run: pnpm exec electron-builder --config electron-builder.config.ts --linux --x64 --publish never
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"

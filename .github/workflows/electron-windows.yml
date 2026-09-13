@@ -144,31 +144,11 @@ jobs:
           restore-keys: |
             nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
 
-      # Install with node-linker=hoisted (flat, npm-style node_modules) — the OFFICIAL
-      # Electron Forge + pnpm requirement (forge #4188): Forge crawls node_modules to
-      # collect deps with naive resolution that does NOT follow pnpm's isolated .pnpm
-      # symlink store. Scoped to THIS packaging install via --config so the repo's
-      # dev/test installs stay isolated; a clean runner has no prior node_modules to
-      # conflict, and the flag changes only on-disk layout (not lockfile resolution),
-      # so --frozen-lockfile still holds.
-      - name: Install dependencies (hoisted node_modules for forge)
-        run: pnpm install --frozen-lockfile --config.node-linker=hoisted
+      # Install dependencies with frozen lockfile
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
 
-      - name: Confirm hoisted node_modules
-        shell: pwsh
-        run: |
-          if (Test-Path node_modules/.pnpm) {
-            Write-Host "::warning::node_modules/.pnpm present — node-linker=hoisted did NOT apply"
-          } else {
-            Write-Host "node_modules is flat (hoisted) — no .pnpm store"
-          }
-
-      # @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
-      # Toolset v3 (its requiredExternalBinaries; forge aborts the make if they are not
-      # on PATH). The windows-latest (Server 2025) image no longer guarantees WiX v3 and
-      # the WiX v3 repo is archived, so install a pinned version via Chocolatey and add
-      # its bin to PATH for the make step. No-op if the runner already ships WiX. Done
-      # before the long build so a missing toolchain fails fast.
+      # WiX Toolset v3 for MSI packaging
       - name: Install WiX Toolset v3
         shell: pwsh
         run: |
@@ -190,17 +170,11 @@ jobs:
             Add-Content -Path $env:GITHUB_PATH -Value $wixBin
           }
 
-      # Typecheck only — NOT the full `pnpm run verify:release`. The MSI artifact only
-      # needs to compile + package; the heavy quality suite (lint, tests, coverage,
-      # Storybook build, size budgets) already runs on the same commit in
-      # quality.yml / storybook.yml and must not gate or slow the release artifact.
-      # `package:win` runs `desktop:build` (next build) itself, so build coverage
-      # is preserved. A failing Storybook/coverage/size gate no longer blocks the MSI.
+      # Typecheck
       - name: Typecheck
         run: pnpm run typecheck
 
-      # Build the Next standalone + Electron main bundle as its own step, so the
-      # forge `make` below runs as a fresh process we can trace in isolation.
+      # Build the Next standalone + Electron main bundle
       - name: Build desktop bundle
         run: pnpm run desktop:build
         env:
@@ -208,7 +182,7 @@ jobs:
 
       # Make the Windows installer (.msi + .exe) via electron-builder
       - name: Make Windows installer
-        run: pnpm run package:win
+        run: pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"
