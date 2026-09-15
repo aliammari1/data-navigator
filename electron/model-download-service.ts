@@ -175,10 +175,14 @@ export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
     key: "qwen3-1.7b-q4_k_m",
     file: "qwen3-1.7b-q4_k_m.gguf",
     lane: "llm",
-    uri: "hf:Qwen/Qwen3-1.7B-GGUF:Q4_K_M",
+    // Official Qwen/Qwen3-1.7B-GGUF ships Q8_0 only (no Q4_K_M artifact), so
+    // 4-bit resolves via the Unsloth community quant. Verified:
+    // huggingface.co/unsloth/Qwen3-1.7B-GGUF lists Qwen3-1.7B-UD-Q4_K_XL.gguf,
+    // hence the short-tag `hf:…:UD-Q4_K_XL`.
+    uri: "hf:unsloth/Qwen3-1.7B-GGUF:UD-Q4_K_XL",
     sha256: "", // TODO: paste sha256 from `pnpm run models:hash`
-    bytes: 1_100_000_000,
-    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    bytes: 1_132_952_128,
+    label: "Qwen3-1.7B Instruct (Unsloth UD-Q4_K_XL, Apache 2.0)",
     family: "Qwen3",
     sizeLabel: "1.7B",
     optional: true,

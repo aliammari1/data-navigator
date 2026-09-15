@@ -128,15 +128,17 @@ export const MODEL_MANIFEST = [
     bytes: 1023645440,
     sha256: "22ec0f9cc99a90185312de3c882c84e7bd6789bdd050389844380a01a831d7f1",
   },
-  // Reasoning fallback: Qwen3-1.7B Q4_K_M (April 2026).
+  // Reasoning fallback: Qwen3-1.7B UD-Q4_K_XL via Unsloth (April 2026).
+  // Official Qwen/Qwen3-1.7B-GGUF ships Q8_0 only — 4-bit comes from
+  // huggingface.co/unsloth/Qwen3-1.7B-GGUF (Qwen3-1.7B-UD-Q4_K_XL.gguf).
   {
     key: "qwen3-1.7b-q4_k_m",
     group: "llm",
-    label: "Qwen3-1.7B Instruct (GGUF q4_k_m, Apache 2.0)",
+    label: "Qwen3-1.7B Instruct (Unsloth UD-Q4_K_XL, Apache 2.0)",
     optional: true,
-    url: `${HF}/Qwen/Qwen3-1.7B-GGUF/resolve/main/qwen3-1.7b-q4_k_m.gguf?download=true`,
+    url: `${HF}/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-UD-Q4_K_XL.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "qwen3-1.7b-q4_k_m.gguf"),
-    bytes: 1_100_000_000,
+    bytes: 1_132_952_128,
     sha256: "", // TODO
   },
   // Lower-resource alternative: Granite 4.1 3B Instruct q4_k_m (Apache 2.0). Optional (--low-ram).

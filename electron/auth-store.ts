@@ -227,7 +227,12 @@ export function signUp(params: {
   const sessionId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString("hex");
   const now = new Date();
-  const expiresAt = getNextLocalMidnight(now);
+  // In Playwright test runs use a 7-day expiry so the session never expires
+  // mid-test; in production sessions expire at local midnight (default).
+  const expiresAt =
+    process.env.PLAYWRIGHT_TEST === "true"
+      ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      : getNextLocalMidnight(now);
   const hashedPassword = hashPassword(params.password);
 
   db.insert(schema.user)
@@ -348,7 +353,12 @@ export function login(params: {
   const sessionId = crypto.randomUUID();
   const token = crypto.randomBytes(32).toString("hex");
   const now = new Date();
-  const expiresAt = getNextLocalMidnight(now);
+  // In Playwright test runs use a 7-day expiry so the session never expires
+  // mid-test; in production sessions expire at local midnight (default).
+  const expiresAt =
+    process.env.PLAYWRIGHT_TEST === "true"
+      ? new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000)
+      : getNextLocalMidnight(now);
 
   db.insert(schema.session)
     .values({

@@ -169,14 +169,13 @@ export function OsLogin() {
         saveUser(admin);
         setStored(admin);
         setMode("lock");
-      } else if (u) {
-        setStored(u);
-        setMode("lock");
       } else {
         const ownerExists = await hasOwner();
         if (ownerExists) {
+          if (u) setStored(u);
           setMode("lock");
         } else {
+          dropUser();
           setStored(null);
           setMode("setup");
         }
@@ -501,6 +500,7 @@ export function OsLogin() {
                     {lockErr && (
                       <motion.p
                         role="alert"
+                        data-testid="auth-error-message"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
@@ -516,6 +516,7 @@ export function OsLogin() {
                   <motion.button
                     type="submit"
                     disabled={lockSt !== "idle"}
+                    data-testid="auth-submit-btn"
                     whileTap={lockSt === "idle" ? { scale: 0.98 } : {}}
                     className="mt-1 flex h-12 w-full items-center justify-center gap-2
                                rounded-[10px] text-[15px] font-semibold text-white
@@ -860,6 +861,7 @@ export function OsLogin() {
                     {sErr && (
                       <motion.p
                         role="alert"
+                        data-testid="auth-error-message"
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: "auto" }}
                         exit={{ opacity: 0, height: 0 }}
@@ -875,6 +877,7 @@ export function OsLogin() {
                   <motion.button
                     type="submit"
                     disabled={sSt !== "idle" || passwordsMismatch}
+                    data-testid="auth-submit-btn"
                     whileTap={sSt === "idle" ? { scale: 0.98 } : {}}
                     className="flex h-12 w-full items-center justify-center gap-2
                                rounded-[10px] text-[15px] font-semibold text-white

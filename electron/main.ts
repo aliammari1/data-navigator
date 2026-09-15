@@ -468,7 +468,7 @@ async function withBoundedHeavyQuery<T>(
 // ─── DevTools ────────────────────────────────────────────────────────────────
 
 async function installReactDevTools(): Promise<void> {
-  if (!isDev) return;
+  if (!isDev || process.env.PLAYWRIGHT_TEST || process.env.NODE_ENV === "test") return;
 
   try {
     const { installExtension, REACT_DEVELOPER_TOOLS } = await import(
@@ -571,16 +571,18 @@ async function syncSessionCookie(token: string | null, expiresAtMs?: number): Pr
       ? Math.floor(expiresAtMs / 1000)
       : Math.floor(getNextLocalMidnight().getTime() / 1000);
 
-    const authSecret =
-      process.env.BETTER_AUTH_SECRET || "data-navigator-local-dev-secret-change-me";
-    const signedValue = token ? signCookieValue(token, authSecret) : null;
-
+    // Store the raw session token so that better-auth's own getSession() can
+    // look it up in the SQLite session table by its primary token column.
+    // Previously we HMAC-wrapped the token here; better-auth read the full
+    // "token.HMAC" string, failed to find a matching row, and responded with
+    // a Set-Cookie header that cleared the cookie from Electron's session
+    // store — causing every server-side layout render to redirect to /login.
     for (const url of targetUrls) {
-      if (token && signedValue) {
+      if (token) {
         await defaultSession.cookies.set({
           url,
           name: "better-auth.session_token",
-          value: signedValue,
+          value: token,
           path: "/",
           httpOnly: true,
           secure: false,
@@ -612,6 +614,12 @@ function clearMidnightTimer(): void {
 }
 
 function scheduleMidnightExpiration(expiresAtIsoString?: string): void {
+  // In Playwright test runs the session is already given a 7-day expiry, so
+  // there is no midnight to schedule a timer for.  Skipping the timer also
+  // avoids races where a short-lived timer fires during a test and clears the
+  // cookie, causing the layout server component to redirect to /login.
+  if (process.env.PLAYWRIGHT_TEST === "true") return;
+
   clearMidnightTimer();
   const expiresAtMs = expiresAtIsoString
     ? new Date(expiresAtIsoString).getTime()
@@ -1653,6 +1661,7 @@ async function createWindow(): Promise<void> {
     // before the dark dashboard paints (--surface-0).
     minWidth: 1100,
     minHeight: 720,
+    title: "Data Navigator",
     autoHideMenuBar: true,
     backgroundColor: "#0b0e15",
     show: false,
@@ -1754,7 +1763,9 @@ async function createWindow(): Promise<void> {
 
     const devPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
     await mainWindow.loadURL(`http://localhost:${devPort}/dashboard`);
-    mainWindow.webContents.openDevTools();
+    if (!process.env.PLAYWRIGHT_TEST && process.env.NODE_ENV !== "test") {
+      mainWindow.webContents.openDevTools();
+    }
   } else {
     // Register fail-retry listener before loading any URL
     let loadRetries = 0;

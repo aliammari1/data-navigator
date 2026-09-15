@@ -140,10 +140,10 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
     key: "qwen3-1.7b-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",
-    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    label: "Qwen3-1.7B Instruct (Unsloth UD-Q4_K_XL, Apache 2.0)",
     family: "Qwen3",
     sizeLabel: "1.7B",
-    downloadMb: 1100, // matches model-download-service.ts's bytes: 1_100_000_000
+    downloadMb: 1132.952128, // matches model-download-service.ts's bytes: 1_132_952_128
     optional: true,
     ggufFile: "qwen3-1.7b-q4_k_m.gguf",
     capabilities: { tools: true, thinking: true, vision: false },

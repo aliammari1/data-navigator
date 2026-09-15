@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   closeApp,
   eph,
+  gotoRoute,
   launchApp,
   screenshot,
   signUp,
@@ -10,39 +11,8 @@ import {
   TEST_PASSWORD,
 } from "./_harness";
 
-async function gotoRoute(window: import("@playwright/test").Page, path: string): Promise<void> {
-  if (window.url().endsWith(path)) return;
-
-  try {
-    await window.evaluate((target) => {
-      window.location.href = target;
-    }, path);
-    await window.waitForURL(new RegExp(path.replace(/\//g, "\\/")), { timeout: 45_000 });
-    return;
-  } catch {
-    // Fallback to direct navigation
-  }
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await window.goto(`http://localhost:3000${path}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 60_000,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      await window.waitForTimeout(2_000);
-    }
-  }
-  throw lastError;
-}
-
 test.describe("Datasets & File Import journey (electron-playwright-helpers)", () => {
   test("exercises file dialog stubbing, upload screen, and catalog folders", async () => {
-    test.setTimeout(240_000);
-
     const { app, window } = await launchApp({
       testName: "datasets-import-journey",
     });
@@ -70,9 +40,10 @@ test.describe("Datasets & File Import journey (electron-playwright-helpers)", ()
           filters: [{ name: "Datasets", extensions: ["csv", "json", "parquet", "arrow"] }],
         })) as { canceled: boolean; filePaths: string[] };
 
-        expect(dialogResponse).toBeDefined();
-        expect(dialogResponse.canceled).toBe(false);
-        expect(dialogResponse.filePaths).toContain(mockDatasetPath);
+        expect(dialogResponse).toMatchObject({
+          canceled: false,
+          filePaths: [mockDatasetPath],
+        });
       });
 
       // ── Step 3: Visit /dashboard/upload screen ─────────────────────────────

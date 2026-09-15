@@ -7,6 +7,7 @@ import {
   readSync,
   renameSync,
   rmSync,
+  statSync,
 } from "node:fs";
 import path from "node:path";
 import type Database from "better-sqlite3";
@@ -230,6 +231,17 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
 type AuthDatabase = ReturnType<typeof createAuthDatabase>;
 
 let cachedAuthDatabase: AuthDatabase | null = null;
+let cachedFileId: string | null = null;
+
+/** dev:ino identity of a path, or null when the file is gone. */
+function fileId(databasePath: string): string | null {
+  try {
+    const st = statSync(databasePath);
+    return `${st.dev}:${st.ino}`;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Lazily construct (once) the better-sqlite3-backed auth database.
@@ -245,10 +257,26 @@ let cachedAuthDatabase: AuthDatabase | null = null;
  * `next dev`/`next start`).
  */
 function getAuthDatabase(): AuthDatabase {
+  // The cached handle goes stale when the file is deleted/recreated under a
+  // running server (E2E profile wipes): it keeps reading the old inode and
+  // every session lookup misses. Reopen on identity drift or disappearance.
+  if (cachedAuthDatabase) {
+    const current = fileId(cachedAuthDatabase.path);
+    if (current === null || current !== cachedFileId) {
+      try {
+        cachedAuthDatabase.sqlite.close();
+      } catch {
+        // best-effort close of a stale handle
+      }
+      cachedAuthDatabase = null;
+      cachedFileId = null;
+    }
+  }
   if (!cachedAuthDatabase) {
     cachedAuthDatabase = createAuthDatabase({
       appUserData: process.env.APP_USER_DATA,
     });
+    cachedFileId = fileId(cachedAuthDatabase.path);
   }
   return cachedAuthDatabase;
 }

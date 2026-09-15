@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   closeApp,
   eph,
+  gotoRoute,
   launchApp,
   screenshot,
   signUp,
@@ -10,39 +11,8 @@ import {
   TEST_PASSWORD,
 } from "./_harness";
 
-async function gotoRoute(window: import("@playwright/test").Page, path: string): Promise<void> {
-  if (window.url().endsWith(path)) return;
-
-  try {
-    await window.evaluate((target) => {
-      window.location.href = target;
-    }, path);
-    await window.waitForURL(new RegExp(path.replace(/\//g, "\\/")), { timeout: 45_000 });
-    return;
-  } catch {
-    // Fallback to direct navigation
-  }
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await window.goto(`http://localhost:3000${path}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 60_000,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      await window.waitForTimeout(2_000);
-    }
-  }
-  throw lastError;
-}
-
 test.describe("Telecom reporting & analytical views journey", () => {
   test("traverses telecom report views, metrics, and data tables", async () => {
-    test.setTimeout(300_000);
-
     const { app, window } = await launchApp({
       testName: "telecom-reporting-journey",
     });
@@ -92,7 +62,7 @@ test.describe("Telecom reporting & analytical views journey", () => {
       // ── Step 6: Verify window presence via eph helper ─────────────────────
       await test.step("verify window state using electron-playwright-helpers", async () => {
         const matchingWindows = await eph.getWindowByTitle(app, /Data Navigator/i, { all: true });
-        expect(matchingWindows.length).toBeGreaterThan(0);
+        expect(matchingWindows).not.toHaveLength(0);
       });
     } finally {
       await closeApp(app);

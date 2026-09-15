@@ -1,5 +1,7 @@
-import { existsSync } from "node:fs";
+// tests/e2e-electron/global-setup.ts
+import { existsSync, rmSync } from "node:fs";
 import path from "node:path";
+import type { FullConfig } from "@playwright/test";
 import Database from "better-sqlite3";
 import {
   closeApp,
@@ -11,37 +13,70 @@ import {
 } from "./_harness";
 
 /**
- * Runs ONCE before the whole suite (wired via playwright.electron-e2e.config.ts's
- * `globalSetup`). If the shared profile doesn't exist yet, launches the app
- * against it and signs up once so every journey test in the suite starts
- * already authenticated — a realistic "returning user" session instead of
- * re-running signup in every spec file.
+ * Checks whether the shared profile database exists and contains an unexpired session.
  */
-export default async function globalSetup(): Promise<void> {
-  // Pre-warm routes so Turbopack compiles them before Electron launches
+function isProfileAuthenticated(profileDir: string): boolean {
+  const dbPath = path.join(profileDir, "databases", "auth.db");
+  if (!existsSync(dbPath)) return false;
+
+  let db: Database.Database | undefined;
   try {
-    await fetch("http://localhost:3000/login");
-    await fetch("http://localhost:3000/dashboard");
+    db = new Database(dbPath, { readonly: true });
+
+    // Verify user exists
+    const user = db.prepare("SELECT id FROM user LIMIT 1").get();
+    if (!user) return false;
+
+    // Verify Better Auth session is still unexpired
+    const session = db
+      .prepare("SELECT expiresAt FROM session ORDER BY expiresAt DESC LIMIT 1")
+      .get() as { expiresAt: number | string } | undefined;
+
+    if (!session) return false;
+
+    const expiresAtMs =
+      typeof session.expiresAt === "number"
+        ? session.expiresAt
+        : new Date(session.expiresAt).getTime();
+
+    // Must be valid for at least another 60 seconds
+    return expiresAtMs > Date.now() + 60_000;
   } catch {
-    // webServer might still be initializing
+    return false;
+  } finally {
+    db?.close();
+  }
+}
+
+/**
+ * Pre-warms core routes so bundlers compile them before Electron windows initialize.
+ */
+async function prewarmRoutes(baseURL = "http://localhost:3000"): Promise<void> {
+  const routes = ["/login", "/dashboard"];
+  await Promise.allSettled(routes.map((route) => fetch(new URL(route, baseURL))));
+}
+
+export default async function globalSetup(_config: FullConfig): Promise<void> {
+  if (isProfileAuthenticated(SHARED_PROFILE_DIR)) {
+    await prewarmRoutes();
+    return;
   }
 
-  const authDb = path.join(SHARED_PROFILE_DIR, "databases", "auth.db");
-  if (existsSync(authDb)) {
-    try {
-      const db = new Database(authDb, { readonly: true });
-      const row = db.prepare("SELECT id FROM user LIMIT 1").get();
-      db.close();
-      if (row) return;
-    } catch {
-      // Re-run setup if unreadable
-    }
+  // Wipe BEFORE prewarming: prewarm compiles /dashboard, which opens the
+  // shared auth.db through the Next server and caches the handle. Wiping
+  // after that leaves the server bound to a deleted inode, so every later
+  // session lookup misses and the suite loops on /login?reason=expired.
+  if (existsSync(SHARED_PROFILE_DIR)) {
+    rmSync(SHARED_PROFILE_DIR, { recursive: true, force: true });
   }
+
+  await prewarmRoutes();
 
   const { app, window } = await launchApp({
     testName: "_global-setup",
     userDataDir: SHARED_PROFILE_DIR,
   });
+
   try {
     await signUp(window, TEST_EMAIL, TEST_PASSWORD);
   } finally {

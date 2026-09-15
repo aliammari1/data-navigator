@@ -79,14 +79,47 @@ function requirePath(label: string, targetPath: string): void {
   }
 }
 
+function safeCopyDir(src: string, dest: string, visited = new Set<string>()): void {
+  if (!fs.existsSync(src)) return;
+  let real: string;
+  try {
+    real = fs.realpathSync(src);
+  } catch {
+    real = src;
+  }
+  if (visited.has(real)) return;
+  visited.add(real);
+
+  fs.mkdirSync(dest, { recursive: true });
+  const entries = fs.readdirSync(src, { withFileTypes: true });
+  for (const entry of entries) {
+    const srcPath = path.join(src, entry.name);
+    const destPath = path.join(dest, entry.name);
+    try {
+      if (entry.isDirectory()) {
+        safeCopyDir(srcPath, destPath, visited);
+      } else if (entry.isSymbolicLink()) {
+        const realTarget = fs.realpathSync(srcPath);
+        const stat = fs.statSync(realTarget);
+        if (stat.isDirectory()) {
+          safeCopyDir(realTarget, destPath, visited);
+        } else {
+          fs.copyFileSync(realTarget, destPath);
+        }
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
+    } catch {
+      // Ignore unreadable files or circular link errors
+    }
+  }
+}
+
 function copyPackageIfExists(packageName: string, destDir: string): void {
   const from = path.join(root, "node_modules", packageName);
   const to = path.join(destDir, "node_modules", packageName);
   if (!fs.existsSync(from)) return;
-  const realFrom = fs.existsSync(from) ? fs.realpathSync(from) : from;
-  fs.mkdirSync(path.dirname(to), { recursive: true });
-  fs.rmSync(to, { recursive: true, force: true });
-  fs.cpSync(realFrom, to, COPY_OPTS);
+  safeCopyDir(from, to);
 }
 
 /**
@@ -231,62 +264,69 @@ function pruneDeadWeight(targetDir: string, platform: NodeJS.Platform): void {
 
 /** Stage application files into .app-stage */
 function stageApplication(): void {
-  console.log(`[stage] Preparing clean staging directory at ${stageDir}`);
-  fs.rmSync(stageDir, { recursive: true, force: true });
-  fs.mkdirSync(stageDir, { recursive: true });
+  try {
+    console.log(`[stage] Preparing clean staging directory at ${stageDir}`);
+    fs.rmSync(stageDir, { recursive: true, force: true });
+    fs.mkdirSync(stageDir, { recursive: true });
 
-  requirePath("Electron main build", electronMainBuild);
-  requirePath("Next standalone output", nextStandaloneDir);
-  requirePath("Next static output", nextStaticDir);
-  requirePath("public assets", publicDir);
+    requirePath("Electron main build", electronMainBuild);
+    requirePath("Next standalone output", nextStandaloneDir);
+    requirePath("Next static output", nextStaticDir);
+    requirePath("public assets", publicDir);
 
-  // 1. Electron main bundle
-  fs.cpSync(path.join(root, "build"), path.join(stageDir, "build"), COPY_OPTS);
-  if (fs.existsSync(drizzleDir)) {
-    fs.cpSync(drizzleDir, path.join(stageDir, "drizzle"), COPY_OPTS);
+    // 1. Electron main bundle
+    safeCopyDir(path.join(root, "build"), path.join(stageDir, "build"));
+    if (fs.existsSync(drizzleDir)) {
+      safeCopyDir(drizzleDir, path.join(stageDir, "drizzle"));
+    }
+
+    // 2. Next.js standalone server and web assets
+    const appDest = path.join(stageDir, "app");
+    safeCopyDir(nextStandaloneDir, appDest);
+    safeCopyDir(nextStaticDir, path.join(appDest, ".next", "static"));
+    safeCopyDir(publicDir, path.join(appDest, "public"));
+    if (fs.existsSync(modelsDir)) {
+      safeCopyDir(modelsDir, path.join(appDest, "models"));
+    }
+
+    // Next.js standalone server.js calls process.chdir(__dirname).
+    // Inside an ASAR archive, process.chdir fails with ENOTDIR because ASAR is an archive, not a real filesystem dir.
+    // Patch server.js to safely wrap process.chdir.
+    const standaloneServer = path.join(appDest, "server.js");
+    if (fs.existsSync(standaloneServer)) {
+      let content = fs.readFileSync(standaloneServer, "utf8");
+      content = content.replace(
+        "process.chdir(__dirname)",
+        "try { process.chdir(__dirname); } catch {}",
+      );
+      fs.writeFileSync(standaloneServer, content, "utf8");
+    }
+
+    // 3. Copy main process runtime dependencies (next is omitted: app/ has its own copy)
+    for (const pkg of MAIN_RUNTIME_PACKAGES) {
+      copyPackageIfExists(pkg, stageDir);
+    }
+
+    // 4. Prune dead weight
+    pruneDeadWeight(stageDir, process.platform);
+
+    // 5. App package.json
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
+    const appPkg = {
+      name: appSlug,
+      productName: appName,
+      version: rootPkg.version,
+      author: manufacturer,
+      description:
+        rootPkg.description ?? "AI-powered local data analysis and visualization platform",
+      main: "build/main.js",
+    };
+    fs.writeFileSync(path.join(stageDir, "package.json"), `${JSON.stringify(appPkg, null, 2)}\n`);
+    console.log("[stage] Staging completed successfully.");
+  } catch (error) {
+    console.error("[stage] FATAL ERROR during stageApplication:", error);
+    throw error;
   }
-
-  // 2. Next.js standalone server and web assets
-  const appDest = path.join(stageDir, "app");
-  fs.cpSync(nextStandaloneDir, appDest, COPY_OPTS);
-  fs.cpSync(nextStaticDir, path.join(appDest, ".next", "static"), COPY_OPTS);
-  fs.cpSync(publicDir, path.join(appDest, "public"), COPY_OPTS);
-  if (fs.existsSync(modelsDir)) {
-    fs.cpSync(modelsDir, path.join(appDest, "models"), COPY_OPTS);
-  }
-
-  // Next.js standalone server.js calls process.chdir(__dirname).
-  // Inside an ASAR archive, process.chdir fails with ENOTDIR because ASAR is an archive, not a real filesystem dir.
-  // Patch server.js to safely wrap process.chdir.
-  const standaloneServer = path.join(appDest, "server.js");
-  if (fs.existsSync(standaloneServer)) {
-    let content = fs.readFileSync(standaloneServer, "utf8");
-    content = content.replace(
-      "process.chdir(__dirname)",
-      "try { process.chdir(__dirname); } catch {}",
-    );
-    fs.writeFileSync(standaloneServer, content, "utf8");
-  }
-
-  // 3. Copy main process runtime dependencies (next is omitted: app/ has its own copy)
-  for (const pkg of MAIN_RUNTIME_PACKAGES) {
-    copyPackageIfExists(pkg, stageDir);
-  }
-
-  // 4. Prune dead weight
-  pruneDeadWeight(stageDir, process.platform);
-
-  // 5. App package.json
-  const rootPkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
-  const appPkg = {
-    name: appSlug,
-    productName: appName,
-    version: rootPkg.version,
-    author: manufacturer,
-    description: rootPkg.description ?? "AI-powered local data analysis and visualization platform",
-    main: "build/main.js",
-  };
-  fs.writeFileSync(path.join(stageDir, "package.json"), `${JSON.stringify(appPkg, null, 2)}\n`);
 }
 
 /**

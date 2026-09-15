@@ -1,14 +1,6 @@
 // tests/e2e-electron/collaboration-journey.spec.ts
 import { expect, test } from "@playwright/test";
-import {
-  closeApp,
-  eph,
-  launchApp,
-  screenshot,
-  signUp,
-  TEST_EMAIL,
-  TEST_PASSWORD,
-} from "./_harness";
+import { closeApp, eph, gotoRoute, launchApp, screenshot, signUp } from "./_harness";
 
 interface CollabHubStatus {
   running: boolean;
@@ -26,48 +18,21 @@ interface DiscoveredHub {
   addresses: string[];
 }
 
-async function gotoRoute(window: import("@playwright/test").Page, path: string): Promise<void> {
-  if (window.url().endsWith(path)) return;
-
-  try {
-    await window.evaluate((target) => {
-      window.location.href = target;
-    }, path);
-    await window.waitForURL(new RegExp(path.replace(/\//g, "\\/")), { timeout: 45_000 });
-    return;
-  } catch {
-    // Fallback to top-level navigation if evaluate timed out
-  }
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await window.goto(`http://localhost:3000${path}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 60_000,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      await window.waitForTimeout(2_000);
-    }
-  }
-  throw lastError;
-}
-
 test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", () => {
   test("manages collaboration hub lifecycle and inspects window via eph helpers", async () => {
-    test.setTimeout(180_000);
-
     const { app, window } = await launchApp({
       testName: "collaboration-hub-lifecycle",
     });
 
+    // Authenticate / unlock workspace before any assertions
+    await signUp(window);
+
     try {
       // ── Step 1: Verify main window via electron-playwright-helpers ──────────
       await test.step("find and verify main window using getWindowByTitle", async () => {
-        const matchingWindows = await eph.getWindowByTitle(app, /Data Navigator/i, { all: true });
-        expect(matchingWindows.length).toBeGreaterThan(0);
+        const mainWin = await eph.waitForWindowByTitle(app, /Data Navigator/i);
+        expect(mainWin).toBeDefined();
+        await expect(mainWin.title()).resolves.toMatch(/Data Navigator/i);
       });
 
       // ── Step 2: Retrieve collaboration host secret via IPC invoke handler ──
@@ -76,6 +41,7 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
           app,
           "collabHub:getHostSecret",
         )) as string;
+
         expect(typeof hostSecret).toBe("string");
         expect(hostSecret.length).toBeGreaterThan(0);
       });
@@ -83,6 +49,7 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
       // ── Step 3: Check initial collab hub status ───────────────────────────
       await test.step("inspect initial collab hub status", async () => {
         const status = (await eph.ipcMainInvokeHandler(app, "collabHub:status")) as CollabHubStatus;
+
         expect(status).toBeDefined();
         expect(typeof status.running).toBe("boolean");
       });
@@ -94,24 +61,23 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
           name: "Test Collab Node",
         })) as CollabHubStatus;
 
-        expect(startResult).toBeDefined();
-        expect(startResult.running).toBe(true);
-        expect(startResult.port).toBe(14567);
+        expect(startResult).toMatchObject({
+          running: true,
+          port: 14567,
+        });
       });
 
-      // ── Step 5: Verify status confirms active hub ──────────────────────────
-      await test.step("verify running hub status via eph retryUntilTruthy", async () => {
-        const status = await eph.retryUntilTruthy(
-          async () => {
-            const s = (await eph.ipcMainInvokeHandler(app, "collabHub:status")) as CollabHubStatus;
-            return s.running ? s : null;
-          },
-          10_000,
-          500,
-        );
-
-        expect(status).not.toBeNull();
-        expect(status?.running).toBe(true);
+      // ── Step 5: Verify status confirms active hub via native expect.poll ────
+      await test.step("verify running hub status via expect.poll", async () => {
+        await expect
+          .poll(async () => {
+            const status = (await eph.ipcMainInvokeHandler(
+              app,
+              "collabHub:status",
+            )) as CollabHubStatus;
+            return status?.running;
+          })
+          .toBe(true);
       });
 
       // ── Step 6: Query discovery list ──────────────────────────────────────
@@ -120,6 +86,7 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
           app,
           "collabHub:getDiscovered",
         )) as DiscoveredHub[];
+
         expect(Array.isArray(discovered)).toBe(true);
       });
 
@@ -128,8 +95,7 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
         const stopResult = (await eph.ipcMainInvokeHandler(app, "collabHub:stop")) as {
           stopped: boolean;
         };
-        expect(stopResult).toBeDefined();
-        expect(stopResult.stopped).toBe(true);
+        expect(stopResult).toEqual({ stopped: true });
 
         const statusAfterStop = (await eph.ipcMainInvokeHandler(
           app,
@@ -140,7 +106,6 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
 
       // ── Step 8: Visit /dashboard/collaborative UI screen ──────────────────
       await test.step("render collaboration dashboard UI", async () => {
-        await signUp(window, TEST_EMAIL, TEST_PASSWORD);
         await gotoRoute(window, "/dashboard/collaborative");
 
         await expect(window).toHaveURL(/\/dashboard\/collaborative/);
@@ -153,7 +118,7 @@ test.describe("Collaboration & LAN Hub journey (electron-playwright-helpers)", (
       try {
         await eph.ipcMainInvokeHandler(app, "collabHub:stop");
       } catch {
-        // ignore cleanup error
+        // Ignore cleanup error if already terminated
       }
       await closeApp(app);
     }

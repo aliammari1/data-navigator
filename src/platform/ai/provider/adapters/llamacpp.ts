@@ -78,10 +78,10 @@ const MODELS: AIModelInfo[] = [
   },
   {
     id: "qwen3-1.7b-q4_k_m.gguf",
-    label: "Qwen3-1.7B Instruct (GGUF q4, Apache 2.0)",
+    label: "Qwen3-1.7B Instruct (Unsloth UD-Q4_K_XL, Apache 2.0)",
     family: "Qwen3",
     sizeLabel: "1.7B",
-    downloadMb: 1100,
+    downloadMb: 1132.952128,
   },
   {
     id: "granite-4.1-3b-instruct-q4_k_m.gguf",

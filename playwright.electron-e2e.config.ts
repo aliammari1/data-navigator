@@ -1,3 +1,4 @@
+import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
 /**
@@ -34,7 +35,16 @@ export default defineConfig({
   webServer: {
     command: "pnpm run next:dev",
     url: "http://localhost:3000",
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
+    env: {
+      APP_USER_DATA: path.resolve(process.cwd(), ".e2e-electron-profile"),
+      // Electron harness launches the app with PLAYWRIGHT_TEST=true (7-day
+      // sessions, no midnight timer). The Next.js server needs the same flag
+      // so dashboard/layout fallback can apply identical test leniency;
+      // without it the server treats fresh E2E sessions with production
+      // strictness while Electron uses test semantics — split-brain.
+      PLAYWRIGHT_TEST: "true",
+    },
   },
 });

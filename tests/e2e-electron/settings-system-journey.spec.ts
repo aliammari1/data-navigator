@@ -3,6 +3,7 @@ import { expect, test } from "@playwright/test";
 import {
   closeApp,
   eph,
+  gotoRoute,
   launchApp,
   screenshot,
   signUp,
@@ -10,39 +11,8 @@ import {
   TEST_PASSWORD,
 } from "./_harness";
 
-async function gotoRoute(window: import("@playwright/test").Page, path: string): Promise<void> {
-  if (window.url().endsWith(path)) return;
-
-  try {
-    await window.evaluate((target) => {
-      window.location.href = target;
-    }, path);
-    await window.waitForURL(new RegExp(path.replace(/\//g, "\\/")), { timeout: 45_000 });
-    return;
-  } catch {
-    // Fallback to direct navigation
-  }
-
-  let lastError: unknown;
-  for (let attempt = 0; attempt < 3; attempt++) {
-    try {
-      await window.goto(`http://localhost:3000${path}`, {
-        waitUntil: "domcontentloaded",
-        timeout: 60_000,
-      });
-      return;
-    } catch (error) {
-      lastError = error;
-      await window.waitForTimeout(2_000);
-    }
-  }
-  throw lastError;
-}
-
 test.describe("System settings & diagnostics journey (electron-playwright-helpers)", () => {
   test("exercises settings navigation, audit log queries, and IPC configuration", async () => {
-    test.setTimeout(240_000);
-
     const { app, window } = await launchApp({
       testName: "settings-system-journey",
     });
@@ -68,13 +38,17 @@ test.describe("System settings & diagnostics journey (electron-playwright-helper
           "general_config",
           testSetting,
         );
+
         const retrieved = await eph.ipcMainInvokeHandler(
           app,
           "settings:get",
           "system",
           "general_config",
         );
-        expect(retrieved).toEqual(testSetting);
+        // settings:get returns a { value, updatedAt } envelope, not the raw
+        // value; updatedAt is server-stamped, so only its shape is asserted.
+        expect(retrieved).toMatchObject({ value: testSetting });
+        expect((retrieved as { updatedAt: unknown }).updatedAt).toEqual(expect.any(String));
       });
 
       // ── Step 3: Visit /dashboard/settings overview ─────────────────────────
@@ -89,16 +63,14 @@ test.describe("System settings & diagnostics journey (electron-playwright-helper
       // ── Step 4: Verify audit logs IPC query ────────────────────────────────
       await test.step("query audit logs through analytics IPC", async () => {
         const auditLogs = await eph.ipcMainInvokeHandler(app, "analytics:getAuditLogs", 10);
-        expect(auditLogs).toBeDefined();
-        expect(Array.isArray(auditLogs)).toBe(true);
+        expect(auditLogs).toEqual(expect.any(Array));
       });
 
       // ── Step 5: Verify window state via eph window helper ──────────────────
       await test.step("verify active electron window matching", async () => {
-        const matchingWindow = await eph.waitForWindowByTitle(app, /Data Navigator/i, {
-          timeout: 15_000,
-        });
+        const matchingWindow = await eph.waitForWindowByTitle(app, /Data Navigator/i);
         expect(matchingWindow).toBeDefined();
+        await expect(matchingWindow.title()).resolves.toMatch(/Data Navigator/i);
       });
     } finally {
       await closeApp(app);

@@ -251,6 +251,7 @@ export function AccountPanel() {
             size="sm"
             variant="outline"
             disabled={signingOut}
+            data-testid="account-signout-btn"
             onClick={async () => {
               setSigningOut(true);
               try {
