@@ -191,3 +191,174 @@ describe("date-organizer", () => {
     });
   });
 });
+
+describe("date-organizer edge-case coverage", () => {
+  it.each([
+    ["weekly_report.csv", "weekly"],
+    ["monthly_report.csv", "monthly"],
+    ["quarterly_report.csv", "quarterly"],
+    ["annual_report.csv", "annual"],
+    ["hourly_report.csv", "hourly"],
+  ] as const)("detects %s as %s frequency", (name, expected) => {
+    const info = extractTemporalInfo({ id: name, name });
+    expect(info.frequency).toBe(expected);
+    expect(info.confidence).toBe("high");
+  });
+
+  it("extracts year-month and reverse textual month formats", () => {
+    const numeric = extractTemporalInfo({ id: "ym", name: "report_2024-07.csv" });
+    expect(numeric).toMatchObject({
+      year: 2024,
+      month: 7,
+      monthName: "07 - Juillet",
+      quarter: 3,
+      confidence: "high",
+    });
+
+    const textual = extractTemporalInfo({ id: "txt", name: "report_2024_septembre.csv" });
+    expect(textual).toMatchObject({
+      year: 2024,
+      month: 9,
+      monthName: "09 - Septembre",
+      quarter: 3,
+      confidence: "high",
+    });
+  });
+
+  it("keeps a detected frequency while adding a standalone year", () => {
+    const info = extractTemporalInfo({ id: "weekly", name: "weekly_report_2024.csv" });
+    expect(info).toMatchObject({
+      year: 2024,
+      frequency: "weekly",
+      confidence: "high",
+    });
+    expect(info.sourceExplanation).toContain("Année 2024");
+  });
+
+  it("falls back to temporal column metadata when the filename has no date", () => {
+    const byName = extractTemporalInfo({
+      id: "meta-name",
+      name: "transactions.csv",
+      columns: [{ name: "transaction_date", type: "string" }],
+    });
+    expect(byName).toMatchObject({
+      year: null,
+      confidence: "low",
+      sourceExplanation: 'Colonne temporelle trouvée: "transaction_date"',
+    });
+
+    const byType = extractTemporalInfo({
+      id: "meta-type",
+      name: "transactions.csv",
+      columns: [
+        { name: "amount", type: "number" },
+        { name: "created", type: "date" },
+      ],
+    });
+    expect(byType.sourceExplanation).toBe('Colonne temporelle trouvée: "created"');
+  });
+
+  it("covers the fallback path for every temporal granularity", () => {
+    const base = {
+      datasetId: "1",
+      datasetName: "test.csv",
+      year: 2024,
+      month: 5,
+      monthName: "05 - Mai",
+      day: 12,
+      quarter: 2,
+      frequency: "daily" as const,
+      confidence: "high" as const,
+      sourceExplanation: "test",
+    };
+
+    const yearOnly = {
+      ...base,
+      month: null,
+      monthName: null,
+      day: null,
+      quarter: null,
+      frequency: null,
+    };
+    const frequencyOnly = {
+      ...base,
+      year: null,
+      month: null,
+      monthName: null,
+      day: null,
+      quarter: null,
+      frequency: "weekly" as const,
+    };
+    const yearMonthNoDay = { ...base, day: null, frequency: null };
+    const noTemporal = {
+      ...base,
+      year: null,
+      month: null,
+      monthName: null,
+      day: null,
+      quarter: null,
+      frequency: null,
+    };
+
+    expect(buildProposedPath(yearOnly, "year-month")).toEqual(["2024"]);
+    expect(buildProposedPath(frequencyOnly, "year-month")).toEqual(["Données hebdomadaires"]);
+
+    expect(buildProposedPath(yearOnly, "year-quarter")).toEqual(["2024"]);
+    expect(buildProposedPath(frequencyOnly, "year-quarter")).toEqual(["Données hebdomadaires"]);
+
+    expect(buildProposedPath(yearMonthNoDay, "year-month-day")).toEqual(["2024", "05 - Mai"]);
+    expect(buildProposedPath(yearOnly, "year-month-day")).toEqual(["2024"]);
+    expect(buildProposedPath(frequencyOnly, "year-month-day")).toEqual(["Données hebdomadaires"]);
+
+    expect(buildProposedPath(frequencyOnly, "frequency-year")).toEqual(["Données hebdomadaires"]);
+    expect(buildProposedPath({ ...base, frequency: null }, "frequency-year")).toEqual([
+      "Périodique",
+      "2024",
+      "05 - Mai",
+    ]);
+    expect(buildProposedPath(yearOnly, "frequency-year")).toEqual(["Périodique", "2024"]);
+
+    expect(buildProposedPath(noTemporal, "year-month", true)).toEqual(["Autres (Sans date)"]);
+    expect(buildProposedPath(noTemporal, "year-month", false)).toEqual([]);
+  });
+
+  it("skips undated datasets and creates a year folder when no hierarchy exists", () => {
+    const addFolder = vi.fn();
+    const moveDataset = vi.fn();
+    const undated = {
+      id: "undated",
+      name: "notes.csv",
+      tableName: "notes",
+      viewName: "v_notes",
+      source: "upload",
+      format: "csv",
+      rowCount: 1,
+      colCount: 1,
+      sizeBytes: 16,
+      columns: [],
+      updatedAt: "2024-01-01",
+      tags: [],
+    } as Dataset;
+
+    const skipped = applyTemporalOrganization({
+      extractions: analyzeTemporalDatasets([undated], "year-month"),
+      existingFolders: [],
+      addFolder,
+      moveDataset,
+    });
+    expect(skipped).toEqual({ foldersCreated: 0, datasetsMoved: 0 });
+    expect(moveDataset).not.toHaveBeenCalled();
+
+    const dated = { ...undated, id: "dated", name: "sales_2025-01-15.csv" };
+    const organized = applyTemporalOrganization({
+      extractions: analyzeTemporalDatasets([dated], "year-month"),
+      existingFolders: [],
+      addFolder,
+      moveDataset,
+    });
+    expect(organized).toEqual({ foldersCreated: 2, datasetsMoved: 1 });
+    expect(addFolder).toHaveBeenCalledWith(
+      expect.objectContaining({ name: "2025", parentId: null, color: "#3b82f6" }),
+    );
+  });
+});

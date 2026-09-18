@@ -92,6 +92,9 @@ jobs:
     # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
     env:
       IS_RELEASE: ${{ inputs.release == true }}
+      # PR/manual smoke builds favor speed: one NSIS installer, store compression,
+      # and no WiX/typecheck duplication. Release builds retain the full installer set.
+      FAST_WINDOWS_SMOKE: ${{ inputs.release != true }}
 
     steps:
       - name: Checkout repository
@@ -135,6 +138,26 @@ jobs:
           restore-keys: |
             electron-${{ runner.os }}-
 
+      # Cache electron-builder toolsets (NSIS, winCodeSign, 7zip, etc.) so ephemeral
+      # GitHub runners do not re-download them on every packaging run.
+      - name: Cache electron-builder toolsets
+        uses: actions/cache@v6
+        with:
+          path: ~/AppData/Local/electron-builder/Cache
+          key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            electron-builder-${{ runner.os }}-
+
+      # Cache node-gyp headers/libraries. Native SQLite packages otherwise download
+      # the same Node headers again on every clean Windows runner.
+      - name: Cache node-gyp headers
+        uses: actions/cache@v6
+        with:
+          path: ~/AppData/Local/node-gyp/Cache
+          key: node-gyp-${{ runner.os }}-node24
+          restore-keys: |
+            node-gyp-${{ runner.os }}-
+
       # Cache the Next.js build cache to speed up `desktop:build` -> next build.
       - name: Cache Next.js build
         uses: actions/cache@v6
@@ -146,10 +169,13 @@ jobs:
 
       # Install dependencies with frozen lockfile
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        # Prefer the restored pnpm store while still fetching anything genuinely missing.
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       # WiX Toolset v3 for MSI packaging
       - name: Install WiX Toolset v3
+        # NSIS-only smoke builds do not need WiX. Keep it for release builds that emit MSI.
+        if: env.IS_RELEASE == 'true'
         shell: pwsh
         run: |
           if (Get-Command candle.exe -ErrorAction SilentlyContinue) {
@@ -170,8 +196,10 @@ jobs:
             Add-Content -Path $env:GITHUB_PATH -Value $wixBin
           }
 
-      # Typecheck
+      # Typecheck is already a blocking Tier-1 CI gate on pull requests. Avoid doing it
+      # twice in the fast packaging smoke, but retain the check for release builds.
       - name: Typecheck
+        if: env.IS_RELEASE == 'true'
         run: pnpm run typecheck
 
       # Build the Next standalone + Electron main bundle
@@ -180,13 +208,21 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Make the Windows installer (.msi + .exe) via electron-builder
+      # Fast PR/manual smoke: build one NSIS EXE; electron-builder.config.ts selects
+      # store compression from FAST_WINDOWS_SMOKE. Release builds use normal compression.
       - name: Make Windows installer
-        run: pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never --debug
+        shell: pwsh
+        run: |
+          if ($env:FAST_WINDOWS_SMOKE -eq 'true') {
+            pnpm exec electron-builder --config electron-builder.config.ts --win nsis --x64 --publish never
+          } else {
+            pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never
+          }
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
       # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
