@@ -19,7 +19,17 @@ paths = [
 ]
 regexes = [
   '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)''',
-  # Marpit's generated CSS-scope alphabet in historical public/workers/export.worker.js.
-  # Gitleaks generic-api-key flags this high-entropy constant, but it is not a credential.
-  "^abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$"
+]
+
+# Historical false positive in a generated Marpit bundle. This is the fixed
+# alphabet used to generate CSS scope IDs, not a credential. Scope the
+# exception to the generic-api-key rule and the exact source line only.
+[[rules]]
+id = "generic-api-key"
+
+[rules.allowlist]
+description = "Ignore Marpit CSS scope alphabet constant in historical export worker"
+regexTarget = "line"
+regexes = [
+  '''^\s*var uniqKeyChars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";\s*$'''
 ]
