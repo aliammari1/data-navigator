@@ -47,7 +47,7 @@ on:
         required: false
         default: false
       release-tag:
-        description: The `v<version>` tag whose GitHub Release the installer is attached to (e.g. v0.2.0).
+        description: The `v<version>` tag whose GitHub Release the installer is attached to (e.g. v1.0.0).
         type: string
         required: false
         default: ""
