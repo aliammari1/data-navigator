@@ -33,6 +33,7 @@ const isPrerelease =
   process.env.PRERELEASE === "true" ||
   process.env.CHANNEL === "alpha" ||
   process.env.CHANNEL === "beta";
+const isFastWindowsSmoke = process.env.FAST_WINDOWS_SMOKE === "true";
 
 // ─── Windows Certificate Detection ──────────────────────────────────────────
 const defaultLocalCert = path.join(root, "certs", "windows-code-signing.pfx");
@@ -360,7 +361,7 @@ export default async function (): Promise<Configuration> {
       "**/node_modules/better-sqlite3-multiple-ciphers*/**",
     ],
     electronLanguages: ["en-US"],
-    compression: "normal",
+    compression: isFastWindowsSmoke ? "store" : "normal",
     removePackageScripts: true,
     removePackageKeywords: true,
     npmRebuild: false,
