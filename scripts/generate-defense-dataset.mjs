@@ -91,6 +91,12 @@ const counts = {
   instance: 0,
   submitted: 0,
   byChannel: Object.fromEntries(channels.map((c) => [c, 0])),
+  byChannelStatus: Object.fromEntries(
+    channels.map((c) => [
+      c,
+      { total: 0, success: 0, declined: 0, refund: 0, instance: 0, submitted: 0 },
+    ]),
+  ),
   amountTotal: 0,
 };
 
@@ -105,12 +111,25 @@ for (let i = 0; i < rows; i++) {
 
   counts.total++;
   counts.byChannel[channel]++;
+  const channelCounts = counts.byChannelStatus[channel];
+  channelCounts.total++;
   counts.amountTotal += amountCents / 100;
-  if (status === "PST") counts.success++;
-  else if (status === "DCL") counts.declined++;
-  else if (status === "RFD") counts.refund++;
-  else if (status === "HLD") counts.instance++;
-  else if (status === "SBM") counts.submitted++;
+  if (status === "PST") {
+    counts.success++;
+    channelCounts.success++;
+  } else if (status === "DCL") {
+    counts.declined++;
+    channelCounts.declined++;
+  } else if (status === "RFD") {
+    counts.refund++;
+    channelCounts.refund++;
+  } else if (status === "HLD") {
+    counts.instance++;
+    channelCounts.instance++;
+  } else if (status === "SBM") {
+    counts.submitted++;
+    channelCounts.submitted++;
+  }
 
   const row = {
     ACCOUNT_ID: `SYN_ACC_${pad(i % 500)}`,
@@ -174,6 +193,13 @@ mkdirSync(dirname(out), { recursive: true });
 writeFileSync(out, csv, "utf8");
 
 const sha256 = createHash("sha256").update(csv, "utf8").digest("hex");
+const byChannelSuccessRatePct = Object.fromEntries(
+  channels.map((channel) => {
+    const channelCounts = counts.byChannelStatus[channel];
+    const rate = channelCounts.total === 0 ? 0 : (channelCounts.success / channelCounts.total) * 100;
+    return [channel, Number(rate.toFixed(2))];
+  }),
+);
 const manifest = {
   kind: "data-navigator-defense-dataset",
   generator: "dn-defense-synth-v1",
@@ -188,6 +214,7 @@ const manifest = {
     ...counts,
     amountTotal: Number(counts.amountTotal.toFixed(2)),
     successRatePct: Number(((counts.success / counts.total) * 100).toFixed(2)),
+    byChannelSuccessRatePct,
   },
 };
 
