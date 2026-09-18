@@ -98,20 +98,12 @@ jobs:
           sudo install gitleaks /usr/local/bin/gitleaks
           gitleaks version
 
-      - name: Scan git commits for secrets
+      - name: Scan complete git history for secrets
         run: |
-          # Determine git commit range based on trigger event
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            LOG_OPTS="origin/${{ github.base_ref }}..HEAD"
-          elif [ "${{ github.event_name }}" = "push" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ]; then
-            LOG_OPTS="${{ github.event.before }}..${{ github.event.after }}"
-          else
-            LOG_OPTS="HEAD~1..HEAD"
-          fi
-
+          # Intentionally omit --log-opts. With fetch-depth: 0, gitleaks scans
+          # every reachable commit in the repository history, not only the PR/push range.
           gitleaks git . \
             --config .gitleaks.toml \
-            --log-opts="$LOG_OPTS" \
             --redact=100 \
             --verbose \
             --report-format sarif \
