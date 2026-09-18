@@ -36,12 +36,10 @@ const isPrerelease =
 
 // ─── Windows Certificate Detection ──────────────────────────────────────────
 const defaultLocalCert = path.join(root, "certs", "windows-code-signing.pfx");
+const certPassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
 const certPath =
   process.env.WINDOWS_CERTIFICATE_FILE ||
-  (fs.existsSync(defaultLocalCert) ? defaultLocalCert : undefined);
-const certPassword =
-  process.env.WINDOWS_CERTIFICATE_PASSWORD ||
-  (fs.existsSync(defaultLocalCert) ? "DataNavigatorLocal2026!" : undefined);
+  (certPassword && fs.existsSync(defaultLocalCert) ? defaultLocalCert : undefined);
 const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPassword);
 
 const COPY_OPTS = { recursive: true, force: true } as const;
