@@ -4,7 +4,7 @@ title = "Data Navigator Gitleaks Configuration"
 useDefault = true
 
 [allowlist]
-description = "Ignore model quantization slugs, documentation, and test fixtures"
+description = "Ignore known non-secret generated/test literals and non-production fixtures"
 paths = [
   '''(^|/)tests?/''',
   '''(^|/)evals/''',
@@ -18,5 +18,8 @@ paths = [
   '''(^|/)test-results/''',
 ]
 regexes = [
-  '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)'''
+  '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)''',
+  # Marpit's generated CSS-scope alphabet in historical public/workers/export.worker.js.
+  # Gitleaks generic-api-key flags this high-entropy constant, but it is not a credential.
+  '''^abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789''
 ]
