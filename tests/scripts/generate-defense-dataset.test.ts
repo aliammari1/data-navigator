@@ -50,6 +50,8 @@ describe("defense synthetic dataset generator", () => {
         instance: number;
         submitted: number;
         successRatePct: number;
+        byChannel: Record<string, number>;
+        byChannelSuccessRatePct: Record<string, number>;
       };
     };
 
@@ -71,6 +73,18 @@ describe("defense synthetic dataset generator", () => {
       instance: 2,
       submitted: 2,
       successRatePct: 70,
+      byChannel: {
+        MyTT: 10,
+        PORTAILTT: 10,
+        PO9: 10,
+        Eshop: 10,
+      },
+      byChannelSuccessRatePct: {
+        MyTT: 80,
+        PORTAILTT: 80,
+        PO9: 60,
+        Eshop: 60,
+      },
     });
 
     const indexes = Object.fromEntries(header.map((name, index) => [name, index]));
