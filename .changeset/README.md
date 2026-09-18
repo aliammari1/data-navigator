@@ -27,8 +27,7 @@ that does not affect the shipped application does not require a changeset.
 2. `.github/workflows/release.yml` creates or updates the release pull request.
 3. The release pull request updates `package.json`, `pnpm-lock.yaml`, and
    `CHANGELOG.md`.
-4. Merging the release pull request creates a `data-navigator@x.y.z` Git tag
-   and a GitHub Release.
+4. Merging the release pull request creates a `vX.Y.Z` Git tag and a GitHub Release.
 
 This package is private. The release workflow versions and tags the application
 but never publishes it to npm.
