@@ -55,7 +55,7 @@ jobs:
           node-version: ${{ matrix.node }}
 
       - name: Lint (biome)
-        run: pnpm run lint
+        run: pnpm exec biome lint . --max-diagnostics=2000
 
       - name: Format check (biome)
         run: pnpm run format:check
