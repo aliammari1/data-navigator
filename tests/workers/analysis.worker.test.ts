@@ -827,8 +827,22 @@ describe("stlDecompose", () => {
     const result = await stlDecompose(values, 4);
     // Assert
     for (let i = 0; i < values.length; i++) {
-      const reconstructed = result.trend[i]! + result.seasonal[i]! + result.residual[i]!;
-      expect(reconstructed).toBeCloseTo(values[i]!, 10);
+      const trend = result.trend[i];
+      const seasonal = result.seasonal[i];
+      const residual = result.residual[i];
+      const expected = values[i];
+
+      if (
+        trend === undefined ||
+        seasonal === undefined ||
+        residual === undefined ||
+        expected === undefined
+      ) {
+        throw new Error(`STL output missing index ${i}`);
+      }
+
+      const reconstructed = trend + seasonal + residual;
+      expect(reconstructed).toBeCloseTo(expected, 10);
     }
   });
 
