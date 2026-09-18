@@ -1,6 +1,8 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 const AUTH_STATE_PATH = ".playwright/auth.json";
+const WEB_E2E_PROFILE = path.resolve(process.cwd(), ".e2e-web-profile");
 
 /**
  * Playwright Configuration
@@ -9,6 +11,7 @@ const AUTH_STATE_PATH = ".playwright/auth.json";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
@@ -64,5 +67,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      ...process.env,
+      APP_USER_DATA: WEB_E2E_PROFILE,
+      PLAYWRIGHT_TEST: "true",
+    },
   },
 });
