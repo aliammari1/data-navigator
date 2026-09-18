@@ -360,7 +360,7 @@ export default async function (): Promise<Configuration> {
       "**/node_modules/better-sqlite3-multiple-ciphers*/**",
     ],
     electronLanguages: ["en-US"],
-    compression: "maximum",
+    compression: "normal",
     removePackageScripts: true,
     removePackageKeywords: true,
     npmRebuild: false,
