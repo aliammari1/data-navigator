@@ -1,5 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
-import { AUTH_STATE_PATH } from "./tests/e2e/auth.setup";
+
+const AUTH_STATE_PATH = ".playwright/auth.json";
 
 /**
  * Playwright Configuration
