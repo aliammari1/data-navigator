@@ -258,9 +258,22 @@ jobs:
         run: pnpm run storybook:test:ci
         continue-on-error: true
 
-      - name: Playwright E2E Integration Suite
-        run: pnpm run test:e2e
+      # Advisory only: CI installs Chromium, while the repository's broad
+      # Playwright matrix also defines Firefox/WebKit/mobile projects and contains
+      # known stale UI assertions. Bound this diagnostic sample so it cannot
+      # consume the whole Tier-5 timeout or cancel otherwise-blocking CI evidence.
+      - name: Playwright E2E Advisory Sample (Chromium)
+        id: playwright_e2e
+        run: pnpm exec playwright test --project=chromium --max-failures=10
         continue-on-error: true
+
+      - name: Publish Playwright Advisory Status
+        if: always()
+        run: |
+          echo "### Playwright E2E (advisory)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Chromium sample outcome: **${{ steps.playwright_e2e.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          echo "This check is diagnostic and does not constitute a release gate." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Playwright Test Report
         if: always()
