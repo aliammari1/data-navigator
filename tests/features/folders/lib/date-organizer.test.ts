@@ -192,7 +192,6 @@ describe("date-organizer", () => {
   });
 });
 
-
 describe("date-organizer edge-case coverage", () => {
   it.each([
     ["weekly_report.csv", "weekly"],
