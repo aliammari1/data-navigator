@@ -12,10 +12,14 @@ if (!fs.existsSync(certsDir)) {
 }
 
 const pfxPath = path.join(certsDir, "windows-code-signing.pfx");
-const certPassword = process.env.WINDOWS_CERTIFICATE_PASSWORD || "DataNavigatorLocal2026!";
+const certPassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
 
 // 1. Generate Windows code signing certificate if not present
-if (!fs.existsSync(pfxPath)) {
+if (!fs.existsSync(pfxPath) && !certPassword) {
+  console.warn(
+    "[certs] Skipping Windows certificate generation: set WINDOWS_CERTIFICATE_PASSWORD explicitly.",
+  );
+} else if (!fs.existsSync(pfxPath)) {
   console.log("[certs] Generating local Windows code signing certificate...");
   const keyPath = path.join(certsDir, "codesign.key");
   const crtPath = path.join(certsDir, "codesign.crt");
