@@ -182,7 +182,7 @@ jobs:
 
       # Make the Windows installer (.msi + .exe) via electron-builder
       - name: Make Windows installer
-        run: pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never --debug
+        run: pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never
         env:
           NODE_ENV: production
           FORCE_COLOR: "0"
