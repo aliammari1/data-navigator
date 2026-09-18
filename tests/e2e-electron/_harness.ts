@@ -189,7 +189,8 @@ export const signUp = authenticateSession;
 export const gotoRoute = navigateTo;
 
 export const test = base.extend<{ electronApp: ElectronApplication; appWindow: Page }>({
-  electronApp: async ({}, use) => {
+  electronApp: async (fixtures, use) => {
+    void fixtures;
     const { app } = await launchElectron();
     await use(app);
     await app.close();
