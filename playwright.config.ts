@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { AUTH_STATE_PATH } from "./tests/e2e/auth.setup";
 
 /**
  * Playwright Configuration
@@ -21,24 +22,39 @@ export default defineConfig({
 
   projects: [
     {
-      name: "chromium",
+      name: "setup",
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
+      name: "chromium",
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: AUTH_STATE_PATH },
+    },
+    {
       name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Firefox"], storageState: AUTH_STATE_PATH },
     },
     {
       name: "webkit",
-      use: { ...devices["Desktop Safari"] },
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Safari"], storageState: AUTH_STATE_PATH },
     },
     {
       name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Pixel 5"], storageState: AUTH_STATE_PATH },
     },
     {
       name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["iPhone 12"], storageState: AUTH_STATE_PATH },
     },
   ],
 
