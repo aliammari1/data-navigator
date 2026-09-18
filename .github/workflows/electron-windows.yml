@@ -208,16 +208,15 @@ jobs:
         env:
           NODE_ENV: production
 
-      # Fast PR/manual smoke: build one NSIS EXE with store compression.
-      # Release: build configured MSI + NSIS with normal compression (electron-builder
-      # documents that maximum costs time for little size benefit).
+      # Fast PR/manual smoke: build one NSIS EXE; electron-builder.config.ts selects
+      # store compression from FAST_WINDOWS_SMOKE. Release builds use normal compression.
       - name: Make Windows installer
         shell: pwsh
         run: |
           if ($env:FAST_WINDOWS_SMOKE -eq 'true') {
-            pnpm exec electron-builder --config electron-builder.config.ts --win nsis --x64 --publish never -c.compression=store
+            pnpm exec electron-builder --config electron-builder.config.ts --win nsis --x64 --publish never
           } else {
-            pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never -c.compression=normal
+            pnpm exec electron-builder --config electron-builder.config.ts --win --x64 --publish never
           }
         env:
           NODE_ENV: production
