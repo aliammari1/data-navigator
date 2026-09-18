@@ -226,7 +226,7 @@ jobs:
   tier-5-storybook-e2e:
     name: "Tier 5: Storybook & Playwright E2E"
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: [tier-2-unit-property-tests, tier-4-offline-llm-eval]
 
     permissions:
@@ -243,8 +243,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install Playwright Chromium with system dependencies
-        run: pnpm exec playwright install --with-deps chromium
+      - name: Install Playwright browser engines with system dependencies
+        run: pnpm exec playwright install --with-deps chromium firefox webkit
 
       - name: Build Storybook Static Bundle
         run: pnpm run storybook:build
@@ -256,11 +256,9 @@ jobs:
 
       - name: Storybook Interaction Tests (test-storybook)
         run: pnpm run storybook:test:ci
-        continue-on-error: true
 
       - name: Playwright E2E Integration Suite
         run: pnpm run test:e2e
-        continue-on-error: true
 
       - name: Upload Playwright Test Report
         if: always()
