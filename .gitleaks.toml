@@ -21,5 +21,5 @@ regexes = [
   '''(?i)(qwen|granite|lfm|q[0-9]+_[a-z0-9_]+)''',
   # Marpit's generated CSS-scope alphabet in historical public/workers/export.worker.js.
   # Gitleaks generic-api-key flags this high-entropy constant, but it is not a credential.
-  '''^abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789''
+  "^abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789$"
 ]
