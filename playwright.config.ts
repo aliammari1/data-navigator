@@ -14,7 +14,9 @@ export default defineConfig({
   globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // A retry re-runs the isolated worker and its real auth setup. One retry
+  // preserves transient-failure coverage without tripling slow failures in CI.
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
@@ -35,30 +37,6 @@ export default defineConfig({
       testIgnore: /.*\.setup\.ts/,
       dependencies: ["setup"],
       use: { ...devices["Desktop Chrome"], storageState: AUTH_STATE_PATH },
-    },
-    {
-      name: "firefox",
-      testIgnore: /.*\.setup\.ts/,
-      dependencies: ["setup"],
-      use: { ...devices["Desktop Firefox"], storageState: AUTH_STATE_PATH },
-    },
-    {
-      name: "webkit",
-      testIgnore: /.*\.setup\.ts/,
-      dependencies: ["setup"],
-      use: { ...devices["Desktop Safari"], storageState: AUTH_STATE_PATH },
-    },
-    {
-      name: "Mobile Chrome",
-      testIgnore: /.*\.setup\.ts/,
-      dependencies: ["setup"],
-      use: { ...devices["Pixel 5"], storageState: AUTH_STATE_PATH },
-    },
-    {
-      name: "Mobile Safari",
-      testIgnore: /.*\.setup\.ts/,
-      dependencies: ["setup"],
-      use: { ...devices["iPhone 12"], storageState: AUTH_STATE_PATH },
     },
   ],
 

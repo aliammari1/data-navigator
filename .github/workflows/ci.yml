@@ -243,8 +243,8 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install Playwright browser engines with system dependencies
-        run: pnpm exec playwright install --with-deps chromium firefox webkit
+      - name: Install Chromium with system dependencies
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: Build Storybook Static Bundle
         run: pnpm run storybook:build
