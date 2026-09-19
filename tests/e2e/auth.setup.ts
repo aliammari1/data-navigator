@@ -46,7 +46,9 @@ setup("authenticate browser journeys", async ({ page }) => {
   } catch {
     const retryUnlock = page.getByRole("button", { name: /unlock workspace/i });
     if (!(await retryUnlock.isVisible().catch(() => false))) {
-      const currentSubmit = (await page.getByTestId("auth-submit-btn").textContent().catch(() => ""))?.trim();
+      const currentSubmit = (
+        await page.getByTestId("auth-submit-btn").textContent().catch(() => "")
+      )?.trim();
       throw new Error(
         `Authentication did not reach dashboard and no unlock recovery was available (url=${page.url()}, mode=${currentSubmit || "<unknown>"}).`,
       );
