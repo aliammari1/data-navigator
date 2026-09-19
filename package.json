@@ -93,7 +93,7 @@
   "dependencies": {
     "@animateicons/react": "0.3.4",
     "@base-ui/react": "^1.8.0",
-    "@better-auth/drizzle-adapter": "1.7.2",
+    "@better-auth/drizzle-adapter": "1.7.3",
     "@better-auth/electron": "1.7.2",
     "@coraza/core": "0.1.0-preview.3",
     "@coraza/coreruleset": "0.1.0-preview.2",
@@ -125,7 +125,7 @@
     "ansi-to-react": "^6.2.6",
     "apache-arrow": "21.1.0",
     "arquero": "8.0.3",
-    "better-auth": "1.7.2",
+    "better-auth": "1.7.3",
     "better-sqlite3": "^13.0.3",
     "better-sqlite3-multiple-ciphers": "^13.0.3",
     "bonjour-service": "1.4.2",
