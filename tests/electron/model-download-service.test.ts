@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -26,13 +26,13 @@ const { createModelDownloaderMock, holder } = vi.hoisted(() => ({
 vi.mock("node-llama-cpp", () => ({ createModelDownloader: createModelDownloaderMock }));
 vi.mock("electron", () => ({ app: { getPath: () => holder.userDataDir } }));
 
-const USER_DATA_DIR = path.join(os.tmpdir(), "dn-model-download-service-test");
 const MODEL_KEY = "minicpm-v-4.6-q4_k_m";
 const MODEL_FILE = "minicpm-v-4.6-q4_k_m.gguf";
-const MODEL_DESTINATION = path.join(USER_DATA_DIR, "models", "llm", MODEL_FILE);
 const FIXTURE_MODEL_BYTES = Buffer.from("model-download-service fixture");
 
-holder.userDataDir = USER_DATA_DIR;
+function modelDestination(): string {
+  return path.join(holder.userDataDir, "models", "llm", MODEL_FILE);
+}
 
 /** A controllable stand-in for node-llama-cpp's ModelDownloader. */
 function makeControllableDownloader(onFinish?: () => void) {
@@ -63,8 +63,9 @@ function makeControllableDownloader(onFinish?: () => void) {
  * copy of the production GGUF artifact.
  */
 function completeFixtureDownload() {
-  mkdirSync(path.dirname(MODEL_DESTINATION), { recursive: true });
-  writeFileSync(MODEL_DESTINATION, FIXTURE_MODEL_BYTES);
+  const destination = modelDestination();
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, FIXTURE_MODEL_BYTES);
 }
 
 function fixtureSha256(): string {
@@ -83,12 +84,16 @@ describe("model-download-service in-flight dedup", () => {
   beforeEach(() => {
     vi.resetModules();
     createModelDownloaderMock.mockReset();
-    rmSync(USER_DATA_DIR, { recursive: true, force: true });
+    // This test owns the unique directory returned by mkdtempSync. It never
+    // clears a predictable path that could contain local user data.
+    holder.userDataDir = mkdtempSync(path.join(os.tmpdir(), "dn-model-download-service-"));
   });
 
   afterEach(() => {
     vi.clearAllMocks();
-    rmSync(USER_DATA_DIR, { recursive: true, force: true });
+    const testDataDir = holder.userDataDir;
+    holder.userDataDir = "";
+    if (testDataDir) rmSync(testDataDir, { recursive: true, force: true });
   });
 
   it("attaches a second caller to the same download instead of starting a duplicate", async () => {
@@ -198,7 +203,7 @@ describe("model-download-service in-flight dedup", () => {
 
     // A completed real download is intentionally idempotent. Removing its
     // artifact models the only case where a later request should start over.
-    rmSync(MODEL_DESTINATION, { force: true });
+    rmSync(modelDestination(), { force: true });
 
     const second = makeControllableDownloader(completeFixtureDownload);
     createModelDownloaderMock.mockResolvedValueOnce(second.downloader);
