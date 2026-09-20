@@ -201,17 +201,12 @@ test.describe("Desktop workspace journey", () => {
       .first()
       .click();
 
-    // The telecom app is route-hosted in an in-window iframe titled with the
-    // app name. The iframe element is the most reliable signal (the window's
-    // visible text comes from inside that cross-frame document, so `hasText` on
-    // the outer frame is not dependable). Assert a window is on screen and the
-    // titled iframe is attached.
-    await expect(page.locator(".dn-window:visible").first()).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.locator('iframe[title*="Rapport" i]').first()).toBeAttached({
-      timeout: 15_000,
-    });
+    // Rapport Télécom is a native React desktop screen, not an iframe. Assert
+    // the real window frame and its stable report surface instead of coupling
+    // this journey to an obsolete hosting implementation.
+    const reportWindow = visibleWindow(page, /rapport t[ée]l[ée]com/i).first();
+    await expect(reportWindow).toBeVisible({ timeout: 15_000 });
+    await expect(reportWindow).toContainText(/rapport|télécom|telecom|importer|aucun rapport/i);
   });
 
   test("right-clicking the empty desktop opens its context menu", async ({ page }) => {
@@ -246,20 +241,18 @@ test.describe("Desktop workspace journey", () => {
     await gotoDesktop(page);
 
     const onScreen = page.locator(".dn-window:visible");
-    // The desktop boots with its default windows already floating; wait until at
-    // least one is on screen before opening another app.
-    await expect(onScreen.first()).toBeVisible({ timeout: 15_000 });
 
-    // Open an additional app from the Launchpad grid. We launch Explorateur:
-    // unlike the pinned dock apps (which boot already-open and whose dock button
-    // *toggles* — a click would minimise rather than open them), Explorateur is
-    // not open at boot, so launching it deterministically adds a new window.
-    // Scope the click to the launcher overlay so we hit the grid tile, not any
-    // same-named control beneath the frosted backdrop.
+    // The persisted desktop store intentionally starts with no windows. Open two
+    // apps through the same Launchpad interaction a user follows.
+    await openLauncher(page);
+    await launcherTile(page, /param[èe]tres/i).click();
+    await expect(visibleWindow(page, /param[èe]tres/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
+
     await openLauncher(page);
     await launcherTile(page, /explorateur/i).click();
 
-    // Its window appears, and at least two distinct windows are now visible.
     await expect(visibleWindow(page, /explorateur/i).first()).toBeVisible({
       timeout: 15_000,
     });
