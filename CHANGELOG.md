@@ -1,5 +1,11 @@
 # data-navigator
 
+## 1.0.0
+
+### Major Changes
+
+- 0632526: Promote Data Navigator to the final v1.0.0 PFE defense baseline, consolidating the validated offline-first application, release hardening, security fixes, and Windows/Linux packaging into the single defense release.
+
 ## 0.1.3
 
 ### Patch Changes
