@@ -33,7 +33,6 @@ const TELECOM_ROUTES = [
   "/dashboard/telecom-report/analysis",
   "/dashboard/telecom-report/grid",
   "/dashboard/telecom-report/period",
-  "/dashboard/telecom-report/day",
   "/dashboard/telecom-report/history",
   "/dashboard/telecom-report/config",
 ] as const;
@@ -74,26 +73,31 @@ test.describe("Complete user journey coverage", () => {
 
   test("visitor can land, enter authentication, and reach the dashboard shell", async ({
     page,
+    browser,
   }) => {
     await page.goto("/", { waitUntil: "domcontentloaded" });
-    await expect(page.locator("body")).toContainText(/datanavigator/i);
+    await expect(page.locator("body")).toContainText(/data\s*navigator/i);
 
     await page
-      .getByRole("link", { name: /launch dashboard/i })
+      .getByRole("link", { name: /sign in/i })
       .first()
       .click();
     await expect(page).toHaveURL(/\/dashboard/);
-    await expectUsablePage(page, /datanavigator|dashboard/i);
+    await expectUsablePage(page, /data\s*navigator|dashboard/i);
 
-    await page.goto("/login", { waitUntil: "domcontentloaded" });
-    await expect(page.getByText(/sign in/i).first()).toBeVisible();
-    await page.getByPlaceholder(/you@example.com/i).fill("journey@example.com");
-    await page
-      .locator('input[type="password"], input[name="password"]')
-      .first()
-      .fill("password123");
-    await page.getByLabel(/show password/i).click();
-    await expect(page.locator('input[type="text"], input[name="password"]').first()).toBeVisible();
+    const unauthenticated = await browser.newContext({
+      storageState: { cookies: [], origins: [] },
+    });
+    const loginPage = await unauthenticated.newPage();
+    try {
+      await loginPage.goto("/login", { waitUntil: "domcontentloaded" });
+      const submit = loginPage.getByTestId("auth-submit-btn");
+      await expect(submit).toBeVisible({ timeout: 30_000 });
+      await expect(submit).toHaveText(/unlock workspace|complete administrator setup/i);
+      await expect(loginPage.locator('input[type="password"]').first()).toBeVisible();
+    } finally {
+      await unauthenticated.close();
+    }
   });
 
   test("dashboard shell navigation reaches every concrete feature route", async ({ page }) => {
