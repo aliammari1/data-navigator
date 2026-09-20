@@ -32,7 +32,7 @@ jobs:
 
     permissions:
       contents: read
-      pull-requests: write
+      pull-requests: read
 
     steps:
       - name: Checkout repository
@@ -43,7 +43,8 @@ jobs:
         uses: actions/dependency-review-action@v4
         with:
           fail-on-severity: high
-          comment-summary-in-pr: always
+          # Keep the public-repository PR gate read-only, including for forked PRs.
+          comment-summary-in-pr: never
 
   # ---------------------------------------------------------------------------
   # Supply chain: audit production dependencies + dead-code hygiene
