@@ -46,11 +46,7 @@ const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPasswo
 const COPY_OPTS = { recursive: true, force: true } as const;
 
 /** External packages needed by the Electron main process */
-const NEXT_RUNTIME_PACKAGES = [
-  "@coraza/core",
-  "@coraza/coreruleset",
-  "@coraza/next",
-];
+const NEXT_RUNTIME_PACKAGES = ["@coraza/core", "@coraza/coreruleset"];
 
 const MAIN_RUNTIME_PACKAGES = [
   "@better-auth",
@@ -319,10 +315,6 @@ function stageApplication(): void {
     requirePath(
       "Coraza ruleset runtime package",
       path.join(appDest, "node_modules", "@coraza", "coreruleset", "package.json"),
-    );
-    requirePath(
-      "Coraza Next runtime package",
-      path.join(appDest, "node_modules", "@coraza", "next", "package.json"),
     );
 
     // 4. Copy main process runtime dependencies (next is omitted: app/ has its own copy)

@@ -1,5 +1,11 @@
 # data-navigator
 
+## 1.0.2
+
+### Patch Changes
+
+- Bundle `@coraza/next` into the Next.js server build instead of externalizing it. Resolves runtime `Cannot find module 'next/server'` when running in packaged desktop app, while keeping `@coraza/core` and `@coraza/coreruleset` external so WASM and rules files remain accessible.
+
 ## 1.0.1
 
 ### Patch Changes
