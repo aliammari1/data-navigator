@@ -1,3 +1,5 @@
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -24,13 +26,16 @@ const { createModelDownloaderMock, holder } = vi.hoisted(() => ({
 vi.mock("node-llama-cpp", () => ({ createModelDownloader: createModelDownloaderMock }));
 vi.mock("electron", () => ({ app: { getPath: () => holder.userDataDir } }));
 
-const USER_DATA_DIR = path.join(os.tmpdir(), "dn-model-download-service-test");
 const MODEL_KEY = "minicpm-v-4.6-q4_k_m";
+const MODEL_FILE = "minicpm-v-4.6-q4_k_m.gguf";
+const FIXTURE_MODEL_BYTES = Buffer.from("model-download-service fixture");
 
-holder.userDataDir = USER_DATA_DIR;
+function modelDestination(): string {
+  return path.join(holder.userDataDir, "models", "llm", MODEL_FILE);
+}
 
 /** A controllable stand-in for node-llama-cpp's ModelDownloader. */
-function makeControllableDownloader() {
+function makeControllableDownloader(onFinish?: () => void) {
   const cancel = vi.fn().mockResolvedValue(undefined);
   let settle: (() => void) | undefined;
   let fail: ((err: unknown) => void) | undefined;
@@ -43,19 +48,52 @@ function makeControllableDownloader() {
   });
   return {
     downloader: { download, cancel },
-    finish: () => settle?.(),
+    finish: () => {
+      onFinish?.();
+      settle?.();
+    },
     reject: (err: unknown) => fail?.(err),
   };
+}
+
+/**
+ * The downloader mock must produce the same observable result as the real
+ * node-llama-cpp downloader: a completed file at the requested destination.
+ * Use a fixture-specific pin because these deliberately tiny bytes are not a
+ * copy of the production GGUF artifact.
+ */
+function completeFixtureDownload() {
+  const destination = modelDestination();
+  mkdirSync(path.dirname(destination), { recursive: true });
+  writeFileSync(destination, FIXTURE_MODEL_BYTES);
+}
+
+function fixtureSha256(): string {
+  return createHash("sha256").update(FIXTURE_MODEL_BYTES).digest("hex");
+}
+
+async function importServiceWithFixturePin() {
+  const service = await import("../../electron/model-download-service");
+  const entry = service.MODEL_DOWNLOADS.find((model) => model.key === MODEL_KEY);
+  if (!entry) throw new Error(`Missing test model ${MODEL_KEY}`);
+  entry.sha256 = fixtureSha256();
+  return service;
 }
 
 describe("model-download-service in-flight dedup", () => {
   beforeEach(() => {
     vi.resetModules();
     createModelDownloaderMock.mockReset();
+    // This test owns the unique directory returned by mkdtempSync. It never
+    // clears a predictable path that could contain local user data.
+    holder.userDataDir = mkdtempSync(path.join(os.tmpdir(), "dn-model-download-service-"));
   });
 
   afterEach(() => {
     vi.clearAllMocks();
+    const testDataDir = holder.userDataDir;
+    holder.userDataDir = "";
+    if (testDataDir) rmSync(testDataDir, { recursive: true, force: true });
   });
 
   it("attaches a second caller to the same download instead of starting a duplicate", async () => {
@@ -105,9 +143,9 @@ describe("model-download-service in-flight dedup", () => {
   });
 
   it("resolves every attached caller once the shared download finishes", async () => {
-    const { downloader, finish } = makeControllableDownloader();
+    const { downloader, finish } = makeControllableDownloader(completeFixtureDownload);
     createModelDownloaderMock.mockResolvedValue(downloader);
-    const { downloadModel } = await import("../../electron/model-download-service");
+    const { downloadModel } = await importServiceWithFixturePin();
 
     const first = downloadModel({ key: MODEL_KEY, onProgress: vi.fn() });
     // download() being called guarantees the in-flight entry is registered.
@@ -150,10 +188,10 @@ describe("model-download-service in-flight dedup", () => {
     expect(downloader.cancel).toHaveBeenCalledWith({ deleteTempFile: true });
   });
 
-  it("starts a fresh download for the same key once the previous one has finished", async () => {
-    const first = makeControllableDownloader();
+  it("starts a fresh download once the completed artifact is removed", async () => {
+    const first = makeControllableDownloader(completeFixtureDownload);
     createModelDownloaderMock.mockResolvedValueOnce(first.downloader);
-    const { downloadModel } = await import("../../electron/model-download-service");
+    const { downloadModel } = await importServiceWithFixturePin();
 
     const firstCall = downloadModel({ key: MODEL_KEY, onProgress: vi.fn() });
     // finish() only works once download() has run (that's when the resolver is
@@ -163,7 +201,11 @@ describe("model-download-service in-flight dedup", () => {
     first.finish();
     await firstCall;
 
-    const second = makeControllableDownloader();
+    // A completed real download is intentionally idempotent. Removing its
+    // artifact models the only case where a later request should start over.
+    rmSync(modelDestination(), { force: true });
+
+    const second = makeControllableDownloader(completeFixtureDownload);
     createModelDownloaderMock.mockResolvedValueOnce(second.downloader);
     const secondCall = downloadModel({ key: MODEL_KEY, onProgress: vi.fn() });
     await vi.waitFor(() => expect(second.downloader.download).toHaveBeenCalledTimes(1));

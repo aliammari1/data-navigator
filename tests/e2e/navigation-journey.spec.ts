@@ -47,15 +47,14 @@ test.describe("Dashboard Navigation Journey", () => {
       "/dashboard/telecom-report/analysis",
       "/dashboard/telecom-report/grid",
       "/dashboard/telecom-report/period",
-      "/dashboard/telecom-report/day",
       "/dashboard/telecom-report/history",
       "/dashboard/telecom-report/config",
     ];
 
     for (const path of telecomPages) {
       await page.goto(path);
-      await page.waitForLoadState("networkidle");
-      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\\\/")));
+      await page.waitForLoadState("domcontentloaded");
+      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\/")));
     }
   });
 

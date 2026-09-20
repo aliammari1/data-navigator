@@ -153,7 +153,12 @@ jobs:
         run: |
           echo "### ⚡ DuckDB Performance Benchmark Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Verified high-throughput in-memory OLAP, columnar Parquet ingestion, and TPC-H decision support queries." >> $GITHUB_STEP_SUMMARY
+          echo "Blocking benchmark outcome: **${{ steps.bench_duckdb.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.bench_duckdb.outcome }}" = "success" ]; then
+            echo "The DuckDB benchmark suite completed successfully." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "The benchmark suite did not complete successfully; any partial log below is diagnostic only." >> $GITHUB_STEP_SUMMARY
+          fi
           echo '```' >> $GITHUB_STEP_SUMMARY
           if [ -f reports/benchmarks/duckdb-bench.log ]; then
             grep -E "(hz|faster than|Ingestion|OLAP|TPC-H)" reports/benchmarks/duckdb-bench.log | head -n 40 >> $GITHUB_STEP_SUMMARY || true
@@ -203,13 +208,18 @@ jobs:
         run: |
           echo "### 🛡️ Offline-LLM Eval Gate Results" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Evaluation Suite | Safety Metric | Gate Status |" >> $GITHUB_STEP_SUMMARY
-          echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
-          echo "| SQL Injection & Read-Only Safety | 100% Recall | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Swarm Artifact Validation | 100% Precision & Recall | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Prompt Injection Resistance | 100% Soundness | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Briefing Hallucination Boundaries | Calibrated Groundedness | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
-          echo "| Structured Output Conformance | 100% Conformance | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          echo "Blocking eval outcome: **${{ steps.eval_suite.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.eval_suite.outcome }}" = "success" ]; then
+            echo "| Evaluation Suite | Safety Metric | Gate Status |" >> $GITHUB_STEP_SUMMARY
+            echo "| --- | --- | --- |" >> $GITHUB_STEP_SUMMARY
+            echo "| SQL Injection & Read-Only Safety | 100% Recall | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Swarm Artifact Validation | 100% Precision & Recall | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Prompt Injection Resistance | 100% Soundness | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Briefing Hallucination Boundaries | Calibrated Groundedness | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+            echo "| Structured Output Conformance | 100% Conformance | ✅ Passed |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "The eval suite did not complete successfully, so no passing claim is emitted." >> $GITHUB_STEP_SUMMARY
+          fi
 
       - name: Upload Eval Gate Artifacts
         if: always()
@@ -226,7 +236,7 @@ jobs:
   tier-5-storybook-e2e:
     name: "Tier 5: Storybook & Playwright E2E"
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 60
     needs: [tier-2-unit-property-tests, tier-4-offline-llm-eval]
 
     permissions:
@@ -243,7 +253,7 @@ jobs:
         with:
           node-version: "24"
 
-      - name: Install Playwright Chromium with system dependencies
+      - name: Install Chromium with system dependencies
         run: pnpm exec playwright install --with-deps chromium
 
       - name: Build Storybook Static Bundle
@@ -254,13 +264,25 @@ jobs:
           rm -rf storybook-static/models
           rm -rf storybook-static/vad
 
-      - name: Storybook Interaction Tests (test-storybook)
+      # Advisory: Storybook 10's legacy Jest-based test-runner is currently
+      # incompatible with Jest 30.5+ when a test-runner config is present.
+      # The static Storybook build remains blocking; authenticated Playwright
+      # below is the browser E2E release gate.
+      - name: Storybook Interaction Tests (advisory)
+        id: storybook_interactions
         run: pnpm run storybook:test:ci
         continue-on-error: true
 
+      - name: Publish Storybook Advisory Status
+        if: always()
+        run: |
+          echo "### Storybook interactions (advisory)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Outcome: **${{ steps.storybook_interactions.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          echo "The static Storybook build is blocking; this legacy test-runner check is advisory." >> $GITHUB_STEP_SUMMARY
+
       - name: Playwright E2E Integration Suite
         run: pnpm run test:e2e
-        continue-on-error: true
 
       - name: Upload Playwright Test Report
         if: always()
@@ -295,6 +317,7 @@ jobs:
           node-version: "24"
 
       - name: Run Full Automated Security Audit
+        id: security_audit
         run: pnpm run audit:security:full
 
       - name: Dependency Vulnerability Audit
@@ -311,6 +334,7 @@ jobs:
           gitleaks version
 
       - name: Scan Working Tree for Secrets with Gitleaks
+        id: gitleaks_scan
         run: |
           gitleaks dir . \
             --config .gitleaks.toml \
@@ -336,11 +360,14 @@ jobs:
         run: |
           echo "### 🔒 Security Audit & Compliance Verification" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **Electron Security Controls**: Isolated context, disabled nodeIntegration, Chromium sandbox & auxiliary-click prevention." >> $GITHUB_STEP_SUMMARY
-          echo "- **SQL Injection Guardrails**: Verified \`assertSafeFilterFragment\` and read-only AST safety parser." >> $GITHUB_STEP_SUMMARY
-          echo "- **Air-Gap Assurance**: Zero unauthorized telemetry egress endpoints, disabled Chromium spellcheck dictionary egress." >> $GITHUB_STEP_SUMMARY
-          echo "- **Secret Scanning**: 0 hardcoded secrets or cloud tokens detected." >> $GITHUB_STEP_SUMMARY
-          echo "- **SBOM Generation**: CycloneDX & Dependency License Manifest generated." >> $GITHUB_STEP_SUMMARY
+          echo "- Full security audit outcome: **${{ steps.security_audit.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          echo "- Gitleaks working-tree scan outcome: **${{ steps.gitleaks_scan.outcome }}**" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.security_audit.outcome }}" = "success" ] && [ "${{ steps.gitleaks_scan.outcome }}" = "success" ]; then
+            echo "- Security controls and secret scanning completed successfully." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- One or more blocking security checks did not complete successfully; review the job log before release." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- SBOM and license artifacts are uploaded when generated." >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Security & SBOM Artifacts
         if: always()

@@ -92,7 +92,7 @@ export const MODEL_MANIFEST = [
     url: `${HF}/openbmb/MiniCPM-V-4.6-gguf/resolve/main/MiniCPM-V-4_6-Q4_K_M.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "minicpm-v-4.6-q4_k_m.gguf"),
     bytes: 529_101_504,
-    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
+    sha256: "6b0c74962c44bc6bf4b655b9b02c13eda9d5a0491543ae976d1ac18e4b7892e2",
   },
   // Multimodal reasoning specialist: SmolVLM2 2.2B Instruct (~1.11 GB).
   {
@@ -103,7 +103,7 @@ export const MODEL_MANIFEST = [
     url: `${HF}/ggml-org/SmolVLM2-2.2B-Instruct-GGUF/resolve/main/SmolVLM2-2.2B-Instruct-Q4_K_M.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "smolvlm2-2.2b-instruct-q4_k_m.gguf"),
     bytes: 1_112_602_656,
-    sha256: "", // TODO: fill sha256 of the released artifact before a verified build
+    sha256: "0cf76814555b8665149075b74ab6b5c1d428ea1d3d01c1918c12012e8d7c9f58",
   },
   // Tool-call specialist: Liquid AI LFM2.5-2.6B Q4_K_M (August 2026).
   {
@@ -139,7 +139,7 @@ export const MODEL_MANIFEST = [
     url: `${HF}/unsloth/Qwen3-1.7B-GGUF/resolve/main/Qwen3-1.7B-UD-Q4_K_XL.gguf?download=true`,
     destPath: path.join(LLM_STAGING_DIR, "qwen3-1.7b-q4_k_m.gguf"),
     bytes: 1_132_952_128,
-    sha256: "", // TODO
+    sha256: "01977643b1d7292d09eb6ef75c7af8b084a3bbf2cb4e1d128ab76adeb8d75490",
   },
   // Lower-resource alternative: Granite 4.1 3B Instruct q4_k_m (Apache 2.0). Optional (--low-ram).
   {

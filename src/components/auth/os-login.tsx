@@ -215,10 +215,11 @@ export function OsLogin() {
       await authIpcLogin({ email, password: pw });
       saveUser({ email, name: stored?.name ?? email.split("@")[0] });
       setLockSt("success");
-      setTimeout(() => {
-        router.replace(redirectTo);
-        router.refresh();
-      }, 700);
+      // The Better Auth client resolves only after the sign-in response has
+      // installed its session cookie. Navigate once from that confirmed state;
+      // scheduling a replace and an immediate refresh creates competing route
+      // transitions, which can leave a newly authenticated browser on /login.
+      router.replace(redirectTo);
     } catch (err) {
       setPw("");
       setLockErr(
@@ -265,10 +266,9 @@ export function OsLogin() {
       });
       saveUser({ email: sEmail, name });
       setSSt("success");
-      setTimeout(() => {
-        router.replace(redirectTo);
-        router.refresh();
-      }, 700);
+      // See sign-in above: a single navigation after the authenticated response
+      // preserves the real Better Auth session during the first dashboard load.
+      router.replace(redirectTo);
     } catch (err) {
       setSErr(
         err instanceof Error

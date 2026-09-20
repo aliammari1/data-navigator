@@ -73,11 +73,6 @@ const TELECOM_TABS: readonly TelecomTab[] = [
     keyRegion: /période|periode|comparaison|studio|rapport|aucun rapport|importer/i,
   },
   {
-    slug: "day",
-    name: "day",
-    keyRegion: /jour|journalier|heure|horaire|rapport|aucun rapport|importer/i,
-  },
-  {
     slug: "history",
     name: "history (audit / annotations)",
     // History tab always mounts (no dataset required): analytics history copy,

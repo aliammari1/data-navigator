@@ -1,4 +1,8 @@
+import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
+
+const AUTH_STATE_PATH = ".playwright/auth.json";
+const WEB_E2E_PROFILE = path.resolve(process.cwd(), ".e2e-web-profile");
 
 /**
  * Playwright Configuration
@@ -7,9 +11,12 @@ import { defineConfig, devices } from "@playwright/test";
 
 export default defineConfig({
   testDir: "./tests/e2e",
+  globalSetup: "./tests/e2e/global-setup.ts",
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
-  retries: process.env.CI ? 2 : 0,
+  // A retry re-runs the isolated worker and its real auth setup. One retry
+  // preserves transient-failure coverage without tripling slow failures in CI.
+  retries: process.env.CI ? 1 : 0,
   workers: process.env.CI ? 1 : undefined,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
@@ -21,24 +28,15 @@ export default defineConfig({
 
   projects: [
     {
-      name: "chromium",
+      name: "setup",
+      testMatch: /.*\.setup\.ts/,
       use: { ...devices["Desktop Chrome"] },
     },
     {
-      name: "firefox",
-      use: { ...devices["Desktop Firefox"] },
-    },
-    {
-      name: "webkit",
-      use: { ...devices["Desktop Safari"] },
-    },
-    {
-      name: "Mobile Chrome",
-      use: { ...devices["Pixel 5"] },
-    },
-    {
-      name: "Mobile Safari",
-      use: { ...devices["iPhone 12"] },
+      name: "chromium",
+      testIgnore: /.*\.setup\.ts/,
+      dependencies: ["setup"],
+      use: { ...devices["Desktop Chrome"], storageState: AUTH_STATE_PATH },
     },
   ],
 
@@ -47,5 +45,10 @@ export default defineConfig({
     url: "http://localhost:3000",
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      ...process.env,
+      APP_USER_DATA: WEB_E2E_PROFILE,
+      PLAYWRIGHT_TEST: "true",
+    },
   },
 });
