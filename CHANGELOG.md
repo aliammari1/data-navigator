@@ -1,5 +1,14 @@
 # data-navigator
 
+## 1.0.1
+
+### Patch Changes
+
+- cff624a, d0cdf75: Fix Coraza WAF runtime resolution in packaged desktop app (#29).
+  - Keep `@coraza/core`, `@coraza/coreruleset`, and `@coraza/next` external in Next.js standalone build.
+  - Explicitly stage Coraza runtime packages into the packaged desktop app.
+  - Fail desktop packaging if required Coraza package manifests are missing.
+
 ## 1.0.0
 
 ### Major Changes
