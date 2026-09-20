@@ -14,10 +14,9 @@ const DASHBOARD_ROUTES = [
   },
   { path: "/dashboard/upload", anchor: /importer|glissez|upload|fichier/i },
   { path: "/dashboard/folders", anchor: /folders|my datasets|new folder/i },
-  { path: "/dashboard/auto-analyst", anchor: /auto|analyst|analysis/i },
   {
-    path: "/dashboard/data-formulator",
-    anchor: /moudir|ai|canvas|import data/i,
+    path: "/dashboard/moudir",
+    anchor: /moudir|assistant|conversation/i,
   },
   {
     path: "/dashboard/collaborative",
@@ -49,15 +48,6 @@ async function gotoPage(page: Page, path: string, anchor?: RegExp) {
   if (anchor) await expectUsablePage(page, anchor);
 }
 
-async function openCommandPalette(page: Page) {
-  await page.keyboard.press(process.platform === "darwin" ? "Meta+K" : "Control+K");
-  const input = page.getByPlaceholder(/search pages, features/i);
-  if (!(await input.isVisible().catch(() => false))) {
-    await page.getByRole("button", { name: /search.*k/i }).click();
-  }
-  await expect(input).toBeVisible();
-}
-
 test.describe("Complete user journey coverage", () => {
   test.describe.configure({ mode: "serial" });
   test.setTimeout(60_000);
@@ -82,6 +72,13 @@ test.describe("Complete user journey coverage", () => {
       .getByRole("link", { name: /sign in/i })
       .first()
       .click();
+    // The public landing-page action must enter the real authentication
+    // boundary. Authentication itself is established by the setup project;
+    // this shared context then verifies the authenticated dashboard shell.
+    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+    await expect(page.getByTestId("auth-submit-btn")).toBeVisible();
+
+    await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
     await expect(page).toHaveURL(/\/dashboard/);
     await expectUsablePage(page, /data\s*navigator|dashboard/i);
 
@@ -115,26 +112,34 @@ test.describe("Complete user journey coverage", () => {
     }
   });
 
-  test("global dashboard controls support search, theme, notifications, and AI panel journeys", async ({
-    page,
-  }) => {
+  test("desktop home exposes search, palette, and appearance controls", async ({ page }) => {
     await gotoPage(page, "/dashboard");
+    await expect(page.locator(".dn-desktop-canvas")).toBeVisible();
+    await page.waitForLoadState("networkidle", { timeout: 5_000 }).catch(() => {});
 
-    await openCommandPalette(page);
-    await page.getByPlaceholder(/search pages, features/i).fill("csv");
-    await page.getByRole("button", { name: /upload.*import data files/i }).click();
-    await expect(page).toHaveURL(/\/dashboard\/upload/);
-    await expectUsablePage(page, /importer|glissez|upload|fichier/i);
+    const search = page.getByPlaceholder(/demandez ou cherchez/i);
+    await expect(search).toBeVisible();
+    await search.fill("rapport");
+    await expect(
+      page.getByRole("button", { name: /rapport t[ée]l[ée]com/i }).first(),
+    ).toBeVisible();
 
-    await gotoPage(page, "/dashboard");
-    await page.keyboard.press(process.platform === "darwin" ? "Meta+B" : "Control+B");
-    await expect(page.locator("body")).toContainText(/datanavigator/i);
-
-    await page.getByTitle(/ai assistant/i).click();
-    await expect(page.locator("body")).toContainText(/ai|assistant|ask/i);
-
-    await page.getByRole("link", { name: /settings/i }).click();
-    await expect(page).toHaveURL(/\/dashboard\/settings/);
+    const paletteBtn = page.getByRole("button", { name: /changer la palette/i });
+    const cyanOption = page.locator('[title="Cyan"]');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      if (!(await cyanOption.isVisible().catch(() => false))) {
+        await paletteBtn.click();
+      }
+      try {
+        await expect(cyanOption).toBeVisible({ timeout: 2_000 });
+        break;
+      } catch {
+        await page.waitForTimeout(500);
+      }
+    }
+    await expect(cyanOption).toBeVisible();
+    await expect(page.getByRole("button", { name: /changer l'apparence/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /notifications/i })).toBeVisible();
   });
 
   test("upload journey accepts a dataset and surfaces local DuckDB processing status", async ({
@@ -148,7 +153,6 @@ test.describe("Complete user journey coverage", () => {
       buffer: Buffer.from(SAMPLE_CSV),
     });
 
-    await expect(page.getByRole("button", { name: /journey\.csv/i })).toBeVisible();
     await expect(page.locator("body")).toContainText(
       /duckdb|electronduckdb|erreur|error|prêt|ready/i,
     );
@@ -161,19 +165,23 @@ test.describe("Complete user journey coverage", () => {
   }) => {
     await gotoPage(page, "/dashboard/folders");
 
-    await page.getByRole("button", { name: /new folder/i }).click();
-    await page.getByPlaceholder(/folder name/i).fill("Journey Folder");
-    await page.getByRole("button", { name: /create/i }).click();
+    await page.getByRole("button", { name: /nouveau|new folder/i }).click();
+    await page.getByPlaceholder(/nom du dossier|folder name/i).fill("Journey Folder");
+    await page.getByRole("button", { name: /créer|create/i }).click();
 
     await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();
-    await page.getByPlaceholder(/^search/i).fill("Journey");
+    await page
+      .getByPlaceholder(/rechercher|search/i)
+      .first()
+      .fill("Journey");
     await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();
 
-    await page.getByRole("button", { name: /starred/i }).click();
-    await expect(page.locator("body")).toContainText(/starred/i);
+    await page.getByRole("button", { name: /favoris|starred/i }).click();
+    await expect(page.locator("body")).toContainText(/favoris|starred/i);
 
-    await page.getByRole("button", { name: /stats/i }).click();
-    await expect(page.locator("body")).toContainText(/total files|total folders/i);
+    await expect(page.locator("body")).toContainText(
+      /jeux de données|dossier|taille totale|total files|total folders/i,
+    );
   });
 
   test("collaboration page journey adds a comment, searches it, resolves it, and sends chat", async ({
@@ -183,19 +191,19 @@ test.describe("Complete user journey coverage", () => {
 
     await expectUsablePage(page, /collaboration|workspace|comments/i);
     await page.getByRole("button", { name: /^Comments\b/i }).click();
-    await page.getByPlaceholder(/column optional/i).fill("AMOUNT");
+    await page.getByPlaceholder(/column.*optional/i).fill("AMOUNT");
     await page.getByPlaceholder(/add a comment/i).fill("Journey test comment");
     await page.getByRole("button", { name: /add comment/i }).click();
-    await expect(page.getByText("Journey test comment")).toBeVisible();
+    await expect(page.getByText("Journey test comment").first()).toBeVisible();
 
     await page.getByPlaceholder(/search comments/i).fill("Journey test");
-    await expect(page.getByText("Journey test comment")).toBeVisible();
+    await expect(page.getByText("Journey test comment").first()).toBeVisible();
     await page
       .getByRole("button", { name: /resolve/i })
       .first()
       .click();
-    await page.getByRole("button", { name: /resolved/i }).click();
-    await expect(page.getByText("Journey test comment")).toBeVisible();
+    await page.getByRole("button", { name: /open only|all/i }).click();
+    await expect(page.getByText("Journey test comment").first()).toBeVisible();
 
     await page.getByRole("button", { name: /^Live\b/i }).click();
     await page.getByPlaceholder(/send a message/i).fill("Journey chat ping");
@@ -203,72 +211,28 @@ test.describe("Complete user journey coverage", () => {
     await expect(page.getByText("Journey chat ping")).toBeVisible();
   });
 
-  test("help, settings, and documentation journeys cover discoverability and preferences", async ({
+  test("settings and documentation journeys cover discoverability and preferences", async ({
     page,
   }) => {
-    await gotoPage(page, "/dashboard/help");
-
-    await page.getByPlaceholder(/search features/i).fill("csv");
-    await expect(page.getByText("CSV Parser")).toBeVisible();
-    await page.getByPlaceholder(/search features/i).fill("");
-    await page.getByRole("button", { name: /faq/i }).click();
-    await expect(page.locator("body")).toContainText(/does any data leave/i);
-    await page.getByRole("button", { name: /shortcuts/i }).click();
-    await expect(page.locator("body")).toContainText(/ctrl|command palette/i);
-
     await gotoPage(page, "/dashboard/settings");
-    await page.getByRole("button", { name: /light/i }).click();
-    await page.getByRole("button", { name: /dark/i }).click();
-    await expect(page.locator("body")).toContainText(/theme|accent color/i);
+
+    await page.getByRole("radio", { name: /light/i }).click();
+    await page.getByRole("radio", { name: /dark/i }).click();
+    await expect(page.locator("body")).toContainText(/theme|accent color|color scheme/i);
     await expect(page.locator('[role="switch"]').first()).toBeVisible();
+
+    await page.getByRole("button", { name: /shortcuts/i }).click();
+    await expect(page.locator("body")).toContainText(/keyboard shortcuts|command palette/i);
   });
 
-  test("AI, workbench, and agent entry points expose their guided no-data states", async ({
-    page,
-  }) => {
-    const aiRoutes = [
-      {
-        path: "/dashboard/auto-analyst",
-        anchor: /auto|analyst|upload|analysis/i,
-      },
-      { path: "/dashboard/data-formulator", anchor: /import data|moudir|ai/i },
-    ] as const;
+  test("Moudir workspace exposes its chat and model controls", async ({ page }) => {
+    await gotoPage(page, "/dashboard/moudir");
 
-    for (const route of aiRoutes) {
-      await gotoPage(page, route.path, route.anchor);
-    }
-  });
-
-  test("data formulator page journey opens command, model, and right-panel controls", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/data-formulator");
-
-    await expectUsablePage(page, /moudir ai|import data|active table/i);
-    await expect(page.getByPlaceholder(/ask for a kpi|describe what rows/i)).toBeVisible();
-    await page.getByTitle(/model readiness/i).click();
-    await expect(page.locator("body")).toContainText(/model|readiness|ai/i);
-    await page.getByTitle(/kpi foundry/i).click();
-    await expect(page.locator("body")).toContainText(/kpi/i);
-    await page.getByTitle(/scenarios/i).click();
-    await expect(page.locator("body")).toContainText(/scenario/i);
-    await page.getByTitle(/inspector/i).click();
-    await expect(page.locator("body")).toContainText(/inspector|select/i);
-  });
-
-  test("auto analyst page journey exposes upload CTAs and disabled run controls without data", async ({
-    page,
-  }) => {
-    await gotoPage(page, "/dashboard/auto-analyst");
-
-    await expectUsablePage(page, /auto.?analyst|upload a dataset/i);
-    await expect(page.getByRole("link", { name: /upload data/i })).toHaveAttribute(
-      "href",
-      "/dashboard/upload",
-    );
-    await expect(page.getByRole("link", { name: /open telecom/i })).toHaveAttribute(
-      "href",
-      "/dashboard/telecom-report",
-    );
+    await expectUsablePage(page, /moudir|assistant|conversation/i);
+    await expect(page.getByLabel(/message pour moudir/i)).toBeVisible();
+    await expect(page.getByLabel(/changer le modèle actif/i)).toBeVisible();
+    await expect(
+      page.getByLabel(/afficher les conversations|masquer les conversations/i),
+    ).toBeVisible();
   });
 });

@@ -53,7 +53,7 @@ test.describe("Dashboard Navigation Journey", () => {
 
     for (const path of telecomPages) {
       await page.goto(path);
-      await page.waitForLoadState("networkidle");
+      await page.waitForLoadState("domcontentloaded");
       await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\/")));
     }
   });

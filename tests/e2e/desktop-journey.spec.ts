@@ -251,9 +251,9 @@ test.describe("Desktop workspace journey", () => {
     });
 
     await openLauncher(page);
-    await launcherTile(page, /explorateur/i).click();
+    await launcherTile(page, /importer/i).click();
 
-    await expect(visibleWindow(page, /explorateur/i).first()).toBeVisible({
+    await expect(visibleWindow(page, /importer/i).first()).toBeVisible({
       timeout: 15_000,
     });
     await expect.poll(() => onScreen.count(), { timeout: 15_000 }).toBeGreaterThanOrEqual(2);

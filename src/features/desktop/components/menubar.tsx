@@ -133,7 +133,6 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
         <button
           type="button"
           onClick={() => setPaletteOpen((v) => !v)}
-          onBlur={() => setTimeout(() => setPaletteOpen(false), 160)}
           className="flex items-center gap-1.5 rounded-md px-1.5 py-0.5 transition hover:bg-black/5"
           title="Palette"
           aria-label="Changer la palette"
@@ -143,36 +142,42 @@ export function MenuBar({ clock, date }: { clock: string; date: string }) {
         </button>
         <AnimatePresence>
           {paletteOpen && (
-            <motion.div
-              initial={{ opacity: 0, y: -6, scale: 0.96 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -6, scale: 0.96 }}
-              className="absolute right-0 top-8 z-[var(--z-modal)] flex gap-2 rounded-xl border p-2"
-              style={{
-                background: "var(--glass-bg-strong)",
-                borderColor: "var(--glass-border)",
-                boxShadow: "var(--glass-shadow)",
-                backdropFilter: "blur(20px)",
-              }}
-            >
-              {GLASS_PALETTES.map((p) => (
-                <button
-                  key={p.id}
-                  type="button"
-                  title={p.label}
-                  onMouseDown={(e) => {
-                    e.preventDefault();
-                    setGlassPalette(p.id);
-                  }}
-                  className={`size-9 rounded-lg border-2 transition ${
-                    palette === p.id
-                      ? "scale-105 border-white shadow-md"
-                      : "border-white/40 hover:scale-105"
-                  }`}
-                  style={{ background: p.swatch }}
-                />
-              ))}
-            </motion.div>
+            <>
+              <div
+                className="fixed inset-0 z-[var(--z-modal)]"
+                onPointerDown={() => setPaletteOpen(false)}
+              />
+              <motion.div
+                initial={{ opacity: 0, y: -6, scale: 0.96 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -6, scale: 0.96 }}
+                className="absolute right-0 top-8 z-[var(--z-modal)] flex gap-2 rounded-xl border p-2"
+                style={{
+                  background: "var(--glass-bg-strong)",
+                  borderColor: "var(--glass-border)",
+                  boxShadow: "var(--glass-shadow)",
+                  backdropFilter: "blur(20px)",
+                }}
+              >
+                {GLASS_PALETTES.map((p) => (
+                  <button
+                    key={p.id}
+                    type="button"
+                    title={p.label}
+                    onClick={() => {
+                      setGlassPalette(p.id);
+                      setPaletteOpen(false);
+                    }}
+                    className={`size-9 rounded-lg border-2 transition ${
+                      palette === p.id
+                        ? "scale-105 border-white shadow-md"
+                        : "border-white/40 hover:scale-105"
+                    }`}
+                    style={{ background: p.swatch }}
+                  />
+                ))}
+              </motion.div>
+            </>
           )}
         </AnimatePresence>
       </div>

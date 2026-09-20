@@ -140,6 +140,7 @@ storybook-static/
 playwright-report
 
 .e2e-electron-profile/
+.e2e-web-profile/
 
 test-results/
 
