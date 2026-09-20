@@ -46,6 +46,12 @@ const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPasswo
 const COPY_OPTS = { recursive: true, force: true } as const;
 
 /** External packages needed by the Electron main process */
+const NEXT_RUNTIME_PACKAGES = [
+  "@coraza/core",
+  "@coraza/coreruleset",
+  "@coraza/next",
+];
+
 const MAIN_RUNTIME_PACKAGES = [
   "@better-auth",
   "better-auth",
@@ -301,15 +307,33 @@ function stageApplication(): void {
       fs.writeFileSync(standaloneServer, content, "utf8");
     }
 
-    // 3. Copy main process runtime dependencies (next is omitted: app/ has its own copy)
+    // 3. Preserve Next server runtime packages whose code performs dynamic
+    // package metadata / asset resolution after the standalone build.
+    for (const pkg of NEXT_RUNTIME_PACKAGES) {
+      copyPackageIfExists(pkg, appDest);
+    }
+    requirePath(
+      "Coraza core runtime package",
+      path.join(appDest, "node_modules", "@coraza", "core", "package.json"),
+    );
+    requirePath(
+      "Coraza ruleset runtime package",
+      path.join(appDest, "node_modules", "@coraza", "coreruleset", "package.json"),
+    );
+    requirePath(
+      "Coraza Next runtime package",
+      path.join(appDest, "node_modules", "@coraza", "next", "package.json"),
+    );
+
+    // 4. Copy main process runtime dependencies (next is omitted: app/ has its own copy)
     for (const pkg of MAIN_RUNTIME_PACKAGES) {
       copyPackageIfExists(pkg, stageDir);
     }
 
-    // 4. Prune dead weight
+    // 5. Prune dead weight
     pruneDeadWeight(stageDir, process.platform);
 
-    // 5. App package.json
+    // 6. App package.json
     const rootPkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
     const appPkg = {
       name: appSlug,
