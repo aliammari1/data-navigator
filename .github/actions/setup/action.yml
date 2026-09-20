@@ -1,5 +1,5 @@
 # facts: Shared composite setup for data-navigator (private, offline-first Electron + Next.js 16
-# app on pnpm@10.25.0). Single drop-in `uses: ./.github/actions/setup` step that installs pnpm,
+# app on pnpm@11.9.0). Single drop-in `uses: ./.github/actions/setup` step that installs pnpm,
 # sets up Node with the pnpm-store cache, restores the Next build cache, and installs deps with a
 # frozen lockfile. Used by quality.yml and security.yml (and ready to replace the inline setup
 # blocks in ci.yml/storybook.yml/electron-windows.yml). Assumes the caller has already run
