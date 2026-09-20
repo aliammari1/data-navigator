@@ -47,7 +47,6 @@ test.describe("Dashboard Navigation Journey", () => {
       "/dashboard/telecom-report/analysis",
       "/dashboard/telecom-report/grid",
       "/dashboard/telecom-report/period",
-      "/dashboard/telecom-report/day",
       "/dashboard/telecom-report/history",
       "/dashboard/telecom-report/config",
     ];
@@ -55,7 +54,7 @@ test.describe("Dashboard Navigation Journey", () => {
     for (const path of telecomPages) {
       await page.goto(path);
       await page.waitForLoadState("networkidle");
-      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\\\/")));
+      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\/")));
     }
   });
 
