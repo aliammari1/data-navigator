@@ -67,6 +67,12 @@ const nextConfig: NextConfig = {
     ];
   },
   serverExternalPackages: [
+    // Coraza resolves package metadata and WASM/rules at runtime. Keep these
+    // packages external so Next standalone preserves their real package files
+    // instead of only bundling JS that later cannot resolve package.json.
+    "@coraza/core",
+    "@coraza/coreruleset",
+    "@coraza/next",
     "@duckdb/node-api",
     "@duckdb/node-bindings",
     "better-sqlite3",
