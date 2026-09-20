@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import { consoleLogger, createWAF } from "@coraza/core";
 import { recommended } from "@coraza/coreruleset";
 import { type CorazaDecision, createCorazaRunner, defaultBlock } from "@coraza/next";
@@ -7,6 +9,87 @@ import {
   classifyWafBody,
   formatWafBlockDiagnostics,
 } from "@/platform/security/waf-policy";
+
+/**
+ * Resolve the Coraza WASM binary explicitly.
+ *
+ * In packaged desktop runtimes (Electron ASAR), process.cwd() points to the host
+ * directory the user launched from (e.g. ~/Downloads), which prevents @coraza/core's
+ * default require.resolve("@coraza/core/package.json") from finding the WASM.
+ * Passing the preloaded binary bytes directly to `wasmSource` bypasses filesystem
+ * lookups and cwd-dependent resolution entirely.
+ */
+function resolveCorazaWasm(): Uint8Array | undefined {
+  const envPath = process.env.CORAZA_WASM_PATH?.trim();
+  const candidates: string[] = [];
+  if (envPath) candidates.push(envPath);
+
+  // Common root / standalone paths
+  candidates.push(
+    path.join(process.cwd(), "node_modules", "@coraza", "core", "dist", "wasm", "coraza.wasm"),
+    path.join(
+      process.cwd(),
+      "app",
+      "node_modules",
+      "@coraza",
+      "core",
+      "dist",
+      "wasm",
+      "coraza.wasm",
+    ),
+  );
+
+  // Electron packaged paths (inside app.asar or unpacked)
+  const resourcesPath = (process as unknown as { resourcesPath?: string }).resourcesPath;
+  if (resourcesPath) {
+    candidates.push(
+      path.join(
+        resourcesPath,
+        "app.asar",
+        "app",
+        "node_modules",
+        "@coraza",
+        "core",
+        "dist",
+        "wasm",
+        "coraza.wasm",
+      ),
+      path.join(
+        resourcesPath,
+        "app.asar",
+        "node_modules",
+        "@coraza",
+        "core",
+        "dist",
+        "wasm",
+        "coraza.wasm",
+      ),
+      path.join(
+        resourcesPath,
+        "app",
+        "node_modules",
+        "@coraza",
+        "core",
+        "dist",
+        "wasm",
+        "coraza.wasm",
+      ),
+    );
+  }
+
+  for (const candidate of candidates) {
+    try {
+      if (fs.existsSync(candidate)) {
+        return fs.readFileSync(candidate);
+      }
+    } catch {
+      // ignore read failures and try next candidate
+    }
+  }
+  return undefined;
+}
+
+const wasmSource = resolveCorazaWasm();
 
 // WASM loads once at module init. createWAF returns a Promise<WAF>; the adapter
 // accepts the promise (WAFLike) and awaits+caches it on the first request.
@@ -19,6 +102,7 @@ const waf = createWAF({
   rules: recommended({ extra: CRS_RULE_EXCLUSIONS }),
   mode: "block",
   logger: consoleLogger,
+  ...(wasmSource ? { wasmSource } : {}),
 });
 
 // A WASM/init rejection is NOT covered by `onWAFError` (that only guards

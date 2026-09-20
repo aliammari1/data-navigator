@@ -1,5 +1,11 @@
 # data-navigator
 
+## 1.0.3
+
+### Patch Changes
+
+- Resolve Coraza WASM explicitly via `wasmSource` buffer in `src/proxy.ts` and set `CORAZA_WASM_PATH` in `electron/main.ts`. Bypasses `@coraza/core`'s cwd-dependent module resolution in packaged desktop (ASAR) environments where `process.cwd()` points to the host launch directory (e.g. `~/Downloads`).
+
 ## 1.0.2
 
 ### Patch Changes

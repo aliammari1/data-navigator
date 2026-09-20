@@ -1918,6 +1918,15 @@ async function startNextJSServer(): Promise<string> {
       bootLog(`starting standalone Next.js server via ${standaloneServerScript}`);
       process.env.PORT = nextJSPort.toString();
       process.env.HOSTNAME = bindAddress;
+      process.env.CORAZA_WASM_PATH = path.join(
+        webDir,
+        "node_modules",
+        "@coraza",
+        "core",
+        "dist",
+        "wasm",
+        "coraza.wasm",
+      );
       const originalChdir = process.chdir;
       process.chdir = (dir: string) => {
         try {

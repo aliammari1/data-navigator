@@ -157,6 +157,8 @@ module.exports = {
           "^src/platform/storage/db-bootstrap[.]ts$",
           // Next.js server-side utilities (Node.js runtime only, never bundled to browser)
           "^src/server/",
+          // Next.js server proxy / middleware (Node.js runtime only, never bundled to browser)
+          "^src/proxy[.]ts$",
         ],
       },
       to: {
