@@ -1873,6 +1873,12 @@ async function startNextJSServer(): Promise<string> {
     process.env.BETTER_AUTH_URL = serverOrigin;
     process.env.NEXT_PUBLIC_BETTER_AUTH_URL = serverOrigin;
     process.env.APP_USER_DATA = app.getPath("userData");
+    if (app.isPackaged) {
+      // The standalone Next.js auth layer cannot derive this from process.cwd():
+      // an AppImage inherits the user's launch directory (for example ~/Downloads).
+      // Point it at the migrations bundled inside app.asar instead.
+      process.env.APP_MIGRATIONS_DIR = path.join(app.getAppPath(), "drizzle");
+    }
     process.env.PORT = nextJSPort.toString();
     process.env.HOSTNAME = bindAddress;
 
