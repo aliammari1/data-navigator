@@ -384,6 +384,9 @@ export default async function (): Promise<Configuration> {
     nodeGypRebuild: false,
     toolsets: {
       winCodeSign: "1.1.0",
+      // Static AppImage runtime: avoids the legacy libfuse.so.2 requirement on
+      // modern distributions such as Arch/Omarchy.
+      appimage: "1.0.3",
     },
     protocols: [
       {
