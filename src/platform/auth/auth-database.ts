@@ -26,6 +26,7 @@ import { AUTH_DB_FILE } from "@/platform/storage/storage-constants";
 type AuthDatabaseOptions = {
   appUserData?: string;
   cwd?: string;
+  migrationsFolder?: string;
 };
 
 function getAuthDatabasePath(options: AuthDatabaseOptions = {}) {
@@ -35,6 +36,23 @@ function getAuthDatabasePath(options: AuthDatabaseOptions = {}) {
     : path.join(options.cwd ?? process.cwd(), ".data");
 
   return path.join(runtimeDataDir, AUTH_DB_FILE);
+}
+
+/**
+ * Resolve the Drizzle migration bundle for the auth database.
+ *
+ * Packaged Electron runs Next.js from inside app.asar while process.cwd() is
+ * whatever directory launched the AppImage (often ~/Downloads). The main
+ * process therefore exports APP_MIGRATIONS_DIR=<appPath>/drizzle before the
+ * standalone Next.js server is required. Dev/test callers keep the historical
+ * <cwd>/drizzle fallback.
+ */
+export function resolveAuthMigrationsFolder(options: AuthDatabaseOptions = {}): string {
+  return (
+    options.migrationsFolder ??
+    process.env.APP_MIGRATIONS_DIR ??
+    path.join(options.cwd ?? process.cwd(), "drizzle")
+  );
 }
 
 /**
@@ -175,7 +193,7 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     encryptionRequested,
   });
 
-  const migrationsFolder = path.join(options.cwd ?? process.cwd(), "drizzle");
+  const migrationsFolder = resolveAuthMigrationsFolder(options);
 
   if (plan.mode === "plaintext") {
     const handle = openSqliteHandle({
@@ -275,6 +293,7 @@ function getAuthDatabase(): AuthDatabase {
   if (!cachedAuthDatabase) {
     cachedAuthDatabase = createAuthDatabase({
       appUserData: process.env.APP_USER_DATA,
+      migrationsFolder: process.env.APP_MIGRATIONS_DIR,
     });
     cachedFileId = fileId(cachedAuthDatabase.path);
   }
