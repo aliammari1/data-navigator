@@ -1,3 +1,10 @@
+## 1.0.5
+
+### Patch Changes
+
+- Fix packaged AppImage startup when the Next.js auth database looks for Drizzle migrations from the launch directory instead of the bundled `app.asar/drizzle` directory.
+- Use electron-builder's static AppImage runtime so modern Arch/Omarchy systems can launch without installing legacy FUSE2.
+
 # data-navigator
 
 ## 1.0.4
