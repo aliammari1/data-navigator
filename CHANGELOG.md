@@ -1,5 +1,11 @@
 # data-navigator
 
+## 1.0.4
+
+### Patch Changes
+
+- Avoid a spurious legacy settings migration exception on clean packaged installs by checking for the legacy table before reading it. This keeps fresh-start boot logs clean while preserving the one-time migration for existing users.
+
 ## 1.0.3
 
 ### Patch Changes

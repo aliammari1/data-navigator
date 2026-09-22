@@ -403,19 +403,26 @@ export function migrateLegacyAppSettings(authDbPath: string): { migrated: number
     try {
       const source = createSqliteConnection(authDbPath, { readonly: true });
       try {
-        const sourceDb = drizzle(source);
-        const rows = sourceDb.select().from(legacyAppSetting).all();
-        for (const row of rows) {
-          if (row.namespace === MIGRATION_NS) continue;
-          if (getSetting(row.namespace, row.key).value !== null) continue;
-          let parsed: unknown;
-          try {
-            parsed = JSON.parse(row.value);
-          } catch {
-            parsed = row.value;
+        const hasLegacyTable = source
+          .prepare(
+            "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'app_setting' LIMIT 1",
+          )
+          .get();
+        if (hasLegacyTable) {
+          const sourceDb = drizzle(source);
+          const rows = sourceDb.select().from(legacyAppSetting).all();
+          for (const row of rows) {
+            if (row.namespace === MIGRATION_NS) continue;
+            if (getSetting(row.namespace, row.key).value !== null) continue;
+            let parsed: unknown;
+            try {
+              parsed = JSON.parse(row.value);
+            } catch {
+              parsed = row.value;
+            }
+            setSetting(row.namespace, row.key, parsed);
+            migrated += 1;
           }
-          setSetting(row.namespace, row.key, parsed);
-          migrated += 1;
         }
       } finally {
         source.close();

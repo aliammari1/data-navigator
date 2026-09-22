@@ -416,7 +416,7 @@ describe("migrateLegacyAppSettings", () => {
     expect(second).toEqual({ migrated: 0 });
   });
 
-  it("skips the lift and does not throw when the auth DB has no app_setting table", () => {
+  it("silently skips the lift when the auth DB has no app_setting table", () => {
     const dbPath = path.join(dir, "malformed-auth.db");
     const db = createSqliteConnection(dbPath);
     db.exec("CREATE TABLE something_else (id integer)");
@@ -426,10 +426,7 @@ describe("migrateLegacyAppSettings", () => {
     const result = migrateLegacyAppSettings(dbPath);
 
     expect(result).toEqual({ migrated: 0 });
-    expect(warnSpy).toHaveBeenCalledWith(
-      expect.stringContaining("legacy app_setting lift skipped"),
-      expect.anything(),
-    );
+    expect(warnSpy).not.toHaveBeenCalled();
     warnSpy.mockRestore();
   });
 });
