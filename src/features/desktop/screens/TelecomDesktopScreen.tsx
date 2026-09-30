@@ -170,7 +170,7 @@ function TelecomMenuBridge() {
  * context, Zustand stores, and Electron IPC bridge as the rest of the app.
  * Tab navigation uses local state instead of the Next.js router.
  */
-export function TelecomDesktopScreen() {
+export function TelecomDesktopScreen({ datasetId }: { datasetId?: string }) {
   const [activeTab, setActiveTab] = useState("overview");
   const windowId = useWindowId();
 
@@ -183,7 +183,11 @@ export function TelecomDesktopScreen() {
   });
 
   return (
-    <TelecomReportRuntimeProvider activeTab={activeTab} onTabChange={setActiveTab}>
+    <TelecomReportRuntimeProvider
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      windowDatasetId={datasetId}
+    >
       <TelecomMenuBridge />
       <TelecomTabContent activeTab={activeTab} />
     </TelecomReportRuntimeProvider>

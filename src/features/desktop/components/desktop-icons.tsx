@@ -22,6 +22,12 @@ import {
 import { useContextBusActions } from "@/features/desktop/core/context-bus";
 import { buildDatasetMenu, buildFolderMenu } from "@/features/desktop/core/data-context-menus";
 import { type DesktopDragPayload, readDrag, serializeDrag } from "@/features/desktop/core/dnd";
+import {
+  findFreeIconPosition,
+  ICON_HEIGHT,
+  ICON_WIDTH,
+  layoutDesktopIcons,
+} from "@/features/desktop/core/icon-layout";
 import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import {
   useDesktopActions,
@@ -47,10 +53,6 @@ interface IconDescriptor {
   dataset?: Dataset;
 }
 
-const _GRID_X = 96;
-const GRID_Y = 104;
-const ORIGIN = { x: 16, y: 16 };
-
 export function DesktopIcons() {
   const folders = useFoldersStore((s) => s.folders);
   const datasets = useDataStore((s) => s.datasets);
@@ -69,6 +71,29 @@ export function DesktopIcons() {
   const [menu, setMenu] = useState<(ContextMenuState & { items: MenuItem[] }) | null>(null);
   const [drag, setDrag] = useState<{ id: string; x: number; y: number } | null>(null);
   const dragInfo = useRef<{ id: string; offX: number; offY: number; moved: boolean } | null>(null);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const [bounds, setBounds] = useState({ width: 0, height: 0 });
+
+  useEffect(() => {
+    const update = () => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (rect) {
+        setBounds((current) =>
+          current.width === rect.width && current.height === rect.height
+            ? current
+            : { width: rect.width, height: rect.height },
+        );
+      }
+    };
+    update();
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(update);
+    if (canvasRef.current) observer?.observe(canvasRef.current);
+    window.addEventListener("resize", update);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", update);
+    };
+  }, []);
 
   // Rubber-band marquee state (empty-canvas drag selects icons).
   const [marquee, setMarquee] = useState<{ x: number; y: number; w: number; h: number } | null>(
@@ -129,8 +154,12 @@ export function DesktopIcons() {
     })),
   ];
 
-  const posFor = (id: string, index: number) =>
-    positions[id] ?? { x: ORIGIN.x, y: ORIGIN.y + index * GRID_Y };
+  const iconPositions = layoutDesktopIcons(
+    icons.map((icon) => icon.id),
+    positions,
+    bounds,
+  );
+  const posFor = (id: string) => iconPositions[id];
 
   const folderDatasetCount = useCallback(
     (folderId: string) => Object.values(datasetFolderMap).filter((fid) => fid === folderId).length,
@@ -145,7 +174,10 @@ export function DesktopIcons() {
         openApp("folders", { props: { initialFolderId: d.folder.id }, forceNew: false });
       else if (d.kind === "dataset" && d.dataset) {
         setActiveDataset(d.dataset.id);
-        openApp("telecom", { props: { datasetId: d.dataset.id }, forceNew: false });
+        openApp("telecom", {
+          title: d.dataset.name || "Rapport Télécom",
+          props: { datasetId: d.dataset.id },
+        });
       }
     },
     [openApp, setActiveDataset],
@@ -173,8 +205,14 @@ export function DesktopIcons() {
     if (e.button !== 0) return;
     e.stopPropagation();
     const idx = icons.findIndex((i) => i.id === id);
-    const start = posFor(id, idx);
-    dragInfo.current = { id, offX: e.clientX - start.x, offY: e.clientY - start.y, moved: false };
+    const start = posFor(id);
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    dragInfo.current = {
+      id,
+      offX: e.clientX - (canvasRect?.left ?? 0) - start.x,
+      offY: e.clientY - (canvasRect?.top ?? 0) - start.y,
+      moved: false,
+    };
     selectIcon(icons[idx]);
     setDrag({ id, x: start.x, y: start.y });
     (e.target as HTMLElement).setPointerCapture?.(e.pointerId);
@@ -183,15 +221,20 @@ export function DesktopIcons() {
     const info = dragInfo.current;
     if (!info) return;
     info.moved = true;
-    setDrag({ id: info.id, x: e.clientX - info.offX, y: e.clientY - info.offY });
+    const rect = canvasRef.current?.getBoundingClientRect();
+    setDrag({
+      id: info.id,
+      x: e.clientX - (rect?.left ?? 0) - info.offX,
+      y: e.clientY - (rect?.top ?? 0) - info.offY,
+    });
   };
   const onPointerUp = (e: React.PointerEvent) => {
     const info = dragInfo.current;
     dragInfo.current = null;
     if (!info) return;
     const finalPos = {
-      x: Math.max(0, e.clientX - info.offX),
-      y: Math.max(0, e.clientY - info.offY),
+      x: e.clientX - (canvasRef.current?.getBoundingClientRect().left ?? 0) - info.offX,
+      y: e.clientY - (canvasRef.current?.getBoundingClientRect().top ?? 0) - info.offY,
     };
     setDrag(null);
     if (!info.moved) return;
@@ -238,7 +281,14 @@ export function DesktopIcons() {
         return;
       }
     }
-    setIconPosition(info.id, finalPos);
+    setIconPosition(
+      info.id,
+      findFreeIconPosition(
+        finalPos,
+        icons.filter((icon) => icon.id !== info.id).map((icon) => posFor(icon.id)),
+        bounds,
+      ),
+    );
   };
 
   const openMenu = (e: React.MouseEvent, d: IconDescriptor) => {
@@ -339,14 +389,12 @@ export function DesktopIcons() {
 
   // ─── Marquee rubber-band multi-select (drag a box on empty canvas) ──────────
   // Icon hit-box is the ~80px (w-20) wide tile starting at its stored position.
-  const ICON_W = 80;
-  const ICON_H = 96;
   const iconsInRect = (r: { x: number; y: number; w: number; h: number }) => {
     const hit = new Set<string>();
-    icons.forEach((d, i) => {
-      const p = posFor(d.id, i);
+    icons.forEach((d) => {
+      const p = posFor(d.id);
       const overlap =
-        p.x < r.x + r.w && p.x + ICON_W > r.x && p.y < r.y + r.h && p.y + ICON_H > r.y;
+        p.x < r.x + r.w && p.x + ICON_WIDTH > r.x && p.y < r.y + r.h && p.y + ICON_HEIGHT > r.y;
       if (overlap) hit.add(d.id);
     });
     return hit;
@@ -358,18 +406,24 @@ export function DesktopIcons() {
     if (e.button !== 0) return;
     setSelected(null);
     clearSelection();
-    marqueeRef.current = { startX: e.clientX, startY: e.clientY };
-    setMarquee({ x: e.clientX, y: e.clientY, w: 0, h: 0 });
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const x = e.clientX - (canvasRect?.left ?? 0);
+    const y = e.clientY - (canvasRect?.top ?? 0);
+    marqueeRef.current = { startX: x, startY: y };
+    setMarquee({ x, y, w: 0, h: 0 });
     setMulti(new Set());
     (e.currentTarget as HTMLElement).setPointerCapture?.(e.pointerId);
   };
   const onCanvasPointerMove = (e: React.PointerEvent) => {
     const m = marqueeRef.current;
     if (!m) return;
-    const x = Math.min(m.startX, e.clientX);
-    const y = Math.min(m.startY, e.clientY);
-    const w = Math.abs(e.clientX - m.startX);
-    const h = Math.abs(e.clientY - m.startY);
+    const canvasRect = canvasRef.current?.getBoundingClientRect();
+    const pointerX = e.clientX - (canvasRect?.left ?? 0);
+    const pointerY = e.clientY - (canvasRect?.top ?? 0);
+    const x = Math.min(m.startX, pointerX);
+    const y = Math.min(m.startY, pointerY);
+    const w = Math.abs(pointerX - m.startX);
+    const h = Math.abs(pointerY - m.startY);
     const rect = { x, y, w, h };
     setMarquee(rect);
     setMulti(iconsInRect(rect));
@@ -446,8 +500,8 @@ export function DesktopIcons() {
 
   return (
     <>
-      {icons.map((d, i) => {
-        const base = posFor(d.id, i);
+      {icons.map((d) => {
+        const base = posFor(d.id);
         const pos = drag?.id === d.id ? drag : base;
         const Icon = d.icon;
         const count = d.kind === "folder" && d.folder ? folderDatasetCount(d.folder.id) : undefined;
@@ -527,6 +581,7 @@ export function DesktopIcons() {
           so icons keep their own pointer handlers; icons stopPropagation on
           pointerdown so an empty-area press reaches this layer. */}
       <div
+        ref={canvasRef}
         className="absolute inset-0 -z-10"
         // Canonical "empty desktop" surface: this full-bleed layer — not the bare
         // canvas — is what right-clicks on empty space actually land on, so the

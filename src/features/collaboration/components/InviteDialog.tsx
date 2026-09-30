@@ -12,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { copyTextToClipboard } from "@/platform/collab/copy-text";
 import { cn } from "@/shared/utils";
 
 export interface InviteDialogProps {
@@ -19,6 +20,7 @@ export interface InviteDialogProps {
   onOpenChange: (open: boolean) => void;
   joinUrl: string;
   pairingCode: string;
+  error?: string;
 }
 
 interface CopyFieldProps {
@@ -29,12 +31,17 @@ interface CopyFieldProps {
 
 function CopyField({ label, value, monospace }: CopyFieldProps) {
   const [copied, setCopied] = useState(false);
+  const [copyError, setCopyError] = useState("");
 
-  const handleCopy = useCallback(() => {
-    void navigator.clipboard.writeText(value).then(() => {
+  const handleCopy = useCallback(async () => {
+    setCopyError("");
+    try {
+      await copyTextToClipboard(value);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
-    });
+    } catch (error) {
+      setCopyError((error as Error).message);
+    }
   }, [value]);
 
   return (
@@ -58,21 +65,37 @@ function CopyField({ label, value, monospace }: CopyFieldProps) {
           variant="outline"
           size="sm"
           onClick={handleCopy}
+          disabled={!value}
           className="h-9 shrink-0"
           aria-label={`Copier ${label}`}
         >
           {copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}
         </Button>
       </div>
+      {copyError && (
+        <span role="alert" className="mt-1 block text-xs text-destructive">
+          {copyError}
+        </span>
+      )}
     </label>
   );
 }
 
-export function InviteDialog({ open, onOpenChange, joinUrl, pairingCode }: InviteDialogProps) {
+export function InviteDialog({
+  open,
+  onOpenChange,
+  joinUrl,
+  pairingCode,
+  error,
+}: InviteDialogProps) {
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!open) return;
+    if (!joinUrl) {
+      setQrDataUrl(null);
+      return;
+    }
     let cancelled = false;
     QRCode.toDataURL(joinUrl, { width: 220, margin: 1 })
       .then((url) => {
@@ -119,6 +142,11 @@ export function InviteDialog({ open, onOpenChange, joinUrl, pairingCode }: Invit
           )}
 
           <div className="w-full space-y-3">
+            {error && (
+              <p role="alert" className="text-xs text-destructive">
+                {error}
+              </p>
+            )}
             <CopyField label="Lien d'invitation" value={joinUrl} />
             <CopyField label="Code d'accès" value={pairingCode} monospace />
           </div>

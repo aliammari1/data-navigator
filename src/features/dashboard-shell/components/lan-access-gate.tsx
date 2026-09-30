@@ -121,6 +121,33 @@ export function LanAccessGate({
     [],
   );
 
+  // A guest approval happens on /guest/waiting, where the LAN socket is first
+  // opened. Redirecting to /dashboard recreates the renderer/module state and
+  // therefore drops that socket. Reconnect from the persisted approved session
+  // immediately so presence, chat and CRDT updates are live after the redirect.
+  useEffect(() => {
+    if (isAdmin) {
+      setStableConnected(true);
+      return;
+    }
+    if (getLANStatus() === "connected") {
+      setStableConnected(true);
+      return;
+    }
+    const saved = readLANSettings();
+    if (!saved.url || !saved.pairingCode) {
+      setStableConnected(false);
+      return;
+    }
+    setConnecting(true);
+    setError("");
+    void connectLAN(saved).catch((err) => {
+      setError((err as Error).message ?? String(err));
+      setConnecting(false);
+      setStableConnected(false);
+    });
+  }, [isAdmin]);
+
   const persist = (patch: Partial<typeof settings>) => {
     const next = { ...settings, ...patch, peer: { ...settings.peer, ...(patch.peer ?? {}) } };
     setSettings(next);

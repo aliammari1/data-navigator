@@ -355,7 +355,7 @@ export default function FoldersScreen({ initialFolderId = null }: FoldersScreenP
   const handleOpenReport = useCallback(
     (datasetId: string) => {
       setActiveDataset(datasetId);
-      const claimed = openDesktopApp("telecom");
+      const claimed = openDesktopApp("telecom", { datasetId });
       if (!claimed) {
         router.push("/dashboard/telecom-report/overview");
       }

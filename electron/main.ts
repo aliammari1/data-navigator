@@ -96,6 +96,7 @@ import {
   ChatSearchMessagesSchema,
   ChatSessionIdSchema,
   ClipboardImageSchema,
+  ClipboardTextSchema,
   CollabStartSchema,
   CountRowsSchema,
   DatasetOnlySchema,
@@ -817,6 +818,13 @@ ipcMain.handle("clipboard:writeImage", async (event, input: unknown) =>
   }),
 );
 
+ipcMain.handle("clipboard:writeText", async (event, input: unknown) =>
+  withTrustedSender(event, () => {
+    const { text } = parseIpc(ClipboardTextSchema, input, "clipboard:writeText");
+    clipboard.writeText(text);
+  }),
+);
+
 // ─── IPC: Moudir Chat History Bridge ─────────────────────────────────────────
 // Durable conversations for the assistant (chat.db). One method per message,
 // no raw SQL across the bridge — same shape as the analytics-snapshot bridge.
@@ -1470,6 +1478,7 @@ ipcMain.handle("chat:prompt", async (event, input: unknown) =>
       .promptSession({
         conversationId: parsed.conversationId,
         text: parsed.text,
+        datasetId: parsed.datasetId,
         requestId,
         signal: controller.signal,
         onToken: requestId

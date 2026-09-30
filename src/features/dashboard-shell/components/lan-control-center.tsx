@@ -21,6 +21,7 @@ import QRCode from "qrcode";
 import { useEffect, useRef, useState } from "react";
 import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import { useInternetStatus } from "@/features/dashboard-shell/shell/use-internet-status";
+import { copyTextToClipboard } from "@/platform/collab/copy-text";
 import {
   buildLANCommand,
   connectLAN,
@@ -235,9 +236,15 @@ export function LanControlCenter() {
   };
 
   const copyText = async (text: string) => {
-    await navigator.clipboard?.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await copyTextToClipboard(text);
+      setError("");
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (error) {
+      setCopied(false);
+      setError((error as Error).message);
+    }
   };
 
   const autoFind = async () => {
@@ -592,6 +599,7 @@ export function LanControlCenter() {
                     <button
                       type="button"
                       onClick={() => copyText(joinUrl)}
+                      disabled={!joinUrl}
                       className="inline-flex h-7 items-center gap-1.5 rounded-md border border-border px-2 text-xs hover:bg-muted"
                     >
                       {copied ? (

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildLANCommand, type LANSettings } from "@/platform/lan/lan-collab";
+import { buildLANCommand, type LANSettings, makeJoinHttpUrl } from "@/platform/lan/lan-collab";
 
 function settingsWithUrl(url: string): LANSettings {
   return {
@@ -42,5 +42,15 @@ describe("buildLANCommand", () => {
     expect(buildLANCommand(settingsWithUrl(""))).toContain("PAIRING_CODE=123456");
     const settings = { ...settingsWithUrl(""), pairingCode: "999888" };
     expect(buildLANCommand(settings)).toContain("PAIRING_CODE=999888");
+  });
+});
+
+describe("makeJoinHttpUrl", () => {
+  it("keeps a same-PC loopback link for local collaboration", async () => {
+    const url = new URL(await makeJoinHttpUrl(settingsWithUrl("ws://127.0.0.1:1234")));
+
+    expect(url.hostname).toBe("127.0.0.1");
+    expect(url.pathname).toBe("/guest/join");
+    expect(url.searchParams.has("token")).toBe(true);
   });
 });

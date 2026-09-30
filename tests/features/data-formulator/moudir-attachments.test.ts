@@ -10,6 +10,11 @@ const mockSendChatPrompt = vi.fn();
 const mockOpenChatSession = vi.fn();
 const mockAppendMessageRemote = vi.fn();
 const mockGetMessagesRemote = vi.fn();
+const mockLoadTelecomContext = vi.fn();
+
+vi.mock("@/features/telecom/lib/moudir-report-context", () => ({
+  loadTelecomReportContextForMoudir: (...args: unknown[]) => mockLoadTelecomContext(...args),
+}));
 
 vi.mock("@/platform/chat/chat-session-client", () => ({
   sendChatPrompt: (...args: any[]) => mockSendChatPrompt(...args),
@@ -38,6 +43,7 @@ vi.mock("@/platform/settings/settings-client", () => ({
 describe("Moudir AI Elements Attachments Integration", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockLoadTelecomContext.mockResolvedValue(null);
     mockOpenChatSession.mockResolvedValue({ model: "test-model.gguf", reused: false });
     mockSendChatPrompt.mockResolvedValue({ text: "Assistant response", toolEvents: [] });
     mockAppendMessageRemote.mockResolvedValue({ id: 1 });
@@ -62,6 +68,32 @@ describe("Moudir AI Elements Attachments Integration", () => {
         },
       ],
     });
+  });
+
+  it("sends the selected report context to the model without changing stored user text", async () => {
+    mockLoadTelecomContext.mockResolvedValue(
+      "\n<telecom_report_context>precomputed KPI</telecom_report_context>",
+    );
+    await useMoudirChatStore.getState().send("Quel est le taux de réussite ?", {
+      datasetId: "ds-telecom",
+    });
+
+    expect(mockLoadTelecomContext).toHaveBeenCalledWith("ds-telecom");
+    expect(mockSendChatPrompt).toHaveBeenCalledWith(
+      expect.objectContaining({
+        datasetId: "ds-telecom",
+        text: expect.stringContaining("precomputed KPI"),
+      }),
+    );
+    expect(
+      useMoudirChatStore.getState().messages.find((message) => message.role === "user")?.content,
+    ).toBe("Quel est le taux de réussite ?");
+    expect(mockAppendMessageRemote).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "user",
+        content: "Quel est le taux de réussite ?",
+      }),
+    );
   });
 
   it("attaches files to user message and informs sendChatPrompt", async () => {

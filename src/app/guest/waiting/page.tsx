@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
-import { connectLAN, readLANSettings, saveLANSettings } from "@/platform/lan/lan-collab";
+import { readLANSettings, saveLANSettings } from "@/platform/lan/lan-collab";
 
 type Status = "loading" | "pending" | "approved" | "denied" | "expired" | "missing";
 type StatusPayload = {
@@ -58,11 +58,8 @@ function GuestWaitingContent() {
           },
         };
         saveLANSettings(updated);
-        try {
-          await connectLAN(updated);
-        } catch {
-          // Connection failure is non-fatal. The dashboard will retry.
-        }
+        // Redirect first. The dashboard's LAN access gate reconnects from these
+        // persisted approved settings, keeping a single long-lived provider.
         window.location.replace("/dashboard/collaborative");
       } else {
         activatedRef.current = false;

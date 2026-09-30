@@ -14,7 +14,7 @@
   },
   "main": "build/main.js",
   "scripts": {
-    "dev": "pnpm run worker:build && concurrently -k -n next,electron -c auto \"pnpm run next:dev\" \"pnpm run electron:dev\"",
+    "dev": "node scripts/dev.mjs",
     "dev:lan": "node scripts/lan-server.mjs",
     "next:dev": "next dev -H 0.0.0.0",
     "next:build": "next build",

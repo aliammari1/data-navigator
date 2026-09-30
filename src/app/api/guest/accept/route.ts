@@ -8,7 +8,6 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const GUEST_COOKIE = "dn_guest_session";
-const ACCEPT_ONE_TIME_HEADER = "dn-accept-once";
 
 function buildHocuspocusUrl(hostUrl: string): string {
   const hocuspocusPort = process.env.HOCUSPOCUS_PORT ?? "1234";
@@ -16,17 +15,11 @@ function buildHocuspocusUrl(hostUrl: string): string {
     const parsed = new URL(hostUrl);
     const protocol = parsed.protocol === "https:" || parsed.protocol === "wss:" ? "wss:" : "ws:";
     let hostname = parsed.hostname;
-    const isLoopbackOrZero =
-      hostname === "0.0.0.0" ||
-      hostname === "localhost" ||
-      hostname === "::" ||
-      hostname === "[::]" ||
-      hostname === "::1" ||
-      hostname === "[::1]" ||
-      hostname === "127.0.0.1" ||
-      hostname.startsWith("127.");
+    // Wildcard bind addresses cannot be used by guests. A loopback URL is
+    // intentional for a same-PC session and must keep working end to end.
+    const isWildcardHost = hostname === "0.0.0.0" || hostname === "::" || hostname === "[::]";
 
-    if (isLoopbackOrZero) {
+    if (isWildcardHost) {
       const lanIp = getPrimaryLanIp();
       if (lanIp) {
         hostname = lanIp;

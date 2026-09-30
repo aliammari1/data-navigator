@@ -22,6 +22,9 @@ allowBuilds:
   unrs-resolver: true
 
 overrides:
+  # Hocuspocus asks for v12 while the app uses v13. Keep one native SQLite
+  # version so Electron's rebuild reaches the copy loaded by the LAN hub.
+  "@hocuspocus/extension-sqlite>better-sqlite3": "13.0.3"
   tar: ">=7.5.21"
   extract-zip: ">=2.0.2"
   fast-uri: ">=3.1.6"

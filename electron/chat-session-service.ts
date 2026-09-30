@@ -69,6 +69,7 @@ export type OpenSessionInput = {
 export type PromptSessionInput = {
   conversationId: string;
   text: string;
+  datasetId?: string | null;
   requestId?: string;
   onToken?: (chunk: string) => void;
   onTool?: (event: ChatToolEvent) => void;
@@ -280,12 +281,18 @@ async function runSqlTool(params: { sql: string }): Promise<string> {
   return formatRows(rows);
 }
 
-async function getSchemaTool(): Promise<string> {
+async function getSchemaTool(datasetId?: string | null): Promise<string> {
   const datasets = await duckdbService.listDatasets();
   if (datasets.length === 0) {
     return "Aucun jeu de données enregistré. L'utilisateur doit d'abord importer un fichier.";
   }
-  const lines = datasets.map(
+  const visibleDatasets = datasetId
+    ? datasets.filter((dataset) => dataset.id === datasetId)
+    : datasets;
+  if (datasetId && visibleDatasets.length === 0) {
+    return `Le jeu de données sélectionné (${datasetId}) n'est plus disponible.`;
+  }
+  const lines = visibleDatasets.map(
     (d) =>
       `${d.viewName} (« ${d.displayName} », ${d.rowCount} lignes): ${d.columns
         .map((c) => `${c.name} ${c.type}`)
@@ -294,8 +301,23 @@ async function getSchemaTool(): Promise<string> {
   return truncateText(lines.join("\n"), TOOL_MAX_CHARS);
 }
 
-async function profileColumnTool(params: { table: string; column: string }): Promise<string> {
-  const table = quoteIdentifier(params.table);
+async function profileColumnTool(
+  params: { table: string; column: string },
+  datasetId?: string | null,
+): Promise<string> {
+  let tableName = params.table;
+  if (datasetId) {
+    const dataset = (await duckdbService.listDatasets()).find((item) => item.id === datasetId);
+    if (!dataset)
+      throw new Error(`Le jeu de données sélectionné (${datasetId}) n'est plus disponible.`);
+    if (!dataset.columns.some((column) => column.name === params.column)) {
+      throw new Error(
+        `La colonne « ${params.column} » n'existe pas dans ${dataset.viewName}. Colonnes disponibles : ${dataset.columns.map((column) => column.name).join(", ")}`,
+      );
+    }
+    tableName = dataset.viewName;
+  }
+  const table = quoteIdentifier(tableName);
   const column = quoteIdentifier(params.column);
   const rows = await duckdbService.runReadOnlyQuery(
     `SELECT min(${column}) AS "min", max(${column}) AS "max", ` +
@@ -304,7 +326,7 @@ async function profileColumnTool(params: { table: string; column: string }): Pro
   );
   const r = rows[0] ?? {};
   return (
-    `${params.column} (${params.table}): min=${formatCell(r.min)}, max=${formatCell(r.max)}, ` +
+    `${params.column} (${tableName}): min=${formatCell(r.min)}, max=${formatCell(r.max)}, ` +
     `distincts=${formatCell(r.distincts)}, nulls=${formatCell(r.nulls)}, total=${formatCell(r.total)}`
   );
 }
@@ -352,6 +374,7 @@ async function clarificationTool(params: { question: string; options: string[] }
 async function buildTools(
   onEvent: (event: ChatToolEvent) => void,
   onToolStart?: (event: ChatToolEvent) => void,
+  datasetId?: string | null,
 ) {
   const { defineChatSessionFunction } = await import("node-llama-cpp");
 
@@ -397,7 +420,7 @@ async function buildTools(
       description:
         "OBLIGATOIRE en premier devant toute question sur les données : liste les jeux enregistrés avec leurs colonnes et types. Appelle-la vraiment, ne la raconte pas.",
       params: { type: "object", properties: {} } as const,
-      handler: wrap("get_schema", getSchemaTool),
+      handler: wrap("get_schema", () => getSchemaTool(datasetId)),
     }),
     profile_column: defineChatSessionFunction({
       description:
@@ -409,7 +432,9 @@ async function buildTools(
           column: { type: "string", description: "Nom de la colonne à profiler." },
         },
       } as const,
-      handler: wrap("profile_column", profileColumnTool),
+      handler: wrap("profile_column", (params: { table: string; column: string }) =>
+        profileColumnTool(params, datasetId),
+      ),
     }),
     request_clarification: defineChatSessionFunction({
       description:
@@ -560,6 +585,7 @@ export async function promptSession(input: PromptSessionInput): Promise<PromptSe
         input.onTool?.(event);
       },
       (event) => input.onToolStart?.(event),
+      input.datasetId,
     );
 
     const text = await entry.session.prompt(input.text, {

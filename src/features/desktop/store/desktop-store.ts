@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
 import { useShallow } from "zustand/react/shallow";
@@ -197,9 +196,6 @@ const nextSnapshotId = () => `snap-${Date.now().toString(36)}-${(idSeq++).toStri
 const nextWidgetId = () => `wgt-${Date.now().toString(36)}-${(idSeq++).toString(36)}`;
 const nextWorkspaceId = () => `ws-${Date.now().toString(36)}-${(idSeq++).toString(36)}`;
 
-/** Z bump applied to pinned-on-top windows in selectors. */
-const PIN_Z_BUMP = 100000;
-
 function defaultRect(appId: string, seed: number): WindowRect {
   const app = getApp(appId);
   const w = app?.defaultSize.w ?? 880;
@@ -234,7 +230,11 @@ export const useDesktopStore = create<DesktopState>()(
         const state = get();
 
         if (app.singleInstance && !opts?.forceNew) {
-          const existing = state.windows.find((w) => w.appId === appId);
+          const existing = state.windows.find(
+            (w) =>
+              w.appId === appId &&
+              (appId !== "telecom" || w.props?.datasetId === opts?.props?.datasetId),
+          );
           if (existing) {
             get().restoreWindow(existing.id);
             get().focusWindow(existing.id);

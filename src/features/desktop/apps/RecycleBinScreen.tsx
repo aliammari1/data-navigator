@@ -1,6 +1,7 @@
 "use client";
 
 import { Database, FolderClosed, RotateCcw, Trash2 } from "lucide-react";
+import { type Dataset, useDataStore } from "@/core/stores/data-store";
 import type { CatalogFolder } from "@/core/stores/folders-store";
 import { useFoldersActions } from "@/core/stores/folders-store";
 import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
@@ -15,22 +16,30 @@ export default function RecycleBinScreen() {
   const restoreFromBin = useDesktopStore((s) => s.restoreFromBin);
   const purgeFromBin = useDesktopStore((s) => s.purgeFromBin);
   const emptyBin = useDesktopStore((s) => s.emptyBin);
+  const upsertDataset = useDataStore((s) => s.upsertDataset);
   const { addFolder } = useFoldersActions();
 
   const restore = (id: string) => {
-    const item = restoreFromBin(id);
+    const item = recycleBin.find((entry) => entry.id === id);
     if (!item) return;
     if (item.kind === "folder") {
       const f = item.payload.folder as CatalogFolder | undefined;
-      if (f)
-        addFolder({
-          id: f.id,
-          name: f.name,
-          parentId: f.parentId,
-          starred: f.starred,
-          color: f.color,
-        });
+      if (!f?.id) return;
+      addFolder({
+        id: f.id,
+        name: f.name,
+        parentId: f.parentId,
+        starred: f.starred,
+        color: f.color,
+      });
+    } else if (item.kind === "dataset") {
+      const dataset = item.payload.dataset as Dataset | undefined;
+      if (!dataset?.id || !dataset.tableName || !Array.isArray(dataset.columns)) return;
+      upsertDataset(dataset);
+    } else {
+      return;
     }
+    restoreFromBin(id);
   };
 
   useAppCommands("recycle-bin", {

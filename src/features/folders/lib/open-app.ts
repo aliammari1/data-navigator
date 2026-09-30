@@ -29,10 +29,10 @@ const ROUTE_BY_APP: Record<FolderTargetApp, string> = {
  * Dispatch the desktop open-app event for the given app id. Returns true when a
  * desktop listener claimed it (called `preventDefault`), false otherwise.
  */
-export function openDesktopApp(appId: FolderTargetApp): boolean {
+export function openDesktopApp(appId: FolderTargetApp, props?: Record<string, unknown>): boolean {
   if (typeof window === "undefined") return false;
   const event = new CustomEvent("desktop:open-app", {
-    detail: { appId, route: ROUTE_BY_APP[appId] },
+    detail: { appId, route: ROUTE_BY_APP[appId], props },
     cancelable: true,
   });
   window.dispatchEvent(event);

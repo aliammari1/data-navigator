@@ -81,7 +81,7 @@ describe("/api/guest/accept — host secret mismatch regression", () => {
       pairingCode: "123456",
       room: "default",
       hostSecret: SECRET_AT_APPROVE,
-      hostUrl: "http://localhost:3000",
+      hostUrl: "http://127.0.0.1:3000",
       requestedAt: Date.now(),
       expiresAt: Date.now() + 30_000,
       status: "approved",
@@ -89,7 +89,7 @@ describe("/api/guest/accept — host secret mismatch regression", () => {
       sessionToken: realSigned,
     });
 
-    const request = new Request("http://localhost:3000/api/guest/accept", {
+    const request = new Request("http://127.0.0.1:3000/api/guest/accept", {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ pendingId: PENDING_ID }),
@@ -109,7 +109,7 @@ describe("/api/guest/accept — host secret mismatch regression", () => {
     expect(body.role).toBe("editor");
     expect(body.room).toBe("default");
     expect(body.pairingCode).toBe("123456");
-    expect(body.url).toBe("ws://192.168.1.105:1234");
+    expect(body.url).toBe("ws://127.0.0.1:1234");
   });
 
   it("constructs wsUrl preserving remote host IP and respecting custom HOCUSPOCUS_PORT", async () => {

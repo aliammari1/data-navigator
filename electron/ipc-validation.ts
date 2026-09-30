@@ -218,6 +218,7 @@ export const ChatOpenSchema = z.object({
 export const ChatPromptSchema = z.object({
   conversationId,
   text: z.string().min(1).max(MAX_PROMPT_CHARS),
+  datasetId: z.string().max(512).nullish(),
   requestId,
 });
 
@@ -242,6 +243,10 @@ export const ClipboardImageSchema = z.object({
     .refine((value) => value.startsWith("data:image/"), {
       message: "must be a data:image/ URL",
     }),
+});
+
+export const ClipboardTextSchema = z.object({
+  text: z.string().min(1).max(20_000),
 });
 
 // ─── LAN collaboration hub ────────────────────────────────────────────────────

@@ -155,6 +155,7 @@ describe("chat-session-client", () => {
       const result = await sendChatPrompt({
         conversationId: "c1",
         text: "salut",
+        datasetId: "ds_active",
         onToken,
         onTool,
       });
@@ -168,6 +169,7 @@ describe("chat-session-client", () => {
       expect(bridge.prompt).toHaveBeenCalledWith({
         conversationId: "c1",
         text: "salut",
+        datasetId: "ds_active",
         requestId: tokenRequestId,
       });
     });

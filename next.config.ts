@@ -14,6 +14,7 @@ const getLocalIPs = () => {
 
 const nextConfig: NextConfig = {
   output: "standalone",
+  devIndicators: false,
   reactStrictMode: true,
   // Allow HMR and host-header validation to pass for all local network interfaces.
   // Defeats "NS_ERROR_WEBSOCKET_CONNECTION_REFUSED" in Firefox when accessing via LAN IP.

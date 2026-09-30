@@ -514,6 +514,7 @@ export default function CollaborationScreen() {
   >("overview");
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteJoinUrl, setInviteJoinUrl] = useState("");
+  const [inviteError, setInviteError] = useState("");
   const invitePairingCode = useMemo(() => {
     // `inviteOpen` intentionally refreshes the code whenever the dialog opens.
     void inviteOpen;
@@ -522,18 +523,58 @@ export default function CollaborationScreen() {
   useEffect(() => {
     if (!inviteOpen) return;
     let cancelled = false;
+    setInviteJoinUrl("");
+    setInviteError("");
     void import("@/platform/lan/lan-collab").then(({ makeJoinHttpUrl, readLANSettings: read }) => {
       if (cancelled) return;
-      void makeJoinHttpUrl(read()).then((url) => {
-        if (!cancelled) setInviteJoinUrl(url);
-      });
+      void makeJoinHttpUrl(read())
+        .then((url) => {
+          if (!cancelled) setInviteJoinUrl(url);
+        })
+        .catch((error: unknown) => {
+          if (!cancelled) setInviteError((error as Error).message);
+        });
     });
     return () => {
       cancelled = true;
     };
   }, [inviteOpen]);
+
+  const openInvite = useCallback(async () => {
+    setInviteError("");
+    try {
+      const lan = await import("@/platform/lan/lan-collab");
+      if (lan.getLANStatus() !== "connected") {
+        const current = lan.readLANSettings();
+        const hub = await lan.startInAppHub({
+          pairingCode: current.pairingCode || undefined,
+          room: current.room,
+        });
+        if (!hub) throw new Error("Built-in LAN hub is unavailable");
+        let hubUrl = hub.url;
+        if (/^ws:\/\/(?:127\.0\.0\.1|localhost)(?::\d+)?\/?$/i.test(current.url)) {
+          const port = new URL(hub.url).port || "1234";
+          hubUrl = `ws://127.0.0.1:${port}`;
+        }
+        const next = {
+          ...current,
+          url: hubUrl,
+          pairingCode: hub.pairingCode,
+          room: hub.room,
+          peer: { ...current.peer, role: "host" as const },
+        };
+        lan.saveLANSettings(next);
+        await lan.connectLAN(next);
+      }
+      setInviteOpen(true);
+    } catch (error) {
+      setInviteError((error as Error).message || "Could not start collaboration");
+      setInviteOpen(true);
+    }
+  }, []);
+
   useAppCommands("collaboration", {
-    invite: () => setInviteOpen(true),
+    invite: () => void openInvite(),
     navigate: (payload) => {
       const pageId = (payload as { pageId?: string } | undefined)?.pageId;
       if (
@@ -833,7 +874,7 @@ export default function CollaborationScreen() {
             <button
               type="button"
               disabled={!access.permissions.canShareView}
-              onClick={() => setInviteOpen(true)}
+              onClick={() => void openInvite()}
               className="flex items-center gap-2 px-3 py-2 bg-primary hover:bg-primary/90 rounded-lg text-sm text-primary-foreground transition-colors disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Share2 className="w-4 h-4" /> Invite
@@ -1355,7 +1396,7 @@ export default function CollaborationScreen() {
                   </div>
                   <Card>
                     <CardContent className="pt-6">
-                      <ApprovalWorkflow />
+                      <ApprovalWorkflow reviewers={peers.map((peer) => peer.name)} />
                     </CardContent>
                   </Card>
                 </div>
@@ -1398,6 +1439,7 @@ export default function CollaborationScreen() {
         open={inviteOpen}
         onOpenChange={setInviteOpen}
         joinUrl={inviteJoinUrl}
+        error={inviteError}
         pairingCode={invitePairingCode}
       />
 

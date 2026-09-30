@@ -37,6 +37,7 @@ import {
 } from "@/features/telecom/lib/analytics-sqlite-snapshot";
 import { reattachCanalIcons, stripCanalIconsForPersist } from "@/features/telecom/lib/canal-config";
 import { fmtN, fmtPct } from "@/features/telecom/lib/format";
+import { publishTelecomReportContext } from "@/features/telecom/lib/moudir-report-context";
 import {
   fetchCanalHourlyMatrix as _fetchCanalHourlyMatrix,
   fetchCustomerProfile as _fetchCustomerProfile,
@@ -199,10 +200,12 @@ export function TelecomReportRuntimeProvider({
   activeTab: activeTabProp,
   /** Desktop-window mode: called instead of router.push when switching tabs. */
   onTabChange,
+  windowDatasetId,
 }: {
   children: React.ReactNode;
   activeTab?: string;
   onTabChange?: (seg: string) => void;
+  windowDatasetId?: string;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -219,7 +222,8 @@ export function TelecomReportRuntimeProvider({
 
   const { data: datasets = [] } = useDatasets();
   const { data: activeDataset } = useActiveDataset();
-  const activeDatasetId = activeDataset?.id ?? null;
+  const [selectedWindowDatasetId, setSelectedWindowDatasetId] = useState(windowDatasetId);
+  const activeDatasetId = windowDatasetId ? selectedWindowDatasetId : (activeDataset?.id ?? null);
   const setActiveDatasetMutation = useSetActiveDataset();
 
   const replaceDatasetsFromCatalog = useDataStore((state) => state.replaceDatasetsFromCatalog);
@@ -461,7 +465,7 @@ export function TelecomReportRuntimeProvider({
   useEffect(() => {
     if (!activeTelecomDataset || !dashboardTableName) return;
 
-    if (activeDatasetId !== activeTelecomDataset.id) {
+    if (!windowDatasetId && activeDatasetId !== activeTelecomDataset.id) {
       setActiveDatasetMutation.mutate(activeTelecomDataset.id);
     }
 
@@ -475,6 +479,7 @@ export function TelecomReportRuntimeProvider({
     });
   }, [
     activeDatasetId,
+    windowDatasetId,
     activeTelecomDataset,
     dashboardTableName,
     setActiveDatasetMutation,
@@ -662,11 +667,6 @@ export function TelecomReportRuntimeProvider({
   // the snapshot indicator (we are now showing live data, not a stored snapshot).
   useEffect(() => {
     if (!kpi || !dashboardTableName || analyticsIsFetching) return;
-    const saveKey = `${dashboardTableName}:${kpi.totalTransactions}`;
-    if (lastAutoSavedRef.current === saveKey) return;
-    lastAutoSavedRef.current = saveKey;
-    setSnapshotedAt(null);
-
     const payload: SQLiteAnalyticsSnapshot = {
       tableName: dashboardTableName,
       fileName: dashboardFileName,
@@ -679,6 +679,11 @@ export function TelecomReportRuntimeProvider({
       rawStatuses: rawStatuses ?? [],
       computedAt: Date.now(),
     };
+    const saveKey = JSON.stringify({ ...payload, computedAt: 0 });
+    if (lastAutoSavedRef.current === saveKey) return;
+    lastAutoSavedRef.current = saveKey;
+    setSnapshotedAt(null);
+    publishTelecomReportContext(payload);
     void saveAnalyticsSnapshotToSQLite(payload).catch((err) => {
       console.error("[telecom] auto-save snapshot failed:", err);
     });
@@ -858,7 +863,8 @@ export function TelecomReportRuntimeProvider({
                   activeDatasetId={activeTelecomDataset?.id ?? null}
                   onUpload={goToTelecomUpload}
                   onSelect={(id) => {
-                    setActiveDatasetMutation.mutate(id);
+                    if (windowDatasetId) setSelectedWindowDatasetId(id);
+                    else setActiveDatasetMutation.mutate(id);
 
                     const selected = telecomDatasets.find((dataset) => dataset.id === id);
 

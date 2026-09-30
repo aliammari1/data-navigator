@@ -20,18 +20,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useCollabHubStore } from "@/core/stores/collab-hub-store";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import type { ApprovalHistoryEntry, ApprovalStatus } from "@/platform/collab";
+import { copyTextToClipboard } from "@/platform/collab/copy-text";
 import {
   canMutateLAN,
-  getLANJoinUrl,
   getLANStatus,
+  makeJoinHttpUrl,
   readLANSettings,
 } from "@/platform/lan/lan-collab";
 import { cn } from "@/shared/utils";
 import { currentUserName, recordAudit, useApprovalCRDT } from "../collab/collab-hub-crdt";
+import { downloadApprovalRecord } from "../lib/approval-export";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
-
-const TEAM_MEMBERS = ["Alice Martin", "Bob Chen", "Cécile Dupont", "David Osei", "Elena Kovač"];
 
 const STATUS_CONFIG: Record<
   ApprovalStatus,
@@ -184,7 +184,7 @@ function HistoryTimeline({ entries }: { entries: ApprovalHistoryEntry[] }) {
 
 // ─── Main component ───────────────────────────────────────────────────────────
 
-export function ApprovalWorkflow() {
+export function ApprovalWorkflow({ reviewers = [] }: { reviewers?: string[] }) {
   const username = currentUserName();
   const shareReport = useCollabHubStore.use.shareReport();
   // Approval state is now a CRDT record on the shared doc, so a decision made on
@@ -209,9 +209,11 @@ export function ApprovalWorkflow() {
   const canMutateSession = access.sessionRole === null || canMutateLAN(access.sessionRole);
   const canTransition = canEdit && canMutateSession;
 
-  const [reviewer, setReviewer] = useState(TEAM_MEMBERS[0]);
+  const [reviewer, setReviewer] = useState("");
   const [comment, setComment] = useState("");
   const [copied, setCopied] = useState(false);
+  const [shareError, setShareError] = useState("");
+  const [downloadError, setDownloadError] = useState("");
 
   const { status, history, reviewerName } = record;
   const config = STATUS_CONFIG[status];
@@ -222,7 +224,7 @@ export function ApprovalWorkflow() {
   }
 
   const handleSubmitForReview = () => {
-    if (!canTransition) return;
+    if (!canTransition || !reviewer.trim()) return;
     transition("REVIEW", username, comment);
   };
 
@@ -251,11 +253,9 @@ export function ApprovalWorkflow() {
 
   const lanConnected = typeof window !== "undefined" && getLANStatus() === "connected";
 
-  const handleShare = () => {
+  const handleShare = async () => {
     if (typeof window === "undefined") return;
-    // Produce a REAL shareable artifact: the LAN join URL teammates on the
-    // same network actually open (room + pairing code), rather than an
-    // app:///localhost origin URL that is meaningless across machines.
+    setShareError("");
     const settings = readLANSettings();
     if (!lanConnected || !settings.url) {
       recordAudit(
@@ -265,8 +265,15 @@ export function ApprovalWorkflow() {
       );
       return;
     }
-    const url = getLANJoinUrl(settings);
-    navigator.clipboard.writeText(url).catch(() => {});
+    let url: string;
+    try {
+      url = await makeJoinHttpUrl(settings);
+      await copyTextToClipboard(url);
+    } catch (error) {
+      setCopied(false);
+      setShareError((error as Error).message);
+      return;
+    }
     // Persist the share URL onto the CRDT approval record so it syncs to peers
     // (without appending a redundant workflow-history entry).
     setSharedUrl(url);
@@ -287,7 +294,13 @@ export function ApprovalWorkflow() {
   };
 
   const handleDownload = () => {
-    recordAudit("export", "Approved report downloaded", username);
+    setDownloadError("");
+    try {
+      downloadApprovalRecord(record);
+      recordAudit("export", "Approval record downloaded as JSON", username);
+    } catch (error) {
+      setDownloadError((error as Error).message);
+    }
   };
 
   return (
@@ -341,17 +354,20 @@ export function ApprovalWorkflow() {
               <label className="text-xs font-medium text-muted-foreground">Reviewer</label>
               <div className="relative">
                 <User className="pointer-events-none absolute left-2.5 top-2 size-4 text-muted-foreground" />
-                <select
+                <input
+                  list="collaboration-reviewer-names"
+                  placeholder="Reviewer name"
                   value={reviewer}
                   onChange={(e) => setReviewer(e.target.value)}
-                  className="w-full appearance-none rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50 dark:bg-input/30"
-                >
-                  {TEAM_MEMBERS.map((m) => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
+                  className="w-full rounded-md border border-input bg-background pl-8 pr-3 py-1.5 text-sm text-foreground outline-none focus:ring-2 focus:ring-ring/50 dark:bg-input/30"
+                />
+                <datalist id="collaboration-reviewer-names">
+                  {[...new Set(reviewers.filter((name) => name && name !== username))].map(
+                    (name) => (
+                      <option key={name} value={name} />
+                    ),
+                  )}
+                </datalist>
               </div>
             </div>
             <Textarea
@@ -363,7 +379,7 @@ export function ApprovalWorkflow() {
             <Button
               className="w-full gap-2"
               onClick={handleSubmitForReview}
-              disabled={!canTransition}
+              disabled={!canTransition || !reviewer.trim()}
             >
               <Send className="size-4" />
               Submit for Review
@@ -374,6 +390,9 @@ export function ApprovalWorkflow() {
                   ? "Your LAN session is read-only — submitting for review requires host or editor access."
                   : "You don't have permission to submit this report for review."}
               </p>
+            )}
+            {canTransition && !reviewer.trim() && (
+              <p className="text-[11px] text-muted-foreground">Enter a reviewer name to submit.</p>
             )}
           </motion.div>
         )}
@@ -480,9 +499,19 @@ export function ApprovalWorkflow() {
               </Button>
               <Button variant="outline" className="flex-1 gap-1.5" onClick={handleDownload}>
                 <Download className="size-4" />
-                Download
+                Download approval JSON
               </Button>
             </div>
+            {shareError && (
+              <p role="alert" className="text-xs text-destructive">
+                {shareError}
+              </p>
+            )}
+            {downloadError && (
+              <p role="alert" className="text-xs text-destructive">
+                {downloadError}
+              </p>
+            )}
             <Button
               variant="ghost"
               size="sm"

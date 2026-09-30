@@ -90,6 +90,7 @@ async function promptAndCapture(
     onTool: (event: unknown) => void;
     onToolStart: (event: unknown) => void;
     signal: AbortSignal;
+    datasetId: string;
   }> = {},
 ) {
   const svc = await importService();
@@ -491,6 +492,31 @@ describe("chat-session-service", () => {
   // ─── get_schema tool ─────────────────────────────────────────────────────────
 
   describe("get_schema tool", () => {
+    it("shows only the selected dataset to the model", async () => {
+      listDatasetsMock.mockResolvedValue([
+        {
+          id: "ds_selected",
+          viewName: "ds_selected",
+          displayName: "Selected",
+          rowCount: 10,
+          columns: [{ name: "amount", type: "DOUBLE" }],
+        },
+        {
+          id: "ds_other",
+          viewName: "telecom",
+          displayName: "Other",
+          rowCount: 20,
+          columns: [{ name: "status", type: "VARCHAR" }],
+        },
+      ]);
+      const { captured } = await promptAndCapture({ datasetId: "ds_selected" });
+      const output = await (captured.functions as Record<string, ChatFunction>).get_schema.handler(
+        {},
+      );
+      expect(output).toContain("ds_selected");
+      expect(output).not.toContain("telecom");
+    });
+
     it("reports that no dataset is registered when the catalog is empty", async () => {
       listDatasetsMock.mockResolvedValue([]);
       const { captured } = await promptAndCapture();
@@ -527,6 +553,46 @@ describe("chat-session-service", () => {
   // ─── profile_column tool ─────────────────────────────────────────────────────
 
   describe("profile_column tool", () => {
+    it("profiles the selected dataset view even if the model supplies another table", async () => {
+      listDatasetsMock.mockResolvedValue([
+        { id: "ds_selected", viewName: "ds_selected", columns: [{ name: "amount" }] },
+        { id: "ds_other", viewName: "telecom", columns: [{ name: "amount" }] },
+      ]);
+      runReadOnlyQueryMock.mockResolvedValue([
+        { min: 1, max: 3, distincts: 3, nulls: 0, total: 3 },
+      ]);
+      const { captured } = await promptAndCapture({ datasetId: "ds_selected" });
+      const output = await (
+        captured.functions as Record<string, ChatFunction>
+      ).profile_column.handler({ table: "telecom", column: "amount" });
+      expect(runReadOnlyQueryMock).toHaveBeenCalledWith(
+        expect.stringContaining('FROM "ds_selected"'),
+      );
+      expect(output).toContain("amount (ds_selected)");
+    });
+
+    it("rejects a column absent from the selected dataset before running SQL", async () => {
+      listDatasetsMock.mockResolvedValue([
+        { id: "ds_selected", viewName: "ds_selected", columns: [{ name: "amount" }] },
+      ]);
+      const { captured } = await promptAndCapture({ datasetId: "ds_selected" });
+      const output = await (
+        captured.functions as Record<string, ChatFunction>
+      ).profile_column.handler({ table: "telecom", column: "status" });
+      expect(output).toContain("n'existe pas dans ds_selected");
+      expect(runReadOnlyQueryMock).not.toHaveBeenCalled();
+    });
+
+    it("does not fall back to the model's table when the selected dataset is missing", async () => {
+      listDatasetsMock.mockResolvedValue([]);
+      const { captured } = await promptAndCapture({ datasetId: "ds_missing" });
+      const output = await (
+        captured.functions as Record<string, ChatFunction>
+      ).profile_column.handler({ table: "telecom", column: "amount" });
+      expect(output).toContain("ds_missing");
+      expect(runReadOnlyQueryMock).not.toHaveBeenCalled();
+    });
+
     it("formats min/max/distincts/nulls/total from the first result row", async () => {
       runReadOnlyQueryMock.mockResolvedValue([
         { min: 1, max: 100, distincts: 42, nulls: 3, total: 500 },

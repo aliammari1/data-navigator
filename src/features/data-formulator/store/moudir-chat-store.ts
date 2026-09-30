@@ -54,6 +54,7 @@
 import { create } from "zustand";
 import type { AttachmentData } from "@/components/ai-elements/attachments";
 import { basenameModel } from "@/components/moudir-chat/utils";
+import { loadTelecomReportContextForMoudir } from "@/features/telecom/lib/moudir-report-context";
 import { useModelRequiredDialogStore } from "@/platform/ai/models/model-required-dialog-store";
 import {
   appendMessageRemote,
@@ -612,9 +613,15 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
         promptText = `${userText}\n\n[Pièces jointes fournies par l'utilisateur :\n${attachmentSummary}]`;
       }
 
+      // The chat message stays exactly as written by the user. Add the active
+      // report's computed results only to the model turn, refreshed each time.
+      const telecomContext = await loadTelecomReportContextForMoudir(datasetId);
+      if (telecomContext) promptText += telecomContext;
+
       const result = await sendChatPrompt({
         conversationId,
         text: promptText,
+        datasetId,
         signal: controller.signal,
         onToken: (chunk) => {
           if (firstTokenAt === null) firstTokenAt = now();

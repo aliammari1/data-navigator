@@ -624,6 +624,7 @@ const electronChatSession = {
   prompt: (input: {
     conversationId: string;
     text: string;
+    datasetId?: string | null;
     requestId?: string;
   }): Promise<{ text: string; toolEvents: ChatToolEvent[] }> =>
     ipcRenderer.invoke("chat:prompt", input),
@@ -687,6 +688,7 @@ const electronChatSession = {
 const electronClipboard = {
   writeImage: (dataUrl: string): Promise<void> =>
     ipcRenderer.invoke("clipboard:writeImage", { dataUrl }),
+  writeText: (text: string): Promise<void> => ipcRenderer.invoke("clipboard:writeText", { text }),
 } as const;
 
 contextBridge.exposeInMainWorld("electronFS", electronFS);

@@ -90,6 +90,7 @@ interface ElectronChatSessionBridge {
   prompt(input: {
     conversationId: string;
     text: string;
+    datasetId?: string | null;
     requestId?: string;
   }): Promise<ChatPromptResult>;
   abort(requestId: string): Promise<boolean>;
@@ -143,6 +144,7 @@ export async function openChatSession(
 export async function sendChatPrompt(input: {
   conversationId: string;
   text: string;
+  datasetId?: string | null;
   onToken?: (chunk: string) => void;
   onTool?: (event: ChatToolEvent) => void;
   signal?: AbortSignal;
@@ -167,7 +169,12 @@ export async function sendChatPrompt(input: {
 
   try {
     return await callIpc(() =>
-      api.prompt({ conversationId: input.conversationId, text: input.text, requestId }),
+      api.prompt({
+        conversationId: input.conversationId,
+        text: input.text,
+        datasetId: input.datasetId,
+        requestId,
+      }),
     );
   } finally {
     input.signal?.removeEventListener("abort", onAbort);

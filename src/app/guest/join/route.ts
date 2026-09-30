@@ -1,5 +1,4 @@
 import { cookies, headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { NextResponse } from "next/server";
 import { getHostSecret, verifyInviteToken, verifySessionToken } from "@/platform/lan/lan-common";
 
@@ -19,21 +18,6 @@ function markConsumed(jti: string): void {
 
 function isConsumed(jti: string): boolean {
   return consumedJtis.has(jti);
-}
-
-async function isLocalhostRequest(): Promise<boolean> {
-  if (typeof process === "undefined") return false;
-  const env = process.env;
-  if (env && (env.NEXT_PUBLIC_LAN_ALLOW_REMOTE === "1" || env.NODE_ENV !== "production")) {
-    return false;
-  }
-  try {
-    const h = await headers();
-    const host = h.get("host") ?? h.get("x-forwarded-host") ?? "";
-    return /^(localhost|127\.0\.0\.1|\[::1?\])(:\d+)?$/i.test(host);
-  } catch {
-    return false;
-  }
 }
 
 async function readInviteTokenFromRequest(): Promise<string | null> {
@@ -135,13 +119,7 @@ export async function POST(request: Request) {
   if (hostHeader) {
     reqUrl.host = hostHeader;
   }
-  if (
-    reqUrl.hostname === "0.0.0.0" ||
-    reqUrl.hostname === "::" ||
-    reqUrl.hostname === "[::]" ||
-    reqUrl.hostname === "localhost" ||
-    reqUrl.hostname === "127.0.0.1"
-  ) {
+  if (reqUrl.hostname === "0.0.0.0" || reqUrl.hostname === "::" || reqUrl.hostname === "[::]") {
     const lanIp = getPrimaryLanIp();
     if (lanIp && lanIp !== "127.0.0.1") {
       reqUrl.hostname = lanIp;
