@@ -43,7 +43,11 @@ describe("llama-service backend selection", () => {
     getLlamaMock.mockReset();
     loadModelMock.mockReset();
     getLlamaMock.mockResolvedValue({ loadModel: loadModelMock });
-    loadModelMock.mockResolvedValue({ dispose: vi.fn() });
+    loadModelMock.mockResolvedValue({
+      dispose: vi.fn(),
+      tokenize: vi.fn((text: string) => [text]),
+      detokenize: vi.fn((tokens: unknown[]) => String(tokens[0] ?? "")),
+    });
   });
 
   afterAll(() => {
@@ -57,6 +61,32 @@ describe("llama-service backend selection", () => {
 
     expect(getLlamaMock).toHaveBeenCalledTimes(1);
     expect(getLlamaMock).toHaveBeenCalledWith();
+  });
+
+  it("honors an installed Granite 4.0 selection", async () => {
+    const granite = "granite-4.0-1b-q4_k_m.gguf";
+    const llmDir = path.join(USER_DATA_DIR, "models", "llm");
+
+    const { ensureModel } = await import("../../electron/llama-service");
+    await ensureModel(granite);
+
+    expect(loadModelMock).toHaveBeenCalledWith(
+      expect.objectContaining({ modelPath: path.join(llmDir, granite) }),
+    );
+  });
+
+  it("rejects a chat GGUF whose tokenizer cannot round-trip ordinary text", async () => {
+    const dispose = vi.fn().mockResolvedValue(undefined);
+    loadModelMock.mockResolvedValueOnce({
+      dispose,
+      tokenize: vi.fn(() => [115, 118]),
+      detokenize: vi.fn(() => "$115118"),
+    });
+
+    const { ensureModel } = await import("../../electron/llama-service");
+
+    await expect(ensureModel()).rejects.toThrow(/Incompatible GGUF tokenizer/i);
+    expect(dispose).toHaveBeenCalledTimes(1);
   });
 
   it("reuses the backend singleton across calls", async () => {

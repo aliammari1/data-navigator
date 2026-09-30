@@ -138,6 +138,8 @@ describe("chat-session-service", () => {
     loadModelMock.mockResolvedValue({
       dispose: vi.fn(),
       createContext: createContextMock,
+      tokenize: vi.fn((text: string) => [text]),
+      detokenize: vi.fn((tokens: unknown[]) => String(tokens[0] ?? "")),
     });
     createContextMock.mockImplementation(async () => {
       const sequence = { dispose: vi.fn() };
@@ -760,8 +762,12 @@ describe("chat-session-service", () => {
     });
 
     it("evicts sessions bound to a different model when openSession switches the loaded GGUF", async () => {
-      const secondModelFile = "second-model.gguf";
-      writeFileSync(path.join(USER_DATA_DIR, "models", "llm", secondModelFile), "");
+      const secondModelFile = MODEL_DOWNLOADS.find(
+        (entry) =>
+          entry.lane === "llm" &&
+          entry.file !== MODEL_DOWNLOADS.find((m) => m.lane === "llm")?.file,
+      )?.file;
+      if (!secondModelFile) throw new Error("Expected a second catalogued model");
       const svc = await importService();
 
       await svc.openSession({ conversationId: "c1" });

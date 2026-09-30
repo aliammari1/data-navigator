@@ -41,6 +41,7 @@ export class ChatModelUnavailableError extends Error {
 /** Patterns the IPC layer uses to say "no local model is ready". */
 const MODEL_UNAVAILABLE_PATTERNS: readonly RegExp[] = [
   /Missing GGUF model/i,
+  /Incompatible GGUF tokenizer/i,
   /no offline model is ready/i,
   /AI provider "[^"]+" is not available/i,
 ];

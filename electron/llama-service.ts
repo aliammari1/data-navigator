@@ -334,22 +334,28 @@ function modelPath(file: string): string {
   return path.join(modelDir(), file);
 }
 
+function isKnownLlmModel(file: string): boolean {
+  return LLM_MODEL_DOWNLOADS.some((entry) => entry.file === file);
+}
+
 function resolveModelFile(file?: string): string {
-  if (file) {
+  // Persisted settings/conversations can outlive a catalog entry. Never load a
+  // retired or arbitrary GGUF merely because the file still exists on disk.
+  if (file && isKnownLlmModel(file)) {
     const target = modelPath(file);
     if (existsSync(target)) return file;
   }
-  // Check default model
+  // Check default model.
   if (existsSync(modelPath(DEFAULT_LLM_MODEL))) {
     return DEFAULT_LLM_MODEL;
   }
-  // Fall back to any installed model
+  // Fall back only to installed models that remain in the supported catalog.
   for (const m of LLM_MODEL_DOWNLOADS) {
     if (existsSync(modelPath(m.file))) {
       return m.file;
     }
   }
-  return file || DEFAULT_LLM_MODEL;
+  return DEFAULT_LLM_MODEL;
 }
 
 /**
@@ -380,6 +386,28 @@ function abortError(): Error {
   return error;
 }
 
+const CHAT_TOKENIZER_PROBE = "Data Navigator tokenizer check";
+
+function assertChatTokenizerCompatible(candidate: LlamaModel, target: string): void {
+  let roundTrip = "";
+  try {
+    roundTrip = candidate.detokenize(
+      candidate.tokenize(CHAT_TOKENIZER_PROBE, false, "trimLeadingSpace"),
+      false,
+    );
+  } catch {
+    throw new Error(
+      `Incompatible GGUF tokenizer: ${target}. The model tokenizer could not round-trip text.`,
+    );
+  }
+
+  if (roundTrip !== CHAT_TOKENIZER_PROBE) {
+    throw new Error(
+      `Incompatible GGUF tokenizer: ${target}. The model returned ${JSON.stringify(roundTrip)} during the tokenizer sanity check.`,
+    );
+  }
+}
+
 // ─── Public API ─────────────────────────────────────────────────────────────
 
 /**
@@ -406,7 +434,7 @@ export async function ensureModel(file?: string): Promise<{ model: string }> {
     loadedModelPath = null;
   }
 
-  model = await llama.loadModel({
+  const loaded = await llama.loadModel({
     modelPath: target,
     defaultContextFlashAttention: true,
     // Granite 4.0 1B Q4_K_M produces corrupted text on the Vulkan path on
@@ -414,6 +442,19 @@ export async function ensureModel(file?: string): Promise<{ model: string }> {
     // CPU restores correct output while other models retain GPU acceleration.
     gpuLayers: llama.gpu === "vulkan" && resolved === "granite-4.0-1b-q4_k_m.gguf" ? 0 : "auto",
   });
+
+  try {
+    assertChatTokenizerCompatible(loaded, target);
+  } catch (error) {
+    try {
+      await loaded.dispose();
+    } catch {
+      // best-effort cleanup; preserve the tokenizer incompatibility error
+    }
+    throw error;
+  }
+
+  model = loaded;
   loadedModelPath = target;
   return { model: target };
 }
