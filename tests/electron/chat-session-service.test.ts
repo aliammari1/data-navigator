@@ -138,6 +138,8 @@ describe("chat-session-service", () => {
     loadModelMock.mockResolvedValue({
       dispose: vi.fn(),
       createContext: createContextMock,
+      tokenize: vi.fn((text: string) => [text]),
+      detokenize: vi.fn((tokens: unknown[]) => String(tokens[0] ?? "")),
     });
     createContextMock.mockImplementation(async () => {
       const sequence = { dispose: vi.fn() };

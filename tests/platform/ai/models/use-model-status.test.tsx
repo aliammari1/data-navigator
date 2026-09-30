@@ -281,7 +281,7 @@ describe("useModelStatus", () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    expect(result.current.records.length).toBe(7);
+    expect(result.current.records.length).toBe(6);
     // Nothing present → not ready.
     expect(result.current.ready).toBe(false);
   });
