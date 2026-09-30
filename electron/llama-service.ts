@@ -391,7 +391,7 @@ const CHAT_TOKENIZER_PROBE = "Data Navigator tokenizer check";
 function assertChatTokenizerCompatible(candidate: LlamaModel, target: string): void {
   let roundTrip = "";
   try {
-    roundTrip = candidate.detokenize(candidate.tokenize(CHAT_TOKENIZER_PROBE)).trim();
+    roundTrip = candidate.detokenize(\n      candidate.tokenize(CHAT_TOKENIZER_PROBE, false, "trimLeadingSpace"),\n      false,\n    );
   } catch {
     throw new Error(
       `Incompatible GGUF tokenizer: ${target}. The model tokenizer could not round-trip text.`,
