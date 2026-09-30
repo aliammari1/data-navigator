@@ -1,6 +1,6 @@
 {
   "name": "data-navigator",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "AI-powered local data analysis and visualization platform",
   "author": "Ali Ammari <ammari.ali.0001@gmail.com>",
   "private": true,
@@ -16,12 +16,12 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:lan": "node scripts/lan-server.mjs",
-    "next:dev": "next dev -H 127.0.0.1",
+    "next:dev": "next dev -H 127.0.0.1 --inspect=127.0.0.1:9230",
     "next:build": "next build",
     "next:start": "next start -H 127.0.0.1",
     "worker:build": "node esbuild.workers.mjs",
     "electron:dev": "concurrently -k -n electron-build,electron-start -c auto \"pnpm run electron:build:watch\" \"pnpm run electron:start:dev\"",
-    "electron:start:dev": "wait-on http://127.0.0.1:3000 build/main.js && electron --ozone-platform-hint=auto --remote-debugging-port=9222 build/main.js",
+    "electron:start:dev": "wait-on http://127.0.0.1:3000 build/main.js build/main.js.map && electron --inspect=127.0.0.1:9231 --ozone-platform-hint=auto --remote-debugging-port=9222 build/main.js",
     "electron:start:cov": "wait-on http://127.0.0.1:3000 build/main.js && NODE_V8_COVERAGE=.v8-coverage electron --ozone-platform-hint=auto --remote-debugging-port=9222 build/main.js",
     "electron:build": "tsup",
     "electron:build:watch": "tsup --watch",
@@ -256,8 +256,8 @@
   },
   "engines": {
     "node": ">=24.0.0",
-    "pnpm": "11.9.0"
+    "pnpm": "11.28.2"
   },
-  "packageManager": "pnpm@11.9.0",
+  "packageManager": "pnpm@11.28.2",
   "productName": "Data Navigator"
 }

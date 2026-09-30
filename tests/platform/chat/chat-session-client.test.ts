@@ -255,6 +255,47 @@ describe("chat-session-client", () => {
       expect(bridge.abort).not.toHaveBeenCalled();
     });
 
+    it("decodes Uint8Array token chunks before they reach the renderer", async () => {
+      const bridge = installBridge();
+      const onToken = vi.fn();
+      bridge.prompt.mockImplementationOnce(async () => {
+        const tokenCallback = bridge.onToken.mock.calls[0]?.[1] as (chunk: unknown) => void;
+        tokenCallback(new TextEncoder().encode("Bonjour"));
+        return { text: "Bonjour", toolEvents: [] };
+      });
+
+      await sendChatPrompt({ conversationId: "c1", text: "salut", onToken });
+
+      expect(onToken).toHaveBeenCalledWith("Bonjour");
+      expect(onToken).not.toHaveBeenCalledWith(expect.stringContaining("66,111"));
+    });
+
+    it("decodes serialized decimal UTF-8 chunks before they reach the renderer", async () => {
+      const bridge = installBridge();
+      const onToken = vi.fn();
+      bridge.prompt.mockImplementationOnce(async () => {
+        const tokenCallback = bridge.onToken.mock.calls[0]?.[1] as (chunk: unknown) => void;
+        tokenCallback("66,111,110,106,111,117,114");
+        return { text: "Bonjour", toolEvents: [] };
+      });
+
+      await sendChatPrompt({ conversationId: "c1", text: "salut", onToken });
+
+      expect(onToken).toHaveBeenCalledWith("Bonjour");
+    });
+
+    it("normalizes a serialized-byte final response before the chat store renders it", async () => {
+      const bridge = installBridge();
+      bridge.prompt.mockResolvedValueOnce({
+        text: "66,111,110,106,111,117,114",
+        toolEvents: [],
+      });
+
+      const result = await sendChatPrompt({ conversationId: "c1", text: "salut" });
+
+      expect(result.text).toBe("Bonjour");
+    });
+
     it("wraps a 'Missing GGUF model' bridge rejection in ChatModelUnavailableError", async () => {
       const bridge = installBridge();
       bridge.prompt.mockRejectedValueOnce(

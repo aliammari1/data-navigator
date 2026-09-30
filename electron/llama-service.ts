@@ -194,10 +194,10 @@ let sharedContext: LlamaContext | null = null;
 
 async function getSharedContext(): Promise<LlamaContext> {
   if (sharedContext) return sharedContext;
-  // biome-ignore lint/style/noNonNullAssertion: callers invoke ensureModel() first, which guarantees `model`.
   // Slot budget: WARM_MAX long-lived warm sequences plus one transient per-call
   // slot. The default is a single sequence, so once warm sessions exist every
   // per-call getSequence() throws "No sequences left" (killed chat:followups).
+  // biome-ignore lint/style/noNonNullAssertion: callers load the model first.
   sharedContext = await model!.createContext({
     contextSize: DEFAULT_CONTEXT_SIZE,
     sequences: WARM_MAX + 1,
@@ -288,7 +288,11 @@ async function getWarmSession(systemPrefix: string): Promise<WarmEntry | null> {
       autoDisposeSequence: false,
     });
     await session.preloadPrompt("");
-    const entry: WarmEntry = { session, sequence, baseline: session.getChatHistory() };
+    const entry: WarmEntry = {
+      session,
+      sequence,
+      baseline: session.getChatHistory(),
+    };
     warmSessions.set(key, entry);
     while (warmSessions.size > WARM_MAX) {
       const oldest = warmSessions.keys().next().value;
@@ -369,6 +373,7 @@ async function getLlamaInstance(): Promise<Llama> {
   if (!llamaPromise) {
     llamaPromise = (async () => {
       const { getLlama } = await import("node-llama-cpp");
+
       const inst = await getLlama();
       return inst;
     })();
@@ -415,6 +420,13 @@ function assertChatTokenizerCompatible(candidate: LlamaModel, target: string): v
  * an already-loaded model; disposes the previous model when switching.
  */
 export async function ensureModel(file?: string): Promise<{ model: string }> {
+  return enqueue(() => ensureModelUnqueued(file));
+}
+
+// Called only from tasks already on the generation queue. Keep model loading
+// inside that queue so a public ensureModel request cannot replace an active
+// chat session's native model during prompt().
+async function ensureModelUnqueued(file?: string): Promise<{ model: string }> {
   const resolved = resolveModelFile(file);
   const llama = await getLlamaInstance();
   const target = modelPath(resolved);
@@ -483,7 +495,7 @@ export async function getLoadedModel(
   file?: string,
 ): Promise<{ model: LlamaModel; modelPath: string }> {
   const resolved = resolveModelFile(file);
-  await ensureModel(resolved);
+  await ensureModelUnqueued(resolved);
   // biome-ignore lint/style/noNonNullAssertion: ensureModel() above guarantees `model`.
   return { model: model!, modelPath: loadedModelPath ?? modelPath(resolved) };
 }
@@ -501,7 +513,7 @@ export function enqueueLlamaTask<T>(task: () => Promise<T>): Promise<T> {
 export async function generate(input: LlamaGenerateInput): Promise<LlamaGenerateResult> {
   return enqueue(async () => {
     const start = Date.now();
-    await ensureModel();
+    await ensureModelUnqueued();
 
     if (input.signal?.aborted) throw abortError();
 
@@ -613,7 +625,7 @@ export async function generate(input: LlamaGenerateInput): Promise<LlamaGenerate
  */
 export async function generateStructured(input: LlamaGenerateStructuredInput): Promise<unknown> {
   return enqueue(async () => {
-    await ensureModel(input.modelFile);
+    await ensureModelUnqueued(input.modelFile);
     const llama = await getLlamaInstance();
 
     if (input.signal?.aborted) throw abortError();

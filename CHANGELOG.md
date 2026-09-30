@@ -1,5 +1,13 @@
 # data-navigator
 
+## 1.0.7
+
+### Patch Changes
+
+- 4be8e40: Start the desktop app Offline with an in-app Online mode choice at sign-in and in Settings. Show Collaboration and update checks only in Online mode, expose LAN dashboard access only during a hosted session, remove the misleading Telecom upload mode, and normalize local AI stream chunks so byte payloads render as text instead of decimal token values.
+- cc0bc0b: Update the transitive DOMPurify lockfile resolution to 3.4.16 to clear the current sanitizer security advisory used through PDF and Mermaid rendering dependencies.
+- 19e5479: Keep Granite 4.0 1B available and run it without GPU layers on Vulkan, where its generated text was reproducibly corrupted. Validate GGUF tokenizer round trips before chat generation, and serialize session disposal with prompts so model changes cannot interrupt an active reply.
+
 ## 1.0.6
 
 ### Patch Changes

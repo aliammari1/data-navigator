@@ -35,7 +35,7 @@ const {
 vi.mock("node-llama-cpp", () => ({ getLlama: getLlamaMock }));
 vi.mock("electron", () => ({ app: { getPath: () => holder.userDataDir } }));
 
-const USER_DATA_DIR = path.join(os.tmpdir(), "dn-embedding-service-test");
+const USER_DATA_DIR = path.join(os.tmpdir(), `dn-embedding-service-test-${process.pid}`);
 const DEFAULT_MODEL_FILE = "all-minilm-l6-v2-embed-q8_0.gguf";
 holder.userDataDir = USER_DATA_DIR;
 
@@ -115,6 +115,42 @@ describe("embedding-service", () => {
     await ensureEmbedModel();
     await ensureEmbedModel();
 
+    expect(loadModelMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads only once for simultaneous ensure requests", async () => {
+    const { ensureEmbedModel } = await import("../../electron/embedding-service");
+
+    const [first, second] = await Promise.all([ensureEmbedModel(), ensureEmbedModel()]);
+
+    expect(loadModelMock).toHaveBeenCalledTimes(1);
+    expect(first).toEqual(second);
+  });
+
+  it("waits for active generation before a public embedding model load", async () => {
+    const { ensureEmbedModel } = await import("../../electron/embedding-service");
+    const { enqueueLlamaTask } = await import("../../electron/llama-service");
+    let finishGeneration!: () => void;
+    let generationStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      generationStarted = resolve;
+    });
+    const generation = enqueueLlamaTask(async () => {
+      generationStarted();
+      await new Promise<void>((resolve) => {
+        finishGeneration = resolve;
+      });
+    });
+    await started;
+
+    const loading = ensureEmbedModel();
+    await Promise.resolve();
+    const loadsWhileGenerating = loadModelMock.mock.calls.length;
+    finishGeneration();
+    await generation;
+    await loading;
+
+    expect(loadsWhileGenerating).toBe(0);
     expect(loadModelMock).toHaveBeenCalledTimes(1);
   });
 

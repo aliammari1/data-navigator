@@ -28,7 +28,7 @@ import { MODEL_DOWNLOADS } from "../../electron/model-download-service";
 
 // Real temp userData dir + stub GGUF files so the real `existsSync` gate passes
 // (the model is only stat-checked here; `loadModel` is mocked).
-const USER_DATA_DIR = path.join(os.tmpdir(), "dn-llama-service-test");
+const USER_DATA_DIR = path.join(os.tmpdir(), `dn-llama-service-test-${process.pid}`);
 holder.userDataDir = USER_DATA_DIR;
 
 describe("llama-service backend selection", () => {
@@ -96,6 +96,39 @@ describe("llama-service backend selection", () => {
     await ensureModel();
 
     expect(getLlamaMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for active generation before a public model switch", async () => {
+    const { ensureModel, enqueueLlamaTask } = await import("../../electron/llama-service");
+    await ensureModel();
+    const secondFile = MODEL_DOWNLOADS.filter((entry) => entry.lane === "llm")[1]?.file;
+    if (!secondFile) throw new Error("Expected a second LLM model in the catalog");
+
+    let finishGeneration!: () => void;
+    let generationStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      generationStarted = resolve;
+    });
+    const generation = enqueueLlamaTask(async () => {
+      generationStarted();
+      await new Promise<void>((resolve) => {
+        finishGeneration = resolve;
+      });
+    });
+    await started;
+
+    const switching = ensureModel(secondFile);
+    await Promise.resolve();
+    const loadsWhileGenerating = loadModelMock.mock.calls.length;
+    finishGeneration();
+    await generation;
+    await switching;
+
+    expect(loadsWhileGenerating).toBe(1);
+    expect(loadModelMock).toHaveBeenCalledTimes(2);
+    expect(loadModelMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ modelPath: path.join(USER_DATA_DIR, "models", "llm", secondFile) }),
+    );
   });
 
   it("keeps Granite 4.0 off Vulkan after corrupted output was reproduced", async () => {

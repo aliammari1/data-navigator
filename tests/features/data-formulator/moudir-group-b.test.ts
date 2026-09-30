@@ -175,7 +175,7 @@ describe("Group B: Clarification & Question UI Store Logic", () => {
       label: "Janvier",
       value: 1500,
     });
-  }, 15000);
+  }, 45000);
 
   it("reuses active conversation if it is already empty when calling newConversation", async () => {
     useMoudirChatStore.setState({

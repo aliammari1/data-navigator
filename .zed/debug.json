@@ -1,0 +1,56 @@
+[
+  {
+    "label": "Attach: Electron main (IPC + native AI)",
+    "adapter": "JavaScript",
+    "type": "node",
+    "request": "attach",
+    "address": "127.0.0.1",
+    "port": 9231,
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "sourceMaps": true,
+    "outFiles": ["$ZED_WORKTREE_ROOT/build/**/*.js"],
+    "restart": true,
+    "timeout": 60000,
+    "skipFiles": ["<node_internals>/**"]
+  },
+  {
+    "label": "Attach: Next.js server (routes + server actions)",
+    "adapter": "JavaScript",
+    "type": "node",
+    "request": "attach",
+    "address": "127.0.0.1",
+    "port": 9230,
+    "cwd": "$ZED_WORKTREE_ROOT",
+    "sourceMaps": true,
+    "sourceMapPathOverrides": {
+      "turbopack:///[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "turbopack://[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "/turbopack/[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "webpack://_N_E/./*": "$ZED_WORKTREE_ROOT/*",
+      "webpack://*/./*": "$ZED_WORKTREE_ROOT/*"
+    },
+    "restart": true,
+    "timeout": 60000,
+    "skipFiles": ["<node_internals>/**"]
+  },
+  {
+    "label": "Attach: Electron renderer (React + chat store)",
+    "adapter": "JavaScript",
+    "type": "chrome",
+    "request": "attach",
+    "address": "127.0.0.1",
+    "port": 9222,
+    "urlFilter": "http://*:3000/*",
+    "webRoot": "$ZED_WORKTREE_ROOT",
+    "sourceMaps": true,
+    "sourceMapPathOverrides": {
+      "turbopack:///[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "turbopack://[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "/turbopack/[project]/*": "$ZED_WORKTREE_ROOT/*",
+      "webpack://_N_E/./*": "$ZED_WORKTREE_ROOT/*",
+      "webpack://*/./*": "$ZED_WORKTREE_ROOT/*"
+    },
+    "timeout": 60000,
+    "skipFiles": ["<node_internals>/**"]
+  }
+]

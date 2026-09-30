@@ -1,6 +1,6 @@
 import { defineConfig } from "tsup";
 
-export default defineConfig({
+export default defineConfig((options) => ({
   entry: ["./electron/main.ts", "./electron/preload.ts", "./electron/workers/duckdb.utility.ts"],
   external: [
     "electron",
@@ -16,7 +16,7 @@ export default defineConfig({
     "next",
   ],
   splitting: false,
-  sourcemap: false,
+  sourcemap: Boolean(options.watch),
   clean: true,
   cjsInterop: true,
   noExternal: ["@better-auth/electron"],
@@ -25,4 +25,4 @@ export default defineConfig({
   outDir: "build",
   format: ["cjs"],
   bundle: true,
-});
+}));

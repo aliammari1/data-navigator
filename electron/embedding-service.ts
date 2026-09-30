@@ -159,6 +159,12 @@ function tokenizeCapped(text: string): Token[] {
 export async function ensureEmbedModel(
   file: string = DEFAULT_EMBED_MODEL,
 ): Promise<{ model: string; dims: number }> {
+  return enqueue(() => ensureEmbedModelUnqueued(file));
+}
+
+// The public loader shares the native generation queue with chat and embedding
+// requests. Calls already on that queue use this helper to avoid a nested wait.
+async function ensureEmbedModelUnqueued(file: string): Promise<{ model: string; dims: number }> {
   const llama = await getSharedLlama();
   const target = modelPath(file);
 
@@ -200,7 +206,7 @@ export async function embedOne(text: string, signal?: AbortSignal): Promise<Embe
   return enqueue(async () => {
     const start = Date.now();
     if (signal?.aborted) throw abortError();
-    await ensureEmbedModel();
+    await ensureEmbedModelUnqueued(DEFAULT_EMBED_MODEL);
     if (signal?.aborted) throw abortError();
 
     const context = await getEmbeddingContext();
@@ -231,7 +237,7 @@ export async function embedBatch(texts: string[], signal?: AbortSignal): Promise
       return { vectors: [], dims: 0, model: loadedModelPath ?? "", elapsedMs: 0 };
     }
     if (signal?.aborted) throw abortError();
-    await ensureEmbedModel();
+    await ensureEmbedModelUnqueued(DEFAULT_EMBED_MODEL);
     if (signal?.aborted) throw abortError();
 
     const context = await getEmbeddingContext();

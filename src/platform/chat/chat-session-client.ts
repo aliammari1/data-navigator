@@ -1,5 +1,10 @@
 "use client";
 
+import {
+  createRendererTextChunkNormalizer,
+  normalizeCompleteStreamText,
+} from "@/platform/chat/stream-text";
+
 /**
  * Renderer-safe client for the Moudir chat-session bridge — the live
  * per-conversation LlamaChatSession runtime in the Electron main process.
@@ -160,7 +165,10 @@ export async function sendChatPrompt(input: {
 
   const requestId = newRequestId();
   const unsubscribers: Array<() => void> = [];
-  if (input.onToken) unsubscribers.push(api.onToken(requestId, input.onToken));
+  const tokenStream = input.onToken ? createRendererTextChunkNormalizer(input.onToken) : null;
+  if (tokenStream) {
+    unsubscribers.push(api.onToken(requestId, (chunk) => tokenStream.push(chunk)));
+  }
   if (input.onTool) unsubscribers.push(api.onTool(requestId, input.onTool));
 
   const onAbort = (): void => {
@@ -169,7 +177,7 @@ export async function sendChatPrompt(input: {
   input.signal?.addEventListener("abort", onAbort, { once: true });
 
   try {
-    return await callIpc(() =>
+    const result = await callIpc(() =>
       api.prompt({
         conversationId: input.conversationId,
         text: input.text,
@@ -177,7 +185,12 @@ export async function sendChatPrompt(input: {
         requestId,
       }),
     );
+    return {
+      ...result,
+      text: normalizeCompleteStreamText(result.text),
+    };
   } finally {
+    tokenStream?.flush();
     input.signal?.removeEventListener("abort", onAbort);
     for (const unsubscribe of unsubscribers) unsubscribe();
   }
