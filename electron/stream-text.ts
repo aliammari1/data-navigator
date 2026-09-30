@@ -6,9 +6,15 @@
  * those directly in the renderer coerces bytes into decimal text such as
  * "115,115,151", which looks like corrupted model output.
  */
+function isArrayBuffer(chunk: unknown): chunk is ArrayBuffer {
+  return (
+    chunk instanceof ArrayBuffer || Object.prototype.toString.call(chunk) === "[object ArrayBuffer]"
+  );
+}
+
 function asBytes(chunk: unknown): Uint8Array | null {
   if (chunk instanceof Uint8Array) return chunk;
-  if (chunk instanceof ArrayBuffer) return new Uint8Array(chunk);
+  if (isArrayBuffer(chunk)) return new Uint8Array(chunk);
   if (ArrayBuffer.isView(chunk)) {
     return new Uint8Array(chunk.buffer, chunk.byteOffset, chunk.byteLength);
   }

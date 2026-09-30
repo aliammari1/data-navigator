@@ -101,4 +101,31 @@ describe("Moudir telecom report context", () => {
     );
     expect(mockLoadSnapshot).toHaveBeenCalledWith("telecom_saved");
   });
+
+  it("handles missing dataset, missing table name, and SQLite load failures", async () => {
+    useDataStore.setState({
+      datasets: [{ id: "ds-no-table", viewName: "", tableName: "", columns: [] }] as ReturnType<
+        typeof useDataStore.getState
+      >["datasets"],
+    });
+
+    expect(await loadTelecomReportContextForMoudir("ds-missing")).toBeNull();
+    expect(await loadTelecomReportContextForMoudir("ds-no-table")).toBeNull();
+
+    useDataStore.setState({
+      datasets: [
+        { id: "ds-err", viewName: "telecom_err", tableName: "telecom_err", columns: [] },
+      ] as ReturnType<typeof useDataStore.getState>["datasets"],
+    });
+    mockLoadSnapshot.mockRejectedValueOnce(new Error("Disk error"));
+    expect(await loadTelecomReportContextForMoudir("ds-err")).toBeNull();
+  });
+
+  it("compacts NaN and handles zero total transactions", () => {
+    const s = snapshot("telecom_zero", 0);
+    s.kpi.successRate = Number.NaN;
+    const text = formatTelecomReportContext(s);
+    expect(text).toContain('"successRate":0');
+    expect(text).toContain('"sharePercent":0');
+  });
 });

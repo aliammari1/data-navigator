@@ -47,4 +47,52 @@ describe("createTextChunkNormalizer", () => {
 
     expect(onText.mock.calls.flat().join("")).toBe("ok");
   });
+
+  it("accepts ArrayBuffer and DataView chunks", () => {
+    const onText = vi.fn();
+    const stream = createTextChunkNormalizer(onText);
+
+    const encoded = new TextEncoder().encode("ab");
+    stream.push(encoded.buffer);
+    const view = new DataView(encoded.buffer, encoded.byteOffset, encoded.byteLength);
+    stream.push(view);
+    stream.flush();
+
+    expect(onText.mock.calls.flat().join("")).toBe("abab");
+  });
+
+  it("accepts plain number byte arrays", () => {
+    const onText = vi.fn();
+    const stream = createTextChunkNormalizer(onText);
+
+    stream.push([104, 105]); // "hi"
+    stream.flush();
+
+    expect(onText.mock.calls.flat().join("")).toBe("hi");
+  });
+
+  it("flushes tail when switching from byte decoding to string chunks", () => {
+    const onText = vi.fn();
+    const stream = createTextChunkNormalizer(onText);
+
+    stream.push(new TextEncoder().encode("hello "));
+    stream.push("world");
+    stream.flush();
+
+    expect(onText.mock.calls.flat().join("")).toBe("hello world");
+  });
+
+  it("ignores invalid shapes and handles noop flush", () => {
+    const onText = vi.fn();
+    const stream = createTextChunkNormalizer(onText);
+
+    stream.push(null);
+    stream.push({});
+    stream.push({ data: [300] });
+    stream.push([-1]);
+    stream.push("");
+    stream.flush();
+
+    expect(onText).not.toHaveBeenCalled();
+  });
 });
