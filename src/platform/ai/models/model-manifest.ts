@@ -125,18 +125,6 @@ export const MODEL_MANIFEST: ModelManifestEntry[] = [
     capabilityNote: "Sans appels d'outils sur le chemin générique.",
   },
   {
-    key: "granite-4.0-1b-q4_k_m",
-    lane: "llm",
-    presence: "electron-gguf",
-    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
-    family: "Granite 4.0",
-    sizeLabel: "1B",
-    downloadMb: 1023.64544, // matches model-download-service.ts's bytes: 1_023_645_440
-    optional: true,
-    ggufFile: "granite-4.0-1b-q4_k_m.gguf",
-    capabilities: { tools: true, thinking: false, vision: false },
-  },
-  {
     key: "qwen3-1.7b-q4_k_m",
     lane: "llm",
     presence: "electron-gguf",

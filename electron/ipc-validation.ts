@@ -132,7 +132,6 @@ export const ModelKeySchema = z.enum([
   "minicpm-v-4.6-q4_k_m",
   "smolvlm2-2.2b-instruct-q4_k_m",
   "lfm2-5-2.6b-q4_k_m",
-  "granite-4.0-1b-q4_k_m",
   "qwen3-1.7b-q4_k_m",
   "granite-4.1-3b-instruct-q4_k_m",
   "all-minilm-l6-v2-embed-q8_0",

@@ -158,20 +158,6 @@ export const MODEL_DOWNLOADS: ModelDownloadEntry[] = [
     capabilityNote: "Sans appels d'outils sur le chemin générique.",
   },
   {
-    key: "granite-4.0-1b-q4_k_m",
-    file: "granite-4.0-1b-q4_k_m.gguf",
-    lane: "llm",
-    uri: "hf:ibm-granite/granite-4.0-1b-GGUF:Q4_K_M",
-    sha256: "22ec0f9cc99a90185312de3c882c84e7bd6789bdd050389844380a01a831d7f1",
-    bytes: 1023645440,
-    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
-    family: "Granite 4.0",
-    sizeLabel: "1B",
-    optional: true,
-    // OpenAI-schema tool calling per IBM's Granite 4.0 docs.
-    capabilities: { tools: true, thinking: false, vision: false },
-  },
-  {
     key: "qwen3-1.7b-q4_k_m",
     file: "qwen3-1.7b-q4_k_m.gguf",
     lane: "llm",

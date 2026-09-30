@@ -46,8 +46,8 @@ describe("MODULE CONSTANTS", () => {
 // ─── MODEL_MANIFEST shape ────────────────────────────────────────────────────────
 
 describe("MODEL_MANIFEST", () => {
-  it("contains at least 7 entries", () => {
-    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(7);
+  it("contains at least 6 entries", () => {
+    expect(MODEL_MANIFEST.length).toBeGreaterThanOrEqual(6);
   });
 
   it("has a non-optional llm primary (minicpm-v-4.6-q4_k_m)", () => {
@@ -80,13 +80,9 @@ describe("MODEL_MANIFEST", () => {
     expect(entry?.ggufFile).toBe("lfm2-5-2.6b-q4_k_m.gguf");
   });
 
-  it("has an optional llm alternative (granite-4.0-1b-q4_k_m)", () => {
-    const entry = MODEL_MANIFEST.find((m) => m.key === "granite-4.0-1b-q4_k_m");
-    expect(entry).toBeDefined();
-    expect(entry?.lane).toBe("llm");
-    expect(entry?.optional).toBe(true);
-    expect(entry?.downloadMb).toBe(downloadEntryFor("granite-4.0-1b-q4_k_m").bytes / 1_000_000);
-    expect(entry?.ggufFile).toBe("granite-4.0-1b-q4_k_m.gguf");
+  it("does not expose the tokenizer-incompatible Granite 4.0 1B checkpoint", () => {
+    expect(MODEL_MANIFEST.some((m) => m.key === "granite-4.0-1b-q4_k_m")).toBe(false);
+    expect(MODEL_DOWNLOADS.some((m) => m.key === "granite-4.0-1b-q4_k_m")).toBe(false);
   });
 
   it("has an optional llm alternative (qwen3-1.7b-q4_k_m)", () => {
@@ -137,7 +133,7 @@ describe("MODEL_MANIFEST", () => {
 
   it("GGUF entries carry a ggufFile matching their key's model filename", () => {
     const ggufEntries = MODEL_MANIFEST.filter((m) => m.presence === "electron-gguf");
-    expect(ggufEntries.length).toBeGreaterThanOrEqual(7);
+    expect(ggufEntries.length).toBeGreaterThanOrEqual(6);
     for (const entry of ggufEntries) {
       expect(entry.ggufFile).toBe(`${entry.key}.gguf`);
     }
@@ -162,7 +158,6 @@ describe("MODEL_MANIFEST", () => {
     for (const key of [
       "minicpm-v-4.6-q4_k_m",
       "smolvlm2-2.2b-instruct-q4_k_m",
-      "granite-4.0-1b-q4_k_m",
       "qwen3-1.7b-q4_k_m",
       "granite-4.1-3b-instruct-q4_k_m",
     ]) {

@@ -70,13 +70,6 @@ const MODELS: AIModelInfo[] = [
     downloadMb: 1674.45504,
   },
   {
-    id: "granite-4.0-1b-q4_k_m.gguf",
-    label: "Granite 4.0 1B Instruct (GGUF q4, Apache 2.0)",
-    family: "Granite 4.0",
-    sizeLabel: "1B",
-    downloadMb: 1023.64544,
-  },
-  {
     id: "qwen3-1.7b-q4_k_m.gguf",
     label: "Qwen3-1.7B Instruct (Unsloth UD-Q4_K_XL, Apache 2.0)",
     family: "Qwen3",

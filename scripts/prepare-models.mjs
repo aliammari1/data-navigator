@@ -116,21 +116,6 @@ export const MODEL_MANIFEST = [
     bytes: 1674455040,
     sha256: "02a8b7e17487d326e46d68ce0ba24211e1b80a14c4cd0597fa73c1cd697f52ed",
   },
-  // Apache 2.0 alternative: IBM Granite 4.0 1B transformer variant (not the
-  // Mamba hybrid — llama.cpp does not support that one).
-  {
-    key: "granite-4.0-1b-q4_k_m",
-    group: "llm",
-    label: "Granite 4.0 1B Instruct (GGUF q4_k_m, Apache 2.0)",
-    optional: true,
-    url: `${HF}/ibm-granite/granite-4.0-1b-GGUF/resolve/main/granite-4.0-1b-q4_k_m.gguf?download=true`,
-    destPath: path.join(LLM_STAGING_DIR, "granite-4.0-1b-q4_k_m.gguf"),
-    bytes: 1023645440,
-    sha256: "22ec0f9cc99a90185312de3c882c84e7bd6789bdd050389844380a01a831d7f1",
-  },
-  // Reasoning fallback: Qwen3-1.7B UD-Q4_K_XL via Unsloth (April 2026).
-  // Official Qwen/Qwen3-1.7B-GGUF ships Q8_0 only — 4-bit comes from
-  // huggingface.co/unsloth/Qwen3-1.7B-GGUF (Qwen3-1.7B-UD-Q4_K_XL.gguf).
   {
     key: "qwen3-1.7b-q4_k_m",
     group: "llm",
