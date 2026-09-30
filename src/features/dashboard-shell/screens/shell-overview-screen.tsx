@@ -10,6 +10,7 @@ import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info"
 import { useLanStatus } from "@/features/dashboard-shell/shell/use-lan-status";
 import { useModelStatus } from "@/features/dashboard-shell/shell/use-model-status";
 import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 import { getStorageInfo, type StorageInfo } from "@/platform/storage";
 import { cn } from "@/shared/utils";
 
@@ -25,6 +26,7 @@ export function ShellOverviewScreen() {
   const engine = useEngineInfo();
   const model = useModelStatus();
   const lan = useLanStatus();
+  const online = useRuntimeMode((s) => s.mode === "online");
   const datasetCount = useDataStore((s) => s.datasets.length);
   const activityCount = useActivityStore((s) => s.events.length);
   const sidebarCollapsed = useShellStore((s) => s.sidebarCollapsed);
@@ -63,13 +65,17 @@ export function ShellOverviewScreen() {
           : "Rule-based NL→SQL until a model is downloaded",
       tone: model.kind === "ready" ? "text-emerald-400" : "text-blue-400",
     },
-    {
-      icon: Radio,
-      label: "LAN collaboration",
-      value: lan.state,
-      hint: lan.state === "connected" ? `${lan.peerCount} peer(s)` : "No active hub session",
-      tone: lan.state === "connected" ? "text-emerald-400" : "text-muted-foreground",
-    },
+    ...(online
+      ? [
+          {
+            icon: Radio,
+            label: "LAN collaboration",
+            value: lan.state,
+            hint: lan.state === "connected" ? `${lan.peerCount} peer(s)` : "No active hub session",
+            tone: lan.state === "connected" ? "text-emerald-400" : "text-muted-foreground",
+          },
+        ]
+      : []),
     {
       icon: HardDrive,
       label: "Durable storage",

@@ -11,6 +11,7 @@ import {
   X,
 } from "lucide-react";
 import type { AppMenuBuilder } from "@/features/desktop/core/menu/types";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 
 /**
  * App-specific menus for the "diagnostics" app ("Système").
@@ -57,12 +58,16 @@ export const buildMenu: AppMenuBuilder = (ctx) => [
         icon: Settings,
         run: () => ctx.openApp("settings"),
       },
-      {
-        id: "open-collaboration",
-        label: "Collaboration LAN",
-        icon: Radio,
-        run: () => ctx.openApp("collaboration"),
-      },
+      ...(useRuntimeMode.getState().mode === "online"
+        ? [
+            {
+              id: "open-collaboration",
+              label: "Collaboration LAN",
+              icon: Radio,
+              run: () => ctx.openApp("collaboration"),
+            },
+          ]
+        : []),
       {
         id: "open-upload",
         label: "Téléverser des données",

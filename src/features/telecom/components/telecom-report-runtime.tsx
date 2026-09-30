@@ -784,7 +784,7 @@ export function TelecomReportRuntimeProvider({
       tableName: dashboardTableName,
     });
 
-    router.push("/dashboard/upload?context=telecom");
+    router.push("/dashboard/upload");
   }
 
   const runtimeValue: TelecomReportRuntimeValue = {

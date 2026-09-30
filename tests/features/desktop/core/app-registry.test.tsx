@@ -327,11 +327,15 @@ describe("getApp", () => {
   });
 
   it("returns each known app by id", () => {
-    for (const id of KNOWN_IDS) {
+    for (const id of KNOWN_IDS.filter((id) => id !== "collaboration")) {
       const app = getApp(id);
       expect(app, `getApp("${id}") should return an app`).toBeDefined();
       expect(app!.id).toBe(id);
     }
+  });
+
+  it("keeps collaboration closed in Offline mode", () => {
+    expect(getApp("collaboration")).toBeUndefined();
   });
 
   it("returns the telecom app with its native Component", () => {

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import type { ComponentType } from "react";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 
 const loading = () => (
   <div className="grid h-full w-full place-items-center text-sm text-muted-foreground">
@@ -174,6 +175,7 @@ export const DESKTOP_APPS: DesktopApp[] = [
 const APP_MAP = new Map(DESKTOP_APPS.map((a) => [a.id, a]));
 
 export function getApp(appId: string): DesktopApp | undefined {
+  if (appId === "collaboration" && useRuntimeMode.getState().mode !== "online") return undefined;
   if (appId === "moudir") return APP_MAP.get("moudir-chat");
   return APP_MAP.get(appId);
 }

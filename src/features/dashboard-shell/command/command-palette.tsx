@@ -16,6 +16,7 @@ import {
 } from "@/features/dashboard-shell/nav/nav-config";
 import { useAppTheme } from "@/hooks/use-app-theme";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 import { cn } from "@/shared/utils";
 
 /**
@@ -128,12 +129,18 @@ function CommandBody({
 }) {
   const [query, setQuery] = useState("");
   const { role } = useDashboardAccess();
+  const online = useRuntimeMode((s) => s.mode === "online");
 
   const pages = useMemo<NavItem[]>(() => {
     const matches = query.trim() ? navFuse.search(query).map((r) => r.item) : ALL_ITEMS;
     // Same visibility rule as the sidebar: guests only reach viewer-safe pages.
-    return matches.filter((item) => navItemVisibleForRole(item, role)).slice(0, 8);
-  }, [query, role]);
+    return matches
+      .filter(
+        (item) =>
+          navItemVisibleForRole(item, role) && (online || item.href !== "/dashboard/collaborative"),
+      )
+      .slice(0, 8);
+  }, [query, role, online]);
 
   const datasetMatches = useMemo(() => {
     const q = query.trim().toLowerCase();

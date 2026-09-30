@@ -39,31 +39,24 @@ export function extractReportDateFromName(fileName: string) {
 export function buildDatasetTags({
   columns,
   fileName,
-  telecomMode,
 }: {
   columns: Array<{ name: string }>;
   fileName: string;
-  telecomMode: boolean;
 }) {
   const telecomCompatible = hasTelecomRequiredColumns(columns);
   const reportDate = extractReportDateFromName(fileName);
 
-  if (!telecomMode && !telecomCompatible) return [];
+  if (!telecomCompatible) return [];
 
-  return [
-    ...(telecomCompatible ? ["telecom", "daily-transactions"] : []),
-    ...(reportDate ? [`report-date:${reportDate}`] : []),
-  ];
+  return ["telecom", "daily-transactions", ...(reportDate ? [`report-date:${reportDate}`] : [])];
 }
 
 export function getTelecomDatasetProfile({
   columns,
   fileName,
-  telecomMode,
 }: {
   columns: ColMeta[];
   fileName: string;
-  telecomMode: boolean;
 }) {
   const compatible = hasTelecomRequiredColumns(columns);
   const reportDate = extractReportDateFromName(fileName);
@@ -72,7 +65,7 @@ export function getTelecomDatasetProfile({
     compatible,
     reportDate,
     missingColumns: getMissingTelecomColumns(columns),
-    tags: buildDatasetTags({ columns, fileName, telecomMode }),
+    tags: buildDatasetTags({ columns, fileName }),
     description: compatible ? "Telecom daily transactions report" : "",
   };
 }

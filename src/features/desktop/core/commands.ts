@@ -23,7 +23,7 @@
 
 import type { LucideIcon } from "lucide-react";
 import { Calculator, Image as ImageIcon, Palette, Sparkles } from "lucide-react";
-import { DESKTOP_APPS, LAUNCHER_APPS } from "@/features/desktop/core/app-registry";
+import { LAUNCHER_APPS } from "@/features/desktop/core/app-registry";
 import { askMoudir as askMoudirBridge } from "@/features/desktop/core/moudir-bridge";
 import {
   GLASS_PALETTES,
@@ -32,6 +32,7 @@ import {
   WALLPAPERS,
   type WallpaperId,
 } from "@/features/desktop/store/desktop-store";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 
 /** Coarse grouping so the integration can section / icon-tint results. */
 export type CommandKind = "app" | "moudir" | "wallpaper" | "palette" | "math" | "export";
@@ -249,6 +250,7 @@ export function resolveCommands(query: string): CommandResult[] {
 
   // 2) App launches — fuzzy over the launcher registry.
   for (const app of LAUNCHER_APPS) {
+    if (app.id === "collaboration" && useRuntimeMode.getState().mode !== "online") continue;
     const s = term ? Math.max(fuzzyScore(app.title, term), fuzzyScore(app.blurb, term)) : 0;
     if (term && s <= 0) continue;
     results.push({

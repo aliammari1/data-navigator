@@ -13,6 +13,7 @@ import { DashboardBoot } from "@/features/dashboard-shell/shell/dashboard-boot";
 import { DashboardLayout } from "@/features/dashboard-shell/shell/dashboard-layout";
 import { SettingsEffects } from "@/features/settings/components/settings-effects";
 import { DashboardUserProvider } from "@/platform/auth/dashboard-access";
+import { loadRuntimeMode, useRuntimeMode } from "@/platform/runtime-mode";
 
 export function DashboardClientShell({
   children,
@@ -27,6 +28,11 @@ export function DashboardClientShell({
   // Guest devices (Settings > Account > Role = Viewer) must join a LAN session
   // before the dashboard shows: they exist to view someone else's shared data.
   const deviceRole = useSettingsStore((s) => s.role);
+  const online = useRuntimeMode((s) => s.mode === "online");
+
+  useEffect(() => {
+    void loadRuntimeMode();
+  }, []);
 
   useEffect(() => {
     const activeDataset = datasets.find((dataset) => dataset.id === activeDatasetId) ?? null;
@@ -48,16 +54,20 @@ export function DashboardClientShell({
             the Settings screen (blueprint §4). */}
         <SettingsEffects />
         <DashboardBoot />
-        <LanAccessGate isAdmin={Boolean(user) && !user?.isGuest && deviceRole !== "viewer"}>
-          {children}
-        </LanAccessGate>
+        {online ? (
+          <LanAccessGate isAdmin={Boolean(user) && !user?.isGuest && deviceRole !== "viewer"}>
+            {children}
+          </LanAccessGate>
+        ) : (
+          children
+        )}
 
-        <LanStatusDock />
+        {online && <LanStatusDock />}
         {/* Multiplayer cursors + presence page sync (renders only while connected). */}
-        <LiveCursors />
+        {online && <LiveCursors />}
         {/* Show join-request approval dialog globally so the Admin sees it from
             any dashboard screen, not only from the Collaboration page. */}
-        {!user?.isGuest && <JoinRequestDialog />}
+        {online && !user?.isGuest && <JoinRequestDialog />}
       </DashboardLayout>
     </DashboardUserProvider>
   );

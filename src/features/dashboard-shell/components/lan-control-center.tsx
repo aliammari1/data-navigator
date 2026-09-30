@@ -134,13 +134,7 @@ export function LanControlCenter() {
         setAvailableIps(st.ips);
         setSettings((prev) => {
           const currentHost = getHostFromUrl(prev.url);
-          const isCurrentHostValid =
-            currentHost &&
-            currentHost !== "0.0.0.0" &&
-            currentHost !== "::" &&
-            (st.ips.some((ip) => ip.address === currentHost) ||
-              currentHost === "127.0.0.1" ||
-              currentHost === "localhost");
+          const isCurrentHostValid = st.ips.some((ip) => ip.address === currentHost);
 
           if (!prev.url || !isCurrentHostValid) {
             const port = getPortFromUrl(prev.url, 1234);
@@ -181,7 +175,7 @@ export function LanControlCenter() {
   const [joinUrl, setJoinUrl] = useState("");
 
   useEffect(() => {
-    if (!settings.url) {
+    if (status !== "connected" || !settings.url) {
       setJoinUrl("");
       return;
     }
@@ -196,7 +190,7 @@ export function LanControlCenter() {
     return () => {
       cancelled = true;
     };
-  }, [settings]);
+  }, [settings, status]);
 
   useEffect(() => {
     if (!joinUrl) {
@@ -276,7 +270,7 @@ export function LanControlCenter() {
       if (hub.ips && hub.ips.length > 0) {
         setAvailableIps(hub.ips);
       }
-      // Preserve chosen IP if it's one of the hub's valid addresses or localhost
+      // Preserve a chosen LAN interface when it belongs to the running hub.
       let chosenUrl = hub.url;
       if (settings.url) {
         try {
@@ -290,9 +284,6 @@ export function LanControlCenter() {
           });
           if (matchingUrl) {
             chosenUrl = matchingUrl;
-          } else if (currentHost === "127.0.0.1" || currentHost === "localhost") {
-            const port = hub.websocketUrls[0] ? getPortFromUrl(hub.websocketUrls[0], 1234) : 1234;
-            chosenUrl = `ws://127.0.0.1:${port}`;
           }
         } catch {}
       }
@@ -550,7 +541,7 @@ export function LanControlCenter() {
             )}
 
             {/* Step 3: QR / share */}
-            {qrDataUrl && (
+            {connected && qrDataUrl && (
               <div className="space-y-1.5">
                 {!connected && (
                   <div className="flex items-center gap-1.5 text-xs font-semibold">

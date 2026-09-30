@@ -20,6 +20,7 @@ import {
 import { NavGroup } from "@/features/dashboard-shell/nav/nav-group";
 import { useEngineInfo } from "@/features/dashboard-shell/shell/use-engine-info";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 import { cn } from "@/shared/utils";
 
 /**
@@ -50,10 +51,15 @@ export function AppSidebar({
   // a guest joining a shared session sees only the viewer-safe entries.
   const { role } = useDashboardAccess();
   const guestPermissions = user?.permissions;
+  const online = useRuntimeMode((s) => s.mode === "online");
 
   const lockedAllItems = useMemo(
-    () => lockNavItemsByPermission(ALL_ITEMS, guestPermissions),
-    [guestPermissions],
+    () =>
+      lockNavItemsByPermission(
+        ALL_ITEMS.filter((item) => online || item.href !== "/dashboard/collaborative"),
+        guestPermissions,
+      ),
+    [guestPermissions, online],
   );
 
   const pinnedNavItems = useMemo(
@@ -64,7 +70,16 @@ export function AppSidebar({
     [lockedAllItems, pinnedItems, role],
   );
 
-  const roleFilteredSections = useMemo(() => filterNavSectionsForRole(NAV_SECTIONS, role), [role]);
+  const roleFilteredSections = useMemo(
+    () =>
+      filterNavSectionsForRole(NAV_SECTIONS, role)
+        .map((section) => ({
+          ...section,
+          items: section.items.filter((item) => online || item.href !== "/dashboard/collaborative"),
+        }))
+        .filter((section) => section.items.length > 0),
+    [role, online],
+  );
   const sections = useMemo(
     () =>
       roleFilteredSections.map((section) => ({

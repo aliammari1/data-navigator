@@ -133,6 +133,7 @@ export async function POST(request: Request) {
     room: payload.room,
     hostSecret: getHostSecret(),
     hostUrl: reqUrl.origin,
+    clientIp: request.headers.get("x-forwarded-for")?.split(",")[0]?.trim(),
   });
 
   return NextResponse.redirect(new URL(`/guest/waiting?id=${pending.id}`, reqUrl), {

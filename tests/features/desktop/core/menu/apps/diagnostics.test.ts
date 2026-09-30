@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { buildMenu } from "@/features/desktop/core/menu/apps/diagnostics";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 import { findGroup, getAction, makeMenuContext } from "./test-helpers";
 
 /**
@@ -46,7 +47,9 @@ describe("diagnostics buildMenu — file group", () => {
   });
 });
 
-describe("diagnostics buildMenu — système group", () => {
+describe("diagnostics buildMenu - système group", () => {
+  afterEach(() => useRuntimeMode.getState().setMode("offline"));
+
   it("run() on 'open-settings' opens the settings app", () => {
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
@@ -55,10 +58,18 @@ describe("diagnostics buildMenu — système group", () => {
   });
 
   it("run() on 'open-collaboration' opens the collaboration app", () => {
+    useRuntimeMode.getState().setMode("online");
     const ctx = makeMenuContext();
     const groups = buildMenu(ctx);
     getAction(findGroup(groups, "diagnostics")!.items, "open-collaboration").run();
     expect(ctx.openApp).toHaveBeenCalledWith("collaboration");
+  });
+
+  it("hides collaboration while Offline", () => {
+    const groups = buildMenu(makeMenuContext());
+    expect(
+      findGroup(groups, "diagnostics")!.items.some((item) => item.id === "open-collaboration"),
+    ).toBe(false);
   });
 
   it("run() on 'open-upload' opens the upload app", () => {
