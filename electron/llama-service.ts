@@ -409,7 +409,10 @@ export async function ensureModel(file?: string): Promise<{ model: string }> {
   model = await llama.loadModel({
     modelPath: target,
     defaultContextFlashAttention: true,
-    gpuLayers: "auto",
+    // Granite 4.0 1B Q4_K_M produces corrupted text on the Vulkan path on
+    // Windows (reproduced with a plain "Hello" prompt). Keeping its layers on
+    // CPU restores correct output while other models retain GPU acceleration.
+    gpuLayers: llama.gpu === "vulkan" && resolved === "granite-4.0-1b-q4_k_m.gguf" ? 0 : "auto",
   });
   loadedModelPath = target;
   return { model: target };

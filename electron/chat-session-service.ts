@@ -511,6 +511,12 @@ async function buildTools(
 export async function openSession(
   input: OpenSessionInput,
 ): Promise<{ model: string; reused: boolean }> {
+  return llamaService.enqueueLlamaTask(() => openSessionQueued(input));
+}
+
+async function openSessionQueued(
+  input: OpenSessionInput,
+): Promise<{ model: string; reused: boolean }> {
   const systemPrompt = input.systemPrompt?.trim()
     ? input.systemPrompt.trim()
     : DEFAULT_SYSTEM_PROMPT;
@@ -547,10 +553,13 @@ export async function openSession(
     autoDisposeSequence: false,
   });
   if (input.history) session.setChatHistory(toChatHistory(systemPrompt, input.history));
-  // Proactively pre-warm prompt & system grounding so TTFT on the first turn is instant.
-  Promise.resolve(session.preloadPrompt?.("")).catch(() => {
-    /* best-effort pre-warming */
-  });
+  // Pre-warming uses the same native sequence, so finish it before the queued
+  // prompt or disposal can run.
+  try {
+    await session.preloadPrompt?.("");
+  } catch {
+    // best-effort pre-warming
+  }
 
   sessions.set(input.conversationId, {
     session,
@@ -705,18 +714,22 @@ export async function suggestFollowUps(conversationId: string): Promise<string[]
 
 /** Dispose one conversation's live session (context + sequence). */
 export async function disposeSession(conversationId: string): Promise<boolean> {
-  const entry = sessions.get(conversationId);
-  if (!entry) return false;
-  sessions.delete(conversationId);
-  await disposeNative(entry);
-  return true;
+  return llamaService.enqueueLlamaTask(async () => {
+    const entry = sessions.get(conversationId);
+    if (!entry) return false;
+    sessions.delete(conversationId);
+    await disposeNative(entry);
+    return true;
+  });
 }
 
 /** Dispose everything — called from main.ts app-quit next to closeChatStore(). */
 export async function disposeAll(): Promise<void> {
-  const entries = [...sessions.values()];
-  sessions.clear();
-  for (const entry of entries) {
-    await disposeNative(entry);
-  }
+  await llamaService.enqueueLlamaTask(async () => {
+    const entries = [...sessions.values()];
+    sessions.clear();
+    for (const entry of entries) {
+      await disposeNative(entry);
+    }
+  });
 }

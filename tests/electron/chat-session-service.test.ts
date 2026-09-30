@@ -70,7 +70,7 @@ import { MODEL_DOWNLOADS } from "../../electron/model-download-service";
 
 // Real temp userData dir + stub GGUF files so ensureModel's existsSync gate
 // passes (the model is only stat-checked; loadModel is mocked).
-const USER_DATA_DIR = path.join(os.tmpdir(), "dn-chat-session-service-test");
+const USER_DATA_DIR = path.join(os.tmpdir(), `dn-chat-session-service-test-${process.pid}`);
 holder.userDataDir = USER_DATA_DIR;
 
 type ChatFunction = {
@@ -186,6 +186,69 @@ describe("chat-session-service", () => {
       /No open chat session/,
     );
     await expect(svc.promptSession({ conversationId: "c2", text: "x" })).resolves.toBeDefined();
+  });
+
+  it("waits for an active prompt before disposing its native context", async () => {
+    const svc = await importService();
+    await svc.openSession({ conversationId: "c1" });
+    let finishPrompt!: (text: string) => void;
+    let promptStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      promptStarted = resolve;
+    });
+    promptMock.mockImplementation(() => {
+      promptStarted();
+      return new Promise<string>((resolve) => {
+        finishPrompt = resolve;
+      });
+    });
+
+    const prompt = svc.promptSession({ conversationId: "c1", text: "Bonjour" });
+    await started;
+    const disposal = svc.disposeSession("c1");
+    await Promise.resolve();
+    expect(createdSequences[0].dispose).not.toHaveBeenCalled();
+    expect(createdContexts[0].dispose).not.toHaveBeenCalled();
+
+    finishPrompt("done");
+    await expect(prompt).resolves.toMatchObject({ text: "done" });
+    await expect(disposal).resolves.toBe(true);
+    expect(createdSequences[0].dispose).toHaveBeenCalledTimes(1);
+    expect(createdContexts[0].dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("waits for an active prompt before opening a different model", async () => {
+    const svc = await importService();
+    await svc.openSession({ conversationId: "c1" });
+    let finishPrompt!: (text: string) => void;
+    let promptStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      promptStarted = resolve;
+    });
+    promptMock.mockImplementation(() => {
+      promptStarted();
+      return new Promise<string>((resolve) => {
+        finishPrompt = resolve;
+      });
+    });
+
+    const prompt = svc.promptSession({ conversationId: "c1", text: "Bonjour" });
+    await started;
+    const otherModel = MODEL_DOWNLOADS.find(
+      (model) =>
+        model.lane === "llm" && model.file !== MODEL_DOWNLOADS.find((m) => m.lane === "llm")?.file,
+    );
+    if (!otherModel) throw new Error("Expected a second LLM model in the catalog");
+    const opening = svc.openSession({ conversationId: "c2", modelFile: otherModel.file });
+    await Promise.resolve();
+    expect(createdSequences[0].dispose).not.toHaveBeenCalled();
+    expect(loadModelMock).toHaveBeenCalledTimes(1);
+
+    finishPrompt("done");
+    await expect(prompt).resolves.toMatchObject({ text: "done" });
+    await opening;
+    expect(createdSequences[0].dispose).toHaveBeenCalledTimes(1);
+    expect(loadModelMock).toHaveBeenCalledTimes(2);
   });
 
   it("rehydrates history rows into ChatHistoryItem[] with tool rows folded into the model turn", async () => {

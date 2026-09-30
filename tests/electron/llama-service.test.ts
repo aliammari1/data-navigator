@@ -67,4 +67,22 @@ describe("llama-service backend selection", () => {
 
     expect(getLlamaMock).toHaveBeenCalledTimes(1);
   });
+
+  it("keeps Granite 4.0 off Vulkan after corrupted output was reproduced", async () => {
+    getLlamaMock.mockResolvedValue({ gpu: "vulkan", loadModel: loadModelMock });
+    const { ensureModel } = await import("../../electron/llama-service");
+
+    await ensureModel("granite-4.0-1b-q4_k_m.gguf");
+
+    expect(loadModelMock).toHaveBeenCalledWith(expect.objectContaining({ gpuLayers: 0 }));
+  });
+
+  it("keeps GPU acceleration for Granite on other backends", async () => {
+    getLlamaMock.mockResolvedValue({ gpu: "cuda", loadModel: loadModelMock });
+    const { ensureModel } = await import("../../electron/llama-service");
+
+    await ensureModel("granite-4.0-1b-q4_k_m.gguf");
+
+    expect(loadModelMock).toHaveBeenCalledWith(expect.objectContaining({ gpuLayers: "auto" }));
+  });
 });

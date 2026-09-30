@@ -4,6 +4,7 @@ import {
   type ChatMessage,
   useMoudirChatStore,
 } from "@/features/data-formulator/store/moudir-chat-store";
+import { deleteConversationRemote } from "@/platform/chat/chat-history-client";
 
 // Mock platform IPC clients
 const mockSendChatPrompt = vi.fn();
@@ -94,6 +95,32 @@ describe("Moudir AI Elements Attachments Integration", () => {
         content: "Quel est le taux de réussite ?",
       }),
     );
+  });
+
+  it("waits for an aborted turn to save before deleting its conversation", async () => {
+    const events: string[] = [];
+    mockAppendMessageRemote.mockImplementation(async (input: { role: string }) => {
+      events.push(`append:${input.role}`);
+      return { id: 1 };
+    });
+    vi.mocked(deleteConversationRemote).mockImplementation(async () => {
+      events.push("delete");
+    });
+    mockSendChatPrompt.mockImplementation(
+      ({ onToken, signal }: { onToken: (text: string) => void; signal: AbortSignal }) => {
+        onToken("partial");
+        return new Promise((_, reject) => {
+          signal.addEventListener("abort", () => reject(new Error("aborted")), { once: true });
+        });
+      },
+    );
+
+    const sending = useMoudirChatStore.getState().send("Analyse les données");
+    await vi.waitFor(() => expect(mockSendChatPrompt).toHaveBeenCalled());
+    const removing = useMoudirChatStore.getState().remove("conv-1");
+    await Promise.all([sending, removing]);
+
+    expect(events).toEqual(["append:user", "append:assistant", "delete"]);
   });
 
   it("attaches files to user message and informs sendChatPrompt", async () => {

@@ -493,6 +493,7 @@ const now = () => (typeof performance !== "undefined" ? performance.now() : Date
 
 /** The abort-safe controller for the in-flight turn. Module scope (not serializable). */
 let activeChatController: AbortController | null = null;
+let activeTurn: { conversationId: string; promise: Promise<void> } | null = null;
 /** Debounce timer for search — one IPC per pause, not one per keystroke. */
 let searchTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -677,7 +678,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
         model: activeModel,
       });
 
-      void appendMessageRemote({
+      await appendMessageRemote({
         conversationId,
         role: "assistant",
         content: finalContent,
@@ -743,17 +744,35 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       });
 
       if (streamed) {
-        void appendMessageRemote({
-          conversationId,
-          role: "assistant",
-          content: streamed,
-          parts: { parts: collectedParts, datasetId } satisfies PersistedParts,
-        });
+        try {
+          await appendMessageRemote({
+            conversationId,
+            role: "assistant",
+            content: streamed,
+            parts: { parts: collectedParts, datasetId } satisfies PersistedParts,
+          });
+        } catch (persistError) {
+          console.warn("[moudir] failed to save partial response:", persistError);
+        }
       }
     } finally {
       if (activeChatController === controller) activeChatController = null;
       set({ status: settledAsError ? "error" : "idle" });
       void get().refreshConversations(get().searchTerm);
+    }
+  }
+
+  async function trackedRunTurn(
+    conversationId: string,
+    prompt: string,
+    ctx?: Parameters<typeof runTurn>[2],
+  ): Promise<void> {
+    const entry = { conversationId, promise: runTurn(conversationId, prompt, ctx) };
+    activeTurn = entry;
+    try {
+      await entry.promise;
+    } finally {
+      if (activeTurn === entry) activeTurn = null;
     }
   }
 
@@ -775,7 +794,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     await disposeChatSession(conversationId).catch(() => {
       /* no live session — nothing to drop */
     });
-    await runTurn(conversationId, prompt, ctx);
+    await trackedRunTurn(conversationId, prompt, ctx);
   }
 
   return {
@@ -933,7 +952,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       if (!id) {
         throw new Error("Impossible de créer la conversation (application de bureau requise).");
       }
-      await runTurn(id, trimmed, ctx);
+      await trackedRunTurn(id, trimmed, ctx);
     },
 
     cancel() {
@@ -975,7 +994,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
 
       set({ messages: messages.slice(0, lastUserIdx) });
       await disposeChatSession(activeId).catch(() => {});
-      await runTurn(activeId, lastUser.content, {
+      await trackedRunTurn(activeId, lastUser.content, {
         datasetId: lastUser.datasetId ?? null,
         attachments: lastUser.attachments,
       });
@@ -1028,7 +1047,7 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
       }));
 
       const datasetId = get().messages.find((m) => m.id === messageId)?.datasetId ?? null;
-      await runTurn(activeId, answer, { datasetId });
+      await trackedRunTurn(activeId, answer, { datasetId });
     },
 
     async pin(id, pinned) {
@@ -1053,7 +1072,10 @@ export const useMoudirChatStore = create<MoudirChatState>((set, get) => {
     async remove(id) {
       // Deleting the conversation that's mid-stream must stop the stream first,
       // or tokens keep arriving for rows that no longer exist.
-      if (get().activeId === id && activeChatController) activeChatController.abort();
+      if (activeTurn?.conversationId === id) {
+        activeChatController?.abort();
+        await activeTurn.promise;
+      }
 
       await deleteConversationRemote(id);
       void disposeChatSession(id);
