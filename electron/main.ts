@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { copyFileSync, existsSync, mkdirSync } from "node:fs";
 import fs, { readFile } from "node:fs/promises";
+import http from "node:http";
 import os from "node:os";
 import path from "node:path";
 
@@ -34,6 +35,7 @@ import {
 import type { startServer as StartServerFn } from "next/dist/server/lib/start-server";
 import { isAuthDbEncryptionRequested } from "@/platform/auth/auth-db-encryption";
 import { BETTER_AUTH_BASE_URL, ELECTRON_AUTH_PROTOCOL } from "@/platform/auth/electron-options";
+import { clearApprovedLanIps, lanProxyHeaders, mayRequestLanPath } from "@/server/approved-lan-ips";
 import { PROD_PORT_RANGE, resolveAppPort } from "./port-picker";
 
 let currentServerPort = 3000;
@@ -152,6 +154,7 @@ import {
   setSetting,
   setSettingsMigrationsFolder,
 } from "./settings-storage";
+import { createTextChunkNormalizer } from "./stream-text";
 import * as duckdbUtilityBroker from "./workers/duckdb-utility-broker";
 
 // Handle any Windows installer lifecycle flags (--squirrel-*) without external deps
@@ -230,6 +233,60 @@ bootLog(`main.js loaded; isPackaged=${app.isPackaged}`);
 
 const isDev = !app.isPackaged;
 let mainWindow: BrowserWindow | null = null;
+let runtimeMode: "offline" | "online" = "offline";
+let lanNextProxies: http.Server[] = [];
+
+async function startLanNextProxy(addresses: string[]): Promise<void> {
+  if (lanNextProxies.length > 0) return;
+  const started: http.Server[] = [];
+  try {
+    for (const address of addresses) {
+      const server = http.createServer((request, response) => {
+        const peerIp = request.socket.remoteAddress;
+        if (!mayRequestLanPath(peerIp, request.url ?? "/")) {
+          response.writeHead(403).end("Guest approval required");
+          return;
+        }
+        const upstream = http.request(
+          {
+            hostname: "127.0.0.1",
+            port: currentServerPort,
+            path: request.url,
+            method: request.method,
+            headers: lanProxyHeaders(request.headers, peerIp, address, currentServerPort),
+          },
+          (upstreamResponse) => {
+            response.writeHead(upstreamResponse.statusCode ?? 502, upstreamResponse.headers);
+            upstreamResponse.pipe(response);
+          },
+        );
+        upstream.on("error", () => {
+          if (!response.headersSent) response.writeHead(502);
+          response.end();
+        });
+        request.pipe(upstream);
+      });
+      await new Promise<void>((resolve, reject) => {
+        server.once("error", reject);
+        server.listen(currentServerPort, address, () => {
+          server.off("error", reject);
+          resolve();
+        });
+      });
+      started.push(server);
+    }
+    lanNextProxies = started;
+  } catch (error) {
+    for (const server of started) server.close();
+    throw error;
+  }
+}
+
+function stopLanNextProxy(): void {
+  for (const server of lanNextProxies) server.close();
+  lanNextProxies = [];
+  clearApprovedLanIps();
+}
 
 authClient.setupMain({
   getWindow: () => mainWindow,
@@ -240,26 +297,67 @@ authClient.setupMain({
 });
 
 // ─── App Update ───────────────────────────────────────────────────────────────
-// Offline-first: auto-update is OFF by default so a packaged launch makes ZERO
-// outbound network requests. Otherwise update-electron-app polls
-// update.electronjs.org on launch AND hourly — in the MAIN process, so the
-// renderer CSP cannot stop it, and it leaks app version + platform. Opt back in
-// by setting DN_ENABLE_AUTO_UPDATE=1 in the environment. (Auto-update is also
-// non-functional for this private-repo MSI — see docs/RELEASING-WINDOWS.md — so
-// disabling it by default only removes a dead, guarantee-violating network call.)
+// Manual release checks run only when requested in Online mode.
 
-if (app.isPackaged && process.env.DN_ENABLE_AUTO_UPDATE === "1") {
-  import("update-electron-app")
-    .then(({ updateElectronApp }) => {
-      updateElectronApp({
-        repo: "aliammari1/data-navigator",
-        updateInterval: "1 hour",
-      });
-    })
-    .catch((error) => {
-      console.warn("[electron] auto-update setup failed:", error);
-    });
-}
+ipcMain.handle("runtime:getMode", (event) => withTrustedSender(event, () => runtimeMode));
+ipcMain.handle("runtime:setMode", (event, mode: "offline" | "online") =>
+  withTrustedSender(event, async () => {
+    if (mode !== "offline" && mode !== "online") throw new Error("Invalid launch mode.");
+    if (mode === "offline") {
+      stopLanNextProxy();
+      await collabHubService.stop();
+      runtimeMode = "offline";
+      return mode;
+    }
+    runtimeMode = "online";
+    return mode;
+  }),
+);
+ipcMain.handle("runtime:checkForUpdates", (event) =>
+  withTrustedSender(event, async () => {
+    if (runtimeMode !== "online") throw new Error("Launch in Online mode to check for updates.");
+    const response = await fetch(
+      "https://api.github.com/repos/aliammari1/data-navigator/releases/latest",
+      {
+        headers: { Accept: "application/vnd.github+json", "User-Agent": "DataNavigator" },
+        signal: AbortSignal.timeout(10000),
+      },
+    );
+    if (!response.ok) throw new Error(`Release check failed (${response.status}).`);
+    const release = (await response.json()) as { tag_name?: string; html_url?: string };
+    const latestVersion = release.tag_name?.replace(/^v/, "");
+    const releaseUrl = release.html_url;
+    if (
+      !latestVersion ||
+      !releaseUrl ||
+      !/^https:\/\/github\.com\/aliammari1\/data-navigator\/releases\//.test(releaseUrl)
+    ) {
+      throw new Error("Invalid release response.");
+    }
+    const currentVersion = app.getVersion();
+    const currentParts = currentVersion.split(".").map(Number);
+    const latestParts = latestVersion.split(".").map(Number);
+    const available = latestParts.some(
+      (part, index) =>
+        part > (currentParts[index] ?? 0) &&
+        latestParts.slice(0, index).every((earlier, i) => earlier === currentParts[i]),
+    );
+    return { currentVersion, latestVersion, available, releaseUrl };
+  }),
+);
+ipcMain.handle("runtime:openUpdate", (event, releaseUrl: string) =>
+  withTrustedSender(event, async () => {
+    if (
+      runtimeMode !== "online" ||
+      !/^https:\/\/github\.com\/aliammari1\/data-navigator\/releases\/tag\/[a-zA-Z0-9._-]+$/.test(
+        releaseUrl,
+      )
+    ) {
+      throw new Error("Invalid update URL or Offline mode.");
+    }
+    await shell.openExternal(releaseUrl);
+  }),
+);
 
 // ─── GPU / WebGPU Configuration ──────────────────────────────────────────────
 // Enable WebGPU in renderer + workers for GPU-accelerated local model
@@ -1312,6 +1410,13 @@ ipcMain.handle(
       parseIpc(LlamaGenerateSchema, input, "llama:generate");
       const requestId = input?.requestId;
       const controller = new AbortController();
+      const tokenStream = requestId
+        ? createTextChunkNormalizer((chunk) => {
+            if (!event.sender.isDestroyed()) {
+              event.sender.send("llama:token", { id: requestId, chunk });
+            }
+          })
+        : null;
       if (requestId) llamaAbortControllers.set(requestId, controller);
 
       return llamaService
@@ -1323,15 +1428,10 @@ ipcMain.handle(
           temperature: input?.temperature,
           topP: input?.topP,
           signal: controller.signal,
-          onToken: requestId
-            ? (chunk) => {
-                if (!event.sender.isDestroyed()) {
-                  event.sender.send("llama:token", { id: requestId, chunk });
-                }
-              }
-            : undefined,
+          onToken: tokenStream ? (chunk) => tokenStream.push(chunk) : undefined,
         })
         .finally(() => {
+          tokenStream?.flush();
           if (requestId) llamaAbortControllers.delete(requestId);
         });
     }),
@@ -1472,6 +1572,13 @@ ipcMain.handle("chat:prompt", async (event, input: unknown) =>
     const parsed = parseIpc(ChatPromptSchema, input, "chat:prompt");
     const requestId = parsed.requestId;
     const controller = new AbortController();
+    const tokenStream = requestId
+      ? createTextChunkNormalizer((chunk) => {
+          if (!event.sender.isDestroyed()) {
+            event.sender.send("chat:token", { requestId, chunk });
+          }
+        })
+      : null;
     if (requestId) chatAbortControllers.set(requestId, controller);
 
     return chatSessionService
@@ -1481,13 +1588,7 @@ ipcMain.handle("chat:prompt", async (event, input: unknown) =>
         datasetId: parsed.datasetId,
         requestId,
         signal: controller.signal,
-        onToken: requestId
-          ? (chunk) => {
-              if (!event.sender.isDestroyed()) {
-                event.sender.send("chat:token", { requestId, chunk });
-              }
-            }
-          : undefined,
+        onToken: tokenStream ? (chunk) => tokenStream.push(chunk) : undefined,
         onTool: requestId
           ? (toolEvent) => {
               if (!event.sender.isDestroyed()) {
@@ -1507,6 +1608,7 @@ ipcMain.handle("chat:prompt", async (event, input: unknown) =>
         return res;
       })
       .finally(() => {
+        tokenStream?.flush();
         if (requestId) chatAbortControllers.delete(requestId);
       });
   }),
@@ -1626,18 +1728,31 @@ ipcMain.handle("models:delete", async (event, key: string) =>
 // as an ordinary y-websocket client; this just exposes start/stop/discover.
 
 ipcMain.handle("collabHub:start", async (event, input?: collabHubService.CollabHubStartInput) => {
+  if (runtimeMode !== "online") throw new Error("Collaboration requires Online mode.");
   const result = await withTrustedSender(event, () =>
     collabHubService.start(parseIpc(CollabStartSchema, input, "collabHub:start")),
   );
-  // Enable remote access in the Next.js middleware if the hub started successfully.
   if (result.running) {
-    process.env.NEXT_PUBLIC_LAN_ALLOW_REMOTE = "1";
+    const addresses = result.ips.map((ip) => ip.address);
+    if (addresses.length === 0) {
+      await collabHubService.stop();
+      throw new Error("No LAN address is available for collaboration.");
+    }
+    try {
+      await startLanNextProxy(addresses);
+    } catch (error) {
+      await collabHubService.stop();
+      throw error;
+    }
   }
   return result;
 });
 
 ipcMain.handle("collabHub:stop", async (event) =>
-  withTrustedSender(event, () => collabHubService.stop()),
+  withTrustedSender(event, async () => {
+    stopLanNextProxy();
+    return collabHubService.stop();
+  }),
 );
 
 ipcMain.handle("collabHub:status", async (event) =>
@@ -1645,7 +1760,7 @@ ipcMain.handle("collabHub:status", async (event) =>
 );
 
 ipcMain.handle("collabHub:discover", async (event) =>
-  withTrustedSender(event, () => collabHubService.discover()),
+  withTrustedSender(event, () => (runtimeMode === "online" ? collabHubService.discover() : [])),
 );
 
 ipcMain.handle("collabHub:getDiscovered", async (event) =>
@@ -1815,7 +1930,7 @@ async function createWindow(): Promise<void> {
       const serverUrl = await startNextJSServer();
       console.log("[electron] Next.js server started at:", serverUrl);
 
-      // Use 127.0.0.1 explicitly to eliminate IPv6 ::1 lookup failure against 0.0.0.0 IPv4 listener
+      // Use 127.0.0.1 explicitly to avoid IPv6 ::1 lookup against the IPv4 listener.
       const parsedServerUrl = new URL(serverUrl);
       const host =
         parsedServerUrl.hostname === "localhost" || parsedServerUrl.hostname === "0.0.0.0"
@@ -1873,9 +1988,9 @@ async function startNextJSServer(): Promise<string> {
     const serverOrigin = `http://127.0.0.1:${nextJSPort}`;
     const localhostOrigin = `http://localhost:${nextJSPort}`;
 
-    // The server must listen on all interfaces to be reachable by LAN peers when
-    // collaboration is enabled. Access control is enforced by src/proxy.ts.
-    const bindAddress = "0.0.0.0";
+    // The app server stays local. A session-scoped proxy opens on one LAN interface
+    // only after the host starts collaboration, and filters by approved peer IP.
+    const bindAddress = "127.0.0.1";
 
     const webDir = path.join(app.getAppPath(), "app");
 
@@ -1995,6 +2110,10 @@ async function startNextJSServer(): Promise<string> {
 app
   .whenReady()
   .then(async () => {
+    process.env.APP_USER_DATA = app.isPackaged
+      ? app.getPath("userData")
+      : path.join(process.cwd(), ".data");
+    clearApprovedLanIps();
     // Ensure the host secret is consistent across all processes (main, hub, and Next server).
     // The renderer retrieves this via the collabHub:getHostSecret IPC.
     process.env.DATA_NAVIGATOR_HOST_SECRET = collabHubService.getHostSecret();
@@ -2251,6 +2370,7 @@ app
   });
 
 app.on("before-quit", () => {
+  stopLanNextProxy();
   // Terminate the isolated DuckDB utility process if it was ever forked
   // (no-op when DN_DUCKDB_UTILITY is off and the broker never spawned a child).
   duckdbUtilityBroker.dispose();

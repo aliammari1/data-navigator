@@ -98,7 +98,6 @@ function makeContext(overrides: Partial<ImportPipelineContext> = {}): {
     addActivity: vi.fn(),
   };
   const ctx: ImportPipelineContext = {
-    isTelecomMode: false,
     canUpload: true,
     encoding: "auto",
     addDataset: spies.addDataset,
@@ -539,23 +538,10 @@ describe("processFilePath — format-specific loader options", () => {
 
 // ─── processFilePath: telecom mode ──────────────────────────────────────────
 
-describe("processFilePath — telecom mode", () => {
-  it("warns when telecom mode is on but required columns are missing", async () => {
-    loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx } = makeContext({ isTelecomMode: true });
-
-    const id = (await processFilePath("/data/random.csv", ctx)) as string;
-
-    const issue = useImportSession
-      .getState()
-      .files[id].issues.find((i) => i.message.includes("required telecom columns"));
-    expect(issue?.severity).toBe("warning");
-    expect(issue?.column).toBe(TELECOM_COLUMNS.join(", "));
-  });
-
+describe("processFilePath - telecom detection", () => {
   it("sets the telecom domain and tags a compatible file", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(telecomLoaded());
-    const { ctx, spies } = makeContext({ isTelecomMode: true });
+    const { ctx, spies } = makeContext();
 
     await processFilePath("/data/DailyTransactions_20240115.csv", ctx);
 
@@ -564,18 +550,11 @@ describe("processFilePath — telecom mode", () => {
     expect(dataset.tags).toContain("telecom");
     expect(dataset.tags).toContain("daily-transactions");
     expect(dataset.description).toBe("Telecom daily transactions report");
-    // No "missing telecom columns" warning when the file is compatible.
-    expect(
-      useImportSession
-        .getState()
-        .order.map((id) => useImportSession.getState().files[id])
-        .every((f) => !f.issues.some((i) => i.message.includes("required telecom columns"))),
-    ).toBe(true);
   });
 
-  it("does not add the telecom warning when telecom mode is off", async () => {
+  it("keeps an unrelated file in the general domain without a telecom warning", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx } = makeContext({ isTelecomMode: false });
+    const { ctx, spies } = makeContext();
 
     const id = (await processFilePath("/data/random.csv", ctx)) as string;
 
@@ -585,19 +564,20 @@ describe("processFilePath — telecom mode", () => {
         .files[id].issues.some((i) => i.message.includes("required telecom columns")),
     ).toBe(false);
     expect(useImportSession.getState().files[id].issues).toEqual([]);
+    expect(spies.setAppContext.mock.calls[0][0].activeDomain).toBe("general");
   });
 
-  it("records telecomMode and the source path in the activity metadata", async () => {
+  it("records the source path without a telecom-mode flag", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx, spies } = makeContext({ isTelecomMode: true });
+    const { ctx, spies } = makeContext();
 
     await processFilePath("/data/random.csv", ctx);
 
     expect(spies.addActivity.mock.calls[0][0].metadata).toMatchObject({
-      telecomMode: true,
       sourcePath: "/data/random.csv",
       encoding: "auto",
     });
+    expect(spies.addActivity.mock.calls[0][0].metadata).not.toHaveProperty("telecomMode");
   });
 });
 

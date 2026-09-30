@@ -4,8 +4,10 @@ import { useEffect, useState } from "react";
 import { RoomProvider } from "@/features/collaboration/lib/room-provider";
 import CollaborationScreen from "@/features/collaboration/screens/CollaborationScreen";
 import { readLANSettings, subscribeLAN } from "@/platform/lan/lan-collab";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 
 export default function Page() {
+  const online = useRuntimeMode((s) => s.mode === "online");
   const [roomId, setRoomId] = useState(() => readLANSettings().room || "telecom-default");
 
   useEffect(() => {
@@ -16,6 +18,8 @@ export default function Page() {
       }
     });
   }, []);
+
+  if (!online) return null;
 
   return (
     <RoomProvider roomId={roomId}>

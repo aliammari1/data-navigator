@@ -170,8 +170,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     rawHostname.startsWith("127.");
 
   if (!isLoopback) {
-    const isAllowedRemote =
-      process.env.NEXT_PUBLIC_LAN_ALLOW_REMOTE === "1" || process.env.NODE_ENV !== "production";
+    const isAllowedRemote = process.env.NODE_ENV !== "production";
 
     if (!isAllowedRemote || !PRIVATE_IP_REGEX.test(rawHostname)) {
       return new NextResponse("Forbidden host", { status: 403 });

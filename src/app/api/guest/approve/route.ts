@@ -1,4 +1,3 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import {
   GUEST_PERMISSIONS,
@@ -10,8 +9,6 @@ import { approvePendingGuest, getPendingGuest } from "@/server/pending-guests";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-
-const GUEST_COOKIE = "dn_guest_session";
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -57,7 +54,7 @@ export async function POST(request: Request) {
     guest.hostSecret,
   );
 
-  const updated = approvePendingGuest(id, role, sessionToken);
+  const updated = await approvePendingGuest(id, role, sessionToken);
   if (!updated) {
     return NextResponse.json({ error: "could not approve" }, { status: 500 });
   }

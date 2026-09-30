@@ -43,6 +43,12 @@ export async function POST(request: Request) {
   if (!pending) {
     return NextResponse.json({ error: "expired" }, { status: 410 });
   }
+  if (
+    pending.clientIp &&
+    pending.clientIp !== request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  ) {
+    return NextResponse.json({ error: "wrong device" }, { status: 403 });
+  }
   if (pending.status !== "approved" || !pending.sessionToken) {
     return NextResponse.json({ error: "not approved" }, { status: 409 });
   }

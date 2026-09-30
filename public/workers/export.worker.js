@@ -108984,24 +108984,16 @@ var require_document = __commonJS({
   }
 });
 
-// node_modules/.pnpm/nanoid@6.0.1/node_modules/nanoid/url-alphabet/index.js
-var urlAlphabet2;
-var init_url_alphabet = __esm({
-  "node_modules/.pnpm/nanoid@6.0.1/node_modules/nanoid/url-alphabet/index.js"() {
-    urlAlphabet2 = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
-  }
-});
-
-// node_modules/.pnpm/nanoid@6.0.1/node_modules/nanoid/non-secure/index.js
+// node_modules/.pnpm/nanoid@5.1.16/node_modules/nanoid/non-secure/index.js
 var non_secure_exports = {};
 __export(non_secure_exports, {
   customAlphabet: () => customAlphabet2,
   nanoid: () => nanoid2
 });
-var customAlphabet2, nanoid2;
+var urlAlphabet2, customAlphabet2, nanoid2;
 var init_non_secure = __esm({
-  "node_modules/.pnpm/nanoid@6.0.1/node_modules/nanoid/non-secure/index.js"() {
-    init_url_alphabet();
+  "node_modules/.pnpm/nanoid@5.1.16/node_modules/nanoid/non-secure/index.js"() {
+    urlAlphabet2 = "useandom-26T198340PX75pxJACKVERYMINDBUSHWOLF_GQZbfghjklqvwyzrict";
     customAlphabet2 = (alphabet, defaultSize = 21) => {
       return (size = defaultSize) => {
         let id = "";

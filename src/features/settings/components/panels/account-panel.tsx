@@ -48,10 +48,7 @@ function AccessSection() {
           className="w-40 bg-card border border-border text-sm text-foreground rounded-lg px-3 py-1.5 outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/40"
         />
       </SettingRow>
-      <SettingRow
-        label="Role"
-        description="Administrator of this installation. Collaboration guests connect remotely over LAN."
-      >
+      <SettingRow label="Role" description="Administrator of this installation.">
         <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
           <ShieldCheck className="size-3.5" />
           Administrator

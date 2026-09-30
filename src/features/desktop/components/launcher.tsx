@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { LAUNCHER_APPS } from "@/features/desktop/core/app-registry";
 import { useDesktopActions, useLauncherOpen } from "@/features/desktop/store/desktop-store";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 
 /**
  * macOS Launchpad — a full-screen frosted-glass grid of every app with a search
@@ -16,6 +17,7 @@ export function Launcher() {
   const { setLauncherOpen, openApp } = useDesktopActions();
   const [q, setQ] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const online = useRuntimeMode((s) => s.mode === "online");
 
   useEffect(() => {
     if (!open) {
@@ -28,14 +30,15 @@ export function Launcher() {
 
   const results = useMemo(() => {
     const term = q.trim().toLowerCase();
-    if (!term) return LAUNCHER_APPS;
+    if (!term) return LAUNCHER_APPS.filter((a) => online || a.id !== "collaboration");
     return LAUNCHER_APPS.filter(
       (a) =>
-        a.title.toLowerCase().includes(term) ||
-        a.blurb.toLowerCase().includes(term) ||
-        a.id.includes(term),
+        (online || a.id !== "collaboration") &&
+        (a.title.toLowerCase().includes(term) ||
+          a.blurb.toLowerCase().includes(term) ||
+          a.id.includes(term)),
     );
-  }, [q]);
+  }, [q, online]);
 
   return (
     <AnimatePresence>

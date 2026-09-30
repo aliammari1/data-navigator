@@ -11,6 +11,7 @@ import {
   notificationPermission,
   requestNotificationPermission,
 } from "@/platform/notifications/permission";
+import { useRuntimeMode } from "@/platform/runtime-mode";
 import { notify } from "../../lib/notifications";
 import { Section, SettingRow, Toggle } from "../controls";
 
@@ -44,6 +45,7 @@ function DesktopNotificationsSection() {
 }
 
 export function NotificationsPanel() {
+  const online = useRuntimeMode((s) => s.mode === "online");
   const { uploads, queries, errors, collaboration, digest } = useSettingsStore(
     useShallow((s) => ({
       uploads: s.notifications.uploads,
@@ -77,12 +79,14 @@ export function NotificationsPanel() {
           label="Errors & warnings"
           description="DuckDB errors, parse failures, data quality issues"
         />
-        <Toggle
-          checked={collaboration}
-          onChange={(v) => setNotifications({ collaboration: v })}
-          label="Collaboration"
-          description="Comments, mentions, and team activity (LAN-only)"
-        />
+        {online && (
+          <Toggle
+            checked={collaboration}
+            onChange={(v) => setNotifications({ collaboration: v })}
+            label="Collaboration"
+            description="Comments, mentions, and team activity (LAN-only)"
+          />
+        )}
         <Toggle
           checked={digest}
           onChange={(v) => setNotifications({ digest: v })}

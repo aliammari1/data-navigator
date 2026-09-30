@@ -14,6 +14,7 @@ import {
   RotateCcw,
   Sparkles,
   User,
+  Wifi,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
@@ -79,6 +80,11 @@ const AboutPanel = lazy(() =>
     default: m.AboutPanel,
   })),
 );
+const ConnectionPanel = lazy(() =>
+  import("../components/panels/connection-panel").then((m) => ({
+    default: m.ConnectionPanel,
+  })),
+);
 const AiPanel = lazy(() =>
   import("../components/panels/ai-panel").then((m) => ({
     default: m.AiPanel,
@@ -102,6 +108,7 @@ const TABS = [
   { id: "ai", label: "AI", icon: Brain, Panel: AiPanel },
   { id: "moudir", label: "Moudir", icon: Sparkles, Panel: MoudirPanel },
   { id: "account", label: "Account", icon: User, Panel: AccountPanel },
+  { id: "connection", label: "Connection", icon: Wifi, Panel: ConnectionPanel },
   { id: "notifications", label: "Notifications", icon: Bell, Panel: NotificationsPanel },
   { id: "storage", label: "Storage", icon: HardDrive, Panel: StoragePanel },
   { id: "branding", label: "Branding", icon: Building2, Panel: BrandingPanel },
@@ -119,6 +126,7 @@ const MENU_PAGES: { id: TabId; label: string; icon: (typeof TABS)[number]["icon"
   { id: "ai", label: "IA", icon: Brain },
   { id: "moudir", label: "Moudir", icon: Sparkles },
   { id: "account", label: "Compte", icon: User },
+  { id: "connection", label: "Connexion", icon: Wifi },
   { id: "notifications", label: "Notifications", icon: Bell },
   { id: "storage", label: "Stockage", icon: HardDrive },
   { id: "branding", label: "Image de marque", icon: Building2 },

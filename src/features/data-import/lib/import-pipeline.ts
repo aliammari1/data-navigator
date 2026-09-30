@@ -36,10 +36,7 @@ import type {
   ParsedFileInfo,
   ValidationIssue,
 } from "@/features/data-import/model/types";
-import {
-  getTelecomDatasetProfile,
-  TELECOM_REQUIRED_COLUMNS,
-} from "@/features/telecom/lib/dataset-detection";
+import { getTelecomDatasetProfile } from "@/features/telecom/lib/dataset-detection";
 import type { CsvEncoding, RejectSummary } from "@/platform/duckdb/duckdb";
 import {
   loadUploadPathToDuckDB,
@@ -180,7 +177,6 @@ function buildRejectIssues(rejects: RejectSummary | undefined): ValidationIssue[
 // ─── Pipeline context ─────────────────────────────────────────────────────────
 
 export interface ImportPipelineContext {
-  isTelecomMode: boolean;
   canUpload: boolean;
   /**
    * Encoding override for CSV-like imports. `auto` (the default) defers to the
@@ -302,17 +298,7 @@ export async function processFilePath(
     const telecomProfile = getTelecomDatasetProfile({
       columns: dsCols,
       fileName,
-      telecomMode: ctx.isTelecomMode,
     });
-
-    if (ctx.isTelecomMode && !telecomProfile.compatible) {
-      issues.push({
-        severity: "warning",
-        message:
-          "This file was uploaded in Telecom mode, but it is missing one or more required telecom columns.",
-        column: TELECOM_REQUIRED_COLUMNS.join(", "),
-      });
-    }
 
     const dataset: Dataset = {
       id: loaded.datasetId,
@@ -336,7 +322,7 @@ export async function processFilePath(
     ctx.addDataset(dataset);
     ctx.setActiveDataset(dataset.id);
     ctx.setAppContext({
-      activeDomain: ctx.isTelecomMode ? "telecom" : "general",
+      activeDomain: telecomProfile.compatible ? "telecom" : "general",
       activeDatasetId: dataset.id,
       activeTableName: loaded.tableName,
     });
@@ -349,7 +335,6 @@ export async function processFilePath(
         rows: loaded.rowCount,
         cols: loaded.colCount,
         format: loaded.format,
-        telecomMode: ctx.isTelecomMode,
         sourcePath: filePath,
         metadataSource,
         encoding: ctx.encoding,

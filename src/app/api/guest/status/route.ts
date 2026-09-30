@@ -18,6 +18,12 @@ export async function GET(request: Request) {
       { status: 410, headers: { "cache-control": "no-store" } },
     );
   }
+  if (
+    guest.clientIp &&
+    guest.clientIp !== request.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+  ) {
+    return NextResponse.json({ error: "wrong device" }, { status: 403 });
+  }
 
   if (guest.status === "approved" && guest.sessionToken) {
     return NextResponse.json(

@@ -812,6 +812,19 @@ contextBridge.exposeInMainWorld("electronClipboard", electronClipboard);
 contextBridge.exposeInMainWorld("electronPyodide", electronPyodide);
 contextBridge.exposeInMainWorld("electronAuth", electronAuth);
 contextBridge.exposeInMainWorld("electronAnalytics", electronAnalytics);
+contextBridge.exposeInMainWorld("electronRuntime", {
+  getMode: (): Promise<"offline" | "online"> => ipcRenderer.invoke("runtime:getMode"),
+  setMode: (mode: "offline" | "online"): Promise<"offline" | "online"> =>
+    ipcRenderer.invoke("runtime:setMode", mode),
+  checkForUpdates: (): Promise<{
+    currentVersion: string;
+    latestVersion: string;
+    available: boolean;
+    releaseUrl: string;
+  }> => ipcRenderer.invoke("runtime:checkForUpdates"),
+  openUpdate: (releaseUrl: string): Promise<void> =>
+    ipcRenderer.invoke("runtime:openUpdate", releaseUrl),
+});
 
 declare global {
   // Auth bridges come from @better-auth/electron 1.7.x's ExposedBridges

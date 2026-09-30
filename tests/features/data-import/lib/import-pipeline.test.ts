@@ -81,7 +81,6 @@ function makeContext(overrides: Partial<ImportPipelineContext> = {}): {
     addActivity: vi.fn(),
   };
   const ctx: ImportPipelineContext = {
-    isTelecomMode: false,
     canUpload: true,
     encoding: "auto",
     addDataset: spies.addDataset,
@@ -625,73 +624,41 @@ describe("processFilePath — format-specific loader options", () => {
 
 // ─── processFilePath: telecom mode ───────────────────────────────────────────
 
-describe("processFilePath — telecom mode", () => {
-  it("warns when telecom mode is on but required columns are missing", async () => {
-    loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx } = makeContext({ isTelecomMode: true });
-
-    const id = (await processFilePath("/data/random.csv", ctx)) as string;
-
-    const issue = useImportSession
-      .getState()
-      .files[id].issues.find((i) => i.message.includes("required telecom columns"));
-    expect(issue?.severity).toBe("warning");
-    expect(issue?.column).toBe(TELECOM_COLUMNS.join(", "));
-  });
-
-  it("sets the telecom domain and tags a compatible file", async () => {
+describe("processFilePath - telecom detection", () => {
+  it("detects a telecom report during the ordinary upload flow", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(telecomLoaded());
-    const { ctx, spies } = makeContext({ isTelecomMode: true });
+    const { ctx, spies } = makeContext();
 
     await processFilePath("/data/DailyTransactions_20240115.csv", ctx);
 
-    expect(spies.setAppContext.mock.calls[0][0].activeDomain).toBe("telecom");
     const dataset = spies.addDataset.mock.calls[0][0];
-    expect(dataset.tags).toContain("telecom");
-    expect(dataset.tags).toContain("daily-transactions");
+    expect(dataset.tags).toEqual(["telecom", "daily-transactions", "report-date:2024-01-15"]);
     expect(dataset.description).toBe("Telecom daily transactions report");
-    expect(
-      useImportSession
-        .getState()
-        .order.map((id) => useImportSession.getState().files[id])
-        .every((f) => !f.issues.some((i) => i.message.includes("required telecom columns"))),
-    ).toBe(true);
+    expect(spies.setAppContext.mock.calls[0][0].activeDomain).toBe("telecom");
   });
 
-  it("does not add the telecom warning when telecom mode is off", async () => {
+  it("keeps an unrelated dated file in the general catalog without a telecom warning", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx } = makeContext({ isTelecomMode: false });
+    const { ctx, spies } = makeContext();
 
-    const id = (await processFilePath("/data/random.csv", ctx)) as string;
+    const id = (await processFilePath("/data/random_20240115.csv", ctx)) as string;
 
-    expect(
-      useImportSession
-        .getState()
-        .files[id].issues.some((i) => i.message.includes("required telecom columns")),
-    ).toBe(false);
+    expect(spies.addDataset.mock.calls[0][0].tags).toEqual([]);
+    expect(spies.setAppContext.mock.calls[0][0].activeDomain).toBe("general");
     expect(useImportSession.getState().files[id].issues).toEqual([]);
   });
 
-  it("records telecomMode and the source path in the activity metadata", async () => {
+  it("records the source path without a telecom-mode flag", async () => {
     loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx, spies } = makeContext({ isTelecomMode: true });
+    const { ctx, spies } = makeContext();
 
     await processFilePath("/data/random.csv", ctx);
 
     expect(spies.addActivity.mock.calls[0][0].metadata).toMatchObject({
-      telecomMode: true,
       sourcePath: "/data/random.csv",
       encoding: "auto",
     });
-  });
-
-  it("sets activeDomain to general when telecom mode is off", async () => {
-    loadUploadPathToDuckDB.mockResolvedValue(makeLoaded());
-    const { ctx, spies } = makeContext({ isTelecomMode: false });
-
-    await processFilePath("/data/random.csv", ctx);
-
-    expect(spies.setAppContext.mock.calls[0][0].activeDomain).toBe("general");
+    expect(spies.addActivity.mock.calls[0][0].metadata).not.toHaveProperty("telecomMode");
   });
 });
 

@@ -12,6 +12,7 @@ export interface PendingGuest {
   room: string;
   hostSecret: string;
   hostUrl: string;
+  clientIp?: string;
   requestedAt: number;
   expiresAt: number;
   status: "pending" | "approved" | "denied";
@@ -54,6 +55,7 @@ export async function createPendingGuest(input: {
   room: string;
   hostSecret: string;
   hostUrl: string;
+  clientIp?: string;
 }): Promise<PendingGuest> {
   const store = pruneExpired(readStore());
 
@@ -79,6 +81,7 @@ export async function createPendingGuest(input: {
     room: input.room,
     hostSecret: input.hostSecret,
     hostUrl: input.hostUrl,
+    clientIp: input.clientIp,
     requestedAt: now,
     expiresAt: now + PENDING_TTL_MS,
     status: "pending",
@@ -111,6 +114,8 @@ export async function approvePendingGuest(
   const guest = store.guests.find((g) => g.id === id);
   if (!guest || guest.status !== "pending") return null;
   guest.status = "approved";
+  const { approveLanIp } = await import("@/server/approved-lan-ips");
+  approveLanIp(guest.clientIp);
   guest.approvedRole = approvedRole;
   guest.sessionToken = sessionToken;
   guest.expiresAt = Date.now() + 30_000;

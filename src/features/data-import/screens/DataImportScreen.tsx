@@ -4,7 +4,6 @@ import { useVirtualizer } from "@tanstack/react-virtual";
 import {
   Activity,
   AlertTriangle,
-  ArrowRight,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -24,7 +23,7 @@ import {
   Zap,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { Badge } from "@/components/ui/badge";
@@ -54,10 +53,7 @@ import {
   type ValidationIssue,
 } from "@/features/data-import/model/types";
 import { useAppCommands } from "@/features/desktop/core/menu/app-commands";
-import {
-  isTelecomDataset,
-  TELECOM_REQUIRED_COLUMNS,
-} from "@/features/telecom/lib/dataset-detection";
+import { isTelecomDataset } from "@/features/telecom/lib/dataset-detection";
 import { useDashboardAccess } from "@/platform/auth/dashboard-access";
 import {
   getDroppedFilePaths,
@@ -176,8 +172,6 @@ export default function DataImportScreen() {
   const { addDataset, setActiveDataset } = useDataStore();
 
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const isTelecomMode = searchParams.get("context") === "telecom";
   const setAppContext = useAppContextStore((state) => state.setContext);
   const addActivity = useActivityStore((state) => state.addEvent);
 
@@ -245,11 +239,7 @@ export default function DataImportScreen() {
     [completedFiles],
   );
 
-  const latestCompletedFile = completedFiles[0] ?? null;
-
-  // Route by DETECTION, not the legacy ?context fork: if the file we just
-  // imported is a telecom dataset (tags set by getTelecomDatasetProfile during
-  // the pipeline), open the report; otherwise go to the dataset catalog.
+  // Open the report for a detected telecom dataset; otherwise show the catalog.
   const getUploadSuccessPath = useCallback(() => {
     const state = useDataStore.getState();
     const active = state.datasets.find((d) => d.id === state.activeDatasetId);
@@ -259,7 +249,6 @@ export default function DataImportScreen() {
 
   const pipelineContext = useMemo<ImportPipelineContext>(
     () => ({
-      isTelecomMode,
       canUpload: access.permissions.canUpload,
       encoding,
       addDataset,
@@ -268,7 +257,6 @@ export default function DataImportScreen() {
       addActivity,
     }),
     [
-      isTelecomMode,
       access.permissions.canUpload,
       encoding,
       addDataset,
@@ -447,9 +435,7 @@ export default function DataImportScreen() {
             </div>
 
             <div className="min-w-0">
-              <h1 className="truncate text-lg font-bold text-foreground">
-                {isTelecomMode ? "Charger un rapport télécom" : "Importer des données"}
-              </h1>
+              <h1 className="truncate text-lg font-bold text-foreground">Importer des données</h1>
               <p className="truncate text-sm text-muted-foreground">
                 Vos données restent sur votre machine — aucun transfert en ligne.
               </p>
@@ -465,19 +451,6 @@ export default function DataImportScreen() {
                 <CheckCircle2 className="mr-1 h-3 w-3" />
                 {completedFiles.length} prêt
               </Badge>
-            )}
-
-            {isTelecomMode && (
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => router.push("/dashboard/telecom-report")}
-                className="h-9 rounded-xl text-xs"
-              >
-                Ouvrir Telecom
-                <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-              </Button>
             )}
 
             {electronAvailable && (
@@ -517,8 +490,6 @@ export default function DataImportScreen() {
       <main className="flex-1 overflow-y-auto">
         <div className="mx-auto grid w-full max-w-6xl gap-6 px-4 py-6 md:px-6 lg:grid-cols-[minmax(0,1fr)_360px]">
           <section className="space-y-6">
-            {isTelecomMode && <TelecomUploadNotice />}
-
             <UploadDropzone
               getRootProps={getRootProps}
               getInputProps={getInputProps}
@@ -537,9 +508,6 @@ export default function DataImportScreen() {
               count={order.length}
               selectedFileId={selectedFile?.id ?? null}
               onSelect={setSelectedFileId}
-              onOpenTelecom={() => router.push("/dashboard/telecom-report")}
-              isTelecomMode={isTelecomMode}
-              hasDone={completedFiles.length > 0}
             />
 
             <ImportHistoryPanel history={history} loading={historyLoading} />
@@ -553,23 +521,6 @@ export default function DataImportScreen() {
             {selectedFile?.issues.length ? (
               <ValidationIssuesCard issues={selectedFile.issues} />
             ) : null}
-
-            {latestCompletedFile?.status === "done" && isTelecomMode && (
-              <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
-                <div className="text-sm font-bold text-primary">Rapport prêt</div>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Fichier enregistré dans le catalogue local DuckDB.
-                </p>
-                <Button
-                  type="button"
-                  onClick={() => router.push("/dashboard/telecom-report")}
-                  className="mt-4 h-9 w-full rounded-xl text-xs font-bold"
-                >
-                  Ouvrir le rapport
-                  <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
-                </Button>
-              </div>
-            )}
 
             <ImportSettingsCard
               encoding={encoding}
@@ -587,33 +538,6 @@ export default function DataImportScreen() {
           router.push(getUploadSuccessPath());
         }}
       />
-    </div>
-  );
-}
-
-function TelecomUploadNotice() {
-  return (
-    <div className="rounded-2xl border border-primary/25 bg-primary/10 p-4">
-      <div className="flex items-center gap-2 text-sm font-bold text-primary">
-        <Database className="h-4 w-4" />
-        Mode rapport télécom
-      </div>
-
-      <p className="mt-1 text-xs text-muted-foreground">
-        Importez le fichier journalier des transactions. Les fichiers pipe-delimited CSV/TXT sont
-        chargés localement, convertis en Parquet et exposés comme dataset DuckDB.
-      </p>
-
-      <div className="mt-3 grid grid-cols-2 gap-1.5 md:grid-cols-4">
-        {TELECOM_REQUIRED_COLUMNS.map((column) => (
-          <div
-            key={column}
-            className="rounded-lg border border-border bg-background px-2 py-1 text-[10px] font-mono text-muted-foreground"
-          >
-            {column}
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
@@ -785,17 +709,11 @@ function UploadedFilesPanel({
   count,
   selectedFileId,
   onSelect,
-  onOpenTelecom,
-  isTelecomMode,
-  hasDone,
 }: {
   order: string[];
   count: number;
   selectedFileId: string | null;
   onSelect: (id: string) => void;
-  onOpenTelecom: () => void;
-  isTelecomMode: boolean;
-  hasDone: boolean;
 }) {
   const parentRef = useRef<HTMLDivElement>(null);
   const shouldVirtualize = order.length > VIRTUALIZE_THRESHOLD;
@@ -819,18 +737,6 @@ function UploadedFilesPanel({
             {count} fichier{count > 1 ? "s" : ""}
           </div>
         </div>
-
-        {isTelecomMode && hasDone && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={onOpenTelecom}
-            className="h-8 rounded-xl text-xs"
-          >
-            Ouvrir Telecom
-          </Button>
-        )}
       </div>
 
       {shouldVirtualize ? (

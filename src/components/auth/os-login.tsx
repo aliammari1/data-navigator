@@ -13,6 +13,8 @@ import {
   ShieldCheck,
   Sun,
   UserRound,
+  Wifi,
+  WifiOff,
   X,
 } from "lucide-react";
 import { AnimatePresence, motion, useAnimate } from "motion/react";
@@ -26,6 +28,7 @@ import {
   getOwnerInfo,
   hasOwner,
 } from "@/platform/auth/auth-ipc-client";
+import { type RuntimeMode, useRuntimeMode } from "@/platform/runtime-mode";
 
 /* ─── Theme tokens ──────────────────────────────────────────────────────── */
 
@@ -140,12 +143,100 @@ function Spin() {
 type Mode = "boot" | "lock" | "setup";
 type Submit = "idle" | "pending" | "success";
 
+function LaunchModeSelector({
+  value,
+  onChange,
+  dark,
+}: {
+  value: RuntimeMode;
+  onChange: (mode: RuntimeMode) => void;
+  dark: boolean;
+}) {
+  return (
+    <div className="space-y-2.5">
+      <p
+        className={`text-xs font-semibold uppercase tracking-wide ${dark ? "text-slate-400" : "text-slate-600"}`}
+      >
+        Connection mode
+      </p>
+      <div role="group" aria-label="Connection mode" className="grid grid-cols-2 gap-2.5">
+        {[
+          { mode: "offline" as const, icon: WifiOff, title: "Offline", detail: "Local workspace" },
+          {
+            mode: "online" as const,
+            icon: Wifi,
+            title: "Online",
+            detail: "Collaboration + updates",
+          },
+        ].map((option) => {
+          const Icon = option.icon;
+          const selected = value === option.mode;
+          return (
+            <button
+              key={option.mode}
+              type="button"
+              aria-pressed={selected}
+              onClick={() => onChange(option.mode)}
+              className={`rounded-xl border p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 ${
+                selected
+                  ? "border-blue-500 bg-blue-500/10"
+                  : dark
+                    ? "border-white/10 bg-white/[0.03] hover:bg-white/[0.07]"
+                    : "border-slate-200 bg-white hover:bg-blue-50"
+              }`}
+            >
+              <Icon
+                className={`mb-2 size-4 ${selected ? "text-blue-500" : dark ? "text-slate-400" : "text-slate-500"}`}
+              />
+              <span
+                className={`block text-sm font-semibold ${dark ? "text-slate-100" : "text-slate-900"}`}
+              >
+                {option.title}
+              </span>
+              <span
+                className={`mt-0.5 block text-[11px] ${dark ? "text-slate-400" : "text-slate-600"}`}
+              >
+                {option.detail}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      <p className={`text-[11px] ${dark ? "text-slate-500" : "text-slate-500"}`}>
+        Online opens LAN access only after you start a collaboration session.
+      </p>
+    </div>
+  );
+}
+
 export function OsLogin() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get("redirect") ?? "/dashboard";
   const reason = params.get("reason");
   const clock = useClock();
+  const [launchMode, setLaunchMode] = useState<RuntimeMode>("offline");
+  const [hasRuntime, setHasRuntime] = useState(false);
+
+  useEffect(() => {
+    const bridge = (
+      window as Window & { electronRuntime?: { getMode: () => Promise<RuntimeMode> } }
+    ).electronRuntime;
+    setHasRuntime(Boolean(bridge));
+    void bridge
+      ?.getMode()
+      .then(setLaunchMode)
+      .catch(() => setLaunchMode("offline"));
+  }, []);
+
+  const applyLaunchMode = async () => {
+    const bridge = (
+      window as Window & {
+        electronRuntime?: { setMode: (mode: RuntimeMode) => Promise<RuntimeMode> };
+      }
+    ).electronRuntime;
+    if (bridge) useRuntimeMode.getState().setMode(await bridge.setMode(launchMode));
+  };
 
   /* ── theme toggle — synced to the global ThemeProvider ── */
   const { resolvedTheme, setTheme } = useAppTheme();
@@ -212,6 +303,7 @@ export function OsLogin() {
     }
     setLockSt("pending");
     try {
+      await applyLaunchMode();
       await authIpcLogin({ email, password: pw });
       saveUser({ email, name: stored?.name ?? email.split("@")[0] });
       setLockSt("success");
@@ -259,6 +351,7 @@ export function OsLogin() {
     setSSt("pending");
     const name = sName.trim() || "Administrator";
     try {
+      await applyLaunchMode();
       await authIpcSignUp({
         name,
         email: sEmail,
@@ -496,6 +589,10 @@ export function OsLogin() {
                     )}
                   </AnimatePresence>
 
+                  {hasRuntime && (
+                    <LaunchModeSelector value={launchMode} onChange={setLaunchMode} dark={isDark} />
+                  )}
+
                   <AnimatePresence>
                     {lockErr && (
                       <motion.p
@@ -600,7 +697,7 @@ export function OsLogin() {
                     Set up Administrator
                   </h1>
                   <p className="mt-1.5 text-[13px] leading-relaxed" style={{ color: T.textSub }}>
-                    Create your master key to protect local data and manage LAN guests.
+                    Create your master key to protect local data.
                   </p>
                 </div>
 
@@ -873,6 +970,10 @@ export function OsLogin() {
                       </motion.p>
                     )}
                   </AnimatePresence>
+
+                  {hasRuntime && (
+                    <LaunchModeSelector value={launchMode} onChange={setLaunchMode} dark={isDark} />
+                  )}
 
                   <motion.button
                     type="submit"

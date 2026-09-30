@@ -87,38 +87,33 @@ describe("buildDatasetTags", () => {
     const tags = buildDatasetTags({
       columns: fullColumns(),
       fileName: "DailyTransactions_20260616.csv",
-      telecomMode: false,
     });
     expect(tags).toContain("telecom");
     expect(tags).toContain("daily-transactions");
     expect(tags).toContain("report-date:2026-06-16");
   });
 
-  it("returns no tags for an unrelated file when telecom mode is off", () => {
+  it("returns no tags for an unrelated file", () => {
     expect(
       buildDatasetTags({
         columns: [{ name: "FOO" }] as never,
         fileName: "misc.csv",
-        telecomMode: false,
       }),
     ).toEqual([]);
   });
 
-  it("emits a report-date tag in telecom mode even when columns do not qualify", () => {
+  it("does not tag a dated file when its columns do not qualify", () => {
     const tags = buildDatasetTags({
       columns: [{ name: "FOO" }] as never,
       fileName: "x_20260616.csv",
-      telecomMode: true,
     });
-    expect(tags).toContain("report-date:2026-06-16");
-    expect(tags).not.toContain("telecom");
+    expect(tags).toEqual([]);
   });
 
   it("omits the report-date tag when the name has no date", () => {
     const tags = buildDatasetTags({
       columns: fullColumns() as never,
       fileName: "DailyTransactions.csv",
-      telecomMode: false,
     });
     expect(tags).toContain("telecom");
     expect(tags.some((t) => t.startsWith("report-date:"))).toBe(false);
@@ -130,7 +125,6 @@ describe("getTelecomDatasetProfile", () => {
     const profile = getTelecomDatasetProfile({
       columns: fullColumns() as never,
       fileName: "DailyTransactions_20260616.csv",
-      telecomMode: false,
     });
     expect(profile.compatible).toBe(true);
     expect(profile.reportDate).toBe("2026-06-16");
@@ -142,7 +136,6 @@ describe("getTelecomDatasetProfile", () => {
     const profile = getTelecomDatasetProfile({
       columns: [{ name: "ACCOUNT_ID" }] as never,
       fileName: "x.csv",
-      telecomMode: false,
     });
     expect(profile.compatible).toBe(false);
     expect(profile.description).toBe("");
