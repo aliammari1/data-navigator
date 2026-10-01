@@ -88,7 +88,7 @@ export function StorageInfoPanel({ tableName, datasetId }: StorageInfoPanelProps
       <div className="space-y-4">
         <p className="text-[11px] text-muted-foreground">
           Espace disque global et stockage persistant sont gérés dans{" "}
-          <Link href="/dashboard/settings?tab=storage" className="text-primary hover:underline">
+          <Link href="/dashboard/settings?tab=storage" className="text-primary underline">
             Réglages › Stockage
           </Link>
           .

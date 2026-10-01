@@ -99,7 +99,7 @@ export function StoragePanel() {
                   )}`}
             </span>
           </div>
-          <QuotaBar pct={overall?.pct ?? 0} />
+          <QuotaBar pct={overall?.pct ?? 0} ariaLabel="Device storage used" />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <ShieldCheck

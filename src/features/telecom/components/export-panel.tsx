@@ -1029,6 +1029,7 @@ export function ExportPanel({
             <span className="text-sm font-semibold text-foreground">Exporter le rapport</span>
             <button
               type="button"
+              aria-label="Fermer le menu d'exportation"
               onClick={() => setOpen(false)}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -1139,7 +1140,9 @@ export function ExportPanel({
                       )}
                     </span>
                     <span className="flex-1 font-medium">{label}</span>
-                    {count > 0 && <span className="text-[9px] opacity-60">{count}</span>}
+                    {count > 0 && (
+                      <span className="text-[10px] font-medium tabular-nums">{count}</span>
+                    )}
                   </button>
                 ))}
               </div>

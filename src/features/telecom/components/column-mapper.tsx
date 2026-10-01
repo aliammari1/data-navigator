@@ -69,6 +69,7 @@ export function ColumnMapper({
           </div>
           <button
             type="button"
+            aria-label="Fermer le mappage des colonnes"
             onClick={onClose}
             className="w-7 h-7 rounded-lg hover:bg-accent flex items-center justify-center text-muted-foreground hover:text-foreground transition-colors"
           >

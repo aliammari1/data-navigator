@@ -187,6 +187,7 @@ export function StatusConfigPanel({
                 </span>
                 <button
                   type="button"
+                  aria-label="Fermer la modification du statut"
                   onClick={() => setEditCode(null)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
@@ -323,6 +324,7 @@ export function StatusConfigPanel({
                   {m && (
                     <button
                       type="button"
+                      aria-label={`Supprimer le statut ${rs.rawCode}`}
                       onClick={() => removeMapping(rs.rawCode)}
                       className="w-6 h-6 flex items-center justify-center text-muted-foreground hover:text-red-600 dark:hover:text-red-400 transition-colors opacity-0 group-hover:opacity-100"
                     >
@@ -368,6 +370,7 @@ export function StatusConfigPanel({
             className="bg-muted border border-border text-xs text-foreground rounded-lg px-2.5 py-2 outline-none placeholder-muted-foreground"
           />
           <select
+            aria-label="Catégorie du nouveau statut"
             value={newSemantic}
             onChange={(e) => setNewSemantic(e.target.value as Types.StatusSemantic)}
             className="bg-muted border border-border text-xs text-muted-foreground rounded-lg px-2.5 py-2 outline-none"

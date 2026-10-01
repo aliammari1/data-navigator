@@ -250,6 +250,9 @@ test.describe("Desktop workspace journey", () => {
       timeout: 15_000,
     });
 
+    // The launcher remains mounted during its exit animation. Wait until it is
+    // gone before toggling it open again, or the second click can be skipped.
+    await expect(launcherSearch(page)).toBeHidden();
     await openLauncher(page);
     const importerTile = launcherTile(page, /importer/i);
     await expect(importerTile).toBeVisible({ timeout: 15_000 });

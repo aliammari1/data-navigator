@@ -99,6 +99,7 @@ export function PeriodFilterBar({
         <div className="flex items-center gap-1.5">
           <input
             type="date"
+            aria-label="Date de début"
             value={value.from}
             min={minD || undefined}
             max={value.to || maxD || undefined}
@@ -108,6 +109,7 @@ export function PeriodFilterBar({
           <span className="text-xs text-muted-foreground">→</span>
           <input
             type="date"
+            aria-label="Date de fin"
             value={value.to}
             min={value.from || minD || undefined}
             max={maxD || undefined}

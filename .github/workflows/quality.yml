@@ -72,7 +72,6 @@ jobs:
 
       - name: Dead-code check (knip)
         run: pnpm run check:deadcode
-        continue-on-error: true
 
       - name: Unit tests + coverage gate
         run: pnpm run test:coverage
@@ -91,7 +90,6 @@ jobs:
 
       - name: Mutation testing (Stryker)
         run: pnpm run test:mutation
-        continue-on-error: true
 
       - name: Upload mutation report
         if: always()

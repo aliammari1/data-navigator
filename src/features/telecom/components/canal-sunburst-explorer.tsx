@@ -293,7 +293,7 @@ export function CanalSunburstExplorer({
               <Loader2 className="w-3.5 h-3.5 animate-spin" /> Calcul des statuts…
             </div>
           ) : !status || status.total === 0 ? (
-            <div className="flex items-center justify-center py-10 text-xs text-muted-foreground/60">
+            <div className="flex items-center justify-center py-10 text-xs text-muted-foreground">
               Aucune transaction pour cette sélection.
             </div>
           ) : (
@@ -392,7 +392,7 @@ export function CanalSunburstExplorer({
               <Loader2 className="w-4 h-4 animate-spin mr-2" /> Construction de l'arbre des canaux…
             </div>
           ) : sunburstData.length === 0 ? (
-            <div className="flex items-center justify-center h-[340px] text-xs text-muted-foreground/60">
+            <div className="flex items-center justify-center h-[340px] text-xs text-muted-foreground">
               Aucune donnée sur cette période.
             </div>
           ) : (

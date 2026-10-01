@@ -38,14 +38,16 @@ const statusMapping: StatusMapping[] = [
     label: "Succès",
     semantic: "success",
     color: "#a6e3a1",
-    badgeClass: "bg-emerald-50",
+    badgeClass:
+      "bg-emerald-50 text-emerald-800 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-500/30",
   },
   {
     rawCode: "DC01",
     label: "Refusé",
     semantic: "declined",
     color: "#f38ba8",
-    badgeClass: "bg-red-50",
+    badgeClass:
+      "bg-red-50 text-red-800 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-500/30",
   },
 ];
 

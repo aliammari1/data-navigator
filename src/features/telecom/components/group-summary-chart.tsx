@@ -181,7 +181,7 @@ export const GroupSummaryChart = memo(function GroupSummaryChart({
                       }}
                     />
                   </div>
-                  <div className="text-[9px] text-muted-foreground/60 tabular-nums">
+                  <div className="text-[9px] text-muted-foreground tabular-nums">
                     {fmtAmount(d.montant)} DT
                   </div>
                 </div>

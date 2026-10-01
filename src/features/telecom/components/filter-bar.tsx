@@ -28,7 +28,7 @@ export function FilterBar({
           className="bg-transparent text-xs text-foreground placeholder-muted-foreground outline-none flex-1"
         />
         {filters.search && (
-          <button type="button" onClick={() => set("search", "")}>
+          <button type="button" aria-label="Effacer la recherche" onClick={() => set("search", "")}>
             <X className="w-3 h-3 text-muted-foreground" />
           </button>
         )}
@@ -42,6 +42,7 @@ export function FilterBar({
       ].map(({ key, label, opts }) => (
         <select
           key={key}
+          aria-label="Statut"
           value={filters[key]}
           onChange={(e) => set(key, e.target.value)}
           className="bg-card border border-border text-xs text-muted-foreground rounded-lg px-2 py-1.5 outline-none"
@@ -55,6 +56,7 @@ export function FilterBar({
         </select>
       ))}
       <select
+        aria-label="Opérateur"
         value={filters.operator}
         onChange={(e) => set("operator", e.target.value)}
         className="bg-card border border-border text-xs text-muted-foreground rounded-lg px-2 py-1.5 outline-none"
@@ -67,6 +69,7 @@ export function FilterBar({
         ))}
       </select>
       <select
+        aria-label="Région"
         value={filters.region}
         onChange={(e) => set("region", e.target.value)}
         className="bg-card border border-border text-xs text-muted-foreground rounded-lg px-2 py-1.5 outline-none"

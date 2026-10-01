@@ -60,7 +60,7 @@ export const ConfigTab = memo(function ConfigTab({
         rawStatuses.filter((r) => !statusMapping.find((m) => m.rawCode === r.rawCode)).length > 0
           ? "!"
           : undefined,
-      activeClass: "bg-amber-600 dark:bg-amber-500 text-white shadow-sm shadow-amber-500/30",
+      activeClass: "bg-amber-800 dark:bg-amber-700 text-white shadow-sm shadow-amber-800/30",
     },
     {
       key: "rules",

@@ -63,6 +63,7 @@ function SortableCard({ item }: { item: DashboardCardItem }) {
           type="button"
           {...attributes}
           {...listeners}
+          aria-label={`Déplacer la carte ${item.id}`}
           className="absolute right-4 top-4 z-20 rounded-xl bg-muted/70 border border-border px-1.5 py-1 text-muted-foreground/60 opacity-70 hover:opacity-100 hover:text-foreground cursor-grab active:cursor-grabbing"
         >
           <GripVertical className="w-4 h-4" />

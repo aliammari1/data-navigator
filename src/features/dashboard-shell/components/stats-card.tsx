@@ -24,7 +24,9 @@ export function StatsCard({ title, value, description, icon, trend, className }:
               <div
                 className={cn(
                   "flex items-center gap-1 text-xs font-medium",
-                  trend >= 0 ? "text-green-600" : "text-red-600",
+                  trend >= 0
+                    ? "text-green-600 dark:text-green-400"
+                    : "text-red-600 dark:text-red-400",
                 )}
               >
                 {trend >= 0 ? (
