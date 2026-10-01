@@ -135,7 +135,7 @@ export function shouldAllowRendererRequest(
         (target.hostname === "localhost" || target.hostname === "127.0.0.1")
       );
     }
-    return !["https:", "ws:", "wss:", "file:"].includes(target.protocol);
+    return ["about:", "blob:", "data:", "pyodide:"].includes(target.protocol);
   } catch {
     return false;
   }
@@ -248,13 +248,14 @@ export class PathAccessController {
   }
 
   assertAllowedDeletePath(filePath: string): string {
+    const normalized = normalizePath(filePath);
     const resolved = canonicalPath(filePath);
 
-    if (!this.isInsideDataDir(resolved)) {
-      throw new Error(`Blocked delete access outside app data dir: ${resolved}`);
+    if (!this.isInsideDataDir(normalized) || !this.isInsideDataDir(resolved)) {
+      throw new Error(`Blocked delete access outside app data dir: ${normalized}`);
     }
 
-    return resolved;
+    return normalized;
   }
 
   assertAllowedDirectoryPath(dirPath: string): string {

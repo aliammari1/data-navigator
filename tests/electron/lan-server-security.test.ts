@@ -25,35 +25,62 @@ describe("standalone LAN server metadata boundary", () => {
 
   beforeAll(async () => {
     root = mkdtempSync(path.join(os.tmpdir(), "dn-lan-security-"));
-    const port = await freePort();
-    origin = `http://127.0.0.1:${port}`;
-    child = spawn(process.execPath, ["scripts/lan-server.mjs"], {
-      cwd: process.cwd(),
-      env: {
-        ...process.env,
-        HOST: "127.0.0.1",
-        PORT: String(port),
-        PORT_SCAN_LIMIT: "0",
-        PAIRING_CODE,
-        GUEST_CODE: "654321",
-        DATA_NAVIGATOR_HOST_SECRET: HOST_SECRET,
-        DB_PATH: path.join(root, "hub.sqlite"),
-        LAN_INBOX_DIR: path.join(root, "inbox"),
-      },
-      stdio: "ignore",
-    });
-    for (let attempt = 0; attempt < 100; attempt++) {
-      if (child.exitCode !== null) throw new Error(`LAN server exited: ${child.exitCode}`);
-      try {
-        const response = await fetch(`${origin}/lan/status`);
-        if (response.ok) return;
-      } catch {
-        // Wait for the server to bind.
+    const maxRetries = 3;
+    let lastError: Error | null = null;
+
+    for (let retry = 0; retry < maxRetries; retry++) {
+      const port = await freePort();
+      origin = `http://127.0.0.1:${port}`;
+      let stderr = "";
+
+      child = spawn(process.execPath, ["scripts/lan-server.mjs"], {
+        cwd: process.cwd(),
+        env: {
+          ...process.env,
+          HOST: "127.0.0.1",
+          PORT: String(port),
+          PORT_SCAN_LIMIT: "0",
+          PAIRING_CODE,
+          GUEST_CODE: "654321",
+          DATA_NAVIGATOR_HOST_SECRET: HOST_SECRET,
+          DB_PATH: path.join(root, "hub.sqlite"),
+          LAN_INBOX_DIR: path.join(root, "inbox"),
+        },
+        stdio: ["ignore", "ignore", "pipe"],
+      });
+
+      child.stderr?.on("data", (chunk) => {
+        stderr += chunk.toString();
+      });
+
+      let started = false;
+      for (let attempt = 0; attempt < 50; attempt++) {
+        if (child.exitCode !== null) {
+          lastError = new Error(
+            `LAN server exited: ${child.exitCode}${stderr ? ` - ${stderr.trim()}` : ""}`,
+          );
+          break;
+        }
+        try {
+          const response = await fetch(`${origin}/lan/status`);
+          if (response.ok) {
+            started = true;
+            break;
+          }
+        } catch {
+          // Wait for the server to bind.
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
       }
-      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      if (started) return;
+
+      child.kill();
+      await new Promise((resolve) => setTimeout(resolve, 100));
     }
-    throw new Error("LAN server did not start");
-  }, 10_000);
+
+    throw lastError ?? new Error("LAN server did not start");
+  }, 15_000);
 
   afterAll(() => {
     child?.kill();

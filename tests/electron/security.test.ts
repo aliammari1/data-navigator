@@ -117,16 +117,16 @@ describe("isAllowedAppOrigin", () => {
   });
 
   it("returns false for an invalid/malformed URL", () => {
-    expect(isAllowedAppOrigin("not-a-url")).toBe(false);
+    expect(isAllowedAppOrigin("not-a-url", "http://localhost:3000")).toBe(false);
   });
 
   it("returns false for data: URL", () => {
-    expect(isAllowedAppOrigin("data:text/html,<html>")).toBe(false);
+    expect(isAllowedAppOrigin("data:text/html,<html>", "http://localhost:3000")).toBe(false);
   });
 
   it("returns false for about:blank", () => {
     // about: protocol has no hostname, not file:, not localhost/127.0.0.1
-    expect(isAllowedAppOrigin("about:blank")).toBe(false);
+    expect(isAllowedAppOrigin("about:blank", "http://localhost:3000")).toBe(false);
   });
 });
 

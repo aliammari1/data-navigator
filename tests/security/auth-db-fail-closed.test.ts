@@ -42,5 +42,7 @@ describe("opt-in auth database encryption", () => {
 
     await expect(openAuthDb()).rejects.toThrow(/encryption migration failed/i);
     expect(fs.readFileSync(dbPath)).toEqual(corruptDb);
+    expect(fs.existsSync(`${dbPath}.plaintext.bak`)).toBe(true);
+    expect(fs.existsSync(`${dbPath}.enc.tmp`)).toBe(false);
   });
 });

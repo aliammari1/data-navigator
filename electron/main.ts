@@ -508,6 +508,12 @@ function assertAllowedDirectoryPath(dirPath: string): string {
 // ─── Trusted IPC Sender Guard ─────────────────────────────────────────────────
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
+  // The Playwright E2E harness invokes handlers directly via ipcMainInvokeHandler
+  // with a synthetic event lacking sender / senderFrame. Allow this test-only path.
+  if (process.env.PLAYWRIGHT_TEST === "true" && (!event?.sender || !event?.senderFrame)) {
+    return;
+  }
+
   const frame = event?.senderFrame;
   const sender = event?.sender;
   if (

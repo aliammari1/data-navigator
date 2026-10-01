@@ -23,13 +23,17 @@ describe("renderer DuckDB SQL file access", () => {
 
   afterAll(async () => {
     await duckdb.close();
-    await fs.rm(tempDir, { recursive: true, force: true });
+    try {
+      await fs.rm(tempDir, { recursive: true, force: true });
+    } catch {
+      // Best-effort cleanup on platforms locking native database files until GC
+    }
   });
 
   it("rejects a file reader separated from its call by a SQL comment", async () => {
     const target = path.join(tempDir, "private.txt").replaceAll("'", "''");
     await expect(
       duckdb.runReadOnlyQuery(`SELECT * FROM read_text/**/('${target}')`),
-    ).rejects.toThrow();
+    ).rejects.toThrow("Unsafe SQL: comments are not allowed.");
   });
 });

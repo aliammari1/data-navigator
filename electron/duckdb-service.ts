@@ -603,14 +603,14 @@ function stripSqlWrapping(sql: string): string {
 }
 
 function assertReadOnlySql(sql: string): string {
+  const trimmed = stripSqlWrapping(sql);
+
   // Comments can separate a file-reading function from its opening parenthesis,
   // bypassing the blockedFunctions check below (read_text/**/(...)).
-  const withoutStringLiterals = sql.replace(/'(?:[^']|'')*'/g, "''");
+  const withoutStringLiterals = trimmed.replace(/'(?:[^']|'')*'/g, "''");
   if (/\/\*|\*\/|--/.test(withoutStringLiterals)) {
     throw new Error("Unsafe SQL: comments are not allowed.");
   }
-
-  const trimmed = stripSqlWrapping(sql);
   const upper = trimmed.toUpperCase();
 
   const allowed =

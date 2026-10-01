@@ -100,9 +100,9 @@ function readFileHeader(filePath: string, length: number): Buffer | null {
  *  5. Only then atomically swap the temp file in over the original.
  *
  * On ANY error: leave the original plaintext DB in place and KEEP the backup;
- * the caller falls back to opening plaintext so the app still works.
+ * the caller fails closed rather than falling back to unencrypted storage.
  *
- * @returns true if the DB at `databasePath` is now encrypted; false to fall back.
+ * @returns true if the DB at `databasePath` is now encrypted; false on failure.
  */
 function migratePlaintextToEncrypted(databasePath: string, keyHex: string): boolean {
   const header = readFileHeader(databasePath, 16);
@@ -151,7 +151,7 @@ function migratePlaintextToEncrypted(databasePath: string, keyHex: string): bool
     renameSync(tempPath, databasePath);
     return true;
   } catch {
-    // Any failure → keep plaintext working, keep the backup, drop the temp.
+    // Any failure → preserve the plaintext DB and backup, drop temp, fail closed.
     try {
       if (source) source.close();
     } catch {

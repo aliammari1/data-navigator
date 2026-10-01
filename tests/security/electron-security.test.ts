@@ -17,6 +17,7 @@ import {
   wantsMicrophone,
   withRendererSecurityHeaders,
 } from "../../electron/security";
+import { ELECTRON_AUTH_PROTOCOL } from "../../src/platform/auth/electron-options";
 
 /**
  * Security tests for the Electron trust boundary.
@@ -86,12 +87,50 @@ describe("isAllowedAppOrigin", () => {
 
 describe("isAllowedAppNavigation", () => {
   it("rejects protocol-relative URLs while allowing the running app origin", () => {
-    expect(isAllowedAppNavigation("//evil.example.com", "http://localhost:3000", "dn-auth")).toBe(
-      false,
-    );
     expect(
-      isAllowedAppNavigation("http://localhost:3000/dashboard", "http://localhost:3000", "dn-auth"),
+      isAllowedAppNavigation("//evil.example.com", "http://localhost:3000", ELECTRON_AUTH_PROTOCOL),
+    ).toBe(false);
+    expect(
+      isAllowedAppNavigation(
+        "http://localhost:3000/dashboard",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
     ).toBe(true);
+  });
+
+  it("allows OAuth redirect navigation matching the registered auth protocol", () => {
+    expect(
+      isAllowedAppNavigation(
+        `${ELECTRON_AUTH_PROTOCOL}://callback?code=123`,
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(true);
+    expect(
+      isAllowedAppNavigation(
+        "other-app://callback?code=123",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects navigation when auth protocol is missing or target is unallowed", () => {
+    expect(
+      isAllowedAppNavigation(
+        `${ELECTRON_AUTH_PROTOCOL}://callback`,
+        "http://localhost:3000",
+        undefined,
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedAppNavigation(
+        "https://evil.example.com/phish",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(false);
   });
 });
 

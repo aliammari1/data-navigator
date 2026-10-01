@@ -328,8 +328,8 @@ jobs:
           RELEASE_TAG: ${{ inputs.release-tag }}
         shell: pwsh
         run: |
-          $installers = @(Get-ChildItem -Path dist -Include *.msi, *.exe -Recurse -File | Select-Object -ExpandProperty FullName)
-          if ($installers.Count -lt 2) { throw 'Expected MSI and EXE release assets.' }
+          $installers = @(Get-ChildItem -Path dist -File | Where-Object { $_.Extension -in '.msi', '.exe' } | Select-Object -ExpandProperty FullName)
+          if ($installers.Count -ne 2) { throw 'Expected one MSI and one EXE release asset.' }
           $certificate = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
           gh release upload $env:RELEASE_TAG @installers $certificate --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
