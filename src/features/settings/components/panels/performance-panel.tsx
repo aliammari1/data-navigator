@@ -92,6 +92,7 @@ export function PerformancePanel() {
         >
           <NumberSetting
             field="virtualizeThreshold"
+            ariaLabel="Virtualize tables at row count"
             value={virtualizeThreshold}
             onCommit={(v) => setPerformance({ virtualizeThreshold: v })}
             suffix="rows"

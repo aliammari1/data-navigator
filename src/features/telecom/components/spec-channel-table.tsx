@@ -258,7 +258,7 @@ export function SpecChannelTable({
                 {k.value}
               </div>
               <div className="text-[10px] text-muted-foreground">{k.label}</div>
-              {k.sub && <div className="text-[9px] text-muted-foreground/50">{k.sub}</div>}
+              {k.sub && <div className="text-[9px] text-muted-foreground">{k.sub}</div>}
             </div>
           ))}
         </div>
@@ -454,7 +454,7 @@ export function SpecChannelTable({
         </div>
       )}
       {!hasData && (
-        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground/50">
+        <div className="flex items-center justify-center py-6 text-xs text-muted-foreground">
           Aucune transaction réussie trouvée pour ce canal et cette période.
         </div>
       )}

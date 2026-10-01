@@ -59,6 +59,7 @@ export function FileManagementModal({
           </div>
           <button
             type="button"
+            aria-label="Fermer la gestion des fichiers"
             onClick={onClose}
             className="rounded-xl p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
           >

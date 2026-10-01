@@ -115,7 +115,7 @@ export function StatusStep({
       <span
         className={cn(
           "text-xs",
-          status === "pending" && "text-zinc-600",
+          status === "pending" && "text-muted-foreground",
           status === "active" && "text-blue-300",
           status === "done" && "text-zinc-300",
           status === "error" && "text-red-300",
@@ -124,7 +124,7 @@ export function StatusStep({
         {label}
       </span>
       {duration !== undefined && status === "done" && (
-        <span className="text-[10px] text-zinc-600 ml-auto">{duration}ms</span>
+        <span className="text-[10px] text-muted-foreground ml-auto">{duration}ms</span>
       )}
     </div>
   );

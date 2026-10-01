@@ -78,9 +78,8 @@ export default {
   // bounded without changing the score (timeout for hung mutants only).
   timeoutMS: 60000,
   timeoutFactor: 2,
-  // Per-module + overall thresholds. `break` left null so a low score reports
-  // (red/yellow) rather than failing the command — this run is a measurement.
-  thresholds: { high: 80, low: 60, break: null },
+  // Fail the quality gate if the score falls below the verified 70% baseline.
+  thresholds: { high: 80, low: 70, break: 70 },
   // Disable type-checking of mutants (we mutate already-typecheck-clean source;
   // ts checks per-mutant would dominate runtime for no extra signal).
   checkers: [],

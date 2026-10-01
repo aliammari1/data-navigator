@@ -10,23 +10,16 @@ import {
   Hash,
   HelpCircle,
   Plus,
-  Sparkles,
   Type,
-  X,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDataStore } from "@/core/stores/data-store";
 import { cn } from "@/shared/utils";
-import {
-  type ChatMessage,
-  type ClarificationPart,
-  useMoudirChatStore,
-} from "../../store/moudir-chat-store";
+import { type ClarificationPart, useMoudirChatStore } from "../../store/moudir-chat-store";
 
 function cleanQuestionText(question: string): string {
   const optionsAt = question.search(/\s*Options?\s*:/i);
@@ -303,7 +296,7 @@ export function ChatClarificationDock() {
               className={cn(
                 "h-6 text-[11px] px-2 rounded-md font-medium transition-colors",
                 isMulti
-                  ? "bg-primary/20 text-primary font-semibold"
+                  ? "bg-primary text-primary-foreground font-semibold"
                   : "text-muted-foreground hover:text-foreground",
               )}
               onClick={() => {
@@ -409,6 +402,7 @@ export function ChatClarificationDock() {
               <button
                 type="button"
                 disabled={busy}
+                aria-pressed={isMulti ? isSelected : undefined}
                 key={option}
                 onClick={() => {
                   if (isMulti) {
@@ -429,10 +423,17 @@ export function ChatClarificationDock() {
                 )}
               >
                 {isMulti && (
-                  <Checkbox
-                    checked={isSelected}
-                    className="size-3.5 pointer-events-none data-checked:bg-primary data-checked:border-primary"
-                  />
+                  <span
+                    aria-hidden="true"
+                    className={cn(
+                      "flex size-3.5 items-center justify-center rounded-[4px] border",
+                      isSelected
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border",
+                    )}
+                  >
+                    {isSelected && <Check className="size-3" />}
+                  </span>
                 )}
                 <kbd className="flex size-4 items-center justify-center rounded bg-muted text-[10px] font-mono text-muted-foreground group-hover:bg-primary/20 group-hover:text-primary transition-colors">
                   {shortcutNum}
@@ -546,10 +547,11 @@ export function ChatClarificationDock() {
               size="xs"
               onClick={confirmMulti}
               disabled={busy}
+              aria-label={`Valider la sélection (${currentSelected.size})`}
               className="h-7 text-xs px-3.5 gap-1.5 font-medium shadow-xs"
             >
               <Check className="size-3.5" />
-              <span>Confirmer la sélection ({currentSelected.size})</span>
+              <span>Valider la sélection ({currentSelected.size})</span>
             </Button>
           </div>
         )}

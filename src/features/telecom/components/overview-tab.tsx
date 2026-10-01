@@ -123,6 +123,11 @@ function PinChartButton({
   return (
     <button
       type="button"
+      aria-label={
+        isPinned
+          ? `Désépingler ${title} du tableau de bord`
+          : `Épingler ${title} au tableau de bord`
+      }
       onClick={() =>
         isPinned ? doUnpinFormulatorWidget(widgetId, title) : doPinFormulatorWidget(widgetId, title)
       }
@@ -239,14 +244,17 @@ function ExportToggle({
   checked,
   onToggle,
   label = "Exporter",
+  ariaLabel,
 }: {
   checked: boolean;
   onToggle: () => void;
   label?: string;
+  ariaLabel?: string;
 }) {
   return (
     <button
       type="button"
+      aria-label={ariaLabel ?? (label || "Exporter")}
       onClick={(event) => {
         event.stopPropagation();
         onToggle();
@@ -869,6 +877,7 @@ export const OverviewTab = memo(function OverviewTab({
                     checked={selectedOverviewSections.has("revenueGroups")}
                     onToggle={() => toggleOverviewSection("revenueGroups")}
                     label=""
+                    ariaLabel={`Exporter le groupe ${name}`}
                   />
                   <span
                     className="w-3 h-3 rounded-full flex-none shadow-sm ring-2 ring-border"

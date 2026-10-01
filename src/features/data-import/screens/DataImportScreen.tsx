@@ -578,7 +578,7 @@ function UploadDropzone({
         "bg-card",
       )}
     >
-      <input {...getInputProps()} />
+      <input {...getInputProps()} aria-label="Choose data file to import" />
 
       {/* Noise texture */}
       <div className="pointer-events-none absolute inset-0 bg-noise opacity-[0.035]" />
@@ -1013,7 +1013,7 @@ function UploadPipelineCard({
         <div className="mt-5 space-y-3">
           {(["Lecture", "Détection du format", "Profilage DuckDB", "Dataset prêt"] as const).map(
             (label) => (
-              <div key={label} className="flex items-center gap-2 opacity-35">
+              <div key={label} className="flex items-center gap-2">
                 <div className="flex h-5 w-5 flex-none items-center justify-center rounded-full border border-border bg-muted">
                   <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground" />
                 </div>

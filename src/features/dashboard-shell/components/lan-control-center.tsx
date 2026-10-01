@@ -410,6 +410,7 @@ export function LanControlCenter() {
                   <button
                     type="button"
                     onClick={() => copyText(serverCommand)}
+                    aria-label="Copy server command"
                     className="shrink-0 text-muted-foreground hover:text-foreground"
                   >
                     {copied ? (

@@ -81,6 +81,7 @@ export function CustomerProfilePanel({
             </div>
             <button
               type="button"
+              aria-label="Fermer le profil client"
               onClick={onClose}
               className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-muted/60 transition-colors"
             >
@@ -236,6 +237,7 @@ export function CustomerProfilePanel({
                       <div className="flex items-center gap-1">
                         <button
                           type="button"
+                          aria-label="Page précédente des transactions"
                           disabled={txPage === 0}
                           onClick={() => setTxPage((p) => p - 1)}
                           className="p-0.5 rounded hover:bg-muted/50 disabled:opacity-30"
@@ -247,6 +249,7 @@ export function CustomerProfilePanel({
                         </span>
                         <button
                           type="button"
+                          aria-label="Page suivante des transactions"
                           disabled={(txPage + 1) * TX_PAGE >= txTotal}
                           onClick={() => setTxPage((p) => p + 1)}
                           className="p-0.5 rounded hover:bg-muted/50 disabled:opacity-30"

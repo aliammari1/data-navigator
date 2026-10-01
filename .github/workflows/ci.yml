@@ -61,11 +61,9 @@ jobs:
 
       - name: Biome Lint
         run: pnpm run lint
-        continue-on-error: true
 
       - name: Biome Format Check
         run: pnpm run format:check
-        continue-on-error: true
 
       - name: TypeScript Typecheck
         run: pnpm run typecheck
@@ -78,7 +76,6 @@ jobs:
 
       - name: Knip Dead-Code Audit
         run: pnpm run check:deadcode
-        continue-on-error: true
 
   # ---------------------------------------------------------------------------
   # Tier 2: Unit & Property Tests (Vitest)
@@ -147,7 +144,6 @@ jobs:
       - name: Run Engine Latency & Throughput Benchmarks
         run: |
           node scripts/bench-engines.mjs | tee -a reports/benchmarks/engines-bench.log
-        continue-on-error: true
 
       - name: Publish Performance Regression Summary
         if: always()
@@ -265,22 +261,8 @@ jobs:
           rm -rf storybook-static/models
           rm -rf storybook-static/vad
 
-      # Advisory: Storybook 10's legacy Jest-based test-runner is currently
-      # incompatible with Jest 30.5+ when a test-runner config is present.
-      # The static Storybook build remains blocking; authenticated Playwright
-      # below is the browser E2E release gate.
-      - name: Storybook Interaction Tests (advisory)
-        id: storybook_interactions
+      - name: Storybook Interaction and Accessibility Tests
         run: pnpm run storybook:test:ci
-        continue-on-error: true
-
-      - name: Publish Storybook Advisory Status
-        if: always()
-        run: |
-          echo "### Storybook interactions (advisory)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Outcome: **${{ steps.storybook_interactions.outcome }}**" >> $GITHUB_STEP_SUMMARY
-          echo "The static Storybook build is blocking; this legacy test-runner check is advisory." >> $GITHUB_STEP_SUMMARY
 
       - name: Playwright E2E Integration Suite
         run: pnpm run test:e2e

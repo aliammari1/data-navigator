@@ -146,12 +146,14 @@ export function NumberSetting({
   onCommit,
   suffix,
   className,
+  ariaLabel,
 }: {
   field: NumericFieldName;
   value: number;
   onCommit: (v: number) => void;
   suffix?: string;
   className?: string;
+  ariaLabel?: string;
 }) {
   const id = useId();
   const [draft, setDraft] = useState(String(value));
@@ -177,6 +179,7 @@ export function NumberSetting({
       <input
         id={id}
         type="number"
+        aria-label={ariaLabel}
         inputMode="numeric"
         value={draft}
         onChange={(e) => setDraft(e.target.value)}
@@ -264,7 +267,7 @@ export function SliderSetting({
         min={min}
         max={max}
         step={step}
-        aria-label={ariaLabel}
+        thumbAriaLabel={ariaLabel}
         onValueChange={(v) => setDraft(v[0] ?? draft)}
         onValueCommit={(v) => {
           // Validate/clamp through the schema before committing.
@@ -280,11 +283,12 @@ export function SliderSetting({
 
 // ─── Quota progress bar ─────────────────────────────────────────────────────────
 
-export function QuotaBar({ pct }: { pct: number }) {
+export function QuotaBar({ pct, ariaLabel }: { pct: number; ariaLabel: string }) {
   const clamped = Math.max(0, Math.min(100, pct));
   return (
     <Progress
       value={clamped}
+      aria-label={ariaLabel}
       className={cn(
         clamped > 85 && "[&_[data-slot=progress-indicator]]:bg-red-500",
         clamped > 60 && clamped <= 85 && "[&_[data-slot=progress-indicator]]:bg-amber-500",

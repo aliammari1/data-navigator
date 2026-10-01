@@ -72,8 +72,7 @@ jobs:
         run: pnpm run audit:security:full
 
       - name: Dead-code hygiene
-        run: pnpm dlx knip
-        continue-on-error: true
+        run: pnpm run check:deadcode
 
   # ---------------------------------------------------------------------------
   # Secret scanning: Gitleaks inspecting Git commits rather than raw filesystem

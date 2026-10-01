@@ -191,11 +191,11 @@ export const AnalysisTab = memo(function AnalysisTab({
                 damping: 24,
                 delay: i * 0.08,
               }}
-              className={cn("rounded-xl border p-4", item.color.split(" ").slice(0, 2).join(" "))}
+              className={cn("rounded-xl border p-4", item.color)}
             >
-              <div className="text-xs text-muted-foreground mb-1">{item.label}</div>
-              <div className={cn("text-2xl font-bold", item.color.split(" ")[2])}>{item.val}</div>
-              <div className="text-xs text-muted-foreground mt-1">{item.sub}</div>
+              <div className="mb-1 text-xs text-slate-700 dark:text-slate-200">{item.label}</div>
+              <div className="text-2xl font-bold">{item.val}</div>
+              <div className="mt-1 text-xs text-slate-700 dark:text-slate-200">{item.sub}</div>
             </motion.div>
           ))}
         </div>
@@ -252,7 +252,7 @@ export const AnalysisTab = memo(function AnalysisTab({
                 className={cn(
                   "px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors",
                   selectedGroup === name
-                    ? "text-white border-transparent shadow-sm"
+                    ? "text-slate-950 border-transparent shadow-sm"
                     : "text-muted-foreground border-border bg-card hover:bg-muted/50",
                 )}
                 style={selectedGroup === name ? { background: color } : {}}

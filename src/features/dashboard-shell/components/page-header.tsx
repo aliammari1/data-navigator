@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -21,7 +22,7 @@ export function PageHeader({ title, description, breadcrumbs, actions }: PageHea
         <Breadcrumb>
           <BreadcrumbList>
             {breadcrumbs.map((crumb, index) => (
-              <div key={crumb.label} className="flex items-center gap-1">
+              <Fragment key={crumb.label}>
                 <BreadcrumbItem>
                   {crumb.href ? (
                     <BreadcrumbLink href={crumb.href}>{crumb.label}</BreadcrumbLink>
@@ -30,7 +31,7 @@ export function PageHeader({ title, description, breadcrumbs, actions }: PageHea
                   )}
                 </BreadcrumbItem>
                 {index < breadcrumbs.length - 1 && <BreadcrumbSeparator />}
-              </div>
+              </Fragment>
             ))}
           </BreadcrumbList>
         </Breadcrumb>

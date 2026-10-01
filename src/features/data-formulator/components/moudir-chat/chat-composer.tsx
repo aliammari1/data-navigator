@@ -562,7 +562,7 @@ export function ChatComposer() {
               <PromptInputTools>
                 <AttachmentUploadButton />
 
-                <PromptInputActionMenu>
+                <PromptInputActionMenu modal={false}>
                   <PromptInputActionMenuTrigger
                     aria-label="Changer le modèle actif"
                     className={cn(
