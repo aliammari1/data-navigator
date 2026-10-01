@@ -1,5 +1,12 @@
 # data-navigator
 
+## 1.0.8
+
+### Patch Changes
+
+- f19056b: Require every configured CI, Storybook, mutation, and security quality gate to pass before publishing a release, and stabilize the desktop launcher browser journey.
+- d3d2120: Require signed, attested installers and blocking security checks for releases; harden Electron, LAN, DuckDB, auth database, and offline runtime boundaries.
+
 ## 1.0.7
 
 ### Patch Changes
