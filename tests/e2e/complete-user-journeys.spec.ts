@@ -107,6 +107,9 @@ test.describe("Complete user journey coverage", () => {
     page,
   }) => {
     for (const path of TELECOM_ROUTES) {
+      // Unload the previous route before a full navigation. Its client router
+      // can otherwise cancel page.goto while the next document is loading.
+      await page.goto("about:blank");
       await gotoPage(page, path);
       await expectUsablePage(page, /rapport|telecom|télécom|canal|kpi|données/i);
     }
@@ -187,6 +190,13 @@ test.describe("Complete user journey coverage", () => {
   test("collaboration page journey adds a comment, searches it, resolves it, and sends chat", async ({
     page,
   }) => {
+    await page.addInitScript(() => {
+      (
+        window as Window & { electronRuntime?: { getMode: () => Promise<"online"> } }
+      ).electronRuntime = {
+        getMode: async () => "online",
+      };
+    });
     await gotoPage(page, "/dashboard/collaborative");
 
     await expectUsablePage(page, /collaboration|workspace|comments/i);
