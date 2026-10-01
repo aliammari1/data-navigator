@@ -1,6 +1,6 @@
-# facts: Release pipeline for data-navigator (private, offline-first Electron app). Changesets
-# owns version+git-tag+GitHub Release on push to main; a needs-gated Windows job then builds and
-# attaches the WiX .msi installer to that Release. The tag is created with GITHUB_TOKEN, which does NOT
+# facts: Release pipeline for data-navigator (offline-first Electron app). Changesets
+# owns version+git-tag on push to main; security gates run first, then a draft Release
+# receives signed installers and is published only after both builds pass. The tag is created with GITHUB_TOKEN, which does NOT
 # re-trigger electron-windows.yml's `on: push: tags` (GitHub loop-prevention safeguard), so the
 # installer build is chained explicitly via `needs` + the changesets `published` output instead of by
 # tag push. Third-party actions are SHA-pinned; first-party actions/* use major tags. No GGUF
@@ -22,8 +22,35 @@ concurrency:
 permissions: {}
 
 jobs:
+  security:
+    name: Release security checks
+    uses: ./.github/workflows/security.yml
+    permissions:
+      contents: read
+      pull-requests: read
+      security-events: write
+
+  osv:
+    name: Release OSV lockfile scan
+    uses: ./.github/workflows/osv-scanner.yml
+    permissions:
+      contents: read
+
+  ci:
+    name: Release CI
+    uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+
+  quality:
+    name: Release quality checks
+    uses: ./.github/workflows/quality.yml
+    permissions:
+      contents: read
+
   changesets:
     name: Version or release
+    needs: [security, osv, ci, quality]
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
@@ -31,8 +58,8 @@ jobs:
       contents: write
       pull-requests: write
 
-    # Expose the changesets outcome so the Windows job only builds when a real
-    # release was actually cut (a git tag + GitHub Release were created), plus the
+    # Expose the changesets outcome so installers only build when a real
+    # release was cut (a version tag was created), plus the
     # exact `v<version>` tag the MSI must be attached to.
     outputs:
       published: ${{ steps.changesets.outputs.published }}
@@ -69,19 +96,19 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Create release pull request or GitHub Release
+      - name: Create release pull request or version tag
         id: changesets
         # Third-party action: pinned to a 40-char commit SHA per supply-chain policy.
         uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
         with:
           version: pnpm run release:version
           # Private root package: `changeset publish` skips npm and (privatePackages.tag=true)
-          # creates the `v<version>` git tag + GitHub Release. No npm token needed.
+          # creates the `v<version>` git tag. The release remains unpublished until the builds pass.
           publish: pnpm run release:publish
           title: "Release: version Data Navigator"
           commit: "Prepare a traceable Data Navigator release"
           commitMode: github-api
-          createGithubReleases: true
+          createGithubReleases: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -92,15 +119,106 @@ jobs:
         if: steps.changesets.outputs.published == 'true'
         run: |
           version="$(node -p "require('./package.json').version")"
+          node -e 'const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(process.argv[1]); if (!m || (+m[1] < 1) || (+m[1] === 1 && +m[2] === 0 && +m[3] < 8)) { console.error("Releases before v1.0.8 are not supported by these gates."); process.exit(1); }' "$version"
           echo "releaseTag=v${version}" >> "$GITHUB_OUTPUT"
 
-  # Build + attach the Windows installer to the Release that the changesets job just cut.
+      - name: Require verified source commit and push signed release tag
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
+          GPG_SIGNING_EMAIL: ${{ secrets.GPG_SIGNING_EMAIL }}
+          RELEASE_TAG: ${{ steps.tag.outputs.releaseTag }}
+        run: |
+          verified="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA" --jq '.commit.verification.verified')"
+          if [ "$verified" != 'true' ]; then
+            echo '::error::The release source commit must have a verified signature.'
+            exit 1
+          fi
+          if [ -z "$GPG_PRIVATE_KEY" ] || [ -z "$GPG_SIGNING_FINGERPRINT" ] || [ -z "$GPG_SIGNING_EMAIL" ]; then
+            echo '::error::GPG_PRIVATE_KEY, GPG_SIGNING_FINGERPRINT, and GPG_SIGNING_EMAIL are required.'
+            exit 1
+          fi
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          actual="$(gpg --batch --with-colons --fingerprint --list-secret-keys "$GPG_SIGNING_FINGERPRINT" | awk -F: '$1 == "fpr" {print $10; exit}')"
+          if [ "$actual" != "$GPG_SIGNING_FINGERPRINT" ]; then
+            echo '::error::The release GPG key does not match the pinned fingerprint.'
+            exit 1
+          fi
+          git tag -d "$RELEASE_TAG"
+          git -c user.name='Data Navigator Release' -c user.email="$GPG_SIGNING_EMAIL" -c user.signingkey="$GPG_SIGNING_FINGERPRINT" tag -s "$RELEASE_TAG" -m "Release $RELEASE_TAG"
+          git tag -v "$RELEASE_TAG"
+          if [ "$(git rev-parse "$RELEASE_TAG^{}")" != "$GITHUB_SHA" ]; then
+            echo '::error::The signed release tag does not point to the validated source commit.'
+            exit 1
+          fi
+          git push origin "$RELEASE_TAG"
+
+  draft-release:
+    name: Create draft GitHub Release
+    needs: changesets
+    if: needs.changesets.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.changesets.outputs.releaseTag }}
+          lfs: false
+
+      - name: Require GitHub-verified signed tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: |
+          tag_object="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$RELEASE_TAG" --jq '.object | select(.type == "tag") | .sha')"
+          if [ -z "$tag_object" ]; then
+            echo '::error::The release tag is not an annotated signed tag.'
+            exit 1
+          fi
+          verified="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.verification.verified')"
+          if [ "$verified" != 'true' ]; then
+            echo '::error::GitHub has not verified the release tag signature.'
+            exit 1
+          fi
+          target_commit="$(gh api "repos/$GITHUB_REPOSITORY/git/tags/$tag_object" --jq '.object.sha')"
+          commit_verified="$(gh api "repos/$GITHUB_REPOSITORY/commits/$target_commit" --jq '.commit.verification.verified')"
+          if [ "$commit_verified" != 'true' ]; then
+            echo '::error::The tagged source commit must have a GitHub-verified signature.'
+            exit 1
+          fi
+
+      - name: Create draft with Changesets notes
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          awk -v version="$version" '$0 == "## " version {printing=1; next} printing && /^## / {exit} printing {print}' CHANGELOG.md > release-notes.md
+          test -s release-notes.md
+          cat >> release-notes.md <<'EOF'
+
+          ## Windows signature and trust
+
+          The Windows installers use a self-signed certificate for direct distribution
+          to a known group of users. Windows does not trust this certificate by default.
+          Before installing its public certificate, verify its SHA-256 fingerprint
+          through a separate trusted channel with the publisher:
+          `F184780D4E767EBCC49F61DF060023A0F7B69DBD0327EAEE54139AFDF0C31DE4`.
+          The certificate is attached as `data-navigator-signing.cer`.
+          EOF
+          gh release create "$RELEASE_TAG" --draft --verify-tag --notes-file release-notes.md
+
+  # Build + attach the Windows installer to the draft Release.
   # Chained via `needs` (not a tag-push trigger) because GITHUB_TOKEN-created tags
   # do not start new workflow runs. Calls the reusable Windows build in
   # electron-windows.yml so there is a single source of truth for the installer build.
   windows-msi:
     name: Build + publish Windows Installer
-    needs: changesets
+    needs: [changesets, draft-release]
     if: needs.changesets.outputs.published == 'true'
     uses: ./.github/workflows/electron-windows.yml
     permissions:
@@ -115,7 +233,7 @@ jobs:
 
   linux-package:
     name: Build + publish Linux Packages
-    needs: changesets
+    needs: [changesets, draft-release]
     if: needs.changesets.outputs.published == 'true'
     uses: ./.github/workflows/electron-linux.yml
     permissions:
@@ -127,4 +245,44 @@ jobs:
       # Check out + attach the packages to the exact tag changesets created.
       release-tag: ${{ needs.changesets.outputs.releaseTag }}
     secrets: inherit
+
+  publish-release:
+    name: Publish verified Release
+    needs: [changesets, draft-release, windows-msi, linux-package]
+    if: needs.changesets.outputs.published == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Verify draft assets and build attestations
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: |
+          gh release view "$RELEASE_TAG" --json isDraft,assets > release.json
+          jq -e '
+            .isDraft == true and
+            (.assets | any(.name | endswith(".msi"))) and
+            (.assets | any(.name | endswith(".exe"))) and
+            (.assets | any(.name | endswith(".AppImage"))) and
+            (.assets | any(.name | endswith(".deb"))) and
+            (.assets | any(.name | endswith(".AppImage.asc"))) and
+            (.assets | any(.name | endswith(".deb.asc"))) and
+            (.assets | any(.name == "data-navigator-signing.cer")) and
+            (.assets | any(.name == "release-signing-key.asc")) and
+            (.assets | any(.name == "release-signing-key.fingerprint"))
+          ' release.json
+          while IFS= read -r digest; do
+            count="$(gh api "repos/$GITHUB_REPOSITORY/attestations/$digest" --jq '.attestations | length')"
+            if [ "$count" -lt 1 ]; then
+              echo "::error::No build attestation for $digest"
+              exit 1
+            fi
+          done < <(jq -r '.assets[] | select(.name | test("\\.(msi|exe|AppImage|deb)$")) | .digest' release.json)
+
+      - name: Publish release after all gates pass
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: gh release edit "$RELEASE_TAG" --draft=false
 

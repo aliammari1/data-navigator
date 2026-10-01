@@ -691,7 +691,7 @@ function auditAirGapAssurance() {
       /localhost/.test(securityTs) &&
       /127\.0\.0\.1/.test(securityTs) &&
       /file:/.test(securityTs),
-    "Air-Gap IPC Boundary: isAllowedAppOrigin restricts privileged IPC strictly to loopback/file origins",
+    "Air-Gap IPC Boundary: isAllowedAppOrigin checks the active loopback application origin",
   );
 
   // 3. Connect-src in CSP does not contain open wildcards or unvetted domains.

@@ -11,9 +11,10 @@ on:
       - develop
   merge_group:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # Least privilege: grant nothing at top level; jobs declare what they need.
@@ -66,7 +67,9 @@ jobs:
 
       - name: Audit production dependencies
         run: pnpm run audit:security
-        continue-on-error: true
+
+      - name: Run full automated security audit
+        run: pnpm run audit:security:full
 
       - name: Dead-code hygiene
         run: pnpm dlx knip
@@ -92,9 +95,10 @@ jobs:
 
       - name: Install gitleaks
         env:
-          GITLEAKS_VERSION: 8.21.2
+          GITLEAKS_VERSION: 8.30.1
         run: |
           curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" -o gitleaks.tar.gz
+          echo '551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb  gitleaks.tar.gz' | sha256sum --check
           tar -xzf gitleaks.tar.gz gitleaks
           sudo install gitleaks /usr/local/bin/gitleaks
           gitleaks version
@@ -149,7 +153,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install semgrep
-        run: python -m pip install --upgrade semgrep
+        run: python -m pip install semgrep==1.178.0
 
       - name: Run Semgrep (OSS, no login)
         env:
@@ -175,3 +179,35 @@ jobs:
           path: semgrep.sarif
           if-no-files-found: ignore
           retention-days: 7
+
+  codeql:
+    name: CodeQL and open-alert gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+        with:
+          lfs: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4
+        with:
+          languages: javascript-typescript
+          build-mode: none
+
+      - name: Analyze source
+        uses: github/codeql-action/analyze@v4
+
+      - name: Block open code scanning alerts
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          alerts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open" --jq '.[].number')"
+          if [ -n "$alerts" ]; then
+            echo "::error::Open code scanning alerts block release: $alerts"
+            exit 1
+          fi

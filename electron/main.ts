@@ -39,6 +39,7 @@ import { clearApprovedLanIps, lanProxyHeaders, mayRequestLanPath } from "@/serve
 import { PROD_PORT_RANGE, resolveAppPort } from "./port-picker";
 
 let currentServerPort = 3000;
+let currentAppOrigin: string | null = null;
 
 import { authClient } from "./auth-client";
 import {
@@ -127,11 +128,15 @@ import * as modelDownloadService from "./model-download-service";
 import { ensureAuthDbKeyEnv } from "./secure-store";
 import {
   assertLoopbackHostname,
+  assertOnlineMode,
   ensureAuthSecretEnv,
+  isAllowedAppNavigation,
   isAllowedAppOrigin,
   type MediaPermissionDetails,
   PathAccessController,
   PRODUCTION_FUSE_CONFIG,
+  shouldAllowRendererRequest,
+  shouldOpenExternalUrl,
   wantsMicrophone,
   withRendererSecurityHeaders,
 } from "./security";
@@ -304,9 +309,11 @@ ipcMain.handle("runtime:setMode", (event, mode: "offline" | "online") =>
   withTrustedSender(event, async () => {
     if (mode !== "offline" && mode !== "online") throw new Error("Invalid launch mode.");
     if (mode === "offline") {
+      runtimeMode = "offline";
+      for (const controller of activeModelDownloads) controller.abort();
+      await pyodideDownloader.cancelPyodideDownload();
       stopLanNextProxy();
       await collabHubService.stop();
-      runtimeMode = "offline";
       return mode;
     }
     runtimeMode = "online";
@@ -501,17 +508,17 @@ function assertAllowedDirectoryPath(dirPath: string): string {
 // ─── Trusted IPC Sender Guard ─────────────────────────────────────────────────
 
 function assertTrustedSender(event: IpcMainInvokeEvent): void {
-  // In test harnesses (e.g. electron-playwright-helpers ipcMainInvokeHandler),
-  // event is a synthesized mock object without sender or senderFrame.
-  if (!event || (!event.sender && !event.senderFrame)) {
-    return;
-  }
-  const frameUrl = event.senderFrame?.url;
-  const webContentsUrl = event.sender?.getURL ? event.sender.getURL() : undefined;
-  const url = frameUrl || webContentsUrl;
-
-  if (url && !isAllowedAppOrigin(url)) {
-    throw new Error(`Blocked IPC call from untrusted sender: ${url}`);
+  const frame = event?.senderFrame;
+  const sender = event?.sender;
+  if (
+    !mainWindow ||
+    !sender ||
+    sender !== mainWindow.webContents ||
+    !frame ||
+    frame !== sender.mainFrame ||
+    !isAllowedAppOrigin(frame.url, currentAppOrigin ?? undefined)
+  ) {
+    throw new Error(`Blocked IPC call from untrusted sender: ${frame?.url ?? "unknown"}`);
   }
 }
 
@@ -1009,7 +1016,10 @@ ipcMain.handle("pyodide:status", async (event) =>
 );
 
 ipcMain.handle("pyodide:download", async (event) =>
-  withTrustedSender(event, async () => pyodideDownloader.downloadPyodide()),
+  withTrustedSender(event, async () => {
+    assertOnlineMode(runtimeMode, "Pyodide download");
+    return pyodideDownloader.downloadPyodide();
+  }),
 );
 
 ipcMain.handle("pyodide:cancel", async (event) =>
@@ -1244,7 +1254,7 @@ function installMediaPermissionHandlers(): void {
       if (permission !== "media") return false;
       const mediaDetails = details as MediaPermissionDetails | undefined;
       const origin = mediaDetails?.securityOrigin ?? requestingOrigin;
-      return isAllowedAppOrigin(origin);
+      return isAllowedAppOrigin(origin, currentAppOrigin ?? undefined);
     },
   );
 
@@ -1262,7 +1272,7 @@ function installMediaPermissionHandlers(): void {
       const pageUrl =
         mediaDetails?.requestingUrl ?? mediaDetails?.securityOrigin ?? webContents.getURL();
 
-      if (!isAllowedAppOrigin(pageUrl)) {
+      if (!isAllowedAppOrigin(pageUrl, currentAppOrigin ?? undefined)) {
         callback(false);
         return;
       }
@@ -1668,6 +1678,7 @@ ipcMain.handle("chat:dispose", async (event, input: unknown) =>
 // allowlisted model keys are downloadable (no raw URLs cross the bridge).
 
 const modelDownloadAbortControllers = new Map<string, AbortController>();
+const activeModelDownloads = new Set<AbortController>();
 
 ipcMain.handle("models:listPresence", async (event) =>
   withTrustedSender(event, () => modelDownloadService.listModelPresence()),
@@ -1681,9 +1692,11 @@ ipcMain.handle("models:isPresent", async (event, key: string) =>
 
 ipcMain.handle("models:download", async (event, input: { key: string; requestId?: string }) =>
   withTrustedSender(event, () => {
+    assertOnlineMode(runtimeMode, "Model download");
     parseIpc(ModelDownloadSchema, input, "models:download");
     const requestId = input?.requestId;
     const controller = new AbortController();
+    activeModelDownloads.add(controller);
     if (requestId) modelDownloadAbortControllers.set(requestId, controller);
 
     return modelDownloadService
@@ -1700,6 +1713,7 @@ ipcMain.handle("models:download", async (event, input: { key: string; requestId?
           : undefined,
       })
       .finally(() => {
+        activeModelDownloads.delete(controller);
         if (requestId) modelDownloadAbortControllers.delete(requestId);
       });
   }),
@@ -1841,18 +1855,11 @@ async function createWindow(): Promise<void> {
   // window.open (route real external https links to the OS browser); restrict
   // in-window navigation/redirects to the local app origin + the OAuth protocol;
   // refuse webview attachment outright.
-  const isAllowedNavigation = (target: string): boolean => {
-    if (target.startsWith("/")) return true;
-    if (isAllowedAppOrigin(target)) return true;
-    try {
-      return new URL(target).protocol === `${ELECTRON_AUTH_PROTOCOL}:`;
-    } catch {
-      return false;
-    }
-  };
+  const isAllowedNavigation = (target: string): boolean =>
+    isAllowedAppNavigation(target, currentAppOrigin ?? undefined, ELECTRON_AUTH_PROTOCOL);
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith("https://")) void shell.openExternal(url);
+    if (shouldOpenExternalUrl(url, runtimeMode)) void shell.openExternal(url);
     return { action: "deny" };
   });
 
@@ -1886,6 +1893,7 @@ async function createWindow(): Promise<void> {
     void installReactDevTools();
 
     const devPort = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+    currentAppOrigin = `http://localhost:${devPort}`;
     await mainWindow.loadURL(`http://localhost:${devPort}/dashboard`);
     if (!process.env.PLAYWRIGHT_TEST && process.env.NODE_ENV !== "test") {
       mainWindow.webContents.openDevTools();
@@ -1937,6 +1945,7 @@ async function createWindow(): Promise<void> {
           ? "127.0.0.1"
           : parsedServerUrl.hostname;
       const origin = `${parsedServerUrl.protocol}//${host}:${parsedServerUrl.port || "3000"}`;
+      currentAppOrigin = origin;
 
       // Wait up to 10 seconds for the HTTP server to accept requests
       const healthCheckUrl = `${origin}/`;
@@ -2216,8 +2225,11 @@ app
       try {
         const url = new URL(request.url);
         const root = path.resolve(pyodideDownloader.getPyodideInstallPath());
-        const target = path.resolve(root, "." + url.pathname);
-        if (!target.startsWith(root + path.sep) && target !== root) {
+        const requested = path.resolve(root, `.${url.pathname}`);
+        let target: string;
+        try {
+          target = new PathAccessController(root).assertAllowedReadPath(requested);
+        } catch {
           return new Response("forbidden", { status: 403 });
         }
         const data = await readFile(target);
@@ -2262,6 +2274,16 @@ app
     }
 
     installMediaPermissionHandlers();
+
+    session.defaultSession.webRequest.onBeforeRequest((details, callback) => {
+      callback({
+        cancel: !shouldAllowRendererRequest(
+          details.url,
+          runtimeMode,
+          currentAppOrigin ?? undefined,
+        ),
+      });
+    });
 
     session.defaultSession.webRequest.onErrorOccurred((details) => {
       console.warn(

@@ -208,9 +208,8 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     };
   }
 
-  // Encrypted path (opt-in). Migrate an existing plaintext DB first; if the
-  // migration cannot complete safely, fall back to plaintext so the app still
-  // works (the plaintext DB and its backup are left intact).
+  // Encrypted path (opt-in). Migrate an existing plaintext DB first. A failed
+  // migration leaves the original and backup intact but must not open plaintext.
   let migrated = true;
   if (plan.needsMigration) {
     migrated = migratePlaintextToEncrypted(databasePath, plan.key);
@@ -234,16 +233,7 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     };
   }
 
-  const handle = openSqliteHandle({
-    path: databasePath,
-    schema,
-    migrationsFolder,
-  });
-  return {
-    db: handle.db,
-    path: databasePath,
-    sqlite: handle.sqlite,
-  };
+  throw new Error("Auth database encryption migration failed; plaintext database was preserved.");
 }
 
 type AuthDatabase = ReturnType<typeof createAuthDatabase>;

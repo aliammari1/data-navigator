@@ -1,5 +1,12 @@
 import crypto from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  lstatSync,
+  mkdirSync,
+  readFileSync,
+  realpathSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 
 /**
@@ -16,7 +23,7 @@ import path from "node:path";
  *  - Filesystem access is denied by default and only granted for paths the user
  *    explicitly selected through a native dialog, or paths inside the app's own
  *    data directory.
- *  - IPC is only honoured from local app origins (file://, localhost, 127.0.0.1).
+ *  - IPC is only honoured from the active loopback application origin.
  */
 
 export function normalizePath(filePath: string): string {
@@ -35,21 +42,100 @@ export function isPathInside(childPath: string, parentPath: string): boolean {
   return relative === "" || (!relative.startsWith("..") && !path.isAbsolute(relative));
 }
 
+/** Resolve existing path components while retaining a not-yet-created save suffix. */
+function canonicalPath(filePath: string): string {
+  const resolved = normalizePath(filePath);
+  try {
+    return realpathSync(resolved);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+
+    // A dangling symlink also produces ENOENT from realpath, but opening it can
+    // create a file outside the authorized directory. Reject it explicitly.
+    try {
+      lstatSync(resolved);
+      throw new Error(`Blocked dangling symlink: ${resolved}`);
+    } catch (statError) {
+      if ((statError as NodeJS.ErrnoException).code !== "ENOENT") throw statError;
+    }
+
+    const parent = path.dirname(resolved);
+    if (parent === resolved) throw error;
+    return path.join(canonicalPath(parent), path.basename(resolved));
+  }
+}
+
 /**
- * Only local application origins are trusted to invoke privileged IPC.
- * Anything else (http(s) to a remote host, data:, about:, malformed) is denied.
+ * Only the exact running application origin may invoke privileged IPC.
+ * Another loopback port is another application, and file:// grants broad local
+ * privileges, so neither is an acceptable substitute for the active origin.
  */
-export function isAllowedAppOrigin(value?: string): boolean {
-  if (!value) return false;
+export function isAllowedAppOrigin(value?: string, expectedOrigin?: string): boolean {
+  if (!value || !expectedOrigin) return false;
 
   try {
     const url = new URL(value);
-
-    if (url.protocol === "file:") return true;
-    if (url.hostname === "localhost") return true;
-    if (url.hostname === "127.0.0.1") return true;
-
+    const expected = new URL(expectedOrigin);
+    return (
+      url.protocol === "http:" &&
+      expected.protocol === "http:" &&
+      (expected.hostname === "localhost" || expected.hostname === "127.0.0.1") &&
+      url.origin === expected.origin
+    );
+  } catch {
     return false;
+  }
+}
+
+/** Electron's navigation events carry absolute URLs; never treat `//host` as a local path. */
+export function isAllowedAppNavigation(
+  target: string,
+  expectedOrigin?: string,
+  authProtocol?: string,
+): boolean {
+  if (isAllowedAppOrigin(target, expectedOrigin)) return true;
+  if (!authProtocol) return false;
+  try {
+    return new URL(target).protocol === `${authProtocol}:`;
+  } catch {
+    return false;
+  }
+}
+
+/** Explicit Online mode is required before initiating an external network action. */
+export function assertOnlineMode(mode: "offline" | "online", action: string): void {
+  if (mode !== "online") throw new Error(`${action} requires Online mode.`);
+}
+
+/** External links may leave the app only when the user selected Online mode. */
+export function shouldOpenExternalUrl(url: string, mode: "offline" | "online"): boolean {
+  if (mode !== "online") return false;
+  try {
+    return new URL(url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Block renderer network egress in Offline mode while preserving local app traffic. */
+export function shouldAllowRendererRequest(
+  url: string,
+  mode: "offline" | "online",
+  appOrigin?: string,
+): boolean {
+  if (mode === "online") return true;
+  try {
+    const target = new URL(url);
+    if (target.protocol === "http:") {
+      if (!appOrigin) return false;
+      const app = new URL(appOrigin);
+      return (
+        app.protocol === "http:" &&
+        target.port === app.port &&
+        (target.hostname === "localhost" || target.hostname === "127.0.0.1")
+      );
+    }
+    return !["https:", "ws:", "wss:", "file:"].includes(target.protocol);
   } catch {
     return false;
   }
@@ -107,7 +193,7 @@ export class PathAccessController {
   readonly #allowedDirectoryPaths = new Set<string>();
 
   constructor(dataDir: string) {
-    this.#dataDir = normalizePath(dataDir);
+    this.#dataDir = canonicalPath(dataDir);
   }
 
   get dataDir(): string {
@@ -115,28 +201,28 @@ export class PathAccessController {
   }
 
   isInsideDataDir(filePath: string): boolean {
-    return isPathInside(filePath, this.#dataDir);
+    return isPathInside(canonicalPath(filePath), this.#dataDir);
   }
 
   /** Remember a user-selected file/dir for reads (e.g. from an open dialog). */
   rememberReadPath(filePath: string): void {
-    const resolved = normalizePath(filePath);
+    const resolved = canonicalPath(filePath);
     this.#allowedReadPaths.add(resolved);
     this.#allowedDirectoryPaths.add(resolved);
   }
 
   /** Remember a user-selected save target for writes (e.g. from a save dialog). */
   rememberSavePath(filePath: string): void {
-    this.#allowedWritePaths.add(normalizePath(filePath));
+    this.#allowedWritePaths.add(canonicalPath(filePath));
   }
 
   /** Remember a user-selected directory (open-directory dialog). */
   rememberDirectory(dirPath: string): void {
-    this.#allowedDirectoryPaths.add(normalizePath(dirPath));
+    this.#allowedDirectoryPaths.add(canonicalPath(dirPath));
   }
 
   assertAllowedReadPath(filePath: string): string {
-    const resolved = normalizePath(filePath);
+    const resolved = canonicalPath(filePath);
 
     if (this.#allowedReadPaths.has(resolved) || this.isInsideDataDir(resolved)) {
       return resolved;
@@ -152,7 +238,7 @@ export class PathAccessController {
   }
 
   assertAllowedWritePath(filePath: string): string {
-    const resolved = normalizePath(filePath);
+    const resolved = canonicalPath(filePath);
 
     if (this.#allowedWritePaths.has(resolved) || this.isInsideDataDir(resolved)) {
       return resolved;
@@ -162,7 +248,7 @@ export class PathAccessController {
   }
 
   assertAllowedDeletePath(filePath: string): string {
-    const resolved = normalizePath(filePath);
+    const resolved = canonicalPath(filePath);
 
     if (!this.isInsideDataDir(resolved)) {
       throw new Error(`Blocked delete access outside app data dir: ${resolved}`);
@@ -172,7 +258,7 @@ export class PathAccessController {
   }
 
   assertAllowedDirectoryPath(dirPath: string): string {
-    const resolved = normalizePath(dirPath);
+    const resolved = canonicalPath(dirPath);
 
     if (this.#allowedDirectoryPaths.has(resolved) || this.isInsideDataDir(resolved)) {
       return resolved;

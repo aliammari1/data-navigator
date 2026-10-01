@@ -3,17 +3,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // ─── Mock node:fs (used by loadOrCreateAuthSecret) ───────────────────────────
 
-vi.mock("node:fs", () => {
+vi.mock("node:fs", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("node:fs")>();
   const existsSyncMock = vi.fn();
   const readFileSyncMock = vi.fn();
   const writeFileSyncMock = vi.fn();
   const mkdirSyncMock = vi.fn();
   return {
+    ...actual,
     existsSync: existsSyncMock,
     readFileSync: readFileSyncMock,
     writeFileSync: writeFileSyncMock,
     mkdirSync: mkdirSyncMock,
     default: {
+      ...actual,
       existsSync: existsSyncMock,
       readFileSync: readFileSyncMock,
       writeFileSync: writeFileSyncMock,
@@ -95,20 +98,22 @@ describe("isAllowedAppOrigin", () => {
     expect(isAllowedAppOrigin("")).toBe(false);
   });
 
-  it("returns true for file:// origin", () => {
-    expect(isAllowedAppOrigin("file:///path/to/app/index.html")).toBe(true);
+  it("returns false for file:// origin", () => {
+    expect(isAllowedAppOrigin("file:///path/to/app/index.html", "http://localhost:3000")).toBe(
+      false,
+    );
   });
 
   it("returns true for localhost origin", () => {
-    expect(isAllowedAppOrigin("http://localhost:3000")).toBe(true);
+    expect(isAllowedAppOrigin("http://localhost:3000", "http://localhost:3000")).toBe(true);
   });
 
   it("returns true for 127.0.0.1 origin", () => {
-    expect(isAllowedAppOrigin("http://127.0.0.1:3000")).toBe(true);
+    expect(isAllowedAppOrigin("http://127.0.0.1:30100", "http://127.0.0.1:30100")).toBe(true);
   });
 
   it("returns false for a remote http origin", () => {
-    expect(isAllowedAppOrigin("https://evil.example.com")).toBe(false);
+    expect(isAllowedAppOrigin("https://evil.example.com", "http://localhost:3000")).toBe(false);
   });
 
   it("returns false for an invalid/malformed URL", () => {

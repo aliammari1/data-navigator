@@ -405,14 +405,6 @@ function landingPageHtml(room) {
 </html>`;
 }
 
-function roomSummaries() {
-  return [...roomPeers.entries()].map(([name, peers]) => ({
-    name,
-    peers: [...peers.values()],
-    connections: peers.size,
-  }));
-}
-
 // ─── Hocuspocus core (embedded — we own the HTTP server) ─────────────────────
 
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
@@ -509,7 +501,7 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", `http://${req.headers.host ?? "localhost"}`);
   if (req.method === "OPTIONS") {
     res.writeHead(204, {
-      "access-control-allow-origin": "*",
+      ...(url.pathname === "/lan/files" ? { "access-control-allow-origin": "*" } : {}),
       "access-control-allow-methods": "GET,POST,OPTIONS",
       "access-control-allow-headers":
         "content-type,x-file-name,x-peer-id,x-peer-name,x-room,x-pairing-code",
@@ -595,14 +587,13 @@ const server = http.createServer(async (req, res) => {
       guest && guest.expiresAt > Date.now()
         ? {
             status: guest.status,
-            sessionToken: guest.sessionToken,
             approvedRole: guest.approvedRole,
           }
         : { status: "not-found" };
 
     res.writeHead(200, {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
+      "cache-control": "no-store",
     });
     res.end(JSON.stringify(statusPayload));
     return;
@@ -619,11 +610,10 @@ const server = http.createServer(async (req, res) => {
       ips,
       websocketUrls: ips.map((ip) => `ws://${ip.address}:${activePort}`),
       httpUrls: ips.map((ip) => `http://${ip.address}:${activePort}`),
-      rooms: roomSummaries(),
-      audit: audit.slice(0, 40),
-      files: files.slice(0, 40),
+      rooms: [],
+      audit: [],
+      files: [],
       maxFileBytes: MAX_FILE_BYTES,
-      inboxDir: INBOX_DIR,
       startedAt,
     };
     res.writeHead(200, {
@@ -634,17 +624,25 @@ const server = http.createServer(async (req, res) => {
     return;
   }
   if (url.pathname === "/lan/audit") {
+    if (!safeCodeEqual(req.headers["x-pairing-code"], PAIRING_CODE)) {
+      res.writeHead(401, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Pairing code required" }));
+      return;
+    }
     res.writeHead(200, {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
     });
     res.end(JSON.stringify({ audit }, null, 2));
     return;
   }
   if (url.pathname === "/lan/files" && req.method === "GET") {
+    if (!safeCodeEqual(req.headers["x-pairing-code"], PAIRING_CODE)) {
+      res.writeHead(401, { "content-type": "application/json" });
+      res.end(JSON.stringify({ ok: false, error: "Pairing code required" }));
+      return;
+    }
     res.writeHead(200, {
       "content-type": "application/json",
-      "access-control-allow-origin": "*",
     });
     res.end(JSON.stringify({ files, maxFileBytes: MAX_FILE_BYTES, inboxDir: INBOX_DIR }, null, 2));
     return;
