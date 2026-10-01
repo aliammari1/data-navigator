@@ -7,6 +7,7 @@ import {
   buildRendererCsp,
   ensureAuthSecretEnv,
   getStringProperty,
+  isAllowedAppNavigation,
   isAllowedAppOrigin,
   isLoopbackHostname,
   isPathInside,
@@ -16,6 +17,7 @@ import {
   wantsMicrophone,
   withRendererSecurityHeaders,
 } from "../../electron/security";
+import { ELECTRON_AUTH_PROTOCOL } from "../../src/platform/auth/electron-options";
 
 /**
  * Security tests for the Electron trust boundary.
@@ -56,22 +58,79 @@ describe("isPathInside", () => {
 });
 
 describe("isAllowedAppOrigin", () => {
-  it("allows file:// origins", () => {
-    expect(isAllowedAppOrigin("file:///C:/app/index.html")).toBe(true);
+  it("allows only the exact running app origin", () => {
+    expect(isAllowedAppOrigin("http://localhost:3000/dashboard", "http://localhost:3000")).toBe(
+      true,
+    );
+    expect(isAllowedAppOrigin("http://127.0.0.1:30100/dashboard", "http://127.0.0.1:30100")).toBe(
+      true,
+    );
   });
-  it("allows localhost and 127.0.0.1", () => {
-    expect(isAllowedAppOrigin("http://localhost:3000")).toBe(true);
-    expect(isAllowedAppOrigin("http://127.0.0.1:3000/page")).toBe(true);
+  it("rejects another port, hostname, or protocol", () => {
+    expect(isAllowedAppOrigin("http://localhost:9876/", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("http://127.0.0.1:3000/", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("https://localhost:3000/", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("file:///tmp/other.html", "http://localhost:3000")).toBe(false);
   });
   it("rejects remote origins", () => {
-    expect(isAllowedAppOrigin("https://evil.example.com")).toBe(false);
-    expect(isAllowedAppOrigin("http://localhost.evil.com")).toBe(false);
+    expect(isAllowedAppOrigin("https://evil.example.com", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("http://localhost.evil.com", "http://localhost:3000")).toBe(false);
   });
   it("rejects empty / malformed / undefined", () => {
-    expect(isAllowedAppOrigin("")).toBe(false);
-    expect(isAllowedAppOrigin(undefined)).toBe(false);
-    expect(isAllowedAppOrigin("not a url")).toBe(false);
-    expect(isAllowedAppOrigin("javascript:alert(1)")).toBe(false);
+    expect(isAllowedAppOrigin("", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin(undefined, "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("not a url", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("javascript:alert(1)", "http://localhost:3000")).toBe(false);
+    expect(isAllowedAppOrigin("http://localhost:3000", undefined)).toBe(false);
+  });
+});
+
+describe("isAllowedAppNavigation", () => {
+  it("rejects protocol-relative URLs while allowing the running app origin", () => {
+    expect(
+      isAllowedAppNavigation("//evil.example.com", "http://localhost:3000", ELECTRON_AUTH_PROTOCOL),
+    ).toBe(false);
+    expect(
+      isAllowedAppNavigation(
+        "http://localhost:3000/dashboard",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(true);
+  });
+
+  it("allows OAuth redirect navigation matching the registered auth protocol", () => {
+    expect(
+      isAllowedAppNavigation(
+        `${ELECTRON_AUTH_PROTOCOL}://callback?code=123`,
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(true);
+    expect(
+      isAllowedAppNavigation(
+        "other-app://callback?code=123",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(false);
+  });
+
+  it("rejects navigation when auth protocol is missing or target is unallowed", () => {
+    expect(
+      isAllowedAppNavigation(
+        `${ELECTRON_AUTH_PROTOCOL}://callback`,
+        "http://localhost:3000",
+        undefined,
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedAppNavigation(
+        "https://evil.example.com/phish",
+        "http://localhost:3000",
+        ELECTRON_AUTH_PROTOCOL,
+      ),
+    ).toBe(false);
   });
 });
 

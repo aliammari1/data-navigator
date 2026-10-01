@@ -20,8 +20,7 @@ import {
  * security-critical invariants are:
  *  - encryption is DEFAULT OFF (opt-in only via DN_ENCRYPT_AUTH_DB);
  *  - with the flag OFF the plan is ALWAYS plaintext (prior behavior untouched);
- *  - with the flag ON but no key, we still fall back to plaintext rather than
- *    locking the DB out;
+ *  - with the flag ON but no key, opening the DB fails closed;
  *  - a destructive migration is only ever planned for a confidently-plaintext,
  *    pre-existing DB.
  */
@@ -84,9 +83,8 @@ describe("decideAuthDbPlan", () => {
     expect(plan).toEqual({ mode: "plaintext", reason: "flag-off" });
   });
 
-  it("flag ON + no key → plaintext (refuse to lock out the DB)", () => {
-    const plan = decideAuthDbPlan({ ...base, key: null });
-    expect(plan).toEqual({ mode: "plaintext", reason: "no-key" });
+  it("flag ON + no key → refuses to open the DB", () => {
+    expect(() => decideAuthDbPlan({ ...base, key: null })).toThrow(/encryption key/i);
   });
 
   it("flag ON + key + no existing DB → encrypted, no migration", () => {

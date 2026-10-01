@@ -88,6 +88,22 @@ describe("handleSidecarRequest (embedded hub HTTP sidecar)", () => {
   });
 
   describe("GET /lan/status", () => {
+    it("exposes discovery details without peer, audit, file, or local path metadata", async () => {
+      ctx.audit.push({ id: "event-1", at: "now", event: "peer.paired", peerName: "Private Peer" });
+      ctx.roomPeers.set("private-room", new Map());
+      const response = new MockResponse();
+      await handleSidecarRequest(
+        makeRequest({ method: "GET", url: "/lan/status" }),
+        response.asServerResponse(),
+        ctx,
+      );
+      expect(response.statusCode).toBe(200);
+      expect(response.body).not.toContain("Private Peer");
+      expect(response.body).not.toContain(inboxDir);
+      expect(response.json().audit).toEqual([]);
+      expect(response.json().rooms).toEqual([]);
+      expect(response.json().files).toEqual([]);
+    });
     it("returns the lan-server-shaped discovery payload with the CORP header", async () => {
       const response = new MockResponse();
       await handleSidecarRequest(
@@ -108,7 +124,6 @@ describe("handleSidecarRequest (embedded hub HTTP sidecar)", () => {
         pairingRequired: true,
         allowGuests: true,
         maxFileBytes: 1024,
-        inboxDir,
         startedAt: "2026-07-10T00:00:00.000Z",
       });
       expect(Array.isArray(payload.ips)).toBe(true);
@@ -337,6 +352,16 @@ describe("handleSidecarRequest (embedded hub HTTP sidecar)", () => {
   });
 
   describe("GET /lan/files", () => {
+    it("requires the full pairing code before returning metadata", async () => {
+      const response = new MockResponse();
+      await handleSidecarRequest(
+        makeRequest({ method: "GET", url: "/lan/files" }),
+        response.asServerResponse(),
+        ctx,
+      );
+      expect(response.statusCode).toBe(401);
+      expect(response.headers["access-control-allow-origin"]).toBeUndefined();
+    });
     it("lists uploaded file metadata", async () => {
       const upload = new MockResponse();
       await handleSidecarRequest(
@@ -352,7 +377,11 @@ describe("handleSidecarRequest (embedded hub HTTP sidecar)", () => {
 
       const response = new MockResponse();
       await handleSidecarRequest(
-        makeRequest({ method: "GET", url: "/lan/files" }),
+        makeRequest({
+          method: "GET",
+          url: "/lan/files",
+          headers: { "x-pairing-code": PAIRING_CODE },
+        }),
         response.asServerResponse(),
         ctx,
       );
@@ -363,6 +392,34 @@ describe("handleSidecarRequest (embedded hub HTTP sidecar)", () => {
       const files = payload.files as Array<Record<string, unknown>>;
       expect(files).toHaveLength(1);
       expect(files[0].originalName).toBe("a.txt");
+    });
+  });
+
+  describe("GET /lan/audit", () => {
+    it("requires the full pairing code before returning audit entries", async () => {
+      ctx.audit.push({ id: "event-1", at: "now", event: "peer.paired", peerName: "Private Peer" });
+      const unauthorized = new MockResponse();
+      await handleSidecarRequest(
+        makeRequest({ method: "GET", url: "/lan/audit" }),
+        unauthorized.asServerResponse(),
+        ctx,
+      );
+      expect(unauthorized.statusCode).toBe(401);
+      expect(unauthorized.body).not.toContain("Private Peer");
+      expect(unauthorized.headers["access-control-allow-origin"]).toBeUndefined();
+
+      const authorized = new MockResponse();
+      await handleSidecarRequest(
+        makeRequest({
+          method: "GET",
+          url: "/lan/audit",
+          headers: { "x-pairing-code": PAIRING_CODE },
+        }),
+        authorized.asServerResponse(),
+        ctx,
+      );
+      expect(authorized.statusCode).toBe(200);
+      expect(authorized.body).toContain("Private Peer");
     });
   });
 });

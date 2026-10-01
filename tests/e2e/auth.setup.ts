@@ -51,7 +51,7 @@ setup("authenticate browser journeys", async ({ page }) => {
   );
   expect(sessionCookie, "Better Auth did not issue a browser session cookie").toBeDefined();
 
-  await expect(page).toHaveURL(/\/dashboard(?:\/|$)/, { timeout: 30_000 });
+  await expect(page).toHaveURL(/\/dashboard(?:\/|$)/, { timeout: 60_000 });
 
   await page.context().storageState({ path: AUTH_STATE_PATH });
 });

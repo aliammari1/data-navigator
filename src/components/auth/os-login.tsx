@@ -311,7 +311,7 @@ export function OsLogin() {
       // installed its session cookie. Navigate once from that confirmed state;
       // scheduling a replace and an immediate refresh creates competing route
       // transitions, which can leave a newly authenticated browser on /login.
-      router.replace(redirectTo);
+      window.location.assign(redirectTo);
     } catch (err) {
       setPw("");
       setLockErr(
@@ -361,7 +361,7 @@ export function OsLogin() {
       setSSt("success");
       // See sign-in above: a single navigation after the authenticated response
       // preserves the real Better Auth session during the first dashboard load.
-      router.replace(redirectTo);
+      window.location.assign(redirectTo);
     } catch (err) {
       setSErr(
         err instanceof Error

@@ -1,7 +1,7 @@
 hoistPattern:
   - "*"
 
-blockExoticSubdeps: false
+blockExoticSubdeps: true
 
 allowBuilds:
   '@bitdisaster/exe-icon-extractor': true

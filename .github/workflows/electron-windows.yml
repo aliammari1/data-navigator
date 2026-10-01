@@ -97,6 +97,12 @@ jobs:
       FAST_WINDOWS_SMOKE: ${{ inputs.release != true }}
 
     steps:
+      - name: Require gated release workflow
+        if: inputs.release == true && (github.workflow != 'Release' || github.ref != 'refs/heads/main' || (github.event_name != 'push' && github.event_name != 'workflow_dispatch'))
+        run: |
+          Write-Host '::error::Release publication must run through the gated Release workflow.'
+          exit 1
+
       - name: Checkout repository
         uses: actions/checkout@v7
         with:
@@ -172,6 +178,43 @@ jobs:
         # Prefer the restored pnpm store while still fetching anything genuinely missing.
         run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Set up Windows signing certificate
+        if: env.IS_RELEASE == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD -or -not $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            throw 'The Windows signing certificate, password, and pinned thumbprint are required for release signing.'
+          }
+          New-Item -ItemType Directory -Force certs | Out-Null
+          $certPath = Join-Path $PWD 'certs/windows-code-signing.pfx'
+          [System.IO.File]::WriteAllBytes(
+            $certPath,
+            [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
+          )
+          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
+          $certificate = (Get-PfxData -FilePath $certPath -Password $password).EndEntityCertificates | Select-Object -First 1
+          if (-not $certificate -or $certificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+            throw 'The Windows signing certificate does not match the pinned thumbprint.'
+          }
+          if ($certificate.NotBefore -gt (Get-Date) -or $certificate.NotAfter -lt (Get-Date)) {
+            throw 'The Windows signing certificate is not currently valid.'
+          }
+          $publicCert = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
+          $publicHash = (Get-FileHash -Path $publicCert -Algorithm SHA256).Hash
+          $privateHash = [System.Convert]::ToHexString(
+            [System.Security.Cryptography.SHA256]::HashData($certificate.RawData)
+          )
+          if ($privateHash -ne $publicHash -or $publicHash -ne 'F184780D4E767EBCC49F61DF060023A0F7B69DBD0327EAEE54139AFDF0C31DE4') {
+            throw 'The signing certificate does not match the pinned public certificate.'
+          }
+          # The runner is ephemeral. Trust only this exact leaf certificate so
+          # Get-AuthenticodeSignature can validate this controlled distribution.
+          Import-Certificate -FilePath $publicCert -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+
       # WiX Toolset v3 for MSI packaging
       - name: Install WiX Toolset v3
         # NSIS-only smoke builds do not need WiX. Keep it for release builds that emit MSI.
@@ -224,6 +267,21 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
+      - name: Verify Windows installer signatures
+        if: env.IS_RELEASE == 'true'
+        shell: pwsh
+        env:
+          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
+        run: |
+          $installers = @(Get-ChildItem -Path dist -Include *.msi, *.exe -Recurse -File)
+          if ($installers.Count -lt 2) { throw 'Expected signed MSI and EXE installers.' }
+          foreach ($installer in $installers) {
+            $signature = Get-AuthenticodeSignature $installer.FullName
+            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+              throw "Invalid or unpinned Authenticode signature on $($installer.FullName): $($signature.Status)"
+            }
+          }
+
       # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
         if: always()
@@ -258,7 +316,6 @@ jobs:
       # Build a verifiable supply-chain provenance attestation over installer(s)
       - name: Attest build provenance
         if: env.IS_RELEASE == 'true'
-        continue-on-error: true
         uses: actions/attest-build-provenance@v3
         with:
           subject-path: "dist/*.msi\ndist/*.exe"
@@ -266,15 +323,16 @@ jobs:
       # Attach the Windows installers to the GitHub Release
       - name: Attach installer to GitHub Release
         if: env.IS_RELEASE == 'true'
-        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
-        with:
-          tag_name: ${{ inputs.release-tag }}
-          fail_on_unmatched_files: true
-          files: |
-            dist/*.msi
-            dist/*.exe
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ inputs.release-tag }}
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem -Path dist -File | Where-Object { $_.Extension -in '.msi', '.exe' } | Select-Object -ExpandProperty FullName)
+          if ($installers.Count -ne 2) { throw 'Expected one MSI and one EXE release asset.' }
+          $certificate = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
+          gh release upload $env:RELEASE_TAG @installers $certificate --clobber
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       # Always upload the installer as a workflow artifact (build record + PR download).
       - name: Upload installer artifact

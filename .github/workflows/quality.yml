@@ -11,9 +11,10 @@ on:
       - develop
   merge_group:
   workflow_dispatch:
+  workflow_call:
 
 concurrency:
-  group: quality-${{ github.ref }}
+  group: quality-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 # Least privilege: grant nothing at the top level; each job opts into the minimum.

@@ -13,7 +13,6 @@ import "./globals.css";
 // headings, KPI numbers, labels). Self-hosted by next/font for offline resilience.
 const outfit = Outfit({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "600", "700", "800", "900"],
   variable: "--font-data-navigator-sans",
   display: "swap",
 });

@@ -16,7 +16,7 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "dev:lan": "node scripts/lan-server.mjs",
-    "next:dev": "next dev -H 127.0.0.1 --inspect=127.0.0.1:9230",
+    "next:dev": "next dev -H 127.0.0.1",
     "next:build": "next build",
     "next:start": "next start -H 127.0.0.1",
     "worker:build": "node esbuild.workers.mjs",

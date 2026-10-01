@@ -16,7 +16,7 @@
  * Safety invariant mirrored from the task spec: encryption is OPT-IN, gated
  * behind `DN_ENCRYPT_AUTH_DB=1`, DEFAULT OFF. When OFF, the caller must take the
  * byte-for-byte prior plaintext path. When ON but no key is available, the
- * caller must also fall back to plaintext rather than write an unkeyed/locked DB.
+ * caller must fail closed rather than create an unkeyed database.
  */
 
 /** Env var that opts INTO at-rest encryption of the auth DB. DEFAULT OFF. */
@@ -35,7 +35,8 @@ export const ENCRYPTED_TEMP_SUFFIX = ".enc.tmp";
  * Strict OPT-IN check: encryption engages ONLY when the flag is explicitly set
  * to an enabling value. Unlike `secure-store`'s `isEncryptionEnabledByFlag`
  * (which defaults ON when a wrapped key exists), this gate is DEFAULT OFF so the
- * live app's auth DB is never touched until the user opts in.
+ * live app's auth DB is never touched until the user opts in. Once opted in,
+ * an unavailable key must stop database startup rather than silently use plaintext.
  *
  * Enabling values (case-insensitive, trimmed): "1", "true", "on", "yes".
  * Everything else — including unset — means OFF.
@@ -66,7 +67,7 @@ export type AuthDbPlan =
   | {
       /** Open with the stock `better-sqlite3` plaintext driver (prior behavior). */
       readonly mode: "plaintext";
-      readonly reason: "flag-off" | "no-key";
+      readonly reason: "flag-off";
     }
   | {
       /** Open with the encrypted driver; possibly migrate first. */
@@ -94,7 +95,7 @@ export type AuthDbPlanInput = {
  *
  * Decision table:
  *  - flag OFF                         → plaintext (prior behavior, untouched)
- *  - flag ON, no key                  → plaintext (refuse to lock the DB out)
+ *  - flag ON, no key                  → error (do not use plaintext)
  *  - flag ON, key, no existing DB     → encrypted, fresh (no migration)
  *  - flag ON, key, encrypted DB exists→ encrypted, no migration
  *  - flag ON, key, plaintext DB exists→ encrypted, migrate first
@@ -104,7 +105,7 @@ export function decideAuthDbPlan(input: AuthDbPlanInput): AuthDbPlan {
     return { mode: "plaintext", reason: "flag-off" };
   }
   if (!input.key) {
-    return { mode: "plaintext", reason: "no-key" };
+    throw new Error("Auth database encryption key is required when encryption is enabled.");
   }
   const needsMigration = input.databaseExists && !input.isAlreadyEncrypted;
   return { mode: "encrypted", key: input.key, needsMigration };

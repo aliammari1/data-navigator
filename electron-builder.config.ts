@@ -401,6 +401,7 @@ export default async function (): Promise<Configuration> {
 
     // ─── Windows Configuration ──────────────────────────────────────────────
     win: {
+      forceCodeSigning: process.env.IS_RELEASE === "true",
       target: [
         { target: "msi", arch: ["x64"] },
         { target: "nsis", arch: ["x64"] },

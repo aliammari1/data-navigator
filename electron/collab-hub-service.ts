@@ -131,7 +131,6 @@ const MAX_FILE_BYTES = 512 * 1024 * 1024;
 const MAX_INBOX_FILES = 200;
 const AUDIT_LOG_LIMIT = 200;
 const FILES_LIST_LIMIT = 100;
-const STATUS_SLICE_LIMIT = 40;
 
 // ─── Module state ───────────────────────────────────────────────────────────
 
@@ -334,16 +333,6 @@ function untrackPeer(ctx: SidecarContext, room: string, socketId: string): void 
   if (peers.size === 0) ctx.roomPeers.delete(room);
 }
 
-function roomSummaries(
-  ctx: SidecarContext,
-): Array<{ name: string; peers: SidecarPeer[]; connections: number }> {
-  return [...ctx.roomPeers.entries()].map(([name, peers]) => ({
-    name,
-    peers: [...peers.values()],
-    connections: peers.size,
-  }));
-}
-
 function headerValue(
   headers: Record<string, string | string[] | undefined>,
   name: string,
@@ -352,17 +341,17 @@ function headerValue(
   return Array.isArray(value) ? value[0] : value;
 }
 
-/** Every sidecar response: content-type + CORS + the REQUIRED CORP header. */
-function sidecarHeaders(contentType: string): Record<string, string> {
+/** Cross-origin discovery and code-gated uploads need CORS; private metadata does not. */
+function sidecarHeaders(contentType: string, cors = false): Record<string, string> {
   return {
     "content-type": contentType,
-    "access-control-allow-origin": "*",
+    ...(cors ? { "access-control-allow-origin": "*" } : {}),
     "cross-origin-resource-policy": "cross-origin",
   };
 }
 
-function sendJson(response: ServerResponse, status: number, body: unknown): void {
-  response.writeHead(status, sidecarHeaders("application/json"));
+function sendJson(response: ServerResponse, status: number, body: unknown, cors = false): void {
+  response.writeHead(status, sidecarHeaders("application/json", cors));
   response.end(JSON.stringify(body, null, 2));
 }
 
@@ -391,11 +380,10 @@ function sidecarStatusPayload(ctx: SidecarContext): Record<string, unknown> {
     ips,
     websocketUrls: ips.map((ip) => `ws://${ip.address}:${ctx.port}`),
     httpUrls: ips.map((ip) => `http://${ip.address}:${ctx.port}`),
-    rooms: roomSummaries(ctx),
-    audit: ctx.audit.slice(0, STATUS_SLICE_LIMIT),
-    files: ctx.files.slice(0, STATUS_SLICE_LIMIT),
+    rooms: [],
+    audit: [],
+    files: [],
     maxFileBytes: ctx.maxFileBytes,
-    inboxDir: ctx.inboxDir,
     startedAt: ctx.startedAt,
   };
 }
@@ -787,7 +775,7 @@ async function streamInboxFile(
       ctx.files.unshift(entry);
       if (ctx.files.length > FILES_LIST_LIMIT) ctx.files.length = FILES_LIST_LIMIT;
       addAudit(ctx, "file.uploaded", { ...entry });
-      sendJson(response, 200, { ok: true, file: entry });
+      sendJson(response, 200, { ok: true, file: entry }, true);
       resolve();
     });
     request.on("error", (error: Error) => {
@@ -797,7 +785,10 @@ async function streamInboxFile(
         error: error.message,
       });
       if (!response.headersSent) {
-        response.writeHead(size > ctx.maxFileBytes ? 413 : 500, sidecarHeaders("application/json"));
+        response.writeHead(
+          size > ctx.maxFileBytes ? 413 : 500,
+          sidecarHeaders("application/json", true),
+        );
       }
       response.end(JSON.stringify({ ok: false, error: error.message }));
       resolve();
@@ -820,12 +811,12 @@ async function receiveInboxFile(
   const presented = headerValue(request.headers, "x-pairing-code");
   if (!pairingCodesMatch(ctx.pairingCode, presented)) {
     addAudit(ctx, "file.rejected_pairing", { peerId, peerName });
-    sendJson(response, 401, { ok: false, error: "Pairing code required" });
+    sendJson(response, 401, { ok: false, error: "Pairing code required" }, true);
     return;
   }
   if (ctx.counters.inboxFiles >= ctx.maxInboxFiles) {
     addAudit(ctx, "file.rejected_quota", { peerId, peerName, count: ctx.counters.inboxFiles });
-    sendJson(response, 507, { ok: false, error: "Inbox file limit reached" });
+    sendJson(response, 507, { ok: false, error: "Inbox file limit reached" }, true);
     return;
   }
   await streamInboxFile(request, response, ctx, { peerId, peerName });
@@ -847,7 +838,7 @@ export async function handleSidecarRequest(
 
   if (method === "OPTIONS") {
     response.writeHead(204, {
-      ...sidecarHeaders("text/plain"),
+      ...sidecarHeaders("text/plain", url.pathname === "/lan/files"),
       "access-control-allow-methods": "GET,POST,OPTIONS",
       "access-control-allow-headers":
         "content-type,x-file-name,x-peer-id,x-peer-name,x-room,x-pairing-code",
@@ -888,14 +879,22 @@ export async function handleSidecarRequest(
     return;
   }
   if (url.pathname === "/lan/status" || url.pathname === "/lan/discover") {
-    sendJson(response, 200, sidecarStatusPayload(ctx));
+    sendJson(response, 200, sidecarStatusPayload(ctx), true);
     return;
   }
   if (url.pathname === "/lan/audit") {
+    if (!pairingCodesMatch(ctx.pairingCode, headerValue(request.headers, "x-pairing-code"))) {
+      sendJson(response, 401, { ok: false, error: "Pairing code required" });
+      return;
+    }
     sendJson(response, 200, { audit: ctx.audit });
     return;
   }
   if (url.pathname === "/lan/files" && method === "GET") {
+    if (!pairingCodesMatch(ctx.pairingCode, headerValue(request.headers, "x-pairing-code"))) {
+      sendJson(response, 401, { ok: false, error: "Pairing code required" });
+      return;
+    }
     sendJson(response, 200, {
       files: ctx.files,
       maxFileBytes: ctx.maxFileBytes,

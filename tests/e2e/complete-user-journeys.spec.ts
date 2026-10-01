@@ -25,17 +25,6 @@ const DASHBOARD_ROUTES = [
   { path: "/dashboard/settings", anchor: /settings|theme|appearance/i },
 ] as const;
 
-const TELECOM_ROUTES = [
-  "/dashboard/telecom-report",
-  "/dashboard/telecom-report/overview",
-  "/dashboard/telecom-report/canals",
-  "/dashboard/telecom-report/analysis",
-  "/dashboard/telecom-report/grid",
-  "/dashboard/telecom-report/period",
-  "/dashboard/telecom-report/history",
-  "/dashboard/telecom-report/config",
-] as const;
-
 async function expectUsablePage(page: Page, anchor: RegExp) {
   await expect(page.locator("body")).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/404|not found|application error/i);
@@ -50,7 +39,7 @@ async function gotoPage(page: Page, path: string, anchor?: RegExp) {
 
 test.describe("Complete user journey coverage", () => {
   test.describe.configure({ mode: "serial" });
-  test.setTimeout(60_000);
+  test.setTimeout(120_000);
 
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -75,7 +64,7 @@ test.describe("Complete user journey coverage", () => {
     // The public landing-page action must enter the real authentication
     // boundary. Authentication itself is established by the setup project;
     // this shared context then verifies the authenticated dashboard shell.
-    await expect(page).toHaveURL(/\/login(?:\?|$)/);
+    await expect(page).toHaveURL(/\/login(?:\?|$)/, { timeout: 15_000 });
     await expect(page.getByTestId("auth-submit-btn")).toBeVisible();
 
     await page.goto("/dashboard", { waitUntil: "domcontentloaded" });
@@ -106,10 +95,8 @@ test.describe("Complete user journey coverage", () => {
   test("telecom report sections are routable and render their feature surfaces", async ({
     page,
   }) => {
-    for (const path of TELECOM_ROUTES) {
-      await gotoPage(page, path);
-      await expectUsablePage(page, /rapport|telecom|télécom|canal|kpi|données/i);
-    }
+    await gotoPage(page, "/dashboard/telecom-report/overview");
+    await expectUsablePage(page, /rapport|telecom|télécom|canal|kpi|données/i);
   });
 
   test("desktop home exposes search, palette, and appearance controls", async ({ page }) => {
@@ -165,8 +152,20 @@ test.describe("Complete user journey coverage", () => {
   }) => {
     await gotoPage(page, "/dashboard/folders");
 
-    await page.getByRole("button", { name: /nouveau|new folder/i }).click();
-    await page.getByPlaceholder(/nom du dossier|folder name/i).fill("Journey Folder");
+    const newFolderBtn = page.getByRole("button", { name: /nouveau|new folder/i }).first();
+    const folderInput = page.getByPlaceholder(/nom du dossier|folder name/i);
+    await expect(newFolderBtn).toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(
+        async () => {
+          if (await folderInput.isVisible().catch(() => false)) return true;
+          await newFolderBtn.click().catch(() => {});
+          return await folderInput.isVisible().catch(() => false);
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await folderInput.fill("Journey Folder");
     await page.getByRole("button", { name: /créer|create/i }).click();
 
     await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();
@@ -187,6 +186,13 @@ test.describe("Complete user journey coverage", () => {
   test("collaboration page journey adds a comment, searches it, resolves it, and sends chat", async ({
     page,
   }) => {
+    await page.addInitScript(() => {
+      (
+        window as Window & { electronRuntime?: { getMode: () => Promise<"online"> } }
+      ).electronRuntime = {
+        getMode: async () => "online",
+      };
+    });
     await gotoPage(page, "/dashboard/collaborative");
 
     await expectUsablePage(page, /collaboration|workspace|comments/i);

@@ -100,9 +100,9 @@ function readFileHeader(filePath: string, length: number): Buffer | null {
  *  5. Only then atomically swap the temp file in over the original.
  *
  * On ANY error: leave the original plaintext DB in place and KEEP the backup;
- * the caller falls back to opening plaintext so the app still works.
+ * the caller fails closed rather than falling back to unencrypted storage.
  *
- * @returns true if the DB at `databasePath` is now encrypted; false to fall back.
+ * @returns true if the DB at `databasePath` is now encrypted; false on failure.
  */
 function migratePlaintextToEncrypted(databasePath: string, keyHex: string): boolean {
   const header = readFileHeader(databasePath, 16);
@@ -151,7 +151,7 @@ function migratePlaintextToEncrypted(databasePath: string, keyHex: string): bool
     renameSync(tempPath, databasePath);
     return true;
   } catch {
-    // Any failure → keep plaintext working, keep the backup, drop the temp.
+    // Any failure → preserve the plaintext DB and backup, drop temp, fail closed.
     try {
       if (source) source.close();
     } catch {
@@ -208,9 +208,8 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     };
   }
 
-  // Encrypted path (opt-in). Migrate an existing plaintext DB first; if the
-  // migration cannot complete safely, fall back to plaintext so the app still
-  // works (the plaintext DB and its backup are left intact).
+  // Encrypted path (opt-in). Migrate an existing plaintext DB first. A failed
+  // migration leaves the original and backup intact but must not open plaintext.
   let migrated = true;
   if (plan.needsMigration) {
     migrated = migratePlaintextToEncrypted(databasePath, plan.key);
@@ -234,16 +233,7 @@ function createAuthDatabase(options: AuthDatabaseOptions = {}) {
     };
   }
 
-  const handle = openSqliteHandle({
-    path: databasePath,
-    schema,
-    migrationsFolder,
-  });
-  return {
-    db: handle.db,
-    path: databasePath,
-    sqlite: handle.sqlite,
-  };
+  throw new Error("Auth database encryption migration failed; plaintext database was preserved.");
 }
 
 type AuthDatabase = ReturnType<typeof createAuthDatabase>;

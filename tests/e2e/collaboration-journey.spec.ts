@@ -66,6 +66,13 @@ test.describe("Collaboration hub review journey", () => {
         "data-navigator-dashboard-access-v1",
         JSON.stringify({ role: "owner", cacheMode: "balanced" }),
       );
+      // Collaboration is intentionally hidden offline. Model the Electron
+      // runtime's online response before the dashboard shell hydrates.
+      (
+        window as Window & { electronRuntime?: { getMode: () => Promise<"online"> } }
+      ).electronRuntime = {
+        getMode: async () => "online",
+      };
     });
   });
 
