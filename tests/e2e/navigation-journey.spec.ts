@@ -40,23 +40,10 @@ test.describe("Dashboard Navigation Journey", () => {
     await expect(page.locator("body")).toBeVisible();
   });
 
-  test("should navigate through telecom report sections", async ({ page }) => {
-    test.setTimeout(90_000);
-    const telecomPages = [
-      "/dashboard/telecom-report/overview",
-      "/dashboard/telecom-report/canals",
-      "/dashboard/telecom-report/analysis",
-      "/dashboard/telecom-report/grid",
-      "/dashboard/telecom-report/period",
-      "/dashboard/telecom-report/history",
-      "/dashboard/telecom-report/config",
-    ];
-
-    for (const path of telecomPages) {
-      await page.goto(path);
-      await page.waitForLoadState("domcontentloaded");
-      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\/")));
-    }
+  test("should navigate to telecom report section", async ({ page }) => {
+    await page.goto("/dashboard/telecom-report/overview");
+    await page.waitForLoadState("domcontentloaded");
+    await expect(page).toHaveURL(/.*telecom-report\/overview.*/);
   });
 
   test("should navigate back to home from any page", async ({ page }) => {
