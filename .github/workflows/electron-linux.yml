@@ -78,7 +78,7 @@ jobs:
 
     steps:
       - name: Require gated release workflow
-        if: inputs.release == true && github.workflow != 'Release'
+        if: inputs.release == true && (github.workflow != 'Release' || github.ref != 'refs/heads/main' || (github.event_name != 'push' && github.event_name != 'workflow_dispatch'))
         run: |
           echo '::error::Release publication must run through the gated Release workflow.'
           exit 1

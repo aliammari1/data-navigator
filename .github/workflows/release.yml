@@ -51,6 +51,7 @@ jobs:
   changesets:
     name: Version or release
     needs: [security, osv, ci, quality]
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
