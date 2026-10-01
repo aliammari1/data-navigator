@@ -86,4 +86,14 @@ describe.skipIf(!canCreateSymlinks)("PathAccessController filesystem boundaries"
     fs.symlinkSync(replacement, selected);
     expect(() => access.assertAllowedReadPath(selected)).toThrow();
   });
+
+  it("blocks deleting an external symlink pointing into app data", () => {
+    const internalFile = path.join(dataDir, "inside.txt");
+    fs.writeFileSync(internalFile, "inside");
+    const externalLink = path.join(outsideDir, "link-to-inside.txt");
+    fs.symlinkSync(internalFile, externalLink);
+    expect(() => access.assertAllowedDeletePath(externalLink)).toThrow(
+      /Blocked delete access outside app data dir/,
+    );
+  });
 });

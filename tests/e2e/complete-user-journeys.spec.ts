@@ -168,8 +168,20 @@ test.describe("Complete user journey coverage", () => {
   }) => {
     await gotoPage(page, "/dashboard/folders");
 
-    await page.getByRole("button", { name: /nouveau|new folder/i }).click();
-    await page.getByPlaceholder(/nom du dossier|folder name/i).fill("Journey Folder");
+    const newFolderBtn = page.getByRole("button", { name: /nouveau|new folder/i }).first();
+    const folderInput = page.getByPlaceholder(/nom du dossier|folder name/i);
+    await expect(newFolderBtn).toBeVisible({ timeout: 15_000 });
+    await expect
+      .poll(
+        async () => {
+          if (await folderInput.isVisible().catch(() => false)) return true;
+          await newFolderBtn.click().catch(() => {});
+          return await folderInput.isVisible().catch(() => false);
+        },
+        { timeout: 15_000 },
+      )
+      .toBe(true);
+    await folderInput.fill("Journey Folder");
     await page.getByRole("button", { name: /créer|create/i }).click();
 
     await expect(page.getByRole("button", { name: "Journey Folder" })).toBeVisible();

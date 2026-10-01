@@ -43,7 +43,7 @@ process.exit(
     "next,electron",
     "-c",
     "auto",
-    "pnpm run next:dev",
+    "pnpm run next:dev -- --inspect=127.0.0.1:9230",
     "pnpm run electron:dev",
   ]),
 );

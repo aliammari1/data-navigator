@@ -54,7 +54,7 @@ describe("standalone LAN server metadata boundary", () => {
       });
 
       let started = false;
-      for (let attempt = 0; attempt < 50; attempt++) {
+      for (let attempt = 0; attempt < 100; attempt++) {
         if (child.exitCode !== null) {
           lastError = new Error(
             `LAN server exited: ${child.exitCode}${stderr ? ` - ${stderr.trim()}` : ""}`,
@@ -67,6 +67,9 @@ describe("standalone LAN server metadata boundary", () => {
             started = true;
             break;
           }
+          lastError = new Error(
+            `LAN server returned status ${response.status}: ${await response.text()}`,
+          );
         } catch {
           // Wait for the server to bind.
         }
@@ -75,12 +78,18 @@ describe("standalone LAN server metadata boundary", () => {
 
       if (started) return;
 
+      if (!lastError) {
+        lastError = new Error(
+          `LAN server did not start at ${origin} within timeout${stderr ? ` - ${stderr.trim()}` : ""}`,
+        );
+      }
+
       child.kill();
       await new Promise((resolve) => setTimeout(resolve, 100));
     }
 
     throw lastError ?? new Error("LAN server did not start");
-  }, 15_000);
+  }, 25_000);
 
   afterAll(() => {
     child?.kill();

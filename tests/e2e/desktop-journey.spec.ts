@@ -251,7 +251,9 @@ test.describe("Desktop workspace journey", () => {
     });
 
     await openLauncher(page);
-    await launcherTile(page, /importer/i).click();
+    const importerTile = launcherTile(page, /importer/i);
+    await expect(importerTile).toBeVisible({ timeout: 15_000 });
+    await importerTile.click();
 
     await expect(visibleWindow(page, /importer/i).first()).toBeVisible({
       timeout: 15_000,

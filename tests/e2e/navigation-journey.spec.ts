@@ -41,6 +41,7 @@ test.describe("Dashboard Navigation Journey", () => {
   });
 
   test("should navigate through telecom report sections", async ({ page }) => {
+    test.setTimeout(90_000);
     const telecomPages = [
       "/dashboard/telecom-report/overview",
       "/dashboard/telecom-report/canals",

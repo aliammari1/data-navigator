@@ -251,7 +251,7 @@ export class PathAccessController {
     const normalized = normalizePath(filePath);
     const resolved = canonicalPath(filePath);
 
-    if (!this.isInsideDataDir(normalized) || !this.isInsideDataDir(resolved)) {
+    if (!isPathInside(normalized, this.#dataDir) || !this.isInsideDataDir(resolved)) {
       throw new Error(`Blocked delete access outside app data dir: ${normalized}`);
     }
 
