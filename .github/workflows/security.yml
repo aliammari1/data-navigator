@@ -180,8 +180,10 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  # CodeQL and open-alert gate: requires public repo or GHAS on private repos.
   codeql:
     name: CodeQL and open-alert gate
+    if: ${{ !github.event.repository.private }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     permissions:

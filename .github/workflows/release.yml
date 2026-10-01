@@ -26,6 +26,7 @@ jobs:
     name: Release security checks
     uses: ./.github/workflows/security.yml
     permissions:
+      actions: read
       contents: read
       pull-requests: read
       security-events: write
