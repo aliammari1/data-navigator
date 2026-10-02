@@ -410,9 +410,6 @@ export default async function (): Promise<Configuration> {
       icon: iconIco,
       ...(hasWindowsCert
         ? {
-            certificateFile: certPath,
-            certificatePassword: certPassword,
-            rfc3161TimeStampServer: "http://timestamp.digicert.com",
             signtoolOptions: {
               certificateFile: certPath,
               certificatePassword: certPassword,

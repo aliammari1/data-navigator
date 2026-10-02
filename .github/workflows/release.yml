@@ -215,6 +215,15 @@ jobs:
           through a separate trusted channel with the publisher:
           `F184780D4E767EBCC49F61DF060023A0F7B69DBD0327EAEE54139AFDF0C31DE4`.
           The certificate is attached as `data-navigator-signing.cer`.
+
+          ## Package signatures and release provenance
+
+          All four installers have detached `.asc` signatures. The signed
+          `release-provenance.json` records their SHA-256 hashes, tagged source
+          commit, and GitHub Actions run. Verify the attached public key's
+          fingerprint through a separate trusted channel before using it to
+          check these signatures. This private repository uses publisher GPG
+          signatures; GitHub-hosted artifact attestations are unavailable here.
           EOF
           gh release create "$RELEASE_TAG" --draft --verify-tag --notes-file release-notes.md
 
@@ -229,8 +238,6 @@ jobs:
     uses: ./.github/workflows/electron-windows.yml
     permissions:
       contents: write # attach the installer to the GitHub Release
-      id-token: write # OIDC token for build-provenance attestation
-      attestations: write # write the provenance attestation
     with:
       release: true
       # Check out + attach the installer to the exact tag changesets created.
@@ -244,8 +251,6 @@ jobs:
     uses: ./.github/workflows/electron-linux.yml
     permissions:
       contents: write # attach the packages to the GitHub Release
-      id-token: write # OIDC token for build-provenance attestation
-      attestations: write # write the provenance attestation
     with:
       release: true
       # Check out + attach the packages to the exact tag changesets created.
@@ -260,31 +265,105 @@ jobs:
     permissions:
       contents: write
     steps:
-      - name: Verify draft assets and build attestations
+      - name: Check out release tag
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.changesets.outputs.releaseTag }}
+          lfs: false
+
+      - name: Download and verify draft assets
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
         run: |
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo '::error::The release tag does not point to this gated source commit.'
+            exit 1
+          fi
           gh release view "$RELEASE_TAG" --json isDraft,assets > release.json
           jq -e '
             .isDraft == true and
-            (.assets | any(.name | endswith(".msi"))) and
-            (.assets | any(.name | endswith(".exe"))) and
-            (.assets | any(.name | endswith(".AppImage"))) and
-            (.assets | any(.name | endswith(".deb"))) and
-            (.assets | any(.name | endswith(".AppImage.asc"))) and
-            (.assets | any(.name | endswith(".deb.asc"))) and
+            (.assets | length == 9) and
+            ([.assets[].name | select(endswith(".msi"))] | length == 1) and
+            ([.assets[].name | select(endswith(".exe"))] | length == 1) and
+            ([.assets[].name | select(endswith(".AppImage"))] | length == 1) and
+            ([.assets[].name | select(endswith(".deb"))] | length == 1) and
+            ([.assets[].name | select(endswith(".AppImage.asc"))] | length == 1) and
+            ([.assets[].name | select(endswith(".deb.asc"))] | length == 1) and
             (.assets | any(.name == "data-navigator-signing.cer")) and
             (.assets | any(.name == "release-signing-key.asc")) and
             (.assets | any(.name == "release-signing-key.fingerprint"))
           ' release.json
-          while IFS= read -r digest; do
-            count="$(gh api "repos/$GITHUB_REPOSITORY/attestations/$digest" --jq '.attestations | length')"
-            if [ "$count" -lt 1 ]; then
-              echo "::error::No build attestation for $digest"
+          mkdir release-assets
+          gh release download "$RELEASE_TAG" --dir release-assets
+          while IFS=$'\t' read -r name digest; do
+            if [[ ! "$digest" =~ ^sha256:[[:xdigit:]]{64}$ ]]; then
+              echo "::error::Missing SHA-256 digest for $name"
               exit 1
             fi
-          done < <(jq -r '.assets[] | select(.name | test("\\.(msi|exe|AppImage|deb)$")) | .digest' release.json)
+            actual="$(sha256sum "release-assets/$name" | cut -d' ' -f1)"
+            if [ "$actual" != "${digest#sha256:}" ]; then
+              echo "::error::Release asset digest mismatch: $name"
+              exit 1
+            fi
+          done < <(jq -r '.assets[] | [.name, .digest] | @tsv' release.json)
+          if [ "$(cat release-assets/release-signing-key.fingerprint)" != "$GPG_SIGNING_FINGERPRINT" ]; then
+            echo '::error::The published GPG fingerprint does not match the pinned key.'
+            exit 1
+          fi
+          if [ "$(sha256sum release-assets/data-navigator-signing.cer | cut -d' ' -f1)" != 'f184780d4e767ebcc49f61df060023a0f7b69dbd0327eaee54139afdf0c31de4' ]; then
+            echo '::error::The published Windows certificate does not match the pinned certificate.'
+            exit 1
+          fi
+          mkdir -m 700 "$RUNNER_TEMP/release-gnupg"
+          gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --import release-assets/release-signing-key.asc
+          actual="$(gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --with-colons --fingerprint --list-keys | awk -F: '$1 == "fpr" {print $10; exit}')"
+          if [ -z "$GPG_SIGNING_FINGERPRINT" ] || [ "$actual" != "$GPG_SIGNING_FINGERPRINT" ]; then
+            echo '::error::The published GPG public key does not match the pinned fingerprint.'
+            exit 1
+          fi
+          for package in release-assets/*.AppImage release-assets/*.deb; do
+            gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --verify "$package.asc" "$package"
+          done
+
+      - name: Sign Windows installers and release provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ] || [ -z "$GPG_SIGNING_FINGERPRINT" ]; then
+            echo '::error::The release GPG key and pinned fingerprint are required.'
+            exit 1
+          fi
+          printf '%s' "$GPG_PRIVATE_KEY" | gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --import
+          actual="$(gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --with-colons --fingerprint --list-secret-keys "$GPG_SIGNING_FINGERPRINT" | awk -F: '$1 == "fpr" {print $10; exit}')"
+          if [ "$actual" != "$GPG_SIGNING_FINGERPRINT" ]; then
+            echo '::error::The signing key does not match the pinned fingerprint.'
+            exit 1
+          fi
+          for package in release-assets/*.msi release-assets/*.exe; do
+            gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --yes --armor --local-user "$GPG_SIGNING_FINGERPRINT" --detach-sign --output "$package.asc" "$package"
+          done
+          node scripts/release-provenance.mjs create release-assets release-assets/release-provenance.json
+          gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --yes --armor --local-user "$GPG_SIGNING_FINGERPRINT" --detach-sign --output release-assets/release-provenance.json.asc release-assets/release-provenance.json
+          gh release upload "$RELEASE_TAG" release-assets/*.msi.asc release-assets/*.exe.asc release-assets/release-provenance.json release-assets/release-provenance.json.asc --clobber
+
+      - name: Verify published assets and signed provenance
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
+        run: |
+          mkdir verification-assets
+          gh release download "$RELEASE_TAG" --dir verification-assets
+          diff -u <(cd release-assets && sha256sum ./* | sort) <(cd verification-assets && sha256sum ./* | sort)
+          for package in verification-assets/*.msi verification-assets/*.exe verification-assets/*.AppImage verification-assets/*.deb; do
+            gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --verify "$package.asc" "$package"
+          done
+          gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --verify verification-assets/release-provenance.json.asc verification-assets/release-provenance.json
+          node scripts/release-provenance.mjs verify verification-assets verification-assets/release-provenance.json
 
       - name: Publish release after all gates pass
         env:

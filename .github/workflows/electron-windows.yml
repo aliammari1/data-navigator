@@ -5,8 +5,8 @@ name: Electron Windows
 # Two modes:
 #  - PR / manual smoke      -> build-only: prove the WiX .msi still builds (no publish).
 #  - Release (workflow_call) -> MAKE the installer on windows-latest, upload it as a workflow
-#    artifact AND attach it to the GitHub Release for the current version, with a signed
-#    build-provenance attestation.
+#    artifact AND attach it to the GitHub Release for the current version. The gated
+#    release job signs the installers and records their hashes in a signed manifest.
 #
 # Toolchain: @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
 # Toolset v3, so the "Install WiX Toolset v3" step must put them on PATH before the make.
@@ -85,8 +85,6 @@ jobs:
 
     permissions:
       contents: write # attach the MSI to the GitHub Release (release runs only)
-      id-token: write # OIDC token for build-provenance attestation
-      attestations: write # write the provenance attestation
 
     # `release: true` (from workflow_call by release.yml, or a manual dispatch) makes
     # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
@@ -251,6 +249,11 @@ jobs:
         env:
           NODE_ENV: production
 
+      # PR smoke uses an unsigned build. Validate the signed release branch of
+      # electron-builder's configuration separately so schema drift fails here.
+      - name: Validate release signing configuration
+        run: node scripts/validate-release-signing-config.mjs
+
       # Fast PR/manual smoke: build one NSIS EXE; electron-builder.config.ts selects
       # store compression from FAST_WINDOWS_SMOKE. Release builds use normal compression.
       - name: Make Windows installer
@@ -312,13 +315,6 @@ jobs:
           foreach ($m in $installers) {
             Write-Host "INSTALLER: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
           }
-
-      # Build a verifiable supply-chain provenance attestation over installer(s)
-      - name: Attest build provenance
-        if: env.IS_RELEASE == 'true'
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: "dist/*.msi\ndist/*.exe"
 
       # Attach the Windows installers to the GitHub Release
       - name: Attach installer to GitHub Release
