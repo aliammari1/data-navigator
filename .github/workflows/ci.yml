@@ -105,6 +105,7 @@ jobs:
 
       - name: Upload Test Coverage Artifacts
         if: always()
+        continue-on-error: true # preserve the test result if artifact storage is full
         uses: actions/upload-artifact@v7
         with:
           name: coverage-report
@@ -164,6 +165,7 @@ jobs:
 
       - name: Upload Performance Benchmark Logs
         if: always()
+        continue-on-error: true # benchmark result remains required
         uses: actions/upload-artifact@v7
         with:
           name: duckdb-benchmark-report
@@ -220,6 +222,7 @@ jobs:
 
       - name: Upload Eval Gate Artifacts
         if: always()
+        continue-on-error: true # eval result remains required
         uses: actions/upload-artifact@v7
         with:
           name: offline-llm-eval-report
@@ -269,6 +272,7 @@ jobs:
 
       - name: Upload Playwright Test Report
         if: always()
+        continue-on-error: true # browser test result remains required
         uses: actions/upload-artifact@v7
         with:
           name: playwright-report
@@ -353,6 +357,7 @@ jobs:
 
       - name: Upload Security & SBOM Artifacts
         if: always()
+        continue-on-error: true # security audit remains required
         uses: actions/upload-artifact@v7
         with:
           name: security-and-sbom-artifacts
