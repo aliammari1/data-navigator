@@ -51,4 +51,14 @@ jobs:
       - name: Validate changesets
         # pnpm run forwards a literal `--` that CAC treats as end-of-options,
         # silently dropping --since; pnpm exec passes flags through intact.
-        run: pnpm exec changeset status --verbose --since origin/${{ github.base_ref }}
+        # Release PRs consume pending changesets into CHANGELOG.md and package.json,
+        # so changeset status is expected to find zero changesets on release branches.
+        env:
+          HEAD_REF: ${{ github.head_ref }}
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [ "$HEAD_REF" = "changeset-release/main" ] || [[ "$HEAD_REF" == changeset-release/* ]]; then
+            echo "Release branch $HEAD_REF detected; changesets are consumed by design."
+            exit 0
+          fi
+          pnpm exec changeset status --verbose --since origin/"$BASE_REF"
