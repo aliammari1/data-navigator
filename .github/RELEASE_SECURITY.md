@@ -4,8 +4,9 @@ The `Release` workflow is the only supported publication path. It runs CI,
 Quality, the reusable Security suite (production dependency audit, full security
 audit, Gitleaks, Semgrep, CodeQL, and an open code scanning alert check), and
 the OSV lockfile scan before Changesets can create a version tag. A draft release receives Windows and Linux
-packages. The final job publishes it only after both builds verify signatures and
-create build provenance attestations.
+packages. The final job publishes it only after both builds verify signatures,
+the Windows draft installers match the hashes from their verified build job, and all four
+packages match a GPG-signed release provenance manifest.
 
 Configure these repository Actions secrets before the next release:
 
@@ -25,8 +26,8 @@ to a known group. Its public certificate is committed at
 The job compares the PFX against this exact certificate, then validates MSI
 and EXE signatures. Recipients must verify the fingerprint with the publisher
 through a separate channel before trusting the certificate on their PCs. The
-release is publicly downloadable because the repository is public, but this
-signature is not publicly trusted by Windows. Before general public Windows
+repository is private, and this signature is not publicly trusted by Windows.
+Before general public Windows
 distribution, integrate a trusted CA/HSM or signing service and retain the
 Authenticode and fingerprint gates.
 
@@ -35,18 +36,22 @@ signed annotated tag, then checks GitHub's verification result. Linux packages
 must have valid GPG signatures from the pinned key. The MSI and EXE must have
 valid Authenticode signatures from the pinned certificate. The Linux public key
 and fingerprint are attached to the draft release for independent verification.
+The final job signs the Windows installers and `release-provenance.json` with the
+pinned GPG key. That manifest binds the four package hashes to the tag, source
+commit, repository, and Actions run. GitHub-hosted artifact attestations are
+unavailable for this user-owned private repository, so these publisher GPG
+signatures are the supported integrity and provenance mechanism.
 
-If a scan, signature, fingerprint, attestation, or build fails, the release stays
+If a scan, signature, fingerprint, manifest check, or build fails, the release stays
 draft. Fix the cause and rerun failed jobs on the original workflow run; do not
 publish the draft by hand. The previously published `v1.0.7` release predates
 these gates. The release workflow rejects a release version earlier than
-`v1.0.8`; the pending patch Changeset prepares `v1.0.8`.
+`v1.0.8`. The protected `v1.0.8` tag belongs to a failed draft release; the
+next patch Changeset prepares `v1.0.9`.
 
-At the time of this review the repository reports as public, despite the README
-describing the project as private and proprietary. Code Scanning and dependency
-review are eligible, but there has been no completed CodeQL analysis; the
-CodeQL job and its open-alert check must succeed before a release can proceed.
-The current `main` commit is unsigned and fails the verified-source gate.
+The repository is private and proprietary. Security and dependency-review gates
+remain part of the release workflow; the source commit and tag must have
+GitHub-verified signatures.
 
 The dedicated release GPG key is registered on GitHub and its Actions secrets
 are configured. Its public fingerprint is

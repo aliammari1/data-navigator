@@ -5,8 +5,8 @@ name: Electron Windows
 # Two modes:
 #  - PR / manual smoke      -> build-only: prove the WiX .msi still builds (no publish).
 #  - Release (workflow_call) -> MAKE the installer on windows-latest, upload it as a workflow
-#    artifact AND attach it to the GitHub Release for the current version, with a signed
-#    build-provenance attestation.
+#    artifact AND attach it to the GitHub Release for the current version. The gated
+#    release job signs the installers and records their hashes in a signed manifest.
 #
 # Toolchain: @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
 # Toolset v3, so the "Install WiX Toolset v3" step must put them on PATH before the make.
@@ -39,7 +39,7 @@ on:
       - "tsconfig.json"
       - ".github/workflows/electron-windows.yml"
   # Called by release.yml once a release has been cut; `release: true` flips this run
-  # from build-only smoke into publish mode (attest + attach MSI to the Release).
+  # from build-only smoke into publish mode (sign + attach installers to the Release).
   workflow_call:
     inputs:
       release:
@@ -52,6 +52,19 @@ on:
         type: string
         required: false
         default: ""
+    outputs:
+      msi_name:
+        description: Filename of the verified MSI.
+        value: ${{ jobs.build.outputs.msi_name }}
+      msi_sha256:
+        description: SHA-256 of the verified MSI.
+        value: ${{ jobs.build.outputs.msi_sha256 }}
+      exe_name:
+        description: Filename of the verified EXE.
+        value: ${{ jobs.build.outputs.exe_name }}
+      exe_sha256:
+        description: SHA-256 of the verified EXE.
+        value: ${{ jobs.build.outputs.exe_sha256 }}
   workflow_dispatch:
     inputs:
       release:
@@ -82,11 +95,14 @@ jobs:
     name: Build Windows Installer
     runs-on: windows-latest
     timeout-minutes: 90
+    outputs:
+      msi_name: ${{ steps.verified_installers.outputs.msi_name }}
+      msi_sha256: ${{ steps.verified_installers.outputs.msi_sha256 }}
+      exe_name: ${{ steps.verified_installers.outputs.exe_name }}
+      exe_sha256: ${{ steps.verified_installers.outputs.exe_sha256 }}
 
     permissions:
       contents: write # attach the MSI to the GitHub Release (release runs only)
-      id-token: write # OIDC token for build-provenance attestation
-      attestations: write # write the provenance attestation
 
     # `release: true` (from workflow_call by release.yml, or a manual dispatch) makes
     # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
@@ -251,6 +267,11 @@ jobs:
         env:
           NODE_ENV: production
 
+      # PR smoke uses an unsigned build. Validate the signed release branch of
+      # electron-builder's configuration separately so schema drift fails here.
+      - name: Validate release signing configuration
+        run: node scripts/validate-release-signing-config.mjs
+
       # Fast PR/manual smoke: build one NSIS EXE; electron-builder.config.ts selects
       # store compression from FAST_WINDOWS_SMOKE. Release builds use normal compression.
       - name: Make Windows installer
@@ -268,19 +289,26 @@ jobs:
           WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
       - name: Verify Windows installer signatures
+        id: verified_installers
         if: env.IS_RELEASE == 'true'
         shell: pwsh
         env:
           WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
         run: |
-          $installers = @(Get-ChildItem -Path dist -Include *.msi, *.exe -Recurse -File)
-          if ($installers.Count -lt 2) { throw 'Expected signed MSI and EXE installers.' }
+          $msis = @(Get-ChildItem -Path dist -File -Filter *.msi)
+          $exes = @(Get-ChildItem -Path dist -File -Filter *.exe)
+          if ($msis.Count -ne 1 -or $exes.Count -ne 1) { throw 'Expected exactly one signed MSI and EXE installer.' }
+          $installers = @($msis[0], $exes[0])
           foreach ($installer in $installers) {
             $signature = Get-AuthenticodeSignature $installer.FullName
             if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
               throw "Invalid or unpinned Authenticode signature on $($installer.FullName): $($signature.Status)"
             }
           }
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "msi_name=$($msis[0].Name)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "msi_sha256=$((Get-FileHash $msis[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "exe_name=$($exes[0].Name)"
+          Add-Content -Path $env:GITHUB_OUTPUT -Value "exe_sha256=$((Get-FileHash $exes[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
 
       # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
@@ -313,13 +341,6 @@ jobs:
             Write-Host "INSTALLER: $($m.FullName)  ($([math]::Round($m.Length/1MB,1)) MB)"
           }
 
-      # Build a verifiable supply-chain provenance attestation over installer(s)
-      - name: Attest build provenance
-        if: env.IS_RELEASE == 'true'
-        uses: actions/attest-build-provenance@v3
-        with:
-          subject-path: "dist/*.msi\ndist/*.exe"
-
       # Attach the Windows installers to the GitHub Release
       - name: Attach installer to GitHub Release
         if: env.IS_RELEASE == 'true'
@@ -333,15 +354,3 @@ jobs:
           $certificate = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
           gh release upload $env:RELEASE_TAG @installers $certificate --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
-      # Always upload the installer as a workflow artifact (build record + PR download).
-      - name: Upload installer artifact
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: data-navigator-windows-msi
-          path: |
-            dist/*.msi
-            dist/*.exe
-          if-no-files-found: warn
-          retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

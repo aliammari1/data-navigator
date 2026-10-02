@@ -76,8 +76,12 @@ jobs:
       - name: Unit tests + coverage gate
         run: pnpm run test:coverage
 
+      - name: Release provenance integrity tests
+        run: pnpm run test:release-provenance
+
       - name: Upload coverage report
         if: always()
+        continue-on-error: true # coverage gate runs above; archival is supplemental
         uses: actions/upload-artifact@v4
         with:
           name: coverage-node-${{ matrix.node }}
@@ -93,6 +97,7 @@ jobs:
 
       - name: Upload mutation report
         if: always()
+        continue-on-error: true # mutation test result remains required
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report-node-${{ matrix.node }}

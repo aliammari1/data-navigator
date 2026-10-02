@@ -347,9 +347,7 @@ function stageApplication(): void {
 /**
  * Return Clean Electron Builder Configuration
  */
-export default async function (): Promise<Configuration> {
-  stageApplication();
-
+export function createConfiguration(): Configuration {
   return {
     appId,
     productName: appName,
@@ -410,9 +408,6 @@ export default async function (): Promise<Configuration> {
       icon: iconIco,
       ...(hasWindowsCert
         ? {
-            certificateFile: certPath,
-            certificatePassword: certPassword,
-            rfc3161TimeStampServer: "http://timestamp.digicert.com",
             signtoolOptions: {
               certificateFile: certPath,
               certificatePassword: certPassword,
@@ -568,4 +563,9 @@ export default async function (): Promise<Configuration> {
       releaseType: isPrerelease ? "prerelease" : "draft",
     },
   };
+}
+
+export default async function (): Promise<Configuration> {
+  stageApplication();
+  return createConfiguration();
 }
