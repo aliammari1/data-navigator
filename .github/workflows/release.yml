@@ -58,6 +58,7 @@ jobs:
 
     permissions:
       contents: write
+      actions: read # compare Windows release assets to the immutable build artifact
       pull-requests: write
 
     # Expose the changesets outcome so installers only build when a real
@@ -283,8 +284,9 @@ jobs:
           fi
           gh release view "$RELEASE_TAG" --json isDraft,assets > release.json
           jq -e '
+            (.assets | length) as $assetCount |
             .isDraft == true and
-            (.assets | length == 9) and
+            ($assetCount == 9 or $assetCount == 13) and
             ([.assets[].name | select(endswith(".msi"))] | length == 1) and
             ([.assets[].name | select(endswith(".exe"))] | length == 1) and
             ([.assets[].name | select(endswith(".AppImage"))] | length == 1) and
@@ -293,7 +295,11 @@ jobs:
             ([.assets[].name | select(endswith(".deb.asc"))] | length == 1) and
             (.assets | any(.name == "data-navigator-signing.cer")) and
             (.assets | any(.name == "release-signing-key.asc")) and
-            (.assets | any(.name == "release-signing-key.fingerprint"))
+            (.assets | any(.name == "release-signing-key.fingerprint")) and
+            ([.assets[].name | select(endswith(".msi.asc"))] | length == (if $assetCount == 13 then 1 else 0 end)) and
+            ([.assets[].name | select(endswith(".exe.asc"))] | length == (if $assetCount == 13 then 1 else 0 end)) and
+            ([.assets[].name | select(. == "release-provenance.json")] | length == (if $assetCount == 13 then 1 else 0 end)) and
+            ([.assets[].name | select(. == "release-provenance.json.asc")] | length == (if $assetCount == 13 then 1 else 0 end))
           ' release.json
           mkdir release-assets
           gh release download "$RELEASE_TAG" --dir release-assets
@@ -318,13 +324,29 @@ jobs:
           fi
           mkdir -m 700 "$RUNNER_TEMP/release-gnupg"
           gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --import release-assets/release-signing-key.asc
-          actual="$(gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --with-colons --fingerprint --list-keys | awk -F: '$1 == "fpr" {print $10; exit}')"
+          actual="$(gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --with-colons --fingerprint --list-keys | awk -F: '$1 == "pub" {count++} $1 == "fpr" && count == 1 && !first {first=$10} END {if (count != 1) exit 1; print first}')"
           if [ -z "$GPG_SIGNING_FINGERPRINT" ] || [ "$actual" != "$GPG_SIGNING_FINGERPRINT" ]; then
             echo '::error::The published GPG public key does not match the pinned fingerprint.'
             exit 1
           fi
           for package in release-assets/*.AppImage release-assets/*.deb; do
             gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --verify "$package.asc" "$package"
+          done
+
+      - name: Match Windows installers to verified build artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir windows-build-artifact
+          gh run download "$GITHUB_RUN_ID" --name data-navigator-windows-msi --dir windows-build-artifact
+          mapfile -d '' msis < <(find windows-build-artifact -type f -name '*.msi' -print0)
+          mapfile -d '' exes < <(find windows-build-artifact -type f -name '*.exe' -print0)
+          if [ "${#msis[@]}" -ne 1 ] || [ "${#exes[@]}" -ne 1 ]; then
+            echo '::error::The verified Windows build artifact must contain one MSI and one EXE.'
+            exit 1
+          fi
+          for installer in "${msis[0]}" "${exes[0]}"; do
+            cmp "$installer" "release-assets/$(basename "$installer")"
           done
 
       - name: Sign Windows installers and release provenance

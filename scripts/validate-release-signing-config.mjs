@@ -20,7 +20,7 @@ try {
   process.env.WINDOWS_CERTIFICATE_PASSWORD = "test-password";
   process.env.IS_RELEASE = "true";
 
-  const config = await loadTs(path.join(root, "electron-builder.config.ts")).default();
+  const config = loadTs(path.join(root, "electron-builder.config.ts")).createConfiguration();
   if (
     config.win?.forceCodeSigning !== true ||
     config.win?.signtoolOptions?.certificateFile !== certificateFile

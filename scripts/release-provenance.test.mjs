@@ -5,8 +5,9 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
-const script = new URL("./release-provenance.mjs", import.meta.url).pathname;
+const script = fileURLToPath(new URL("./release-provenance.mjs", import.meta.url));
 const names = ["data.msi", "data.exe", "data.AppImage", "data.deb"];
 const context = {
   GITHUB_REPOSITORY: "owner/repo",

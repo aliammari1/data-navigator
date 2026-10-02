@@ -347,9 +347,7 @@ function stageApplication(): void {
 /**
  * Return Clean Electron Builder Configuration
  */
-export default async function (): Promise<Configuration> {
-  stageApplication();
-
+export function createConfiguration(): Configuration {
   return {
     appId,
     productName: appName,
@@ -565,4 +563,9 @@ export default async function (): Promise<Configuration> {
       releaseType: isPrerelease ? "prerelease" : "draft",
     },
   };
+}
+
+export default async function (): Promise<Configuration> {
+  stageApplication();
+  return createConfiguration();
 }
