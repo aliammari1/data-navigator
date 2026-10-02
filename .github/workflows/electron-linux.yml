@@ -4,8 +4,8 @@ name: Electron Linux
 #
 # Two modes:
 #  - PR / manual smoke      -> build-only: prove the Linux packages still build (no publish).
-#  - Release (workflow_call) -> MAKE the packages on ubuntu-latest, upload them as workflow
-#    artifacts AND attach them to the GitHub Release for the current version, with GPG signatures.
+#  - Release (workflow_call) -> MAKE the packages on ubuntu-latest and attach them
+#    to the GitHub Release for the current version, with GPG signatures.
 #
 # Offline-product note: multi-GB GGUF models are intentionally NOT downloaded.
 
@@ -192,16 +192,3 @@ jobs:
           gh release upload "$RELEASE_TAG" \
             dist/*.AppImage dist/*.deb dist/*.AppImage.asc dist/*.deb.asc \
             dist/release-signing-key.asc dist/release-signing-key.fingerprint --clobber
-
-      - name: Upload Linux artifacts
-        if: always()
-        uses: actions/upload-artifact@v7
-        with:
-          name: data-navigator-linux
-          path: |
-            dist/*.AppImage
-            dist/*.deb
-            dist/*.AppImage.asc
-            dist/*.deb.asc
-          if-no-files-found: warn
-          retention-days: ${{ env.IS_RELEASE == 'true' && 30 || 14 }}

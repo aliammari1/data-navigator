@@ -58,7 +58,6 @@ jobs:
 
     permissions:
       contents: write
-      actions: read # compare Windows release assets to the immutable build artifact
       pull-requests: write
 
     # Expose the changesets outcome so installers only build when a real
@@ -333,21 +332,24 @@ jobs:
             gpg --homedir "$RUNNER_TEMP/release-gnupg" --batch --verify "$package.asc" "$package"
           done
 
-      - name: Match Windows installers to verified build artifact
+      - name: Match Windows installers to verified build output
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          MSI_NAME: ${{ needs.windows-msi.outputs.msi_name }}
+          MSI_SHA256: ${{ needs.windows-msi.outputs.msi_sha256 }}
+          EXE_NAME: ${{ needs.windows-msi.outputs.exe_name }}
+          EXE_SHA256: ${{ needs.windows-msi.outputs.exe_sha256 }}
         run: |
-          mkdir windows-build-artifact
-          gh run download "$GITHUB_RUN_ID" --name data-navigator-windows-msi --dir windows-build-artifact
-          mapfile -d '' msis < <(find windows-build-artifact -type f -name '*.msi' -print0)
-          mapfile -d '' exes < <(find windows-build-artifact -type f -name '*.exe' -print0)
-          if [ "${#msis[@]}" -ne 1 ] || [ "${#exes[@]}" -ne 1 ]; then
-            echo '::error::The verified Windows build artifact must contain one MSI and one EXE.'
+          if [ -z "$MSI_NAME" ] || [ "$MSI_NAME" != "$(basename "$MSI_NAME")" ] || [[ "$MSI_NAME" != *.msi ]] ||
+             [ -z "$EXE_NAME" ] || [ "$EXE_NAME" != "$(basename "$EXE_NAME")" ] || [[ "$EXE_NAME" != *.exe ]] ||
+             [[ ! "$MSI_SHA256" =~ ^[a-f0-9]{64}$ ]] || [[ ! "$EXE_SHA256" =~ ^[a-f0-9]{64}$ ]]; then
+            echo '::error::The verified Windows build did not provide valid installer digests.'
             exit 1
           fi
-          for installer in "${msis[0]}" "${exes[0]}"; do
-            cmp "$installer" "release-assets/$(basename "$installer")"
-          done
+          if [ "$(sha256sum "release-assets/$MSI_NAME" | cut -d' ' -f1)" != "$MSI_SHA256" ] ||
+             [ "$(sha256sum "release-assets/$EXE_NAME" | cut -d' ' -f1)" != "$EXE_SHA256" ]; then
+            echo '::error::A Windows release asset differs from the Authenticode-verified build.'
+            exit 1
+          fi
 
       - name: Sign Windows installers and release provenance
         env:

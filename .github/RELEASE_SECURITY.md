@@ -5,7 +5,7 @@ Quality, the reusable Security suite (production dependency audit, full security
 audit, Gitleaks, Semgrep, CodeQL, and an open code scanning alert check), and
 the OSV lockfile scan before Changesets can create a version tag. A draft release receives Windows and Linux
 packages. The final job publishes it only after both builds verify signatures,
-the Windows draft installers match their verified build artifact, and all four
+the Windows draft installers match the hashes from their verified build job, and all four
 packages match a GPG-signed release provenance manifest.
 
 Configure these repository Actions secrets before the next release:
