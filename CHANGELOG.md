@@ -1,5 +1,11 @@
 # data-navigator
 
+## 1.0.9
+
+### Patch Changes
+
+- 4e48a9d: Fix Windows installer signing and publish GPG-signed release provenance while the repository remains private.
+
 ## 1.0.8
 
 ### Patch Changes
