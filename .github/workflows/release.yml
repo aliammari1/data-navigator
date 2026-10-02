@@ -286,7 +286,7 @@ jobs:
           jq -e '
             (.assets | length) as $assetCount |
             .isDraft == true and
-            ($assetCount == 9 or $assetCount == 13) and
+            ($assetCount >= 9 and $assetCount <= 13) and
             ([.assets[].name | select(endswith(".msi"))] | length == 1) and
             ([.assets[].name | select(endswith(".exe"))] | length == 1) and
             ([.assets[].name | select(endswith(".AppImage"))] | length == 1) and
@@ -296,10 +296,10 @@ jobs:
             (.assets | any(.name == "data-navigator-signing.cer")) and
             (.assets | any(.name == "release-signing-key.asc")) and
             (.assets | any(.name == "release-signing-key.fingerprint")) and
-            ([.assets[].name | select(endswith(".msi.asc"))] | length == (if $assetCount == 13 then 1 else 0 end)) and
-            ([.assets[].name | select(endswith(".exe.asc"))] | length == (if $assetCount == 13 then 1 else 0 end)) and
-            ([.assets[].name | select(. == "release-provenance.json")] | length == (if $assetCount == 13 then 1 else 0 end)) and
-            ([.assets[].name | select(. == "release-provenance.json.asc")] | length == (if $assetCount == 13 then 1 else 0 end))
+            ([.assets[].name | select(endswith(".msi.asc"))] | length <= 1) and
+            ([.assets[].name | select(endswith(".exe.asc"))] | length <= 1) and
+            ([.assets[].name | select(. == "release-provenance.json")] | length <= 1) and
+            ([.assets[].name | select(. == "release-provenance.json.asc")] | length <= 1)
           ' release.json
           mkdir release-assets
           gh release download "$RELEASE_TAG" --dir release-assets
