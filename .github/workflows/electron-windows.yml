@@ -72,6 +72,11 @@ on:
         type: boolean
         required: false
         default: false
+      signing-test:
+        description: Build and verify signed installers on main without publishing.
+        type: boolean
+        required: false
+        default: false
       release-tag:
         description: The `v<version>` tag whose GitHub Release the installer is attached to (e.g. v1.0.0).
         type: string
@@ -107,16 +112,22 @@ jobs:
     # `release: true` (from workflow_call by release.yml, or a manual dispatch) makes
     # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
     env:
-      IS_RELEASE: ${{ inputs.release == true }}
+      IS_RELEASE: ${{ inputs.release == true || inputs.signing-test == true }}
       # PR/manual smoke builds favor speed: one NSIS installer, store compression,
       # and no WiX/typecheck duplication. Release builds retain the full installer set.
-      FAST_WINDOWS_SMOKE: ${{ inputs.release != true }}
+      FAST_WINDOWS_SMOKE: ${{ inputs.release != true && inputs.signing-test != true }}
 
     steps:
       - name: Require gated release workflow
         if: inputs.release == true && (github.workflow != 'Release' || github.ref != 'refs/heads/main' || (github.event_name != 'push' && github.event_name != 'workflow_dispatch'))
         run: |
           Write-Host '::error::Release publication must run through the gated Release workflow.'
+          exit 1
+
+      - name: Require main branch for signing test
+        if: inputs.signing-test == true && (github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/main' || inputs.release == true || inputs.release-tag != '')
+        run: |
+          Write-Host '::error::Signing tests run only as a nonpublishing manual dispatch on main.'
           exit 1
 
       - name: Checkout repository
@@ -301,6 +312,7 @@ jobs:
           $installers = @($msis[0], $exes[0])
           foreach ($installer in $installers) {
             $signature = Get-AuthenticodeSignature $installer.FullName
+            Write-Host "Signature status for $($installer.Name): $($signature.Status); message: $($signature.StatusMessage); signer: $($signature.SignerCertificate.Thumbprint)"
             if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
               throw "Invalid or unpinned Authenticode signature on $($installer.FullName): $($signature.Status)"
             }
@@ -343,7 +355,7 @@ jobs:
 
       # Attach the Windows installers to the GitHub Release
       - name: Attach installer to GitHub Release
-        if: env.IS_RELEASE == 'true'
+        if: inputs.release == true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.release-tag }}
