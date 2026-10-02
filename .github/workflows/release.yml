@@ -148,7 +148,11 @@ jobs:
             echo '::error::The release GPG key does not match the pinned fingerprint.'
             exit 1
           fi
-          git tag -d "$RELEASE_TAG"
+          # Changesets may report a created tag without retaining it in this checkout.
+          # Replace a local tag only when one exists; a missing tag is the normal case.
+          if git show-ref --verify --quiet "refs/tags/$RELEASE_TAG"; then
+            git tag -d "$RELEASE_TAG"
+          fi
           git -c user.name='Data Navigator Release' -c user.email="$GPG_SIGNING_EMAIL" -c user.signingkey="$GPG_SIGNING_FINGERPRINT" tag -s "$RELEASE_TAG" -m "Release $RELEASE_TAG"
           git tag -v "$RELEASE_TAG"
           if [ "$(git rev-parse "$RELEASE_TAG^{}")" != "$GITHUB_SHA" ]; then
@@ -287,4 +291,3 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ needs.changesets.outputs.releaseTag }}
         run: gh release edit "$RELEASE_TAG" --draft=false
-
