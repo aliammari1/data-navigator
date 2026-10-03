@@ -16,8 +16,7 @@
  *   4. node:sqlite           - Node 24 built-in SQLite, prepared-stmt tx insert
  *   5. better-sqlite3        - native SQLite, prepared-stmt tx insert
  *   6. sql.js                - pure-WASM SQLite
- *   7. alasql                - pure-JS SQL
- *   8. arquero               - pure-JS dataframe
+ *   7. arquero               - pure-JS dataframe
  *
  * Workload (identical semantics everywhere):
  *   Q1 GROUP BY channel: total=count(*), success=count(status='success'),
@@ -515,54 +514,6 @@ function sqlJsEngine(file) {
   };
 }
 
-function alasqlEngine(file) {
-  return async () => {
-    const alasql = (await import("alasql")).default;
-    const { readFileSync } = await import("node:fs");
-    const text = readFileSync(file, "utf8");
-    return {
-      category: "pure-js",
-      async load() {
-        // Parse the same CSV into an array of typed objects, then query it.
-        const rows = parseCsvRows(text).map((f) => ({
-          channel: f[0],
-          status: f[1],
-          amount: Number(f[2]),
-        }));
-        return { alasql, rows };
-      },
-      async q1({ alasql, rows }) {
-        // NB: `total` is a reserved word in alasql's parser, so alias the row
-        // count as `cnt` and map it back to `total` for the cross-check.
-        const out = alasql(
-          `SELECT channel,
-                  COUNT(*) AS cnt,
-                  SUM(CASE WHEN status = 'success' THEN 1 ELSE 0 END) AS success,
-                  SUM(amount) AS amount_total
-           FROM ?
-           GROUP BY channel
-           ORDER BY channel`,
-          [rows],
-        );
-        return out.map((r) => ({
-          channel: r.channel,
-          total: r.cnt,
-          success: r.success,
-          amount_total: r.amount_total,
-        }));
-      },
-      async q2({ alasql, rows }) {
-        const r = alasql(
-          `SELECT COUNT(*) AS c FROM ?
-           WHERE status = 'success' AND amount > ${AMOUNT_THRESHOLD}`,
-          [rows],
-        );
-        return r;
-      },
-    };
-  };
-}
-
 function arqueroEngine(file) {
   return async () => {
     const aq = await import("arquero");
@@ -636,7 +587,6 @@ async function main() {
     ["node:sqlite (built-in)", nodeSqliteEngine(file)],
     ["better-sqlite3", betterSqliteEngine(file)],
     ["sql.js (WASM)", sqlJsEngine(file)],
-    ["alasql", alasqlEngine(file)],
     ["arquero", arqueroEngine(file)],
   ];
 

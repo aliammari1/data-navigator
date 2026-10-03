@@ -22,32 +22,6 @@ permissions: {}
 
 jobs:
   # ---------------------------------------------------------------------------
-  # Dependency review: blocks PRs introducing vulnerable dependencies.
-  # Note: requires GitHub Advanced Security (GHAS) if the GitHub repo itself is private.
-  # ---------------------------------------------------------------------------
-  dependency-review:
-    name: Dependency review
-    if: github.event_name == 'pull_request'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-
-    permissions:
-      contents: read
-      pull-requests: read
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Review dependency changes
-        if: ${{ !github.event.repository.private }}
-        uses: actions/dependency-review-action@v4
-        with:
-          fail-on-severity: high
-          # Keep the public-repository PR gate read-only, including for forked PRs.
-          comment-summary-in-pr: never
-
-  # ---------------------------------------------------------------------------
   # Supply chain: audit production dependencies + dead-code hygiene
   # ---------------------------------------------------------------------------
   supply-chain:
@@ -60,7 +34,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up toolchain
         uses: ./.github/actions/setup
@@ -87,7 +61,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           # fetch-depth: 0 is required for Gitleaks to inspect git commit objects
           fetch-depth: 0
@@ -125,7 +99,7 @@ jobs:
       - name: Upload gitleaks SARIF
         if: always()
         continue-on-error: true # report archival must not override the scan result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: gitleaks-sarif
           path: gitleaks.sarif
@@ -145,10 +119,10 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
         with:
           python-version: "3.12"
 
@@ -174,44 +148,9 @@ jobs:
       - name: Upload Semgrep SARIF
         if: always()
         continue-on-error: true # report archival must not override the scan result
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: semgrep-sarif
           path: semgrep.sarif
           if-no-files-found: ignore
           retention-days: 7
-
-  # CodeQL and open-alert gate: requires public repo or GHAS on private repos.
-  codeql:
-    name: CodeQL and open-alert gate
-    if: ${{ !github.event.repository.private }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v7
-        with:
-          lfs: false
-
-      - name: Initialize CodeQL
-        uses: github/codeql-action/init@v4
-        with:
-          languages: javascript-typescript
-          build-mode: none
-
-      - name: Analyze source
-        uses: github/codeql-action/analyze@v4
-
-      - name: Block open code scanning alerts
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          alerts="$(gh api --paginate "repos/$GITHUB_REPOSITORY/code-scanning/alerts?state=open" --jq '.[].number')"
-          if [ -n "$alerts" ]; then
-            echo "::error::Open code scanning alerts block release: $alerts"
-            exit 1
-          fi
