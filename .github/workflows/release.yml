@@ -70,7 +70,7 @@ jobs:
 
     steps:
       - name: Check out repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           # lfs:false — changesets versioning needs full history (fetch-depth:0) but NOT
@@ -89,7 +89,7 @@ jobs:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -170,7 +170,7 @@ jobs:
       contents: write
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.changesets.outputs.releaseTag }}
           lfs: false
@@ -209,12 +209,15 @@ jobs:
 
           ## Windows signature and trust
 
-          The Windows installers use a self-signed certificate for direct distribution
-          to a known group of users. Windows does not trust this certificate by default.
-          Before installing its public certificate, verify its SHA-256 fingerprint
+          The Windows installers use a code-signing certificate issued by a private
+          Data Navigator root for direct distribution to a known group of users.
+          Windows does not trust this root by default. Before installing it,
+          verify the root certificate's SHA-256 fingerprint
           through a separate trusted channel with the publisher:
-          `F184780D4E767EBCC49F61DF060023A0F7B69DBD0327EAEE54139AFDF0C31DE4`.
-          The certificate is attached as `data-navigator-signing.cer`.
+          `7237D443A8D69F6146A95FEE4B4CEF8ADB50801457226FB8501CB634C80BD138`.
+          The root certificate is attached as `data-navigator-signing-root.cer`.
+          The installer signer thumbprint is
+          `1956F63398744EF3D2A88348371753B60A3F1390`.
 
           ## Package signatures and release provenance
 
@@ -266,7 +269,7 @@ jobs:
       contents: write
     steps:
       - name: Check out release tag
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ needs.changesets.outputs.releaseTag }}
           lfs: false
@@ -296,7 +299,7 @@ jobs:
             ([.assets[].name | select(endswith(".deb"))] | length == 1) and
             ([.assets[].name | select(endswith(".AppImage.asc"))] | length == 1) and
             ([.assets[].name | select(endswith(".deb.asc"))] | length == 1) and
-            (.assets | any(.name == "data-navigator-signing.cer")) and
+            (.assets | any(.name == "data-navigator-signing-root.cer")) and
             (.assets | any(.name == "release-signing-key.asc")) and
             (.assets | any(.name == "release-signing-key.fingerprint")) and
             ([.assets[].name | select(endswith(".msi.asc"))] | length <= 1) and
@@ -321,8 +324,8 @@ jobs:
             echo '::error::The published GPG fingerprint does not match the pinned key.'
             exit 1
           fi
-          if [ "$(sha256sum release-assets/data-navigator-signing.cer | cut -d' ' -f1)" != 'f184780d4e767ebcc49f61df060023a0f7b69dbd0327eaee54139afdf0c31de4' ]; then
-            echo '::error::The published Windows certificate does not match the pinned certificate.'
+          if [ "$(sha256sum release-assets/data-navigator-signing-root.cer | cut -d' ' -f1)" != '7237d443a8d69f6146a95fee4b4cef8adb50801457226fb8501cb634c80bd138' ]; then
+            echo '::error::The published Windows signing root does not match the pinned certificate.'
             exit 1
           fi
           mkdir -m 700 "$RUNNER_TEMP/release-gnupg"

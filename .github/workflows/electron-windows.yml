@@ -131,7 +131,7 @@ jobs:
           exit 1
 
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           # lfs:false — do NOT fetch LFS objects. Every LFS-tracked file is an AI model
           # (*.onnx/*.bin/*.gguf/*.safetensors + public/models/**); this build is
@@ -154,7 +154,7 @@ jobs:
           run_install: false
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 24
           cache: pnpm
@@ -163,7 +163,7 @@ jobs:
       # Cache Electron binary downloads (electron-rebuild + @electron/get fetch the
       # matching Electron headers + the prebuilt Electron zip the packager extracts).
       - name: Cache Electron binaries
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: |
             ~/AppData/Local/electron/Cache
@@ -174,7 +174,7 @@ jobs:
       # Cache electron-builder toolsets (NSIS, winCodeSign, 7zip, etc.) so ephemeral
       # GitHub runners do not re-download them on every packaging run.
       - name: Cache electron-builder toolsets
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/AppData/Local/electron-builder/Cache
           key: electron-builder-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
@@ -184,7 +184,7 @@ jobs:
       # Cache node-gyp headers/libraries. Native SQLite packages otherwise download
       # the same Node headers again on every clean Windows runner.
       - name: Cache node-gyp headers
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: ~/AppData/Local/node-gyp/Cache
           key: node-gyp-${{ runner.os }}-node24
@@ -193,7 +193,7 @@ jobs:
 
       # Cache the Next.js build cache to speed up `desktop:build` -> next build.
       - name: Cache Next.js build
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: .next/cache
           key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('src/**', 'app/**', '*.[jt]s', '*.[jt]sx') }}
@@ -224,23 +224,31 @@ jobs:
           )
           $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
           $certificate = (Get-PfxData -FilePath $certPath -Password $password).EndEntityCertificates | Select-Object -First 1
-          if (-not $certificate -or $certificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
+          if (-not $certificate -or $certificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT -or
+              $certificate.Thumbprint -ne '1956F63398744EF3D2A88348371753B60A3F1390') {
             throw 'The Windows signing certificate does not match the pinned thumbprint.'
           }
           if ($certificate.NotBefore -gt (Get-Date) -or $certificate.NotAfter -lt (Get-Date)) {
             throw 'The Windows signing certificate is not currently valid.'
           }
-          $publicCert = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
-          $publicHash = (Get-FileHash -Path $publicCert -Algorithm SHA256).Hash
-          $privateHash = [System.Convert]::ToHexString(
-            [System.Security.Cryptography.SHA256]::HashData($certificate.RawData)
-          )
-          if ($privateHash -ne $publicHash -or $publicHash -ne 'F184780D4E767EBCC49F61DF060023A0F7B69DBD0327EAEE54139AFDF0C31DE4') {
-            throw 'The signing certificate does not match the pinned public certificate.'
+          $rootCert = Join-Path $PWD '.github/certs/data-navigator-signing-root.cer'
+          if ((Get-FileHash -Path $rootCert -Algorithm SHA256).Hash -ne
+              '7237D443A8D69F6146A95FEE4B4CEF8ADB50801457226FB8501CB634C80BD138') {
+            throw 'The private signing root does not match the pinned public certificate.'
           }
-          # The runner is ephemeral. Trust only this exact leaf certificate so
-          # Get-AuthenticodeSignature can validate this controlled distribution.
-          Import-Certificate -FilePath $publicCert -CertStoreLocation 'Cert:\CurrentUser\TrustedPeople' | Out-Null
+          # The runner is ephemeral. Trust the pinned private CA, then require
+          # Windows to validate the leaf's signature and chain against it.
+          Import-Certificate -FilePath $rootCert -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          $chain = [System.Security.Cryptography.X509Certificates.X509Chain]::new()
+          try {
+            $chain.ChainPolicy.ApplicationPolicy.Add([System.Security.Cryptography.Oid]::new('1.3.6.1.5.5.7.3.3'))
+            if (-not $chain.Build($certificate) -or $chain.ChainElements.Count -ne 2 -or
+                $chain.ChainElements[1].Certificate.Thumbprint -ne '12B05CA207AA2CC9A71BC391F4D0B4265FEEA002') {
+              throw 'The signing certificate does not chain to the pinned private root.'
+            }
+          } finally {
+            $chain.Dispose()
+          }
 
       # WiX Toolset v3 for MSI packaging
       - name: Install WiX Toolset v3
@@ -363,6 +371,6 @@ jobs:
         run: |
           $installers = @(Get-ChildItem -Path dist -File | Where-Object { $_.Extension -in '.msi', '.exe' } | Select-Object -ExpandProperty FullName)
           if ($installers.Count -ne 2) { throw 'Expected one MSI and one EXE release asset.' }
-          $certificate = Join-Path $PWD '.github/certs/data-navigator-signing.cer'
+          $certificate = Join-Path $PWD '.github/certs/data-navigator-signing-root.cer'
           gh release upload $env:RELEASE_TAG @installers $certificate --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
