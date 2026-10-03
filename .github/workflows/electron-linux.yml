@@ -5,7 +5,7 @@ name: Electron Linux
 # Two modes:
 #  - PR / manual smoke      -> build-only: prove the Linux packages still build (no publish).
 #  - Release (workflow_call) -> MAKE the packages on ubuntu-latest and attach them
-#    to the GitHub Release for the current version, with GPG signatures.
+#    to the GitHub Release for the current version.
 #
 # Offline-product note: multi-GB GGUF models are intentionally NOT downloaded.
 
@@ -119,31 +119,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Set up GPG signing key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
-        run: |
-          if [ -n "$GPG_PRIVATE_KEY" ]; then
-            printf '%s' "$GPG_PRIVATE_KEY" | gpg --batch --import
-            echo "Imported secret GPG key."
-            if [ "$IS_RELEASE" = 'true' ]; then
-              actual="$(gpg --batch --with-colons --fingerprint --list-secret-keys "$GPG_SIGNING_FINGERPRINT" | awk -F: '$1 == "fpr" {print $10; exit}')"
-              if [ -z "$GPG_SIGNING_FINGERPRINT" ] || [ "$actual" != "$GPG_SIGNING_FINGERPRINT" ]; then
-                echo '::error::The release GPG key does not match GPG_SIGNING_FINGERPRINT.'
-                exit 1
-              fi
-              gpg --batch --armor --export "$GPG_SIGNING_FINGERPRINT" > release-signing-key.asc
-              test -s release-signing-key.asc
-            fi
-          elif [ "$IS_RELEASE" = 'true' ]; then
-            echo '::error::GPG_PRIVATE_KEY is required for release signing.'
-            exit 1
-          else
-            echo "Generating CI signing GPG key for build-only smoke..."
-            gpg --batch --passphrase "" --quick-generate-key "Ali Ammari <ammari.ali.0001@gmail.com>" default default never
-          fi
-
       - name: Typecheck
         run: pnpm run typecheck
 
@@ -158,37 +133,24 @@ jobs:
           NODE_ENV: production
           FORCE_COLOR: "0"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GPG_KEY_ID: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
 
       - name: Verify packages were produced
-        env:
-          GPG_SIGNING_FINGERPRINT: ${{ secrets.GPG_SIGNING_FINGERPRINT }}
         run: |
           echo "===== Linux packages in dist/ ====="
           ls -lh dist/
+          shopt -s nullglob
           appimages=(dist/*.AppImage)
           debs=(dist/*.deb)
-          if [ ! -f "${appimages[0]}" ] || [ ! -f "${debs[0]}" ]; then
-            echo "::error::Linux package (.AppImage or .deb) was not produced under dist/."
+          if [ "${#appimages[@]}" -ne 1 ] || [ "${#debs[@]}" -ne 1 ]; then
+            echo "::error::Expected exactly one AppImage and one .deb package under dist/."
             exit 1
           fi
           echo "AppImage: ${appimages[0]}"
           echo "Debian:   ${debs[0]}"
-          if [ "$IS_RELEASE" = 'true' ]; then
-            for package in "${appimages[0]}" "${debs[0]}"; do
-              test -f "$package.asc"
-              gpg --batch --verify "$package.asc" "$package"
-            done
-            cp release-signing-key.asc dist/release-signing-key.asc
-            printf '%s\n' "$GPG_SIGNING_FINGERPRINT" > dist/release-signing-key.fingerprint
-          fi
-
       - name: Attach packages to GitHub Release
         if: env.IS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ inputs.release-tag }}
         run: |
-          gh release upload "$RELEASE_TAG" \
-            dist/*.AppImage dist/*.deb dist/*.AppImage.asc dist/*.deb.asc \
-            dist/release-signing-key.asc dist/release-signing-key.fingerprint --clobber
+          gh release upload "$RELEASE_TAG" dist/*.AppImage dist/*.deb --clobber

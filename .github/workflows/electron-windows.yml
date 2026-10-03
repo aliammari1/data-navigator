@@ -6,7 +6,7 @@ name: Electron Windows
 #  - PR / manual smoke      -> build-only: prove the WiX .msi still builds (no publish).
 #  - Release (workflow_call) -> MAKE the installer on windows-latest, upload it as a workflow
 #    artifact AND attach it to the GitHub Release for the current version. The gated
-#    release job signs the installers and records their hashes in a signed manifest.
+#    release job records installer hashes in the release provenance manifest.
 #
 # Toolchain: @electron-forge/maker-wix shells out to candle.exe + light.exe from the WiX
 # Toolset v3, so the "Install WiX Toolset v3" step must put them on PATH before the make.
@@ -39,7 +39,7 @@ on:
       - "tsconfig.json"
       - ".github/workflows/electron-windows.yml"
   # Called by release.yml once a release has been cut; `release: true` flips this run
-  # from build-only smoke into publish mode (sign + attach installers to the Release).
+  # from build-only smoke into publish mode (build + attach installers to the Release).
   workflow_call:
     inputs:
       release:
@@ -54,13 +54,13 @@ on:
         default: ""
     outputs:
       msi_name:
-        description: Filename of the verified MSI.
+        description: Filename of the release MSI.
         value: ${{ jobs.build.outputs.msi_name }}
       msi_sha256:
         description: SHA-256 of the verified MSI.
         value: ${{ jobs.build.outputs.msi_sha256 }}
       exe_name:
-        description: Filename of the verified EXE.
+        description: Filename of the release EXE.
         value: ${{ jobs.build.outputs.exe_name }}
       exe_sha256:
         description: SHA-256 of the verified EXE.
@@ -69,11 +69,6 @@ on:
     inputs:
       release:
         description: Build and publish the installer to the GitHub Release.
-        type: boolean
-        required: false
-        default: false
-      signing-test:
-        description: Build and verify signed installers on main without publishing.
         type: boolean
         required: false
         default: false
@@ -112,22 +107,16 @@ jobs:
     # `release: true` (from workflow_call by release.yml, or a manual dispatch) makes
     # this the publish build; otherwise (PR / default dispatch) it is a build-only smoke.
     env:
-      IS_RELEASE: ${{ inputs.release == true || inputs.signing-test == true }}
+      IS_RELEASE: ${{ inputs.release == true }}
       # PR/manual smoke builds favor speed: one NSIS installer, store compression,
       # and no WiX/typecheck duplication. Release builds retain the full installer set.
-      FAST_WINDOWS_SMOKE: ${{ inputs.release != true && inputs.signing-test != true }}
+      FAST_WINDOWS_SMOKE: ${{ inputs.release != true }}
 
     steps:
       - name: Require gated release workflow
         if: inputs.release == true && (github.workflow != 'Release' || github.ref != 'refs/heads/main' || (github.event_name != 'push' && github.event_name != 'workflow_dispatch'))
         run: |
           Write-Host '::error::Release publication must run through the gated Release workflow.'
-          exit 1
-
-      - name: Require main branch for signing test
-        if: inputs.signing-test == true && (github.event_name != 'workflow_dispatch' || github.ref != 'refs/heads/main' || inputs.release == true || inputs.release-tag != '')
-        run: |
-          Write-Host '::error::Signing tests run only as a nonpublishing manual dispatch on main.'
           exit 1
 
       - name: Checkout repository
@@ -205,69 +194,6 @@ jobs:
         # Prefer the restored pnpm store while still fetching anything genuinely missing.
         run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Set up Windows signing certificate
-        if: env.IS_RELEASE == 'true'
-        shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
-          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
-        run: |
-          if (-not $env:WINDOWS_CERTIFICATE_BASE64 -or -not $env:WINDOWS_CERTIFICATE_PASSWORD -or -not $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
-            throw 'The Windows signing certificate, password, and pinned thumbprint are required for release signing.'
-          }
-          New-Item -ItemType Directory -Force certs | Out-Null
-          $certPath = Join-Path $PWD 'certs/windows-code-signing.pfx'
-          [System.IO.File]::WriteAllBytes(
-            $certPath,
-            [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
-          )
-          Write-Host 'Windows signer: PFX decoded; reading end-entity certificate.'
-          $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
-          $certificate = (Get-PfxData -FilePath $certPath -Password $password).EndEntityCertificates | Select-Object -First 1
-          Write-Host 'Windows signer: end-entity certificate read.'
-          if (-not $certificate -or $certificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT -or
-              $certificate.Thumbprint -ne '1956F63398744EF3D2A88348371753B60A3F1390') {
-            throw 'The Windows signing certificate does not match the pinned thumbprint.'
-          }
-          if ($certificate.NotBefore -gt (Get-Date) -or $certificate.NotAfter -lt (Get-Date)) {
-            throw 'The Windows signing certificate is not currently valid.'
-          }
-          $rootCert = Join-Path $PWD '.github/certs/data-navigator-signing-root.cer'
-          if ((Get-FileHash -Path $rootCert -Algorithm SHA256).Hash -ne
-              '7237D443A8D69F6146A95FEE4B4CEF8ADB50801457226FB8501CB634C80BD138') {
-            throw 'The private signing root does not match the pinned public certificate.'
-          }
-          Write-Host 'Windows signer: pinned root hash verified; importing root.'
-          # The runner is ephemeral. Trust the pinned private CA, then require
-          # Windows to validate the leaf's signature and chain against it.
-          & certutil.exe -user -f -addstore Root $rootCert
-          if ($LASTEXITCODE -ne 0) {
-            throw 'Could not import the pinned signing root into the current-user store.'
-          }
-          if (-not (Test-Path 'Cert:\CurrentUser\Root\12B05CA207AA2CC9A71BC391F4D0B4265FEEA002')) {
-            throw 'The pinned signing root is absent from the current-user store after import.'
-          }
-          Write-Host 'Windows signer: root imported; building code-signing chain.'
-          $chain = [System.Security.Cryptography.X509Certificates.X509Chain]::new()
-          try {
-            $chain.ChainPolicy.ApplicationPolicy.Add([System.Security.Cryptography.Oid]::new('1.3.6.1.5.5.7.3.3'))
-            $chain.ChainPolicy.UrlRetrievalTimeout = [TimeSpan]::FromSeconds(15)
-            $chainValid = $chain.Build($certificate)
-            Write-Host "Windows signer: chain built; valid=$chainValid; elements=$($chain.ChainElements.Count)."
-            if (-not $chainValid) {
-              $statuses = ($chain.ChainStatus | ForEach-Object { "$($_.Status): $($_.StatusInformation.Trim())" }) -join '; '
-              throw "The signing certificate chain is invalid: $statuses"
-            }
-            if ($chain.ChainElements.Count -ne 2 -or
-                $chain.ChainElements[1].Certificate.Thumbprint -ne '12B05CA207AA2CC9A71BC391F4D0B4265FEEA002') {
-              throw 'The signing certificate does not chain to the pinned private root.'
-            }
-          } finally {
-            $chain.Dispose()
-          }
-
-      # WiX Toolset v3 for MSI packaging
       - name: Install WiX Toolset v3
         # NSIS-only smoke builds do not need WiX. Keep it for release builds that emit MSI.
         if: env.IS_RELEASE == 'true'
@@ -303,13 +229,6 @@ jobs:
         env:
           NODE_ENV: production
 
-      # PR smoke uses an unsigned build. Validate the signed release branch of
-      # electron-builder's configuration separately so schema drift fails here.
-      - name: Validate release signing configuration
-        run: node scripts/validate-release-signing-config.mjs
-
-      # Fast PR/manual smoke: build one NSIS EXE; electron-builder.config.ts selects
-      # store compression from FAST_WINDOWS_SMOKE. Release builds use normal compression.
       - name: Make Windows installer
         shell: pwsh
         run: |
@@ -322,32 +241,19 @@ jobs:
           NODE_ENV: production
           FORCE_COLOR: "0"
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
 
-      - name: Verify Windows installer signatures
+      - name: Record Windows installer outputs
         id: verified_installers
         if: env.IS_RELEASE == 'true'
         shell: pwsh
-        env:
-          WINDOWS_CERTIFICATE_THUMBPRINT: ${{ secrets.WINDOWS_CERTIFICATE_THUMBPRINT }}
         run: |
           $msis = @(Get-ChildItem -Path dist -File -Filter *.msi)
           $exes = @(Get-ChildItem -Path dist -File -Filter *.exe)
-          if ($msis.Count -ne 1 -or $exes.Count -ne 1) { throw 'Expected exactly one signed MSI and EXE installer.' }
-          $installers = @($msis[0], $exes[0])
-          foreach ($installer in $installers) {
-            $signature = Get-AuthenticodeSignature $installer.FullName
-            Write-Host "Signature status for $($installer.Name): $($signature.Status); message: $($signature.StatusMessage); signer: $($signature.SignerCertificate.Thumbprint)"
-            if ($signature.Status -ne 'Valid' -or $signature.SignerCertificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT) {
-              throw "Invalid or unpinned Authenticode signature on $($installer.FullName): $($signature.Status)"
-            }
-          }
+          if ($msis.Count -ne 1 -or $exes.Count -ne 1) { throw 'Expected exactly one MSI and one EXE installer.' }
           Add-Content -Path $env:GITHUB_OUTPUT -Value "msi_name=$($msis[0].Name)"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "msi_sha256=$((Get-FileHash $msis[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "exe_name=$($exes[0].Name)"
           Add-Content -Path $env:GITHUB_OUTPUT -Value "exe_sha256=$((Get-FileHash $exes[0].FullName -Algorithm SHA256).Hash.ToLowerInvariant())"
-
-      # Verify Windows installer was produced in dist/
       - name: Verify installer was produced
         if: always()
         timeout-minutes: 5
@@ -388,6 +294,5 @@ jobs:
         run: |
           $installers = @(Get-ChildItem -Path dist -File | Where-Object { $_.Extension -in '.msi', '.exe' } | Select-Object -ExpandProperty FullName)
           if ($installers.Count -ne 2) { throw 'Expected one MSI and one EXE release asset.' }
-          $certificate = Join-Path $PWD '.github/certs/data-navigator-signing-root.cer'
-          gh release upload $env:RELEASE_TAG @installers $certificate --clobber
+          gh release upload $env:RELEASE_TAG @installers --clobber
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
