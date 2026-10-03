@@ -222,8 +222,10 @@ jobs:
             $certPath,
             [System.Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64)
           )
+          Write-Host 'Windows signer: PFX decoded; reading end-entity certificate.'
           $password = ConvertTo-SecureString $env:WINDOWS_CERTIFICATE_PASSWORD -AsPlainText -Force
           $certificate = (Get-PfxData -FilePath $certPath -Password $password).EndEntityCertificates | Select-Object -First 1
+          Write-Host 'Windows signer: end-entity certificate read.'
           if (-not $certificate -or $certificate.Thumbprint -ne $env:WINDOWS_CERTIFICATE_THUMBPRINT -or
               $certificate.Thumbprint -ne '1956F63398744EF3D2A88348371753B60A3F1390') {
             throw 'The Windows signing certificate does not match the pinned thumbprint.'
@@ -236,13 +238,22 @@ jobs:
               '7237D443A8D69F6146A95FEE4B4CEF8ADB50801457226FB8501CB634C80BD138') {
             throw 'The private signing root does not match the pinned public certificate.'
           }
+          Write-Host 'Windows signer: pinned root hash verified; importing root.'
           # The runner is ephemeral. Trust the pinned private CA, then require
           # Windows to validate the leaf's signature and chain against it.
           Import-Certificate -FilePath $rootCert -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          Write-Host 'Windows signer: root imported; building code-signing chain.'
           $chain = [System.Security.Cryptography.X509Certificates.X509Chain]::new()
           try {
             $chain.ChainPolicy.ApplicationPolicy.Add([System.Security.Cryptography.Oid]::new('1.3.6.1.5.5.7.3.3'))
-            if (-not $chain.Build($certificate) -or $chain.ChainElements.Count -ne 2 -or
+            $chain.ChainPolicy.UrlRetrievalTimeout = [TimeSpan]::FromSeconds(15)
+            $chainValid = $chain.Build($certificate)
+            Write-Host "Windows signer: chain built; valid=$chainValid; elements=$($chain.ChainElements.Count)."
+            if (-not $chainValid) {
+              $statuses = ($chain.ChainStatus | ForEach-Object { "$($_.Status): $($_.StatusInformation.Trim())" }) -join '; '
+              throw "The signing certificate chain is invalid: $statuses"
+            }
+            if ($chain.ChainElements.Count -ne 2 -or
                 $chain.ChainElements[1].Certificate.Thumbprint -ne '12B05CA207AA2CC9A71BC391F4D0B4265FEEA002') {
               throw 'The signing certificate does not chain to the pinned private root.'
             }
