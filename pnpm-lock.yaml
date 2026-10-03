@@ -84,7 +84,7 @@ importers:
         version: 4.34.1(react@19.2.7)
       '@streamdown/cjk':
         specifier: ^1.0.3
-        version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.7)(supports-color@10.2.2)(unified@11.0.5)
+        version: 1.0.4(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.7)(supports-color@10.2.2)(unified@11.0.5)
       '@streamdown/code':
         specifier: ^1.1.1
         version: 1.1.1(react@19.2.7)
@@ -4226,8 +4226,8 @@ packages:
     peerDependencies:
       storybook: ^0.0.0-0 || ^10.0.0 || ^10.0.0-0 || ^10.1.0-0 || ^10.2.0-0 || ^10.3.0-0 || ^10.4.0-0 || ^10.5.0-0 || ^10.6.0-0 || ^11.0.0-0
 
-  '@streamdown/cjk@1.0.3':
-    resolution: {integrity: sha512-WRg8HR/gHbBoTgsMd91OKFUClIoDcEFVofJvluvEAyjx3KpU0aGgD9tGDqHkHj14ShoMSkX0IYetWGegTcwIJw==}
+  '@streamdown/cjk@1.0.4':
+    resolution: {integrity: sha512-l5IVxqNhQDj9bDTu6h1sqxeEjZI7pW1uZ6Yu79l+9DqfmOkfGF0AJ0+y8oFi1hrFdscGqhXVNGjSgFJgh6Xh3A==}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
 
@@ -14037,8 +14037,9 @@ snapshots:
       - supports-color
       - ts-node
 
-  '@streamdown/cjk@1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.7)(supports-color@10.2.2)(unified@11.0.5)':
+  '@streamdown/cjk@1.0.4(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.7)(supports-color@10.2.2)(unified@11.0.5)':
     dependencies:
+      mdast-util-gfm-autolink-literal: 2.0.1
       react: 19.2.7
       remark-cjk-friendly: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(unified@11.0.5)
       remark-cjk-friendly-gfm-strikethrough: 2.3.1(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(supports-color@10.2.2)(unified@11.0.5)
