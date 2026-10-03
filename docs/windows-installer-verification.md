@@ -81,4 +81,7 @@ When this private root is no longer needed, remove only the certificate with
 thumbprint `12B05CA207AA2CC9A71BC391F4D0B4265FEEA002` from the current
 user's Root store. Trusting a private root lets it validate certificates it
 issues, so keep it only on devices whose owners have confirmed the fingerprint.
+If the publisher reports a signer or root compromise, remove this root
+immediately and stop using installers signed under it. Resume only after the
+publisher provides a new root fingerprint through a separate trusted channel.
 General public distribution requires a publicly trusted signing provider.

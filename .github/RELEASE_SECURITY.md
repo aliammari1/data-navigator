@@ -29,6 +29,13 @@ validates the PFX chain, and then validates MSI and EXE signatures. Recipients
 must verify the root fingerprint with the publisher through a separate channel
 before trusting it on their PCs. The repository is private, and this root is
 not publicly trusted by Windows.
+This private CA has one issued code-signing leaf and no published CRL endpoint.
+If the signer or root key is compromised, stop distribution, remove this root
+from every enrolled device, rotate the CA and signer, and share the new root
+fingerprint through the separate trusted channel before resuming. Keep the root
+private key encrypted and offline between issuance or renewal operations;
+never upload it to GitHub Actions. The encrypted local copy must be moved to
+offline storage before this setup is treated as a managed production PKI.
 Before general public Windows
 distribution, integrate a trusted CA/HSM or signing service and retain the
 Authenticode and fingerprint gates.
