@@ -103,6 +103,18 @@ jobs:
           node -e 'const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(process.argv[1]); if (!m || (+m[1] < 1) || (+m[1] === 1 && +m[2] === 0 && +m[3] < 8)) { console.error("Releases before v1.0.8 are not supported by these gates."); process.exit(1); }' "$version"
           echo "releaseTag=v${version}" >> "$GITHUB_OUTPUT"
 
+      - name: Push release tag to GitHub
+        if: steps.changesets.outputs.published == 'true'
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.releaseTag }}
+        run: |
+          target="$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")"
+          if [ "$target" != "$GITHUB_SHA" ]; then
+            echo '::error::Changesets did not tag the gated source commit.'
+            exit 1
+          fi
+          git push origin "refs/tags/$RELEASE_TAG"
+
   draft-release:
     name: Create draft GitHub Release
     needs: changesets
