@@ -25,6 +25,10 @@ overrides:
   # Hocuspocus asks for v12 while the app uses v13. Keep one native SQLite
   # version so Electron's rebuild reaches the copy loaded by the LAN hub.
   "@hocuspocus/extension-sqlite>better-sqlite3": "13.0.3"
+  # public-ip v8 removes the HTTP cache chain affected by GHSA-ch52-4w7c-c8xp.
+  "is-online>public-ip": "8.0.0"
+  # Reuse Electron's v5 downloader; v3 depends on the vulnerable got v11 cache chain.
+  "app-builder-lib>@electron/get": "5.1.0"
   tar: ">=7.5.21"
   extract-zip: ">=2.0.2"
   fast-uri: ">=3.1.6"
