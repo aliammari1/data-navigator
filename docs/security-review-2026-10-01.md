@@ -1,5 +1,11 @@
 # Security review — 2026-10-01
 
+> Historical snapshot. The repository is now private under a personal account;
+> its current release gates, signing identities, and GitHub feature availability
+> are documented in [Release security](../.github/RELEASE_SECURITY.md). The
+> public-repository assumptions and pending actions below no longer describe
+> the current release process.
+
 ## Scope and status
 
 This review covers the public, user-owned `aliammari1/data-navigator` repository,
