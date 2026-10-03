@@ -241,7 +241,13 @@ jobs:
           Write-Host 'Windows signer: pinned root hash verified; importing root.'
           # The runner is ephemeral. Trust the pinned private CA, then require
           # Windows to validate the leaf's signature and chain against it.
-          Import-Certificate -FilePath $rootCert -CertStoreLocation 'Cert:\CurrentUser\Root' | Out-Null
+          & certutil.exe -user -f -addstore Root $rootCert
+          if ($LASTEXITCODE -ne 0) {
+            throw 'Could not import the pinned signing root into the current-user store.'
+          }
+          if (-not (Test-Path 'Cert:\CurrentUser\Root\12B05CA207AA2CC9A71BC391F4D0B4265FEEA002')) {
+            throw 'The pinned signing root is absent from the current-user store after import.'
+          }
           Write-Host 'Windows signer: root imported; building code-signing chain.'
           $chain = [System.Security.Cryptography.X509Certificates.X509Chain]::new()
           try {
