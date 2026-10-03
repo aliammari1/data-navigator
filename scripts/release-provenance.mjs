@@ -110,7 +110,7 @@ async function verify(directory, manifestPath, context) {
   for (const artifact of manifest.artifacts) {
     const actual = await describe(directory, artifact.name);
     if (actual.sha256 !== artifact.sha256 || actual.size !== artifact.size) {
-      throw new Error(`Release binary differs from signed manifest: ${artifact.name}`);
+      throw new Error(`Release binary differs from release manifest: ${artifact.name}`);
     }
   }
 }

@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,16 +33,6 @@ const isPrerelease =
   process.env.CHANNEL === "alpha" ||
   process.env.CHANNEL === "beta";
 const isFastWindowsSmoke = process.env.FAST_WINDOWS_SMOKE === "true";
-
-// ─── Windows Certificate Detection ──────────────────────────────────────────
-const defaultLocalCert = path.join(root, "certs", "windows-code-signing.pfx");
-const certPassword = process.env.WINDOWS_CERTIFICATE_PASSWORD;
-const certPath =
-  process.env.WINDOWS_CERTIFICATE_FILE ||
-  (certPassword && fs.existsSync(defaultLocalCert) ? defaultLocalCert : undefined);
-const hasWindowsCert = Boolean(certPath && fs.existsSync(certPath) && certPassword);
-
-const COPY_OPTS = { recursive: true, force: true } as const;
 
 /** External packages needed by the Electron main process */
 const NEXT_RUNTIME_PACKAGES = ["@coraza/core", "@coraza/coreruleset"];
@@ -399,24 +388,14 @@ export function createConfiguration(): Configuration {
 
     // ─── Windows Configuration ──────────────────────────────────────────────
     win: {
-      forceCodeSigning: process.env.IS_RELEASE === "true",
+      forceCodeSigning: false,
       target: [
         { target: "msi", arch: ["x64"] },
         { target: "nsis", arch: ["x64"] },
       ],
       executableName: appExe,
       icon: iconIco,
-      ...(hasWindowsCert
-        ? {
-            signtoolOptions: {
-              certificateFile: certPath,
-              certificatePassword: certPassword,
-              rfc3161TimeStampServer: "http://timestamp.digicert.com",
-            },
-          }
-        : {
-            signExecutable: false,
-          }),
+      signExecutable: false,
     },
     msi: {
       upgradeCode: wixUpgradeCode,
@@ -511,34 +490,6 @@ export function createConfiguration(): Configuration {
         }
       };
       walk(unpackedDir);
-    },
-
-    // ─── Linux GPG Signing Hook ─────────────────────────────────────────────
-    afterAllArtifactBuild: async (buildResult) => {
-      const extraArtifacts: string[] = [];
-      const gpgKeyId = process.env.GPG_KEY_ID;
-
-      for (const artifactPath of buildResult.artifactPaths) {
-        if (artifactPath.endsWith(".AppImage") || artifactPath.endsWith(".deb")) {
-          const sigPath = `${artifactPath}.asc`;
-          try {
-            console.log(`[sign] Signing Linux package with GPG: ${path.basename(artifactPath)}`);
-            const args = ["--batch", "--yes", "--detach-sign", "--armor"];
-            if (gpgKeyId) {
-              args.push("--default-key", gpgKeyId);
-            }
-            args.push("--output", sigPath, artifactPath);
-
-            execFileSync("gpg", args, { stdio: "inherit" });
-            extraArtifacts.push(sigPath);
-          } catch {
-            console.warn(
-              `[sign] Skipped GPG signing for ${path.basename(artifactPath)} (gpg command not found or no key available)`,
-            );
-          }
-        }
-      }
-      return extraArtifacts;
     },
 
     // ─── Production Fuses ───────────────────────────────────────────────────
